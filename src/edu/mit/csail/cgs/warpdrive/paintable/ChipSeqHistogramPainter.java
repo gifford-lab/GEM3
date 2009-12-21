@@ -8,6 +8,8 @@ import java.awt.font.LineMetrics;
 import java.util.*;
 
 import edu.mit.csail.cgs.utils.*;
+import edu.mit.csail.cgs.utils.probability.NormalDistribution;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.viz.DynamicAttribute;
 import edu.mit.csail.cgs.warpdrive.model.ChipSeqHistogramModel;
@@ -19,6 +21,8 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
     private DynamicAttribute attrib;
     protected static java.util.List configurationFields = null;
     private ChipSeqHistogramProperties props;
+    private double[] gaussian;	//Gaussian kernel for density estimation
+    private int kernelWidth = 0;
 
     public ChipSeqHistogramPainter(ChipSeqHistogramModel model) {
         super();
@@ -48,7 +52,42 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
             notifyListeners();
         }
     }
-
+    //pre-calculate and store the Guassian kernel prob., for efficiency
+    private void initGaussianKernel(int width){
+    	kernelWidth = width;
+		gaussian = new double[250]; 
+		NormalDistribution gaussianDist = new NormalDistribution(0, width*width);
+		for (int i=0;i<gaussian.length;i++)
+			gaussian[i]=gaussianDist.calcProbability((double)i);
+    }
+    // convert a weight histogram to a gaussian kernel density profile
+    private Map<Integer,Float> convertKernelDensity(Map<Integer,Float> data){
+    	Map<Integer,Float> results = new TreeMap<Integer,Float>();
+    	int min= Integer.MAX_VALUE;
+    	int max= Integer.MIN_VALUE;
+    	for (int pos: data.keySet()){
+    		if (min>pos)
+    			min = pos;
+    		if (max<pos)
+    			max= pos;
+    	}
+    	// get all reads, convert to basepair-resolution density
+    	double[] profile = new double[max-min+1+100];	// add 50bp padding to the ends
+    	for (int pos: data.keySet()){
+    		profile[pos-min+50]=(double)data.get(pos);
+    	}
+    	
+    	double[] densities = StatUtil.symmetricKernelSmoother(profile, gaussian);
+    	// set density values back to the positions (only at certain resolution
+    	// so that we can paint efficiently
+    	int step = 1;
+    	if (max-min>1024)
+    		step = (max-min)/1024;
+    	for (int i=min-50; i<=max+50; i+=step){
+    		results.put(i, (float)densities[i-min+50]);
+    	}
+    	return results;
+    }
     public void removeEventListener(Listener<EventObject> l) {
         super.removeEventListener(l);
         if (!hasListeners()) {
@@ -112,32 +151,53 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
         g.setStroke(new BasicStroke((float)linewidth));
         
         // For density probabilities
-        if (model.getProperties().GaussianKernelWidth!=0){
-        	int totalReadCount = model.getProperties().getTotalReadCount();
-            float maxProb = 0;
-            for (int i : plus.keySet()) {
-                if (plus.get(i) > maxProb) {
-                	maxProb = plus.get(i);
+        int gk_width = model.getProperties().GaussianKernelWidth; 
+        if (gk_width!=0){
+        	//long tic = System.currentTimeMillis();
+        	if (gaussian==null){
+        		this.initGaussianKernel(gk_width);
+        	}
+        	else if (gk_width!=kernelWidth){
+        		this.initGaussianKernel(gk_width);
+        	}
+        	
+        	Map<Integer, Float> density_p = convertKernelDensity(plus);
+        	Map<Integer, Float> density_m = convertKernelDensity(minus);
+        	// find max prob
+        	float max= Integer.MIN_VALUE;
+        	for (float prob: density_p.values())
+        		if (max<prob)
+        			max= prob;
+        	for (float prob: density_m.values())
+        		if (max<prob)
+        			max= prob;
+        	
+        	if (stranded) {
+                g.setColor(Color.BLUE);
+                int x_prev = -1;
+                int y_prev = -1;
+                for (int pos : density_p.keySet()) {
+                    double val = density_p.get(pos);
+                    int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
+                    int ypix = getYPos(val, 0, max*1.5, y1, midpoint, logscale);
+                    if (x_prev!=-1)
+                    	g.drawLine(x_prev, y_prev, xpix, ypix);
+                    x_prev = xpix;
+                    y_prev = ypix;                    
                 }
-            }
-            for (int i : minus.keySet()) {
-                if (minus.get(i) > maxProb) {
-                	maxProb = minus.get(i);
+                g.setColor(Color.RED);
+                x_prev = -1;
+                y_prev = -1;
+                for (int pos : density_m.keySet()) {
+                    double val = density_m.get(pos);
+                    int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
+                    int ypix = midpoint + (y2 - getYPos(val, 0, max*1.5, midpoint, y2, logscale));
+                    if (x_prev!=-1)
+                    	g.drawLine(x_prev, y_prev, xpix, ypix);
+                    x_prev = xpix;
+                    y_prev = ypix;                    
                 }
-            }
-            // re-scale the data
-            for (int i : plus.keySet()) {
-                plus.put(i, (float)(plus.get(i)/maxProb*totalReadCount*0.5) ); 
-            }
-            for (int i : minus.keySet()) {
-            	minus.put(i, (float)(minus.get(i)/maxProb*totalReadCount*0.5) ); 
-            }
-            // paint the total read number
-            g.setFont(attrib.getLargeLabelFont(width,height));
-            g.drawString("Total read: "+totalReadCount,
-                         x2-150,
-                         y1+15);
-
+        	}  	
         }
         if (stranded) {
             g.setColor(Color.BLUE);

@@ -138,18 +138,18 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     // Gaussian kernel density plot
                     // update the two data hashtables with probability
                     if (props.GaussianKernelWidth!=0){
-                    	//long tic = System.currentTimeMillis();
-                    	if (gaussian==null){
-                    		this.initGaussianKernel(props.GaussianKernelWidth);
-                    	}
-                    	else if (props.GaussianKernelWidth!=kernelWidth){
-                    		this.initGaussianKernel(props.GaussianKernelWidth);
-                    	}
-                    	
-                    	int readCount = convertKernelDensity(resultsPlus);
-                    	readCount += convertKernelDensity(resultsMinus);
-                    	props.setTotalReadCount(readCount);
-                    	notifyListeners();
+//                    	//long tic = System.currentTimeMillis();
+//                    	if (gaussian==null){
+//                    		this.initGaussianKernel(props.GaussianKernelWidth);
+//                    	}
+//                    	else if (props.GaussianKernelWidth!=kernelWidth){
+//                    		this.initGaussianKernel(props.GaussianKernelWidth);
+//                    	}
+//                    	
+//                    	int readCount = convertKernelDensity(resultsPlus);
+//                    	readCount += convertKernelDensity(resultsMinus);
+//                    	props.setTotalReadCount(readCount);
+//                    	notifyListeners();
 //                    	System.out.println((System.currentTimeMillis()-tic)/10*0.01+" sec in density esitmation");
                     }
                 } catch (Exception ex) {
