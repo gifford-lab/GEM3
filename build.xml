@@ -8,7 +8,13 @@
   <property name="build.dist.dir" location="${build.dir}/dist" />
   <property name="build.unjar.dir" location="${build.dir}/unjar" />
   <property name="build.compiler" value="javac1.6"/>
-  <property name="pwfiles.basepath" value="/afs/csail.mit.edu/group/psrg/Private/pwfiles"/>
+  <property name="pwfiles.basepath"  value="/afs/csail.mit.edu/group/psrg/Private/pwfiles"/>
+  <path id="compile.classpath">
+    <pathelement location="${build.classes.dir}"/>
+     <fileset dir="${lib.dir}">
+        <include name="**/*.jar"/>
+      </fileset>
+  </path>	
 
   <!-- ======================================================================= -->
   <!-- Target: init                                                            -->
@@ -37,6 +43,7 @@
   <target name="compile" depends="init" description="Compile the code" >
     <javac srcdir="${src.dir}"
 	   destdir="${build.classes.dir}"	
+	   classpathref="compile.classpath"
 	   debug="true"
 	   debuglevel="lines,vars,source"
 	   deprecation="yes"
@@ -49,6 +56,7 @@
   <target name="makescantool" depends="init">
     <javac srcdir="${src.dir}"
 	   destdir="${build.classes.dir}"	
+	   classpathref="compile.classpath"
 	   debug="true"
 	   debuglevel="lines,vars,source"
 	   deprecation="yes"
@@ -113,21 +121,21 @@
 
   <target name="makewarpdrivejar" depends="build, unjarall, setpwfilespath">
     <delete dir="${build.unjar.dir}/META-INF"/>
-    <jar destfile="${jar.path}" manifest="warpdrive_manifest.txt">	    
+    <jar destfile="${build.dist.dir}/cgs-warpdrive.${pwset}.jar" manifest="manifests/warpdrive_manifest.txt">	    
       <fileset dir="${build.classes.dir}" includes="**/*.class"/>
       <fileset dir="${pwfiles.path}" includes="*"/>
       <fileset dir="${build.unjar.dir}"/>	    
     </jar>  
-    <chmod file="${jar.path}" perm="755"/>
+    <chmod file="${build.dist.dir}/cgs-warpdrive.${pwset}.jar}" perm="755"/>
   </target>
 
   <target name="readdbjar" depends="build, unjarall, setpwfilespath">
     <delete dir="${build.unjar.dir}/META-INF"/>
-    <jar destfile="${build.dist.dir}/cgs-warpdrive.${pwset}.jar" manifest="warpdrive_manifest.txt">	    
+    <jar destfile="${build.dist.dir}/cgs-readdb.jar" manifest="warpdrive_manifest.txt">	    
       <fileset dir="${build.classes.dir}" includes="**/readdb/*.class"/>
       <fileset dir="${build.unjar.dir}"/>	    
     </jar>  
-    <chmod file="${jar.path}" perm="755"/>
+    <chmod file="${build.dist.dir}/cgs-readdb.jar" perm="755"/>
   </target>
 
 </project>
