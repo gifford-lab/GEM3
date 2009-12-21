@@ -1,0 +1,102 @@
+--  -*- mode:sql  -*-
+
+-- 
+-- Created by SQL::Translator::Producer::MySQL
+-- Created on Wed Jul 12 09:01:32 2006
+-- 
+SET foreign_key_checks=0;
+
+--
+-- Table: species
+--
+CREATE TABLE species (
+  id int(10) NOT NULL auto_increment,
+  name varchar(80) NOT NULL,
+  UNIQUE (id),
+  PRIMARY KEY (name)
+) Type=InnoDB;
+
+--
+-- Table: genome
+--
+CREATE TABLE genome (
+  id int(10) NOT NULL auto_increment,
+  species int(10) NOT NULL,
+  version varchar(100) NOT NULL,
+  INDEX (species),
+  UNIQUE (id),
+  FOREIGN KEY fk_genome_species (species) REFERENCES species (id),
+  PRIMARY KEY (species, version)
+) Type=InnoDB;
+
+--
+-- Table: chromosome
+--
+CREATE TABLE chromosome (
+  id int(10) NOT NULL auto_increment,
+  name varchar(100) NOT NULL,
+  genome int(10) NOT NULL,
+  INDEX (genome),
+  UNIQUE (id),
+  FOREIGN KEY fk_chromosome_genome (genome) REFERENCES genome (id),
+  PRIMARY KEY (name, genome)
+) Type=InnoDB;
+
+--
+-- Table: chromsequence
+--
+CREATE TABLE chromsequence (
+  id int(10) NOT NULL auto_increment,
+  sequence longtext,
+  INDEX (id),
+  FOREIGN KEY fk_chromseq_id (id) REFERENCES chromosome (id),
+  UNIQUE (id)
+) Type=InnoDB;
+
+--
+-- Table: condition
+--
+CREATE TABLE conditions (
+  id int(10) NOT NULL auto_increment,
+  name varchar(100) NOT NULL,
+  UNIQUE (id),
+  PRIMARY KEY (name)
+) Type=InnoDB;
+
+--
+-- Table: cells
+--
+CREATE TABLE cells (
+  id int(10) NOT NULL auto_increment,
+  name varchar(100) NOT NULL,
+  UNIQUE (id),
+  PRIMARY KEY (name)
+) Type=InnoDB;
+
+
+CREATE TABLE factors (
+	id int(10) NOT NULL auto_increment,
+	name varchar(100) NOT NULL,
+	UNIQUE (id),
+	PRIMARY KEY (name)
+) Type=InnoDB;
+
+CREATE TABLE timeseries (
+	id int(10) NOT NULL auto_increment,
+	name varchar(100) NOT NULL,
+	INDEX (id),
+	UNIQUE (id),
+	PRIMARY KEY (name)
+);
+
+CREATE TABLE timepoint (
+	id int(10) NOT NULL auto_increment,
+	time_series int(10) NOT NULL,
+	series_order int(10),
+	name varchar(100),
+	FOREIGN KEY fk_timepoint_ts (time_series) REFERENCES timeseries (id),
+	UNIQUE (id),
+	INDEX (id),
+	PRIMARY KEY (id)
+);
+

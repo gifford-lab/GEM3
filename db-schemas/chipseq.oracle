@@ -1,0 +1,58 @@
+--  -*- mode:sql  -*-
+
+
+create sequence chipseqexpt_id;
+create table chipseqexpts (
+	id number(10) unique not null,
+	name varchar2(100),
+	replicate varchar2(100),
+	species number(10) constraint cse_species not null,
+	readlength number(5) constraint ces_readlen not null,
+	cells number(10) constraint cse_cellsone not null,
+	condition number(10) constraint cse_conditionone not null,
+	factor number(10) constraint cse_factorone not null,
+	numreads number(12),
+	constraint chipseqexpts_pk primary key (name, replicate)
+);
+
+create sequence chipseqread_id cache 1000;
+create table chipseqreads (
+	id number(20) not null,
+	expt constraint fk_chipseqread_expt references chipseqexpts(id) not null,
+	name varchar2(1000) not null,
+	sequence varchar2(1000) not null,
+	constraint chipseqreads_pk primary key (id)
+);
+create index ix_chipseqread_expt on chipseqreads(expt);
+
+create sequence chipseqalignment_id;
+create table chipseqalignments (
+	id number(10),
+	expt constraint fk_chipseqalignment_expt references chipseqexpts(id) not null,
+	name varchar2(1000) not null,
+	genome number(10) not null,
+	numhits number(15),
+	totalweight number(17,2),
+	constraint chipseqalignment_pk primary key (id)
+);
+
+create table alignmentparameters (
+	alignment constraint fk_alignparams_align references chipseqalignments(id) not null,
+	name varchar2(500) not null,
+	value varchar2(2000) not null);
+create index ix_alignparams on alignmentparameters(alignment);
+
+create table chipseqhits (
+	read constraint fk_chipseqhits_read references chipseqreads(id) not null,
+	expt constraint fk_chipseqhits_expt references chipseqexpts(id) not null,
+	alignment constraint fk_chipseqhits_align references chipseqalignments(id) not null,
+	chromosome number(10) not null,
+	startpos number(11) not null,
+	stoppos number(11) not null,
+	strand char(1) not null,
+	weight binary_float default 1.0,
+	constraint chipseqhits_pk primary key (alignment, chromosome, startpos, stoppos, strand, read)
+) organization index compress 2;
+
+-- create index ix_chipseqhit_expt on chipseqhits(alignment, expt);
+-- create index ix_chipseqhit_read on chipseqhits(read);

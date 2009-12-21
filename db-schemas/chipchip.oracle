@@ -1,0 +1,319 @@
+--  -*- mode:sql  -*-
+
+create sequence arraydesign_id;
+create table arraydesign (
+	id number(10) constraint arraydesign_id unique not null,
+	name varchar2(100) constraint arraydesign_u unique not null,
+	genome number(10) constraint arraydesign_g not null);
+
+create sequence galfile_id;
+create table galfiles (
+	name varchar2(300) constraint galfiles_name primary key,
+	id number(10) constraint galfiles_id unique not null);
+
+create sequence probedesign_id;
+create table probedesign (
+	id number(10) constraint probedesign_id unique not null,
+	arraydesign number(10) constraint fk_probedesign_arraydesign references arraydesign(id),
+	blockno number(10) constraint probedesign_block not null,
+	colno number(10) constraint probedesign_col not null,
+	rowno number(10) constraint probedesign_row not null,
+	galfile number(10) constraint fk_probedesign_galfile references galfiles(id),
+	probename varchar2(200),
+	probeid varchar2(200),
+	type varchar2(100),
+	sequence varchar2(2000),
+	constraint probedesign_unique_pos unique (galfile,probeid,blockno,colno,rowno));
+
+create index ix_probedesign_id on probedesign(id);
+create index ix_probedesign_design on probedesign(arraydesign);
+create index ix_probedesign_probeid on probedesign(probeid);
+create index ix_probedesign_arraypos on probedesign(galfile,blockno,colno,rowno);
+create index ix_probedesign_galdesign on probedesign(galfile,arraydesign);
+
+create table probetm(
+	id number(10) constraint fk_probetm_probe references probedesign(id) not null,	
+	tm number(10,4));
+create index ix_probetm_id on probetm(id);
+
+create table probelocation (
+	id number(10) constraint fk_probeloc_probe references probedesign(id) not null,
+	chromosome number(10) constraint probeloc_chromosome not null,
+	startpos number(10) not null,
+	stoppos number(10) not null,
+	strand varchar(1) default 'u' not null,
+	loccount number(10),
+	bitscore number(10),
+	constraint probeloc_pk primary key (chromosome, startpos, stoppos, id))
+organization index 
+compress 1;
+create index ix_probelocation_id on probelocation(id);
+
+
+create sequence fragdist_id;
+create table fragdist (
+	id number(10) constraint fragdist_id unique not null,
+	name varchar2(100),
+	version varchar2(100),
+	description varchar2(1000),
+	constraint fragdist_id_pk primary key(name, version));
+create table fragdistentry (
+	distribution number(10) constraint fk_fragdistentry_dist references fragdist(id) not null,
+	distance number(6),
+	value number);	
+
+create sequence experiment_id;
+create table experiment (
+	id number(10) constraint experiment_id unique not null,
+	name varchar2(200) constraint experiment_name not null,
+	version varchar2(200),
+	replicate varchar2(200),
+	fragdist number(10) constraint fk_experiment_fragdist references fragdist(id) not null,
+	species number(10) constraint experiment_species  not null,
+	cellsone number(10) constraint experiment_cellsone not null,
+	conditionone number(10) constraint experiment_conditionone not null,
+	factorone varchar2(40) constraint experiment_factorone not null,
+	cellstwo number(10) constraint experiment_cellstwo not null,
+	conditiontwo number(10) constraint experiment_conditiontwo not null,
+	factortwo varchar2(40) constraint experiment_factortwo not null,
+	normalization varchar2(1000),
+	active number(2),
+	constraint experiment_pk primary key(name, species, version, replicate));
+	
+create table exptMetadata (
+	experiment constraint fk_metadata references experiment(id) not null,
+	key varchar2(100) constraint fk_metadata_key not null,
+	value clob not null,
+	constraint metadata_pk primary key(experiment,key)
+);
+
+create table exptToGenome (
+	experiment number(10) constraint fk_expt2genomeexpt references experiment(id) not null,
+	genome number(10) constraint expt2genomegenome  not null);
+create index ix_expt2genomee on exptToGenome(experiment);
+create index ix_expt2genomeg on exptToGenome(genome);
+
+create table data (
+	experiment number(10) constraint fk_newdata_experiment references experiment(id) not null,
+	probe number(10) constraint fk_data_probe references probedesign(id) not null,
+	channelone binary_float,
+	channeltwo binary_float,
+	mor binary_float,
+-- ROM from channelone / channeltwo
+	channelratio binary_float,
+-- final output ratio
+	ratio binary_float);
+create index ix_data_exptprobe on data(experiment,probe);
+create index ix_data_probe on data(probe);
+create index ix_data_expt on data(experiment);
+
+-- used to some of the normalization procedures
+create table datatemp (
+	experiment number(10) not null,
+	id number(10),
+	probeid varchar(200),
+	blockno number(10),
+	rowno number(10),
+	colno number(10),
+	channelone binary_float,
+	channeltwo binary_float,
+	mor binary_float,
+-- ROM from channelone / channeltwo
+	channelratio binary_float,
+-- final output ratio
+	ratio binary_float,
+	controlratio binary_float) tablespace scratch;
+
+create table galtemp (
+	id number(10),
+	probeid varchar2(200),
+	arraydesign number(10),
+	galfile number(10),
+	blockno number(10),
+	colno number(10),
+	rowno number(10)
+) tablespace scratch;
+
+create sequence analysis_id;
+create table mleanalysis (
+	id number(10) constraint analysis_id unique not null,
+	species number(10) constraint analysis_species not null,
+	name varchar2(100),
+	version varchar2(200),
+	active smallint,
+	 constraint analysis_pk primary key (name, species, version));
+create table mleparameters (
+	analysis number(10) constraint fk_parameters_analysis references mleanalysis(id) not null,
+	name varchar2(100),
+	value varchar2(1000));
+create table mleanalysisinputs (
+	analysis number(10) constraint fk_inputs_analysis references mleanalysis(id) not null,
+	experiment number(10) constraint fk_inputs_expt references experiment(id) not null);
+
+create table mleToGenome (
+	analysis number(10) constraint fk_mle2genomeexpt references mleanalysis(id) not null,
+	genome number(10) constraint ml2genomegenome not null);
+create index ix_mle2genomea on mleToGenome(analysis);
+create index ix_mle2genomeg on mleToGenome(genome);
+
+create table mleresults (
+	analysis number(10) constraint fk_mleresults_analysis references mleanalysis(id) not null,
+	chromosome number(10) constraint mleresults_chromosome not null,
+	position number(10),
+	b_i number(10,4),
+	bindll number(20,2),
+	nullll number(20,2),
+	lograt number(20,2),
+	conf number(10,4),
+	constraint pk_mleresults primary key (analysis, chromosome, position))
+organization index compress 2;
+
+
+create table bayesanalysis (
+	id number(10) constraint bayesanalysis_id unique not null,
+	species number(10) constraint bayesanalysis_species not null,
+	name varchar2(200),
+	version varchar2(200),
+	active smallint,
+	constraint bayesianalysis_pk primary key (name, species, version));
+create table bayesparameters (
+	analysis number(10) constraint fk_bayesparameters_analysis references bayesanalysis(id) not null,
+	name varchar2(100),
+	value varchar2(1000));
+create table bayesanalysisinputs (
+	analysis number(10) constraint fk_bayesinputs_analysis references bayesanalysis(id) not null,
+	experiment number(10) constraint fk_bayesinputs_expt references experiment(id) not null);
+
+create table bayesToGenome (
+	analysis number(10) constraint fk_bayes2genomeexpt references bayesanalysis(id) not null,
+	genome number(10) constraint bayes2genomegenome not null);
+create index ix_bayes2genomea on bayesToGenome(analysis);
+create index ix_bayes2genomeg on bayesToGenome(genome);
+
+create table bayesresults (
+	analysis number(10) constraint fk_bayesresults_analysis references bayesanalysis(id) not null,
+	chromosome number(10) constraint bayesresults_chromosome  not null,	
+	position number(10) not null,
+	posterior binary_float,
+	posteriorstd binary_float,
+	strength binary_float,
+	strengthstd binary_float,
+	constraint pk_newbayesresults primary key(analysis,chromosome,position))
+organization index compress 2;
+
+
+create table rosettaanalysis (
+	id number(10) constraint rosetta_id unique not null,
+	species number(10) constraint rosetta_species not null,
+	name varchar2(100),
+	version varchar2(100),
+	cellsone number(10),
+	conditionone number(10),
+	factorone varchar2(40),
+	cellstwo number(10),
+	conditiontwo number(10),
+	factortwo varchar2(40),
+	active smallint,
+	constraint rosetta_pk primary key (name, species, version));
+
+create table rosettaparameters (
+	analysis number(10) constraint fk_rosettaparameters_analysis references rosettaanalysis(id) not null,
+	name varchar2(100),
+	value varchar2(1000));
+create sequence rosettaanalysis_id;
+
+
+create table rosettaToGenome (
+	analysis number(10) constraint fk_rosetta2genomeexpt references rosettaanalysis(id) not null,
+	genome number(10) constraint rosetta2genomegenome not null);
+create index ix_rosetta2genomea on rosettaToGenome(analysis);
+create index ix_rosetta2genomeg on rosettaToGenome(genome);
+
+create table rosettaresults (
+	analysis number(10) constraint fk_rosetta_analysis references rosettaanalysis(id) not null,
+	chromosome number(10) constraint rosetta_chromosome not null,
+	position number(10),
+	ratio binary_float,
+	X binary_float,
+	pval binary_float,
+	pval3 binary_float,
+	red binary_float,
+	green binary_float,
+	medianofratios binary_float,
+	constraint pk_rosettaresults primary key (analysis,chromosome,position))
+organization index compress 2;
+
+create table ipmeta (
+	id number(10) constraint ipmeta_id unique not null,
+	who varchar2(100), 	
+	ipwhen date,
+	antibody varchar2(500),
+	xlink_condition varchar2(500),
+	description varchar2(1000)
+);
+
+create table hybmeta (
+	id number(10) constraint hybmeta_id unique not null,
+	ip1 number(10) constraint fk_hybmeta_ip1 references ipmeta(id) not null,
+	ip2 number(10) constraint fk_hybmeta_ip2 references ipmeta(id) not null,
+	who varchar2(100),
+	hybwhen date,
+	arraydesign number(10) constraint fk_hybmeta_galfile references galfiles(id),
+	chip_id number(10),
+	use_count number(10)
+);
+
+create table scanmeta (
+	id number(10) constraint fk_scanmeta_id unique not null,
+	hyb number(10) constraint fk_scanmeta_hyb references hybmeta(id) not null,
+	experiment number(10) constraint fk_scanmeta_experiment references experiment(id) not null,
+	who varchar2(100),
+	scanwhen date,
+	gprfilename varchar2(2000),
+	tifffilename varchar2(2000)
+);
+
+create sequence bindingscan_id;
+create table bindingscan (
+	id number(10) unique not null,
+	version varchar2(200) not null,
+	type varchar2(100) not null
+);
+
+create table bindingscanToExpt (
+	scan constraint fk_bindingscantoexpt_scan references bindingscan(id) not null,
+	scanexpt number(10) not null,
+	scantype number(10) not null
+);
+
+create table bindingscanToGenome (
+	scan constraint fk_bindingscantogenome_scan references bindingscan(id) not null,
+	genome number(10) constraint fk_bindingscantogenome_genome not null
+);
+create index ix_bindingscanToGenome_genome on bindingscanToGenome(genome);
+
+create table bindingscanregion (
+	scan constraint fk_bindingscanregion_scan references bindingscan(id) not null,
+	chromosome number(10) constraint fk_bindingscan_chromosome not null,
+	startpos number(10) not null,
+	stoppos number(10) not null,
+	constraint bindingscanregion_pk primary key(scan,chromosome,startpos,stoppos)
+) organization index compress 2;
+
+create table bindingscanparam (
+	scan constraint fk_bsp_bindingscan references bindingscan(id) not null,
+	key varchar2(50),
+	value varchar2(50)
+);
+
+create table bindingevent (
+	scan constraint fk_bindingevent_scan references bindingscan(id) not null, 
+	chromosome number(10) constraint fk_bindingevent_chromosome not null,
+	startpos number(10) not null,
+	stoppos number(10) not null,
+	eventsize binary_float not null,
+	eventconf binary_float not null,
+	constraint bindingevent_pk primary key (scan, chromosome, startpos, stoppos)
+) organization index compress 2;
+
+

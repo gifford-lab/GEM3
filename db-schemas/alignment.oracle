@@ -1,0 +1,34 @@
+create sequence alignment_version_id;
+create table alignment_version (
+	id number(10) constraint cst_alignment_version_id unique not null,
+	name varchar2(1000) not null
+);
+create index ix_alignv_name on alignment_version(name);
+
+create table alignment_params (
+	version number(10) constraint cst_alignparams_version references alignment_version(id),
+	key varchar2(100) not null,
+	value varchar2(1000) not null,
+	constraint pk_alignparams primary key (version, key)
+);
+	 
+create sequence alignment_id;	 
+create table alignment ( 
+	id number(10) constraint cst_align_id unique not null,
+	params varchar2(1000),
+	version number(10) constraint cst_align_version references alignment_version(id),
+	score number
+);
+
+create sequence align_block_id;
+create table align_block (
+	id number(10) constraint cst_align_block_id unique not null,
+	alignment number(10) constraint cst_align_block_align references alignment(id),
+	chromosome number(10) not null,
+	start_pos number(10) not null,
+	end_pos number(10) not null,
+	strand char(1) not null,
+	bit_string clob,
+	gapped_length number(10) not null
+);
+create index ix_align_block on align_block(alignment, chromosome, start_pos, end_pos);

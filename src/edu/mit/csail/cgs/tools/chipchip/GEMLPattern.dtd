@@ -1,0 +1,82 @@
+<!--                                                                         -->
+<!-- GEMLPattern.dtd                                                         -->
+<!--                                                                         -->
+<!-- GEML(tm) Copyright (C) 2000, Rosetta Inpharmatics, Inc.  All Rights     -->
+<!-- Reserved.  You may freely use, publish, and redistribute the GEML DTDs, -->
+<!-- subject to the restrictions in the Terms of Use.  This complete         -->
+<!-- paragraph must be included in all copies of this DTD.  See the full     -->
+<!-- Terms of Use section at http://www.rii.com/geml.  GEML is trademarked   -->
+<!-- to avoid proliferation of incompatible variations.  Please obtain the   -->
+<!-- latest GEML DTDs and documentation from http://www.rii.com/geml.  To    -->
+<!-- contribute ideas toward the development of GEML, email geml@rii.com.    -->
+<!--                                                                         -->
+<!ELEMENT project  (pattern*,
+                    printing*,
+                    other*)>           <!--Project = group of patterns and/or printings-->
+<!ATTLIST project          name CDATA  #IMPLIED   
+                             id CDATA  #IMPLIED   
+                           date CDATA  #IMPLIED   
+                             by CDATA  #IMPLIED   
+                        company CDATA  #IMPLIED > 
+<!ELEMENT pattern    (reporter+,
+                      other*)>       <!--Pattern = collection of one or more features-->
+<!ATTLIST pattern         name CDATA #IMPLIED
+                       type_id CDATA #IMPLIED
+              species_database CDATA #IMPLIED
+                   description CDATA #IMPLIED
+                        access CDATA #IMPLIED
+                         owner CDATA #IMPLIED>
+<!ELEMENT reporter   (feature+,
+                      gene?,
+                      other*)> 
+<!ATTLIST reporter        name CDATA #REQUIRED
+               systematic_name CDATA #REQUIRED
+                     accession CDATA #IMPLIED
+                      deletion CDATA "false"
+                  control_type CDATA "false"
+                     fail_type CDATA #IMPLIED                      
+               active_sequence CDATA #IMPLIED
+               linker_sequence CDATA #IMPLIED                      
+              primer1_sequence CDATA #IMPLIED
+              primer2_sequence CDATA #IMPLIED
+                   start_coord CDATA #IMPLIED
+                mismatch_count CDATA #IMPLIED> <!--Reporter = mesaures expression of a gene-->
+<!ELEMENT feature    (position,
+                      pen?,
+                      other*)>        <!--Feature = location of a reporter for a gene-->
+<!ATTLIST feature       number CDATA #IMPLIED
+             ctrl_for_feat_num CDATA #IMPLIED>
+<!ELEMENT gene   (accession*,
+                  alias*,
+                  other*)>                     <!--Gene = what the reporter is reporting on-->
+<!ATTLIST gene    primary_name CDATA #REQUIRED
+               systematic_name CDATA #REQUIRED
+                       species CDATA #IMPLIED
+                    chromosome CDATA #IMPLIED
+                  map_position CDATA #IMPLIED
+                   description CDATA #IMPLIED>
+<!ELEMENT accession (other*)>
+<!ATTLIST accession   database CDATA #REQUIRED
+                            id CDATA #REQUIRED>
+<!ELEMENT alias   (other*)>
+<!ATTLIST alias           name CDATA #REQUIRED>
+<!ELEMENT position   (other*)>
+<!ATTLIST position           x CDATA #REQUIRED
+                             y CDATA #REQUIRED
+                         units CDATA #REQUIRED>
+<!ELEMENT pen        (other*)>
+<!ATTLIST pen                x CDATA #REQUIRED
+                             y CDATA #REQUIRED
+                         units CDATA #REQUIRED>                          
+<!ELEMENT printing   (chip+,
+                      other*)>
+<!ATTLIST printing        date CDATA #IMPLIED
+                       printer CDATA #IMPLIED
+                          type CDATA #IMPLIED
+                  pattern_name CDATA #IMPLIED
+               run_description CDATA #IMPLIED>
+<!ELEMENT chip       (other*)>
+<!ATTLIST chip         barcode CDATA #REQUIRED>
+<!ELEMENT other      (other*)>
+<!ATTLIST other           name CDATA #REQUIRED
+                         value CDATA #REQUIRED>

@@ -1,0 +1,121 @@
+--  -*- mode:sql  -*-
+
+create sequence probe_platform_id;
+create table probe_platform (
+	id number(10) constraint pk_platform_id unique not null,
+	name varchar2(100) constraint cst_platform_name not null,
+	type number(10) constraint cst_platform_type not null
+);
+
+create sequence probe_id;
+create table probe (
+	id number(10) constraint probe_id unique not null,
+	platform number(10) constraint fk_probe_platform references probe_platform(id) not null,
+	name varchar2(50) constraint probe_name unique not null
+);
+create index ix_probe_platform_name on probe(platform, name);
+
+create table probe_location (
+	probe number(10) constraint probeloc_probe not null,
+	chromosome number(10) constraint probeloc_chrom not null,
+	startpos number(10) constraint probeloc_start not null,	
+	stoppos number(10) constraint probeloc_end not null,
+	constraint probe_location_pk primary key (chromosome, startpos, stoppos, probe)
+) organization index compress 1;
+create index ix_probe_location_id on probe_location(probe);
+
+create table probe_platform_to_genome (
+	platform number(10) constraint pp2g_platform references probe_platform(id) not null,
+	genome number(10) constraint pp2g_genome not null,
+	constraint pp2g_pk primary key(platform, genome)
+);
+
+
+create sequence probe_mapping_id;
+create table probe_mapping (
+	id number(10) constraint pk_probe_mapping_id unique not null,
+	name varchar2(200) constraint cst_probe_mapping_name unique not null,
+	from_platform number(10) constraint fk_probe_mapping_from references probe_platform(id) not null,
+	to_platform number(10) constraint fk_probe_mapping_to references probe_platform(id) not null
+);
+
+create table probe_mapping_pair (
+	mapping number(10) constraint fk_mapping_pair_mapping references probe_mapping(id) not null,
+	from_probe varchar2(50) constraint cst_probe_mapping_pair_from not null,
+	to_probe varchar2(50) constraint cst_probe_mapping_pair_to not null,
+	constraint probe_mapping_pair_pk primary key (mapping,from_probe,to_probe)
+);
+
+
+
+create sequence experiment_id;
+create table experiment ( 
+	id number(10) constraint cst_experiment_id unique not null,
+	name varchar2(100) constraint cst_experiment_name not null,
+	value_type number(5) constraint cst_experiment_value_type not null,
+	log_scale number(5) constraint cst_experiment_log_scale not null,
+	cells number(10), 
+	condition number(10), 
+	timepoint number(10), 
+	platform number(10) constraint fk_experiment_platform references probe_platform(id) not null
+);
+
+create table experiment_params (
+	experiment number(10) constraint fk_ep_expt references experiment(id) not null,
+	key varchar2(50) constraint cst_ep_key not null,
+	value varchar2(200),
+	constraint experiment_params_pk primary key(experiment,key)
+);
+create index ix_experiment_params on experiment_params(experiment);
+
+create table measurement (
+	probe number(10) constraint measurement_probe references probe(id) not null,
+	experiment number(10) constraint measurement_experiment references experiment(id) not null,
+	value binary_float,
+	constraint measurement_pk primary key(probe,experiment)
+) organization index compress 1;
+
+create index ix_measurement on measurement(experiment,probe);	
+
+
+
+
+create sequence processing_id;
+create table processing (
+	id number(10) constraint cst_processsing_id unique not null,
+	type varchar2(100) constraint cst_processing_type not null
+);
+	
+create table processing_params (
+	processing number(10) constraint fk_proc_params_processing references processing(id) not null,
+	key varchar2(50) constraint cst_proc_params_key not null,
+	value varchar2(200),
+	constraint proc_params_pk primary key (processing,key)
+);
+create index ix_processing_params on processing_params(processing);
+
+create table processing_inputpair (
+	processing number(10) constraint fk_inputpair_processing references processing(id) not null,
+	input number(10) constraint fk_inputpair_input references experiment(id) not null,
+	output number(10) constraint fk_inputpair_output references experiment(id) not null,
+	constraint proc_inputpair_pk primary key (processing,input,output)
+);
+create index ix_proc_inputpair on processing_inputpair(processing,output,input);
+
+
+
+
+create sequence experiment_set_id;
+create table experiment_set (
+	id number(10) constraint experiment_set_pk unique not null,
+	name varchar2(100) constraint cst_experiment_set_name not null,
+	type number(10) constraint cst_experiment_set_type not null
+);
+
+create table experiment_set_member (
+	experiment_set number(10) constraint fk_expt_set_member_exptset references experiment_set(id),
+	experiment number(10) constraint fk_expt_set_member_expt references experiment(id),
+	constraint pk_experiment_set_member primary key(experiment_set, experiment)
+);
+
+

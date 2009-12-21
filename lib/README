@@ -1,0 +1,230 @@
+The GSE Code Base
+-----------------
+http://cgs.csail.mit.edu/gse
+
+
+Oracle
+------
+http://www.oracle.com/technology/software/tech/java/sqlj_jdbc/htdocs/jdbc_10201.html
+http://www.oracle.com/technology/software/popup-license/distribution-license.html
+Export Controls on the Programs
+Selecting the "Accept License Agreement" button is a confirmation of
+your agreement that you comply, now and during the trial term, with each
+of the following statements:
+
+-You are not a citizen, national, or resident of, and are not under
+ control of, the government of Cuba, Iran, Sudan, Libya, North Korea,
+ Syria, nor any country to which the United States has prohibited
+ export.
+-You will not download or otherwise export or re-export the Programs,
+ directly or indirectly, to the above mentioned countries nor to
+ citizens, nationals or residents of those countries.
+-You are not listed on the United States Department of Treasury lists of
+ Specially Designated Nationals, Specially Designated Terrorists, and
+ Specially Designated Narcotic Traffickers, nor are you listed on the
+ United States Department of Commerce Table of Denial Orders.
+
+You will not download or otherwise export or re-export the Programs,
+directly or indirectly, to persons on the above mentioned lists.
+
+You will not use the Programs for, and will not allow the Programs to be
+used for, any purposes prohibited by United States law, including,
+without limitation, for the development, design, manufacture or
+production of nuclear, chemical or biological weapons of mass
+destruction.
+
+EXPORT RESTRICTIONS
+You agree that U.S. export control laws and other applicable export and
+import laws govern your use of the programs, including technical data;
+additional information can be found on Oracle's Global Trade Compliance
+web site (http://www.oracle.com/products/export). 
+
+./ojdbc-1.4/ojdbc14.jar
+./orai18n/orai18n.jar
+./ocrs12/ocrs12.jar
+
+VecMath
+-------
+from Sun
+http://download.java.net/media/java3d/builds/release/1.5.2/LICENSE-Java3D-v1_5_2.txt
+./vecmath-1.4.0_01/vecmath.jar
+
+Batik
+-----
+http://xmlgraphics.apache.org/batik/
+Apache License, v2
+
+./batik/batik-1.6.jar
+
+BioJava
+-------
+http://biojava.org
+LGPL
+
+./biojava-1.5/biojava-1.5-beta2.jar
+./biojava-1.5/apps-1.5.jar
+./biojava-1.5/biojava-1.5.jar
+./biojava-1.5/bytecode.jar
+./biojava-1.5/commons-cli.jar
+./biojava-1.5/commons-collections-2.1.jar
+./biojava-1.5/commons-dbcp-1.1.jar
+./biojava-1.5/commons-pool-1.1.jar
+./biojava-1.5/demos-1.5.jar
+
+
+AffxFusion
+----------
+http://www.affymetrix.com/support/developer/fusion/index.affx
+LGPL
+
+./AffxFusion-1.09/AffxFusion.jar
+
+COLT
+----
+http://acs.lbl.gov/~hoschek/colt/
+    Packages cern.colt* , cern.jet*, cern.clhep
+
+        Copyright (c) 1999 CERN - European Organization for Nuclear
+        Research.
+
+        Permission to use, copy, modify, distribute and sell this
+        software and its documentation for any purpose is hereby granted
+        without fee, provided that the above copyright notice appear in
+        all copies and that both that copyright notice and this
+        permission notice appear in supporting documentation. CERN makes
+        no representations about the suitability of this software for
+        any purpose. It is provided "as is" without expressed or implied
+        warranty.
+
+    Packages hep.aida.*
+
+        Written by Pavel Binko, Dino Ferrero Merlino, Wolfgang Hoschek,
+        Tony Johnson, Andreas Pfeiffer, and others. Check the FreeHEP
+        home page for more info. Permission to use and/or redistribute
+        this work is granted under the terms of the LGPL License, with
+        the exception that any usage related to military applications is
+        expressly forbidden. The software and documentation made
+        available under the terms of this license are provided with no
+        warranty. 
+
+
+
+./colt-1.2.0/colt.jar
+
+JFreeChart
+----------
+http://www.jfree.org/
+LGPL
+
+./jfreechart/jfreechart-1.0.0.jar
+./jfreechart/jcommon-1.0.8.jar
+./jfreechart/jfreechart-1.0.6.jar
+
+
+MYSQL
+-----
+http://downloads.mysql.com/archives.php?p=mysql-connector-java-3.1&v=3.1.12
+newer versions at
+http://dev.mysql.com/downloads/connector/j/5.1.html
+GPL
+
+./mysql-connector-3.1.12/mysql-connector-java-3.1.12-bin.jar
+
+JAHMM
+-----
+http://www.run.montefiore.ulg.ac.be/~francois/software/jahmm/
+
+./jahmm/jahmm-0.6.1-with-mvg.jar
+./jahmm-0.6.1.jar
+
+Log4J
+-----
+http://logging.apache.org/log4j/1.2
+Apache License, v2
+
+./log4j/log4j-1.2.15.jar
+
+XML-RPC
+-------
+http://ws.apache.org/xmlrpc/
+Apache License, v2
+
+./xml-rpc/apache-xml-rpc-3.0/xmlrpc-server-3.0.jar
+./xml-rpc/apache-xml-rpc-3.0/ws-commons-util-1.0.1.jar
+./xml-rpc/apache-xml-rpc-3.0/xmlrpc-common-3.0.jar
+./xml-rpc/apache-xml-rpc-3.0/commons-logging-1.1.jar
+./xml-rpc/apache-xml-rpc-3.0/xmlrpc-client-3.0.jar
+
+JAMA
+----
+Public Domain
+./jama/Jama-1.0.2.jar
+
+JENA
+----
+http://jena.sourceforge.net/license.html
+ Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
+ Hewlett-Packard Development Company, LP
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+   1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+   3. The name of the author may not be used to endorse or promote
+   products derived from this software without specific prior written
+   permission.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+Jena includes software developed by the Apache Software Foundation
+(http://www.apache.org/).
+
+Jena is built on top of other sub-systems which we gratefully
+acknowledge: details of these systems and their version numbers.
+
+    * Xerces
+    * JUnit
+    * Jakarta ORO
+    * ICU4J
+    * util.concurrent from Doug Lea
+
+
+./Jena/Jena-2.5.3/arq-extra.jar
+./Jena/Jena-2.5.3/json.jar
+./Jena/Jena-2.5.3/xercesImpl.jar
+./Jena/Jena-2.5.3/jenatest.jar
+./Jena/Jena-2.5.3/jena.jar
+./Jena/Jena-2.5.3/wstx-asl-3.0.0.jar
+./Jena/Jena-2.5.3/stax-api-1.0.jar
+./Jena/Jena-2.5.3/concurrent.jar
+./Jena/Jena-2.5.3/iri.jar
+./Jena/Jena-2.5.3/icu4j_3_4.jar
+./Jena/Jena-2.5.3/arq.jar
+./Jena/Jena-2.5.3/antlr-2.7.5.jar
+./Jena/Jena-2.5.3/junit.jar
+./Jena/Jena-2.5.3/xml-apis.jar
+./Jena/Jena-2.5.3/lucene-core-2.0.0.jar
+./Jena/Jena-2.5.3/commons-logging-1.1.jar
+./Jena/Jena-2.5.3/log4j-1.2.12.jar
+
+JAligner
+-------
+http://jaligner.sourceforge.net/
+GPL
+
+./jaligner-1.0/jaligner-1.0.jar

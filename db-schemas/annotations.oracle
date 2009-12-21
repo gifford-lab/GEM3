@@ -1,0 +1,130 @@
+--  -*- mode:sql  -*-
+
+create table orth_mapping (
+	id number(10) constraint orth_mapping_id unique not null,
+	name varchar2(1000) not null,
+	version varchar2(1000) not null
+);
+
+create table orth_pair (
+	id number(10) constraint orth_pair_id unique not null,
+	mapping number(10) constraint fk_orth_pair_mapping references orth_mapping(id) not null,
+	name1 varchar2(100) constraint orth_pair_name1 not null,
+	genome1 number(10) constraint orth_pair_genome1 not null,
+	name2 varchar2(100) constraint orth_pair_name2 not null,
+	genome2 number(10) constraint orth_pair_genome2 not null
+);
+create index ix_orth_pair_mapping on orth_pair(mapping);
+create index ix_orth_pair_name1 on orth_pair(genome1, name1);
+create index ix_orth_pair_name2 on orth_pair(genome2, name2);
+
+
+create sequence weightmatrix_id;
+create table weightmatrix (
+	id number(10) constraint weightmatrix_id unique not null,
+	species number(10) constraint weightmatrix_species not null,
+	name varchar2(200),
+	version varchar2(200),
+	type varchar2(100),
+	constraint weightmatrix_pk primary key(species,name,version));
+create index ix_wm_name on weightmatrix(name,version);
+create table weightmatrixcols (
+	weightmatrix constraint fk_wmc_id references weightmatrix(id) not null,
+	position number(10) not null,
+	letter char(1),
+	weight binary_double);
+create index ix_wmc_id on weightmatrixcols(weightmatrix,position);
+
+create sequence weightmatrixscan_id;
+create table weightmatrixscan (
+	id number(10) constraint weightmatrixscan_id unique not null,	
+	weightmatrix constraint fk_wms_wm references weightmatrix(id) not null,
+	name varchar2(200),
+	cutoff binary_float,
+	constraint weightmatrixscan_pk primary key(weightmatrix, name));
+create table wms_properties (
+	scan constraint fk_wmsprops_scan references weightmatrixscan(id) not null,
+	name varchar2(100),
+	value varchar2(1000));
+create index ix_wms_properties_id on wms_properties(scan);
+create table wms_scanned_genomes (
+	scan constraint fk_wmsgenomes_scan references weightmatrixscan(id) not null,
+	genome number(10));
+create index ix_wms_scannedscan on wms_scanned_genomes(scan);
+create index ix_wms_scannedgenome on wms_scanned_genomes(genome);
+
+create table wms_scanned_regions (
+	scan constraint fk_wmsregions_scan references weightmatrixscan(id) not null,
+	chromosome number(10),
+	startpos number(10),
+	stoppos number(10),
+	constraint pk_wms_scanned_regions primary key(scan,chromosome,startpos,stoppos)) 
+organization index compress 2;
+create index ix_wms_scannedregions on wms_scanned_regions(scan,chromosome,startpos);
+create table wms_hits (
+	scan constraint fk_wms_hits_scan references weightmatrixscan(id) not null,
+	chromosome number(10) constraint fk_wms_hits_chromosome not null,
+	startpos number(10),
+	stoppos number(10),
+	strand char(1),
+	score binary_float,
+	constraint pk_wms_hits primary key (scan,chromosome,startpos,stoppos,strand)) organization index compress 2;	
+
+create sequence syntenyscan_id;
+create table syntenyscan (
+	id number(10) constraint syntenyscan_id unique not null,
+	name varchar2(100),
+	version varchar2(400));
+
+create table syntenygenome (
+	scan number(10),
+	genome1 number(10),
+	genome2 number(10));	
+create index ix_syntenygenome_scan on syntenygenome(scan,genome1,genome2);
+
+create table syntenyblock (
+	scan number(10) constraint syntenyblock_scan not null,
+	genome1 number(10) constraint syntenyblock_genome1 not null,
+	chrom1 number(10) ,
+	start1 number(11),
+	stop1 number(11),
+	genome2 number(10) constraint syntenyblock_genome2 not null,
+	chrom2 number(10) ,
+	start2 number(11),
+	stop2 number(11),
+	strand char(1),
+	score binary_double,
+	constraint pk_syntenyblock primary key(scan,genome1, chrom1, start1,stop1,strand,genome2,chrom2,start2,stop2))
+	organization index compress 3;
+
+
+create sequence func_version_id;
+create sequence func_category_id;
+
+create table func_version (
+	id number(10) constraint fk_func_version_id unique not null,
+	name varchar2(500) constraint fk_func_version_name not null
+);
+
+create table func_category (
+	id number(10) constraint fk_func_category_id unique not null,	
+	version number(10) constraint fk_func_category_version references func_version(id) not null,
+	name varchar2(100) constraint fk_func_category_name not null,
+	description varchar2(1000) 
+);
+create index ix_func_category_vn on func_category(version,name);
+
+create table func_assignment (
+	version number(10) constraint fk_func_assignment_version references func_version(id) not null,
+	object varchar2(100) constraint fk_func_assignment_object not null,
+	category number(10) constraint fk_func_assignment_category references func_category(id) not null,
+	constraint pk_func_assignment primary key (version,object,category)
+);
+
+create table func_subcategory (
+	child_id number(10) constraint fk_func_sub_child references func_category(id) not null,
+	parent_id number(10) constraint fk_func_sub_parent references func_category(id) not null,
+	version number(10) constraint fk_func_sub_version references func_version(id) not null,
+	constraint pk_func_subcategory primary key (version, child_id, parent_id)
+);
+

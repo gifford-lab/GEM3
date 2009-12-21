@@ -1,0 +1,8 @@
+
+create sequence users_id;
+create table users (
+	id number(10),
+	name varchar2(100) constraint users_uniquename unique not null,
+	password varchar2(100) constraint users_password not null
+	);
+

@@ -1,0 +1,66 @@
+--  -*- mode:sql  -*-
+
+
+create table project (
+	id number(10),
+	name varchar2(100) constraint project_name unique not null,
+	chipchipschema varchar2(100));
+
+create table array (
+	id number(10) constraint array_unique_id unique not null,
+	barcode varchar(100),
+	galfile constraint fk_array_galfile references galfiles(id),
+	arraydesign constraint fk_array_design references arraydesign(id),
+	allocated number(1),
+ 	uses number(3),
+	ordereddate date,
+	received date);
+create index ix_array_barcode on array(barcode);
+create index ix_array_galfile on array(galfile);
+
+create table arrayallocation (
+	id number(10) constraint alloc_unique_id unique not null,
+	arrayid constraint fk_alloc_array references array(id) not null,
+	towhom constraint fk_alloc_towhom references users(id) not null,
+	bywhom constraint fk_alloc_bywhom references users(id) not null,
+	forproject contraint fk_alloc_project references project(id),
+	allocdate date,
+	description varchar2(1000));
+create index ix_alloc_arrayid on arrayallocation(arrayid);
+
+create table arrayuse (
+	id number(10) constraint arrayuse_unique_id unique not null,
+	arrayid constraint fk_arrayuse_array references array(id) not null,
+	bywhom constraint fk_arrayuse_bywhom references users(id) not null,
+	allocation constraint fk_arrayuse_alloc references arrayallocation(id),
+	usedate date,
+	description varchar2(1000),
+	cy3 varchar2(1000),
+	cy5 varchar2(1000));
+create index ix_arrayuse_arrayid on arrayuse(arrayid);
+	
+create table fileset (
+	id number(10),
+	user constraint fk_fileset_user references users(id)
+	fragdist number(10) constraint fk_experiment_fragdist references fragdist(id) not null,
+	species number(10) constraint experiment_species  not null,
+	cellsone number(10) constraint experiment_cellsone not null,
+	conditionone number(10) constraint experiment_conditionone not null,
+	factorone varchar2(40) constraint experiment_factorone not null,
+	cellstwo number(10) constraint experiment_cellstwo not null,
+	conditiontwo number(10) constraint experiment_conditiontwo not null,
+	factortwo varchar2(40) constraint experiment_factortwo not null,
+	normalization varchar2(1000)
+);
+create table chipfile (
+	fileset constraint fk_chipfile_set references fileset(id),
+	filename varchar2(1000) constraint chiplist_name unique not null,
+	arrayid number(10) constraint fk_chipfile_array references array(id) not null,
+	useid numbeR(10) constraint ck_chipfile_use references arrayuse(id) not null,
+	scanid varchar2(100),
+	user constraint fk_fileset_user references users(id)
+);
+create table fileset_to_expt (
+	fileset constraint fk_filesetmap_set references fileset(id),
+	experiment constraint fk_filesetmap_expt references experiment(id));
+	

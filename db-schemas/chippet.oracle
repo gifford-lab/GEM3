@@ -1,0 +1,23 @@
+--  -*- mode:sql  -*-
+
+create sequence chippetexpt_id;
+create table chippetexpt (
+	id number(10) unique not null,
+	name varchar2(100) not null
+);
+
+create table chippetdata (
+    expt constraint fk_chippetdata_expt references chippetexpt(id) not null,
+	chromosome number(10) not null,
+	startpos number(11) not null,
+	stoppos number(11) not null,
+	strand char(1) not null,
+	peakOverlap number(10) not null,
+	constraint chippetdata_pk primary key (expt, chromosome, startpos, stoppos, strand))
+organization index compress 2;
+
+create table chippetToGenome (
+	expt constraint fk_chippettogenome_expt references chippetexpt(id) not null,
+	genome constraint fk_chippettogenome_genome references genome(id) not null
+);
+

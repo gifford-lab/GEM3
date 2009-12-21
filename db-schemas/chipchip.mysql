@@ -1,0 +1,443 @@
+--  -*- mode:sql  -*-
+
+-- 
+-- Created by SQL::Translator::Producer::MySQL
+-- Created on Wed Jul 12 09:01:41 2006
+-- 
+SET foreign_key_checks=0;
+
+--
+-- Table: arraydesign
+--
+CREATE TABLE arraydesign (
+  id int(10) NOT NULL auto_increment,
+  name varchar(100) NOT NULL,
+  genome int(10) NOT NULL,
+  UNIQUE (id),
+  UNIQUE (name),
+  PRIMARY KEY (name, genome)
+) Type=InnoDB;
+
+--
+-- Table: galfiles
+--
+CREATE TABLE galfiles (
+  name varchar(200) NOT NULL,
+  id int(10) NOT NULL auto_increment,
+  PRIMARY KEY (name),
+  UNIQUE (id)
+) Type=InnoDB;
+
+--
+-- Table: probedesign
+--
+CREATE TABLE probedesign (
+  id int(10) NOT NULL auto_increment,
+  arraydesign int(10),
+  blockno int(10) NOT NULL,
+  colno int(10) NOT NULL,
+  rowno int(10) NOT NULL,
+  galfile int(10),
+  probename varchar(200),
+  probeid varchar(200),
+  type varchar(100),
+  sequence varchar(200),
+  INDEX (arraydesign),
+  INDEX (galfile),
+  INDEX (probename),
+  INDEX (probeid),
+  INDEX (galfile),
+  FOREIGN KEY fk_newprobedesign_arraydesign (arraydesign) REFERENCES arraydesign (id),
+  FOREIGN KEY fk_newprobedesign_galfile (galfile) REFERENCES galfiles (id),
+  UNIQUE (galfile, probeid, blockno, colno, rowno),
+  PRIMARY KEY (id)
+) Type=InnoDB;
+
+
+--
+-- Table: probetm
+--
+CREATE TABLE probetm (
+  id int(10) NOT NULL,
+  tm double(10, 4),
+  INDEX (id),
+  FOREIGN KEY fk_probetm_probe (id) REFERENCES probedesign (id),
+  UNIQUE (id)
+) Type=InnoDB;
+
+--
+-- Table: probelocation
+--
+CREATE TABLE probelocation (
+  id int(10) NOT NULL,
+  chromosome int(10) NOT NULL,
+  startpos int(10) NOT NULL,
+  stoppos int(10) NOT NULL,
+  loccount int(10),
+  bitscore int(10),
+  INDEX (id),
+  FOREIGN KEY fk_newprobeloc_probe (id) REFERENCES probedesign (id),
+  PRIMARY KEY (chromosome, startpos, stoppos, id)
+) Type=InnoDB;
+
+--
+-- Table: fragdist
+--
+CREATE TABLE fragdist (
+  id int(10) NOT NULL auto_increment,
+  name varchar(100) NOT NULL,
+  version varchar(100) NOT NULL,
+  description varchar(1000),
+  UNIQUE (id),
+  PRIMARY KEY (name, version)
+) Type=InnoDB;
+
+--
+-- Table: fragdistentry
+--
+CREATE TABLE fragdistentry (
+  distribution int(10) NOT NULL,
+  distance int(6),
+  value int,
+  INDEX (distribution),
+  FOREIGN KEY fk_fragdistentry_dist (distribution) REFERENCES fragdist (id)
+) Type=InnoDB;
+
+--
+-- Table: experiment
+--
+CREATE TABLE experiment (
+  id int(10) NOT NULL auto_increment,
+  name varchar(100) NOT NULL,
+  version varchar(100) NOT NULL,
+  replicate varchar(40) NOT NULL,
+  fragdist int(10) NOT NULL,
+  species int(10) NOT NULL,
+  cellsone int(10) NOT NULL,
+  conditionone int(10) NOT NULL,
+  factorone varchar(40) NOT NULL,
+  cellstwo int(10) NOT NULL,
+  conditiontwo int(10) NOT NULL,
+  factortwo varchar(40) NOT NULL,
+  normalization varchar(1000),
+  active int(2),
+  INDEX (fragdist),
+  UNIQUE (id),
+  FOREIGN KEY fk_experiment_fragdist (fragdist) REFERENCES fragdist (id),
+  PRIMARY KEY (name, species, version, replicate)
+) Type=InnoDB;
+
+CREATE TABLE exptMetadata (
+	experiment int(10),
+	mdkey varchar(100),
+	mdvalue longtext not null,
+	primary key (experiment, mdkey),
+	foreign key fk_metadata_experiment (experiment) references experiment(id)
+) Type=InnoDB;
+
+--
+-- Table: exptToGenome
+--
+CREATE TABLE exptToGenome (
+  experiment int(10) NOT NULL,
+  genome int(10) NOT NULL,
+  INDEX (experiment),
+  INDEX (genome),
+  FOREIGN KEY fk_expt2genomeexpt (experiment) REFERENCES experiment (id)
+) Type=InnoDB;
+
+--
+-- Table: data
+--
+CREATE TABLE data (
+  experiment int(10) NOT NULL,
+  probe int(10) NOT NULL,
+  channelone float,
+  channeltwo float,
+  mor float,
+  channelratio float,
+  ratio float,
+  INDEX (experiment,probe),
+  INDEX (probe),
+  FOREIGN KEY fk_newdata_experiment (experiment) REFERENCES experiment (id),
+  FOREIGN KEY fk_newdata_probe (probe) REFERENCES probedesign (id)
+) Type=InnoDB;
+
+--
+-- Table: datatemp
+--
+CREATE TABLE datatemp (
+  experiment int(10) NOT NULL,
+  probe int(10) NOT NULL,
+  channelone float,
+  channeltwo float,
+  mor float,
+  channelratio float,
+  ratio float,
+  controlratio float,
+  FOREIGN KEY fk_datatemp_experiment (experiment) REFERENCES experiment (id),
+  FOREIGN KEY fk_datatemp_probe (probe) REFERENCES probedesign (id)
+) Type=InnoDB;
+
+--
+-- Table: datatemp2
+--
+CREATE TABLE datatemp2 (
+  experiment int(10) NOT NULL,
+  probe int(10) NOT NULL,
+  channelone float,
+  channeltwo float,
+  mor float,
+  channelratio float,
+  ratio float,
+  controlratio float,
+  FOREIGN KEY fk_datatemp2_experiment (experiment) REFERENCES experiment (id),
+  FOREIGN KEY fk_datatemp2_probe (probe) REFERENCES probedesign (id)
+) Type=InnoDB;
+
+
+--
+-- Table: ipmeta
+--
+CREATE TABLE ipmeta (
+  id int(10) NOT NULL auto_increment,
+  who varchar(100),
+  ipwhen date,
+  antibody varchar(100),
+  xlink_condition varchar(200),
+  description varchar(400),
+  UNIQUE (id)
+) Type=InnoDB;
+
+--
+-- Table: hybmeta
+--
+CREATE TABLE hybmeta (
+  id int(10) NOT NULL auto_increment,
+  ip1 int(10) NOT NULL,
+  ip2 int(10) NOT NULL,
+  who varchar(100),
+  hybwhen date,
+  arraydesign int(10),
+  chip_id int(10),
+  use_count int(10),
+  INDEX (ip1),
+  INDEX (ip2),
+  INDEX (arraydesign),
+  UNIQUE (id),
+  FOREIGN KEY fk_hybmeta_ip1 (ip1) REFERENCES ipmeta (id),
+  FOREIGN KEY fk_hybmeta_ip2 (ip2) REFERENCES ipmeta (id),
+  FOREIGN KEY fk_hybmeta_galfile (arraydesign) REFERENCES galfiles (id)
+) Type=InnoDB;
+
+--
+-- Table: scanmeta
+--
+CREATE TABLE scanmeta (
+  id int(10) NOT NULL auto_increment,
+  hyb int(10) NOT NULL,
+  experiment int(10) NOT NULL,
+  who varchar(100),
+  scanwhen date,
+  gprfilename varchar(200),
+  tifffilename varchar(200),
+  INDEX (hyb),
+  INDEX (experiment),
+  UNIQUE (id),
+  FOREIGN KEY fk_scanmeta_hyb (hyb) REFERENCES hybmeta (id),
+  FOREIGN KEY fk_scanmeta_experiment (experiment) REFERENCES experiment (id)
+) Type=InnoDB;
+
+--
+-- Table: mleanalysis
+--
+CREATE TABLE mleanalysis (
+  id int(10) NOT NULL auto_increment,
+  species int(10) NOT NULL,
+  name varchar(100) NOT NULL,
+  version varchar(200) NOT NULL,
+  active int(2),
+  UNIQUE (id),
+  PRIMARY KEY (name, species, version)
+) Type=InnoDB;
+
+--
+-- Table: mleparameters
+--
+CREATE TABLE mleparameters (
+  analysis int(10) NOT NULL,
+  name varchar(100),
+  value varchar(200),
+  INDEX (analysis),
+  FOREIGN KEY fk_parameters_analysis (analysis) REFERENCES mleanalysis (id)
+) Type=InnoDB;
+
+--
+-- Table: mleanalysisinputs
+--
+CREATE TABLE mleanalysisinputs (
+  analysis int(10) NOT NULL,
+  experiment int(10) NOT NULL,
+  INDEX (analysis),
+  INDEX (experiment),
+  FOREIGN KEY fk_inputs_analysis (analysis) REFERENCES mleanalysis (id),
+  FOREIGN KEY fk_inputs_expt (experiment) REFERENCES experiment (id)
+) Type=InnoDB;
+
+--
+-- Table: mleToGenome
+--
+CREATE TABLE mleToGenome (
+  analysis int(10) NOT NULL,
+  genome int(10) NOT NULL,
+  INDEX (analysis),
+  INDEX (genome),
+  FOREIGN KEY fk_mle2genomeexpt (analysis) REFERENCES mleanalysis (id)
+) Type=InnoDB;
+
+--
+-- Table: mleresults
+--
+CREATE TABLE mleresults (
+  analysis int(10) NOT NULL,
+  chromosome int(10) NOT NULL,
+  position int(10) NOT NULL,
+  b_i double(10, 4),
+  bindll double(20, 2),
+  nullll double(20, 2),
+  lograt double(20, 2),
+  conf double(10, 4),
+  INDEX (analysis),
+  FOREIGN KEY fk_mleresults_analysis (analysis) REFERENCES mleanalysis (id),
+  PRIMARY KEY (analysis, chromosome, position)
+) Type=InnoDB;
+
+--
+-- Table: bayesanalysis
+--
+CREATE TABLE bayesanalysis (
+  id int(10) NOT NULL auto_increment,
+  species int(10) NOT NULL,
+  name varchar(100) NOT NULL,
+  version varchar(200) NOT NULL,
+  active int(2),
+  UNIQUE (id),
+  PRIMARY KEY (name, species, version)
+) Type=InnoDB;
+
+--
+-- Table: bayesparameters
+--
+CREATE TABLE bayesparameters (
+  analysis int(10) NOT NULL,
+  name varchar(100),
+  value varchar(200),
+  INDEX (analysis),
+  FOREIGN KEY fk_bayesparameters_analysis (analysis) REFERENCES bayesanalysis (id)
+) Type=InnoDB;
+
+--
+-- Table: bayesanalysisinputs
+--
+CREATE TABLE bayesanalysisinputs (
+  analysis int(10) NOT NULL,
+  experiment int(10) NOT NULL,
+  INDEX (analysis),
+  INDEX (experiment),
+  FOREIGN KEY fk_bayesinputs_analysis (analysis) REFERENCES bayesanalysis (id),
+  FOREIGN KEY fk_bayesinputs_expt (experiment) REFERENCES experiment (id)
+) Type=InnoDB;
+
+--
+-- Table: bayesToGenome
+--
+CREATE TABLE bayesToGenome (
+  analysis int(10) NOT NULL,
+  genome int(10) NOT NULL,
+  INDEX (analysis),
+  FOREIGN KEY fk_bayes2genomeexpt (analysis) REFERENCES bayesanalysis (id),
+  UNIQUE (analysis),
+  UNIQUE (genome)
+) Type=InnoDB;
+
+--
+-- Table: bayesresults
+--
+CREATE TABLE bayesresults (
+  analysis int(10) NOT NULL,
+  chromosome int(10) NOT NULL,
+  position int(10) NOT NULL,
+  posterior float,
+  posteriorstd float,
+  strength float,
+  strengthstd float,
+  INDEX (analysis),
+  FOREIGN KEY fk_bayesresults_analysis (analysis) REFERENCES bayesanalysis (id),
+  PRIMARY KEY (analysis, chromosome, position)
+) Type=InnoDB;
+--
+-- Table: rosettaanalysis
+--
+CREATE TABLE rosettaanalysis (
+  id int(10) NOT NULL auto_increment,
+  species int(10) NOT NULL,
+  name varchar(100) NOT NULL,
+  version varchar(100) NOT NULL,
+  active int(2),
+  UNIQUE (id),
+  PRIMARY KEY (name, species, version)
+) Type=InnoDB;
+--
+-- Table: rosettaparameters
+--
+CREATE TABLE rosettaparameters (
+  analysis int(10) NOT NULL,
+  name varchar(100),
+  value varchar(200),
+  INDEX (analysis),
+  FOREIGN KEY fk_rosettaparameters_analysis (analysis) REFERENCES rosettaanalysis (id)
+) Type=InnoDB;
+
+--
+-- Table: rosettaanalysisinputs
+--
+CREATE TABLE rosettaanalysisinputs (
+  analysis int(10) NOT NULL,
+  experiment int(10) NOT NULL,
+  INDEX (analysis),
+  INDEX (experiment),
+  FOREIGN KEY fk_rosettainputs_analysis (analysis) REFERENCES rosettaanalysis (id),
+  FOREIGN KEY fk_rosettainputs_expt (experiment) REFERENCES experiment (id)
+) Type=InnoDB;
+
+--
+-- Table: rosettaToGenome
+--
+CREATE TABLE rosettaToGenome (
+  analysis int(10) NOT NULL,
+  genome int(10) NOT NULL,
+  INDEX (analysis),
+  FOREIGN KEY fk_rosetta2genomeexpt (analysis) REFERENCES rosettaanalysis (id),
+  UNIQUE (analysis),
+  UNIQUE (genome)
+) Type=InnoDB;
+
+--
+-- Table: rosettaresults
+--
+CREATE TABLE rosettaresults (
+  analysis int(10) NOT NULL,
+  chromosome int(10) NOT NULL,
+  position int(10) NOT NULL,
+  ratio float,
+  X float,
+  pval float,
+  pval3 float,
+  red float,
+  green float,
+  medianofratios float,
+  INDEX (analysis),
+  FOREIGN KEY fk_rosetta_analysis (analysis) REFERENCES rosettaanalysis (id),
+  PRIMARY KEY (analysis, chromosome, position)
+) Type=InnoDB;
+

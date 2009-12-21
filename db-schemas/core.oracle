@@ -1,0 +1,59 @@
+--  -*- mode:sql  -*-
+
+create sequence species_id;
+create table species (
+	id number(10) constraint species_id unique not null,
+	name varchar2(80) constraint species_pk primary key);
+
+create sequence genome_id;
+create table genome (
+	id number(10) constraint genome_id unique not null,
+	species number(10) constraint fk_genome_species references species(id) not null,
+	version varchar2(100) constraint genome_version not null,
+	description varchar2(1000),
+	constraint genome_pk primary key(species,version));
+
+create sequence chromosome_id;
+create table chromosome (
+	id number(10) constraint chromosome_id unique not null,
+	name varchar2(100) constraint chromosome_name not null,
+	genome number(10) constraint fk_chromosome_genome references genome(id) not null,
+	constraint chromosome_pk primary key(name,genome));
+create index ix_chromosome_name on chromosome(genome,name);
+
+create table chromsequence (
+	id number(10) constraint fk_chromseq_id references chromosome(id) unique not null,
+	sequence clob);
+create index ix_chromsequence_id on chromsequence(id);
+
+create sequence condition_id;
+create table conditions (
+	id number(10) constraint condition_u unique not null,
+	name varchar2(100) constraint condition_pk primary key);
+
+create sequence cells_id;
+create table cells (
+	id number(10) constraint cells_id unique not null,
+	name varchar2(100) constraint cells_pk primary key);
+
+create sequence factors_id;
+create table factors (
+	id number(10) constraint factors_id unique not null,
+	name varchar2(100) constraint factors_pk primary key);
+
+create sequence timeseries_id;
+create table timeseries (
+	id number(10) constraint timeseries_id unique not null,
+	name varchar2(100) constraint timeseries_name not null
+);
+create index ix_timeseries_id on timeseries(id);
+
+create table timepoint (
+	id number(10) constraint timepoint_id_pk unique not null,
+	time_series number(10) constraint fk_timepoint_series references timeseries(id) not null,
+	series_order number(10),
+	name varchar2(100)
+);
+create index ix_timepoint_id on timepoint(id);
+
+

@@ -1,0 +1,33 @@
+create table func_version (
+	id int(10) not null auto_increment,
+	name varchar(500) not null,
+	index(name),
+	primary key (id)
+) Type=InnoDB;
+
+create table func_category (
+	id int(10) NOT NULL auto_increment,
+	version int(10) not null,
+	name varchar(100) not null,
+	description varchar(1000),
+	unique(name),
+	primary key (id),
+	foreign key fk_category_version (version) references func_version(id)
+) Type=InnoDB;
+
+create table func_assignment (
+	object varchar(100) not null,
+	category int(10) not null,
+	primary key (object, category),
+	foreign key fk_assignment_category (category) references func_category (id)
+) Type=InnoDB;
+
+create table func_subcategory (
+	child_id int(10) not null,
+	parent_id int(10) not null,
+	primary key (child_id, parent_id),
+	foreign key fk_subcat_child (child_id) references func_category (id),
+	foreign key fk_subcat_parent (parent_id) references func_category (id)
+) Type=InnoDB;
+
+
