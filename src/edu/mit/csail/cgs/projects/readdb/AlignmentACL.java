@@ -2,7 +2,6 @@ package edu.mit.csail.cgs.projects.readdb;
 
 import java.io.*;
 import java.util.*;
-import java.nio.*;
 import java.nio.channels.*;
 
 public class AlignmentACL implements Closeable {
@@ -60,7 +59,6 @@ public class AlignmentACL implements Closeable {
         channel.close();
     }
     public void readFromFile(String fname) throws IOException {
-        File f = new File(fname);
         BufferedReader reader = new BufferedReader(new FileReader(fname));
         String line = null;
         while ((line = reader.readLine()) != null) {
