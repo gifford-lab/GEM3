@@ -123,6 +123,8 @@
     <delete dir="${build.unjar.dir}/META-INF"/>
     <jar destfile="${build.dist.dir}/cgs-warpdrive.${pwset}.jar" manifest="manifests/warpdrive_manifest.txt">	    
       <fileset dir="${build.classes.dir}" includes="**/*.class"/>
+      <fileset dir="${build.classes.dir}" includes="**/*.properties"/>
+      <fileset dir="${build.classes.dir}" includes="**/*.txt"/>
       <fileset dir="${pwfiles.path}" includes="*"/>
       <fileset dir="${build.unjar.dir}"/>	    
     </jar>  
