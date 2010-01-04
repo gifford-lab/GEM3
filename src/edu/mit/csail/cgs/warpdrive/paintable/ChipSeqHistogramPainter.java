@@ -145,26 +145,14 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
                 double val = plus.get(pos);
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
                 int ypix = getYPos(val, 0, maxhits, y1, midpoint, logscale);
-                if(model.getProperties().ReadDepthView){
-                	System.out.println("+\t"+xpix+"\t"+ypix+"\t"+binPixels+"\t"+actualBinWidth+"\t"+(midpoint-ypix));
-                	g.fillRect(xpix, ypix, binPixels, midpoint-ypix);
-                }else{
-                	g.drawLine(xpix, midpoint, xpix, ypix);
-                	g.fillOval(xpix-circlewidth/2, ypix-circlewidth/2, circlewidth, circlewidth);
-                }                
+                g.fillRect(xpix, ypix, binPixels, midpoint-ypix);
             }
             g.setColor(Color.RED);
             for (int pos : minus.keySet()) {
                 double val = minus.get(pos);
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
                 int ypix = midpoint + (y2 - getYPos(val, 0, maxhits, midpoint, y2, logscale));
-                if(model.getProperties().ReadDepthView){
-                	System.out.println("-\t"+xpix+"\t"+ypix+"\t"+binPixels+"\t"+actualBinWidth+"\t"+(ypix-midpoint));
-                	g.fillRect(xpix, midpoint, binPixels, ypix-midpoint);
-                }else{
-                	g.drawLine(xpix, midpoint, xpix, ypix);
-                	g.fillOval(xpix-circlewidth/2, ypix-circlewidth/2, circlewidth, circlewidth);
-                }
+                g.fillRect(xpix, midpoint, binPixels, ypix-midpoint);
             }
             g.setColor(Color.black);
             g.drawLine(x1, midpoint, x2, midpoint);
@@ -189,13 +177,7 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
                 }
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
                 int ypix = getYPos(val, 0, maxhits, y1, y2, logscale);
-                if(model.getProperties().ReadDepthView){
-                	System.out.println(xpix+"\t"+ypix+"\t"+binPixels+"\t"+actualBinWidth+"\t"+(y2-ypix));
-                	g.fillRect(xpix, ypix, binPixels, y2-ypix);
-                }else{
-                	g.drawLine(xpix, y2, xpix, ypix);
-                	g.fillOval(xpix-circlewidth/2, ypix-circlewidth/2, circlewidth, circlewidth);
-                }
+                g.fillRect(xpix, ypix, binPixels, y2-ypix);
             }
             for (int pos : minus.keySet()) {
                 if (plus.containsKey(pos)) {
@@ -204,12 +186,7 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
                 double val = minus.get(pos);
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
                 int ypix = getYPos(val, 0, maxhits, y1, y2, logscale);
-                if(model.getProperties().ReadDepthView){
-                	g.fillRect(xpix, ypix, binPixels, y2-ypix);
-                }else{
-                	g.drawLine(xpix, y2, xpix, ypix);
-                	g.fillOval(xpix-circlewidth/2, ypix-circlewidth/2, circlewidth, circlewidth);
-                }
+                g.fillRect(xpix, ypix, binPixels, y2-ypix);
             }
 
             g.setColor(Color.black);

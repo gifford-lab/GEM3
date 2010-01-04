@@ -36,6 +36,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
         aggregator = new Aggregator(client);
         ids = new HashSet<String>();
         ids.add(Integer.toString(a.getDBID()));
+        props.ReadExtension = a.getExpt().getReadLength();
     }
     public ChipSeqHistogramModel (Collection<ChipSeqAlignment> a) throws IOException, ClientException {
         alignments = new HashSet<ChipSeqAlignment>();
@@ -46,9 +47,15 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
         client = new Client();
         aggregator = new Aggregator(client);
         ids = new HashSet<String>();
+        int extension = 1000000;
         for (ChipSeqAlignment align : alignments) {
             ids.add(Integer.toString(align.getDBID()));
+            int e = align.getExpt().getReadLength();
+            if (e < extension) {
+                extension = e;
+            }
         }
+        props.ReadExtension = extension;
     }    
     public ChipSeqHistogramProperties getProperties() {return props;}
     
