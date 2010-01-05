@@ -243,9 +243,13 @@ public class RefGeneGenerator<X extends Region>
             ps = cxn.prepareStatement(query.toString());
 
             String namequery = getFields();
-            namequery += " from " + tablename + 
-                " g where g.name in (select distinct( " + namecolumn + ") from " + aliastable + " where " +
-                aliascolumn + " = ?) or g.name = ?";
+            if (aliastable == null) {
+                namequery += " from " + tablename + " g where g.name = ?";
+            } else {
+                namequery += " from " + tablename + 
+                    " g where g.name in (select distinct( " + namecolumn + ") from " + aliastable + " where " +
+                    aliascolumn + " = ?) or g.name = ?";
+            }
             nameps = cxn.prepareStatement(namequery);
         } catch (SQLException e) {
             throw new DatabaseException(e.toString(), e);
