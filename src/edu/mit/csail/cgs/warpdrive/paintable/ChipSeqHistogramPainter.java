@@ -2,15 +2,11 @@ package edu.mit.csail.cgs.warpdrive.paintable;
 
 import java.io.File;
 import java.awt.*;
-import java.awt.font.FontRenderContext;
-import java.awt.font.TextLayout;
-import java.awt.font.LineMetrics;
 import java.util.*;
 
 import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
-import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.viz.DynamicAttribute;
 import edu.mit.csail.cgs.warpdrive.model.ChipSeqHistogramModel;
 
@@ -106,8 +102,8 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
         int width = x2 - x1;
         int height = y2 - y1;
         boolean stranded = getProperties().Stranded;
+        boolean autoUpdateBins = getProperties().BinAutoUpdate;
         boolean logscale =false;
-        int circlewidth=4;
         
         Map<Integer,Float> plus = model.getPlus(), minus = model.getMinus();
 
@@ -139,10 +135,12 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
             linewidth = 1;
         }
         int actualBinWidth = model.getProperties().BinWidth;
-        if (width / linewidth < model.getRegion().getWidth() / model.getProperties().BinWidth) {
-            actualBinWidth = model.getRegion().getWidth() / (width / linewidth);
-            combineBins(plus, actualBinWidth);
-            combineBins(minus, actualBinWidth);
+        if(autoUpdateBins){
+	        if (width / linewidth < model.getRegion().getWidth() / model.getProperties().BinWidth) {
+	            actualBinWidth = model.getRegion().getWidth() / (width / linewidth);
+	            combineBins(plus, actualBinWidth);
+	            combineBins(minus, actualBinWidth);
+	        }
         }
         int binPixels = width/(model.getRegion().getWidth() / model.getProperties().BinWidth);
         if(binPixels<1)
@@ -199,36 +197,50 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
                 }
         	}  	
         }
+        //Draw the read density
         if (stranded) {
-            g.setColor(Color.BLUE);
+        	HashMap<Integer,Double> plotXVals = new HashMap<Integer,Double>();
+            //Plus strand : first screen out overlapping rects (take max), then plot
+        	g.setColor(Color.BLUE);
             for (int pos : plus.keySet()) {
                 double val = plus.get(pos);
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
-                int ypix = getYPos(val, 0, maxhits, y1, midpoint, logscale);
+                if(!plotXVals.containsKey(xpix) || plotXVals.get(xpix)<val){
+                		plotXVals.put(xpix,val);
+                }
+            }for(int xpix : plotXVals.keySet()){
+            	double val = plotXVals.get(xpix); 
+            	int ypix = getYPos(val, 0, maxhits, y1, midpoint, logscale);
                 g.fillRect(xpix, ypix, binPixels, midpoint-ypix);
             }
+            plotXVals.clear();
+            //Minus strand
             g.setColor(Color.RED);
             for (int pos : minus.keySet()) {
                 double val = minus.get(pos);
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
-                int ypix = midpoint + (y2 - getYPos(val, 0, maxhits, midpoint, y2, logscale));
+                if(!plotXVals.containsKey(xpix) || plotXVals.get(xpix)<val){
+            		plotXVals.put(xpix,val);
+                }
+            }for(int xpix : plotXVals.keySet()){
+            	double val = plotXVals.get(xpix); 
+            	int ypix = midpoint + (y2 - getYPos(val, 0, maxhits, midpoint, y2, logscale));
                 g.fillRect(xpix, midpoint, binPixels, ypix-midpoint);
             }
+            //Line & trimmings
             g.setColor(Color.black);
             g.drawLine(x1, midpoint, x2, midpoint);
             g.setFont(attrib.getLargeLabelFont(width,height));
             int step = Math.max(1,(int)Math.round(maxhits / 5));
             for (int i = step; i <= Math.ceil(maxhits); i += step) {
                 int ypos = getYPos(i, 0, maxhits, y1, midpoint, logscale);
-                g.drawString(Integer.toString(i),
-                             5,
-                             ypos);
+                g.drawString(Integer.toString(i),5,ypos);
                 ypos = midpoint + (y2 - getYPos(i, 0, maxhits, midpoint, y2, logscale));
-                g.drawString(Integer.toString(i),
-                             5,
-                             ypos);
+                g.drawString(Integer.toString(i),5,ypos);
             }                    
         } else {
+        	//Plot density : first screen out overlapping rects (take max), then plot
+        	HashMap<Integer,Double> plotXVals = new HashMap<Integer,Double>();
             g.setColor(Color.GRAY);
             for (int pos : plus.keySet()) {
                 double val = plus.get(pos);
@@ -236,8 +248,9 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
                     val += minus.get(pos);
                 }
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
-                int ypix = getYPos(val, 0, maxhits, y1, y2, logscale);
-                g.fillRect(xpix, ypix, binPixels, y2-ypix);
+                if(!plotXVals.containsKey(xpix) || plotXVals.get(xpix)<val){
+            		plotXVals.put(xpix,val);
+                }
             }
             for (int pos : minus.keySet()) {
                 if (plus.containsKey(pos)) {
@@ -245,19 +258,24 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
                 }
                 double val = minus.get(pos);
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
+                if(!plotXVals.containsKey(xpix) || plotXVals.get(xpix)<val){
+            		plotXVals.put(xpix,val);
+                }
+            }
+            for(int xpix : plotXVals.keySet()){
+            	double val = plotXVals.get(xpix); 
                 int ypix = getYPos(val, 0, maxhits, y1, y2, logscale);
                 g.fillRect(xpix, ypix, binPixels, y2-ypix);
             }
 
+            //Line & trimmings
             g.setColor(Color.black);
             g.drawLine(x1, y2, x2, y2);
             g.setFont(attrib.getLargeLabelFont(width,height));
             int step = Math.max(1,(int)Math.round(maxhits / 5));
             for (int i = step; i <= Math.ceil(maxhits); i += step) {
                 int ypos = getYPos(i, 0, maxhits, y1, y2, logscale);
-                g.drawString(Integer.toString(i),
-                             5,
-                             ypos);
+                g.drawString(Integer.toString(i),5,ypos);
             }                    
         }
         
@@ -266,6 +284,11 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
             g.setFont(attrib.getLargeLabelFont(width,height));
             g.setColor(Color.BLACK);
             g.drawString(getLabel(),x1 + g.getFont().getSize()*2,y1 + g.getFont().getSize());
+        }if(getProperties().DrawBinSize) {
+        	g.setFont(attrib.getPointLabelFont(width,height));
+            g.setColor(Color.GRAY);
+            String binString = new String("(bin size: "+actualBinWidth+"bp)");
+            g.drawString(binString,x2 - g.getFontMetrics().stringWidth(binString) - g.getFont().getSize()*2,y1 + g.getFont().getSize());
         }
 //        System.err.println((System.currentTimeMillis()-tic)/10*0.01+" sec in painting");
     }
