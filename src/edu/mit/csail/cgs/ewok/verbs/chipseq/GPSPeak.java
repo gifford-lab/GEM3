@@ -101,4 +101,8 @@ public class GPSPeak extends Point{
 		return toString()+"\t"+nearestGene+"\t"+distance+"\t"+strength+"\t"
 		+controlStrength+"\t"+qvalue+"\t"+pvalue+"\t"+shape+"\t"+shapeZ;
 	}
+	public String toGPS_motifShort(){
+	  return toString()+"\t"+nearestGene+"\t"+distance+"\t"+strength+"\t"
+	  +controlStrength;//+"\t"+qvalue+"\t"+shape+"\t"+shapeZ;
+	}
 }
