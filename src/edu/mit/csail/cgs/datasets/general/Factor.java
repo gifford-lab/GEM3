@@ -3,15 +3,15 @@
  */
 package edu.mit.csail.cgs.datasets.general;
 
-import java.util.*;
-import java.io.*;
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.LinkedList;
 
-import edu.mit.csail.cgs.datasets.locators.*;
+import edu.mit.csail.cgs.datasets.locators.ChipChipLocator;
+import edu.mit.csail.cgs.datasets.locators.ExptLocator;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.utils.NotFoundException;
-import edu.mit.csail.cgs.utils.database.*;
 
 /**
  * @author tdanford
@@ -55,7 +55,6 @@ public class Factor implements Comparable<Factor> {
         
         ResultSet rs = ps.executeQuery();
         while(rs.next()) { 
-            int dbid = rs.getInt(1);
             String name = rs.getString(2);
             String version = rs.getString(3);
             ChipChipLocator loc = new ChipChipLocator(g, name, version);

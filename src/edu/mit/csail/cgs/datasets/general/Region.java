@@ -1,16 +1,17 @@
 package edu.mit.csail.cgs.datasets.general;
 
-import java.util.*;
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.datasets.species.Genome.ChromosomeInfo;
 import edu.mit.csail.cgs.utils.Saveable;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
-import edu.mit.csail.cgs.datasets.species.Gene;
-import edu.mit.csail.cgs.datasets.species.Genome.ChromosomeInfo;
-
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 
 /**
  * A <code>Region</code> represents an interval along some chromosome in a genome <br>
