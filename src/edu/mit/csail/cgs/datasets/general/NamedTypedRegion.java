@@ -1,7 +1,5 @@
 package edu.mit.csail.cgs.datasets.general;
 
-import java.util.*;
-
 import edu.mit.csail.cgs.datasets.species.Genome;
 
 public class NamedTypedRegion extends NamedStrandedRegion implements Typed, Stranded {
