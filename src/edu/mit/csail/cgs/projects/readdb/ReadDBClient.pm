@@ -383,17 +383,22 @@ sub readFloats {
 sub read {
   my ($self, $numitems, $format) = @_;
   my @out = ();
+  my $oldbuffer = '';
   while ($numitems > 0) {
     my $chunksize = (8192 < $numitems ? 8192 : $numitems);
     my $buffer;
-    my $data = $self->{socket}->recv($buffer, $chunksize * 4);
-    unless (length($buffer) == $chunksize * 4) {
-      die "read error";
+    my $retval = $self->{socket}->recv($buffer, $chunksize * 4);
+    if ($oldbuffer) {
+      $buffer = $oldbuffer . $buffer;
     }
-    while ($buffer) {
+    unless (defined($retval)) {
+      die "read error $retval : expected " . ($chunksize * 4) . " bytes but got " . length($buffer);
+    }
+    while (length($buffer) >= 4) {
       push(@out, unpack($format, substr($buffer, 0, 4, "")));
+      $numitems--;
     }
-    $numitems -= $chunksize;
+    $oldbuffer = $buffer;
   }
   return \@out;
 }
