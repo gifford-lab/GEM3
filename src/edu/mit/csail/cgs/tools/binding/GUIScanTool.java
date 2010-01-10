@@ -1,30 +1,36 @@
 package edu.mit.csail.cgs.tools.binding;
 
-import java.util.*;
-import java.io.*;
-import java.sql.*;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.sql.SQLException;
 
-import java.awt.*;
-import java.awt.event.*;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.border.TitledBorder;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
-
-import edu.mit.csail.cgs.utils.Listener;
-import edu.mit.csail.cgs.utils.NotFoundException;
-import edu.mit.csail.cgs.utils.database.*;
-import edu.mit.csail.cgs.viz.utils.GenomeSelectPanel;
-import edu.mit.csail.cgs.viz.components.*;
-import edu.mit.csail.cgs.ewok.nouns.*;
-import edu.mit.csail.cgs.ewok.verbs.*;
-import edu.mit.csail.cgs.ewok.verbs.binding.CallerMapper;
-import edu.mit.csail.cgs.datasets.locators.*;
-import edu.mit.csail.cgs.datasets.binding.*;
+import edu.mit.csail.cgs.datasets.binding.BindingParameters;
+import edu.mit.csail.cgs.datasets.binding.BindingScanLoader;
+import edu.mit.csail.cgs.datasets.locators.BayesLocator;
+import edu.mit.csail.cgs.datasets.locators.ChipChipLocator;
+import edu.mit.csail.cgs.datasets.locators.ExptLocator;
+import edu.mit.csail.cgs.datasets.locators.MSPLocator;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.ewok.verbs.binding.CallerMapper;
+import edu.mit.csail.cgs.utils.Listener;
+import edu.mit.csail.cgs.utils.NotFoundException;
+import edu.mit.csail.cgs.utils.database.UnknownRoleException;
+import edu.mit.csail.cgs.viz.components.ExptSelectPanel;
+import edu.mit.csail.cgs.viz.utils.GenomeSelectPanel;
 
 public class GUIScanTool extends JFrame implements Listener<ActionEvent> {
+
+	private static final long serialVersionUID = 1L;
 
 	public static void main(String[] args) { 
 		try {

@@ -6,7 +6,6 @@ import edu.mit.csail.cgs.ewok.verbs.cgh.*;
 import edu.mit.csail.cgs.datasets.general.*;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.chipchip.*;
-import edu.mit.csail.cgs.utils.database.*;
 
 /** Command line program to analyze a single channel of CGH data (that'd be GH data).
  *   First computes the median intensity in the data and assumes this is the intensity 

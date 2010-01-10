@@ -8,10 +8,6 @@ import java.util.*;
 import edu.mit.csail.cgs.datasets.general.NamedRegion;
 import edu.mit.csail.cgs.datasets.species.Genome;
 
-import org.biojava.bio.BioException;
-import org.biojava.bio.seq.Sequence;
-import edu.mit.csail.cgs.ewok.nouns.*;
-
 /**
  * @author tdanford
  *

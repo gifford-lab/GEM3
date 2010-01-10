@@ -89,7 +89,6 @@ public class LoadByteTrack {
         header = header.replaceAll(" quality scores","");
         System.err.println("Header is " + header);
         String line;
-        ArrayList<String[]> lines = new ArrayList<String[]>();
         byte[] bytes = new byte[0];
         insert.setString(1,header);
         insert.setBytes(2,bytes);

@@ -3,7 +3,6 @@ package edu.mit.csail.cgs.projects.readdb;
 import java.net.*;
 import java.util.*;
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import javax.security.sasl.*;
 import javax.security.auth.callback.*;
@@ -166,11 +165,6 @@ public class Client implements ReadOnlyClient {
         //        System.err.println("SENDING " + s);
         outstream.write(s.getBytes());
         outstream.flush();
-    }
-    /** sends a string to the server
-     */
-    private void sendStringNoFlush(String s) throws IOException {
-        outstream.write(s.getBytes());
     }
     /** reads one line from the server.  blocking.
      */

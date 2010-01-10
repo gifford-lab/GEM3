@@ -1,7 +1,6 @@
 package edu.mit.csail.cgs.projects.readdb;
 
 import java.util.*;
-import java.io.IOException;
 
 /**
  * Cache of Closeable objects.   Each object
