@@ -18,11 +18,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 public class GPSParser {
 
 	/**
-	 * Parses data in the GPS output format, e.g.
-
-	 * Position	Rank_Sum	Strength	EM_Posi	Shape	Shape_Z	Shape_Param	ShapeAsymmetry	IpStrength	CtrlStrength	Q_value_log10	MixingProb	NearestGene	Distance	
-	 * 8:20401711	47581	200.0	 8:20401711	1.30	1.6223	7.454790	0.33			200.0		4.8				47.53			0.9745		Hoxa1		2147483647	
-
+	 * Parses data in the GPS output format
 	 * @param filename name of the file containing the data
 	 * @return a List of hit objects
 	 */
@@ -68,13 +64,17 @@ public class GPSParser {
 
 	/**
 	 * Parse a single line of text into a hit object
+	 * 
+	 * Position	Rank_Sum	Strength	EM_Posi	Shape	Shape_Z	Shape_Param	ShapeAsymmetry	IpStrength	CtrlStrength	Q_value_log10	MixingProb	NearestGene	Distance	
+	 * 8:20401711	47581	200.0	 8:20401711	1.30	1.6223	7.454790	0.33			200.0		4.8				47.53			0.9745		Hoxa1		2147483647	
+
 	 * @param gpsLine a line of text representing a hit
 	 * @return a hit object containing the data from the specified line
 	 */
 	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-		if (t.length == 15) {
+		if (t.length == 16) {
 			try { 
 				Region r = Region.fromString(g, t[0]);
 				Region em_pos = Region.fromString(g, t[3]);
