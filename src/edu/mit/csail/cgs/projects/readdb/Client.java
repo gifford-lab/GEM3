@@ -78,6 +78,7 @@ public class Client implements ReadOnlyClient {
         String password = bundle.getString("passwd");
         init(hostname, Integer.parseInt(port), username, password);
     }
+    
     private void init(String hostname,
                    int portnum,
                    String username,
