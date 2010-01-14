@@ -7,7 +7,6 @@ import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.datasets.binding.BindingExtent;
 import edu.mit.csail.cgs.datasets.chipchip.ChipChipBayes;
 import edu.mit.csail.cgs.datasets.general.Region;
-import edu.mit.csail.cgs.datasets.locators.ChipChipLocator;
 import edu.mit.csail.cgs.datasets.locators.BayesLocator;
 
 public class BayesBindingGenerator<X extends Region>
@@ -15,7 +14,6 @@ public class BayesBindingGenerator<X extends Region>
 
     private ChipChipBayes data;
     private double sizethresh, probthresh, sizeprior, probprior;
-    private int totalcreated = 0;
     private boolean peaks;
 
     public BayesBindingGenerator (ChipChipBayes data, double probthresh, double sizethresh, boolean peaks) {
@@ -70,7 +68,7 @@ public class BayesBindingGenerator<X extends Region>
         if (peaks) {
             return executePeaks(r);
         } else {
-            ArrayList results = new ArrayList<BindingExtent>();
+            ArrayList<BindingExtent> results = new ArrayList<BindingExtent>();
             try {
                 data.window(r.getChrom(),
                             r.getStart(),
@@ -106,7 +104,7 @@ public class BayesBindingGenerator<X extends Region>
 
     */
     public Iterator<BindingExtent> executePeaks(X r) {
-        ArrayList results = new ArrayList<BindingExtent>();
+        ArrayList<BindingExtent> results = new ArrayList<BindingExtent>();
         try {
             data.window(r.getChrom(),
                         r.getStart(),

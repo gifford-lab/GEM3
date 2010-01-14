@@ -1,11 +1,15 @@
 package edu.mit.csail.cgs.datasets.general;
 
-import java.util.*;
-import java.io.*;
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Map;
 
-import edu.mit.csail.cgs.datasets.locators.ExptLocator;
-import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
 

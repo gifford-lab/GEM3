@@ -1,7 +1,6 @@
 package edu.mit.csail.cgs.utils.database;
 
 import java.util.*;
-import java.sql.*;
 
 public class RoleManager {
 

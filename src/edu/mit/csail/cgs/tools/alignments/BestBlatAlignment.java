@@ -1,15 +1,18 @@
 package edu.mit.csail.cgs.tools.alignments;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import edu.mit.csail.cgs.datasets.alignments.AlignmentStitcher;
+import edu.mit.csail.cgs.datasets.alignments.MultiZAlignRegion;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.general.*;
-import edu.mit.csail.cgs.datasets.species.*;
-import edu.mit.csail.cgs.datasets.alignments.*;
-import edu.mit.csail.cgs.ewok.verbs.*;
-import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.parsing.alignment.*;
+import edu.mit.csail.cgs.utils.parsing.alignment.PSL;
+import edu.mit.csail.cgs.utils.parsing.alignment.PSLHit;
 
 /**
  * Reads PSL formatted input on STDIN.  Prints, on STDOUT,
@@ -21,9 +24,6 @@ import edu.mit.csail.cgs.utils.parsing.alignment.*;
 public class BestBlatAlignment {
 
     public static void main(String args[]) throws Exception {
-        int splitPenalty, chromPenalty;
-        splitPenalty = Args.parseInteger(args,"splitpenalty",-1);
-        chromPenalty = Args.parseInteger(args,"chrompenalty",-1);
         String s = Args.parseString(args,"one",null);
         if (s == null) {
             System.err.println("Must supply two genome names as command line args as --one and --two");

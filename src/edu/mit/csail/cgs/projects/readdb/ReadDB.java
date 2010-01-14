@@ -1,7 +1,6 @@
 package edu.mit.csail.cgs.projects.readdb;
 
 import org.apache.commons.cli.*;
-import java.net.*;
 import java.util.*;
 import java.io.*;
 

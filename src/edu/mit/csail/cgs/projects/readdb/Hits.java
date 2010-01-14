@@ -3,7 +3,6 @@ package edu.mit.csail.cgs.projects.readdb;
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.*;
-import java.util.*;
 
 /** 
  * Represents the list of sorted read positions on disk

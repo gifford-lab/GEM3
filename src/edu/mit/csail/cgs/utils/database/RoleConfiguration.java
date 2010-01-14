@@ -1,25 +1,19 @@
 package edu.mit.csail.cgs.utils.database;
 
 import java.util.*;
-import java.sql.SQLException;
 
 public abstract class RoleConfiguration {
 
-	private UserTokens user;
-	private String schema;
-	
-	public RoleConfiguration(UserTokens ut, String s) { 
-		user = ut;
-		schema = s;
+	public RoleConfiguration(UserTokens ut, String s) {
 	}
 	
 	public RoleConfiguration(Properties p) { 
-		user = new UserTokens(p);
-		schema = p.getProperty("schema");
+		new UserTokens(p);
+		p.getProperty("schema");
 	}
 	
-	public void setUser(UserTokens ut) { user = ut; }
-	public void setSchema(String s) { schema = s; }
+	public void setUser(UserTokens ut) { }
+	public void setSchema(String s) { }
 	
 }
 

@@ -3,13 +3,17 @@
  */
 package edu.mit.csail.cgs.datasets.general;
 
-import java.util.*;
-import java.util.regex.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import java.sql.*;
-
-import edu.mit.csail.cgs.datasets.general.*;
-import edu.mit.csail.cgs.datasets.species.*;
+import edu.mit.csail.cgs.datasets.species.Genome;
 
 
 public class SpottedProbe extends NamedRegion {

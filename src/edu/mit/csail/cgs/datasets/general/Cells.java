@@ -1,16 +1,12 @@
 package edu.mit.csail.cgs.datasets.general;
 
 import java.util.*;
-import java.io.*;
 import java.sql.*;
-import java.sql.Connection;
+
 
 import edu.mit.csail.cgs.datasets.locators.ChipChipLocator;
 import edu.mit.csail.cgs.datasets.locators.ExptLocator;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.utils.NotFoundException;
-import edu.mit.csail.cgs.utils.database.*;
 
 /**
  * @author tdanford
@@ -65,7 +61,6 @@ public class Cells implements Comparable<Cells> {
         
         ResultSet rs = ps.executeQuery();
         while(rs.next()) { 
-            int dbid = rs.getInt(1);
             String name = rs.getString(2);
             String version = rs.getString(3);
             ChipChipLocator loc = new ChipChipLocator(g, name, version);

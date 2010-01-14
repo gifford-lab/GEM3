@@ -1,7 +1,6 @@
 package edu.mit.csail.cgs.utils.database;
 
 import java.util.*;
-import java.sql.*;
 
 //         connectString = "jdbc:mysql://opteron.csail.mit.edu/" + dbname + "?user=" + username +
 //-             "&password=" + password;

@@ -15,8 +15,6 @@ public class Dispatch implements Runnable {
     private Server server;
     private int maxConnections;
     private int warnedMaxConn = 0;
-    private boolean checkDups = false;
-
     public Dispatch (Server s, int numThreads, int maxC) {
         server = s;
         workQueue = new Vector<ServerTask>();
@@ -41,9 +39,6 @@ public class Dispatch implements Runnable {
             try {
                 if (warnedMaxConn++ % 100 == 0) {
                     server.getLogger().log(Level.WARNING,(String.format("Hit maxconnections (%d)",maxConnections)));
-                    for (ServerTask t : workQueue) {
-                        System.err.println("Avail? " + s + ": " + s.inputAvailable());
-                    }
                 }
                 Thread.sleep(10);
             } catch (InterruptedException e) {

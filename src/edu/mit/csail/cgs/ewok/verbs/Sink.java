@@ -4,7 +4,6 @@ import java.util.*;
 
 /**
  * A Sink is a verb that consumes objects but produces no output
- * @deprecated 
  */
 public interface Sink<X> { 
 	// this should basically be an alias to (a) calling init(), (b) calling

@@ -23,8 +23,10 @@ import edu.mit.csail.cgs.viz.components.BindingScanSelectPanel;
 import edu.mit.csail.cgs.viz.utils.GenomeSelectPanel;
 
 public class GUIBindingScanManager extends JFrame implements Listener<ActionEvent> {
-    
-    public static void main(String[] args) { 
+ 
+	private static final long serialVersionUID = 1L;
+
+	public static void main(String[] args) { 
         new GUIBindingScanManager();
     }
 

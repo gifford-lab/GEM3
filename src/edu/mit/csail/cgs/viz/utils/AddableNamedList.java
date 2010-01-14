@@ -5,7 +5,6 @@ package edu.mit.csail.cgs.viz.utils;
 
 import edu.mit.csail.cgs.utils.*;
 import javax.swing.*;
-import javax.swing.event.*;
 import java.awt.*;
 import java.awt.event.*;
 
@@ -14,7 +13,11 @@ import java.awt.event.*;
  */
 public class AddableNamedList<X> extends NamedListPanel<X> implements ListPanelEventSource {
 
-    private ObjectChooser<NamedValue<X>> chooser;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private ObjectChooser<NamedValue<X>> chooser;
     private JButton addButton, deleteButton;
     private ListPanelEventSource.Default src;
     

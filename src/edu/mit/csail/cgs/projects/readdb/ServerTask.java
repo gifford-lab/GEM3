@@ -235,8 +235,6 @@ public class ServerTask {
         } else {
             processFileRequest(type,params);
         }
-        long done = System.currentTimeMillis();
-        //        server.getLogger().log(Level.INFO,String.format("%s from %s took %d", type, username, done - afterType));
     }
     /**
      * Handles the subset of requests that deal with a particular
@@ -773,9 +771,7 @@ public class ServerTask {
             weightsfile.getParentFile().mkdirs();
             headerfile.getParentFile().mkdirs();
             if (headerfile.exists()) {
-                Header header;
                 try {
-                    header = server.getHeader(headerfile.getCanonicalPath());
                     AlignmentACL acl = server.getACL(server.getACLFileName(alignid));
                     if (!authorizeRead(acl) || !authorizeWrite(acl)) {
                         printAuthError();

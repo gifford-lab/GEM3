@@ -42,9 +42,8 @@ public class AddDataFile {
 
     private String factorone, factortwo, cellsone, cellstwo, conditionone, conditiontwo;
     private String name, version, replicate, designname, species, fragdistname, fragdistversion;
-    private boolean mean, median, linefit, nofar, noafe, verbose, fournorms, channelswap, bgsub;
+    private boolean mean, median, linefit, verbose, fournorms, channelswap, bgsub;
     private int blockoffset, designid;
-    private String normalization;
     private List<String> ipfiles, wcefiles, bothfiles;
     private java.sql.Connection core, chipchip;
     private ChipChipMetadataLoader loader;
@@ -250,8 +249,8 @@ public class AddDataFile {
         median = flags.contains("median") || fournorms;
         mean = flags.contains("mean");
         linefit = flags.contains("linefit") || fournorms;
-        nofar = flags.contains("nofar");
-        noafe = flags.contains("noafe");
+        flags.contains("nofar");
+        flags.contains("noafe");
         verbose = flags.contains("verbose");
         bgsub = !flags.contains("nobgsub");
         channelswap = flags.contains("channelswap") || flags.contains("dyeswap");
@@ -572,7 +571,7 @@ public class AddDataFile {
        - side by side blocks
     */
     public void fixGeometry () throws SQLException, UnknownGeometryException{
-        boolean isplain = false, isafe = false, isfar = false, ishalf = false, isside = false;
+        boolean isafe = false, isfar = false, ishalf = false, isside = false;
         int maxrow, maxcol;
         Statement stmt = chipchip.createStatement();       
         HashSet<ProbeCacheEntry> probecache = new HashSet<ProbeCacheEntry>();
@@ -708,7 +707,6 @@ public class AddDataFile {
             if (plain < (int)(.8 * max)) {
                 throw new UnknownGeometryException("Too few matched: " + message);
             }
-            isplain = true;
             anygeometry = true;
         }
         
@@ -989,5 +987,7 @@ class ProbeCacheEntry {
     }
 }
 class UnknownGeometryException extends Exception {
-    public UnknownGeometryException(String e) {super(e);}
+	private static final long serialVersionUID = 1L;
+
+	public UnknownGeometryException(String e) {super(e);}
 }

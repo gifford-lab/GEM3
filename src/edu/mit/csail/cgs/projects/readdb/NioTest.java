@@ -1,8 +1,6 @@
 package edu.mit.csail.cgs.projects.readdb;
 
-import java.io.*;
 import java.nio.*;
-import java.nio.channels.*;
 
 
 public class NioTest {
