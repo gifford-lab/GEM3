@@ -106,6 +106,7 @@ public class Client implements ReadOnlyClient {
             throw new ClientException("Couldn't set byte order " + output);
         }
     }
+    
     /**
      * performs the SASL authentication exchange with the server.  currently called by the constructor
      */
