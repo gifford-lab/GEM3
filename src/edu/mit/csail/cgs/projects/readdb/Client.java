@@ -162,6 +162,7 @@ public class Client implements ReadOnlyClient {
             return false;
         }
     }
+    
     /** sends a string to the server and flushes the socket 
      */
     private void sendString(String s) throws IOException {
