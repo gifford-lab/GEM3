@@ -62,6 +62,8 @@ public class ServerTask {
         type = null;
         username = null;
         uname = null;
+        socket.setReceiveBufferSize(Server.BUFFERLEN);
+        socket.setSendBufferSize(Server.BUFFERLEN);
         instream = new BufferedInputStream(socket.getInputStream());
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
