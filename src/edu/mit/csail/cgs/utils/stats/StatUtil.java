@@ -1147,7 +1147,7 @@ public class StatUtil {
 		return yy;
 	}	
 	
-	// log of K–L divergence for discrete probability distributions P and Q 
+	// log of K-L divergence for discrete probability distributions P and Q 
 		//	http://en.wikipedia.org/wiki/Kullback-Leibler_divergence
 	public static double log_KL_Divergence( double[]P, double[]Q){
 		double d=0;
@@ -1160,7 +1160,7 @@ public class StatUtil {
 		return Math.log(d);
 	}
 	
-	// K–L divergence for discrete probability distributions P and Q 
+	// K-L divergence for discrete probability distributions P and Q 
 	//	http://en.wikipedia.org/wiki/Kullback-Leibler_divergence
 	public static double KL_Divergence( double[]P, double[]Q){
 		double d=0;

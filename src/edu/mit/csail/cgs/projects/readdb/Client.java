@@ -77,6 +77,7 @@ public class Client implements ReadOnlyClient {
         String password = bundle.getString("passwd");
         init(hostname, Integer.parseInt(port), username, password);
     }
+    
     private void init(String hostname,
                    int portnum,
                    String username,
@@ -104,6 +105,7 @@ public class Client implements ReadOnlyClient {
             throw new ClientException("Couldn't set byte order " + output);
         }
     }
+    
     /**
      * performs the SASL authentication exchange with the server.  currently called by the constructor
      */
@@ -159,6 +161,7 @@ public class Client implements ReadOnlyClient {
             return false;
         }
     }
+    
     /** sends a string to the server and flushes the socket 
      */
     private void sendString(String s) throws IOException {
