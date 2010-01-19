@@ -27,23 +27,27 @@ public class Lock {
            - a thread therefore won't release its lock at the same
              time that it's acquiring it
         */
-        synchronized (readLocks) {
+        try {
             if (readLocks.containsKey(fname) &&
                 readLocks.get(fname).contains(locker)) {
                 return;
             }
+        } catch (NullPointerException e) {
+            /* ignore it.  This happens if readLocks was modified to remove
+               the fname key between the two and clauses above.
+            */
         }
         while (!locked) {
             if (writeLocks.containsKey(fname)) {
                 Thread.yield();
                 continue;
             }
-            synchronized(readLocks) {
-                synchronized(writeLocks) {
-                    if (writeLocks.containsKey(fname)) {
-                        Thread.yield();
-                        continue;
-                    }
+            synchronized(writeLocks) {
+                if (writeLocks.containsKey(fname)) {
+                    Thread.yield();
+                    continue;
+                }
+                synchronized(readLocks) {
                     if (!readLocks.containsKey(fname)) {
                         readLocks.put(fname, new HashSet<ServerTask>());
                     }
@@ -66,23 +70,26 @@ public class Lock {
     }
     protected static void writeLock(ServerTask locker, String fname) {
         boolean locked = false;
-        synchronized(writeLocks) {
+        try {
             if (writeLocks.containsKey(fname) &&
                 writeLocks.get(fname) == locker) {
                 return;
             }
+        } catch (NullPointerException e) {
+
         }
         while (!locked) {
             if (writeLocks.containsKey(fname)) {
                 Thread.yield();
                 continue;
             }
-            synchronized(readLocks) {
-                synchronized(writeLocks) {                
+            synchronized(writeLocks) {                
+                synchronized(readLocks) {
                     boolean justus = !readLocks.containsKey(fname) ||
                         (readLocks.containsKey(fname) &&
                          readLocks.get(fname).size() == 1 &&
                          readLocks.get(fname).contains(locker));
+                    
                     // can't acquire write lock if other people haveit read locked
                     if (writeLocks.containsKey(fname) ||
                         (readLocks.containsKey(fname) && !justus)) {
