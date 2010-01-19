@@ -1,35 +1,24 @@
 package edu.mit.csail.cgs.metagenes;
 
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.List;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.general.StrandedPoint;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
-import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
-import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 
-public class MotifProfiler implements PointProfiler<Point, Profile>{
+public class EventProfiler implements PointProfiler<Point, Profile>{
 
-	private WeightMatrix motif;
-	private WeightMatrixScorer scorer;
-	private SequenceGenerator seqgen;
 	private Genome gen;
 	private BinningParameters params=null;
-	private double minThreshold=0;
+	private List<Point> events;
 	
-	public MotifProfiler(BinningParameters bp, Genome g, WeightMatrix wm, double minThres){
-		minThreshold=minThres;
+	public EventProfiler(BinningParameters bp, Genome g, ArrayList<Point> e){
 		gen=g;
 		params=bp; 
-		motif=wm;
-		scorer = new WeightMatrixScorer(motif);
-		seqgen = new SequenceGenerator();
+		events = e;
+		System.out.println(events.size());
 	}
 
 	public BinningParameters getBinningParameters() {
@@ -49,31 +38,27 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 		Region query = new Region(gen, a.getChrom(), start, end);
 		boolean strand = (a instanceof StrandedPoint) ? 
 				((StrandedPoint)a).getStrand() == '+' : true;
-		
-		String seq = seqgen.execute(query);
-		WeightMatrixScoreProfile profiler = scorer.execute(seq);
-		
-		for(int i=query.getStart(); i<query.getEnd(); i+=params.getBinSize()){
-			double maxScore=Double.MIN_VALUE;
-			int maxPos=0;
-			for(int j=i; j<i+params.getBinSize() && j<query.getEnd(); j++){
-				int offset = j-query.getStart();
-				
-				if(profiler.getMaxScore(offset)>maxScore){
-					maxScore= profiler.getMaxScore(offset); 
-					maxPos=offset;
-				}
-			}
-			if(maxScore>=minThreshold){
-				if(!strand) { 
-					int tmp = window-maxPos;
-					maxPos = tmp;
-				}
-				int bin = params.findBin(maxPos);
-				addToArray(bin, bin, array, maxScore);
-			}
+		//candidates
+		ArrayList<Point> candidates = new ArrayList<Point>();
+		for(Point p : events){
+			if(query.contains(p))
+				candidates.add(p);
 		}
 		
+		for(int i=query.getStart(); i<query.getEnd(); i+=params.getBinSize()){
+			Region curr = new Region(query.getGenome(), query.getChrom(), i, i+params.getBinSize());
+			for(Point p : candidates){
+				if(curr.contains(p)){
+					int offset = p.getLocation()-query.getStart();
+					if(!strand) { 
+						int tmp = window-offset;
+						offset = tmp;
+					}
+					int bin = params.findBin(offset);
+					addToArray(bin, bin, array, 1);
+				}
+			}
+		}
 		return new PointProfile(a, params, array, (a instanceof StrandedPoint));
 	}
 
