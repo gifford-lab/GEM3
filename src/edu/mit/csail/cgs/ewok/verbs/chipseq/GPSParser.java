@@ -65,8 +65,12 @@ public class GPSParser {
 	/**
 	 * Parse a single line of text into a hit object
 	 * 
+	 * old format
 	 * Position	Rank_Sum	Strength	EM_Posi	Shape	Shape_Z	Shape_Param	ShapeAsymmetry	IpStrength	CtrlStrength	Q_value_log10	MixingProb	NearestGene	Distance	
 	 * 8:20401711	47581	200.0	 8:20401711	1.30	1.6223	7.454790	0.33			200.0		4.8				47.53			0.9745		Hoxa1		2147483647	
+	   New format
+	   Position		IpStrength	Shape	CtrlStrength	Q_value_log10	P_value_log10	UnaryEvent	NearestGene	Distance	Alpha
+	   18:75725340	230.5		-0.13	0.4				62.51			67.17			1			NONE		2147483647	9.0	
 
 	 * @param gpsLine a line of text representing a hit
 	 * @return a hit object containing the data from the specified line
@@ -74,15 +78,15 @@ public class GPSParser {
 	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-		if (t.length == 16) {
+		if (t.length == 10) {
 			try { 
 				Region r = Region.fromString(g, t[0]);
-				Region em_pos = Region.fromString(g, t[3]);
+//				Region em_pos = Region.fromString(g, t[3]);
 //				GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
 //						double controlStrength, double qvalue, double shape, double shapeZ)
-				peak = new GPSPeak(g, r.getChrom(), r.getStart(), em_pos.getStart(),
-						Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]), Double.parseDouble(t[11]),
-						Double.parseDouble(t[4]), Double.parseDouble(t[5]), Double.parseDouble(t[12]), t[13], Integer.parseInt(t[14]));
+				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+						Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
+						Double.parseDouble(t[5]), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
 			}
 			catch (Exception ex) {
 				//logger.error("Parse error on line " + lineNumber + ".", ex);
@@ -90,7 +94,8 @@ public class GPSParser {
 			}
 		}
 		else {
-			//logger.error("Line " + lineNumber + " has " + tokens.length + " tokens.");
+			//logger.error("Line " + lineNumber + " has " + t.length + " tokens.");
+			System.err.println("Line " + lineNumber + " has " + t.length + " tokens.");
 			return null;
 		}
 		return peak;
