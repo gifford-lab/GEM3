@@ -122,7 +122,7 @@ public class Dispatch implements Runnable {
                 } else if (i > workQueue.size() * 100) {
                     Thread.sleep(10);
                 } else {
-                    Thread.yield();
+                    //                    Thread.yield();
                 }
             } catch (InterruptedException e) {  }
         }

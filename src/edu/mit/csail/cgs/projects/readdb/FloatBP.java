@@ -7,7 +7,7 @@ import java.nio.*;
  * derived from the ByteBuffer bb
  */
 public class FloatBP extends ByteBP {
-    FloatBuffer fb;
+    protected FloatBuffer fb;
     public FloatBP(ByteBuffer b) {
         super(b);
         fb = b.asFloatBuffer();

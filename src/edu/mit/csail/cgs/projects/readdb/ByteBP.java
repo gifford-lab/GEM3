@@ -17,7 +17,7 @@ import java.nio.*;
  */
 public class ByteBP {
 
-    ByteBuffer bb;
+    protected ByteBuffer bb;
     public ByteBP(ByteBuffer b) {
         bb = b;
     }

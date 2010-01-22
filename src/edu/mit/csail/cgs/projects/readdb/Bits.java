@@ -30,8 +30,10 @@ public class Bits {
             b.position(0);
             int sent = 0;
             int limit = b.limit();
+            int count = 0;
             while (sent < limit) {
                 sent += channel.write(b);
+                count++;
             }
         }
     }

@@ -7,7 +7,7 @@ import java.nio.*;
  * derived from the ByteBuffer bb
  */
 public class IntBP extends ByteBP {
-    IntBuffer ib;
+    protected IntBuffer ib;
     public IntBP(ByteBuffer b) {
         super(b);
         ib = b.asIntBuffer();
@@ -17,19 +17,14 @@ public class IntBP extends ByteBP {
         ib = bb.asIntBuffer();
     }
     public IntBP slice(int start, int length) {
-//         if (length == 0) {
-//             System.err.println("LENGTH ZERO");
-//         }
         ByteBuffer b;
         synchronized(bb) {
             bb.position(start * 4);
             b = bb.slice();
         }
         b.order(bb.order());
-        //        System.err.println("GOING TO LIMIT TO " + (length * 4) + " of " + b.limit());
         b.limit(length * 4);
-        IntBP output = new IntBP(b);
-        return output;
+        return new IntBP(b);
     }
     public int get(int i) {
         return ib.get(i);
