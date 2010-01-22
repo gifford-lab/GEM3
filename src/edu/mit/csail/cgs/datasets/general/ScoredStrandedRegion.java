@@ -45,5 +45,9 @@ public class ScoredStrandedRegion extends ScoredRegion implements Stranded {
         str += " (" + getScore() + ")";
         return str;
     }
-
+    public String toTabString() { 
+        String str = getLocationString() + ":" + strand;
+        str += "\t" + getScore();
+        return str;
+    }
 }
