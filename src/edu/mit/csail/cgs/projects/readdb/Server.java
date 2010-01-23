@@ -32,8 +32,9 @@ public class Server {
     public static final int BUFFERLEN = 8192 * 16;
 
     private LRUCache<Header> headers;
-    private LRUCache<Hits> hits;
-    private LRUCache<AlignmentACL> acls;
+    private LRUCache<SingleHits> singleHits;
+    private LRUCache<PairedHits> pairedHits;
+    private LRUCache<AlignmentACL> acls;    
 
     private ServerSocket socket;
 
@@ -75,7 +76,8 @@ public class Server {
             maxConnections = Integer.parseInt(line.getOptionValue("maxconn"));
         }
 
-        hits = new LRUCache<Hits>(cacheSize);
+        singleHits = new LRUCache<SingleHits>(cacheSize);
+        pairedHits = new LRUCache<pairedHits>(cacheSize);
         headers = new LRUCache<Header>(cacheSize);
         acls = new LRUCache<AlignmentACL>(cacheSize);
         debug = line.hasOption("debug");
@@ -150,32 +152,40 @@ public class Server {
     public String getDefaultACLFileName() {
         return getTopDir() + "defaultACL.txt";
     }    
-    public String getHeaderFileName(String alignID,
-                                    String chromID) {
-        chromID = cleanStringForFilename(chromID);
-        return getAlignmentDir(alignID) + System.getProperty("file.separator") + chromID + ".index";
+    public String getSingleHeaderFileName(String alignID,
+                                          int chromID) {
+        return getAlignmentDir(alignID) + System.getProperty("file.separator") + chromID + ".singleindex";
     }    
-    public String getHitsFileName(String alignID,
-                                  String chromID) {
-        chromID = cleanStringForFilename(chromID);
-        return getAlignmentDir(alignID) + System.getProperty("file.separator") + chromID + ".hits";
-    }
-    public String getWeightsFileName(String alignID,
-                                     String chromID) {
-        chromID = cleanStringForFilename(chromID);
-        return getAlignmentDir(alignID) + System.getProperty("file.separator") + chromID + ".weights";
-    }
+    public String getPairedHeaderFileName(String alignID,
+                                          int chromID,
+                                          boolean isLeft) {
+        return getAlignmentDir(alignID) + System.getProperty("file.separator") + chromID + ".paired" + (isLeft ? "left" : "right") + "index";
+    }    
 
     /**
      * Returns the requested Hits object.  Creates it or retrieves from cache.
      * Client code is responsible for locking the file as necessary.
      */
-    public Hits getHits(String hitsFileName,
-                        String weightsFileName) throws IOException {
-        Hits output = hits.get(hitsFileName);
+    public SingleHits getSingleHits(String alignID,
+                                    int chrom) throws IOException, SecurityException, FileNotFoundException {
+        String key = alignID + chrom;
+        SingleHits output = singleHits.get(key);
         if (output == null) {
-            output = new Hits(hitsFileName, weightsFileName);
-            hits.add(hitsFileName, output);
+            String prefix = getAlignmendDir(alignID) + System.getProperty("file.separator");
+            output = new SingleHits(prefix,chrom);
+            singleHits.add(key, output);
+        }
+        return output;
+    }
+    public PairedHits getPairedHits(String alignID,
+                                    int chrom,
+                                    boolean isLeft) throws IOException, SecurityException, FileNotFoundException {
+        String key = alignID + chrom + isLeft;
+        PairedHits output = pairedHits.get(key);
+        if (output == null) {
+            String prefix = getAlignmendDir(alignID) + System.getProperty("file.separator");
+            output = new PairedHits(alignID, chrom, isLeft);
+            pairedHits.add(key, output);
         }
         return output;
     }
@@ -183,11 +193,21 @@ public class Server {
      * Returns the requested Header object.  Creates it or retrieves from cache.
      * Client code is responsible for locking the file as necessary.
      */
-    public Header getHeader(String filename) throws IOException {
-        Header output = headers.get(filename);
+    public Header getSingleHeader(String alignID, int chromID) throws IOException {
+        String key = alignID + chromID;
+        Header output = headers.get(key);
         if (output == null) {
-            output = Header.readIndexFile(filename);
-            headers.add(filename, output);
+            output = Header.readIndexFile(getSingleHeaderFileName(alignID,chromID));
+            headers.add(key, output);
+        }
+        return output;
+    }
+    public Header getSinglePairedHeader(String alignID, int chromID, boolean isLeft) throws IOException {
+        String key = alignID + chromID + isLeft;
+        Header output = headers.get(key);
+        if (output == null) {
+            output = Header.readIndexFile(getPairedHeaderFileName(alignID,chromID,isLeft));
+            headers.add(key, output);
         }
         return output;
     }
@@ -195,17 +215,27 @@ public class Server {
      * Returns the requested ACL object.  Creates it or retrieves from cache.
      * Client code is responsible for locking the file as necessary.
      */
-    public AlignmentACL getACL(String fname) throws IOException {
-        AlignmentACL output = acls.get(fname);
+    public AlignmentACL getACL(String alignID) throws IOException {
+        AlignmentACL output = acls.get(alignID);
         if (output == null) {
-            output = new AlignmentACL(fname);
-            acls.add(fname,output);
+            output = new AlignmentACL(getACLFileName(alignID));
+            acls.add(alignID,output);
         }
         return output;
     }
-    public void removeHits(String hitsFileName) {hits.remove(hitsFileName);}
-    public void removeHeader(String headerFileName) {headers.remove(headerFileName);}
-    public void removeACL(String aclFileName) {acls.remove(aclFileName);}
+    public void removeSingleHits(String alignID, int chromID) {
+        singleHits.remove(alignID + chromID);
+    }
+    public void removePairedHits(String alignID, int chromID, boolean isLeft) {
+        pairedHits.remove(alignID + chromID + isLeft);
+    }
+    public void removeSingleHeader(String alignID, int chromID) {
+        headers.remove(alignID + chromID);
+    }
+    public void removePairedHeader(String alignID, int chromID, boolean isLeft) {
+        headers.remove(alignID + chromID + isLeft);
+    }
+    public void removeACL(String alignID) {acls.remove(aclFileName);}
 
     /**
      * Returns true iff this princ is allowed

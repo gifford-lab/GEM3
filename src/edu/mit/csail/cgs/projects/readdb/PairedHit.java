@@ -2,7 +2,7 @@ package edu.mit.csail.cgs.projects.readdb;
 
 public class PairedHit implements {
 
-    public int leftChrom, rightChrom, 
+    public int leftChrom, rightChrom;
     public int leftPos, rightPos;
     public float weight;
     public boolean leftStrand, rightStrand;

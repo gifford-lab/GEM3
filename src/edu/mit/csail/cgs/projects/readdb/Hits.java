@@ -13,6 +13,101 @@ public abstract class Hits implements Closeable {
     private static int strandTwoMask = 0x80000000;
     private static int lenTwoMask = 0x7FFF0000;
 
+    public static IntBP openIntBP(String fname) throws FileNotFoundException, SecurityException, IOException {
+        RandomAccessFile raf = null;
+        FileChannel fc = null;
+        IntBP ib = null;
+        ByteBuffer bb = null;
+        IOException ioex = null;
+        FileNotFoundException fnfex = null;
+        SecurityException secex = null;
+        try {
+            raf = new RandomAccessFile(fname,"r");
+            fc = raf.getChannel();
+            bb = fc.map(FileChannel.MapMode.READ_ONLY,
+                        0,
+                        fc.size());
+            bb.order(ByteOrder.nativeOrder());
+            ib = new IntBuffer(bb);
+        } catch (IOException e) {
+            ioex = e;
+        } catch (FileNotFoundException e) {
+            fnfex = e;
+        } catch (SecurityException e) {
+            secex = e;
+        } finally { 
+            if (fc != null) {
+                fc.close();
+            }
+            if (raf != null) {
+                raf.close();
+            }
+        }
+        if (ioex != null) {
+            bb = null;
+            ib = null;
+            throw ioex;
+        }
+        if (fnfex != null) {
+            bb = null;
+            ib = null;
+            throw fnfex;
+        }
+        if (secex != null) {
+            bb = null;
+            ib = null;
+            throw secex;
+        }
+        return ib;
+    }
+    public static FloatBP openFloatBP(String fname) throws FileNotFoundException, SecurityException, IOException {
+        RandomAccessFile raf = null;
+        FileChannel fc = null;
+        FloatBP fb = null;
+        ByteBuffer bb = null;
+        IOException ioex = null;
+        FileNotFoundException fnfex = null;
+        SecurityException secex = null;
+        try {
+            raf = new RandomAccessFile(fname,"r");
+            fc = raf.getChannel();
+            bb = fc.map(FileChannel.MapMode.READ_ONLY,
+                        0,
+                        fc.size());
+            bb.order(ByteOrder.nativeOrder());
+            fb = new FloatBuffer(bb);
+        } catch (IOException e) {
+            ioex = e;
+        } catch (FileNotFoundException e) {
+            fnfex = e;
+        } catch (SecurityException e) {
+            secex = e;
+        } finally { 
+            if (fc != null) {
+                fc.close();
+            }
+            if (raf != null) {
+                raf.close();
+            }
+        }
+        if (ioex != null) {
+            bb = null;
+            fb = null;
+            throw ioex;
+        }
+        if (fnfex != null) {
+            bb = null;
+            fb = null;
+            throw fnfex;
+        }
+        if (secex != null) {
+            bb = null;
+            fb = null;
+            throw secex;
+        }
+        return fb;
+    }
+
     /** returns just the length from an int representing a
         length and strand */
     public static short getLengthOne(int las) {
@@ -42,68 +137,9 @@ public abstract class Hits implements Closeable {
 
     public Hits (int chrom, String positionsFname, String weightsFname, String lasFname) throws FileNotFoundException, SecurityException, IOException {
         this.chrom = chrom;
-        IOException ioex = null;
-        FileNotFoundException fnfex = null;
-        SecurityException secex = null;
-        ByteBuffer bb;
-        try {
-            positionsRAF = new RandomAccessFile(fname,mode);
-            positionsFC = positionsRAF.getChannel();
-            bb = positionsFC.map(FileChannel.MapMode.READ_ONLY,
-                                 0,
-                                 positionsFC.size());
-            bb.order(ByteOrder.nativeOrder());
-            positions = new IntBP(bb);
-
-            fname = getWeightsFname(prefix,chrom);
-            weightsRAF = new RandomAccessFile(fname,mode);
-            weightsFC = weightsRAF.getChannel();
-            bb = weightsFC.map(FileChannel.MapMode.READ_ONLY,
-                               0,
-                               weightsFC.size());
-            bb.order(ByteOrder.nativeOrder());
-            weights = new FloatBP(bb);
-
-            fname = getLaSFname(prefix,chrom);
-            lasRAF = new RandomAccessFile(fname,mode);
-            lasFC = lasRAF.getChannel();
-            bb = lasFC.map(FileChannel.MapMode.READ_ONLY,
-                           0,
-                           lasFC.size());
-            bb.order(ByteOrder.nativeOrder());
-            lenAndStrand = new IntBP(bb);
-        } catch (IOException e) {
-            ioex = e;
-        } catch (FileNotFoundException e) {
-            fnfex = e;
-        } catch (SecurityException e) {
-            secex = e;
-        } finally {
-            if (positionsFC != null) { positionsFC.close();  }
-            if (positionsRAF != null) { positionsRAF.close();}
-            if (weightsFC != null) {weightsFC.close(); }
-            if (weightsRAF != null) {weightsRAF.close(); }
-            if (lasRAF != null) {lasRAF.close();}
-            if (lasFC != null) {lasFC.close();}            
-        }            
-        if (ioex != null) {
-            positions = null;
-            weights = null;
-            lenAndStrand = null;
-            throw ioex;
-        }
-        if (fnfex != null) {
-            positions = null;
-            weights = null;
-            lenAndStrand = null;
-            throw fnfex;
-        }
-        if (secex != null) {
-            positions = null;
-            weights = null;
-            lenAndStrand = null;
-            throw secex;
-        }
+        positions = openIntBP(positionsFname);
+        weights = openFloatBP(weightsFname);
+        lenAndStrand = openIntBP(lasFname);
     }
     /** gets the buffer of positions */
     public IntBP getPositionsBuffer() {
@@ -286,7 +322,189 @@ public abstract class Hits implements Closeable {
         }
         return output;
     }
-
+    /** return a histogram from positions start to stop
+     *  in units of stepsize.  firstindex and lastindex come from
+     *  Header.getFirstIndex(start) and Header.getLastIndex(stop)
+     *
+     *  If extension is non-zero, then each hit is extended to
+     * cover a region of extension bp (positive values extend to greater
+     * coordinates, negative numbers to smaller coordinates) and the
+     * hit is counted in each bin that it touches.
+     */                                           
+    public int[] histogram(int firstindex,
+                           int lastindex,
+                           int start,
+                           int stop,
+                           int stepsize,
+                           boolean extension) throws IOException {
+        IntBP positions = getPositionsBuffer();
+        int output[] = new int[(stop - start) / stepsize + 1];
+        for (int j = 0; j < output.length; j++) {
+            output[j] = 0;
+        }
+        int[] p = getIndices(firstindex, lastindex, start,stop);        
+        if (!extension) {
+            for (int i = p[0]; i < p[1]; i++) {
+                output[(positions.get(i) - start) / stepsize]++;            
+            }
+        } else {
+            IntBP las = getLASBuffer();
+            for (int i = p[0]; i < p[1]; i++) {
+                int bin = (positions.get(i) - start) / stepsize;
+                int l = las.get(i);
+                short len = getLengthOne(l);
+                boolean strand = getStrandOne(l);
+                if (strand) {
+                    while (len > 0 && ++bin < output.length) {
+                        output[bin]++;
+                        len -= stepsize;
+                    }
+                } else {
+                    while (len > 0 && --bin > 0) {
+                        output[bin]++;
+                        len -= stepsize;
+                    }
+                }
+            }
+        }
+        return output;
+    }
+    /**
+     * histogram with a minimum weight
+     */
+    public int[] histogram(int firstindex,
+                           int lastindex,
+                           int start,
+                           int stop,
+                           int stepsize,
+                           float minweight,
+                           boolean extension) throws IOException {
+        IntBP positions = getPositionsBuffer();
+        FloatBP weights = getWeightsBuffer();
+        int output[] = new int[(stop - start) / stepsize + 1];
+        for (int j = 0; j < output.length; j++) {
+            output[j] = 0;
+        }
+        int[] p = getIndices(firstindex, lastindex, start,stop);        
+        if (!extension) {
+            for (int i = p[0]; i < p[1]; i++) {
+                if (weights.get(i) >= minweight) {
+                    output[(positions.get(i) - start) / stepsize]++;            
+                }
+            }
+        } else {
+            IntBP las = getLASBuffer();
+            for (int i = p[0]; i < p[1]; i++) {
+                if (weights.get(i) >= minweight) {
+                    int bin = (positions.get(i) - start) / stepsize;
+                    int l = las.get(i);
+                    short len = getLengthOne(l);
+                    boolean strand = getStrandOne(l);
+                    if (strand) {
+                        while (len > 0 && ++bin < output.length) {
+                            output[bin]++;
+                            len -= stepsize;
+                        }
+                    } else {
+                        while (len > 0 && --bin > 0) {
+                            output[bin]++;
+                            len -= stepsize;
+                        }
+                    }
+                }
+            }
+        }
+        return output;
+    }
+    public float[] weightHistogram(int firstindex,
+                                   int lastindex,
+                                   int start,
+                                   int stop,
+                                   int stepsize,
+                                   boolean extension) throws IOException {
+        IntBP positions = getPositionsBuffer();
+        FloatBP weights = getWeightsBuffer();
+        float output[] = new int[(stop - start) / stepsize + 1];
+        for (int j = 0; j < output.length; j++) {
+            output[j] = 0;
+        }
+        int[] p = getIndices(firstindex, lastindex, start,stop);        
+        if (!extension) {
+            for (int i = p[0]; i < p[1]; i++) {
+                output[(positions.get(i) - start) / stepsize] += weights.get(i);            
+            }
+        } else {
+            IntBP las = getLASBuffer();
+            for (int i = p[0]; i < p[1]; i++) {
+                int bin = (positions.get(i) - start) / stepsize;
+                int l = las.get(i);
+                short len = getLengthOne(l);
+                boolean strand = getStrandOne(l);
+                if (strand) {
+                    while (len > 0 && ++bin < output.length) {
+                        output[bin] += weights.get(i);
+                        len -= stepsize;
+                    }
+                } else {
+                    while (len > 0 && --bin > 0) {
+                        output[bin] += weights.get(i);
+                        len -= stepsize;
+                    }
+                }
+            }
+        }
+        return output;
+    }
+    /**
+     * histogram with a minimum weight
+     */
+    public float[] weightHistogram(int firstindex,
+                                   int lastindex,
+                                   int start,
+                                   int stop,
+                                   int stepsize,
+                                   float minweight,
+                                   boolean extension) throws IOException {
+        IntBP positions = getPositionsBuffer();
+        FloatBP weights = getWeightsBuffer();
+        float output[] = new float[(stop - start) / stepsize + 1];
+        for (int j = 0; j < output.length; j++) {
+            output[j] = 0;
+        }
+        int[] p = getIndices(firstindex, lastindex, start,stop);        
+        if (!extension) {
+            for (int i = p[0]; i < p[1]; i++) {
+                float f = weights.get(i);
+                if (f > minweight) {
+                    output[(positions.get(i) - start) / stepsize] += f;
+                }
+            }
+        } else {
+            IntBP las = getLASBuffer();
+            for (int i = p[0]; i < p[1]; i++) {
+                float f = weights.get(i);
+                if (f >= minweight) {
+                    int bin = (positions.get(i) - start) / stepsize;
+                    int l = las.get(i);
+                    short len = getLengthOne(l);
+                    boolean strand = getStrandOne(l);
+                    if (strand) {
+                        while (len > 0 && ++bin < output.length) {
+                            output[bin] += f;
+                            len -= stepsize;
+                        }
+                    } else {
+                        while (len > 0 && --bin > 0) {
+                            output[bin] += f;
+                            len -= stepsize;
+                        }
+                    }
+                }
+            }
+        }
+        return output;
+    }   
+    
     public void close() throws IOException {        
         positions.ib = null;
         positions.bb = null;
