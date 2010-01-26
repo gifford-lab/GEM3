@@ -78,26 +78,20 @@ public class GPSParser {
 	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-		if (t.length == 10) {
-			try { 
-				Region r = Region.fromString(g, t[0]);
+		try { 
+			Region r = Region.fromString(g, t[0]);
 //				Region em_pos = Region.fromString(g, t[3]);
 //				GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
 //						double controlStrength, double qvalue, double shape, double shapeZ)
-				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-						Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
-						Double.parseDouble(t[5]), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
-			}
-			catch (Exception ex) {
-				//logger.error("Parse error on line " + lineNumber + ".", ex);
-				return null;
-			}
+			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+					Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
+					Double.parseDouble(t[5]), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
 		}
-		else {
-			//logger.error("Line " + lineNumber + " has " + t.length + " tokens.");
-			System.err.println("Line " + lineNumber + " has " + t.length + " tokens.");
+		catch (Exception ex) {
+			//logger.error("Parse error on line " + lineNumber + ".", ex);
 			return null;
 		}
+
 		return peak;
 	}
 }
