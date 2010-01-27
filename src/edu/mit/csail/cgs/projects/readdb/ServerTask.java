@@ -16,7 +16,7 @@ import javax.security.auth.callback.*;
  */
 
 public class ServerTask {
-
+    private static final int SINGLE = 1, PAIRED = 2;
     /* instance variables */
     /* Server that we're working for.  Need a reference to it so we can ask it
        for paths and configuration information and such
@@ -43,8 +43,8 @@ public class ServerTask {
     private byte[] buffer;
     private static final int MAXPARAMLINES = 100;
     /* other variables maintained across calls to Run but reset between connections */
-    private String type;
-    private List<String> params;
+    private Request request;
+    private List<String> args;
     private SaslServer sasl;
     private Map<String,String> saslprops;
     private String uname; // temporary, used by authenticate
@@ -52,14 +52,14 @@ public class ServerTask {
     public ServerTask(Server serv, Socket s) throws IOException {
         myorder = ByteOrder.nativeOrder();          
         buffer = new byte[8192];
-        params = new ArrayList<String>();
+        request = new Request();
+        args = new ArrayList<String>();
         saslprops = new HashMap<String,String>();
         saslprops.put("Sasl.POLICY_NOPLAINTEXT","true");
         saslprops.put("Sasl.POLICY_NOANONYMOUS","true");
         server = serv;
         socket = s;
         shouldClose = false;
-        type = null;
         username = null;
         uname = null;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
@@ -131,15 +131,9 @@ public class ServerTask {
      */
     public void run() {
         try {
-//             if (server.debug()) {
-//                 System.err.println("ST running with username=" + username + " type=" + type + " params="+ params);
-//             }
             if (username == null) {
                 if (!authenticate()) {
                     printAuthError();
-//                     if (server.debug()) {
-//                         System.err.println("Setting shouldClose 3 " + socket + " for " + this);
-//                     }
                     shouldClose = true;
                     return;
                 }
@@ -149,32 +143,23 @@ public class ServerTask {
                 server.getLogger().log(Level.INFO,"ServerTask " + Thread.currentThread() + " authenticated " + username + " from " + socket.getInetAddress());
                 printString("authenticated as " + username + "\n");
             }
-            if (type == null) {
-                type = readLine();
-            }
-            if (type == null) { 
-                return;
-            } else {
-                while (true) {
-                    String p = readLine();
-                    if (p == null) { 
-                        return; 
+            while (true) {
+                String p = readLine();
+                if (p == null) { 
+                    return; 
+                } else {
+                    if (p.equals("ENDREQUEST")) {
+                        if (parseArgs()) {
+                            processRequest();                        
+                        }
+                        args.clear();
+                        if (outstream != null) { outstream.flush(); }                            
+                        break;
                     } else {
-                        if (p.equals("ENDREQUEST")) {
-                            processRequest();
-                            type = null;
-                            params.clear();
-                            if (outstream != null) { outstream.flush(); }                            
-                            break;
-                        } else {
-                            params.add(p);
-                            if (params.size() > MAXPARAMLINES) {
-//                                 if (server.debug()) {
-//                                     System.err.println("Setting shouldClose 4 " + socket + " for " + this);
-//                                 }
-                                shouldClose = true;
-                                return;
-                            }
+                        args.add(p);
+                        if (args.size() > MAXPARAMLINES) {                            
+                            shouldClose = true;
+                            return;
                         }
                     }
                 }
@@ -191,158 +176,192 @@ public class ServerTask {
             return;
         }
     }
+    public boolean parseArgs() throws IOException {
+        request.type = null;
+        request.alignid = null;
+        request.chromid = null;
+        request.start = null;
+        request.end = null;
+        request.isPaired = null;
+        request.isLeft = null;
+        request.isPlusStrand = null;
+        request.minWeight = null;
+        request.map.clear();
+        request.list.clear();
+        for (String s : args) {
+            String pieces[] = s.split("\\s*=\\s*");
+            if (pieces.length == 2) {
+                if (pieces[0].equals("alignid")) {
+                    request.alignid = pieces[1];
+                } else if (pieces[0].equals("requesttype")) {
+                    request.type = pieces[1];
+                } else if (pieces[0].equals("chromid")) {
+                    try {
+                        request.chromid = new Integer(pieces[1]);
+                    } catch (NumberFormatException e) {
+                        printString("invalid number for chromid " + pieces[1] + "\n");
+                        return false;
+                    }
+                } else if (pieces[0].equals("start")) {
+                    try {
+                        request.start = new Integer(pieces[1]);
+                    } catch (NumberFormatException e) {
+                        printString("invalid number for start " + pieces[1] + "\n");
+                        return false;
+                    }
+                } else if (pieces[0].equals("end")) {
+                    try {
+                        request.end = new Integer(pieces[1]);
+                    } catch (NumberFormatException e) {
+                        printString("invalid number for end " + pieces[1] + "\n");
+                        return false;
+                    }
+                } else if (pieces[0].equals("ispaired")) {
+                    request.isPaired = new Boolean(pieces[1]);
+                } else if (pieces[0].equals("isleft")) {
+                    request.isLeft = new Boolean(pieces[1]);
+                } else if (pieces[0].equals("isplusstrand")) {
+                    request.isPlusStrand = new Boolean(pieces[1]);
+                } else if (pieces[0].equals("minweight")) {
+                    try {
+                        request.minWeight = new Float(pieces[1]);
+                    } catch (NumberFormatException e) {
+                        printString("invalid minweight " + pieces[1] + "\n");
+                        return false;
+                    }
+                } else {
+                    request.map.put(pieces[0],pieces[1]);
+                }
+            } else if (pieces.length == 1) {
+                request.list.add(s);
+            } else {
+                printString("Invalid number of fields on line " + s);
+                return false;
+            }
+        }
+        if (request.type == null) {
+            printString("must provide a requestype");
+            return false;
+        }
+        if (request.isPaired && request.isLeft == null) {
+            printString("must provide isleft when providing ispaired");
+            return false;
+        }
+
+        return true;
+    }
 
     /** reads and handles a request on the Socket.
      */
     public void processRequest () throws IOException {
-        if (type.length() == 0) {
-//             if (server.debug()) {
-//                 System.err.println("Setting shouldClose 6 " + socket + " for " + this);
-//             }
-            shouldClose = true;
-            printString("Empty request type");
-            return;
-        }
-        if (type.equals("exists")) {
-            processExists(params);            
-        } else if (type.equals("store")) {
-            processStore(params);
-        } else if (type.equals("bye")) {
-            if (server.debug()) {
-                System.err.println("Got bye");
-                //                System.err.println("Setting shouldClose 7 " + socket + " for " + this);
+        try {
+            if (request.alignid != null) {
+                Lock.readLock(this,request.alignid);
             }
-            shouldClose = true;
-        } else if (type.equals("getchroms")) {
-            processGetChroms(params);
-        } else if (type.equals("getacl")) {
-            processGetACL(params);            
-        } else if (type.equals("setacl")) {
-            processSetACL(params);
-        } else if (type.equals("deletealign")) {
-            processDeleteAlignment(params);
-        } else if (type.equals("byteorder")) {
-            processByteOrder(params);
-        } else if (type.equals("addtogroup")) {
-            processAddToGroup(params);
-        } else if (type.equals("shutdown")) {
-            server.getLogger().log(Level.INFO,"Received shutdown from " + username);
-            if (server.isAdmin(username)) {
-                printOK();
-                server.keepRunning(false);
+            if (request.type.equals("exists")) {
+                processExists();            
+            } else if (request.type.equals("singlestore")) {
+                processSingleStore();
+            } else if (request.type.equals("pairedstore")) {
+                processPairedStore();
+            } else if (request.type.equals("bye")) {
+                shouldClose = true;
+            } else if (request.type.equals("getchroms")) {
+                processGetChroms();
+            } else if (request.type.equals("getacl")) {
+                processGetACL();            
+            } else if (request.type.equals("setacl")) {
+                processSetACL();
+            } else if (request.type.equals("deletealign")) {
+                processDeleteAlignment();
+            } else if (request.type.equals("byteorder")) {
+                processByteOrder();
+            } else if (request.type.equals("addtogroup")) {
+                processAddToGroup();
+            } else if (request.type.equals("shutdown")) {
+                server.getLogger().log(Level.INFO,"Received shutdown from " + username);
+                if (server.isAdmin(username)) {
+                    printOK();
+                    server.keepRunning(false);
+                } else {
+                    printAuthError();
+                }
+                shouldClose = true;
             } else {
-                printAuthError();
+                processFileRequest();
             }
-            shouldClose = true;
-        } else {
-            processFileRequest(type,params);
+        } catch (IOException e) {
+            Lock.readUnLock(this,request.alignid);
+            throw e;
         }
+        Lock.readUnLock(this,request.alignid);
+
     }
     /**
      * Handles the subset of requests that deal with a particular
      * file that we expect to exist
      */
-    public void processFileRequest(String type,List<String> params)  throws IOException{
-        String alignid = params.remove(0);
-        String chromid = params.remove(0);
-        if (alignid == null || alignid.length() == 0) {
-            printString("null or empty alignment " + alignid);
+    public void processFileRequest()  throws IOException{
+        if (request.alignid == null || request.alignid.length() == 0) {
+            printString("null or empty alignment " + request.alignid);
             return;
         }
-        if (chromid == null || chromid.length() == 0) {
-            printString("null or empty chromosome " + chromid);
-            return;
-        }
-
-        File directory = new File(server.getAlignmentDir(alignid));
+        File directory = new File(server.getAlignmentDir(request.alignid));
         if (!directory.exists()) {
             printString("No Such Alignment\n");
             return;
         } 
-        String headerfname = server.getHeaderFileName(alignid, chromid);
-        String aclfname = server.getACLFileName(alignid);
-        Lock.readLock(this,headerfname);
-        Lock.readLock(this,aclfname);
-        Header header;
         AlignmentACL acl = null;        
         try {
-            File hf = new File(headerfname);
-            if (!hf.exists()) {
-                printString("No Such chromosome or alignment\n");
-                Lock.readUnLock(this,headerfname);
-                Lock.readUnLock(this,aclfname);
-                return;
-            }
-            acl = server.getACL(aclfname);
+            acl = server.getACL(request.alignid);
         } catch (IOException e) {
             // happens if the file doesn't exist or if we can't read it at the OS level
-            server.getLogger().log(Level.INFO,String.format("read error on %s, %s : %s",
-                                                            aclfname,
-                                                            server.getACLFileName(alignid),
+            server.getLogger().log(Level.INFO,String.format("read error on acl for %s : %s",
+                                                            request.alignid,
                                                             e.toString()));
             printAuthError();
-            Lock.readUnLock(this,aclfname);
-            Lock.readUnLock(this,headerfname);
             return;
         }
-        try {
-            header = server.getHeader(headerfname);
-        } catch (IOException e) {
-            // happens if the file doesn't exist or if we can't read it at the OS level
-            server.getLogger().log(Level.INFO,String.format("read error on %s, %s : %s",
-                                                            headerfname,
-                                                            server.getHeaderFileName(alignid, chromid),
-                                                            e.toString()));
-            printAuthError();
-            Lock.readUnLock(this,aclfname);
-            Lock.readUnLock(this,headerfname);
-            return;
-        }
-
         if (!authorizeRead(acl)) {
-            printAuthError();
-            server.getLogger().log(Level.INFO,String.format("%s can't read %s, %s",
+            server.getLogger().log(Level.INFO,String.format("%s can't read %s",
                                                             username,
-                                                            aclfname,
-                                                            server.getACLFileName(alignid)));
-            Lock.readUnLock(this,aclfname);
-            Lock.readUnLock(this,headerfname);
+                                                            request.alignid));
+            printAuthError();
             return;
         }
-        Lock.readUnLock(this,aclfname);
-        String hitsfname = server.getHitsFileName(alignid, chromid);
-        String weightsfname = server.getWeightsFileName(alignid, chromid);
-        Lock.readLock(this,hitsfname);
-        Lock.readLock(this,weightsfname);
-        Hits hits = server.getHits(hitsfname, weightsfname);
-        if (type.equals("count")) {
-            processCount(header,hits,params);
-        } else if (type.equals("weight")) {
-            processWeight(header,hits,params);
-        } else if (type.equals("countrange")) {
-            processCountRange(header,hits,params);
-        } else if (type.equals("weightrange")) {
-            processWeightRange(header,hits,params);
-        } else if (type.equals("gethits")) {
-            processGetHits(header,hits,params);
-        } else if (type.equals("gethitsrange")) {
-            processGetHitsRange(header,hits,params);
-        } else if (type.equals("histogram")) {
-            processHistogram(header,hits,params);
-        } else if (type.equals("weighthistogram")) {
-            processWeightHistogram(header,hits,params);
-        } else if (type.equals("getweights")) {
-            processGetWeights(header,hits,params);
-        } else if (type.equals("getweightsrange")) {
-            processGetWeightsRange(header,hits,params);
+        Header header;
+        Hits hits;
+        try {
+            if (request.isPaired) {
+                hits = server.getPairedHits(request.alignid, request.chromid, request.isLeft);
+                header = server.getPairedHeader(request.alignid, request.chromid, request.isLeft);
+            } else {
+                hits = server.getSingleHits(request.alignid, request.chromid);
+                header = server.getSingleHeader(request.alignid, request.chromid);
+            }
+        } catch (IOException e) {
+            // happens if the file doesn't exist or if we can't read it at the OS level
+            server.getLogger().log(Level.INFO,String.format("read error on header or hits for %s, %d, %s : %s",
+                                                            request.alignid, request.chromid, request.isLeft,
+                                                            e.toString()));
+            printAuthError();
+            return;
+        }
+        if (request.type.equals("count")) {
+            processCount(header,hits);
+        } else if (request.type.equals("weight")) {
+            processWeight(header,hits);
+        } else if (request.type.equals("histogram")) {
+            processHistogram(header,hits);
+        } else if (request.type.equals("weighthistogram")) {
+            processWeightHistogram(header,hits);
+        } else if (request.type.equals("gethits")) {
+            processGetHits(header,hits);
         } else {
             printInvalid("request type");
         }
         hits = null;
         header = null;
-        Lock.readUnLock(this,weightsfname);
-        Lock.readUnLock(this,hitsfname);
-        Lock.readUnLock(this,headerfname);
      }
 
     /**
@@ -474,11 +493,15 @@ public class ServerTask {
         outstream.write(s.getBytes());
         outstream.flush();
     }
-    public void processAddToGroup(List<String> params) throws IOException {
-        String princ = params.get(0);
-        String group = params.get(0);
+    public void processAddToGroup() throws IOException {
+        String princ = request.map.get("princ");
+        String group = request.map.get("group");
         if (!server.isAdmin(username)) {
             printAuthError();
+            return;
+        }
+        if (princ == null || group == null) {
+            printString("Must supply princ and group :" + princ + "," + group + "\n");
             return;
         }
         server.addToGroup(this,group,princ);
@@ -519,25 +542,14 @@ public class ServerTask {
             return null;
         }
     }
-    /**
-     * input:
-     *   alignid
-     * output:
-     *
-     */
-    public void processGetACL(List<String> params) throws IOException {
-        String alignid = params.get(0);
-        String aclFname = server.getACLFileName(alignid);
-        Lock.readLock(this,aclFname);
+    public void processGetACL() throws IOException {
         AlignmentACL acl = null;
         try {
-            acl = server.getACL(aclFname);
+            acl = server.getACL(request.alignid);
         } catch (IOException e) {
             printString("No such alignment");
-            Lock.readUnLock(this,aclFname);
             return;
         }
-        Lock.readUnLock(this,aclFname);
         if (!authorizeAdmin(acl)) {
             printAuthError();
             return;
@@ -561,25 +573,23 @@ public class ServerTask {
         }
         printString(sb.toString());
     }
-    public void processSetACL(List<String> params) throws IOException {
-        String alignid = params.remove(0);
-        String aclFname = server.getACLFileName(alignid);
-        Lock.writeLock(this,aclFname);
+    public void processSetACL() throws IOException {
+        Lock.writeLock(this,request.alignid);
         AlignmentACL acl = null;
         try {
-            acl = server.getACL(aclFname);
+            acl = server.getACL(request.alignid);
         } catch (IOException e) {
             printString("No such alignment");
-            Lock.writeUnLock(this,aclFname);
+            Lock.writeUnLock(this,request.alignid);
             return;
         }
         if (!authorizeAdmin(acl) && !server.isAdmin(username)) {
             printAuthError();
-            Lock.writeUnLock(this,aclFname);
+            Lock.writeUnLock(this,request.alignid);
             return;
         }
-        for (int i = 0; i < params.size(); i++) {
-            String line = params.get(i);
+        for (int i = 0; i < request.list.size(); i++) {
+            String line = request.list.get(i);
             String pieces[] = line.split(" ");
             /* line format is principal [add|delete] [read|write|admin] */
             Set<String> aclset = pieces[2].equals("admin") ? acl.getAdminACL() : 
@@ -598,21 +608,18 @@ public class ServerTask {
                 continue;
             }
         }
-        acl.writeToFile(server.getACLFileName(alignid));
-        server.removeACL(aclFname);
-        Lock.writeUnLock(this,aclFname);
+        acl.writeToFile(server.getACLFileName(request.alignid));
+        server.removeACL(request.alignid);
+        Lock.writeUnLock(this,request.alignid);
         printString("OK\n");                        
     }    
     /** reads two lines from socket: alignment id and chromosome id.
      * returns "exists" or unknown" to indicate whether the 
      * server knows about that pair
     */
-    public void processExists(List<String> params) throws IOException {
-        String alignid = params.get(0);
-        String fname = server.getACLFileName(alignid);
-        Lock.readLock(this,fname);
+    public void processExists() throws IOException {
         try {
-            AlignmentACL acl = server.getACL(fname);
+            AlignmentACL acl = server.getACL(request.alignid);
             if (authorizeRead(acl)) {
                 printString("exists\n");
             } else {
@@ -622,516 +629,409 @@ public class ServerTask {
             e.printStackTrace();
             printString("unknown\n");
         }
-        Lock.readUnLock(this,fname);
     }
     /**
      * Returns the list of chromosomes for an alignment
      */
-    public void processGetChroms(List<String> params) throws IOException {
-        String alignid = params.get(0);
-        String aclfname = server.getACLFileName(alignid);
-        String dirname = server.getAlignmentDir(alignid);
-        Lock.readLock(this,aclfname);
-        Lock.readLock(this,dirname);
-        File directory = new File(dirname);
+    public void processGetChroms() throws IOException {
         AlignmentACL acl = null;
         try {
-            acl = server.getACL(aclfname);
+            acl = server.getACL(request.alignid);
         } catch (IOException e) {
             printString("No Such Alignment");
-            Lock.readUnLock(this,dirname);
-            Lock.readUnLock(this,aclfname);
             return;
         }
-
         if (!authorizeRead(acl)) {
             printAuthError();
-            Lock.readUnLock(this,dirname);
-            Lock.readUnLock(this,aclfname);
             return;
         }        
-        File[] files = directory.listFiles();
-        if (files == null) {
-            printString("No Such Alignment or couldn't read directory\n");
-            Lock.readUnLock(this,dirname);
-            Lock.readUnLock(this,aclfname);
+        Set<String> chroms = server.getChroms(request.alignid,
+                                              request.isPaired,
+                                              request.isLeft);
+        if (chroms == null) {
+            printString("No Such Alignment");
             return;
         }
 
-        Set<String> chroms = new HashSet<String>();
-        for (int i = 0; i < files.length; i++) {
-            String f = files[i].getName();
-            if (f.matches("^.*\\.hits$")) {
-                chroms.add(f.replaceAll("\\.hits$",""));
-            }
-        }           
         printOK();
         printString(chroms.size() + "\n");
         for (String f : chroms) {
             printString(f + "\n");
         }            
-        Lock.readUnLock(this,dirname);
-        Lock.readUnLock(this,aclfname);
     }
     /**
      * Deletes an alignment: the header and hits files, acl file, and the directory are removed
      *
      */
-    public void processDeleteAlignment(List<String> params) throws IOException {
-        String alignid = params.get(0);
-        String dir = server.getAlignmentDir(alignid);        
-        String aclFname = server.getACLFileName(alignid);
-
-        Lock.readLock(this,dir);
-        Lock.readLock(this,aclFname);
-
-        AlignmentACL acl = server.getACL(aclFname);
+    public void processDeleteAlignment() throws IOException {
+        AlignmentACL acl = server.getACL(request.alignid);
         if (!authorizeAdmin(acl)) {
             printAuthError();
-            Lock.readUnLock(this,dir);
-            Lock.readUnLock(this,aclFname);
             return;
         }
-        File directory = new File(server.getAlignmentDir(alignid));
+        File directory = new File(server.getAlignmentDir(request.alignid));
         File[] files = directory.listFiles();
         List<String> toDelete = new ArrayList<String>();
         /* list of files to delete:
            datafiles first, then ACL, then the directory itself
         */
         for (int i = 0; i < files.length; i++) {
-            String f = files[i].getName();
-            if (f.matches("^.*\\.index$")) {
-                String chrom = f.replaceAll("\\.index$","");
-                toDelete.add(server.getHeaderFileName(alignid,chrom));
-                toDelete.add(server.getHitsFileName(alignid,chrom));
-                toDelete.add(server.getWeightsFileName(alignid,chrom));
-            }
+            toDelete.add(files[i].getName());
         }       
-        toDelete.add(aclFname);
-        toDelete.add(dir);
+        toDelete.add(directory.getName());
         boolean allDeleted = true;
         File f;
+        Lock.writeLock(this,request.alignid);
         for (String fname : toDelete) {
-            // lock
-            Lock.writeLock(this,fname);
-            // remove from cache; could skip this and wait for them to fall out,
-            // but this frees up entries sooner
-            if (fname.matches(".*index")) {
-                server.removeHeader(fname);
-            } else if (fname.matches(".*hits")) {
-                server.removeHits(fname);
-            } else if (fname.matches(".weights")) {
-                // skip
-            } else if (fname.matches(".txt")) {
-                server.removeACL(fname);
-            }
             // file system delete
             f = new File(fname);
             allDeleted = allDeleted && f.delete();
-            // remove locks.  necessary in case the file is recreated later
-            Lock.writeUnLock(this,fname);
         }
         if (allDeleted) {
             printOK();
         } else {
             printString("Partially Deleted\n");
         }
-        Lock.readUnLock(this,dir);
-        Lock.readUnLock(this,aclFname);
+        Lock.writeUnLock(this,request.alignid);
     }
-    /** creates or appends to a set of hits.  Reads the alignment, chromosome, and 
-     * number of hits that will be sent.  Then expects to read one hit position and one weight per line 
-     * (string representation of the numbers) separated by a space
+    /** creates or appends to a set of hits.  
      *
      * If the chromosome file doesn't exist yet, then create a new one and dump in positions and weights.
      * If it does exist, then create a new file and merge the old file with the new
      * set of hits.
      */
-    public void processStore(List<String> params) throws IOException {
-        String alignid = params.get(0);
-        String chromid = params.get(1);
-        int numHits = Integer.parseInt(params.get(2));
+    public void processSingleStore() throws IOException {
+        int numHits = 0;
+        try {
+            numHits = Integer.parseInt(request.map.get("numhits"));
+        } catch (NumberFormatException e) {
+            printString("Invalid numhits value : " + request.map.get("numhits") + "\n");
+            return;
+        }
         printOK();
         if (numHits == 0) {
             printOK();
             return;
         }
-        String dir = server.getAlignmentDir(alignid);        
-        Lock.writeLock(this,dir);
-        File positionsfile, weightsfile, headerfile;
-        RandomAccessFile positionsRAF, weightsRAF;
-        FileChannel positionsFC, weightsFC;
-        ByteBuffer positionsBB, weightsBB;
-        headerfile = new File(server.getHeaderFileName(alignid,chromid));
-        positionsfile = new File(server.getHitsFileName(alignid,chromid));
-        weightsfile = new File(server.getWeightsFileName(alignid,chromid));
-        Lock.writeLock(this,headerfile.getPath());
-        Lock.writeLock(this,positionsfile.getPath());
-        Lock.writeLock(this,weightsfile.getPath());
+        Lock.writeLock(this,request.alignid);
+        List<SingleHit> hits = new ArrayList<SingleHit>();
+
+        /* if the alignment already exists, read in the old hits */
+        Set<String> chroms = server.getChroms(request.alignid, false,false);
+        if (chroms != null) {
+            try {        
+                /* sure we're allowed to write here */
+                AlignmentACL acl = server.getACL(request.alignid);
+                if (!authorizeRead(acl) || !authorizeWrite(acl)) {
+                    printAuthError();
+                    Lock.writeUnLock(this, request.alignid);
+                    return;
+                }
+                SingleHits oldhits = server.getSingleHits(request.alignid,
+                                                          request.chromid);
+                IntBP positions = oldhits.getPositionsBuffer();
+                FloatBP weights = oldhits.getWeightsBuffer();
+                IntBP las = oldhits.getLASBuffer();
+                for (int i = 0; i < positions.limit(); i++) {
+                    hits.add(new SingleHit(request.chromid,
+                                           positions.get(i),
+                                           weights.get(i),
+                                           Hits.getStrandOne(las.get(i)),
+                                           Hits.getLengthOne(las.get(i))));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                printAuthError();
+                Lock.writeUnLock(this,request.alignid);
+                return;
+            }
+        } else {
+            /* this is a new alignment, so set a default ACL */
+            AlignmentACL acl = new AlignmentACL();
+            try {
+                acl.readFromFile(server.getDefaultACLFileName());
+            } catch (IOException e) {
+                // no default acl, so dont' worry.
+            }
+            acl.getAdminACL().add(username);
+            acl.getWriteACL().add(username);
+            acl.getReadACL().add(username);
+            acl.writeToFile(server.getACLFileName(request.alignid));        
+            server.removeACL(request.alignid); // make sure the server doesn't have this ACL cached
+        }
+
+        IntBP positions = new IntBP(numHits);
+        FloatBP weights = new FloatBP(numHits);
+        IntBP las = new IntBP(numHits);
+        ReadableByteChannel rbc = Channels.newChannel(instream);
+        Bits.readBytes(positions.bb, rbc);
+        Bits.readBytes(weights.bb, rbc);
+        Bits.readBytes(las.bb, rbc);
+        if (myorder != clientorder) {
+            Bits.flipByteOrder(positions.ib);
+            Bits.flipByteOrder(weights.fb);
+            Bits.flipByteOrder(las.ib);
+        }
+        for (int i = 0; i < positions.limit(); i++) {
+            hits.add(new SingleHit(request.chromid,
+                                   positions.get(i),
+                                   weights.get(i),
+                                   Hits.getStrandOne(las.get(i)),
+                                   Hits.getLengthOne(las.get(i))));
+        }
+        positions = null;
+        weights = null;
+        las = null;
+        Collections.sort(hits);
         try {
-            positionsfile.getParentFile().mkdirs();
-            weightsfile.getParentFile().mkdirs();
-            headerfile.getParentFile().mkdirs();
-            if (headerfile.exists()) {
-                try {
-                    AlignmentACL acl = server.getACL(server.getACLFileName(alignid));
-                    if (!authorizeRead(acl) || !authorizeWrite(acl)) {
-                        printAuthError();
+            SingleHits.writeSingleHits(hits,
+                                       server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                       request.chromid);
+        } catch (IOException e) {
+            printString("IOException trying to save files : " + e.toString() + "\n");
+            Lock.writeUnLock(this,request.alignid);
+            return;
+        }
+        server.removeSingleHits(request.alignid, request.chromid);
+        server.removeSingleHeader(request.alignid, request.chromid);
+        printOK();
+        Lock.writeUnLock(this,request.alignid);
+    }
 
-                        Lock.writeUnLock(this,weightsfile.getPath());
-                        Lock.writeUnLock(this,positionsfile.getPath());
-                        Lock.writeUnLock(this,headerfile.getPath());
-                        Lock.writeUnLock(this,dir);
-                        return;
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    printAuthError();
-
-                    Lock.writeUnLock(this,weightsfile.getPath());
-                    Lock.writeUnLock(this,positionsfile.getPath());
-                    Lock.writeUnLock(this,headerfile.getPath());
-                    Lock.writeUnLock(this,dir);
-                    return;
-                }
-            } else {
-                if (!server.canCreate(username)) {
-                    printAuthError();
-
-                    Lock.writeUnLock(this,weightsfile.getPath());
-                    Lock.writeUnLock(this,positionsfile.getPath());
-                    Lock.writeUnLock(this,headerfile.getPath());
-                    Lock.writeUnLock(this,dir);
-                    return;
-                }
+    public void processPairedStore() throws IOException {
+        int numHits = 0;
+        try {
+            numHits = Integer.parseInt(request.map.get("numhits"));
+        } catch (NumberFormatException e) {
+            printString("Invalid numhits value : " + request.map.get("numhits") + "\n");
+            return;
+        }
+        try {        
+            /* sure we're allowed to write here */
+            AlignmentACL acl = server.getACL(request.alignid);
+            if (!authorizeRead(acl) || !authorizeWrite(acl)) {
+                printAuthError();
+                Lock.writeUnLock(this, request.alignid);
+                return;
             }
-            IntBP positions = new IntBP(numHits);
-            FloatBP weights = new FloatBP(numHits);
-            ReadableByteChannel rbc = Channels.newChannel(instream);
-            Bits.readBytes(positions.bb, rbc);
-            Bits.readBytes(weights.bb, rbc);
-            if (myorder != clientorder) {
-                Bits.flipByteOrder(positions.ib);
-                Bits.flipByteOrder(weights.fb);
-            }
-            long[] hits = new long[numHits];
-            for (int j = 0; j < numHits; j++) {
-                long val = positions.get(j);
-                val = val << 32;
-                val += Float.floatToRawIntBits(weights.get(j));
-                hits[j] = val;
-            }
-            positions = null;
-            weights = null;
-            Arrays.sort(hits);               
-            positionsRAF = new RandomAccessFile(positionsfile, "rw");
-            weightsRAF = new RandomAccessFile(weightsfile, "rw");
-            positionsFC = positionsRAF.getChannel();
-            weightsFC = weightsRAF.getChannel();
-            if (headerfile.exists() && positionsFC.size() != 0) {
-                positionsBB = positionsFC.map(FileChannel.MapMode.READ_WRITE,
-                                              0,
-                                              positionsFC.size());
-                positionsBB.order(myorder);
-                weightsBB = weightsFC.map(FileChannel.MapMode.READ_WRITE,
-                                          0,
-                                          weightsFC.size());
-                weightsBB.order(myorder);
-                positions = new IntBP(positionsBB);
-                weights = new FloatBP(weightsBB);            
-                long newsize = numHits * 4 + positionsRAF.getChannel().size();
-                File newpositionsfile = new File(server.getHitsFileName(alignid,chromid) + ".tmp");
-                File newweightsfile = new File(server.getWeightsFileName(alignid,chromid) + ".tmp");
-                newpositionsfile.getParentFile().mkdirs();
-                newweightsfile.getParentFile().mkdirs();            
-                RandomAccessFile newpositionsRAF, newweightsRAF;
-                FileChannel newpositionsFC, newweightsFC;
-                newpositionsRAF = new RandomAccessFile(newpositionsfile, "rw");
-                newweightsRAF = new RandomAccessFile(newweightsfile, "rw");
-                newpositionsFC = newpositionsRAF.getChannel();
-                newweightsFC = newweightsRAF.getChannel();
-                ByteBuffer newpositionsBB = newpositionsFC.map(FileChannel.MapMode.READ_WRITE,
-                                                               0,
-                                                               newsize);
-                newpositionsBB.order(myorder);
-                ByteBuffer newweightsBB = newweightsFC.map(FileChannel.MapMode.READ_WRITE,
-                                                           0,
-                                                           newsize);
-                newweightsBB.order(myorder);
-                IntBP newpositions = new IntBP(newpositionsBB);
-                FloatBP newweights = new FloatBP(newweightsBB);           
-                // now merge the old disk files and the new hits in the array
-                // into the new disk file.
-                // i is index in hits
-                // j is index in positions
-                // k is index in newpositions
-                int i = 0, j = 0, k = 0;
-                int newp = (int)(hits[i] >> 32);
-                float neww = Float.intBitsToFloat((int)(hits[i] & 0xFFFFFFFFL));
-                int oldp = positions.get(j);
-                float oldw = weights.get(j);
-                while (i < hits.length && j < positions.size()) {
-                    if (newp < oldp || (oldp == newp && neww < oldw)) {
-                        newpositions.put(k, newp);
-                        newweights.put(k++,neww);
-                        i++;
-                        if (i < hits.length) {
-                            newp = (int)(hits[i] >> 32);
-                            neww = Float.intBitsToFloat((int)(hits[i] & 0xFFFFFFFFL));
-                        }
-                    } else {
-                        newpositions.put(k, oldp);
-                        newweights.put(k++,oldw);
-                        j++;
-                        if (j < positions.size()) {
-                            oldp = positions.get(j);
-                            oldw = weights.get(j);
-                        }
-                    }               
-                }
-                while (i < hits.length) {
-                    newpositions.put(k, newp);
-                    newweights.put(k++,neww);
-                    i++;
-                    if (i < hits.length) {
-                        newp = (int)(hits[i] >> 32);
-                        neww = Float.intBitsToFloat((int)(hits[i] & 0xFFFFFFFFL));
-                    }
-                }
-                while (j < positions.size()) {
-                    newpositions.put(k, oldp);
-                    newweights.put(k++,oldw);
-                    j++;
-                    if (j < positions.size()) {
-                        oldp = positions.get(j);
-                        oldw = weights.get(j);
-                    }
-                }
+        } catch (IOException e) {
+            printAuthError();
+            return;
+        }
 
-                // close the old files
-                weights = null;
-                positions = null;
-                weightsBB = null;
-                positionsBB = null;
-                weightsFC.close();
-                positionsFC.close();
-                weightsRAF.close();
-                positionsRAF.close();
-                server.removeHits(positionsfile.getPath());
-                server.removeHeader(headerfile.getPath());
-                // swap in new data structures
-                weights = newweights;
-                positions = newpositions;
-                weightsBB = newweightsBB;
-                positionsBB = newpositionsBB;
-                weightsFC = newweightsFC;
-                positionsFC = newpositionsFC;
-                weightsRAF = newweightsRAF;
-                positionsRAF = newpositionsRAF;
-                // rename the files into the right spot
-                if (!(newpositionsfile.renameTo(positionsfile) &&
-                      newweightsfile.renameTo(weightsfile))) {
-                    throw new IOException("Couldn't put new files into place");
-                }            
-            } else {
-                positionsBB = positionsFC.map(FileChannel.MapMode.READ_WRITE,
-                                              0,
-                                              hits.length * 4);
-                positionsBB.order(myorder);
-                weightsBB = weightsFC.map(FileChannel.MapMode.READ_WRITE,
-                                          0,
-                                          hits.length * 4);
-                weightsBB.order(myorder);
-                positions = new IntBP(positionsBB);
-                weights = new FloatBP(weightsBB);
-                for (int i = 0; i < hits.length; i++) {
-                    float w = Float.intBitsToFloat((int)(hits[i] & 0xFFFFFFFFL));
-                    positions.put(i, (int)(hits[i] >> 32));
-                    weights.put(i, w);
-                }            
-                AlignmentACL acl = new AlignmentACL();
-                try {
-                    acl.readFromFile(server.getDefaultACLFileName());
-                } catch (IOException e) {
-                    // no default acl, so dont' worry.
-                }
-
-                acl.getAdminACL().add(username);
-                acl.getWriteACL().add(username);
-                acl.getReadACL().add(username);
-                acl.writeToFile(server.getACLFileName(alignid));        
-                server.removeACL(server.getACLFileName(alignid)); // make sure the server doesn't have this ACL cached
-            }
-            Header header = new Header(positions.ib);
-            header.writeIndexFile(headerfile.getCanonicalPath());
-            header.close();
-            weights = null;
-            positions = null;
-            weightsBB = null;
-            positionsBB = null;
-            weightsFC.close();
-            positionsFC.close();
-            weightsRAF.close();
-            positionsRAF.close();
-
-            // remove from cache so they'll be re-read
-            server.removeHits(positionsfile.getPath());
-            server.removeHeader(headerfile.getPath());
-
+        printOK();
+        if (numHits == 0) {
             printOK();
-        } catch (Exception e) {
-            printString("Failed to store hits");
-            e.printStackTrace();
-        } finally {
-            Lock.writeUnLock(this,weightsfile.getPath());
-            Lock.writeUnLock(this,positionsfile.getPath());
-            Lock.writeUnLock(this,headerfile.getPath());
-            Lock.writeUnLock(this,dir);
-            Lock.writeUnLock(this,dir);
+            return;
         }
-    }
-    /* reads two lines from socket: alignment id and chromosome id.
-       returns number of hits for the specified parameters
-    */
-    public void processCount(Header header, Hits hits, List<String> params) throws IOException {
-        printOK();
-        printString(Integer.toString(header.getNumHits()) + "\n");
-    }
-    /* reads two lines from socket: alignment id and chromosome id.
-       returns total weight
-    */
-    public void processWeight(Header header, Hits hits, List<String> params) throws IOException {
-        printOK();
-        double total = 0;
-        FloatBP f = hits.getWeightsBuffer();
-        for (int i = 0; i < f.limit(); i++) {
-            total += f.get(i);
-        }
-        printString(Double.toString(total) + "\n");
-    }
-    /* returns number ofhits in a range
-     */
-    public void processCountRange(Header header, Hits hits, List<String> params) throws IOException {        
-        int startpos = Integer.parseInt(params.get(0));
-        int stoppos = Integer.parseInt(params.get(1));
-        String weightS = params.get(2);
-        printOK();
-        int first = header.getFirstIndex(startpos);
-        int last = header.getLastIndex(stoppos);
-        int count;
-        if (weightS.equals("NaN")) {
-            count = hits.getCountBetween(first,last,startpos,stoppos);
-        } else {
-            count = hits.getCountBetween(first,last,startpos,stoppos,Float.parseFloat(weightS));
-        }
-        printString(Integer.toString(count) + "\n");        
-    }
-    /** gets sum of weight in a specified range
-     */
-    public void processWeightRange(Header header, Hits hits, List<String> params) throws IOException {
-        int startpos = Integer.parseInt(params.get(0));
-        int stoppos = Integer.parseInt(params.get(1));
-        String weightS = params.get(2);
-        printOK();
-        int first = header.getFirstIndex(startpos);
-        int last = header.getLastIndex(stoppos);
-        double total = 0;
-        FloatBP f = hits.getWeightsBetween(first,last,startpos,stoppos);
-        if (weightS.equals("NaN")) {
-            for (int i = 0; i < f.limit(); i++) {
-                total += f.get(i);
+        Lock.writeLock(this,request.alignid);
+        List<PairedHit> hits = new ArrayList<PairedHit>();
+
+        /* if the alignment already exists, read in the old hits */
+        Set<String> chroms = server.getChroms(request.alignid, true,request.isLeft);
+        if (chroms == null) {
+            /* this is a new alignment, so set a default ACL */
+            AlignmentACL acl = new AlignmentACL();
+            try {
+                acl.readFromFile(server.getDefaultACLFileName());
+            } catch (IOException e) {
+                // no default acl, so dont' worry.
             }
-        } else {
-            float minweight = Float.parseFloat(weightS);
-            for (int i = 0; i < f.limit(); i++) {
-                if (f.get(i) > minweight) {
-                    total += f.get(i);
+            acl.getAdminACL().add(username);
+            acl.getWriteACL().add(username);
+            acl.getReadACL().add(username);
+            acl.writeToFile(server.getACLFileName(request.alignid));        
+            server.removeACL(request.alignid); // make sure the server doesn't have this ACL cached
+        }
+
+        List<PairedHit> newhits = new ArrayList<PairedHit>();
+        IntBP positions = new IntBP(numHits);
+        FloatBP weights = new FloatBP(numHits);
+        IntBP las = new IntBP(numHits);
+        IntBP otherchrom = new IntBP(numHits);
+        IntBP otherpos = new IntBP(numHits);
+        ReadableByteChannel rbc = Channels.newChannel(instream);
+        Bits.readBytes(positions.bb, rbc);
+        Bits.readBytes(weights.bb, rbc);
+        Bits.readBytes(las.bb, rbc);
+        Bits.readBytes(otherchrom.bb,rbc);
+        Bits.readBytes(otherpos.bb,rbc);
+        if (myorder != clientorder) {
+            Bits.flipByteOrder(positions.ib);
+            Bits.flipByteOrder(weights.fb);
+            Bits.flipByteOrder(las.ib);
+            Bits.flipByteOrder(otherchrom.ib);
+            Bits.flipByteOrder(otherpos.ib);
+        }
+        for (int i = 0; i < positions.limit(); i++) {
+            newhits.add(new PairedHit(request.chromid,
+                                      positions.get(i),
+                                      Hits.getStrandOne(las.get(i)),
+                                      Hits.getLengthOne(las.get(i)),
+                                      otherchrom.get(i),
+                                      otherpos.get(i),
+                                      Hits.getStrandTwo(las.get(i)),
+                                      Hits.getLengthTwo(las.get(i)),
+                                      weights.get(i)));
+        }
+        positions = null;
+        weights = null;
+        las = null;
+        otherchrom = null;
+        otherpos = null;
+
+        try {
+            appendPairedHits(newhits,true);
+            for (PairedHit h : newhits) {
+                h.flipSides();            
+            }
+            appendPairedHits(newhits,false);
+        } catch (IOException e) {
+            Lock.writeUnLock(this,request.alignid);
+            printString("Failed to write hits : " + e.toString());
+        }
+
+        server.removePairedHits(request.alignid, request.chromid, request.isLeft);
+        server.removePairedHeader(request.alignid, request.chromid, request.isLeft);
+        printOK();
+        Lock.writeUnLock(this,request.alignid);
+    }
+
+    private void appendPairedHits(List<PairedHit> newhits,
+                                  boolean isLeft) throws IOException {
+        Map<Integer,List<PairedHit>> map = new HashMap<Integer,List<PairedHit>>();
+        for (PairedHit h : newhits) {
+            if (!map.containsKey(h.leftChrom)) {
+                map.put(h.leftChrom, new ArrayList<PairedHit>());
+            }
+            map.get(h.leftChrom).add(h);
+        }
+        for (int chromid : map.keySet()) {
+            List<PairedHit> hits = map.get(chromid);
+            try {
+                PairedHits oldhits = server.getPairedHits(request.alignid,
+                                                          chromid,
+                                                          isLeft);
+                IntBP positions = oldhits.getPositionsBuffer();
+                FloatBP weights = oldhits.getWeightsBuffer();
+                IntBP las = oldhits.getLASBuffer();
+                IntBP otherchrom = oldhits.getChromsBuffer();
+                IntBP otherpos = oldhits.getOtherPosBuffer();
+                for (int i = 0; i < positions.limit(); i++) {
+                    hits.add(new PairedHit(request.chromid,
+                                           positions.get(i),
+                                           Hits.getStrandOne(las.get(i)),
+                                           Hits.getLengthOne(las.get(i)),
+                                           otherchrom.get(i),
+                                           otherpos.get(i),
+                                           Hits.getStrandTwo(las.get(i)),
+                                           Hits.getLengthTwo(las.get(i)),
+                                           weights.get(i)));
                 }
+            } catch (FileNotFoundException e) {
+                // this is OK, it just means there were no old hits.  Any other
+                // IOException is a problem, so let it propagate out
+            } 
+            PairedHits.writePairedHits(hits, server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"), chromid, isLeft);
+        }
+    }
+
+    public void processCount(Header header, Hits hits) throws IOException {
+        printOK();
+        if (request.start == null && request.end == null && request.minWeight == null && request.isPlusStrand == null) {
+            printString(Integer.toString(header.getNumHits()) + "\n");
+            return;
+        }
+        int count = 0;
+        int first = header.getFirstIndex(request.start);
+        int last = header.getLastIndex(request.end);
+        printString(Integer.toString(hits.getCountBetween(first,last,request.start,request.end,request.minWeight, request.isPlusStrand)) + "\n");
+    }
+    public void processWeight(Header header, Hits hits) throws IOException {
+        printOK();
+        if (request.start == null) {
+            request.start = 0;
+        }
+        if (request.end == null) {
+            request.end = Integer.MAX_VALUE;
+        }
+        int first = header.getFirstIndex(request.start);
+        int last = header.getLastIndex(request.end);
+        printString(Double.toString(hits.getWeightBetween(first,last,request.start,request.end,request.minWeight, request.isPlusStrand)) + "\n");
+    }
+    public void processGetHits(Header header, Hits hits) throws IOException {
+        int count;
+        if (!(hits instanceof PairedHits)) {
+            if (request.map.containsKey("wantotherchroms") ||
+                request.map.containsKey("wantotherpositions")) {
+                printString("invalid columns requested for single-ended data\n");
+                return;
             }
         }
-        printString(Double.toString(total) + "\n");
-    }
-    /* returns all hits for alignment/chromosome */
-    public void processGetHits(Header header, Hits hits, List<String> params) throws IOException {
-        IntBP h = hits.getPositionsBuffer();
-        printOK();
-        printString(Integer.toString(h.size()) + "\n");
-        Bits.sendBytes(h.bb, outchannel);
-    }
-    /* returns hits in a range for an alignment/chromosome
-     */
-    public void processGetHitsRange(Header header, Hits hits, List<String> params) throws IOException {
-        int startpos = Integer.parseInt(params.get(0));
-        int stoppos = Integer.parseInt(params.get(1));
-        String weightS = params.get(2);
-        int first = header.getFirstIndex(startpos);
-        int last = header.getLastIndex(stoppos);
-        IntBP h;
-        if (weightS.equals("NaN")) {
-            h = hits.getHitsBetween(first,last,startpos,stoppos);
-        } else {
-            h = hits.getHitsBetween(first,last,startpos,stoppos,Float.parseFloat(weightS));
-        }
-        printOK();
-        printString(Integer.toString(h.size()) + "\n");
-        Bits.sendBytes(h.bb, outchannel);
-    }
-    public void processGetWeights(Header header, Hits hits, List<String> params) throws IOException {
-        FloatBP w = hits.getWeightsBuffer();
-        printOK();
-        printString(Integer.toString(w.size()) + "\n");
-        Bits.sendBytes(w.bb, outchannel);
-    }
-    public void processGetWeightsRange(Header header, Hits hits, List<String> params) throws IOException {
-        int startpos = Integer.parseInt(params.get(0));
-        int stoppos = Integer.parseInt(params.get(1));
-        String weightS = params.get(2);
-        int first = header.getFirstIndex(startpos);
-        int last = header.getLastIndex(stoppos);
-        FloatBP w;
-        if (weightS.equals("NaN")) {
-            w = hits.getWeightsBetween(first,last,startpos,stoppos);
-        } else {
-            w = hits.getWeightsBetween(first,last,startpos,stoppos,Float.parseFloat(weightS));
-        }
 
-        printOK();
-        printString(Integer.toString(w.size()) + "\n");
-        Bits.sendBytes(w.bb, outchannel);
-    }
-
-    
-    /* returns a histogram of hits in a region.  Inputs
-     * startposition, stopposition, binsize
-     *
-     * output array of integers is alternating bin-center and count.
-     * bins with zero count are not included.
-     */
-    public void processHistogram(Header header, Hits hits, List<String> params) throws IOException {
-        int startpos = Integer.parseInt(params.get(0));
-        int stoppos = Integer.parseInt(params.get(1));
-        int binsize = Integer.parseInt(params.get(2));
-        String weightS = params.get(3);
-        int extension = Integer.parseInt(params.get(4));
-        int first = header.getFirstIndex(startpos);
-        int last = header.getLastIndex(stoppos);
-        int[] raw = null;
-        if (weightS.equals("NaN")) {
-            raw = hits.histogram(first,
-                                 last,
-                                 startpos,
-                                 stoppos,
-                                 binsize,
-                                 extension);
-        } else {
-            raw = hits.histogram(first,
-                                 last,
-                                 startpos,
-                                 stoppos,
-                                 binsize,
-                                 Float.parseFloat(weightS),
-                                 extension);
+        if (request.start == null) {
+            request.start = 0;
         }
+        if (request.end == null) {
+            request.end = Integer.MAX_VALUE;
+        }
+        int first = header.getFirstIndex(request.start);
+        int last = header.getLastIndex(request.end);
+        if (request.start == 0 && request.end == Integer.MAX_VALUE && request.minWeight == null && request.isPlusStrand == null) {
+            count = header.getNumHits();
+        } else {
+            count = hits.getCountBetween(first,last,request.start,request.end,request.minWeight, request.isPlusStrand);
+        }
+        printOK();
+        printString(Integer.toString(count) + "\n");
+        if (request.map.containsKey("wantpositions")) {
+            IntBP p = hits.getHitsBetween(first,last,request.start,request.end,request.minWeight,request.isPlusStrand);
+            Bits.sendBytes(p.bb, outchannel);
+        }
+        if (request.map.containsKey("wantweights")) {
+            FloatBP p = hits.getWeightsBetween(first,last,request.start,request.end,request.minWeight,request.isPlusStrand);
+            Bits.sendBytes(p.bb, outchannel);
+        }
+        if (request.map.containsKey("wantlengthsandstrands")) {
+            IntBP p = hits.getLASBetween(first,last,request.start,request.end,request.minWeight,request.isPlusStrand);
+            Bits.sendBytes(p.bb, outchannel);
+        }
+        if (request.map.containsKey("wantotherchroms")) {
+            IntBP p = ((PairedHits)hits).getOtherChromsBetween(first,last,request.start,request.end,request.minWeight,request.isPlusStrand);
+            Bits.sendBytes(p.bb, outchannel);
+        }
+        if (request.map.containsKey("wantotherpositions")) {
+            IntBP p = ((PairedHits)hits).getOtherPositionsBetween(first,last,request.start,request.end,request.minWeight,request.isPlusStrand);
+            Bits.sendBytes(p.bb, outchannel);
+        }        
+    }
+    public void processHistogram(Header header, Hits hits) throws IOException {
+        int binsize = 10;
+        if (request.start == null) {
+            IntBP ib = hits.getPositionsBuffer();
+            request.start = ib.get(0);
+        }
+        if (request.end == null) {
+            IntBP ib = hits.getPositionsBuffer();
+            request.end = ib.get(ib.limit()-1);
+        }
+        try {
+            binsize = Integer.parseInt(request.map.get("binsize"));
+        } catch (Exception e) {
+            printString("missing or invalid bin size : " + request.map.get("binsize") + "\n");
+            return;
+        }
+        boolean extension = request.map.containsKey("extension");
+        int first = header.getFirstIndex(request.start);
+        int last = header.getLastIndex(request.end);
+        int[] raw = hits.histogram(first,
+                                   last,
+                                   request.start,
+                                   request.end,
+                                   binsize,
+                                   request.minWeight,
+                                   request.isPlusStrand,
+                                   extension);
         int n = 0;
         for (int i = 0; i< raw.length; i++) {
             if (raw[i] > 0) {
@@ -1142,7 +1042,7 @@ public class ServerTask {
         int pos = 0;
         for (int i = 0; i< raw.length; i++) {
             if (raw[i] > 0) {
-                hist[pos*2] = startpos + binsize * i + binsize / 2;
+                hist[pos*2] = request.start + binsize * i + binsize / 2;
                 hist[pos*2+1] = raw[i];
                 pos++;
             }
@@ -1158,31 +1058,33 @@ public class ServerTask {
      *
      * bins with zero count are not included.
      */
-    public void processWeightHistogram(Header header, Hits hits, List<String> params) throws IOException {
-        int startpos = Integer.parseInt(params.get(0));
-        int stoppos = Integer.parseInt(params.get(1));
-        int binsize = Integer.parseInt(params.get(2));
-        String weightS = params.get(3);
-        int extension = Integer.parseInt(params.get(4));
-        int first = header.getFirstIndex(startpos);
-        int last = header.getLastIndex(stoppos);
-        float[] raw;
-        if (weightS.equals("NaN")) {
-            raw = hits.weightHistogram(first,
-                                       last,
-                                       startpos,
-                                       stoppos,
-                                       binsize,
-                                       extension);
-        } else {
-            raw = hits.weightHistogram(first,
-                                       last,
-                                       startpos,
-                                       stoppos,
-                                       binsize,
-                                       Float.parseFloat(weightS),
-                                       extension);
+    public void processWeightHistogram(Header header, Hits hits) throws IOException {
+        int binsize = 10;
+        if (request.start == null) {
+            IntBP ib = hits.getPositionsBuffer();
+            request.start = ib.get(0);
         }
+        if (request.end == null) {
+            IntBP ib = hits.getPositionsBuffer();
+            request.end = ib.get(ib.limit()-1);
+        }
+        try {
+            binsize = Integer.parseInt(request.map.get("binsize"));
+        } catch (Exception e) {
+            printString("missing or invalid bin size : " + request.map.get("binsize") + "\n");
+            return;
+        }
+        boolean extension = request.map.containsKey("extension");
+        int first = header.getFirstIndex(request.start);
+        int last = header.getLastIndex(request.end);
+        float[] raw = hits.weightHistogram(first,
+                                           last,
+                                           request.start,
+                                           request.end,
+                                           binsize,
+                                           request.minWeight,
+                                           request.isPlusStrand,
+                                           extension);
         int n = 0;
         for (int i = 0; i< raw.length; i++) {
             if (raw[i] > 0) {
@@ -1194,7 +1096,7 @@ public class ServerTask {
         int pos = 0;
         for (int i = 0; i< raw.length; i++) {
             if (raw[i] > 0) {
-                parray[pos] = startpos + binsize * i + binsize / 2;
+                parray[pos] = request.start + binsize * i + binsize / 2;
                 farray[pos] = raw[i];
                 pos++;
             }
@@ -1205,8 +1107,12 @@ public class ServerTask {
         Bits.sendFloats(farray, outstream, buffer, clientorder);
     }
 
-    public void processByteOrder(List<String> params) throws IOException {
-        String orderString = params.get(0);
+    public void processByteOrder() throws IOException {
+        String orderString = request.map.get("order");
+        if (orderString == null) {
+            printInvalid("must supply order for byte order request\n");
+            return;
+        }
         if (orderString.equals("big")) {
             clientorder = ByteOrder.BIG_ENDIAN;
             printOK();
@@ -1265,5 +1171,17 @@ class ServerTaskCallbackHandler implements CallbackHandler {
             }
 
         }
+    }
+}
+class Request {
+    public String type, alignid;
+    public Integer chromid, start, end;
+    public Boolean isPaired, isLeft, isPlusStrand;
+    public Float minWeight;
+    public Map<String,String> map;
+    public List<String> list;
+    public Request () {
+        map = new HashMap<String,String>();
+        list = new ArrayList<String>();
     }
 }

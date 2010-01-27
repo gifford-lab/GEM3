@@ -1,6 +1,6 @@
 package edu.mit.csail.cgs.projects.readdb;
 
-public class PairedHit implements {
+public class PairedHit {
 
     public int leftChrom, rightChrom;
     public int leftPos, rightPos;
@@ -32,7 +32,26 @@ public class PairedHit implements {
                     leftStrand == other.leftStrand &&
                     rightStrand == other.rightStrand &&
                     weight == other.weight);
+        } else {
+            return false;
         }
     }   
+    public void flipSides() {
+        int x = leftChrom;
+        leftChrom = rightChrom;
+        rightChrom = x;
+
+        x = leftPos;
+        leftPos = rightPos;
+        rightPos = x;
+
+        boolean b = leftStrand;
+        leftStrand = rightStrand;
+        rightStrand = b;
+
+        short s = leftLength;
+        leftLength = rightLength;
+        rightLength = s;
+    }
 
 }

@@ -3,7 +3,8 @@ package edu.mit.csail.cgs.projects.readdb;
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.*;
-
+import java.util.List;
+import java.util.Collections;
 
 /** 
  * Represents the list of sorted reads on disk
@@ -38,19 +39,19 @@ public class SingleHits extends Hits {
         lasRAF.close();
 
         /* ideally this part with the renames would atomic... */
-        (new File(postmp)).renameTo(getPositionsFname(prefix,chrom));
-        (new File(weightstmp)).renameTo(getWeightsFname(prefix,chrom));
-        (new File(lastmp)).renameTo(getLaSFname(prefix,chrom));
+        (new File(postmp)).renameTo(new File(getPositionsFname(prefix,chrom)));
+        (new File(weightstmp)).renameTo(new File(getWeightsFname(prefix,chrom)));
+        (new File(lastmp)).renameTo(new File(getLaSFname(prefix,chrom)));
     }
-    public static void writeSingleHits(List<SingleHits> hits,
+    public static void writeSingleHits(List<SingleHit> hits,
                                        String prefix, 
                                        int chrom) throws IOException {
         Collections.sort(hits);
-
-        IntBP p = new IntBP(hits.length());
-        FloatBP w = new FloatBP(hits.length());
-        IntBP l = new IntBP(hits.length());
-        for (int i = 0; i < hits.length(); i++) {
+        
+        IntBP p = new IntBP(hits.size());
+        FloatBP w = new FloatBP(hits.size());
+        IntBP l = new IntBP(hits.size());
+        for (int i = 0; i < hits.size(); i++) {
             SingleHit h = hits.get(i);
             p.put(i, h.pos);
             w.put(i, h.weight);
@@ -59,13 +60,13 @@ public class SingleHits extends Hits {
         writeSingleHits(p,w,l,prefix,chrom);
     }
     private static String getPositionsFname(String prefix, int chrom) {
-        prefix + chrom + ".spositions";
+        return prefix + chrom + ".spositions";
     }
     private static String getWeightsFname(String prefix, int chrom) {
-        prefix + chrom + ".sweights";
+        return prefix + chrom + ".sweights";
     }
     private static String getLaSFname(String prefix, int chrom) {
-        prefix + chrom + ".slas";
+        return prefix + chrom + ".slas";
     }
 
 }

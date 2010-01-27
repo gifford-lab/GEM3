@@ -1,5 +1,7 @@
 package edu.mit.csail.cgs.projects.readdb;
 
+import java.util.Comparator;
+
 public class PairedHitRightComparator implements Comparator<PairedHit> {
 
     public boolean equals(Object o) {

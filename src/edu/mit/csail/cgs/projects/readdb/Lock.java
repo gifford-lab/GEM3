@@ -11,6 +11,7 @@ import java.util.*;
 public class Lock {
 
     private static Map<String,Set<ServerTask>> readLocks = Collections.synchronizedMap(new HashMap<String,Set<ServerTask>>());
+    private static Map<String,Set<ServerTask>> acquiringWrite = Collections.synchronizedMap(new HashMap<String,Set<ServerTask>>());
     private static Map<String,ServerTask> writeLocks = Collections.synchronizedMap(new HashMap<String,ServerTask>());
 
     /**
@@ -38,21 +39,23 @@ public class Lock {
             */
         }
         while (!locked) {
-            if (writeLocks.containsKey(fname)) {
+            if (writeLocks.containsKey(fname) || acquiringWrite.containsKey(fname)) {
                 Thread.yield();
                 continue;
             }
             synchronized(writeLocks) {
-                if (writeLocks.containsKey(fname)) {
-                    Thread.yield();
-                    continue;
-                }
-                synchronized(readLocks) {
-                    if (!readLocks.containsKey(fname)) {
-                        readLocks.put(fname, new HashSet<ServerTask>());
+                synchronized(acquiringWrite) {
+                    if (writeLocks.containsKey(fname) || acquiringWrite.containsKey(fname)) {
+                        Thread.yield();
+                        continue;
                     }
-                    readLocks.get(fname).add(locker);
-                    locked = true;
+                    synchronized(readLocks) {
+                        if (!readLocks.containsKey(fname)) {
+                            readLocks.put(fname, new HashSet<ServerTask>());
+                        }
+                        readLocks.get(fname).add(locker);
+                        locked = true;
+                    }
                 }
             }
         }
@@ -78,13 +81,19 @@ public class Lock {
         } catch (NullPointerException e) {
 
         }
+        synchronized(acquiringWrite) {                
+            if (!acquiringWrite.containsKey(fname)) {
+                acquiringWrite.put(fname,new HashSet<ServerTask>());
+            }
+            acquiringWrite.get(fname).add(locker);
+        }
         while (!locked) {
             if (writeLocks.containsKey(fname)) {
                 Thread.yield();
                 continue;
             }
             synchronized(writeLocks) {                
-                synchronized(readLocks) {
+                    synchronized(readLocks) {
                     boolean justus = !readLocks.containsKey(fname) ||
                         (readLocks.containsKey(fname) &&
                          readLocks.get(fname).size() == 1 &&
@@ -102,6 +111,12 @@ public class Lock {
                 }
             }
         }
+        synchronized(acquiringWrite) {                
+            acquiringWrite.get(fname).remove(locker);
+            if (acquiringWrite.get(fname).size() == 0) {
+                acquiringWrite.remove(fname);
+            }
+        }
     }
     protected static void writeUnLock(ServerTask locker, String fname) {
         synchronized(writeLocks) {
@@ -116,6 +131,13 @@ public class Lock {
             for (String k : writeLocks.keySet()) {
                 if (writeLocks.get(k) == t) {
                     writeLocks.remove(k);
+                }
+            }            
+        }
+        synchronized(acquiringWrite) {
+            for (String k : acquiringWrite.keySet()) {
+                if (acquiringWrite.get(k) == t) {
+                    acquiringWrite.remove(k);
                 }
             }            
         }

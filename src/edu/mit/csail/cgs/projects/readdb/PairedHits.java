@@ -3,6 +3,8 @@ package edu.mit.csail.cgs.projects.readdb;
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.*;
+import java.util.List;
+import java.util.Collections;
 
 /**
  * Represents a list of sorted reads on disk
@@ -29,6 +31,24 @@ public class PairedHits extends Hits {
         this.isLeft = isLeft;
         chroms = openIntBP(getChromsFname(prefix,chrom,isLeft));
         otherPositions = openIntBP(getOtherPosFname(prefix,chrom,isLeft));
+    }
+    public IntBP getChromsBuffer() {return chroms;}
+    public IntBP getOtherPosBuffer() {return otherPositions;}
+    public IntBP getOtherChromsBetween(int firstindex,
+                                       int lastindex,
+                                       int start,
+                                       int stop,
+                                       Float minweight,
+                                       Boolean isPlus) throws IOException {
+        return getIntsBetween(chroms,firstindex,lastindex,start,stop,minweight,isPlus);
+    }
+    public IntBP getOtherPositionsBetween(int firstindex,
+                                          int lastindex,
+                                          int start,
+                                          int stop,
+                                          Float minweight,
+                                          Boolean isPlus) throws IOException {
+        return getIntsBetween(otherPositions,firstindex,lastindex,start,stop,minweight,isPlus);
     }
 
     public static void writePairedHits(IntBP positions,
@@ -62,36 +82,36 @@ public class PairedHits extends Hits {
         otherposRAF.close();
 
         /* ideally this part with the renames would atomic... */
-        (new File(postmp)).renameTo(getPositionsFname(prefix,chrom));
-        (new File(weightstmp)).renameTo(getWeightsFname(prefix,chrom));
-        (new File(lastmp)).renameTo(getLaSFname(prefix,chrom));
-        (new File(chrtmp)).renameTo(getChromsFname(prefix,chrom,isLeft));
-        (new File(optmp)).renameTo(getOtherPosFname(prefix,chrom,isLeft));        
+        (new File(postmp)).renameTo(new File(getPositionsFname(prefix,chrom,isLeft)));
+        (new File(weightstmp)).renameTo(new File(getWeightsFname(prefix,chrom,isLeft)));
+        (new File(lastmp)).renameTo(new File(getLaSFname(prefix,chrom,isLeft)));
+        (new File(chrtmp)).renameTo(new File(getChromsFname(prefix,chrom,isLeft)));
+        (new File(optmp)).renameTo(new File(getOtherPosFname(prefix,chrom,isLeft)));        
     }
-    public static void writePairedHits(List<PairedHits> hits,
+    public static void writePairedHits(List<PairedHit> hits,
                                        String prefix, 
                                        int chrom,
                                        boolean isLeft) throws IOException {
-        Collections.sort(hits, isLeft ? new PairedHitLeftComparator() : new PAiredHitRightComparator());
+        Collections.sort(hits, isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator());
 
-        IntBP p = new IntBP(hits.length());
-        FloatBP w = new FloatBP(hits.length());
-        IntBP l = new IntBP(hits.length());
-        IntBP c = new IntBP(hits.length());
-        Int op = new IntBP(hits.length());
-        for (int i = 0; i < hits.length(); i++) {
+        IntBP p = new IntBP(hits.size());
+        FloatBP w = new FloatBP(hits.size());
+        IntBP l = new IntBP(hits.size());
+        IntBP c = new IntBP(hits.size());
+        IntBP op = new IntBP(hits.size());
+        for (int i = 0; i < hits.size(); i++) {
             PairedHit h = hits.get(i);
             w.put(i, h.weight);
             if (isLeft) {
                 p.put(i, h.leftPos);
                 l.put(i, makeLAS(h.leftLength, h.leftStrand, h.rightLength, h.rightStrand));
-                c.put(h.rightChrom);
-                op.put(h.rightPos);
+                c.put(i, h.rightChrom);
+                op.put(i, h.rightPos);
             } else {
                 p.put(i, h.rightPos);
                 l.put(i, makeLAS(h.rightLength, h.rightStrand, h.leftLength, h.leftStrand));
-                c.put(h.leftChrom);
-                op.put(h.leftPos);
+                c.put(i, h.leftChrom);
+                op.put(i, h.leftPos);
             }
         }
         writePairedHits(p,w,l,c,op,prefix,chrom,isLeft);
@@ -100,19 +120,19 @@ public class PairedHits extends Hits {
         return isLeft ? ".prleft" : ".prright";
     }
     private static String getPositionsFname(String prefix, int chrom, boolean isLeft) {
-        prefix + chrom + getLeftRightSuffix(isLeft) + ".positions";
+        return prefix + chrom + getLeftRightSuffix(isLeft) + ".positions";
     }
     private static String getWeightsFname(String prefix, int chrom, boolean isLeft) {
-        prefix + chrom + getLeftRightSuffix(isLeft) + ".weights";
+        return prefix + chrom + getLeftRightSuffix(isLeft) + ".weights";
     }
     private static String getLaSFname(String prefix, int chrom, boolean isLeft) {
-        prefix + chrom + getLeftRightSuffix(isLeft) + ".las";
+        return prefix + chrom + getLeftRightSuffix(isLeft) + ".las";
     }
     private static String getChromsFname(String prefix, int chrom, boolean isLeft) {
-        prefix + chrom + getLeftRightSuffix(isLeft) + ".chroms";
+        return prefix + chrom + getLeftRightSuffix(isLeft) + ".chroms";
     }
     private static String getOtherPosFname(String prefix, int chrom, boolean isLeft) {
-        prefix + chrom + getLeftRightSuffix(isLeft) + ".otherpos";
+        return prefix + chrom + getLeftRightSuffix(isLeft) + ".otherpos";
     }
 
 

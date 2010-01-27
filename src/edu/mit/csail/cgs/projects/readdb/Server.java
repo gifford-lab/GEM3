@@ -13,6 +13,7 @@ import org.apache.commons.cli.*;
  */
 public class Server {
 
+
     public static final String SaslMechanisms[] = {"CRAM-MD5","DIGEST-MD5"};
 
 	private Logger logger;
@@ -77,7 +78,7 @@ public class Server {
         }
 
         singleHits = new LRUCache<SingleHits>(cacheSize);
-        pairedHits = new LRUCache<pairedHits>(cacheSize);
+        pairedHits = new LRUCache<PairedHits>(cacheSize);
         headers = new LRUCache<Header>(cacheSize);
         acls = new LRUCache<AlignmentACL>(cacheSize);
         debug = line.hasOption("debug");
@@ -160,7 +161,25 @@ public class Server {
                                           int chromID,
                                           boolean isLeft) {
         return getAlignmentDir(alignID) + System.getProperty("file.separator") + chromID + ".paired" + (isLeft ? "left" : "right") + "index";
-    }    
+    }
+    public Set<String> getChroms(String alignID,
+                                 boolean isPaired,
+                                 boolean isLeft) {
+        File directory = new File(getAlignmentDir(alignID));
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return null;
+        }
+        Set<String> output = new HashSet<String>();
+        String suffix = isPaired ? (isLeft ? ".pairedleftindex" : ".pairedrightindex") : ".singleindex";
+        for (int i = 0; i < files.length; i++) {
+            int index = files[i].getName().indexOf(suffix);
+            if (index > 0) {
+                output.add(files[i].getName().substring(0,i));
+            }
+        }
+        return output;
+    }
 
     /**
      * Returns the requested Hits object.  Creates it or retrieves from cache.
@@ -171,7 +190,7 @@ public class Server {
         String key = alignID + chrom;
         SingleHits output = singleHits.get(key);
         if (output == null) {
-            String prefix = getAlignmendDir(alignID) + System.getProperty("file.separator");
+            String prefix = getAlignmentDir(alignID) + System.getProperty("file.separator");
             output = new SingleHits(prefix,chrom);
             singleHits.add(key, output);
         }
@@ -183,7 +202,7 @@ public class Server {
         String key = alignID + chrom + isLeft;
         PairedHits output = pairedHits.get(key);
         if (output == null) {
-            String prefix = getAlignmendDir(alignID) + System.getProperty("file.separator");
+            String prefix = getAlignmentDir(alignID) + System.getProperty("file.separator");
             output = new PairedHits(alignID, chrom, isLeft);
             pairedHits.add(key, output);
         }
@@ -202,7 +221,7 @@ public class Server {
         }
         return output;
     }
-    public Header getSinglePairedHeader(String alignID, int chromID, boolean isLeft) throws IOException {
+    public Header getPairedHeader(String alignID, int chromID, boolean isLeft) throws IOException {
         String key = alignID + chromID + isLeft;
         Header output = headers.get(key);
         if (output == null) {
@@ -235,7 +254,7 @@ public class Server {
     public void removePairedHeader(String alignID, int chromID, boolean isLeft) {
         headers.remove(alignID + chromID + isLeft);
     }
-    public void removeACL(String alignID) {acls.remove(aclFileName);}
+    public void removeACL(String alignID) {acls.remove(alignID);}
 
     /**
      * Returns true iff this princ is allowed

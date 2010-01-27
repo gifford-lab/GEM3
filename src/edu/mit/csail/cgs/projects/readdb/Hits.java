@@ -13,13 +13,12 @@ public abstract class Hits implements Closeable {
     private static int strandTwoMask = 0x80000000;
     private static int lenTwoMask = 0x7FFF0000;
 
-    public static IntBP openIntBP(String fname) throws FileNotFoundException, SecurityException, IOException {
+    public static IntBP openIntBP(String fname) throws SecurityException, FileNotFoundException, IOException {
         RandomAccessFile raf = null;
         FileChannel fc = null;
         IntBP ib = null;
         ByteBuffer bb = null;
         IOException ioex = null;
-        FileNotFoundException fnfex = null;
         SecurityException secex = null;
         try {
             raf = new RandomAccessFile(fname,"r");
@@ -28,11 +27,9 @@ public abstract class Hits implements Closeable {
                         0,
                         fc.size());
             bb.order(ByteOrder.nativeOrder());
-            ib = new IntBuffer(bb);
+            ib = new IntBP(bb);
         } catch (IOException e) {
             ioex = e;
-        } catch (FileNotFoundException e) {
-            fnfex = e;
         } catch (SecurityException e) {
             secex = e;
         } finally { 
@@ -47,11 +44,6 @@ public abstract class Hits implements Closeable {
             bb = null;
             ib = null;
             throw ioex;
-        }
-        if (fnfex != null) {
-            bb = null;
-            ib = null;
-            throw fnfex;
         }
         if (secex != null) {
             bb = null;
@@ -60,13 +52,12 @@ public abstract class Hits implements Closeable {
         }
         return ib;
     }
-    public static FloatBP openFloatBP(String fname) throws FileNotFoundException, SecurityException, IOException {
+    public static FloatBP openFloatBP(String fname) throws SecurityException, IOException {
         RandomAccessFile raf = null;
         FileChannel fc = null;
         FloatBP fb = null;
         ByteBuffer bb = null;
         IOException ioex = null;
-        FileNotFoundException fnfex = null;
         SecurityException secex = null;
         try {
             raf = new RandomAccessFile(fname,"r");
@@ -75,11 +66,9 @@ public abstract class Hits implements Closeable {
                         0,
                         fc.size());
             bb.order(ByteOrder.nativeOrder());
-            fb = new FloatBuffer(bb);
+            fb = new FloatBP(bb);
         } catch (IOException e) {
             ioex = e;
-        } catch (FileNotFoundException e) {
-            fnfex = e;
         } catch (SecurityException e) {
             secex = e;
         } finally { 
@@ -94,11 +83,6 @@ public abstract class Hits implements Closeable {
             bb = null;
             fb = null;
             throw ioex;
-        }
-        if (fnfex != null) {
-            bb = null;
-            fb = null;
-            throw fnfex;
         }
         if (secex != null) {
             bb = null;
@@ -151,7 +135,7 @@ public abstract class Hits implements Closeable {
     }
     /** returns the buffer of lengths and strands */
     public IntBP getLASBuffer() {
-        return lenAndStrand
+        return lenAndStrand;
     }
     /**
      * returns indices = int[2] 
@@ -191,64 +175,53 @@ public abstract class Hits implements Closeable {
     public int getCountBetween (int firstindex,
                                 int lastindex,
                                 int start,
-                                int stop) throws IOException {       
-        int[] p = getIndices(firstindex, lastindex, start,stop);
-        return p[1] - p[0];
-    }
-    public int getCountBetween (int firstindex,
-                                int lastindex,
-                                int start,
                                 int stop,
-                                float minweight) throws IOException {       
+                                Float minweight,
+                                Boolean isPlus) throws IOException {       
         int[] p = getIndices(firstindex, lastindex, start,stop);
+        if (minweight == null && isPlus == null) {
+            return p[1] - p[0];
+        }
         int count = 0;
         for (int i = p[0]; i < p[1]; i++) {
-            if (weights.get(i) >= minweight) {
-                count++;
-            }
+            count += ((minweight == null || (weights.get(i) >= minweight)) &&
+                      (isPlus == null || (getStrandOne(lenAndStrand.get(i)) == isPlus))) ? 1 : 0;
         }
         return count;
     }
-    private IntBP getIntsBetween(IntBP buffer,
-                                 int firstindex,
-                                 int lastindex,
-                                 int start,
-                                 int stop) throws IOException {
+    public double getWeightBetween (int firstindex,
+                                    int lastindex,
+                                    int start,
+                                    int stop,
+                                    Float minweight,
+                                    Boolean isPlus) throws IOException {       
+        int[] p = getIndices(firstindex, lastindex, start,stop);
+        double sum = 0;
+        for (int i = p[0]; i < p[1]; i++) {
+            float f = weights.get(i);
+            sum += ((minweight == null || (f >= minweight)) &&
+                    (isPlus == null || (getStrandOne(lenAndStrand.get(i)) == isPlus))) ? f : 0;
+        }
+        return sum;
+    }
+    public IntBP getIntsBetween(IntBP buffer,
+                                int firstindex,
+                                int lastindex,
+                                int start,
+                                int stop,
+                                Float minweight,
+                                Boolean isPlus) throws IOException {
         int[] p = getIndices(firstindex, lastindex, start,stop);
         if (p[0] >= p[1]) {
             return emptyIntBP;
         }
-        return buffer.slice(p[0], p[1] - p[0]);
-    }
-    /** returns the hits between firstindex and last index and between start and stop, inclusive.
-     *  firstindex and lastindex come from Header.getFirstIndex and Header.getLastIndex
-     */
-    public IntBP getHitsBetween(int firstindex,
-                                int lastindex,
-                                int start,
-                                int stop) throws IOException {
-        return getIntsBetween(positions,firstindex,lastindex,start,stop);
-    }
-    public IntBP getLASBetween(int firstindex,
-                                int lastindex,
-                                int start,
-                                int stop) throws IOException {
-        return getIntsBetween(lenAndStrand,firstindex,lastindex,start,stop);
-    }
-    /** returns the ints between firstindex and last index and between start and stop, inclusive,
-     * for which the weight is greater than minweight.
-     *  firstindex and lastindex come from Header.getFirstIndex and Header.getLastIndex
-     */
-    private IntBP getIntsBetween(IntBP buffer,
-                                 int firstindex,
-                                 int lastindex,
-                                 int start,
-                                 int stop,
-                                 float minweight) throws IOException {
-        int[] p = getIndices(firstindex, lastindex, start,stop);        
+        if (minweight == null && isPlus == null) {
+            return buffer.slice(p[0], p[1] - p[0]);
+        } 
         int n = 0;
         for (int i = p[0]; i < p[1]; i++) {
-            if (weights.get(i) >= minweight) {
+            if ((minweight == null || weights.get(i) >= minweight) &&
+                (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                 n++;
             }
         }
@@ -259,27 +232,31 @@ public abstract class Hits implements Closeable {
         IntBP output = new IntBP(ByteBuffer.allocate(n*4));
         n = 0;
         for (int i = p[0]; i < p[1]; i++) {
-            if (weights.get(i) >= minweight) {
-                output.ib.put(n, buffer.get(i));
+            if ((minweight == null || weights.get(i) >= minweight) &&
+                (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
+                output.ib.put(n++, buffer.get(i));
             }
         }
-        return output;
+        return output;        
     }
-    public IntBP getHitsBetween(IntBP buffer,
-                                 int firstindex,
-                                 int lastindex,
-                                 int start,
-                                 int stop,
-                                 float minweight) throws IOException {
-        return getIntsBetween(positions,firstindex,lastindex,start,stop,minweight);
+    /** returns the hits between firstindex and last index and between start and stop, inclusive.
+     *  firstindex and lastindex come from Header.getFirstIndex and Header.getLastIndex
+     */
+    public IntBP getHitsBetween(int firstindex,
+                                int lastindex,
+                                int start,
+                                int stop,
+                                Float minweight,
+                                Boolean isPlus) throws IOException {
+        return getIntsBetween(positions,firstindex,lastindex,start,stop,minweight,isPlus);
     }
-    public IntBP getLASBetween(IntBP buffer,
-                               int firstindex,
+    public IntBP getLASBetween(int firstindex,
                                int lastindex,
                                int start,
                                int stop,
-                               float minweight) throws IOException {
-        return getIntsBetween(lenAndStrand,firstindex,lastindex,start,stop,minweight);
+                               Float minweight,
+                               Boolean isPlus) throws IOException {
+        return getIntsBetween(lenAndStrand,firstindex,lastindex,start,stop,minweight,isPlus);
     }
     /** returns the weights between firstindex and last index and between start and stop, inclusive.
      *  firstindex and lastindex come from Header.getFirstIndex and Header.getLastIndex
@@ -287,40 +264,36 @@ public abstract class Hits implements Closeable {
     public FloatBP getWeightsBetween(int firstindex,
                                      int lastindex,
                                      int start,
-                                     int stop) throws IOException {
+                                     int stop,
+                                     Float minweight,
+                                     Boolean isPlus) throws IOException {
         int[] p = getIndices(firstindex, lastindex, start,stop);
         if (p[0] >= p[1]) {
             return emptyFloatBP;
         }
-        return weights.slice(p[0], p[1] - p[0]);
-    }
-    /** returns the weights between firstindex and last index and between start and stop, inclusive,
-     * for which the weight is greater than minweight.
-     *  firstindex and lastindex come from Header.getFirstIndex and Header.getLastIndex
-     */
-    public FloatBP getWeightsBetween(int firstindex,
-                                     int lastindex,
-                                     int start,
-                                     int stop,
-                                     float minweight) throws IOException {
-        int[] p = getIndices(firstindex, lastindex, start,stop);        
+        if (minweight == null && isPlus == null) {
+            return weights.slice(p[0], p[1] - p[0]);
+        } 
         int n = 0;
         for (int i = p[0]; i < p[1]; i++) {
-            if (weights.get(i) >= minweight) {
+            if ((minweight == null || weights.get(i) >= minweight) &&
+                (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                 n++;
             }
         }
         if (n == 0) {
             return emptyFloatBP;
         }
+
         FloatBP output = new FloatBP(ByteBuffer.allocate(n*4));
         n = 0;
         for (int i = p[0]; i < p[1]; i++) {
-            if (weights.get(i) >= minweight) {
-                output.fb.put(n,weights.get(i));
+            if ((minweight == null || weights.get(i) >= minweight) &&
+                (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
+                output.fb.put(n++, weights.get(i));
             }
         }
-        return output;
+        return output;        
     }
     /** return a histogram from positions start to stop
      *  in units of stepsize.  firstindex and lastindex come from
@@ -336,66 +309,27 @@ public abstract class Hits implements Closeable {
                            int start,
                            int stop,
                            int stepsize,
+                           Float minweight,
+                           Boolean isPlus,
                            boolean extension) throws IOException {
-        IntBP positions = getPositionsBuffer();
         int output[] = new int[(stop - start) / stepsize + 1];
         for (int j = 0; j < output.length; j++) {
             output[j] = 0;
         }
+
         int[] p = getIndices(firstindex, lastindex, start,stop);        
         if (!extension) {
             for (int i = p[0]; i < p[1]; i++) {
-                output[(positions.get(i) - start) / stepsize]++;            
-            }
-        } else {
-            IntBP las = getLASBuffer();
-            for (int i = p[0]; i < p[1]; i++) {
-                int bin = (positions.get(i) - start) / stepsize;
-                int l = las.get(i);
-                short len = getLengthOne(l);
-                boolean strand = getStrandOne(l);
-                if (strand) {
-                    while (len > 0 && ++bin < output.length) {
-                        output[bin]++;
-                        len -= stepsize;
-                    }
-                } else {
-                    while (len > 0 && --bin > 0) {
-                        output[bin]++;
-                        len -= stepsize;
-                    }
-                }
-            }
-        }
-        return output;
-    }
-    /**
-     * histogram with a minimum weight
-     */
-    public int[] histogram(int firstindex,
-                           int lastindex,
-                           int start,
-                           int stop,
-                           int stepsize,
-                           float minweight,
-                           boolean extension) throws IOException {
-        IntBP positions = getPositionsBuffer();
-        FloatBP weights = getWeightsBuffer();
-        int output[] = new int[(stop - start) / stepsize + 1];
-        for (int j = 0; j < output.length; j++) {
-            output[j] = 0;
-        }
-        int[] p = getIndices(firstindex, lastindex, start,stop);        
-        if (!extension) {
-            for (int i = p[0]; i < p[1]; i++) {
-                if (weights.get(i) >= minweight) {
+                if ((minweight == null || weights.get(i) > minweight) &&
+                    (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                     output[(positions.get(i) - start) / stepsize]++;            
                 }
             }
         } else {
             IntBP las = getLASBuffer();
             for (int i = p[0]; i < p[1]; i++) {
-                if (weights.get(i) >= minweight) {
+                if ((minweight == null || weights.get(i) > minweight) &&
+                    (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                     int bin = (positions.get(i) - start) / stepsize;
                     int l = las.get(i);
                     short len = getLengthOne(l);
@@ -421,69 +355,29 @@ public abstract class Hits implements Closeable {
                                    int start,
                                    int stop,
                                    int stepsize,
+                                   Float minweight,
+                                   Boolean isPlus,
                                    boolean extension) throws IOException {
-        IntBP positions = getPositionsBuffer();
-        FloatBP weights = getWeightsBuffer();
-        float output[] = new int[(stop - start) / stepsize + 1];
-        for (int j = 0; j < output.length; j++) {
-            output[j] = 0;
-        }
-        int[] p = getIndices(firstindex, lastindex, start,stop);        
-        if (!extension) {
-            for (int i = p[0]; i < p[1]; i++) {
-                output[(positions.get(i) - start) / stepsize] += weights.get(i);            
-            }
-        } else {
-            IntBP las = getLASBuffer();
-            for (int i = p[0]; i < p[1]; i++) {
-                int bin = (positions.get(i) - start) / stepsize;
-                int l = las.get(i);
-                short len = getLengthOne(l);
-                boolean strand = getStrandOne(l);
-                if (strand) {
-                    while (len > 0 && ++bin < output.length) {
-                        output[bin] += weights.get(i);
-                        len -= stepsize;
-                    }
-                } else {
-                    while (len > 0 && --bin > 0) {
-                        output[bin] += weights.get(i);
-                        len -= stepsize;
-                    }
-                }
-            }
-        }
-        return output;
-    }
-    /**
-     * histogram with a minimum weight
-     */
-    public float[] weightHistogram(int firstindex,
-                                   int lastindex,
-                                   int start,
-                                   int stop,
-                                   int stepsize,
-                                   float minweight,
-                                   boolean extension) throws IOException {
-        IntBP positions = getPositionsBuffer();
-        FloatBP weights = getWeightsBuffer();
         float output[] = new float[(stop - start) / stepsize + 1];
         for (int j = 0; j < output.length; j++) {
             output[j] = 0;
         }
+
         int[] p = getIndices(firstindex, lastindex, start,stop);        
         if (!extension) {
             for (int i = p[0]; i < p[1]; i++) {
                 float f = weights.get(i);
-                if (f > minweight) {
-                    output[(positions.get(i) - start) / stepsize] += f;
+                if ((minweight == null || f > minweight) &&
+                    (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
+                    output[(positions.get(i) - start) / stepsize] += f;            
                 }
             }
         } else {
             IntBP las = getLASBuffer();
             for (int i = p[0]; i < p[1]; i++) {
                 float f = weights.get(i);
-                if (f >= minweight) {
+                if ((minweight == null || f > minweight) &&
+                    (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                     int bin = (positions.get(i) - start) / stepsize;
                     int l = las.get(i);
                     short len = getLengthOne(l);
@@ -503,8 +397,7 @@ public abstract class Hits implements Closeable {
             }
         }
         return output;
-    }   
-    
+    }    
     public void close() throws IOException {        
         positions.ib = null;
         positions.bb = null;

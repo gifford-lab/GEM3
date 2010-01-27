@@ -21,7 +21,7 @@ public class SingleHit implements Comparable<SingleHit> {
             return false;
         }
     }
-    public int compareTo(HitWeightPair o) {
+    public int compareTo(SingleHit o) {
         if (chrom == o.chrom) {
             return pos - o.pos;
         } else {
