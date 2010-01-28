@@ -146,7 +146,7 @@ public class ServerTask {
                 if (username == null) { 
                     return ;
                 }
-                server.getLogger().log(Level.INFO,"ServerTask " + Thread.currentThread() + " authenticated " + username + " from " + socket.getInetAddress());
+                server.getLogger().log(Level.INFO,"ServerTask " + Thread.currentThread() + " authenticated " + username + " from " + socket.getInetAddress() + ":" + socket.getPort());
                 printString("authenticated as " + username + "\n");
             }
             if (type == null) {
@@ -1217,19 +1217,8 @@ public class ServerTask {
             printInvalid("bad byte order " + orderString);
         }
     }
-    /**
-     * Reads lines up to and including "ENDREQUEST".  Returns a list
-     * of all but the last line.
-     */
-    public List<String> readParameterLines() throws IOException {
-        ArrayList<String> output = new ArrayList<String>();
-        String line = readLine();
-        int i = 0;
-        while (line != null && line.length() > 0 && !line.equals("ENDREQUEST") && i++ < MAXPARAMLINES) {
-            output.add(line);
-            line = readLine();
-        }
-        return output;
+    public String toString() {
+        return "ServerTask user=" + username + " remoteip=" + socket.getInetAddress() + ":" + socket.getPort();
     }
 }
 
