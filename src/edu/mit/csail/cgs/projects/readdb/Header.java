@@ -6,11 +6,10 @@ import java.nio.IntBuffer;
 import java.nio.ByteOrder;
 
 /**
- * Overview, ACL, and index information for a set of hits
+ * index information for a set of hits
  */
-public class Header implements Serializable, Closeable {
+public class Header implements Closeable {
 
-    public static final long serialVersionUID = 5L;
     private int numHits;    
     /* indexPositions and indexPointers are paired arrays.  
        indexPositions contains values from the hits file;
@@ -126,9 +125,6 @@ public class Header implements Serializable, Closeable {
         h.indexPositions = Bits.readInts((int)size/8, stream, buffer, ByteOrder.nativeOrder());
         h.indexPointers = Bits.readInts((int)size/8, stream, buffer, ByteOrder.nativeOrder());
         stream.close();
-
-        //         System.err.println("Read from " + fname);
-        //         h.printIndex();
 
         return h;
     }

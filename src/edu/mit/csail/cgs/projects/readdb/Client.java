@@ -3,7 +3,8 @@ package edu.mit.csail.cgs.projects.readdb;
 import java.net.*;
 import java.util.*;
 import java.io.*;
-import java.nio.ByteOrder;
+import java.nio.*;
+import java.nio.channels.*;
 import javax.security.sasl.*;
 import javax.security.auth.callback.*;
 
@@ -13,17 +14,13 @@ import javax.security.auth.callback.*;
  *  Calls throw IOException on network errors.
  *  Calls throw ClientException on other errors (authentication, authorization, invalid request ,etc.
  *
- *  Note that the Client doesn't know anything about strandedness.  If you want to distinguish
- *  between hits on the + and - strands, you need to have one chromosome for each strand, eg, 1+ and 1-.  
- *  This is the default format that ImportHits uses.
- *
- *  Client generally assumes, but doesn't require, that the hit positions are the 5' end of the
- *  hit.  You can do something else, though it'll break the extended histogramming
+ *  Client generally assumes that the hit positions are the 5' end of the
+ *  hit. 
  *
  * Client IS NOT REENTRANT.  Do not overlap calls to a single Client object.
  * 
  */
-public class Client implements ReadOnlyClient {    
+public class Client {    
 
     public static final String SaslMechanisms[] = {"CRAM-MD5","DIGEST-MD5"};
     /* socket is the socket to talk to the server.  outstream and instream are from
@@ -35,6 +32,7 @@ public class Client implements ReadOnlyClient {
     /* temporary space for receiving data; contents not persistent between method calls */
     byte[] buffer;
     private static final int BUFFERLEN = 8192*20;
+    private Request request;
     ByteOrder myorder;
 
 
@@ -99,7 +97,10 @@ public class Client implements ReadOnlyClient {
         if (!authenticate(hostname,username,passwd)) {
             throw new ClientException("Authentication Exception Failed");
         }
-        sendString("byteorder\n" + (ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN ? "big" : "little") + "\nENDREQUEST\n");
+        request = new Request();
+        request.type = "byteorder";
+        request.map.put("order", (ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN ? "big" : "little"));
+        sendString(request.toString());
         String output = readLine();
         if (!output.equals("OK")) {
             throw new ClientException("Couldn't set byte order " + output);
@@ -186,33 +187,109 @@ public class Client implements ReadOnlyClient {
         return out;
     }
     public void shutdown() throws IOException, ClientException{
-        sendString("shutdown\nENDREQUEST\n");
+        request.clear();
+        request.type = "shutdown";
+        sendString(request.toString());
     }
-    /** Stores hits for the specified alignment and chromosome.
-     *  Will append to the current set of hits if they exist.
-     *  Throws ClientException if the currently authenticated user doesn't
-     *  have permission to create the alignment when it doesn't already exist.
-     */
-    public void store(String alignid, String chromid, int hits[], float weights[]) throws IOException, ClientException {
-        sendString("store\n" + alignid + "\n" + chromid + "\n" + hits.length + "\nENDREQUEST\n");
-        String response = readLine();
-        if (!response.equals("OK")) {
-            throw new ClientException(response);
+    public void storeSingle(String alignid, List<SingleHit> allhits) throws IOException, ClientException {
+        Map<Integer, List<SingleHit>> map = new HashMap<Integer,List<SingleHit>>();
+        for (SingleHit h : allhits) {
+            if (!map.containsKey(h.chrom)) {
+                map.put(h.chrom, new ArrayList<SingleHit>());
+            }
+            map.get(h.chrom).add(h);
         }
-        Bits.sendInts(hits, outstream,buffer, myorder);
-        Bits.sendFloats(weights, outstream,buffer, myorder);
-        System.err.println("Sent " + hits.length + " hits to the server");
-        outstream.flush();        
-        response = readLine();
-        if (!response.equals("OK")) {
-            throw new ClientException(response);
+        for (int chromid : map.keySet()) {
+            List<SingleHit> hits = map.get(chromid);
+            request.clear();
+            request.type="storesingle";
+            request.alignid=alignid;
+            request.map.put("numhits",Integer.toString(hits.size()));
+            sendString(request.toString());
+            String response = readLine();
+            if (!response.equals("OK")) {
+                throw new ClientException(response);
+            }
+            int[] ints = new int[hits.size()];
+            for (int i = 0; i < hits.size(); i++) {
+                ints[i] = hits.get(i).pos;
+            }        
+            Bits.sendInts(ints, outstream,buffer, myorder);
+            float[] floats = new float[hits.size()];
+            for (int i = 0; i < hits.size(); i++) {
+                floats[i] = hits.get(i).weight;
+                ints[i] = Hits.makeLAS(hits.get(i).length, hits.get(i).strand);
+            }
+            Bits.sendFloats(floats, outstream,buffer, myorder);
+            Bits.sendInts(ints, outstream,buffer, myorder);
+            
+            System.err.println("Sent " + hits.size() + " hits to the server");
+            outstream.flush();        
+            response = readLine();
+            if (!response.equals("OK")) {
+                throw new ClientException(response);
+            }
         }
     }
+    public void storePaired(String alignid, List<PairedHit> allhits) throws IOException, ClientException {
+        Map<Integer, List<PairedHit>> map = new HashMap<Integer,List<PairedHit>>();
+        for (PairedHit h : allhits) {
+            if (!request.map.containsKey(h.leftChrom)) {
+                map.put(h.leftChrom, new ArrayList<PairedHit>());
+            }
+            map.get(h.leftChrom).add(h);
+        }
+        for (int chromid : map.keySet()) {
+            List<PairedHit> hits = map.get(chromid);
+            request.clear();
+            request.type="storepaired";
+            request.alignid=alignid;
+            request.chromid=chromid;
+            request.map.put("numhits",Integer.toString(hits.size()));
+            sendString(request.toString());
+            String response = readLine();
+            if (!response.equals("OK")) {
+                throw new ClientException(response);
+            }
+            int[] ints = new int[hits.size()];
+            for (int i = 0; i < hits.size(); i++) {
+                ints[i] = hits.get(i).leftPos;
+            }        
+            Bits.sendInts(ints, outstream,buffer, myorder);
+            float[] floats = new float[hits.size()];
+            for (int i = 0; i < hits.size(); i++) {
+                floats[i] = hits.get(i).weight;
+                ints[i] = Hits.makeLAS(hits.get(i).leftLength, hits.get(i).leftStrand,
+                                       hits.get(i).rightLength, hits.get(i).rightStrand);
+
+            }
+            Bits.sendFloats(floats, outstream,buffer, myorder);
+            Bits.sendInts(ints, outstream,buffer, myorder);
+            for (int i = 0; i < hits.size(); i++) {
+                ints[i] = hits.get(i).rightChrom;
+            }        
+            Bits.sendInts(ints, outstream,buffer, myorder);
+            for (int i = 0; i < hits.size(); i++) {
+                ints[i] = hits.get(i).rightPos;
+            }        
+            Bits.sendInts(ints, outstream,buffer, myorder);
+            System.err.println("Sent " + hits.size() + " hits to the server");
+            outstream.flush();        
+            response = readLine();
+            if (!response.equals("OK")) {
+                throw new ClientException(response);
+            }
+        }
+    }
+    
     /** Returns true if the alignment and chromosome exist and are accessible
      * to the user.  Returns false if they don't exist or if they aren't accessible
      */
     public boolean exists(String alignid) throws IOException {
-        sendString("exists\n" + alignid + "\nENDREQUEST\n");
+        request.clear();
+        request.type="exists";
+        request.alignid=alignid;
+        sendString(request.toString());
         String response = readLine();
         if (response.equals("exists")) {
             return true;
@@ -223,10 +300,15 @@ public class Client implements ReadOnlyClient {
         }
     }
     /**
-     * Deletes an alignment (all chromosomes and the acl).
+     * Deletes an alignment (all chromosomes).  isPaired specifies whether to delete
+     * the paired or single ended reads
      */
-    public void deleteAlignment(String alignid) throws IOException, ClientException {
-        sendString("deletealign\n" + alignid + "\nENDREQUEST\n");
+    public void deleteAlignment(String alignid, boolean isPaired) throws IOException, ClientException {
+        request.clear();
+        request.type="deletealign";
+        request.isPaired = isPaired;
+        request.alignid=alignid;
+        sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
@@ -235,44 +317,60 @@ public class Client implements ReadOnlyClient {
     /**
      * Returns the set of chromosomes that exist for this alignment
      */
-    public Set<String> getChroms(String alignid) throws IOException, ClientException {
-        sendString("getchroms\n" + alignid + "\nENDREQUEST\n");
+    public Set<Integer> getChroms(String alignid, boolean isPaired, boolean isLeft) throws IOException, ClientException {
+        request.clear();
+        request.type="getchroms";
+        request.isLeft = isLeft;
+        request.isPaired = isPaired;
+        request.alignid=alignid;
+        sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
         }
         int numchroms = Integer.parseInt(readLine());
-        Set<String> output = new HashSet<String>();
+        Set<Integer> output = new HashSet<Integer>();
         while (numchroms-- > 0) {
-            output.add(readLine());
+            output.add(Integer.parseInt(readLine()));
         }
         return output;
     }
     /**
      * Returns the total number of hits in this alignment
      */
-    public int getCount(String alignid) throws IOException, ClientException {
+    public int getCount(String alignid, boolean isPaired, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
         int count = 0;
-        for (String c : getChroms(alignid)) {
-            count += getCount(alignid, c);
+        for (int c : getChroms(alignid, isPaired, isLeft)) {
+            count += getCount(alignid, c, isPaired, null,null,null,isLeft,plusStrand);
         }
         return count;
     }
     /**
      * Returns the sum of the weights of all hits in this alignment
      */
-    public double getWeight(String alignid) throws IOException, ClientException {
+    public double getWeight(String alignid, boolean isPaired, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
         double total = 0;
-        for (String c : getChroms(alignid)) {
-            total += getWeight(alignid, c);
+        for (int c : getChroms(alignid, isPaired, isLeft)) {
+            total += getWeight(alignid, c, isPaired, null, null, null, isLeft, plusStrand);
         }
         return total;
     }
 
-    /** returns the total number of hits on the specified chromosome in the alignment
+    /** returns the total number of hits on the specified chromosome in the alignment.
+     * Any of the object parameters can be set to null to specify "no value"
      */
-    public int getCount(String alignid, String chromid)  throws IOException, ClientException {
-        sendString("count" + "\n" + alignid + "\n" + chromid + "\nENDREQUEST\n");
+    public int getCount(String alignid, int chromid, boolean paired, Integer start, Integer end, Float minWeight, Boolean isLeft, Boolean plusStrand)  throws IOException, ClientException {
+        request.clear();
+        request.type="count";
+        request.alignid=alignid;
+        request.chromid=chromid;
+        request.start = start;
+        request.end = end;
+        request.minWeight = minWeight;
+        request.isPlusStrand = plusStrand;
+        request.isPaired = paired;
+        request.isLeft = isLeft == null ? true : isLeft;
+        sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
@@ -282,92 +380,41 @@ public class Client implements ReadOnlyClient {
     }
     /** returns the total weight on the specified chromosome in this alignment
      */
-    public double getWeight(String alignid, String chromid) throws IOException, ClientException {
-        sendString("weight" + "\n" + alignid + "\n" + chromid + "\nENDREQUEST\n");
+    public double getWeight(String alignid, int chromid, boolean paired, Integer start, Integer end, Float minWeight, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
+        request.clear();
+        request.type="weight";
+        request.alignid=alignid;
+        request.chromid=chromid;
+        request.start = start;
+        request.end = end;
+        request.minWeight = minWeight;
+        request.isPlusStrand = plusStrand;
+        request.isPaired = paired;
+        request.isLeft = isLeft == null ? true : isLeft;
+        sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
         }
         return Double.parseDouble(readLine());
     }
-    /** returns the number of hits in some range of chromosomal coordinates in the alignment
-     */
-    public int getCountRange(String alignid, String chromid, int start, int stop)  throws IOException, ClientException {
-        return getCountRange(alignid, chromid, start, stop, Float.NaN);
-    }
-    /** returns the number of hits in some range of chromosomal coordinates in the alignment.  Only
-     *  includes hits whose weight is greater than minweight
-     */
-    public int getCountRange(String alignid, String chromid, int start, int stop, float minweight)  throws IOException, ClientException {
-        sendString("countrange" + "\n" + alignid + "\n" + chromid + "\n" + start + "\n" + stop + "\n" + minweight + "\nENDREQUEST\n");
-        String response = readLine();
-        if (!response.equals("OK")) {
-            throw new ClientException(response);
-        }
-        int numhits = Integer.parseInt(readLine());
-        return numhits;
-    }
-    /** 
-     * returns the sum of the hit weights on the specified alignment and chromosome between positions start and stop
-     */
-    public double getWeightRange(String alignid, String chromid, int start, int stop)  throws IOException, ClientException {
-        return getWeightRange(alignid, chromid, start, stop, Float.NaN);
-    }
-    /** 
-     * Returns the sum of the hit weights on the specified alignment and chromosome between positions start and stop.
-     * Only includes hits whose weight is greater than minweight
-     */
-    public double getWeightRange(String alignid, String chromid, int start, int stop, float minweight)  throws IOException, ClientException {
-        sendString("weightrange" + "\n" + alignid + "\n" + chromid + "\n" + start + "\n" + stop + "\n" + minweight + "\nENDREQUEST\n");
-        String response = readLine();
-        if (!response.equals("OK")) {
-            throw new ClientException(response);
-        }
-        return Double.parseDouble(readLine());
-    }
+
     /** 
      * returns the sorted (ascending order) hit positions in the specified range of a chromosome,alignment pair.
      */ 
-    public int[] getHitsRange(String alignid, String chromid, int start, int stop) throws IOException, ClientException {
-        return getHitsRange(alignid, chromid, start,stop, Float.NaN);
-    }
-    /**
-     * Returns the sorted hit positions whose weight is greater than minweight
-     */
-    public int[] getHitsRange(String alignid, String chromid, int start, int stop, float minweight) throws IOException, ClientException {
-        sendString("gethitsrange" + "\n" + alignid + "\n" + chromid + "\n" + start + "\n" + stop + "\n" + minweight + "\nENDREQUEST\n");
-        String response = readLine();
-        if (!response.equals("OK")) {
-            throw new ClientException(response);
-        }
-        int numhits = Integer.parseInt(readLine());
-        //        System.err.println("Going to read " + numhits + " hits");
-        return Bits.readInts(numhits, instream, buffer, myorder);        
-    }
-    /**
-     * Returns the hit weights in the specified range.  These will be in the same order
-     * as the positions returned by getHitsRange();
-     */
-    public float[] getWeightsRange(String alignid, String chromid, int start, int stop) throws IOException, ClientException {
-        return getWeightsRange(alignid, chromid, start,stop, Float.NaN);
-    }
-    /**
-     * Returns weights in the range that are greater than minweight
-     */
-    public float[] getWeightsRange(String alignid, String chromid, int start, int stop, float minweight) throws IOException, ClientException {
-        sendString("getweightsrange" + "\n" + alignid + "\n" + chromid + "\n" + start + "\n" + stop + "\n" + minweight + "\nENDREQUEST\n");
-        String response = readLine();
-        if (!response.equals("OK")) {
-            throw new ClientException(response);
-        }
-        int numhits = Integer.parseInt(readLine());
-        return Bits.readFloats(numhits, instream, buffer, myorder);        
-    }
-    /**
-     * returns all hits on the specified chromosome
-     */
-    public int[] getHits(String alignid, String chromid)  throws IOException, ClientException {
-        sendString("gethits" + "\n" + alignid + "\n" + chromid + "\nENDREQUEST\n");
+    public int[] getPositions(String alignid, int chromid, boolean paired, Integer start, Integer stop, Float minWeight, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
+        request.clear();
+        request.type="gethits";
+        request.alignid=alignid;
+        request.chromid=chromid;
+        request.start = start;
+        request.end = stop;
+        request.minWeight = minWeight;
+        request.isPlusStrand = plusStrand;
+        request.isPaired = paired;
+        request.isLeft = isLeft;
+        request.map.put("wantpositions","1");
+        sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
@@ -375,11 +422,19 @@ public class Client implements ReadOnlyClient {
         int numhits = Integer.parseInt(readLine());
         return Bits.readInts(numhits, instream, buffer, myorder);        
     }
-    /**
-     * Returns all the weights on the specified chromosome
-     */
-    public float[] getWeights(String alignid, String chromid)  throws IOException, ClientException {
-        sendString("getweights" + "\n" + alignid + "\n" + chromid + "\nENDREQUEST\n");
+    public float[] getWeightsRange(String alignid, int chromid, boolean paired, Integer start, Integer stop, Float minWeight, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
+        request.clear();
+        request.type="gethits";
+        request.alignid=alignid;
+        request.chromid=chromid;
+        request.start = start;
+        request.end = stop;
+        request.minWeight = minWeight;
+        request.isPlusStrand = plusStrand;
+        request.isPaired = paired;
+        request.isLeft = isLeft;
+        request.map.put("wantweights","1");
+        sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
@@ -387,6 +442,141 @@ public class Client implements ReadOnlyClient {
         int numhits = Integer.parseInt(readLine());
         return Bits.readFloats(numhits, instream, buffer, myorder);        
     }
+    public List<SingleHit> getSingleHits(String alignid, int chromid, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        request.clear();
+        request.type="gethits";
+        request.alignid=alignid;
+        request.chromid=chromid;
+        request.start = start;
+        request.end = stop;
+        request.minWeight = minWeight;
+        request.isPlusStrand = plusStrand;
+        request.isPaired = false;
+        request.map.put("wantpositions","1");
+        request.map.put("wantweights","1");
+        request.map.put("wantlengthsandstrands","1");
+        sendString(request.toString());        
+        String response = readLine();
+        if (!response.equals("OK")) {
+            throw new ClientException(response);
+        }
+        List<SingleHit> output = new ArrayList<SingleHit>();
+        int numhits = Integer.parseInt(readLine());
+        for (int i = 0; i < numhits; i++) {
+            output.add(new SingleHit(chromid,0,(float)0.0,false,(short)0));
+        }
+        IntBP ints = new IntBP(numhits);
+        ReadableByteChannel rbc = Channels.newChannel(instream);
+        Bits.readBytes(ints.bb, rbc);
+        for (int i = 0; i < numhits; i++) {
+            output.get(i).pos = ints.get(i);
+        }
+        FloatBP floats = new FloatBP(numhits);
+        Bits.readBytes(floats.bb, rbc);
+        for (int i = 0; i < numhits; i++) {
+            output.get(i).weight = floats.get(i);
+        }
+        Bits.readBytes(ints.bb, rbc);
+        for (int i = 0; i < numhits; i++) {
+            int j = ints.get(i);
+            SingleHit h = output.get(i);
+            h.length = Hits.getLengthOne(j);
+            h.strand = Hits.getStrandOne(j);
+        }
+        return output;
+    }
+    public List<PairedHit> getPairedHits(String alignid, int chromid, boolean isLeft, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        request.clear();
+        request.type="gethits";
+        request.alignid=alignid;
+        request.chromid=chromid;
+        request.start = start;
+        request.end = stop;
+        request.minWeight = minWeight;
+        request.isPlusStrand = plusStrand;
+        request.isLeft = isLeft;
+        request.isPaired = true;
+        request.map.put("wantpositions","1");
+        request.map.put("wantweights","1");
+        request.map.put("wantlengthsandstrands","1");
+        request.map.put("wantotherchroms","1");
+        request.map.put("wantotherpositions","1");
+        sendString(request.toString());        
+        String response = readLine();
+        if (!response.equals("OK")) {
+            throw new ClientException(response);
+        }
+        List<PairedHit> output = new ArrayList<PairedHit>();
+        int numhits = Integer.parseInt(readLine());
+        for (int i = 0; i < numhits; i++) {
+            output.add(new PairedHit(chromid,0,false,(short)0,
+                                     chromid,0,false,(short)0,(float)0));
+        }
+        IntBP ints = new IntBP(numhits);
+        ReadableByteChannel rbc = Channels.newChannel(instream);
+        Bits.readBytes(ints.bb, rbc);
+        if (isLeft) {
+            for (int i = 0; i < numhits; i++) {
+                output.get(i).leftPos = ints.get(i);
+            }
+        } else {
+            for (int i = 0; i < numhits; i++) {
+                output.get(i).rightPos = ints.get(i);
+            }
+        }
+        FloatBP floats = new FloatBP(numhits);
+        Bits.readBytes(floats.bb, rbc);
+        for (int i = 0; i < numhits; i++) {
+            output.get(i).weight = floats.get(i);
+        }
+
+        Bits.readBytes(ints.bb, rbc);
+        if (isLeft) {
+            for (int i = 0; i < numhits; i++) {
+                int j = ints.get(i);
+                PairedHit h = output.get(i);                
+                h.leftLength = Hits.getLengthOne(j);
+                h.leftStrand = Hits.getStrandOne(j);
+                h.rightLength = Hits.getLengthTwo(j);
+                h.rightStrand = Hits.getStrandTwo(j);
+            }
+        } else {
+            for (int i = 0; i < numhits; i++) {
+                int j = ints.get(i);
+                PairedHit h = output.get(i);                
+                h.leftLength = Hits.getLengthTwo(j);
+                h.leftStrand = Hits.getStrandTwo(j);
+                h.rightLength = Hits.getLengthOne(j);
+                h.rightStrand = Hits.getStrandOne(j);
+            }
+        }
+        Bits.readBytes(ints.bb, rbc);
+        if (isLeft) {
+            for (int i = 0; i < numhits; i++) {
+                output.get(i).rightChrom = ints.get(i);
+            }
+        } else {
+            for (int i = 0; i < numhits; i++) {
+                output.get(i).leftChrom = ints.get(i);
+            }
+        }
+
+        Bits.readBytes(ints.bb, rbc);
+        if (isLeft) {
+            for (int i = 0; i < numhits; i++) {
+                output.get(i).rightPos = ints.get(i);
+            }
+        } else {
+            for (int i = 0; i < numhits; i++) {
+                output.get(i).leftPos = ints.get(i);
+            }
+        }
+
+
+        return output;
+    }
+
+
     /**
      * returns a TreeMap from positions to counts representing a histogram
      * of the hits in a range with the specified binsize.  Bins with a count
@@ -406,12 +596,21 @@ public class Client implements ReadOnlyClient {
      * to get the sign right depending on the strandedness of the chromosome that you're
      * working with.
      */
-    public TreeMap<Integer,Integer> getHistogram(String alignid, String chromid, int start, int stop, int binsize) throws IOException, ClientException {
-        return getHistogram(alignid, chromid, start,stop,binsize, Float.NaN,0);
-    }
-    public TreeMap<Integer,Integer> getHistogram(String alignid, String chromid, int start, int stop, int binsize, float minweight, int readExtension) 
-        throws IOException, ClientException {
-        sendString("histogram" + "\n" + alignid + "\n" + chromid + "\n" + start + "\n" + stop + "\n" + binsize + "\n" + minweight + "\n" + readExtension + "\nENDREQUEST\n");
+    public TreeMap<Integer,Integer> getHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        request.clear();
+        request.type="histogram";
+        request.alignid=alignid;
+        request.chromid=chromid;
+        request.start = start;
+        request.end = stop;
+        request.minWeight = minWeight;
+        request.isPlusStrand = plusStrand;
+        request.isPaired = paired;
+        request.map.put("binsize",Integer.toString(binsize));
+        if (doReadExtension) {
+            request.map.put("extension","1");
+        }
+        sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
             System.err.println("Asking for histogram said " + response);
@@ -425,34 +624,44 @@ public class Client implements ReadOnlyClient {
         }
         return output;
     }
-    /**
-     * returns a histogram where the value is the summed read weights for the bin
-     */
-    public TreeMap<Integer,Float> getWeightHistogram(String alignid, String chromid, int start, int stop, int binsize) throws IOException, ClientException {
-        return getWeightHistogram(alignid, chromid, start,stop,binsize, Float.NaN,0);
-    }
-    public TreeMap<Integer,Float> getWeightHistogram(String alignid, String chromid, int start, int stop, int binsize, float minweight, int readExtension) 
-        throws IOException, ClientException {
-        sendString("weighthistogram" + "\n" + alignid + "\n" + chromid + "\n" + start + "\n" + stop + "\n" + binsize + "\n" + minweight + "\n" + readExtension + "\nENDREQUEST\n");
+    public TreeMap<Integer,Float> getWeightHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        request.clear();
+        request.type="weighthistogram";
+        request.alignid=alignid;
+        request.chromid=chromid;
+        request.start = start;
+        request.end = stop;
+        request.minWeight = minWeight;
+        request.isPlusStrand = plusStrand;
+        request.isPaired = paired;
+        request.map.put("binsize",Integer.toString(binsize));
+        if (doReadExtension) {
+            request.map.put("extension","1");
+        }
+        sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println("Asking for weighthistogram said " + response);
+            System.err.println("Asking for histogram said " + response);
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
-        int pos[] = Bits.readInts(numints, instream, buffer, myorder);
-        float weight[] = Bits.readFloats(numints, instream, buffer, myorder);
+        int out[] = Bits.readInts(numints, instream, buffer, myorder);
+        float weight[] = Bits.readFloats(numints, instream,buffer,myorder);
         TreeMap<Integer,Float> output = new TreeMap<Integer,Float>();
-        for (int i = 0; i < pos.length; i ++) {
-            output.put(pos[i], weight[i]);
+        for (int i = 0; i < out.length; i += 2) {
+            output.put(out[i], weight[i]);
         }
         return output;
     }
+
     /**
      * map from READ, WRITE, and ADMIN to lists of principals that have those privileges on the specified alignment
      */
     public Map<String,Set<String>> getACL(String alignid) throws IOException, ClientException {
-        sendString("getacl\n" + alignid + "\nENDREQUEST\n");
+        request.clear();
+        request.type="getacl";
+        request.alignid=alignid;
+        sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
@@ -479,19 +688,23 @@ public class Client implements ReadOnlyClient {
      * Applies the specified ACLChangeEntry objects to the acl for this experiment/chromosome.
      */
     public void setACL(String alignid, Set<ACLChangeEntry> changes) throws IOException, ClientException {
-        StringBuffer req = new StringBuffer("setacl\n" + alignid + "\n");
+        request.clear();
+        request.type="setacl";
         for (ACLChangeEntry a : changes) {
-            req.append(a.toString() + "\n");
+            request.list.add(a.toString());
         }    
-        req.append("ENDREQUEST\n");
-        sendString(req.toString());
+        sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
         }   
     }
     public void addToGroup(String princ, String group) throws IOException, ClientException {
-        sendString("addtogroup\n" + princ + "\n" + group + "\nENDREQUEST\n");
+        request.clear();
+        request.type="addtogroup";
+        request.map.put("princ",princ);
+        request.map.put("group",group);
+        sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
             throw new ClientException(response);
@@ -503,7 +716,9 @@ public class Client implements ReadOnlyClient {
     public void close() {
         try {
             socket.setSoLinger(false,0);
-            sendString("bye\nENDREQUEST\n");
+            request.clear();
+            request.type="bye";
+            sendString(request.toString());
             outstream.close();
             outstream = null;
         } catch (IOException e) {

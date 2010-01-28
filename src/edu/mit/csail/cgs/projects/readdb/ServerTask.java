@@ -149,8 +149,11 @@ public class ServerTask {
                     return; 
                 } else {
                     if (p.equals("ENDREQUEST")) {
-                        if (parseArgs()) {
-                            processRequest();                        
+                        String error = request.parse(args);
+                        if (error == null) {
+                            processRequest();
+                        } else {
+                            printString(error + "\n");
                         }
                         args.clear();
                         if (outstream != null) { outstream.flush(); }                            
@@ -176,80 +179,6 @@ public class ServerTask {
             return;
         }
     }
-    public boolean parseArgs() throws IOException {
-        request.type = null;
-        request.alignid = null;
-        request.chromid = null;
-        request.start = null;
-        request.end = null;
-        request.isPaired = null;
-        request.isLeft = null;
-        request.isPlusStrand = null;
-        request.minWeight = null;
-        request.map.clear();
-        request.list.clear();
-        for (String s : args) {
-            String pieces[] = s.split("\\s*=\\s*");
-            if (pieces.length == 2) {
-                if (pieces[0].equals("alignid")) {
-                    request.alignid = pieces[1];
-                } else if (pieces[0].equals("requesttype")) {
-                    request.type = pieces[1];
-                } else if (pieces[0].equals("chromid")) {
-                    try {
-                        request.chromid = new Integer(pieces[1]);
-                    } catch (NumberFormatException e) {
-                        printString("invalid number for chromid " + pieces[1] + "\n");
-                        return false;
-                    }
-                } else if (pieces[0].equals("start")) {
-                    try {
-                        request.start = new Integer(pieces[1]);
-                    } catch (NumberFormatException e) {
-                        printString("invalid number for start " + pieces[1] + "\n");
-                        return false;
-                    }
-                } else if (pieces[0].equals("end")) {
-                    try {
-                        request.end = new Integer(pieces[1]);
-                    } catch (NumberFormatException e) {
-                        printString("invalid number for end " + pieces[1] + "\n");
-                        return false;
-                    }
-                } else if (pieces[0].equals("ispaired")) {
-                    request.isPaired = new Boolean(pieces[1]);
-                } else if (pieces[0].equals("isleft")) {
-                    request.isLeft = new Boolean(pieces[1]);
-                } else if (pieces[0].equals("isplusstrand")) {
-                    request.isPlusStrand = new Boolean(pieces[1]);
-                } else if (pieces[0].equals("minweight")) {
-                    try {
-                        request.minWeight = new Float(pieces[1]);
-                    } catch (NumberFormatException e) {
-                        printString("invalid minweight " + pieces[1] + "\n");
-                        return false;
-                    }
-                } else {
-                    request.map.put(pieces[0],pieces[1]);
-                }
-            } else if (pieces.length == 1) {
-                request.list.add(s);
-            } else {
-                printString("Invalid number of fields on line " + s);
-                return false;
-            }
-        }
-        if (request.type == null) {
-            printString("must provide a requestype");
-            return false;
-        }
-        if (request.isPaired && request.isLeft == null) {
-            printString("must provide isleft when providing ispaired");
-            return false;
-        }
-
-        return true;
-    }
 
     /** reads and handles a request on the Socket.
      */
@@ -260,9 +189,9 @@ public class ServerTask {
             }
             if (request.type.equals("exists")) {
                 processExists();            
-            } else if (request.type.equals("singlestore")) {
+            } else if (request.type.equals("storesingle")) {
                 processSingleStore();
-            } else if (request.type.equals("pairedstore")) {
+            } else if (request.type.equals("storepaired")) {
                 processPairedStore();
             } else if (request.type.equals("bye")) {
                 shouldClose = true;
@@ -673,12 +602,28 @@ public class ServerTask {
         File[] files = directory.listFiles();
         List<String> toDelete = new ArrayList<String>();
         /* list of files to delete:
-           datafiles first, then ACL, then the directory itself
+           datafiles first, then the directory itself
         */
         for (int i = 0; i < files.length; i++) {
-            toDelete.add(files[i].getName());
+            String name = files[i].getName();
+            if (request.isPaired == null) {
+                toDelete.add(name);
+            } else {
+                if (request.isPaired && 
+                    (name.indexOf(".prleft.") > 0 ||
+                     name.indexOf(".prright.") > 0)) {
+                    toDelete.add(name);
+                } else if (!request.isPaired && 
+                           name.indexOf(".prleft") == -1 &&
+                           name.indexOf(".prright") == -1) {
+                    toDelete.add(name);
+                }
+            }
         }       
-        toDelete.add(directory.getName());
+        if (request.isPaired == null) {
+            toDelete.add(server.getACLFileName(request.alignid));
+            toDelete.add(directory.getName());
+        }
         boolean allDeleted = true;
         File f;
         Lock.writeLock(this,request.alignid);
@@ -787,14 +732,19 @@ public class ServerTask {
             SingleHits.writeSingleHits(hits,
                                        server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
                                        request.chromid);
+            SingleHits singlehits = new SingleHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                                   request.chromid);
+            Header header = new Header(singlehits.getPositionsBuffer().ib);
+            header.writeIndexFile(server.getSingleHeaderFileName(request.alignid,
+                                                                 request.chromid));
         } catch (IOException e) {
             printString("IOException trying to save files : " + e.toString() + "\n");
             Lock.writeUnLock(this,request.alignid);
             return;
         }
+        printOK();
         server.removeSingleHits(request.alignid, request.chromid);
         server.removeSingleHeader(request.alignid, request.chromid);
-        printOK();
         Lock.writeUnLock(this,request.alignid);
     }
 
@@ -886,13 +836,28 @@ public class ServerTask {
                 h.flipSides();            
             }
             appendPairedHits(newhits,false);
+            PairedHits pairedhits = new PairedHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                                   request.chromid, 
+                                                   true);
+            Header header = new Header(pairedhits.getPositionsBuffer().ib);
+            header.writeIndexFile(server.getPairedHeaderFileName(request.alignid,
+                                                                 request.chromid,
+                                                                 true));
+            pairedhits = new PairedHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                        request.chromid, 
+                                        false);
+            header = new Header(pairedhits.getPositionsBuffer().ib);
+            header.writeIndexFile(server.getPairedHeaderFileName(request.alignid,
+                                                                 request.chromid,
+                                                                 false));
         } catch (IOException e) {
             Lock.writeUnLock(this,request.alignid);
             printString("Failed to write hits : " + e.toString());
         }
-
-        server.removePairedHits(request.alignid, request.chromid, request.isLeft);
-        server.removePairedHeader(request.alignid, request.chromid, request.isLeft);
+        server.removePairedHits(request.alignid, request.chromid, true);
+        server.removePairedHits(request.alignid, request.chromid, false);
+        server.removePairedHeader(request.alignid, request.chromid, true);
+        server.removePairedHeader(request.alignid, request.chromid, false);
         printOK();
         Lock.writeUnLock(this,request.alignid);
     }
@@ -1123,19 +1088,8 @@ public class ServerTask {
             printInvalid("bad byte order " + orderString);
         }
     }
-    /**
-     * Reads lines up to and including "ENDREQUEST".  Returns a list
-     * of all but the last line.
-     */
-    public List<String> readParameterLines() throws IOException {
-        ArrayList<String> output = new ArrayList<String>();
-        String line = readLine();
-        int i = 0;
-        while (line != null && line.length() > 0 && !line.equals("ENDREQUEST") && i++ < MAXPARAMLINES) {
-            output.add(line);
-            line = readLine();
-        }
-        return output;
+    public String toString() {         
+        return "ServerTask user=" + username + " remoteip=" + socket.getInetAddress() + ":" + socket.getPort();
     }
 }
 
@@ -1171,17 +1125,5 @@ class ServerTaskCallbackHandler implements CallbackHandler {
             }
 
         }
-    }
-}
-class Request {
-    public String type, alignid;
-    public Integer chromid, start, end;
-    public Boolean isPaired, isLeft, isPlusStrand;
-    public Float minWeight;
-    public Map<String,String> map;
-    public List<String> list;
-    public Request () {
-        map = new HashMap<String,String>();
-        list = new ArrayList<String>();
     }
 }

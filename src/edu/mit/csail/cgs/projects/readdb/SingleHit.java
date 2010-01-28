@@ -6,12 +6,31 @@ public class SingleHit implements Comparable<SingleHit> {
     public float weight;
     public boolean strand;
     public short length;
+
     public SingleHit (int chrom, int position, float weight, boolean strand, short length) {
         this.chrom = chrom;
         pos = position;
         this.weight = weight;
         this.strand = strand;
+        if (length < 0) {
+            throw new IllegalArgumentException("length must be positive");
+        }
+
         this.length = length;
+    }
+    public SingleHit (int chrom, int position, float weight, boolean strand, int length) {
+        this.chrom = chrom;
+        pos = position;
+        this.weight = weight;
+        this.strand = strand;
+        if (length < 0) {
+            throw new IllegalArgumentException("length must be positive");
+        }
+        if (length < Short.MIN_VALUE || length > Short.MAX_VALUE) {
+            throw new IllegalArgumentException("length has to fit into a short.  Quit abusing my laziness");
+        }
+
+        this.length = (short)length;
     }
     public boolean equals(Object o) {
         if (o instanceof HitWeightPair) {

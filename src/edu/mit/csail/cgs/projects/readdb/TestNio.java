@@ -3,7 +3,7 @@ package edu.mit.csail.cgs.projects.readdb;
 import java.nio.*;
 
 
-public class NioTest {
+public class TestNio {
 
 
     public static void main(String args[]) {
