@@ -30,7 +30,7 @@ public class ServerTask {
     private boolean shouldClose;
     /* Socket, streams from the socket */
     private Socket socket;
-    private BufferedInputStream instream;
+    private PushbackInputStream instream;
     private OutputStream outstream;
     private WritableByteChannel outchannel;
     /* if authenticate was successful, this holds a username.  Null otherwise */
@@ -64,7 +64,7 @@ public class ServerTask {
         uname = null;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
         socket.setSendBufferSize(Server.BUFFERLEN);
-        instream = new BufferedInputStream(socket.getInputStream());
+        instream = new PushbackInputStream(socket.getInputStream());
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
         bufferpos = 0;
@@ -98,17 +98,28 @@ public class ServerTask {
         boolean avail = false;
         try {
             if (!socket.isClosed() && socket.isConnected()) {
-                avail = instream.available() > 0;
+                if (instream.available() > 0) {
+                    avail = true;
+                } else {
+                    socket.setSoTimeout(10);
+                    int i = instream.read();
+                    if (i == -1) {
+                        shouldClose = true;
+                        avail = false;
+                        System.err.println(toString() + " end of file in inputAvailable");
+                    } else {
+                        instream.unread(i);
+                        avail = true;
+                    }
+                    socket.setSoTimeout(1000*3600*24);
+                }
             } else {
-//                 if (server.debug()) {
-//                     System.err.println("Setting shouldClose 1 " + socket + " for " + this);
-//                 }
                 shouldClose = true;
-            }                
+            }       
+        } catch (SocketTimeoutException e) {
+            avail = false;
         } catch (IOException e) {
-//             if (server.debug()) {
-//                 System.err.println("Setting shouldClose 2 " + socket + " for " + this);
-//             }
+            System.err.println(toString() + " exception inputAvailable");
             avail = false;
             shouldClose = true;
         }
@@ -131,15 +142,9 @@ public class ServerTask {
      */
     public void run() {
         try {
-//             if (server.debug()) {
-//                 System.err.println("ST running with username=" + username + " type=" + type + " params="+ params);
-//             }
             if (username == null) {
                 if (!authenticate()) {
                     printAuthError();
-//                     if (server.debug()) {
-//                         System.err.println("Setting shouldClose 3 " + socket + " for " + this);
-//                     }
                     shouldClose = true;
                     return;
                 }
