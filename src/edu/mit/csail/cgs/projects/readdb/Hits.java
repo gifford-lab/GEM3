@@ -101,10 +101,10 @@ public abstract class Hits implements Closeable {
         return (short)((las & lenTwoMask) >> 16);
     }
     public static boolean getStrandOne(int las) {
-        return (las & strandOneMask) == 0;
+        return (las & strandOneMask) != 0;
     }
     public static boolean getStrandTwo(int las) {
-        return (las & strandTwoMask) == 0;
+        return (las & strandTwoMask) != 0;
     }
     public static int makeLAS(short lengthOne, boolean strandOne) {
         return (lengthOne & lenOneMask) | ((strandOne ? 1 : 0) << 15);
@@ -118,12 +118,14 @@ public abstract class Hits implements Closeable {
     private FloatBP weights;       
     private IntBP lenAndStrand;
     private int chrom;
+    private String fname;
 
     public Hits (int chrom, String positionsFname, String weightsFname, String lasFname) throws FileNotFoundException, SecurityException, IOException {
         this.chrom = chrom;
         positions = openIntBP(positionsFname);
         weights = openFloatBP(weightsFname);
         lenAndStrand = openIntBP(lasFname);
+        fname = positionsFname;
     }
     /** gets the buffer of positions */
     public IntBP getPositionsBuffer() {
@@ -150,21 +152,20 @@ public abstract class Hits implements Closeable {
         assert(firstindex <= lastindex);
         assert(firstindex >= 0);
         assert(lastindex >= firstindex);
-        assert(lastindex < positions.ib.limit());
-        //        System.err.println(String.format("%s Looking for %d - %d in %d - %d", this.toString(), startpos,lastpos,firstindex,lastindex));
+        assert(lastindex <= positions.ib.limit());
         int indices[] = new int[2]; // will be the output
         while (firstindex < positions.limit() && positions.get(firstindex) < startpos) {
-            //            System.err.println(String.format("first positions[%d] = %d", firstindex, positions.get(firstindex)));
             firstindex++;
         }
         while (lastindex > firstindex && positions.get(lastindex - 1) > lastpos) {
-            //            System.err.println(String.format("last positions[%d] = %d", lastindex, positions.get(lastindex)));
             lastindex--;
         }
         indices[0] = firstindex;
         indices[1] = lastindex;
-        //         System.err.println(String.format("Returning %d - %d (%d,%d) = %d", firstindex, lastindex, 
-        //                                          positions.get(firstindex), positions.get(lastindex),lastindex - firstindex));
+        assert(firstindex >= 0);
+        assert(lastindex >= 0);
+        assert(firstindex < positions.ib.limit());
+        assert(lastindex <= positions.ib.limit());
         return indices;
 
     }
@@ -178,6 +179,9 @@ public abstract class Hits implements Closeable {
                                 int stop,
                                 Float minweight,
                                 Boolean isPlus) throws IOException {       
+        assert(firstindex >= 0);
+        assert(lastindex >= firstindex);
+        assert(lastindex <= positions.ib.limit());
         int[] p = getIndices(firstindex, lastindex, start,stop);
         if (minweight == null && isPlus == null) {
             return p[1] - p[0];
@@ -195,6 +199,9 @@ public abstract class Hits implements Closeable {
                                     int stop,
                                     Float minweight,
                                     Boolean isPlus) throws IOException {       
+        assert(firstindex >= 0);
+        assert(lastindex >= firstindex);
+        assert(lastindex <= positions.ib.limit());
         int[] p = getIndices(firstindex, lastindex, start,stop);
         double sum = 0;
         for (int i = p[0]; i < p[1]; i++) {
@@ -211,6 +218,9 @@ public abstract class Hits implements Closeable {
                                 int stop,
                                 Float minweight,
                                 Boolean isPlus) throws IOException {
+        assert(firstindex >= 0);
+        assert(lastindex >= firstindex);
+        assert(lastindex <= positions.ib.limit());
         int[] p = getIndices(firstindex, lastindex, start,stop);
         if (p[0] >= p[1]) {
             return emptyIntBP;
@@ -229,12 +239,13 @@ public abstract class Hits implements Closeable {
             return emptyIntBP;
         }
 
-        IntBP output = new IntBP(ByteBuffer.allocate(n*4));
+        IntBP output = new IntBP(ByteBuffer.allocate(n*4).order(ByteOrder.nativeOrder()));
         n = 0;
         for (int i = p[0]; i < p[1]; i++) {
             if ((minweight == null || weights.get(i) >= minweight) &&
                 (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
-                output.ib.put(n++, buffer.get(i));
+                output.ib.put(n, buffer.get(i));
+                n++;
             }
         }
         return output;        
@@ -267,6 +278,9 @@ public abstract class Hits implements Closeable {
                                      int stop,
                                      Float minweight,
                                      Boolean isPlus) throws IOException {
+        assert(firstindex >= 0);
+        assert(lastindex >= firstindex);
+        assert(lastindex <= positions.ib.limit());
         int[] p = getIndices(firstindex, lastindex, start,stop);
         if (p[0] >= p[1]) {
             return emptyFloatBP;
@@ -285,7 +299,7 @@ public abstract class Hits implements Closeable {
             return emptyFloatBP;
         }
 
-        FloatBP output = new FloatBP(ByteBuffer.allocate(n*4));
+        FloatBP output = new FloatBP(ByteBuffer.allocate(n*4).order(ByteOrder.nativeOrder()));
         n = 0;
         for (int i = p[0]; i < p[1]; i++) {
             if ((minweight == null || weights.get(i) >= minweight) &&

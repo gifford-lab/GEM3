@@ -162,7 +162,7 @@ public class Server {
                                           boolean isLeft) {
         return getAlignmentDir(alignID) + System.getProperty("file.separator") + chromID + ".paired" + (isLeft ? "left" : "right") + "index";
     }
-    public Set<String> getChroms(String alignID,
+    public Set<Integer> getChroms(String alignID,
                                  boolean isPaired,
                                  boolean isLeft) {
         File directory = new File(getAlignmentDir(alignID));
@@ -170,12 +170,12 @@ public class Server {
         if (files == null) {
             return null;
         }
-        Set<String> output = new HashSet<String>();
+        Set<Integer> output = new HashSet<Integer>();
         String suffix = isPaired ? (isLeft ? ".pairedleftindex" : ".pairedrightindex") : ".singleindex";
         for (int i = 0; i < files.length; i++) {
             int index = files[i].getName().indexOf(suffix);
             if (index > 0) {
-                output.add(files[i].getName().substring(0,i));
+                output.add(Integer.parseInt(files[i].getName().substring(0,index)));
             }
         }
         return output;

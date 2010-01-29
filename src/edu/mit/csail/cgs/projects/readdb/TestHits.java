@@ -45,12 +45,61 @@ public class TestHits {
         assertTrue(hits.size() == header.getNumHits());        
     }
 
+    @Test public void testLAS() {
+        for (short s = 0; s < 1000; s += 10) {
+            int l = Hits.makeLAS(s, true);
+            assertTrue(Hits.getStrandOne(l));
+            assertEquals(Hits.getLengthOne(l), s);
+
+            l = Hits.makeLAS(s, false);
+            assertFalse(Hits.getStrandOne(l));
+            assertEquals(Hits.getLengthOne(l), s);
+        }
+        for (short s = 0; s < 1000; s += 10) {
+            for (short t = 0; t < 1000; t += 10) {
+                int l = Hits.makeLAS(s,true,t,true);
+                assertTrue(Hits.getStrandOne(l));
+                assertEquals(Hits.getLengthOne(l), s);
+                assertTrue(Hits.getStrandTwo(l));
+                assertEquals(Hits.getLengthTwo(l), t);
+
+                l = Hits.makeLAS(s,true,t,false);
+                assertTrue(Hits.getStrandOne(l));
+                assertEquals(Hits.getLengthOne(l), s);
+                assertFalse(Hits.getStrandTwo(l));
+                assertEquals(Hits.getLengthTwo(l), t);
+
+                l = Hits.makeLAS(s,false,t,true);
+                assertFalse(Hits.getStrandOne(l));
+                assertEquals(Hits.getLengthOne(l), s);
+                assertTrue(Hits.getStrandTwo(l));
+                assertEquals(Hits.getLengthTwo(l), t);
+
+                l = Hits.makeLAS(s,false,t,false);
+                assertFalse(Hits.getStrandOne(l));
+                assertEquals(Hits.getLengthOne(l), s);
+                assertFalse(Hits.getStrandTwo(l));
+                assertEquals(Hits.getLengthTwo(l), t);
+            }
+        }               
+    }
+
     @Test public void testGetAllHits (){
         IntBP positions = hitsfile.getPositionsBuffer();
+        FloatBP w = hitsfile.getWeightsBuffer();
+        IntBP l = hitsfile.getLASBuffer();
         boolean fail = false;
         for (int i = 0; i < hits.size(); i++) {            
             if (positions.get(i) != hits.get(i)) {
                 System.err.println(String.format("At %d, %d != %d", i, positions.get(i), hits.get(i)));
+                fail = true;
+            }
+            if (Math.abs(w.get(i) - weights.get(i)) > .001) {
+                System.err.println(String.format("At %d, %.4f != %.4f",i,weights.get(i), w.get(i)));
+                fail = true;
+            }
+            if (l.get(i) != las.get(i)) {
+                System.err.println(String.format("At %d, las %d != %d", i, las.get(i), l.get(i)));
                 fail = true;
             }
         }
@@ -77,7 +126,8 @@ public class TestHits {
         lastindex = header.getLastIndex(end);
         p = hitsfile.getIndices(firstindex,lastindex,start,end);
         assertTrue(p[0] <= p[1]);        
-        assertTrue(p[1] == header.getNumHits());
+        assertTrue(String.format("cornercase : %d,%d, %d,%d -> %d,%d",
+                                 start,end, firstindex, lastindex, p[0], p[1]), p[1] == header.getNumHits());
 
         start = -10;
         end = hits.get(1000);
@@ -213,7 +263,7 @@ public class TestHits {
             }
             assertTrue(myhist.length == histogram.length);
             for (int i = 0; i < myhist.length; i++) {
-                assertTrue(myhist[i] == histogram[i]);
+                assertTrue(Math.abs(myhist[i] - histogram[i]) < .001);
             }
         }        
     }
@@ -245,6 +295,10 @@ public class TestHits {
 
     public static void main(String args[]) {
         prefix = args[0];
+        if (!prefix.endsWith(System.getProperty("file.separator"))) {
+            prefix = prefix + System.getProperty("file.separator");
+        }
+
         chrom = Integer.parseInt(args[1]);
         org.junit.runner.JUnitCore.main("edu.mit.csail.cgs.projects.readdb.TestHits");
     }

@@ -70,6 +70,27 @@ public class PairedHits extends Hits {
         RandomAccessFile chromsRAF = new RandomAccessFile(chrtmp,"rw");
         RandomAccessFile otherposRAF = new RandomAccessFile(optmp,"rw");
 
+        if (positions.bb.order() != ByteOrder.nativeOrder()) {
+            Bits.flipByteOrder(positions.ib);            
+            positions.bb.order(ByteOrder.nativeOrder());
+        }
+        if (weights.bb.order() != ByteOrder.nativeOrder()) {
+            Bits.flipByteOrder(weights.fb);
+            weights.bb.order(ByteOrder.nativeOrder());
+        }
+        if (las.bb.order() != ByteOrder.nativeOrder()) {
+            Bits.flipByteOrder(las.ib);
+            las.bb.order(ByteOrder.nativeOrder());
+        }
+        if (otherChroms.bb.order() != ByteOrder.nativeOrder()) {
+            Bits.flipByteOrder(otherChroms.ib);
+            otherChroms.bb.order(ByteOrder.nativeOrder());
+        }
+        if (otherPositions.bb.order() != ByteOrder.nativeOrder()) {
+            Bits.flipByteOrder(otherPositions.ib);
+            otherPositions.bb.order(ByteOrder.nativeOrder());
+        }
+
         Bits.sendBytes(positions.bb, 0, positions.bb.limit(), positionsRAF.getChannel());
         Bits.sendBytes(weights.bb, 0, weights.bb.limit(), weightsRAF.getChannel());
         Bits.sendBytes(las.bb, 0, las.bb.limit(), lasRAF.getChannel());

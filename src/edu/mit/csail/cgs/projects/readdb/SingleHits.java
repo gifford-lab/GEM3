@@ -31,6 +31,19 @@ public class SingleHits extends Hits {
         RandomAccessFile weightsRAF = new RandomAccessFile(weightstmp,"rw");
         RandomAccessFile lasRAF = new RandomAccessFile(lastmp,"rw");
 
+        if (positions.bb.order() != ByteOrder.nativeOrder()) {
+            Bits.flipByteOrder(positions.ib);            
+            positions.bb.order(ByteOrder.nativeOrder());
+        }
+        if (weights.bb.order() != ByteOrder.nativeOrder()) {
+            Bits.flipByteOrder(weights.fb);
+            weights.bb.order(ByteOrder.nativeOrder());
+        }
+        if (las.bb.order() != ByteOrder.nativeOrder()) {
+            Bits.flipByteOrder(las.ib);
+            las.bb.order(ByteOrder.nativeOrder());
+        }
+
         Bits.sendBytes(positions.bb, 0, positions.bb.limit(), positionsRAF.getChannel());
         Bits.sendBytes(weights.bb, 0, weights.bb.limit(), weightsRAF.getChannel());
         Bits.sendBytes(las.bb, 0, las.bb.limit(), lasRAF.getChannel());

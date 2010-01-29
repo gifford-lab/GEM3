@@ -153,7 +153,8 @@ public class ServerTask {
                         if (error == null) {
                             processRequest();
                         } else {
-                            printString(error + "\n");
+                            printString("error parsing request: " + error + "\n");
+                            System.err.println("Error parsing request from " + args);
                         }
                         args.clear();
                         if (outstream != null) { outstream.flush(); }                            
@@ -172,6 +173,7 @@ public class ServerTask {
 //             if (server.debug()) {
 //                 System.err.println("Setting shouldClose 5 " + socket + " for " + this);
 //             }
+            args.clear();
             shouldClose = true;
             Lock.releaseLocks(this);
             System.gc();
@@ -231,6 +233,9 @@ public class ServerTask {
      * file that we expect to exist
      */
     public void processFileRequest()  throws IOException{
+        assert(request != null);
+        assert(request.alignid != null);
+        assert(request.chromid != null);        
         if (request.alignid == null || request.alignid.length() == 0) {
             printString("null or empty alignment " + request.alignid);
             return;
@@ -452,26 +457,21 @@ public class ServerTask {
             }
         }
         if (i == -1) {
-            if (server.debug()) {
-                System.err.println("Setting shouldClose 9 " + socket + " for " + this);
-            }
             shouldClose = true;
             return null;
         }
 
         if (done) {
             String out = new String(buffer,0,bufferpos);
-       //     lastbufferpos = 0;
             bufferpos = 0;
-//             if (server.debug()) {
-//                 System.err.println("READ " +out);
-//             }            
             return out;
         } else {
             return null;
         }
     }
     public void processGetACL() throws IOException {
+        assert(request != null);
+        assert(request.alignid != null);
         AlignmentACL acl = null;
         try {
             acl = server.getACL(request.alignid);
@@ -503,6 +503,8 @@ public class ServerTask {
         printString(sb.toString());
     }
     public void processSetACL() throws IOException {
+        assert(request != null);
+        assert(request.alignid != null);
         Lock.writeLock(this,request.alignid);
         AlignmentACL acl = null;
         try {
@@ -547,6 +549,8 @@ public class ServerTask {
      * server knows about that pair
     */
     public void processExists() throws IOException {
+        assert(request != null);
+        assert(request.alignid != null);
         try {
             AlignmentACL acl = server.getACL(request.alignid);
             if (authorizeRead(acl)) {
@@ -563,6 +567,8 @@ public class ServerTask {
      * Returns the list of chromosomes for an alignment
      */
     public void processGetChroms() throws IOException {
+        assert(request != null);
+        assert(request.alignid != null);
         AlignmentACL acl = null;
         try {
             acl = server.getACL(request.alignid);
@@ -574,7 +580,7 @@ public class ServerTask {
             printAuthError();
             return;
         }        
-        Set<String> chroms = server.getChroms(request.alignid,
+        Set<Integer> chroms = server.getChroms(request.alignid,
                                               request.isPaired,
                                               request.isLeft);
         if (chroms == null) {
@@ -584,8 +590,8 @@ public class ServerTask {
 
         printOK();
         printString(chroms.size() + "\n");
-        for (String f : chroms) {
-            printString(f + "\n");
+        for (Integer i : chroms) {
+            printString(i + "\n");
         }            
     }
     /**
@@ -593,6 +599,8 @@ public class ServerTask {
      *
      */
     public void processDeleteAlignment() throws IOException {
+        assert(request != null);
+        assert(request.alignid != null);
         AlignmentACL acl = server.getACL(request.alignid);
         if (!authorizeAdmin(acl)) {
             printAuthError();
@@ -646,6 +654,9 @@ public class ServerTask {
      * set of hits.
      */
     public void processSingleStore() throws IOException {
+        assert(request != null);
+        assert(request.alignid != null);
+        assert(request.chromid != null);        
         int numHits = 0;
         try {
             numHits = Integer.parseInt(request.map.get("numhits"));
@@ -662,7 +673,7 @@ public class ServerTask {
         List<SingleHit> hits = new ArrayList<SingleHit>();
 
         /* if the alignment already exists, read in the old hits */
-        Set<String> chroms = server.getChroms(request.alignid, false,false);
+        Set<Integer> chroms = server.getChroms(request.alignid, false,false);
         if (chroms != null) {
             try {        
                 /* sure we're allowed to write here */
@@ -672,23 +683,32 @@ public class ServerTask {
                     Lock.writeUnLock(this, request.alignid);
                     return;
                 }
-                SingleHits oldhits = server.getSingleHits(request.alignid,
-                                                          request.chromid);
-                IntBP positions = oldhits.getPositionsBuffer();
-                FloatBP weights = oldhits.getWeightsBuffer();
-                IntBP las = oldhits.getLASBuffer();
-                for (int i = 0; i < positions.limit(); i++) {
-                    hits.add(new SingleHit(request.chromid,
-                                           positions.get(i),
-                                           weights.get(i),
-                                           Hits.getStrandOne(las.get(i)),
-                                           Hits.getLengthOne(las.get(i))));
-                }
             } catch (Exception e) {
                 e.printStackTrace();
                 printAuthError();
                 Lock.writeUnLock(this,request.alignid);
                 return;
+            }
+            if (chroms.contains(request.chromid)) {
+                try {
+                    SingleHits oldhits = server.getSingleHits(request.alignid,
+                                                              request.chromid);
+                    IntBP positions = oldhits.getPositionsBuffer();
+                    FloatBP weights = oldhits.getWeightsBuffer();
+                    IntBP las = oldhits.getLASBuffer();
+                    for (int i = 0; i < positions.limit(); i++) {
+                        hits.add(new SingleHit(request.chromid,
+                                               positions.get(i),
+                                               weights.get(i),
+                                               Hits.getStrandOne(las.get(i)),
+                                               Hits.getLengthOne(las.get(i))));
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    printAuthError();
+                    Lock.writeUnLock(this,request.alignid);
+                    return;
+                }
             }
         } else {
             /* this is a new alignment, so set a default ACL */
@@ -697,6 +717,13 @@ public class ServerTask {
                 acl.readFromFile(server.getDefaultACLFileName());
             } catch (IOException e) {
                 // no default acl, so dont' worry.
+            }
+
+            if (!(new File(server.getAlignmentDir(request.alignid)).mkdirs())) {
+                System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
+                printAuthError();
+                Lock.writeUnLock(this,request.alignid);
+                return;
             }
             acl.getAdminACL().add(username);
             acl.getWriteACL().add(username);
@@ -712,12 +739,8 @@ public class ServerTask {
         Bits.readBytes(positions.bb, rbc);
         Bits.readBytes(weights.bb, rbc);
         Bits.readBytes(las.bb, rbc);
-        if (myorder != clientorder) {
-            Bits.flipByteOrder(positions.ib);
-            Bits.flipByteOrder(weights.fb);
-            Bits.flipByteOrder(las.ib);
-        }
-        for (int i = 0; i < positions.limit(); i++) {
+
+        for (int i = 0; i < numHits; i++) {
             hits.add(new SingleHit(request.chromid,
                                    positions.get(i),
                                    weights.get(i),
@@ -749,6 +772,9 @@ public class ServerTask {
     }
 
     public void processPairedStore() throws IOException {
+        assert(request != null);
+        assert(request.alignid != null);
+        assert(request.chromid != null);        
         int numHits = 0;
         try {
             numHits = Integer.parseInt(request.map.get("numhits"));
@@ -778,7 +804,7 @@ public class ServerTask {
         List<PairedHit> hits = new ArrayList<PairedHit>();
 
         /* if the alignment already exists, read in the old hits */
-        Set<String> chroms = server.getChroms(request.alignid, true,request.isLeft);
+        Set<Integer> chroms = server.getChroms(request.alignid, true,request.isLeft);
         if (chroms == null) {
             /* this is a new alignment, so set a default ACL */
             AlignmentACL acl = new AlignmentACL();
@@ -786,6 +812,12 @@ public class ServerTask {
                 acl.readFromFile(server.getDefaultACLFileName());
             } catch (IOException e) {
                 // no default acl, so dont' worry.
+            }
+            if (!(new File(server.getAlignmentDir(request.alignid))).mkdirs()) {
+                System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
+                printAuthError();
+                Lock.writeUnLock(this,request.alignid);
+                return;
             }
             acl.getAdminACL().add(username);
             acl.getWriteACL().add(username);
@@ -806,13 +838,6 @@ public class ServerTask {
         Bits.readBytes(las.bb, rbc);
         Bits.readBytes(otherchrom.bb,rbc);
         Bits.readBytes(otherpos.bb,rbc);
-        if (myorder != clientorder) {
-            Bits.flipByteOrder(positions.ib);
-            Bits.flipByteOrder(weights.fb);
-            Bits.flipByteOrder(las.ib);
-            Bits.flipByteOrder(otherchrom.ib);
-            Bits.flipByteOrder(otherpos.ib);
-        }
         for (int i = 0; i < positions.limit(); i++) {
             newhits.add(new PairedHit(request.chromid,
                                       positions.get(i),
@@ -907,9 +932,15 @@ public class ServerTask {
             printString(Integer.toString(header.getNumHits()) + "\n");
             return;
         }
+        if (request.start == null) {
+            request.start = 0;
+        }
+        if (request.end == null) {
+            request.end = Integer.MAX_VALUE;
+        }
         int count = 0;
-        int first = header.getFirstIndex(request.start);
-        int last = header.getLastIndex(request.end);
+        int first = header.getFirstIndex(request.start == null ? 0 : request.start);
+        int last = header.getLastIndex(request.end == null ? Integer.MAX_VALUE : request.end);
         printString(Integer.toString(hits.getCountBetween(first,last,request.start,request.end,request.minWeight, request.isPlusStrand)) + "\n");
     }
     public void processWeight(Header header, Hits hits) throws IOException {
@@ -933,7 +964,6 @@ public class ServerTask {
                 return;
             }
         }
-
         if (request.start == null) {
             request.start = 0;
         }
@@ -1014,7 +1044,7 @@ public class ServerTask {
         }
         printOK();
         printString(Integer.toString(hist.length) + "\n");
-        Bits.sendInts(hist, outstream, buffer, clientorder);        
+        Bits.sendInts(hist, outstream, buffer, myorder);        
     }
 
     /* returns a histogram of hit weights in a region.  Inputs
@@ -1068,8 +1098,8 @@ public class ServerTask {
         }
         printOK();
         printString(Integer.toString(parray.length) + "\n");
-        Bits.sendInts(parray, outstream, buffer, clientorder);        
-        Bits.sendFloats(farray, outstream, buffer, clientorder);
+        Bits.sendInts(parray, outstream, buffer, myorder);        
+        Bits.sendFloats(farray, outstream, buffer, myorder);
     }
 
     public void processByteOrder() throws IOException {
@@ -1080,10 +1110,10 @@ public class ServerTask {
         }
         if (orderString.equals("big")) {
             clientorder = ByteOrder.BIG_ENDIAN;
-            printOK();
+            printString(myorder == ByteOrder.BIG_ENDIAN ? "big\n" : "little\n");
         } else if (orderString.equals("little")) {
             clientorder = ByteOrder.LITTLE_ENDIAN;
-            printOK();
+            printString(myorder == ByteOrder.BIG_ENDIAN ? "big\n" : "little\n");
         } else {
             printInvalid("bad byte order " + orderString);
         }
@@ -1113,7 +1143,10 @@ class ServerTaskCallbackHandler implements CallbackHandler {
                     pc.setPassword(server.getPassword(uname).toCharArray());
                 } catch (IOException e) {
                     e.printStackTrace();
+                } catch (NullPointerException e) {
+                    System.err.println("No password for " + uname);
                 }
+
             }
             if (callbacks[i] instanceof NameCallback) {
                 NameCallback nc = (NameCallback)callbacks[i];

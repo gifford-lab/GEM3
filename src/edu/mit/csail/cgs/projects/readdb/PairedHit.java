@@ -31,7 +31,7 @@ public class PairedHit {
                     rightPos == other.rightPos &&
                     leftStrand == other.leftStrand &&
                     rightStrand == other.rightStrand &&
-                    weight == other.weight);
+                    Math.abs(weight - other.weight) < .001);
         } else {
             return false;
         }

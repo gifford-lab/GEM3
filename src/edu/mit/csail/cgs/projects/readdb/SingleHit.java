@@ -32,10 +32,14 @@ public class SingleHit implements Comparable<SingleHit> {
 
         this.length = (short)length;
     }
+    public String toString () {
+        return String.format("chrom %d, pos %d, weight %.2f, %s, len %d",
+                             chrom, pos, weight, strand ? "+" : "-", length);
+    }
     public boolean equals(Object o) {
-        if (o instanceof HitWeightPair) {
+        if (o instanceof SingleHit) {
             SingleHit other = (SingleHit)o;
-            return chrom == other.chrom && pos == other.pos && weight == other.weight && strand == other.strand;
+            return chrom == other.chrom && pos == other.pos && (Math.abs(weight - other.weight)<.001) && strand == other.strand;
         } else {
             return false;
         }

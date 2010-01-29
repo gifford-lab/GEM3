@@ -33,7 +33,7 @@ public class Client {
     byte[] buffer;
     private static final int BUFFERLEN = 8192*20;
     private Request request;
-    ByteOrder myorder;
+    ByteOrder myorder, serverorder;
 
 
     public Client (String hostname,
@@ -80,7 +80,6 @@ public class Client {
                    int portnum,
                    String username,
                    String passwd) throws IOException, ClientException {
-        myorder = ByteOrder.nativeOrder();
         socket = new Socket(hostname,portnum);
         socket.setTcpNoDelay(true);
         socket.setSendBufferSize(BUFFERLEN);
@@ -99,11 +98,17 @@ public class Client {
         }
         request = new Request();
         request.type = "byteorder";
-        request.map.put("order", (ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN ? "big" : "little"));
+        ByteBuffer bb = ByteBuffer.allocate(10);
+        myorder = bb.order();
+        request.map.put("order", (myorder == ByteOrder.BIG_ENDIAN ? "big" : "little"));
         sendString(request.toString());
         String output = readLine();
-        if (!output.equals("OK")) {
-            throw new ClientException("Couldn't set byte order " + output);
+        if (output.equals("big")) {
+            serverorder = ByteOrder.BIG_ENDIAN;
+        } else if (output.equals("little")) {
+            serverorder = ByteOrder.LITTLE_ENDIAN;
+        } else {
+            throw new ClientException("Couldn't set or get byte order " + output);
         }
     }
     
@@ -204,6 +209,7 @@ public class Client {
             request.clear();
             request.type="storesingle";
             request.alignid=alignid;
+            request.chromid = chromid;
             request.map.put("numhits",Integer.toString(hits.size()));
             sendString(request.toString());
             String response = readLine();
@@ -214,14 +220,14 @@ public class Client {
             for (int i = 0; i < hits.size(); i++) {
                 ints[i] = hits.get(i).pos;
             }        
-            Bits.sendInts(ints, outstream,buffer, myorder);
+            Bits.sendInts(ints, outstream,buffer, serverorder);
             float[] floats = new float[hits.size()];
             for (int i = 0; i < hits.size(); i++) {
                 floats[i] = hits.get(i).weight;
                 ints[i] = Hits.makeLAS(hits.get(i).length, hits.get(i).strand);
             }
-            Bits.sendFloats(floats, outstream,buffer, myorder);
-            Bits.sendInts(ints, outstream,buffer, myorder);
+            Bits.sendFloats(floats, outstream,buffer, serverorder);
+            Bits.sendInts(ints, outstream,buffer, serverorder);
             
             System.err.println("Sent " + hits.size() + " hits to the server");
             outstream.flush();        
@@ -255,7 +261,7 @@ public class Client {
             for (int i = 0; i < hits.size(); i++) {
                 ints[i] = hits.get(i).leftPos;
             }        
-            Bits.sendInts(ints, outstream,buffer, myorder);
+            Bits.sendInts(ints, outstream,buffer, serverorder);
             float[] floats = new float[hits.size()];
             for (int i = 0; i < hits.size(); i++) {
                 floats[i] = hits.get(i).weight;
@@ -263,16 +269,16 @@ public class Client {
                                        hits.get(i).rightLength, hits.get(i).rightStrand);
 
             }
-            Bits.sendFloats(floats, outstream,buffer, myorder);
-            Bits.sendInts(ints, outstream,buffer, myorder);
+            Bits.sendFloats(floats, outstream,buffer, serverorder);
+            Bits.sendInts(ints, outstream,buffer, serverorder);
             for (int i = 0; i < hits.size(); i++) {
                 ints[i] = hits.get(i).rightChrom;
             }        
-            Bits.sendInts(ints, outstream,buffer, myorder);
+            Bits.sendInts(ints, outstream,buffer, serverorder);
             for (int i = 0; i < hits.size(); i++) {
                 ints[i] = hits.get(i).rightPos;
             }        
-            Bits.sendInts(ints, outstream,buffer, myorder);
+            Bits.sendInts(ints, outstream,buffer, serverorder);
             System.err.println("Sent " + hits.size() + " hits to the server");
             outstream.flush();        
             response = readLine();
@@ -420,7 +426,7 @@ public class Client {
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
-        return Bits.readInts(numhits, instream, buffer, myorder);        
+        return Bits.readInts(numhits, instream, buffer, serverorder);        
     }
     public float[] getWeightsRange(String alignid, int chromid, boolean paired, Integer start, Integer stop, Float minWeight, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
         request.clear();
@@ -440,7 +446,7 @@ public class Client {
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
-        return Bits.readFloats(numhits, instream, buffer, myorder);        
+        return Bits.readFloats(numhits, instream, buffer, serverorder);        
     }
     public List<SingleHit> getSingleHits(String alignid, int chromid, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
         request.clear();
@@ -468,11 +474,13 @@ public class Client {
         IntBP ints = new IntBP(numhits);
         ReadableByteChannel rbc = Channels.newChannel(instream);
         Bits.readBytes(ints.bb, rbc);
+        ints.bb.order(serverorder);
         for (int i = 0; i < numhits; i++) {
             output.get(i).pos = ints.get(i);
         }
         FloatBP floats = new FloatBP(numhits);
         Bits.readBytes(floats.bb, rbc);
+        floats.bb.order(serverorder);
         for (int i = 0; i < numhits; i++) {
             output.get(i).weight = floats.get(i);
         }
@@ -513,6 +521,7 @@ public class Client {
                                      chromid,0,false,(short)0,(float)0));
         }
         IntBP ints = new IntBP(numhits);
+        ints.bb.order(serverorder);
         ReadableByteChannel rbc = Channels.newChannel(instream);
         Bits.readBytes(ints.bb, rbc);
         if (isLeft) {
@@ -525,6 +534,7 @@ public class Client {
             }
         }
         FloatBP floats = new FloatBP(numhits);
+        floats.bb.order(serverorder);
         Bits.readBytes(floats.bb, rbc);
         for (int i = 0; i < numhits; i++) {
             output.get(i).weight = floats.get(i);
@@ -617,7 +627,7 @@ public class Client {
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
-        int out[] = Bits.readInts(numints, instream, buffer, myorder);
+        int out[] = Bits.readInts(numints, instream, buffer, serverorder);
         TreeMap<Integer,Integer> output = new TreeMap<Integer,Integer>();
         for (int i = 0; i < out.length; i += 2) {
             output.put(out[i], out[i+1]);
@@ -645,10 +655,10 @@ public class Client {
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
-        int out[] = Bits.readInts(numints, instream, buffer, myorder);
-        float weight[] = Bits.readFloats(numints, instream,buffer,myorder);
+        int out[] = Bits.readInts(numints, instream, buffer, serverorder);
+        float weight[] = Bits.readFloats(numints, instream,buffer,serverorder);
         TreeMap<Integer,Float> output = new TreeMap<Integer,Float>();
-        for (int i = 0; i < out.length; i += 2) {
+        for (int i = 0; i < out.length; i++) {
             output.put(out[i], weight[i]);
         }
         return output;
@@ -690,6 +700,7 @@ public class Client {
     public void setACL(String alignid, Set<ACLChangeEntry> changes) throws IOException, ClientException {
         request.clear();
         request.type="setacl";
+        request.alignid=alignid;
         for (ACLChangeEntry a : changes) {
             request.list.add(a.toString());
         }    

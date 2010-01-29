@@ -93,6 +93,9 @@ class Request {
         if (type == null) {
             return "must provide a requestype";
         }
+        if (isPaired == null) {
+            isPaired = false;
+        }
         if (isPaired && isLeft == null) {
             return "must provide isleft when providing ispaired";
         }
@@ -103,7 +106,10 @@ class Request {
         StringBuffer out = new StringBuffer();
         if (type != null) {
             out.append("requesttype=" + type + "\n");
+        } else {
+            throw new NullPointerException("no request type");
         }
+
         if (alignid != null) {
             out.append("alignid=" + alignid + "\n");
         }
@@ -125,6 +131,10 @@ class Request {
         if (isPlusStrand != null) {
             out.append("isplusstrand=" + isPlusStrand + "\n");
         }
+        if (minWeight != null) {
+            out.append("minweight=" + minWeight + "\n");
+        }
+
         for (String k : map.keySet()) {
             out.append(k + "=" + map.get(k) + "\n");
         }

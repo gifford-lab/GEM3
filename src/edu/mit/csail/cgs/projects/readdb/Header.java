@@ -61,7 +61,7 @@ public class Header implements Closeable {
             return indexPointers[p];
         } else {
             //            System.err.println("Returning " + numHits);
-            return numHits - 1;
+            return numHits;
         }
     }
     /* empty constructor for use in saving/restoring from file

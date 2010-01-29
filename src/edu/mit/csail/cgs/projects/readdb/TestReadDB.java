@@ -68,42 +68,47 @@ public class TestReadDB {
         assertTrue(name + " exists",c.exists(name));
         assertTrue(name + " has chrom 1",c.getChroms(name, false,false).contains(1));
         assertTrue(name + " has chrom 10",c.getChroms(name, false,false).contains(10));
-        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size() == 2);
+        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size(), 2);
         
-        assertEquals(name + " chrom 1 has 4 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null) == 4);
-        assertEquals(name + " chrom 10 has 4 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null) == 3);
-        assertEquals(name + " chrom 1 has 4 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true) == 4);
-        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true) == 2);
-        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false) == 0);
-        assertEquals(name + " chrom 10 has 1 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false) == 1);
+        assertEquals(name + " chrom 1 has 4 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null), 4);
+        assertEquals(name + " chrom 10 has 4 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null), 3);
+        assertEquals(name + " chrom 1 has 4 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true), 4);
+        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true), 2);
+        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false), 0);
+        assertEquals(name + " chrom 10 has 1 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false), 1);
 
         List<SingleHit> retrieved = c.getSingleHits(name,1,null,null,null,null);
-        assertEquals(name + " get chr 1 hits", retrieved.size() == 4);
+        assertEquals(name + " get chr 1 hits", retrieved.size(), 4);
         for (int i = 0; i < 4; i++) {
-            assertTrue(name + " get chr 1 hits pos " + i, retrieved.get(i).equals(hits.get(i)));
+            assertTrue(name + " get chr 1 hits pos " + i + ": " + retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i)));
         }
         retrieved = c.getSingleHits(name,1,null,null,null,true);
-        assertEquals(name + " get chr 1 hits +", retrieved.size() == 4);
+        assertEquals(name + " get chr 1 hits +", retrieved.size(), 4);
         for (int i = 0; i < 4; i++) {
-            assertTrue(name + " get chr 1 hits + pos " + i, retrieved.get(i).equals(hits.get(i)));
+            assertTrue(name + " get chr 1 hits + pos " + i + ": " + retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i)));
         }
         retrieved = c.getSingleHits(name,1,null,null,null,false);
-        assertEquals(name + " get chr 1 hits -", retrieved.size() == 0);
+        assertEquals(name + " get chr 1 hits -", retrieved.size(), 0);
 
-        retrieved = c.getSingleHits(name,1,null,null,null,null);
-        assertEquals(name + " get chr 10 hits", retrieved.size() == 3);
+        retrieved = c.getSingleHits(name,10,null,null,null,null);
+        assertEquals(name + " get chr 10 hits", retrieved.size(), 3);
         for (int i = 0; i < 3; i++) {
-            assertTrue(name + " get chr 10 hits pos " + i, retrieved.get(i).equals(hits.get(i+4)));
+            assertTrue(name + " get chr 10 hits pos " + i + ": " + retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+4)));
         }
-        retrieved = c.getSingleHits(name,1,null,null,null,true);
-        assertEquals(name + " get chr 10 hits +", retrieved.size() == 2);
+        retrieved = c.getSingleHits(name,10,null,null,null,true);
+        assertEquals(name + " get chr 10 hits +", retrieved.size(), 2);
         for (int i = 0; i < 2; i++) {
-            assertTrue(name + " get chr 10 hits + pos " + i, retrieved.get(i).equals(hits.get(i+4)));
+            assertTrue(name + " get chr 10 hits + pos " + i + ": " + retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+4)));
         }
-        retrieved = c.getSingleHits(name,1,null,null,null,false);
-        assertEquals(name + " get chr 10 hits -", retrieved.size() == 1);
+        retrieved = c.getSingleHits(name,10,null,null,null,false);
+        assertEquals(name + " get chr 10 hits -", retrieved.size(), 1);
         for (int i = 0; i < 1; i++) {
-            assertTrue(name + " get chr 10 hits - pos " + i, retrieved.get(i).equals(hits.get(i+6)));
+            assertTrue(name + " get chr 10 hits - pos " + i + ": " + retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+6)));
         }
 
         c.close();
@@ -125,53 +130,58 @@ public class TestReadDB {
         assertTrue(name + " exists",c.exists(name));
         assertTrue(name + " has chrom 1",c.getChroms(name, false,false).contains(1));
         assertFalse(name + " has chrom 10",c.getChroms(name, false,false).contains(10));
-        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size() == 1);
+        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size(), 1);
 
         c.storeSingle(name,hitsTen);        
         assertTrue(name + " exists",c.exists(name));
         assertTrue(name + " has chrom 1",c.getChroms(name, false,false).contains(1));
         assertTrue(name + " has chrom 10",c.getChroms(name, false,false).contains(10));
-        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size() == 2);
+        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size(),2);
 
         List<SingleHit> hits = new ArrayList<SingleHit>();
         hits.addAll(hitsOne);
         hits.addAll(hitsTen);
         Collections.sort(hits);
         
-        assertEquals(name + " chrom 1 has 4 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null) == 4);
-        assertEquals(name + " chrom 10 has 4 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null) == 3);
-        assertEquals(name + " chrom 1 has 4 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true) == 4);
-        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true) == 2);
-        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false) == 0);
-        assertEquals(name + " chrom 10 has 1 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false) == 1);
+        assertEquals(name + " chrom 1 has 4 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null), 4);
+        assertEquals(name + " chrom 10 has 4 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null),3);
+        assertEquals(name + " chrom 1 has 4 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true),4);
+        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true),2);
+        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false), 0);
+        assertEquals(name + " chrom 10 has 1 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false), 1);
 
         List<SingleHit> retrieved = c.getSingleHits(name,1,null,null,null,null);
-        assertEquals(name + " get chr 1 hits", retrieved.size() == 4);
+        assertEquals(name + " get chr 1 hits", retrieved.size(),4);
         for (int i = 0; i < 4; i++) {
-            assertTrue(name + " get chr 1 hits pos " + i, retrieved.get(i).equals(hits.get(i)));
+            assertTrue(name + " get chr 1 hits pos " + i + ": " + retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i)));
         }
         retrieved = c.getSingleHits(name,1,null,null,null,true);
-        assertEquals(name + " get chr 1 hits +", retrieved.size() == 4);
+        assertEquals(name + " get chr 1 hits +", retrieved.size(),4);
         for (int i = 0; i < 4; i++) {
-            assertTrue(name + " get chr 1 hits + pos " + i, retrieved.get(i).equals(hits.get(i)));
+            assertTrue(name + " get chr 1 hits + pos " + i  + i + ": " + retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i)));
         }
         retrieved = c.getSingleHits(name,1,null,null,null,false);
-        assertEquals(name + " get chr 1 hits -", retrieved.size() == 0);
+        assertEquals(name + " get chr 1 hits -", retrieved.size(),0);
 
-        retrieved = c.getSingleHits(name,1,null,null,null,null);
-        assertEquals(name + " get chr 10 hits", retrieved.size() == 3);
+        retrieved = c.getSingleHits(name,10,null,null,null,null);
+        assertEquals(name + " get chr 10 hits", retrieved.size(),3);
         for (int i = 0; i < 3; i++) {
-            assertTrue(name + " get chr 10 hits pos " + i, retrieved.get(i).equals(hits.get(i+4)));
+            assertTrue(name + " get chr 10 hits pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+4)));
         }
-        retrieved = c.getSingleHits(name,1,null,null,null,true);
-        assertEquals(name + " get chr 10 hits +", retrieved.size() == 2);
+        retrieved = c.getSingleHits(name,10,null,null,null,true);
+        assertEquals(name + " get chr 10 hits +", retrieved.size(),2);
         for (int i = 0; i < 2; i++) {
-            assertTrue(name + " get chr 10 hits + pos " + i, retrieved.get(i).equals(hits.get(i+4)));
+            assertTrue(name + " get chr 10 hits + pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+4)));
         }
-        retrieved = c.getSingleHits(name,1,null,null,null,false);
-        assertEquals(name + " get chr 10 hits -", retrieved.size() == 1);
+        retrieved = c.getSingleHits(name,10,null,null,null,false);
+        assertEquals(name + " get chr 10 hits -", retrieved.size(),1);
         for (int i = 0; i < 1; i++) {
-            assertTrue(name + " get chr 10 hits - pos " + i, retrieved.get(i).equals(hits.get(i+6)));
+            assertTrue(name + " get chr 10 hits - pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+6)));
         }
 
         c.close();
@@ -193,51 +203,56 @@ public class TestReadDB {
         assertTrue(name + " exists",c.exists(name));
         assertTrue(name + " has chrom 1",c.getChroms(name, false,false).contains(1));
         assertTrue(name + " has chrom 10",c.getChroms(name, false,false).contains(10));
-        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size() == 2);
+        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size(), 2);
         
         Collections.sort(hits);
 
-        assertEquals(name + " chrom 1 has 4 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null) == 4);
-        assertEquals(name + " chrom 10 has 4 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null) == 3);
-        assertEquals(name + " chrom 1 has 4 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true) == 4);
-        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true) == 2);
-        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false) == 0);
-        assertEquals(name + " chrom 10 has 1 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false) == 1);
+        assertEquals(name + " chrom 1 has 4 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null), 4);
+        assertEquals(name + " chrom 10 has 4 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null), 3);
+        assertEquals(name + " chrom 1 has 4 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true), 4);
+        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true), 2);
+        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false), 0);
+        assertEquals(name + " chrom 10 has 1 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false), 1);
 
         List<SingleHit> retrieved = c.getSingleHits(name,1,null,null,null,null);
-        assertEquals(name + " get chr 1 hits", retrieved.size() == 4);
+        assertEquals(name + " get chr 1 hits", retrieved.size(), 4);
         for (int i = 0; i < 4; i++) {
-            assertTrue(name + " get chr 1 hits pos " + i, retrieved.get(i).equals(hits.get(i)));
+            assertTrue(name + " get chr 1 hits pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i)));
         }
         retrieved = c.getSingleHits(name,1,null,null,null,true);
-        assertEquals(name + " get chr 1 hits +", retrieved.size() == 4);
+        assertEquals(name + " get chr 1 hits +", retrieved.size(), 4);
         for (int i = 0; i < 4; i++) {
-            assertTrue(name + " get chr 1 hits + pos " + i, retrieved.get(i).equals(hits.get(i)));
+            assertTrue(name + " get chr 1 hits + pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i)));
         }
         retrieved = c.getSingleHits(name,1,null,null,null,false);
-        assertEquals(name + " get chr 1 hits -", retrieved.size() == 0);
+        assertEquals(name + " get chr 1 hits -", retrieved.size(), 0);
 
-        retrieved = c.getSingleHits(name,1,null,null,null,null);
-        assertEquals(name + " get chr 10 hits", retrieved.size() == 3);
+        retrieved = c.getSingleHits(name,10,null,null,null,null);
+        assertEquals(name + " get chr 10 hits", retrieved.size(), 3);
         for (int i = 0; i < 3; i++) {
-            assertTrue(name + " get chr 10 hits pos " + i, retrieved.get(i).equals(hits.get(i+4)));
+            assertTrue(name + " get chr 10 hits pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+4)));
         }
-        retrieved = c.getSingleHits(name,1,null,null,null,true);
-        assertEquals(name + " get chr 10 hits +", retrieved.size() == 2);
+        retrieved = c.getSingleHits(name,10,null,null,null,true);
+        assertEquals(name + " get chr 10 hits +", retrieved.size(), 2);
         for (int i = 0; i < 2; i++) {
-            assertTrue(name + " get chr 10 hits + pos " + i, retrieved.get(i).equals(hits.get(i+4)));
+            assertTrue(name + " get chr 10 hits + pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+4)));
         }
-        retrieved = c.getSingleHits(name,1,null,null,null,false);
-        assertEquals(name + " get chr 10 hits -", retrieved.size() == 1);
+        retrieved = c.getSingleHits(name,10,null,null,null,false);
+        assertEquals(name + " get chr 10 hits -", retrieved.size(), 1);
         for (int i = 0; i < 1; i++) {
-            assertTrue(name + " get chr 10 hits - pos " + i, retrieved.get(i).equals(hits.get(i+6)));
+            assertTrue(name + " get chr 10 hits - pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+6)));
         }
 
         c.close();
     }
     @Test public void storeDouble() throws IOException, ClientException {
         Client c = new Client(hostname, portnum, user, passwd);
-        String name = "storeTwice";
+        String name = "storeDouble";
 
         ArrayList<SingleHit> hits = new ArrayList<SingleHit>();
         hits.add(new SingleHit(10, 10, 4.0F, true, 10));
@@ -252,51 +267,63 @@ public class TestReadDB {
         assertTrue(name + " exists",c.exists(name));
         assertTrue(name + " has chrom 1",c.getChroms(name, false,false).contains(1));
         assertTrue(name + " has chrom 10",c.getChroms(name, false,false).contains(10));
-        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size() == 2);
+        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size(), 2);
+
+        assertEquals(name + " chrom 1 has 8 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null), 4);
+        assertEquals(name + " chrom 10 has 6 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null), 3);
+        assertEquals(name + " chrom 1 has 8 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true), 4);
+        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true), 2);
+        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false), 0);
+        assertEquals(name + " chrom 10 has 2 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false), 1);
 
         c.storeSingle(name,hits);        
         assertTrue(name + " exists",c.exists(name));
         assertTrue(name + " has chrom 1",c.getChroms(name, false,false).contains(1));
         assertTrue(name + " has chrom 10",c.getChroms(name, false,false).contains(10));
-        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size() == 2);
+        assertEquals(name + " has two chroms",c.getChroms(name,false,false).size(), 2);
 
         hits.addAll(hits);
         Collections.sort(hits);
         
-        assertEquals(name + " chrom 1 has 4 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null) == 8);
-        assertEquals(name + " chrom 10 has 4 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null) == 6);
-        assertEquals(name + " chrom 1 has 4 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true) == 8);
-        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true) == 4);
-        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false) == 0);
-        assertEquals(name + " chrom 10 has 1 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false) == 2);
+        assertEquals(name + " chrom 1 has 8 hits (either strand)", c.getCount(name, 1, false,null,null,null,null,null), 8);
+        assertEquals(name + " chrom 10 has 6 hits (either strand)", c.getCount(name, 10, false,null,null,null,null,null), 6);
+        assertEquals(name + " chrom 1 has 8 hits (+ strand)", c.getCount(name, 1, false,null,null,null,null,true), 8);
+        assertEquals(name + " chrom 10 has 4 hits (+ strand)", c.getCount(name, 10, false,null,null,null,null,true), 4);
+        assertEquals(name + " chrom 1 has 0 hits (- strand)", c.getCount(name, 1, false,null,null,null,null,false), 0);
+        assertEquals(name + " chrom 10 has 2 hits (- strand)", c.getCount(name, 10, false,null,null,null,null,false), 2);
 
         List<SingleHit> retrieved = c.getSingleHits(name,1,null,null,null,null);
-        assertEquals(name + " get chr 1 hits", retrieved.size() == 8);
+        assertEquals(name + " get chr 1 hits", retrieved.size(), 8);
         for (int i = 0; i < 8; i++) {
-            assertTrue(name + " get chr 1 hits pos " + i, retrieved.get(i).equals(hits.get(i)));
+            assertTrue(name + " get chr 1 hits pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i)));
         }
         retrieved = c.getSingleHits(name,1,null,null,null,true);
-        assertEquals(name + " get chr 1 hits +", retrieved.size() == 8);
+        assertEquals(name + " get chr 1 hits +", retrieved.size(), 8);
         for (int i = 0; i < 8; i++) {
-            assertTrue(name + " get chr 1 hits + pos " + i, retrieved.get(i).equals(hits.get(i)));
+            assertTrue(name + " get chr 1 hits + pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i)));
         }
         retrieved = c.getSingleHits(name,1,null,null,null,false);
-        assertEquals(name + " get chr 1 hits -", retrieved.size() == 0);
+        assertEquals(name + " get chr 1 hits -", retrieved.size(), 0);
 
-        retrieved = c.getSingleHits(name,1,null,null,null,null);
-        assertEquals(name + " get chr 10 hits", retrieved.size() == 6);
+        retrieved = c.getSingleHits(name,10,null,null,null,null);
+        assertEquals(name + " get chr 10 hits", retrieved.size(), 6);
         for (int i = 0; i < 6; i++) {
-            assertTrue(name + " get chr 10 hits pos " + i, retrieved.get(i).equals(hits.get(i+8)));
+            assertTrue(name + " get chr 10 hits pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+8)));
         }
-        retrieved = c.getSingleHits(name,1,null,null,null,true);
-        assertEquals(name + " get chr 10 hits +", retrieved.size() == 4);
+        retrieved = c.getSingleHits(name,10,null,null,null,true);
+        assertEquals(name + " get chr 10 hits +", retrieved.size(), 4);
         for (int i = 0; i < 4; i++) {
-            assertTrue(name + " get chr 10 hits + pos " + i, retrieved.get(i).equals(hits.get(i+8)));
+            assertTrue(name + " get chr 10 hits + pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+8)));
         }
-        retrieved = c.getSingleHits(name,1,null,null,null,false);
-        assertEquals(name + " get chr 10 hits -", retrieved.size() == 2);
+        retrieved = c.getSingleHits(name,10,null,null,null,false);
+        assertEquals(name + " get chr 10 hits -", retrieved.size(), 2);
         for (int i = 0; i < 1; i++) {
-            assertTrue(name + " get chr 10 hits - pos " + i, retrieved.get(i).equals(hits.get(i+12)));
+            assertTrue(name + " get chr 10 hits - pos " + i+ retrieved.get(i) + " vs " + hits.get(i), 
+                       retrieved.get(i).equals(hits.get(i+12)));
         }
 
         c.close();
@@ -367,7 +394,7 @@ public class TestReadDB {
         int chrom = 10101010;
         int n = 10000;
         List<SingleHit> hits = new ArrayList<SingleHit>();
-        for (int i = 0; i < hits.size(); i++) {
+        for (int i = 0; i < n; i++) {
             hits.add(new SingleHit(chrom, (int)Math.round(Math.random() * Integer.MAX_VALUE), 1.0F, true, 20));
         }
         c.storeSingle(name,hits);
@@ -412,20 +439,23 @@ public class TestReadDB {
         c.storeSingle(name,hits);
         
         TreeMap<Integer,Integer> map = c.getHistogram(name,chrom,false,false,10,0,100,null,null);
-        assertTrue(name + " basic size",map.size() == 3);
-        assertTrue(name + " basic 5",map.get(5) == 3);
-        assertTrue(name + " basic 15",map.get(15) == 4);
-        assertTrue(name + " basic 25",map.get(25) == 1);
+        System.out.println(name + " MAP1 IS " + map);
+        assertEquals(name + " basic size",map.size(),3);
+        assertEquals(name + " basic 5",(int)map.get(5),3);
+        assertEquals(name + " basic 15",(int)map.get(15),4);
+        assertEquals(name + " basic 25",(int)map.get(25),1);
 
         map = c.getHistogram(name,chrom,false,false,10,0,100,15F,null);
-        assertTrue(name + " minweight size",map.size() == 2);
-        assertTrue(name + " minweight 15",map.get(15) == 3);
-        assertTrue(name + " minweight 25",map.get(25) == 1);
+        System.out.println(name + " MAP2 IS " + map);
+        assertEquals(name + " minweight size",map.size(),2);
+        assertEquals(name + " minweight 15",(int)map.get(15),3);
+        assertEquals(name + " minweight 25",(int)map.get(25),1);
 
         map = c.getHistogram(name,chrom,false,false,10,0,100,null,true);
-        assertTrue(name + " basic size",map.size() == 2);
-        assertTrue(name + " basic 5",map.get(5) == 2);
-        assertTrue(name + " basic 15",map.get(15) == 2);
+        System.out.println(name + " MAP3 IS " + map);
+        assertEquals(name + " basic size",map.size(),2);
+        assertEquals(name + " basic 5",(int)map.get(5),2);
+        assertEquals(name + " basic 15",(int)map.get(15),2);
         c.close();
      }
     @Test public void testHistogram2() throws IOException, ClientException {
@@ -486,25 +516,27 @@ public class TestReadDB {
                         }
                     }
                 }
-                assertTrue(myplain.size() == plainhist.size());
-                assertTrue(myminw.size() == minweighthist.size());
-                assertTrue(myw.size() == weighthist.size());
-                assertTrue(myww.size() == minwwhist.size());
+                System.err.println("MyW " + myw);
+                System.err.println("weighthist " +weighthist);
+                assertEquals(myplain.size(),plainhist.size());
+                assertEquals(myminw.size(),minweighthist.size());
+                assertEquals(myw.size(),weighthist.size());
+                assertEquals(myww.size(),minwwhist.size());
                 for (int bin : myplain.keySet()) {
-                    assertTrue(String.format("plain bin %d : %d != %d", bin, myplain.get(bin), plainhist.get(bin)), 
-                               myplain.get(bin) == plainhist.get(bin));
+                    assertEquals(String.format("plain bin %d : %d != %d", bin, myplain.get(bin), plainhist.get(bin)), 
+                               myplain.get(bin),plainhist.get(bin));
                 }
                 for (int bin : myminw.keySet()) {
-                    assertTrue(String.format("minw bin %d : %d != %d", bin, myminw.get(bin), minweighthist.get(bin)), 
-                               myminw.get(bin) == minweighthist.get(bin));                   
+                    assertEquals(String.format("minw bin %d : %d != %d", bin, myminw.get(bin), minweighthist.get(bin)), 
+                               myminw.get(bin),minweighthist.get(bin));                   
                 }
                 for (int bin : myw.keySet()) {
-                    assertTrue(String.format("weight bin %d : %f != %f", bin, myw.get(bin), weighthist.get(bin)), 
-                               Math.abs(myw.get(bin) - weighthist.get(bin)) < .0001);
+                    assertEquals(String.format("weight bin %d : %f != %f", bin, myw.get(bin), weighthist.get(bin)), 
+                                 myw.get(bin),weighthist.get(bin), .0001);
                 }
                 for (int bin : myww.keySet()) {
-                    assertTrue(String.format("ww bin %d : %f != %f", bin, myww.get(bin), minwwhist.get(bin)), 
-                               Math.abs(myww.get(bin) - minwwhist.get(bin)) < .0001);
+                    assertEquals(String.format("ww bin %d : %f != %f", bin, myww.get(bin), minwwhist.get(bin)), 
+                                 myww.get(bin) , minwwhist.get(bin), .0001);
                 }
             }
         }        
