@@ -101,7 +101,7 @@ public class ServerTask {
                 if (instream.available() > 0) {
                     avail = true;
                 } else {
-                    socket.setSoTimeout(10);
+                    socket.setSoTimeout(1);
                     int i = instream.read();
                     if (i == -1) {
                         shouldClose = true;
