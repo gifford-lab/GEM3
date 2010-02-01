@@ -30,6 +30,7 @@ public class ServerTask {
     private boolean shouldClose;
     /* Socket, streams from the socket */
     private Socket socket;
+    private int haventTriedRead;
     private PushbackInputStream instream;
     private OutputStream outstream;
     private WritableByteChannel outchannel;
@@ -62,6 +63,7 @@ public class ServerTask {
         type = null;
         username = null;
         uname = null;
+        haventTriedRead = 0;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
         socket.setSendBufferSize(Server.BUFFERLEN);
         instream = new PushbackInputStream(socket.getInputStream());
@@ -101,17 +103,21 @@ public class ServerTask {
                 if (instream.available() > 0) {
                     avail = true;
                 } else {
-                    socket.setSoTimeout(1);
-                    int i = instream.read();
-                    if (i == -1) {
-                        shouldClose = true;
-                        avail = false;
-                        System.err.println(toString() + " end of file in inputAvailable");
+                    if (haventTriedRead++ > 50) {
+                        socket.setSoTimeout(1);
+                        int i = instream.read();
+                        if (i == -1) {
+                            shouldClose = true;
+                            avail = false;
+                            System.err.println(toString() + " end of file in inputAvailable");
+                        } else {
+                            instream.unread(i);
+                            avail = true;
+                        }
+                        socket.setSoTimeout(1000*3600*24);                        
                     } else {
-                        instream.unread(i);
-                        avail = true;
+                        avail = instream.available() > 0;
                     }
-                    socket.setSoTimeout(1000*3600*24);
                 }
             } else {
                 shouldClose = true;
