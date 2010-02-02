@@ -21,7 +21,7 @@ public class SAMRecord {
         char[] newq = new char[qual.length()];
         for (int i = 0; i < qual.length(); i++) {
             int c = qual.charAt(i) - '!';
-            double p = Math.pow(10, c / -10);
+            double p = Math.pow(10, (double)c / -10.0);
             c = '@' + (char) (-10 * Math.log10(p / (1-p)));
             if (c > 'h') {
                 c = 'h';
