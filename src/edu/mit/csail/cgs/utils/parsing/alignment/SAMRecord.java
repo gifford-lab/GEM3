@@ -39,7 +39,7 @@ public class SAMRecord {
         char[] newq = new char[qual.length()];
         for (int i = 0; i < qual.length(); i++) {
             int c = qual.charAt(i) - '@';
-            double t = Math.pow(10, c / -10);
+            double t = Math.pow(10, (double)c / -10.0);
             double p =  t / (1 + t);
             c = '!' + (char) (-10 * Math.log10(p));
             newq[i] = (char)c;
