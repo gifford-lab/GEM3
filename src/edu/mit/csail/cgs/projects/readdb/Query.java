@@ -110,11 +110,13 @@ public class Query {
                                                             stop,
                                                             histogram);
                     }
-                    for (int i : hits.keySet()) {
-                        if (weights) {
-                            System.out.println(String.format("%d\t%d\t%f", i, hits.get(i), weightsmap.get(i)));  
-                        } else {
-                            System.out.println(String.format("%d\t%d", i, hits.get(i)));
+                    if (!quiet) {
+                        for (int i : hits.keySet()) {
+                            if (weights) {
+                                System.out.println(String.format("%d\t%d\t%f", i, hits.get(i), weightsmap.get(i)));  
+                            } else {
+                                System.out.println(String.format("%d\t%d", i, hits.get(i)));
+                            }
                         }
                     }
                 } else {
