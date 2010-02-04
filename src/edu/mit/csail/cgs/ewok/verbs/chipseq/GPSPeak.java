@@ -19,6 +19,23 @@ public class GPSPeak extends Point{
 	int distance;
 	double mixProb;
 	
+	 public GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
+      double controlStrength, double qvalue, double shape, double shapeZ,
+      double mixProb, String nearestGene, int distance){
+    super(g, chr.replaceFirst("chr", ""), pos);
+    EM_position = new Point(g, chr.replaceFirst("chr", ""), EM_pos);
+    this.strength = strength;
+    this.controlStrength = controlStrength;
+    this.qvalue = qvalue;
+    this.shape = shape;
+    this.shapeZ = shapeZ;
+    this.mixProb = mixProb;
+    this.nearestGene = nearestGene;
+    this.distance = distance;
+    
+    this.pvalue = Double.NaN;
+  }
+	
 	public GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
 			double controlStrength, double qvalue, double pvalue, double shape, double shapeZ,
 			double mixProb, String nearestGene, int distance){

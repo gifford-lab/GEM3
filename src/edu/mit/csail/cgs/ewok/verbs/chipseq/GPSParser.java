@@ -31,21 +31,37 @@ public class GPSParser {
 
 		FileReader in = null;
 		BufferedReader bin = null;
+		int count = 0;
 		try {
 			in = new FileReader(filename);
 			bin = new BufferedReader(in);
 			
 			String line;
 			while((line = bin.readLine()) != null) { 
+			  if (count % 1000 == 0) {
+			    if (count % 10000 == 0) {
+			      System.out.println(count);
+			    }
+			    else {
+			      System.out.print(count);
+			    }
+			  }
+			  else if (count % 100 == 0) {
+			    System.out.print(".");
+			  }
 				line = line.trim();
 	            String[] f=line.split("\t");
 	            if (line.charAt(0)=='#'||f[0].equals("chr")){
 	            	continue;
 	            }
 				GPSPeak hit = GPSParser.parseLine(g, line, 0);
-				if (hit!=null)
+				if (hit!=null) {
 					results.add(hit);
-			}
+			  }
+				
+				count++;
+			}			
+			System.out.println();
 		}
 		catch(IOException ioex) {
 			//logger.error("Error parsing file", ioex);
@@ -74,7 +90,22 @@ public class GPSParser {
 	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-		if (t.length == 15) {
+		    if (t.length == 14) {
+      try { 
+        Region r = Region.fromString(g, t[0]);
+        Region em_pos = Region.fromString(g, t[3]);
+//        GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
+//            double controlStrength, double qvalue, double shape, double shapeZ)
+        peak = new GPSPeak(g, r.getChrom(), r.getStart(), em_pos.getStart(),
+            Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]),
+            Double.parseDouble(t[4]), Double.parseDouble(t[5]), Double.parseDouble(t[11]), t[12], Integer.parseInt(t[13]));
+      }
+      catch (Exception ex) {
+        //logger.error("Parse error on line " + lineNumber + ".", ex);
+        return null;
+      }
+    } 
+    else if (t.length == 15) {
 			try { 
 				Region r = Region.fromString(g, t[0]);
 				Region em_pos = Region.fromString(g, t[3]);
@@ -89,6 +120,18 @@ public class GPSParser {
 				return null;
 			}
 		}
+    else if (t.length == 11) {
+      try { 
+      Region r = Region.fromString(g, t[0]);
+      peak = new GPSPeak(g, r.getChrom(), r.getStart(), r.getStart(),
+          Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]),          
+          Double.parseDouble(t[2]), new Double(0.0), new Double(0.0), t[7], Integer.parseInt(t[8]));
+      }
+      catch (Exception ex) {
+        //logger.error("Parse error on line " + lineNumber + ".", ex);
+        return null;
+      }
+    }
 		else {
 			//logger.error("Line " + lineNumber + " has " + tokens.length + " tokens.");
 			return null;
