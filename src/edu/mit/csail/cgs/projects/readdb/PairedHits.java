@@ -32,6 +32,7 @@ public class PairedHits extends Hits {
         chroms = openIntBP(getChromsFname(prefix,chrom,isLeft));
         otherPositions = openIntBP(getOtherPosFname(prefix,chrom,isLeft));
     }
+    public boolean isLeft () {return isLeft;}
     public IntBP getChromsBuffer() {return chroms;}
     public IntBP getOtherPosBuffer() {return otherPositions;}
     public IntBP getOtherChromsBetween(int firstindex,
