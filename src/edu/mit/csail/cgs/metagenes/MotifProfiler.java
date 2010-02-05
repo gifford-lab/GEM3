@@ -47,6 +47,8 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 		int start = Math.max(0, a.getLocation()-left);
 		int end = Math.min(a.getLocation()+right, a.getGenome().getChromLength(a.getChrom())-1);
 		Region query = new Region(gen, a.getChrom(), start, end);
+		boolean strand = (a instanceof StrandedPoint) ? 
+				((StrandedPoint)a).getStrand() == '+' : true;
 		
 		String seq = seqgen.execute(query);
 		WeightMatrixScoreProfile profiler = scorer.execute(seq);
@@ -56,12 +58,17 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 			int maxPos=0;
 			for(int j=i; j<i+params.getBinSize() && j<query.getEnd(); j++){
 				int offset = j-query.getStart();
+				
 				if(profiler.getMaxScore(offset)>maxScore){
 					maxScore= profiler.getMaxScore(offset); 
 					maxPos=offset;
 				}
 			}
 			if(maxScore>=minThreshold){
+				if(!strand) { 
+					int tmp = window-maxPos;
+					maxPos = tmp;
+				}
 				int bin = params.findBin(maxPos);
 				addToArray(bin, bin, array, maxScore);
 			}

@@ -144,9 +144,7 @@ public abstract class DatabaseFactory {
     private static Properties getPropertiesForRole(String role) throws UnknownRoleException, IOException {
         role = role.replaceAll("\\W+","_");
         if (System.getenv(role.toUpperCase() + "ROLE") != null) {
-        	String oldrole = role;
-            role = System.getenv(role.toUpperCase() + "ROLE");
-            //System.err.println(String.format("Found ENV for role %s = \"%s\"", oldrole, role));
+        	role = System.getenv(role.toUpperCase() + "ROLE");
         }
         String homedir = System.getenv("HOME");
         //System.err.println(String.format("ENV variable HOME=%s", homedir));

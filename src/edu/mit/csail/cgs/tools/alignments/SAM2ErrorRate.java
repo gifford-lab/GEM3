@@ -1,7 +1,6 @@
 package edu.mit.csail.cgs.tools.alignments;
 
 import java.io.*;
-import java.util.*;
 import edu.mit.csail.cgs.utils.parsing.alignment.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 
@@ -22,8 +21,6 @@ public class SAM2ErrorRate extends SAMHandler {
     // represents current read
     private boolean unchanged[], skipThisRead;
     private int stage;
-
-    private static final int SAME = 0, SNP = 1, INS = 2, DEL = 3;
 
     public static void main(String[] args) throws IOException {
         SAM2ErrorRate rate = new SAM2ErrorRate(new BufferedReader(new InputStreamReader(System.in)));

@@ -49,6 +49,8 @@ public class MotifDisplayPane extends JSplitPane {
         super(JSplitPane.HORIZONTAL_SPLIT);
         setDividerLocation(.5);
         selectPanel = new MotifSelectPanel();
+        selectPanel.retrieveData();
+        selectPanel.updateComponents();
         selectPanel.filter();
         JPanel buttonPanel = new JPanel();
         JButton addButton = new JButton("Show Motifs");

@@ -4,12 +4,8 @@
  */
 package edu.mit.csail.cgs.datasets.alignments;
 
-import java.sql.*;
-import javax.sql.rowset.serial.SerialClob;
-
 import edu.mit.csail.cgs.datasets.DBID;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.utils.database.Sequence;
 
 /*
 create sequence align_block_id;

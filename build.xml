@@ -119,7 +119,21 @@
     <property name="pwfiles.path" value="${pwfiles.basepath}/${pwset}"/>
   </target>
 
-  <target name="makewarpdrivejar" depends="build, unjarall, setpwfilespath">
+  <target name="unjarwd" unless="build.unjar.dir.present">
+    <mkdir dir="${build.unjar.dir}.tmp" />
+    <unjar dest="${build.unjar.dir}.tmp">
+      <fileset dir="${lib.dir}">
+	<include name="batik/batik-1.7/*.jar"/>
+	<include name="jfreechart/jfreechar-1.0.6/*.jar"/>
+	<include name="ojdbc/ojdbc14.jar"/>
+	<include name="mysql-connector/mysql-connector-java-3.1.12-bin.jar"/>
+	<include name="log4j/*.jar"/>
+      </fileset>
+    </unjar>
+    <move file="${build.unjar.dir}.tmp" tofile="${build.unjar.dir}" />
+  </target>
+
+  <target name="makewarpdrivejar" depends="build, unjarwd, setpwfilespath">
     <delete dir="${build.unjar.dir}/META-INF"/>
     <jar destfile="${build.dist.dir}/cgs-warpdrive.${pwset}.jar" manifest="manifests/warpdrive_manifest.txt">	    
       <fileset dir="${build.classes.dir}" includes="**/*.class"/>
@@ -131,9 +145,19 @@
     <chmod file="${build.dist.dir}/cgs-warpdrive.${pwset}.jar}" perm="755"/>
   </target>
 
-  <target name="readdbjar" depends="build, unjarall, setpwfilespath">
+  <target name="unjarcli" unless="build.unjar.dir.present">
+    <mkdir dir="${build.unjar.dir}.tmp" />
+    <unjar dest="${build.unjar.dir}.tmp">
+      <fileset dir="${lib.dir}">
+	<include name="ApacheCommons/commons-cli-1.2.jar"/>
+      </fileset>
+    </unjar>
+    <move file="${build.unjar.dir}.tmp" tofile="${build.unjar.dir}" />
+  </target>
+
+  <target name="readdbjar" depends="build, unjarcli">
     <delete dir="${build.unjar.dir}/META-INF"/>
-    <jar destfile="${build.dist.dir}/cgs-readdb.jar" manifest="warpdrive_manifest.txt">	    
+    <jar destfile="${build.dist.dir}/cgs-readdb.jar">	    
       <fileset dir="${build.classes.dir}" includes="**/readdb/*.class"/>
       <fileset dir="${build.unjar.dir}"/>	    
     </jar>  

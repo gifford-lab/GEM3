@@ -6,7 +6,6 @@ import edu.mit.csail.cgs.ewok.verbs.cgh.*;
 import edu.mit.csail.cgs.datasets.general.*;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.chipchip.*;
-import edu.mit.csail.cgs.utils.database.*;
 
 /** Command line program to analyze CGH data.  Uses a three state HMM to determine when the log-ratio
  * in a region is below, equal to, or above zero.

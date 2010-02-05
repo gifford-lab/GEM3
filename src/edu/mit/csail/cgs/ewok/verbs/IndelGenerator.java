@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 public class IndelGenerator<X extends Region> implements Expander<X, Indel> {
 
     private Genome compareTo, compareFrom;
-    private MultiZAlignGenerator multiz;
+    private MultiZAlignGenerator<X> multiz;
     private String alignPrefix;
     /* indels bigger than this don't count.  This is to help
        filter out places where the a section of one genome aligns to
@@ -41,7 +41,7 @@ public class IndelGenerator<X extends Region> implements Expander<X, Indel> {
     }
     
     private void createMultiZ (Genome compareFrom) {
-        multiz = new MultiZAlignGenerator(compareFrom, compareTo);
+        multiz = new MultiZAlignGenerator<X>(compareFrom, compareTo);
         if (alignPrefix != null) {
             multiz.setAlignPrefix(alignPrefix);
         }
@@ -234,7 +234,7 @@ public class IndelGenerator<X extends Region> implements Expander<X, Indel> {
                 regions.add(Region.fromString(genomes.get(0),args[++i]));
             }
         }
-        IndelGenerator gen = new IndelGenerator(genomes.get(1));
+        IndelGenerator<Region> gen = new IndelGenerator<Region>(genomes.get(1));
         gen.setAlignPrefix(prefix);
         for (Region r : regions) {
             Iterator<Indel> iter = gen.execute(r);

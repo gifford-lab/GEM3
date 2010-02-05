@@ -4,14 +4,10 @@
 package edu.mit.csail.cgs.tools.binding;
 
 import java.util.*;
-import java.io.*;
 import java.sql.*;
 
 import edu.mit.csail.cgs.conservation.CustomMSPBindingGenerator;
 import edu.mit.csail.cgs.conservation.SimpleMSPBindingGenerator;
-import edu.mit.csail.cgs.ewok.nouns.*;
-import edu.mit.csail.cgs.ewok.utils.EwokBayes;
-import edu.mit.csail.cgs.ewok.utils.EwokRosetta;
 import edu.mit.csail.cgs.ewok.verbs.*;
 import edu.mit.csail.cgs.ewok.verbs.binding.CallerMapper;
 import edu.mit.csail.cgs.utils.ArgParser;
@@ -98,8 +94,6 @@ public class ScanTool {
     private BindingScanLoader loader;
     private java.sql.Connection cxn;
     private CallerMapper callerMapper;
-    private String params;
-
     public ScanTool(Genome g,
                     BindingScanLoader l, 
                     CallerMapper cm) {
@@ -107,11 +101,10 @@ public class ScanTool {
         loader = l;
         cxn = loader.getConnection();
         callerMapper = cm;
-        params = null;
     }
     
     public void setParams(String p) { 
-    	params = p.replace(';', ',');
+    	p.replace(';', ',');
     }
     
     public void runScan(ExptLocator loc) throws SQLException, UnknownRoleException  { 
@@ -225,7 +218,7 @@ public class ScanTool {
         public Expander<Region,BindingExtent> execute(ExptLocator a) {
             if(!(a instanceof BayesLocator)) { throw new IllegalArgumentException(); }
             BayesLocator loc = (BayesLocator)a;
-            return new BayesBindingGenerator(loc.createObject(), probThresh, sizeThresh, true);
+            return new BayesBindingGenerator<Region>(loc.createObject(), probThresh, sizeThresh, true);
         } 
     	
     }

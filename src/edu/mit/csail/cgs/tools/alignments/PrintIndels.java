@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Iterator;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.general.*;
-import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.alignments.*;
 import edu.mit.csail.cgs.ewok.verbs.*;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -31,7 +30,7 @@ public class PrintIndels {
         Genome one = new Genome(g1[0],g1[1]);
         Genome two = new Genome(g2[0],g2[1]);
         String alignType = Args.parseString(args,"type","blast");
-        IndelGenerator generator = new IndelGenerator(two);
+        IndelGenerator<Region> generator = new IndelGenerator<Region>(two);
         generator.setAlignPrefix(alignType);
         if (splitPenalty > 0) {
             generator.setSplitPenalty(splitPenalty);

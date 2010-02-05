@@ -3,7 +3,6 @@ package edu.mit.csail.cgs.projects.readdb;
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.*;
-import java.util.*;
 
 /** 
  * Represents the list of sorted read positions on disk
@@ -351,14 +350,14 @@ public class Hits implements Closeable {
         } else if (extension > 0) {
             for (int i = p[0]; i < p[1]; i++) {
                 int bin = (positions.get(i) - start) / stepsize;
-                for (int j = 0; j <= extension; j++) {
+                for (int j = 0; j <= extension && bin+j < output.length; j++) {
                     output[bin+j]++;            
                 }
             }
         } else {
             for (int i = p[0]; i < p[1]; i++) {
                 int bin = (positions.get(i) - start) / stepsize;
-                for (int j = 0; j >= extension; j--) {
+                for (int j = 0; j >= extension && bin+j >= 0; j--) {
                     output[bin+j]++;            
                 }
             }
@@ -391,7 +390,7 @@ public class Hits implements Closeable {
             for (int i = p[0]; i < p[1]; i++) {
                 if (weights.get(i) >= minweight) {
                     int bin = (positions.get(i) - start) / stepsize;
-                    for (int j = 0; j <= extension; j++) {
+                    for (int j = 0; j <= extension && bin+j < output.length; j++) {
                         output[bin+j]++;
                     }
                 }
@@ -400,7 +399,7 @@ public class Hits implements Closeable {
             for (int i = p[0]; i < p[1]; i++) {
                 if (weights.get(i) >= minweight) {
                     int bin = (positions.get(i) - start) / stepsize;
-                    for (int j = 0; j >= extension; j--) {
+                    for (int j = 0; j >= extension && bin+j >= 0; j--) {
                         output[bin+j]++;
                     }
                 }

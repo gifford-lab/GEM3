@@ -18,11 +18,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 public class GPSParser {
 
 	/**
-	 * Parses data in the GPS output format, e.g.
-
-	 * Position	Rank_Sum	Strength	EM_Posi	Shape	Shape_Z	Shape_Param	ShapeAsymmetry	IpStrength	CtrlStrength	Q_value_log10	MixingProb	NearestGene	Distance	
-	 * 8:20401711	47581	200.0	 8:20401711	1.30	1.6223	7.454790	0.33			200.0		4.8				47.53			0.9745		Hoxa1		2147483647	
-
+	 * Parses data in the GPS output format
 	 * @param filename name of the file containing the data
 	 * @return a List of hit objects
 	 */
@@ -84,13 +80,33 @@ public class GPSParser {
 
 	/**
 	 * Parse a single line of text into a hit object
+	 * 
+	 * old format
+	 * Position	Rank_Sum	Strength	EM_Posi	Shape	Shape_Z	Shape_Param	ShapeAsymmetry	IpStrength	CtrlStrength	Q_value_log10	MixingProb	NearestGene	Distance	
+	 * 8:20401711	47581	200.0	 8:20401711	1.30	1.6223	7.454790	0.33			200.0		4.8				47.53			0.9745		Hoxa1		2147483647	
+	   New format
+	   Position		IpStrength	Shape	CtrlStrength	Q_value_log10	P_value_log10	UnaryEvent	NearestGene	Distance	Alpha
+	   18:75725340	230.5		-0.13	0.4				62.51			67.17			1			NONE		2147483647	9.0	
+
 	 * @param gpsLine a line of text representing a hit
 	 * @return a hit object containing the data from the specified line
 	 */
 	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-		    if (t.length == 14) {
+	if (t.length == 11) {
+      try { 
+      Region r = Region.fromString(g, t[0]);
+			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+					Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
+					Double.parseDouble(t[5]), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
+      }
+      catch (Exception ex) {
+        //logger.error("Parse error on line " + lineNumber + ".", ex);
+        return null;
+      }
+    }
+	else if (t.length == 14) {
       try { 
         Region r = Region.fromString(g, t[0]);
         Region em_pos = Region.fromString(g, t[3]);
@@ -119,19 +135,7 @@ public class GPSParser {
 				//logger.error("Parse error on line " + lineNumber + ".", ex);
 				return null;
 			}
-		}
-    else if (t.length == 11) {
-      try { 
-      Region r = Region.fromString(g, t[0]);
-      peak = new GPSPeak(g, r.getChrom(), r.getStart(), r.getStart(),
-          Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]),          
-          Double.parseDouble(t[2]), new Double(0.0), new Double(0.0), t[7], Integer.parseInt(t[8]));
-      }
-      catch (Exception ex) {
-        //logger.error("Parse error on line " + lineNumber + ".", ex);
-        return null;
-      }
-    }
+		}   
 		else {
 			//logger.error("Line " + lineNumber + " has " + tokens.length + " tokens.");
 			return null;
