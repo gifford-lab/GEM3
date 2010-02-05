@@ -203,7 +203,7 @@ public class Server {
         PairedHits output = pairedHits.get(key);
         if (output == null) {
             String prefix = getAlignmentDir(alignID) + System.getProperty("file.separator");
-            output = new PairedHits(alignID, chrom, isLeft);
+            output = new PairedHits(prefix, chrom, isLeft);
             pairedHits.add(key, output);
         }
         return output;

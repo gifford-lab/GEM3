@@ -115,7 +115,6 @@ public class PairedHits extends Hits {
                                        int chrom,
                                        boolean isLeft) throws IOException {
         Collections.sort(hits, isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator());
-
         IntBP p = new IntBP(hits.size());
         FloatBP w = new FloatBP(hits.size());
         IntBP l = new IntBP(hits.size());

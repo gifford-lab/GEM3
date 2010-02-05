@@ -240,17 +240,19 @@ public class Client {
     public void storePaired(String alignid, List<PairedHit> allhits) throws IOException, ClientException {
         Map<Integer, List<PairedHit>> map = new HashMap<Integer,List<PairedHit>>();
         for (PairedHit h : allhits) {
-            if (!request.map.containsKey(h.leftChrom)) {
+            if (!map.containsKey(h.leftChrom)) {
                 map.put(h.leftChrom, new ArrayList<PairedHit>());
             }
             map.get(h.leftChrom).add(h);
         }
-        for (int chromid : map.keySet()) {
+        for (int chromid : map.keySet()) {            
             List<PairedHit> hits = map.get(chromid);
+            System.err.println("SENDING PAIRED HITS n="+hits.size() + " for chrom " + chromid);
             request.clear();
             request.type="storepaired";
             request.alignid=alignid;
             request.chromid=chromid;
+            request.isLeft=true;
             request.map.put("numhits",Integer.toString(hits.size()));
             sendString(request.toString());
             String response = readLine();

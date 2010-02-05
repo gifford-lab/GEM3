@@ -775,6 +775,7 @@ public class ServerTask {
         assert(request != null);
         assert(request.alignid != null);
         assert(request.chromid != null);        
+        assert(request.isLeft != null);
         int numHits = 0;
         try {
             numHits = Integer.parseInt(request.map.get("numhits"));
@@ -782,24 +783,12 @@ public class ServerTask {
             printString("Invalid numhits value : " + request.map.get("numhits") + "\n");
             return;
         }
-        try {        
-            /* sure we're allowed to write here */
-            AlignmentACL acl = server.getACL(request.alignid);
-            if (!authorizeRead(acl) || !authorizeWrite(acl)) {
-                printAuthError();
-                Lock.writeUnLock(this, request.alignid);
-                return;
-            }
-        } catch (IOException e) {
-            printAuthError();
-            return;
-        }
-
         printOK();
         if (numHits == 0) {
             printOK();
             return;
         }
+
         Lock.writeLock(this,request.alignid);
         List<PairedHit> hits = new ArrayList<PairedHit>();
 
@@ -824,6 +813,19 @@ public class ServerTask {
             acl.getReadACL().add(username);
             acl.writeToFile(server.getACLFileName(request.alignid));        
             server.removeACL(request.alignid); // make sure the server doesn't have this ACL cached
+        } else {
+            try {        
+                /* sure we're allowed to write here */
+                AlignmentACL acl = server.getACL(request.alignid);
+                if (!authorizeRead(acl) || !authorizeWrite(acl)) {
+                    printAuthError();
+                    Lock.writeUnLock(this, request.alignid);
+                    return;
+                }
+            } catch (IOException e) {
+                printAuthError();
+                return;
+            }
         }
 
         List<PairedHit> newhits = new ArrayList<PairedHit>();
@@ -854,35 +856,18 @@ public class ServerTask {
         las = null;
         otherchrom = null;
         otherpos = null;
+        System.err.println("Read " + numHits + " paired hits from network");
 
         try {
             appendPairedHits(newhits,true);
-            for (PairedHit h : newhits) {
-                h.flipSides();            
-            }
             appendPairedHits(newhits,false);
-            PairedHits pairedhits = new PairedHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
-                                                   request.chromid, 
-                                                   true);
-            Header header = new Header(pairedhits.getPositionsBuffer().ib);
-            header.writeIndexFile(server.getPairedHeaderFileName(request.alignid,
-                                                                 request.chromid,
-                                                                 true));
-            pairedhits = new PairedHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
-                                        request.chromid, 
-                                        false);
-            header = new Header(pairedhits.getPositionsBuffer().ib);
-            header.writeIndexFile(server.getPairedHeaderFileName(request.alignid,
-                                                                 request.chromid,
-                                                                 false));
         } catch (IOException e) {
             Lock.writeUnLock(this,request.alignid);
+            e.printStackTrace();
             printString("Failed to write hits : " + e.toString());
+            Lock.writeUnLock(this,request.alignid);
+            return;
         }
-        server.removePairedHits(request.alignid, request.chromid, true);
-        server.removePairedHits(request.alignid, request.chromid, false);
-        server.removePairedHeader(request.alignid, request.chromid, true);
-        server.removePairedHeader(request.alignid, request.chromid, false);
         printOK();
         Lock.writeUnLock(this,request.alignid);
     }
@@ -898,6 +883,7 @@ public class ServerTask {
         }
         for (int chromid : map.keySet()) {
             List<PairedHit> hits = map.get(chromid);
+            System.err.println(" Have " + hits.size() + " new paired hits for chrom " + chromid);
             try {
                 PairedHits oldhits = server.getPairedHits(request.alignid,
                                                           chromid,
@@ -922,7 +908,18 @@ public class ServerTask {
                 // this is OK, it just means there were no old hits.  Any other
                 // IOException is a problem, so let it propagate out
             } 
+            System.err.println(" Have " + hits.size() + " total paired hits for chrom " + chromid);
             PairedHits.writePairedHits(hits, server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"), chromid, isLeft);
+
+            PairedHits pairedhits = new PairedHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                                   chromid, 
+                                                   isLeft);
+            Header header = new Header(pairedhits.getPositionsBuffer().ib);
+            header.writeIndexFile(server.getPairedHeaderFileName(request.alignid,
+                                                                 chromid,
+                                                                 isLeft));
+            server.removePairedHits(request.alignid, chromid, isLeft);
+            server.removePairedHeader(request.alignid, chromid, isLeft);
         }
     }
 

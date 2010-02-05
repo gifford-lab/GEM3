@@ -60,7 +60,7 @@ public class SingleHits extends Hits {
                                        String prefix, 
                                        int chrom) throws IOException {
         Collections.sort(hits);
-        
+
         IntBP p = new IntBP(hits.size());
         FloatBP w = new FloatBP(hits.size());
         IntBP l = new IntBP(hits.size());
