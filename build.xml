@@ -155,9 +155,21 @@
     <move file="${build.unjar.dir}.tmp" tofile="${build.unjar.dir}" />
   </target>
 
-  <target name="readdbjar" depends="build, unjarcli, setpwfilespath">
+  <target name="compilereaddb" depends="init" description="Compile readdb" >
+    <javac srcdir="${src.dir}"
+	   destdir="${build.classes.dir}"	
+	   classpathref="compile.classpath"
+	   debug="true"
+	   debuglevel="lines,vars,source"
+	   deprecation="yes"
+	   compiler="modern"
+	   verbose="no">		  
+      <include name="edu/mit/csail/cgs/projects/readdb/*.java"/>
+    </javac>
+  </target>
+  <target name="makereaddbjar" depends="compilereaddb, unjarcli">
     <delete dir="${build.unjar.dir}/META-INF"/>
-    <jar destfile="${build.dist.dir}/cgs-readdb.jar" manifest="warpdrive_manifest.txt">	    
+    <jar destfile="${build.dist.dir}/cgs-readdb.jar" manifest="manifests/warpdrive_manifest.txt">	    
       <fileset dir="${build.classes.dir}" includes="**/readdb/*.class"/>
       <fileset dir="${build.unjar.dir}"/>	    
     </jar>  
