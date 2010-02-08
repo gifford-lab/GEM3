@@ -5,6 +5,7 @@ import edu.mit.csail.cgs.ewok.verbs.RegionParser;
 import edu.mit.csail.cgs.ewok.verbs.FastaWriter;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.general.StrandedRegion;
+import edu.mit.csail.cgs.datasets.general.NamedStrandedRegion;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -31,6 +32,10 @@ public class RegionsToFasta {
                 line = line.trim();
                 StrandedRegion sr = StrandedRegion.fromString(genome, line);
                 if (sr != null) {
+                    String pieces[] = line.split("\\t");
+                    if (pieces.length > 1) {
+                        sr = new NamedStrandedRegion(sr, pieces[1], sr.getStrand());
+                    }
                     writer.consume(sr);
                 } else {
                     Region r = Region.fromString(genome,line);
