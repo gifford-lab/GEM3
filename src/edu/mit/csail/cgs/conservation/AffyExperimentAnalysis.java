@@ -7,7 +7,7 @@ import java.util.*;
 import java.io.*;
 import java.text.*;
 
-import edu.mit.csail.cgs.utils.parsing.affyexpr.*;
+import edu.mit.csail.cgs.utils.io.parsing.affyexpr.*;
 
 /**
  * @author tdanford

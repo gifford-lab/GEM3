@@ -1,7 +1,8 @@
 package edu.mit.csail.cgs.datasets.chipchip;
 
 import java.util.*;
-import edu.mit.csail.cgs.utils.parsing.*;
+
+import edu.mit.csail.cgs.utils.io.parsing.*;
 import edu.mit.csail.cgs.utils.*;
 
 public interface ChipChipMSP extends GenericExperiment {

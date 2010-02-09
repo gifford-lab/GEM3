@@ -1,6 +1,6 @@
 package edu.mit.csail.cgs.tools.sequence;
 
-import edu.mit.csail.cgs.utils.parsing.FASTAStream;
+import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.tools.utils.Args;
 import cern.jet.random.*;

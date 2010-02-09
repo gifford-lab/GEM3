@@ -10,8 +10,8 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.utils.NotFoundException;
-import edu.mit.csail.cgs.utils.parsing.alignment.BlatPSLEntry;
-import edu.mit.csail.cgs.utils.parsing.alignment.BlatPSLParser;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.BlatPSLEntry;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.BlatPSLParser;
 
 public class PSLHitFinder {
 

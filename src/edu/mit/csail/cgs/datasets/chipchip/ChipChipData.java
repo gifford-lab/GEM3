@@ -2,7 +2,8 @@ package edu.mit.csail.cgs.datasets.chipchip;
 
 import java.io.*;
 import java.util.*;
-import edu.mit.csail.cgs.utils.parsing.*;
+
+import edu.mit.csail.cgs.utils.io.parsing.*;
 import edu.mit.csail.cgs.utils.*;
 
 /* represents results from an agilent location array

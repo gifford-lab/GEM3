@@ -1,7 +1,8 @@
 package edu.mit.csail.cgs.tools.alignments;
 
 import java.io.*;
-import edu.mit.csail.cgs.utils.parsing.alignment.*;
+
+import edu.mit.csail.cgs.utils.io.parsing.alignment.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 
 /**
