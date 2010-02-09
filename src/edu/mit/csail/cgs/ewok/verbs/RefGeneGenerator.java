@@ -246,9 +246,20 @@ public class RefGeneGenerator<X extends Region>
             if (aliastable == null) {
                 namequery += " from " + tablename + " g where g.name = ?";
             } else {
-                namequery += " from " + tablename + 
-                    " g where g.name in (select distinct( " + namecolumn + ") from " + aliastable + " where " +
-                    aliascolumn + " = ?) or g.name = ?";
+                // this noop extra select is to fool the mysql query optimizer so it
+                // doesn't screw this query up
+                namequery += String.format(" from %s g where g.name = ? or g.name in (select id from (select %s as id from %s a where a.%s = ? ) as x)",
+                                           tablename, 
+                                           namecolumn,
+                                           aliastable,
+                                           aliascolumn);
+
+
+                // namequery += String.format(" from %s g, %s a where a.%s = g.name and (g.name = ? or a.%s = ? )",
+                //                            tablename, 
+                //                            aliastable,
+                //                            namecolumn,
+                //                            aliascolumn);
             }
             nameps = cxn.prepareStatement(namequery);
         } catch (SQLException e) {
