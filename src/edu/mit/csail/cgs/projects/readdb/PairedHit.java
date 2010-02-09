@@ -53,5 +53,11 @@ public class PairedHit {
         leftLength = rightLength;
         rightLength = s;
     }
+    public String toString() {
+        return String.format("%d:%d,%d:%c and %d:%d,%d:%c weight %.2f",
+                             leftChrom, leftPos, leftLength, leftStrand ? '+' : '-',
+                             rightChrom, rightPos, rightLength, rightStrand ? '+' : '-',
+                             weight);
+    }
 
 }

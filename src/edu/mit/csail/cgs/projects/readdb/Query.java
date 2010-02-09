@@ -92,23 +92,32 @@ public class Query {
         while ((line = reader.readLine()) != null) {
             try {
                 String pieces[] = line.split("[\\:]");
-                String chr = pieces[0].replaceFirst("^chr","") + pieces[2];
+                int chr = Integer.parseInt(pieces[0].replaceFirst("^chr",""));
+                boolean strand = pieces.length >= 3 ? pieces[2].equals("+") : null;
                 pieces = pieces[1].split("\\-");
                 int start = Integer.parseInt(pieces[0]);
                 int stop = Integer.parseInt(pieces[1]);
                 if (histogram > 0) {
                     TreeMap<Integer,Integer> hits = client.getHistogram(alignname,
                                                                         chr,
+                                                                        false,
+                                                                        false,
+                                                                        histogram,
                                                                         start,
                                                                         stop,
-                                                                        histogram);
+                                                                        null,
+                                                                        strand);
                     TreeMap<Integer,Float> weightsmap = null;
                     if (weights) {
                         weightsmap = client.getWeightHistogram(alignname,
-                                                            chr,
-                                                            start,
-                                                            stop,
-                                                            histogram);
+                                                               chr,
+                                                               false,
+                                                               false,
+                                                               histogram,
+                                                               start,
+                                                               stop,
+                                                               null,
+                                                               strand);
                     }
                     for (int i : hits.keySet()) {
                         if (weights) {
@@ -118,21 +127,16 @@ public class Query {
                         }
                     }
                 } else {
-                    int[] hits = client.getHitsRange(alignname, chr, start,stop);
-                    float[] w = null;
-                    if (weights) {
-                        w = client.getWeightsRange(alignname, chr, start,stop);
-                    }
+                    List<SingleHit> hits = client.getSingleHits(alignname,
+                                                                chr,
+                                                                start,
+                                                                stop,
+                                                                null,
+                                                                strand);
                     if (!quiet) {
                         System.out.println(line);
-                        if (w != null) {
-                            for (int i = 0; i < hits.length; i++) {
-                                System.out.println(String.format("%d\t%.4f",hits[i], w[i]));
-                            }
-                        } else {
-                            for (int i = 0; i < hits.length; i++) {
-                                System.out.println(hits[i]);
-                            }
+                        for (SingleHit h : hits) {
+                            System.out.println(h.toString());
                         }
                     }
                 }

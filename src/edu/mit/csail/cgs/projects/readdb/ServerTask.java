@@ -36,7 +36,7 @@ public class ServerTask {
     /* if authenticate was successful, this holds a username.  Null otherwise */
     private String username;
     /* checked to see what byte order to use for raw ints going across the network.
-    */
+     */
     private ByteOrder myorder, clientorder;
     /* buffer for readLine */
     private int bufferpos;
@@ -71,14 +71,14 @@ public class ServerTask {
         clientorder = myorder;
         sasl = null;
         socket.setTcpNoDelay(true);
-//         if (server.debug()) {
-//             System.err.println("New ServerTask " + this + " on socket " + socket);
-//         }
+        //         if (server.debug()) {
+        //             System.err.println("New ServerTask " + this + " on socket " + socket);
+        //         }
     }
     public boolean shouldClose() {
-//         if (shouldClose && server.debug()) {
-//             System.err.println("Should close " + socket + " for " + this);
-//         }
+        //         if (shouldClose && server.debug()) {
+        //             System.err.println("Should close " + socket + " for " + this);
+        //         }
 
         return shouldClose;
     }
@@ -100,15 +100,15 @@ public class ServerTask {
             if (!socket.isClosed() && socket.isConnected()) {
                 avail = instream.available() > 0;
             } else {
-//                 if (server.debug()) {
-//                     System.err.println("Setting shouldClose 1 " + socket + " for " + this);
-//                 }
+                //                 if (server.debug()) {
+                //                     System.err.println("Setting shouldClose 1 " + socket + " for " + this);
+                //                 }
                 shouldClose = true;
             }                
         } catch (IOException e) {
-//             if (server.debug()) {
-//                 System.err.println("Setting shouldClose 2 " + socket + " for " + this);
-//             }
+            //             if (server.debug()) {
+            //                 System.err.println("Setting shouldClose 2 " + socket + " for " + this);
+            //             }
             avail = false;
             shouldClose = true;
         }
@@ -170,9 +170,9 @@ public class ServerTask {
             }
         } catch (Exception e) {
             e.printStackTrace();
-//             if (server.debug()) {
-//                 System.err.println("Setting shouldClose 5 " + socket + " for " + this);
-//             }
+            //             if (server.debug()) {
+            //                 System.err.println("Setting shouldClose 5 " + socket + " for " + this);
+            //             }
             args.clear();
             shouldClose = true;
             Lock.releaseLocks(this);
@@ -296,24 +296,24 @@ public class ServerTask {
         }
         hits = null;
         header = null;
-     }
+    }
 
     /**
      * performs authentication exchange over the socket and sets the username field
      * if successful.  Returns true if authenticate should continue or is successful.
      * Returns false if authenticate has failed.
-    */
+     */
     public boolean authenticate() throws IOException {
         /* The SASL client and server give you back bytes to send
            to the other side.  We achieve this by sending a length
            line first (ascii encoded integer followed by '\n')
            and then the raw bytes of the SASL exchange.  Two complexities:
            1) input.read() doesn't necessarily read the expected number
-              of bytes all at once, so we have to loop around it until
-              it does.
+           of bytes all at once, so we have to loop around it until
+           it does.
            2) I had problems with isComplete() returning true at different
-              times in the client and server.  The server sends an isComplete() byte
-              at the end of the loop to tell the client when it's done.
+           times in the client and server.  The server sends an isComplete() byte
+           at the end of the loop to tell the client when it's done.
         */
         if (uname == null) {
             uname = readLine();
@@ -344,7 +344,7 @@ public class ServerTask {
                 int length = Integer.parseInt(l);
                 byte[] response = new byte[length];
                 int read = 0;
-               while (read < length) {
+                while (read < length) {
                     read += instream.read(response, read, length - read);
                     //                    System.err.println("   read " + read);
                 }                
@@ -421,9 +421,9 @@ public class ServerTask {
     /** sends the string s to the client
      */
     public void printString(String s) throws IOException {
-//         if (server.debug()) {
-//             System.err.println("SEND " + s);
-//         }
+        //         if (server.debug()) {
+        //             System.err.println("SEND " + s);
+        //         }
         outstream.write(s.getBytes());
         outstream.flush();
     }
@@ -547,7 +547,7 @@ public class ServerTask {
     /** reads two lines from socket: alignment id and chromosome id.
      * returns "exists" or unknown" to indicate whether the 
      * server knows about that pair
-    */
+     */
     public void processExists() throws IOException {
         assert(request != null);
         assert(request.alignid != null);
@@ -581,8 +581,8 @@ public class ServerTask {
             return;
         }        
         Set<Integer> chroms = server.getChroms(request.alignid,
-                                              request.isPaired,
-                                              request.isLeft);
+                                               request.isPaired,
+                                               request.isLeft);
         if (chroms == null) {
             printString("No Such Alignment");
             return;
@@ -823,6 +823,7 @@ public class ServerTask {
                     return;
                 }
             } catch (IOException e) {
+                e.printStackTrace();
                 printAuthError();
                 return;
             }
@@ -856,7 +857,6 @@ public class ServerTask {
         las = null;
         otherchrom = null;
         otherpos = null;
-        System.err.println("Read " + numHits + " paired hits from network");
 
         try {
             appendPairedHits(newhits,true);
@@ -876,39 +876,55 @@ public class ServerTask {
                                   boolean isLeft) throws IOException {
         Map<Integer,List<PairedHit>> map = new HashMap<Integer,List<PairedHit>>();
         for (PairedHit h : newhits) {
-            if (!map.containsKey(h.leftChrom)) {
-                map.put(h.leftChrom, new ArrayList<PairedHit>());
+            int c = isLeft ? h.leftChrom : h.rightChrom;
+            if (!map.containsKey(c)) {
+                map.put(c, new ArrayList<PairedHit>());
             }
-            map.get(h.leftChrom).add(h);
+            map.get(c).add(h);
         }
         for (int chromid : map.keySet()) {
             List<PairedHit> hits = map.get(chromid);
-            System.err.println(" Have " + hits.size() + " new paired hits for chrom " + chromid);
+            //            System.err.println("There are " + hits.size() + " new hits for " + chromid + ", left=" + isLeft);
             try {
                 PairedHits oldhits = server.getPairedHits(request.alignid,
                                                           chromid,
                                                           isLeft);
                 IntBP positions = oldhits.getPositionsBuffer();
+                //                System.err.println("  there are " + positions.limit() + " old hits");
                 FloatBP weights = oldhits.getWeightsBuffer();
                 IntBP las = oldhits.getLASBuffer();
                 IntBP otherchrom = oldhits.getChromsBuffer();
                 IntBP otherpos = oldhits.getOtherPosBuffer();
-                for (int i = 0; i < positions.limit(); i++) {
-                    hits.add(new PairedHit(request.chromid,
-                                           positions.get(i),
-                                           Hits.getStrandOne(las.get(i)),
-                                           Hits.getLengthOne(las.get(i)),
-                                           otherchrom.get(i),
-                                           otherpos.get(i),
-                                           Hits.getStrandTwo(las.get(i)),
-                                           Hits.getLengthTwo(las.get(i)),
-                                           weights.get(i)));
+                if (isLeft) {
+                    for (int i = 0; i < positions.limit(); i++) {
+                        hits.add(new PairedHit(chromid,
+                                               positions.get(i),
+                                               Hits.getStrandOne(las.get(i)),
+                                               Hits.getLengthOne(las.get(i)),
+                                               otherchrom.get(i),
+                                               otherpos.get(i),
+                                               Hits.getStrandTwo(las.get(i)),
+                                               Hits.getLengthTwo(las.get(i)),
+                                               weights.get(i)));
+                    }
+                } else {
+                    for (int i = 0; i < positions.limit(); i++) {
+                        hits.add(new PairedHit(otherchrom.get(i),
+                                               otherpos.get(i),
+                                               Hits.getStrandTwo(las.get(i)),
+                                               Hits.getLengthTwo(las.get(i)),
+                                               chromid,
+                                               positions.get(i),
+                                               Hits.getStrandOne(las.get(i)),
+                                               Hits.getLengthOne(las.get(i)),
+                                               weights.get(i)));
+                    }
                 }
+
             } catch (FileNotFoundException e) {
                 // this is OK, it just means there were no old hits.  Any other
                 // IOException is a problem, so let it propagate out
             } 
-            System.err.println(" Have " + hits.size() + " total paired hits for chrom " + chromid);
             PairedHits.writePairedHits(hits, server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"), chromid, isLeft);
 
             PairedHits pairedhits = new PairedHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),

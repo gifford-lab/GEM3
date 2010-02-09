@@ -540,9 +540,78 @@ public class TestReadDB {
 //         }        
 //         c.close();
 //     }
-    @Test public void testPairedReads() throws IOException, ClientException {
+//     @Test public void testPairedReads() throws IOException, ClientException {
+//         List<PairedHit> hits = new ArrayList<PairedHit>();
+//         for (int i = 0; i < 1000; i++) {
+//             hits.add(new PairedHit(i % 4,
+//                                    i,
+//                                    i % 3 != 1,
+//                                    (short)(Math.random()*100+1),
+//                                    (i % 4) + 255,
+//                                    i + 0xffff,
+//                                    i % 3 == 1,
+//                                    (short)(Math.random()*100+1),
+//                                    (float)Math.random()));
+//         }        
+//         Client c = new Client(hostname, portnum, user, passwd);
+//         String name = "testPairedReads";        
+//         c.storePaired(name, hits);
+
+//         //        System.err.println("Storing hits " + hits);
+        
+//         // left side first
+//         Map<Integer,List<PairedHit>> map = new HashMap<Integer,List<PairedHit>>();
+//         for (PairedHit p : hits) {
+//             if (!map.containsKey(p.leftChrom)) {
+//                 map.put(p.leftChrom, new ArrayList<PairedHit>());
+//             }
+//             map.get(p.leftChrom).add(p);
+//         }
+        
+//         for (int chrom : map.keySet()) {
+//             List<PairedHit> list = map.get(chrom);
+//             Collections.sort(list, new PairedHitLeftComparator());
+//             assertEquals(String.format("chrom %d, %d ?= %d", chrom, list.size(), c.getCount(name,chrom,true,null,null,null,true,null)),
+//                          list.size(), c.getCount(name,chrom,true,null,null,null,true,null));
+//             List<PairedHit> fromdb = c.getPairedHits(name, chrom, true, null, null, null, null);
+//             assertEquals(fromdb.size(), list.size());
+//             for (int i = 0; i < fromdb.size(); i++) {
+//                 assertEquals(fromdb.get(i), list.get(i));
+//             }
+//         }
+
+//         map.clear();
+//         for (PairedHit p : hits) {
+//             if (!map.containsKey(p.rightChrom)) {
+//                 map.put(p.rightChrom, new ArrayList<PairedHit>());
+//             }
+//             map.get(p.rightChrom).add(p);
+//         }
+        
+//         for (int chrom : map.keySet()) {
+//             List<PairedHit> list = map.get(chrom);
+//             Collections.sort(list, new PairedHitRightComparator());
+//             assertEquals(list.size(), c.getCount(name,chrom,true,null,null,null,false,null));
+//             List<PairedHit> fromdb = c.getPairedHits(name, chrom, false, null, null, null, null);
+//             assertEquals(fromdb.size(), list.size());
+//             for (int i = 0; i < fromdb.size(); i++) {
+//                 assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).rightPos, list.get(i).rightPos),
+//                              fromdb.get(i).rightPos, list.get(i).rightPos);
+//                 assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).rightChrom, list.get(i).rightChrom),
+//                              fromdb.get(i).rightChrom, list.get(i).rightChrom);
+
+//                 assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).leftPos, list.get(i).leftPos),
+//                              fromdb.get(i).leftPos, list.get(i).leftPos);
+//                 assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).leftChrom, list.get(i).leftChrom),
+//                              fromdb.get(i).leftChrom, list.get(i).leftChrom);
+
+//             }
+//         }
+//     }
+
+    @Test public void testSecondStorePairedReads() throws IOException, ClientException {
         List<PairedHit> hits = new ArrayList<PairedHit>();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 1000; i++) {
             hits.add(new PairedHit(i % 4,
                                    i,
                                    i % 3 != 1,
@@ -552,20 +621,25 @@ public class TestReadDB {
                                    i % 3 == 1,
                                    (short)(Math.random()*100+1),
                                    (float)Math.random()));
-
-//             hits.add(new PairedHit(i % 4,
-//                                    (int)(Math.random() * 100000000),
-//                                    i % 3 == 1,
-//                                    (short)(Math.random()*100+1),
-//                                    i % 5,
-//                                    (int)(Math.random() * 100000000),
-//                                    i % 3 == 1,
-//                                    (short)(Math.random()*100+1),
-//                                    (float)Math.random()));
         }        
         Client c = new Client(hostname, portnum, user, passwd);
-        String name = "testPairedReads";        
+        String name = "testSecondStorePairedReads";        
         c.storePaired(name, hits);
+
+        List<PairedHit> newhits = new ArrayList<PairedHit>();
+        for (int i = 500; i <2000; i++) {
+            newhits.add(new PairedHit(i % 4,
+                                      i,
+                                      i % 3 != 1,
+                                      (short)(Math.random()*100+1),
+                                      (i % 4) + 255,
+                                      i + 0xffff,
+                                      i % 3 == 1,
+                                      (short)(Math.random()*100+1),
+                                      (float)Math.random()));
+        }        
+        c.storePaired(name, newhits);
+        hits.addAll(newhits);
         
         // left side first
         Map<Integer,List<PairedHit>> map = new HashMap<Integer,List<PairedHit>>();
@@ -599,17 +673,22 @@ public class TestReadDB {
         for (int chrom : map.keySet()) {
             List<PairedHit> list = map.get(chrom);
             Collections.sort(list, new PairedHitRightComparator());
+            //            System.err.println("List for " + chrom + " is " + list);
             assertEquals(list.size(), c.getCount(name,chrom,true,null,null,null,false,null));
             List<PairedHit> fromdb = c.getPairedHits(name, chrom, false, null, null, null, null);
+            //            System.err.println("fromdb   " + chrom + " is " + fromdb);
             assertEquals(fromdb.size(), list.size());
             for (int i = 0; i < fromdb.size(); i++) {
-                assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).leftPos, list.get(i).rightPos),
-                             fromdb.get(i).leftPos, list.get(i).rightPos);
-                assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).leftChrom, list.get(i).rightChrom),
-                             fromdb.get(i).leftChrom, list.get(i).rightChrom);
-                assertEquals(String.format("at %d: %d vs %d (%d vs %d)", i,  fromdb.get(i).rightChrom, list.get(i).leftChrom, 
-                                           fromdb.get(i).leftChrom, list.get(i).rightChrom),
-                             fromdb.get(i).rightChrom, list.get(i).leftChrom);
+                assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).rightPos, list.get(i).rightPos),
+                             fromdb.get(i).rightPos, list.get(i).rightPos);
+                assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).rightChrom, list.get(i).rightChrom),
+                             fromdb.get(i).rightChrom, list.get(i).rightChrom);
+
+                assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).leftPos, list.get(i).leftPos),
+                             fromdb.get(i).leftPos, list.get(i).leftPos);
+                assertEquals(String.format("at %d: %d vs %d", i,  fromdb.get(i).leftChrom, list.get(i).leftChrom),
+                             fromdb.get(i).leftChrom, list.get(i).leftChrom);
+
             }
         }
     }
