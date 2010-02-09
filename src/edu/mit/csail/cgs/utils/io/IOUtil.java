@@ -1,4 +1,4 @@
-package edu.mit.csail.cgs.utils.IO;
+package edu.mit.csail.cgs.utils.io;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
