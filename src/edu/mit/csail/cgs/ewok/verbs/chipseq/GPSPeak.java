@@ -1,10 +1,6 @@
 package edu.mit.csail.cgs.ewok.verbs.chipseq;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import edu.mit.csail.cgs.datasets.general.Point;
-import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 
 public class GPSPeak extends Point{
@@ -128,5 +124,9 @@ public class GPSPeak extends Point{
 	public static String toGPS_short_Header(){
 		return "Event Location\tNearestGene\tDistance\tIP reads\tControl reads\tQ-value(-log10)\t"+
 		"P-value(-log10)\tshape\tunaryEvent";
+	}
+	public int compareByPValue(GPSPeak p) {
+		double diff = getPvalue()- p.getPvalue();
+		return	diff==0?0:(diff<0)?1:-1;	//p-value: descending
 	}
 }

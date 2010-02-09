@@ -69,8 +69,10 @@ public class GPSParser {
 	 * Position	Rank_Sum	Strength	EM_Posi	Shape	Shape_Z	Shape_Param	ShapeAsymmetry	IpStrength	CtrlStrength	Q_value_log10	MixingProb	NearestGene	Distance	
 	 * 8:20401711	47581	200.0	 8:20401711	1.30	1.6223	7.454790	0.33			200.0		4.8				47.53			0.9745		Hoxa1		2147483647	
 	   New format
+	   0			1			2		3				4				5				6			7			8			9
 	   Position		IpStrength	Shape	CtrlStrength	Q_value_log10	P_value_log10	UnaryEvent	NearestGene	Distance	Alpha
 	   18:75725340	230.5		-0.13	0.4				62.51			67.17			1			NONE		2147483647	9.0	
+
 
 	 * @param gpsLine a line of text representing a hit
 	 * @return a hit object containing the data from the specified line
@@ -85,7 +87,8 @@ public class GPSParser {
 //						double controlStrength, double qvalue, double shape, double shapeZ)
 			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
 					Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
-					Double.parseDouble(t[5]), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
+					Double.parseDouble(t[5]), Double.parseDouble(t[2]), 
+					Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
 		}
 		catch (Exception ex) {
 			//logger.error("Parse error on line " + lineNumber + ".", ex);
