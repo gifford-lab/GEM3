@@ -253,14 +253,8 @@ public class RefGeneGenerator<X extends Region>
                                            namecolumn,
                                            aliastable,
                                            aliascolumn);
-
-
-                // namequery += String.format(" from %s g, %s a where a.%s = g.name and (g.name = ? or a.%s = ? )",
-                //                            tablename, 
-                //                            aliastable,
-                //                            namecolumn,
-                //                            aliascolumn);
             }
+            System.err.println("NAMEQUERY is " + namequery);
             nameps = cxn.prepareStatement(namequery);
         } catch (SQLException e) {
             throw new DatabaseException(e.toString(), e);
@@ -301,7 +295,9 @@ public class RefGeneGenerator<X extends Region>
     public synchronized Iterator<Gene> byName(String name) {
         try {
             nameps.setString(1,name);
-            nameps.setString(2,name);
+            if (aliastable != null) {
+                nameps.setString(2,name);
+            }
             Iterator<Gene> results = parseResults(nameps);
             return results;
         } catch (SQLException ex) {
