@@ -16,7 +16,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
  *  Only reads the first WM in the file. 
  *
  * Usage:
- * java edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport --species 'Saccharomyces cerevisiae' --wmname HSF1 --wmversion MacIsaac06 --wmtype TAMO --wmfile v1.HSF1.wm
+ * java edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport --species "Saccharomyces cerevisiae" --wmname HSF1 --wmversion MacIsaac06 --wmtype TAMO --wmfile v1.HSF1.wm
 */
 
 public class WeightMatrixImport {
@@ -498,7 +498,11 @@ public class WeightMatrixImport {
             matrix = readMemeMatrix(wmfile);
         } else if (wmtype.matches(".*SEQ.*")) { 
             matrix = readAlignedSequenceMatrix(wmfile);
-        } else {
+        } else if (wmtype.matches(".*TRANSFAC.*")) {
+          //TODO add a method to read a single transfac matrix
+          matrix = readTRANSFACFreqMatrices(wmfile, wmversion).get(0);
+        }
+        else {
             System.err.println("Didn't see a program I recognize in the type.  defaulting to reading TAMO format");
             matrix = readTamoMatrix(wmfile);
         }

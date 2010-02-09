@@ -155,9 +155,9 @@
     <move file="${build.unjar.dir}.tmp" tofile="${build.unjar.dir}" />
   </target>
 
-  <target name="readdbjar" depends="build, unjarcli, setpwfilespath">
+  <target name="readdbjar" depends="build, unjarcli">
     <delete dir="${build.unjar.dir}/META-INF"/>
-    <jar destfile="${build.dist.dir}/cgs-readdb.jar" manifest="warpdrive_manifest.txt">	    
+    <jar destfile="${build.dist.dir}/cgs-readdb.jar">	    
       <fileset dir="${build.classes.dir}" includes="**/readdb/*.class"/>
       <fileset dir="${build.unjar.dir}"/>	    
     </jar>  

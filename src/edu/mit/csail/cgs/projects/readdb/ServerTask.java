@@ -30,7 +30,8 @@ public class ServerTask {
     private boolean shouldClose;
     /* Socket, streams from the socket */
     private Socket socket;
-    private BufferedInputStream instream;
+    private int haventTriedRead;
+    private PushbackInputStream instream;
     private OutputStream outstream;
     private WritableByteChannel outchannel;
     /* if authenticate was successful, this holds a username.  Null otherwise */
@@ -62,9 +63,10 @@ public class ServerTask {
         type = null;
         username = null;
         uname = null;
+        haventTriedRead = 0;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
         socket.setSendBufferSize(Server.BUFFERLEN);
-        instream = new BufferedInputStream(socket.getInputStream());
+        instream = new PushbackInputStream(socket.getInputStream());
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
         bufferpos = 0;
@@ -98,17 +100,32 @@ public class ServerTask {
         boolean avail = false;
         try {
             if (!socket.isClosed() && socket.isConnected()) {
-                avail = instream.available() > 0;
+                if (instream.available() > 0) {
+                    avail = true;
+                } else {
+                    if (haventTriedRead++ > 50) {
+                        socket.setSoTimeout(1);
+                        int i = instream.read();
+                        if (i == -1) {
+                            shouldClose = true;
+                            avail = false;
+                            System.err.println(toString() + " end of file in inputAvailable");
+                        } else {
+                            instream.unread(i);
+                            avail = true;
+                        }
+                        socket.setSoTimeout(1000*3600*24);                        
+                    } else {
+                        avail = instream.available() > 0;
+                    }
+                }
             } else {
-//                 if (server.debug()) {
-//                     System.err.println("Setting shouldClose 1 " + socket + " for " + this);
-//                 }
                 shouldClose = true;
-            }                
+            }       
+        } catch (SocketTimeoutException e) {
+            avail = false;
         } catch (IOException e) {
-//             if (server.debug()) {
-//                 System.err.println("Setting shouldClose 2 " + socket + " for " + this);
-//             }
+            System.err.println(toString() + " exception inputAvailable");
             avail = false;
             shouldClose = true;
         }
@@ -131,22 +148,16 @@ public class ServerTask {
      */
     public void run() {
         try {
-//             if (server.debug()) {
-//                 System.err.println("ST running with username=" + username + " type=" + type + " params="+ params);
-//             }
             if (username == null) {
                 if (!authenticate()) {
                     printAuthError();
-//                     if (server.debug()) {
-//                         System.err.println("Setting shouldClose 3 " + socket + " for " + this);
-//                     }
                     shouldClose = true;
                     return;
                 }
                 if (username == null) { 
                     return ;
                 }
-                server.getLogger().log(Level.INFO,"ServerTask " + Thread.currentThread() + " authenticated " + username + " from " + socket.getInetAddress());
+                server.getLogger().log(Level.INFO,"ServerTask " + Thread.currentThread() + " authenticated " + username + " from " + socket.getInetAddress() + ":" + socket.getPort());
                 printString("authenticated as " + username + "\n");
             }
             if (type == null) {
@@ -1217,19 +1228,8 @@ public class ServerTask {
             printInvalid("bad byte order " + orderString);
         }
     }
-    /**
-     * Reads lines up to and including "ENDREQUEST".  Returns a list
-     * of all but the last line.
-     */
-    public List<String> readParameterLines() throws IOException {
-        ArrayList<String> output = new ArrayList<String>();
-        String line = readLine();
-        int i = 0;
-        while (line != null && line.length() > 0 && !line.equals("ENDREQUEST") && i++ < MAXPARAMLINES) {
-            output.add(line);
-            line = readLine();
-        }
-        return output;
+    public String toString() {
+        return "ServerTask user=" + username + " remoteip=" + socket.getInetAddress() + ":" + socket.getPort();
     }
 }
 
