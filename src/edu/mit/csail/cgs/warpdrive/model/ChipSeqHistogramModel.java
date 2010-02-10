@@ -15,7 +15,6 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Runnable {
     
     private Client client;
-    private Aggregator aggregator;
     private Map<Integer,Float> resultsPlus, resultsMinus;
     private Set<ChipSeqAlignment> alignments;
     private Set<String> ids;
@@ -33,7 +32,6 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
         region = null;
         newinput = false;
         client = new Client();
-        aggregator = new Aggregator(client);
         ids = new HashSet<String>();
         ids.add(Integer.toString(a.getDBID()));
         props.ReadExtension = a.getExpt().getReadLength();
@@ -45,7 +43,6 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
         region = null;
         newinput = false;
         client = new Client();
-        aggregator = new Aggregator(client);
         ids = new HashSet<String>();
         int extension = 1000000;
         for (ChipSeqAlignment align : alignments) {
@@ -98,45 +95,54 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
             if (newinput) {
                 try {
                     int width = props.BinWidth;
-                    int extension = props.ReadExtension;
+                    boolean extension = props.ReadExtension;
                     // for GaussianKernel, get 1bp resolution data
                     if (props.GaussianKernelWidth!=0 && region.getWidth()<=1000){ 
                     	width = 1;
                     }
                     if (props.UseWeights) {
-                        resultsPlus = aggregator.getWeightHistogram(ids,
-                                                                    region.getChrom() + '+',
-                                                                    region.getStart(),
-                                                                    region.getEnd(),
-                                                                    width,
-                                                                    Float.NaN,
-                                                                    extension);
-                        resultsMinus = aggregator.getWeightHistogram(ids,
-                                                                     region.getChrom() + '-',
-                                                                     region.getStart(),
-                                                                     region.getEnd(),
-                                                                     width,
-                                                                     Float.NaN,
-                                                                     extension);
+                        resultsPlus = client.getWeightHistogram(ids,
+                                                                region.getGenome().getChromID(region.getChrom()),
+                                                                false,
+                                                                extension,
+                                                                width,
+                                                                region.getStart(),
+                                                                region.getEnd(),
+                                                                null,
+                                                                true);
+
+                        resultsMinus = client.getWeightHistogram(ids,
+                                                                 region.getGenome().getChromID(region.getChrom()),
+                                                                 false,
+                                                                 extension,
+                                                                 width,
+                                                                 region.getStart(),
+                                                                 region.getEnd(),
+                                                                 null,
+                                                                 false);
                     } else {
-                        Map<Integer,Integer> tmp = aggregator.getHistogram(ids,
-                                                                           region.getChrom() + '+',
-                                                                           region.getStart(),
-                                                                           region.getEnd(),
-                                                                           width,
-                                                                           Float.NaN,
-                                                                           extension);
+                        Map<Integer,Integer> tmp = client.getHistogram(ids,
+                                                                       region.getGenome().getChromID(region.getChrom()),
+                                                                       false,
+                                                                       extension,
+                                                                       width,
+                                                                       region.getStart(),
+                                                                       region.getEnd(),
+                                                                       null,
+                                                                       true);
                         resultsPlus = new TreeMap<Integer,Float>();
                         for (int i : tmp.keySet()) {
                             resultsPlus.put(i, (float)tmp.get(i));
                         }
-                        tmp = aggregator.getHistogram(ids,
-                                                      region.getChrom() + '-',
-                                                      region.getStart(),
-                                                      region.getEnd(),
-                                                      width,
-                                                      Float.NaN,
-                                                      extension);
+                        tmp = client.getHistogram(ids,
+                                                  region.getGenome().getChromID(region.getChrom()),
+                                                  false,
+                                                  extension,
+                                                  width,
+                                                  region.getStart(),
+                                                  region.getEnd(),
+                                                  null,
+                                                  false);
                         resultsMinus = new TreeMap<Integer,Float>();
                         for (int i : tmp.keySet()) {
                             resultsMinus.put(i, (float)tmp.get(i));
