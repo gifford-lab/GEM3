@@ -254,7 +254,6 @@ public class RefGeneGenerator<X extends Region>
                                            aliastable,
                                            aliascolumn);
             }
-            System.err.println("NAMEQUERY is " + namequery);
             nameps = cxn.prepareStatement(namequery);
         } catch (SQLException e) {
             throw new DatabaseException(e.toString(), e);
@@ -365,8 +364,8 @@ public class RefGeneGenerator<X extends Region>
                                 try {
                                     exonicGene.addExon(start, end);
                                 } catch(IllegalArgumentException iae) {
-                                    System.err.println("Start line: \"" + startline + "\"");
-                                    System.err.println("End line: \"" + endline + "\"");
+                                    System.err.println("Start line: \"" + startline + "\", " + startArray[i]);
+                                    System.err.println("End line: \"" + endline + "\", " + endArray[i]);
                                     iae.printStackTrace(System.err);
                                 }
                             }
