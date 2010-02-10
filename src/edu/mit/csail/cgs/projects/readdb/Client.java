@@ -20,7 +20,7 @@ import javax.security.auth.callback.*;
  * Client IS NOT REENTRANT.  Do not overlap calls to a single Client object.
  * 
  */
-public class Client {    
+public class Client implements ReadOnlyClient {    
 
     public static final String SaslMechanisms[] = {"CRAM-MD5","DIGEST-MD5"};
     /* socket is the socket to talk to the server.  outstream and instream are from
@@ -662,6 +662,43 @@ public class Client {
         TreeMap<Integer,Float> output = new TreeMap<Integer,Float>();
         for (int i = 0; i < out.length; i++) {
             output.put(out[i], weight[i]);
+        }
+        return output;
+    }
+
+    public TreeMap<Integer,Integer> getHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        Map<Integer,Integer> output = null;
+        for (String alignid : alignids) {
+            Map<Integer,Integer> o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
+            if (output == null) {
+                output = o;
+            } else {
+                for (int k : o.keySet()) {
+                    if (output.containsKey(k)) {
+                        output.put(o, output.get(k) + o.get(k));
+                    } else {
+                        output.put(o.get(k));
+                    }
+                }
+            }            
+        }
+        return output;
+    }
+    public TreeMap<Integer,Float> getWeightHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        Map<Integer,Float> output = null;
+        for (String alignid : alignids) {
+            Map<Integer,Float> o = getWeightHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
+            if (output == null) {
+                output = o;
+            } else {
+                for (int k : o.keySet()) {
+                    if (output.containsKey(k)) {
+                        output.put(o, output.get(k) + o.get(k));
+                    } else {
+                        output.put(o.get(k));
+                    }
+                }
+            }            
         }
         return output;
     }
