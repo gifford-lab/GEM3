@@ -9,7 +9,7 @@ import edu.mit.csail.cgs.datasets.general.*;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.ewok.verbs.*;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.parsing.FASTAStream;
+import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 import edu.mit.csail.cgs.tools.motifs.CountKmers;
 
 

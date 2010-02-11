@@ -11,8 +11,8 @@ import edu.mit.csail.cgs.datasets.alignments.AlignmentStitcher;
 import edu.mit.csail.cgs.datasets.alignments.MultiZAlignRegion;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.parsing.alignment.PSL;
-import edu.mit.csail.cgs.utils.parsing.alignment.PSLHit;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.PSL;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.PSLHit;
 
 /**
  * Reads PSL formatted input on STDIN.  Prints, on STDOUT,

@@ -5,7 +5,8 @@ package edu.mit.csail.cgs.datasets.function.parsing;
 
 import java.io.*;
 import java.util.*;
-import edu.mit.csail.cgs.utils.parsing.FunctionalCategories;
+
+import edu.mit.csail.cgs.utils.io.parsing.FunctionalCategories;
 import edu.mit.csail.cgs.utils.*;
 
 /**

@@ -12,9 +12,9 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.Sequence;
-import edu.mit.csail.cgs.utils.parsing.*;
-import edu.mit.csail.cgs.utils.parsing.alignment.PSL;
-import edu.mit.csail.cgs.utils.parsing.alignment.PSLHit;
+import edu.mit.csail.cgs.utils.io.parsing.*;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.PSL;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.PSLHit;
 
 /**
  * Usage:

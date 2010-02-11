@@ -10,9 +10,9 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.Sequence;
-import edu.mit.csail.cgs.utils.parsing.alignment.BlatPSLEntry;
-import edu.mit.csail.cgs.utils.parsing.alignment.BlatPSLEntryPredicate;
-import edu.mit.csail.cgs.utils.parsing.alignment.BlatPSLParser;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.BlatPSLEntry;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.BlatPSLEntryPredicate;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.BlatPSLParser;
 
 /**
  * Reads all the PSL files in a single directory, and analyzes them as a total set of 

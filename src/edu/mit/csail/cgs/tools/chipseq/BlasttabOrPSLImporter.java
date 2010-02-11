@@ -12,7 +12,7 @@ import edu.mit.csail.cgs.datasets.alignments.*;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.utils.database.*;
-import edu.mit.csail.cgs.utils.parsing.FASTAStream;
+import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 import edu.mit.csail.cgs.ewok.verbs.io.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 

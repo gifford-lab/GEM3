@@ -7,7 +7,6 @@ import java.sql.SQLException;
 import java.util.*;
 import java.io.*;
 
-import edu.mit.csail.cgs.utils.parsing.ncbi.*;
 import edu.mit.csail.cgs.ewok.verbs.*;
 import edu.mit.csail.cgs.ewok.verbs.binding.*;
 import edu.mit.csail.cgs.ewok.verbs.probers.*;
@@ -15,6 +14,7 @@ import edu.mit.csail.cgs.ewok.nouns.*;
 
 import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
+import edu.mit.csail.cgs.utils.io.parsing.ncbi.*;
 
 import edu.mit.csail.cgs.datasets.binding.BindingEvent;
 import edu.mit.csail.cgs.datasets.chipchip.MSPProbe;

@@ -5,7 +5,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.sql.*;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
-import edu.mit.csail.cgs.utils.parsing.textfiles.*;
+import edu.mit.csail.cgs.utils.io.parsing.textfiles.*;
 
 public class AddTDTHandler extends RowsColumnsHandler {
 

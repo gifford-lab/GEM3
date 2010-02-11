@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.Sequence;
-import edu.mit.csail.cgs.utils.parsing.alignment.*;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.*;
 
 public class ElandImporter {
 

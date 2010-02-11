@@ -3,8 +3,8 @@
  */
 package edu.mit.csail.cgs.tools.chippet;
 
-import edu.mit.csail.cgs.utils.parsing.alignment.BlatPSLEntry;
-import edu.mit.csail.cgs.utils.parsing.alignment.BlatPSLEntryPredicate;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.BlatPSLEntry;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.BlatPSLEntryPredicate;
 
 public class ChipPetBlatPredicate implements BlatPSLEntryPredicate { 
 
