@@ -395,9 +395,13 @@ public class MotifFastaWriter {
 			Genome mm8 = mouse.getGenome("mm8");
 			String expt = "Mm Hb9:HBG3:Hb9 Stage vs WCE:HBG3:Hb9 Stage";
 			String version = "1/25/07, default params";
-			String outputFilename = "hb9_peak_sequences.fasta";
+//			String outputFilename = "hb9_peak_sequences.fasta";
 			String type = "BayesBindingGenerator";
-			Vector<Region> dataRegions = MotifFastaWriter.getDataRegionsFromPeaks(mouse, mm8, GENE_TABLE, expt, version, type);
+//			Vector<Region> dataRegions = MotifFastaWriter.getDataRegionsFromPeaks(mouse, mm8, GENE_TABLE, expt, version, type);
+			String chen_filename = "/Users/rca/matlab scratch/Nanog_Chen_top100_peaks.txt";
+			String outputFilename = "/Users/rca/matlab scratch/nanog_chen_top100_peak_sequences.fasta";
+
+			Vector<Region> dataRegions = MotifFastaWriter.getDataRegionsFromFile(mm8, chen_filename);
 			MotifFastaWriter.writeDataRegions(dataRegions, outputFilename);
 		} 
 		catch (NotFoundException ex) {
