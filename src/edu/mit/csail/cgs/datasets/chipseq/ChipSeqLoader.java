@@ -50,18 +50,19 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	private MetadataLoader metaLoader;
 	private boolean closeMetaLoader;
 	private java.sql.Connection cxn;
-    private Client client;
-
-	public ChipSeqLoader() throws SQLException, IOException {
+    private Client client=null;
+    
+    public ChipSeqLoader() throws SQLException, IOException{this(true);}
+	public ChipSeqLoader(boolean openClient) throws SQLException, IOException {
 		metaLoader = new MetadataLoader();
 		closeMetaLoader = true;
-        try {
-            client = new Client();
-        } catch (ClientException e) {
-            throw new IllegalArgumentException(e);
-        }
-
-
+		if(openClient){
+	        try {
+	            client = new Client();
+	        } catch (ClientException e) {
+	            throw new IllegalArgumentException(e);
+	        }
+		}
 		cxn = DatabaseFactory.getConnection(role);
 	}
 
@@ -610,7 +611,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 			metaLoader.close();
             metaLoader = null;
 		}
-        if (closeMetaLoader && client != null) {
+        if (client != null) {
             client.close();
             client = null;
         }
