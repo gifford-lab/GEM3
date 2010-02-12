@@ -17,6 +17,7 @@ import edu.mit.csail.cgs.ewok.verbs.FastaWriter;
 import edu.mit.csail.cgs.ewok.verbs.RefGeneGenerator;
 import edu.mit.csail.cgs.ewok.verbs.RegionSorter;
 import edu.mit.csail.cgs.utils.NotFoundException;
+import edu.mit.csail.cgs.utils.io.DatasetsGeneralIO;
 
 import java.util.*;
 import java.io.*;
@@ -37,92 +38,6 @@ public class MotifFastaWriter {
 
 	private static final String DELIM = ",";
 
-	
-	/**
-	 * Written to read regions from a flat file with one region listed per line
-	 * in the format:
-	 * [chrom_number]	[start]-[end]
-	 * e.g.
-	 * 1	5043316-5047891
-	 * 
-	 * @param filename
-	 * @return
-	 */
-	public static Vector<Region> getDataRegionsFromFile(Genome genome, String filename) {
-		
-		Vector<Region> dataRegions = new Vector<Region>();
-		
-		FileReader fileReader = null;
-		BufferedReader reader = null;
-		
-		try {
-			fileReader = new FileReader(filename);
-			reader = new BufferedReader(fileReader);
-			StreamTokenizer tokenizer = new StreamTokenizer(reader);			
-			tokenizer.eolIsSignificant(true);
-			
-			int token = tokenizer.nextToken();
-			while (token != StreamTokenizer.TT_EOF) {
-				//read chromosome number
-				String chrom;
-				assert (token == StreamTokenizer.TT_NUMBER) || (token == StreamTokenizer.TT_WORD) : token;
-				if (token == StreamTokenizer.TT_NUMBER) {
-					int chromNumber = (int)tokenizer.nval;
-					assert tokenizer.nval == (double)chromNumber;
-					chrom = String.valueOf(chromNumber);
-				}
-				else {
-					chrom = tokenizer.sval;					
-				}
-				
-								
-				//read start location
-				token = tokenizer.nextToken();
-				assert token == StreamTokenizer.TT_NUMBER;
-				int start = (int)tokenizer.nval;
-				assert tokenizer.nval == (double)start;
-								
-				/**
-				 * read end location
-				 * The hyphen will be interpreted as making the end location a 
-				 * negative value, so check for that 
-				 */
-				token = tokenizer.nextToken();
-				assert token == StreamTokenizer.TT_NUMBER;
-				int end = (int)tokenizer.nval;
-				assert tokenizer.nval == (double)end;
-				assert end < 0;
-				end = -end;
-				
-				//read EOL
-				token = tokenizer.nextToken();
-				assert (token == StreamTokenizer.TT_EOL) || (token == StreamTokenizer.TT_EOF);
-				
-				//System.out.println(tokenizer.lineno() + ": " + chrom + ", " + start + ", " + end);
-				Region r = new Region(genome, chrom, start, end);
-				dataRegions.add(r);
-			
-				//advance to next token
-				token = tokenizer.nextToken();
-			}
-		}
-		catch (IOException ioex) {
-			ioex.printStackTrace();
-		}
-		finally {
-			if (reader != null) {
-				try {
-					reader.close();
-				}
-				catch (IOException ioex2) {
-					ioex2.printStackTrace();
-				}
-			}
-		}
-		
-		return dataRegions;
-	}
-	
 	
 	/**
 	 * 
@@ -398,12 +313,15 @@ public class MotifFastaWriter {
 //			String outputFilename = "hb9_peak_sequences.fasta";
 			String type = "BayesBindingGenerator";
 //			Vector<Region> dataRegions = MotifFastaWriter.getDataRegionsFromPeaks(mouse, mm8, GENE_TABLE, expt, version, type);
-			String chen_filename = "/Users/rca/matlab scratch/Nanog_Chen_top100_peaks.txt";
-			String outputFilename = "/Users/rca/matlab scratch/nanog_chen_top100_peak_sequences.fasta";
+			String input_filename = "/afs/csail.mit.edu/group/psrg/projects/GPS/motif_analysis/Oct4_YL_0_top100_peak_regions.txt";
+			String outputFilename = "/afs/csail.mit.edu/group/psrg/projects/GPS/motif_analysis/Oct4_YL_0_top100_peak_regions.fasta";
 
-			Vector<Region> dataRegions = MotifFastaWriter.getDataRegionsFromFile(mm8, chen_filename);
+			Vector<Region> dataRegions = DatasetsGeneralIO.readRegionsFromFile(mm8, input_filename);
 			MotifFastaWriter.writeDataRegions(dataRegions, outputFilename);
 		} 
+		catch (IOException ioex) {
+		  ioex.printStackTrace();
+		}
 		catch (NotFoundException ex) {
 			// TODO Auto-generated catch block
 			ex.printStackTrace();
