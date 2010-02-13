@@ -47,6 +47,9 @@ public class Dispatch implements Runnable {
         }
         warnedMaxConn = 0;
         workQueue.add(s);
+        synchronized(this) {
+            notifyAll();
+        }
     }
     /**
      * called by WorkerThread when it's finished with a ServerTask.
@@ -63,6 +66,9 @@ public class Dispatch implements Runnable {
             workQueue.add(s);
         }
         freePool.add(t);
+        synchronized(this) {
+            notifyAll();
+        }
     }
     /**
      * our main loop.  work through the tasks, seeing who appears
@@ -81,15 +87,13 @@ public class Dispatch implements Runnable {
                     s.close();
                     noInputAvailable = 0;
                 } else if (s.inputAvailable()) {
-                    while (freePool.size() == 0) {
-                        Thread.yield();
-                        if (noThreadsFree++ > 100) {
-                            noThreadsFree = 0;
-                            try {
-                                Thread.sleep(1);
-                            } catch (InterruptedException e) {}
-                        }                        
-                    }
+                    while (freePool.size() == 0) {                        
+                        try {
+                            synchronized(this) {
+                                wait(2);
+                            }
+                        } catch (InterruptedException e) {}
+                    }                        
                     WorkerThread w = freePool.remove(0);
                     w.handle(s);
                     noInputAvailable = 0;
@@ -100,22 +104,13 @@ public class Dispatch implements Runnable {
                 }
             } else {
                 noTasksWaiting++;
-                Thread.yield();
-            }
-            // if none of the threads have had anything to do for a while, then
-            // sleep here for a bit so we don't spin so hard on the CPU
-            if (noInputAvailable > workQueue.size() * 100) {
                 try {
-                    Thread.sleep(2);
-                    noInputAvailable = 0;
-                } catch (InterruptedException e) {  }
-            } else if (noTasksWaiting > 100) {
-                noTasksWaiting = 0;
-                try {
-                    Thread.sleep(2);
-                } catch (InterruptedException e) {  }
-            }
+                    synchronized(this) {
+                        wait(2);
+                    }
+                } catch (InterruptedException e) {}
 
+            }
         }
         while (freePool.size() < allThreads.size()) {
             try {
