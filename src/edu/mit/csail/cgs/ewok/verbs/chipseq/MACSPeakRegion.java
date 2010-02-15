@@ -88,7 +88,7 @@ public class MACSPeakRegion extends Region{
 		}
 		return peaks_filtered;
 	}
-	public int compare(Region r) {
+	public int compareByPValue(Region r) {
 		MACSPeakRegion macs = (MACSPeakRegion) r;
 		double diff = pvalue-macs.getPvalue();
 		return diff==0?0:(diff<0)?-1:1;
