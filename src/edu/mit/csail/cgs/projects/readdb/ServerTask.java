@@ -99,29 +99,22 @@ public class ServerTask {
     public boolean inputAvailable() {
         boolean avail = false;
         try {
-            if (!socket.isClosed() && socket.isConnected()) {
-                if (instream.available() > 0) {
-                    avail = true;
+            if (instream.available() > 0) {
+                avail = true;
+            } else if (haventTriedRead++ > 500) {
+                haventTriedRead = 0;
+                socket.setSoTimeout(1);
+                int i = instream.read();
+                if (i == -1) {
+                    shouldClose = true;
+                    avail = false;
+                    System.err.println(toString() + " end of file in inputAvailable");
                 } else {
-                    if (haventTriedRead++ > 50) {
-                        socket.setSoTimeout(1);
-                        int i = instream.read();
-                        if (i == -1) {
-                            shouldClose = true;
-                            avail = false;
-                            System.err.println(toString() + " end of file in inputAvailable");
-                        } else {
-                            instream.unread(i);
-                            avail = true;
-                        }
-                        socket.setSoTimeout(1000*3600*24);                        
-                    } else {
-                        avail = instream.available() > 0;
-                    }
+                    instream.unread(i);
+                    avail = true;
                 }
-            } else {
-                shouldClose = true;
-            }       
+                socket.setSoTimeout(1000*3600*24);                        
+            }
         } catch (SocketTimeoutException e) {
             avail = false;
         } catch (IOException e) {
