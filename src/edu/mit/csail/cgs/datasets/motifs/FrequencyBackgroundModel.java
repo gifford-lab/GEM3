@@ -1,6 +1,7 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
 import java.util.Arrays;
+import java.util.Map;
 
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.Fmath;
@@ -12,12 +13,12 @@ import edu.mit.csail.cgs.utils.stats.Fmath;
  *         dinucleotides sum to 1.
  */
 public class FrequencyBackgroundModel extends BackgroundModel {
-
+  
   public FrequencyBackgroundModel() {
     super();
   }
 
-
+  
   public FrequencyBackgroundModel(int modelLength) {
     super(modelLength);
   }
@@ -26,7 +27,7 @@ public class FrequencyBackgroundModel extends BackgroundModel {
 
   /**
    * Remove strandedness from the model by setting reverse-complements to have
-   * equal probabilities
+   * indentical probabilities equal to the average of both
    */
   public void degenerateStrands() {
     for (int i = 1; i <= this.getMaxKmerLen(); i++) {

@@ -35,6 +35,51 @@ public class CountsBackgroundModel extends BackgroundModel {
 
   
   /**
+   * Overrides the superclass method so that only the model variable is used to
+   * hold data
+   */
+  public Double getModelCount(String mer) {
+    if (mer.length() > 0) {
+      return (model[mer.length()].get(mer));
+    }
+    else {
+      throw new IllegalArgumentException("Zero length kmer.");
+    }
+  }
+
+
+  /**
+   * Overrides the superclass method so that only the model variable is used to
+   * hold data
+   */
+  public Double getModelCount(int kmerLen, int intVal) {
+    if (kmerLen > 0) {
+      return (model[kmerLen].get(BackgroundModel.intToSeq(intVal, kmerLen)));
+    }
+    else {
+      throw new IllegalArgumentException("kmerLen must be greater than zero.");
+    }
+  }
+
+
+  /**
+   * Overrides the superclass method so that only the model variable is used to
+   * hold data
+   */
+  public void setModelCount(String mer, double val) {
+    if (mer.length() <= this.getMaxKmerLen() && mer.length() > 0) {
+      model[mer.length()].put(mer, val);
+    }
+    else if (mer.length() < 1) {     
+      throw new IllegalArgumentException("Zero length kmer.");      
+    }
+    else {
+      throw new IllegalArgumentException("Kmer " + mer + " must have length less than model length (" + this.getMaxKmerLen() + ").");
+    }
+  }
+  
+  
+  /**
    * Examine all the appropriately sized kmers from the specified sequence and
    * add them to this model
    * @param sequence
@@ -77,7 +122,10 @@ public class CountsBackgroundModel extends BackgroundModel {
 
   /**
    * Remove strandedness from the model by setting reverse-complements to have
-   * equal probabilities
+   * counts equal to the average of both. Strictly this is incorrect, because
+   * if the reverse strand had been counted the total counts would be the sum 
+   * of both, but setting to the average prevents the count from increasing if
+   * the method is called repeatedly, and generally it won't cause problems.
    */
   public void degenerateStrands() {
     for (int i = 1; i <= this.getMaxKmerLen(); i++) {
@@ -100,9 +148,17 @@ public class CountsBackgroundModel extends BackgroundModel {
   }
   
   
+  /**
+   * Create a Markov Background Model by normalizing this model. 
+   * 
+   * Note: It will often be appropriate to call degenerateStrands before calling
+   * this method. The Markov background model does not have this method.
+   * @return
+   */
   public MarkovBackgroundModel normalizeToMarkovModel() {
     MarkovBackgroundModel mbg = new MarkovBackgroundModel(this.getMaxKmerLen());
     mbg.gen = this.gen;
+    mbg.counts = this.model.clone();
     
     //iterate over each order level of the model
     for (int i = 1; i <= this.getMaxKmerLen(); i++) {
@@ -134,9 +190,14 @@ public class CountsBackgroundModel extends BackgroundModel {
   }
   
   
+  /**
+   * Create a Frequency Background Model by normalizing this model.
+   * @return
+   */
   public FrequencyBackgroundModel normalizeToFrequencyModel() {
     FrequencyBackgroundModel fbg = new FrequencyBackgroundModel(this.getMaxKmerLen());
     fbg.gen = this.gen;
+    fbg.counts = this.model.clone();
     
     //iterate over each order level of the model
     for (int i = 1; i <= this.getMaxKmerLen(); i++) {
@@ -166,11 +227,11 @@ public class CountsBackgroundModel extends BackgroundModel {
   
   
   /**
-   * 
+   * Create a model from the entirety of the specified genome
    * @param gen
    * @return
    */
-  public static CountsBackgroundModel modelFromRegionList(Genome gen){
+  public static CountsBackgroundModel modelFromWholeGenome(Genome gen){
     ArrayList <Region>chromList = new ArrayList<Region>();
     Iterator<NamedRegion> chroms = new ChromRegionIterator(gen);
     while (chroms.hasNext()) {
@@ -181,7 +242,7 @@ public class CountsBackgroundModel extends BackgroundModel {
   
  
   /**
-   * 
+   * Create a model from a list of regions from the specified genome
    * @param gen
    * @param regionList
    * @return
@@ -204,7 +265,7 @@ public class CountsBackgroundModel extends BackgroundModel {
 
   
   /**
-   * 
+   * Create a model from a FASTAStream object
    * @param stream
    * @return
    */

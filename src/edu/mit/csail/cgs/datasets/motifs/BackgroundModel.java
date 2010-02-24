@@ -13,6 +13,10 @@ public abstract class BackgroundModel {
 
   public static final int DEFAULT_MODEL_LENGTH = 3;
 
+  public String name;
+  public int dbid;
+  public boolean hasdbid;
+  
   protected Genome gen;
 
   /**
@@ -22,6 +26,13 @@ public abstract class BackgroundModel {
    */
   protected Map<String, Double>[] model;
 
+  /**
+   * This map is meant to store the counts from which a non-count model was
+   * derived. It may be null. For a count based model this should be ignored and
+   * the methods for accessing and modifying counts should be overridden so that
+   * only the model map is used. 
+   */
+  protected Map<String, Double>[] counts = null;
   
   /**
    * 
@@ -50,6 +61,56 @@ public abstract class BackgroundModel {
   public int getMaxKmerLen() {
     return model.length;
   }
+  
+  
+  /**
+   * 
+   * @param mer
+   * @return
+   */
+  public Double getModelCount(String mer) {
+    if (mer.length() > 0) {
+      return (counts[mer.length()].get(mer));
+    }
+    else {
+      throw new IllegalArgumentException("Zero length kmer.");
+    }
+  }
+
+
+  /**
+   * 
+   * @param kmerLen
+   * @param intVal
+   * @return
+   */
+  public Double getModelCount(int kmerLen, int intVal) {
+    if (kmerLen > 0) {
+      return (counts[kmerLen].get(BackgroundModel.intToSeq(intVal, kmerLen)));
+    }
+    else {
+      throw new IllegalArgumentException("kmerLen must be greater than zero.");
+    }
+  }
+
+
+  /**
+   * 
+   * @param mer
+   * @param val
+   */
+  public void setModelCount(String mer, double val) {
+    if (mer.length() <= this.getMaxKmerLen() && mer.length() > 0) {
+      counts[mer.length()].put(mer, val);
+    }
+    else if (mer.length() < 1) {     
+      throw new IllegalArgumentException("Zero length kmer.");      
+    }
+    else {
+      throw new IllegalArgumentException("Kmer " + mer + " must have length less than model length (" + this.getMaxKmerLen() + ").");
+    }
+  }
+  
   
   
   /**

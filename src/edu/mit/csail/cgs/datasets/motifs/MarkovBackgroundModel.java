@@ -1,5 +1,7 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
+import java.util.Map;
+
 import edu.mit.csail.cgs.utils.stats.Fmath;
 
 /**
@@ -9,7 +11,7 @@ import edu.mit.csail.cgs.utils.stats.Fmath;
  *         p(C|A) + p(G|A) + p(T|A) = 1.
  */
 public class MarkovBackgroundModel extends BackgroundModel {
-
+  
   public MarkovBackgroundModel() {
     super();
   }
