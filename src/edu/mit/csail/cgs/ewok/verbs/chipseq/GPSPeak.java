@@ -127,13 +127,13 @@ public class GPSPeak extends Point{
 		return	diff==0?0:(diff<0)?1:-1;	//p-value: descending
 	}	
 	public String toGPS(){
-		return toString()+"\t"+strength+"\t"+shape+"\t"+controlStrength+"\t"+qvalue+"\t"+pvalue
-		+"\t"+unaryEvent+"\t"+nearestGene+"\t"+distance;
+		return toString()+"\t"+"\t"+strength+"\t"+controlStrength+"\t"+qvalue+"\t"+pvalue
+		+"\t"+shape+"\t"+unaryEvent+"\t"+nearestGene+"\t"+distance;
 	}
 	
 	public static String toGPS_Header(){
-		return "GPS Peak\tIP reads\tShape\tControl reads\tQ-value(-log10)\tP-value(-log10)\t"+
-		"unaryEvent\tNearestGene\tDistance";
+		return "GPS Peak\tIP reads\tControl reads\tQ-value(-log10)\tP-value(-log10)\t"+
+		"shape\tunaryEvent\tNearestGene\tDistance";
 	}
 	
 	public String toGPS_short(){
@@ -143,7 +143,7 @@ public class GPSPeak extends Point{
 	
 	public static String toGPS_short_Header(){
 		return "Event Location\tNearestGene\tDistance\tIP reads\tControl reads\tQ-value(-log10)\t"+
-		"P-value(-log10)\tShape\tunaryEvent";
+		"P-value(-log10)\tshape\tunaryEvent";
 	}
 	
 	public String toGPS_motifShort(){
