@@ -7,7 +7,7 @@ import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
-import edu.mit.csail.cgs.utils.parsing.*;
+import edu.mit.csail.cgs.utils.io.parsing.*;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.general.MetadataLoader;
 

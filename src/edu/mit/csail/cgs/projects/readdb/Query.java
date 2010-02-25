@@ -92,6 +92,10 @@ public class Query {
         while ((line = reader.readLine()) != null) {
             try {
                 String pieces[] = line.split("[\\:]");
+                if (pieces.length != 3) {
+                    System.err.println("Invalid query " + line);
+                    continue;
+                }
                 String chr = pieces[0].replaceFirst("^chr","") + pieces[2];
                 pieces = pieces[1].split("\\-");
                 int start = Integer.parseInt(pieces[0]);

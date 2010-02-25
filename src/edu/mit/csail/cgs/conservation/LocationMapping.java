@@ -15,7 +15,7 @@ import edu.mit.csail.cgs.ewok.verbs.*;
 
 import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
-import edu.mit.csail.cgs.utils.parsing.ncbi.*;
+import edu.mit.csail.cgs.utils.io.parsing.ncbi.*;
 
 public class LocationMapping implements Saveable {
     

@@ -2,7 +2,8 @@ package edu.mit.csail.cgs.datasets.chipchip;
 
 import java.io.*;
 import java.util.*;
-import edu.mit.csail.cgs.utils.parsing.*;
+
+import edu.mit.csail.cgs.utils.io.parsing.*;
 
 /* represents a set of coefficients from the fragment shear size distribution . */
 

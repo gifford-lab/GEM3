@@ -1,6 +1,10 @@
 package edu.mit.csail.cgs.datasets.general;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.datasets.species.Genome.ChromosomeInfo;
 
 /**
  * A <code>Point</code> represents a single base position along some chromosome
@@ -9,6 +13,8 @@ import edu.mit.csail.cgs.datasets.species.Genome;
  */
 public class Point implements Comparable<Point> {
 
+  private static final Pattern POINT_PATTERN = Pattern.compile(Region.POINT_REGION_REG_EX);
+  
   /**
    * The genome that this point corresponds to
    */
@@ -72,18 +78,9 @@ public class Point implements Comparable<Point> {
    * @return The region (as a Region) that corresponds to this expansion
    */
   public Region expand(int distance) {
-    int chromLength = g.getChromLength(chrom);
-
-    int ns = location - distance;
-    if (ns < 0) {
-      ns = 0;
-    }
-
-    int ne = location + distance;
-    if (ne >= chromLength) {
-      ne = chromLength - 1;
-    }
-    return new Region(g, chrom, ns, ne);
+	  int ns = Math.max(0, location - distance);
+	  int ne = Math.min(location + distance, g.getChromLength(chrom)-1);
+	  return new Region(g, chrom, ns, ne);
   }
 
 
@@ -157,4 +154,46 @@ public class Point implements Comparable<Point> {
 
     return location - p.getLocation();
   }
+  
+  /**
+   * parses the input String into a Point. Understands abbreviates in the
+   * coordinates such as k and m. <br>
+   * The method accepts the form: <blockquote>
+   * 
+   * <pre>
+   * chromosome:start
+   * </pre>
+   * 
+   * </blockquote>
+   */
+  public static Point fromString(Genome genome, String input) throws NumberFormatException {
+    String pieces[] = input.split(":");
+    char strand = ' ';
+    if (pieces.length == 3 && pieces[2].length() == 1) {
+      strand = pieces[2].charAt(0);
+      input = pieces[0] + ":" + pieces[1];
+    }
+
+    String trimmed = input.trim();
+    
+    Matcher pointmatcher = POINT_PATTERN.matcher(trimmed);
+
+    Point output = null;
+    
+    if (pointmatcher.find()) {
+      if (pointmatcher.groupCount() != 2) {
+        return null;
+      }
+      String chromStr = pointmatcher.group(1);
+      String locStr = pointmatcher.group(2);
+      if (chromStr.startsWith("chr")) {
+        chromStr = chromStr.substring(3, chromStr.length());
+      }
+      locStr = locStr.replaceAll(",", "");
+      output = new Point(genome, chromStr, Region.stringToNum(locStr));
+    }
+
+    return output;
+  }
+
 }

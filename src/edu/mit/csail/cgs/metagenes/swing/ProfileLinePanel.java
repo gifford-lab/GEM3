@@ -17,7 +17,7 @@ public class ProfileLinePanel extends JPanel implements ProfileListener{
 	
 	private BinningParameters params;
 	private PaintableScale scale;
-	private int width = 300;
+	private int width = 500;
 	private int lineWeight=1;
 	private boolean lineImageRaster=true;
 	private ProfileClusteringHandler clusteringHandler;
@@ -36,6 +36,8 @@ public class ProfileLinePanel extends JPanel implements ProfileListener{
 		linePainters = new Vector<ProfileLinePaintable>();
 		clusteringHandler = new ProfileClusteringHandler(params);
 		
+		if(width%params.getNumBins()!=0)
+			width = params.getNumBins()*((int)width/params.getNumBins());
 		setPreferredSize(new Dimension(width, 300));
 	}
 	

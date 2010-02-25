@@ -39,6 +39,9 @@ public class GenePromoters {
     public GenePromoters() {}
     public void parseArgs(String args[]) throws NotFoundException {
         geneGenerators = Args.parseGenes(args);
+        for (RefGeneGenerator r : geneGenerators) {
+            r.retrieveExons(false);
+        }        
         upstream = Args.parseInteger(args,"upstream",10000);
         downstream = Args.parseInteger(args,"downstream",2000);
         genome = Args.parseGenome(args).getLast();        
@@ -86,18 +89,28 @@ public class GenePromoters {
             String line = null;
             while ((line = reader.readLine()) != null) {
                 Gene g = null;
-                for (RefGeneGenerator refgene : geneGenerators) {
-                    Iterator<Gene> iter = refgene.byName(line);
-                    while (iter.hasNext()) {
-                        if (g == null) {
-                            g = iter.next();
+                String pieces[] = line.split("\\t");
+                for (int i = 0; i < pieces.length; i++) {
+                    for (RefGeneGenerator refgene : geneGenerators) {
+                        Iterator<Gene> iter = refgene.byName(pieces[i]);
+                        while (iter.hasNext()) {
+                            if (g == null) {
+                                g = iter.next();
+                            } else {
+                                iter.next();
+                            }
+
+                        }
+                        if (g != null) {
+                            break;
                         }
                     }
                     if (g != null) {
-                        break;
-                    }
+                            break;
+                    }                    
                 }
                 if (g != null) {
+                    g.setName(line);
                     output(promgen.execute(g));
                 }
             }
@@ -107,7 +120,9 @@ public class GenePromoters {
         if (toFasta) {
             fwriter.consume(r);
         } else {
-            System.out.println(r);
+            System.out.println(String.format("%s\t%s:%d-%d:%s",
+                                             r.toString(),
+                                             r.getChrom(), r.getStart(), r.getEnd(), r.getStrand()));
         }
     }
 

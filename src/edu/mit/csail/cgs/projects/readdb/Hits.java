@@ -73,7 +73,7 @@ public class Hits implements Closeable {
      * firstindex is an inclusive lower bound on the index of startpos.
      * lastindex is an inclusive upper bound on the index of lastpos
      */
-    public int[] getIndices(int firstindex, int lastindex, int startpos, int lastpos) {
+    public int[] getIndicesLinear(int firstindex, int lastindex, int startpos, int lastpos) {
         assert(startpos <= lastpos);
         assert(firstindex <= lastindex);
         assert(firstindex >= 0);
@@ -81,11 +81,16 @@ public class Hits implements Closeable {
         assert(lastindex < positions.ib.limit());
         //        System.err.println(String.format("%s Looking for %d - %d in %d - %d", this.toString(), startpos,lastpos,firstindex,lastindex));
         int indices[] = new int[2]; // will be the output
-        while (firstindex < positions.limit() && positions.get(firstindex) < startpos) {
+        int limit = positions.ib.limit();
+        if (lastindex < limit) {
+            limit = lastindex;
+        }
+
+        while (firstindex < limit && positions.ib.get(firstindex) < startpos) {
             //            System.err.println(String.format("first positions[%d] = %d", firstindex, positions.get(firstindex)));
             firstindex++;
         }
-        while (lastindex > firstindex && positions.get(lastindex - 1) > lastpos) {
+        while (lastindex > firstindex && positions.ib.get(lastindex - 1) > lastpos) {
             //            System.err.println(String.format("last positions[%d] = %d", lastindex, positions.get(lastindex)));
             lastindex--;
         }
@@ -100,7 +105,7 @@ public class Hits implements Closeable {
        out not to be.  The linear search is over a limited number of elements, is very simple code,
        and has a great data cache hit rate
     */      
-    public int[] getIndicesBinary(int firstindex, int lastindex, int startpos, int lastpos) {
+    public int[] getIndices(int firstindex, int lastindex, int startpos, int lastpos) {
         assert(startpos <= lastpos);
         assert(firstindex <= lastindex);
         int indices[] = new int[2]; // will be the output
@@ -110,103 +115,44 @@ public class Hits implements Closeable {
            index in Header.  The second step is the actual binary search using firstindex as the lower bound and the
            upper bound that we found
         */
-        int step = 100;
-        // end is going to be the upper bound while searching for startpos
-        int end = firstindex +  step < positions.limit() ? firstindex + step : positions.limit() - 1;
-        while (positions.get(end) < startpos) {
-            //            System.err.println(String.format("%d: %d - %d (step %d)", startpos, firstindex, end, step));
-            firstindex = end;
+        int step = 256;
+        int limit = positions.ib.limit();
+        if (lastindex < limit) {
+            limit = lastindex;
+        }
+        while (firstindex + step < limit &&
+               positions.ib.get(firstindex + step) < startpos) {
+            firstindex += step;
             step *= 2;
-            if (firstindex + step < positions.limit()) {
-                end = firstindex + step;
-            } else {
-                if (positions.get(positions.limit() -1) > startpos) {
-                    indices[0] = 0;
-                    indices[1] = 0;
-                    return indices;
-                }
-                end = positions.limit() -1;
-                break;
+        }
+        while (firstindex < limit && 
+               positions.ib.get(firstindex) < startpos) {
+            step = (step >> 2) | 1;
+            if (step == 1 ||
+                (firstindex + step < limit &&
+                 positions.ib.get(firstindex + step - 1) < startpos)) {
+                firstindex += step;
             }
         }
-        //        System.err.println(String.format("%d: %d (%d) - %d (%d) (step %d)", startpos, firstindex, positions.get(firstindex), end, positions.get(end), step));
-        int center;
-        while (true) {
-            center = (firstindex + end) / 2;
-//              System.err.println(String.format("firstindex %d (%d), end %d (%d), center %d (%d)",
-//                                               firstindex,positions.get(firstindex),
-//                                               end,positions.get(end), 
-//                                               center,positions.get(center)));
-            int p = positions.get(center);
-            if (p == startpos) {
-                break;
-            }
-            if (p >= startpos && (center == 0 || positions.get(center-1) < startpos)) {
-                indices[0] = center;
-                break;
-            }
-            if (p > startpos) {
-                end = center - 1;
-            } else {
-                firstindex = center + 1;
-            }
-            if (firstindex >= end) {
-                center = firstindex;
-                break;
-            }
-        }
-        while (center > 0 && positions.get(center -1) == startpos) {
-            center--;
-        }
-        indices[0] = center;
-        //        System.err.println("Settled on " + indices[0]);
 
-        step = 100;
-        int start = lastindex - step > 0 ? lastindex - step : 0;
-        while (positions.get(start) > lastpos) {
-            //            System.err.println(String.format("%d: %d - %d (step %d)", lastpos, start, lastindex, step));
-            lastindex = start;
+        step = 256;
+        while (lastindex - step > firstindex &&
+               positions.ib.get(lastindex - step) > lastpos) {
+            lastindex -= step;
             step *= 2;
-            if (lastindex - step > 0) {
-                start = lastindex - step;
-            } else {
-                if (positions.get(0) > lastpos) {
-                    indices[0] = positions.limit();
-                    indices[1] = positions.limit();
-                    return indices;
-                }
-                start = 0;
-                break;
+        }
+        while (lastindex > firstindex && 
+               positions.ib.get(lastindex - 1) > lastpos) {
+            step = (step >> 2) | 1;
+            if ((step == 1 || lastindex - step > firstindex) &&
+                positions.ib.get(lastindex - step) > lastpos) {
+                lastindex -= step;
             }
         }
-        while (true) {
-            center = (start + lastindex) / 2;
-//              System.err.println(String.format("start %d (%d), lastindex %d (%d), center %d (%d)",
-//                                               start,positions.get(start),
-//                                               lastindex,positions.get(lastindex), 
-//                                               center,positions.get(center)));
-            int p = positions.get(center);
-            if (p == lastpos) {
-                break;
-            }
-            if (p <= lastpos && (center == positions.limit() - 1 || positions.get(center+1) > lastpos)) {                
-                break;
-            }
-            if (p > lastpos) {
-                lastindex = center - 1;
-            } else {
-                start = center + 1;
-            }
-            if (start >= lastindex) {
-                center = lastindex;
-                break;
-            }
-        }
-        while (center < positions.limit()  && positions.get(center) == lastpos) {
-            center++;
-        }
-        indices[1] = center;
-        //        System.err.println("Settled on " + indices[1]);
+
+        indices[0] = firstindex;
+        indices[1] = lastindex;
+
         assert(indices[0] <= indices[1]);
         assert(indices[0] >= 0);
         assert(indices[1] <= positions.size());

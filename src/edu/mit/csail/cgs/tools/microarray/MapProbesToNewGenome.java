@@ -1,13 +1,13 @@
 package edu.mit.csail.cgs.tools.microarray;
 
 import edu.mit.csail.cgs.utils.database.*;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.PSL;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.PSLHit;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.datasets.chipchip.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.parsing.alignment.PSL;
-import edu.mit.csail.cgs.utils.parsing.alignment.PSLHit;
 
 import java.util.*;
 import java.sql.*;
