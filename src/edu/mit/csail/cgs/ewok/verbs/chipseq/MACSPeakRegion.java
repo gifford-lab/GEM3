@@ -93,6 +93,7 @@ public class MACSPeakRegion extends Region{
 		double diff = pvalue-macs.getPvalue();
 		return diff==0?0:(diff<0)?-1:1;
 	}
+	
 	public static List<MACSPeakRegion> filterByWidth(List<MACSPeakRegion> peaks, int width_low, int width_high){
 		List<MACSPeakRegion> peaks_filtered = new ArrayList<MACSPeakRegion>();
 		for (MACSPeakRegion p:peaks){
