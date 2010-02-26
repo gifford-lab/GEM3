@@ -26,6 +26,7 @@ create table weightmatrix (
 	name varchar2(200),
 	version varchar2(200),
 	type varchar2(100),
+	bg_model_id number(10) constraint fk_wm_bg_id references background_genome_map(id),
 	constraint weightmatrix_pk primary key(species,name,version));
 create index ix_wm_name on weightmatrix(name,version);
 create table weightmatrixcols (
@@ -128,3 +129,37 @@ create table func_subcategory (
 	constraint pk_func_subcategory primary key (version, child_id, parent_id)
 );
 
+
+create table background_model (
+	id number(10) constraint background_model_id unique not null,
+	name varchar2(200) constraint background_model_name not null,
+	max_kmer_len number(10) not null,
+	model_type varchar2(200) constraint bgm_model_type check (model_type in ('MARKOV', 'FREQUENCY')),
+constraint bg_model_pk primary key(name,model_order,model_type));
+
+create table background_genome_map (
+       id number(10) constraint bggm_id unique not null,
+       genome_id number(10) not null,
+       bg_model_id number(10) constraint fk_bggm_bg_id references background_model(id) not null,
+       constraint bggm_pk primary key(id, bg_model_id));
+
+create index ix_bggm_genome_id on background_genome_map(genome_id);
+create index ix_bggm_bg_id on background_genome_map(bg_model_id);
+
+create table background_model_cols (
+       bggm_id number(10) constraint fk_bgmc_bggm_id references background_genome_map(id) not null,
+       prev_bases varchar2(200),
+       curr_base char(1) not null,
+       probability binary_double not null check (probability>=0) check (probability<=1),
+       count number(10));
+
+create index ix_bgmc_bg_id on background_model_cols(bggm_id);
+
+create table weightmatrix_species_map (
+       id number(10) constraint wmsm_id unique not null,
+       species_id number(10) not null,
+       wm_id number(10) constraint fk_wsm_wm_id references weightmatrix(id) not null,
+       constraint wmsm_pk primary key(id, wm_id));
+
+create index ix_wsm_species_id on weightmatrix_species_map(species_id);
+create index ix_wsm_bg_id on weightmatrix_species_map(wm_id);
