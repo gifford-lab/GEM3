@@ -1,14 +1,19 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public abstract class BackgroundModel {
 
+  public static final double EPSILON = 1E-6;
+  
   public static final char[] BASE_ORDER = new char[] {'A', 'C', 'G', 'T'};
 
   public static final int DEFAULT_MODEL_LENGTH = 3;
@@ -20,19 +25,20 @@ public abstract class BackgroundModel {
   protected Genome gen;
 
   /**
-   * Map for holding the kmer count/probability values for the model. Each 
+   * Map for holding the kmer probability (and count) values for the model. Each 
    * element of the array holds kmers whose length is the index of that element.
-   * i.e. model[2] holds 2-mers. So, model[0] should always be empty. 
+   * i.e. model[2] holds 2-mers. Accordingly, model[0] should always be empty. 
    */
-  protected Map<String, Double>[] model;
+  protected Map<String, Pair<Double, Integer>>[] model;
+
 
   /**
-   * This map is meant to store the counts from which a non-count model was
-   * derived. It may be null. For a count based model this should be ignored and
-   * the methods for accessing and modifying counts should be overridden so that
-   * only the model map is used. 
+   * For keeping track of whether or not both strands are accounted for in 
+   * the model.
+   * True if the model was based on a single strand
+   * False if the model was based on both strands
    */
-  protected Map<String, Double>[] counts = null;
+  protected boolean isStranded = true;
   
   /**
    * 
@@ -49,7 +55,7 @@ public abstract class BackgroundModel {
   public BackgroundModel(int modelLength) {
     model = new HashMap[DEFAULT_MODEL_LENGTH + 1];
     for (int i = 0; i <= DEFAULT_MODEL_LENGTH; i++) {
-      model[i] = new HashMap<String, Double>();
+      model[i] = new HashMap<String, Pair<Double, Integer>>();
     }
   }
   
@@ -68,58 +74,8 @@ public abstract class BackgroundModel {
    * @param mer
    * @return
    */
-  public Double getModelCount(String mer) {
-    if (mer.length() > 0) {
-      return (counts[mer.length()].get(mer));
-    }
-    else {
-      throw new IllegalArgumentException("Zero length kmer.");
-    }
-  }
-
-
-  /**
-   * 
-   * @param kmerLen
-   * @param intVal
-   * @return
-   */
-  public Double getModelCount(int kmerLen, int intVal) {
-    if (kmerLen > 0) {
-      return (counts[kmerLen].get(BackgroundModel.intToSeq(intVal, kmerLen)));
-    }
-    else {
-      throw new IllegalArgumentException("kmerLen must be greater than zero.");
-    }
-  }
-
-
-  /**
-   * 
-   * @param mer
-   * @param val
-   */
-  public void setModelCount(String mer, double val) {
-    if (mer.length() <= this.getMaxKmerLen() && mer.length() > 0) {
-      counts[mer.length()].put(mer, val);
-    }
-    else if (mer.length() < 1) {     
-      throw new IllegalArgumentException("Zero length kmer.");      
-    }
-    else {
-      throw new IllegalArgumentException("Kmer " + mer + " must have length less than model length (" + this.getMaxKmerLen() + ").");
-    }
-  }
-  
-  
-  
-  /**
-   * 
-   * @param mer
-   * @return
-   */
-  public Double getModelVal(String mer) {
-    if (mer.length() > 0) {
+  public Pair<Double, Integer> getModelValuePair(String mer) {
+    if (mer.length() > 0) {      
       return (model[mer.length()].get(mer));
     }
     else {
@@ -134,12 +90,61 @@ public abstract class BackgroundModel {
    * @param intVal
    * @return
    */
-  public Double getModelVal(int kmerLen, int intVal) {
+  public Pair<Double, Integer> getModelValuePair(int kmerLen, int intVal) {
     if (kmerLen > 0) {
-      return (model[kmerLen].get(BackgroundModel.intToSeq(intVal, kmerLen)));
+      return (this.getModelValuePair(BackgroundModel.int2seq(intVal, kmerLen)));
     }
     else {
       throw new IllegalArgumentException("kmerLen must be greater than zero.");
+    }
+  }
+  
+  
+  /**
+   * 
+   * @param mer
+   * @param val
+   */
+  public void setModelValuePair(String mer, Double prob, Integer count) {
+    if (mer.length() > 0) {     
+      Pair<Double, Integer> values = new Pair<Double, Integer>(prob, count);
+      model[mer.length()].put(mer, values);
+    }
+    else {     
+      throw new IllegalArgumentException("Zero length kmer.");      
+    }
+  }
+  
+  
+  /**
+   * 
+   * @param mer
+   * @return
+   */
+  public Integer getModelCount(String mer) {
+    Pair<Double, Integer> values = this.getModelValuePair(mer);
+    if (values != null) {
+      return values.cdr(); 
+    }
+    else {
+      return null;
+    }
+  }
+
+
+  /**
+   * 
+   * @param kmerLen
+   * @param intVal
+   * @return
+   */
+  public Integer getModelCount(int kmerLen, int intVal) {
+    Pair<Double, Integer> values = this.getModelValuePair(kmerLen, intVal);
+    if (values != null) {
+      return values.cdr(); 
+    }
+    else {
+      return null;
     }
   }
 
@@ -149,17 +154,61 @@ public abstract class BackgroundModel {
    * @param mer
    * @param val
    */
-  public void setModelVal(String mer, double val) {
-    if (mer.length() <= this.getMaxKmerLen() && mer.length() > 0) {
-      model[mer.length()].put(mer, val);
-    }
-    else if (mer.length() < 1) {     
-      throw new IllegalArgumentException("Zero length kmer.");      
+  public void setModelCount(String mer, int count) {
+    this.setModelValuePair(mer, this.getModelProb(mer), count);
+  }
+  
+  
+  /**
+   * 
+   * @param mer
+   * @return
+   */
+  public Double getModelProb(String mer) {
+    Pair<Double, Integer> values = this.getModelValuePair(mer);
+    if (values != null) {
+      return values.car(); 
     }
     else {
-      throw new IllegalArgumentException("Kmer " + mer + " must have length less than model length (" + this.getMaxKmerLen() + ").");
+      return null;
     }
   }
+
+
+  /**
+   * 
+   * @param kmerLen
+   * @param intVal
+   * @return
+   */
+  public Double getModelProb(int kmerLen, int intVal) {
+    Pair<Double, Integer> values = this.getModelValuePair(kmerLen, intVal);
+    if (values != null) {
+      return values.car(); 
+    }
+    else {
+      return null;
+    }
+  }
+
+
+  /**
+   * 
+   * @param mer
+   * @param val
+   */
+  public void setModelProb(String mer, double prob) {
+    this.setModelValuePair(mer, prob, this.getModelCount(mer));
+  }
+    
+  
+  /**
+   * Check whether this model is making use of both strands or just a single 
+   * strand (i.e. check if all probabilities/counts match their reverse
+   * complement
+   * @return
+   */
+  public abstract boolean checkAndSetIsStranded();
   
   
   /**
@@ -221,7 +270,7 @@ public abstract class BackgroundModel {
 	 * @param seq
 	 * @return
 	 */
-	public static int seqToInt(String seq) {
+	public static int seq2int(String seq) {
 		int intVal = 0;
 		int len = seq.length();
 
@@ -242,7 +291,7 @@ public abstract class BackgroundModel {
 	 * @param x 
 	 * @return
 	 */
-	public static String intToSeq(long x, int kmerLen) {	
+	public static String int2seq(long x, int kmerLen) {	
 		/**
 		 * check that the x is valid for the specified kmerlen. 
 		 * Note: 4 << (2 * (kmerLen - 1)) = 4^kmerLen
@@ -261,15 +310,41 @@ public abstract class BackgroundModel {
 
 
   /**
+   * Assemble a list of distinct pairs of kmers and non-palindrome reverse complements.
+   * @param kmerLen
+   * @return
+   */
+  protected static List<Pair<Integer, Integer>> computeRevCompPairs(int kmerLen) {
+    int numKmers = (int)Math.pow(4, kmerLen);
+    int[] revCompMap = new int[numKmers];
+    Arrays.fill(revCompMap, -1);
+    ArrayList<Pair<Integer, Integer>> revCompPairs = new ArrayList<Pair<Integer, Integer>>();
+    
+    for (int i = 0; i < revCompMap.length; i++) {
+      if (revCompMap[i] == -1) {
+        int revComp = BackgroundModel.seq2int(SequenceUtils.reverseComplement(BackgroundModel.int2seq(i, kmerLen)));
+        revCompMap[i] = revComp;
+        if (i != revComp) {
+          revCompMap[revComp] = i;
+          revCompPairs.add(new Pair<Integer, Integer>(i, revComp));
+        }        
+      }
+    }
+    
+    return revCompPairs;
+  }
+  
+  
+  /**
    ***********************************************************************
    */
 	
 	public static void main(String[] args) {
 	  for (int i = 1; i <= 3; i++) {
 	    for (int j = 0; j < Math.pow(4,i); j++) {
-	      String seq = BackgroundModel.intToSeq(j, i);
-	      System.out.println(j + "\t" + seq + "\t" + BackgroundModel.seqToInt(seq)); 
-	      assert (j == BackgroundModel.seqToInt(seq));
+	      String seq = BackgroundModel.int2seq(j, i);
+	      System.out.println(j + "\t" + seq + "\t" + BackgroundModel.seq2int(seq)); 
+	      assert (j == BackgroundModel.seq2int(seq));
 	    }	    
 	  }
 	}

@@ -44,15 +44,16 @@ public class BackgroundModelIO {
         if (bgLineMatcher.matches()) {
           int intVal = Integer.valueOf(bgLineMatcher.group(1));
           String mer = bgLineMatcher.group(2).toUpperCase();
-          if ((intVal != j) || !mer.equals(BackgroundModel.intToSeq(j, (i + 1)))) {
-            throw new ParseException("Expected index " + j + " and kmer " + BackgroundModel.intToSeq(j, (i + 1))
+          if ((intVal != j) || !mer.equals(BackgroundModel.int2seq(j, (i + 1)))) {
+            throw new ParseException("Expected index " + j + " and kmer " + BackgroundModel.int2seq(j, (i + 1))
                 + ", but got " + lines[lineIndex], 0);
           }
           double prob = Double.valueOf(bgLineMatcher.group(3));
+          //FIXME
           total = total + prob;
-          model.setModelVal(mer, prob);
+          model.setModelProb(mer, prob);
           lineIndex++;
-          model.setModelVal(mer, prob);
+//          model.setModelVal(mer, prob);
         }
         else {
           throw new ParseException("Incorrectly formatted line: " + lines[lineIndex], 0);
@@ -189,7 +190,7 @@ public class BackgroundModelIO {
   
 
   //Print the background model to a file
-  public static void printToFile(BackgroundModel bgModel, String filename) throws IOException {   
+  public static void printProbsToFile(BackgroundModel bgModel, String filename) throws IOException {   
     LineByLineFileWriter lblfw = null;
     try {
       lblfw = new LineByLineFileWriter();
@@ -197,8 +198,8 @@ public class BackgroundModelIO {
       
       for (int i = 1; i <= bgModel.getMaxKmerLen(); i++) {
         for (int j = 0; j < Math.pow(4, i); j++) {
-          String currKmer = BackgroundModel.intToSeq(j, i);
-          lblfw.writeLine(j + "\t" + currKmer + "\t" + bgModel.getModelVal(i, j));  
+          String currKmer = BackgroundModel.int2seq(j, i);
+          lblfw.writeLine(j + "\t" + currKmer + "\t" + bgModel.getModelProb(i, j));  
         }
       }
       lblfw.writeLine("");

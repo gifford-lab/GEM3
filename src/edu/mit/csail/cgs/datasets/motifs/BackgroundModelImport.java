@@ -8,9 +8,13 @@ import java.util.*;
 import java.util.regex.*;
 import java.sql.*;
 import java.text.ParseException;
+
+import org.apache.log4j.Logger;
+
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
+import edu.mit.csail.cgs.utils.io.Points2RegionsConverter;
 import edu.mit.csail.cgs.utils.io.parsing.PWMParser;
 import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.datasets.*;
@@ -22,6 +26,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
  */
 public class BackgroundModelImport {
 
+  private static Logger logger = Logger.getLogger(BackgroundModelImport.class);
     
   /** Imports a weight matrix from a TAMO formatted file.
    *  Only reads the first WM in the file. 
@@ -105,74 +110,109 @@ public class BackgroundModelImport {
 //  }
       
 
-  public static int insertMarkovModelIntoDB(MarkovBackgroundModel model) throws SQLException, NotFoundException {
-//FIXME
-//    java.sql.Connection cxn = DatabaseFactory.getConnection("annotations");
-//    int modelID = -1;
-//    PreparedStatement exists = cxn.prepareStatement("select id from background_model where name = ? and model_order = ?");
-//    exists.setString(1, model.name);
-//    exists.setInt(2, model.getMaxKmerLen());
-//    ResultSet rs = exists.executeQuery();
-//    if (!rs.next()) {
-//      rs.close();
-//      PreparedStatement insertwm = cxn.prepareStatement("insert into background_model(id,name,model_order) values (weightmatrix_id.nextval,?,?)");
-//      insertwm.setString(1, model.name);
-//      insertwm.setInt(2, model.getMaxKmerLen());
-//      insertwm.execute();
-//      insertwm.close();
-//      PreparedStatement getModelId = cxn.prepareStatement("select weightmatrix_id.currval from dual");
-//      rs = getModelId.executeQuery();
-//      if (rs.next()) {
-//        modelID = rs.getInt(1);
-//      }
-//      else {
-//        System.err.println("No Background Model ID");
-//        System.exit(1);
-//      }
-//      rs.close();
-//      getModelId.close();
-//    }
-//    else {
-//      modelID = rs.getInt(1);
-//      PreparedStatement deleteold = cxn.prepareStatement("delete from weightmatrixcols where weightmatrix = ?");
-//      deleteold.setInt(1, modelID);
-//      deleteold.execute();
-//      deleteold.close();
-//    }
-//    rs.close();
-//    exists.close();
-//
-//
-//    PreparedStatement insertcol = cxn
-//        .prepareStatement("insert into weightmatrixcols(weightmatrix,position,letter,weight) values(?,?,?,?)");
-//    insertcol.setInt(1, wmid);
-//    for (int col = 0; col < matrix.length(); col++) {
-//      // System.err.println(String.format("  Column %d %f %f %f %f", col,
-//      // matrix.matrix[col]['A'],
-//      // matrix.matrix[col]['C'],
-//      // matrix.matrix[col]['T'],
-//      // matrix.matrix[col]['G']));
-//      insertcol.setInt(2, col);
-//
-//      insertcol.setString(3, "A");
-//      insertcol.setFloat(4, matrix.matrix[col]['A']);
-//      insertcol.execute();
-//
-//      insertcol.setString(3, "C");
-//      insertcol.setFloat(4, matrix.matrix[col]['C']);
-//      insertcol.execute();
-//
-//      insertcol.setString(3, "T");
-//      insertcol.setFloat(4, matrix.matrix[col]['T']);
-//      insertcol.execute();
-//
-//      insertcol.setString(3, "G");
-//      insertcol.setFloat(4, matrix.matrix[col]['G']);
-//      insertcol.execute();
-//    }
-//    insertcol.close();
-//    DatabaseFactory.freeConnection(cxn);
-//    return wmid;
-    return 0;
+  private static void insertModelColumns(BackgroundModel model, int bggmID, Connection cxn) throws SQLException {
+    if ((model instanceof MarkovBackgroundModel) || (model instanceof FrequencyBackgroundModel)) {
+      PreparedStatement insertCol = null;
+      for (int i = 1; i <= model.getMaxKmerLen(); i++) {
+        for (String kmer : model.model[i].keySet()) {
+          String prevBases = kmer.substring(0, kmer.length() - 1);
+          String currBase = kmer.substring(kmer.length() - 1, kmer.length());
+          double prob = model.getModelProb(kmer);
+          int count = model.getModelCount(kmer);
+
+          if (count >= 0) {
+            insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,prev_bases,curr_base,probability,count) values(?,?,?,?,?)");
+            insertCol.setInt(5, count);
+          }
+          else {
+            insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,prev_bases,curr_base,probability) values(?,?,?,?)");
+          }
+          insertCol.setInt(1, bggmID);
+          insertCol.setString(2, prevBases);
+          insertCol.setString(3, currBase);
+          insertCol.setDouble(4, prob);
+          insertCol.execute();
+        }
+      }
+      if (insertCol != null) {
+        insertCol.close();
+      }
+    }
+    else {
+      throw new IllegalArgumentException("Background Model must either be a MarkovBackgroundModel or a FrequencyBackgroundModel.");
+    }
   }
+  
+  
+  public static int insertMarkovModel(MarkovBackgroundModel model) throws SQLException, NotFoundException {
+//FIXME
+    java.sql.Connection cxn = DatabaseFactory.getConnection("annotations");
+    int modelID = -1;
+    int bggmID = -1;
+    PreparedStatement modelExists = cxn.prepareStatement("select id from background_model where name = ? and max_kmer_len = ? and model_type = 'MARKOV'");
+    modelExists.setString(1, model.name);
+    modelExists.setInt(2, model.getMaxKmerLen());
+    ResultSet rs = modelExists.executeQuery();
+    
+    /**
+     * Check whether there is already an entry for a model with this name, kmerlen, and type. If so, resuse the model ID, 
+     * otherwise create one.
+     */
+    if (rs.next()) {
+      modelID = rs.getInt(1);
+      rs.close();
+    }
+    else {
+      rs.close();
+      PreparedStatement insertBG = cxn.prepareStatement("insert into background_model(id,name,max_kmer_len,model_type) values (weightmatrix_id.nextval,?,?,'MARKOV')");
+      insertBG.setString(1, model.name);
+      insertBG.setInt(2, model.getMaxKmerLen());
+      insertBG.execute();
+      insertBG.close();
+      PreparedStatement getModelID = cxn.prepareStatement("select weightmatrix_id.currval from dual");
+      rs = getModelID.executeQuery();
+      if (rs.next()) {
+        modelID = rs.getInt(1);
+      }
+      else {
+        logger.fatal("No Background Model ID");
+        System.exit(1);
+      }
+      rs.close();
+      getModelID.close();
+    }
+    
+    /**
+     * Check whether there is already an entry for this model's genome
+     */
+    PreparedStatement bgGenomeMapExists = cxn.prepareStatement("select id from background_genome_map where bg_model_id = " + modelID + " and genome_id = " + model.gen.getDBID());
+    rs = bgGenomeMapExists.executeQuery();
+    if (rs.next()) {
+      throw new IllegalArgumentException("Model already exists. Select a different name or use updateMarkovModel() to update the existing model.");
+    }
+    else {
+      rs.close();
+      PreparedStatement insertBGGM = 
+        cxn.prepareStatement("insert into background_genome_map(id, genome_id, bg_model_id) values (bggm_id.nextval," + model.gen.getDBID() + "," + modelID + ")");
+      insertBGGM.execute();
+      insertBGGM.close();
+      PreparedStatement getBGGMID = cxn.prepareStatement("select bggm_id.currval from dual");
+      rs = getBGGMID.executeQuery();
+      if (rs.next()) {
+        bggmID = rs.getInt(1);
+      }
+      else {
+        logger.fatal("No Background Model Genome Map ID");
+        System.exit(1);
+      }
+      rs.close();
+      getBGGMID.close();
+    }
+
+    BackgroundModelImport.insertModelColumns(model, bggmID, cxn);
+    return bggmID;
+  }
+  
+  
+  
 }
