@@ -1,7 +1,5 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import cern.colt.matrix.*;
@@ -9,7 +7,6 @@ import cern.colt.matrix.impl.*;
 import cern.colt.matrix.linalg.Algebra;
 import cern.jet.math.Functions;
 import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.Fmath;
 
 /**
@@ -35,11 +32,20 @@ public class MarkovBackgroundModel extends BackgroundModel {
   }
   
   
+  /**
+   * Checks whether this model is based on a single strand of sequence or
+   * double-stranded sequence. For the Markov model a linear system can be 
+   * created from the log-space version of the equations for normalizing the 
+   * model and equations indicating the equality of reverse complement kmers.
+   * The system will be underconstrained, so there will always be a solution,
+   * but once converted back to linear-space additional constraints can be 
+   * verified to determine whether the solution is valid. 
+   */
   public boolean checkAndSetIsStranded() {
     int currKmerLen = 1;
     while (currKmerLen <= model.length) {      
       //set up and solve the log-space linear system for the  current kmers
-      List<Pair<Integer, Integer>> revCompPairs = BackgroundModel.computeRevCompPairs(currKmerLen);
+      List<Pair<Integer, Integer>> revCompPairs = BackgroundModel.computeDistinctRevCompPairs(currKmerLen);
       int numCurrKmers = (int)Math.pow(4, currKmerLen);
       DoubleMatrix2D linSys = MarkovBackgroundModel.createStrandednessLinearSystem(numCurrKmers, revCompPairs);
       
@@ -65,7 +71,7 @@ public class MarkovBackgroundModel extends BackgroundModel {
         }
       }
       
-      //finally, check that the sums match correctly
+      //finally, check that the sums used to normalize match correctly
       for (int i = 0; i < numCurrKmers; i+= 4) {
         double sum = sol.viewPart(i, 4).zSum();
         int solSumIndex = numCurrKmers + (i / 4);
@@ -121,9 +127,9 @@ public class MarkovBackgroundModel extends BackgroundModel {
    * @return an array of string containing the kmers for which the model isn't
    * normalized, or null if it is normalized correctly
    */
-  public static String[] isModelNormalized(MarkovBackgroundModel mbg) {
+  public String[] verifyNormalization() {
     //iterate over each order level of the model
-    for (int i = 1; i <= mbg.getMaxKmerLen(); i++) {
+    for (int i = 1; i <= this.getMaxKmerLen(); i++) {
       //iterate over all sets of conditions for that order
       for (int k = 0; k < (int) Math.pow(4, i); k += 4) {
         Double total = 0.0;
@@ -133,11 +139,11 @@ public class MarkovBackgroundModel extends BackgroundModel {
         for (int b = 0; b < 4; b++) {
           String currMer = int2seq(k + b, i);
           currMers[b] = currMer;
-          if (mbg.model[i].containsKey(currMer)) {
-            total += mbg.model[i].get(currMer).car();
+          if (model[i].containsKey(currMer)) {
+            total += model[i].get(currMer).car();
           }
         }
-        if (Fmath.isEqualWithinLimits(total, 1.0, 1E-6)) {
+        if (!Fmath.isEqualWithinLimits(total, 1.0, 1E-6)) {
           return currMers;
         }
       }
