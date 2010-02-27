@@ -38,7 +38,7 @@ public class CountsBackgroundModel extends BackgroundModel {
   public boolean checkAndSetIsStranded() {
     int currKmerLen = 1;
     while (currKmerLen <= model.length) {
-      List<Pair<Integer, Integer>> revCompPairs = BackgroundModel.computeRevCompPairs(currKmerLen);
+      List<Pair<Integer, Integer>> revCompPairs = BackgroundModel.computeDistinctRevCompPairs(currKmerLen);
       
       for (Pair<Integer, Integer> rcPair : revCompPairs) {
         if (!Fmath.isEqualWithinLimits(this.getModelCount(currKmerLen, rcPair.car()), this.getModelCount(currKmerLen, rcPair.cdr()), BackgroundModel.EPSILON)) {

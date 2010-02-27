@@ -21,25 +21,34 @@ import edu.mit.csail.cgs.utils.io.LineByLineFileWriter;
  */
 public class BackgroundModelIO {
 
-  public static final String BG_LINE_COUNTS_REG_EX = "^([\\d]+)\\s*([ACGTacgt]+)\\s*(\\d[\\.?]([\\d+])\\s*";
-  public static final String BG_LINE_PROBS_REG_EX = "^([\\d]+)\\s*([ACGTacgt]+)\\s*([01]\\.([\\d+])\\s*";
+  public static final String BG_LINE_COUNTS_REG_EX = "^([\\d]+)\\s*([ACGTacgt]+)\\s*(\\d+)\\s*";
+  public static final String BG_LINE_PROBS_REG_EX = "^([\\d]+)\\s*([ACGTacgt]+)\\s*([01][\\.\\d+]?)\\s*";
 
   public static final Pattern BG_LINE_COUNTS_PATTERN = Pattern.compile(BG_LINE_COUNTS_REG_EX);
   public static final Pattern BG_LINE_PROBS_PATTERN = Pattern.compile(BG_LINE_PROBS_REG_EX);
 
+  public static void main(String[] args) throws ParseException, IOException {
+    BackgroundModelIO.parseMarkovBackgroundModel("/home/rca/projects/cgs_repos/cgs/mm8.back");
+    
+//    String testLine = "12      TA      0.21842155511047961";
+//    Matcher bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(testLine);
+//    boolean found = bgLineMatcher.matches();
+//    System.out.println(found);
+//    if (found) {
+//      System.out.println("start: " + bgLineMatcher.start() + "  end: " + bgLineMatcher.end() + "  group: " + bgLineMatcher.group());
+//    }    
+  }
+  
   private static void initBackgroundModel(BackgroundModel model, String[] lines) throws ParseException {
     // initialize background model object
-    Matcher bgLineMatcher = null;
+
     if (model instanceof CountsBackgroundModel) {
-      bgLineMatcher = BG_LINE_COUNTS_PATTERN.matcher("");
+      throw new IllegalArgumentException("Use initCountsBackgroundModel to parse background models of counts");      
     }
-    else {
-      bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(""); 
-    }
+    Matcher bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(""); 
     int lineIndex = 0;
     for (int i = 0; i < model.getMaxKmerLen(); i++) {
       for (int j = 0; j < Math.pow(4, i + 1); j++) {
-        double total = 0.0;
         bgLineMatcher.reset(lines[lineIndex]);
         if (bgLineMatcher.matches()) {
           int intVal = Integer.valueOf(bgLineMatcher.group(1));
@@ -49,11 +58,8 @@ public class BackgroundModelIO {
                 + ", but got " + lines[lineIndex], 0);
           }
           double prob = Double.valueOf(bgLineMatcher.group(3));
-          //FIXME
-          total = total + prob;
           model.setModelProb(mer, prob);
           lineIndex++;
-//          model.setModelVal(mer, prob);
         }
         else {
           throw new ParseException("Incorrectly formatted line: " + lines[lineIndex], 0);
@@ -63,25 +69,52 @@ public class BackgroundModelIO {
   }
 
 
+  private static void initCountsBackgroundModel(CountsBackgroundModel model, String[] lines) throws ParseException {
+    // initialize background model object
+    Matcher bgLineMatcher = BG_LINE_COUNTS_PATTERN.matcher("");
+    int lineIndex = 0;
+    for (int i = 0; i < model.getMaxKmerLen(); i++) {
+      for (int j = 0; j < Math.pow(4, i + 1); j++) {
+        bgLineMatcher.reset(lines[lineIndex]);
+        if (bgLineMatcher.matches()) {
+          int intVal = Integer.valueOf(bgLineMatcher.group(1));
+          String mer = bgLineMatcher.group(2).toUpperCase();
+          if ((intVal != j) || !mer.equals(BackgroundModel.int2seq(j, (i + 1)))) {
+            throw new ParseException("Expected index " + j + " and kmer " + BackgroundModel.int2seq(j, (i + 1))
+                + ", but got " + lines[lineIndex], 0);
+          }
+          int count = Integer.valueOf(bgLineMatcher.group(3));
+          model.setModelCount(mer, count);
+          lineIndex++;
+        }
+        else {
+          throw new ParseException("Incorrectly formatted line: " + lines[lineIndex], 0);
+        }
+      }
+    }
+  }
+  
+  
   /**
-   * 
+   * Checks the number of lines to make sure there are a proper number for all 
+   * kmers up to the determined maximum length
    * @param lines
    * @return
    * @throws ParseException
    */
-  private static int checkModelOrder(String[] lines) throws ParseException {
-    // determine order of model and check that the number of lines is valid
-    int order = 0;
+  private static int checkModelMaxKmerLen(String[] lines) throws ParseException {
+    // determine the max kmer length for model and check that the number of lines is valid
+    int maxKmerLen = 1;
     int numLines = 4;
     while (numLines < lines.length) {
-      order++;
-      numLines = numLines + (int) Math.pow(4, order + 1);
+      maxKmerLen++;
+      numLines = numLines + (int) Math.pow(4, maxKmerLen);
     }
     if (numLines != lines.length) {
       throw new ParseException("Parsed " + lines.length
           + " non-comment lines, but number of lines must be 4 + 4^2 + 4^3 + ... + 4^(k+1)", 0);
     }
-    return order;
+    return maxKmerLen;
   }
 
   
@@ -98,13 +131,13 @@ public class BackgroundModelIO {
     try {
       String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
-      int order = BackgroundModelIO.checkModelOrder(lines);
+      int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
       // construct the Counts Background Model object of that order
-      CountsBackgroundModel bgModel = new CountsBackgroundModel(order);
+      CountsBackgroundModel bgModel = new CountsBackgroundModel(maxKmerLen);
 
       // initialize the model
-      BackgroundModelIO.initBackgroundModel(bgModel, lines);
+      BackgroundModelIO.initCountsBackgroundModel(bgModel, lines);
 
       return bgModel;
     }
@@ -129,15 +162,18 @@ public class BackgroundModelIO {
     try {
       String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
-      int order = BackgroundModelIO.checkModelOrder(lines);
+      int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
-      // construct the Markov Background Model object of that order
-      MarkovBackgroundModel bgModel = new MarkovBackgroundModel(order);
+      /**
+       * construct the Markov Background Model object for that kmer length
+       * Note: the markov order will be maxKmerLen - 1
+       */      
+      MarkovBackgroundModel bgModel = new MarkovBackgroundModel(maxKmerLen);
 
       // initialize the model
       BackgroundModelIO.initBackgroundModel(bgModel, lines);
       
-      String[] normKmers = MarkovBackgroundModel.isModelNormalized(bgModel);
+      String[] normKmers = bgModel.verifyNormalization();
       if (normKmers != null) {
         throw new ParseException("Model is not normalized for kmers: " + normKmers[0] + "," + normKmers[1] + ","
             + normKmers[2] + "," + normKmers[3], -1);
@@ -166,15 +202,15 @@ public class BackgroundModelIO {
     try {
       String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
-      int order = BackgroundModelIO.checkModelOrder(lines);
+      int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
-      // construct the Frequency Background Model object of that order
-      FrequencyBackgroundModel bgModel = new FrequencyBackgroundModel(order);
+      // construct the Frequency Background Model object for that kmer length
+      FrequencyBackgroundModel bgModel = new FrequencyBackgroundModel(maxKmerLen);
 
       // initialize the model
       BackgroundModelIO.initBackgroundModel(bgModel, lines);
 
-      int normKmers = FrequencyBackgroundModel.isModelNormalized(bgModel);
+      int normKmers = bgModel.verifyNormalization();
       if (normKmers != -1) {
         throw new ParseException("Model is not normalized for kmers of length " + normKmers, -1);
       }
@@ -189,7 +225,12 @@ public class BackgroundModelIO {
   }
   
 
-  //Print the background model to a file
+  /**
+   * Write out the background model to a file
+   * @param bgModel
+   * @param filename
+   * @throws IOException
+   */
   public static void printProbsToFile(BackgroundModel bgModel, String filename) throws IOException {   
     LineByLineFileWriter lblfw = null;
     try {

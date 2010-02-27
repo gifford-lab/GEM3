@@ -1,10 +1,8 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
-import java.util.Arrays;
 import java.util.List;
 
 import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.Fmath;
 
 /**
@@ -28,10 +26,11 @@ public class FrequencyBackgroundModel extends BackgroundModel {
   public boolean checkAndSetIsStranded() {
     int currKmerLen = 1;
     while (currKmerLen <= model.length) {
-      List<Pair<Integer, Integer>> revCompPairs = BackgroundModel.computeRevCompPairs(currKmerLen);
-      
+      List<Pair<Integer, Integer>> revCompPairs = BackgroundModel.computeDistinctRevCompPairs(currKmerLen);
+
       for (Pair<Integer, Integer> rcPair : revCompPairs) {
-        if (!Fmath.isEqualWithinLimits(this.getModelProb(currKmerLen, rcPair.car()), this.getModelProb(currKmerLen, rcPair.cdr()), BackgroundModel.EPSILON)) {
+        if (!Fmath.isEqualWithinLimits(this.getModelProb(currKmerLen, rcPair.car()), 
+            this.getModelProb(currKmerLen,rcPair.cdr()), BackgroundModel.EPSILON)) {
           isStranded = true;
           return isStranded;
         }
@@ -53,6 +52,9 @@ public class FrequencyBackgroundModel extends BackgroundModel {
    */
 //  public void degenerateStrands() {
 //    for (int i = 1; i <= this.getMaxKmerLen(); i++) {
+//      List<Pair<Integer, Integer>> revCompPairs = BackgroundModel.computeRevCompPairs(i);
+//      
+//      
 //      boolean[] check = new boolean[(int) Math.pow(4, i)];
 //      Arrays.fill(check, false);
 //      for (int k = 0; k < Math.pow(4, i); k++) {
@@ -70,7 +72,7 @@ public class FrequencyBackgroundModel extends BackgroundModel {
 //      }
 //    }
 //  }
-//  
+  
   
   /**
    * Check with the specified frequency background model is normalized properly.
@@ -78,15 +80,15 @@ public class FrequencyBackgroundModel extends BackgroundModel {
    * @return the kmerlen for which the model is not normalized, or -1 if 
    * normalized properly.
    */
-  public static int isModelNormalized(FrequencyBackgroundModel fbg) {
+  public int verifyNormalization() {
     //iterate over each order level of the model
-    for (int i = 1; i <= fbg.getMaxKmerLen(); i++) {
+    for (int i = 1; i <= this.getMaxKmerLen(); i++) {
       Double total = 0.0;
       //iterate over all the n-mers of the order summing up the values
       for (int k = 0; k < (int) Math.pow(4, i); k++) {
         String currMer = int2seq(k, i);
-        if (fbg.model[i].containsKey(currMer)) {
-          total += fbg.model[i].get(currMer).car();
+        if (model[i].containsKey(currMer)) {
+          total += model[i].get(currMer).car();
         }
       }
       if (!Fmath.isEqualWithinLimits(total, 1.0, 1E-6)) {

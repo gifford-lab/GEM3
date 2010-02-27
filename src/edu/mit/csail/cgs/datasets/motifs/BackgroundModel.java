@@ -16,13 +16,24 @@ public abstract class BackgroundModel {
   
   public static final char[] BASE_ORDER = new char[] {'A', 'C', 'G', 'T'};
 
-  public static final int DEFAULT_MODEL_LENGTH = 3;
-
-  public String name;
-  public int dbid;
-  public boolean hasdbid;
+  public static final int DEFAULT_MAX_KMER_LEN = 3;
   
+  protected String name;
   protected Genome gen;
+  protected boolean hasCounts = false; 
+
+  /**
+   * For keeping track of whether or not both strands are accounted for in 
+   * the model.
+   * True if the model was based on a single strand
+   * False if the model was based on both strands
+   */
+  protected boolean isStranded = true;
+
+  //keep track of whether a database exists (and its value)
+  protected Integer dbid;
+  protected boolean hasdbid;
+  
 
   /**
    * Map for holding the kmer probability (and count) values for the model. Each 
@@ -32,40 +43,33 @@ public abstract class BackgroundModel {
   protected Map<String, Pair<Double, Integer>>[] model;
 
 
-  /**
-   * For keeping track of whether or not both strands are accounted for in 
-   * the model.
-   * True if the model was based on a single strand
-   * False if the model was based on both strands
-   */
-  protected boolean isStranded = true;
   
   /**
    * 
    */
   public BackgroundModel() {
-    this(DEFAULT_MODEL_LENGTH);    
+    this(DEFAULT_MAX_KMER_LEN);    
   }
 
 
   /**
    * 
-   * @param modelLength
+   * @param maxKmerLen
    */
-  public BackgroundModel(int modelLength) {
-    model = new HashMap[DEFAULT_MODEL_LENGTH + 1];
-    for (int i = 0; i <= DEFAULT_MODEL_LENGTH; i++) {
+  public BackgroundModel(int maxKmerLen) {
+    model = new HashMap[maxKmerLen + 1];
+    for (int i = 0; i <= maxKmerLen; i++) {
       model[i] = new HashMap<String, Pair<Double, Integer>>();
     }
   }
   
   
   /**
-   * Return the order of this model.
+   * Return the length of the longest kmer in this model.
    * @return
    */
   public int getMaxKmerLen() {
-    return model.length;
+    return model.length - 1;
   }
   
   
@@ -200,7 +204,11 @@ public abstract class BackgroundModel {
   public void setModelProb(String mer, double prob) {
     this.setModelValuePair(mer, prob, this.getModelCount(mer));
   }
-    
+  
+  
+  public boolean isStranded() {
+    return isStranded;
+  }
   
   /**
    * Check whether this model is making use of both strands or just a single 
@@ -314,7 +322,7 @@ public abstract class BackgroundModel {
    * @param kmerLen
    * @return
    */
-  protected static List<Pair<Integer, Integer>> computeRevCompPairs(int kmerLen) {
+  protected static List<Pair<Integer, Integer>> computeDistinctRevCompPairs(int kmerLen) {
     int numKmers = (int)Math.pow(4, kmerLen);
     int[] revCompMap = new int[numKmers];
     Arrays.fill(revCompMap, -1);
