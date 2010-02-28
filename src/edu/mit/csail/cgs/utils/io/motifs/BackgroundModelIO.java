@@ -23,26 +23,36 @@ import edu.mit.csail.cgs.utils.io.LineByLineFileWriter;
 public class BackgroundModelIO {
 
   public static final String BG_LINE_COUNTS_REG_EX = "^([\\d]+)\\s*([ACGTacgt]+)\\s*(\\d+)\\s*";
-  public static final String BG_LINE_PROBS_REG_EX = "^([\\d]+)\\s*([ACGTacgt]+)\\s*([01][\\.\\d+]?)\\s*";
+	public static final String BG_LINE_PROBS_REG_EX = "^([\\d]+)\\s*([ACGTacgt]+)\\s*(.+)";
 
+  
   public static final Pattern BG_LINE_COUNTS_PATTERN = Pattern.compile(BG_LINE_COUNTS_REG_EX);
   public static final Pattern BG_LINE_PROBS_PATTERN = Pattern.compile(BG_LINE_PROBS_REG_EX);
 
-  public static void main(String[] args) throws ParseException, IOException {
-    BackgroundModelIO.parseMarkovBackgroundModel("/home/rca/projects/cgs_repos/cgs/mm8.back");
-    
-//    String testLine = "12      TA      0.21842155511047961";
-//    Matcher bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(testLine);
-//    boolean found = bgLineMatcher.matches();
-//    System.out.println(found);
-//    if (found) {
-//      System.out.println("start: " + bgLineMatcher.start() + "  end: " + bgLineMatcher.end() + "  group: " + bgLineMatcher.group());
-//    }    
+  public static void main(String[] args) {
+  	//testing...
+  	try {
+  		MarkovBackgroundModel mbg = BackgroundModelIO.parseMarkovBackgroundModel("mm8.back");
+  		BackgroundModelIO.printProbsToFile(mbg, "foo.back");
+  	}
+  	catch (ParseException pex) {
+  		pex.printStackTrace();
+  	}
+  	catch (IOException ioex) {
+  		ioex.printStackTrace();
+  	}
+  	System.exit(0);
   }
   
+  /**
+   * Parse the lines of the background model file and initialize the frequency
+   * based model
+   * TODO make integer value header column optional
+   * @param model
+   * @param lines
+   * @throws ParseException
+   */
   private static void initFreqBackgroundModel(FrequencyBackgroundModel model, String[] lines) throws ParseException {
-    // initialize background model object
-
     Matcher bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(""); 
     int lineIndex = 0;
     for (int i = 0; i < model.getMaxKmerLen(); i++) {
@@ -56,6 +66,7 @@ public class BackgroundModelIO {
             throw new ParseException("Expected index " + j + " and kmer " + BackgroundModel.int2seq(j, (i + 1))
                 + ", but got " + lines[lineIndex], 0);
           }
+          
           double prob = Double.valueOf(bgLineMatcher.group(3));
           freqs.put(mer, prob);
           lineIndex++;
@@ -69,10 +80,18 @@ public class BackgroundModelIO {
   }
 
   
+  /**
+   * Parse the lines of the background model file and initialize the markov
+   * model
+   * TODO make integer value header column optional
+   * @param model
+   * @param lines
+   * @throws ParseException
+   */
   private static void initMarkovBackgroundModel(MarkovBackgroundModel model, String[] lines) throws ParseException {
     // initialize background model object
 
-    Matcher bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(""); 
+  	Matcher bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(""); 
     int lineIndex = 0;
     for (int i = 0; i < model.getMaxKmerLen(); i++) {
       for (int j = 0; j < Math.pow(4, i + 1); j += 4) {
@@ -82,8 +101,8 @@ public class BackgroundModelIO {
           if (bgLineMatcher.matches()) {
             int intVal = Integer.valueOf(bgLineMatcher.group(1));
             String mer = bgLineMatcher.group(2).toUpperCase();
-            if ((intVal != (j+k)) || !mer.equals(BackgroundModel.int2seq(j, (i + 1)))) {
-              throw new ParseException("Expected index " + j + " and kmer " + BackgroundModel.int2seq(j, (i + 1))
+            if ((intVal != (j+k)) || !mer.equals(BackgroundModel.int2seq((j+k), (i + 1)))) {
+              throw new ParseException("Expected index " + (j+k) + " and kmer " + BackgroundModel.int2seq((j+k), (i + 1))
                   + ", but got " + lines[lineIndex], 0);
             }
             probs[k] = Double.valueOf(bgLineMatcher.group(3));
@@ -93,11 +112,19 @@ public class BackgroundModelIO {
             throw new ParseException("Incorrectly formatted line: " + lines[lineIndex], 0);
           }      		
       	}
-      	model.setMarkovProb(BackgroundModel.int2seq(j, i).substring(0, i-1), probs[0], probs[1], probs[2], probs[3]);
+      	model.setMarkovProb(BackgroundModel.int2seq(j, i+1).substring(0, i), probs[0], probs[1], probs[2], probs[3]);
       }
     }
   }
 
+  /**
+   * Parse the lines of the background model file and initialize the count
+   * based model
+   * TODO make integer value header column optional
+   * @param model
+   * @param lines
+   * @throws ParseException
+   */
   private static void initCountsBackgroundModel(CountsBackgroundModel model, String[] lines) throws ParseException {
     // initialize background model object
     Matcher bgLineMatcher = BG_LINE_COUNTS_PATTERN.matcher("");
@@ -148,76 +175,53 @@ public class BackgroundModelIO {
 
   
   /**
-   * 
+   * @see parseCountsBackgroundModel(String modelName, String filename)
+   * This version uses the filename as the name for the model
    * @param filename
    * @return
    * @throws IOException
    * @throws ParseException
    */
   public static CountsBackgroundModel parseCountsBackgroundModel(String filename) throws IOException, ParseException {
-    LineByLineFileReader lblfr = null;
+  	return BackgroundModelIO.parseCountsBackgroundModel(filename, filename);
+  }
+  
+  
+  /**
+   * 
+   * @param filename
+   * @return
+   * @throws IOException
+   * @throws ParseException
+   */
+  public static CountsBackgroundModel parseCountsBackgroundModel(String modelName, String filename) throws IOException, ParseException {
+  	String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
-    try {
-      String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
+  	int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
-      int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
+  	// construct the Counts Background Model object of that order
+  	CountsBackgroundModel bgModel = new CountsBackgroundModel(modelName, null, maxKmerLen);
 
-      // construct the Counts Background Model object of that order
-      CountsBackgroundModel bgModel = new CountsBackgroundModel(filename, null, maxKmerLen);
+  	// initialize the model
+  	BackgroundModelIO.initCountsBackgroundModel(bgModel, lines);
 
-      // initialize the model
-      BackgroundModelIO.initCountsBackgroundModel(bgModel, lines);
-
-      return bgModel;
-    }
-    finally {
-      if (lblfr != null) {
-        lblfr.closeFile();
-      }
-    }
+  	return bgModel;
   }
 
 
   /**
-   * 
+   * @see parseMarkovBackgroundModel(String modelName, String filename)
+   * This version uses the filename as the name for the model
    * @param filename
    * @return
    * @throws IOException
    * @throws ParseException
    */
   public static MarkovBackgroundModel parseMarkovBackgroundModel(String filename) throws IOException, ParseException {
-    LineByLineFileReader lblfr = null;
-
-    try {
-      String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
-
-      int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
-
-      /**
-       * construct the Markov Background Model object for that kmer length
-       * Note: the markov order will be maxKmerLen - 1
-       */      
-      MarkovBackgroundModel bgModel = new MarkovBackgroundModel(filename, null, maxKmerLen);
-
-      // initialize the model
-      BackgroundModelIO.initMarkovBackgroundModel(bgModel, lines);
-      
-      String[] normKmers = bgModel.verifyNormalization();
-      if (normKmers != null) {
-        throw new ParseException("Model is not normalized for kmers: " + normKmers[0] + "," + normKmers[1] + ","
-            + normKmers[2] + "," + normKmers[3], -1);
-      }
-
-      return bgModel;
-    }
-    finally {
-      if (lblfr != null) {
-        lblfr.closeFile();
-      }
-    }
+  	return BackgroundModelIO.parseMarkovBackgroundModel(filename, filename);
   }
-
-
+  
+  
   /**
    * 
    * @param filename
@@ -225,32 +229,67 @@ public class BackgroundModelIO {
    * @throws IOException
    * @throws ParseException
    */
-  public static FrequencyBackgroundModel parseFreqBackgroundModel(String filename) throws IOException, ParseException {
-    LineByLineFileReader lblfr = null;
+  public static MarkovBackgroundModel parseMarkovBackgroundModel(String modelName, String filename) throws IOException, ParseException {
+  	String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
-    try {
-      String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
+  	int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
-      int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
+  	/**
+  	 * construct the Markov Background Model object for that kmer length
+  	 * Note: the markov order will be maxKmerLen - 1
+  	 */      
+  	MarkovBackgroundModel bgModel = new MarkovBackgroundModel(modelName, null, maxKmerLen);
 
-      // construct the Frequency Background Model object for that kmer length
-      FrequencyBackgroundModel bgModel = new FrequencyBackgroundModel(filename, null, maxKmerLen);
+  	// initialize the model
+  	BackgroundModelIO.initMarkovBackgroundModel(bgModel, lines);
 
-      // initialize the model
-      BackgroundModelIO.initFreqBackgroundModel(bgModel, lines);
+  	String[] normKmers = bgModel.verifyNormalization();
+  	if (normKmers != null) {
+  		throw new ParseException("Model is not normalized for kmers: " + normKmers[0] + "," + normKmers[1] + ","
+  		                         + normKmers[2] + "," + normKmers[3], -1);
+  	}
 
-      int normKmers = bgModel.verifyNormalization();
-      if (normKmers != -1) {
-        throw new ParseException("Model is not normalized for kmers of length " + normKmers, -1);
-      }
-      
-      return bgModel;
-    }
-    finally {
-      if (lblfr != null) {
-        lblfr.closeFile();
-      }
-    }
+  	return bgModel;
+  }
+
+
+  /**
+   * @see parseFrequencyBackgroundModel(String modelName, String filename)
+   * This version uses the filename as the name for the model
+   * @param filename
+   * @return
+   * @throws IOException
+   * @throws ParseException
+   */
+  public static FrequencyBackgroundModel parseFrequencyBackgroundModel(String filename) throws IOException, ParseException {
+  	return BackgroundModelIO.parseFreqBackgroundModel(filename, filename);
+  }
+  
+  
+  /**
+   * 
+   * @param filename
+   * @return
+   * @throws IOException
+   * @throws ParseException
+   */
+  public static FrequencyBackgroundModel parseFreqBackgroundModel(String modelName, String filename) throws IOException, ParseException {
+  	String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
+
+  	int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
+
+  	// construct the Frequency Background Model object for that kmer length
+  	FrequencyBackgroundModel bgModel = new FrequencyBackgroundModel(modelName, null, maxKmerLen);
+
+  	// initialize the model
+  	BackgroundModelIO.initFreqBackgroundModel(bgModel, lines);
+
+  	int normKmers = bgModel.verifyNormalization();
+  	if (normKmers != -1) {
+  		throw new ParseException("Model is not normalized for kmers of length " + normKmers, -1);
+  	}
+
+  	return bgModel;
   }
   
 
@@ -270,13 +309,13 @@ public class BackgroundModelIO {
         for (int j = 0; j < Math.pow(4, i); j++) {
           String currKmer = BackgroundModel.int2seq(j, i);
           if (bgModel instanceof MarkovBackgroundModel) {
-          	lblfw.writeLine(j + "\t" + currKmer + "\t" + bgModel.getMarkovProb(i, j));
+          	lblfw.writeLine(j + "\t" + currKmer + "\t" + bgModel.getMarkovProb(j, i));
           }
           else if (bgModel instanceof FrequencyBackgroundModel) {          	
-          	lblfw.writeLine(j + "\t" + currKmer + "\t" + ((FrequencyBackgroundModel)bgModel).getFrequency(i, j));
+          	lblfw.writeLine(j + "\t" + currKmer + "\t" + ((FrequencyBackgroundModel)bgModel).getFrequency(j, i));
           }
           else if (bgModel instanceof CountsBackgroundModel) {
-          	lblfw.writeLine(j + "\t" + currKmer + "\t" + ((CountsBackgroundModel)bgModel).getKmerCount(i, j));
+          	lblfw.writeLine(j + "\t" + currKmer + "\t" + ((CountsBackgroundModel)bgModel).getKmerCount(j, i));
           }
         }
       }
