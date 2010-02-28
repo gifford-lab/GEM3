@@ -111,36 +111,36 @@ public class BackgroundModelImport {
       
 
   private static void insertModelColumns(BackgroundModel model, int bggmID, Connection cxn) throws SQLException {
-    if ((model instanceof MarkovBackgroundModel) || (model instanceof FrequencyBackgroundModel)) {
-      PreparedStatement insertCol = null;
-      for (int i = 1; i <= model.getMaxKmerLen(); i++) {
-        for (String kmer : model.model[i].keySet()) {
-          String prevBases = kmer.substring(0, kmer.length() - 1);
-          String currBase = kmer.substring(kmer.length() - 1, kmer.length());
-          double prob = model.getModelProb(kmer);
-          int count = model.getModelCount(kmer);
-
-          if (count >= 0) {
-            insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,prev_bases,curr_base,probability,count) values(?,?,?,?,?)");
-            insertCol.setInt(5, count);
-          }
-          else {
-            insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,prev_bases,curr_base,probability) values(?,?,?,?)");
-          }
-          insertCol.setInt(1, bggmID);
-          insertCol.setString(2, prevBases);
-          insertCol.setString(3, currBase);
-          insertCol.setDouble(4, prob);
-          insertCol.execute();
-        }
-      }
-      if (insertCol != null) {
-        insertCol.close();
-      }
-    }
-    else {
-      throw new IllegalArgumentException("Background Model must either be a MarkovBackgroundModel or a FrequencyBackgroundModel.");
-    }
+//    if ((model instanceof MarkovBackgroundModel) || (model instanceof FrequencyBackgroundModel)) {
+//      PreparedStatement insertCol = null;
+//      for (int i = 1; i <= model.getMaxKmerLen(); i++) {
+//        for (String kmer : model.modelProbs[i].keySet()) {
+//          String prevBases = kmer.substring(0, kmer.length() - 1);
+//          String currBase = kmer.substring(kmer.length() - 1, kmer.length());
+//          double prob = model.getModelProb(kmer);
+//          int count = model.getModelCount(kmer);
+//
+//          if (count >= 0) {
+//            insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,prev_bases,curr_base,probability,count) values(?,?,?,?,?)");
+//            insertCol.setInt(5, count);
+//          }
+//          else {
+//            insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,prev_bases,curr_base,probability) values(?,?,?,?)");
+//          }
+//          insertCol.setInt(1, bggmID);
+//          insertCol.setString(2, prevBases);
+//          insertCol.setString(3, currBase);
+//          insertCol.setDouble(4, prob);
+//          insertCol.execute();
+//        }
+//      }
+//      if (insertCol != null) {
+//        insertCol.close();
+//      }
+//    }
+//    else {
+//      throw new IllegalArgumentException("Background Model must either be a MarkovBackgroundModel or a FrequencyBackgroundModel.");
+//    }
   }
   
   

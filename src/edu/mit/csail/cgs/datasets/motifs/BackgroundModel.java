@@ -20,7 +20,6 @@ public abstract class BackgroundModel {
   
   protected String name;
   protected Genome gen;
-  protected boolean hasCounts = false; 
 
   /**
    * For keeping track of whether or not both strands are accounted for in 
@@ -28,27 +27,31 @@ public abstract class BackgroundModel {
    * True if the model was based on a single strand
    * False if the model was based on both strands
    */
-  protected boolean isStranded = true;
+  protected Boolean isStranded = null;
 
-  //keep track of whether a database exists (and its value)
-  protected Integer dbid;
-  protected boolean hasdbid;
+  //keep track of whether a database ID exists (and its value)
+  protected int dbid = -1;
+  protected boolean hasDBID = false;
   
 
   /**
-   * Map for holding the kmer probability (and count) values for the model. Each 
+   * Map for holding the kmer probability values for the model. Each 
    * element of the array holds kmers whose length is the index of that element.
-   * i.e. model[2] holds 2-mers. Accordingly, model[0] should always be empty. 
+   * i.e. model[2] holds 2-mers. Accordingly, model[0] should always be empty.
+   * 
+   * Note: this should only be used for probabilties, and not for counts. The
+   * CountBasedModel uses a separate Map to hold the counts and this map to
+   * keep the normalized counts (frequencies).
    */
-  protected Map<String, Pair<Double, Integer>>[] model;
+  protected Map<String, Double>[] modelProbs;
 
 
   
   /**
    * 
    */
-  public BackgroundModel() {
-    this(DEFAULT_MAX_KMER_LEN);    
+  public BackgroundModel(String name, Genome gen) {
+    this(name ,gen, DEFAULT_MAX_KMER_LEN);    
   }
 
 
@@ -56,11 +59,63 @@ public abstract class BackgroundModel {
    * 
    * @param maxKmerLen
    */
-  public BackgroundModel(int maxKmerLen) {
-    model = new HashMap[maxKmerLen + 1];
-    for (int i = 0; i <= maxKmerLen; i++) {
-      model[i] = new HashMap<String, Pair<Double, Integer>>();
+  public BackgroundModel(String name, Genome gen, int maxKmerLen) {
+  	this.name = name;
+  	this.gen = gen;
+    modelProbs = new HashMap[maxKmerLen + 1];
+    for (int i = 1; i <= maxKmerLen; i++) {
+      modelProbs[i] = new HashMap<String, Double>();
     }
+  }
+  
+
+  /**
+   * Construct a Background Model from an existing Background Model. Set the
+   * instance variables of this class to match the source model. Subclasses
+   * should only set the dbid if the type of the subclass model matches the type
+   * of the source model.
+   *  
+   * @param source the Background Model on which to base the one being constructed
+   */
+  public BackgroundModel(BackgroundModel source) {
+  	this(source.name, source.gen, source.getMaxKmerLen());
+  	this.isStranded = source.isStranded;
+  }
+  
+  
+  /**
+   * Returns the name of this model
+   * @return
+   */
+  public String getName() {
+  	return name;
+  }
+  
+  
+  /**
+   * Set the name of this model
+   * @param name
+   */
+  public void setName(String name) {
+  	this.name = name;
+  }
+  
+  
+  /**
+   * Returns true if this model has a database ID
+   * @return
+   */
+  public boolean hasDBID() {
+  	return hasDBID;
+  }
+  
+  
+  /**
+   * Returns this model's database ID, which is -1 if it doesn't have one
+   * @return
+   */
+  public int getDBID() {
+  	return dbid;
   }
   
   
@@ -69,146 +124,26 @@ public abstract class BackgroundModel {
    * @return
    */
   public int getMaxKmerLen() {
-    return model.length - 1;
+    return modelProbs.length - 1;
   }
   
-  
+
   /**
-   * 
-   * @param mer
+   * Get the Markov-order of this model
    * @return
    */
-  public Pair<Double, Integer> getModelValuePair(String mer) {
-    if (mer.length() > 0) {      
-      return (model[mer.length()].get(mer));
-    }
-    else {
-      throw new IllegalArgumentException("Zero length kmer.");
-    }
-  }
-
-
-  /**
-   * 
-   * @param kmerLen
-   * @param intVal
-   * @return
-   */
-  public Pair<Double, Integer> getModelValuePair(int kmerLen, int intVal) {
-    if (kmerLen > 0) {
-      return (this.getModelValuePair(BackgroundModel.int2seq(intVal, kmerLen)));
-    }
-    else {
-      throw new IllegalArgumentException("kmerLen must be greater than zero.");
-    }
-  }
-  
-  
-  /**
-   * 
-   * @param mer
-   * @param val
-   */
-  public void setModelValuePair(String mer, Double prob, Integer count) {
-    if (mer.length() > 0) {     
-      Pair<Double, Integer> values = new Pair<Double, Integer>(prob, count);
-      model[mer.length()].put(mer, values);
-    }
-    else {     
-      throw new IllegalArgumentException("Zero length kmer.");      
-    }
-  }
-  
-  
-  /**
-   * 
-   * @param mer
-   * @return
-   */
-  public Integer getModelCount(String mer) {
-    Pair<Double, Integer> values = this.getModelValuePair(mer);
-    if (values != null) {
-      return values.cdr(); 
-    }
-    else {
-      return null;
-    }
-  }
-
-
-  /**
-   * 
-   * @param kmerLen
-   * @param intVal
-   * @return
-   */
-  public Integer getModelCount(int kmerLen, int intVal) {
-    Pair<Double, Integer> values = this.getModelValuePair(kmerLen, intVal);
-    if (values != null) {
-      return values.cdr(); 
-    }
-    else {
-      return null;
-    }
-  }
-
-
-  /**
-   * 
-   * @param mer
-   * @param val
-   */
-  public void setModelCount(String mer, int count) {
-    this.setModelValuePair(mer, this.getModelProb(mer), count);
-  }
-  
-  
-  /**
-   * 
-   * @param mer
-   * @return
-   */
-  public Double getModelProb(String mer) {
-    Pair<Double, Integer> values = this.getModelValuePair(mer);
-    if (values != null) {
-      return values.car(); 
-    }
-    else {
-      return null;
-    }
-  }
-
-
-  /**
-   * 
-   * @param kmerLen
-   * @param intVal
-   * @return
-   */
-  public Double getModelProb(int kmerLen, int intVal) {
-    Pair<Double, Integer> values = this.getModelValuePair(kmerLen, intVal);
-    if (values != null) {
-      return values.car(); 
-    }
-    else {
-      return null;
-    }
-  }
-
-
-  /**
-   * 
-   * @param mer
-   * @param val
-   */
-  public void setModelProb(String mer, double prob) {
-    this.setModelValuePair(mer, prob, this.getModelCount(mer));
+  public int getMarkovOrder() {
+    return modelProbs.length - 2;
   }
   
   
   public boolean isStranded() {
-    return isStranded;
+  	if (isStranded == null) {
+  		this.checkAndSetIsStranded();  		
+  	}
+  	return isStranded;
   }
+  
   
   /**
    * Check whether this model is making use of both strands or just a single 
@@ -217,6 +152,28 @@ public abstract class BackgroundModel {
    * @return
    */
   public abstract boolean checkAndSetIsStranded();
+  
+  
+  
+  /**
+   * Return the markov probability for the last base of the specified kmer
+   * conditioned upon the preceding bases. 
+   * @param kmer
+   * @return
+   */
+  public abstract double getMarkovProb(String kmer);
+  
+  
+  /**
+   * Return the markov probability for the last base of the kmer represented by
+   * the specified int, conditioned upon the preceding bases.
+   * @param intVal
+   * @param kmerLen
+   * @return
+   */
+  public double getMarkovProb(int intVal, int kmerLen) {
+    return (this.getMarkovProb(BackgroundModel.int2seq(intVal, kmerLen)));
+  }
   
   
   /**

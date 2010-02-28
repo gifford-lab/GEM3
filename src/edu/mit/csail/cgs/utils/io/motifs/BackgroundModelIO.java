@@ -5,6 +5,7 @@ package edu.mit.csail.cgs.utils.io.motifs;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,15 +40,13 @@ public class BackgroundModelIO {
 //    }    
   }
   
-  private static void initBackgroundModel(BackgroundModel model, String[] lines) throws ParseException {
+  private static void initFreqBackgroundModel(FrequencyBackgroundModel model, String[] lines) throws ParseException {
     // initialize background model object
 
-    if (model instanceof CountsBackgroundModel) {
-      throw new IllegalArgumentException("Use initCountsBackgroundModel to parse background models of counts");      
-    }
     Matcher bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(""); 
     int lineIndex = 0;
     for (int i = 0; i < model.getMaxKmerLen(); i++) {
+    	HashMap<String, Double> freqs = new HashMap<String, Double>();
       for (int j = 0; j < Math.pow(4, i + 1); j++) {
         bgLineMatcher.reset(lines[lineIndex]);
         if (bgLineMatcher.matches()) {
@@ -58,16 +57,46 @@ public class BackgroundModelIO {
                 + ", but got " + lines[lineIndex], 0);
           }
           double prob = Double.valueOf(bgLineMatcher.group(3));
-          model.setModelProb(mer, prob);
+          freqs.put(mer, prob);
           lineIndex++;
         }
         else {
           throw new ParseException("Incorrectly formatted line: " + lines[lineIndex], 0);
         }
       }
+      model.setKmerFrequencies(freqs);
     }
   }
 
+  
+  private static void initMarkovBackgroundModel(MarkovBackgroundModel model, String[] lines) throws ParseException {
+    // initialize background model object
+
+    Matcher bgLineMatcher = BG_LINE_PROBS_PATTERN.matcher(""); 
+    int lineIndex = 0;
+    for (int i = 0; i < model.getMaxKmerLen(); i++) {
+      for (int j = 0; j < Math.pow(4, i + 1); j += 4) {
+      	double[] probs = new double[4];
+      	for (int k = 0; k < 4; k++) {
+          bgLineMatcher.reset(lines[lineIndex]);
+          if (bgLineMatcher.matches()) {
+            int intVal = Integer.valueOf(bgLineMatcher.group(1));
+            String mer = bgLineMatcher.group(2).toUpperCase();
+            if ((intVal != (j+k)) || !mer.equals(BackgroundModel.int2seq(j, (i + 1)))) {
+              throw new ParseException("Expected index " + j + " and kmer " + BackgroundModel.int2seq(j, (i + 1))
+                  + ", but got " + lines[lineIndex], 0);
+            }
+            probs[k] = Double.valueOf(bgLineMatcher.group(3));
+            lineIndex++;
+          }
+          else {
+            throw new ParseException("Incorrectly formatted line: " + lines[lineIndex], 0);
+          }      		
+      	}
+      	model.setMarkovProb(BackgroundModel.int2seq(j, i).substring(0, i-1), probs[0], probs[1], probs[2], probs[3]);
+      }
+    }
+  }
 
   private static void initCountsBackgroundModel(CountsBackgroundModel model, String[] lines) throws ParseException {
     // initialize background model object
@@ -84,7 +113,7 @@ public class BackgroundModelIO {
                 + ", but got " + lines[lineIndex], 0);
           }
           int count = Integer.valueOf(bgLineMatcher.group(3));
-          model.setModelCount(mer, count);
+          model.setKmerCount(mer, count);
           lineIndex++;
         }
         else {
@@ -134,7 +163,7 @@ public class BackgroundModelIO {
       int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
       // construct the Counts Background Model object of that order
-      CountsBackgroundModel bgModel = new CountsBackgroundModel(maxKmerLen);
+      CountsBackgroundModel bgModel = new CountsBackgroundModel(filename, null, maxKmerLen);
 
       // initialize the model
       BackgroundModelIO.initCountsBackgroundModel(bgModel, lines);
@@ -168,10 +197,10 @@ public class BackgroundModelIO {
        * construct the Markov Background Model object for that kmer length
        * Note: the markov order will be maxKmerLen - 1
        */      
-      MarkovBackgroundModel bgModel = new MarkovBackgroundModel(maxKmerLen);
+      MarkovBackgroundModel bgModel = new MarkovBackgroundModel(filename, null, maxKmerLen);
 
       // initialize the model
-      BackgroundModelIO.initBackgroundModel(bgModel, lines);
+      BackgroundModelIO.initMarkovBackgroundModel(bgModel, lines);
       
       String[] normKmers = bgModel.verifyNormalization();
       if (normKmers != null) {
@@ -205,10 +234,10 @@ public class BackgroundModelIO {
       int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
       // construct the Frequency Background Model object for that kmer length
-      FrequencyBackgroundModel bgModel = new FrequencyBackgroundModel(maxKmerLen);
+      FrequencyBackgroundModel bgModel = new FrequencyBackgroundModel(filename, null, maxKmerLen);
 
       // initialize the model
-      BackgroundModelIO.initBackgroundModel(bgModel, lines);
+      BackgroundModelIO.initFreqBackgroundModel(bgModel, lines);
 
       int normKmers = bgModel.verifyNormalization();
       if (normKmers != -1) {
@@ -240,7 +269,15 @@ public class BackgroundModelIO {
       for (int i = 1; i <= bgModel.getMaxKmerLen(); i++) {
         for (int j = 0; j < Math.pow(4, i); j++) {
           String currKmer = BackgroundModel.int2seq(j, i);
-          lblfw.writeLine(j + "\t" + currKmer + "\t" + bgModel.getModelProb(i, j));  
+          if (bgModel instanceof MarkovBackgroundModel) {
+          	lblfw.writeLine(j + "\t" + currKmer + "\t" + bgModel.getMarkovProb(i, j));
+          }
+          else if (bgModel instanceof FrequencyBackgroundModel) {          	
+          	lblfw.writeLine(j + "\t" + currKmer + "\t" + ((FrequencyBackgroundModel)bgModel).getFrequency(i, j));
+          }
+          else if (bgModel instanceof CountsBackgroundModel) {
+          	lblfw.writeLine(j + "\t" + currKmer + "\t" + ((CountsBackgroundModel)bgModel).getKmerCount(i, j));
+          }
         }
       }
       lblfw.writeLine("");
