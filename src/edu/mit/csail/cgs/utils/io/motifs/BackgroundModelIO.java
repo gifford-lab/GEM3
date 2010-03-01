@@ -13,6 +13,7 @@ import edu.mit.csail.cgs.datasets.motifs.BackgroundModel;
 import edu.mit.csail.cgs.datasets.motifs.CountsBackgroundModel;
 import edu.mit.csail.cgs.datasets.motifs.MarkovBackgroundModel;
 import edu.mit.csail.cgs.datasets.motifs.FrequencyBackgroundModel;
+import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.io.LineByLineFileReader;
 import edu.mit.csail.cgs.utils.io.LineByLineFileWriter;
 
@@ -175,7 +176,7 @@ public class BackgroundModelIO {
 
   
   /**
-   * @see parseCountsBackgroundModel(String modelName, String filename)
+   * @see parseCountsBackgroundModel(String modelName, String filename, Genome gen)
    * This version uses the filename as the name for the model
    * @param filename
    * @return
@@ -183,24 +184,38 @@ public class BackgroundModelIO {
    * @throws ParseException
    */
   public static CountsBackgroundModel parseCountsBackgroundModel(String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseCountsBackgroundModel(filename, filename);
+  	return BackgroundModelIO.parseCountsBackgroundModel(filename, filename, null);
   }
   
   
   /**
-   * 
+   * @see parseCountsBackgroundModel(String modelName, String filename, Genome gen)
+   * @param modelName
    * @param filename
    * @return
    * @throws IOException
    * @throws ParseException
    */
   public static CountsBackgroundModel parseCountsBackgroundModel(String modelName, String filename) throws IOException, ParseException {
+  	return BackgroundModelIO.parseCountsBackgroundModel(modelName, filename, null);
+  }
+  
+  
+  /**
+   * 
+   * @param filename
+   * @param gen TODO
+   * @return
+   * @throws IOException
+   * @throws ParseException
+   */
+  public static CountsBackgroundModel parseCountsBackgroundModel(String modelName, String filename, Genome gen) throws IOException, ParseException {
   	String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
   	int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
   	// construct the Counts Background Model object of that order
-  	CountsBackgroundModel bgModel = new CountsBackgroundModel(modelName, null, maxKmerLen);
+  	CountsBackgroundModel bgModel = new CountsBackgroundModel(modelName, gen, maxKmerLen);
 
   	// initialize the model
   	BackgroundModelIO.initCountsBackgroundModel(bgModel, lines);
@@ -210,7 +225,7 @@ public class BackgroundModelIO {
 
 
   /**
-   * @see parseMarkovBackgroundModel(String modelName, String filename)
+   * @see parseMarkovBackgroundModel(String modelName, String filename, Genome gen)
    * This version uses the filename as the name for the model
    * @param filename
    * @return
@@ -218,7 +233,20 @@ public class BackgroundModelIO {
    * @throws ParseException
    */
   public static MarkovBackgroundModel parseMarkovBackgroundModel(String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseMarkovBackgroundModel(filename, filename);
+  	return BackgroundModelIO.parseMarkovBackgroundModel(filename, filename, null);
+  }
+  
+  
+  /**
+   * @see parseMarkovBackgroundModel(String modelName, String filename, Genome gen)
+   * @param modelName
+   * @param filename
+   * @return
+   * @throws IOException
+   * @throws ParseException
+   */
+  public static MarkovBackgroundModel parseMarkovBackgroundModel(String modelName, String filename) throws IOException, ParseException {
+  	return BackgroundModelIO.parseMarkovBackgroundModel(modelName, filename, null);
   }
   
   
@@ -229,7 +257,7 @@ public class BackgroundModelIO {
    * @throws IOException
    * @throws ParseException
    */
-  public static MarkovBackgroundModel parseMarkovBackgroundModel(String modelName, String filename) throws IOException, ParseException {
+  public static MarkovBackgroundModel parseMarkovBackgroundModel(String modelName, String filename, Genome gen) throws IOException, ParseException {
   	String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
   	int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
@@ -238,7 +266,7 @@ public class BackgroundModelIO {
   	 * construct the Markov Background Model object for that kmer length
   	 * Note: the markov order will be maxKmerLen - 1
   	 */      
-  	MarkovBackgroundModel bgModel = new MarkovBackgroundModel(modelName, null, maxKmerLen);
+  	MarkovBackgroundModel bgModel = new MarkovBackgroundModel(modelName, gen, maxKmerLen);
 
   	// initialize the model
   	BackgroundModelIO.initMarkovBackgroundModel(bgModel, lines);
@@ -254,7 +282,7 @@ public class BackgroundModelIO {
 
 
   /**
-   * @see parseFrequencyBackgroundModel(String modelName, String filename)
+   * @see parseFrequencyBackgroundModel(String modelName, String filename, Genome gen)
    * This version uses the filename as the name for the model
    * @param filename
    * @return
@@ -262,7 +290,20 @@ public class BackgroundModelIO {
    * @throws ParseException
    */
   public static FrequencyBackgroundModel parseFrequencyBackgroundModel(String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseFreqBackgroundModel(filename, filename);
+  	return BackgroundModelIO.parseFreqBackgroundModel(filename, filename, null);
+  }
+  
+  
+  /**
+   * @see parseFrequencyBackgroundModel(String modelName, String filename, Genome gen)
+   * @param modelName
+   * @param filename
+   * @return
+   * @throws IOException
+   * @throws ParseException
+   */
+  public static FrequencyBackgroundModel parseFreqBackgroundModel(String modelName, String filename) throws IOException, ParseException {
+  	return BackgroundModelIO.parseFreqBackgroundModel(modelName, filename, null);
   }
   
   
@@ -273,13 +314,13 @@ public class BackgroundModelIO {
    * @throws IOException
    * @throws ParseException
    */
-  public static FrequencyBackgroundModel parseFreqBackgroundModel(String modelName, String filename) throws IOException, ParseException {
+  public static FrequencyBackgroundModel parseFreqBackgroundModel(String modelName, String filename, Genome gen) throws IOException, ParseException {
   	String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
   	int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);
 
   	// construct the Frequency Background Model object for that kmer length
-  	FrequencyBackgroundModel bgModel = new FrequencyBackgroundModel(modelName, null, maxKmerLen);
+  	FrequencyBackgroundModel bgModel = new FrequencyBackgroundModel(modelName, gen, maxKmerLen);
 
   	// initialize the model
   	BackgroundModelIO.initFreqBackgroundModel(bgModel, lines);

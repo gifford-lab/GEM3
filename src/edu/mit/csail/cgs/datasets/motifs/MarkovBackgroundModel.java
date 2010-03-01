@@ -1,6 +1,7 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
 import java.util.List;
+import java.util.Set;
 
 import cern.colt.matrix.*;
 import cern.colt.matrix.impl.*;
@@ -59,6 +60,14 @@ public class MarkovBackgroundModel extends BackgroundModel {
     }
   }
   
+  
+  /**
+   * @see BackgroundModel
+   */
+  public Set<String> getKmers(int kmerLen) {
+  	return modelProbs[kmerLen].keySet();
+  }
+
   
   /**
    * Construct a Markov Background Model from an existing Counts Background

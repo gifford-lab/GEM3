@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import edu.mit.csail.cgs.datasets.general.NamedRegion;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -52,6 +53,14 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
     //set the model map array to be empty so that it can be used to lazily
     //shadow the counts with frequencies
     Arrays.fill(modelProbs, null);
+  }
+  
+  
+  /**
+   * @see BackgroundModel
+   */
+  public Set<String> getKmers(int kmerLen) {
+  	return kmerCounts[kmerLen].keySet();
   }
 
   

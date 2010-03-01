@@ -3,6 +3,7 @@ package edu.mit.csail.cgs.datasets.motifs;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.Pair;
@@ -34,6 +35,14 @@ public class FrequencyBackgroundModel extends BackgroundModel implements Backgro
   	}
   }
   
+  
+  /**
+   * @see BackgroundModel
+   */
+  public Set<String> getKmers(int kmerLen) {
+  	return modelProbs[kmerLen].keySet();
+  }
+
   
   /**
    * @see BackgroundModel

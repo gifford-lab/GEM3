@@ -105,11 +105,19 @@ public class WeightMatrixImport {
         ResultSet rs = exists.executeQuery();
         if (!rs.next()) {
             rs.close();
-            PreparedStatement insertwm = cxn.prepareStatement("insert into weightmatrix(id,species,name,version,type) values (weightmatrix_id.nextval,?,?,?,?)");
+            PreparedStatement insertwm;
+            if ((matrix.bgModel != null) && matrix.bgModel.hasDBID()) {
+            	insertwm = cxn.prepareStatement("insert into weightmatrix(id,species,name,version,type,bg_model_id) values (weightmatrix_id.nextval,?,?,?,?,?)");
+            	insertwm.setInt(5, matrix.bgModel.getDBID());
+            }
+            else {
+            	insertwm = cxn.prepareStatement("insert into weightmatrix(id,species,name,version,type) values (weightmatrix_id.nextval,?,?,?,?)");
+            }
             insertwm.setInt(1,matrix.speciesid);
             insertwm.setString(2,matrix.name);
             insertwm.setString(3,matrix.version);
             insertwm.setString(4,matrix.type);
+            
             //            System.err.println(String.format("Inserting %s %s %s", matrix.name, matrix.version, matrix.type));
             insertwm.execute();
             insertwm.close();

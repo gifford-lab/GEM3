@@ -32,6 +32,7 @@ public class WeightMatrix {
     public int dbid, speciesid;
     public boolean hasdbid, hasspeciesid; // set to true iff dbid is valid
     public boolean islogodds;
+    public BackgroundModel bgModel;
     
     WeightMatrix(ResultSet wmData, ResultSet wmColData) throws SQLException {  
     	dbid = wmData.getInt(1);
@@ -271,7 +272,13 @@ public class WeightMatrix {
         islogodds = true;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-                matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25);
+            	//FIXME
+            	if (bgModel != null) {
+                matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+            	}
+            	else {
+            		matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25);
+            	}
             }
         }        
     }

@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.Pair;
@@ -30,8 +31,11 @@ public abstract class BackgroundModel {
   protected Boolean isStranded = null;
 
   //keep track of whether a database ID exists (and its value)
-  protected int dbid = -1;
-  protected boolean hasDBID = false;
+  //protected int dbid = -1;
+  //protected boolean hasDBID = false;
+  //FIXME
+  public int dbid = -1;
+  public boolean hasDBID = false;
   
 
   /**
@@ -102,6 +106,24 @@ public abstract class BackgroundModel {
   
   
   /**
+   * Returns this model's genome
+   * @return the genome, which is null if it's not set
+   */
+  public Genome getGenome() {
+  	return gen;
+  }
+  
+  
+  /**
+   * Set this model to have the specified genome
+   * @param gen
+   */
+  public void setGenome(Genome gen) {
+  	this.gen = gen;
+  }
+  
+  
+  /**
    * Returns true if this model has a database ID
    * @return
    */
@@ -152,8 +174,16 @@ public abstract class BackgroundModel {
    * @return
    */
   public abstract boolean checkAndSetIsStranded();
+    
   
-  
+  /**
+   * Return the set of kmers of the specified length for which this model has
+   * probabilities or counts
+   * @param kmerLen
+   * @return
+   */
+  public abstract Set<String> getKmers(int kmerLen);
+
   
   /**
    * Return the markov probability for the last base of the specified kmer
@@ -175,7 +205,7 @@ public abstract class BackgroundModel {
     return (this.getMarkovProb(BackgroundModel.int2seq(intVal, kmerLen)));
   }
   
-  
+    
   /**
    * Convert a base to an int value
    * @param base
