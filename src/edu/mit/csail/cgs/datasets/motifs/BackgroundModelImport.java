@@ -4,8 +4,6 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
 import java.io.*;
-import java.util.*;
-import java.util.regex.*;
 import java.sql.*;
 import java.text.ParseException;
 
@@ -13,26 +11,20 @@ import org.apache.log4j.Logger;
 
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
-import edu.mit.csail.cgs.utils.database.DatabaseException;
-import edu.mit.csail.cgs.utils.database.UnknownRoleException;
-import edu.mit.csail.cgs.utils.io.Points2RegionsConverter;
 import edu.mit.csail.cgs.utils.io.motifs.BackgroundModelIO;
-import edu.mit.csail.cgs.utils.io.parsing.PWMParser;
 import edu.mit.csail.cgs.utils.*;
-import edu.mit.csail.cgs.datasets.*;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
 
 /**
  * @author rca
- *
+ * Code for database interaction involving background models
  */
 public class BackgroundModelImport {
 
   private static Logger logger = Logger.getLogger(BackgroundModelImport.class);
-    
-  /** Imports a weight matrix from a TAMO formatted file.
-   *  Only reads the first WM in the file. 
+  
+  /** 
+   * Imports a weightmatrix from a file into the DB 
    *
    * Usage:
    * java edu.mit.csail.cgs.datasets.motifs.BackgroundModelImport --genome "Mus musculus;mm8" --bgname "whole genome" --bgtype MARKOV --bgfile foo.back
@@ -66,169 +58,476 @@ public class BackgroundModelImport {
 
   		if (bgType.toUpperCase().equals("MARKOV")) {
   			MarkovBackgroundModel mbg = BackgroundModelIO.parseMarkovBackgroundModel(bgName, bgFilename, gen);
-  			BackgroundModelImport.insertMarkovBackgroundModel(mbg);
+  			BackgroundModelImport.insertMarkovModel(mbg);
+  		}
+  		else if (bgType.toUpperCase().equals("FREQUENCY")) {
+  		  FrequencyBackgroundModel fbg = BackgroundModelIO.parseFreqBackgroundModel(bgName, bgFilename, gen);
+  		  BackgroundModelImport.insertFrequencyModel(fbg);
+  		}
+      else if (bgType.toUpperCase().equals("COUNTS;MARKOV")) {
+        CountsBackgroundModel cbg = BackgroundModelIO.parseCountsBackgroundModel(bgName, bgFilename, gen);
+        BackgroundModelImport.insertCountsModel(cbg, true);
+      }
+      else if (bgType.toUpperCase().equals("COUNTS;FREQUENCY")) {
+        CountsBackgroundModel cbg = BackgroundModelIO.parseCountsBackgroundModel(bgName, bgFilename, gen);
+        BackgroundModelImport.insertCountsModel(cbg, false);
+      }
+      else {
+        logger.fatal("Background type must be one of: Markov, Frequency, Counts;Markov, Counts;Frequency.");
+        System.exit(1);
   		}
   	}
   	catch (NotFoundException nfex) {
   		logger.fatal(nfex);
+  		System.exit(1);
   	}
   	catch (IOException ioex) {
   		logger.fatal(ioex);
+      System.exit(1);
   	}
   	catch (ParseException pex) {
   		logger.fatal(pex);  		
+      System.exit(1);
   	}
   	catch (SQLException sqlex) {
   		logger.fatal(sqlex);
+      System.exit(1);
   	}
   	System.exit(0);
   }
-      
-
-  private static void insertModelColumnsNoCounts(BackgroundModel model, int bggmID, Connection cxn) throws SQLException {
-  	boolean isFreqModel;
-  	if (model instanceof FrequencyBackgroundModel) {
-  		isFreqModel = true;
-  	}
-  	else if (model instanceof MarkovBackgroundModel) {
-  		isFreqModel = false;
-  	}
-  	else {
-  		throw new IllegalArgumentException("Model must be a MarkovBackgroundModel or a FrequencyBackgroundModel. Use insertModelColumns() for a CountsBackgroundModel.");
-  	}
-  	
-  	PreparedStatement insertCol = null;
-  	for (int i = 1; i <= model.getMaxKmerLen(); i++) {
-  		for (String kmer : model.getKmers(i)) {
-  			double prob;
-  			if (isFreqModel) {
-  				prob = ((FrequencyBackgroundModel)model).getFrequency(kmer);  				
-  			}
-  			else {
-  				prob = model.getMarkovProb(kmer);
-  			}
-
-				insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,kmer,probability) values(?,?,?)");
-  			insertCol.setInt(1, bggmID);
-  			insertCol.setString(2, kmer);
-  			insertCol.setDouble(3, prob);
-  			insertCol.execute();
-  		}
-  	}
-  	if (insertCol != null) {
-  		insertCol.close();
-  	}
+  
+    
+  /**
+   * @see getBackgroundModelID(String, int, String, Connection)
+   * Creates a database connection for the query
+   */
+  public static Integer getBackgroundModelID(String name, int kmerLen, String modelType) throws SQLException {
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      return BackgroundModelImport.getBackgroundModelID(name, kmerLen, modelType, cxn);
+    }
+    finally {
+      DatabaseFactory.freeConnection(cxn);
+    }
   }
   
   
-  public static int insertBackgroundModelTable(BackgroundModel model, String modelType, Connection cxn) throws SQLException {    
-    int modelID = -1;
-    PreparedStatement modelExists = cxn.prepareStatement("select id from background_model where name = ? and max_kmer_len = ? and model_type = " + modelType);
-    modelExists.setString(1, model.name);
-    modelExists.setInt(2, model.getMaxKmerLen());
-    ResultSet rs = modelExists.executeQuery();
+  /**
+   * Look for a model with this name, kmerlen, and type and return its ID. 
+   * 
+   * @param name the name of the model
+   * @param kmerLen the length of the longest kmer in the model
+   * @param modelType the type of the model (FREQUENCY or MARKOV)
+   * @param cxn an open database connection
+   * @return the ID of the model, or null if there's no match
+   * @throws SQLException
+   */
+  public static Integer getBackgroundModelID(String name, int kmerLen, String modelType, Connection cxn) throws SQLException {
+    PreparedStatement getModelID = cxn.prepareStatement("select id from background_model where name = ? and max_kmer_len = ? and model_type = ?");
+    getModelID.setString(1, name);
+    getModelID.setInt(2, kmerLen);
+    getModelID.setString(3, modelType);
+    ResultSet rs = getModelID.executeQuery();
     
-    if (rs.next()) {
-      modelID = rs.getInt(1);
-      rs.close();
-      modelExists.close();
-    }
-    else {
-      rs.close();
-      modelExists.close();
-      //Note: reuse the weightmatrix_id sequence
-      PreparedStatement insertBG = cxn.prepareStatement("insert into background_model(id,name,max_kmer_len,model_type) values (weightmatrix_id.nextval,?,?,'MARKOV')");
-      insertBG.setString(1, model.name);
-      insertBG.setInt(2, model.getMaxKmerLen());
-      insertBG.execute();
-      insertBG.close();
-      
-      PreparedStatement getModelID = cxn.prepareStatement("select weightmatrix_id.currval from dual");
-      rs = getModelID.executeQuery();
+    /**
+     */
+    try {
       if (rs.next()) {
-        modelID = rs.getInt(1);
+        Integer modelID = rs.getInt(1);
+        rs.close();
+        return modelID;
       }
       else {
-        logger.fatal("No Background Model ID");
-        System.exit(1);
+        rs.close();
+        return null;
       }
+    }
+    finally {
       rs.close();
       getModelID.close();
     }
-    return modelID;
   }
   
   
-  public static int insertBackgroundGenomeMapTable(BackgroundModel model, int modelID, Connection cxn) throws SQLException {
-  	int bggmID = -1;
-  	PreparedStatement bgGenomeMapExists = cxn.prepareStatement("select id from background_genome_map where bg_model_id = " + modelID + " and genome_id = " + model.getGenome().getDBID());
-    ResultSet rs = bgGenomeMapExists.executeQuery();
-    if (rs.next()) {
-    	rs.close();
-    	bgGenomeMapExists.close();
-      throw new IllegalArgumentException("Model already exists. Set a different name or use updateMarkovModel() to update the existing model.");
+  /**
+   * @see getBackgroundGenomeMapID(int, int, Connection)
+   * Creates a database connection for the query
+   */
+  public static Integer getBackgroundGenomeMapID(int bgModelID, int genomeID) throws SQLException {
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      return BackgroundModelImport.getBackgroundGenomeMapID(bgModelID, genomeID, cxn);
     }
-    else {
-      rs.close();
-      bgGenomeMapExists.close();
-      //Note: reuse the weightmatrix_id sequence
-      PreparedStatement insertBGGM = 
-        cxn.prepareStatement("insert into background_genome_map(id, genome_id, bg_model_id) values (weightmatrix_id.nextval," + model.getGenome().getDBID() + "," + modelID + ")");
-      insertBGGM.execute();
-      insertBGGM.close();
-      PreparedStatement getBGGMID = cxn.prepareStatement("select weightmatrix_id.currval from dual");
-      rs = getBGGMID.executeQuery();
+    finally {
+      DatabaseFactory.freeConnection(cxn);
+    }
+  }
+  
+  
+  /**
+   * Look for an entry in the background model genome map for the specified
+   * background model and genome, and return its ID
+   * @param bgModelID the id of the model to look up
+   * @param genomeID a genome for which there may be an instance of the model
+   * @param cxn an open database connection
+   * @return the background genome map ID of the model, or null if there's no match
+   * @throws SQLException
+   */
+  public static Integer getBackgroundGenomeMapID(int bgModelID, int genomeID, Connection cxn) throws SQLException {
+    PreparedStatement getBGGenomeMapID = cxn.prepareStatement("select id from background_genome_map where bg_model_id = ? and genome_id = ?");
+    getBGGenomeMapID.setInt(1, bgModelID);
+    getBGGenomeMapID.setInt(2, genomeID);
+    ResultSet rs = getBGGenomeMapID.executeQuery();
+    try {
       if (rs.next()) {
-        bggmID = rs.getInt(1);
+        return rs.getInt(1);
       }
       else {
-        logger.fatal("No Background Model Genome Map ID");
-        System.exit(1);
+        return null;
       }
+    }
+    finally {
+      rs.close();
+      getBGGenomeMapID.close();
+    }
+  }
+  
+  
+  /**
+   * Insert a markov background model into the database
+   * @param model the model to insert
+   * @return the DBID of the model
+   * @throws SQLException
+   */
+  public static int insertMarkovModel(MarkovBackgroundModel model) throws SQLException {
+    //make sure the model has a name and genome
+    if ((model.getName() == null) || (model.getName().isEmpty()) || (model.getGenome() == null)) {
+      throw new IllegalArgumentException("Model must have a name and genome specified to be imported to database.");
+    }
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      cxn.setAutoCommit(false);
+
+      //insert into the background model and background
+      int bggmID = BackgroundModelImport.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), "FREQUENCY", model.getGenome().getDBID(), cxn);
+
+      //Finally, insert all the "columns" of the background model
+      BackgroundModelImport.insertMarkovModelColumns(model, bggmID, cxn);
+      
+      //If everything has worked then commit
+      cxn.commit();
+
+      //update the model with its new ID
+      model.setDBID(bggmID);
+
+      return bggmID;
+    }
+    catch (RuntimeException ex) {
+      //If any runtime exceptions come up rollback the transaction and then
+      //rethrow the exception
+      cxn.rollback();
+      throw ex;
+    }
+    finally {
+      if (cxn != null) {
+        DatabaseFactory.freeConnection(cxn);
+      }
+    }
+  }
+
+
+  /**
+   * insert a frequency background model into the database
+   * @param model the model to insert
+   * @return the DBID of the model
+   * @throws SQLException
+   */
+  public static int insertFrequencyModel(FrequencyBackgroundModel model) throws SQLException {
+    //make sure the model has a name and genome
+    if ((model.getName() == null) || (model.getName().isEmpty()) || (model.getGenome() == null)) {
+      throw new IllegalArgumentException("Model must have a name and genome specified to be imported to database.");
+    }
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      cxn.setAutoCommit(false);
+
+      //insert into the background model and background
+      int bggmID = BackgroundModelImport.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), "FREQUENCY", model.getGenome().getDBID(), cxn);
+
+      //insert all the "columns" of the background model
+      BackgroundModelImport.insertFrequencyModelColumns(model, bggmID, cxn);
+
+      //If everything has worked then commit
+      cxn.commit();
+
+      //update the model with its new ID
+      model.setDBID(bggmID);
+
+      return bggmID;
+    }
+    catch (RuntimeException ex) {
+      //If any runtime exceptions come up rollback the transaction and then
+      //rethrow the exception
+      cxn.rollback();
+      throw ex;
+    }
+    finally {
+      if (cxn != null) {
+        DatabaseFactory.freeConnection(cxn);
+      }
+    }
+  }
+  
+
+  /**
+   * Insert a counts background model into the database
+   * @param model the model to insert
+   * @param insertAsMarkov indicates whether to insert the markov probabilities
+   * or the frequencies corresponding to the counts 
+   * @return the DBID of the model
+   * @throws SQLException
+   */
+  public static int insertCountsModel(CountsBackgroundModel model, boolean insertAsMarkov) throws SQLException {
+    //make sure the model has a name and genome
+    if ((model.getName() == null) || (model.getName().isEmpty()) || (model.getGenome() == null)) {
+      throw new IllegalArgumentException("Model must have a name and genome specified to be imported to database.");
+    }
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      cxn.setAutoCommit(false);
+
+      String modelType;
+      if (insertAsMarkov) {
+        modelType = "MARKOV";
+      }
+      else {
+        modelType = "FREQUENCY";
+      }
+      
+      //insert into the background model and background
+      int bggmID = BackgroundModelImport.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), modelType, model.getGenome().getDBID(), cxn);
+
+      //insert all the "columns" of the background model
+      BackgroundModelImport.insertCountsModelColumns(model, bggmID, insertAsMarkov, cxn);
+
+      //If everything has worked then commit
+      cxn.commit();
+
+      //update the model with its new ID
+      model.setDBID(bggmID);
+
+      return bggmID;
+    }
+    catch (RuntimeException ex) {
+      //If any runtime exceptions come up rollback the transaction and then
+      //rethrow the exception
+      cxn.rollback();
+      throw ex;
+    }
+    finally {
+      if (cxn != null) {
+        DatabaseFactory.freeConnection(cxn);
+      }
+    }
+  }
+  
+  
+  /**
+   * insert entries for the model in the background model table and the
+   * background model genome map table
+   * @param name the name of the model
+   * @param kmerLen the length of the longest kmer in the model
+   * @param modelType the type of the model ("MARKOV" or "FREQUENCY")
+   * @param genomeID the DBID of the genome the model is for
+   * @param cxn an open database connection
+   * @return the background genome map ID of the model
+   * @throws SQLException
+   */
+  private static Integer insertBackgroundModelAndMap(String name, int kmerLen, String modelType, int genomeID, Connection cxn) throws SQLException {
+    /**
+     * Check whether there is already an entry for a model with this name, kmerlen, and type. If so, reuse the model ID, 
+     * otherwise create one.
+     */
+    Integer modelID = BackgroundModelImport.getBackgroundModelID(name, kmerLen, modelType, cxn);
+    if (modelID == null) {
+      modelID = BackgroundModelImport.insertBackgroundModel(name, kmerLen, modelType, cxn);
+    }
+
+    /**
+     * Check whether there is already an entry for this model's genome in the
+     * background model genome map. If not then create one, otherwise throw
+     * an exception indicating that the update method should be called to
+     * update an existing model.
+     */
+    Integer bggmID = BackgroundModelImport.getBackgroundGenomeMapID(modelID, genomeID, cxn);
+    if (bggmID != null) {
+      //FIXME this should, perhaps, be a CGS exception  
+      throw new IllegalArgumentException("Model already exists. Select a different name or use updateMarkovModel() to update the existing model.");
+    }
+    else {
+      bggmID = BackgroundModelImport.insertBackgroundGenomeMap(modelID, genomeID, cxn);
+    }
+
+    return bggmID;
+  }
+
+
+  /**
+   * insert the model in the the background model table
+   * @param name the name of the model
+   * @param kmerLen the length of the longest kmer in the model
+   * @param modelType the type of the model ("MARKOV" or "FREQUENCY")
+   * @param cxn an open database connection
+   * @return the background model ID 
+   * @throws SQLException
+   */
+  private static Integer insertBackgroundModel(String name, int kmerLen, String modelType, Connection cxn) throws SQLException {
+    PreparedStatement insertBG = cxn.prepareStatement("insert into background_model(id,name,max_kmer_len,model_type) values (weightmatrix_id.nextval,?,?,'MARKOV')");
+    insertBG.setString(1, name);
+    insertBG.setInt(2, kmerLen);
+    insertBG.setString(3, modelType);
+    insertBG.execute();
+    insertBG.close();
+    PreparedStatement getModelID = cxn.prepareStatement("select weightmatrix_id.currval from dual");
+    ResultSet rs = getModelID.executeQuery();
+    try {
+      if (rs.next()) {
+        return rs.getInt(1);
+      }
+      else {
+        throw new SQLException("Failed to get Model ID following insert into Background_Model table.");
+      }    
+    }
+    finally {
+      rs.close();
+      getModelID.close();
+    }
+  }
+  
+  
+  /**
+   * insert the model in the background model genome map table
+   * @param modelID the background model table ID of the model
+   * @param genomeID the DBID of the genome the model is for
+   * @param cxn an open database connection
+   * @return the
+   * @throws SQLException
+   */
+  private static Integer insertBackgroundGenomeMap(int modelID, int genomeID, Connection cxn) throws SQLException {
+    PreparedStatement insertBGGM = 
+      cxn.prepareStatement("insert into background_genome_map(id, genome_id, bg_model_id) values (bggm_id.nextval, ?, ?)");
+    insertBGGM.setInt(1, modelID);
+    insertBGGM.setInt(2, genomeID);
+    insertBGGM.execute();
+    insertBGGM.close();
+    PreparedStatement getBGGMID = cxn.prepareStatement("select bggm_id.currval from dual");
+    ResultSet rs = getBGGMID.executeQuery();
+    try {
+      if (rs.next()) {
+        return rs.getInt(1);
+      }
+      else {
+        throw new SQLException("Failed to get Background Model Genome Map ID following insert into Background_Genome_Map table.");
+      }
+    }
+    finally {
       rs.close();
       getBGGMID.close();
     }
-    return bggmID;
   }
   
   
-  public static int insertMarkovBackgroundModel(MarkovBackgroundModel model) throws SQLException {
-  	java.sql.Connection cxn = DatabaseFactory.getConnection("annotations");
-  	cxn.setAutoCommit(false);
-  	int bggmID = -1;
-  	try {
-  	//make sure the model has a name and genome
-  	if ((model.getName() == null) || (model.getName().isEmpty()) || (model.getGenome() == null)) {
-  		throw new IllegalArgumentException("Model must have a name and genome specified to be imported to database.");
-  	}
-  	
-    /**
-     * Check whether there is already an entry for a model with this name, kmerlen, and type. If so, resuse the model ID, 
-     * otherwise create one.
-     */
-  	int modelID = BackgroundModelImport.insertBackgroundModelTable(model, "'MARKOV'", cxn);
-    
-    /**
-     * Check whether there is already an entry for this model's genome
-     */
-    bggmID = BackgroundModelImport.insertBackgroundGenomeMapTable(model, modelID, cxn);
+  /**
+   * insert the model's kmer probabilities 
+   * @param model the background model
+   * @param bggmID the model's ID in the background genome map table
+   * @param cxn an open database connection
+   * @throws SQLException
+   */
+  private static void insertMarkovModelColumns(MarkovBackgroundModel model, int bggmID, Connection cxn) throws SQLException {
+    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,kmer,probability) values(?,?,?)");
+    try {
+      for (int i = 1; i <= model.getMaxKmerLen(); i++) {
+        for (String kmer : model.getKmers(i)) {
+          double prob = model.getMarkovProb(kmer);
 
-    //now insert all the columns for this genome
-    BackgroundModelImport.insertModelColumnsNoCounts(model, bggmID, cxn);
-    
-    cxn.commit();
-  	}
-  	catch (Exception ex) {
-  		cxn.rollback();
-  		logger.fatal(ex);
-  	}
-    finally {
-    	if (cxn != null) {
-    		DatabaseFactory.freeConnection(cxn);
-    	}    	                  
+          insertCol.setInt(1, bggmID);
+          insertCol.setString(2, kmer);
+          insertCol.setDouble(3, prob);
+          insertCol.execute();
+        }
+      }
     }
-  	
-    
-    return bggmID;
+    finally {
+      insertCol.close();
+    }
+  }
+  
+  
+  /**
+   * insert the model's kmer probabilities 
+   * @param model the background model
+   * @param bggmID the model's ID in the background genome map table
+   * @param cxn an open database connection
+   * @throws SQLException
+   */
+  private static void insertFrequencyModelColumns(FrequencyBackgroundModel model, int bggmID, Connection cxn) throws SQLException {
+    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,kmer,probability) values(?,?,?)");
+    try {
+      for (int i = 1; i <= model.getMaxKmerLen(); i++) {
+        for (String kmer : model.getKmers(i)) {
+          double prob = model.getFrequency(kmer);
+
+          insertCol.setInt(1, bggmID);
+          insertCol.setString(2, kmer);
+          insertCol.setDouble(3, prob);
+          insertCol.execute();
+        }
+      }
+    }
+    finally {
+      insertCol.close();
+    }
+  }
+  
+
+  /**
+   * insert the model's kmer probabilities 
+   * @param model the background model
+   * @param bggmID the model's ID in the background genome map table
+   * @param insertAsMarkov if true then insert the markov probabilities, if
+   * false then insert the kmer frequencies
+   * @param cxn an open database connection
+   * @throws SQLException
+   */
+  private static void insertCountsModelColumns(CountsBackgroundModel model, int bggmID, boolean insertAsMarkov, Connection cxn) throws SQLException {
+    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,kmer,probability,count) values(?,?,?,?)");
+    try {
+      for (int i = 1; i <= model.getMaxKmerLen(); i++) {
+        for (String kmer : model.getKmers(i)) {
+          double prob;
+          if (insertAsMarkov) {
+            prob = model.getMarkovProb(kmer);
+          }
+          else {
+            prob = model.getFrequency(kmer);
+          }          
+
+          insertCol.setInt(1, bggmID);
+          insertCol.setString(2, kmer);
+          insertCol.setDouble(3, prob);
+          insertCol.setLong(4, model.getKmerCount(kmer));
+          insertCol.execute();
+        }
+      }
+    }
+    finally {
+      insertCol.close();
+    }
   }
 }

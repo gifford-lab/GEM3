@@ -142,6 +142,16 @@ public abstract class BackgroundModel {
   
   
   /**
+   * Set the model's database ID
+   * @param dbid
+   */
+  public void setDBID(int dbid) {
+    this.hasDBID = true;
+    this.dbid = dbid;
+  }
+  
+  
+  /**
    * Return the length of the longest kmer in this model.
    * @return
    */
