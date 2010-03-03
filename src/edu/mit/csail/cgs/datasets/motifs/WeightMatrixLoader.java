@@ -88,34 +88,18 @@ public class WeightMatrixLoader implements edu.mit.csail.cgs.utils.Closeable {
     }
     
     public Collection<WeightMatrix> loadMatrices(Organism species) throws SQLException { 
-    	LinkedList<WeightMatrix> matrices = new LinkedList<WeightMatrix>();
-    	
     	int speciesID = species.getDBID();
-    	String wmquery = "select id, species, name, version, type from weightmatrix " +
-    			"where species=?";
-    	String colquery = "select position, letter, weight from weightmatrixcols where " +
-    			"weightmatrix=?";
-    	
+        String query = "select m.id, m.species, m.name, m.version, m.type, c.position, c.letter, c.weight from weightmatrix m, " +
+            " weightmatrixcols c where m.id = c.weightmatrix and m.species = ? order by c.weightmatrix, c.position desc";
+
         java.sql.Connection cxn = 
             DatabaseFactory.getConnection("annotations");
-    	PreparedStatement wmStatement = cxn.prepareStatement(wmquery);
-    	PreparedStatement colStatement = cxn.prepareStatement(colquery);
+    	PreparedStatement wmStatement = cxn.prepareStatement(query);
     	
     	wmStatement.setInt(1, speciesID);
     	ResultSet wmResults = wmStatement.executeQuery();
-    	while(wmResults.next()) { 
-    		int wmID = wmResults.getInt(1);
-    		colStatement.setInt(1, wmID);
-    		ResultSet colResults = colStatement.executeQuery();
-    		
-    		WeightMatrix matrix = new WeightMatrix(wmResults, colResults);
-    		matrices.add(matrix);
-    		
-    		colResults.close();
-    	}
+        Collection<WeightMatrix> matrices = WeightMatrix.getWeightMatrices(wmResults);
     	wmResults.close();
-    	
-    	colStatement.close();
     	wmStatement.close();
     	DatabaseFactory.freeConnection(cxn);
     	
@@ -133,64 +117,43 @@ public class WeightMatrixLoader implements edu.mit.csail.cgs.utils.Closeable {
                 DatabaseFactory.getConnection("annotations");
             ArrayList<WeightMatrix> out = new ArrayList<WeightMatrix>();
             String query;
-            if (name != null || version != null || type != null) {
-                int index = 1;
-                query = "select wm.id from weightmatrix wm where ";
-                if (name != null) {
-                    query += " wm.name = ? ";
-                    index++;
-                }
-                if (version != null) {
-                    if (index++ > 1) {
-                        query += " and ";
-                    }
-                    query += " wm.version = ? ";
-                }
-                if (type != null) {
-                    if (index++ > 1) {
-                        query += " and ";
-                    }
-                    query += " wm.type = ? ";
-                }
-            } else {
-                query = "select id from weightmatrix";
+            query = "select wm.id, wm.species, wm.name, wm.version, wm.type, c.position, c.letter, c.weight " +
+                " from weightmatrix wm, weightmatrixcols c where wm.id = c.weightmatrix ";
+            if (name != null) {
+                query += " and wm.name = ? ";
             }
+            if (version != null) {
+                query += " and wm.version = ? ";
+                }
+            if (type != null) {
+                query += " and wm.type = ? ";
+            }
+            query += " order by c.weightmatrix, c.position desc";
             PreparedStatement ps = cxn.prepareStatement(query);
-            if (name != null || version != null || type != null) {
-                int index = 1;
-                if (name != null) {
-                    ps.setString(index++,name);
-                }
-                if (version != null) {
-                    ps.setString(index++,version);
-                }
-                if (type != null) {
-                    ps.setString(index++,type);
-                }
-            } 
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                WeightMatrix wm = WeightMatrix.getWeightMatrix(rs.getInt(1));
-                if (wm != null) {
-                    out.add(wm);
-                }
+            int index = 1;
+            if (name != null) {
+                ps.setString(index++,name);
             }
+            if (version != null) {
+                ps.setString(index++,version);
+            }
+            if (type != null) {
+                ps.setString(index++,type);
+            }
+            ResultSet rs = ps.executeQuery();
+            Collection<WeightMatrix> matrices = WeightMatrix.getWeightMatrices(rs);
             rs.close();
             ps.close();
             DatabaseFactory.freeConnection(cxn);
 
-            return out;
+            return matrices;
         } catch (SQLException e) {
             e.printStackTrace();
             throw new DatabaseException(e.toString(),e);
         } catch (UnknownRoleException e) {
             e.printStackTrace();
             throw new DatabaseException(e.toString(),e);
-        } catch (NotFoundException e) {
-            e.printStackTrace();
-            throw new DatabaseException(e.toString(),e);
         }
-
     }
 
     public void close() {}
