@@ -319,6 +319,27 @@ public class WeightMatrixImport {
         matrix.normalizeFrequencies();
         return matrix;
     }
+    public static WeightMatrix readUniProbeFile(String fname) throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader(new File(fname)));
+        String line = null;        
+        WeightMatrix matrix = null;
+        while((line = br.readLine()) != null) { 
+            line = line.trim();
+            if(line.length() > 0) {
+                String pieces[] = line.split("\\s+");
+                if (pieces[0].matches("[ACTG]:")) {
+                    int matrixlen = pieces.length - 1;
+                    if (matrix == null) {
+                        matrix = new WeightMatrix(matrixlen);
+                    }
+                    for (int i = 1; i < pieces.length; i++) {
+                        matrix.matrix[i-1][pieces[0].charAt(0)] = Float.parseFloat(pieces[i]);
+                    }
+                }
+            }
+        }
+        return matrix;
+    }
     
     
   /**
@@ -501,7 +522,10 @@ public class WeightMatrixImport {
         } else if (wmtype.matches(".*TRANSFAC.*")) {
           //TODO add a method to read a single transfac matrix
           matrix = readTRANSFACFreqMatrices(wmfile, wmversion).get(0);
+        } else if (wmtype.matches(".*UniProbe.*")) {
+            matrix = readUniProbeFile(wmfile);
         }
+
         else {
             System.err.println("Didn't see a program I recognize in the type.  defaulting to reading TAMO format");
             matrix = readTamoMatrix(wmfile);
