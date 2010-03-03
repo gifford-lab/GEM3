@@ -77,7 +77,7 @@ public class LineByLineFileReader {
   /**
    * Read an entire file in one pass and return an array of lines
    * No lines are treated as comments
-   * @param filename
+   * @param filename the name of the file to read
    * @return
    * @throws IOException
    */
@@ -94,6 +94,19 @@ public class LineByLineFileReader {
    * @throws IOException
    */
   public static String[] readFile(String filename, String[] commentPrefixes) throws IOException {
+  		return LineByLineFileReader.readFile(filename, commentPrefixes, false);
+  }
+  
+  
+  /**
+   * Read an entire file in one pass and return an array of the lines
+   * @param filename the name of the file to read
+   * @param commentPrefixes prefixes indicating a comment line
+   * @param ignoreBlankLines indicates whether or not to ignore blank lines
+   * @return
+   * @throws IOException
+   */
+  public static String[] readFile(String filename, String[] commentPrefixes, boolean ignoreBlankLines) throws IOException {
     ArrayList<String> lines = new ArrayList<String>();
     LineByLineFileReader lblfr = null;
     try {
@@ -101,8 +114,10 @@ public class LineByLineFileReader {
       lblfr.openFile(filename);
       String currLine = lblfr.readLine(commentPrefixes);
       while (currLine != null) {
-        lines.add(currLine);
-        currLine = lblfr.readLine();
+      	if (!ignoreBlankLines || (currLine.trim().length() > 0)) {
+      		lines.add(currLine);
+      	}
+     		currLine = lblfr.readLine();
       }
     }
     finally {
