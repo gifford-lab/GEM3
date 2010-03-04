@@ -31,11 +31,8 @@ public abstract class BackgroundModel {
   protected Boolean isStranded = null;
 
   //keep track of whether a database ID exists (and its value)
-  //protected int dbid = -1;
-  //protected boolean hasDBID = false;
-  //FIXME
-  public int dbid = -1;
-  public boolean hasDBID = false;
+  protected int dbid = -1;
+  protected boolean hasDBID = false;
   
 
   /**
