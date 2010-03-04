@@ -171,9 +171,143 @@ public class WeightMatrixImport {
         insertcol.close();
         DatabaseFactory.freeConnection(cxn);
         return wmid;
+    }       
+    
+  /**
+   * Parses in weight matrices in transfac format with counts or frequencies
+   * (not log odds)
+   * 
+   * @param wmfile
+   * @param version
+   * @return
+   * @throws IOException
+   */
+  public static List<WeightMatrix> readTRANSFACFreqMatrices(String wmfile, String version) throws IOException {
+    int[] indices = { 'A', 'C', 'G', 'T' };
+    LinkedList<WeightMatrix> matrices = new LinkedList<WeightMatrix>();
+    BufferedReader br = new BufferedReader(new FileReader(new File(wmfile)));
+    String line;
+    WeightMatrix matrix = null;
+    int motifCount = 0;
+    Vector<float[]> arrays = new Vector<float[]>();
+
+    // Read in Transfac format first
+    Organism currentSpecies = null;
+    String name = null, id = null, accession = null;
+    Pattern speciesPattern = Pattern.compile(".*Species:.*, (.*)\\.");
+    while ((line = br.readLine()) != null) {
+      line = line.trim();
+      if (line.length() > 0) {
+        String[] pieces = line.split("\\s+");
+        if (pieces[0].equals("AC")) {
+          accession = pieces[1];
+          // System.err.println("read AC " + accession);
+        }
+        else if (pieces[0].equals("NA")) {
+          name = pieces[1];
+          // System.err.println("read NA " + name);
+        }
+        else if (pieces[0].equals("ID")) {
+          id = pieces[1];
+          // System.err.println("read ID " + id);
+          arrays.clear();
+          name = null;
+          accession = null;
+          currentSpecies = null;
+        }
+        else if (pieces[0].equals("BF") && currentSpecies == null) {
+          Matcher matcher = speciesPattern.matcher(line);
+          if (matcher.matches()) {
+            String specname = matcher.group(1);
+            try {
+              currentSpecies = new Organism(specname);
+              // System.err.println("Got species " + specname);
+            }
+            catch (NotFoundException e) {
+              System.err.println("Couldn't find species " + specname);
+              // ignore it and move on
+            }
+          }
+        }
+        else if (pieces[0].equals("DE")) {
+          name = pieces[1];
+          if (pieces.length >= 3) {
+            String v_string = pieces[2];
+            if (pieces.length >= 4) {
+              for (int v = 3; v < pieces.length; v++) {
+                v_string = v_string + "," + pieces[v];
+              }
+            }
+
+            if (version != null) {
+              version = v_string + "," + version;
+            }
+            else {
+              version  = v_string;
+            }
+          }        
+          //initialize id and accession if they're still null
+          if (id == null) {
+            id = "";           
+          }
+          if (accession == null) {
+            accession = "";
+          }
+        }
+        else if (pieces[0].equals("XX")) {
+          if (name != null && accession != null && id != null && arrays.size() > 0) {
+            matrix = new WeightMatrix(arrays.size());
+            for (int i = 0; i < arrays.size(); i++) {
+              matrix.matrix[i]['A'] = arrays.get(i)[0];
+              matrix.matrix[i]['C'] = arrays.get(i)[1];
+              matrix.matrix[i]['G'] = arrays.get(i)[2];
+              matrix.matrix[i]['T'] = arrays.get(i)[3];
+            }
+            matrix.name = name;
+            matrix.version = version;
+            if (id.length() > 0) {
+              matrix.version = matrix.version + " " + id;
+            }
+            if (accession.length() > 0) {
+              matrix.version = matrix.version + " " + accession;
+            }
+            
+            // System.err.println("read version " + matrix.version);
+            if (currentSpecies != null) {
+              matrix.speciesid = currentSpecies.getDBID();
+              matrix.species = currentSpecies.getName();
+            }
+            matrix.type = "TRANSFAC";
+            matrix.normalizeFrequencies();
+            matrices.add(matrix);
+
+            // clean up to prepare to parse next pwm
+            arrays.clear();
+            name = null;
+            id = null;
+            accession = null;
+            currentSpecies = null;
+          }
+          else {
+            // System.err.println(String.format("name %s id %s species %s",name,id,currentSpecies
+            // == null ? "null" : currentSpecies.toString()));
+          }
+        }
+        else if (name != null && (pieces.length == 5 || pieces.length == 6) && Character.isDigit(pieces[0].charAt(0))) {
+          // Load the matrix
+          float[] fa = new float[4];
+          // System.err.println("  adding matrix line");
+          for (int i = 1; i <= 4; i++) {
+            fa[i - 1] = Float.parseFloat(pieces[i]);
+          }
+          arrays.add(fa);
+        }
+      }
     }
     
-
+    br.close();
+    return matrices;
+  }
 
     public static Set<Integer> insertMultiWMFromFile(String species, String wmtype, String wmfile, String wmversion) 
         throws IOException, SQLException, NotFoundException { 
@@ -220,8 +354,9 @@ public class WeightMatrixImport {
           matrix = PWMParser.readTRANSFACFreqMatrices(wmfile, wmversion).get(0);
         } else if (wmtype.matches(".*PRIORITY.*")) {
           matrix = PWMParser.parsePriorityBestOutput(wmfile);
-        }
-        else {
+        } else if (wmtype.matches(".*UniProbe.*")) {
+            matrix = PWMParser.readUniProbeFile(wmfile);
+        } else {
             System.err.println("Didn't see a program I recognize in the type.  defaulting to reading TAMO format");
             matrix = PWMParser.readTamoMatrix(wmfile);
         }

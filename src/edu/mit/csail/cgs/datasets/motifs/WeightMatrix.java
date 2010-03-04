@@ -74,7 +74,7 @@ public class WeightMatrix {
 				}
     		}
     	}
-    }
+    }    
 
     public WeightMatrix (int length) {
         dbid = -1;
@@ -84,29 +84,51 @@ public class WeightMatrix {
     }
 
     public static Collection<WeightMatrix> getAllWeightMatrices() {
-        Collection<WeightMatrix> results = new HashSet<WeightMatrix>();
         try {
-            Collection<Integer> ids = new HashSet<Integer>();
             java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");
-            PreparedStatement ps = cxn.prepareStatement("select id from weightmatrix");
+            PreparedStatement ps = cxn.prepareStatement("select m.id, m.species, m.name, m.version, m.type, c.position, c.letter, c.weight from "
+                                                        + "weightmatrix m, weightmatrixcols c where "
+                                                        + " m.id = c.weightmatrix order by c.weightmatrix, c.position desc");
             ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                ids.add(rs.getInt(1));
-            }
+
+            Collection<WeightMatrix> matrices = WeightMatrix.getWeightMatrices(rs);
+
             rs.close();
             ps.close();
             DatabaseFactory.freeConnection(cxn);
-            for (Integer id : ids) {
-                results.add(getWeightMatrix(id));
-            }            
+            return matrices;
         } catch (SQLException ex){ 
             throw new DatabaseException(ex.toString(),ex);
-        } catch (NotFoundException ex) {
-            ex.printStackTrace();
         } catch (UnknownRoleException ex) {
             throw new DatabaseException(ex.toString(),ex);
         }
-        return results;
+    }
+    /**
+     * Gets all the matrices specified in the result set which is
+     * the result of joining weightmatrix and weightmatrixcols, eg
+     * select m.id, m.species, m.name, m.version, m.type, c.position, c.letter, c.weight from weightmatrix m, 
+     * weightmatrixcols c where m.id = c.weightmatrix order by c.weightmatrix, c.position desc
+     *
+     * sorting by descending position is critical so that the first row of a new matrix gives
+     * the largest index (ie, the length of the matrix)
+     */
+    public static Collection<WeightMatrix> getWeightMatrices(ResultSet rs) throws SQLException {
+        Map<Integer,WeightMatrix> output = new HashMap<Integer,WeightMatrix>();
+        while (rs.next()) {
+            int id = rs.getInt(1);
+            if (!output.containsKey(id)) {
+                WeightMatrix m = new WeightMatrix(rs.getInt(6) + 1);
+                m.dbid = rs.getInt(1);
+                m.speciesid = rs.getInt(2);
+                m.name = rs.getString(3);
+                m.version = rs.getString(4);
+                m.type = rs.getString(5);
+                output.put(id,m);
+            }
+            output.get(id).matrix[rs.getInt(6)][rs.getString(7).charAt(0)] = rs.getFloat(8);
+        }
+        System.err.println("Returning " + output.size() + " from WeightMatrix.getWeightMatrices(ResultSet)");
+        return output.values();
     }
 
     /* creates a new weightMatrixObject based on the provided database identifier */
