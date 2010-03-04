@@ -179,7 +179,33 @@ public class MotifFastaWriter {
 		}
 	}
 	
-	
+	 /**
+   * 
+   * @param dataRegions
+   * @param outputFilename
+   */
+  public static void writeDataRegions(Vector<Region> dataRegions, String outputFilename, int lineLength) {
+    
+    FastaWriter writer = null;
+    try {
+      writer = new FastaWriter(outputFilename);
+      writer.setLineLength(lineLength);
+      writer.consume(dataRegions.iterator());
+    }
+    catch (FileNotFoundException fnfex) {
+      fnfex.printStackTrace();
+    }
+    catch (IOException ioex) {
+      ioex.printStackTrace();     
+    }
+    finally {
+      if (writer != null) {
+        writer.close();
+      }
+    }
+  }
+  
+  
 	/**
 	 * Find a sequence of consecutive nearby peaks
 	 * This method should eventually move into another class
@@ -313,11 +339,11 @@ public class MotifFastaWriter {
 //			String outputFilename = "hb9_peak_sequences.fasta";
 			String type = "BayesBindingGenerator";
 //			Vector<Region> dataRegions = MotifFastaWriter.getDataRegionsFromPeaks(mouse, mm8, GENE_TABLE, expt, version, type);
-			String input_filename = "/afs/csail.mit.edu/group/psrg/projects/GPS/motif_analysis/Oct4_YL_0_top100_peak_regions.txt";
-			String outputFilename = "/afs/csail.mit.edu/group/psrg/projects/GPS/motif_analysis/Oct4_YL_0_top100_peak_regions.fasta";
-
-			Vector<Region> dataRegions = DatasetsGeneralIO.readRegionsFromFile(mm8, input_filename);
-			MotifFastaWriter.writeDataRegions(dataRegions, outputFilename);
+			String inputFilename = "/Users/rca/matlab scratch/Sing_Smad1_top25_peaks_regions.txt";
+			String outputFilename = "/Users/rca/matlab scratch/Sing_Smad1_25.fasta";
+			
+			Vector<Region> dataRegions = DatasetsGeneralIO.readRegionsFromFile(mm8, inputFilename);
+			MotifFastaWriter.writeDataRegions(dataRegions, outputFilename, 102);
 		} 
 		catch (IOException ioex) {
 		  ioex.printStackTrace();
