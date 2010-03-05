@@ -494,58 +494,55 @@ public class BackgroundModelImport {
 //
 //    BackgroundModelImport.getBackgroundGenomeMapID(bgModelID, genomeID)
 //  }
-//  
-//  public static CountsBackgroundModel getCountsModel(int bggmID) throws SQLException {
-//    java.sql.Connection cxn = null;
-//    try {
-//      cxn = DatabaseFactory.getConnection("annotations");
-//      return BackgroundModelImport.getCountsModel(bggmID, cxn);
-//    }
-//    finally {
-//      DatabaseFactory.freeConnection(cxn);
-//    }
-//  }
-//  
-//  public static CountsBackgroundModel getCountsModel(int bggmID, Connection cxn) throws SQLException {
-//    PreparedStatement getCounts = null;
-//    ResultSet rs = null;
-//    try {
-//      cxn = DatabaseFactory.getConnection("annotations");
-//      if (BackgroundModelImport.hasCounts(bggmID, cxn)) {
-//        BackgroundModelMetadata md = BackgroundModelImport.getBackgroundModelInfoByMapID(bggmID);
-//        CountsBackgroundModel cbm = new CountsBackgroundModel(md.name, Organism.findGenome(md.genomeID), md.kmerlen);
-//        cbm.setDBID(bggmID);
-//        getCounts = cxn.prepareStatement("select kmer, count from background_model_cols where bggm_id = ?");
-//        getCounts.setInt(1, bggmID);
-//        rs = getCounts.executeQuery();        
-//        while (rs.next()) {
-//          cbm.setKmerCount(rs.getString(1), rs.getLong(2));
-//        }
-//        return cbm;
-//      }
-//      else {
-//        return null;
-//      }
-//    }
-//    catch (NotFoundException nfex) {
-//      throw new DatabaseException("Error loading genome for model", nfex);
-//    }
-//    finally {
-//      if (rs != null) {
-//        rs.close();
-//      }
-//      if (getCounts != null) {
-//        getCounts.close();
-//      }
-//    }
-//  }
+
   
-  
-  private static void parseCounts(CountsBackgroundModel cbm, ResultSet rs) throws SQLException {
-    while (rs.next() && (rs.getInt(1) == cbm.getDBID())) {
-      cbm.setKmerCount(rs.getString(2), rs.getLong(3));
+  public static CountsBackgroundModel getCountsModel(int bggmID) throws SQLException {
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      return BackgroundModelImport.getCountsModel(bggmID, cxn);
+    }
+    finally {
+      DatabaseFactory.freeConnection(cxn);
     }
   }
+  
+  
+  public static CountsBackgroundModel getCountsModel(int bggmID, Connection cxn) throws SQLException {
+    PreparedStatement getCounts = null;
+    ResultSet rs = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      if (BackgroundModelImport.hasCounts(bggmID, cxn)) {
+        BackgroundModelMetadata md = BackgroundModelImport.getBackgroundModelByMapID(bggmID, cxn);
+        CountsBackgroundModel cbm = new CountsBackgroundModel(md.name, Organism.findGenome(md.genomeID), md.kmerlen);
+        cbm.setDBID(bggmID);
+        
+        getCounts = cxn.prepareStatement("select kmer, count from background_model_cols where bggm_id = ?");
+        getCounts.setInt(1, bggmID);
+        rs = getCounts.executeQuery();        
+        while (rs.next()) {
+          cbm.setKmerCount(rs.getString(1), rs.getLong(2));
+        }
+        return cbm;
+      }
+      else {
+        return null;
+      }
+    }
+    catch (NotFoundException nfex) {
+      throw new DatabaseException("Error loading genome for model", nfex);
+    }
+    finally {
+      if (rs != null) {
+        rs.close();
+      }
+      if (getCounts != null) {
+        getCounts.close();
+      }
+    }
+  }
+  
   
   private static CountsBackgroundModel createCountsModel(ResultSet rs) throws SQLException {
     try {
