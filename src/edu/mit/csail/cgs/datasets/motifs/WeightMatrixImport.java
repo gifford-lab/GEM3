@@ -106,9 +106,9 @@ public class WeightMatrixImport {
         if (!rs.next()) {
             rs.close();
             PreparedStatement insertwm;
-            if ((matrix.bgModel != null) && matrix.bgModel.hasDBID()) {
+            if ((matrix.bgModel != null) && matrix.bgModel.hasMapID()) {
             	insertwm = cxn.prepareStatement("insert into weightmatrix(id,species,name,version,type,bg_model_id) values (weightmatrix_id.nextval,?,?,?,?,?)");
-            	insertwm.setInt(5, matrix.bgModel.getDBID());
+            	insertwm.setInt(5, matrix.bgModel.getMapID());
             }
             else {
             	insertwm = cxn.prepareStatement("insert into weightmatrix(id,species,name,version,type) values (weightmatrix_id.nextval,?,?,?,?)");

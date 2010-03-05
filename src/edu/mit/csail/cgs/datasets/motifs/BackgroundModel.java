@@ -11,15 +11,15 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
-public abstract class BackgroundModel {
+public abstract class BackgroundModel extends BackgroundModelMetadata {
 
   public static final double EPSILON = 1E-6;
   
   public static final char[] BASE_ORDER = new char[] {'A', 'C', 'G', 'T'};
 
   public static final int DEFAULT_MAX_KMER_LEN = 3;
-  
-  protected String name;
+
+  //a reference to a genome object in addition to the metadata genomeID
   protected Genome gen;
 
   /**
@@ -29,11 +29,6 @@ public abstract class BackgroundModel {
    * False if the model was based on both strands
    */
   protected Boolean isStranded = null;
-
-  //keep track of whether a database ID exists (and its value)
-  protected int dbid = -1;
-  protected boolean hasDBID = false;
-  
 
   /**
    * Map for holding the kmer probability values for the model. Each 
@@ -61,7 +56,7 @@ public abstract class BackgroundModel {
    * @param maxKmerLen
    */
   public BackgroundModel(String name, Genome gen, int maxKmerLen) {
-  	this.name = name;
+    super(name, maxKmerLen, gen.getDBID());
   	this.gen = gen;
     modelProbs = new HashMap[maxKmerLen + 1];
     for (int i = 1; i <= maxKmerLen; i++) {
@@ -79,26 +74,9 @@ public abstract class BackgroundModel {
    * @param source the Background Model on which to base the one being constructed
    */
   public BackgroundModel(BackgroundModel source) {
+    //FIXME
   	this(source.name, source.gen, source.getMaxKmerLen());
   	this.isStranded = source.isStranded;
-  }
-  
-  
-  /**
-   * Returns the name of this model
-   * @return
-   */
-  public String getName() {
-  	return name;
-  }
-  
-  
-  /**
-   * Set the name of this model
-   * @param name
-   */
-  public void setName(String name) {
-  	this.name = name;
   }
   
   
@@ -117,34 +95,6 @@ public abstract class BackgroundModel {
    */
   public void setGenome(Genome gen) {
   	this.gen = gen;
-  }
-  
-  
-  /**
-   * Returns true if this model has a database ID
-   * @return
-   */
-  public boolean hasDBID() {
-  	return hasDBID;
-  }
-  
-  
-  /**
-   * Returns this model's database ID, which is -1 if it doesn't have one
-   * @return
-   */
-  public int getDBID() {
-  	return dbid;
-  }
-  
-  
-  /**
-   * Set the model's database ID
-   * @param dbid
-   */
-  public void setDBID(int dbid) {
-    this.hasDBID = true;
-    this.dbid = dbid;
   }
   
   
@@ -295,7 +245,7 @@ public abstract class BackgroundModel {
 	 */
 	public static String int2seq(long x, int kmerLen) {	
 		/**
-		 * check that the x is valid for the specified kmerlen. 
+		 * check that the x is valid for the specified maxKmerLen. 
 		 * Note: 4 << (2 * (kmerLen - 1)) = 4^kmerLen
 		 */
 	  if (x > ((4 << (2 * (kmerLen - 1))) - 1)) {

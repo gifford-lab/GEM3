@@ -122,11 +122,11 @@ public class BackgroundModelImport {
   
   
   /**
-   * Look for a model with this name, kmerlen, and type and return its ID. 
+   * Look for a model with this name, maxKmerLen, and type and return its ID. 
    * 
    * @param name the name of the model
    * @param kmerLen the length of the longest kmer in the model
-   * @param modelType the type of the model (FREQUENCY or MARKOV)
+   * @param dbModelType the type of the model (FREQUENCY or MARKOV)
    * @param cxn an open database connection
    * @return the ID of the model, or null if there's no match
    * @throws SQLException
@@ -239,7 +239,7 @@ public class BackgroundModelImport {
     PreparedStatement getModel = null;
     ResultSet rs = null;
     try {
-      getModel = cxn.prepareStatement("select name, kmerlen, model_type from background_model where id = ?");
+      getModel = cxn.prepareStatement("select name, maxKmerLen, model_type from background_model where id = ?");
       getModel.setInt(1, modelID);
       rs = getModel.executeQuery();
       if (rs.next()) {
@@ -327,7 +327,7 @@ public class BackgroundModelImport {
     ResultSet rs = null;
     try {
       if (ignoreGenome) {
-        getAllModels = cxn.prepareStatement("select id, name, kmerlen, model_type from background_model");
+        getAllModels = cxn.prepareStatement("select id, name, maxKmerLen, model_type from background_model");
         rs = getAllModels.executeQuery();
         List<BackgroundModelMetadata> results = new ArrayList<BackgroundModelMetadata>();
         while (rs.next()) {        
@@ -482,7 +482,7 @@ public class BackgroundModelImport {
   }
   
   
-//  public static CountsBackgroundModel getCountsModel(String name, int kmerlen, String type, int genomeID) {
+//  public static CountsBackgroundModel getCountsModel(String name, int maxKmerLen, String type, int genomeID) {
 //    java.sql.Connection cxn = null;
 //    try {
 //      cxn = DatabaseFactory.getConnection("annotations");
@@ -493,6 +493,11 @@ public class BackgroundModelImport {
 //    }
 //
 //    BackgroundModelImport.getBackgroundGenomeMapID(bgModelID, genomeID)
+//  }
+  
+//  public static CountsBackgroundModel getCountsModel(BackgroundModelMetadata md) throws SQLException {
+//    
+//    
 //  }
 
   
@@ -515,8 +520,8 @@ public class BackgroundModelImport {
       cxn = DatabaseFactory.getConnection("annotations");
       if (BackgroundModelImport.hasCounts(bggmID, cxn)) {
         BackgroundModelMetadata md = BackgroundModelImport.getBackgroundModelByMapID(bggmID, cxn);
-        CountsBackgroundModel cbm = new CountsBackgroundModel(md.name, Organism.findGenome(md.genomeID), md.kmerlen);
-        cbm.setDBID(bggmID);
+        CountsBackgroundModel cbm = new CountsBackgroundModel(md.name, Organism.findGenome(md.genomeID), md.maxKmerLen);
+        cbm.setMapID(bggmID);
         
         getCounts = cxn.prepareStatement("select kmer, count from background_model_cols where bggm_id = ?");
         getCounts.setInt(1, bggmID);
@@ -552,9 +557,9 @@ public class BackgroundModelImport {
       int kmerlen = rs.getInt(4);
       CountsBackgroundModel cbm;
       cbm = new CountsBackgroundModel(name, Organism.findGenome(genomeID), kmerlen);
-      cbm.setDBID(bggmID);
+      cbm.setMapID(bggmID);
       cbm.setKmerCount(rs.getString(5), rs.getLong(6));
-      while (rs.next() && (rs.getInt(1) == cbm.getDBID())) {
+      while (rs.next() && (rs.getInt(1) == cbm.getMapID())) {
         cbm.setKmerCount(rs.getString(2), rs.getLong(3));
       }
       return cbm;    
@@ -596,7 +601,7 @@ public class BackgroundModelImport {
       cxn.commit();
 
       //update the model with its new ID
-      model.setDBID(bggmID);
+      model.setMapID(bggmID);
 
       return bggmID;
     }
@@ -640,7 +645,7 @@ public class BackgroundModelImport {
       cxn.commit();
 
       //update the model with its new ID
-      model.setDBID(bggmID);
+      model.setMapID(bggmID);
 
       return bggmID;
     }
@@ -694,7 +699,7 @@ public class BackgroundModelImport {
       cxn.commit();
 
       //update the model with its new ID
-      model.setDBID(bggmID);
+      model.setMapID(bggmID);
 
       return bggmID;
     }
@@ -719,7 +724,7 @@ public class BackgroundModelImport {
    */
   public static void updateMarkovModel(MarkovBackgroundModel model) throws SQLException, CGSException {
     //make sure the model has a name and genome
-    if (!model.hasDBID()) {
+    if (!model.hasMapID()) {
       throw new IllegalArgumentException("Model must already have a database ID to be updated in the database.");
     }
     
@@ -728,7 +733,7 @@ public class BackgroundModelImport {
       cxn = DatabaseFactory.getConnection("annotations");
       cxn.setAutoCommit(false);
 
-      int bggmID = model.getDBID();
+      int bggmID = model.getMapID();
       //remove from the database all the existing entries for the model columns
       BackgroundModelImport.removeModelColumns(bggmID, cxn);
       
@@ -759,7 +764,7 @@ public class BackgroundModelImport {
    */
   public static void updateFrequencyModel(FrequencyBackgroundModel model) throws SQLException, CGSException {
     //make sure the model has a name and genome
-    if (!model.hasDBID()) {
+    if (!model.hasMapID()) {
       throw new IllegalArgumentException("Model must already have a database ID to be updated in the database.");
     }
     
@@ -768,7 +773,7 @@ public class BackgroundModelImport {
       cxn = DatabaseFactory.getConnection("annotations");
       cxn.setAutoCommit(false);
 
-      int bggmID = model.getDBID();
+      int bggmID = model.getMapID();
       //remove from the database all the existing entries for the model columns
       BackgroundModelImport.removeModelColumns(bggmID, cxn);
       
@@ -799,7 +804,7 @@ public class BackgroundModelImport {
    */
   public static void updateCountsModel(CountsBackgroundModel model) throws SQLException, CGSException {
     //make sure the model has a name and genome
-    if (!model.hasDBID()) {
+    if (!model.hasMapID()) {
       throw new IllegalArgumentException("Model must already have a database ID to be updated in the database.");
     }
     
@@ -810,7 +815,7 @@ public class BackgroundModelImport {
       cxn = DatabaseFactory.getConnection("annotations");
       cxn.setAutoCommit(false);      
       
-      int bggmID = model.getDBID();
+      int bggmID = model.getMapID();
       
       //determine whether this model exists in the database as a markov model or
       //a frequency model, so that it can be updated in the same format
@@ -860,7 +865,7 @@ public class BackgroundModelImport {
    * background model genome map table
    * @param name the name of the model
    * @param kmerLen the length of the longest kmer in the model
-   * @param modelType the type of the model ("MARKOV" or "FREQUENCY")
+   * @param dbModelType the type of the model ("MARKOV" or "FREQUENCY")
    * @param genomeID the DBID of the genome the model is for
    * @param cxn an open database connection
    * @return the background genome map ID of the model
@@ -868,7 +873,7 @@ public class BackgroundModelImport {
    */
   private static Integer insertBackgroundModelAndMap(String name, int kmerLen, String modelType, int genomeID, Connection cxn) throws SQLException, CGSException {
     /**
-     * Check whether there is already an entry for a model with this name, kmerlen, and type. If so, reuse the model ID, 
+     * Check whether there is already an entry for a model with this name, maxKmerLen, and type. If so, reuse the model ID, 
      * otherwise create one.
      */
     Integer modelID = BackgroundModelImport.getBackgroundModelID(name, kmerLen, modelType, cxn);
@@ -898,7 +903,7 @@ public class BackgroundModelImport {
    * insert the model in the the background model table
    * @param name the name of the model
    * @param kmerLen the length of the longest kmer in the model
-   * @param modelType the type of the model ("MARKOV" or "FREQUENCY")
+   * @param dbModelType the type of the model ("MARKOV" or "FREQUENCY")
    * @param cxn an open database connection
    * @return the background model ID 
    * @throws SQLException
