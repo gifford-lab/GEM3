@@ -87,8 +87,8 @@ public class ReadDB {
                     return;
                 }
                 if (cmd.equals("getchroms")) {
-                    for (String s : client.getChroms(align)) {
-                        System.out.println(s);
+                    for (Integer i : client.getChroms(align,false,false)) {
+                        System.out.println(i);
                     }
                 } else if (cmd.equals("getacl")) {
                     Map<String,Set<String>> acls = client.getACL(align);
@@ -110,9 +110,9 @@ public class ReadDB {
                 } else if (cmd.equals("getcount")) {
                     int count = 0;
                     if (otherargs.length == 3) {
-                        count = client.getCount(align,otherargs[2]);
+                        count = client.getCount(align,Integer.parseInt(otherargs[2]),false,null,null,null,null,null);
                     } else {
-                        count = client.getCount(align);
+                        count = client.getCount(align,false,null,null);
                     }
                     if (otherargs.length == 3) {
                         System.err.println("Count in " + align + " chrom " + otherargs[2] + " is " + count);
@@ -122,17 +122,19 @@ public class ReadDB {
                 } else if (cmd.equals("getweight")) {
                     double weight = 0;
                     if (otherargs.length == 3) {
-                        weight = client.getWeight(align,otherargs[2]);
+                        weight = client.getWeight(align,Integer.parseInt(otherargs[2]),false,null,null,null,null,null);
                     } else {
-                        weight = client.getWeight(align);
+                        weight = client.getWeight(align,false,null,null);
                     }
                     if (otherargs.length == 3) {
                         System.err.println("Weight in " + align + " chrom " + otherargs[2] + " is " + weight);
                     } else {
                         System.err.println("Total weight in " + align + " is " + weight);
                     }
-                } else if (cmd.equals("deletealign")) {
-                    client.deleteAlignment(align);
+                } else if (cmd.equals("deletesinglealign")) {
+                    client.deleteAlignment(align,false);
+                } else if (cmd.equals("deletepairedalign")) {
+                    client.deleteAlignment(align,true);
                 }
 
             }

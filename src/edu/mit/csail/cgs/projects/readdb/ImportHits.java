@@ -10,15 +10,13 @@ import java.io.*;
  * cat hits.txt | ImportHits -h nanog.csail.mit.edu -P 5200 -a "Gcn4 ChipSeq" -u arolfe -p SECRET
  *
  * Lines in the input must be of the form
- * chromosome\tstart\tstrand\tweight
+ * chromosome\tstart\tstrand\tlength\tweight
+ *  or
+ * chromosomeone\tstartone\tstrandone\tlengthone\tchromosometwo\tstarttwo\tstrandtwo\tlengthtwo\tweight
  *
- * where start is the position of the 5' end of the read
+ * where start is the position of the 5' end of the read.
+ * The chromosome must be numeric!
  * 
- *
- * ImportHits strips "chr" from the front of the
- * chromosome name and appends " +" or " -"
- * to indicate the strandedness of the hits stored.  The position stored in the DB is
- * the average of start and stop.
  */
 public class ImportHits {
 
@@ -84,23 +82,35 @@ public class ImportHits {
 
     public void run(InputStream instream) throws IOException, ClientException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(instream));
-        Map<String,ArrayList<Integer>> posmap = new HashMap<String,ArrayList<Integer>>();
-        Map<String,ArrayList<Float>> weightmap = new HashMap<String,ArrayList<Float>>();
         String line;
         int lineno = 0;
+        List<SingleHit> hits = new ArrayList<SingleHit>();
+        List<PairedHit> paired = new ArrayList<PairedHit>();
         while ((line = reader.readLine()) != null) {
             String pieces[] = line.split("\\t");            
-            String chr = pieces[0].replaceFirst("^chr","") + pieces[2];
-            int pos = Integer.parseInt(pieces[1]);
-            float weight = Float.parseFloat(pieces[3]);
-
-
-            if (!posmap.containsKey(chr)) {
-                posmap.put(chr, new ArrayList<Integer>());
-                weightmap.put(chr, new ArrayList<Float>());
+            if (pieces.length == 5) {
+                hits.add(new SingleHit(Integer.parseInt(pieces[0]),
+                                       Integer.parseInt(pieces[1]),
+                                       Float.parseFloat(pieces[4]),
+                                       pieces[2].equals("+"),
+                                       Short.parseShort(pieces[3])));
+            } else if (pieces.length == 9) {
+                paired.add(new PairedHit(Integer.parseInt(pieces[0]),
+                                         Integer.parseInt(pieces[1]),
+                                         pieces[2].equals("+"),
+                                         Short.parseShort(pieces[3]),
+                                         Integer.parseInt(pieces[4]),
+                                         Integer.parseInt(pieces[5]),
+                                         pieces[6].equals("+"),
+                                         Short.parseShort(pieces[7]),
+                                         Float.parseFloat(pieces[8])));
+                                         
+                                         
+            } else {
+                System.err.println("Bad line size " + line);
             }
-            posmap.get(chr).add(pos);
-            weightmap.get(chr).add(weight);
+
+
             if (lineno++ % 100000 == 0) {
                 System.err.println("Read through line " + lineno);
             }
@@ -115,19 +125,12 @@ public class ImportHits {
         } else {
             client = new Client();
         }
-
-        for (String chr : posmap.keySet()) {
-            List<Integer> poslist = posmap.get(chr);
-            List<Float> weightlist = weightmap.get(chr);
-            int[] hits = new int[poslist.size()];
-            float[] weights = new float[poslist.size()];
-            for (int i = 0; i < hits.length; i++) {
-                hits[i] = poslist.get(i);
-                weights[i] = weightlist.get(i);
-            }
-            System.err.println("Storing " + chr + " numhits=" + hits.length);
-            client.store(alignname, chr, hits,weights);
-        }       
+        if (hits.size() > 0) {
+            client.storeSingle(alignname, hits);
+        }
+        if (paired.size() > 0) {
+            client.storePaired(alignname, paired);
+        }
         client.close();
     }
 

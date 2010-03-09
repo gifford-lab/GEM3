@@ -21,6 +21,8 @@ import edu.mit.csail.cgs.utils.database.UnknownRoleException;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 import edu.mit.csail.cgs.projects.readdb.Client;
+import edu.mit.csail.cgs.projects.readdb.SingleHit;
+import edu.mit.csail.cgs.projects.readdb.PairedHit;
 import edu.mit.csail.cgs.projects.readdb.ClientException;
 
 /**
@@ -69,7 +71,17 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	public MetadataLoader getMetadataLoader() {
 		return metaLoader;
 	}
-
+    public List<ChipSeqHit> convert(Collection<SingleHit> input, ChipSeqAlignment align) {
+        Genome g = align.getGenome();
+        ArrayList<ChipSeqHit> output = new ArrayList<ChipSeqHit>();
+        for (SingleHit s : input) {
+            int start = s.pos;
+            int end = s.strand ? s.pos + s.length : s.pos - s.length;
+            output.add(new ChipSeqHit(g, g.getChromName(s.chrom), Math.min(start,end), Math.max(start,end),
+                                      s.strand ? '+' : '-', align, s.weight));
+        }
+        return output;
+    }
 
 	public Collection<Genome> loadExperimentGenomes(ChipSeqExpt expt) throws SQLException {
 		LinkedList<Genome> genomes = new LinkedList<Genome>();
@@ -232,49 +244,14 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		}
 		return output;
 	}
-
-    private void instantiateHits(Collection<ChipSeqHit> output,
-                                 int[] positions,
-                                 float[] weights,
-                                 Genome g,
-                                 String chrom,
-                                 char strand,
-                                 ChipSeqAlignment align) {
-        int readlen = align.getExpt().getReadLength();
-        if (strand == '+') {
-            for (int i = 0; i < positions.length; i++) {
-                output.add(new ChipSeqHit(align.getGenome(),
-                                          chrom,
-                                          positions[i],
-                                          positions[i] + readlen,
-                                          strand,
-                                          align,
-                                          weights[i]));        
-            }
-        } else {
-            for (int i = 0; i < positions.length; i++) {
-                output.add(new ChipSeqHit(align.getGenome(),
-                                          chrom,
-                                          positions[i] - readlen,
-                                          positions[i],
-                                          strand,
-                                          align,
-                                          weights[i]));        
-            }
-        }
-    }
                                  
-	public Vector<ChipSeqHit> loadAllHits(ChipSeqAlignment a) throws IOException {
-		Vector<ChipSeqHit> data = new Vector<ChipSeqHit>();
+	public List<ChipSeqHit> loadAllHits(ChipSeqAlignment a) throws IOException {
+		List<ChipSeqHit> data = new ArrayList<ChipSeqHit>();
+        String alignid = Integer.toString(a.getDBID());
         try {
-            for (String chrom : client.getChroms(Integer.toString(a.getDBID()))) {
-                char strand = chrom.charAt(chrom.length() - 1);
-                String justchrom = chrom.substring(0,chrom.length() - 1);
-                int[] positions = client.getHits(Integer.toString(a.getDBID()),
-                                                 chrom);
-                float[] weights = client.getWeights(Integer.toString(a.getDBID()),
-                                                    chrom);            
-                instantiateHits(data, positions, weights, a.getGenome(), justchrom, strand, a);
+            for (int chromid : client.getChroms(alignid, false, false)) {
+                data.addAll(convert(client.getSingleHits(alignid, chromid,null,null,null,null),a));
+                            
             }
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
@@ -282,81 +259,33 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		return data;
 	}
     
-	public Vector<ChipSeqHit> loadByChrom(ChipSeqAlignment a, String chrom) throws IOException {
-		Vector<ChipSeqHit> data = new Vector<ChipSeqHit>();
+	public List<ChipSeqHit> loadByChrom(ChipSeqAlignment a, int chromid) throws IOException {
+		List<ChipSeqHit> data = new ArrayList<ChipSeqHit>();
+        String alignid = Integer.toString(a.getDBID());
         try {
-            char strand = chrom.charAt(chrom.length() - 1);
-            String justchrom = chrom.substring(0,chrom.length() - 1);
-            int[] positions = client.getHits(Integer.toString(a.getDBID()),
-                                             chrom);
-            float[] weights = client.getWeights(Integer.toString(a.getDBID()),
-                                                chrom);            
-            instantiateHits(data, positions, weights, a.getGenome(), justchrom, strand, a);
+            data.addAll(convert(client.getSingleHits(alignid, chromid,null,null,null,null),a));
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
 		return data;
 	}
-	
-	public int[] getStartsByChrom(ChipSeqAlignment a, String chrom){
-		int[] data = null;
+			
+	public List<ChipSeqHit> loadByRegion(ChipSeqAlignment align, Region r) throws IOException {
         try {
-            int[] positions = client.getHits(Integer.toString(a.getDBID()),
-                                             chrom);
-            float[] weights = client.getWeights(Integer.toString(a.getDBID()),
-                                                chrom);    
-            // assume weights are integers
-            int totalCount = 0;
-            for (float w:weights){
-            	totalCount += (int)w;
-            }
-            data = new int[totalCount];
-            for (int i=0; i<positions.length;i++){
-            	for (int j=0; j<(int)weights[i];j++){
-                	data[i+j]= positions[i];            		
-            	}
-            }            
-        } catch (Exception e) {
-            System.err.println(e.toString());
-        }
-        
-		return data;
-	}
-		
-	public Collection<ChipSeqHit> loadByRegion(ChipSeqAlignment align, Region r) throws IOException {
-		Genome g = r.getGenome();
-		ArrayList<ChipSeqHit> data = new ArrayList<ChipSeqHit>();
-        try {
-            int[] positions = client.getHitsRange(Integer.toString(align.getDBID()),
-                                                  r.getChrom() + '+',
-                                                  r.getStart(),
-                                                  r.getEnd());
-            float[] weights = client.getWeightsRange(Integer.toString(align.getDBID()),
-                                                     r.getChrom() + '+',
-                                                     r.getStart(),
-                                                     r.getEnd());
-            instantiateHits(data, positions,weights, g, r.getChrom(), '+', align);
-            positions = client.getHitsRange(Integer.toString(align.getDBID()),
-                                            r.getChrom() + '-',
-                                            r.getStart(),
-                                            r.getEnd());
-            weights = client.getWeightsRange(Integer.toString(align.getDBID()),
-                                             r.getChrom() + '-',
-                                             r.getStart(),
-                                             r.getEnd());
-            instantiateHits(data, positions,weights, g, r.getChrom(), '-', align);
+            return convert(client.getSingleHits(Integer.toString(align.getDBID()),
+                                                r.getGenome().getChromID(r.getChrom()),
+                                                r.getStart(),
+                                                r.getEnd(),
+                                                null,
+                                                null), align);
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
-        return data;
 	}
 
 
-	public Collection<ChipSeqHit> loadByRegion(List<ChipSeqAlignment> alignments, Region r) throws IOException {
-		if (alignments.size() < 1) {
-			throw new IllegalArgumentException("Alignment List must not be empty.");
-		}
-        Collection<ChipSeqHit> output = null;
+	public List<ChipSeqHit> loadByRegion(List<ChipSeqAlignment> alignments, Region r) throws IOException {
+        List<ChipSeqHit> output = null;
         for (ChipSeqAlignment a : alignments) {
             if (output == null) {
                 output = loadByRegion(a,r);
@@ -366,17 +295,17 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         }
 		return output;
 	}
-
+    
 	public int countByRegion(ChipSeqAlignment align, Region r) throws IOException {
         try {
-            return client.getCountRange(Integer.toString(align.getDBID()),
-                                        r.getChrom()+'+',
-                                        r.getStart(),
-                                        r.getEnd()) + 
-                client.getCountRange(Integer.toString(align.getDBID()),
-                                     r.getChrom()+'-',
-                                     r.getStart(),
-                                     r.getEnd());
+            return client.getCount(Integer.toString(align.getDBID()),
+                                   r.getGenome().getChromID(r.getChrom()),
+                                   false,
+                                   r.getStart(),
+                                   r.getEnd(),
+                                   null,
+                                   null,
+                                   null);
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
@@ -395,10 +324,14 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	}
 	public int countByRegion(ChipSeqAlignment align, StrandedRegion r) throws IOException {
         try {
-            return client.getCountRange(Integer.toString(align.getDBID()),
-                                        r.getChrom()+r.getStrand(),
-                                        r.getStart(),
-                                        r.getEnd());
+            return client.getCount(Integer.toString(align.getDBID()),
+                                   r.getGenome().getChromID(r.getChrom()),
+                                   false,
+                                   r.getStart(),
+                                   r.getEnd(),
+                                   null,
+                                   null,
+                                   r.getStrand() == '+');
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
@@ -422,14 +355,14 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         double total = 0;
         for (ChipSeqAlignment a : alignments) {
             try {
-                total += client.getWeightRange(Integer.toString(a.getDBID()),
-                                               r.getChrom() + "+",
-                                               r.getStart(),
-                                               r.getEnd());
-                total += client.getWeightRange(Integer.toString(a.getDBID()),
-                                               r.getChrom() + "-",
-                                               r.getStart(),
-                                               r.getEnd());
+                total += client.getWeight(Integer.toString(a.getDBID()),
+                                          r.getGenome().getChromID(r.getChrom()),
+                                          false,
+                                          r.getStart(),
+                                          r.getEnd(),
+                                          null,
+                                          null,
+                                          null);
             } catch (ClientException e) {
                 throw new IllegalArgumentException(e);
             }            
@@ -443,10 +376,14 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         double total = 0;
         for (ChipSeqAlignment a : alignments) {
             try {
-                total += client.getWeightRange(Integer.toString(a.getDBID()),
-                                               r.getChrom() + r.getStrand(),
-                                               r.getStart(),
-                                               r.getEnd());
+                total += client.getWeight(Integer.toString(a.getDBID()),
+                                          r.getGenome().getChromID(r.getChrom()),
+                                          false,
+                                          r.getStart(),
+                                          r.getEnd(),
+                                          null,
+                                          null,
+                                          r.getStrand() == '+');
             } catch (ClientException e) {
                 throw new IllegalArgumentException(e);
             }            
@@ -462,7 +399,8 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	 */
 	public int countAllHits(ChipSeqAlignment align) throws IOException {
         try {
-            return client.getCount(Integer.toString(align.getDBID()));
+            return client.getCount(Integer.toString(align.getDBID()),
+                                   false,false,false);
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
@@ -471,7 +409,8 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 	public double weighAllHits(ChipSeqAlignment align) throws IOException {
         try {
-            return client.getWeight(Integer.toString(align.getDBID()));
+            return client.getWeight(Integer.toString(align.getDBID()),
+                                    false,false,false);
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
@@ -534,21 +473,14 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
      * on the specified strand.  
      */
     public Pair<Long,Double> getAlignmentStrandedCountWeight(ChipSeqAlignment align, char strand) throws IOException {
-        long count = 0;
-        double sum = 0;
         try {
-            for (String chrom : client.getChroms(Integer.toString(align.getDBID()))) {
-                if (chrom.charAt(chrom.length() - 1) != strand) {
-                    continue;
-                }
-                count += client.getCount(Integer.toString(align.getDBID()), chrom);
-                sum += client.getWeight(Integer.toString(align.getDBID()), chrom);
-            }
+            long count = client.getCount(Integer.toString(align.getDBID()), false, false, strand=='+');
+            double weight = client.getWeight(Integer.toString(align.getDBID()), false, false, strand=='+');
+            Pair<Long,Double> output = new Pair<Long,Double>(count,weight);
+            return output;
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
-        Pair<Long,Double> output = new Pair<Long,Double>(count,sum);
-        return output;
     }
 
     /** Generates a histogram of the total weight of reads mapped to each bin.
@@ -558,10 +490,14 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
     public Map<Integer,Float> histogramWeight(ChipSeqAlignment align, char strand, Region r, int binWidth) throws IOException {
         try {
             return client.getWeightHistogram(Integer.toString(align.getDBID()),
-                                             r.getChrom() + strand,
+                                             r.getGenome().getChromID(r.getChrom()),
+                                             false,
+                                             false,
+                                             binWidth,
                                              r.getStart(),
                                              r.getEnd(),
-                                             binWidth);
+                                             null,
+                                             strand == '+');
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
@@ -573,10 +509,14 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
     public Map<Integer,Integer> histogramCount(ChipSeqAlignment align, char strand, Region r, int binWidth) throws IOException {        
         try {
             return client.getHistogram(Integer.toString(align.getDBID()),
-                                       r.getChrom() + strand,
+                                       r.getGenome().getChromID(r.getChrom()),
+                                       false,
+                                       false,
+                                       binWidth,
                                        r.getStart(),
                                        r.getEnd(),
-                                       binWidth);
+                                       null,
+                                       strand == '+');
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }

@@ -1,7 +1,7 @@
 package edu.mit.csail.cgs.projects.readdb;
 
 import java.util.TreeMap;
-
+import java.io.IOException;
 
 public interface ReadOnlyClient {
 

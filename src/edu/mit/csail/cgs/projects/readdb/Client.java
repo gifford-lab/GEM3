@@ -667,17 +667,17 @@ public class Client implements ReadOnlyClient {
     }
 
     public TreeMap<Integer,Integer> getHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
-        Map<Integer,Integer> output = null;
+        TreeMap<Integer,Integer> output = null;
         for (String alignid : alignids) {
-            Map<Integer,Integer> o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
+            TreeMap<Integer,Integer> o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
             if (output == null) {
                 output = o;
             } else {
                 for (int k : o.keySet()) {
                     if (output.containsKey(k)) {
-                        output.put(o, output.get(k) + o.get(k));
+                        output.put(k, output.get(k) + o.get(k));
                     } else {
-                        output.put(o.get(k));
+                        output.put(k,o.get(k));
                     }
                 }
             }            
@@ -685,17 +685,17 @@ public class Client implements ReadOnlyClient {
         return output;
     }
     public TreeMap<Integer,Float> getWeightHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
-        Map<Integer,Float> output = null;
+        TreeMap<Integer,Float> output = null;
         for (String alignid : alignids) {
-            Map<Integer,Float> o = getWeightHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
+            TreeMap<Integer,Float> o = getWeightHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
             if (output == null) {
                 output = o;
             } else {
                 for (int k : o.keySet()) {
                     if (output.containsKey(k)) {
-                        output.put(o, output.get(k) + o.get(k));
+                        output.put(k, output.get(k) + o.get(k));
                     } else {
-                        output.put(o.get(k));
+                        output.put(k,o.get(k));
                     }
                 }
             }            
