@@ -47,7 +47,8 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
    * 
    */
   public BackgroundModel(String name, Genome gen) {
-    this(name ,gen, DEFAULT_MAX_KMER_LEN);    
+    this(name ,gen, DEFAULT_MAX_KMER_LEN);
+    this.init();
   }
 
 
@@ -62,6 +63,7 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
     for (int i = 1; i <= maxKmerLen; i++) {
       modelProbs[i] = new HashMap<String, Double>();
     }
+    this.init();
   }
   
 
@@ -77,7 +79,11 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
     //FIXME
   	this(source.name, source.gen, source.getMaxKmerLen());
   	this.isStranded = source.isStranded;
+  	this.init();
   }
+  
+  //TODO
+  protected abstract void init();
   
   
   /**
@@ -96,16 +102,7 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
   public void setGenome(Genome gen) {
   	this.gen = gen;
   }
-  
-  
-  /**
-   * Return the length of the longest kmer in this model.
-   * @return
-   */
-  public int getMaxKmerLen() {
-    return modelProbs.length - 1;
-  }
-  
+    
 
   /**
    * Get the Markov-order of this model

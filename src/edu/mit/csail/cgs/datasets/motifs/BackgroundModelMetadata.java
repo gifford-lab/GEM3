@@ -89,7 +89,7 @@ public class BackgroundModelMetadata {
    * parsed Counts models
    * @return
    */
-  public String getDbModelType() {
+  public String getDBModelType() {
     return dbModelType;
   }
 
@@ -98,7 +98,7 @@ public class BackgroundModelMetadata {
    * Sets the db model type for this model ("FREQUENCY" or "MARKOV").
    * @param dbModelType
    */
-  public void setDbModelType(String dbModelType) {
+  public void setDBModelType(String dbModelType) {
     if (dbModelType.equals("MARKOV") || dbModelType.equals("FREQUENCY")) {
       this.dbModelType = dbModelType;
     }
@@ -169,5 +169,7 @@ public class BackgroundModelMetadata {
 
   public void setGenomeID(Integer genomeID) {
     this.genomeID = genomeID;
-  }  
+  }
+  
+  
 }

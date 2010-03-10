@@ -36,6 +36,10 @@ public class FrequencyBackgroundModel extends BackgroundModel implements Backgro
   }
   
   
+  protected void init() {
+    this.setDBModelType(BackgroundModelImport.FREQUENCY_TYPE_STRING);
+  }
+  
   /**
    * @see BackgroundModel
    */

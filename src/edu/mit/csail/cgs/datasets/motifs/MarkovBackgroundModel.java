@@ -57,7 +57,12 @@ public class MarkovBackgroundModel extends BackgroundModel {
         	}
         }
       }
-    }
+    }    
+  }
+  
+  
+  protected void init() {
+    this.setDBModelType(BackgroundModelImport.MARKOV_TYPE_STRING);
   }
   
   

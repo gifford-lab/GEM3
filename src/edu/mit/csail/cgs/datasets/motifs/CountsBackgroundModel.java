@@ -56,6 +56,10 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
   }
   
   
+  protected void init() {
+    //do nothing (for now)
+  }
+  
   /**
    * @see BackgroundModel
    */
