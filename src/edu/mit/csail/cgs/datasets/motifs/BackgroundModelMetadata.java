@@ -15,39 +15,38 @@ public class BackgroundModelMetadata {
    * background models
    */
   protected String name;
-  protected final int maxKmerLen;
+  protected int maxKmerLen;
 
   
   /**
-   * fields from the background model table that may be null/-1 for parsed 
+   * fields from the background model table that may be null for parsed 
    * background models
    */
   protected int modelID;
   protected String dbModelType; //only null for parsed Count-based models
   
   /**
-   * these fields may be null/-1 for parsed background models or metadata 
+   * these fields may be null for parsed background models or metadata 
    * instances that just represent a row from the background model table
    */
   protected int mapID;
   protected int genomeID; 
 
 
+  public BackgroundModelMetadata(BackgroundModelMetadata md) {
+    this(md.getMapID(), md.getGenomeID(), md.getModelID(), md.getName(), md.getMaxKmerLen(), md.getDBModelType());
+  }
+  
   public BackgroundModelMetadata(String name, int kmerlen, int genomeID) {
-    this.name = name;
-    this.maxKmerLen = kmerlen;
-    this.genomeID = genomeID;
-    this.modelID = -1;
-    this.dbModelType = null;
-    this.mapID = -1;    
+    this(-1, genomeID, -1, name, kmerlen, null);
   }
   
   public BackgroundModelMetadata(int modelID, String name, int kmerlen, String modelType) {
-    this(modelID, name, kmerlen, modelType, -1, -1);
+    this(-1, -1, modelID, name, kmerlen, modelType);
   }
   
   
-  public BackgroundModelMetadata(int modelID, String name, int kmerlen, String modelType, int mapID, int genomeID) {
+  public BackgroundModelMetadata(int mapID, int genomeID, int modelID, String name, int kmerlen, String modelType) {
     this.modelID = modelID;
     this.name = name;
     this.maxKmerLen = kmerlen;
@@ -71,7 +70,17 @@ public class BackgroundModelMetadata {
    * @param name
    */
   public void setName(String name) {
-    this.name = name;
+    if (name == null) {
+      throw new NullPointerException("Name can not be set to null");
+    }
+    else {
+      this.name = name;
+    }
+  }
+  
+  
+  public boolean hasMaxKmerLen() {
+    return (maxKmerLen != -1);
   }
   
   
@@ -83,6 +92,15 @@ public class BackgroundModelMetadata {
     return maxKmerLen;
   }
 
+  
+  public void setMaxKmerLen(int maxKmerLen) {
+    this.maxKmerLen = maxKmerLen;
+  }
+  
+  
+  public boolean hasDBModelType() {
+    return (dbModelType != null);
+  }
   
   /**
    * Returns the db model type ("FREQUENCY" or "MARKOV"). This may be null for
@@ -99,7 +117,7 @@ public class BackgroundModelMetadata {
    * @param dbModelType
    */
   public void setDBModelType(String dbModelType) {
-    if (dbModelType.equals("MARKOV") || dbModelType.equals("FREQUENCY")) {
+    if (dbModelType.equals(BackgroundModelImport.MARKOV_TYPE_STRING) || dbModelType.equals(BackgroundModelImport.FREQUENCY_TYPE_STRING)) {
       this.dbModelType = dbModelType;
     }
     else {
@@ -131,7 +149,7 @@ public class BackgroundModelMetadata {
    * Sets the id for the background model table
    * @param modelID
    */
-  public void setModelID(Integer modelID) {
+  public void setModelID(int modelID) {
     this.modelID = modelID;
   }
 
@@ -163,13 +181,31 @@ public class BackgroundModelMetadata {
   }
 
   
-  public Integer getGenomeID() {
+  public boolean hasGenomeID() {
+    return (genomeID != -1);
+  }
+  
+  public int getGenomeID() {
     return genomeID;
   }
 
-  public void setGenomeID(Integer genomeID) {
+  public void setGenomeID(int genomeID) {
     this.genomeID = genomeID;
   }
   
+  public boolean equals(BackgroundModelMetadata other) {
+    if ((other != null) && this.name.equals(other.getName()) && (this.maxKmerLen == other.getMaxKmerLen()) 
+        && (((this.dbModelType == null) && (other.getDBModelType() == null)) || this.dbModelType.equals(other.dbModelType)) 
+        && (this.modelID == other.getModelID() && this.mapID == other.getMapID())
+        && (this.genomeID == other.getGenomeID())) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
   
+  public String toString() {
+    return mapID + "\t" + genomeID + "\t" + modelID + "\t" + name  + "\t" + dbModelType + "\t" + maxKmerLen; 
+  }
 }

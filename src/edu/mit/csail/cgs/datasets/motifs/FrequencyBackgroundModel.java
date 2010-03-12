@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.Fmath;
 
@@ -16,6 +17,14 @@ import edu.mit.csail.cgs.utils.stats.Fmath;
  *         dinucleotides sum to 1.
  */
 public class FrequencyBackgroundModel extends BackgroundModel implements BackgroundModelFrequencySupport {
+  
+  
+  public FrequencyBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
+    super(md);
+    if (!BackgroundModelImport.FREQUENCY_TYPE_STRING.equals(md.getDBModelType())) {
+      throw new IllegalArgumentException("Metadata model type must be FREQUENCY");
+    }
+  }
   
   public FrequencyBackgroundModel(String name, Genome gen) {
     super(name, gen);

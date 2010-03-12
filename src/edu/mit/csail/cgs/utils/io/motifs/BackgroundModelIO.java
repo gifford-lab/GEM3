@@ -14,6 +14,8 @@ import edu.mit.csail.cgs.datasets.motifs.CountsBackgroundModel;
 import edu.mit.csail.cgs.datasets.motifs.MarkovBackgroundModel;
 import edu.mit.csail.cgs.datasets.motifs.FrequencyBackgroundModel;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.io.LineByLineFileReader;
 import edu.mit.csail.cgs.utils.io.LineByLineFileWriter;
 
@@ -33,8 +35,11 @@ public class BackgroundModelIO {
   public static void main(String[] args) {
   	//testing...
   	try {
-  		MarkovBackgroundModel mbg = BackgroundModelIO.parseMarkovBackgroundModel("mm8.back");
+  		MarkovBackgroundModel mbg = BackgroundModelIO.parseMarkovBackgroundModel("mm8.back", Organism.findGenome("mm8"));
   		BackgroundModelIO.printProbsToFile(mbg, "foo.back");
+  	}
+  	catch (NotFoundException nfex) {
+  	  nfex.printStackTrace();
   	}
   	catch (ParseException pex) {
   		pex.printStackTrace();
@@ -232,21 +237,8 @@ public class BackgroundModelIO {
    * @throws IOException
    * @throws ParseException
    */
-  public static MarkovBackgroundModel parseMarkovBackgroundModel(String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseMarkovBackgroundModel(filename, filename, null);
-  }
-  
-  
-  /**
-   * @see parseMarkovBackgroundModel(String modelName, String filename, Genome gen)
-   * @param modelName
-   * @param filename
-   * @return
-   * @throws IOException
-   * @throws ParseException
-   */
-  public static MarkovBackgroundModel parseMarkovBackgroundModel(String modelName, String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseMarkovBackgroundModel(modelName, filename, null);
+  public static MarkovBackgroundModel parseMarkovBackgroundModel(String filename, Genome gen) throws IOException, ParseException {
+  	return BackgroundModelIO.parseMarkovBackgroundModel(filename, filename, gen);
   }
   
   

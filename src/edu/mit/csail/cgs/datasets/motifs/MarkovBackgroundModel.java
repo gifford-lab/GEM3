@@ -8,6 +8,7 @@ import cern.colt.matrix.impl.*;
 import cern.colt.matrix.linalg.Algebra;
 import cern.jet.math.Functions;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.Fmath;
 
@@ -18,6 +19,15 @@ import edu.mit.csail.cgs.utils.stats.Fmath;
  *         p(C|A) + p(G|A) + p(T|A) = 1.
  */
 public class MarkovBackgroundModel extends BackgroundModel {
+  
+  
+  public MarkovBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
+    super(md);
+    if (!BackgroundModelImport.MARKOV_TYPE_STRING.equals(md.getDBModelType())) {
+      throw new IllegalArgumentException("Metadata model type must be MARKOV");
+    }
+  }
+
   
   public MarkovBackgroundModel(String name, Genome gen) {
     super(name, gen);
@@ -110,6 +120,7 @@ public class MarkovBackgroundModel extends BackgroundModel {
 	 */
 	public void setMarkovProb(String prevBases, double aProb, double cProb, double gProb, double tProb) {
 		double total = aProb + cProb + gProb + tProb;
+		//FIXME check that all probs are positive and allow total == 0
 		if (Fmath.isEqualWithinLimits(total, 1.0, BackgroundModel.EPSILON)) {
 			int kmerLen = prevBases.length() + 1;
 			modelProbs[kmerLen].put(prevBases + "A", aProb);
@@ -118,7 +129,7 @@ public class MarkovBackgroundModel extends BackgroundModel {
 			modelProbs[kmerLen].put(prevBases + "T", tProb);
 		}
 		else {
-			throw new IllegalArgumentException("Probabilities must sum to 1, but instead sum to " + total);
+			throw new IllegalArgumentException("Probabilities must sum to 1, but instead sum to " + total + " for prevBases " + prevBases);
 		}
 		
 		//reset the isStranded variable to null to indicate unknown strandedness
