@@ -16,6 +16,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.ewok.verbs.ChromRegionIterator;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
+import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
@@ -36,6 +37,11 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
    * case for a frequency model or markov model)
    */
   private Map<String, Long>[] kmerCounts;
+
+  
+  public CountsBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
+    super(md);    
+  }
 
   
   public CountsBackgroundModel(String name, Genome gen) {

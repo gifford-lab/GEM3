@@ -70,7 +70,7 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
    * @param maxKmerLen
    */
   public BackgroundModel(String name, Genome gen, int maxKmerLen) {
-    super(name, maxKmerLen, gen.getDBID());
+    super(gen.getDBID(), name, maxKmerLen);
     this.gen = gen;
     modelProbs = new HashMap[maxKmerLen + 1];
     for (int i = 1; i <= maxKmerLen; i++) {
