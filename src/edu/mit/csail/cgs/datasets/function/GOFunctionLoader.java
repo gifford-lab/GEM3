@@ -89,6 +89,7 @@ public class GOFunctionLoader implements FunctionLoader, Closeable {
         PreparedStatement stmt = cxn.prepareStatement("select term.id, term.name from term where term.name = ?");
         stmt.setString(1,name);
         ResultSet rs = stmt.executeQuery();
+        rs.next();
         Category output = new Category(fv, name, name, rs.getInt(1));
         rs.close();
         stmt.close();
@@ -145,6 +146,20 @@ public class GOFunctionLoader implements FunctionLoader, Closeable {
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
             output.add(new Assignment(rs,this));
+        }
+        rs.close();
+        stmt.close();
+        return output;
+    }
+
+	public Collection<Assignment> getAssignments(Category c, FunctionVersion fv) throws SQLException {
+        PreparedStatement stmt = cxn.prepareStatement("select gene_product.symbol from association, gene_product where gene_product.id = association.gene_product_id and gene_product.species_id = ? and association.term_id = ?");
+        stmt.setInt(1,fv.getID());
+        stmt.setInt(2,c.getID());
+        HashSet<Assignment> output = new HashSet<Assignment>();
+        ResultSet rs = stmt.executeQuery();
+        while (rs.next()) {
+            output.add(new Assignment(rs.getString(1),c));
         }
         rs.close();
         stmt.close();
