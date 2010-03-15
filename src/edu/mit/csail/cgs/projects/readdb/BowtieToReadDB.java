@@ -94,10 +94,11 @@ public class BowtieToReadDB {
 	        		readLength=pieces[4].length();
 	        	
 	        	String coord = pieces[1].equals("+") ? pieces[3] : Integer.toString((Integer.valueOf(pieces[3])+readLength-1)); 
-	            System.out.println(String.format("%s\t%s\t%s\t%f",
+	            System.out.println(String.format("%s\t%s\t%s\t%d\t%f",
 	                                             pieces[2],
 	                                             coord,
 	                                             pieces[1],
+                                                 pieces[4].length(),
 	                                             weight));
 	        }
     	}
