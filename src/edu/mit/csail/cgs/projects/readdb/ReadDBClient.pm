@@ -28,7 +28,10 @@ sub init {
   
   die "Couldn't authenticate to ${hostname}:${portnum}" unless($self->authenticate($hostname, $username, $passwd));
 
-  $self->sendRequest("byteorder", ($Config{byteorder} =~ /^1/) ? 'little' : 'big');
+  $self->{request} = new ReadDBClient::Request();
+  $self->{request}{type} = "byteorder";
+  $self->{request}{map}{order} = ($Config{byteorder} =~ /^1/) ? 'little' : 'big';
+  $self->sendRequest();
   my $response = $self->readLine();
   if ($response ne "OK") {
     die "Couldn't set byte order : $response";
@@ -110,8 +113,9 @@ sub sendString {
   $self->{socket}->flush();
 }
 sub sendRequest {
-  my ($self,@args) = @_;
-  $self->sendString(join("\n",@args) . "\nENDREQUEST\n");
+  my ($self) = @_;
+  $self->sendString($self->{request}->toString());
+  $self->{request}->clear();
 }
 
 sub readLine {
@@ -138,41 +142,26 @@ sub readLine {
 
 sub shutdown {
   my ($self) = @_;
-  $self->sendRequest("shutdown");
-}
-
-sub store {
-  my ($self, $alignid, $chromid, $hits, $weights) = @_;
-  $self->sendRequest("store", $alignid, $chromid, ($#$hits+1));
-  my $response = $self->readLine();
-  if ($response ne "OK") {
-    die "Can't setup store hits : $response";
-  }
-  $self->sendInts($hits);
-  $self->sendFloats($weights);
-  $response = $self->readLine();
-  if ($response ne "OK") {
-    die "Can't store hits : $response";
-  }
+  $self->{request}{type} = 'shutdown';
+  $self->sendRequest();
 }
 
 sub alignExists {
   my ($self, $alignid) = @_;
-  $self->sendRequest("exists",$alignid);
+  $self->{request}{type} = 'exists';
+  $self->{request}{alignid} = $alignid;
+  $self->sendRequest();
   my $response = $self->readLine();
   return ($response eq 'exists');
 }
 
-sub deleteAlignment {
-  my ($self, $alignid) = @_;
-  $self->sendRequest("deletealign",$alignid);
-  my $response = $self->readLine();
-  die "Can't delete alignment $alignid : $response" unless ($response eq 'OK');
-}
-
 sub getChroms {
-  my ($self, $alignid) = @_;
-  $self->sendRequest("getchroms",$alignid);
+  my ($self, $alignid, $isPaired, $isLeft) = @_;
+  $self->{request}{type} = 'getchroms';
+  $self->{request}{alignid} = $alignid;
+  $self->{request}{ispaired} = $isPaired;
+  $self->{request}{isleft} = $isLeft;
+  $self->sendRequest();
   my $response = $self->readLine();
   if ($response ne "OK") {
     die "Can't get chroms for $alignid : $response";
@@ -186,13 +175,20 @@ sub getChroms {
 }
 
 sub getCount {
-  my ($self, $alignid, @chroms) = @_;
+  my ($self, $alignid, $isPaired, $isLeft, $isPlusStrand, @chroms) = @_;
   if (@chroms == 0) {
     @chroms = $self->getChroms($alignid);
   }
   my $count = 0;
   for my $chrom (@chroms) {
-    $self->sendRequest("count",$alignid, $chrom);
+    $self->{request}{type} = 'count';
+    $self->{request}{alignid} = $alignid;
+    $self->{request}{chromid} = $chrom;
+    $self->{request}{ispaired} = $isPaired;
+    $self->{request}{isleft} = $isLeft;
+    $self->{request}{isplusstrand} = $isPlusStrand;
+    $self->sendRequest();
+    
     my $response = $self->readLine();
     if ($response ne "OK") {
       die "Can't get count for $alignid $chrom : $response";
@@ -203,13 +199,20 @@ sub getCount {
 }
 
 sub getWeight {
-  my ($self, $alignid, @chroms) = @_;
+  my ($self, $alignid, $isPaired, $isLeft, $isPlusStrand, @chroms) = @_;
   if (@chroms == 0) {
     @chroms = $self->getChroms($alignid);
   }
   my $weight = 0;
   for my $chrom (@chroms) {
-    $self->sendRequest("weight",$alignid, $chrom);
+    $self->{request}{type} = 'weight';
+    $self->{request}{alignid} = $alignid;
+    $self->{request}{chromid} = $chrom;
+    $self->{request}{ispaired} = $isPaired;
+    $self->{request}{isleft} = $isLeft;
+    $self->{request}{isplusstrand} = $isPlusStrand;
+    $self->sendRequest();
+
     my $response = $self->readLine();
     if ($response ne "OK") {
       die "Can't get weight for $alignid $chrom : $response";
@@ -220,9 +223,18 @@ sub getWeight {
 }
 
 sub getCountRange {
-  my ($self,$alignid,$chrom,$start,$stop,$minweight) = @_;
-  $minweight = 'NaN' unless (defined($minweight));
-  $self->sendRequest("countrange",$alignid, $chrom, $start, $stop, $minweight);
+  my ($self,$alignid,$chrom,$isPaired,$start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
+  $self->{request}{type} = 'count';
+  $self->{request}{alignid} = $alignid;
+  $self->{request}{chromid} = $chrom;
+  $self->{request}{ispaired} = $isPaired;
+  $self->{request}{isleft} = $isLeft;
+  $self->{request}{isplusstrand} = $isPlusStrand;
+  $self->{request}{minweight} = $minweight;
+  $self->{request}{start} = $start;
+  $self->{request}{end} = $stop;
+  $self->sendRequest();
+
   my $response = $self->readLine();
   if ($response ne "OK") {
     die "Can't get count for range for $alignid $chrom $start $stop $minweight: $response";
@@ -231,9 +243,18 @@ sub getCountRange {
 }
 
 sub getWeightRange {
-  my ($self,$alignid,$chrom,$start,$stop,$minweight) = @_;
-  $minweight = 'NaN' unless (defined($minweight));
-  $self->sendRequest("weightrange",$alignid, $chrom, $start, $stop, $minweight);
+  my ($self,$alignid,$chrom,$isPaired,$start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
+  $self->{request}{type} = 'weight';
+  $self->{request}{alignid} = $alignid;
+  $self->{request}{chromid} = $chrom;
+  $self->{request}{ispaired} = $isPaired;
+  $self->{request}{isleft} = $isLeft;
+  $self->{request}{isplusstrand} = $isPlusStrand;
+  $self->{request}{minweight} = $minweight;
+  $self->{request}{start} = $start;
+  $self->{request}{end} = $stop;
+  $self->sendRequest();
+
   my $response = $self->readLine();
   if ($response ne "OK") {
     die "Can't get weight for range for $alignid $chrom $start $stop $minweight: $response";
@@ -242,61 +263,60 @@ sub getWeightRange {
 }
 
 sub getHits {
-  my ($self,$alignid,$chrom,$minweight) = @_;
-  $minweight = 'NaN' unless (defined($minweight));
-  $self->sendRequest("gethits",$alignid, $chrom, $minweight);
+  my ($self,$alignid,$chrom,$isPaired,$start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
+  $self->{request}{type} = 'gethits';
+  $self->{request}{alignid} = $alignid;
+  $self->{request}{chromid} = $chrom;
+  $self->{request}{ispaired} = $isPaired;
+  $self->{request}{isleft} = $isLeft;
+  $self->{request}{isplusstrand} = $isPlusStrand;
+  $self->{request}{minweight} = $minweight;
+  $self->{request}{start} = $start;
+  $self->{request}{end} = $stop;
+  $self->{request}{map} = {wantweights=>1,
+			   wantpositions=>1,
+			   wantlengthsandstrands=>1};
+  $self->sendRequest();
   my $response = $self->readLine();
   if ($response ne "OK") {
     die "Can't get hits for $alignid $chrom $minweight: $response";
   }
   my $numhits = $self->readLine();
-  return $self->readInts($numhits);
-}
-
-sub getWeights {
-  my ($self,$alignid,$chrom,$minweight) = @_;
-  $minweight = 'NaN' unless (defined($minweight));
-  $self->sendRequest("getweights",$alignid, $chrom, $minweight);
-  my $response = $self->readLine();
-  if ($response ne "OK") {
-    die "Can't get weights for $alignid $chrom $minweight: $response";
+  my @output =  map {{position=>$_}} $self->readInts($numhits);
+  my @floats = $self->readFloats($numhits);
+  for (my $i = 0; $i < @output; $i++) {
+    $output[$i]{weight} = $floats[$i];
   }
-  my $numhits = $self->readLine();
-  return $self->readFloats($numhits);
-}
-
-sub getHitsRange {
-  my ($self,$alignid,$chrom,$start,$stop,$minweight) = @_;
-  $minweight = 'NaN' unless (defined($minweight));
-  $self->sendRequest("gethitsrange",$alignid, $chrom, $start, $stop, $minweight);
-  my $response = $self->readLine();
-  if ($response ne "OK") {
-    die "Can't get hits for range for $alignid $chrom $start $stop $minweight: $response";
+  my @ints = $self->readInts($numhits);
+  for (my $i = 0; $i < @output; $i++) {
+    my ($len,$strand) = decodeLAS($ints[$i]);
+    $output[$i]{length} = $len;
+    $output[$i]{strand} = $strand;
   }
-  my $numhits = $self->readLine();
-  return $self->readInts($numhits);
-}
 
-sub getWeightsRange {
-  my ($self,$alignid,$chrom,$start,$stop,$minweight) = @_;
-  $minweight = 'NaN' unless (defined($minweight));
-  $self->sendRequest("getweightsrange",$alignid, $chrom, $start, $stop, $minweight);
-  my $response = $self->readLine();
-  if ($response ne "OK") {
-    die "Can't get weights for range for $alignid $chrom $start $stop $minweight: $response";
-  }
-  my $numhits = $self->readLine();
-  return $self->readFloats($numhits);
+  return @output;
 }
 
 sub getHistogram {
-  my ($self, $alignid, $chrom, $start, $stop, $binsize, $minweight, $readextension) = @_;
-  $minweight = 'NaN' unless (defined($minweight));
-  $readextension ||= 0;
-  $self->sendRequest("histogram",$alignid, $chrom, $start, $stop, $binsize, $minweight, $readextension);
+  my ($self,$alignid,$chrom,$isPaired,$extension,$binsize, $start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
+  $self->{request}{type} = 'histogram';
+  $self->{request}{alignid} = $alignid;
+  $self->{request}{chromid} = $chrom;
+  $self->{request}{ispaired} = $isPaired;
+  $self->{request}{isleft} = $isLeft;
+  $self->{request}{isplusstrand} = $isPlusStrand;
+  $self->{request}{minweight} = $minweight;
+  $self->{request}{start} = $start;
+  $self->{request}{end} = $stop;
+  $self->{request}{map} = {binsize=>$binsize};
+  if ($extension) {
+    $self->{request}{map}{extension}=1;
+  }
+  $self->sendRequest();
   my $response = $self->readLine();
+
   if ($response ne "OK") {
-    die "Can't get histogram for range for $alignid $chrom $start $stop $binsize $minweight $readextension : $response";
+    die "Can't get histogram for range for $alignid $chrom $start $stop $minweight : $response";
   }
   my $ints = $self->readInts($self->readLine());
   my $out = {};
@@ -307,13 +327,24 @@ sub getHistogram {
 }
 
 sub getWeightHistogram {
-  my ($self, $alignid, $chrom, $start, $stop, $binsize, $minweight, $readextension) = @_;
-  $minweight = 'NaN' unless (defined($minweight));
-  $readextension ||= 0;
-  $self->sendRequest("weighthistogram",$alignid, $chrom, $start, $stop, $binsize, $minweight, $readextension);
+  my ($self,$alignid,$chrom,$isPaired,$extension,$binsize,$start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
+  $self->{request}{type} = 'weighthistogram';
+  $self->{request}{alignid} = $alignid;
+  $self->{request}{chromid} = $chrom;
+  $self->{request}{ispaired} = $isPaired;
+  $self->{request}{isleft} = $isLeft;
+  $self->{request}{isplusstrand} = $isPlusStrand;
+  $self->{request}{minweight} = $minweight;
+  $self->{request}{start} = $start;
+  $self->{request}{end} = $stop;
+  $self->{request}{map} = {binsize=>$binsize};
+  if ($extension) {
+    $self->{request}{map}{extension}=1;
+  }
+  $self->sendRequest();
   my $response = $self->readLine();
   if ($response ne "OK") {
-    die "Can't get weight histogram for range for $alignid $chrom $start $stop $binsize $minweight $readextension : $response";
+    die "Can't get weight histogram for range for $alignid $chrom $start $stop $binsize $minweight : $response";
   }
   my $len = $self->readLine();
   my $positions = $self->readInts($len);
@@ -325,27 +356,10 @@ sub getWeightHistogram {
   return $out;
 }
 
-sub getACL {
-  my ($self, $alignid) = @_;
-  $self->sendRequest("getacl",$alignid);
-  my $response = $self->readLine();
-  if ($response ne 'OK') {
-    die "Can't get acl for $alignid : $response";
-  }
-  my $acl = {};
-  for (my $i = 0; $i < 3; $i++) {
-    my $type = $self->readLine();
-    my $num = $self->readLine();
-    while ($num-- > 0) {
-      push(@{$acl->{$type}}, $self->readLine());
-    }
-  }
-  return $acl;
-}
-
 sub close {
   my ($self) = @_;
-  $self->sendRequest("bye");
+  $self->{request}{type} = 'bye';
+  $self->sendRequest();
   $self->{socket}->shutdown();
 }
 
@@ -403,4 +417,49 @@ sub read {
   return \@out;
 }
 
+package ReadDBClient::Request;
+
+use strict;
+use warnings;
+
+my @boolfields = qw(ispaired isleft isplusstrand);
+my @fields = qw(alignid chromid start end minweight);
+
+sub new {
+  my ($class) = @_;
+  my $self = {map=>{}, list=>[]};
+  bless $self,$class;
+  return $self;
+}
+
+sub clear {
+  my ($self) = @_;
+  foreach (@fields) {
+    delete $self->{$_};
+  }
+  $self->{map} = {};
+  $self->{list} = [];
+}
+
+sub toString {
+  my ($self) = @_;
+  my $s = '';
+  foreach (@fields) {
+    $s .= "$_=$self->{$_}\n";
+  }
+  foreach (@fields) {
+    next unless (defined $self->{$_});
+    $s .= "$_=" . ($self->{$_} ? "true" : "false") . "\n";
+  }
+  foreach (keys %{$self->{map}}) {
+    $s .= "$_=$self->{fields}->{$_}\n";
+  }
+  foreach (@{$self->{list}}) {
+    $s .= "$_\n";
+  }
+  $s .= "ENDREQUEST\n";
+  return $s;
+}
+
 1;
+
