@@ -196,7 +196,7 @@ public class BackgroundModelIO {
   /**
    * 
    * @param filename
-   * @param gen TODO
+   * @param gen
    * @return
    * @throws IOException
    * @throws ParseException

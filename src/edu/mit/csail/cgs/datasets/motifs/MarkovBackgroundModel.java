@@ -21,6 +21,12 @@ import edu.mit.csail.cgs.utils.stats.Fmath;
 public class MarkovBackgroundModel extends BackgroundModel {
   
   
+  /**
+   * Construct a new MarkovBackgroundModel from the supplied metadata object
+   * @param md the metadata describing this model
+   * @throws NotFoundException if a Genome can't be found for the metadata's
+   * genome ID
+   */
   public MarkovBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
     super(md);
     if (!BackgroundModelLoader.MARKOV_TYPE_STRING.equals(md.getDBModelType())) {
@@ -29,23 +35,36 @@ public class MarkovBackgroundModel extends BackgroundModel {
   }
 
   
+  /**
+   * Construct a new MarkovBackground model with the specified name, for the
+   * specified genome, and with a default max kmer length
+   * @param name 
+   * @param gen
+   */
   public MarkovBackgroundModel(String name, Genome gen) {
-    super(name, gen);
+    super(name, gen, BackgroundModelLoader.MARKOV_TYPE_STRING);
   }
 
 
-  public MarkovBackgroundModel(String name, Genome gen, int modelLength) {
-    super(name, gen, modelLength);
+  /**
+   * Construct a new MarkovBackground model with the specified name, for the
+   * specified genome, and with the specified max kmer length
+   * @param name 
+   * @param gen
+   * @param maxKmerLen the max Kmer Length for the model
+   */
+  public MarkovBackgroundModel(String name, Genome gen, int maxKmerLen) {
+    super(name, gen, maxKmerLen, BackgroundModelLoader.MARKOV_TYPE_STRING);
   }
   
   
   /**
    * Construct a Markov Background Model from an existing Frequency Background
    * Model. 
-   * @param fbg
+   * @param fbg the existing frequency background model
    */
   public MarkovBackgroundModel(FrequencyBackgroundModel fbg) {
-  	super(fbg);
+  	super(fbg, BackgroundModelLoader.MARKOV_TYPE_STRING);
     
     //iterate over each order level of the model
     for (int i = 1; i <= this.getMaxKmerLen(); i++) {
@@ -71,8 +90,11 @@ public class MarkovBackgroundModel extends BackgroundModel {
   }
   
   
+  /**
+   * set the hasCounts fields of the metadata
+   */
   protected void init() {
-    this.setDBModelType(BackgroundModelLoader.MARKOV_TYPE_STRING);
+    this.hasCounts = false;
   }
   
   
@@ -119,23 +141,30 @@ public class MarkovBackgroundModel extends BackgroundModel {
 	 * @param tProb P( T | prevBases)
 	 */
 	public void setMarkovProb(String prevBases, double aProb, double cProb, double gProb, double tProb) {
-		double total = aProb + cProb + gProb + tProb;
-		//FIXME check that all probs are positive and allow total == 0
-		if (Fmath.isEqualWithinLimits(total, 1.0, BackgroundModel.EPSILON)) {
-			int kmerLen = prevBases.length() + 1;
-			modelProbs[kmerLen].put(prevBases + "A", aProb);
-			modelProbs[kmerLen].put(prevBases + "C", cProb);
-			modelProbs[kmerLen].put(prevBases + "G", gProb);
-			modelProbs[kmerLen].put(prevBases + "T", tProb);
-		}
-		else {
-			throw new IllegalArgumentException("Probabilities must sum to 1, but instead sum to " + total + " for prevBases " + prevBases);
-		}
-		
-		//reset the isStranded variable to null to indicate unknown strandedness
-		isStranded = null;
+	  prevBases = prevBases.toUpperCase();
+	  if (BackgroundModel.isKmerValid(prevBases)) {
+	    double total = aProb + cProb + gProb + tProb;
+	    if ((aProb >= 0) && (cProb >= 0) && (gProb >= 0) && (tProb >= 0) 
+	        && (Fmath.isEqualWithinLimits(total, 1.0, BackgroundModel.EPSILON)
+	            || (total == 0))) {
+	      int kmerLen = prevBases.length() + 1;
+	      modelProbs[kmerLen].put(prevBases + "A", aProb);
+	      modelProbs[kmerLen].put(prevBases + "C", cProb);
+	      modelProbs[kmerLen].put(prevBases + "G", gProb);
+	      modelProbs[kmerLen].put(prevBases + "T", tProb);
+	    }
+	    else {
+	      throw new IllegalArgumentException("Probabilities must sum to 1 or must all be 0, but instead sum to " + total + " for prevBases " + prevBases);
+	    }
+
+	    //reset the isStranded variable to null to indicate unknown strandedness
+	    isStranded = null;
+	  }
+	  else {
+	    throw new IllegalArgumentException("Previous Bases must consist of zero or more DNA bases, but is: " + prevBases);
+	  }
 	}
-	
+
 	
   /**
    * Check if this model is normalized properly.

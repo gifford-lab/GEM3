@@ -44,11 +44,6 @@ public class BackgroundModelMetadata {
   }
   
   //FIXME when is this used?
-  public BackgroundModelMetadata(int genomeID, String name, int kmerlen) {
-    this(-1, genomeID, -1, name, kmerlen, null, false);
-  }
-  
-  //FIXME when is this used?
   public BackgroundModelMetadata(int modelID, String name, int kmerlen, String modelType) {
     this(-1, -1, modelID, name, kmerlen, modelType, false);
   }

@@ -39,22 +39,51 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
   private Map<String, Long>[] kmerCounts;
 
   
+  /**
+   * Construct a new CountsBackgroundModel from the supplied metadata object
+   * @param md the metadata describing this model
+   * @throws NotFoundException if a Genome can't be found for the metadata's
+   * genome ID
+   */
   public CountsBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
     super(md);
+    if (!md.hasDBModelType()) {
+      this.dbModelType = BackgroundModelLoader.FREQUENCY_TYPE_STRING;
+    }
   }
 
   
+  /**
+   * Construct a new CountsBackground model with the specified name, for the
+   * specified genome, and with a default max kmer length
+   * @param name
+   * @param gen
+   */
   public CountsBackgroundModel(String name, Genome gen) {
-    this(name, gen, BackgroundModel.DEFAULT_MAX_KMER_LEN);
+    super(name, gen, BackgroundModelLoader.FREQUENCY_TYPE_STRING);
   }
 
 
+  /**
+   * Construct a new CountsBackground model with the specified name, for the
+   * specified genome, and with the specified max kmer length
+   * @param name
+   * @param gen
+   * @param maxKmerLen
+   */
   public CountsBackgroundModel(String name, Genome gen, int maxKmerLen) {
-    super(name, gen, maxKmerLen);
+    //Note: typically Count based models will go into the DB as frequency models
+    //so use frequency as a model type
+    super(name, gen, maxKmerLen, BackgroundModelLoader.FREQUENCY_TYPE_STRING);
   }
   
   
+  /**
+   * Initialize the kmer counts hash and set the hasCounts field of the metadata
+   */
   protected void init() {
+    this.hasCounts = true;
+    
     kmerCounts = new HashMap[maxKmerLen + 1];
     for (int i = 1; i <= maxKmerLen; i++) {
       kmerCounts[i] = new HashMap<String, Long>();
@@ -64,6 +93,7 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
     //shadow the counts with frequencies
     Arrays.fill(modelProbs, null);
   }
+  
   
   /**
    * @see BackgroundModel
@@ -144,14 +174,19 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
   }
 
   
-  public void setKmerCount(String kmer, long count) {  	
-  	kmerCounts[kmer.length()].put(kmer, count);
+  public void setKmerCount(String kmer, long count) {  
+    if (BackgroundModel.isKmerValid(kmer)) {
+      kmerCounts[kmer.length()].put(kmer, count);
 
-  	//clear the frequency map for the kmer's length
-  	modelProbs[kmer.length()] = null;
-  	
-  	//reset the isStranded variable to null to indicate unknown strandedness
-  	isStranded = null;
+      //clear the frequency map for the kmer's length
+      modelProbs[kmer.length()] = null;
+
+      //reset the isStranded variable to null to indicate unknown strandedness
+      isStranded = null;
+    }
+    else {
+      throw new IllegalArgumentException("Kmers must consist of one or more DNA bases, but is: " + kmer);
+    }
   }
   
   

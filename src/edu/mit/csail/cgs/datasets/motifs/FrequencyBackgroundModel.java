@@ -19,6 +19,12 @@ import edu.mit.csail.cgs.utils.stats.Fmath;
 public class FrequencyBackgroundModel extends BackgroundModel implements BackgroundModelFrequencySupport {
   
   
+  /**
+   * Construct a new FrequencyBackgroundModel from the supplied metadata object
+   * @param md the metadata describing this model
+   * @throws NotFoundException if a Genome can't be found for the metadata's
+   * genome ID
+   */
   public FrequencyBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
     super(md);
     if (!BackgroundModelLoader.FREQUENCY_TYPE_STRING.equals(md.getDBModelType())) {
@@ -26,18 +32,34 @@ public class FrequencyBackgroundModel extends BackgroundModel implements Backgro
     }
   }
   
+  /**
+   * Construct a new FrequencyBackground model with the specified name, for the
+   * specified genome, and with a default max kmer length
+   * @param name 
+   * @param gen
+   */
   public FrequencyBackgroundModel(String name, Genome gen) {
-    super(name, gen);
+    super(name, gen, BackgroundModelLoader.FREQUENCY_TYPE_STRING);
   }
 
-  
-  public FrequencyBackgroundModel(String name, Genome gen, int modelLength) {
-    super(name, gen, modelLength);
+  /**
+   * Construct a new FrequencyBackground model with the specified name, for the
+   * specified genome, and with the specified max kmer length
+   * @param name
+   * @param gen
+   * @param maxKmerLen
+   */
+  public FrequencyBackgroundModel(String name, Genome gen, int maxKmerLen) {
+    super(name, gen, maxKmerLen, BackgroundModelLoader.FREQUENCY_TYPE_STRING);
   }
   
   
+  /**
+   * Construct a FrequencyBackgroundModel from an existing CountsBackgroundModel
+   * @param cbg the existing CountsBackgroundModel
+   */
   public FrequencyBackgroundModel(CountsBackgroundModel cbg) {
-  	super(cbg);
+  	super(cbg, BackgroundModelLoader.FREQUENCY_TYPE_STRING);
   	for (int i = 1; i <= cbg.getMaxKmerLen(); i++) {
   		cbg.computeFrequencies(i);
   		modelProbs[i].putAll(cbg.modelProbs[i]);
@@ -45,9 +67,13 @@ public class FrequencyBackgroundModel extends BackgroundModel implements Backgro
   }
   
   
+  /**
+   * set the hasCounts fields of the metadata
+   */
   protected void init() {
-    this.setDBModelType(BackgroundModelLoader.FREQUENCY_TYPE_STRING);
+    this.hasCounts = false;
   }
+  
   
   /**
    * @see BackgroundModel
@@ -113,12 +139,17 @@ public class FrequencyBackgroundModel extends BackgroundModel implements Backgro
   	}
   	
   	for (String kmer : probs.keySet()) {
-  		if (kmer.length() == kmerLen) {
-  			total += probs.get(kmer);
-  		}
-  		else {
-  			throw new IllegalArgumentException("Kmers in map must all have the same length");
-  		}
+  	  if (BackgroundModel.isKmerValid(kmer)) {
+  	    if (kmer.length() == kmerLen) {
+  	      total += probs.get(kmer);
+  	    }
+  	    else {
+  	      throw new IllegalArgumentException("Kmers in map must all have the same length");
+  	    }
+  	  }
+  	  else {
+  	    throw new IllegalArgumentException("Kmers must consist of one or more DNA bases, but is: " + kmer);
+  	  }
   	}
   	
   	//set the model to use the specified probabilities
