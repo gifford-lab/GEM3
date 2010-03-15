@@ -21,7 +21,7 @@ public class FrequencyBackgroundModel extends BackgroundModel implements Backgro
   
   public FrequencyBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
     super(md);
-    if (!BackgroundModelImport.FREQUENCY_TYPE_STRING.equals(md.getDBModelType())) {
+    if (!BackgroundModelLoader.FREQUENCY_TYPE_STRING.equals(md.getDBModelType())) {
       throw new IllegalArgumentException("Metadata model type must be FREQUENCY");
     }
   }
@@ -46,7 +46,7 @@ public class FrequencyBackgroundModel extends BackgroundModel implements Backgro
   
   
   protected void init() {
-    this.setDBModelType(BackgroundModelImport.FREQUENCY_TYPE_STRING);
+    this.setDBModelType(BackgroundModelLoader.FREQUENCY_TYPE_STRING);
   }
   
   /**

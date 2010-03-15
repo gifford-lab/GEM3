@@ -26,14 +26,16 @@ import edu.mit.csail.cgs.datasets.species.Organism;
  * @author rca
  * Code for database interaction involving background models
  */
-public class BackgroundModelImport {
+public class BackgroundModelLoader {
 
-  private static Logger logger = Logger.getLogger(BackgroundModelImport.class);
+  private static Logger logger = Logger.getLogger(BackgroundModelLoader.class);
   
   public static final String FREQUENCY_TYPE_STRING = "FREQUENCY";
   public static final String MARKOV_TYPE_STRING = "MARKOV";
   
-  //TODO Make all the SQLs used by this class be constants
+  /**
+   * All the select SQLs used by this class
+   */
   private static final String SQL_GET_MODEL_ID = "select id from background_model where name = ? and max_kmer_len = ? and model_type = ?";
   
   private static final String SQL_GET_MAP_ID = "select id from background_genome_map where bg_model_id = ? and genome_id = ?";
@@ -42,6 +44,8 @@ public class BackgroundModelImport {
   
   private static final String SQL_GET_GENOMES = "select genome_id from background_genome_map where bg_model_id = ?";
     
+  private static final String SQL_HAS_COUNTS = "select map.has_counts from background_model bm, background_genome_map map where map.bg_model_id = bm.id and map.id = ?";
+  
   private static final String SQL_GET_METADATA_BY_MODEL_ID = "select name, max_kmer_len, model_type from background_model where id = ?";
   
   private static final String SQL_GET_METADATA_CORE = 
@@ -78,7 +82,7 @@ public class BackgroundModelImport {
   private static final String SQL_GET_MODEL_CORE = 
     "select map.id, map.genome_id, bm.name, bm.max_kmer_len, bm.id, bgmc.kmer, bgmc.probability, bgmc.count"
     + " from background_model bm, background_genome_map map, background_model_cols bgmc"
-    + " where bm.id = map.bg_model_id and bgmc.map_id = map.id and bm.model_type = ?";
+    + " where bm.id = map.bg_model_id and bgmc.map_id = map.id";
   private static final String SQL_GET_MODEL_ORDER_BY = " order by bm.name, bm.max_kmer_len, map.genome_id, length(bgmc.kmer), bgmc.kmer";
   private static final int SQL_GET_MODEL_CORE_MAP_ID_INDEX = 1;
   private static final int SQL_GET_MODEL_CORE_GENOME_ID_INDEX = 2;
@@ -99,7 +103,10 @@ public class BackgroundModelImport {
   
   private static final String SQL_GET_MODEL_KMER_LEN = " and bm.max_kmer_len = ?";  
   
-    
+  private static final String SQL_GET_MODEL_TYPE = " and bm.model_type = ?";  
+
+  private static final String SQL_GET_MODEL_HAS_COUNTS = " and map.has_counts = ?";  
+
   /**
    * @see getBackgroundModelID(String, int, String, Connection)
    * Creates a database connection for the query
@@ -108,7 +115,7 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getBackgroundModelID(name, kmerLen, modelType, cxn);
+      return BackgroundModelLoader.getBackgroundModelID(name, kmerLen, modelType, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -163,7 +170,7 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getBackgroundGenomeMapID(bgModelID, genomeID, cxn);
+      return BackgroundModelLoader.getBackgroundGenomeMapID(bgModelID, genomeID, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -212,16 +219,13 @@ public class BackgroundModelImport {
   
   
   /**
-   * 
-   * @param modelID
-   * @return
-   * @throws SQLException
-   */  
+   * @see getBackgroundModelByModelID(int modelID, Connection cxn)
+   */
   public static BackgroundModelMetadata getBackgroundModelByModelID(int modelID) throws SQLException {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getBackgroundModelByModelID(modelID, cxn);
+      return BackgroundModelLoader.getBackgroundModelByModelID(modelID, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -229,6 +233,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * Get a partial metadata object containing id, name, type, kmerlen for the
+   * specified modelID 
+   * @param modelID the model ID to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return A metadata object, or null if there's no match
+   * @throws SQLException
+   */
   public static BackgroundModelMetadata getBackgroundModelByModelID(int modelID, Connection cxn) throws SQLException {
     PreparedStatement getModel = null;
     ResultSet rs = null;
@@ -254,11 +266,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * @see getBackgroundModel(int modelID, int genomeID, Connection cxn)
+   */
   public static BackgroundModelMetadata getBackgroundModel(int modelID, int genomeID) throws SQLException {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getBackgroundModel(modelID, genomeID, cxn);
+      return BackgroundModelLoader.getBackgroundModel(modelID, genomeID, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -266,6 +281,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * Get a metadata object for a model with the specified modelID and genomeID
+   * @param modelID the model ID to look up
+   * @param genomeID the genome ID to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return A metadata object, or null if there's no match
+   * @throws SQLException
+   */
   public static BackgroundModelMetadata getBackgroundModel(int modelID, int genomeID, Connection cxn) throws SQLException {
     PreparedStatement getModel = null;
     ResultSet rs = null;
@@ -299,11 +322,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * @see getBackgroundModel(String name, int maxKmerLen, String modelType, int genomeID, Connection cxn)
+   */
   public static BackgroundModelMetadata getBackgroundModel(String name, int maxKmerLen, String modelType, int genomeID) throws SQLException {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getBackgroundModel(name, maxKmerLen, modelType, genomeID, cxn);
+      return BackgroundModelLoader.getBackgroundModel(name, maxKmerLen, modelType, genomeID, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -311,6 +337,17 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * Get a metadata object for a model with the specified name, kmerlen, type
+   * and genome ID
+   * @param name the name to look up
+   * @param maxKmerLen the max kmer length to look up
+   * @param modelType the model type to look up
+   * @param genomeID the genome ID to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return A metadata object, or null if there's no match
+   * @throws SQLException
+   */
   public static BackgroundModelMetadata getBackgroundModel(String name, int maxKmerLen, String modelType, int genomeID, Connection cxn) throws SQLException {
     PreparedStatement getModel = null;
     ResultSet rs = null;
@@ -347,11 +384,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * @see getBackgroundModelByMapID(int mapID, Connection cxn)
+   */
   public static BackgroundModelMetadata getBackgroundModelByMapID(int mapID) throws SQLException {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getBackgroundModelByMapID(mapID, cxn);
+      return BackgroundModelLoader.getBackgroundModelByMapID(mapID, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -359,6 +399,13 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * Get a metadata object for a model with the specified map ID
+   * @param mapID the background genome map ID to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return A metadata object, or null if there's no match
+   * @throws SQLException
+   */
   public static BackgroundModelMetadata getBackgroundModelByMapID(int mapID, Connection cxn) throws SQLException {
     PreparedStatement getModel = null;
     ResultSet rs = null;
@@ -390,16 +437,22 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * @see getAllBackgroundModels(boolean ignoreGenome, Connection cxn)
+   */
   public static List<BackgroundModelMetadata> getAllBackgroundModels() throws SQLException {
-    return BackgroundModelImport.getAllBackgroundModels(false);
+    return BackgroundModelLoader.getAllBackgroundModels(false);
   }
   
   
+  /**
+   * @see getAllBackgroundModels(boolean ignoreGenome, Connection cxn)
+   */
   public static List<BackgroundModelMetadata> getAllBackgroundModels(boolean ignoreGenome) throws SQLException {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getAllBackgroundModels(ignoreGenome, cxn);
+      return BackgroundModelLoader.getAllBackgroundModels(ignoreGenome, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -407,11 +460,24 @@ public class BackgroundModelImport {
   }
   
 
+  /**
+   * @see getAllBackgroundModels(boolean ignoreGenome, Connection cxn)
+   */
   public static List<BackgroundModelMetadata> getAllBackgroundModels(Connection cxn) throws SQLException {
-    return BackgroundModelImport.getAllBackgroundModels(false, cxn);
+    return BackgroundModelLoader.getAllBackgroundModels(false, cxn);
   }
 
   
+  /**
+   * Get metadata objects for all models. If the ignore genome option is true
+   * then partial metadata objects (without genomes and map IDs) are returned.
+   * @param ignoreGenome if false return metadata for each entry in the 
+   * background_genome_map table, if true return metadata for each entry in the 
+   * background_model table
+   * @param cxn an open db connection to the annotations schema
+   * @return A list of metadata objects
+   * @throws SQLException
+   */
   public static List<BackgroundModelMetadata> getAllBackgroundModels(boolean ignoreGenome, Connection cxn) throws SQLException {
     PreparedStatement getAllModels = null;
     ResultSet rs = null;
@@ -452,11 +518,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * @see getBackgroundModelsForGenome(int genomeID, Connection cxn)
+   */
   public static List<BackgroundModelMetadata> getBackgroundModelsForGenome(int genomeID) throws SQLException {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getBackgroundModelsForGenome(genomeID, cxn);
+      return BackgroundModelLoader.getBackgroundModelsForGenome(genomeID, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -464,6 +533,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * Get a list of metadata objects for all background models for the specified
+   * genome
+   * @param genomeID the genome ID to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return a list of metadata objects
+   * @throws SQLException
+   */
   public static List<BackgroundModelMetadata> getBackgroundModelsForGenome(int genomeID, Connection cxn) throws SQLException {
     PreparedStatement getGenomeModels = null;
     ResultSet rs = null;    
@@ -495,11 +572,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * @see getGenomesForBackgroundModel(int modelID, Connection cxn)
+   */
   public static List<Integer> getGenomesForBackgroundModel(int modelID) throws SQLException{
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getGenomesForBackgroundModel(modelID, cxn);
+      return BackgroundModelLoader.getGenomesForBackgroundModel(modelID, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -507,6 +587,14 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * Get a list of genome IDs for which there are models with the specified
+   * model ID
+   * @param modelID the modelID to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return a list of genome IDs
+   * @throws SQLException
+   */
   public static List<Integer> getGenomesForBackgroundModel(int modelID, Connection cxn) throws SQLException {
     PreparedStatement getModels = null;
     ResultSet rs = null;
@@ -529,6 +617,95 @@ public class BackgroundModelImport {
       }
     }
   }
+  
+  
+  /**************************************************************************
+   * Method used for constructing queries for all model types
+   **************************************************************************/  
+
+  /**
+   * Given the parameters that describe one or more background models construct
+   * an appropriate SQL query and return the Background Models that are found 
+   * @param mapID an ID from the background genome map (this will limit to a 
+   * single model)
+   * @param genomeID a genome ID for the models
+   * @param modelID a model ID from the background_model table
+   * @param name a model name
+   * @param maxKmerLen a maximum kmer length
+   * @param cxn an open DB connection to the annotations schema
+   * @return A list of matching Counts Background Models
+   * @throws SQLException
+   */
+  private static PreparedStatement assembleGetModelQuery(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, String modelType, Boolean hasCounts, Connection cxn) throws SQLException {
+    //build the appropriate sql query
+    StringBuffer sql = new StringBuffer(SQL_GET_MODEL_CORE);
+    if (mapID != null) {
+      sql.append(SQL_GET_MODEL_MAP_ID);
+    }
+    if (genomeID != null) {
+      sql.append(SQL_GET_MODEL_GENOME_ID);
+    }
+    if (modelID != null) {
+      sql.append(SQL_GET_MODEL_MODEL_ID);
+    }
+    if (name != null) {
+      sql.append(SQL_GET_MODEL_NAME);
+    }
+    if (maxKmerLen != null) {
+      sql.append(SQL_GET_MODEL_KMER_LEN);
+    }
+    if (modelType != null) {
+      sql.append(SQL_GET_MODEL_TYPE);
+    }
+    if (hasCounts != null) {
+      sql.append(SQL_GET_MODEL_HAS_COUNTS);
+    }
+
+    
+    sql.append(SQL_GET_MODEL_ORDER_BY);
+    //done building the query      
+
+    PreparedStatement getModels = cxn.prepareStatement(sql.toString());
+
+    //set the sql params        
+    int argCount = 1;
+    if (mapID != null) {
+      getModels.setInt(argCount, mapID);
+      argCount++;
+    }
+    if (genomeID != null) {
+      getModels.setInt(argCount, genomeID);
+      argCount++;
+    }
+    if (modelID != null) {
+      getModels.setInt(argCount, modelID);
+      argCount++;
+    }
+    if (name != null) {
+      getModels.setString(argCount, name);
+      argCount++;
+    }
+    if (maxKmerLen != null) {
+      getModels.setInt(argCount, maxKmerLen);
+      argCount++;
+    }
+    if (modelType != null) {
+      getModels.setString(argCount, modelType);
+      argCount++;
+    }
+    if (hasCounts != null) {
+      if (hasCounts.booleanValue()) {
+        getModels.setInt(argCount, 1);
+      }
+      else {
+        getModels.setInt(argCount, 0);
+      }
+      argCount++;
+    }
+    
+    return getModels;
+  }
+
   
   
   /**************************************************************************
@@ -599,7 +776,7 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getFrequencyModel(md, cxn);
+      return BackgroundModelLoader.getFrequencyModel(md, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -634,14 +811,14 @@ public class BackgroundModelImport {
         getProbs.setInt(1, mapID);
         rs = getProbs.executeQuery();
         if (rs.next()) {
-          BackgroundModelImport.initFrequencyModelProbs(fbm, rs, SQL_GET_MODEL_BY_ID);
+          BackgroundModelLoader.initFrequencyModelProbs(fbm, rs, SQL_GET_MODEL_BY_ID);
         }
         return fbm;
       }
       //otherwise load the counts if available and convert from the counts model
       else if (md.getDBModelType().equals(MARKOV_TYPE_STRING)) {
-        if (BackgroundModelImport.hasCounts(mapID, cxn)) {
-          return new FrequencyBackgroundModel(BackgroundModelImport.getCountsModel(md, cxn));
+        if (BackgroundModelLoader.hasCounts(mapID, cxn)) {
+          return new FrequencyBackgroundModel(BackgroundModelLoader.getCountsModel(md, cxn));
         }
         else {
           return null;
@@ -701,7 +878,7 @@ public class BackgroundModelImport {
           mbm.setModelID(rs.getInt(modelIDIndex));
           models.add(mbm);
           //call the subroutine to parse all the probabilities from the result set
-          hasNext = BackgroundModelImport.initFrequencyModelProbs(mbm, rs, queryCore);
+          hasNext = BackgroundModelLoader.initFrequencyModelProbs(mbm, rs, queryCore);
         }
       }
       return models;
@@ -719,7 +896,7 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getFrequencyModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
+      return BackgroundModelLoader.getFrequencyModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -744,55 +921,9 @@ public class BackgroundModelImport {
     PreparedStatement getModels = null;
     ResultSet rs = null;
     try {
-      //build the appropriate sql query
-      StringBuffer sql = new StringBuffer(SQL_GET_MODEL_CORE);
-      if (mapID != null) {
-        sql.append(SQL_GET_MODEL_MAP_ID);
-      }
-      if (genomeID != null) {
-        sql.append(SQL_GET_MODEL_GENOME_ID);
-      }
-      if (modelID != null) {
-        sql.append(SQL_GET_MODEL_MODEL_ID);
-      }
-      if (name != null) {
-        sql.append(SQL_GET_MODEL_NAME);
-      }
-      if (maxKmerLen != null) {
-        sql.append(SQL_GET_MODEL_KMER_LEN);
-      }
-      sql.append(SQL_GET_MODEL_ORDER_BY);
-      //done building the query      
-      
-      getModels = cxn.prepareStatement(sql.toString());
-      
-      //set the sql params
-      getModels.setString(1, FREQUENCY_TYPE_STRING);
-      int argCount = 2;
-      if (mapID != null) {
-        getModels.setInt(argCount, mapID);
-        argCount++;
-      }
-      if (genomeID != null) {
-        getModels.setInt(argCount, genomeID);
-        argCount++;
-      }
-      if (modelID != null) {
-        getModels.setInt(argCount, modelID);
-        argCount++;
-      }
-      if (name != null) {
-        getModels.setString(argCount, name);
-        argCount++;
-      }
-      if (maxKmerLen != null) {
-        getModels.setInt(argCount, maxKmerLen);
-        argCount++;
-      }
-      //done setting the params
-      
+      getModels = BackgroundModelLoader.assembleGetModelQuery(mapID, genomeID, modelID, name, maxKmerLen, FREQUENCY_TYPE_STRING, null, cxn);      
       rs = getModels.executeQuery();
-      return BackgroundModelImport.createFrequencyModels(rs, SQL_GET_MODEL_CORE);      
+      return BackgroundModelLoader.createFrequencyModels(rs, SQL_GET_MODEL_CORE);      
     }
     finally {
       if (rs != null) {
@@ -809,7 +940,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModels(String name) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, null, name, null);
+    return BackgroundModelLoader.getFrequencyModels(null, null, null, name, null);
   }
 
   
@@ -817,7 +948,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModels(String name, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, null, name, null,cxn);
+    return BackgroundModelLoader.getFrequencyModels(null, null, null, name, null,cxn);
   }
   
   
@@ -825,7 +956,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModels(String name, int maxKmerLen) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, null, name, maxKmerLen);
+    return BackgroundModelLoader.getFrequencyModels(null, null, null, name, maxKmerLen);
   }
   
   
@@ -833,7 +964,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModels(String name, int maxKmerLen, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, null, name, maxKmerLen, cxn);
+    return BackgroundModelLoader.getFrequencyModels(null, null, null, name, maxKmerLen, cxn);
   }
 
   
@@ -841,7 +972,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModels(int modelID) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, modelID, null, null);
+    return BackgroundModelLoader.getFrequencyModels(null, null, modelID, null, null);
   }
   
   
@@ -849,7 +980,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModels(int modelID, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, modelID, null, null, cxn);
+    return BackgroundModelLoader.getFrequencyModels(null, null, modelID, null, null, cxn);
   }
   
 
@@ -860,7 +991,7 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getFrequencyModels(md, cxn);
+      return BackgroundModelLoader.getFrequencyModels(md, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -893,7 +1024,7 @@ public class BackgroundModelImport {
       maxKmerLen = md.getMaxKmerLen();
     }
 
-    return BackgroundModelImport.getFrequencyModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
+    return BackgroundModelLoader.getFrequencyModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
   }
   
   
@@ -901,7 +1032,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModelsByLength(int maxKmerLen) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, null, null, maxKmerLen);
+    return BackgroundModelLoader.getFrequencyModels(null, null, null, null, maxKmerLen);
   }
   
   
@@ -909,7 +1040,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModelsByLength(int maxKmerLen, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, null, null, maxKmerLen, cxn);
+    return BackgroundModelLoader.getFrequencyModels(null, null, null, null, maxKmerLen, cxn);
   }
   
   
@@ -917,7 +1048,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModelsByGenome(int genomeID) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, genomeID, null, null, null);
+    return BackgroundModelLoader.getFrequencyModels(null, genomeID, null, null, null);
   }
 
 
@@ -925,7 +1056,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModelsByGenome(int genomeID, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, genomeID, null, null, null, cxn);
+    return BackgroundModelLoader.getFrequencyModels(null, genomeID, null, null, null, cxn);
   }
 
 
@@ -933,7 +1064,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */  
   public static List<FrequencyBackgroundModel> getFrequencyModelsByGenome(int genomeID, String name) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, genomeID, null, name, null);
+    return BackgroundModelLoader.getFrequencyModels(null, genomeID, null, name, null);
   }
 
 
@@ -941,7 +1072,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModelsByGenome(int genomeID, String name, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, genomeID, null, name, null, cxn);
+    return BackgroundModelLoader.getFrequencyModels(null, genomeID, null, name, null, cxn);
   }
 
   
@@ -949,7 +1080,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModelsByGenome(int genomeID, int maxKmerLen) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, genomeID, null, null, maxKmerLen);
+    return BackgroundModelLoader.getFrequencyModels(null, genomeID, null, null, maxKmerLen);
   }
   
 
@@ -957,7 +1088,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getFrequencyModelsByGenome(int genomeID, int maxKmerLen, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, genomeID, null, null, maxKmerLen, cxn);
+    return BackgroundModelLoader.getFrequencyModels(null, genomeID, null, null, maxKmerLen, cxn);
   }
 
   
@@ -965,7 +1096,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getAllFrequencyModels() throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, null, null, null);
+    return BackgroundModelLoader.getFrequencyModels(null, null, null, null, null);
   }
   
 
@@ -973,7 +1104,7 @@ public class BackgroundModelImport {
    * @see getFrequencyModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<FrequencyBackgroundModel> getAllFrequencyModels(Connection cxn) throws SQLException {
-    return BackgroundModelImport.getFrequencyModels(null, null, null, null, null, cxn);
+    return BackgroundModelLoader.getFrequencyModels(null, null, null, null, null, cxn);
   }
 
   
@@ -1050,7 +1181,7 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getMarkovModel(md, cxn);
+      return BackgroundModelLoader.getMarkovModel(md, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -1085,14 +1216,14 @@ public class BackgroundModelImport {
         getProbs.setInt(1, mapID);
         rs = getProbs.executeQuery();
         if (rs.next()) {
-          BackgroundModelImport.initMarkovModelProbs(mbm, rs, SQL_GET_MODEL_BY_ID);
+          BackgroundModelLoader.initMarkovModelProbs(mbm, rs, SQL_GET_MODEL_BY_ID);
         }
         return mbm;
       }
       //otherwise, if it's frequency, then load it as a frequency model and 
       //convert it to a markov model
       else if (md.getDBModelType().equals(FREQUENCY_TYPE_STRING)) {
-        return new MarkovBackgroundModel(BackgroundModelImport.getFrequencyModel(md, cxn));
+        return new MarkovBackgroundModel(BackgroundModelLoader.getFrequencyModel(md, cxn));
       }
       //otherwise there's some error with the model type
       else {
@@ -1148,7 +1279,7 @@ public class BackgroundModelImport {
           mbm.setModelID(rs.getInt(modelIDIndex));
           models.add(mbm);
           //call the subroutine to parse all the probabilities from the result set
-          hasNext = BackgroundModelImport.initMarkovModelProbs(mbm, rs, queryCore);
+          hasNext = BackgroundModelLoader.initMarkovModelProbs(mbm, rs, queryCore);
         }
       }
       return models;
@@ -1166,7 +1297,7 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getMarkovModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
+      return BackgroundModelLoader.getMarkovModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -1191,55 +1322,9 @@ public class BackgroundModelImport {
     PreparedStatement getModels = null;
     ResultSet rs = null;
     try {
-      //build the appropriate sql query
-      StringBuffer sql = new StringBuffer(SQL_GET_MODEL_CORE);
-      if (mapID != null) {
-        sql.append(SQL_GET_MODEL_MAP_ID);
-      }
-      if (genomeID != null) {
-        sql.append(SQL_GET_MODEL_GENOME_ID);
-      }
-      if (modelID != null) {
-        sql.append(SQL_GET_MODEL_MODEL_ID);
-      }
-      if (name != null) {
-        sql.append(SQL_GET_MODEL_NAME);
-      }
-      if (maxKmerLen != null) {
-        sql.append(SQL_GET_MODEL_KMER_LEN);
-      }
-      sql.append(SQL_GET_MODEL_ORDER_BY);
-      //done building the query      
-      
-      getModels = cxn.prepareStatement(sql.toString());
-      
-      //set the sql params
-      getModels.setString(1, MARKOV_TYPE_STRING);
-      int argCount = 2;
-      if (mapID != null) {
-        getModels.setInt(argCount, mapID);
-        argCount++;
-      }
-      if (genomeID != null) {
-        getModels.setInt(argCount, genomeID);
-        argCount++;
-      }
-      if (modelID != null) {
-        getModels.setInt(argCount, modelID);
-        argCount++;
-      }
-      if (name != null) {
-        getModels.setString(argCount, name);
-        argCount++;
-      }
-      if (maxKmerLen != null) {
-        getModels.setInt(argCount, maxKmerLen);
-        argCount++;
-      }
-      //done setting the params
-      
+      getModels = BackgroundModelLoader.assembleGetModelQuery(mapID, genomeID, modelID, name, maxKmerLen, MARKOV_TYPE_STRING, null, cxn);      
       rs = getModels.executeQuery();
-      return BackgroundModelImport.createMarkovModels(rs, SQL_GET_MODEL_CORE);      
+      return BackgroundModelLoader.createMarkovModels(rs, SQL_GET_MODEL_CORE);      
     }
     finally {
       if (rs != null) {
@@ -1256,7 +1341,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModels(String name) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, null, name, null);
+    return BackgroundModelLoader.getMarkovModels(null, null, null, name, null);
   }
 
   
@@ -1264,7 +1349,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModels(String name, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, null, name, null,cxn);
+    return BackgroundModelLoader.getMarkovModels(null, null, null, name, null,cxn);
   }
   
   
@@ -1272,7 +1357,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModels(String name, int maxKmerLen) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, null, name, maxKmerLen);
+    return BackgroundModelLoader.getMarkovModels(null, null, null, name, maxKmerLen);
   }
   
   
@@ -1280,7 +1365,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModels(String name, int maxKmerLen, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, null, name, maxKmerLen, cxn);
+    return BackgroundModelLoader.getMarkovModels(null, null, null, name, maxKmerLen, cxn);
   }
 
   
@@ -1288,7 +1373,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModels(int modelID) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, modelID, null, null);
+    return BackgroundModelLoader.getMarkovModels(null, null, modelID, null, null);
   }
   
   
@@ -1296,7 +1381,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModels(int modelID, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, modelID, null, null, cxn);
+    return BackgroundModelLoader.getMarkovModels(null, null, modelID, null, null, cxn);
   }
   
 
@@ -1307,7 +1392,7 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getMarkovModels(md, cxn);
+      return BackgroundModelLoader.getMarkovModels(md, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -1340,7 +1425,7 @@ public class BackgroundModelImport {
       maxKmerLen = md.getMaxKmerLen();
     }
 
-    return BackgroundModelImport.getMarkovModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
+    return BackgroundModelLoader.getMarkovModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
   }
   
   
@@ -1348,7 +1433,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModelsByLength(int maxKmerLen) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, null, null, maxKmerLen);
+    return BackgroundModelLoader.getMarkovModels(null, null, null, null, maxKmerLen);
   }
   
   
@@ -1356,7 +1441,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModelsByLength(int maxKmerLen, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, null, null, maxKmerLen, cxn);
+    return BackgroundModelLoader.getMarkovModels(null, null, null, null, maxKmerLen, cxn);
   }
   
   
@@ -1364,7 +1449,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModelsByGenome(int genomeID) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, genomeID, null, null, null);
+    return BackgroundModelLoader.getMarkovModels(null, genomeID, null, null, null);
   }
 
 
@@ -1372,7 +1457,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModelsByGenome(int genomeID, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, genomeID, null, null, null, cxn);
+    return BackgroundModelLoader.getMarkovModels(null, genomeID, null, null, null, cxn);
   }
 
 
@@ -1380,7 +1465,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */  
   public static List<MarkovBackgroundModel> getMarkovModelsByGenome(int genomeID, String name) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, genomeID, null, name, null);
+    return BackgroundModelLoader.getMarkovModels(null, genomeID, null, name, null);
   }
 
 
@@ -1388,7 +1473,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModelsByGenome(int genomeID, String name, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, genomeID, null, name, null, cxn);
+    return BackgroundModelLoader.getMarkovModels(null, genomeID, null, name, null, cxn);
   }
 
   
@@ -1396,7 +1481,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModelsByGenome(int genomeID, int maxKmerLen) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, genomeID, null, null, maxKmerLen);
+    return BackgroundModelLoader.getMarkovModels(null, genomeID, null, null, maxKmerLen);
   }
   
 
@@ -1404,7 +1489,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getMarkovModelsByGenome(int genomeID, int maxKmerLen, Connection cxn) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, genomeID, null, null, maxKmerLen, cxn);
+    return BackgroundModelLoader.getMarkovModels(null, genomeID, null, null, maxKmerLen, cxn);
   }
 
   
@@ -1412,7 +1497,7 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getAllMarkovModels() throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, null, null, null);
+    return BackgroundModelLoader.getMarkovModels(null, null, null, null, null);
   }
   
 
@@ -1420,26 +1505,22 @@ public class BackgroundModelImport {
    * @see getMarkovModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
    */
   public static List<MarkovBackgroundModel> getAllMarkovModels(Connection cxn) throws SQLException {
-    return BackgroundModelImport.getMarkovModels(null, null, null, null, null, cxn);
+    return BackgroundModelLoader.getMarkovModels(null, null, null, null, null, cxn);
   }
 
   
   /**************************************************************************
    * Methods for loading Counts background models
    **************************************************************************/
-  
-  /**
-   * 
-   * @param mapID
-   * @return
-   * @throws SQLException
-   */
 
+  /**
+   * @see hasCounts(int mapID, Connection cxn)
+   */
   public static boolean hasCounts(int mapID) throws SQLException{
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.hasCounts(mapID, cxn);
+      return BackgroundModelLoader.hasCounts(mapID, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
@@ -1447,19 +1528,31 @@ public class BackgroundModelImport {
   }
   
   
+  /**
+   * Check whether the model with the specified mapID has counts
+   * @param mapID the backrgound genome map id of the model to check
+   * @param cxn an open db connection to the annotations schema
+   * @return true if the model has counts, false otherwise
+   * @throws SQLException
+   */
   public static boolean hasCounts(int mapID, Connection cxn) throws SQLException {
     PreparedStatement checkCounts = null;
     ResultSet rs = null;
     try {
-      //check if the model has any kmers with a null count. 
-      checkCounts = cxn.prepareStatement("select bgm.has_counts from background_model bgm, background_genome_map map where map.model_id = bgm.id and map.id = ?");
+      //check if the model has counts... 
+      checkCounts = cxn.prepareStatement(SQL_HAS_COUNTS);
       checkCounts.setInt(1, mapID);
       rs = checkCounts.executeQuery();      
       if (rs.next()) {
-        return false;
+        if (rs.getInt(1) == 1) {
+          return true;
+        }
+        else {
+          return false;
+        }
       }
       else {
-        return true;
+        return false;
       }
     }
     finally {
@@ -1496,6 +1589,11 @@ public class BackgroundModelImport {
       kmerIndex = SQL_GET_MODEL_BY_ID_KMER_INDEX;
       countIndex = SQL_GET_MODEL_BY_ID_COUNT_INDEX;
     }
+    else if (queryCore.equals(SQL_GET_MODEL_CORE)) {
+      idIndex = SQL_GET_MODEL_CORE_MAP_ID_INDEX;
+      kmerIndex = SQL_GET_MODEL_CORE_KMER_INDEX;
+      countIndex = SQL_GET_MODEL_CORE_COUNT_INDEX;
+    }
     else {
       throw new IllegalArgumentException("Unrecognized query core: " + queryCore);
     }
@@ -1509,8 +1607,8 @@ public class BackgroundModelImport {
 
     return hasNext;
   }
-
-
+  
+  
   /**
    * @see getCountsModel(BackgroundModelMetadata md, Connection cxn)
    */
@@ -1518,14 +1616,14 @@ public class BackgroundModelImport {
     java.sql.Connection cxn = null;
     try {
       cxn = DatabaseFactory.getConnection("annotations");
-      return BackgroundModelImport.getCountsModel(md, cxn);
+      return BackgroundModelLoader.getCountsModel(md, cxn);
     }
     finally {
       DatabaseFactory.freeConnection(cxn);
     }
   }
   
-    
+  
   /**
    * Get a Counts Background Model described by the specified metadata
    * @param md A complete metadata object specifying a background model.  
@@ -1545,18 +1643,18 @@ public class BackgroundModelImport {
       }
       
       int mapID = md.getMapID();
-      if (BackgroundModelImport.hasCounts(mapID)) {        
+      if (BackgroundModelLoader.hasCounts(mapID)) {        
         CountsBackgroundModel cbm = new CountsBackgroundModel(md);
         
         getCounts = cxn.prepareStatement(SQL_GET_MODEL_BY_ID);
         getCounts.setInt(1, mapID);
         rs = getCounts.executeQuery();
         if (rs.next()) {
-          BackgroundModelImport.initCountsModel(cbm, rs, SQL_GET_MODEL_BY_ID);
+          BackgroundModelLoader.initCountsModel(cbm, rs, SQL_GET_MODEL_BY_ID);
         }
         return cbm;
       }      
-      //otherwise there's some error with the model type
+      //otherwise there aren't counts for the specified model...
       else {
         return null;
       }
@@ -1571,319 +1669,274 @@ public class BackgroundModelImport {
     }
   }
   
+    
+  /**
+   * Returns a list of Counts Background Models parsed out of a single result
+   * set
+   * @param rs the result set containing the data for the background model(s)
+   * @param queryCore the SQL query core that was used to generate the specified
+   * result set
+   * @return A list of CountsBackgroundModels
+   * @throws SQLException
+   */
+  private static List<CountsBackgroundModel> createCountsModels(ResultSet rs, String queryCore) throws SQLException {
+    int mapIDIndex;
+    int nameIndex;
+    int kmerLenIndex;
+    int modelIDIndex;
+    int genomeIDIndex;
+
+    if (queryCore.equals(SQL_GET_MODEL_CORE)) {
+      mapIDIndex = SQL_GET_MODEL_CORE_MAP_ID_INDEX;
+      nameIndex = SQL_GET_MODEL_CORE_NAME_INDEX;
+      kmerLenIndex = SQL_GET_MODEL_CORE_KMERLEN_INDEX;
+      modelIDIndex = SQL_GET_MODEL_CORE_MODEL_ID_INDEX;
+      genomeIDIndex = SQL_GET_MODEL_CORE_GENOME_ID_INDEX;
+    }
+    else {
+      throw new IllegalArgumentException("Unrecognized query core: " + queryCore);
+    }     
+
+    try {
+      List<CountsBackgroundModel> models = new ArrayList<CountsBackgroundModel>();
+      if (rs.next()) {
+        boolean hasNext = true;
+        while (hasNext) {
+          int mapID = rs.getInt(mapIDIndex);
+          CountsBackgroundModel mbm = new CountsBackgroundModel(rs.getString(nameIndex), Organism.findGenome(rs.getInt(genomeIDIndex)), rs.getInt(kmerLenIndex));
+          mbm.setMapID(mapID);
+          mbm.setModelID(rs.getInt(modelIDIndex));
+          models.add(mbm);
+          //call the subroutine to parse all the counts from the result set
+          hasNext = BackgroundModelLoader.initCountsModel(mbm, rs, queryCore);
+        }
+      }
+      return models;
+    }
+    catch (NotFoundException nfex) {
+      throw new DatabaseException("Error loading genome for model", nfex);
+    }      
+  }
   
-//  /**
-//   * Returns a list of Counts Background Models parsed out of a single result
-//   * set
-//   * @param rs the result set containing the data for the background model(s)
-//   * @param queryCore the SQL query core that was used to generate the specified
-//   * result set
-//   * @return A list of CountsBackgroundModels
-//   * @throws SQLException
-//   */
-//  private static List<CountsBackgroundModel> createCountsModels(ResultSet rs, String queryCore) throws SQLException {
-//    int mapIDIndex;
-//    int nameIndex;
-//    int kmerLenIndex;
-//    int modelIDIndex;
-//    int genomeIDIndex;
-//
-//    if (queryCore.equals(SQL_GET_MODEL_CORE)) {
-//      mapIDIndex = SQL_GET_MODEL_CORE_MAP_ID_INDEX;
-//      nameIndex = SQL_GET_MODEL_CORE_NAME_INDEX;
-//      kmerLenIndex = SQL_GET_MODEL_CORE_KMERLEN_INDEX;
-//      modelIDIndex = SQL_GET_MODEL_CORE_MODEL_ID_INDEX;
-//      genomeIDIndex = SQL_GET_MODEL_CORE_GENOME_ID_INDEX;
-//    }
-//    else {
-//      throw new IllegalArgumentException("Unrecognized query core: " + queryCore);
-//    }     
-//
-//    try {
-//      List<CountsBackgroundModel> models = new ArrayList<CountsBackgroundModel>();
-//      if (rs.next()) {
-//        boolean hasNext = true;
-//        while (hasNext) {
-//          int mapID = rs.getInt(mapIDIndex);
-//          CountsBackgroundModel cbm = new CountsBackgroundModel(rs.getString(nameIndex), Organism.findGenome(rs.getInt(genomeIDIndex)), rs.getInt(kmerLenIndex));
-//          cbm.setMapID(mapID);
-//          cbm.setModelID(rs.getInt(modelIDIndex));
-//          models.add(cbm);
-//          //call the subroutine to parse all the probabilities from the result set
-//          hasNext = BackgroundModelImport.initCountsModelProbs(cbm, rs, queryCore);
-//        }
-//      }
-//      return models;
-//    }
-//    catch (NotFoundException nfex) {
-//      throw new DatabaseException("Error loading genome for model", nfex);
-//    }      
-//  }
-//  
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  private static List<CountsBackgroundModel> getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen) throws SQLException {
-//    java.sql.Connection cxn = null;
-//    try {
-//      cxn = DatabaseFactory.getConnection("annotations");
-//      return BackgroundModelImport.getCountsModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
-//    }
-//    finally {
-//      DatabaseFactory.freeConnection(cxn);
-//    }
-//  }
-//
-//  
-//  /**
-//   * Given the parameters that describe one or more background models construct
-//   * an appropriate SQL query and return the Background Models that are found 
-//   * @param mapID an ID from the background genome map (this will limit to a 
-//   * single model)
-//   * @param genomeID a genome ID for the models
-//   * @param modelID a model ID from the background_model table
-//   * @param name a model name
-//   * @param maxKmerLen a maximum kmer length
-//   * @param cxn an open DB connection to the annotations schema
-//   * @return A list of matching Counts Background Models
-//   * @throws SQLException
-//   */
-//  private static List<CountsBackgroundModel> getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn) throws SQLException {
-//    PreparedStatement getModels = null;
-//    ResultSet rs = null;
-//    try {
-//      //build the appropriate sql query
-//      StringBuffer sql = new StringBuffer(SQL_GET_MODEL_CORE);
-//      if (mapID != null) {
-//        sql.append(SQL_GET_MODEL_MAP_ID);
-//      }
-//      if (genomeID != null) {
-//        sql.append(SQL_GET_MODEL_GENOME_ID);
-//      }
-//      if (modelID != null) {
-//        sql.append(SQL_GET_MODEL_MODEL_ID);
-//      }
-//      if (name != null) {
-//        sql.append(SQL_GET_MODEL_NAME);
-//      }
-//      if (maxKmerLen != null) {
-//        sql.append(SQL_GET_MODEL_KMER_LEN);
-//      }
-//      sql.append(SQL_GET_MODEL_ORDER_BY);
-//      //done building the query      
-//      
-//      getModels = cxn.prepareStatement(sql.toString());
-//      
-//      //set the sql params
-//      getModels.setString(1, Counts_TYPE_STRING);
-//      int argCount = 2;
-//      if (mapID != null) {
-//        getModels.setInt(argCount, mapID);
-//        argCount++;
-//      }
-//      if (genomeID != null) {
-//        getModels.setInt(argCount, genomeID);
-//        argCount++;
-//      }
-//      if (modelID != null) {
-//        getModels.setInt(argCount, modelID);
-//        argCount++;
-//      }
-//      if (name != null) {
-//        getModels.setString(argCount, name);
-//        argCount++;
-//      }
-//      if (maxKmerLen != null) {
-//        getModels.setInt(argCount, maxKmerLen);
-//        argCount++;
-//      }
-//      //done setting the params
-//      
-//      rs = getModels.executeQuery();
-//      return BackgroundModelImport.createCountsModels(rs, SQL_GET_MODEL_CORE);      
-//    }
-//    finally {
-//      if (rs != null) {
-//        rs.close();
-//      }
-//      if (getModels != null) {
-//        getModels.close();
-//      }
-//    }
-//  }
-//  
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModels(String name) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, null, name, null);
-//  }
-//
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModels(String name, Connection cxn) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, null, name, null,cxn);
-//  }
-//  
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModels(String name, int maxKmerLen) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, null, name, maxKmerLen);
-//  }
-//  
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModels(String name, int maxKmerLen, Connection cxn) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, null, name, maxKmerLen, cxn);
-//  }
-//
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModels(int modelID) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, modelID, null, null);
-//  }
-//  
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModels(int modelID, Connection cxn) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, modelID, null, null, cxn);
-//  }
-//  
-//
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModels(BackgroundModelMetadata md) throws SQLException {
-//    java.sql.Connection cxn = null;
-//    try {
-//      cxn = DatabaseFactory.getConnection("annotations");
-//      return BackgroundModelImport.getCountsModels(md, cxn);
-//    }
-//    finally {
-//      DatabaseFactory.freeConnection(cxn);
-//    }
-//  }
-//
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModels(BackgroundModelMetadata md, Connection cxn) throws SQLException {
-//    Integer mapID = null;
-//    Integer genomeID = null;
-//    Integer modelID = null;
-//    String name = null;
-//    Integer maxKmerLen = null;
-//    
-//    //initialize any fields that are available 
-//    if (md.hasMapID()) {
-//      mapID = md.getMapID();
-//    }
-//    if (md.hasGenomeID()) {
-//     genomeID = md.getGenomeID();
-//    }
-//    if (md.hasModelID()) {
-//      modelID = md.getModelID();
-//    }
-//    name = md.getName();
-//    if (md.hasMaxKmerLen()) {
-//      maxKmerLen = md.getMaxKmerLen();
-//    }
-//
-//    return BackgroundModelImport.getCountsModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
-//  }
-//  
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModelsByLength(int maxKmerLen) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, null, null, maxKmerLen);
-//  }
-//  
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModelsByLength(int maxKmerLen, Connection cxn) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, null, null, maxKmerLen, cxn);
-//  }
-//  
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, genomeID, null, null, null);
-//  }
-//
-//
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, Connection cxn) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, genomeID, null, null, null, cxn);
-//  }
-//
-//
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */  
-//  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, String name) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, genomeID, null, name, null);
-//  }
-//
-//
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, String name, Connection cxn) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, genomeID, null, name, null, cxn);
-//  }
-//
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, int maxKmerLen) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, genomeID, null, null, maxKmerLen);
-//  }
-//  
-//
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, int maxKmerLen, Connection cxn) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, genomeID, null, null, maxKmerLen, cxn);
-//  }
-//
-//  
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getAllCountsModels() throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, null, null, null);
-//  }
-//  
-//
-//  /**
-//   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
-//   */
-//  public static List<CountsBackgroundModel> getAllCountsModels(Connection cxn) throws SQLException {
-//    return BackgroundModelImport.getCountsModels(null, null, null, null, null, cxn);
-//  }
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  private static List<CountsBackgroundModel> getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen) throws SQLException {
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      return BackgroundModelLoader.getCountsModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
+    }
+    finally {
+      DatabaseFactory.freeConnection(cxn);
+    }
+  }
+
+  
+  /**
+   * Given the parameters that describe one or more background models construct
+   * an appropriate SQL query and return the Background Models that are found 
+   * @param mapID an ID from the background genome map (this will limit to a 
+   * single model)
+   * @param genomeID a genome ID for the models
+   * @param modelID a model ID from the background_model table
+   * @param name a model name
+   * @param maxKmerLen a maximum kmer length
+   * @param cxn an open DB connection to the annotations schema
+   * @return A list of matching Counts Background Models
+   * @throws SQLException
+   */
+  private static List<CountsBackgroundModel> getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn) throws SQLException {
+    PreparedStatement getModels = null;
+    ResultSet rs = null;
+    try {
+      getModels = BackgroundModelLoader.assembleGetModelQuery(mapID, genomeID, modelID, name, maxKmerLen, null, true, cxn);            
+      rs = getModels.executeQuery();
+      return BackgroundModelLoader.createCountsModels(rs, SQL_GET_MODEL_CORE);      
+    }
+    finally {
+      if (rs != null) {
+        rs.close();
+      }
+      if (getModels != null) {
+        getModels.close();
+      }
+    }
+  }
+  
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModels(String name) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, null, name, null);
+  }
+
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModels(String name, Connection cxn) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, null, name, null,cxn);
+  }
+  
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModels(String name, int maxKmerLen) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, null, name, maxKmerLen);
+  }
+  
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModels(String name, int maxKmerLen, Connection cxn) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, null, name, maxKmerLen, cxn);
+  }
+
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModels(int modelID) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, modelID, null, null);
+  }
+  
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModels(int modelID, Connection cxn) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, modelID, null, null, cxn);
+  }
+  
+
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModels(BackgroundModelMetadata md) throws SQLException {
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      return BackgroundModelLoader.getCountsModels(md, cxn);
+    }
+    finally {
+      DatabaseFactory.freeConnection(cxn);
+    }
+  }
+
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModels(BackgroundModelMetadata md, Connection cxn) throws SQLException {
+    Integer mapID = null;
+    Integer genomeID = null;
+    Integer modelID = null;
+    String name = null;
+    Integer maxKmerLen = null;
+    
+    //initialize any fields that are available 
+    if (md.hasMapID()) {
+      mapID = md.getMapID();
+    }
+    if (md.hasGenomeID()) {
+     genomeID = md.getGenomeID();
+    }
+    if (md.hasModelID()) {
+      modelID = md.getModelID();
+    }
+    name = md.getName();
+    if (md.hasMaxKmerLen()) {
+      maxKmerLen = md.getMaxKmerLen();
+    }
+
+    return BackgroundModelLoader.getCountsModels(mapID, genomeID, modelID, name, maxKmerLen, cxn);
+  }
+  
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModelsByLength(int maxKmerLen) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, null, null, maxKmerLen);
+  }
+  
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModelsByLength(int maxKmerLen, Connection cxn) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, null, null, maxKmerLen, cxn);
+  }
+  
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, genomeID, null, null, null);
+  }
+
+
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, Connection cxn) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, genomeID, null, null, null, cxn);
+  }
+
+
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */  
+  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, String name) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, genomeID, null, name, null);
+  }
+
+
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, String name, Connection cxn) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, genomeID, null, name, null, cxn);
+  }
+
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, int maxKmerLen) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, genomeID, null, null, maxKmerLen);
+  }
+  
+
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getCountsModelsByGenome(int genomeID, int maxKmerLen, Connection cxn) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, genomeID, null, null, maxKmerLen, cxn);
+  }
+
+  
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getAllCountsModels() throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, null, null, null);
+  }
+  
+
+  /**
+   * @see getCountsModels(Integer mapID, Integer genomeID, Integer modelID, String name, Integer maxKmerLen, Connection cxn)
+   */
+  public static List<CountsBackgroundModel> getAllCountsModels(Connection cxn) throws SQLException {
+    return BackgroundModelLoader.getCountsModels(null, null, null, null, null, cxn);
+  }
+
 
   
   /**************************************************************************
@@ -1896,7 +1949,7 @@ public class BackgroundModelImport {
    * @return the DBID of the model
    * @throws SQLException
    */
-  public static int insertMarkovModel(MarkovBackgroundModel model) throws SQLException, CGSException {
+  public static Pair<Integer, Integer> insertMarkovModel(MarkovBackgroundModel model) throws SQLException, CGSException {
     //make sure the model has a name and genome
     if ((model.getName() == null) || (model.getName().isEmpty()) || (model.getGenome() == null)) {
       throw new IllegalArgumentException("Model must have a name and genome specified to be imported to database.");
@@ -1907,11 +1960,12 @@ public class BackgroundModelImport {
       cxn.setAutoCommit(false);
 
       //insert into the background model and background
-      int mapID = BackgroundModelImport.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), 
+      Pair<Integer, Integer> ids = BackgroundModelLoader.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), 
           MARKOV_TYPE_STRING, model.getGenome().getDBID(), false, cxn);
-
+      int mapID = ids.car();
+      
       //Finally, insert all the "columns" of the background model
-      BackgroundModelImport.insertMarkovModelColumns(model, mapID, cxn);
+      BackgroundModelLoader.insertMarkovModelColumns(model, mapID, cxn);
       
       //If everything has worked then commit
       cxn.commit();
@@ -1919,7 +1973,7 @@ public class BackgroundModelImport {
       //update the model with its new ID
       model.setMapID(mapID);
 
-      return mapID;
+      return ids;
     }
     catch (SQLException sqlex) {
       //If any runtime exceptions come up rollback the transaction and then
@@ -1953,7 +2007,7 @@ public class BackgroundModelImport {
    * @return the DBID of the model
    * @throws SQLException
    */
-  public static int insertFrequencyModel(FrequencyBackgroundModel model) throws SQLException, CGSException {
+  public static Pair<Integer, Integer> insertFrequencyModel(FrequencyBackgroundModel model) throws SQLException, CGSException {
     //make sure the model has a name and genome
     if ((model.getName() == null) || (model.getName().isEmpty()) || (model.getGenome() == null)) {
       throw new IllegalArgumentException("Model must have a name and genome specified to be imported to database.");
@@ -1964,11 +2018,11 @@ public class BackgroundModelImport {
       cxn.setAutoCommit(false);
 
       //insert into the background model and background
-      int mapID = BackgroundModelImport.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), 
+      Pair<Integer, Integer> ids = BackgroundModelLoader.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), 
           FREQUENCY_TYPE_STRING, model.getGenome().getDBID(), false, cxn);
-
+      int mapID = ids.car();
       //insert all the "columns" of the background model
-      BackgroundModelImport.insertFrequencyModelColumns(model, mapID, cxn);
+      BackgroundModelLoader.insertFrequencyModelColumns(model, mapID, cxn);
 
       //If everything has worked then commit
       cxn.commit();
@@ -1976,7 +2030,7 @@ public class BackgroundModelImport {
       //update the model with its new ID
       model.setMapID(mapID);
 
-      return mapID;
+      return ids;
     }
     catch (RuntimeException ex) {
       //If any runtime exceptions come up rollback the transaction and then
@@ -2000,7 +2054,7 @@ public class BackgroundModelImport {
    * @return the DBID of the model
    * @throws SQLException
    */
-  public static int insertCountsModel(CountsBackgroundModel model, boolean insertAsMarkov) throws SQLException, CGSException {
+  public static Pair<Integer, Integer>  insertCountsModel(CountsBackgroundModel model, boolean insertAsMarkov) throws SQLException, CGSException {
     //make sure the model has a name and genome
     if ((model.getName() == null) || (model.getName().isEmpty()) || (model.getGenome() == null)) {
       throw new IllegalArgumentException("Model must have a name and genome specified to be imported to database.");
@@ -2019,11 +2073,12 @@ public class BackgroundModelImport {
       }
       
       //insert into the background model and background
-      int mapID = BackgroundModelImport.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), 
+      Pair<Integer, Integer>  ids = BackgroundModelLoader.insertBackgroundModelAndMap(model.getName(), model.getMaxKmerLen(), 
           modelType, model.getGenome().getDBID(), true, cxn);
-
+      int mapID = ids.car();
+      
       //insert all the "columns" of the background model
-      BackgroundModelImport.insertCountsModelColumns(model, mapID, insertAsMarkov, cxn);
+      BackgroundModelLoader.insertCountsModelColumns(model, mapID, insertAsMarkov, cxn);
 
       //If everything has worked then commit
       cxn.commit();
@@ -2031,7 +2086,7 @@ public class BackgroundModelImport {
       //update the model with its new ID
       model.setMapID(mapID);
 
-      return mapID;
+      return ids;
     }
     catch (RuntimeException ex) {
       //If any runtime exceptions come up rollback the transaction and then
@@ -2065,10 +2120,10 @@ public class BackgroundModelImport {
 
       int mapID = model.getMapID();
       //remove from the database all the existing entries for the model columns
-      BackgroundModelImport.removeModelColumns(mapID, cxn);
+      BackgroundModelLoader.removeModelColumns(mapID, cxn);
       
       //Insert all the "columns" of the background model
-      BackgroundModelImport.insertMarkovModelColumns(model, mapID, cxn);
+      BackgroundModelLoader.insertMarkovModelColumns(model, mapID, cxn);
       
       //If everything has worked then commit
       cxn.commit();
@@ -2105,10 +2160,10 @@ public class BackgroundModelImport {
 
       int mapID = model.getMapID();
       //remove from the database all the existing entries for the model columns
-      BackgroundModelImport.removeModelColumns(mapID, cxn);
+      BackgroundModelLoader.removeModelColumns(mapID, cxn);
       
       //Insert all the "columns" of the background model
-      BackgroundModelImport.insertFrequencyModelColumns(model, mapID, cxn);
+      BackgroundModelLoader.insertFrequencyModelColumns(model, mapID, cxn);
       
       //If everything has worked then commit
       cxn.commit();
@@ -2162,10 +2217,10 @@ public class BackgroundModelImport {
       }
       
       //remove from the database all the existing entries for the model columns
-      BackgroundModelImport.removeModelColumns(mapID, cxn);
+      BackgroundModelLoader.removeModelColumns(mapID, cxn);
       
       //Insert all the "columns" of the background model
-      BackgroundModelImport.insertCountsModelColumns(model, mapID, isMarkov, cxn);
+      BackgroundModelLoader.insertCountsModelColumns(model, mapID, isMarkov, cxn);
       
       //If everything has worked then commit
       cxn.commit();
@@ -2201,15 +2256,14 @@ public class BackgroundModelImport {
    * @return the background genome map ID of the model
    * @throws SQLException
    */
-  private static Integer insertBackgroundModelAndMap(String name, int kmerLen, String modelType, int genomeID, boolean hasCounts, Connection cxn) throws SQLException, CGSException {
-    //FIXME make this return a pair for the modelID and the mapID
+  private static Pair<Integer, Integer> insertBackgroundModelAndMap(String name, int kmerLen, String modelType, int genomeID, boolean hasCounts, Connection cxn) throws SQLException, CGSException {
     /**
      * Check whether there is already an entry for a model with this name, maxKmerLen, and type. If so, reuse the model ID, 
      * otherwise create one.
      */
-    Integer modelID = BackgroundModelImport.getBackgroundModelID(name, kmerLen, modelType, cxn);
+    Integer modelID = BackgroundModelLoader.getBackgroundModelID(name, kmerLen, modelType, cxn);
     if (modelID == null) {
-      modelID = BackgroundModelImport.insertBackgroundModel(name, kmerLen, modelType, cxn);
+      modelID = BackgroundModelLoader.insertBackgroundModel(name, kmerLen, modelType, cxn);
     }
 
     /**
@@ -2218,15 +2272,15 @@ public class BackgroundModelImport {
      * an exception indicating that the update method should be called to
      * update an existing model.
      */
-    Integer mapID = BackgroundModelImport.getBackgroundGenomeMapID(modelID, genomeID, cxn);
+    Integer mapID = BackgroundModelLoader.getBackgroundGenomeMapID(modelID, genomeID, cxn);
     if (mapID != null) {
       throw new CGSException("Model already exists. Select a different name or use updateMarkovModel() to update the existing model.");
     }
     else {
-      mapID = BackgroundModelImport.insertBackgroundGenomeMap(modelID, genomeID, hasCounts, cxn);
+      mapID = BackgroundModelLoader.insertBackgroundGenomeMap(modelID, genomeID, hasCounts, cxn);
     }
 
-    return mapID;
+    return new Pair<Integer, Integer>(mapID, modelID);
   }
 
 
@@ -2410,9 +2464,17 @@ public class BackgroundModelImport {
   }
   
   
+  /**************************************************************************
+   * Mainline, test code, and parse/insert method
+   **************************************************************************/
+ 
+  
   public static void main(String[] args) {
-    BackgroundModelImport.testDBLoading();
-    //BackgroundModelImport.importModel(args);
+    ClassLoader loader = BackgroundModelLoader.class.getClassLoader();
+    PropertyConfigurator.configure(loader.getResource("edu/mit/csail/cgs/utils/config/log4j.properties"));      
+    
+    BackgroundModelLoader.testDBLoading();
+    //BackgroundModelLoader.importModel(args);
   }
   
   
@@ -2420,7 +2482,7 @@ public class BackgroundModelImport {
    * Imports a weightmatrix from a file into the DB 
    *
    * Usage:
-   * java edu.mit.csail.cgs.datasets.motifs.BackgroundModelImport --genome "Mus musculus;mm8" --bgname "whole genome" --bgtype MARKOV --bgfile foo.back
+   * java edu.mit.csail.cgs.datasets.motifs.BackgroundModelLoader --genome "Mus musculus;mm8" --bgname "whole genome" --bgtype MARKOV --bgfile foo.back
    */
   public static void importModel(String args[]) {
     try {
@@ -2431,7 +2493,10 @@ public class BackgroundModelImport {
       
       //args = new String[] {"--species", "Mus musculus;mm5", "--bgname", "test1", "--bgtype", MARKOV_TYPE_STRING, "--bgfile", "mm8_2.back"};
 //      args = new String[] {"--species", "Saccharomyces cerevisiae;sacCer1", "--bgname", "test2", "--bgtype", MARKOV_TYPE_STRING, "--bgfile", "yeast1.back"};
-      args = new String[] {"--species", "Homo sapiens;hg17", "--bgname", "test1", "--bgtype", MARKOV_TYPE_STRING, "--bgfile", "human_1.back"};
+      //args = new String[] {"--species", "Homo sapiens;hg17", "--bgname", "test1", "--bgtype", MARKOV_TYPE_STRING, "--bgfile", "human_1.back"};
+      //args = new String[] {"--species", "Mus musculus;mm5", "--bgname", "test1", "--bgtype", FREQUENCY_TYPE_STRING, "--bgfile", "testfreq3.back"};
+      args = new String[] {"--species", "Mus musculus;mm5", "--bgname", "test4", "--bgtype", "COUNTS;FREQUENCY", "--bgfile", "testcount2.back"};
+      
       
       gen = Args.parseGenome(args).cdr();
       bgName = Args.parseString(args, "bgname", null);
@@ -2451,26 +2516,28 @@ public class BackgroundModelImport {
         logger.fatal("Must supply a --bgtype"); System.exit(1);
       }
 
+      Pair<Integer, Integer> ids = null;
       if (bgType.toUpperCase().equals(MARKOV_TYPE_STRING)) {
         MarkovBackgroundModel mbg = BackgroundModelIO.parseMarkovBackgroundModel(bgName, bgFilename, gen);
-        BackgroundModelImport.insertMarkovModel(mbg);
+        ids = BackgroundModelLoader.insertMarkovModel(mbg);        
       }
       else if (bgType.toUpperCase().equals(FREQUENCY_TYPE_STRING)) {
-        FrequencyBackgroundModel fbg = BackgroundModelIO.parseFreqBackgroundModel(bgName, bgFilename, gen);
-        BackgroundModelImport.insertFrequencyModel(fbg);
+        FrequencyBackgroundModel fbg = BackgroundModelIO.parseFrequencyBackgroundModel(bgName, bgFilename, gen);
+        ids = BackgroundModelLoader.insertFrequencyModel(fbg);
       }
       else if (bgType.toUpperCase().equals("COUNTS;MARKOV")) {
         CountsBackgroundModel cbg = BackgroundModelIO.parseCountsBackgroundModel(bgName, bgFilename, gen);
-        BackgroundModelImport.insertCountsModel(cbg, true);
+        ids = BackgroundModelLoader.insertCountsModel(cbg, true);
       }
       else if (bgType.toUpperCase().equals("COUNTS;FREQUENCY")) {
         CountsBackgroundModel cbg = BackgroundModelIO.parseCountsBackgroundModel(bgName, bgFilename, gen);
-        BackgroundModelImport.insertCountsModel(cbg, false);
+        ids = BackgroundModelLoader.insertCountsModel(cbg, false);
       }
       else {
         logger.fatal("Background type must be one of: Markov, Frequency, Counts;Markov, Counts;Frequency.");
         System.exit(1);
       }
+      logger.debug(ids.car() + " " + ids.cdr());
     }
     catch (NotFoundException nfex) {
       logger.fatal(nfex);
@@ -2496,33 +2563,38 @@ public class BackgroundModelImport {
   }
 
   
-  private static void testDBLoading() {
-    ClassLoader loader = BackgroundModelImport.class.getClassLoader();
-    PropertyConfigurator.configure(loader.getResource("edu/mit/csail/cgs/utils/config/log4j.properties"));      
-    
+  private static void testDBLoading() {    
     MarkovBackgroundModel testValuesMM8_3 = null;
     MarkovBackgroundModel testValuesMM8_2 = null;
     MarkovBackgroundModel testValuesYeast_3 = null;
     MarkovBackgroundModel testValuesYeast_2 = null;
     MarkovBackgroundModel testValuesHuman_2 = null;
+    FrequencyBackgroundModel testFreqValuesMM8_3 = null;
+    FrequencyBackgroundModel testFreqValuesMM8_2 = null;
+    CountsBackgroundModel testCountValuesMM8_3 = null;
+    CountsBackgroundModel testCountValuesMM8_2 = null;
+
     try {
       testValuesMM8_3 = BackgroundModelIO.parseMarkovBackgroundModel("mm8.back", Organism.findGenome("mm8"));
       testValuesMM8_2 = BackgroundModelIO.parseMarkovBackgroundModel("mm8_1.back", Organism.findGenome("mm8"));
       testValuesYeast_3 = BackgroundModelIO.parseMarkovBackgroundModel("yeast2.back", Organism.findGenome("sacCer1"));
       testValuesYeast_2 = BackgroundModelIO.parseMarkovBackgroundModel("yeast1.back", Organism.findGenome("sacCer1"));
       testValuesHuman_2 = BackgroundModelIO.parseMarkovBackgroundModel("human_1.back", Organism.findGenome("hg17"));
+    
+      testFreqValuesMM8_3 = BackgroundModelIO.parseFrequencyBackgroundModel("testfreq3.back", Organism.findGenome("mm8"));
+      testFreqValuesMM8_2 = BackgroundModelIO.parseFrequencyBackgroundModel("testfreq2.back", Organism.findGenome("mm8"));
+
+      testCountValuesMM8_3 = BackgroundModelIO.parseCountsBackgroundModel("testcount3.back", Organism.findGenome("mm8"));
+      testCountValuesMM8_2 = BackgroundModelIO.parseCountsBackgroundModel("testcount2.back", Organism.findGenome("mm8"));
     }
     catch (IOException ex) {
-      // TODO Auto-generated catch block
-      ex.printStackTrace();
+      logger.fatal(ex);
     }
     catch (ParseException ex) {
-      // TODO Auto-generated catch block
-      ex.printStackTrace();
+      logger.fatal(ex);
     }
     catch (NotFoundException nfex) {
-      // TODO Auto-generated catch block
-      nfex.printStackTrace();
+      logger.fatal(nfex);
     }
 
     
@@ -2538,27 +2610,35 @@ public class BackgroundModelImport {
       String expectedName_test1_2 = "test1";
       int expectedKmerLen_test1_2 = 2;
       String expectedType_test1_2 = MARKOV_TYPE_STRING;
+      
+      int expectedFreqMapID_test1_2 = 5379;
+      int expectedFreqModelID_test1_2 = 5378;
+      
+      int expectedCountMapID_test3_2 = 5385;
+      int expectedCountModelID_test3_2 = 5384;
+      String expectedCountName_test3_2 = "test3";
+      String expectedCountName_test4_2 = "test4";
 
       logger.debug("Testing getAllBackgroundModels()");
-      List<BackgroundModelMetadata> foo = BackgroundModelImport.getAllBackgroundModels();
+      List<BackgroundModelMetadata> foo = BackgroundModelLoader.getAllBackgroundModels();
       for (BackgroundModelMetadata md : foo) {
         System.out.println(md.toString());        
       }
       
       logger.debug("Testing getAllBackgroundModels(ignoreGenome)");
-      foo = BackgroundModelImport.getAllBackgroundModels(true);
+      foo = BackgroundModelLoader.getAllBackgroundModels(true);
       for (BackgroundModelMetadata md : foo) {
         System.out.println(md.toString());        
       }
       
       logger.debug("Testing getBackgroundModelsForGenome(genomeID)");
-      foo = BackgroundModelImport.getBackgroundModelsForGenome(expectedGenomeID_test1_2); 
+      foo = BackgroundModelLoader.getBackgroundModelsForGenome(expectedGenomeID_test1_2); 
       for (BackgroundModelMetadata md : foo) {
         System.out.println(md.toString());        
       }
       
       logger.debug("Testing getGenomesForBackgroundModel(modelID)");
-      List<Integer> bar = BackgroundModelImport.getGenomesForBackgroundModel(expectedModelID_test1_2); //mouse
+      List<Integer> bar = BackgroundModelLoader.getGenomesForBackgroundModel(expectedModelID_test1_2); //mouse
       for (int genomeID : bar) {
         System.out.println(genomeID);        
       }
@@ -2569,6 +2649,20 @@ public class BackgroundModelImport {
           expectedModelID_test1_2, expectedName_test1_2, 
           expectedKmerLen_test1_2, expectedType_test1_2, false);
       
+      BackgroundModelMetadata expectedFreqMDModelOnly_test1_2 = new BackgroundModelMetadata(expectedFreqModelID_test1_2, expectedName_test1_2, expectedKmerLen_test1_2, FREQUENCY_TYPE_STRING);
+      BackgroundModelMetadata expectedFreqMD_test1_2 = new BackgroundModelMetadata(expectedFreqMapID_test1_2, expectedGenomeID_test1_2, 
+          expectedFreqModelID_test1_2, expectedName_test1_2, 
+          expectedKmerLen_test1_2, FREQUENCY_TYPE_STRING, false);
+
+      BackgroundModelMetadata expectedCountMDModelOnly_test3_2 = new BackgroundModelMetadata(expectedCountModelID_test3_2, expectedCountName_test3_2, expectedKmerLen_test1_2, FREQUENCY_TYPE_STRING);
+      BackgroundModelMetadata expectedCountMD_test3_2 = new BackgroundModelMetadata(expectedCountMapID_test3_2, expectedGenomeID_test1_2, 
+          expectedCountModelID_test3_2, expectedCountName_test3_2, 
+          expectedKmerLen_test1_2, FREQUENCY_TYPE_STRING, false);
+
+      BackgroundModelMetadata expectedCountMD_test4_2 = new BackgroundModelMetadata(expectedCountMapID_test3_2, expectedGenomeID_test1_2, 
+          expectedCountModelID_test3_2, expectedCountName_test4_2, 
+          expectedKmerLen_test1_2, FREQUENCY_TYPE_STRING, false);
+
       
       int expectedMapID_test1_3 = 5370;
       int expectedGenomeID_test1_3 = 22;
@@ -2577,10 +2671,25 @@ public class BackgroundModelImport {
       int expectedKmerLen_test1_3 = 3;
       String expectedType_test1_3 = MARKOV_TYPE_STRING;
       
+      int expectedFreqMapID_test1_3 = 5381;
+      int expectedFreqModelID_test1_3 = 5380;
+      
+      int expectedCountMapID_test3_3 = 5383;
+      int expectedCountModelID_test3_3 = 5382;
+      String expectedCountName_test3_3 = "test3";
+
+      
       BackgroundModelMetadata expectedMDModelOnly_test1_3 = new BackgroundModelMetadata(expectedModelID_test1_3, expectedName_test1_3, expectedKmerLen_test1_3, expectedType_test1_3);
       BackgroundModelMetadata expectedMD_test1_3 = new BackgroundModelMetadata(expectedMapID_test1_3, expectedGenomeID_test1_3, 
           expectedModelID_test1_3, expectedName_test1_3, 
           expectedKmerLen_test1_3, expectedType_test1_3, false);
+      BackgroundModelMetadata expectedFreqMD_test1_3 = new BackgroundModelMetadata(expectedFreqMapID_test1_3, expectedGenomeID_test1_3, 
+          expectedFreqModelID_test1_3, expectedName_test1_3, 
+          expectedKmerLen_test1_3, FREQUENCY_TYPE_STRING, false);
+      BackgroundModelMetadata expectedCountMD_test3_3 = new BackgroundModelMetadata(expectedCountMapID_test3_3, expectedGenomeID_test1_3, 
+          expectedCountModelID_test3_3, expectedCountName_test3_3, 
+          expectedKmerLen_test1_3, FREQUENCY_TYPE_STRING, false);
+
       
       int expectedMapID_test2_3 = 5374;
       int expectedGenomeID_test2_3 = 23;
@@ -2597,8 +2706,8 @@ public class BackgroundModelImport {
       
       
       //test getBackgroundModelID(name, kmerlen, type)
-      BackgroundModelImport.getBackgroundModelID(expectedName_test1_3, expectedKmerLen_test1_3, expectedType_test1_3);
-      if (BackgroundModelImport.getBackgroundModelID(expectedName_test1_3, expectedKmerLen_test1_3, expectedType_test1_3) == expectedModelID_test1_3) {
+      BackgroundModelLoader.getBackgroundModelID(expectedName_test1_3, expectedKmerLen_test1_3, expectedType_test1_3);
+      if (BackgroundModelLoader.getBackgroundModelID(expectedName_test1_3, expectedKmerLen_test1_3, expectedType_test1_3) == expectedModelID_test1_3) {
         logger.debug("OK: getBackgroundModelID(name, kmerlen, type)");        
       }
       else {
@@ -2606,7 +2715,7 @@ public class BackgroundModelImport {
       }
 
       //test getBackgroundModelID(name, kmerlen, type)
-      if (BackgroundModelImport.getBackgroundGenomeMapID(expectedModelID_test1_3, expectedGenomeID_test1_3) == expectedMapID_test1_3) {
+      if (BackgroundModelLoader.getBackgroundGenomeMapID(expectedModelID_test1_3, expectedGenomeID_test1_3) == expectedMapID_test1_3) {
         logger.debug("OK: getBackgroundGenomeMapID(modelID, genomeID)");        
       }
       else {
@@ -2614,7 +2723,7 @@ public class BackgroundModelImport {
       }
 
       //test getBackgroundModelByModelID(modelID)
-      if (expectedMDModelOnly_test1_3.equals(BackgroundModelImport.getBackgroundModelByModelID(expectedModelID_test1_3))) {
+      if (expectedMDModelOnly_test1_3.equals(BackgroundModelLoader.getBackgroundModelByModelID(expectedModelID_test1_3))) {
         logger.debug("OK: getBackgroundModelByModelID(modelID)");        
       }
       else {
@@ -2622,7 +2731,7 @@ public class BackgroundModelImport {
       }
 
       //test getBackgroundModel(modelID, genomeID)
-      if (expectedMD_test1_3.equals(BackgroundModelImport.getBackgroundModel(expectedModelID_test1_3, expectedGenomeID_test1_3))) {
+      if (expectedMD_test1_3.equals(BackgroundModelLoader.getBackgroundModel(expectedModelID_test1_3, expectedGenomeID_test1_3))) {
         logger.debug("OK: getBackgroundModel(modelID, genomeID)");        
       }
       else {
@@ -2630,7 +2739,7 @@ public class BackgroundModelImport {
       }
 
       //test getBackgroundModel(name, kmerlen, type, genomeID)
-      if (expectedMD_test1_3.equals(BackgroundModelImport.getBackgroundModel(expectedName_test1_3, expectedKmerLen_test1_3, expectedType_test1_3, expectedGenomeID_test1_3))) {
+      if (expectedMD_test1_3.equals(BackgroundModelLoader.getBackgroundModel(expectedName_test1_3, expectedKmerLen_test1_3, expectedType_test1_3, expectedGenomeID_test1_3))) {
         logger.debug("OK: getBackgroundModel(name, kmerlen, type, genomeID)");        
       }
       else {
@@ -2638,7 +2747,7 @@ public class BackgroundModelImport {
       }
 
       //test getBackgroundModelByMapID(mapID)
-      if (expectedMD_test1_3.equals(BackgroundModelImport.getBackgroundModelByMapID(expectedMapID_test1_3))) {
+      if (expectedMD_test1_3.equals(BackgroundModelLoader.getBackgroundModelByMapID(expectedMapID_test1_3))) {
         logger.debug("OK: getBackgroundModelByMapID(mapID)");        
       }
       else {
@@ -2655,97 +2764,280 @@ public class BackgroundModelImport {
       
       
       //test getMarkovModel(metadata)
-      MarkovBackgroundModel mbm = BackgroundModelImport.getMarkovModel(expectedMD_test1_3);
+      MarkovBackgroundModel mbm = BackgroundModelLoader.getMarkovModel(expectedMD_test1_3);
       if (mbm.equalValues(testValuesMM8_3)) {
         logger.debug("OK: getMarkovModel(metadata)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModel(metadata)");
+        logger.debug("FAIL: getMarkovModel(metadata)");
       }
-      MarkovBackgroundModel mbm2 = BackgroundModelImport.getMarkovModel(expectedMD_test2_3);
+      MarkovBackgroundModel mbm2 = BackgroundModelLoader.getMarkovModel(expectedMD_test2_3);
       if (mbm2.equalValues(testValuesYeast_3)) {
         logger.debug("OK: getMarkovModel(metadata)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModel(metadata)");
+        logger.debug("FAIL: getMarkovModel(metadata)");
       }
       
       //test getMarkovModels methods
       List<MarkovBackgroundModel> mbmList;      
       
-      mbmList = BackgroundModelImport.getMarkovModels(expectedMDModelOnly_test1_2);
+      mbmList = BackgroundModelLoader.getMarkovModels(expectedMDModelOnly_test1_2);
       if ((mbmList.size() == 2) && mbmList.get(0).equalValues(testValuesHuman_2) && mbmList.get(1).equalValues(testValuesMM8_2)) {          
         logger.debug("OK: getMarkovModels(metadata)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModels(metadata)");
+        logger.debug("FAIL: getMarkovModels(metadata)");
       }
 
-      mbmList = BackgroundModelImport.getMarkovModels("test1");
+      mbmList = BackgroundModelLoader.getMarkovModels(expectedName_test1_3);
       if ((mbmList.size() == 3) && mbmList.get(1).equalValues(testValuesMM8_2) && mbmList.get(2).equalValues(testValuesMM8_3)
           && mbmList.get(0).equalValues(testValuesHuman_2)) { 
         logger.debug("OK: getMarkovModels(name)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModels(name)");
+        logger.debug("FAIL: getMarkovModels(name)");
       }
       
-      mbmList = BackgroundModelImport.getMarkovModels("test1", 2);
-      if ((mbmList.size() == 2) && mbmList.get(1).equalValues(testValuesMM8_2)) { 
+      mbmList = BackgroundModelLoader.getMarkovModels(expectedName_test1_3, 2);
+      if ((mbmList.size() == 2) && mbmList.get(1).equalValues(testValuesMM8_2) && mbmList.get(0).equalValues(testValuesHuman_2)) { 
         logger.debug("OK: getMarkovModels(name, kmerlen)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModels(name, kmerlen)");
+        logger.debug("FAIL: getMarkovModels(name, kmerlen)");
       }
       
-      mbmList = BackgroundModelImport.getMarkovModels(expectedModelID_test1_2);
+      mbmList = BackgroundModelLoader.getMarkovModels(expectedModelID_test1_2);
       if ((mbmList.size() == 2) && mbmList.get(0).equalValues(testValuesHuman_2) && mbmList.get(1).equalValues(testValuesMM8_2)) { 
         logger.debug("OK: getMarkovModels(modelID)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModels(modelID)");
+        logger.debug("FAIL: getMarkovModels(modelID)");
       }
 
-      mbmList = BackgroundModelImport.getMarkovModelsByLength(2);
+      mbmList = BackgroundModelLoader.getMarkovModelsByLength(2);
       if ((mbmList.size() == 3) && mbmList.get(1).equalValues(testValuesMM8_2) && mbmList.get(2).equalValues(testValuesYeast_2)
           && mbmList.get(0).equalValues(testValuesHuman_2)) { 
         logger.debug("OK: getMarkovModelsByLength(kmerlen)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModelsByLength(kmerlen)");
+        logger.debug("FAIL: getMarkovModelsByLength(kmerlen)");
       }
       
-      mbmList = BackgroundModelImport.getMarkovModelsByGenome(expectedGenomeID_test1_2);
+      mbmList = BackgroundModelLoader.getMarkovModelsByGenome(expectedGenomeID_test1_2);
       if ((mbmList.size() == 2) && mbmList.get(0).equalValues(testValuesMM8_2) && mbmList.get(1).equalValues(testValuesMM8_3)) {          
         logger.debug("OK: getMarkovModelsByGenome(genomeID)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModelsByGenome(genomeID)");
+        logger.debug("FAIL: getMarkovModelsByGenome(genomeID)");
       }
       
-      mbmList = BackgroundModelImport.getMarkovModelsByGenome(expectedGenomeID_test1_2, expectedName_test1_2);
+      mbmList = BackgroundModelLoader.getMarkovModelsByGenome(expectedGenomeID_test1_2, expectedName_test1_2);
       if ((mbmList.size() == 2) && mbmList.get(0).equalValues(testValuesMM8_2) && mbmList.get(1).equalValues(testValuesMM8_3)) {          
         logger.debug("OK: getMarkovModelsByGenome(genomeID, name)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModelsByGenome(genomeID, name)");
+        logger.debug("FAIL: getMarkovModelsByGenome(genomeID, name)");
       }
 
-      mbmList = BackgroundModelImport.getMarkovModelsByGenome(expectedGenomeID_test1_2, expectedKmerLen_test1_2);
+      mbmList = BackgroundModelLoader.getMarkovModelsByGenome(expectedGenomeID_test1_2, expectedKmerLen_test1_2);
       if ((mbmList.size() == 1) && mbmList.get(0).equalValues(testValuesMM8_2)) {          
         logger.debug("OK: getMarkovModelsByGenome(genomeID, kmerlen)");        
       }
       else {
-        logger.debug("FAIL: getmarkovModelsByGenome(genomeID, kmerlen)");
+        logger.debug("FAIL: getMarkovModelsByGenome(genomeID, kmerlen)");
       }
+      
+      
+      
+      //test getFrequencyModel(metadata)
+      FrequencyBackgroundModel fbm = BackgroundModelLoader.getFrequencyModel(expectedFreqMD_test1_2);
+      if (fbm.equalValues(testFreqValuesMM8_2)) {
+        logger.debug("OK: getFrequencyModel(metadata)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModel(metadata)");
+      }
+      FrequencyBackgroundModel fbm2 = BackgroundModelLoader.getFrequencyModel(expectedFreqMD_test1_3);
+      if (fbm2.equalValues(testFreqValuesMM8_3)) {
+        logger.debug("OK: getFrequencyModel(metadata)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModel(metadata)");
+      }
+      
+      
+      //test getFrequencyModels methods
+      List<FrequencyBackgroundModel> fbmList;      
+      
+      fbmList = BackgroundModelLoader.getFrequencyModels(expectedFreqMDModelOnly_test1_2);
+      if ((fbmList.size() == 1) && fbmList.get(0).equalValues(testFreqValuesMM8_2)) {          
+        logger.debug("OK: getFrequencyModels(metadata)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModels(metadata)");
+      }
+
+      fbmList = BackgroundModelLoader.getFrequencyModels(expectedName_test1_3);
+      if ((fbmList.size() == 2) && fbmList.get(0).equalValues(testFreqValuesMM8_2) && fbmList.get(1).equalValues(testFreqValuesMM8_3)) {
+        logger.debug("OK: getFrequencyModels(name)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModels(name)");
+      }
+      
+      fbmList = BackgroundModelLoader.getFrequencyModels(expectedName_test1_3, 2);
+      if ((fbmList.size() == 1) && fbmList.get(0).equalValues(testFreqValuesMM8_2)) { 
+        logger.debug("OK: getFrequencyModels(name, kmerlen)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModels(name, kmerlen)");
+      }
+      
+      fbmList = BackgroundModelLoader.getFrequencyModels(expectedFreqModelID_test1_2);
+      if ((fbmList.size() == 1) && fbmList.get(0).equalValues(testFreqValuesMM8_2)) { 
+        logger.debug("OK: getFrequencyModels(modelID)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModels(modelID)");
+      }
+
+//      fbmList = BackgroundModelLoader.getFrequencyModelsByLength(2);
+//      if ((fbmList.size() == 3) && fbmList.get(0).equalValues(testFreqValuesMM8_2) && fbmList.get(1).equalValues(testFreqValuesMM8_2)) {
+//        logger.debug("OK: getFrequencyModelsByLength(kmerlen)");        
+//      }
+//      else {
+//        logger.debug("FAIL: getFrequencyModelsByLength(kmerlen)");
+//      }
+      
+      fbmList = BackgroundModelLoader.getFrequencyModelsByGenome(expectedGenomeID_test1_2);
+      if ((fbmList.size() == 5) && fbmList.get(0).equalValues(testFreqValuesMM8_2) && fbmList.get(1).equalValues(testFreqValuesMM8_3)
+          && fbmList.get(2).equalValues(testFreqValuesMM8_2) && fbmList.get(3).equalValues(testFreqValuesMM8_3)
+          && fbmList.get(4).equalValues(testFreqValuesMM8_2)) {          
+        logger.debug("OK: getFrequencyModelsByGenome(genomeID)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModelsByGenome(genomeID)");
+      }
+      
+      fbmList = BackgroundModelLoader.getFrequencyModelsByGenome(expectedGenomeID_test1_2, expectedName_test1_2);
+      if ((fbmList.size() == 2) && fbmList.get(0).equalValues(testFreqValuesMM8_2) && fbmList.get(1).equalValues(testFreqValuesMM8_3)) {          
+        logger.debug("OK: getFrequencyModelsByGenome(genomeID, name)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModelsByGenome(genomeID, name)");
+      }
+
+      fbmList = BackgroundModelLoader.getFrequencyModelsByGenome(expectedGenomeID_test1_2, expectedKmerLen_test1_2);
+      if ((fbmList.size() == 3) && fbmList.get(0).equalValues(testFreqValuesMM8_2) && fbmList.get(1).equalValues(testFreqValuesMM8_2)
+          && fbmList.get(2).equalValues(testFreqValuesMM8_2)) {          
+        logger.debug("OK: getFrequencyModelsByGenome(genomeID, kmerlen)");        
+      }
+      else {
+        logger.debug("FAIL: getFrequencyModelsByGenome(genomeID, kmerlen)");
+      }
+
+      
+      
+      
+      //test getCountsModel(metadata)
+      CountsBackgroundModel cbm = BackgroundModelLoader.getCountsModel(expectedCountMD_test3_2);
+      if (cbm.equalValues(testCountValuesMM8_2)) {
+        logger.debug("OK: getCountsModel(metadata)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModel(metadata)");
+      }
+      CountsBackgroundModel cbm2 = BackgroundModelLoader.getCountsModel(expectedCountMD_test3_3);
+      if (cbm2.equalValues(testCountValuesMM8_3)) {
+        logger.debug("OK: getCountsModel(metadata)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModel(metadata)");
+      }
+      CountsBackgroundModel cbm3 = BackgroundModelLoader.getCountsModel(expectedCountMD_test4_2);
+      if (cbm3.equalValues(testCountValuesMM8_2)) {
+        logger.debug("OK: getCountsModel(metadata)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModel(metadata)");
+      }
+      
+      
+      //test getCountsModels methods
+      List<CountsBackgroundModel> cbmList;      
+      
+      cbmList = BackgroundModelLoader.getCountsModels(expectedCountMDModelOnly_test3_2);
+      if ((cbmList.size() == 1) && cbmList.get(0).equalValues(testCountValuesMM8_2)) {          
+        logger.debug("OK: getCountsModels(metadata)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModels(metadata)");
+      }
+
+      cbmList = BackgroundModelLoader.getCountsModels(expectedCountName_test3_3);
+      if ((cbmList.size() == 2) && cbmList.get(0).equalValues(testCountValuesMM8_2) && cbmList.get(1).equalValues(testCountValuesMM8_3)) {
+        logger.debug("OK: getCountsModels(name)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModels(name)");
+      }
+      
+      cbmList = BackgroundModelLoader.getCountsModels(expectedCountName_test3_3, 2);
+      if ((cbmList.size() == 1) && cbmList.get(0).equalValues(testCountValuesMM8_2)) { 
+        logger.debug("OK: getCountsModels(name, kmerlen)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModels(name, kmerlen)");
+      }
+      
+      cbmList = BackgroundModelLoader.getCountsModels(expectedCountModelID_test3_2);
+      if ((cbmList.size() == 1) && cbmList.get(0).equalValues(testCountValuesMM8_2)) { 
+        logger.debug("OK: getCountsModels(modelID)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModels(modelID)");
+      }
+
+//      cbmList = BackgroundModelLoader.getCountsModelsByLength(2);
+//      if ((cbmList.size() == 1) && cbmList.get(0).equalValues(testCountValuesMM8_2)) {
+//        logger.debug("OK: getCountsModelsByLength(kmerlen)");        
+//      }
+//      else {
+//        logger.debug("FAIL: getCountsModelsByLength(kmerlen)");
+//      }
+      
+      cbmList = BackgroundModelLoader.getCountsModelsByGenome(expectedGenomeID_test1_2);
+      if ((cbmList.size() == 3) && cbmList.get(0).equalValues(testCountValuesMM8_2) && cbmList.get(1).equalValues(testCountValuesMM8_3)
+          && cbmList.get(2).equalValues(testCountValuesMM8_2)) {          
+        logger.debug("OK: getCountsModelsByGenome(genomeID)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModelsByGenome(genomeID)");
+      }
+      
+      cbmList = BackgroundModelLoader.getCountsModelsByGenome(expectedGenomeID_test1_2, expectedCountName_test3_2);
+      if ((cbmList.size() == 2) && cbmList.get(0).equalValues(testCountValuesMM8_2) && cbmList.get(1).equalValues(testCountValuesMM8_3)) {          
+        logger.debug("OK: getCountsModelsByGenome(genomeID, name)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModelsByGenome(genomeID, name)");
+      }
+
+      cbmList = BackgroundModelLoader.getCountsModelsByGenome(expectedGenomeID_test1_2, expectedKmerLen_test1_2);
+      if ((cbmList.size() == 2) && cbmList.get(0).equalValues(testCountValuesMM8_2) && cbmList.get(1).equalValues(testCountValuesMM8_2)) {          
+        logger.debug("OK: getCountsModelsByGenome(genomeID, kmerlen)");        
+      }
+      else {
+        logger.debug("FAIL: getCountsModelsByGenome(genomeID, kmerlen)");
+      }
+
     }
     catch (NotFoundException nfex) {
-      // TODO Auto-generated catch block
-      nfex.printStackTrace();
+      logger.fatal(nfex);
     }
     catch (SQLException ex) {
-      // TODO Auto-generated catch block
-      ex.printStackTrace();
+      logger.fatal(ex);
     }
   }
 }

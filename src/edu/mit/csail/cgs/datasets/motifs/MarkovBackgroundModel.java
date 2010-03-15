@@ -23,7 +23,7 @@ public class MarkovBackgroundModel extends BackgroundModel {
   
   public MarkovBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
     super(md);
-    if (!BackgroundModelImport.MARKOV_TYPE_STRING.equals(md.getDBModelType())) {
+    if (!BackgroundModelLoader.MARKOV_TYPE_STRING.equals(md.getDBModelType())) {
       throw new IllegalArgumentException("Metadata model type must be MARKOV");
     }
   }
@@ -72,7 +72,7 @@ public class MarkovBackgroundModel extends BackgroundModel {
   
   
   protected void init() {
-    this.setDBModelType(BackgroundModelImport.MARKOV_TYPE_STRING);
+    this.setDBModelType(BackgroundModelLoader.MARKOV_TYPE_STRING);
   }
   
   

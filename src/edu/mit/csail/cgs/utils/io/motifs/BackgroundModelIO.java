@@ -188,21 +188,8 @@ public class BackgroundModelIO {
    * @throws IOException
    * @throws ParseException
    */
-  public static CountsBackgroundModel parseCountsBackgroundModel(String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseCountsBackgroundModel(filename, filename, null);
-  }
-  
-  
-  /**
-   * @see parseCountsBackgroundModel(String modelName, String filename, Genome gen)
-   * @param modelName
-   * @param filename
-   * @return
-   * @throws IOException
-   * @throws ParseException
-   */
-  public static CountsBackgroundModel parseCountsBackgroundModel(String modelName, String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseCountsBackgroundModel(modelName, filename, null);
+  public static CountsBackgroundModel parseCountsBackgroundModel(String filename, Genome gen) throws IOException, ParseException {
+  	return BackgroundModelIO.parseCountsBackgroundModel(filename, filename, gen);
   }
   
   
@@ -281,21 +268,8 @@ public class BackgroundModelIO {
    * @throws IOException
    * @throws ParseException
    */
-  public static FrequencyBackgroundModel parseFrequencyBackgroundModel(String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseFreqBackgroundModel(filename, filename, null);
-  }
-  
-  
-  /**
-   * @see parseFrequencyBackgroundModel(String modelName, String filename, Genome gen)
-   * @param modelName
-   * @param filename
-   * @return
-   * @throws IOException
-   * @throws ParseException
-   */
-  public static FrequencyBackgroundModel parseFreqBackgroundModel(String modelName, String filename) throws IOException, ParseException {
-  	return BackgroundModelIO.parseFreqBackgroundModel(modelName, filename, null);
+  public static FrequencyBackgroundModel parseFrequencyBackgroundModel(String filename, Genome gen) throws IOException, ParseException {
+  	return BackgroundModelIO.parseFrequencyBackgroundModel(filename, filename, gen);
   }
   
   
@@ -306,7 +280,7 @@ public class BackgroundModelIO {
    * @throws IOException
    * @throws ParseException
    */
-  public static FrequencyBackgroundModel parseFreqBackgroundModel(String modelName, String filename, Genome gen) throws IOException, ParseException {
+  public static FrequencyBackgroundModel parseFrequencyBackgroundModel(String modelName, String filename, Genome gen) throws IOException, ParseException {
   	String[] lines = LineByLineFileReader.readFile(filename, LineByLineFileReader.DEFAULT_COMMENT_PREFIXES, true);
 
   	int maxKmerLen = BackgroundModelIO.checkModelMaxKmerLen(lines);

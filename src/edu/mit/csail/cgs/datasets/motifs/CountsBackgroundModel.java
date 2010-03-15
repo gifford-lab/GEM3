@@ -40,7 +40,7 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
 
   
   public CountsBackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
-    super(md);    
+    super(md);
   }
 
   
@@ -51,6 +51,10 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
 
   public CountsBackgroundModel(String name, Genome gen, int maxKmerLen) {
     super(name, gen, maxKmerLen);
+  }
+  
+  
+  protected void init() {
     kmerCounts = new HashMap[maxKmerLen + 1];
     for (int i = 1; i <= maxKmerLen; i++) {
       kmerCounts[i] = new HashMap<String, Long>();
@@ -59,11 +63,6 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
     //set the model map array to be empty so that it can be used to lazily
     //shadow the counts with frequencies
     Arrays.fill(modelProbs, null);
-  }
-  
-  
-  protected void init() {
-    //do nothing (for now)
   }
   
   /**
@@ -140,7 +139,7 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
    * @param intVal
    * @return
    */
-  public long getKmerCount(int kmerLen, int intVal) {
+  public long getKmerCount(int intVal, int kmerLen) {
     return (this.getKmerCount(BackgroundModel.int2seq(intVal, kmerLen)));
   }
 
@@ -191,8 +190,12 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
       currSub = sequence.substring(i, i + maxLen);
       for (int k = 1; k <= maxLen; k++) {
         String currKmer = currSub.substring(0, k);
-        this.addToKmerCount(currKmer, 1);
-        this.addToKmerCount(SequenceUtils.reverseComplement(currKmer), 1);
+        if (!currKmer.contains(" ") && !currKmer.contains("N")) {
+          this.addToKmerCount(currKmer, 1);
+          if (addRevComp) {
+            this.addToKmerCount(SequenceUtils.reverseComplement(currKmer), 1);
+          }
+        }
       }
     }
 
@@ -202,8 +205,12 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
       currSub = sequence.substring(i);
       for (int k = 1; k <= currSub.length(); k++) {
         String currKmer = currSub.substring(0, k);
-        this.addToKmerCount(currKmer, 1);
-        this.addToKmerCount(SequenceUtils.reverseComplement(currKmer), 1);
+        if (!currKmer.contains(" ") && !currKmer.contains("N")) {
+          this.addToKmerCount(currKmer, 1);
+          if (addRevComp) {
+            this.addToKmerCount(SequenceUtils.reverseComplement(currKmer), 1);
+          }
+        }
       }
     }
   	isStranded = !addRevComp;
@@ -227,7 +234,7 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
       List<Pair<Integer, Integer>> revCompPairs = BackgroundModel.computeDistinctRevCompPairs(currKmerLen);
       
       for (Pair<Integer, Integer> rcPair : revCompPairs) {
-        if (this.getKmerCount(currKmerLen, rcPair.car()) == this.getKmerCount(currKmerLen, rcPair.cdr())) {
+        if (this.getKmerCount(rcPair.car(), currKmerLen) == this.getKmerCount(rcPair.cdr(), currKmerLen)) {
           isStranded = true;
           return isStranded;
         }

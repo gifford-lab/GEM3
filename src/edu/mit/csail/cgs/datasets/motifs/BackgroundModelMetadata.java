@@ -211,7 +211,7 @@ public class BackgroundModelMetadata {
    * @param dbModelType
    */
   public void setDBModelType(String dbModelType) {
-    if ((dbModelType == null) || dbModelType.equals(BackgroundModelImport.MARKOV_TYPE_STRING) || dbModelType.equals(BackgroundModelImport.FREQUENCY_TYPE_STRING)) {
+    if ((dbModelType == null) || dbModelType.equals(BackgroundModelLoader.MARKOV_TYPE_STRING) || dbModelType.equals(BackgroundModelLoader.FREQUENCY_TYPE_STRING)) {
       this.dbModelType = dbModelType;
     }
     else {
