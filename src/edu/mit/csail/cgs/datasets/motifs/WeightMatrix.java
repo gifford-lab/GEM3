@@ -121,9 +121,13 @@ public class WeightMatrix {
         while (rs.next()) {
             int id = rs.getInt(1);
             if (!output.containsKey(id)) {
-                WeightMatrix m = new WeightMatrix(rs.getInt(6) + 1);
+                WeightMatrix m = new WeightMatrix(rs.getInt(7) + 1);
                 m.dbid = rs.getInt(1);
+                m.hasdbid = true;
                 m.speciesid = rs.getInt(2);
+                if (m.speciesid > 0) {
+                  m.hasspeciesid = true;
+                }
                 m.name = rs.getString(3);
                 m.version = rs.getString(4);
                 m.type = rs.getString(5);
@@ -257,7 +261,10 @@ public class WeightMatrix {
             } else {
                 return (o.name != null &&
                         this.name != null &&
-                        this.name.equals(o.name));
+                        this.name.equals(o.name)
+                        && o.version != null
+                        && this.version != null
+                        && this.version.equals(o.version));
             }
         } else {
             return false;
