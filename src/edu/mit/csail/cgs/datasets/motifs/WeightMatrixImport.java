@@ -131,6 +131,12 @@ public class WeightMatrixImport {
             }            
             rs.close();
             getId.close();
+            
+            PreparedStatement insertWMSM = cxn.prepareStatement("insert into weightmatrix_species_map(id, species_id, wm_id) values (weightmatrix_id.nextval, ?, ?)");
+            insertWMSM.setInt(1, matrix.speciesid);
+            insertWMSM.setInt(2, wmid);
+            insertWMSM.execute();
+            insertWMSM.close();
         } else {
             wmid = rs.getInt(1);
             PreparedStatement deleteold = cxn.prepareStatement("delete from weightmatrixcols where weightmatrix = ?");
@@ -169,6 +175,7 @@ public class WeightMatrixImport {
             insertcol.execute();                
         }           
         insertcol.close();
+        cxn.commit();
         DatabaseFactory.freeConnection(cxn);
         return wmid;
     }       
