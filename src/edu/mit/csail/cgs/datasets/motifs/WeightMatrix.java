@@ -32,7 +32,7 @@ public class WeightMatrix {
     public int dbid, speciesid;
     public boolean hasdbid, hasspeciesid; // set to true iff dbid is valid
     public boolean islogodds;
-    public BackgroundModel bgModel;
+    public int bgModelID = -1;
     
     WeightMatrix(ResultSet wmData, ResultSet wmColData) throws SQLException {  
     	dbid = wmData.getInt(1);
@@ -40,6 +40,10 @@ public class WeightMatrix {
     	name = wmData.getString(3);
     	version = wmData.getString(4);
     	type = wmData.getString(5);
+    	bgModelID = wmData.getInt(6);
+    	if (wmData.wasNull()) {
+    	  bgModelID = -1;
+    	}
     	
     	hasdbid = true; hasspeciesid = true;
     	islogodds = false;
@@ -86,7 +90,7 @@ public class WeightMatrix {
     public static Collection<WeightMatrix> getAllWeightMatrices() {
         try {
             java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");
-            PreparedStatement ps = cxn.prepareStatement("select m.id, m.species, m.name, m.version, m.type, c.position, c.letter, c.weight from "
+            PreparedStatement ps = cxn.prepareStatement("select m.id, m.species, m.name, m.version, m.type, m.bg_model_map_id, c.position, c.letter, c.weight from "
                                                         + "weightmatrix m, weightmatrixcols c where "
                                                         + " m.id = c.weightmatrix order by c.weightmatrix, c.position desc");
             ResultSet rs = ps.executeQuery();
@@ -106,7 +110,7 @@ public class WeightMatrix {
     /**
      * Gets all the matrices specified in the result set which is
      * the result of joining weightmatrix and weightmatrixcols, eg
-     * select m.id, m.species, m.name, m.version, m.type, c.position, c.letter, c.weight from weightmatrix m, 
+     * select m.id, m.species, m.name, m.version, m.type, m.bg_model_map_id, c.position, c.letter, c.weight from weightmatrix m, 
      * weightmatrixcols c where m.id = c.weightmatrix order by c.weightmatrix, c.position desc
      *
      * sorting by descending position is critical so that the first row of a new matrix gives
@@ -123,9 +127,13 @@ public class WeightMatrix {
                 m.name = rs.getString(3);
                 m.version = rs.getString(4);
                 m.type = rs.getString(5);
+                m.bgModelID = rs.getInt(6);
+                if ((m.bgModelID == 0) && rs.wasNull()) {
+                  m.bgModelID = -1;
+                }
                 output.put(id,m);
             }
-            output.get(id).matrix[rs.getInt(6)][rs.getString(7).charAt(0)] = rs.getFloat(8);
+            output.get(id).matrix[rs.getInt(7)][rs.getString(8).charAt(0)] = rs.getFloat(9);
         }
         System.err.println("Returning " + output.size() + " from WeightMatrix.getWeightMatrices(ResultSet)");
         return output.values();
@@ -170,7 +178,7 @@ public class WeightMatrix {
             }
             rs.close();
             ps.close();
-            ps = cxn.prepareStatement("select name, version, type, species from weightmatrix where id = ?");
+            ps = cxn.prepareStatement("select name, version, type, species, bg_model_id from weightmatrix where id = ?");
             ps.setInt(1,dbid);
             rs = ps.executeQuery();
             rs.next();
@@ -179,6 +187,10 @@ public class WeightMatrix {
             matrix.type = rs.getString(3);
             matrix.speciesid = rs.getInt(4);
             matrix.hasspeciesid = true;
+            matrix.bgModelID = rs.getInt(5);
+            if ((matrix.bgModelID == 0) && rs.wasNull()) {
+              matrix.bgModelID = -1;
+            }
             rs.close();
             ps.close();            
             DatabaseFactory.freeConnection(cxn);     
@@ -294,9 +306,22 @@ public class WeightMatrix {
         islogodds = true;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-            	//FIXME
+              MarkovBackgroundModel bgModel = null;
+            	
+            	if (bgModelID != -1) {
+            	  try {
+            	    bgModel = BackgroundModelLoader.getMarkovModel(bgModelID);
+            	  }
+            	  catch (NotFoundException nfex) {
+            	    nfex.printStackTrace();
+            	  }
+            	  catch (SQLException sqlex) {
+            	    sqlex.printStackTrace();
+            	  }                
+            	}
+            	
             	if (bgModel != null) {
-                matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+            	  matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
             	}
             	else {
             		matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25);

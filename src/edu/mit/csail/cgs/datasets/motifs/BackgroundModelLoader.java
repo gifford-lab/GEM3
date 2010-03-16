@@ -839,6 +839,42 @@ public class BackgroundModelLoader {
     }
   }
   
+  
+  /**
+   * @see getFrequencyModel(int mapID, Connection cxn)
+   */
+  public static FrequencyBackgroundModel getFrequencyModel(int mapID) throws SQLException, NotFoundException {
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      return BackgroundModelLoader.getFrequencyModel(mapID, cxn);
+    }
+    finally {
+      DatabaseFactory.freeConnection(cxn);
+    }
+  }
+  
+  
+  /**
+   * Gets a Frequency background model by its mapID.
+   * @param mapID the mapID of the model to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return
+   * @throws SQLException
+   * @throws NotFoundException
+   */
+  public static FrequencyBackgroundModel getFrequencyModel(int mapID, Connection cxn) throws SQLException, NotFoundException {
+    BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModelByMapID(mapID, cxn);
+    if (md != null) {
+      return BackgroundModelLoader.getFrequencyModel(md, cxn);
+    }
+    else {
+      return null;
+    }
+  }
+  
+  
+  
     
   /**
    * Returns a list of Frequency Background Models parsed out of a single result
@@ -1237,6 +1273,40 @@ public class BackgroundModelLoader {
       if (getProbs != null) {
         getProbs.close();
       }
+    }
+  }
+  
+  
+  /**
+   * @see getMarkovModel(int mapID, Connection cxn)
+   */
+  public static MarkovBackgroundModel getMarkovModel(int mapID) throws SQLException, NotFoundException {
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      return BackgroundModelLoader.getMarkovModel(mapID, cxn);
+    }
+    finally {
+      DatabaseFactory.freeConnection(cxn);
+    }
+  }
+  
+  
+  /**
+   * Gets a Markov background model by its mapID.
+   * @param mapID the mapID of the model to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return
+   * @throws SQLException
+   * @throws NotFoundException
+   */
+  public static MarkovBackgroundModel getMarkovModel(int mapID, Connection cxn) throws SQLException, NotFoundException {
+    BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModelByMapID(mapID, cxn);
+    if (md != null) {
+      return BackgroundModelLoader.getMarkovModel(md, cxn);
+    }
+    else {
+      return null;
     }
   }
   
@@ -1668,6 +1738,41 @@ public class BackgroundModelLoader {
       }
     }
   }
+  
+  
+  /**
+   * @see getCountsModel(int mapID, Connection cxn)
+   */
+  public static CountsBackgroundModel getCountsModel(int mapID) throws SQLException, NotFoundException {
+    java.sql.Connection cxn = null;
+    try {
+      cxn = DatabaseFactory.getConnection("annotations");
+      return BackgroundModelLoader.getCountsModel(mapID, cxn);
+    }
+    finally {
+      DatabaseFactory.freeConnection(cxn);
+    }
+  }
+  
+  
+  /**
+   * Gets a Counts background model by its mapID.
+   * @param mapID the mapID of the model to look up
+   * @param cxn an open db connection to the annotations schema
+   * @return
+   * @throws SQLException
+   * @throws NotFoundException
+   */
+  public static CountsBackgroundModel getCountsModel(int mapID, Connection cxn) throws SQLException, NotFoundException {
+    BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModelByMapID(mapID, cxn);
+    if (md != null) {
+      return BackgroundModelLoader.getCountsModel(md, cxn);
+    }
+    else {
+      return null;
+    }
+  }
+  
   
     
   /**
