@@ -182,7 +182,7 @@ public class WeightMatrix {
             }
             rs.close();
             ps.close();
-            ps = cxn.prepareStatement("select name, version, type, species, bg_model_id from weightmatrix where id = ?");
+            ps = cxn.prepareStatement("select name, version, type, species, bg_model_map_id from weightmatrix where id = ?");
             ps.setInt(1,dbid);
             rs = ps.executeQuery();
             rs.next();
