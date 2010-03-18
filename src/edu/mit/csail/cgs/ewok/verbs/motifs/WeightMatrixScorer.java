@@ -19,15 +19,11 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
     }
     
     public WeightMatrixScoreProfile execute(Region r) { 
-    	LinkedList<WeightMatrixHit> hits = new LinkedList<WeightMatrixHit>();
-
         String seq = seqgen.execute(r);
         seq = seq.toUpperCase();
         double[] fscores = null, rscores = null;
-        int s = r.getStart();
 
         try { 
-        	int width = matrix.matrix.length;
         	fscores = score(matrix, seq.toCharArray(), '+');
             seq = SequenceUtils.reverseComplement(seq);
             rscores = score(matrix, seq.toCharArray(), '-');
