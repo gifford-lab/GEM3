@@ -226,6 +226,22 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		ps.close();
 		return align;
 	}
+	public ChipSeqAlignment loadAlignment(int dbid) throws NotFoundException, SQLException {
+		ChipSeqAlignment align = null;
+		PreparedStatement ps = ChipSeqAlignment.createLoadByIDStatement(cxn);
+		ps.setInt(1, dbid);
+
+		ResultSet rs = ps.executeQuery();
+		if (rs.next()) {
+			align = new ChipSeqAlignment(rs, this);
+		}
+		else {
+			throw new NotFoundException("Couldn't find alignment by id = " + dbid);
+		}
+		rs.close();
+		ps.close();
+		return align;
+	}
 
 
 	public Collection<ChipSeqAlignment> loadAlignments(ChipSeqLocator locator) throws SQLException, NotFoundException {
