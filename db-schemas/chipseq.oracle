@@ -60,7 +60,7 @@ create table chipseqhits (
 
 create sequence chipseqanalysis_id;
 create table chipseqanalysis (
-       id number(10) not null,
+       id number(10) unique not null,
        name varchar2(200) not null,
        version varchar2(200) not null,
        program varchar2(200),
@@ -69,22 +69,22 @@ create table chipseqanalysis (
 
 create table analysisinputs (
       analysis number(10) constraint fk_ai_analysis references chipseqanalysis(id) not null,
-      alignment number(10) constraint fk_ai_alignment references chipseqalignment(id) not null,
-      inputtype varchar2(100) constraint ai_type (inputtype = 'foreground' or inputtype = 'background')
+      alignment number(10) constraint fk_ai_alignment references chipseqalignments(id) not null,
+      inputtype varchar2(100) constraint ai_type check (inputtype = 'foreground' or inputtype = 'background')
 );
 
 create table analysisparameters (
-       analysis number(10) constraint fk_ai_analysis references chipseqanalysis(id) not null,
+       analysis number(10) constraint fk_ap_analysis references chipseqanalysis(id) not null,
        name varchar2(100),
        value varchar2(1000)
 );
 create index ix_analysisparams on analysisparameters(analysis);
 
 create table analysisresults (
-       analysis number(10) constraint fk_ai_analysis references chipseqanalysis(id) not null,
+       analysis number(10) constraint fk_ar_analysis references chipseqanalysis(id) not null,
        chromosome number(10) constraint analysisresults_chromosome not null,
-       start number(10),
-       stop number(10),
+       startpos number(10),
+       stoppos number(10),
        position number(10),
        fgcount binary_double,
        bgcount binary_double,
@@ -92,5 +92,5 @@ create table analysisresults (
        peak_shape binary_double,
        pvalue binary_double,
        fold_enrichment binary_double,
-       constraint analysisresults_pk primary key(alignment, chromosome, position)
+       constraint analysisresults_pk primary key(analysis, chromosome, position,startpos,stoppos)
 ) organization index compress 2;
