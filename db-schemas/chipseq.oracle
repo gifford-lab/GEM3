@@ -61,8 +61,10 @@ create table chipseqhits (
 create sequence chipseqanalysis_id;
 create table chipseqanalysis (
        id number(10) not null,
-       name varchar2(200),
-       program varchar2(200)
+       name varchar2(200) not null,
+       version varchar2(200) not null,
+       program varchar2(200),
+       constraint csa_pk primary key(name,version)       	       
 );
 
 create table analysisinputs (
@@ -84,8 +86,11 @@ create table analysisresults (
        start number(10),
        stop number(10),
        position number(10),
-       fgcount number(6),
-       bgcount number(6),
+       fgcount binary_double,
+       bgcount binary_double,
        strength binary_double,
+       peak_shape binary_double,
+       pvalue binary_double,
+       fold_enrichment binary_double,
        constraint analysisresults_pk primary key(alignment, chromosome, position)
 ) organization index compress 2;
