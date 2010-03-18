@@ -368,7 +368,7 @@ public class ServerTask {
                 break;
             }
         }
-        if (sasl.isComplete()) {
+        if (sasl.isComplete() && sasl.getAuthorizationID().equals(uname)) {
             username = sasl.getAuthorizationID();
             sasl.dispose();
             return true;
