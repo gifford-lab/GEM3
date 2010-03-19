@@ -145,6 +145,17 @@
     <chmod file="${build.dist.dir}/cgs-warpdrive.${pwset}.jar}" perm="755"/>
   </target>
 
+  <target name="makegsejar" depends="build, unjarwd">
+    <delete dir="${build.unjar.dir}/META-INF"/>
+    <jar destfile="${build.dist.dir}/gse.jar" >	    
+      <fileset dir="${build.classes.dir}" includes="**/*.class"/>
+      <fileset dir="${build.classes.dir}" includes="**/*.properties"/>
+      <fileset dir="${build.classes.dir}" includes="**/*.txt"/>
+      <fileset dir="${build.unjar.dir}"/>	    
+    </jar>  
+    <chmod file="${build.dist.dir}/gse.jar}" perm="755"/>
+  </target>
+
   <target name="unjarcli" unless="build.unjar.dir.present">
     <mkdir dir="${build.unjar.dir}.tmp" />
     <unjar dest="${build.unjar.dir}.tmp">
