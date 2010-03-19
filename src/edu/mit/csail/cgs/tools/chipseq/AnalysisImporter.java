@@ -11,6 +11,33 @@ import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 
+/**
+ * Imports the results from a chipseq analysis (ie, peak calling) to the database.
+ * Command line args are
+ * --species "species;genome"
+ * --name "iCdx2 at Day4 in P2A, bowtie_unique"
+ * --version "GPS stringent threshold"
+ * --program "GPS, git commit abc123"
+ * [--paramfile params.txt]
+ * [--foreground "exptname;exprreplicate;alignname"]  (can specify multiple --foreground)
+ * [--background "exptname;exprreplicate;alignname"]  (can specify multiple --background)
+ * 
+ * Peak calls are read on stdin as TSV.  Columns are
+ * mandatory:
+ * 1) chromosome name
+ * 2) startpos
+ * 3) stoppos
+ * optional:
+ * 4) position (eg, center of peak)
+ * 5) fgcount (double, number of foreground reads for the event)
+ * 6) bgcount (double)
+ * 7) strength (double)
+ * 8) shape (double)
+ * 9) pvalue (double)
+ * 10 fold enrichment (double)
+ *
+ */
+
 public class AnalysisImporter {
 
     public static void main(String args[]) throws NotFoundException, SQLException, DatabaseException, IOException {
