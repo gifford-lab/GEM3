@@ -19,7 +19,7 @@ public class ChipSeqAnalysis {
 
     /* these methods are primarily for constructing a ChipSeqAnalysis that you're going
        to store in the database */
-    public ChipSeqAnalysis (String name, String version, String program) throws NotFoundException {
+    public ChipSeqAnalysis (String name, String version, String program) {
         this.name = name;
         this.version = version;
         this.program = program;
@@ -44,7 +44,6 @@ public class ChipSeqAnalysis {
     /* these methods are primarily for querying an object that you've gotten back
        from the database */
     public Integer getDBID() {return dbid;}
-    public int getNumResults() { return results.size();}
     public String getName() {return name;}
     public String getVersion() {return version;}
     public String getProgramName() {return program;}

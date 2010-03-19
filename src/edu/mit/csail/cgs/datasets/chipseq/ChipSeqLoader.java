@@ -432,9 +432,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         }
 	}
 
-
-	public void addAlignmentParameters(ChipSeqAlignment align, File paramsfile) throws SQLException, IOException {
-		BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(paramsfile)));
+    public static Map<String,String> readParameters(BufferedReader reader) throws IOException {
 		Map<String, String> params = new HashMap<String, String>();
 		String line = null;
 		while ((line = reader.readLine()) != null) {
@@ -444,7 +442,11 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 			params.put(key, value);
 		}
 		reader.close();
-		addAlignmentParameters(align, params);
+        return params;
+    }
+	public void addAlignmentParameters(ChipSeqAlignment align, File paramsfile) throws SQLException, IOException {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(paramsfile)));
+		addAlignmentParameters(align, readParameters(reader));
 	}
 
 
