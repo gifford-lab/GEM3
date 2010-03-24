@@ -23,7 +23,7 @@ public class GOFunctionLoader implements FunctionLoader, Closeable {
     private java.sql.Connection cxn;
     private int is_a_dbid;
 
-    public static String getDefaultDBName() {return "go_200904";}
+    public static String getDefaultDBName() {return "go_20100320";}
 
     public GOFunctionLoader(String goDBName) throws UnknownRoleException, SQLException {
         cxn = DatabaseFactory.getConnection(goDBName);
@@ -171,10 +171,22 @@ public class GOFunctionLoader implements FunctionLoader, Closeable {
     }
     
     public Collection<Category> getChildCategories(Category c) throws SQLException {
-        PreparedStatement stmt = cxn.prepareStatement("select term2term.term2_id, term.name from term, term2term where term2term.term2_id = term.id and term2term.term1 = ?");
+        int isa = -1, partof = -1;
+        PreparedStatement stmt = cxn.prepareStatement("select id,name from term where is_relation = 1 and (name = 'is_a' or name = 'part_of')");
+        ResultSet rs = stmt.executeQuery();
+        while (rs.next()) {
+            if (rs.getString(2).equals("is_a")) {
+                isa = rs.getInt(1);
+            } else if (rs.getString(2).equals("part_of")) {
+                partof = rs.getInt(1);
+            }
+        }
+
+        stmt = cxn.prepareStatement("select term2term.term2_id, term.name from term, term2term where term2term.term2_id = term.id and term2term.term1_id = ? and (term2term.relationship_type_id = " +
+                                    isa + " or relationship_type_id = " + partof + ")");
         stmt.setInt(1,c.getID());
         HashSet<Category> output = new HashSet<Category>();
-        ResultSet rs = stmt.executeQuery();
+        rs = stmt.executeQuery();
         while (rs.next()) {
             /* pass null as the FunctionVersion because GO terms aren't necessarily associated
                with a single species or such.  */               
@@ -187,6 +199,8 @@ public class GOFunctionLoader implements FunctionLoader, Closeable {
         stmt.close();
         return output;       
     }
+
+    
 
     public void close() {
         if (cxn != null) {
