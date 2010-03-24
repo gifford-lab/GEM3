@@ -21,36 +21,45 @@ public class ChipSeqStrandedOverlapMapper implements Closeable, Mapper<Region, W
   public static final int NEG_SUM_INDEX = 2;
   
   private ChipSeqLoader loader;
-
+  private ChipSeqLocator locator;
+  private Genome lastGenome;
   private LinkedList<ChipSeqAlignment> alignments;
 
   private int extension;
-
   private int shift = 0;
-
   private boolean shifting = false;
 
 
-  public ChipSeqStrandedOverlapMapper(ChipSeqLocator loc, int extension) throws SQLException, IOException {
+  public ChipSeqStrandedOverlapMapper(ChipSeqLocator loc, int extension)  throws SQLException, IOException {
     this.extension = extension;
     loader = new ChipSeqLoader();
-    alignments = new LinkedList<ChipSeqAlignment>();
-
-    try {
-      alignments.addAll(loc.loadAlignments(loader));
-    }
-    catch (SQLException e) {
-      e.printStackTrace(System.err);
-    }
-    catch (NotFoundException e) {
-      e.printStackTrace();
-    }
+    locator = loc;
+    alignments = null;
+    lastGenome = null;
   }
-
+  private void getAligns(Genome genome) throws SQLException {
+      if (alignments != null && genome.equals(lastGenome)) {
+          return;
+      }
+      alignments = new LinkedList<ChipSeqAlignment>();
+      lastGenome = genome;
+      try {
+          alignments.addAll(locator.loadAlignments(loader, genome));
+      } catch (SQLException e) {
+            e.printStackTrace(System.err);
+      } catch (NotFoundException e) {
+          e.printStackTrace();
+      }
+  }
 
   public WeightedRunningOverlapSum[] execute(Region a) {
     try {
       Genome g = a.getGenome();
+      try {
+          getAligns(g);
+      } catch (SQLException e) {
+          throw new DatabaseException(e.toString(),e);
+      }
       String chrom = a.getChrom();
       WeightedRunningOverlapSum[] sums = { new WeightedRunningOverlapSum(g, chrom), 
           new WeightedRunningOverlapSum(g, chrom), 

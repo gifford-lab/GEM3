@@ -23,14 +23,23 @@ public class ChipSeqOverlapMapper implements Closeable,  Mapper<Region, RunningO
     private int extension;
     private int shift=0;
     private boolean shifting=false;
+    private Genome lastGenome;
+    private ChipSeqLocator locator;
 
     public ChipSeqOverlapMapper(ChipSeqLocator loc, int extension) throws SQLException, IOException { 
     	this.extension = extension;
     	loader = new ChipSeqLoader();
+        alignments = null;
+        locator = loc;
+    }
+    private void getAligns(Genome genome) throws SQLException {
+        if (alignments != null && genome.equals(lastGenome)) {
+            return;
+        }
     	alignments = new LinkedList<ChipSeqAlignment>();
-
+        lastGenome = genome;
     	try { 
-    		alignments.addAll(loc.loadAlignments(loader));
+    		alignments.addAll(locator.loadAlignments(loader,genome));
     	} catch(SQLException e) { 
     		e.printStackTrace(System.err);
     	} catch (NotFoundException e) {
@@ -64,6 +73,11 @@ public class ChipSeqOverlapMapper implements Closeable,  Mapper<Region, RunningO
 	public RunningOverlapSum execute(StrandedRegion a) {
 		try {
             Genome g = a.getGenome();
+            try {
+                getAligns(g);
+            } catch (SQLException e) {
+                throw new DatabaseException(e.toString(),e);
+            }
             stmtStranded.setInt(1, g.getChromID(a.getChrom()));
             stmtStranded.setInt(2, a.getStart());
             stmtStranded.setInt(3, a.getEnd());

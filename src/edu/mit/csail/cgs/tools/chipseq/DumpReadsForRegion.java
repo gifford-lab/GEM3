@@ -8,6 +8,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.database.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.datasets.general.*;
+import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 
 /**
@@ -23,9 +24,10 @@ public class DumpReadsForRegion {
     public static void main(String args[]) throws SQLException, NotFoundException, IOException {       
         ChipSeqLoader loader = new ChipSeqLoader();
         List<ChipSeqLocator> locators = Args.parseChipSeq(args,"expt");
+        Genome genome = Args.parseGenome(args).cdr();
         List<String> alignments = new ArrayList<String>();
         for (ChipSeqLocator l : locators) {
-            for (ChipSeqAlignment a : loader.loadAlignments(l)) {
+            for (ChipSeqAlignment a : loader.loadAlignments(l,genome)) {
                 alignments.add(Integer.toString(a.getDBID()));
             }
         }

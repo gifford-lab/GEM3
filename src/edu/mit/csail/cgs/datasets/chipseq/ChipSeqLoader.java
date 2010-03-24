@@ -207,7 +207,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	}
 
 
-	public ChipSeqAlignment loadAlignment(ChipSeqExpt expt, String n) throws NotFoundException, SQLException {
+	public ChipSeqAlignment loadAlignment(ChipSeqExpt expt, String n, Genome g) throws NotFoundException, SQLException {
 		ChipSeqAlignment align = null;
 		PreparedStatement ps = ChipSeqAlignment.createLoadByNameAndExptStatement(cxn);
 		ps.setString(1, n);
@@ -222,9 +222,13 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		}
 
 		rs.close();
-
 		ps.close();
-		return align;
+        if (align.getGenome().equals(g)) {
+            return align;            
+        } else {
+            throw new NotFoundException("Couldn't find alignment " + n + " for " + expt + " in genome " + g);
+        }
+
 	}
 	public ChipSeqAlignment loadAlignment(int dbid) throws NotFoundException, SQLException {
 		ChipSeqAlignment align = null;
@@ -244,12 +248,12 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	}
 
 
-	public Collection<ChipSeqAlignment> loadAlignments(ChipSeqLocator locator) throws SQLException, NotFoundException {
+	public Collection<ChipSeqAlignment> loadAlignments(ChipSeqLocator locator, Genome genome) throws SQLException, NotFoundException {
 		List<ChipSeqAlignment> output = new ArrayList<ChipSeqAlignment>();
 		for (String rep : locator.getReplicates()) {
 			try {
 				ChipSeqExpt expt = loadExperiment(locator.getExptName(), rep);
-				ChipSeqAlignment align = loadAlignment(expt, locator.getAlignName());
+				ChipSeqAlignment align = loadAlignment(expt, locator.getAlignName(), genome);
 				if (align != null) {
 					output.add(align);
 				}

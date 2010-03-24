@@ -17,23 +17,31 @@ public class ChipSeqOverlapExpander implements Closeable, Mapper<StrandedRegion,
 
     private ChipSeqLoader loader;
 	private LinkedList<ChipSeqAlignment> alignments;
+    private ChipSeqLocator locator;
     private java.sql.Connection cxn;
     private PreparedStatement stmt;
     private int extension;
+    private Genome lastGenome;
 
-    public ChipSeqOverlapExpander(ChipSeqLocator loc, int extension) throws SQLException, IOException { 
+    public ChipSeqOverlapExpander(ChipSeqLocator loc, int extension)  throws SQLException, IOException { 
         this.extension = extension;
         loader = new ChipSeqLoader();
+        alignments = null;
+        stmt = null;
+        locator = loc;
+    }   
+    private void getAligns(Genome genome) throws SQLException {
+        if (alignments != null && genome.equals(lastGenome)) {
+            return;
+        }
         alignments = new LinkedList<ChipSeqAlignment>();
-
-        try { 
-        	alignments.addAll(loc.loadAlignments(loader));
-        } catch(SQLException e) { 
-        	e.printStackTrace(System.err);
+        try {
+            alignments.addAll(locator.loadAlignments(loader, genome));
+        } catch (SQLException e) {
+            e.printStackTrace(System.err);
         } catch (NotFoundException e) {
-			e.printStackTrace();
-		}
-        
+            e.printStackTrace();
+        }
         cxn = DatabaseFactory.getConnection("chipseq");
         StringBuffer alignIDs = new StringBuffer();
         if (alignments.size() == 1) {
@@ -52,11 +60,12 @@ public class ChipSeqOverlapExpander implements Closeable, Mapper<StrandedRegion,
         stmt = cxn.prepareStatement("select startpos, stoppos from chipseqhits where " + alignIDs.toString() +
                                     " and chromosome = ? and startpos > ? and stoppos < ? and strand = ?");
         stmt.setFetchSize(1000);
-    }   
+    }
 
 	public RunningOverlapSum execute(StrandedRegion a) {
 		try {
             Genome g = a.getGenome();
+            getAligns(g);
             stmt.setInt(1, g.getChromID(a.getChrom()));
             stmt.setInt(2, a.getStart());
             stmt.setInt(3, a.getEnd());
@@ -83,13 +92,15 @@ public class ChipSeqOverlapExpander implements Closeable, Mapper<StrandedRegion,
 		if(loader != null) { 
 			loader.close();
             loader = null;
-            alignments.clear();
-            try {
-                stmt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
-                stmt = null;
+            if (alignments != null) { alignments.clear();}
+            if (stmt != null) {
+                try {
+                    stmt.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    stmt = null;
+                }
             }
             DatabaseFactory.freeConnection(cxn);
             cxn = null;

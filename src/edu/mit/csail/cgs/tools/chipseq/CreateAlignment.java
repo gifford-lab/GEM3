@@ -60,7 +60,7 @@ public class CreateAlignment {
             }
         }
         try {
-            alignment = loader.loadAlignment(expt, alignpieces[2]);
+            alignment = loader.loadAlignment(expt, alignpieces[2], genome);
         } catch (NotFoundException e) {
 			// TODO Auto-generated catch block
             //			e.printStackTrace();
@@ -74,7 +74,7 @@ public class CreateAlignment {
                 insert.setString(2, alignpieces[2]);
                 insert.setInt(3, genome.getDBID());
                 insert.executeQuery();
-                alignment = loader.loadAlignment(expt, alignpieces[2]);
+                alignment = loader.loadAlignment(expt, alignpieces[2], genome);
                 cxn.commit();
                 File f = null;
                 if (paramsfname != null) {

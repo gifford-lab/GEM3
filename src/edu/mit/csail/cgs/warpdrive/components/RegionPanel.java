@@ -339,7 +339,7 @@ public class RegionPanel extends JPanel
                 ChipSeqLoader loader = new ChipSeqLoader();
                 for(int i = 0; i < opts.chipseqExpts.size(); i++) { 
                     
-                    Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.chipseqExpts.get(i));
+                    Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.chipseqExpts.get(i), genome);
                     ChipSeqHistogramModel m = new ChipSeqHistogramModel(alignments);
                     ChipSeqHistogramPainter p = new ChipSeqHistogramPainter(m);
                     addModel(m);

@@ -52,11 +52,11 @@ public class DifferentialExpression {
         genome = Args.parseGenome(args).cdr();
         List<ChipSeqLocator> locators = Args.parseChipSeq(args,"one");
         for (ChipSeqLocator locator : locators) {
-            one.addAll(loader.loadAlignments(locator));
+            one.addAll(loader.loadAlignments(locator,genome));
         }
         locators = Args.parseChipSeq(args,"two");
         for (ChipSeqLocator locator : locators) {
-            two.addAll(loader.loadAlignments(locator));
+            two.addAll(loader.loadAlignments(locator,genome));
         }
         // parseGenes returns a list of genes; just take the first one
         genes = Args.parseGenes(args).get(0);

@@ -46,7 +46,7 @@ public class DumpExpression {
         genome = Args.parseGenome(args).cdr();
         List<ChipSeqLocator> locators = Args.parseChipSeq(args,"align");
         for (ChipSeqLocator locator : locators) {
-            aligns.addAll(loader.loadAlignments(locator));
+            aligns.addAll(loader.loadAlignments(locator,genome));
         }
         // parseGenes returns a list of genes; just take the first one
         genes = Args.parseGenes(args).get(0);

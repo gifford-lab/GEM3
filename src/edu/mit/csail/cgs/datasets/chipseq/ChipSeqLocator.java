@@ -9,7 +9,7 @@ import java.util.LinkedList;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.Iterator;
-
+import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.NotFoundException;
 
 /**
@@ -128,7 +128,7 @@ public class ChipSeqLocator implements Comparable<ChipSeqLocator> {
         return true;
     }
     
-    public Collection<ChipSeqAlignment> loadAlignments(ChipSeqLoader loader) 
+    public Collection<ChipSeqAlignment> loadAlignments(ChipSeqLoader loader, Genome genome) 
     	throws SQLException, NotFoundException {
     	
         LinkedList<ChipSeqAlignment> alignments = new LinkedList<ChipSeqAlignment>();
@@ -136,7 +136,7 @@ public class ChipSeqLocator implements Comparable<ChipSeqLocator> {
         if(getReplicates().isEmpty()) { 
         	Collection<ChipSeqExpt> expts = loader.loadExperiments(getExptName());
         	for(ChipSeqExpt expt : expts) { 
-        		ChipSeqAlignment alignment = loader.loadAlignment(expt, getAlignName());
+        		ChipSeqAlignment alignment = loader.loadAlignment(expt, getAlignName(), genome);
         		if(alignment != null) { 
         			alignments.add(alignment);
         		}
@@ -144,7 +144,7 @@ public class ChipSeqLocator implements Comparable<ChipSeqLocator> {
         } else {
         	for(String repName : getReplicates()) { 
         		ChipSeqExpt expt = loader.loadExperiment(getExptName(), repName);
-        		ChipSeqAlignment alignment = loader.loadAlignment(expt, getAlignName());
+        		ChipSeqAlignment alignment = loader.loadAlignment(expt, getAlignName(), genome);
         		if(alignment != null) { 
         			alignments.add(alignment);
         		}

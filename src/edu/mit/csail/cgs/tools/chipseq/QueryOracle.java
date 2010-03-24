@@ -39,7 +39,7 @@ public class QueryOracle {
         List<ChipSeqLocator> locators = Args.parseChipSeq(args,"align");
         alignments = new ArrayList<ChipSeqAlignment>();
         for (ChipSeqLocator l : locators) {
-            alignments.addAll(loader.loadAlignments(l));
+            alignments.addAll(loader.loadAlignments(l,genome));
         }        
     }
     public void run(InputStream instream) throws IOException, SQLException {

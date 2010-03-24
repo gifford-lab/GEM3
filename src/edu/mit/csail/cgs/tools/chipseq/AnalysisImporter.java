@@ -57,9 +57,9 @@ public class AnalysisImporter {
         for (String s : Args.parseStrings(args,"foreground")) {
             String pieces[] = s.split(";");
             if (pieces.length == 2) {
-                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1])));
+                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1]),g));
             } else if (pieces.length == 3) {
-                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2])));
+                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2]),g));
             } else {
                 System.err.println("Bad alignment spec: " + s);
             }
@@ -67,9 +67,9 @@ public class AnalysisImporter {
         for (String s : Args.parseStrings(args,"background")) {
             String pieces[] = s.split(";");
             if (pieces.length == 2) {
-                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1])));
+                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1]),g));
             } else if (pieces.length == 3) {
-                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2])));
+                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2]),g));
             } else {
                 System.err.println("Bad alignment spec: " + s);
             }

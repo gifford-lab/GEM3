@@ -108,16 +108,15 @@ public class ChipSeqExptHandler {
                 if (loc.getReplicates().isEmpty()) {
                     Collection<ChipSeqExpt> expts = loader.loadExperiments(loc.getExptName());
                     for (ChipSeqExpt expt : expts) {
-                        ChipSeqAlignment alignment = loader.loadAlignment(expt, loc.getAlignName());
+                        ChipSeqAlignment alignment = loader.loadAlignment(expt, loc.getAlignName(), g);
                         if (alignment != null) {
                             alignments.add(alignment);
                         }
                     }
-                }
-                else {
+                } else {
                     for (String repName : loc.getReplicates()) {
                         ChipSeqExpt expt = loader.loadExperiment(loc.getExptName(), repName);
-                        ChipSeqAlignment alignment = loader.loadAlignment(expt, loc.getAlignName());
+                        ChipSeqAlignment alignment = loader.loadAlignment(expt, loc.getAlignName(), g);
                         if (alignment != null) {
                             alignments.add(alignment);
                         }
@@ -168,7 +167,7 @@ public class ChipSeqExptHandler {
             else { // No alignment name, given replicate names
                 for (String repName : locator.getReplicates()) {
                     ChipSeqExpt expt = loader.loadExperiment(locator.getExptName(), repName);
-                    ChipSeqAlignment alignment = loader.loadAlignment(expt, locator.getAlignName());
+                    ChipSeqAlignment alignment = loader.loadAlignment(expt, locator.getAlignName(), g);
                     if (alignment != null) {
                         locator = new ChipSeqLocator(locator.getExptName(), locator.getReplicates(), alignment.getName());
                         alignments.add(alignment);
@@ -206,7 +205,7 @@ public class ChipSeqExptHandler {
                 for (String replicate : locator.getReplicates()) {// Given alignment name, 
                     // given replicate names
                     alignments.add(loader.loadAlignment(loader.loadExperiment(locator.getExptName(), 
-                                                                              replicate), locator.getAlignName()));
+                                                                              replicate), locator.getAlignName(), g));
                 }
             }
         }

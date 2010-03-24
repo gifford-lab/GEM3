@@ -130,7 +130,7 @@ public class BlasttabOrPSLImporter {
         }
         alignment = null;
         try {
-            alignment = chipseq.loadAlignment(experiment, alignmentname);
+            alignment = chipseq.loadAlignment(experiment, alignmentname, genome);
         } catch (NotFoundException e) {
 			// TODO Auto-generated catch block
             //			e.printStackTrace();
@@ -144,7 +144,7 @@ public class BlasttabOrPSLImporter {
                 insert.setString(2, alignmentname);
                 insert.setInt(3, genome.getDBID());
                 insert.executeQuery();
-                alignment = chipseq.loadAlignment(experiment, alignmentname);
+                alignment = chipseq.loadAlignment(experiment, alignmentname, genome);
                 cxn.commit();
                 File f = null;
                 if (paramsfname != null) {
