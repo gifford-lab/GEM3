@@ -171,7 +171,7 @@ public class Client implements ReadOnlyClient {
     /** sends a string to the server and flushes the socket 
      */
     private void sendString(String s) throws IOException {
-        //        System.err.println("SENDING " + s);
+        System.err.println("SENDING " + s);
         outstream.write(s.getBytes());
         outstream.flush();
     }
@@ -325,7 +325,7 @@ public class Client implements ReadOnlyClient {
     /**
      * Returns the set of chromosomes that exist for this alignment
      */
-    public Set<Integer> getChroms(String alignid, boolean isPaired, boolean isLeft) throws IOException, ClientException {
+    public Set<Integer> getChroms(String alignid, boolean isPaired, Boolean isLeft) throws IOException, ClientException {
         request.clear();
         request.type="getchroms";
         request.isLeft = isLeft;
@@ -334,6 +334,7 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println(response);
             throw new ClientException(response);
         }
         int numchroms = Integer.parseInt(readLine());

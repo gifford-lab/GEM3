@@ -21,7 +21,7 @@ class Request {
         start = null;
         end = null;
         isPaired = null;
-        isLeft = null;
+        isLeft = true;
         isPlusStrand = null;
         minWeight = null;
     }
@@ -32,7 +32,7 @@ class Request {
         start = null;
         end = null;
         isPaired = null;
-        isLeft = null;
+        isLeft = true;
         isPlusStrand = null;
         minWeight = null;
         map.clear();
@@ -99,6 +99,9 @@ class Request {
         if (isPaired && isLeft == null) {
             return "must provide isleft when providing ispaired";
         }
+        if (!isPaired) {
+            isLeft = false;
+        }
 
         return null;
     }
@@ -126,7 +129,7 @@ class Request {
             out.append("ispaired=" + isPaired + "\n");
         }
         if (isLeft != null) {
-            out.append("isleft=" + isLeft + "\n");
+            out.append("isleft=" + (isLeft == null || isLeft ? "true" : "false") + "\n");
         }
         if (isPlusStrand != null) {
             out.append("isplusstrand=" + isPlusStrand + "\n");
