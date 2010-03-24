@@ -33,7 +33,7 @@ create table chipseqalignments (
 	genome number(10) not null,
 	numhits number(15),
 	totalweight number(17,2),
-	constraint chipseqalignment_pk primary key (id)
+	constraint chipseqalignment_pk primary key (expt, name, genome)
 );
 
 create table alignmentparameters (
