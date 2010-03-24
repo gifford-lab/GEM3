@@ -22,7 +22,7 @@ public class FunctionGrep {
     public static void main(String args[]) throws Exception {
         String version = Args.parseString(args,"version",null);
         Collection<String> categories = Args.parseStrings(args,"category");
-        boolean printall = Args.parseFlags(args).contains("printall");
+        boolean recurse = Args.parseFlags(args).contains("recurse");
 
         GOFunctionLoader loader = new GOFunctionLoader(GOFunctionLoader.getDefaultDBName());
         FunctionVersion fv = loader.getVersion(version);
@@ -37,6 +37,14 @@ public class FunctionGrep {
                     for (Assignment a : loader.getAssignments(category,fv)) {
                         acceptedNames.add(a.getObject());
                     }
+                    if (recurse) {
+                        for (Category subcat : loader.getChildCategories(category)) {
+                            for (Assignment a : loader.getAssignments(subcat,fv)) {
+                                acceptedNames.add(a.getObject());
+                            }                        
+                        }
+                    }
+
                 }
             } catch (SQLException e) {
                 System.err.println("Exception trying to find " + c);
