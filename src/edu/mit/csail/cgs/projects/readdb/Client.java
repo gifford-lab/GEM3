@@ -171,7 +171,7 @@ public class Client implements ReadOnlyClient {
     /** sends a string to the server and flushes the socket 
      */
     private void sendString(String s) throws IOException {
-        System.err.println("SENDING " + s);
+        //        System.err.println("SENDING " + s);
         outstream.write(s.getBytes());
         outstream.flush();
     }
