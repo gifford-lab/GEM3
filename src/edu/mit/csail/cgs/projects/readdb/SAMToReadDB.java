@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.*;
 import org.apache.commons.cli.*;
 import net.sf.samtools.*;
+import net.sf.samtools.util.CloseableIterator;
 
 /**
  * Reads SAM or BAM data on stdin.
@@ -18,28 +19,51 @@ import net.sf.samtools.*;
 
 public class SAMToReadDB {
 
+    public static boolean uniqueOnly;
+    public static boolean filterSubOpt;
+
     public static void main(String args[]) throws IOException, ParseException {
         Options options = new Options();
         options.addOption("u","uniquehits",false,"only output hits with a single mapping");
         options.addOption("s","nosuboptimal",false,"do not include hits whose score is not equal to the best score for the read");
         CommandLineParser parser = new GnuParser();
         CommandLine cl = parser.parse( options, args, false );            
-    	boolean uniqueOnly = cl.hasOption("uniquehits");
-    	boolean filterSubOpt = cl.hasOption("nosuboptimal");
+    	uniqueOnly = cl.hasOption("uniquehits");
+    	filterSubOpt = cl.hasOption("nosuboptimal");
         String line;
         String lastRead = "";        
         SAMFileReader reader = new SAMFileReader(System.in);
-        Iterator<SAMRecord> iter = reader.iterator();
+        CloseableIterator<SAMRecord> iter = reader.iterator();
+        Collection<SAMRecord> byRead = new ArrayList<SAMRecord>();
+        String lastread = null;
         while (iter.hasNext()) {
             SAMRecord record = iter.next();
             if (record.getReadUnmappedFlag()) {continue; }
-            int mapcount = (Integer)record.getAttribute("NH");
-            
-            if (uniqueOnly && mapcount > 1) {
-                continue;
+            if (lastread == null || !lastread.equals(record.getReadName())) {
+                dumpRecords(byRead);
+                byRead.clear();
             }
-            float weight = 1 / ((float)mapcount);
+            lastread = record.getReadName();
+            byRead.add(record);
+            
+        }
+        dumpRecords(byRead);
+        iter.close();
+        reader.close();
+    }       
+    public static void dumpRecords(Collection<SAMRecord> records) {
+        
+        int mapcount = records.size();
+        if (mapcount == 0) {
+            return;
+        }
+        
+        if (uniqueOnly && mapcount > 1) {
+            return;
+        }
+        float weight = 1 / ((float)mapcount);
 
+        for (SAMRecord record : records) {
             System.out.println(String.format("%s\t%d\t%s\t%d\t%f",
                                              record.getReferenceName(),
                                              record.getReadNegativeStrandFlag() ? 
@@ -48,8 +72,6 @@ public class SAMToReadDB {
                                              record.getReadNegativeStrandFlag() ? "-" : "+",
                                              record.getReadLength(),
                                              weight));
-                                             
-                                             
-        }
-    }       
+        }                                             
+    }
 }
