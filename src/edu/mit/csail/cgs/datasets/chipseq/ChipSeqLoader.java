@@ -213,21 +213,19 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		ps.setString(1, n);
 		ps.setInt(2, expt.getDBID());
 
-		ResultSet rs = ps.executeQuery();
-		if (rs.next()) {
+		ResultSet rs = ps.executeQuery();        
+		while (align == null && rs.next()) {
 			align = new ChipSeqAlignment(rs, expt);
+            if (!align.getGenome().equals(g)) {
+                align = null;
+            }
 		}
-		else {
-			throw new NotFoundException("Couldn't find alignment " + n + " for " + expt);
-		}
-
 		rs.close();
 		ps.close();
-        if (align.getGenome().equals(g)) {
-            return align;            
-        } else {
+        if (align == null) {
             throw new NotFoundException("Couldn't find alignment " + n + " for " + expt + " in genome " + g);
         }
+        return align;
 
 	}
 	public ChipSeqAlignment loadAlignment(int dbid) throws NotFoundException, SQLException {
