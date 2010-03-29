@@ -240,6 +240,10 @@ public class ServerTask {
             printString("null or empty alignment " + request.alignid);
             return;
         }
+        if (request.chromid == null) {
+            printString("null chromosome");
+            return;
+        }
         File directory = new File(server.getAlignmentDir(request.alignid));
         if (!directory.exists()) {
             printString("No Such Alignment\n");
