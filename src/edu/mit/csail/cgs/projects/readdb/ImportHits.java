@@ -15,8 +15,11 @@ import java.io.*;
  * chromosomeone\tstartone\tstrandone\tlengthone\tchromosometwo\tstarttwo\tstrandtwo\tlengthtwo\tweight
  *
  * where start is the position of the 5' end of the read.
- * The chromosome must be numeric!
- * 
+ *
+ * For CSAIL use:
+ * - The chromosome must be numeric and should be the chromosome id from core.  
+ * - The alignment should be numeric and should the alignment identifier from the chipseq schema
+ *
  */
 public class ImportHits {
 
@@ -116,6 +119,7 @@ public class ImportHits {
             }
 
         }
+        System.err.println("Read lines");
         Client client;
         if (hostname != null && portnum > 0 && username != null && password != null) {
             client = new Client(hostname,
@@ -125,12 +129,14 @@ public class ImportHits {
         } else {
             client = new Client();
         }
+        System.err.println("Created Client");
         if (hits.size() > 0) {
             client.storeSingle(alignname, hits);
         }
         if (paired.size() > 0) {
             client.storePaired(alignname, paired);
         }
+        System.err.println("Stored");
         client.close();
     }
 
