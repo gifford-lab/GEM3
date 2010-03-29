@@ -670,11 +670,33 @@ public class ServerTask {
             return;
         }
         Lock.writeLock(this,request.alignid);
+
+        IntBP positions = new IntBP(numHits);
+        FloatBP weights = new FloatBP(numHits);
+        IntBP las = new IntBP(numHits);
+        ReadableByteChannel rbc = Channels.newChannel(instream);
+        Bits.readBytes(positions.bb, rbc);
+        Bits.readBytes(weights.bb, rbc);
+        Bits.readBytes(las.bb, rbc);
+        
+        SingleHit[] newhits = new SingleHit[numHits];
+        for (int i = 0; i < numHits; i++) {
+            newhits[i] = new SingleHit(request.chromid,
+                                       positions.get(i),
+                                       weights.get(i),
+                                       Hits.getStrandOne(las.get(i)),
+                                       Hits.getLengthOne(las.get(i)));
+        }
+        Arrays.sort(newhits);
+        positions = null;
+        weights = null;
+        las = null;
+
         SingleHit[] hits = null;
 
         /* if the alignment already exists, read in the old hits */
         Set<Integer> chroms = server.getChroms(request.alignid, false,false);
-        if (chroms != null) {
+        if (chroms != null && chroms.contains(request.chromid)) {
             try {        
                 /* sure we're allowed to write here */
                 AlignmentACL acl = server.getACL(request.alignid);
@@ -689,31 +711,35 @@ public class ServerTask {
                 Lock.writeUnLock(this,request.alignid);
                 return;
             }
-            if (chroms.contains(request.chromid)) {
-                try {
-                    SingleHits oldhits = server.getSingleHits(request.alignid,
-                                                              request.chromid);
-                    IntBP positions = oldhits.getPositionsBuffer();
-                    FloatBP weights = oldhits.getWeightsBuffer();
-                    IntBP las = oldhits.getLASBuffer();
-                    hits = new SingleHit[numHits + positions.limit()];
-                    for (int i = 0; i < positions.limit(); i++) {
-                        hits[numHits + i] = new SingleHit(request.chromid,
-                                                          positions.get(i),
-                                                          weights.get(i),
-                                                          Hits.getStrandOne(las.get(i)),
-                                                          Hits.getLengthOne(las.get(i)));
+            try {
+                SingleHits oldhits = server.getSingleHits(request.alignid,
+                                                          request.chromid);
+                positions = oldhits.getPositionsBuffer();
+                weights = oldhits.getWeightsBuffer();
+                las = oldhits.getLASBuffer();
+                hits = new SingleHit[numHits + positions.limit()];
+                int hpos = 0;
+                int nhp = 0;
+                for (int i = 0; i < positions.limit(); i++) {
+                    SingleHit h = new SingleHit(request.chromid,
+                                                positions.get(i),
+                                                weights.get(i),
+                                                Hits.getStrandOne(las.get(i)),
+                                                Hits.getLengthOne(las.get(i)));
+                    while (nhp < newhits.length && newhits[nhp].compareTo(h) <= 0) {
+                        hits[hpos++] = newhits[nhp++];
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    printAuthError();
-                    Lock.writeUnLock(this,request.alignid);
-                    return;
+                    hits[hpos++] = h;
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+                printAuthError();
+                Lock.writeUnLock(this,request.alignid);
+                    return;
             }
         } else {
             /* this is a new alignment, so set a default ACL */
-            hits = new SingleHit[numHits];
+            hits = newhits;
             AlignmentACL acl = new AlignmentACL();
             try {
                 acl.readFromFile(server.getDefaultACLFileName());
@@ -734,24 +760,6 @@ public class ServerTask {
             server.removeACL(request.alignid); // make sure the server doesn't have this ACL cached
         }
 
-        IntBP positions = new IntBP(numHits);
-        FloatBP weights = new FloatBP(numHits);
-        IntBP las = new IntBP(numHits);
-        ReadableByteChannel rbc = Channels.newChannel(instream);
-        Bits.readBytes(positions.bb, rbc);
-        Bits.readBytes(weights.bb, rbc);
-        Bits.readBytes(las.bb, rbc);
-
-        for (int i = 0; i < numHits; i++) {
-            hits[i] = new SingleHit(request.chromid,
-                                    positions.get(i),
-                                    weights.get(i),
-                                    Hits.getStrandOne(las.get(i)),
-                                    Hits.getLengthOne(las.get(i)));
-        }
-        positions = null;
-        weights = null;
-        las = null;
         try {
             SingleHits.writeSingleHits(hits,
                                        server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
