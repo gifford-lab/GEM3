@@ -28,13 +28,35 @@ time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query 
 time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query --quiet --weights --align 1070
 time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query --quiet --weights --align 1069
 
+echo "simultaneous positions 10000 x 2"
+for i in `seq 1052 1053` ; do
+    time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query --quiet --weights --align $i &
+done
+
+exit
+
 echo "simultaneous positions 10000 x 4"
 for i in `seq 1052 1055` ; do
     time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query --quiet --weights --align $i &
 done
 
+echo "simultaneous positions 10000 x 6"
+for i in `seq 1052 1057` ; do
+    time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query --quiet --weights --align $i &
+done
+
+echo "simultaneous positions 10000 x 8"
+for i in `seq 1052 1059` ; do
+    time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query --quiet --weights --align $i &
+done
+
 echo "simultaneous positions 10000 x 10"
 for i in `seq 1052 1061` ; do
+    time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query --quiet --weights --align $i &
+done
+
+echo "simultaneous positions 10000 x 12"
+for i in `seq 1052 1061` 1069 1070; do
     time ./random_positions.pl 10000 | java edu.mit.csail.cgs.projects.readdb.Query --quiet --weights --align $i &
 done
 
