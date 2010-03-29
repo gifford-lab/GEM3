@@ -65,6 +65,7 @@ public class SingleHits extends Hits {
             if (hits.get(i-1).compareTo(hits.get(i)) >= 0) {
                 sorted = false;
             }
+            i++;
         }
         if (!sorted) {
             Collections.sort(hits);

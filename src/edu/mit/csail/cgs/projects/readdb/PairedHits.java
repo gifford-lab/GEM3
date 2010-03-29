@@ -122,6 +122,7 @@ public class PairedHits extends Hits {
             if (comp.compare(hits.get(i-1),hits.get(i)) >= 0) {
                 sorted = false;
             }
+            i++;
         }
         if (!sorted) {
             Collections.sort(hits, comp);
