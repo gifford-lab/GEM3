@@ -32,7 +32,8 @@
   <!-- Description: clean up files produced in the build                       -->
   <!-- ======================================================================= -->
   <target name="clean" depends="init" description="remove build output" >
-    <delete dir="${build.dir}" />
+    <delete dir="${build.dist.dir}" />
+    <delete dir="${build.classes.dir}" />
   </target>
 
   <!-- ======================================================================= -->
@@ -145,7 +146,7 @@
     <chmod file="${build.dist.dir}/cgs-warpdrive.${pwset}.jar}" perm="755"/>
   </target>
 
-  <target name="makegsejar" depends="build, unjarwd">
+  <target name="makegsejar" depends="build, unjarall">
     <delete dir="${build.unjar.dir}/META-INF"/>
     <jar destfile="${build.dist.dir}/gse.jar" >	    
       <fileset dir="${build.classes.dir}" includes="**/*.class"/>
