@@ -5,6 +5,7 @@ import java.nio.*;
 import java.nio.channels.*;
 import java.util.List;
 import java.util.Collections;
+import java.util.Comparator;
 
 /**
  * Represents a list of sorted reads on disk
@@ -114,14 +115,24 @@ public class PairedHits extends Hits {
                                        String prefix, 
                                        int chrom,
                                        boolean isLeft) throws IOException {
-        Collections.sort(hits, isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator());
+        Comparator<PairedHit> comp = isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator();
+        boolean sorted = true;
+        int i = 1;
+        while (sorted && i < hits.size()) {
+            if (comp.compare(hits.get(i-1),hits.get(i)) >= 0) {
+                sorted = false;
+            }
+        }
+        if (!sorted) {
+            Collections.sort(hits, comp);
+        }
         //        System.err.println("STORING HITS " + hits);
         IntBP p = new IntBP(hits.size());
         FloatBP w = new FloatBP(hits.size());
         IntBP l = new IntBP(hits.size());
         IntBP c = new IntBP(hits.size());
         IntBP op = new IntBP(hits.size());
-        for (int i = 0; i < hits.size(); i++) {
+        for (i = 0; i < hits.size(); i++) {
             PairedHit h = hits.get(i);
             w.put(i, h.weight);
             if (isLeft) {

@@ -59,12 +59,21 @@ public class SingleHits extends Hits {
     public static void writeSingleHits(List<SingleHit> hits,
                                        String prefix, 
                                        int chrom) throws IOException {
-        Collections.sort(hits);
+        boolean sorted = true;
+        int i = 1;
+        while (sorted && i < hits.size()) {
+            if (hits.get(i-1).compareTo(hits.get(i)) >= 0) {
+                sorted = false;
+            }
+        }
+        if (!sorted) {
+            Collections.sort(hits);
+        }
 
         IntBP p = new IntBP(hits.size());
         FloatBP w = new FloatBP(hits.size());
         IntBP l = new IntBP(hits.size());
-        for (int i = 0; i < hits.size(); i++) {
+        for (i = 0; i < hits.size(); i++) {
             SingleHit h = hits.get(i);
             p.put(i, h.pos);
             w.put(i, h.weight);

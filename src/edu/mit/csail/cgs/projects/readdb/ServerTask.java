@@ -750,7 +750,6 @@ public class ServerTask {
         positions = null;
         weights = null;
         las = null;
-        Collections.sort(hits);
         try {
             SingleHits.writeSingleHits(hits,
                                        server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
