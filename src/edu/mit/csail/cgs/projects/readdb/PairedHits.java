@@ -73,27 +73,6 @@ public class PairedHits extends Hits {
         RandomAccessFile chromsRAF = new RandomAccessFile(chrtmp,"rw");
         RandomAccessFile otherposRAF = new RandomAccessFile(optmp,"rw");
 
-        if (positions.bb.order() != ByteOrder.nativeOrder()) {
-            Bits.flipByteOrder(positions.ib);            
-            positions.bb.order(ByteOrder.nativeOrder());
-        }
-        if (weights.bb.order() != ByteOrder.nativeOrder()) {
-            Bits.flipByteOrder(weights.fb);
-            weights.bb.order(ByteOrder.nativeOrder());
-        }
-        if (las.bb.order() != ByteOrder.nativeOrder()) {
-            Bits.flipByteOrder(las.ib);
-            las.bb.order(ByteOrder.nativeOrder());
-        }
-        if (otherChroms.bb.order() != ByteOrder.nativeOrder()) {
-            Bits.flipByteOrder(otherChroms.ib);
-            otherChroms.bb.order(ByteOrder.nativeOrder());
-        }
-        if (otherPositions.bb.order() != ByteOrder.nativeOrder()) {
-            Bits.flipByteOrder(otherPositions.ib);
-            otherPositions.bb.order(ByteOrder.nativeOrder());
-        }
-
         Bits.sendBytes(positions.bb, 0, positions.bb.limit(), positionsRAF.getChannel());
         Bits.sendBytes(weights.bb, 0, weights.bb.limit(), weightsRAF.getChannel());
         Bits.sendBytes(las.bb, 0, las.bb.limit(), lasRAF.getChannel());
@@ -116,25 +95,13 @@ public class PairedHits extends Hits {
                                        String prefix, 
                                        int chrom,
                                        boolean isLeft) throws IOException {
-        Comparator<PairedHit> comp = isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator();
-        boolean sorted = true;
-        int i = 1;
-        while (sorted && i < hits.length) {
-            if (comp.compare(hits[i-1],hits[i]) > 0) {
-                sorted = false;
-            }
-            i++;
-        }
-        if (!sorted) {
-            Arrays.sort(hits, comp);
-        }
         //        System.err.println("STORING HITS " + hits);
         IntBP p = new IntBP(hits.length);
         FloatBP w = new FloatBP(hits.length);
         IntBP l = new IntBP(hits.length);
         IntBP c = new IntBP(hits.length);
         IntBP op = new IntBP(hits.length);
-        for (i = 0; i < hits.length; i++) {
+        for (int i = 0; i < hits.length; i++) {
             PairedHit h = hits[i];
             w.put(i, h.weight);
             if (isLeft) {

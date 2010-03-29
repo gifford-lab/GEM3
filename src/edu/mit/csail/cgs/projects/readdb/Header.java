@@ -108,9 +108,9 @@ public class Header implements Closeable {
         byte[] buffer = new byte[8192];
         int[] nh = new int[1];
         nh[0] = numHits;
-        Bits.sendInts(nh, stream, buffer, ByteOrder.nativeOrder());
-        Bits.sendInts(indexPositions, stream, buffer, ByteOrder.nativeOrder());
-        Bits.sendInts(indexPointers, stream, buffer, ByteOrder.nativeOrder());
+        Bits.sendInts(nh, stream, buffer);
+        Bits.sendInts(indexPositions, stream, buffer);
+        Bits.sendInts(indexPointers, stream, buffer);
         stream.close();
     }
     public static Header readIndexFile(String fname) throws IOException {
@@ -119,11 +119,11 @@ public class Header implements Closeable {
         InputStream stream = new FileInputStream(fname);
         Header h = new Header();
         byte[] buffer = new byte[8192];
-        int[] nh = Bits.readInts(1, stream, buffer, ByteOrder.nativeOrder());
+        int[] nh = Bits.readInts(1, stream, buffer);
         h.numHits = nh[0];
         size -= 4;
-        h.indexPositions = Bits.readInts((int)size/8, stream, buffer, ByteOrder.nativeOrder());
-        h.indexPointers = Bits.readInts((int)size/8, stream, buffer, ByteOrder.nativeOrder());
+        h.indexPositions = Bits.readInts((int)size/8, stream, buffer);
+        h.indexPointers = Bits.readInts((int)size/8, stream, buffer);
         stream.close();
 
         return h;

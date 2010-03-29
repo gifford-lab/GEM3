@@ -35,9 +35,6 @@ public class ServerTask {
     private WritableByteChannel outchannel;
     /* if authenticate was successful, this holds a username.  Null otherwise */
     private String username;
-    /* checked to see what byte order to use for raw ints going across the network.
-     */
-    private ByteOrder myorder, clientorder;
     /* buffer for readLine */
     private int bufferpos;
     private byte[] buffer;
@@ -50,7 +47,6 @@ public class ServerTask {
     private String uname; // temporary, used by authenticate
 
     public ServerTask(Server serv, Socket s) throws IOException {
-        myorder = ByteOrder.nativeOrder();          
         buffer = new byte[8192];
         request = new Request();
         args = new ArrayList<String>();
@@ -68,7 +64,6 @@ public class ServerTask {
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
         bufferpos = 0;
-        clientorder = myorder;
         sasl = null;
         socket.setTcpNoDelay(true);
         //         if (server.debug()) {
@@ -205,8 +200,6 @@ public class ServerTask {
                 processSetACL();
             } else if (request.type.equals("deletealign")) {
                 processDeleteAlignment();
-            } else if (request.type.equals("byteorder")) {
-                processByteOrder();
             } else if (request.type.equals("addtogroup")) {
                 processAddToGroup();
             } else if (request.type.equals("shutdown")) {
@@ -691,7 +684,15 @@ public class ServerTask {
                                        Hits.getStrandOne(las.get(i)),
                                        Hits.getLengthOne(las.get(i)));
         }
-        Arrays.sort(newhits);
+        if (server.debug()) {
+            for (int i = 1; i < newhits.length; i++) {
+                if (newhits[i-1].compareTo(newhits[i]) > 0) {
+                    throw new RuntimeException(String.format("at %d : %d vs %d",
+                                                             i, newhits[i-1].pos, newhits[i].pos));
+                }
+            }
+        }
+
         positions = null;
         weights = null;
         las = null;
@@ -700,74 +701,58 @@ public class ServerTask {
 
         /* if the alignment already exists, read in the old hits */
         Set<Integer> chroms = server.getChroms(request.alignid, false,false);
-        if (chroms != null && chroms.contains(request.chromid)) {
-            try {        
-                /* sure we're allowed to write here */
-                AlignmentACL acl = server.getACL(request.alignid);
-                if (!authorizeRead(acl) || !authorizeWrite(acl)) {
-                    printAuthError();
-                    Lock.writeUnLock(this, request.alignid);
-                    return;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                printAuthError();
-                Lock.writeUnLock(this,request.alignid);
-                return;
-            }
-            try {
-                SingleHits oldhits = server.getSingleHits(request.alignid,
-                                                          request.chromid);
-                positions = oldhits.getPositionsBuffer();
-                weights = oldhits.getWeightsBuffer();
-                las = oldhits.getLASBuffer();
-                hits = new SingleHit[numHits + positions.limit()];
-                int hpos = 0;
-                int nhp = 0;
-                for (int i = 0; i < positions.limit(); i++) {
-                    SingleHit h = new SingleHit(request.chromid,
-                                                positions.get(i),
-                                                weights.get(i),
-                                                Hits.getStrandOne(las.get(i)),
-                                                Hits.getLengthOne(las.get(i)));
-                    while (nhp < newhits.length && newhits[nhp].compareTo(h) <= 0) {
-                        hits[hpos++] = newhits[nhp++];
-                    }
-                    hits[hpos++] = h;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                printAuthError();
-                Lock.writeUnLock(this,request.alignid);
-                    return;
-            }
-        } else {
-            /* this is a new alignment, so set a default ACL */
-            hits = newhits;
-            AlignmentACL acl = new AlignmentACL();
-            try {
-                acl.readFromFile(server.getDefaultACLFileName());
-            } catch (IOException e) {
-                // no default acl, so dont' worry.
-            }
-
-            if (!(new File(server.getAlignmentDir(request.alignid)).mkdirs())) {
-                System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
-                printAuthError();
-                Lock.writeUnLock(this,request.alignid);
-                return;
-            }
-            acl.getAdminACL().add(username);
-            acl.getWriteACL().add(username);
-            acl.getReadACL().add(username);
-            acl.writeToFile(server.getACLFileName(request.alignid));        
-            server.removeACL(request.alignid); // make sure the server doesn't have this ACL cached
-        }
-
         try {
-            SingleHits.writeSingleHits(hits,
-                                       server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
-                                       request.chromid);
+            if (chroms != null && chroms.contains(request.chromid)) {
+                try {        
+                    /* sure we're allowed to write here */
+                    AlignmentACL acl = server.getACL(request.alignid);
+                    if (!authorizeRead(acl) || !authorizeWrite(acl)) {
+                        printAuthError();
+                        Lock.writeUnLock(this, request.alignid);
+                        return;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    printAuthError();
+                    Lock.writeUnLock(this,request.alignid);
+                    return;
+                }
+                try {
+                    SingleHits.appendSingleHits(newhits,
+                                                server.getSingleHits(request.alignid,
+                                                                     request.chromid),
+                                                server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                                request.chromid);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    printAuthError();
+                    Lock.writeUnLock(this,request.alignid);
+                    return;
+                }
+            } else {
+                /* this is a new alignment, so set a default ACL */
+                AlignmentACL acl = new AlignmentACL();
+                try {
+                    acl.readFromFile(server.getDefaultACLFileName());
+                } catch (IOException e) {
+                    // no default acl, so dont' worry.
+                }
+                File dir = new File(server.getAlignmentDir(request.alignid));
+                if (!dir.exists() && !dir.mkdirs()) {
+                    System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
+                    printAuthError();
+                    Lock.writeUnLock(this,request.alignid);
+                    return;
+                }
+                acl.getAdminACL().add(username);
+                acl.getWriteACL().add(username);
+                acl.getReadACL().add(username);
+                acl.writeToFile(server.getACLFileName(request.alignid));        
+                server.removeACL(request.alignid); // make sure the server doesn't have this ACL cached
+                SingleHits.writeSingleHits(newhits,
+                                           server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                           request.chromid);
+            }
             SingleHits singlehits = new SingleHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
                                                    request.chromid);
             Header header = new Header(singlehits.getPositionsBuffer().ib);
@@ -895,6 +880,7 @@ public class ServerTask {
             map.get(c).add(h);
         }
         newhits = null;
+        Comparator<PairedHit> comp = isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator();
         for (int chromid : map.keySet()) {
             List<PairedHit> nhlist = map.get(chromid);
             PairedHit[] nha = new PairedHit[nhlist.size()];
@@ -903,8 +889,7 @@ public class ServerTask {
             }
             nhlist = null;
             map.remove(chromid);
-            Arrays.sort(nha);
-            
+            Arrays.sort(nha, comp);
             PairedHit[] hits = null;
             try {
                 PairedHits oldhits = server.getPairedHits(request.alignid,
@@ -916,10 +901,9 @@ public class ServerTask {
                 IntBP las = oldhits.getLASBuffer();
                 IntBP otherchrom = oldhits.getChromsBuffer();
                 IntBP otherpos = oldhits.getOtherPosBuffer();
-                hits = new PairedHit[nhlist.size() + positions.limit()];
+                hits = new PairedHit[nha.length + positions.limit()];
                 int hpos = 0;
                 int nhp = 0;
-                Comparator<PairedHit> comp = isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator();
                 if (isLeft) {
                     for (int i = 0; i < positions.limit(); i++) {
                         PairedHit h = new PairedHit(chromid,
@@ -956,13 +940,10 @@ public class ServerTask {
                 while (nhp < nha.length) {
                     hits[hpos++] = nha[nhp++];
                 }
-                
             } catch (FileNotFoundException e) {
-                // this is OK, it just means there were no old hits.  Any other
-                // IOException is a problem, so let it propagate out
+                hits = nha;
             } 
             PairedHits.writePairedHits(hits, server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"), chromid, isLeft);
-
             PairedHits pairedhits = new PairedHits(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
                                                    chromid, 
                                                    isLeft);
@@ -1093,7 +1074,7 @@ public class ServerTask {
         }
         printOK();
         printString(Integer.toString(hist.length) + "\n");
-        Bits.sendInts(hist, outstream, buffer, myorder);        
+        Bits.sendInts(hist, outstream, buffer);        
     }
 
     /* returns a histogram of hit weights in a region.  Inputs
@@ -1147,25 +1128,8 @@ public class ServerTask {
         }
         printOK();
         printString(Integer.toString(parray.length) + "\n");
-        Bits.sendInts(parray, outstream, buffer, myorder);        
-        Bits.sendFloats(farray, outstream, buffer, myorder);
-    }
-
-    public void processByteOrder() throws IOException {
-        String orderString = request.map.get("order");
-        if (orderString == null) {
-            printInvalid("must supply order for byte order request\n");
-            return;
-        }
-        if (orderString.equals("big")) {
-            clientorder = ByteOrder.BIG_ENDIAN;
-            printString(myorder == ByteOrder.BIG_ENDIAN ? "big\n" : "little\n");
-        } else if (orderString.equals("little")) {
-            clientorder = ByteOrder.LITTLE_ENDIAN;
-            printString(myorder == ByteOrder.BIG_ENDIAN ? "big\n" : "little\n");
-        } else {
-            printInvalid("bad byte order " + orderString);
-        }
+        Bits.sendInts(parray, outstream, buffer);        
+        Bits.sendFloats(farray, outstream, buffer);
     }
     public String toString() {         
         return "ServerTask user=" + username + " remoteip=" + socket.getInetAddress() + ":" + socket.getPort();

@@ -13,7 +13,7 @@ public class IntBP extends ByteBP {
         ib = b.asIntBuffer();
     }
     public IntBP(int size) {
-        super(ByteBuffer.allocate(size*4).order(ByteOrder.nativeOrder()));
+        super(ByteBuffer.allocate(size*4));
         ib = bb.asIntBuffer();
     }
     public IntBP slice(int start, int length) {
@@ -22,7 +22,6 @@ public class IntBP extends ByteBP {
             bb.position(start * 4);
             b = bb.slice();
         }
-        b.order(bb.order());
         b.limit(length * 4);
         return new IntBP(b);
     }
