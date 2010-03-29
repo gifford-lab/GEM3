@@ -5,6 +5,7 @@ import java.nio.*;
 import java.nio.channels.*;
 import java.util.List;
 import java.util.Collections;
+import java.util.Arrays;
 
 /** 
  * Represents the list of sorted reads on disk
@@ -56,26 +57,26 @@ public class SingleHits extends Hits {
         (new File(weightstmp)).renameTo(new File(getWeightsFname(prefix,chrom)));
         (new File(lastmp)).renameTo(new File(getLaSFname(prefix,chrom)));
     }
-    public static void writeSingleHits(List<SingleHit> hits,
+    public static void writeSingleHits(SingleHit[] hits,
                                        String prefix, 
                                        int chrom) throws IOException {
         boolean sorted = true;
         int i = 1;
-        while (sorted && i < hits.size()) {
-            if (hits.get(i-1).compareTo(hits.get(i)) >= 0) {
+        while (sorted && i < hits.length) {
+            if (hits[i-1].compareTo(hits[i]) >= 0) {
                 sorted = false;
             }
             i++;
         }
         if (!sorted) {
-            Collections.sort(hits);
+            Arrays.sort(hits);
         }
 
-        IntBP p = new IntBP(hits.size());
-        FloatBP w = new FloatBP(hits.size());
-        IntBP l = new IntBP(hits.size());
-        for (i = 0; i < hits.size(); i++) {
-            SingleHit h = hits.get(i);
+        IntBP p = new IntBP(hits.length);
+        FloatBP w = new FloatBP(hits.length);
+        IntBP l = new IntBP(hits.length);
+        for (i = 0; i < hits.length; i++) {
+            SingleHit h = hits[i];
             p.put(i, h.pos);
             w.put(i, h.weight);
             l.put(i, makeLAS(h.length, h.strand));

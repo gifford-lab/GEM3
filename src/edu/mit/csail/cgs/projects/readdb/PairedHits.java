@@ -6,6 +6,7 @@ import java.nio.channels.*;
 import java.util.List;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Arrays;
 
 /**
  * Represents a list of sorted reads on disk
@@ -111,30 +112,30 @@ public class PairedHits extends Hits {
         (new File(chrtmp)).renameTo(new File(getChromsFname(prefix,chrom,isLeft)));
         (new File(optmp)).renameTo(new File(getOtherPosFname(prefix,chrom,isLeft)));        
     }
-    public static void writePairedHits(List<PairedHit> hits,
+    public static void writePairedHits(PairedHit[] hits,
                                        String prefix, 
                                        int chrom,
                                        boolean isLeft) throws IOException {
         Comparator<PairedHit> comp = isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator();
         boolean sorted = true;
         int i = 1;
-        while (sorted && i < hits.size()) {
-            if (comp.compare(hits.get(i-1),hits.get(i)) >= 0) {
+        while (sorted && i < hits.length) {
+            if (comp.compare(hits[i-1],hits[i]) >= 0) {
                 sorted = false;
             }
             i++;
         }
         if (!sorted) {
-            Collections.sort(hits, comp);
+            Arrays.sort(hits, comp);
         }
         //        System.err.println("STORING HITS " + hits);
-        IntBP p = new IntBP(hits.size());
-        FloatBP w = new FloatBP(hits.size());
-        IntBP l = new IntBP(hits.size());
-        IntBP c = new IntBP(hits.size());
-        IntBP op = new IntBP(hits.size());
-        for (i = 0; i < hits.size(); i++) {
-            PairedHit h = hits.get(i);
+        IntBP p = new IntBP(hits.length);
+        FloatBP w = new FloatBP(hits.length);
+        IntBP l = new IntBP(hits.length);
+        IntBP c = new IntBP(hits.length);
+        IntBP op = new IntBP(hits.length);
+        for (i = 0; i < hits.length; i++) {
+            PairedHit h = hits[i];
             w.put(i, h.weight);
             if (isLeft) {
                 p.put(i, h.leftPos);

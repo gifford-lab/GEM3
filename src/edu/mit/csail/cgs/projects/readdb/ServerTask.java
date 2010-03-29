@@ -670,7 +670,7 @@ public class ServerTask {
             return;
         }
         Lock.writeLock(this,request.alignid);
-        List<SingleHit> hits = new ArrayList<SingleHit>();
+        SingleHit[] hits = null;
 
         /* if the alignment already exists, read in the old hits */
         Set<Integer> chroms = server.getChroms(request.alignid, false,false);
@@ -696,12 +696,13 @@ public class ServerTask {
                     IntBP positions = oldhits.getPositionsBuffer();
                     FloatBP weights = oldhits.getWeightsBuffer();
                     IntBP las = oldhits.getLASBuffer();
+                    hits = new SingleHit[numHits + positions.limit()];
                     for (int i = 0; i < positions.limit(); i++) {
-                        hits.add(new SingleHit(request.chromid,
-                                               positions.get(i),
-                                               weights.get(i),
-                                               Hits.getStrandOne(las.get(i)),
-                                               Hits.getLengthOne(las.get(i))));
+                        hits[numHits + i] = new SingleHit(request.chromid,
+                                                          positions.get(i),
+                                                          weights.get(i),
+                                                          Hits.getStrandOne(las.get(i)),
+                                                          Hits.getLengthOne(las.get(i)));
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -712,6 +713,7 @@ public class ServerTask {
             }
         } else {
             /* this is a new alignment, so set a default ACL */
+            hits = new SingleHit[numHits];
             AlignmentACL acl = new AlignmentACL();
             try {
                 acl.readFromFile(server.getDefaultACLFileName());
@@ -741,11 +743,11 @@ public class ServerTask {
         Bits.readBytes(las.bb, rbc);
 
         for (int i = 0; i < numHits; i++) {
-            hits.add(new SingleHit(request.chromid,
-                                   positions.get(i),
-                                   weights.get(i),
-                                   Hits.getStrandOne(las.get(i)),
-                                   Hits.getLengthOne(las.get(i))));
+            hits[i] = new SingleHit(request.chromid,
+                                    positions.get(i),
+                                    weights.get(i),
+                                    Hits.getStrandOne(las.get(i)),
+                                    Hits.getLengthOne(las.get(i)));
         }
         positions = null;
         weights = null;
@@ -789,9 +791,7 @@ public class ServerTask {
         }
 
         Lock.writeLock(this,request.alignid);
-        List<PairedHit> hits = new ArrayList<PairedHit>();
 
-        /* if the alignment already exists, read in the old hits */
         Set<Integer> chroms = server.getChroms(request.alignid, true,request.isLeft);
         if (chroms == null) {
             /* this is a new alignment, so set a default ACL */
@@ -828,7 +828,7 @@ public class ServerTask {
             }
         }
 
-        List<PairedHit> newhits = new ArrayList<PairedHit>();
+        PairedHit[] hits = new PairedHit[numHits];
         IntBP positions = new IntBP(numHits);
         FloatBP weights = new FloatBP(numHits);
         IntBP las = new IntBP(numHits);
@@ -841,15 +841,15 @@ public class ServerTask {
         Bits.readBytes(otherchrom.bb,rbc);
         Bits.readBytes(otherpos.bb,rbc);
         for (int i = 0; i < positions.limit(); i++) {
-            newhits.add(new PairedHit(request.chromid,
-                                      positions.get(i),
-                                      Hits.getStrandOne(las.get(i)),
-                                      Hits.getLengthOne(las.get(i)),
-                                      otherchrom.get(i),
-                                      otherpos.get(i),
-                                      Hits.getStrandTwo(las.get(i)),
-                                      Hits.getLengthTwo(las.get(i)),
-                                      weights.get(i)));
+            hits[i] = new PairedHit(request.chromid,
+                                    positions.get(i),
+                                    Hits.getStrandOne(las.get(i)),
+                                    Hits.getLengthOne(las.get(i)),
+                                    otherchrom.get(i),
+                                    otherpos.get(i),
+                                    Hits.getStrandTwo(las.get(i)),
+                                    Hits.getLengthTwo(las.get(i)),
+                                    weights.get(i));
         }
         positions = null;
         weights = null;
@@ -858,8 +858,9 @@ public class ServerTask {
         otherpos = null;
 
         try {
-            appendPairedHits(newhits,true);
-            appendPairedHits(newhits,false);
+            appendPairedHits(hits,true);
+            appendPairedHits(hits,false);
+            hits = null;
         } catch (IOException e) {
             Lock.writeUnLock(this,request.alignid);
             e.printStackTrace();
@@ -871,7 +872,7 @@ public class ServerTask {
         Lock.writeUnLock(this,request.alignid);
     }
 
-    private void appendPairedHits(List<PairedHit> newhits,
+    private void appendPairedHits(PairedHit[] newhits,
                                   boolean isLeft) throws IOException {
         Map<Integer,List<PairedHit>> map = new HashMap<Integer,List<PairedHit>>();
         for (PairedHit h : newhits) {
@@ -881,9 +882,18 @@ public class ServerTask {
             }
             map.get(c).add(h);
         }
+        newhits = null;
         for (int chromid : map.keySet()) {
-            List<PairedHit> hits = map.get(chromid);
-            //            System.err.println("There are " + hits.size() + " new hits for " + chromid + ", left=" + isLeft);
+            List<PairedHit> nhlist = map.get(chromid);
+            PairedHit[] nha = new PairedHit[nhlist.size()];
+            for (int i = 0; i < nhlist.size(); i++) {
+                nha[i] = nhlist.get(i);
+            }
+            nhlist = null;
+            map.remove(chromid);
+            Arrays.sort(nha);
+            
+            PairedHit[] hits = null;
             try {
                 PairedHits oldhits = server.getPairedHits(request.alignid,
                                                           chromid,
@@ -894,32 +904,47 @@ public class ServerTask {
                 IntBP las = oldhits.getLASBuffer();
                 IntBP otherchrom = oldhits.getChromsBuffer();
                 IntBP otherpos = oldhits.getOtherPosBuffer();
+                hits = new PairedHit[nhlist.size() + positions.limit()];
+                int hpos = 0;
+                int nhp = 0;
+                Comparator<PairedHit> comp = isLeft ? new PairedHitLeftComparator() : new PairedHitRightComparator();
                 if (isLeft) {
                     for (int i = 0; i < positions.limit(); i++) {
-                        hits.add(new PairedHit(chromid,
-                                               positions.get(i),
-                                               Hits.getStrandOne(las.get(i)),
-                                               Hits.getLengthOne(las.get(i)),
-                                               otherchrom.get(i),
-                                               otherpos.get(i),
-                                               Hits.getStrandTwo(las.get(i)),
-                                               Hits.getLengthTwo(las.get(i)),
-                                               weights.get(i)));
+                        PairedHit h = new PairedHit(chromid,
+                                                    positions.get(i),
+                                                    Hits.getStrandOne(las.get(i)),
+                                                    Hits.getLengthOne(las.get(i)),
+                                                    otherchrom.get(i),
+                                                    otherpos.get(i),
+                                                    Hits.getStrandTwo(las.get(i)),
+                                                    Hits.getLengthTwo(las.get(i)),
+                                                    weights.get(i));
+                        while (nhp < nha.length && comp.compare(nha[nhp], h) <= 0) {
+                            hits[hpos++] = nha[nhp++];
+                        }
+                        hits[hpos++] = h;
                     }
                 } else {
                     for (int i = 0; i < positions.limit(); i++) {
-                        hits.add(new PairedHit(otherchrom.get(i),
-                                               otherpos.get(i),
-                                               Hits.getStrandTwo(las.get(i)),
-                                               Hits.getLengthTwo(las.get(i)),
-                                               chromid,
-                                               positions.get(i),
-                                               Hits.getStrandOne(las.get(i)),
-                                               Hits.getLengthOne(las.get(i)),
-                                               weights.get(i)));
+                        PairedHit h = new PairedHit(otherchrom.get(i),
+                                                    otherpos.get(i),
+                                                    Hits.getStrandTwo(las.get(i)),
+                                                    Hits.getLengthTwo(las.get(i)),
+                                                    chromid,
+                                                    positions.get(i),
+                                                    Hits.getStrandOne(las.get(i)),
+                                                    Hits.getLengthOne(las.get(i)),
+                                                    weights.get(i));
+                        while (nhp < nha.length && comp.compare(nha[nhp], h) <= 0) {
+                            hits[hpos++] = nha[nhp++];
+                        }
+                        hits[hpos++] = h;                       
                     }
                 }
-
+                while (nhp < nha.length) {
+                    hits[hpos++] = nha[nhp++];
+                }
+                
             } catch (FileNotFoundException e) {
                 // this is OK, it just means there were no old hits.  Any other
                 // IOException is a problem, so let it propagate out
