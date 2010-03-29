@@ -298,7 +298,7 @@ public class Server {
         Map<String,Set<String>> output = new HashMap<String,Set<String>>();
         File f = new File(groupfile);
         if (!f.exists()) {
-            logger.log(Level.WARNING,"No Groups file found.");
+            logger.log(Level.WARNING,"No Groups file found: " + groupfile);
             throw new IOException("No Groups file found");
         }
         BufferedReader reader = new BufferedReader(new FileReader(groupfile));
