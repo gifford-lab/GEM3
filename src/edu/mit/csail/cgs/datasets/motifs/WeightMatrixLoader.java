@@ -89,7 +89,7 @@ public class WeightMatrixLoader implements edu.mit.csail.cgs.utils.Closeable {
     
     public Collection<WeightMatrix> loadMatrices(Organism species) throws SQLException { 
     	int speciesID = species.getDBID();
-        String query = "select m.id, m.species, m.name, m.version, m.type, c.position, c.letter, c.weight from weightmatrix m, " +
+        String query = "select m.id, m.species, m.name, m.version, m.type, m.bg_model_map_id, c.position, c.letter, c.weight from weightmatrix m, " +
             " weightmatrixcols c where m.id = c.weightmatrix and m.species = ? order by c.weightmatrix, c.position desc";
 
         java.sql.Connection cxn = 
@@ -117,7 +117,7 @@ public class WeightMatrixLoader implements edu.mit.csail.cgs.utils.Closeable {
                 DatabaseFactory.getConnection("annotations");
             ArrayList<WeightMatrix> out = new ArrayList<WeightMatrix>();
             String query;
-            query = "select wm.id, wm.species, wm.name, wm.version, wm.type, c.position, c.letter, c.weight " +
+            query = "select wm.id, wm.species, wm.name, wm.version, wm.type, wm.bg_model_map_id, c.position, c.letter, c.weight " +
                 " from weightmatrix wm, weightmatrixcols c where wm.id = c.weightmatrix ";
             if (name != null) {
                 query += " and wm.name = ? ";

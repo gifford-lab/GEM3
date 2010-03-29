@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
@@ -17,6 +19,8 @@ import edu.mit.csail.cgs.utils.stats.Fmath;
 
 public abstract class BackgroundModel extends BackgroundModelMetadata {
 
+  public static final Pattern KMER_PATTERN = Pattern.compile("[ACGT]*");
+  
   public static final double EPSILON = 1E-6;
 
   public static final char[] BASE_ORDER = new char[] { 'A', 'C', 'G', 'T' };
@@ -45,6 +49,12 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
   protected Map<String, Double>[] modelProbs;
 
 
+  /**
+   * Construct a background model from the specified metadata object
+   * @param md the metadata describing this model
+   * @throws NotFoundException if a Genome can't be found for the metadata's
+   * genome ID
+   */
   public BackgroundModel(BackgroundModelMetadata md) throws NotFoundException {
     super(md);
     this.gen = Organism.findGenome(this.genomeID);
@@ -57,20 +67,24 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
 
 
   /**
-   * 
+   * Construct a model with the specified name, genome, and model type, and a
+   * default max kmer len
+   * @param name
+   * @param gen
+   * @param modelType
    */
-  public BackgroundModel(String name, Genome gen) {
-    this(name, gen, DEFAULT_MAX_KMER_LEN);
-    this.init();
+  public BackgroundModel(String name, Genome gen, String modelType) {
+    this(name, gen, DEFAULT_MAX_KMER_LEN, modelType);
   }
 
 
   /**
-   * 
+   * Construct a model with the specified name, genome, and model type, and the
+   * specified max kmer len
    * @param maxKmerLen
    */
-  public BackgroundModel(String name, Genome gen, int maxKmerLen) {
-    super(gen.getDBID(), name, maxKmerLen);
+  public BackgroundModel(String name, Genome gen, int maxKmerLen, String modelType) {
+    super(gen.getDBID(), name, maxKmerLen, modelType);
     this.gen = gen;
     modelProbs = new HashMap[maxKmerLen + 1];
     for (int i = 1; i <= maxKmerLen; i++) {
@@ -84,21 +98,40 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
    * Construct a Background Model from an existing Background Model. Set the
    * instance variables of this class to match the source model. Subclasses
    * should only set the dbid if the type of the subclass model matches the type
-   * of the source model.
+   * of the source model. 
    * 
    * @param source
    *          the Background Model on which to base the one being constructed
    */
-  public BackgroundModel(BackgroundModel source) {
-    // FIXME
-    this(source.name, source.gen, source.getMaxKmerLen());
+  public BackgroundModel(BackgroundModel source, String dbModelType) {
+    this(source.name, source.gen, source.getMaxKmerLen(), dbModelType);
+    
+    //Check this class's type and set the dbids if they match
+    if (this.getClass() == source.getClass()) {
+      this.mapID = source.mapID;
+      this.modelID = source.modelID;
+    }
+    
     this.isStranded = source.isStranded;
     this.init();
   }
 
 
-  // TODO
+  /**
+   * A subclass specific init method to be called at the end of the constructor
+   * to handle tasks common among the constructors
+   */
   protected abstract void init();
+
+  
+  /**
+   * overrides setHasCounts in BackgroundModelMetadata. It's not possible to set
+   * whether an instance of a background model has counts - it's implicit based
+   * on the subclass type.
+   */
+  public void setHasCounts(boolean hasCounts) {
+    throw new UnsupportedOperationException("Can't modify hasCounts on Background Model instances");
+  }
 
 
   /**
@@ -146,6 +179,11 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
   }
 
 
+  /**
+   * Returns true if this model is Stranded (i.e. based on a single strand) or
+   * false if it is based on both strands
+   * @return
+   */
   public boolean isStranded() {
     if (isStranded == null) {
       this.checkAndSetIsStranded();
@@ -197,6 +235,13 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
   }
 
 
+  /**
+   * Check if this background model is equal to the other background model in
+   * terms of the kmer values. The class must be the same so they can be compared
+   * properly.
+   * @param other the model to check
+   * @return true if the values are the same
+   */
   public boolean equalValues(BackgroundModel other) {
     if (this.getClass().equals(other.getClass())) {
       int maxKmerLen = Math.max(this.maxKmerLen, other.getMaxKmerLen());
@@ -389,6 +434,16 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
     return revCompPairs;
   }
 
+  
+  /**
+   * Return true if the specified kmer only of (zero or more) DNA letters (ACGT)
+   * @param kmer
+   * @return
+   */
+  protected static boolean isKmerValid(String kmer) {
+    Matcher matcher = KMER_PATTERN.matcher(kmer);
+    return matcher.matches();
+  }
 
   /**
    ***********************************************************************
@@ -398,9 +453,10 @@ public abstract class BackgroundModel extends BackgroundModelMetadata {
     for (int i = 1; i <= 3; i++) {
       for (int j = 0; j < Math.pow(4, i); j++) {
         String seq = BackgroundModel.int2seq(j, i);
-        System.out.println(j + "\t" + seq + "\t" + BackgroundModel.seq2int(seq));
+        System.out.println(j + "\t" + seq + "\t" + BackgroundModel.seq2int(seq) + " " + isKmerValid(seq));
         assert (j == BackgroundModel.seq2int(seq));
       }
     }
+    System.out.println(isKmerValid("GN"));
   }
 }

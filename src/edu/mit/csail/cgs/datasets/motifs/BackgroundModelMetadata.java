@@ -44,11 +44,6 @@ public class BackgroundModelMetadata {
   }
   
   //FIXME when is this used?
-  public BackgroundModelMetadata(int genomeID, String name, int kmerlen) {
-    this(-1, genomeID, -1, name, kmerlen, null, false);
-  }
-  
-  //FIXME when is this used?
   public BackgroundModelMetadata(int modelID, String name, int kmerlen, String modelType) {
     this(-1, -1, modelID, name, kmerlen, modelType, false);
   }
@@ -211,7 +206,7 @@ public class BackgroundModelMetadata {
    * @param dbModelType
    */
   public void setDBModelType(String dbModelType) {
-    if ((dbModelType == null) || dbModelType.equals(BackgroundModelImport.MARKOV_TYPE_STRING) || dbModelType.equals(BackgroundModelImport.FREQUENCY_TYPE_STRING)) {
+    if ((dbModelType == null) || dbModelType.equals(BackgroundModelLoader.MARKOV_TYPE_STRING) || dbModelType.equals(BackgroundModelLoader.FREQUENCY_TYPE_STRING)) {
       this.dbModelType = dbModelType;
     }
     else {
