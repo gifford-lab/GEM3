@@ -26,7 +26,7 @@ public class SingleHit implements Comparable<SingleHit> {
         if (length < 0) {
             throw new IllegalArgumentException("length must be positive");
         }
-        if (length < Short.MIN_VALUE || length > Short.MAX_VALUE) {
+        if (length < (int)Short.MIN_VALUE || length > (int)Short.MAX_VALUE) {
             throw new IllegalArgumentException("length has to fit into a short.  Quit abusing my laziness");
         }
 
