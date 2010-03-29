@@ -120,7 +120,7 @@ public class PairedHits extends Hits {
         boolean sorted = true;
         int i = 1;
         while (sorted && i < hits.length) {
-            if (comp.compare(hits[i-1],hits[i]) >= 0) {
+            if (comp.compare(hits[i-1],hits[i]) > 0) {
                 sorted = false;
             }
             i++;
