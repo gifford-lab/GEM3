@@ -206,6 +206,7 @@ public class Client implements ReadOnlyClient {
         }
         for (int chromid : map.keySet()) {
             List<SingleHit> hits = map.get(chromid);
+            Collections.sort(hits);
             request.clear();
             request.type="storesingle";
             request.alignid=alignid;
