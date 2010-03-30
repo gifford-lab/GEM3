@@ -13,7 +13,7 @@ public class FloatBP extends ByteBP {
         fb = b.asFloatBuffer();
     }
     public FloatBP(int size) {
-        super(ByteBuffer.allocate(size*4).order(ByteOrder.nativeOrder()));
+        super(ByteBuffer.allocate(size*4));
         fb = bb.asFloatBuffer();
     }
     public FloatBP slice(int start, int length) {
@@ -22,7 +22,6 @@ public class FloatBP extends ByteBP {
             bb.position(start * 4);
             b = bb.slice();
         }
-        b.order(bb.order());
         b.limit(length * 4);
         return new FloatBP(b);
     }

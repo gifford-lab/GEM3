@@ -33,7 +33,6 @@ public class Client implements ReadOnlyClient {
     byte[] buffer;
     private static final int BUFFERLEN = 8192*20;
     private Request request;
-    ByteOrder myorder, serverorder;
 
 
     public Client (String hostname,
@@ -97,19 +96,6 @@ public class Client implements ReadOnlyClient {
             throw new ClientException("Authentication Exception Failed");
         }
         request = new Request();
-        request.type = "byteorder";
-        ByteBuffer bb = ByteBuffer.allocate(10);
-        myorder = bb.order();
-        request.map.put("order", (myorder == ByteOrder.BIG_ENDIAN ? "big" : "little"));
-        sendString(request.toString());
-        String output = readLine();
-        if (output.equals("big")) {
-            serverorder = ByteOrder.BIG_ENDIAN;
-        } else if (output.equals("little")) {
-            serverorder = ByteOrder.LITTLE_ENDIAN;
-        } else {
-            throw new ClientException("Couldn't set or get byte order " + output);
-        }
     }
     
     /**
@@ -221,14 +207,14 @@ public class Client implements ReadOnlyClient {
             for (int i = 0; i < hits.size(); i++) {
                 ints[i] = hits.get(i).pos;
             }        
-            Bits.sendInts(ints, outstream,buffer, serverorder);
+            Bits.sendInts(ints, outstream,buffer);
             float[] floats = new float[hits.size()];
             for (int i = 0; i < hits.size(); i++) {
                 floats[i] = hits.get(i).weight;
                 ints[i] = Hits.makeLAS(hits.get(i).length, hits.get(i).strand);
             }
-            Bits.sendFloats(floats, outstream,buffer, serverorder);
-            Bits.sendInts(ints, outstream,buffer, serverorder);
+            Bits.sendFloats(floats, outstream,buffer);
+            Bits.sendInts(ints, outstream,buffer);
             
             System.err.println("Sent " + hits.size() + " hits to the server");
             outstream.flush();        
@@ -264,7 +250,7 @@ public class Client implements ReadOnlyClient {
             for (int i = 0; i < hits.size(); i++) {
                 ints[i] = hits.get(i).leftPos;
             }        
-            Bits.sendInts(ints, outstream,buffer, serverorder);
+            Bits.sendInts(ints, outstream,buffer);
             float[] floats = new float[hits.size()];
             for (int i = 0; i < hits.size(); i++) {
                 floats[i] = hits.get(i).weight;
@@ -272,16 +258,16 @@ public class Client implements ReadOnlyClient {
                                        hits.get(i).rightLength, hits.get(i).rightStrand);
 
             }
-            Bits.sendFloats(floats, outstream,buffer, serverorder);
-            Bits.sendInts(ints, outstream,buffer, serverorder);
+            Bits.sendFloats(floats, outstream,buffer);
+            Bits.sendInts(ints, outstream,buffer);
             for (int i = 0; i < hits.size(); i++) {
                 ints[i] = hits.get(i).rightChrom;
             }        
-            Bits.sendInts(ints, outstream,buffer, serverorder);
+            Bits.sendInts(ints, outstream,buffer);
             for (int i = 0; i < hits.size(); i++) {
                 ints[i] = hits.get(i).rightPos;
             }        
-            Bits.sendInts(ints, outstream,buffer, serverorder);
+            Bits.sendInts(ints, outstream,buffer);
             System.err.println("Sent " + hits.size() + " hits to the server");
             outstream.flush();        
             response = readLine();
@@ -430,7 +416,7 @@ public class Client implements ReadOnlyClient {
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
-        return Bits.readInts(numhits, instream, buffer, serverorder);        
+        return Bits.readInts(numhits, instream, buffer);        
     }
     public float[] getWeightsRange(String alignid, int chromid, boolean paired, Integer start, Integer stop, Float minWeight, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
         request.clear();
@@ -450,7 +436,7 @@ public class Client implements ReadOnlyClient {
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
-        return Bits.readFloats(numhits, instream, buffer, serverorder);        
+        return Bits.readFloats(numhits, instream, buffer);        
     }
     public List<SingleHit> getSingleHits(String alignid, int chromid, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
         request.clear();
@@ -478,13 +464,11 @@ public class Client implements ReadOnlyClient {
         IntBP ints = new IntBP(numhits);
         ReadableByteChannel rbc = Channels.newChannel(instream);
         Bits.readBytes(ints.bb, rbc);
-        ints.bb.order(serverorder);
         for (int i = 0; i < numhits; i++) {
             output.get(i).pos = ints.get(i);
         }
         FloatBP floats = new FloatBP(numhits);
         Bits.readBytes(floats.bb, rbc);
-        floats.bb.order(serverorder);
         for (int i = 0; i < numhits; i++) {
             output.get(i).weight = floats.get(i);
         }
@@ -525,7 +509,6 @@ public class Client implements ReadOnlyClient {
                                      chromid,0,false,(short)0,(float)0));
         }
         IntBP ints = new IntBP(numhits);
-        ints.bb.order(serverorder);
         ReadableByteChannel rbc = Channels.newChannel(instream);
         Bits.readBytes(ints.bb, rbc);
         if (isLeft) {
@@ -538,7 +521,6 @@ public class Client implements ReadOnlyClient {
             }
         }
         FloatBP floats = new FloatBP(numhits);
-        floats.bb.order(serverorder);
         Bits.readBytes(floats.bb, rbc);
         for (int i = 0; i < numhits; i++) {
             output.get(i).weight = floats.get(i);
@@ -631,7 +613,7 @@ public class Client implements ReadOnlyClient {
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
-        int out[] = Bits.readInts(numints, instream, buffer, serverorder);
+        int out[] = Bits.readInts(numints, instream, buffer);
         TreeMap<Integer,Integer> output = new TreeMap<Integer,Integer>();
         for (int i = 0; i < out.length; i += 2) {
             output.put(out[i], out[i+1]);
@@ -659,8 +641,8 @@ public class Client implements ReadOnlyClient {
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
-        int out[] = Bits.readInts(numints, instream, buffer, serverorder);
-        float weight[] = Bits.readFloats(numints, instream,buffer,serverorder);
+        int out[] = Bits.readInts(numints, instream, buffer);
+        float weight[] = Bits.readFloats(numints, instream,buffer);
         TreeMap<Integer,Float> output = new TreeMap<Integer,Float>();
         for (int i = 0; i < out.length; i++) {
             output.put(out[i], weight[i]);

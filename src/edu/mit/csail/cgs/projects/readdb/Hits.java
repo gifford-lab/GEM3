@@ -26,7 +26,6 @@ public abstract class Hits implements Closeable {
             bb = fc.map(FileChannel.MapMode.READ_ONLY,
                         0,
                         fc.size());
-            bb.order(ByteOrder.nativeOrder());
             ib = new IntBP(bb);
         } catch (IOException e) {
             ioex = e;
@@ -65,7 +64,6 @@ public abstract class Hits implements Closeable {
             bb = fc.map(FileChannel.MapMode.READ_ONLY,
                         0,
                         fc.size());
-            bb.order(ByteOrder.nativeOrder());
             fb = new FloatBP(bb);
         } catch (IOException e) {
             ioex = e;
@@ -239,7 +237,7 @@ public abstract class Hits implements Closeable {
             return emptyIntBP;
         }
 
-        IntBP output = new IntBP(ByteBuffer.allocate(n*4).order(ByteOrder.nativeOrder()));
+        IntBP output = new IntBP(ByteBuffer.allocate(n*4));
         n = 0;
         for (int i = p[0]; i < p[1]; i++) {
             if ((minweight == null || weights.get(i) >= minweight) &&
@@ -299,7 +297,7 @@ public abstract class Hits implements Closeable {
             return emptyFloatBP;
         }
 
-        FloatBP output = new FloatBP(ByteBuffer.allocate(n*4).order(ByteOrder.nativeOrder()));
+        FloatBP output = new FloatBP(ByteBuffer.allocate(n*4));
         n = 0;
         for (int i = p[0]; i < p[1]; i++) {
             if ((minweight == null || weights.get(i) >= minweight) &&
@@ -334,6 +332,8 @@ public abstract class Hits implements Closeable {
         int[] p = getIndices(firstindex, lastindex, start,stop);        
         if (!extension) {
             for (int i = p[0]; i < p[1]; i++) {
+                assert(positions.get(i) >= start);
+                assert(positions.get(i) <= stop);
                 if ((minweight == null || weights.get(i) > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                     output[(positions.get(i) - start) / stepsize]++;            
@@ -342,6 +342,8 @@ public abstract class Hits implements Closeable {
         } else {
             IntBP las = getLASBuffer();
             for (int i = p[0]; i < p[1]; i++) {
+                assert(positions.get(i) >= start);
+                assert(positions.get(i) <= stop);
                 if ((minweight == null || weights.get(i) > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                     int bin = (positions.get(i) - start) / stepsize;
@@ -380,6 +382,8 @@ public abstract class Hits implements Closeable {
         int[] p = getIndices(firstindex, lastindex, start,stop);        
         if (!extension) {
             for (int i = p[0]; i < p[1]; i++) {
+                assert(positions.get(i) >= start);
+                assert(positions.get(i) <= stop);
                 float f = weights.get(i);
                 if ((minweight == null || f > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
@@ -389,6 +393,8 @@ public abstract class Hits implements Closeable {
         } else {
             IntBP las = getLASBuffer();
             for (int i = p[0]; i < p[1]; i++) {
+                assert(positions.get(i) >= start);
+                assert(positions.get(i) <= stop);
                 float f = weights.get(i);
                 if ((minweight == null || f > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {

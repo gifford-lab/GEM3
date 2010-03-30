@@ -77,10 +77,9 @@ public class Bits {
      *
      * buffer is scratch space
      */
-    public static void sendInts(int[] a, OutputStream stream, byte[] buffer, ByteOrder requestedOrder) throws IOException {
+    public static void sendInts(int[] a, OutputStream stream, byte[] buffer) throws IOException {
         int i = 0;
         ByteBuffer bb = ByteBuffer.wrap(buffer);
-        bb.order(requestedOrder);
         while (i < a.length) {
             int end = i + (buffer.length/4) - 1;
             int bufpos = 0;
@@ -96,10 +95,9 @@ public class Bits {
         }
         stream.flush();
     }
-    public static void sendFloats(float[] a, OutputStream stream, byte[] buffer, ByteOrder requestedOrder) throws IOException {
+    public static void sendFloats(float[] a, OutputStream stream, byte[] buffer) throws IOException {
         int i = 0;
         ByteBuffer bb = ByteBuffer.wrap(buffer);
-        bb.order(requestedOrder);
         while (i < a.length) {
             int end = i + (buffer.length/4) - 1;
             int bufpos = 0;
@@ -115,12 +113,11 @@ public class Bits {
         }
         stream.flush();
     }
-    public static int[] readInts(int count, InputStream instream, byte[] buffer, ByteOrder sendOrder) throws IOException {
+    public static int[] readInts(int count, InputStream instream, byte[] buffer) throws IOException {
         int[] output = new int[count];        
         int outputpos = 0;
         int bytesLeftover = 0;
         ByteBuffer bb = ByteBuffer.wrap(buffer);
-        bb.order(sendOrder);
         while (outputpos < count) {
             bb.position(bytesLeftover);
             int toread = Math.min((count - outputpos) * 4, buffer.length - bytesLeftover);
@@ -152,12 +149,11 @@ public class Bits {
         }
         return output;
     }
-    public static float[] readFloats(int count, InputStream instream, byte[] buffer, ByteOrder sendOrder) throws IOException {
+    public static float[] readFloats(int count, InputStream instream, byte[] buffer) throws IOException {
         float[] output = new float[count];        
         int outputpos = 0;
         int bytesLeftover = 0;
         ByteBuffer bb = ByteBuffer.wrap(buffer);
-        bb.order(sendOrder);
         while (outputpos < count) {
             bb.position(bytesLeftover);
             int toread = Math.min((count - outputpos) * 4, buffer.length - bytesLeftover);
