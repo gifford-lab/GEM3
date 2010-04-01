@@ -389,8 +389,48 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         }
 		return output;
 	}
-
     
+    /* if Region is a StrandedRegion, then the positions returned are only for that strand */
+    public List<Integer> positionsByRegion(List<ChipSeqAlignment> alignments, Region r) throws IOException, ClientException {
+		if (alignments.size() < 1) {
+			throw new IllegalArgumentException("Alignment List must not be empty.");
+		}
+        List<Integer> output = new ArrayList<Integer>();
+        for (ChipSeqAlignment a : alignments) {
+            int[] pos = client.getPositions(Integer.toString(a.getDBID()),
+                                            r.getGenome().getChromID(r.getChrom()),
+                                            false,
+                                            r.getStart(),
+                                            r.getEnd(),
+                                            null,
+                                            null,
+                                            r instanceof StrandedRegion ? null : (((StrandedRegion)r).getStrand() == '+'));
+            for (int i = 0; i < pos.length; i++) {
+                output.add(pos[i]);
+            }                                            
+        }
+        return output;
+    }
+    public List<Integer> positionsByRegion(ChipSeqAlignment alignment, Region r) throws IOException {
+        List<Integer> output = new ArrayList<Integer>();
+        try {
+            int[] pos = client.getPositions(Integer.toString(alignment.getDBID()),
+                                            r.getGenome().getChromID(r.getChrom()),
+                                            false,
+                                            r.getStart(),
+                                            r.getEnd(),
+                                            null,
+                                            null,
+                                            r instanceof StrandedRegion ? null : (((StrandedRegion)r).getStrand() == '+'));
+            for (int i = 0; i < pos.length; i++) {
+                output.add(pos[i]);
+            }                                            
+            return output;
+        } catch (ClientException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
 	public int countByRegion(ChipSeqAlignment align, Region r) throws IOException {
         try {
             return client.getCount(Integer.toString(align.getDBID()),
