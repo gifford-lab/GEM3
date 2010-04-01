@@ -108,12 +108,8 @@ public class Dispatch implements Runnable {
                     synchronized(this) {
                         wait(2);
                     }
-                } else if (i > workQueue.size() * 100) {
-                    Thread.sleep(10);
-                } else {
-                    //                    Thread.yield();
-                }
-            } catch (InterruptedException e) {  }
+                } catch (InterruptedException e) {}                
+            } 
         }
         while (freePool.size() < allThreads.size()) {
             try {

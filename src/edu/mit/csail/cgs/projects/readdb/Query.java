@@ -21,7 +21,7 @@ public class Query {
     private String hostname;
     private String username, password;
     private int portnum, histogram = -1;
-    private boolean quiet, weights, bedOutput;
+    private boolean quiet, weights;
     
 
     public static void main(String args[]) throws Exception {
@@ -40,7 +40,6 @@ public class Query {
         options.addOption("q","quiet",false,"quiet: don't print output");
         options.addOption("w","weights",false,"get and print weights in addition to positions");
         options.addOption("H","histogram",true,"produce a histogram with this binsize instead of printing all read positions");
-        options.addOption("b","bed",false,"produce output in BED format");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
         if (line.hasOption("port")) {
@@ -71,13 +70,8 @@ public class Query {
         if (line.hasOption("histogram")) {
             histogram = Integer.parseInt(line.getOptionValue("histogram"));
         }
-        bedOutput = line.hasOption("bedOutput");
         quiet = line.hasOption("quiet");
         weights = line.hasOption("weights");
-        if (quiet) {
-            bedOutput = false;
-        }
-
     }
 
     public void run(InputStream instream) throws IOException, ClientException {
@@ -132,21 +126,6 @@ public class Query {
                             }
                         }
                     }
-                } else if (bedOutput) {
-                    int[] hits = client.getHitsRange(alignname, chr, start,stop);
-                    float[] w = null;
-                    if (weights) {
-                        w = client.getWeightsRange(alignname, chr, start,stop);
-                    }
-                    for (int i = 0; i < hits.length; i++) {
-                        System.out.println(String.format("%s\t%d\t%d\t%s\t%f\t%s",
-                                                         pieces[0],
-                                                         hits[i],
-                                                         hits[i],
-                                                         "hit",
-                                                         (w == null ? 1 : w[i]),
-                                                         pieces[2]));                                                         
-                    }                        
                 } else {
                     List<SingleHit> hits = client.getSingleHits(alignname,
                                                                 chr,
