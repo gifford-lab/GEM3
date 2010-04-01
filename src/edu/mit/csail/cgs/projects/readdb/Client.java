@@ -193,34 +193,38 @@ public class Client implements ReadOnlyClient {
         for (int chromid : map.keySet()) {
             List<SingleHit> hits = map.get(chromid);
             Collections.sort(hits);
-            request.clear();
-            request.type="storesingle";
-            request.alignid=alignid;
-            request.chromid = chromid;
-            request.map.put("numhits",Integer.toString(hits.size()));
-            sendString(request.toString());
-            String response = readLine();
-            if (!response.equals("OK")) {
-                throw new ClientException(response);
-            }
-            int[] ints = new int[hits.size()];
-            for (int i = 0; i < hits.size(); i++) {
-                ints[i] = hits.get(i).pos;
-            }        
-            Bits.sendInts(ints, outstream,buffer);
-            float[] floats = new float[hits.size()];
-            for (int i = 0; i < hits.size(); i++) {
-                floats[i] = hits.get(i).weight;
-                ints[i] = Hits.makeLAS(hits.get(i).length, hits.get(i).strand);
-            }
-            Bits.sendFloats(floats, outstream,buffer);
-            Bits.sendInts(ints, outstream,buffer);
+            int chunk = 2000000;
+            for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
+                int count = startindex + chunk < hits.size() ? chunk : (hits.size() - startindex);
+                request.clear();
+                request.type="storesingle";
+                request.alignid=alignid;
+                request.chromid = chromid;
+                request.map.put("numhits",Integer.toString(count));
+                sendString(request.toString());
+                String response = readLine();
+                if (!response.equals("OK")) {
+                    throw new ClientException(response);
+                }
+                int[] ints = new int[count];
+                for (int i = startindex; i < startindex + count; i++) {
+                    ints[i] = hits.get(i).pos;
+                }        
+                Bits.sendInts(ints, outstream,buffer);
+                float[] floats = new float[count];
+                for (int i = startindex; i < startindex + count; i++) {
+                    floats[i] = hits.get(i).weight;
+                    ints[i] = Hits.makeLAS(hits.get(i).length, hits.get(i).strand);
+                }
+                Bits.sendFloats(floats, outstream,buffer);
+                Bits.sendInts(ints, outstream,buffer);
             
-            System.err.println("Sent " + hits.size() + " hits to the server");
-            outstream.flush();        
-            response = readLine();
-            if (!response.equals("OK")) {
-                throw new ClientException(response);
+                System.err.println("Sent " + hits.size() + " hits to the server");
+                outstream.flush();        
+                response = readLine();
+                if (!response.equals("OK")) {
+                    throw new ClientException(response);
+                }
             }
         }
     }
@@ -235,44 +239,49 @@ public class Client implements ReadOnlyClient {
         for (int chromid : map.keySet()) {            
             List<PairedHit> hits = map.get(chromid);
             System.err.println("SENDING PAIRED HITS n="+hits.size() + " for chrom " + chromid);
-            request.clear();
-            request.type="storepaired";
-            request.alignid=alignid;
-            request.chromid=chromid;
-            request.isLeft=true;
-            request.map.put("numhits",Integer.toString(hits.size()));
-            sendString(request.toString());
-            String response = readLine();
-            if (!response.equals("OK")) {
-                throw new ClientException(response);
-            }
-            int[] ints = new int[hits.size()];
-            for (int i = 0; i < hits.size(); i++) {
-                ints[i] = hits.get(i).leftPos;
-            }        
-            Bits.sendInts(ints, outstream,buffer);
-            float[] floats = new float[hits.size()];
-            for (int i = 0; i < hits.size(); i++) {
-                floats[i] = hits.get(i).weight;
-                ints[i] = Hits.makeLAS(hits.get(i).leftLength, hits.get(i).leftStrand,
-                                       hits.get(i).rightLength, hits.get(i).rightStrand);
+            int chunk = 2000000;
+            for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
+                int count = startindex + chunk < hits.size() ? chunk : (hits.size() - startindex);
 
-            }
-            Bits.sendFloats(floats, outstream,buffer);
-            Bits.sendInts(ints, outstream,buffer);
-            for (int i = 0; i < hits.size(); i++) {
-                ints[i] = hits.get(i).rightChrom;
-            }        
-            Bits.sendInts(ints, outstream,buffer);
-            for (int i = 0; i < hits.size(); i++) {
-                ints[i] = hits.get(i).rightPos;
-            }        
-            Bits.sendInts(ints, outstream,buffer);
-            System.err.println("Sent " + hits.size() + " hits to the server");
-            outstream.flush();        
-            response = readLine();
-            if (!response.equals("OK")) {
-                throw new ClientException(response);
+                request.clear();
+                request.type="storepaired";
+                request.alignid=alignid;
+                request.chromid=chromid;
+                request.isLeft=true;
+                request.map.put("numhits",Integer.toString(count));
+                sendString(request.toString());
+                String response = readLine();
+                if (!response.equals("OK")) {
+                    throw new ClientException(response);
+                }
+                int[] ints = new int[count];
+                for (int i = startindex; i < startindex + count; i++) {
+                    ints[i] = hits.get(i).leftPos;
+                }        
+                Bits.sendInts(ints, outstream,buffer);
+                float[] floats = new float[count];
+                for (int i = startindex; i < startindex + count; i++) {
+                    floats[i] = hits.get(i).weight;
+                    ints[i] = Hits.makeLAS(hits.get(i).leftLength, hits.get(i).leftStrand,
+                                           hits.get(i).rightLength, hits.get(i).rightStrand);
+
+                }
+                Bits.sendFloats(floats, outstream,buffer);
+                Bits.sendInts(ints, outstream,buffer);
+                for (int i = 0; i < hits.size(); i++) {
+                    ints[i] = hits.get(i).rightChrom;
+                }        
+                Bits.sendInts(ints, outstream,buffer);
+                for (int i = 0; i < hits.size(); i++) {
+                    ints[i] = hits.get(i).rightPos;
+                }        
+                Bits.sendInts(ints, outstream,buffer);
+                System.err.println("Sent " + hits.size() + " hits to the server");
+                outstream.flush();        
+                response = readLine();
+                if (!response.equals("OK")) {
+                    throw new ClientException(response);
+                }
             }
         }
     }
