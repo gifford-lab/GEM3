@@ -31,13 +31,12 @@ public class MACSParser {
 		try {
 			in = new FileReader(filename);
 			bin = new BufferedReader(in);
-
 			
 			String line;
 			while((line = bin.readLine()) != null) { 
 				line = line.trim();
 	            String[] f=line.split("\t");
-	            if (line.charAt(0)=='#'||f[0].equals("chr")){
+	            if (line.length()==0 || line.charAt(0)=='#'||f[0].equals("chr")){
 	            	continue;
 	            }
 				MACSPeakRegion hit = MACSParser.parseLine(g, line, 0);

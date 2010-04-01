@@ -213,7 +213,7 @@ public class MarkovBackgroundModel extends BackgroundModel {
       
       DoubleMatrix1D logMarkov = new DenseDoubleMatrix1D(numCurrKmers);
       for (int i = 0; i < logMarkov.size(); i++) {
-        Double prob = this.getMarkovProb(currKmerLen, i);
+        Double prob = this.getMarkovProb(i, currKmerLen);
         if (prob != null) {
           logMarkov.setQuick(i, Math.exp(prob));
         }
