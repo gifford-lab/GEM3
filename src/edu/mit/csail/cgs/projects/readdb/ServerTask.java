@@ -30,7 +30,8 @@ public class ServerTask {
     private boolean shouldClose;
     /* Socket, streams from the socket */
     private Socket socket;
-    private BufferedInputStream instream;
+    private int haventTriedRead;
+    private PushbackInputStream instream;
     private OutputStream outstream;
     private WritableByteChannel outchannel;
     /* if authenticate was successful, this holds a username.  Null otherwise */
@@ -58,9 +59,10 @@ public class ServerTask {
         shouldClose = false;
         username = null;
         uname = null;
+        haventTriedRead = 0;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
         socket.setSendBufferSize(Server.BUFFERLEN);
-        instream = new BufferedInputStream(socket.getInputStream());
+        instream = new PushbackInputStream(socket.getInputStream());
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
         bufferpos = 0;
@@ -135,7 +137,7 @@ public class ServerTask {
                 if (username == null) { 
                     return ;
                 }
-                server.getLogger().log(Level.INFO,"ServerTask " + Thread.currentThread() + " authenticated " + username + " from " + socket.getInetAddress());
+                server.getLogger().log(Level.INFO,"ServerTask " + Thread.currentThread() + " authenticated " + username + " from " + socket.getInetAddress() + ":" + socket.getPort());
                 printString("authenticated as " + username + "\n");
             }
             while (true) {

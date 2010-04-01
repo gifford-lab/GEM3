@@ -8,8 +8,8 @@ import java.text.DecimalFormat;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
+import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 import edu.mit.csail.cgs.utils.*;
-import edu.mit.csail.cgs.utils.parsing.FASTAStream;
 import edu.mit.csail.cgs.utils.probability.Binomial;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.*;
@@ -124,7 +124,9 @@ public class CompareEnrichment {
         ArrayList<String> accept, reject;
         accept = new ArrayList<String>();
         reject = new ArrayList<String>();
-        matrices = WeightMatrix.getAllWeightMatrices();           
+        matrices = new ArrayList<WeightMatrix>();
+        matrices.addAll(WeightMatrix.getAllWeightMatrices());
+
         double cutoffpercent = .7;
         double filtersig = .001;
         double minfoldchange = 1;
@@ -200,8 +202,10 @@ public class CompareEnrichment {
             }
             double pfirst = Binomial.log_binomial_significance(first,firstseqcount,secondfreq);
             double sigfirst = Math.exp(pfirst);
+            sigfirst = Math.min(sigfirst, 1-sigfirst);
             double psecond = Binomial.log_binomial_significance(second,secondseqcount,firstfreq);
             double sigsecond = Math.exp(psecond);
+            sigsecond = Math.min(sigsecond, 1-sigsecond);
 //             System.err.println("sig : " + sigfirst + ", " + sigsecond + " :: " + filtersig);
 //             System.err.println("fold : " + (pfirst / psecond) + ", " + (psecond / pfirst) + " :: " + minfoldchange);
 //             System.err.println("frac : " + pfirst + ", " + psecond + " :: " + minfrac);

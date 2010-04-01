@@ -145,7 +145,7 @@ public abstract class Hits implements Closeable {
      * firstindex is an inclusive lower bound on the index of startpos.
      * lastindex is an inclusive upper bound on the index of lastpos
      */
-    public int[] getIndices(int firstindex, int lastindex, int startpos, int lastpos) {
+    public int[] getIndicesLinear(int firstindex, int lastindex, int startpos, int lastpos) {
         assert(startpos <= lastpos);
         assert(firstindex <= lastindex);
         assert(firstindex >= 0);
@@ -166,6 +166,63 @@ public abstract class Hits implements Closeable {
         assert(lastindex <= positions.ib.limit());
         return indices;
 
+    }
+    /* don't actually use this version.  You might think that binary search is faster, but it turns
+       out not to be.  The linear search is over a limited number of elements, is very simple code,
+       and has a great data cache hit rate
+    */      
+    public int[] getIndices(int firstindex, int lastindex, int startpos, int lastpos) {
+        assert(startpos <= lastpos);
+        assert(firstindex <= lastindex);
+        int indices[] = new int[2]; // will be the output
+        /* this is a binary search in two steps.  In the first step, we establish the upper bound for the binary
+           search by looking out in windows of doubling size until we've bounded the spot we're looking for.  
+           We do this because a binary search over the entire array of hits would defeat the purpose of the
+           index in Header.  The second step is the actual binary search using firstindex as the lower bound and the
+           upper bound that we found
+        */
+        int step = 256;
+        int limit = positions.ib.limit();
+        if (lastindex < limit) {
+            limit = lastindex;
+        }
+        while (firstindex + step < limit &&
+               positions.ib.get(firstindex + step) < startpos) {
+            firstindex += step;
+            step *= 2;
+        }
+        while (firstindex < limit && 
+               positions.ib.get(firstindex) < startpos) {
+            step = (step >> 2) | 1;
+            if (step == 1 ||
+                (firstindex + step < limit &&
+                 positions.ib.get(firstindex + step - 1) < startpos)) {
+                firstindex += step;
+            }
+        }
+
+        step = 256;
+        while (lastindex - step > firstindex &&
+               positions.ib.get(lastindex - step) > lastpos) {
+            lastindex -= step;
+            step *= 2;
+        }
+        while (lastindex > firstindex && 
+               positions.ib.get(lastindex - 1) > lastpos) {
+            step = (step >> 2) | 1;
+            if ((step == 1 || lastindex - step > firstindex) &&
+                positions.ib.get(lastindex - step) > lastpos) {
+                lastindex -= step;
+            }
+        }
+
+        indices[0] = firstindex;
+        indices[1] = lastindex;
+
+        assert(indices[0] <= indices[1]);
+        assert(indices[0] >= 0);
+        assert(indices[1] <= positions.size());
+        return indices;
     }
     /**
      * Returns the number of elements between start and stop

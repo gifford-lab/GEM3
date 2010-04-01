@@ -1,8 +1,8 @@
 package edu.mit.csail.cgs.datasets.chipchip;
 
-import edu.mit.csail.cgs.utils.parsing.textfiles.*;
 import java.sql.*;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
+import edu.mit.csail.cgs.utils.io.parsing.textfiles.*;
 
 public class AddPairHandler extends PairHandler {
 

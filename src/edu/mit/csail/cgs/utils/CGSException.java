@@ -1,7 +1,8 @@
 package edu.mit.csail.cgs.utils;
 
 /**
- * This class can be used to signal error cases in code in the various modules  
+ * This class can be used to signal error cases in code in the various modules 
+ * of our codebase 
  * @author Bob
  *
  */
@@ -27,12 +28,12 @@ public class CGSException extends Exception {
 	 * @param   e   the Exception Object.
 	 */
 	public CGSException(Exception e) {
-		super(e.getMessage());
+		super(e);
 	}
 	
 	
 	/**
-	 * Constructs a <code>CGSException</code> with speficied message and an Exception Object.
+	 * Constructs a <code>CGSException</code> with specified message and an Exception Object.
 	 * @param msg	the detail message.
 	 * @param e		the Exception Object.
 	 */

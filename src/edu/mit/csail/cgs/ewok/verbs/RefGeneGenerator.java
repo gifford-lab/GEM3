@@ -246,9 +246,13 @@ public class RefGeneGenerator<X extends Region>
             if (aliastable == null) {
                 namequery += " from " + tablename + " g where g.name = ?";
             } else {
-                namequery += " from " + tablename + 
-                    " g where g.name in (select distinct( " + namecolumn + ") from " + aliastable + " where " +
-                    aliascolumn + " = ?) or g.name = ?";
+                // this noop extra select is to fool the mysql query optimizer so it
+                // doesn't screw this query up
+                namequery += String.format(" from %s g where g.name = ? or g.name in (select id from (select %s as id from %s a where a.%s = ? ) as x)",
+                                           tablename, 
+                                           namecolumn,
+                                           aliastable,
+                                           aliascolumn);
             }
             nameps = cxn.prepareStatement(namequery);
         } catch (SQLException e) {
@@ -290,7 +294,9 @@ public class RefGeneGenerator<X extends Region>
     public synchronized Iterator<Gene> byName(String name) {
         try {
             nameps.setString(1,name);
-            nameps.setString(2,name);
+            if (aliastable != null) {
+                nameps.setString(2,name);
+            }
             Iterator<Gene> results = parseResults(nameps);
             return results;
         } catch (SQLException ex) {
@@ -358,8 +364,8 @@ public class RefGeneGenerator<X extends Region>
                                 try {
                                     exonicGene.addExon(start, end);
                                 } catch(IllegalArgumentException iae) {
-                                    System.err.println("Start line: \"" + startline + "\"");
-                                    System.err.println("End line: \"" + endline + "\"");
+                                    System.err.println("Start line: \"" + startline + "\", " + startArray[i]);
+                                    System.err.println("End line: \"" + endline + "\", " + endArray[i]);
                                     iae.printStackTrace(System.err);
                                 }
                             }

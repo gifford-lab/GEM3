@@ -52,18 +52,19 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	private MetadataLoader metaLoader;
 	private boolean closeMetaLoader;
 	private java.sql.Connection cxn;
-    private Client client;
-
-	public ChipSeqLoader() throws SQLException, IOException {
+    private Client client=null;
+    
+    public ChipSeqLoader() throws SQLException, IOException{this(true);}
+	public ChipSeqLoader(boolean openClient) throws SQLException, IOException {
 		metaLoader = new MetadataLoader();
 		closeMetaLoader = true;
-        try {
-            client = new Client();
-        } catch (ClientException e) {
-            throw new IllegalArgumentException(e);
-        }
-
-
+		if(openClient){
+	        try {
+	            client = new Client();
+	        } catch (ClientException e) {
+	            throw new IllegalArgumentException(e);
+	        }
+		}
 		cxn = DatabaseFactory.getConnection(role);
 	}
 
@@ -71,6 +72,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	public MetadataLoader getMetadataLoader() {
 		return metaLoader;
 	}
+
     public List<ChipSeqHit> convert(Collection<SingleHit> input, ChipSeqAlignment align) {
         Genome g = align.getGenome();
         ArrayList<ChipSeqHit> output = new ArrayList<ChipSeqHit>();
@@ -269,14 +271,86 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         try {
             for (int chromid : client.getChroms(alignid, false, false)) {
                 data.addAll(convert(client.getSingleHits(alignid, chromid,null,null,null,null),a));
-                            
             }
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
 		return data;
 	}
-    
+                            
+	public Collection<ChipSeqAlignment> loadAlignments(String name, String replicate, String align,
+                                                       Integer factor, Integer cells, Integer condition,
+                                                       Genome genome) throws SQLException {
+        String query = "select id, expt, name, genome from chipseqalignments";
+        if (name != null || replicate != null || align != null || factor != null || cells != null || condition != null || genome != null) {
+            query += " where ";
+        }
+        boolean and = false;
+        if (name != null || replicate != null || factor != null || cells != null || condition != null) {
+            query += " expt in ( select it from chipseqexpt where ";
+            if (name != null) { query += " name = ? "; and = true;}
+            if (replicate != null) { query += (and ? " and " : " ") + " replicate = ? "; and = true;}
+            if (factor != null) { query += (and ? " and " : " ") + " factor = " + factor; and = true;}
+            if (cells != null) { query += (and ? " and " : " ") + " cells = " + cells; and = true;}
+            if (condition != null) { query += (and ? " and " : " ") + " condition = " + condition; and = true;}
+            query += ")";
+            and = true;
+        }
+        if (genome != null) {query += (and ? " and " : " ") + " genome = " + genome.getDBID(); and = true; }
+        if (align != null) {query += (and ? " and " : " ") + " name = ? "; and = true; }
+        PreparedStatement ps = cxn.prepareStatement(query);
+        int index = 0;
+        if (name != null || replicate != null) {
+            if (name != null) { ps.setString(index++,name);}
+            if (replicate != null) { ps.setString(index++,replicate);}
+        }
+        if (align != null) {ps.setString(index++,align);}
+        
+        ResultSet rs = ps.executeQuery();
+        Collection<ChipSeqAlignment> output = new ArrayList<ChipSeqAlignment>();
+        while (rs.next()) {
+            try {
+                output.add(new ChipSeqAlignment(rs,this));
+            } catch (NotFoundException e) {
+                throw new DatabaseException(e.toString(),e);
+            }
+        }
+        rs.close();
+        ps.close();
+        return output;
+    }
+
+    private void instantiateHits(Collection<ChipSeqHit> output,
+                                 int[] positions,
+                                 float[] weights,
+                                 Genome g,
+                                 String chrom,
+                                 char strand,
+                                 ChipSeqAlignment align) {
+        int readlen = align.getExpt().getReadLength();
+        if (strand == '+') {
+            for (int i = 0; i < positions.length; i++) {
+                output.add(new ChipSeqHit(align.getGenome(),
+                                          chrom,
+                                          positions[i],
+                                          positions[i] + readlen,
+                                          strand,
+                                          align,
+                                          weights[i]));        
+            }
+        } else {
+            for (int i = 0; i < positions.length; i++) {
+                output.add(new ChipSeqHit(align.getGenome(),
+                                          chrom,
+                                          positions[i] - readlen,
+                                          positions[i],
+                                          strand,
+                                          align,
+                                          weights[i]));        
+            }
+        }
+    }
+                                 
 	public List<ChipSeqHit> loadByChrom(ChipSeqAlignment a, int chromid) throws IOException {
 		List<ChipSeqHit> data = new ArrayList<ChipSeqHit>();
         String alignid = Integer.toString(a.getDBID());
@@ -300,10 +374,12 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
             throw new IllegalArgumentException(e);
         }
 	}
-
-
-	public List<ChipSeqHit> loadByRegion(List<ChipSeqAlignment> alignments, Region r) throws IOException {
-        List<ChipSeqHit> output = null;
+			
+	public Collection<ChipSeqHit> loadByRegion(List<ChipSeqAlignment> alignments, Region r) throws IOException {
+		if (alignments.size() < 1) {
+			throw new IllegalArgumentException("Alignment List must not be empty.");
+		}
+        Collection<ChipSeqHit> output = null;
         for (ChipSeqAlignment a : alignments) {
             if (output == null) {
                 output = loadByRegion(a,r);
@@ -313,6 +389,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         }
 		return output;
 	}
+
     
 	public int countByRegion(ChipSeqAlignment align, Region r) throws IOException {
         try {
@@ -446,6 +523,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		reader.close();
         return params;
     }
+
 	public void addAlignmentParameters(ChipSeqAlignment align, File paramsfile) throws SQLException, IOException {
 		BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(paramsfile)));
 		addAlignmentParameters(align, readParameters(reader));

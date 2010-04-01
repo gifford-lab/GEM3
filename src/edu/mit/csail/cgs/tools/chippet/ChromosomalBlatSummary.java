@@ -8,7 +8,7 @@ import edu.mit.csail.cgs.datasets.general.NamedStrandedRegion;
 import edu.mit.csail.cgs.datasets.general.StrandedRegion;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.Interval;
-import edu.mit.csail.cgs.utils.parsing.alignment.BlatPSLEntry;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.BlatPSLEntry;
 
 public class ChromosomalBlatSummary {
     

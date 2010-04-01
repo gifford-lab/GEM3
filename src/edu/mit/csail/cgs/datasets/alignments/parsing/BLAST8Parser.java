@@ -6,7 +6,7 @@ import java.util.*;
 import org.apache.log4j.Logger;
 
 import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.parsing.FASTAStream;
+import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 
 public class BLAST8Parser {
 

@@ -61,7 +61,7 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 				
 				if(profiler.getMaxScore(offset)>maxScore){
 					maxScore= profiler.getMaxScore(offset); 
-					maxPos=offset;
+					maxPos=offset;					
 				}
 			}
 			if(maxScore>=minThreshold){
@@ -69,8 +69,16 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 					int tmp = window-maxPos;
 					maxPos = tmp;
 				}
-				int bin = params.findBin(maxPos);
-				addToArray(bin, bin, array, maxScore);
+				int startbin, stopbin;
+				if(profiler.getMaxStrand(maxPos)=='+'){
+					startbin = params.findBin(maxPos);
+					stopbin = params.findBin(maxPos+motif.length());
+				}else{
+					startbin = params.findBin(maxPos-motif.length());
+					stopbin = params.findBin(maxPos);
+				}
+				//addToArray(startbin, stopbin, array, maxScore);
+				maxToArray(startbin, stopbin, array, maxScore);
 			}
 		}
 		
@@ -80,6 +88,11 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 	private void addToArray(int i, int j, double[] array, double value) { 
 		for(int k = i; k <= j; k++) { 
 			array[k] += value;
+		}
+	}
+	private void maxToArray(int i, int j, double[] array, double value) { 
+		for(int k = i; k <= j; k++) { 
+			array[k] = Math.max(array[k],value);
 		}
 	}
 	public void cleanup() {}

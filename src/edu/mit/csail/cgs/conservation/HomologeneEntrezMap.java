@@ -6,7 +6,7 @@ package edu.mit.csail.cgs.conservation;
 import java.util.*;
 import java.io.*;
 
-import edu.mit.csail.cgs.utils.parsing.homologene.*;
+import edu.mit.csail.cgs.utils.io.parsing.homologene.*;
 
 /**
  * @author tdanford

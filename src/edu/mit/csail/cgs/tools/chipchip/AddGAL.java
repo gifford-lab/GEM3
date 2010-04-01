@@ -1,6 +1,5 @@
 package edu.mit.csail.cgs.tools.chipchip;
 
-import edu.mit.csail.cgs.utils.parsing.textfiles.*;
 import edu.mit.csail.cgs.datasets.species.*;
 import java.io.*;
 import java.sql.*;
@@ -12,15 +11,15 @@ import javax.swing.*;
 import javax.swing.table.*;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.parsing.FASTAStream;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.Sequence;
+import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.PSL;
+import edu.mit.csail.cgs.utils.io.parsing.alignment.PSLHit;
+import edu.mit.csail.cgs.utils.io.parsing.textfiles.*;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.chipchip.*;
-import edu.mit.csail.cgs.utils.parsing.alignment.PSL;
-import edu.mit.csail.cgs.utils.parsing.alignment.PSLHit;
-import edu.mit.csail.cgs.utils.parsing.textfiles.*;
 
 
 /**
@@ -164,17 +163,17 @@ public class AddGAL implements ActionListener, ItemListener {
             }
             if (type.equals("GAL")) {
                 edu.mit.csail.cgs.datasets.chipchip.AddGALHandler galhandler = new edu.mit.csail.cgs.datasets.chipchip.AddGALHandler(cxn,insert,probeseqs);
-                file = new edu.mit.csail.cgs.utils.parsing.textfiles.GALFile(fname,galhandler);
+                file = new edu.mit.csail.cgs.utils.io.parsing.textfiles.GALFile(fname,galhandler);
                 galhandler.setExistingKeys(galhandler.queryExistingKeys(designid,dbfile.getDBID()));
                 handler = galhandler;
             } else if (type.equals("TDT")) {
                 AddTDTHandler tdthandler = new AddTDTHandler(cxn,insert,probeseqs);
-                file = new edu.mit.csail.cgs.utils.parsing.textfiles.TDTFile(fname,tdthandler);
+                file = new edu.mit.csail.cgs.utils.io.parsing.textfiles.TDTFile(fname,tdthandler);
                 tdthandler.setExistingKeys(tdthandler.queryExistingKeys(designid,dbfile.getDBID()));
                 handler = tdthandler;
             } else if (type.equals("NDF")) {
                 AddNDFHandler ndfhandler = new AddNDFHandler(cxn,insert,probeseqs);
-                file = new edu.mit.csail.cgs.utils.parsing.textfiles.NDFFile(fname,ndfhandler);
+                file = new edu.mit.csail.cgs.utils.io.parsing.textfiles.NDFFile(fname,ndfhandler);
                 ndfhandler.setExistingKeys(ndfhandler.queryExistingKeys(designid,dbfile.getDBID()));
                 handler = ndfhandler;
             } else {

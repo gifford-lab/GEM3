@@ -32,6 +32,7 @@ public class WeightMatrix {
     public int dbid, speciesid;
     public boolean hasdbid, hasspeciesid; // set to true iff dbid is valid
     public boolean islogodds;
+    public int bgModelID = -1;
     
     WeightMatrix(ResultSet wmData, ResultSet wmColData) throws SQLException {  
     	dbid = wmData.getInt(1);
@@ -39,6 +40,10 @@ public class WeightMatrix {
     	name = wmData.getString(3);
     	version = wmData.getString(4);
     	type = wmData.getString(5);
+    	bgModelID = wmData.getInt(6);
+    	if (wmData.wasNull()) {
+    	  bgModelID = -1;
+    	}
     	
     	hasdbid = true; hasspeciesid = true;
     	islogodds = false;
@@ -73,7 +78,7 @@ public class WeightMatrix {
 				}
     		}
     	}
-    }
+    }    
 
     public WeightMatrix (int length) {
         dbid = -1;
@@ -83,29 +88,59 @@ public class WeightMatrix {
     }
 
     public static Collection<WeightMatrix> getAllWeightMatrices() {
-        Collection<WeightMatrix> results = new HashSet<WeightMatrix>();
         try {
-            Collection<Integer> ids = new HashSet<Integer>();
             java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");
-            PreparedStatement ps = cxn.prepareStatement("select id from weightmatrix");
+            PreparedStatement ps = cxn.prepareStatement("select m.id, m.species, m.name, m.version, m.type, m.bg_model_map_id, c.position, c.letter, c.weight from "
+                                                        + "weightmatrix m, weightmatrixcols c where "
+                                                        + " m.id = c.weightmatrix order by c.weightmatrix, c.position desc");
             ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                ids.add(rs.getInt(1));
-            }
+
+            Collection<WeightMatrix> matrices = WeightMatrix.getWeightMatrices(rs);
+
             rs.close();
             ps.close();
             DatabaseFactory.freeConnection(cxn);
-            for (Integer id : ids) {
-                results.add(getWeightMatrix(id));
-            }            
+            return matrices;
         } catch (SQLException ex){ 
             throw new DatabaseException(ex.toString(),ex);
-        } catch (NotFoundException ex) {
-            ex.printStackTrace();
         } catch (UnknownRoleException ex) {
             throw new DatabaseException(ex.toString(),ex);
         }
-        return results;
+    }
+    /**
+     * Gets all the matrices specified in the result set which is
+     * the result of joining weightmatrix and weightmatrixcols, eg
+     * select m.id, m.species, m.name, m.version, m.type, m.bg_model_map_id, c.position, c.letter, c.weight from weightmatrix m, 
+     * weightmatrixcols c where m.id = c.weightmatrix order by c.weightmatrix, c.position desc
+     *
+     * sorting by descending position is critical so that the first row of a new matrix gives
+     * the largest index (ie, the length of the matrix)
+     */
+    public static Collection<WeightMatrix> getWeightMatrices(ResultSet rs) throws SQLException {
+        Map<Integer,WeightMatrix> output = new HashMap<Integer,WeightMatrix>();
+        while (rs.next()) {
+            int id = rs.getInt(1);
+            if (!output.containsKey(id)) {
+                WeightMatrix m = new WeightMatrix(rs.getInt(7) + 1);
+                m.dbid = rs.getInt(1);
+                m.hasdbid = true;
+                m.speciesid = rs.getInt(2);
+                if (m.speciesid > 0) {
+                  m.hasspeciesid = true;
+                }
+                m.name = rs.getString(3);
+                m.version = rs.getString(4);
+                m.type = rs.getString(5);
+                m.bgModelID = rs.getInt(6);
+                if ((m.bgModelID == 0) && rs.wasNull()) {
+                  m.bgModelID = -1;
+                }
+                output.put(id,m);
+            }
+            output.get(id).matrix[rs.getInt(7)][rs.getString(8).charAt(0)] = rs.getFloat(9);
+        }
+        System.err.println("Returning " + output.size() + " from WeightMatrix.getWeightMatrices(ResultSet)");
+        return output.values();
     }
 
     /* creates a new weightMatrixObject based on the provided database identifier */
@@ -147,7 +182,7 @@ public class WeightMatrix {
             }
             rs.close();
             ps.close();
-            ps = cxn.prepareStatement("select name, version, type, species from weightmatrix where id = ?");
+            ps = cxn.prepareStatement("select name, version, type, species, bg_model_map_id from weightmatrix where id = ?");
             ps.setInt(1,dbid);
             rs = ps.executeQuery();
             rs.next();
@@ -156,6 +191,10 @@ public class WeightMatrix {
             matrix.type = rs.getString(3);
             matrix.speciesid = rs.getInt(4);
             matrix.hasspeciesid = true;
+            matrix.bgModelID = rs.getInt(5);
+            if ((matrix.bgModelID == 0) && rs.wasNull()) {
+              matrix.bgModelID = -1;
+            }
             rs.close();
             ps.close();            
             DatabaseFactory.freeConnection(cxn);     
@@ -222,7 +261,10 @@ public class WeightMatrix {
             } else {
                 return (o.name != null &&
                         this.name != null &&
-                        this.name.equals(o.name));
+                        this.name.equals(o.name)
+                        && o.version != null
+                        && this.version != null
+                        && this.version.equals(o.version));
             }
         } else {
             return false;
@@ -271,7 +313,26 @@ public class WeightMatrix {
         islogodds = true;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-                matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25);
+              MarkovBackgroundModel bgModel = null;
+            	
+            	if (bgModelID != -1) {
+            	  try {
+            	    bgModel = BackgroundModelLoader.getMarkovModel(bgModelID);
+            	  }
+            	  catch (NotFoundException nfex) {
+            	    nfex.printStackTrace();
+            	  }
+            	  catch (SQLException sqlex) {
+            	    sqlex.printStackTrace();
+            	  }                
+            	}
+            	
+            	if (bgModel != null) {
+            	  matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+            	}
+            	else {
+            		matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25);
+            	}
             }
         }        
     }

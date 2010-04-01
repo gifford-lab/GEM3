@@ -47,6 +47,9 @@ public class Dispatch implements Runnable {
         }
         warnedMaxConn = 0;
         workQueue.add(s);
+        synchronized(this) {
+            notifyAll();
+        }
     }
     /**
      * called by WorkerThread when it's finished with a ServerTask.
@@ -63,61 +66,47 @@ public class Dispatch implements Runnable {
             workQueue.add(s);
         }
         freePool.add(t);
+        synchronized(this) {
+            notifyAll();
+        }
     }
     /**
      * our main loop.  work through the tasks, seeing who appears
      * to have input
      */
     public void run() {
-        int i = 0;
+        int noTasksWaiting = 0;
+        int noInputAvailable = 0;
+        int noThreadsFree = 0;
         while (server.keepRunning()) {            
             if (workQueue.size() > 0) {
+                noTasksWaiting = 0;
                 ServerTask s = workQueue.remove(0);
                 if (s.shouldClose()) {
-//                     if (server.debug()) {
-//                         System.err.println("dispatch should close " + s);
-//                     }
                     System.err.println("run loop closing task " + s);
                     s.close();
+                    noInputAvailable = 0;
                 } else if (s.inputAvailable()) {
-                    if (freePool.size() == 0) {
-                        workQueue.add(s);
-//                         if (server.debug()) {
-//                             System.err.println("dispatch would like to handle " + s + " but no threads");
-//                         }
-                        continue;
-                    } else {
-                        WorkerThread w = freePool.remove(0);
-//                         if (server.debug()) {
-//                             System.err.println("dispatch is handling " + s);
-//                         }
-                        w.handle(s);
-                        i = 0;
-                    }
+                    while (freePool.size() == 0) {                        
+                        try {
+                            synchronized(this) {
+                                wait(2);
+                            }
+                        } catch (InterruptedException e) {}
+                    }                        
+                    WorkerThread w = freePool.remove(0);
+                    w.handle(s);
+                    noInputAvailable = 0;
+                    noThreadsFree = 0;
                 } else {
-                    i++;
-//                     if (server.debug()) {
-//                         System.err.println("No input for " + s + " so putting it back");
-//                     }
+                    noInputAvailable++;
                     workQueue.add(s);
                 }
-            }
-            try {
-//                 if (server.debug()) {
-//                     Thread.sleep(1000); // debugging only
-//                 }
-
-                if (workQueue.size() == 0) {
-                    Thread.sleep(50);
-                } else if (i > workQueue.size() * 10000) {
-                    Thread.sleep(500);
-                    i = 0;
-                } else if (i > workQueue.size() * 1000) {
-                    Thread.sleep(100);
-                    HashSet<ServerTask> set = new HashSet<ServerTask>();
-                    set.addAll(workQueue);
-                    if (set.size() < workQueue.size()) {
-                        System.err.println("Work Queue size is " + workQueue.size() + " but only " + set.size() + " unique elements");
+            } else {
+                noTasksWaiting++;
+                try {
+                    synchronized(this) {
+                        wait(2);
                     }
                 } else if (i > workQueue.size() * 100) {
                     Thread.sleep(10);

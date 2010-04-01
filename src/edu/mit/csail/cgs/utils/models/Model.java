@@ -360,7 +360,15 @@ public class Model {
                         fs[i].set(this, unjsoned);
 						//System.err.println(String.format("\t%s <- %s (%s)", fs[i].getName(), unjsoned, fs[i].get(this)));
 					} else { 
-						fs[i].set(this, null);
+                        /* this used to set object fields to null if they weren't present
+                           in the json representation.  I've changed it to ignore
+                           those fields.  The old behavior was a problem if you were reading
+                           property objects back from disk and the file was missing fields
+                           that were recently added to an object.  Those fields would
+                           be set to null even if the object's constructor had initialized
+                           them to something else.
+                        */
+                        //						fs[i].set(this, null);
 					}
 				} catch (IllegalAccessException e) {
 					e.printStackTrace();

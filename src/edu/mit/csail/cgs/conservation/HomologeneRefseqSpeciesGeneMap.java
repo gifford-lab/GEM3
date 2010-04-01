@@ -7,9 +7,9 @@ import java.io.*;
 import java.util.*;
 
 import edu.mit.csail.cgs.ewok.verbs.*;
-import edu.mit.csail.cgs.utils.parsing.homologene.*;
-import edu.mit.csail.cgs.utils.parsing.ncbi.*;
-import edu.mit.csail.cgs.utils.parsing.ncbi.Gene2RefSeqParser.Entry;
+import edu.mit.csail.cgs.utils.io.parsing.homologene.*;
+import edu.mit.csail.cgs.utils.io.parsing.ncbi.*;
+import edu.mit.csail.cgs.utils.io.parsing.ncbi.Gene2RefSeqParser.Entry;
 
 /**
  * @author tdanford

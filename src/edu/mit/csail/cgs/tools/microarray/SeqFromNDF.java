@@ -2,7 +2,8 @@ package edu.mit.csail.cgs.tools.microarray;
 
 import java.io.*;
 import java.util.*;
-import edu.mit.csail.cgs.utils.parsing.textfiles.*;
+
+import edu.mit.csail.cgs.utils.io.parsing.textfiles.*;
 
 /* takes name of input file(s) on command line.
    Produces FASTA formatted output on STDOUT */

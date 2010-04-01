@@ -92,6 +92,7 @@ public class Client implements ReadOnlyClient {
         outstream = socket.getOutputStream();
         instream = new BufferedInputStream(socket.getInputStream());
         buffer = new byte[BUFFERLEN];
+        
         if (!authenticate(hostname,username,passwd)) {
             throw new ClientException("Authentication Exception Failed");
         }

@@ -52,16 +52,20 @@ public class GeneToPromoter
         int start, stop;
         NamedStrandedRegion output = null;
         switch(a.getStrand()) { 
+        case '-':
+            start = a.getEnd() - downstream;
+            stop = a.getEnd() + upstream;
+            output = new NamedStrandedRegion(a.getGenome(), a.getChrom(), start, stop, a.getID(), a.getStrand());
+            break;
         default:
         case '+':
             start = a.getStart() - upstream;
             stop = a.getStart() + downstream;
             output = new NamedStrandedRegion(a.getGenome(), a.getChrom(), start, stop, a.getID(), a.getStrand());
-        case '-':
-            start = a.getEnd() - downstream;
-            stop = a.getEnd() + upstream;
-            output = new NamedStrandedRegion(a.getGenome(), a.getChrom(), start, stop, a.getID(), a.getStrand());
+            break;
         }
+        //        System.err.println("Gene is " + a + "  -> " + a.getStart() +","+a.getEnd()+"," + a.getStrand()); 
+        //        System.err.println("Intermediate output " + output + " ->  "  + start +"," + stop);
         if (refgene != null) {
             start = output.getStart();
             stop = output.getEnd();
@@ -69,11 +73,17 @@ public class GeneToPromoter
                 Iterator<Gene> iter = generator.execute(output);
                 while (iter.hasNext()) {
                     Gene other = iter.next();
+                    if (other.getStart() == a.getStart() && other.getEnd() == a.getEnd()) {
+                        continue;
+                    }
+
                     if (a.getStrand() == '+') {
                         start = Math.min(Math.max(start, other.getEnd()), stop);
                     } else {
                         stop = Math.max(Math.min(stop, other.getStart()), start);
                     }
+                    //                     System.err.println(String.format("%s %d %d -> %d %d",
+                    //                                                      other.toString(), other.getStart(),other.getEnd(), start,stop));
                 }
             }
             if (start != output.getStart() || stop != output.getEnd()) {
