@@ -1,11 +1,12 @@
-package ReadDBClient;
+package Bio::DB::ReadDBClient;
 
 use warnings;
 use strict;
 use IO::Socket;
+use Socket qw(IPPROTO_TCP TCP_NODELAY SO_LINGER);
 use Config;
-#use Authen::SASL qw(Perl);
-use Authen::SASL;
+use Authen::SASL qw(Perl);
+#use Authen::SASL;
 
 
 sub new {
@@ -21,21 +22,15 @@ sub init {
     my %props = $self->read_config_file();
     ($hostname,$portnum,$username,$passwd) = @props{qw(hostname port username passwd)};
   }
-  
+
   $self->{socket} = IO::Socket::INET->new(PeerAddr=>$hostname,
 					  PeerPort=>$portnum,
 					  Proto=>'tcp') or die "can't open socket to ${hostname}:${portnum} : $!";
+  $self->{socket}->sockopt(SO_LINGER, 0);
   
   die "Couldn't authenticate to ${hostname}:${portnum}" unless($self->authenticate($hostname, $username, $passwd));
 
-  $self->{request} = new ReadDBClient::Request();
-  $self->{request}{type} = "byteorder";
-  $self->{request}{map}{order} = ($Config{byteorder} =~ /^1/) ? 'little' : 'big';
-  $self->sendRequest();
-  my $response = $self->readLine();
-  if ($response ne "OK") {
-    die "Couldn't set byte order : $response";
-  }
+  $self->{request} = Bio::DB::ReadDBClient::Request->new();
   return $self;
 }
 
@@ -71,26 +66,31 @@ sub debug {
 sub authenticate {
   my ($self, $hostname, $username, $passwd) = @_;
   $self->sendString("${username}\n");
-  my $sasl = Authen::SASL->new(
-			       mechanism => 'CRAM-MD5',
-			       callback => {
-					    pass => $passwd,
-					    user => $username,
-					   }
+#  print STDERR "PACKAGE IS " . __PACKAGE__ . "\n";
+  my $sasl = Authen::SASL->new(mechanism => 'CRAM-MD5',
+			       debug=>13,
+			       user=>$username,
+			       pass=>$passwd,
+			       callback => {pass => $passwd,
+					    user => $username}
 			      );
+#  print STDERR "Have user as " . $sasl->user() . "\n";
   my $client = $sasl->client_new($hostname, "readdb");
-  $client->property("POLICY_NOPLAINTEXT"=>1,
-		    "POLICY_NOANONYMOUS"=>1);
+#  print STDERR "Have user as " . $client->_call('user') . "\n";
+#  $client->property("POLICY_NOPLAINTEXT"=>1,
+#		    "POLICY_NOANONYMOUS"=>1);
   my $response = $client->client_start();
   my $challenge = '';
   my $cont = 1;
   while ($cont) {
+#    print STDERR "RESPONSE is $response\n";
     $self->sendString(length($response) . "\n" . $response);
     my $length = $self->readLine();
     $self->{socket}->recv($challenge, $length);
     if (length($challenge) != $length) {
       print STDERR "expected $length bytes as challenge but only read " . length($challenge) . "\n";
-    } 
+    }     
+#    print STDERR "CHALLENGE is $challenge\n";
     $self->{socket}->recv($cont, 1);
     $response = $client->client_step($challenge);
     $cont = unpack("c",$cont);
@@ -142,13 +142,13 @@ sub readLine {
 
 sub shutdown {
   my ($self) = @_;
-  $self->{request}{type} = 'shutdown';
+  $self->{request}{requesttype} = 'shutdown';
   $self->sendRequest();
 }
 
 sub alignExists {
   my ($self, $alignid) = @_;
-  $self->{request}{type} = 'exists';
+  $self->{request}{requesttype} = 'exists';
   $self->{request}{alignid} = $alignid;
   $self->sendRequest();
   my $response = $self->readLine();
@@ -157,7 +157,7 @@ sub alignExists {
 
 sub getChroms {
   my ($self, $alignid, $isPaired, $isLeft) = @_;
-  $self->{request}{type} = 'getchroms';
+  $self->{request}{requesttype} = 'getchroms';
   $self->{request}{alignid} = $alignid;
   $self->{request}{ispaired} = $isPaired;
   $self->{request}{isleft} = $isLeft;
@@ -181,7 +181,7 @@ sub getCount {
   }
   my $count = 0;
   for my $chrom (@chroms) {
-    $self->{request}{type} = 'count';
+    $self->{request}{requesttype} = 'count';
     $self->{request}{alignid} = $alignid;
     $self->{request}{chromid} = $chrom;
     $self->{request}{ispaired} = $isPaired;
@@ -205,7 +205,7 @@ sub getWeight {
   }
   my $weight = 0;
   for my $chrom (@chroms) {
-    $self->{request}{type} = 'weight';
+    $self->{request}{requesttype} = 'weight';
     $self->{request}{alignid} = $alignid;
     $self->{request}{chromid} = $chrom;
     $self->{request}{ispaired} = $isPaired;
@@ -224,7 +224,7 @@ sub getWeight {
 
 sub getCountRange {
   my ($self,$alignid,$chrom,$isPaired,$start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
-  $self->{request}{type} = 'count';
+  $self->{request}{requesttype} = 'count';
   $self->{request}{alignid} = $alignid;
   $self->{request}{chromid} = $chrom;
   $self->{request}{ispaired} = $isPaired;
@@ -244,7 +244,7 @@ sub getCountRange {
 
 sub getWeightRange {
   my ($self,$alignid,$chrom,$isPaired,$start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
-  $self->{request}{type} = 'weight';
+  $self->{request}{requesttype} = 'weight';
   $self->{request}{alignid} = $alignid;
   $self->{request}{chromid} = $chrom;
   $self->{request}{ispaired} = $isPaired;
@@ -264,7 +264,7 @@ sub getWeightRange {
 
 sub getHits {
   my ($self,$alignid,$chrom,$isPaired,$start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
-  $self->{request}{type} = 'gethits';
+  $self->{request}{requesttype} = 'gethits';
   $self->{request}{alignid} = $alignid;
   $self->{request}{chromid} = $chrom;
   $self->{request}{ispaired} = $isPaired;
@@ -282,16 +282,19 @@ sub getHits {
     die "Can't get hits for $alignid $chrom $minweight: $response";
   }
   my $numhits = $self->readLine();
-  my @output =  map {{position=>$_}} $self->readInts($numhits);
-  my @floats = $self->readFloats($numhits);
+  my @output =  map {{position=>$_}} @{$self->readInts($numhits)};
+  my $floats = $self->readFloats($numhits);
   for (my $i = 0; $i < @output; $i++) {
-    $output[$i]{weight} = $floats[$i];
+    $output[$i]{weight} = $floats->[$i];
   }
-  my @ints = $self->readInts($numhits);
+  my $ints = $self->readInts($numhits);
   for (my $i = 0; $i < @output; $i++) {
-    my ($len,$strand) = decodeLAS($ints[$i]);
+    my ($len,$strand) = decodeLAS($ints->[$i]);
     $output[$i]{length} = $len;
     $output[$i]{strand} = $strand;
+  }
+  for (my $i = 0; $i < @output; $i++) {
+    my $hit = $output[$i];
   }
 
   return @output;
@@ -299,7 +302,7 @@ sub getHits {
 
 sub getHistogram {
   my ($self,$alignid,$chrom,$isPaired,$extension,$binsize, $start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
-  $self->{request}{type} = 'histogram';
+  $self->{request}{requesttype} = 'histogram';
   $self->{request}{alignid} = $alignid;
   $self->{request}{chromid} = $chrom;
   $self->{request}{ispaired} = $isPaired;
@@ -319,8 +322,10 @@ sub getHistogram {
     die "Can't get histogram for range for $alignid $chrom $start $stop $minweight : $response";
   }
   my $ints = $self->readInts($self->readLine());
+#  print STDERR "Read histogram of length $#$ints\n";
   my $out = {};
   for (my $i = 0; $i < $#$ints; $i += 2) {
+#    print STDERR "$ints->[$i] = $ints->[$i+1]\n";
     $out->{$ints->[$i]} = $ints->[$i+1];
   }
   return $out;
@@ -328,7 +333,7 @@ sub getHistogram {
 
 sub getWeightHistogram {
   my ($self,$alignid,$chrom,$isPaired,$extension,$binsize,$start,$stop,$minweight, $isLeft,$isPlusStrand) = @_;
-  $self->{request}{type} = 'weighthistogram';
+  $self->{request}{requesttype} = 'weighthistogram';
   $self->{request}{alignid} = $alignid;
   $self->{request}{chromid} = $chrom;
   $self->{request}{ispaired} = $isPaired;
@@ -358,18 +363,24 @@ sub getWeightHistogram {
 
 sub close {
   my ($self) = @_;
-  $self->{request}{type} = 'bye';
+  $self->{request}{requesttype} = 'bye';
   $self->sendRequest();
-  $self->{socket}->shutdown();
+  $self->{socket}->shutdown(2);
+}
+
+sub decodeLAS {
+  my ($las) = @_;
+  return ($las & 0x00007fff,
+	  ($las & 0x00008000) ? 1 : -1);
 }
 
 sub sendInts {
   my ($self, $ints) = @_;
-  return $self->send($ints,"i");
+  return $self->send($ints,"i>");
 }
 sub sendFloats {
   my ($self, $floats) = @_;
-  return $self->send($floats,"f");
+  return $self->send($floats,"f>");
 }
 sub send {
   my ($self, $array, $format) = @_;
@@ -388,11 +399,11 @@ sub send {
 # returns an arrayref 
 sub readInts {
   my ($self, $numints) = @_;
-  return $self->read($numints, "i");
+  return $self->read($numints, "i>");
 }
 sub readFloats {
   my ($self, $numints) = @_;
-  return $self->read($numints, "f");
+  return $self->read($numints, "f>");
 }
 sub read {
   my ($self, $numitems, $format) = @_;
@@ -417,13 +428,13 @@ sub read {
   return \@out;
 }
 
-package ReadDBClient::Request;
+package Bio::DB::ReadDBClient::Request;
 
 use strict;
 use warnings;
 
 my @boolfields = qw(ispaired isleft isplusstrand);
-my @fields = qw(alignid chromid start end minweight);
+my @fields = qw(requesttype alignid chromid start end minweight);
 
 sub new {
   my ($class) = @_;
@@ -445,14 +456,14 @@ sub toString {
   my ($self) = @_;
   my $s = '';
   foreach (@fields) {
-    $s .= "$_=$self->{$_}\n";
+    $s .= exists $self->{$_} ? "$_=$self->{$_}\n" : "$_=\n";;
   }
-  foreach (@fields) {
-    next unless (defined $self->{$_});
+  foreach (@boolfields) {
+    next unless (exists $self->{$_} and defined $self->{$_});
     $s .= "$_=" . ($self->{$_} ? "true" : "false") . "\n";
   }
   foreach (keys %{$self->{map}}) {
-    $s .= "$_=$self->{fields}->{$_}\n";
+    $s .= "$_=$self->{map}{$_}\n";
   }
   foreach (@{$self->{list}}) {
     $s .= "$_\n";
