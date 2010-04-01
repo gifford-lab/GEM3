@@ -131,10 +131,21 @@ public class ImportHits {
         }
         System.err.println("Created Client");
         if (hits.size() > 0) {
-            client.storeSingle(alignname, hits);
+            try {
+                client.storeSingle(alignname, hits);
+            } catch (Exception e) {
+                System.err.println("Failed: " + e.toString());
+                e.printStackTrace();
+            }
+
         }
         if (paired.size() > 0) {
-            client.storePaired(alignname, paired);
+            try {
+                client.storePaired(alignname, paired);
+            } catch (Exception e) {
+                System.err.println("Failed: " + e.toString());
+                e.printStackTrace();
+            }
         }
         System.err.println("Stored");
         client.close();
