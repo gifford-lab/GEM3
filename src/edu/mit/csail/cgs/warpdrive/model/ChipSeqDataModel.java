@@ -11,15 +11,20 @@ package edu.mit.csail.cgs.warpdrive.model;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.ArrayList;
+import java.util.TreeMap;
+import java.util.Collection;
+import java.util.ArrayList;
 
 import edu.mit.csail.cgs.datasets.chippet.WeightedRunningOverlapSum;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqHit;
+import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAlignment;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.general.StrandedRegion;
 import edu.mit.csail.cgs.ewok.verbs.Expander;
 import edu.mit.csail.cgs.ewok.verbs.Mapper;
 import edu.mit.csail.cgs.ewok.verbs.MapperIterator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.*;
+import edu.mit.csail.cgs.projects.readdb.*;
 
 
 /**
@@ -29,8 +34,11 @@ import edu.mit.csail.cgs.ewok.verbs.chipseq.*;
  */
 public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable {
     
-    private Expander<Region, ChipSeqHit> baseExpander, expander;
-    private ChipSeqStrandedOverlapMapper mapper;
+    private Client client;
+    private Collection<String> alignids;
+    private Collection<ChipSeqAlignment> alignments;
+    private ChipSeqAlignment align;
+
     private WeightedRunningOverlapSum totalSum;
     private WeightedRunningOverlapSum watsonSum;
     private WeightedRunningOverlapSum crickSum;
@@ -41,23 +49,27 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
     private ArrayList<ChipSeqHit> results;
     private ChipSeqDataProperties props;
 
-    public ChipSeqDataModel(int ext, Expander<Region,ChipSeqHit> ex, ChipSeqStrandedOverlapMapper m ) {
-        if (ext == 0) {
-            expander = ex;
-        } else {
-            expander = new ExtendingChipSeqExpander(ext, ex, 0);
-        }
-        mapper = m;
+    public ChipSeqDataModel(Client c, Collection<ChipSeqAlignment> alignments) {
+        client = c;
+        extension = 0;
         totalSum = null;
         watsonSum = null;
         crickSum = null;
-        extension = ext;
         shift=0;
-        baseExpander = ex;
         newinput = false;
         reloadInput = false;
         doSums = true;
         doHits = true;
+        alignids = new ArrayList<String>();
+        this.alignments = alignments;
+        align = null;
+        for (ChipSeqAlignment a : alignments) {
+            alignids.add(Integer.toString(a.getDBID()));
+            if (align == null) {
+                align = a;
+            }
+        }
+
         results = new ArrayList<ChipSeqHit>();
         props = new ChipSeqDataProperties();
     }
@@ -77,13 +89,6 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
         }
     	this.extension = extension;
         this.shift = shift;
-        if (extension == 0 && shift == 0) {
-            expander = baseExpander;
-        } else {
-            expander = new ExtendingChipSeqExpander(extension, baseExpander, shift);
-        }
-        mapper.setShift(shift);
-        mapper.setExtension(extension);
     }
     
     protected void clearValues() {
@@ -117,16 +122,46 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
                 try {
                     setExtensionAndShift(getProperties().ExtendRead,getProperties().ShiftRead);
                     if (doSums) {
-                        WeightedRunningOverlapSum[] sums = mapper.execute(region);
-                        watsonSum = sums[mapper.POS_SUM_INDEX];
-                        crickSum = sums[mapper.NEG_SUM_INDEX];
-                        totalSum = sums[mapper.TOTAL_SUM_INDEX];
+                        clearValues();
+                        mapToSum(totalSum, client.getWeightHistogram(alignids,
+                                                                       region.getGenome().getChromID(region.getChrom()),
+                                                                       false, // paired
+                                                                       extension != 0,
+                                                                       1, // binsize
+                                                                       region.getStart(),
+                                                                       region.getEnd(),
+                                                                       null,
+                                                                       null));
+                        mapToSum(watsonSum, client.getWeightHistogram(alignids,
+                                                                      region.getGenome().getChromID(region.getChrom()),
+                                                                      false, // paired
+                                                                      extension != 0,
+                                                                      1, // binsize
+                                                                      region.getStart(),
+                                                                      region.getEnd(),
+                                                                      null,
+                                                                      true));
+                        mapToSum(crickSum, client.getWeightHistogram(alignids,
+                                                                      region.getGenome().getChromID(region.getChrom()),
+                                                                      false, // paired
+                                                                      extension != 0,
+                                                                      1, // binsize
+                                                                      region.getStart(),
+                                                                      region.getEnd(),
+                                                                      null,
+                                                                      false));                        
                     }
                     if (doHits) {
-                        Iterator<ChipSeqHit> hits = expander.execute(region);
                         results.clear();
-                        while (hits.hasNext()) {
-                            results.add(hits.next());
+                        for (String aid : alignids) {
+                            for (SingleHit hit : client.getSingleHits(aid,
+                                                                      region.getGenome().getChromID(region.getChrom()),
+                                                                      region.getStart(),
+                                                                      region.getEnd(),
+                                                                      null,
+                                                                      false)) {
+                                results.add(convert(hit));                                
+                            }
                         }
                     }
                 } catch (Exception ex) {
@@ -142,46 +177,28 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
     public Iterator<ChipSeqHit> getResults() {
         return results.iterator();
     }
+    private void mapToSum(WeightedRunningOverlapSum sum, TreeMap<Integer,Float> map) {
+        sum.clear();
+        for (Integer i : map.keySet()) {
+            sum.addWeightedInterval(i, i, map.get(i));
+        }
+    }
+    private ChipSeqHit convert(SingleHit hit) {
+        hit.length += extension;
+        hit.pos += shift * (hit.strand ? 1 : -1);
+        ChipSeqHit out = new ChipSeqHit(region.getGenome(),
+                                        region.getChrom(),
+                                        hit.strand ? hit.pos : hit.pos - hit.length + 1,
+                                        hit.strand ? hit.pos - hit.length + 1 : hit.pos,
+                                        hit.strand ? '+' : '-',
+                                        align,
+                                        hit.weight);
+        return out;
+    }
     protected void doReload() {
     	synchronized(this) {
     		reloadInput = true;
 			this.notifyAll();
 		}
     }    
-}
-/**
- * Wraps an Expander from Region to ChipSeqHit such that the results
- * are the reads extended by some distance.  Uses the ChipSeqHitExtender
- */
-class ExtendingChipSeqExpander implements Expander<Region,ChipSeqHit> {
-    
-    private int extension, shift;
-    private ChipSeqHitExtender extender;
-    private Expander<Region,ChipSeqHit> expander;
-    
-    public ExtendingChipSeqExpander(int ext, Expander<Region,ChipSeqHit> exp, int shift) { 
-        extension = ext;
-        this.shift =shift; 
-        extender = new ChipSeqHitExtender(ext, shift);
-        expander = exp;
-    }
-
-    public Iterator<ChipSeqHit> execute(Region a) {
-        int ns = Math.max(a.getStart() - extension, 0);
-        int ne = a.getEnd() + extension;
-        return new MapperIterator(extender,
-                                  expander.execute(new Region(a.getGenome(), a.getChrom(), ns, ne)));
-    }     
-}
-class ChipSeqHitExtender implements Mapper<ChipSeqHit,ChipSeqHit> {
-    int distance, shift=0;
-    public ChipSeqHitExtender (int d, int s) {
-        distance = d; this.shift=s;
-    }
-    public ChipSeqHit execute(ChipSeqHit input) {
-    	if(shift>0)
-    		return input.shiftExtendHit(distance, shift);
-    	else
-    		return input.extendHit(distance);
-    }
 }

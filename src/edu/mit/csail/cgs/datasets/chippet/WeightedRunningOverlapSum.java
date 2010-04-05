@@ -29,7 +29,6 @@ public class WeightedRunningOverlapSum {
     changes = new TreeMap<Integer, Double>();
   }
 
-
   public void clear() {
     changes.clear();
   }

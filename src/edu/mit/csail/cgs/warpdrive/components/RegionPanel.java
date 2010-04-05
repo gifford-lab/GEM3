@@ -340,10 +340,19 @@ public class RegionPanel extends JPanel
                 for(int i = 0; i < opts.chipseqExpts.size(); i++) { 
                     
                     Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.chipseqExpts.get(i), genome);
-                    ChipSeqHistogramModel m = new ChipSeqHistogramModel(alignments);
-                    ChipSeqHistogramPainter p = new ChipSeqHistogramPainter(m);
+                    RegionModel m;
+                    RegionPaintable p;
+                    if (opts.chipseqHistogramPainter) {
+                        m = new ChipSeqHistogramModel(alignments);
+                        p = new ChipSeqHistogramPainter((ChipSeqHistogramModel)m);
+                    } else {
+                        System.err.println("Using old ChipSeq painters");
+                        m = new ChipSeqDataModel(new edu.mit.csail.cgs.projects.readdb.Client(),
+                                                                  alignments);
+                        p = new ChipSeqAboveBelowStrandPainter((ChipSeqDataModel)m);
+                    }
                     addModel(m);
-                    Thread t = new Thread(m); t.start();
+                    Thread t = new Thread((Runnable)m); t.start();
                     p.setLabel(opts.chipseqExpts.get(i).toString());
                     
                     p.addEventListener(this);

@@ -58,7 +58,7 @@ public class WarpOptionsPane
     private JLabel specieslabel, genomelabel, positionlabel, genelabel;
 
     // options tab
-    private JCheckBox relative, hash, common, seqletters;
+    private JCheckBox relative, hash, common, seqletters, oldchipseq;
     
     // peak tab
     private BindingScanSelectPanel bindingSelect;
@@ -261,11 +261,13 @@ public class WarpOptionsPane
         hash = new JCheckBox("Show chromosome coordinates");
         common = new JCheckBox("Common vertical scale");
         seqletters = new JCheckBox("Show sequence");
+        oldchipseq = new JCheckBox("Use old ChipSeq painter");
         hash.setSelected(true);
         optionsPanel.add(hash);
         optionsPanel.add(seqletters);
         optionsPanel.add(relative);
         optionsPanel.add(common);
+        optionsPanel.add(oldchipseq);
         
         // Annotations tab
         JPanel lists = new JPanel();
@@ -380,6 +382,7 @@ public class WarpOptionsPane
         cpg.setSelected(opts.cpg);
         regexmatcher.setSelected(opts.regexmatcher);
         seqletters.setSelected(opts.seqletters);
+        oldchipseq.setSelected(!opts.chipseqHistogramPainter);
 
         int[] selected = new int[opts.genes.size()];
         for (int i = 0; i < opts.genes.size(); i++) {
@@ -504,6 +507,7 @@ public class WarpOptionsPane
         these.hash = hash.isSelected();
         these.relative = relative.isSelected();
         these.seqletters = seqletters.isSelected();
+        these.chipseqHistogramPainter = !oldchipseq.isSelected();
 
         // parse the annotations tab
         Object[] selected = genes.getSelectedValues();

@@ -10,7 +10,7 @@ public class ChipSeqHit extends StrandedRegion {
   private ChipSeqAlignment align;
   private double weight = 1.0;
 
-  ChipSeqHit(Genome g, String chrom, int start, int end, char strand, ChipSeqAlignment align, double weight) {
+  public ChipSeqHit(Genome g, String chrom, int start, int end, char strand, ChipSeqAlignment align, double weight) {
     super(g,chrom,start,end,strand);
     this.align = align;
     this.weight = weight;

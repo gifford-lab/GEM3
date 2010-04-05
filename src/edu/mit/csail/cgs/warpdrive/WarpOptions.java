@@ -82,6 +82,9 @@ public class WarpOptions {
     public boolean saveimage;
     public String filename;
 
+    // startup-only options
+    public boolean chipseqHistogramPainter = true;
+
     /* These constants correspond to the different input arrays.  They are used
        in WarpPaintable to store the type of input that created the paintable 
        (this must be set by the creator, currently done in RegionPanel).  This information
@@ -129,6 +132,7 @@ public class WarpOptions {
         chrom = g.getChromList().get(0);
         gene = null;
         hash = true;
+        chipseqHistogramPainter = true;
         genes = new ArrayList<String>();
         ncrnas = new ArrayList<String>();
         bindingScans = new ArrayList<BindingScan>();
@@ -154,6 +158,7 @@ public class WarpOptions {
         chrom = null;
         gene = null;
         hash = true;
+        chipseqHistogramPainter = true;
         genes = new ArrayList<String>();
         ncrnas = new ArrayList<String>();
         bindingScans = new ArrayList<BindingScan>();
@@ -197,6 +202,7 @@ public class WarpOptions {
         union.gene = gene;
         union.regexmatcher = regexmatcher;
         union.seqletters = seqletters;
+        union.chipseqHistogramPainter = (chipseqHistogramPainter && union.chipseqHistogramPainter);
         mergeInto(bindingScans,union.bindingScans);
         mergeInto(genes,union.genes);
         mergeInto(ncrnas,union.ncrnas);
@@ -259,6 +265,7 @@ public class WarpOptions {
         cpg = cpg && (!other.cpg);
         regexmatcher = regexmatcher && (!other.regexmatcher);        
         seqletters = seqletters && (!other.seqletters);
+        chipseqHistogramPainter = (chipseqHistogramPainter && other.chipseqHistogramPainter);
         differenceOf(bindingScans,other.bindingScans);
         differenceOf(genes,other.genes);
         differenceOf(ncrnas,other.ncrnas);
@@ -302,6 +309,7 @@ public class WarpOptions {
         o.relative = relative;
         o.seqletters = seqletters;
         o.regexmatcher = regexmatcher;
+        o.chipseqHistogramPainter = chipseqHistogramPainter;
         o.bindingScans = (ArrayList<BindingScan>)bindingScans.clone();
         o.genes = (ArrayList<String>) genes.clone();
         o.ncrnas = (ArrayList<String>) ncrnas.clone();
@@ -353,6 +361,11 @@ public class WarpOptions {
             if (args[i].equals("--genome") || args[i].equals("--genomeversion")) {
                 opts.genome = args[++i];
             }
+            if (args[i].equals("--oldchipseq")) {
+                opts.chipseqHistogramPainter = false;
+                System.err.println("Will use old ChipSeq painters");
+            }
+
         }            
         Genome genome = null; Organism organism = null;
         if (opts.species != null && opts.genome != null) {
