@@ -124,14 +124,14 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
                     if (doSums) {
                         clearValues();
                         mapToSum(totalSum, client.getWeightHistogram(alignids,
-                                                                       region.getGenome().getChromID(region.getChrom()),
-                                                                       false, // paired
-                                                                       extension != 0,
-                                                                       1, // binsize
-                                                                       region.getStart(),
-                                                                       region.getEnd(),
-                                                                       null,
-                                                                       null));
+                                                                     region.getGenome().getChromID(region.getChrom()),
+                                                                     false, // paired
+                                                                     extension != 0,
+                                                                     1, // binsize
+                                                                     region.getStart(),
+                                                                     region.getEnd(),
+                                                                     null,
+                                                                     null));
                         mapToSum(watsonSum, client.getWeightHistogram(alignids,
                                                                       region.getGenome().getChromID(region.getChrom()),
                                                                       false, // paired
@@ -159,7 +159,7 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
                                                                       region.getStart(),
                                                                       region.getEnd(),
                                                                       null,
-                                                                      false)) {
+                                                                      null)) {
                                 results.add(convert(hit));                                
                             }
                         }
@@ -189,7 +189,7 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
         ChipSeqHit out = new ChipSeqHit(region.getGenome(),
                                         region.getChrom(),
                                         hit.strand ? hit.pos : hit.pos - hit.length + 1,
-                                        hit.strand ? hit.pos - hit.length + 1 : hit.pos,
+                                        hit.strand ? hit.pos + hit.length + 1 : hit.pos,
                                         hit.strand ? '+' : '-',
                                         align,
                                         hit.weight);

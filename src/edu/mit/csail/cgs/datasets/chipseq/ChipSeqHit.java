@@ -54,10 +54,6 @@ public class ChipSeqHit extends StrandedRegion {
   }
 
   public boolean equals(Object o) { 
-    if(!(o instanceof ChipSeqHit)) { return false; }
-    ChipSeqHit d = (ChipSeqHit)o;
-    if(!super.equals(d)) { return false; }
-    if(!align.equals(d.align)) { return false; }
-    return true;
+      return this == o;
   }  
 }
