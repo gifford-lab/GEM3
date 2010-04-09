@@ -252,7 +252,7 @@ public class ServerTask {
             server.getLogger().log(Level.INFO,String.format("read error on acl for %s : %s",
                                                             request.alignid,
                                                             e.toString()));
-            printAuthError();
+            printInvalid(e.toString());
             return;
         }
         if (!authorizeRead(acl)) {
@@ -277,7 +277,7 @@ public class ServerTask {
             server.getLogger().log(Level.INFO,String.format("read error on header or hits for %s, %d, %s : %s",
                                                             request.alignid, request.chromid, request.isLeft,
                                                             e.toString()));
-            printAuthError();
+            printInvalid(e.toString());
             return;
         }
         if (request.type.equals("count")) {
@@ -715,7 +715,7 @@ public class ServerTask {
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    printAuthError();
+                    printInvalid(e.toString());
                     Lock.writeUnLock(this,request.alignid);
                     return;
                 }
@@ -727,7 +727,7 @@ public class ServerTask {
                                                 request.chromid);
                 } catch (Exception e) {
                     e.printStackTrace();
-                    printAuthError();
+                    printInvalid(e.toString());
                     Lock.writeUnLock(this,request.alignid);
                     return;
                 }
@@ -822,7 +822,7 @@ public class ServerTask {
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                printAuthError();
+                printInvalid(e.toString());
                 return;
             }
         }
