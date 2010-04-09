@@ -154,12 +154,18 @@ public abstract class DatabaseFactory {
         //        System.err.println("Trying to connect as role " + role);
         if (propfile.exists() && propfile.canRead()) {
         	//System.err.println(String.format("Reading HOME/. properties file %s: \"%s\"", propfile.getName(), propfile.getAbsolutePath()));
+            if (System.getenv("DEBUGPW") != null) {
+                System.err.println("Opening database properties for " + role + " from " + propfile);
+            }
             return readPasswd(propfile);
         }
         fname = homedir + "/" + basename;
         propfile = new File(fname);
         if (propfile.exists() && propfile.canRead()) {
         	//System.err.println(String.format("Reading HOME properties file %s: \"%s\"", propfile.getName(), propfile.getAbsolutePath()));
+            if (System.getenv("DEBUGPW") != null) {
+                System.err.println("Opening database properties for " + role + " from " + propfile);
+            }
             return readPasswd(propfile);
         } else {
         	//System.err.println("Looking in classpath for properties file...");
@@ -168,6 +174,9 @@ public abstract class DatabaseFactory {
                 URL url = cl.getResource(basename);
                 if (url != null) {
                 	//System.err.println(String.format("Found properties URL: %s", url.toString()));
+                    if (System.getenv("DEBUGPW") != null) {
+                        System.err.println("Opening database properties for " + role + " from " + url);
+                    }
                     return readPasswdStream(url.openStream());
                 }
             } catch (Exception ex) {

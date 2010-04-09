@@ -59,9 +59,15 @@ public class Client implements ReadOnlyClient {
         PropertyResourceBundle bundle = null;
         if (propfile.exists() && propfile.canRead()) {
             bundle = new PropertyResourceBundle(new FileInputStream(propfile));
+            if (System.getenv("DEBUGPW") != null) {
+                System.err.println("Opening readdb properties from " + propfile);
+            }
         } else {
             ClassLoader cl = ClassLoader.getSystemClassLoader();
             URL url = cl.getResource(basename);
+            if (System.getenv("DEBUGPW") != null) {
+                System.err.println("Opening readdb properties from " + url);
+            }            
             if (url != null) {
                 bundle = new PropertyResourceBundle(url.openStream());
             } else {
