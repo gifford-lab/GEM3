@@ -726,6 +726,8 @@ public class Region implements Comparable<Region>, Saveable {
   public static boolean[] overlap(Region[] sourceRegions, Region[] targetRegions) {
 	  boolean[] overlaps = new boolean[sourceRegions.length];
 	  
+	  if(sourceRegions.length == 0 || targetRegions.length == 0) { return overlaps; }
+	  
 	  Arrays.sort(targetRegions);
 	  int[] target_start = new int[targetRegions.length];
 	  for(int i = 0; i < target_start.length; i++) { target_start[i] = targetRegions[i].getStart(); }
