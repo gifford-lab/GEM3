@@ -4,7 +4,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Genome.ChromosomeInfo;
 
 /**
  * A <code>Point</code> represents a single base position along some chromosome
