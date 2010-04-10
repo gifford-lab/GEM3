@@ -28,7 +28,7 @@ public class Points2RegionsConverter {
 
 
   private static void usage() {
-    String usage = "java Points2RegionsConverter --inputfile \"foo.txt\" --outputfile \"bar.txt\" --dist 500 --species \"Mus musculus;mm8\" [--overwrite true]";
+    String usage = "java Points2RegionsConverter --inputfile \"foo.txt\" --outputfile \"bar.txt\" --dist 50 --species \"Mus musculus;mm8\" [--overwrite true]";
     System.err.println(usage);
     logger.error(usage);
   }
@@ -37,6 +37,10 @@ public class Points2RegionsConverter {
    * @param args
    */
   public static void main(String[] args) {
+    String infile = "/Users/rca/matlab scratch/Sing_Smad1_top25_peaks.txt";
+    String outfile = "/Users/rca/matlab scratch/Sing_Smad1_top25_peaks_regions.txt";
+    args = new String[] {"--inputfile", infile, "--outputfile", outfile, "--dist", "50", "--species", "Mus musculus;mm8"};
+    
     ArgParser ap = new ArgParser(args);
     Genome genome = null;
 
@@ -87,6 +91,7 @@ public class Points2RegionsConverter {
       points = DatasetsGeneralIO.readPointsFromFile(genome, inputFilename);
     }
     catch (IOException ioex) {
+      logger.fatal(ioex);
       Points2RegionsConverter.usage();
       System.exit(-1);
     }

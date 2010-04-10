@@ -234,6 +234,48 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		return output;
 	}
 
+	public Collection<ChipSeqAlignment> loadAlignments(String name, String replicate, String align,
+                                                       Integer factor, Integer cells, Integer condition,
+                                                       Genome genome) throws SQLException {
+        String query = "select id, expt, name, genome from chipseqalignments";
+        if (name != null || replicate != null || align != null || factor != null || cells != null || condition != null || genome != null) {
+            query += " where ";
+        }
+        boolean and = false;
+        if (name != null || replicate != null || factor != null || cells != null || condition != null) {
+            query += " expt in ( select it from chipseqexpt where ";
+            if (name != null) { query += " name = ? "; and = true;}
+            if (replicate != null) { query += (and ? " and " : " ") + " replicate = ? "; and = true;}
+            if (factor != null) { query += (and ? " and " : " ") + " factor = " + factor; and = true;}
+            if (cells != null) { query += (and ? " and " : " ") + " cells = " + cells; and = true;}
+            if (condition != null) { query += (and ? " and " : " ") + " condition = " + condition; and = true;}
+            query += ")";
+            and = true;
+        }
+        if (genome != null) {query += (and ? " and " : " ") + " genome = " + genome.getDBID(); and = true; }
+        if (align != null) {query += (and ? " and " : " ") + " name = ? "; and = true; }
+        PreparedStatement ps = cxn.prepareStatement(query);
+        int index = 0;
+        if (name != null || replicate != null) {
+            if (name != null) { ps.setString(index++,name);}
+            if (replicate != null) { ps.setString(index++,replicate);}
+        }
+        if (align != null) {ps.setString(index++,align);}
+        
+        ResultSet rs = ps.executeQuery();
+        Collection<ChipSeqAlignment> output = new ArrayList<ChipSeqAlignment>();
+        while (rs.next()) {
+            try {
+                output.add(new ChipSeqAlignment(rs,this));
+            } catch (NotFoundException e) {
+                throw new DatabaseException(e.toString(),e);
+            }
+        }
+        rs.close();
+        ps.close();
+        return output;
+    }
+
     private void instantiateHits(Collection<ChipSeqHit> output,
                                  int[] positions,
                                  float[] weights,
