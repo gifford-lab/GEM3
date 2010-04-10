@@ -125,7 +125,11 @@ public class GPSPeak extends Point{
 	public int compareByPValue(GPSPeak p) {
 		double diff = getPvalue()- p.getPvalue();
 		return	diff==0?0:(diff<0)?1:-1;	//p-value: descending
-	}	
+	}
+	public int compareByIPStrength(GPSPeak p) {
+		double diff = getStrength()- p.getStrength();
+		return	diff==0?0:(diff<0)?1:-1;	//ip strength: descending
+	}
 	public String toGPS(){
 		return toString()+"\t"+"\t"+strength+"\t"+controlStrength+"\t"+qvalue+"\t"+pvalue
 		+"\t"+shape+"\t"+unaryEvent+"\t"+nearestGene+"\t"+distance;
