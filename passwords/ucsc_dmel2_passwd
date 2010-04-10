@@ -1,0 +1,5 @@
+jdbcconnectstring=jdbc:mysql://nanog.csail.mit.edu/ucsc_dmel2?user=ucsc&passwd=genomeannotations!
+dbiconnectstring=DBI:mysql:host=nanog.csail.mit.edu;database=ucsc_dmel2
+user=ucsc
+passwd=genomeannotations!
+schema=ucsc_dmel2
