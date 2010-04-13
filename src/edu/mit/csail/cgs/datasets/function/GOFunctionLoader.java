@@ -15,6 +15,7 @@ package edu.mit.csail.cgs.datasets.function;
 import java.sql.*;
 import java.util.*;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
+import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
 import edu.mit.csail.cgs.utils.Closeable;
 
@@ -58,11 +59,14 @@ public class GOFunctionLoader implements FunctionLoader, Closeable {
         stmt.setString(1,genus);
         stmt.setString(2,species);
         ResultSet rs = stmt.executeQuery();
-        rs.next();
-        FunctionVersion output = new FunctionVersion(rs);
-        rs.close();
-        stmt.close();
-        return output;
+        if (rs.next()) {
+            FunctionVersion output = new FunctionVersion(rs);
+            rs.close();
+            stmt.close();
+            return output;
+        } else {
+            throw new DatabaseException("Couldn't find the version for " + genus + "," + species);
+        }
     }
     public FunctionVersion getVersion(int dbid) throws SQLException {
         PreparedStatement stmt = cxn.prepareStatement("select id, concat(genus, ' ', species) from species where id = ? ");
