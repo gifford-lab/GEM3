@@ -74,27 +74,43 @@ public class SingleHits extends Hits {
         RandomAccessFile positionsRAF = new RandomAccessFile(postmp,"rw");
         RandomAccessFile weightsRAF = new RandomAccessFile(weightstmp,"rw");
         RandomAccessFile lasRAF = new RandomAccessFile(lastmp,"rw");
+        IntBP posfile = new IntBP(positionsRAF.getChannel().map(FileChannel.MapMode.READ_WRITE,
+                                                                0,
+                                                                newsize * 4));
+        FloatBP weightfile = new FloatBP(weightsRAF.getChannel().map(FileChannel.MapMode.READ_WRITE,
+                                                                     0,
+                                                                     newsize * 4));
+        IntBP lasfile = new IntBP(lasRAF.getChannel().map(FileChannel.MapMode.READ_WRITE,
+                                                          0,
+                                                          newsize * 4));
         
         int oldp = 0;
         int newp = 0;
+        int pos = 0;
+        //        System.err.println(String.format("APPENDING for %d : %d and %d",chrom, oldpositions.limit(), hits.length));
         while (oldp < oldpositions.limit() || newp < hits.length) {
             while (newp < hits.length && (oldp == oldpositions.limit() || hits[newp].pos <= oldpositions.get(oldp))) {
-                positionsRAF.writeInt(hits[newp].pos);
-                weightsRAF.writeFloat(hits[newp].weight);
-                lasRAF.writeInt(Hits.makeLAS(hits[newp].length, hits[newp].strand));
+                posfile.put(pos, hits[newp].pos);
+                weightfile.put(pos, hits[newp].weight);
+                lasfile.put(pos, Hits.makeLAS(hits[newp].length, hits[newp].strand));
                 newp++;
+                pos++;
             }
             while (oldp < oldpositions.limit() && (newp == hits.length || oldpositions.get(oldp) <= hits[newp].pos)) {
-                positionsRAF.writeInt(oldpositions.get(oldp));
-                weightsRAF.writeFloat(oldweights.get(oldp));
-                lasRAF.writeInt(oldlas.get(oldp));
-                oldp++;                
+                posfile.put(pos,oldpositions.get(oldp));
+                weightfile.put(pos,oldweights.get(oldp));
+                lasfile.put(pos,oldlas.get(oldp));
+                oldp++;
+                pos++;                
             }          
+            //            System.err.println(String.format("%d %d %d", pos, newp, oldp));
         }
-
         oldpositions = null;
         oldweights =null;
         oldlas = null;
+        posfile = null;
+        weightfile = null;
+        lasfile = null;
         positionsRAF.close();
         weightsRAF.close();
         lasRAF.close();

@@ -89,6 +89,16 @@ public class ImportHits {
         int lineno = 0;
         List<SingleHit> hits = new ArrayList<SingleHit>();
         List<PairedHit> paired = new ArrayList<PairedHit>();
+        Client client;
+        if (hostname != null && portnum > 0 && username != null && password != null) {
+            client = new Client(hostname,
+                                portnum,
+                                username,
+                                password);   
+        } else {
+            client = new Client();
+        }
+        System.err.println("Created Client");
         while ((line = reader.readLine()) != null) {
             String pieces[] = line.split("\\t");            
             if (pieces.length == 5) {
@@ -117,19 +127,32 @@ public class ImportHits {
             if (lineno++ % 100000 == 0) {
                 System.err.println("Read through line " + lineno);
             }
+            if (lineno % 10000000 == 0) {
+                if (hits.size() > 0) {
+                    try {
+                        client.storeSingle(alignname, hits);
+                        hits.clear();
+                    } catch (Exception e) {
+                        System.err.println("Failed: " + e.toString());
+                        e.printStackTrace();
+                    }
+                    
+                }
+                if (paired.size() > 0) {
+                    try {
+                        client.storePaired(alignname, paired);
+                        paired.clear();
+                    } catch (Exception e) {
+                        System.err.println("Failed: " + e.toString());
+                        e.printStackTrace();
+                    }
+                }
+                
+            }
+
 
         }
         System.err.println("Read lines");
-        Client client;
-        if (hostname != null && portnum > 0 && username != null && password != null) {
-            client = new Client(hostname,
-                                portnum,
-                                username,
-                                password);   
-        } else {
-            client = new Client();
-        }
-        System.err.println("Created Client");
         if (hits.size() > 0) {
             try {
                 client.storeSingle(alignname, hits);

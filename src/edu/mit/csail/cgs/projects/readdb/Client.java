@@ -190,47 +190,51 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
     }
     public void storeSingle(String alignid, List<SingleHit> allhits) throws IOException, ClientException {
-        Map<Integer, List<SingleHit>> map = new HashMap<Integer,List<SingleHit>>();
-        for (SingleHit h : allhits) {
-            if (!map.containsKey(h.chrom)) {
-                map.put(h.chrom, new ArrayList<SingleHit>());
+        int step = 10000000;
+        for (int pos = 0; pos < allhits.size(); pos += step) {
+            Map<Integer, List<SingleHit>> map = new HashMap<Integer,List<SingleHit>>();
+            for (int i = pos; i < pos + step && i < allhits.size(); i++) {
+                SingleHit h = allhits.get(i);
+                if (!map.containsKey(h.chrom)) {
+                    map.put(h.chrom, new ArrayList<SingleHit>());
+                }
+                map.get(h.chrom).add(h);
             }
-            map.get(h.chrom).add(h);
-        }
-        for (int chromid : map.keySet()) {
-            List<SingleHit> hits = map.get(chromid);
-            Collections.sort(hits);
-            int chunk = 2000000;
-            for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
-                int count = startindex + chunk < hits.size() ? chunk : (hits.size() - startindex);
-                request.clear();
-                request.type="storesingle";
-                request.alignid=alignid;
-                request.chromid = chromid;
-                request.map.put("numhits",Integer.toString(count));
-                sendString(request.toString());
-                String response = readLine();
-                if (!response.equals("OK")) {
-                    throw new ClientException(response);
-                }
-                int[] ints = new int[count];
-                for (int i = startindex; i < startindex + count; i++) {
-                    ints[i] = hits.get(i).pos;
-                }        
-                Bits.sendInts(ints, outstream,buffer);
-                float[] floats = new float[count];
-                for (int i = startindex; i < startindex + count; i++) {
-                    floats[i] = hits.get(i).weight;
-                    ints[i] = Hits.makeLAS(hits.get(i).length, hits.get(i).strand);
-                }
-                Bits.sendFloats(floats, outstream,buffer);
-                Bits.sendInts(ints, outstream,buffer);
+            for (int chromid : map.keySet()) {
+                List<SingleHit> hits = map.get(chromid);
+                Collections.sort(hits);
+                int chunk = step;
+                for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
+                    int count = startindex + chunk < hits.size() ? chunk : (hits.size() - startindex);
+                    request.clear();
+                    request.type="storesingle";
+                    request.alignid=alignid;
+                    request.chromid = chromid;
+                    request.map.put("numhits",Integer.toString(count));
+                    sendString(request.toString());
+                    String response = readLine();
+                    if (!response.equals("OK")) {
+                        throw new ClientException(response);
+                    }
+                    int[] ints = new int[count];
+                    for (int i = startindex; i < startindex + count; i++) {
+                        ints[i - startindex] = hits.get(i).pos;
+                    }        
+                    Bits.sendInts(ints, outstream,buffer);
+                    float[] floats = new float[count];
+                    for (int i = startindex; i < startindex + count; i++) {
+                        floats[i - startindex] = hits.get(i).weight;
+                        ints[i - startindex] = Hits.makeLAS(hits.get(i).length, hits.get(i).strand);
+                    }
+                    Bits.sendFloats(floats, outstream,buffer);
+                    Bits.sendInts(ints, outstream,buffer);
             
-                System.err.println("Sent " + hits.size() + " hits to the server");
-                outstream.flush();        
-                response = readLine();
-                if (!response.equals("OK")) {
-                    throw new ClientException(response);
+                    System.err.println("Sent " + count + " hits to the server for " + chromid + "," + alignid);
+                    outstream.flush();        
+                    response = readLine();
+                    if (!response.equals("OK")) {
+                        throw new ClientException(response);
+                    }
                 }
             }
         }
