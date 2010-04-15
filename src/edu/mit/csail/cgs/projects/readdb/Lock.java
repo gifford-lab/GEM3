@@ -128,21 +128,24 @@ public class Lock {
     /* call to ensure that all a thread's locks have been released */
     protected static void releaseLocks(ServerTask t) {
         synchronized(writeLocks) {
-            for (String k : writeLocks.keySet()) {
+            Set<String> s = writeLocks.keySet();
+            for (String k : s) {
                 if (writeLocks.get(k) == t) {
                     writeLocks.remove(k);
                 }
             }            
         }
         synchronized(acquiringWrite) {
-            for (String k : acquiringWrite.keySet()) {
+            Set<String> s = acquiringWrite.keySet();
+            for (String k : s) {
                 if (acquiringWrite.get(k) == t) {
                     acquiringWrite.remove(k);
                 }
             }            
         }
         synchronized(readLocks) {
-            for (String k : readLocks.keySet()) {
+            Set<String> s = readLocks.keySet();
+            for (String k : s) {
                 Set<ServerTask> l = readLocks.get(k);
                 l.remove(t);
                 if (l.size() == 0) {
