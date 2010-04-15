@@ -26,7 +26,7 @@ create table weightmatrix (
 	name varchar2(200),
 	version varchar2(200),
 	type varchar2(100),
-	bg_model_id number(10) constraint fk_wm_bg_id references background_genome_map(id),
+	bg_model_map_id number(10) constraint fk_wm_bg_id references background_genome_map(id),
 	constraint weightmatrix_pk primary key(species,name,version));
 create index ix_wm_name on weightmatrix(name,version);
 create table weightmatrixcols (
