@@ -14,11 +14,19 @@ import edu.mit.csail.cgs.utils.probability.Binomial;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.*;
 
-/** usage:
+/** Compare the frequencies of a set of motifs between two FASTA files
+ * usage:
  *   java edu.mit.csail.cgs.tools.motifs.CompareEnrichment --first foo.fasta --second bar.fasta
  *
  * can also specify --accept to give a regex which the motif name must match
- * of --reject to specify a regex that the motif name must not match
+ * of --reject to specify a regex that the motif name must not match.  Remember the regex must match
+ * the *entire* name, so use something like Hnf.*
+ *
+ * --cutoff .7 minimum percent (specify between 0 and 1) match to maximum motif score that counts as a match.
+ * --filtersig .001 maximum pvalue for reporting an enrichment between the two files
+ * --perbase
+ * --minfoldchange 1
+ * --minfrac 0
  *
  * Output columns are
  * 1) foldchange in frequency
@@ -170,6 +178,7 @@ public class CompareEnrichment {
         if (secondfname == null) {
             throw new RuntimeException("Must supply a --second");
         }
+        System.err.println("Going to scan for " + matrices.size() + " matrices");
 
         Pair<Integer,Hashtable<WeightMatrix,Integer>> pair = motifCountsFromFASTA(firstfname, matrices, cutoffpercent,perbasecounts);
         firstseqcount = pair.getFirst();
@@ -206,9 +215,10 @@ public class CompareEnrichment {
             double psecond = Binomial.log_binomial_significance(second,secondseqcount,firstfreq);
             double sigsecond = Math.exp(psecond);
             sigsecond = Math.min(sigsecond, 1-sigsecond);
-//             System.err.println("sig : " + sigfirst + ", " + sigsecond + " :: " + filtersig);
-//             System.err.println("fold : " + (pfirst / psecond) + ", " + (psecond / pfirst) + " :: " + minfoldchange);
-//             System.err.println("frac : " + pfirst + ", " + psecond + " :: " + minfrac);
+             System.err.println("WM " + wm.getName() + "," + wm.getVersion());
+             System.err.println("sig : " + sigfirst + ", " + sigsecond + " :: " + filtersig);
+             System.err.println("fold : " + (pfirst / psecond) + ", " + (psecond / pfirst) + " :: " + minfoldchange);
+             System.err.println("frac : " + pfirst + ", " + psecond + " :: " + minfrac);
             if ((sigfirst < filtersig || sigsecond < filtersig) &&
                 (minfoldchange < (firstfreq / secondfreq) || minfoldchange < (secondfreq / firstfreq)) &&
                 (minfrac < firstfreq || minfrac < secondfreq)) {
