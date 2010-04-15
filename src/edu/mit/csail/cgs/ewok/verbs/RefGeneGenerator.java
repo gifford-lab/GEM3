@@ -98,21 +98,17 @@ public class RefGeneGenerator<X extends Region>
         ResourceBundle res = ResourceBundle.getBundle("edu.mit.csail.cgs.ewok.gene_names");
         Enumeration<String> keys = res.getKeys();
         tablename = t;
-        while(keys.hasMoreElements()) { 
-            String key = keys.nextElement();
-            if (!key.equals(g.getVersion())) {
-                continue;
-            }
-            String props[] = res.getString(key).split(",");
-            if (tablename == null) {
-                tablename = props[0];
-            }
-            aliastable = props[1];
-            namecolumn = props[2];
-            aliascolumn = props[3];
-        }
         if (tablename == null) {
             throw new RuntimeException("Can't get tablename for " + g.getVersion());
+        }
+        String targetkey = g.getVersion() + "," + tablename;
+        while(keys.hasMoreElements()) { 
+            String key = keys.nextElement();
+            if (!key.equals(targetkey)) { continue;}
+            String props[] = res.getString(key).split(",");
+            aliastable = props[0];
+            namecolumn = props[1];
+            aliascolumn = props[2];
         }
         if (aliastable == null) {
             wantalias = false;
@@ -132,7 +128,7 @@ public class RefGeneGenerator<X extends Region>
      * set the query parameters
      */
     public void setWantAlias(boolean b) {
-        wantalias = b;        
+        wantalias = aliastable != null && b;        
     }
     public void setUpstreamDownstream(int up, int down) {
         if (upstream == 0 && downstream == 0 && 
