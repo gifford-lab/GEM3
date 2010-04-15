@@ -135,23 +135,24 @@ create table background_model (
 	name varchar2(200) constraint background_model_name not null,
 	max_kmer_len number(10) not null,
 	model_type varchar2(200) constraint bgm_model_type check (model_type in ('MARKOV', 'FREQUENCY')),
-constraint bg_model_pk primary key(name,model_order,model_type));
+constraint bg_model_pk primary key(name,max_kmer_len,model_type));
 
 create table background_genome_map (
        id number(10) constraint bggm_id unique not null,
        genome_id number(10) not null,
        bg_model_id number(10) constraint fk_bggm_bg_id references background_model(id) not null,
-       constraint bggm_pk primary key(id, bg_model_id));
+       has_counts number(1) constraint chk_counts check(has_counts=0 OR has_counts=1),
+       constraint bggm_pk primary key(genome_id, bg_model_id));
 
 create index ix_bggm_genome_id on background_genome_map(genome_id);
 create index ix_bggm_bg_id on background_genome_map(bg_model_id);
 
 create table background_model_cols (
        bggm_id number(10) constraint fk_bgmc_bggm_id references background_genome_map(id) not null,
-       prev_bases varchar2(200),
-       curr_base char(1) not null,
+       kmer varchar2(200) not null,
        probability binary_double not null check (probability>=0) check (probability<=1),
-       count number(10));
+       count number(10),
+       constraint bgmc_pk primary key(bggm_id, kmer));
 
 create index ix_bgmc_bg_id on background_model_cols(bggm_id);
 
@@ -159,7 +160,7 @@ create table weightmatrix_species_map (
        id number(10) constraint wmsm_id unique not null,
        species_id number(10) not null,
        wm_id number(10) constraint fk_wsm_wm_id references weightmatrix(id) not null,
-       constraint wmsm_pk primary key(id, wm_id));
+       constraint wmsm_pk primary key(wm_id, species_id));
 
 create index ix_wsm_species_id on weightmatrix_species_map(species_id);
 create index ix_wsm_bg_id on weightmatrix_species_map(wm_id);

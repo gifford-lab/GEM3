@@ -9,11 +9,14 @@ public class PaintableProperties extends WarpProperties {
     
     public PaintableProperties() {
         super();
+        DrawTrackLabel = Boolean.TRUE;
+        TrackLabel = "";
     }
 
     public PaintableProperties (boolean drawLabel) {
         super();
         DrawTrackLabel = drawLabel;
+        TrackLabel = "";
     }
 
     public void loadDefaults () {

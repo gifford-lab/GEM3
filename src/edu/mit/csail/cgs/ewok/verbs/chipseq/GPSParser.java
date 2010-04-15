@@ -107,6 +107,18 @@ public class GPSParser {
         return null;
       }
     }
+	else if (t.length == 12) {
+	      try { 
+	      Region r = Region.fromString(g, t[0]);
+				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+						Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
+						Double.parseDouble(t[5]), Double.parseDouble(t[1]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
+	      }
+	      catch (Exception ex) {
+	        //logger.error("Parse error on line " + lineNumber + ".", ex);
+	        return null;
+	      }
+	    }
 	else if (t.length == 14) {
       try { 
         Region r = Region.fromString(g, t[0]);
@@ -121,7 +133,7 @@ public class GPSParser {
         //logger.error("Parse error on line " + lineNumber + ".", ex);
         return null;
       }
-    } 
+    }
     else if (t.length == 15) {
 			try { 
 				Region r = Region.fromString(g, t[0]);
@@ -136,7 +148,37 @@ public class GPSParser {
 				//logger.error("Parse error on line " + lineNumber + ".", ex);
 				return null;
 			}
-		}   
+		}
+    else if (t.length == 16) {
+		try { 
+			Region r = Region.fromString(g, t[0]);
+//			GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
+//					double controlStrength, double qvalue, double shape, double shapeZ)		
+			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+					Double.parseDouble(t[3+0]), 0.0, 0.0, 
+					0.0, Double.parseDouble(t[10]), Integer.parseInt(t[10]), t[11], Integer.parseInt(t[12]));
+		}
+				
+		catch (Exception ex) {
+			//logger.error("Parse error on line " + lineNumber + ".", ex);
+			return null;
+		}
+	}
+	
+    else if (t.length == 17) {
+		try { 
+			Region r = Region.fromString(g, t[0]);
+//			GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
+//					double controlStrength, double qvalue, double shape, double shapeZ)		
+			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+					Double.parseDouble(t[3+0]), Double.parseDouble(t[3+1]), Double.parseDouble(t[3+2]), 
+					Double.parseDouble(t[3+3]), Double.parseDouble(t[2]), Integer.parseInt(t[11]), t[11+1], Integer.parseInt(t[11+2]));
+		}
+		catch (Exception ex) {
+			//logger.error("Parse error on line " + lineNumber + ".", ex);
+			return null;
+		}
+    }
 		else {
 			//logger.error("Line " + lineNumber + " has " + tokens.length + " tokens.");
 			return null;

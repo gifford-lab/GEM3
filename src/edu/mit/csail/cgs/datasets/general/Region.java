@@ -3,6 +3,7 @@ package edu.mit.csail.cgs.datasets.general;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.regex.Matcher;
@@ -11,6 +12,7 @@ import java.util.regex.Pattern;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Genome.ChromosomeInfo;
 import edu.mit.csail.cgs.utils.Saveable;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
 
 /**
@@ -620,37 +622,6 @@ public class Region implements Comparable<Region>, Saveable {
     return getLocationString();
   }
 
-
-  /**
-   * Returns a String indicating the location of this String normalized. <br>
-   * That is with as many zeros padded from the left as necessary so as when we
-   * order multiple regions afterwards we can get a file where they will be
-   * indeed sorted.
-   * 
-   * @return
-   */
-  public String toNormString() {
-    String chr = chrom;
-    String chromLengthStr = Integer.toString(g.getChromLength(chr));
-
-    // if chr is on the form: x or x_random, where x = {0, 1, ..., 9} add a 0
-    // from the left
-    if ((chr.length() == 1 && Character.isDigit(chr.charAt(0)))
-        || ((chr.length() != 1 && Character.isDigit(chr.charAt(0))) && !Character.isDigit(chr.charAt(1))))
-      chr = "0" + chr;
-
-    String startStr = Integer.toString(start);
-    String endStr = Integer.toString(end);
-    if (chromLengthStr.length() > startStr.length())
-      startStr = StringUtils.padString(startStr, "0", chromLengthStr.length() - startStr.length(), -1);
-
-    if (chromLengthStr.length() > endStr.length())
-      endStr = StringUtils.padString(endStr, "0", chromLengthStr.length() - endStr.length(), -1);
-
-    return String.format("%s:%s-%s", chr, startStr, endStr);
-  }// end of toNormCoordsString method
-
-
   /**
    * parses the input String into a Region. The Region can either be strict
    * coordinates (eg, chrom/start/stop). Understands abbreviates in the
@@ -741,6 +712,59 @@ public class Region implements Comparable<Region>, Saveable {
     }
     return Integer.parseInt(s);
   }
+  
+  /**
+   * This method finds all possible overlaps between <tt>N source</tt> and <tt>M target</tt>
+   * regions. 																				<br>
+   * It runs in <tt>O(N log(M)) + O(M log(M))</tt> time compared to the naive (nested loop) search 
+   * between all the elements of <tt>source</tt> and <tt>target</tt> regions which runs in O(N M) time.
+   * @param sourceRegions <tt>N</tt> source regions where we want to find overlaps between these and the <tt>target</tt> regions 
+   * @param targetRegions <tt>M</tt> target regions
+   * @return <tt>true</tt> in all positions where there is an overlap between a <tt>source</tt> and
+   * a <tt>target</tt> region. <tt>false</tt>, otherwise.
+   */
+  public static boolean[] overlap(Region[] sourceRegions, Region[] targetRegions) {
+	  boolean[] overlaps = new boolean[sourceRegions.length];
+	  
+	  if(sourceRegions.length == 0 || targetRegions.length == 0) { return overlaps; }
+	  
+	  Arrays.sort(targetRegions);
+	  int[] target_start = new int[targetRegions.length];
+	  for(int i = 0; i < target_start.length; i++) { target_start[i] = targetRegions[i].getStart(); }
+	  int[] target_end = new int[targetRegions.length];
+	  for(int i = 0; i < target_end.length; i++) { target_end[i] = targetRegions[i].getEnd(); }
+	  int[] idx = StatUtil.findSort(target_end);
+	  
+	  for(Region sourceReg:sourceRegions) {
+		  boolean sourceRegOverlaps = false;
+		  int start_idx = Arrays.binarySearch(target_end, sourceReg.getStart());
+		  int end_idx   = Arrays.binarySearch(target_start, sourceReg.getEnd());
+		  if( start_idx < 0 ) { start_idx = Math.min(-start_idx - 1, target_start.length-1); }
+		  if( end_idx < 0 )   { end_idx   = Math.min(-end_idx - 1  , target_start.length-1); }
+		  
+		  for(int i = idx[start_idx]; i <= end_idx; i++) {
+			  if(targetRegions[i].overlaps(sourceReg)) {
+				  sourceRegOverlaps = true;
+				  break;	  
+			  }
+		  }
+		  
+		  if(!sourceRegOverlaps && (end_idx - idx[start_idx] + 1 != target_start.length)) {
+			  for(int i = Math.min(idx[start_idx]+1, target_start.length-1); i > 0; i--) {
+				  if(targetRegions[i].overlaps(targetRegions[i-1])) {
+					  if(targetRegions[i-1].overlaps(sourceReg)){
+						  sourceRegOverlaps = true;
+						  break;
+					  }
+				  }
+					else
+						break;
+			  }
+		  }
+	  }
+	  
+	  return overlaps;
+  }//end of overlap method
 
 
   public boolean equals(Object o) {
