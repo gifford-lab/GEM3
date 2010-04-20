@@ -12,4 +12,8 @@ public class WMHit {
         this.strand = strand;
         this.score = score;
     }
+    public String toString() {
+        return String.format("%.2f at %d:%d-%d:%s",
+                             score,chromid,start,end,strand);
+    }
 }
