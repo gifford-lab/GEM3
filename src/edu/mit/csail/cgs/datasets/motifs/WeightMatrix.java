@@ -68,13 +68,20 @@ public class WeightMatrix {
         float nullWeight = islogodds ? (float)-9999.0 : (float)0.0;
     	
     	matrix = new float[maxPos+1][MAXLETTERVAL];
+        for(int i = 0; i < matrix.length; i++) { 
+            for(int j = 0; j < matrix[j].length; j++) { 
+                matrix[i][j] = nullWeight;
+            }
+        }
 		for(int j = 0; j < letters.length; j++) { 
 			char letter = letters[j];
 			for(int i = 0; i < matrix.length; i++) { 
 				if(weights.containsKey(i) && weights.get(i).containsKey(letter)) { 
-					matrix[i][letter] = weights.get(i).get(letter);
+					matrix[i][Character.toLowerCase(letter)] = weights.get(i).get(letter);
+					matrix[i][Character.toUpperCase(letter)] = weights.get(i).get(letter);
 				} else { 
-					matrix[i][letter] = nullWeight;
+					matrix[i][Character.toLowerCase(letter)] = nullWeight;
+					matrix[i][Character.toUpperCase(letter)] = nullWeight;
 				}
     		}
     	}
