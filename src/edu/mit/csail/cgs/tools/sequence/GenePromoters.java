@@ -8,10 +8,7 @@ import java.sql.SQLException;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.general.*;
-import edu.mit.csail.cgs.ewok.verbs.RefGeneGenerator;
-import edu.mit.csail.cgs.ewok.verbs.GeneToPromoter;
-import edu.mit.csail.cgs.ewok.verbs.FastaWriter;
-import edu.mit.csail.cgs.ewok.verbs.ChromRegionIterator;
+import edu.mit.csail.cgs.ewok.verbs.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 
 /**
@@ -26,10 +23,11 @@ public class GenePromoters {
 
     private int upstream, downstream;
     private List<RefGeneGenerator> geneGenerators;
+    private SequenceGenerator seqgen;
     private Genome genome;
     private boolean allGenes, toFasta, dontOverlapOrfs;
     private GeneToPromoter promgen;
-    private FastaWriter<NamedStrandedRegion> fwriter;
+    private Map<Expander<Region,? extends ScoredRegion>, Double> maskKeep, maskOut;
 
     public static void main(String args[]) throws Exception {
         GenePromoters gp = new GenePromoters();
@@ -45,18 +43,96 @@ public class GenePromoters {
         upstream = Args.parseInteger(args,"upstream",10000);
         downstream = Args.parseInteger(args,"downstream",2000);
         genome = Args.parseGenome(args).getLast();        
+        seqgen = new SequenceGenerator(genome);
         allGenes = Args.parseFlags(args).contains("allgenes");
         toFasta = Args.parseFlags(args).contains("fasta");
         dontOverlapOrfs = Args.parseFlags(args).contains("dontoverlaporfs");
-        if (toFasta) {
-            fwriter = new FastaWriter<NamedStrandedRegion>(System.out);
-        }
-
         if (dontOverlapOrfs) {
             promgen = new GeneToPromoter(upstream, downstream, geneGenerators);
         } else {
             promgen = new GeneToPromoter(upstream, downstream);
         }
+        maskKeep = new HashMap<Expander<Region,? extends ScoredRegion>, Double>();
+        maskOut = new HashMap<Expander<Region,? extends ScoredRegion>, Double>();
+        for (String s : Args.parseStrings(args,"phastmin")) {
+            String pieces[] = s.split(";");
+            maskKeep.put(new PhastConsGenerator(genome, pieces[0]), Double.parseDouble(pieces[1]));
+        }
+        for (String s : Args.parseStrings(args,"phastmax")) {
+            String pieces[] = s.split(";");
+            maskOut.put(new PhastConsGenerator(genome, pieces[0]), Double.parseDouble(pieces[1]));
+        }
+
+        for (String s : Args.parseStrings(args,"maskkeep")) {
+            String pieces[] = s.split(";");
+            maskKeep.put(new ScoredRegionGenerator(genome, pieces[0]), Double.parseDouble(pieces[1]));
+        }
+        for (String s : Args.parseStrings(args,"maskout")) {
+            String pieces[] = s.split(";");
+            maskOut.put(new ScoredRegionGenerator(genome, pieces[0]), Double.parseDouble(pieces[1]));
+        }
+
+    }
+    public Collection<Region> getMasksForRegion(Region r) {
+        Collection<Region> maskedout = new ArrayList<Region>();
+        if (maskOut.size() == 0 && maskKeep.size() == 0) {
+            return maskedout;
+        }
+        if (maskOut.size() == 0) {
+            maskedout.add(r);
+        } else {
+            for (Expander<Region,? extends ScoredRegion> exp : maskOut.keySet()) {
+                Iterator<? extends ScoredRegion> iter = exp.execute(r);
+                while (iter.hasNext()) {
+                    ScoredRegion sr = iter.next();
+                    if (sr.getScore() >= maskOut.get(exp)) {maskedout.add(sr);}                    
+                }
+            }
+        }
+        for (Expander<Region,? extends ScoredRegion> exp : maskKeep.keySet()) {
+            Iterator<? extends ScoredRegion> iter = exp.execute(r);
+            while (iter.hasNext()) {
+                ScoredRegion sr = iter.next();
+                if (sr.getScore() >= maskKeep.get(exp)) {
+                    ArrayList<Region> newmo = new ArrayList<Region>();
+                    for (Region old : maskedout) {
+                        if (old.overlaps(sr)) {
+                            if (old.contains(sr)) {
+                                newmo.add(new Region(old.getGenome(), old.getChrom(), old.getStart(), sr.getStart()));
+                                newmo.add(new Region(old.getGenome(), old.getChrom(), sr.getEnd(), old.getEnd()));
+                            } else if (old.before(sr)) {
+                                newmo.add(new Region(old.getGenome(), old.getChrom(), old.getStart(), sr.getStart()));
+                            } else {
+                                newmo.add(new Region(old.getGenome(), old.getChrom(), Math.min(sr.getEnd(), old.getEnd()), Math.max(sr.getEnd(), old.getEnd())));
+                            }
+                        } else {
+                            newmo.add(old);
+                        }
+                    }
+                    maskedout = newmo;                    
+                }
+            }
+        }
+        return maskedout;
+    }
+    public char[] getMaskedRegion(Region r, Collection<Region> masks) {
+        boolean[] keep = new boolean[r.getWidth()];
+        for (int i = 0; i < keep.length; i++) {
+            keep[i] = true;
+        }
+        for (Region mask : masks) {
+            Region overlap = mask.getOverlap(r);
+            for (int pos = overlap.getStart() - r.getStart(); pos < overlap.getEnd() - r.getStart(); pos++) {
+                keep[pos] = false;
+            }
+        }
+        char[] chars = seqgen.execute(r).toUpperCase().toCharArray();
+        for (int i = 0; i < chars.length; i++) {
+            if (!keep[i]) {
+                chars[i] = 'X';
+            }
+        }
+        return chars;
     }
     public void run() throws IOException {
         if (allGenes) {
@@ -99,11 +175,11 @@ public class GenePromoters {
                             } else {
                                 iter.next();
                             }
-
                         }
                         if (g != null) {
                             break;
                         }
+                        
                     }
                     if (g != null) {
                             break;
@@ -117,8 +193,15 @@ public class GenePromoters {
         }
     }
     public void output(NamedStrandedRegion r) {
+        char[] c = getMaskedRegion(r, getMasksForRegion(r));
         if (toFasta) {
-            fwriter.consume(r);
+            System.out.println(">" + r.getName());
+            for (int pos = 0; pos < c.length; pos += 60) {
+                for (int i = 0; i < 60 && pos + i < c.length; i++) {
+                    System.out.print(c[pos+i]);
+                }
+                System.out.println();
+            }
         } else {
             System.out.println(String.format("%s\t%s:%d-%d:%s",
                                              r.toString(),
