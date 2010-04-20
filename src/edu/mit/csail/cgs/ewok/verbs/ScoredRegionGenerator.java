@@ -28,22 +28,28 @@ public class ScoredRegionGenerator<X extends Region> implements Expander<X,Score
     public Genome getGenome() {return genome;}
     public String getTablename() {return tablename;}
 
+    public String getSQL() {
+        return "select chromStart, chromEnd, score from " + getTablename() + " where chrom = ? and " +
+            "chromStart <= ? and chromEnd >= ? UNION " +
+            "select chromStart, chromEnd, score from " + getTablename() + " where chrom = ? and " +
+            "chromStart <= ? and  chromStart >= ?";
+    }
     public Iterator<ScoredRegion> execute(X region) {
         try {
             java.sql.Connection cxn =
                 getGenome().getUcscConnection();
-            PreparedStatement ps = cxn.prepareStatement("select chromStart, chromEnd, score from " + getTablename() + " where chrom = ? and " +
-                                                        "((chromStart <= ? and chromEnd >= ?) or (chromStart >= ? and chromStart <= ?)) order by chromStart");
+            PreparedStatement ps = cxn.prepareStatement(getSQL());
             ps.setFetchSize(1000);
             String chr = region.getChrom();
             if (!chr.matches("^(chr|scaffold).*")) {
                 chr = "chr" + chr;
             }
             ps.setString(1,chr);
-            ps.setInt(2,region.getStart());
+            ps.setInt(2,region.getEnd());
             ps.setInt(3,region.getStart());
-            ps.setInt(4,region.getStart());
+            ps.setString(4,chr);
             ps.setInt(5,region.getEnd());
+            ps.setInt(6,region.getStart());
             ResultSet rs = ps.executeQuery();
             ArrayList<ScoredRegion> results = new ArrayList<ScoredRegion>();
             while (rs.next()) {
