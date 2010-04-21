@@ -11,8 +11,10 @@ import edu.mit.csail.cgs.utils.database.UnknownRoleException;
 import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.utils.probability.Binomial;
+import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.*;
+import edu.mit.csail.cgs.tools.utils.Args;
 
 /** Compare the frequencies of a set of motifs between two FASTA files
  * usage:
@@ -61,7 +63,7 @@ public class CompareEnrichment {
             Pair<String,String> pair = stream.next();
             String name = pair.getFirst();
             String seq = pair.getLast();
-            char[] aschars = seq.toUpperCase().toCharArray();
+            char[] aschars = seq.toCharArray();
             seqs.add(aschars);
             totalbases += aschars.length;
         }
@@ -95,8 +97,8 @@ public class CompareEnrichment {
         return out;
     }
 
-    public static Collection<WeightMatrix> filterMatrices(List<String> accepts,
-                                                          List<String> rejects,
+    public static Collection<WeightMatrix> filterMatrices(Collection<String> accepts,
+                                                          Collection<String> rejects,
                                                           Collection<WeightMatrix> matrices) {
         ArrayList<WeightMatrix> out = new ArrayList<WeightMatrix>();
         for (WeightMatrix wm : matrices) {
@@ -129,48 +131,30 @@ public class CompareEnrichment {
 
     public static void main(String args[]) throws Exception {
         String firstfname = null, secondfname = null;
-        ArrayList<String> accept, reject;
-        accept = new ArrayList<String>();
-        reject = new ArrayList<String>();
+        Collection<String> accept, reject;
         matrices = new ArrayList<WeightMatrix>();
         matrices.addAll(WeightMatrix.getAllWeightMatrices());
 
-        double cutoffpercent = .7;
-        double filtersig = .001;
-        double minfoldchange = 1;
-        double minfrac = 0;
-        boolean perbasecounts = false;
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("--first")) {
-                firstfname = args[++i];
+        double cutoffpercent = Args.parseDouble(args,"cutoff",.7);
+        double filtersig = Args.parseDouble(args,"filtersig",.001);
+        double minfoldchange = Args.parseDouble(args,"minfoldchange",1);
+        double minfrac = Args.parseDouble(args,"minfrac",0);
+        boolean perbasecounts = Args.parseFlags(args).contains("perbase");
+        accept = Args.parseStrings(args,"accept");
+        reject = Args.parseStrings(args,"reject");
+        firstfname = Args.parseString(args,"first",null);
+        secondfname = Args.parseString(args,"second",null);
+        try {
+            Genome genome = Args.parseGenome(args).cdr();
+            for (WeightMatrix m : matrices) {
+                m.toLogOdds(genome);
             }
-            if (args[i].equals("--second")) {
-                secondfname = args[++i];
-            }
-            if (args[i].equals("--accept")) {
-                accept.add(args[++i]);
-            }
-            if (args[i].equals("--reject")) {
-                reject.add(args[++i]);
-            }
-            if (args[i].equals("--cutoff")) {
-                cutoffpercent = Double.parseDouble(args[++i]);
-            }
-            if (args[i].equals("--filtersig")) {
-                filtersig = Double.parseDouble(args[++i]);
-            }
-            if (args[i].equals("--perbase")) {
-                perbasecounts = true;
-            }
-            if (args[i].equals("--minfoldchange")) {
-                minfoldchange = Double.parseDouble(args[++i]);
-            }
-            if (args[i].equals("--minfrac")) {
-                minfrac = Double.parseDouble(args[++i]);
-            }
-
-
+        } catch (Exception e) {
+            for (WeightMatrix m : matrices) {
+                m.toLogOdds();
+            }            
         }
+
         matrices = filterMatrices(accept,reject,matrices);
         if (firstfname == null) {
             throw new RuntimeException("Must supply a --first");
@@ -193,6 +177,8 @@ public class CompareEnrichment {
             int second = secondmotifcounts.get(wm);
             double firstfreq = ((double)first) / firstseqcount;
             double secondfreq = ((double)second) / secondseqcount;
+            System.err.println(String.format("WM %s,%s : %d/%d, %d/%d",
+                                             wm.getName(), wm.getVersion(), first, firstseqcount, second, secondseqcount));
             if (firstfreq <= 0) {
                 continue;
                 //                throw new RuntimeException("firstfreq < 0 from " + first + "," + firstseqcount);
@@ -215,7 +201,6 @@ public class CompareEnrichment {
             double psecond = Binomial.log_binomial_significance(second,secondseqcount,firstfreq);
             double sigsecond = Math.exp(psecond);
             sigsecond = Math.min(sigsecond, 1-sigsecond);
-             System.err.println("WM " + wm.getName() + "," + wm.getVersion());
              System.err.println("sig : " + sigfirst + ", " + sigsecond + " :: " + filtersig);
              System.err.println("fold : " + (pfirst / psecond) + ", " + (psecond / pfirst) + " :: " + minfoldchange);
              System.err.println("frac : " + pfirst + ", " + psecond + " :: " + minfrac);
