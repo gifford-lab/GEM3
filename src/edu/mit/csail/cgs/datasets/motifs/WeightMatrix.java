@@ -4,6 +4,7 @@ import java.util.*;
 import java.sql.*;
 import java.text.DecimalFormat;
 import java.text.FieldPosition;
+import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
@@ -312,28 +313,28 @@ public class WeightMatrix {
         }
         return false;
     }
-
-    /* converts this matrix to log-odds form */
     public void toLogOdds() {
-        setLogOdds();
-        if (islogodds) {return;}
+        toLogOdds(null);
+    }
+    /* converts this matrix to log-odds form */
+    public void toLogOdds(Genome genome) {
+        setLogOdds();  // tests for log-oddsness by looking for weights < 0
+        if (islogodds) {return;} 
         islogodds = true;
+        MarkovBackgroundModel bgModel = null;
+        
+        if (bgModelID != -1 && genome != null) {
+            try {
+                bgModel = BackgroundModelLoader.getMarkovModel(BackgroundModelLoader.getBackgroundGenomeMapID(bgModelID, genome.getDBID()));
+            } catch (NotFoundException nfex) {
+                nfex.printStackTrace();
+            } catch (SQLException sqlex) {
+                sqlex.printStackTrace();
+            }                
+        }            	
+
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-              MarkovBackgroundModel bgModel = null;
-            	
-            	if (bgModelID != -1) {
-            	  try {
-            	    bgModel = BackgroundModelLoader.getMarkovModel(bgModelID);
-            	  }
-            	  catch (NotFoundException nfex) {
-            	    nfex.printStackTrace();
-            	  }
-            	  catch (SQLException sqlex) {
-            	    sqlex.printStackTrace();
-            	  }                
-            	}
-            	
             	if (bgModel != null) {
             	  matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
             	}
