@@ -144,18 +144,28 @@ public class CompareEnrichment {
         reject = Args.parseStrings(args,"reject");
         firstfname = Args.parseString(args,"first",null);
         secondfname = Args.parseString(args,"second",null);
-        try {
-            Genome genome = Args.parseGenome(args).cdr();
-            for (WeightMatrix m : matrices) {
-                m.toLogOdds(genome);
-            }
-        } catch (Exception e) {
+        MarkovBackgroundModel bgModel = null;
+        String bgmodelname = Args.parseString(args,"bgmodel","whole genome zero order");
+        BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModel(bgmodelname,
+                                                                              1,
+                                                                              "MARKOV",
+                                                                              Args.parseGenome(args).cdr().getDBID());
+        if (md != null) {
+            bgModel = BackgroundModelLoader.getMarkovModel(md);
+        } else {
+            System.err.println("Couldn't get metadata for " + bgmodelname);
+        }
+                
+        matrices = filterMatrices(accept,reject,matrices);
+        if (bgModel == null) {
             for (WeightMatrix m : matrices) {
                 m.toLogOdds();
             }            
+        } else {
+            for (WeightMatrix m : matrices) {
+                m.toLogOdds(bgModel);
+            }            
         }
-
-        matrices = filterMatrices(accept,reject,matrices);
         if (firstfname == null) {
             throw new RuntimeException("Must supply a --first");
         }
