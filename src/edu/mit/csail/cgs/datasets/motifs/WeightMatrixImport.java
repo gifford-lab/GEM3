@@ -261,7 +261,7 @@ public class WeightMatrixImport {
             accession = "";
           }
         }
-        else if (pieces[0].equals("XX")) {
+        else if (pieces[0].equals("//")) {
           if (name != null && accession != null && id != null && arrays.size() > 0) {
             matrix = new WeightMatrix(arrays.size());
             for (int i = 0; i < arrays.size(); i++) {
