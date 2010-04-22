@@ -73,7 +73,7 @@ public class BackgroundModelLoader {
   
   
   
-  private static final String SQL_GET_MODEL_BY_ID = "select map_id, kmer, probability, count from background_model_cols where map_id = ? order by map_id, length(kmer), kmer";
+  private static final String SQL_GET_MODEL_BY_ID = "select bggm_id, kmer, probability, count from background_model_cols where bggm_id = ? order by bggm_id, length(kmer), kmer";
   private static final int SQL_GET_MODEL_BY_ID_MAP_ID_INDEX = 1;
   private static final int SQL_GET_MODEL_BY_ID_KMER_INDEX = 2;
   private static final int SQL_GET_MODEL_BY_ID_PROB_INDEX = 3;
@@ -82,7 +82,7 @@ public class BackgroundModelLoader {
   private static final String SQL_GET_MODEL_CORE = 
     "select map.id, map.genome_id, bm.name, bm.max_kmer_len, bm.id, bgmc.kmer, bgmc.probability, bgmc.count"
     + " from background_model bm, background_genome_map map, background_model_cols bgmc"
-    + " where bm.id = map.bg_model_id and bgmc.map_id = map.id";
+    + " where bm.id = map.bg_model_id and bgmc.bggm_id = map.id";
   private static final String SQL_GET_MODEL_ORDER_BY = " order by bm.name, bm.max_kmer_len, map.genome_id, length(bgmc.kmer), bgmc.kmer";
   private static final int SQL_GET_MODEL_CORE_MAP_ID_INDEX = 1;
   private static final int SQL_GET_MODEL_CORE_GENOME_ID_INDEX = 2;
@@ -93,7 +93,7 @@ public class BackgroundModelLoader {
   private static final int SQL_GET_MODEL_CORE_PROB_INDEX = 7;
   private static final int SQL_GET_MODEL_CORE_COUNT_INDEX = 8;
   
-  private static final String SQL_GET_MODEL_MAP_ID = " and map.map_id = ?";
+  private static final String SQL_GET_MODEL_MAP_ID = " and map.id = ?";
 
   private static final String SQL_GET_MODEL_GENOME_ID = " and map.genome_id = ?";
 
@@ -2468,7 +2468,7 @@ public class BackgroundModelLoader {
    * @throws SQLException
    */
   private static void removeModelColumns(int mapID, Connection cxn) throws SQLException {
-  	PreparedStatement deleteOld = cxn.prepareStatement("delete from background_model_cols where map_id = ?");
+  	PreparedStatement deleteOld = cxn.prepareStatement("delete from background_model_cols where bggm_id = ?");
     try {
       deleteOld.setInt(1,mapID);
       deleteOld.execute();
@@ -2487,7 +2487,7 @@ public class BackgroundModelLoader {
    * @throws SQLException
    */
   private static void insertMarkovModelColumns(MarkovBackgroundModel model, int mapID, Connection cxn) throws SQLException {
-    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(map_id,kmer,probability) values(?,?,?)");
+    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,kmer,probability) values(?,?,?)");
     try {
       for (int i = 1; i <= model.getMaxKmerLen(); i++) {
         for (String kmer : model.getKmers(i)) {
@@ -2578,13 +2578,19 @@ public class BackgroundModelLoader {
     ClassLoader loader = BackgroundModelLoader.class.getClassLoader();
     PropertyConfigurator.configure(loader.getResource("edu/mit/csail/cgs/utils/config/log4j.properties"));      
     
-    BackgroundModelLoader.testDBLoading();
-    //BackgroundModelLoader.importModel(args);
+    //BackgroundModelLoader.testDBLoading();
+    BackgroundModelLoader.importModel(args);
   }
   
   
   /** 
-   * Imports a weightmatrix from a file into the DB 
+   * Imports a background model from a file into the DB.
+   * File format is
+   * 1 A .2
+   * 2 C .3
+   * 3 G .3
+   * 4 T .2
+   * 5 AA ....
    *
    * Usage:
    * java edu.mit.csail.cgs.datasets.motifs.BackgroundModelLoader --genome "Mus musculus;mm8" --bgname "whole genome" --bgtype MARKOV --bgfile foo.back
@@ -2597,10 +2603,10 @@ public class BackgroundModelLoader {
       String bgFilename = null;
       
       //args = new String[] {"--species", "Mus musculus;mm5", "--bgname", "test1", "--bgtype", MARKOV_TYPE_STRING, "--bgfile", "mm8_2.back"};
-//      args = new String[] {"--species", "Saccharomyces cerevisiae;sacCer1", "--bgname", "test2", "--bgtype", MARKOV_TYPE_STRING, "--bgfile", "yeast1.back"};
+      //      args = new String[] {"--species", "Saccharomyces cerevisiae;sacCer1", "--bgname", "test2", "--bgtype", MARKOV_TYPE_STRING, "--bgfile", "yeast1.back"};
       //args = new String[] {"--species", "Homo sapiens;hg17", "--bgname", "test1", "--bgtype", MARKOV_TYPE_STRING, "--bgfile", "human_1.back"};
       //args = new String[] {"--species", "Mus musculus;mm5", "--bgname", "test1", "--bgtype", FREQUENCY_TYPE_STRING, "--bgfile", "testfreq3.back"};
-      args = new String[] {"--species", "Mus musculus;mm5", "--bgname", "test4", "--bgtype", "COUNTS;FREQUENCY", "--bgfile", "testcount2.back"};
+      //args = new String[] {"--species", "Mus musculus;mm5", "--bgname", "test4", "--bgtype", "COUNTS;FREQUENCY", "--bgfile", "testcount2.back"};
       
       
       gen = Args.parseGenome(args).cdr();
