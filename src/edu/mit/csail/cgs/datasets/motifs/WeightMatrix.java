@@ -33,7 +33,7 @@ public class WeightMatrix {
     public int dbid, speciesid;
     public boolean hasdbid, hasspeciesid; // set to true iff dbid is valid
     public boolean islogodds;
-    public int bgModelID = -1;
+    public int bgMapID = -1;
     
     WeightMatrix(ResultSet wmData, ResultSet wmColData) throws SQLException {  
     	dbid = wmData.getInt(1);
@@ -41,9 +41,9 @@ public class WeightMatrix {
     	name = wmData.getString(3);
     	version = wmData.getString(4);
     	type = wmData.getString(5);
-    	bgModelID = wmData.getInt(6);
+    	bgMapID = wmData.getInt(6);
     	if (wmData.wasNull()) {
-    	  bgModelID = -1;
+    	  bgMapID = -1;
     	}
     	
     	hasdbid = true; hasspeciesid = true;
@@ -139,9 +139,9 @@ public class WeightMatrix {
                 m.name = rs.getString(3);
                 m.version = rs.getString(4);
                 m.type = rs.getString(5);
-                m.bgModelID = rs.getInt(6);
-                if ((m.bgModelID == 0) && rs.wasNull()) {
-                  m.bgModelID = -1;
+                m.bgMapID = rs.getInt(6);
+                if ((m.bgMapID == 0) && rs.wasNull()) {
+                  m.bgMapID = -1;
                 }
                 output.put(id,m);
             }
@@ -199,9 +199,9 @@ public class WeightMatrix {
             matrix.type = rs.getString(3);
             matrix.speciesid = rs.getInt(4);
             matrix.hasspeciesid = true;
-            matrix.bgModelID = rs.getInt(5);
-            if ((matrix.bgModelID == 0) && rs.wasNull()) {
-              matrix.bgModelID = -1;
+            matrix.bgMapID = rs.getInt(5);
+            if ((matrix.bgMapID == 0) && rs.wasNull()) {
+              matrix.bgMapID = -1;
             }
             rs.close();
             ps.close();            
@@ -313,19 +313,32 @@ public class WeightMatrix {
         }
         return false;
     }
-    public void toLogOdds() {
-        toLogOdds(null);
+    /* convert this matrix to log-odds form using the specified background
+       model.  You might want to do this if you're scanning for a matrix 
+       in a different genome than the matrix's default background model
+    */
+    public void toLogOdds(MarkovBackgroundModel bgModel) {
+        setLogOdds();  // tests for log-oddsness by looking for weights < 0
+        if (islogodds) {return;} 
+        islogodds = true;
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < allLetters.length; j++) {
+                matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+            }
+        }                
     }
-    /* converts this matrix to log-odds form */
-    public void toLogOdds(Genome genome) {
+    /* converts this matrix to log-odds form.  Uses either the matrix's
+       default background model or a uniform .25 model
+    */
+    public void toLogOdds() {
         setLogOdds();  // tests for log-oddsness by looking for weights < 0
         if (islogodds) {return;} 
         islogodds = true;
         MarkovBackgroundModel bgModel = null;
         
-        if (bgModelID != -1 && genome != null) {
+        if (bgMapID != -1) {
             try {
-                bgModel = BackgroundModelLoader.getMarkovModel(BackgroundModelLoader.getBackgroundGenomeMapID(bgModelID, genome.getDBID()));
+                bgModel = BackgroundModelLoader.getMarkovModel(bgMapID);
             } catch (NotFoundException nfex) {
                 nfex.printStackTrace();
             } catch (SQLException sqlex) {
