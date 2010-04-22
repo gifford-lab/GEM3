@@ -55,35 +55,20 @@ public class CompareEnrichment {
                                                                                      double cutoffpercent,
                                                                                      boolean perbasecounts) throws FileNotFoundException, IOException {
         Hashtable<WeightMatrix,Integer> filecounts = new Hashtable<WeightMatrix,Integer>();
-        Set<char[]> seqs = new HashSet<char[]>();
-
         FASTAStream stream = new FASTAStream(new File(fname));
         int totalbases = 0;
+        int totalseqs = 0;
         while (stream.hasNext()) {
+            totalseqs++;
             Pair<String,String> pair = stream.next();
-            String name = pair.getFirst();
             String seq = pair.getLast();
             char[] aschars = seq.toCharArray();
-            seqs.add(aschars);
             totalbases += aschars.length;
-        }
-        Pair<Integer,Hashtable<WeightMatrix,Integer>> out;
-        if (perbasecounts) {
-            out = new Pair<Integer,Hashtable<WeightMatrix,Integer>>(totalbases,
-                                                                    filecounts);
-        } else {
-            out = new Pair<Integer,Hashtable<WeightMatrix,Integer>>(seqs.size(),
-                                                                    filecounts);
-        }
-
-
-        int done = 0;
-        for (WeightMatrix m : matrices) {
-            int count = 0;
-            for (char[] seq : seqs) {
+            for (WeightMatrix m : matrices) {
+                int count = filecounts.containsKey(m) ? filecounts.get(m) : 0;
                 List<WMHit> hits = WeightMatrixScanner.scanSequence(m,
                                                                     (float)(m.getMaxScore() * cutoffpercent),
-                                                                    seq);
+                                                                    aschars);
                 if (perbasecounts) {
                     count += hits.size();
                 } else {
@@ -91,8 +76,16 @@ public class CompareEnrichment {
                         count++;
                     }
                 }
+                filecounts.put(m,count);            
             }
-            filecounts.put(m,count);
+        }
+        Pair<Integer,Hashtable<WeightMatrix,Integer>> out;
+        if (perbasecounts) {
+            out = new Pair<Integer,Hashtable<WeightMatrix,Integer>>(totalbases,
+                                                                    filecounts);
+        } else {
+            out = new Pair<Integer,Hashtable<WeightMatrix,Integer>>(totalseqs,
+                                                                    filecounts);
         }
         return out;
     }
