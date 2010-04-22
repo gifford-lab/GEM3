@@ -18,7 +18,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 public class TiledRegionGenerator<X extends Region> implements Expander<X,Region> {
     private String arrayDesign;
     private int designID;
-    private int spacing, mincount;
+    private int spacing, mincount, minlen;
 
     /**
      * @param design name of the array design 
@@ -27,11 +27,12 @@ public class TiledRegionGenerator<X extends Region> implements Expander<X,Region
      * @param mincount the minimum number of probes in a region (with at most <code>spacing</code> bp between adjacent probes)
      * for a tiled region to be included in the output
      */
-
-    public TiledRegionGenerator(String design, int spacing, int mincount) throws NotFoundException {
+    public TiledRegionGenerator(String design, int spacing, int mincount) throws NotFoundException { this(design,spacing,mincount,0);}
+    public TiledRegionGenerator(String design, int spacing, int mincount, int minlen) throws NotFoundException {
         arrayDesign = design;
         this.spacing = spacing;
         this.mincount = mincount;
+        this.minlen = minlen;
         try {
             java.sql.Connection cxn =
                 DatabaseFactory.getConnection("chipchip");
@@ -84,8 +85,10 @@ public class TiledRegionGenerator<X extends Region> implements Expander<X,Region
                         clean = false;
                     } else {
                         if (count >= mincount) {
-                            Region found = new Region(g,r.getChrom(),laststart,laststop);
-                            results.add(found);       
+                        		if((laststop-laststart)>minlen){
+                        			Region found = new Region(g,r.getChrom(),laststart,laststop);
+                        			results.add(found);
+                        		}
                         }
                         clean = true;
                     }
