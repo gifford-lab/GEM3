@@ -338,7 +338,6 @@ public class Server {
             rawgroups.get(group).add(princ);
         }        
         System.err.println("got write lock");
-        Lock.writeLock(groupfile);
         File gfile = File.createTempFile("tmp",".groups");
         PrintWriter pw = new PrintWriter(gfile);
         for (String g : rawgroups.keySet()) {

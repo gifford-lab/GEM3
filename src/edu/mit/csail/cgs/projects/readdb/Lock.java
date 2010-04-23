@@ -36,6 +36,7 @@ public class Lock {
         java.util.concurrent.locks.Lock lock = locks.get(fname).readLock();
         lock.lock();
         threadlocks.get(t).add(lock);
+        //        System.err.println("READLOCK by " + t + " of " + fname + " as " + lock);
         return lock;
     }
     protected static java.util.concurrent.locks.Lock writeLock(String fname) {
@@ -50,10 +51,13 @@ public class Lock {
                 threadlocks.put(t, new HashSet<java.util.concurrent.locks.Lock>());
             }
         }
-        locks.get(fname).readLock().unlock();
+        java.util.concurrent.locks.Lock rl = locks.get(fname).readLock();
+        rl.unlock();
+        threadlocks.get(t).remove(rl);
         java.util.concurrent.locks.Lock lock = locks.get(fname).writeLock();
         lock.lock();
         threadlocks.get(t).add(lock);
+        //        System.err.println("WRITELOCK by " + t + " of " + fname + " as " + lock);
         return lock;
     }
     /* call to ensure that all a thread's locks have been released */
@@ -61,8 +65,10 @@ public class Lock {
         Thread t = Thread.currentThread();
         if (threadlocks.containsKey(t)) {
             for (java.util.concurrent.locks.Lock l : threadlocks.get(t)) {
+                //                System.err.println("UNLOCK of " + l + " by " + t);
                 l.unlock();
             }
+            threadlocks.get(t).clear();
         }
         if (rlcount++ > 100) {
             rlcount = 0;
