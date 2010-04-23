@@ -172,7 +172,6 @@ public class ServerTask {
             //             }
             args.clear();
             shouldClose = true;
-            Lock.releaseLocks(this);
             System.gc();
             System.runFinalization();
             return;
@@ -184,7 +183,7 @@ public class ServerTask {
     public void processRequest () throws IOException {
         try {
             if (request.alignid != null) {
-                Lock.readLock(this,request.alignid);
+                Lock.readLock(request.alignid);
             }
             if (request.type.equals("exists")) {
                 processExists();            
@@ -217,11 +216,10 @@ public class ServerTask {
                 processFileRequest();
             }
         } catch (IOException e) {
-            Lock.readUnLock(this,request.alignid);
             throw e;
+        } finally {
+            Lock.releaseLocks();
         }
-        Lock.readUnLock(this,request.alignid);
-
     }
     /**
      * Handles the subset of requests that deal with a particular
@@ -504,18 +502,16 @@ public class ServerTask {
     public void processSetACL() throws IOException {
         assert(request != null);
         assert(request.alignid != null);
-        Lock.writeLock(this,request.alignid);
+        Lock.writeLock(request.alignid);
         AlignmentACL acl = null;
         try {
             acl = server.getACL(request.alignid);
         } catch (IOException e) {
             printString("No such alignment");
-            Lock.writeUnLock(this,request.alignid);
             return;
         }
         if (!authorizeAdmin(acl) && !server.isAdmin(username)) {
             printAuthError();
-            Lock.writeUnLock(this,request.alignid);
             return;
         }
         for (int i = 0; i < request.list.size(); i++) {
@@ -540,7 +536,6 @@ public class ServerTask {
         }
         acl.writeToFile(server.getACLFileName(request.alignid));
         server.removeACL(request.alignid);
-        Lock.writeUnLock(this,request.alignid);
         printString("OK\n");                        
     }    
     /** reads two lines from socket: alignment id and chromosome id.
@@ -633,7 +628,7 @@ public class ServerTask {
         }
         boolean allDeleted = true;
         File f;
-        Lock.writeLock(this,request.alignid);
+        Lock.writeLock(request.alignid);
         for (String fname : toDelete) {
             // file system delete
             f = new File(fname);
@@ -644,7 +639,6 @@ public class ServerTask {
         } else {
             printString("Partially Deleted\n");
         }
-        Lock.writeUnLock(this,request.alignid);
     }
     /** creates or appends to a set of hits.  
      *
@@ -668,7 +662,7 @@ public class ServerTask {
             printOK();
             return;
         }
-        Lock.writeLock(this,request.alignid);
+        Lock.writeLock(request.alignid);
 
         IntBP positions = new IntBP(numHits);
         FloatBP weights = new FloatBP(numHits);
@@ -710,13 +704,11 @@ public class ServerTask {
                     AlignmentACL acl = server.getACL(request.alignid);
                     if (!authorizeRead(acl) || !authorizeWrite(acl)) {
                         printAuthError();
-                        Lock.writeUnLock(this, request.alignid);
                         return;
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
                     printInvalid(e.toString());
-                    Lock.writeUnLock(this,request.alignid);
                     return;
                 }
                 try {
@@ -728,7 +720,6 @@ public class ServerTask {
                 } catch (Exception e) {
                     e.printStackTrace();
                     printInvalid(e.toString());
-                    Lock.writeUnLock(this,request.alignid);
                     return;
                 }
             } else {
@@ -743,7 +734,6 @@ public class ServerTask {
                 if (!dir.exists() && !dir.mkdirs()) {
                     System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
                     printAuthError();
-                    Lock.writeUnLock(this,request.alignid);
                     return;
                 }
                 acl.getAdminACL().add(username);
@@ -762,13 +752,11 @@ public class ServerTask {
                                                                  request.chromid));
         } catch (IOException e) {
             printString("IOException trying to save files : " + e.toString() + "\n");
-            Lock.writeUnLock(this,request.alignid);
             return;
         }
         printOK();
         server.removeSingleHits(request.alignid, request.chromid);
         server.removeSingleHeader(request.alignid, request.chromid);
-        Lock.writeUnLock(this,request.alignid);
     }
 
     public void processPairedStore() throws IOException {
@@ -789,7 +777,7 @@ public class ServerTask {
             return;
         }
 
-        Lock.writeLock(this,request.alignid);
+        Lock.writeLock(request.alignid);
 
         Set<Integer> chroms = server.getChroms(request.alignid, true,request.isLeft);
         if (chroms == null) {
@@ -803,7 +791,6 @@ public class ServerTask {
             if (!(new File(server.getAlignmentDir(request.alignid))).mkdirs()) {
                 System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
                 printAuthError();
-                Lock.writeUnLock(this,request.alignid);
                 return;
             }
             acl.getAdminACL().add(username);
@@ -817,7 +804,6 @@ public class ServerTask {
                 AlignmentACL acl = server.getACL(request.alignid);
                 if (!authorizeRead(acl) || !authorizeWrite(acl)) {
                     printAuthError();
-                    Lock.writeUnLock(this, request.alignid);
                     return;
                 }
             } catch (IOException e) {
@@ -861,14 +847,11 @@ public class ServerTask {
             appendPairedHits(hits,false);
             hits = null;
         } catch (IOException e) {
-            Lock.writeUnLock(this,request.alignid);
             e.printStackTrace();
             printString("Failed to write hits : " + e.toString());
-            Lock.writeUnLock(this,request.alignid);
             return;
         }
         printOK();
-        Lock.writeUnLock(this,request.alignid);
     }
 
     private void appendPairedHits(PairedHit[] newhits,

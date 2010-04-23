@@ -338,7 +338,7 @@ public class Server {
             rawgroups.get(group).add(princ);
         }        
         System.err.println("got write lock");
-        Lock.writeLock(t,groupfile);
+        Lock.writeLock(groupfile);
         File gfile = File.createTempFile("tmp",".groups");
         PrintWriter pw = new PrintWriter(gfile);
         for (String g : rawgroups.keySet()) {
@@ -352,7 +352,6 @@ public class Server {
         pw.close();
         gfile.renameTo(new File(groupfile));
         readAndProcessGroupsFile();
-        Lock.writeUnLock(t,groupfile);
     }
     /**
      * processes recursive group memberships
