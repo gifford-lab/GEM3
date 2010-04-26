@@ -98,13 +98,25 @@ public class RefGeneGenerator<X extends Region>
         ResourceBundle res = ResourceBundle.getBundle("edu.mit.csail.cgs.ewok.gene_names");
         Enumeration<String> keys = res.getKeys();
         tablename = t;
-        if (tablename == null) {
-            throw new RuntimeException("Can't get tablename for " + g.getVersion());
-        }
+        /* if no table name was given, then we'll end up using the first table listed in the 
+           gene_names properties file */
         String targetkey = g.getVersion() + "," + tablename;
+        if (tablename == null) {
+            targetkey = null;
+        }
+
         while(keys.hasMoreElements()) { 
             String key = keys.nextElement();
-            if (!key.equals(targetkey)) { continue;}
+            if (targetkey == null) {
+                if (key.matches(g.getVersion() + ".*")) {
+                    String p[] = key.split(",");
+                    tablename = p[1];
+                } else {
+                    continue;
+                }
+            } else {
+                if (!key.equals(targetkey)) { continue;}
+            }
             String props[] = res.getString(key).split(",");
             aliastable = props[0];
             namecolumn = props[1];
@@ -319,8 +331,10 @@ public class RefGeneGenerator<X extends Region>
                 ex.printStackTrace();
                 wantalias = false;
             }                
-           if (aliastable.equals("kgAlias")) {
+            if (aliastable != null && aliastable.equals("kgAlias")) {
                 getgenesym = cxn.prepareStatement("select distinct(geneSymbol) from kgXref where refseq=?");
+            } else {
+                getgenesym = null;
             }
         }
         while (rs.next()) {
