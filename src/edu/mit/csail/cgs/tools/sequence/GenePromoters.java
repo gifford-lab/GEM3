@@ -56,11 +56,15 @@ public class GenePromoters {
         maskOut = new HashMap<Expander<Region,? extends ScoredRegion>, Double>();
         for (String s : Args.parseStrings(args,"phastmin")) {
             String pieces[] = s.split(";");
-            maskKeep.put(new PhastConsGenerator(genome, pieces[0]), Double.parseDouble(pieces[1]));
+            if (!pieces[1].equals("0")) {
+                maskKeep.put(new PhastConsGenerator(genome, pieces[0]), Double.parseDouble(pieces[1]));
+            }
         }
         for (String s : Args.parseStrings(args,"phastmax")) {
             String pieces[] = s.split(";");
-            maskOut.put(new PhastConsGenerator(genome, pieces[0]), Double.parseDouble(pieces[1]));
+            if (!pieces[1].equals("0")) {
+                maskOut.put(new PhastConsGenerator(genome, pieces[0]), Double.parseDouble(pieces[1]));
+            }
         }
 
         for (String s : Args.parseStrings(args,"maskkeep")) {
