@@ -629,6 +629,7 @@ public class WeightMatrixScanner {
                 results.add(new WMHit(-1,-1,sequence.length - i - length,sequence.length - i -1,"-",score));
             }
         }
+        SequenceUtils.reverseComplement(sequence); // put the sequence back the way we found it
         return results;
     }
 
