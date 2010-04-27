@@ -16,4 +16,10 @@ public class WMHit {
         return String.format("%.2f at %d:%d-%d:%s",
                              score,chromid,start,end,strand);
     }
+    public int getStart() {return start;}
+    public int getEnd() {return end;}
+    public int getScanID() {return scanid;}
+    public int getChromID() {return chromid;}
+    public String getStrand() {return strand;}
+    public float getScore() {return score;}
 }
