@@ -46,8 +46,7 @@ import edu.mit.csail.cgs.datasets.general.ScoredStrandedRegion;
 import edu.mit.csail.cgs.datasets.general.SpottedProbe;
 import edu.mit.csail.cgs.datasets.general.StrandedRegion;
 import edu.mit.csail.cgs.datasets.locators.ChipChipDifferenceLocator;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrixScan;
+import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.datasets.species.Gene;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
@@ -736,6 +735,28 @@ public class RegionPanel extends JPanel
 
         for (int i = 0; i < opts.motifs.size(); i++) {
             WeightMatrix matrix = opts.motifs.get(i);
+            MarkovBackgroundModel bgModel = null;
+            try {
+                String bgmodelname = "whole genome zero order";
+                BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModel(bgmodelname,
+                                                                                      1,
+                                                                                      "MARKOV",
+                                                                                      genome.getDBID());
+                if (md != null) {
+                    bgModel = BackgroundModelLoader.getMarkovModel(md);
+                } else {
+                    System.err.println("Couldn't get metadata for " + bgmodelname);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            if (bgModel != null) {
+                matrix.toLogOdds(bgModel);
+            } else {
+                matrix.toLogOdds();
+            }
+
             PerBaseMotifMatch match = new PerBaseMotifMatch(matrix);
             RegionMapperModel<Double[]> m = new RegionMapperModel<Double[]>(new Mapper.Compose<Region,String,Double[]>(new SequenceGenerator(genome),
                                                                                                                        match));
