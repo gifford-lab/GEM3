@@ -42,7 +42,7 @@ public class RefGeneGenerator<X extends Region>
     private Genome genome;
     private String tablename, aliastable, namecolumn, aliascolumn;
     private int aliastype;
-    private boolean wantalias;
+    private boolean wantalias, flipstrand;
     private static final int YEAST = 1, MAMMAL = 2, FLY = 3, WORM = 4;    
     private static final int TOSTART = 1, TOEND = 2, TOWHOLE = 3;
     private boolean wantsExons;
@@ -62,6 +62,7 @@ public class RefGeneGenerator<X extends Region>
         downstream = 0;
         closestN = 0;
         toBoundary = TOSTART;
+        flipstrand = false;
     }
     
     /**
@@ -77,6 +78,7 @@ public class RefGeneGenerator<X extends Region>
         downstream = 0;
         closestN = 0;
         toBoundary = TOSTART;  
+        flipstrand = false;
     }
     
     public RefGeneGenerator() { 
@@ -91,6 +93,7 @@ public class RefGeneGenerator<X extends Region>
         downstream = 0;
         closestN = 0;
         toBoundary = TOSTART;        
+        flipstrand = false;
     }
     
     public void setGenome(Genome g, String t) { 
@@ -141,6 +144,9 @@ public class RefGeneGenerator<X extends Region>
      */
     public void setWantAlias(boolean b) {
         wantalias = aliastable != null && b;        
+    }
+    public void setFlipStrand(boolean b) {
+        flipstrand = b;
     }
     public void setUpstreamDownstream(int up, int down) {
         if (upstream == 0 && downstream == 0 && 
@@ -342,14 +348,18 @@ public class RefGeneGenerator<X extends Region>
             chr = chr.replaceFirst("^chr","");
             Gene g = null;
             if(wantsExons) { 
+                char strand = rs.getString(3).charAt(0);
+                if (flipstrand) {
+                    strand = strand == '+' ? '-' : '+';
+                }                
                 ExonicGene exonicGene = new ExonicGene(genome,
-                        chr,
-                        rs.getInt(4),
-                        rs.getInt(5),
-                        rs.getString(1),
-                        rs.getString(1),
-                        rs.getString(3).charAt(0),
-                        "RefGene");
+                                                       chr,
+                                                       rs.getInt(4),
+                                                       rs.getInt(5),
+                                                       rs.getString(1),
+                                                       rs.getString(1),
+                                                       strand,
+                                                       "RefGene");
                 g = exonicGene;
                 int exonCount = rs.getInt(6);
                 if(exonCount >= 1) {
@@ -387,18 +397,21 @@ public class RefGeneGenerator<X extends Region>
                 }
                 
             } else { 
+                char strand = rs.getString(3).charAt(0);
+                if (flipstrand) {
+                    strand = strand == '+' ? '-' : '+';
+                }
                 g = new Gene(genome,
-                        chr,
-                        rs.getInt(4),
-                        rs.getInt(5),
-                        rs.getString(1),
-                        rs.getString(1),
-                        rs.getString(3).charAt(0),
-                        "RefGene");
+                             chr,
+                             rs.getInt(4),
+                             rs.getInt(5),
+                             rs.getString(1),
+                             rs.getString(1),
+                             strand,
+                             "RefGene");
             }
             if (wantalias) {
-            	
-            	if(getgenesym != null) { 
+                if(getgenesym != null) { 
             		getgenesym.setString(1, g.getID());
             		ResultSet gsrs = getgenesym.executeQuery();
             		if(gsrs.next()) { 

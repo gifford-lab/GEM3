@@ -421,9 +421,15 @@ public class Args {
      */
     public static List<RefGeneGenerator> parseGenes (String args[]) throws NotFoundException {
         ArrayList<RefGeneGenerator> output = new ArrayList<RefGeneGenerator>();
+        boolean flipstrands = parseFlags(args).contains("flipgenetrands");
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--genes")) {
                 output.add(new RefGeneGenerator(parseGenome(args).getLast(),args[++i]));
+            }
+        }
+        if (flipstrands) {
+            for (RefGeneGenerator rg : output) {
+                rg.setFlipStrand(true);
             }
         }
         return output;

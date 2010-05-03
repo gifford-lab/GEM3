@@ -16,7 +16,7 @@ import edu.mit.csail.cgs.ewok.verbs.*;
 /**
  * DifferentialExpression --species "$SC;Sigmav6" --one "Sigma polyA RNA, haploid from 2/9/09;3/17/09;bowtie --best -m 100 -k 100" \
  *                        --two "Sigma polyA RNA, tetraploid from 2/9/09;3/17/09;bowtie --best -m 100 -k 100" --genes sgdGene \
- *                        [--bothstrands] [--byweight]
+ *                        [--bothstrands] [--byweight] [--flipgenetrands]
  *
  * Output columns are
  * - gene name
