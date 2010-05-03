@@ -21,7 +21,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 
 public class GenePromoters {
 
-    private int upstream, downstream;
+    private int upstream, downstream, minlen;
     private List<RefGeneGenerator> geneGenerators;
     private SequenceGenerator seqgen;
     private Genome genome;
@@ -42,6 +42,7 @@ public class GenePromoters {
         }        
         upstream = Args.parseInteger(args,"upstream",10000);
         downstream = Args.parseInteger(args,"downstream",2000);
+        minlen = Args.parseInteger(args,"minlen",0);
         genome = Args.parseGenome(args).getLast();        
         seqgen = new SequenceGenerator(genome);
         allGenes = Args.parseFlags(args).contains("allgenes");
@@ -198,6 +199,10 @@ public class GenePromoters {
     }
     public void output(NamedStrandedRegion r) {
         char[] c = getMaskedRegion(r, getMasksForRegion(r));
+        if (r.getWidth() < minlen) {
+            return;
+        }
+
         if (toFasta) {
             System.out.println(">" + r.getName());
             for (int pos = 0; pos < c.length; pos += 60) {
