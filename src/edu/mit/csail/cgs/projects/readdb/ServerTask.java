@@ -633,7 +633,11 @@ public class ServerTask {
         for (String fname : toDelete) {
             // file system delete
             f = new File(fname);
-            allDeleted = allDeleted && f.delete();
+            boolean deleted = f.delete();
+            allDeleted = allDeleted && deleted;
+            if (!deleted) {
+                server.getLogger().log(Level.INFO,"ServerTask.processDeleteAlignment didn't delete " + fname);
+            }
         }
         if (allDeleted) {
             printOK();
