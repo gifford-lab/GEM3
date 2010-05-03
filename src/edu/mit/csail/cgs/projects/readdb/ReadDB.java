@@ -135,7 +135,10 @@ public class ReadDB {
                     client.deleteAlignment(align,false);
                 } else if (cmd.equals("deletepairedalign")) {
                     client.deleteAlignment(align,true);
+                } else {
+                    System.err.println("Unknown command " + cmd);
                 }
+
 
             }
         }
