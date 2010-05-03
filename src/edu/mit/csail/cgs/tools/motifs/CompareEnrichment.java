@@ -18,7 +18,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 
 /** Compare the frequencies of a set of motifs between two FASTA files
  * usage:
- *   java edu.mit.csail.cgs.tools.motifs.CompareEnrichment --first foo.fasta --second bar.fasta
+ *   java edu.mit.csail.cgs.tools.motifs.CompareEnrichment --species "$SC;SGDv2" --first foo.fasta --second bar.fasta
  *
  * can also specify --accept to give a regex which the motif name must match
  * of --reject to specify a regex that the motif name must not match.  Remember the regex must match
