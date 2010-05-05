@@ -5,6 +5,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import java.io.*;
+import java.util.Collection;
 
 /**
  * Replaces a chromosome name with its ID in a column of tab-delimited text.
@@ -19,19 +20,26 @@ public class ChromColumn2ID {
     
     public static void main(String args[]) throws Exception {
         Genome genome = Args.parseGenome(args).cdr();
-        int field = Args.parseInteger(args,"column",-1);
+        Collection<String> fs = Args.parseStrings(args,"column");
+        int fields[] = new int[fs.size()];
+        int i = 0;
+        for (String fieldstring : fs) {
+            fields[i++] = Integer.parseInt(fieldstring);
+        }
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String line;
         StringBuffer out = new StringBuffer();
         while ((line = reader.readLine()) != null) {
             String pieces[] = line.split("\\t");
-            pieces[field] = Integer.toString(genome.getChromID(pieces[field].replaceAll("^chr","")));
+            for (i = 0; i < fields.length; i++) {
+                int field = fields[i];
+                pieces[field] = Integer.toString(genome.getChromID(pieces[field].replaceAll("^chr","")));
+            }
             out.delete(0,out.length());
             out.append(pieces[0]);
-            for (int i = 1; i < pieces.length ; i++) {
+            for (i = 1; i < pieces.length ; i++) {
                 out.append("\t" + pieces[i]);
             }
-
             System.out.println(out.toString());
         }
     }
