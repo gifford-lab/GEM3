@@ -10,7 +10,14 @@ import net.sf.samtools.util.CloseableIterator;
 /**
  * Reads two files of SAM or BAM data and produces output on stdout in the
  * format expected by ImportHits.  Both files must be sorted in the same order.
- * Only reads present in both files will be included in the output.
+ * Only reads present in both files will be included in the output (on stdout).
+ * 
+ * The matching of reads between files is done by stripping "/\d" from the end of the 
+ * read name, as reads usually end in /1 or /2.
+ *
+ * Usage:
+ * java PairedSAMToReadDB --left leftreads.bam --right rightreads.bam
+ *
  *
  * Options:	--nosuboptimal (flag to only take the hits with the minimum number of mismatches)
  * 			--uniquehits (flag to only print 1:1 read to hit mappings)
