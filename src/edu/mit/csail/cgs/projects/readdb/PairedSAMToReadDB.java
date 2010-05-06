@@ -105,6 +105,10 @@ public class PairedSAMToReadDB {
                 if (j == rightbuffer.size()) {
                     continue;
                 }
+                if (debug) {
+                    System.err.println(String.format("Found match of %s at %d and %d",leftbuffer.get(i).getReadName(),i,j));
+                }
+
                 int k = i;
                 int l = j;
                 do {
@@ -112,7 +116,7 @@ public class PairedSAMToReadDB {
                 } while (k < leftbuffer.size() && leftbuffer.get(i).getReadName().equals(leftbuffer.get(k).getReadName()));
                 do {
                     rightrecords.add(rightbuffer.get(l++));
-                } while (l < rightbuffer.size() && rightbuffer.get(i).getReadName().equals(rightbuffer.get(l).getReadName()));
+                } while (l < rightbuffer.size() && leftbuffer.get(i).getReadName().equals(rightbuffer.get(l).getReadName()));
                 dumpRecords(leftrecords, rightrecords);
                 leftrecords.clear();
                 rightrecords.clear();                
@@ -151,7 +155,7 @@ public class PairedSAMToReadDB {
                 return r;
             }
         } else if (leftbuffer.size() > 0) {
-            return leftbuffer.get(leftbuffer.size() -1);
+            return leftbuffer.remove(leftbuffer.size() -1);
         } else {
             return null;
         }
@@ -166,7 +170,7 @@ public class PairedSAMToReadDB {
                 return r;
             }
         } else if (rightbuffer.size() > 0) {
-            return rightbuffer.get(rightbuffer.size() -1);
+            return rightbuffer.remove(rightbuffer.size() -1);
         } else {
             return null;
         }
