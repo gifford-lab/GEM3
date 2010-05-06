@@ -602,6 +602,7 @@ public class ServerTask {
             return;
         }
         File directory = new File(server.getAlignmentDir(request.alignid));
+        String prefix = directory.getCanonicalPath() + System.getProperty("file.separator");
         File[] files = directory.listFiles();
         List<String> toDelete = new ArrayList<String>();
         /* list of files to delete:
@@ -610,16 +611,16 @@ public class ServerTask {
         for (int i = 0; i < files.length; i++) {
             String name = files[i].getName();
             if (request.isPaired == null) {
-                toDelete.add(name);
+                toDelete.add(prefix+name);
             } else {
                 if (request.isPaired && 
                     (name.indexOf(".prleft.") > 0 ||
                      name.indexOf(".prright.") > 0)) {
-                    toDelete.add(name);
+                    toDelete.add(prefix + name);
                 } else if (!request.isPaired && 
                            name.indexOf(".prleft") == -1 &&
                            name.indexOf(".prright") == -1) {
-                    toDelete.add(name);
+                    toDelete.add(prefix+name);
                 }
             }
         }       
