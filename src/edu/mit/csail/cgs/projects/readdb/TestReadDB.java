@@ -422,6 +422,24 @@ public class TestReadDB {
         System.err.println("Done with testRangeQuery");
         c.close();
     }
+    @Test public void testDelete() throws IOException, ClientException {
+        Client c = new Client(hostname, portnum, user, passwd);
+        String name = "testDelete";
+        int chrom = 60;
+        ArrayList<SingleHit> hits = new ArrayList<SingleHit>();
+        hits.add(new SingleHit(chrom, 1, 10.0F, true, 10));
+        hits.add(new SingleHit(chrom, 1, 10.0F, false, 10));
+        hits.add(new SingleHit(chrom, 1, 10.0F, true, 10));
+        hits.add(new SingleHit(chrom, 10, 10.0F, false, 10));
+        hits.add(new SingleHit(chrom+1, 10, 20.0F, true, 20));
+        hits.add(new SingleHit(chrom+1, 11, 20.0F, false, 20));
+        hits.add(new SingleHit(chrom+1, 12, 20.0F, true, 20));
+        hits.add(new SingleHit(chrom+1, 25, 20.0F, false, 20));
+        
+        c.storeSingle(name,hits);     
+
+        c.deleteAlignment(name, false);
+    }
     @Test public void testHistogram() throws IOException, ClientException {
         Client c = new Client(hostname, portnum, user, passwd);
         String name = "testHistogram";
@@ -579,7 +597,7 @@ public class TestReadDB {
                                    i + 0xffff,
                                    i % 3 == 1,
                                    (short)(Math.random()*100+1),
-                                   (float)Math.random()));
+                                   (float)Math.random() * 10));
         }        
         Client c = new Client(hostname, portnum, user, passwd);
         String name = "testPairedReads";        
