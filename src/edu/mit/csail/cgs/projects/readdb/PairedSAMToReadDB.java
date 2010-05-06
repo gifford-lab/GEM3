@@ -39,8 +39,7 @@ import net.sf.samtools.util.CloseableIterator;
 
 public class PairedSAMToReadDB {
 
-    public static boolean uniqueOnly;
-    public static boolean filterSubOpt;
+    public static boolean uniqueOnly, filterSubOpt, debug;
     public static ArrayList<SAMRecord> leftbuffer, rightbuffer;
     public static CloseableIterator<SAMRecord> leftiter, rightiter;
 
@@ -50,10 +49,12 @@ public class PairedSAMToReadDB {
         options.addOption("r","right",true,"filename of right side of read");
         options.addOption("u","uniquehits",false,"only output hits with a single mapping");
         options.addOption("s","nosuboptimal",false,"do not include hits whose score is not equal to the best score for the read");
+        options.addOption("D","debug",false,"enable debugging spew?");
         CommandLineParser parser = new GnuParser();
         CommandLine cl = parser.parse( options, args, false );            
     	uniqueOnly = cl.hasOption("uniquehits");
     	filterSubOpt = cl.hasOption("nosuboptimal");
+        debug = cl.hasOption("debug");
         String leftfile = cl.getOptionValue("left");
         String rightfile = cl.getOptionValue("right");
 
@@ -76,19 +77,25 @@ public class PairedSAMToReadDB {
             if (left == null || right == null) {
                 break;
             }
-            System.err.println("LEFT " + left);
-            System.err.println("RIGHT " + right);
+            if (debug) {
+                System.err.println("LEFT " + left);
+                System.err.println("RIGHT " + right);            
+            }
             if (left.getReadName().equals(right.getReadName())) {
                 leftrecords.add(left);
                 rightrecords.add(right);
-                System.err.println("MATCH.  Storing.");
+                if (debug) {
+                    System.err.println("MATCH.  Storing.");
+                }
             } else {                
                 dumpRecords(leftrecords, rightrecords);
                 leftrecords.clear();
                 rightrecords.clear();                
                 leftbuffer.add(left);
                 rightbuffer.add(right);
-                System.err.println("mismatch.  dumped and cleared\n");
+                if (debug) {
+                    System.err.println("mismatch.  dumped and cleared\n");
+                }
             }
             for (int i = 0; i < leftbuffer.size(); i++) {
                 int j = 0;
@@ -125,9 +132,10 @@ public class PairedSAMToReadDB {
             if (!rightiter.hasNext()) {
                 leftbuffer.clear();
             }
-
-            System.err.println("li.hn " + leftiter.hasNext() + " lb.size " + leftbuffer.size() + 
-                               "ri.hn " + rightiter.hasNext() + " rb.size " + rightbuffer.size());
+            if (debug) {
+                System.err.println("li.hn " + leftiter.hasNext() + " lb.size " + leftbuffer.size() + 
+                                   "ri.hn " + rightiter.hasNext() + " rb.size " + rightbuffer.size());                
+            }
             keepgoing = (leftiter.hasNext() || leftbuffer.size() > 0) &&
                 (rightiter.hasNext() || rightbuffer.size() > 0);
         }
