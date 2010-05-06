@@ -15,7 +15,7 @@ public class PairedHit {
         rightChrom = rightchrom;
         leftPos = leftpos;
         rightPos = rightpos;
-        weight = weight;
+        this.weight = weight;
         leftStrand = leftstrand;
         rightStrand = rightstrand;
         leftLength = leftlen;
