@@ -23,6 +23,17 @@ import net.sf.samtools.util.CloseableIterator;
  * 			--uniquehits (flag to only print 1:1 read to hit mappings)
  * 
  * nosuboptimal is applied before uniquehits
+ *
+ * Output columns are
+ * 1) left chromname
+ * 2) left position
+ * 3) left strand
+ * 4) left readlen
+ * 5) right chromname
+ * 6) right position
+ * 7) right strand
+ * 8) right length
+ * 9) weight
  */
 
 
