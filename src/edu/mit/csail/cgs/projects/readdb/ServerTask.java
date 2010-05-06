@@ -878,7 +878,6 @@ public class ServerTask {
                 nha[i] = nhlist.get(i);
             }
             nhlist = null;
-            map.remove(chromid);
             Arrays.sort(nha, comp);
             PairedHit[] hits = null;
             try {
