@@ -255,6 +255,12 @@ public class Server {
         headers.remove(alignID + chromID + isLeft);
     }
     public void removeACL(String alignID) {acls.remove(alignID);}
+    protected void printCacheContents() {
+        headers.printKeys();
+        singleHits.printKeys();
+        pairedHits.printKeys();
+        acls.printKeys();
+    }
 
     /**
      * Returns true iff this princ is allowed

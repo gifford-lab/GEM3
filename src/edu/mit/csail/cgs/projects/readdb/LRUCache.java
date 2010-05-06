@@ -25,6 +25,9 @@ public class LRUCache<X extends Closeable> {
     public boolean contains(String k) {
         return map.containsKey(k);
     }
+    public void printKeys() {
+        System.err.println(ordered.toString());
+    }
     public X get(String k) {
         synchronized(map) {
             if (map.containsKey(k)) {

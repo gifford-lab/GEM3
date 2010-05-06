@@ -601,6 +601,28 @@ public class ServerTask {
             printAuthError();
             return;
         }
+        Lock.writeLock(request.alignid);
+        /* step one is to de-cache all the files */
+        Set<Integer> chroms = server.getChroms(request.alignid,
+                                               request.isPaired,
+                                               true);
+        if (request.isPaired) {
+            chroms.addAll(server.getChroms(request.alignid, true,false));
+        }
+        for (int c : chroms) {
+            if (request.isPaired) {
+                server.removePairedHits(request.alignid, c, true);
+                server.removePairedHits(request.alignid, c, false);
+                server.removePairedHeader(request.alignid, c, true);
+                server.removePairedHeader(request.alignid, c, false);
+            } else {
+                server.removeSingleHits(request.alignid, c);
+                server.removeSingleHeader(request.alignid, c);
+            }
+        }
+
+        /* now do the deletes */
+        boolean allDeleted = true;
         File directory = new File(server.getAlignmentDir(request.alignid));
         String prefix = directory.getCanonicalPath() + System.getProperty("file.separator");
         File[] files = directory.listFiles();
@@ -627,10 +649,11 @@ public class ServerTask {
         if (request.isPaired == null) {
             toDelete.add(server.getACLFileName(request.alignid));
             toDelete.add(directory.getName());
+            server.removeACL(request.alignid);
         }
-        boolean allDeleted = true;
+
         File f;
-        Lock.writeLock(request.alignid);
+
         for (String fname : toDelete) {
             // file system delete
             f = new File(fname);
