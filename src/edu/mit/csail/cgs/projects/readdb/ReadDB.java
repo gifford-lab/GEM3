@@ -19,12 +19,15 @@ import java.io.*;
  *  getcount alignname chromname (eg, chromname = 1+)
  *  addtogroup username groupname
  * 
+ * The --paired flag can be provided to make getweight, getcount, and getchroms work on paire-end rather than
+ * single-end alignments
  *
  */
 public class ReadDB {
 
     private Client client;
     private String[] otherargs;
+    private boolean paired, isleft;
 
     public static void main(String args[]) throws Exception {
         ReadDB readdb = new ReadDB();
@@ -41,6 +44,8 @@ public class ReadDB {
         options.addOption("P","port",true,"port to connect to");
         options.addOption("u","user",true,"username");
         options.addOption("p","passwd",true,"password");
+        options.addOption("d","paired",false,"work on paired alignment?");
+        options.addOption("r","right",false,"query right side reads when querying paired alignments");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
         String hostname = null, username = null, password = null;
@@ -62,6 +67,8 @@ public class ReadDB {
         } else {
             client = new Client(hostname, portnum, username, password);        
         }
+        paired = line.hasOption("paired");
+        isleft = !line.hasOption("right");
         otherargs = line.getArgs();
     }
 
@@ -87,7 +94,7 @@ public class ReadDB {
                     return;
                 }
                 if (cmd.equals("getchroms")) {
-                    for (Integer i : client.getChroms(align,false,false)) {
+                    for (Integer i : client.getChroms(align,paired,isleft)) {
                         System.out.println(i);
                     }
                 } else if (cmd.equals("getacl")) {
@@ -110,9 +117,9 @@ public class ReadDB {
                 } else if (cmd.equals("getcount")) {
                     int count = 0;
                     if (otherargs.length == 3) {
-                        count = client.getCount(align,Integer.parseInt(otherargs[2]),false,null,null,null,null,null);
+                        count = client.getCount(align,Integer.parseInt(otherargs[2]),paired,null,null,null,isleft,null);
                     } else {
-                        count = client.getCount(align,false,null,null);
+                        count = client.getCount(align,paired,isleft,null);
                     }
                     if (otherargs.length == 3) {
                         System.err.println("Count in " + align + " chrom " + otherargs[2] + " is " + count);
@@ -122,9 +129,9 @@ public class ReadDB {
                 } else if (cmd.equals("getweight")) {
                     double weight = 0;
                     if (otherargs.length == 3) {
-                        weight = client.getWeight(align,Integer.parseInt(otherargs[2]),false,null,null,null,null,null);
+                        weight = client.getWeight(align,Integer.parseInt(otherargs[2]),paired,null,null,null,isleft,null);
                     } else {
-                        weight = client.getWeight(align,false,null,null);
+                        weight = client.getWeight(align,paired,isleft,null);
                     }
                     if (otherargs.length == 3) {
                         System.err.println("Weight in " + align + " chrom " + otherargs[2] + " is " + weight);
