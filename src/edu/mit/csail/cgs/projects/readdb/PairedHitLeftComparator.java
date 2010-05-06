@@ -9,10 +9,19 @@ public class PairedHitLeftComparator implements Comparator<PairedHit> {
     }
 
     public int compare(PairedHit a, PairedHit b) {
+        int result;
         if (a.leftChrom == b.leftChrom) {
-            return a.leftPos - b.leftPos;
+            result = a.leftPos - b.leftPos;
         } else {
-            return a.leftChrom - b.leftChrom;
+            result = a.leftChrom - b.leftChrom;
         }
+        if (result == 0) {
+            if (a.rightChrom == b.rightChrom) {
+                result = a.rightPos - b.rightPos;
+            } else {
+                result = a.rightChrom - b.rightChrom;
+            }
+        }
+        return result;
     }
 }
