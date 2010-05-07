@@ -230,11 +230,11 @@ public class ServerTask {
         assert(request.alignid != null);
         assert(request.chromid != null);        
         if (request.alignid == null || request.alignid.length() == 0) {
-            printString("null or empty alignment " + request.alignid);
+            printString("null or empty alignment " + request.alignid + "\n");
             return;
         }
         if (request.chromid == null) {
-            printString("null chromosome");
+            printString("null chromosome\n");
             return;
         }
         File directory = new File(server.getAlignmentDir(request.alignid));
@@ -419,7 +419,7 @@ public class ServerTask {
      */
     public void printString(String s) throws IOException {
         //         if (server.debug()) {
-        //             System.err.println("SEND " + s);
+        //        System.err.println("SEND " + s);
         //         }
         outstream.write(s.getBytes());
         outstream.flush();
@@ -462,6 +462,7 @@ public class ServerTask {
         if (done) {
             String out = new String(buffer,0,bufferpos);
             bufferpos = 0;
+            //            System.err.println("READ " + out);
             return out;
         } else {
             return null;
@@ -474,7 +475,7 @@ public class ServerTask {
         try {
             acl = server.getACL(request.alignid);
         } catch (IOException e) {
-            printString("No such alignment");
+            printString("No such alignment\n");
             return;
         }
         if (!authorizeAdmin(acl)) {
@@ -508,7 +509,7 @@ public class ServerTask {
         try {
             acl = server.getACL(request.alignid);
         } catch (IOException e) {
-            printString("No such alignment");
+            printString("No such alignment\n");
             return;
         }
         if (!authorizeAdmin(acl) && !server.isAdmin(username)) {
@@ -568,7 +569,7 @@ public class ServerTask {
         try {
             acl = server.getACL(request.alignid);
         } catch (IOException e) {
-            printString("No Such Alignment");
+            printString("No Such Alignment\n");
             return;
         }
         if (!authorizeRead(acl)) {
@@ -579,7 +580,7 @@ public class ServerTask {
                                                request.isPaired,
                                                request.isLeft);
         if (chroms == null) {
-            printString("No Such Alignment");
+            printString("No Such Alignment\n");
             return;
         }
 
@@ -630,28 +631,37 @@ public class ServerTask {
         /* list of files to delete:
            datafiles first, then the directory itself
         */
+        System.err.println("Deleting with ispaired=" + request.isPaired);
+        boolean allgone = true;
         for (int i = 0; i < files.length; i++) {
             String name = files[i].getName();
+            if (name.equals("acl.txt")) { continue;}
             if (request.isPaired == null) {
                 toDelete.add(prefix+name);
             } else {
-                if (request.isPaired && 
-                    (name.indexOf(".prleft.") > 0 ||
-                     name.indexOf(".prright.") > 0)) {
+                boolean pairedfile = name.indexOf(".prleft.") > 0 ||
+                    name.indexOf(".prright.") > 0 ||
+                    name.indexOf(".pairedleftindex") > 0 ||
+                    name.indexOf(".pairedrightindex") > 0;
+                boolean singlefile = name.indexOf("singleindex") > 0||
+                    name.indexOf("spositions") > 0 ||
+                    name.indexOf("sweights") > 0 ||
+                    name.indexOf("slas") > 0;
+                if (request.isPaired && pairedfile) {
                     toDelete.add(prefix + name);
-                } else if (!request.isPaired && 
-                           name.indexOf(".prleft") == -1 &&
-                           name.indexOf(".prright") == -1) {
+                } else if (!request.isPaired && singlefile) {
                     toDelete.add(prefix+name);
+                } else {
+                    allgone = false;
                 }
+
             }
         }       
-        if (request.isPaired == null) {
+        if (allgone) {
             toDelete.add(server.getACLFileName(request.alignid));
             toDelete.add(directory.getName());
             server.removeACL(request.alignid);
         }
-
         File f;
 
         for (String fname : toDelete) {
@@ -877,7 +887,7 @@ public class ServerTask {
             hits = null;
         } catch (IOException e) {
             e.printStackTrace();
-            printString("Failed to write hits : " + e.toString());
+            printString("Failed to write hits : " + e.toString() + "\n");
             return;
         }
         printOK();

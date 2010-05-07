@@ -318,7 +318,7 @@ public class Client implements ReadOnlyClient {
      * Deletes an alignment (all chromosomes).  isPaired specifies whether to delete
      * the paired or single ended reads
      */
-    public void deleteAlignment(String alignid, boolean isPaired) throws IOException, ClientException {
+    public void deleteAlignment(String alignid, Boolean isPaired) throws IOException, ClientException {
         request.clear();
         request.type="deletealign";
         request.isPaired = isPaired;
