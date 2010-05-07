@@ -29,10 +29,19 @@ public class ReadDB {
     private String[] otherargs;
     private boolean paired, isleft;
 
-    public static void main(String args[]) throws Exception {
-        ReadDB readdb = new ReadDB();
-        readdb.parseArgs(args);
-        readdb.run();        
+    public static void main(String args[]) {
+        ReadDB readdb = null;
+        try {
+            readdb = new ReadDB();
+            readdb.parseArgs(args);
+            readdb.run();        
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (readdb != null && readdb.client != null) {
+                readdb.client.close();
+            }
+        }
     }
 
     public ReadDB() {
@@ -149,6 +158,5 @@ public class ReadDB {
 
             }
         }
-        client.close();
     }
 }

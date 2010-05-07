@@ -31,7 +31,7 @@ public class ServerTask {
     /* Socket, streams from the socket */
     private Socket socket;
     private int haventTriedRead;
-    private PushbackInputStream instream;
+    private BufferedInputStream instream;
     private OutputStream outstream;
     private WritableByteChannel outchannel;
     /* if authenticate was successful, this holds a username.  Null otherwise */
@@ -62,7 +62,7 @@ public class ServerTask {
         haventTriedRead = 0;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
         socket.setSendBufferSize(Server.BUFFERLEN);
-        instream = new PushbackInputStream(socket.getInputStream());
+        instream = new BufferedInputStream(socket.getInputStream());
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
         bufferpos = 0;

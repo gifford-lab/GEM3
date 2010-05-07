@@ -27,11 +27,21 @@ public class ImportHits {
     String hostname;
     String username, password;
     int portnum;
+    private Client client;
 
-    public static void main(String args[]) throws Exception {
-        ImportHits importer = new ImportHits();
-        importer.parseArgs(args);
-        importer.run(System.in);
+    public static void main(String args[])  {
+        ImportHits importer = null;
+        try {
+            importer = new ImportHits();
+            importer.parseArgs(args);
+            importer.run(System.in);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (importer != null && importer.client != null) {
+                importer.client.close();
+            }
+        }
     }
 
     public ImportHits(String hostname,
@@ -89,7 +99,6 @@ public class ImportHits {
         int lineno = 0;
         List<SingleHit> hits = new ArrayList<SingleHit>();
         List<PairedHit> paired = new ArrayList<PairedHit>();
-        Client client;
         if (hostname != null && portnum > 0 && username != null && password != null) {
             client = new Client(hostname,
                                 portnum,
@@ -117,13 +126,9 @@ public class ImportHits {
                                          pieces[6].equals("+"),
                                          Short.parseShort(pieces[7]),
                                          Float.parseFloat(pieces[8])));
-                                         
-                                         
             } else {
                 System.err.println("Bad line size " + line);
             }
-
-
             if (lineno++ % 100000 == 0) {
                 System.err.println("Read through line " + lineno);
             }
