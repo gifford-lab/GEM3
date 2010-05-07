@@ -817,9 +817,17 @@ public class ServerTask {
         }
 
         Lock.writeLock(request.alignid);
-
-        Set<Integer> chroms = server.getChroms(request.alignid, true,request.isLeft);
-        if (chroms == null) {
+        File f;
+        f = new File(server.getAlignmentDir(request.alignid));
+        if (!f.exists()) {
+            if (!f.mkdirs()) {
+                System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
+                printAuthError();
+                return;
+            }
+        }
+        f = new File(server.getACLFileName(request.alignid));
+        if (!f.exists()) {
             /* this is a new alignment, so set a default ACL */
             AlignmentACL acl = new AlignmentACL();
             try {
@@ -828,9 +836,6 @@ public class ServerTask {
                 // no default acl, so dont' worry.
             }
             if (!(new File(server.getAlignmentDir(request.alignid))).mkdirs()) {
-                System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
-                printAuthError();
-                return;
             }
             acl.getAdminACL().add(username);
             acl.getWriteACL().add(username);
