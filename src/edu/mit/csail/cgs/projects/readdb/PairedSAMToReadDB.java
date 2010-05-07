@@ -146,34 +146,38 @@ public class PairedSAMToReadDB {
         dumpRecords(leftrecords, rightrecords);
     }
     public static SAMRecord nextLeft() {
-        if (leftiter.hasNext()) {
-            SAMRecord r = leftiter.next();
-            r.setReadName(r.getReadName().replaceAll("/\\d$",""));
-            if (r.getReferenceName().equals("*")) {
-                return nextLeft();
+        SAMRecord result = null;
+        while (result == null) {
+            if (leftiter.hasNext()) {
+                result = leftiter.next();
+            } else if (leftbuffer.size() > 0) {
+                result = leftbuffer.remove(leftbuffer.size() -1);
             } else {
-                return r;
+                return null;
             }
-        } else if (leftbuffer.size() > 0) {
-            return leftbuffer.remove(leftbuffer.size() -1);
-        } else {
-            return null;
+            result.setReadName(result.getReadName().replaceAll("/\\d$",""));
+            if (result.getReferenceName().equals("*")) {
+                result = null;
+            }
         }
+        return result;
     }
     public static SAMRecord nextRight() {
-        if (rightiter.hasNext()) {
-            SAMRecord r = rightiter.next();
-            r.setReadName(r.getReadName().replaceAll("/\\d$",""));
-            if (r.getReferenceName().equals("*")) {
-                return nextRight();
+        SAMRecord result = null;
+        while (result == null) {
+            if (rightiter.hasNext()) {
+                result = rightiter.next();
+            } else if (rightbuffer.size() > 0) {
+                result = rightbuffer.remove(rightbuffer.size() -1);
             } else {
-                return r;
+                return null;
             }
-        } else if (rightbuffer.size() > 0) {
-            return rightbuffer.remove(rightbuffer.size() -1);
-        } else {
-            return null;
+            result.setReadName(result.getReadName().replaceAll("/\\d$",""));
+            if (result.getReferenceName().equals("*")) {
+                result = null;
+            }
         }
+        return result;
     }    
 
     public static void dumpRecords(Collection<SAMRecord> lefts,
