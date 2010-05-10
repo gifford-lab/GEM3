@@ -40,6 +40,15 @@ import net.sf.samtools.util.CloseableIterator;
 public class PairedSAMToReadDB {
 
     public static boolean uniqueOnly, filterSubOpt, debug;
+
+
+    /* to do the matching between the two files, we need to scan back and forth between them.
+       Since Picard gives us an iterator to read through the input SAM/BAM file, you can think
+       of the input stream as the concatenation of, eg, leftbuffer and leftiter.  The current position
+       is the position at the head of leftiter behind all the element of leftbuffer.  Storing the previously
+       read elements in the arraylist lets us look back through them to try to match them up to 
+       a record from the right rights.
+    */
     public static ArrayList<SAMRecord> leftbuffer, rightbuffer;
     public static CloseableIterator<SAMRecord> leftiter, rightiter;
 
@@ -67,36 +76,42 @@ public class PairedSAMToReadDB {
         leftiter = leftreader.iterator();
         rightiter = rightreader.iterator();
 
+        /* these are the sets of records for the same read that we're
+           going to dump to output */
         Collection<SAMRecord> leftrecords = new ArrayList<SAMRecord>();
         Collection<SAMRecord> rightrecords = new ArrayList<SAMRecord>();
 
         boolean keepgoing = true;
+        int added = 0;
         while (keepgoing) {
             SAMRecord left = nextLeft();
             SAMRecord right = nextRight();
             if (left == null || right == null) {
                 break;
             }
-            if (debug) {
-                System.err.println("LEFT " + left);
-                System.err.println("RIGHT " + right);            
-            }
+            leftbuffer.add(left);
+            rightbuffer.add(right);            
+            /* if the reads from the two files have the same ID, save them
+               in the buffer and keep reading.  We do this because the next line
+               from one or both files may have the same ID, so we can't output
+               anything yet.
+            */
             if (left.getReadName().equals(right.getReadName())) {
-                leftrecords.add(left);
-                rightrecords.add(right);
-                if (debug) {
-                    System.err.println("MATCH.  Storing.");
-                }
-            } else {                
-                dumpRecords(leftrecords, rightrecords);
-                leftrecords.clear();
-                rightrecords.clear();                
-                leftbuffer.add(left);
-                rightbuffer.add(right);
-                if (debug) {
-                    System.err.println("mismatch.  dumped and cleared\n");
-                }
-            }
+                continue;
+            } 
+            /* If there are more reads in both files and we've recently
+               run the match-reads-between-files loop, don't run it again yet
+            */
+            if (leftiter.hasNext() && rightiter.hasNext() && added++ < 1000) {
+                continue;
+            }           
+            added = 0;
+
+            /* this just loops over the left reads trying to match them to right reads.
+               If it does find a match at index i in left and index j in right, then
+               we can get rid of everything prior to i and j because we know it didn't match
+               and we assume the reads are in the same order in both files (even though we
+               don't know what that order is*/
             for (int i = 0; i < leftbuffer.size(); i++) {
                 int j = 0;
                 while (j < rightbuffer.size() && !leftbuffer.get(i).getReadName().equals(rightbuffer.get(j).getReadName())) {
@@ -109,6 +124,7 @@ public class PairedSAMToReadDB {
                     System.err.println(String.format("Found match of %s at %d and %d",leftbuffer.get(i).getReadName(),i,j));
                 }
 
+                /* having found a match, find the rest of the reads with that ID  and output */
                 int k = i;
                 int l = j;
                 do {
@@ -121,15 +137,13 @@ public class PairedSAMToReadDB {
                 leftrecords.clear();
                 rightrecords.clear();                
                 
-                while (k-- > 0) {
-                    leftbuffer.remove(0);
-                }
-                while (l-- > 0) {
-                    rightbuffer.remove(0);
-                }
+                leftbuffer.subList(0,k).clear();
+                rightbuffer.subList(0,l).clear();
 
                 i = -1;                
             }
+            /* if there's nothing remaining in the left file and we've already tried matching everything in left to
+               everything we've read from right, there's no point keeping the right buffer around any more. */
             if (!leftiter.hasNext()) {
                 rightbuffer.clear();
             }
@@ -145,6 +159,7 @@ public class PairedSAMToReadDB {
         }
         dumpRecords(leftrecords, rightrecords);
     }
+    /* pull next aligned read from either the input file or, if at EOF, the buffered list */
     public static SAMRecord nextLeft() {
         SAMRecord result = null;
         while (result == null) {
