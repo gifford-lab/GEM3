@@ -52,6 +52,100 @@ public class PairedSAMToReadDB {
     public static ArrayList<SAMRecord> leftbuffer, rightbuffer;
     public static CloseableIterator<SAMRecord> leftiter, rightiter;
 
+    public static SAMRecord fillBuffer(SAMRecord record, ArrayList<SAMRecord> buffer, Iterator<SAMRecord> iter) {
+        if (record != null) {
+            buffer.add(record);
+        }
+        int added = 0;
+        while (iter.hasNext()) {
+            SAMRecord newrec = iter.next();
+            //            System.err.println("Read " + newrec);
+            newrec.setReadName(newrec.getReadName().replaceAll("/\\d$",""));
+            if (newrec.getReferenceName().equals("*")) {
+                continue;
+            }
+            if (record == null || newrec.getReadName().equals(record.getReadName())) {
+                buffer.add(newrec);
+                record = newrec;
+                added++;
+            } else {
+                record = newrec;
+                if (added > 10000) {
+                    break;
+                } else {
+                    buffer.add(newrec);
+                    added++;
+                }
+
+            }
+        }
+        if (iter.hasNext()) {
+            return record;
+        } else {
+            return null;
+        }
+
+    }
+    public static void makePairs() {
+        //System.err.println("Making pairs with " + leftbuffer.size() + " and " + rightbuffer.size());
+
+        /* these are the sets of records for the same read that we're
+           going to dump to output */
+        Collection<SAMRecord> leftrecords = new ArrayList<SAMRecord>();
+        Collection<SAMRecord> rightrecords = new ArrayList<SAMRecord>();
+        /* this just loops over the left reads trying to match them to right reads.
+           If it does find a match at index i in left and index j in right, then
+           we can get rid of everything prior to i and j because we know it didn't match
+           and we assume the reads are in the same order in both files (even though we
+           don't know what that order is*/
+        int clearL = 0, clearR = 0;
+        for (int i = 0; i < leftbuffer.size(); i++) {
+            int j = clearR;
+            String readname = leftbuffer.get(i).getReadName();
+            while (j < rightbuffer.size() && !readname.equals(rightbuffer.get(j).getReadName())) {
+                j++;
+            }
+            if (j == rightbuffer.size()) {
+                continue;
+            }
+            if (debug) {
+                System.err.println(String.format("Found match of %s at %d and %d",readname,i,j));
+            }
+            
+            /* having found a match, find the rest of the reads with that ID  and output */
+            int k = i;
+            int l = j;
+            do {
+                    leftrecords.add(leftbuffer.get(k++));
+            } while (k < leftbuffer.size() && readname.equals(leftbuffer.get(k).getReadName()));
+            do {
+                rightrecords.add(rightbuffer.get(l++));
+            } while (l < rightbuffer.size() && readname.equals(rightbuffer.get(l).getReadName()));
+            dumpRecords(leftrecords, rightrecords);
+            leftrecords.clear();
+            rightrecords.clear();                
+            
+            clearL = k;
+            clearR = l;
+            i = k-1;
+        }
+        leftbuffer.subList(0,clearL).clear();
+        rightbuffer.subList(0,clearR).clear();
+
+        /* if there's nothing remaining in the left file and we've already tried matching everything in left to
+           everything we've read from right, there's no point keeping the right buffer around any more. */
+        if (!leftiter.hasNext()) {
+            rightbuffer.clear();
+        }
+        if (!rightiter.hasNext()) {
+            leftbuffer.clear();
+        }
+        if (debug) {
+            System.err.println("li.hn " + leftiter.hasNext() + " lb.size " + leftbuffer.size() + 
+                               "ri.hn " + rightiter.hasNext() + " rb.size " + rightbuffer.size());                
+        }
+    }
+
     public static void main(String args[]) throws IOException, ParseException {
         Options options = new Options();
         options.addOption("l","left",true,"filename of left side of read");
@@ -76,127 +170,35 @@ public class PairedSAMToReadDB {
         leftiter = leftreader.iterator();
         rightiter = rightreader.iterator();
 
-        /* these are the sets of records for the same read that we're
-           going to dump to output */
-        Collection<SAMRecord> leftrecords = new ArrayList<SAMRecord>();
-        Collection<SAMRecord> rightrecords = new ArrayList<SAMRecord>();
 
         boolean keepgoing = true;
-        int added = 0;
+        SAMRecord left = null, right = null;
         while (keepgoing) {
-            SAMRecord left = nextLeft();
-            SAMRecord right = nextRight();
-            if (left == null || right == null) {
-                break;
-            }
-            leftbuffer.add(left);
-            rightbuffer.add(right);            
-            /* if the reads from the two files have the same ID, save them
-               in the buffer and keep reading.  We do this because the next line
-               from one or both files may have the same ID, so we can't output
-               anything yet.
-            */
-            if (left.getReadName().equals(right.getReadName())) {
-                continue;
-            } 
-            /* If there are more reads in both files and we've recently
-               run the match-reads-between-files loop, don't run it again yet
-            */
-            if (leftiter.hasNext() && rightiter.hasNext() && added++ < 1000) {
-                continue;
-            }           
-            added = 0;
+            String lastid = null;
+            left = fillBuffer(left, leftbuffer, leftiter);
+            right = fillBuffer(right, rightbuffer, rightiter);
+            
+            makePairs();
 
-            /* this just loops over the left reads trying to match them to right reads.
-               If it does find a match at index i in left and index j in right, then
-               we can get rid of everything prior to i and j because we know it didn't match
-               and we assume the reads are in the same order in both files (even though we
-               don't know what that order is*/
-            for (int i = 0; i < leftbuffer.size(); i++) {
-                int j = 0;
-                while (j < rightbuffer.size() && !leftbuffer.get(i).getReadName().equals(rightbuffer.get(j).getReadName())) {
-                    j++;
-                }
-                if (j == rightbuffer.size()) {
-                    continue;
-                }
-                if (debug) {
-                    System.err.println(String.format("Found match of %s at %d and %d",leftbuffer.get(i).getReadName(),i,j));
-                }
-
-                /* having found a match, find the rest of the reads with that ID  and output */
-                int k = i;
-                int l = j;
-                do {
-                    leftrecords.add(leftbuffer.get(k++));
-                } while (k < leftbuffer.size() && leftbuffer.get(i).getReadName().equals(leftbuffer.get(k).getReadName()));
-                do {
-                    rightrecords.add(rightbuffer.get(l++));
-                } while (l < rightbuffer.size() && leftbuffer.get(i).getReadName().equals(rightbuffer.get(l).getReadName()));
-                dumpRecords(leftrecords, rightrecords);
-                leftrecords.clear();
-                rightrecords.clear();                
-                
-                leftbuffer.subList(0,k).clear();
-                rightbuffer.subList(0,l).clear();
-
-                i = -1;                
-            }
-            /* if there's nothing remaining in the left file and we've already tried matching everything in left to
-               everything we've read from right, there's no point keeping the right buffer around any more. */
-            if (!leftiter.hasNext()) {
-                rightbuffer.clear();
-            }
-            if (!rightiter.hasNext()) {
-                leftbuffer.clear();
-            }
-            if (debug) {
-                System.err.println("li.hn " + leftiter.hasNext() + " lb.size " + leftbuffer.size() + 
-                                   "ri.hn " + rightiter.hasNext() + " rb.size " + rightbuffer.size());                
-            }
             keepgoing = (leftiter.hasNext() || leftbuffer.size() > 0) &&
                 (rightiter.hasNext() || rightbuffer.size() > 0);
         }
-        dumpRecords(leftrecords, rightrecords);
+        makePairs();
     }
-    /* pull next aligned read from either the input file or, if at EOF, the buffered list */
-    public static SAMRecord nextLeft() {
-        SAMRecord result = null;
-        while (result == null) {
-            if (leftiter.hasNext()) {
-                result = leftiter.next();
-            } else if (leftbuffer.size() > 0) {
-                result = leftbuffer.remove(leftbuffer.size() -1);
-            } else {
-                return null;
-            }
-            result.setReadName(result.getReadName().replaceAll("/\\d$",""));
-            if (result.getReferenceName().equals("*")) {
-                result = null;
-            }
+
+    public static Collection<SAMRecord> filterSubOpt(Collection<SAMRecord> input) {
+        if (input == null || input.size() < 2) {
+            return input;
         }
-        return result;
+        return input;
     }
-    public static SAMRecord nextRight() {
-        SAMRecord result = null;
-        while (result == null) {
-            if (rightiter.hasNext()) {
-                result = rightiter.next();
-            } else if (rightbuffer.size() > 0) {
-                result = rightbuffer.remove(rightbuffer.size() -1);
-            } else {
-                return null;
-            }
-            result.setReadName(result.getReadName().replaceAll("/\\d$",""));
-            if (result.getReferenceName().equals("*")) {
-                result = null;
-            }
-        }
-        return result;
-    }    
 
     public static void dumpRecords(Collection<SAMRecord> lefts,
                                    Collection<SAMRecord> rights) {
+        if (filterSubOpt) {
+            lefts = filterSubOpt(lefts);
+            rights = filterSubOpt(rights);
+        }
         int mapcount = lefts.size() * rights.size();
         if (mapcount == 0) {
             return;
