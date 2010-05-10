@@ -186,18 +186,11 @@ public class PairedSAMToReadDB {
         makePairs();
     }
 
-    public static Collection<SAMRecord> filterSubOpt(Collection<SAMRecord> input) {
-        if (input == null || input.size() < 2) {
-            return input;
-        }
-        return input;
-    }
-
     public static void dumpRecords(Collection<SAMRecord> lefts,
                                    Collection<SAMRecord> rights) {
         if (filterSubOpt) {
-            lefts = filterSubOpt(lefts);
-            rights = filterSubOpt(rights);
+            lefts = SAMToReadDB.filterSubOpt(lefts);
+            rights = SAMToReadDB.filterSubOpt(rights);
         }
         int mapcount = lefts.size() * rights.size();
         if (mapcount == 0) {

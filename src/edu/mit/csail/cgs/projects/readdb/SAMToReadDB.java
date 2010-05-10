@@ -51,16 +51,37 @@ public class SAMToReadDB {
         iter.close();
         reader.close();
     }       
+    public static Collection<SAMRecord> filterSubOpt(Collection<SAMRecord> input) {
+        if (input == null || input.size() < 2) {
+            return input;
+        }
+        int maxqual = SAMRecord.NO_MAPPING_QUALITY;
+        for (SAMRecord r : input) {
+            if (r.getMappingQuality() > maxqual) {
+                maxqual = r.getMappingQuality();
+            }
+        }
+        Collection<SAMRecord> output = new ArrayList<SAMRecord>();
+        for (SAMRecord r : input) {
+            if (maxqual == r.getMappingQuality()) {
+                output.add(r);
+            }
+        }
+        return output;
+    }
     public static void dumpRecords(Collection<SAMRecord> records) {
         
         int mapcount = records.size();
         if (mapcount == 0) {
             return;
         }
-        
+        if (filterSubOpt) {
+            records = filterSubOpt(records);
+        }        
         if (uniqueOnly && mapcount > 1) {
             return;
         }
+
         float weight = 1 / ((float)mapcount);
 
         for (SAMRecord record : records) {
