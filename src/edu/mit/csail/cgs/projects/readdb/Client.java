@@ -768,6 +768,9 @@ public class Client implements ReadOnlyClient {
      * pack up and go home
      */
     public void close() {
+        if (socket == null) {
+            return;
+        }
         try {
             socket.setSoLinger(false,0);
             request.clear();
