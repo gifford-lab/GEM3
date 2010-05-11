@@ -176,7 +176,6 @@ public class ImportHits {
             }
         }
         System.err.println("Stored");
-        client.close();
     }
 
 }
