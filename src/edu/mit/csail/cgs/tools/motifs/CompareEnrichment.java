@@ -4,13 +4,15 @@ import java.util.*;
 import java.io.*;
 import java.sql.*;
 import java.text.DecimalFormat;
+import cern.jet.random.Binomial;
+import cern.jet.random.engine.RandomEngine;
 
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
 import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 import edu.mit.csail.cgs.utils.*;
-import edu.mit.csail.cgs.utils.probability.Binomial;
+//import edu.mit.csail.cgs.utils.probability.Binomial;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.*;
@@ -26,12 +28,14 @@ import edu.mit.csail.cgs.tools.utils.Args;
  *
  * --cutoff .7 minimum percent (specify between 0 and 1) match to maximum motif score that counts as a match.
  * --filtersig .001 maximum pvalue for reporting an enrichment between the two files
- * --perbase
  * --minfoldchange 1
- * --minfrac 0
+ * --minfrac 0   minimum fraction of the sequences that must contain the motif (can be in either file)
+ *
+ * The comparison code will check all percent cutoffs between the value you specify as --cutoff and 1 (in increments of .05) 
+ * to find the most significant threshold that also meets the other criteria.
  *
  * Output columns are
- * 1) foldchange in frequency
+ * 1) log foldchange in frequency between the two files
  * 2) motif count in first set
  * 3) size of first set 
  * 4) frequency in first set
@@ -39,55 +43,107 @@ import edu.mit.csail.cgs.tools.utils.Args;
  * 6) size of second set
  * 7) frequency in second set
  * 8) pvalue of first count given second frequency
- * 9) pvalue of second count given first frequency
- * 10) motif name
- * 11) motif version
+ * 9) motif name
+ * 10) motif version
+ * 11) percent cutoff used
  *  
  */
 
 public class CompareEnrichment {
     static Hashtable<WeightMatrix,Integer> firstmotifcounts, secondmotifcounts;
     static int firstseqcount, secondseqcount;
-    static Collection<WeightMatrix> matrices;
+    static double cutoffpercent, minfrac;
 
-    public static Pair<Integer,Hashtable<WeightMatrix,Integer>> motifCountsFromFASTA(String fname,
-                                                                                     Collection<WeightMatrix> matrices,
-                                                                                     double cutoffpercent,
-                                                                                     boolean perbasecounts) throws FileNotFoundException, IOException {
-        Hashtable<WeightMatrix,Integer> filecounts = new Hashtable<WeightMatrix,Integer>();
-        FASTAStream stream = new FASTAStream(new File(fname));
-        int totalbases = 0;
-        int totalseqs = 0;
+    static Collection<WeightMatrix> matrices;
+    static Map<String,char[]> foreground, background;
+    static Binomial binomial;
+
+    public static Map<String,char[]> readFasta(BufferedReader reader) throws IOException {
+        FASTAStream stream = new FASTAStream(reader);
+        Map<String,char[]> output = new HashMap<String,char[]>();
         while (stream.hasNext()) {
-            totalseqs++;
             Pair<String,String> pair = stream.next();
-            String seq = pair.getLast();
-            char[] aschars = seq.toCharArray();
-            totalbases += aschars.length;
-            for (WeightMatrix m : matrices) {
-                int count = filecounts.containsKey(m) ? filecounts.get(m) : 0;
-                List<WMHit> hits = WeightMatrixScanner.scanSequence(m,
-                                                                    (float)(m.getMaxScore() * cutoffpercent),
-                                                                    aschars);
-                if (perbasecounts) {
-                    count += hits.size();
-                } else {
-                    if (hits.size() > 0) {
-                        count++;
-                    }
+            output.put(pair.car(), pair.cdr().toCharArray());
+        }
+        return output;
+    }
+
+    public static int countMeetsThreshold(Map<String,List<WMHit>> hits,
+                                           double t) {
+        int count = 0;
+        for (String s : hits.keySet()) {
+            List<WMHit> list = hits.get(s);
+            for (int i = 0; i < list.size(); i++) {
+                if (list.get(i).getScore() > t) {
+                    count++;
+                    break;
                 }
-                filecounts.put(m,count);            
             }
         }
-        Pair<Integer,Hashtable<WeightMatrix,Integer>> out;
-        if (perbasecounts) {
-            out = new Pair<Integer,Hashtable<WeightMatrix,Integer>>(totalbases,
-                                                                    filecounts);
-        } else {
-            out = new Pair<Integer,Hashtable<WeightMatrix,Integer>>(totalseqs,
-                                                                    filecounts);
+        return count;
+    }
+
+    public static  CEResult doScan(WeightMatrix matrix,
+                                    Map<String,char[]> fg, 
+                                    Map<String,char[]> bg) {
+        Map<String,List<WMHit>> fghits = new HashMap<String,List<WMHit>>();
+        Map<String,List<WMHit>> bghits = new HashMap<String,List<WMHit>>();
+        double maxscore = matrix.getMaxScore();
+        for (String s : fg.keySet()) {
+            List<WMHit> hits = WeightMatrixScanner.scanSequence(matrix,
+                                                                (float)(maxscore * cutoffpercent),
+                                                                fg.get(s));
+            fghits.put(s, hits);
         }
-        return out;
+        for (String s : bg.keySet()) {
+            List<WMHit> hits = WeightMatrixScanner.scanSequence(matrix,
+                                                                (float)(maxscore * cutoffpercent),
+                                                                bg.get(s));
+            bghits.put(s, hits);
+        }
+        double percent = cutoffpercent;
+        int fgsize = fg.size();
+        int bgsize = bg.size();
+        CEResult result = new CEResult();
+        result.pval = 1.0;
+        result.matrix = matrix;
+        result.logfoldchange = 0;
+        result.sizeone = fgsize;
+        result.sizetwo = bgsize;
+        while (percent <= 1.0) {
+            double t = maxscore * percent;
+            int fgcount = countMeetsThreshold(fghits, t);
+            int bgcount = countMeetsThreshold(bghits, t);
+            if (bgcount == 0) {
+                percent += .05;
+                continue;
+            }
+
+            double thetaone = ((double)fgcount) / ((double)fgsize);
+            double thetatwo = ((double)bgcount) / ((double)bgsize);
+            //            double pval = Math.exp(Binomial.log_binomial_significance(fgcount, fgsize, thetatwo));
+            binomial.setNandP(fgsize, thetatwo);
+            double pval = 1 - binomial.cdf(fgcount);
+            double fc = Math.log(thetaone/ thetatwo);
+            if (pval < result.pval && 
+                Math.abs(fc) > Math.abs(result.logfoldchange) &&
+                (thetaone > minfrac || thetatwo > minfrac)) {
+                result.pval = pval;
+                result.percent = percent;
+                result.cutoff = t;
+                result.countone = fgcount;
+                result.counttwo = bgcount;
+                result.logfoldchange = fc;
+                result.freqone = thetaone;
+                result.freqtwo = thetatwo;
+                //                System.err.println(String.format("Accepted %f, %f  %d %d", percent, pval,fgcount,bgcount));
+            } else {
+                //                System.err.println(String.format("Rejected %f, %f  %d %d", percent, pval,fgcount,bgcount));
+            }
+
+            percent += .05;
+        }
+        return result;
     }
 
     public static Collection<WeightMatrix> filterMatrices(Collection<String> accepts,
@@ -123,16 +179,16 @@ public class CompareEnrichment {
     }
 
     public static void main(String args[]) throws Exception {
+        binomial = new Binomial(100, .01, RandomEngine.makeDefault());
         String firstfname = null, secondfname = null;
         Collection<String> accept, reject;
         matrices = new ArrayList<WeightMatrix>();
         matrices.addAll(WeightMatrix.getAllWeightMatrices());
 
-        double cutoffpercent = Args.parseDouble(args,"cutoff",.7);
+        cutoffpercent = Args.parseDouble(args,"cutoff",.3);
         double filtersig = Args.parseDouble(args,"filtersig",.001);
         double minfoldchange = Args.parseDouble(args,"minfoldchange",1);
-        double minfrac = Args.parseDouble(args,"minfrac",0);
-        boolean perbasecounts = Args.parseFlags(args).contains("perbase");
+        minfrac = Args.parseDouble(args,"minfrac",0);
         accept = Args.parseStrings(args,"accept");
         reject = Args.parseStrings(args,"reject");
         firstfname = Args.parseString(args,"first",null);
@@ -143,6 +199,9 @@ public class CompareEnrichment {
                                                                               1,
                                                                               "MARKOV",
                                                                               Args.parseGenome(args).cdr().getDBID());
+
+        System.err.println("Need to reimplement minfrac");
+
         if (md != null) {
             bgModel = BackgroundModelLoader.getMarkovModel(md);
         } else {
@@ -166,56 +225,39 @@ public class CompareEnrichment {
             throw new RuntimeException("Must supply a --second");
         }
         System.err.println("Going to scan for " + matrices.size() + " matrices");
-
-        Pair<Integer,Hashtable<WeightMatrix,Integer>> pair = motifCountsFromFASTA(firstfname, matrices, cutoffpercent,perbasecounts);
-        firstseqcount = pair.getFirst();
-        firstmotifcounts = pair.getLast();
-        pair = motifCountsFromFASTA(secondfname, matrices, cutoffpercent,perbasecounts);
-        secondseqcount = pair.getFirst();
-        secondmotifcounts = pair.getLast();
+        foreground = readFasta(new BufferedReader(new FileReader(firstfname)));
+        background = readFasta(new BufferedReader(new FileReader(secondfname)));
 
         DecimalFormat nf = new DecimalFormat("0.000E000");
         for (WeightMatrix wm : matrices) {            
-            int first = firstmotifcounts.get(wm);
-            int second = secondmotifcounts.get(wm);
-            double firstfreq = ((double)first) / firstseqcount;
-            double secondfreq = ((double)second) / secondseqcount;
-            System.err.println(String.format("WM %s,%s : %d/%d, %d/%d",
-                                             wm.getName(), wm.getVersion(), first, firstseqcount, second, secondseqcount));
-            if (firstfreq <= 0) {
-                continue;
-                //                throw new RuntimeException("firstfreq < 0 from " + first + "," + firstseqcount);
-            }
-            if (secondfreq <= 0) {
-                continue;
-                //                throw new RuntimeException("secondfreq < 0 from " + second + "," + secondseqcount);
-            }
-            if (firstfreq >= 1) {
-                continue;
-                //                throw new RuntimeException("firstfreq > 1 from " + first + "," + firstseqcount);
-            }
-            if (secondfreq >= 1) {
-                continue;
-                //                throw new RuntimeException("secondfreq > 1 from " + second + "," + secondseqcount);
-            }
-            double pfirst = Binomial.log_binomial_significance(first,firstseqcount,secondfreq);
-            double sigfirst = Math.exp(pfirst);
-            sigfirst = Math.min(sigfirst, 1-sigfirst);
-            double psecond = Binomial.log_binomial_significance(second,secondseqcount,firstfreq);
-            double sigsecond = Math.exp(psecond);
-            sigsecond = Math.min(sigsecond, 1-sigsecond);
-             System.err.println("sig : " + sigfirst + ", " + sigsecond + " :: " + filtersig);
-             System.err.println("fold : " + (pfirst / psecond) + ", " + (psecond / pfirst) + " :: " + minfoldchange);
-             System.err.println("frac : " + pfirst + ", " + psecond + " :: " + minfrac);
-            if ((sigfirst < filtersig || sigsecond < filtersig) &&
-                (minfoldchange < (firstfreq / secondfreq) || minfoldchange < (secondfreq / firstfreq)) &&
-                (minfrac < firstfreq || minfrac < secondfreq)) {
-                double foldchange = Math.max(firstfreq / secondfreq, secondfreq / firstfreq);
-                System.out.println(nf.format(foldchange) + "\t" + first + "\t" + firstseqcount + "\t" + nf.format(firstfreq) + "\t" + 
-                                   second + "\t" + secondseqcount + "\t" + nf.format(secondfreq) + "\t" +
-                                   nf.format(sigfirst) + "\t" + nf.format(sigsecond) + "\t\t" + wm.name + "\t" + wm.version);
+            CEResult result = doScan(wm,
+                                     foreground, 
+                                     background);
+
+            if (result.pval < filtersig && 
+                Math.abs(result.logfoldchange) > Math.abs(Math.log(minfoldchange)) &&
+                (result.freqone > minfrac || result.freqtwo > minfrac)) {
+                    System.out.println(nf.format(result.logfoldchange) + "\t" + 
+                                       result.countone + "\t" + 
+                                       foreground.size() + "\t" + 
+                                       nf.format(result.freqone) + "\t" + 
+                                       result.counttwo + "\t" + 
+                                       background.size() + "\t" + 
+                                       nf.format(result.freqtwo) + "\t" +
+                                       nf.format(result.pval) + "\t" + 
+                                       wm.name + "\t" + 
+                                       wm.version + "\t" + 
+                                       nf.format(result.percent));
             }
         }
 
     }    
+}
+
+class CEResult {
+
+    public double pval, logfoldchange, percent, cutoff, freqone, freqtwo;
+    public WeightMatrix matrix;
+    public int sizeone, sizetwo, countone, counttwo;
+    
 }
