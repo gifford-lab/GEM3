@@ -6,6 +6,8 @@ public class ChipSeqHistogramProperties extends ModelProperties {
     public Boolean UseWeights = Boolean.TRUE;
     public Integer GaussianKernelWidth = 0;
     public Boolean ReadExtension = Boolean.TRUE;
+    public Boolean ShowPairedReads = Boolean.FALSE;
+    public Boolean ShowSingleReads = Boolean.TRUE;
     
     private int totalReadCount = 0;
 

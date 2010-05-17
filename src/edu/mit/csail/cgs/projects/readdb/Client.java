@@ -657,7 +657,7 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println("Asking for histogram said " + response);
+            System.err.println("Asking for histogram said " + response + " for align " + alignid + " and chrom " + chromid);
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());

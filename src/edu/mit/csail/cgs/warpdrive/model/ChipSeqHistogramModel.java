@@ -15,7 +15,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Runnable {
     
     private Client client;
-    private Map<Integer,Float> resultsPlus, resultsMinus;
+    private TreeMap<Integer,Float> resultsPlus, resultsMinus;
     private Set<ChipSeqAlignment> alignments;
     private Set<String> ids;
     private ChipSeqHistogramProperties props;
@@ -93,53 +93,108 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     if (props.GaussianKernelWidth!=0 && region.getWidth()<=1000){ 
                     	width = 1;
                     }
+                    resultsPlus = null;
+                    resultsMinus = null;
                     if (props.UseWeights) {
-                        resultsPlus = client.getWeightHistogram(ids,
-                                                                region.getGenome().getChromID(region.getChrom()),
-                                                                false,
-                                                                extension,
-                                                                width,
-                                                                region.getStart(),
-                                                                region.getEnd(),
-                                                                null,
-                                                                true);
+                        if (!props.ShowPairedReads || props.ShowSingleReads) {
+                            resultsPlus = Aggregator.mergeHistogramsFF(resultsPlus,
+                                                                    client.getWeightHistogram(ids,
+                                                                                              region.getGenome().getChromID(region.getChrom()),
+                                                                                              false,
+                                                                                              extension,
+                                                                                              width,
+                                                                                              region.getStart(),
+                                                                                              region.getEnd(),
+                                                                                              null,
+                                                                                              true));
+                            
+                            resultsMinus = Aggregator.mergeHistogramsFF(resultsMinus,
+                                                                     client.getWeightHistogram(ids,
+                                                                                               region.getGenome().getChromID(region.getChrom()),
+                                                                                               false,
+                                                                                               extension,
+                                                                                               width,
+                                                                                               region.getStart(),
+                                                                                               region.getEnd(),
+                                                                                               null,
+                                                                                               false));
+                        }
+                        if (props.ShowPairedReads) {
+                            resultsPlus = Aggregator.mergeHistogramsFF(resultsPlus,
+                                                                    client.getWeightHistogram(ids,
+                                                                                              region.getGenome().getChromID(region.getChrom()),
+                                                                                              true,
+                                                                                              extension,
+                                                                                              width,
+                                                                                              region.getStart(),
+                                                                                              region.getEnd(),
+                                                                                              null,
+                                                                                              true));
+                            
+                            resultsMinus = Aggregator.mergeHistogramsFF(resultsMinus,
+                                                                     client.getWeightHistogram(ids,
+                                                                                               region.getGenome().getChromID(region.getChrom()),
+                                                                                               true,
+                                                                                               extension,
+                                                                                               width,
+                                                                                               region.getStart(),
+                                                                                               region.getEnd(),
+                                                                                               null,
+                                                                                               false));
 
-                        resultsMinus = client.getWeightHistogram(ids,
-                                                                 region.getGenome().getChromID(region.getChrom()),
-                                                                 false,
-                                                                 extension,
-                                                                 width,
-                                                                 region.getStart(),
-                                                                 region.getEnd(),
-                                                                 null,
-                                                                 false);
+                        }
+
                     } else {
-                        Map<Integer,Integer> tmp = client.getHistogram(ids,
-                                                                       region.getGenome().getChromID(region.getChrom()),
-                                                                       false,
-                                                                       extension,
-                                                                       width,
-                                                                       region.getStart(),
-                                                                       region.getEnd(),
-                                                                       null,
-                                                                       true);
-                        resultsPlus = new TreeMap<Integer,Float>();
-                        for (int i : tmp.keySet()) {
-                            resultsPlus.put(i, (float)tmp.get(i));
+                        if (!props.ShowPairedReads || props.ShowSingleReads) {
+                            resultsPlus = Aggregator.mergeHistogramsIF(client.getHistogram(ids,
+                                                                                        region.getGenome().getChromID(region.getChrom()),
+                                                                                        false,
+                                                                                        extension,
+                                                                                        width,
+                                                                                        region.getStart(),
+                                                                                        region.getEnd(),
+                                                                                        null,
+                                                                                        true),
+                                                                    resultsPlus);
+                            
+                            resultsMinus = Aggregator.mergeHistogramsIF(client.getHistogram(ids,
+                                                                                         region.getGenome().getChromID(region.getChrom()),
+                                                                                         false,
+                                                                                         extension,
+                                                                                         width,
+                                                                                         region.getStart(),
+                                                                                         region.getEnd(),
+                                                                                         null,
+                                                                                         false),
+                                                                     resultsMinus);
                         }
-                        tmp = client.getHistogram(ids,
-                                                  region.getGenome().getChromID(region.getChrom()),
-                                                  false,
-                                                  extension,
-                                                  width,
-                                                  region.getStart(),
-                                                  region.getEnd(),
-                                                  null,
-                                                  false);
-                        resultsMinus = new TreeMap<Integer,Float>();
-                        for (int i : tmp.keySet()) {
-                            resultsMinus.put(i, (float)tmp.get(i));
+                        if (props.ShowPairedReads) {
+                            resultsPlus = Aggregator.mergeHistogramsIF(
+                                                                    client.getHistogram(ids,
+                                                                                        region.getGenome().getChromID(region.getChrom()),
+                                                                                        true,
+                                                                                        extension,
+                                                                                        width,
+                                                                                        region.getStart(),
+                                                                                        region.getEnd(),
+                                                                                        null,
+                                                                                        true),
+                                                                       resultsPlus);
+                            
+                            resultsMinus = Aggregator.mergeHistogramsIF(
+                                                                     client.getHistogram(ids,
+                                                                                         region.getGenome().getChromID(region.getChrom()),
+                                                                                         true,
+                                                                                         extension,
+                                                                                         width,
+                                                                                         region.getStart(),
+                                                                                         region.getEnd(),
+                                                                                         null,
+                                                                                         false),
+                                                                       resultsMinus);
+
                         }
+
                     }
                     // Gaussian kernel density plot
                     // update the two data hashtables with probability
