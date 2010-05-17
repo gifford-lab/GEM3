@@ -76,6 +76,10 @@ public class GeneToPromoter
                     if (other.getStart() == a.getStart() && other.getEnd() == a.getEnd()) {
                         continue;
                     }
+                    if (other.overlaps(a)) {
+                        continue;
+                    }
+
 
                     if (a.getStrand() == '+') {
                         start = Math.min(Math.max(start, other.getEnd()), stop);
