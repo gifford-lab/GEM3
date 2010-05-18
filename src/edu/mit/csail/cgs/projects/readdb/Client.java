@@ -613,12 +613,16 @@ public class Client implements ReadOnlyClient {
      * working with.
      */
     public TreeMap<Integer,Integer> getHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        return getHistogram(alignid, chromid, paired, doReadExtension,binsize,start,stop,minWeight,plusStrand,true);
+    }
+    public TreeMap<Integer,Integer> getHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand, boolean isLeft) throws IOException, ClientException {
         request.clear();
         request.type="histogram";
         request.alignid=alignid;
         request.chromid=chromid;
         request.start = start;
         request.end = stop;
+        request.isLeft = isLeft;
         request.minWeight = minWeight;
         request.isPlusStrand = plusStrand;
         request.isPaired = paired;
