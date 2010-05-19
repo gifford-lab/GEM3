@@ -86,8 +86,8 @@ public class PairedSAMToReadDB {
         }
 
     }
-    public static void makePairs() {
-        //System.err.println("Making pairs with " + leftbuffer.size() + " and " + rightbuffer.size());
+    public static boolean makePairs() {
+        //        System.err.println("Making pairs with " + leftbuffer.size() + " and " + rightbuffer.size());
 
         /* these are the sets of records for the same read that we're
            going to dump to output */
@@ -98,6 +98,7 @@ public class PairedSAMToReadDB {
            we can get rid of everything prior to i and j because we know it didn't match
            and we assume the reads are in the same order in both files (even though we
            don't know what that order is*/
+        boolean cleared = false;
         int clearL = 0, clearR = 0;
         for (int i = 0; i < leftbuffer.size(); i++) {
             int j = clearR;
@@ -128,10 +129,12 @@ public class PairedSAMToReadDB {
             clearL = k;
             clearR = l;
             i = k-1;
+            cleared = true;
         }
+        //        System.err.println("Clearing to " + clearL + " and " + clearR);
         leftbuffer.subList(0,clearL).clear();
         rightbuffer.subList(0,clearR).clear();
-
+        
         /* if there's nothing remaining in the left file and we've already tried matching everything in left to
            everything we've read from right, there's no point keeping the right buffer around any more. */
         if (!leftiter.hasNext()) {
@@ -144,6 +147,7 @@ public class PairedSAMToReadDB {
             System.err.println("li.hn " + leftiter.hasNext() + " lb.size " + leftbuffer.size() + 
                                "ri.hn " + rightiter.hasNext() + " rb.size " + rightbuffer.size());                
         }
+        return cleared;
     }
 
     public static void main(String args[]) throws IOException, ParseException {
@@ -172,13 +176,18 @@ public class PairedSAMToReadDB {
 
 
         boolean keepgoing = true;
+        boolean needfill = true;
         SAMRecord left = null, right = null;
         while (keepgoing) {
             String lastid = null;
-            left = fillBuffer(left, leftbuffer, leftiter);
-            right = fillBuffer(right, rightbuffer, rightiter);
+            if (needfill || leftbuffer.size() < 20000) {
+                left = fillBuffer(left, leftbuffer, leftiter);
+            }
+            if (needfill || rightbuffer.size() < 20000) {
+                right = fillBuffer(right, rightbuffer, rightiter);
+            }
             
-            makePairs();
+            needfill = !makePairs();
 
             keepgoing = (leftiter.hasNext() || leftbuffer.size() > 0) &&
                 (rightiter.hasNext() || rightbuffer.size() > 0);
