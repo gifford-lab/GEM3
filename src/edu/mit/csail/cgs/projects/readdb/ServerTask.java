@@ -31,7 +31,8 @@ public class ServerTask {
     /* Socket, streams from the socket */
     private Socket socket;
     private int haventTriedRead;
-    private BufferedInputStream instream;
+    //    private BufferedInputStream instream;
+    private PushbackInputStream instream;
     private OutputStream outstream;
     private WritableByteChannel outchannel;
     /* if authenticate was successful, this holds a username.  Null otherwise */
@@ -62,7 +63,7 @@ public class ServerTask {
         haventTriedRead = 0;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
         socket.setSendBufferSize(Server.BUFFERLEN);
-        instream = new BufferedInputStream(socket.getInputStream());
+        instream = new PushbackInputStream(new BufferedInputStream(socket.getInputStream()));
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
         bufferpos = 0;
@@ -96,6 +97,16 @@ public class ServerTask {
         try {
             if (!socket.isClosed() && socket.isConnected()) {
                 avail = instream.available() > 0;
+                if (avail) {
+                    int r = instream.read();
+                    if (r == -1) {
+                        avail = false;
+                        shouldClose = true;
+                    } else {
+                        instream.unread(r);
+                    }
+                }
+
             } else {
                 //                 if (server.debug()) {
                 //                     System.err.println("Setting shouldClose 1 " + socket + " for " + this);
@@ -424,6 +435,43 @@ public class ServerTask {
         outstream.write(s.getBytes());
         outstream.flush();
     }
+    /**
+     * Reads a line from the socket and returns it
+     */
+    public String readLine() throws IOException {
+        int i = 0;
+        boolean done = false;
+        boolean readany = false;
+        while (instream.available() > 0 && 
+               (i = instream.read()) != -1) {
+            readany = true;
+            if (i == '\n') {
+                done = true;
+                break;
+            } else {
+                buffer[bufferpos++] = (byte)i;
+            }
+        }
+        if (i == -1) {
+            shouldClose = true;
+            return null;
+        }
+        // if (!readany) {
+        //     System.err.println("Someone called readLine with no input available.  They Lose!");
+        //     shouldClose = true;
+        //     return null;
+        // }
+
+
+        if (done) {
+            String out = new String(buffer,0,bufferpos);
+            bufferpos = 0;
+            //            System.err.println("READ " + out);
+            return out;
+        } else {
+            return null;
+        }
+    }
     public void processAddToGroup() throws IOException {
         String princ = request.map.get("princ");
         String group = request.map.get("group");
@@ -438,35 +486,6 @@ public class ServerTask {
         Lock.writeLock(request.alignid);
         server.addToGroup(this,group,princ);
         printOK();
-    }
-    /**
-     * Reads a line from the socket and returns it
-     */
-    public String readLine() throws IOException {
-        int i = 0;
-        boolean done = false;
-        while (instream.available() > 0 && 
-               (i = instream.read()) != -1) {
-            if (i == '\n') {
-                done = true;
-                break;
-            } else {
-                buffer[bufferpos++] = (byte)i;
-            }
-        }
-        if (i == -1) {
-            shouldClose = true;
-            return null;
-        }
-
-        if (done) {
-            String out = new String(buffer,0,bufferpos);
-            bufferpos = 0;
-            //            System.err.println("READ " + out);
-            return out;
-        } else {
-            return null;
-        }
     }
     public void processGetACL() throws IOException {
         assert(request != null);

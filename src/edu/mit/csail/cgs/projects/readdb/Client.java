@@ -520,7 +520,7 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
-            throw new ClientException(response);
+            throw new ClientException(String.format("align %s chrom %d: %s", alignid, chromid, response));
         }
         List<PairedHit> output = new ArrayList<PairedHit>();
         int numhits = Integer.parseInt(readLine());

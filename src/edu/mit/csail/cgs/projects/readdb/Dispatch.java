@@ -101,6 +101,14 @@ public class Dispatch implements Runnable {
                 } else {
                     noInputAvailable++;
                     workQueue.add(s);
+                    if (noInputAvailable > 1000) {
+                        try {
+                            synchronized(this) {
+                                wait(2);
+                            }
+                        } catch (InterruptedException e) {}                
+                        noInputAvailable = 0;
+                    }
                 }
             } else {
                 noTasksWaiting++;
