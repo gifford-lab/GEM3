@@ -40,7 +40,7 @@ import net.sf.samtools.util.CloseableIterator;
 public class PairedSAMToReadDB {
 
     public static boolean uniqueOnly, filterSubOpt, debug;
-
+    public static int chunksize = 200;
 
     /* to do the matching between the two files, we need to scan back and forth between them.
        Since Picard gives us an iterator to read through the input SAM/BAM file, you can think
@@ -70,7 +70,7 @@ public class PairedSAMToReadDB {
                 added++;
             } else {
                 record = newrec;
-                if (added > 10000) {
+                if (added > chunksize) {
                     break;
                 } else {
                     buffer.add(newrec);
@@ -180,10 +180,10 @@ public class PairedSAMToReadDB {
         SAMRecord left = null, right = null;
         while (keepgoing) {
             String lastid = null;
-            if (needfill || leftbuffer.size() < 20000) {
+            if (needfill || leftbuffer.size() < 2*chunksize) {
                 left = fillBuffer(left, leftbuffer, leftiter);
             }
-            if (needfill || rightbuffer.size() < 20000) {
+            if (needfill || rightbuffer.size() < 2*chunksize) {
                 right = fillBuffer(right, rightbuffer, rightiter);
             }
             
