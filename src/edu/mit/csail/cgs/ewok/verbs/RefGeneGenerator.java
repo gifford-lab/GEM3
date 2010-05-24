@@ -337,7 +337,7 @@ public class RefGeneGenerator<X extends Region>
                 ex.printStackTrace();
                 wantalias = false;
             }                
-            if (aliastable != null && aliastable.equals("kgAlias")) {
+            if (aliastable != null && aliastable.equals("kgXref")) {
                 getgenesym = cxn.prepareStatement("select distinct(geneSymbol) from kgXref where refseq=?");
             } else {
                 getgenesym = null;
@@ -415,7 +415,7 @@ public class RefGeneGenerator<X extends Region>
             		getgenesym.setString(1, g.getID());
             		ResultSet gsrs = getgenesym.executeQuery();
             		if(gsrs.next()) { 
-            			g.setName(gsrs.getString(1));
+            			g.setName(gsrs.getString(1)); 
             		}
             		while(gsrs.next()) { 
             			g.addAlias(gsrs.getString(1));
