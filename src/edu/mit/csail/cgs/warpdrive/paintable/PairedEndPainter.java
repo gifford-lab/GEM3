@@ -86,7 +86,6 @@ public class PairedEndPainter extends RegionPaintable {
         Color green = new Color(0, 255,0, alphastep);
         for (int i = 0; i < hits.size(); i++) {
             PairedHit hit = hits.get(i);
-            System.err.println(hit.toString());
             int leftx1 = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
             int leftx2 = getXPos(hit.leftStrand ? hit.leftPos + hit.leftLength : hit.leftPos - hit.leftLength,
                                  regionStart, regionEnd, x1, x2);
