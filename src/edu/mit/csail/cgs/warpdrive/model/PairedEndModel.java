@@ -1,0 +1,91 @@
+package edu.mit.csail.cgs.warpdrive.model;
+
+import java.io.IOException;
+import java.util.*;
+import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.chipseq.*;
+import edu.mit.csail.cgs.projects.readdb.Client;
+import edu.mit.csail.cgs.projects.readdb.ClientException;
+import edu.mit.csail.cgs.projects.readdb.PairedHit;
+import edu.mit.csail.cgs.projects.readdb.PairedHitLeftComparator;
+import edu.mit.csail.cgs.utils.probability.NormalDistribution;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
+
+public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
+
+    private Client client;
+    private Set<ChipSeqAlignment> alignments;
+    private Set<String> ids;
+    private Region region;
+    private boolean newinput;
+    private List<PairedHit> results;
+    Comparator<PairedHit> comparator;
+
+    public PairedEndModel () throws IOException, ClientException{
+        client = new Client();
+        comparator = new PairedHitLeftComparator();
+    }
+
+
+    public void clearValues() {
+        results = null;
+    }
+    public Region getRegion() {return region;}
+    public void setRegion(Region r) {
+        if (newinput == false) {
+            if (!r.equals(region)) {
+                region = r;
+                newinput = true;
+            } else {
+                notifyListeners();
+            }
+        }
+    }
+    public List<PairedHit> getResults () {return results;}
+    public boolean isReady() {return !newinput;}
+    public synchronized void run() {
+        while(keepRunning()) {
+            try {
+                if (!newinput) {
+                    wait();
+                }
+            } catch (InterruptedException ex) { }
+            if (newinput) {
+                try {
+                    results = new ArrayList<PairedHit>();
+                    for (String alignid : ids) {
+                        List<PairedHit> r = client.getPairedHits(alignid,
+                                                                 region.getGenome().getChromID(region.getChrom()),
+                                                                 true,
+                                                                 region.getStart(),
+                                                                 region.getEnd(),
+                                                                 null,
+                                                                 null);
+                        for (PairedHit h : r) {
+                            if (h.leftChrom == h.rightChrom && 
+                                h.rightPos > region.getStart() &&
+                                h.leftPos > region.getEnd()) {
+                                results.add(h);
+                            }
+                        }
+                        Collections.sort(results, comparator);
+
+                    }
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    // assign empty output.  This is useful because Client
+                    // throws an exception for non-existant chromosomes, such
+                    // as those for which there were no alignment results
+                    results = new ArrayList<PairedHit>();
+                }
+                newinput = false;
+                notifyListeners();
+            }
+        }
+        client.close();
+    }                     
+
+
+
+}
