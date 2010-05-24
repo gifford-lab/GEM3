@@ -57,29 +57,36 @@ public class PairedEndPainter extends RegionPaintable {
     public void paintItem(Graphics2D g, 
             int x1, int y1, 
             int x2, int y2) {
-                if (!canPaint()) {
+        if (!canPaint()) {
             return;
         }
         if(!model.isReady()) { return; }
 
         int width = x2 - x1;
-        int height = y2 - y1;
+        int height = Math.max(y2 - y1,1);
         int regionStart = model.getRegion().getStart();
         int regionEnd = model.getRegion().getEnd();
-        int linewidth = getProperties().LineWidth;
+        int linewidth = Math.max(getProperties().LineWidth,1);
         Stroke oldStroke = g.getStroke();
         g.setStroke(new BasicStroke((float)linewidth));        
-
         java.util.List<PairedHit> hits = model.getResults();
-        int alphastep = 255 / (hits.size() * linewidth / height);
-        int h = 0;
+        if (getProperties().DrawTrackLabel) {
+            g.setFont(attrib.getLargeLabelFont(width,height));
+            g.setColor(Color.BLACK);
+            g.drawString("Paired " +getLabel(),x1 + g.getFont().getSize()*2,y1 + g.getFont().getSize());
+        }
+        if (hits.size() == 0) { return;}
+        //        int alphastep = Math.min(255, Math.max(255 / (height / (hits.size() * linewidth)), 1));
+        int alphastep = 255;
+        int h = height;
         int scan = 0;
-        Color plusColor = new Color(alphastep, 0, 0, 255);
-        Color minusColor = new Color(alphastep, 255, 0, 0);
-        Color gray = new Color(alphastep, 200,200,200);
-        Color green = new Color(alphastep, 0, 255,0);
+        Color plusColor = new Color(0, 0, 255, alphastep);
+        Color minusColor = new Color(255, 0, 0, alphastep);
+        Color gray = new Color(200,200,200, alphastep);
+        Color green = new Color(0, 255,0, alphastep);
         for (int i = 0; i < hits.size(); i++) {
             PairedHit hit = hits.get(i);
+            System.err.println(hit.toString());
             int leftx1 = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
             int leftx2 = getXPos(hit.leftStrand ? hit.leftPos + hit.leftLength : hit.leftPos - hit.leftLength,
                                  regionStart, regionEnd, x1, x2);
@@ -96,21 +103,25 @@ public class PairedEndPainter extends RegionPaintable {
                 rightx2 = rightx1;
                 rightx1 = x;
             }
-            int mid = (leftx1 + rightx2) / 2;
+
             g.setColor(hit.leftStrand ? plusColor : minusColor);
             g.drawLine(leftx1, y1 + h, leftx2, y1+h);
             g.setColor(hit.rightStrand ? plusColor : minusColor);
             g.drawLine(rightx1, y1+h, rightx2, y1+h);
             g.setColor(hit.leftStrand == hit.rightStrand ? green : gray);
-            g.drawLine(leftx2, y1+h, rightx1, y1+h);
+            if (leftx2 < rightx1) {
+                g.drawLine(leftx2, y1+h, rightx1, y1+h);
+            } else {
+                g.drawLine(rightx2, y1+h, leftx1, y1+h);
+            }
+
             
-            h += linewidth;
-            if (h > height) {
-                h = 0;
+            h -= linewidth * 2;
+            if (h < 0) {
+                h = height;
             }            
         }
         g.setStroke(oldStroke);
-
     }
 
 }

@@ -21,9 +21,16 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
     private List<PairedHit> results;
     Comparator<PairedHit> comparator;
 
-    public PairedEndModel () throws IOException, ClientException{
+    public PairedEndModel (Collection<ChipSeqAlignment> alignments) throws IOException, ClientException{
         client = new Client();
         comparator = new PairedHitLeftComparator();
+        this.alignments = new HashSet<ChipSeqAlignment>();
+        this.alignments.addAll(alignments);
+        ids = new HashSet<String>();
+        for (ChipSeqAlignment a : alignments) {
+            ids.add(Integer.toString(a.getDBID()));
+        }
+        results = null;
     }
 
 
@@ -63,8 +70,8 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                                                                  null);
                         for (PairedHit h : r) {
                             if (h.leftChrom == h.rightChrom && 
-                                h.rightPos > region.getStart() &&
-                                h.leftPos > region.getEnd()) {
+                                h.rightPos >= region.getStart() &&
+                                h.rightPos <= region.getEnd()) {
                                 results.add(h);
                             }
                         }

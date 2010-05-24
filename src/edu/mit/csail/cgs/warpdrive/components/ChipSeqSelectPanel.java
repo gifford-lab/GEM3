@@ -29,7 +29,7 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
 
     public ChipSeqSelectPanel() { 
         try {
-            chipSeqLoader = new ChipSeqLoader();
+            chipSeqLoader = new ChipSeqLoader(true);
         } catch (Exception e) {
             e.printStackTrace();
             chipSeqLoader = null;

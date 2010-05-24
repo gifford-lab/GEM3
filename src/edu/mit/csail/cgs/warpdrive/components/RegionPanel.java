@@ -363,6 +363,30 @@ public class RegionPanel extends JPanel
                 e.printStackTrace();
             }
         }
+        if (opts.pairedChipseqExpts.size() > 0) {
+            try {
+                ChipSeqLoader loader = new ChipSeqLoader(true);
+                for(int i = 0; i < opts.pairedChipseqExpts.size(); i++) { 
+                    
+                    Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.pairedChipseqExpts.get(i), genome);
+                    PairedEndModel m = new PairedEndModel(alignments);
+                    PairedEndPainter p = new PairedEndPainter(m);
+                    addModel(m);
+                    Thread t = new Thread((Runnable)m); t.start();
+                    p.setLabel("Paired " + opts.pairedChipseqExpts.get(i).toString());
+                    
+                    System.err.println("Added paired painter " + alignments);
+
+                    p.addEventListener(this);
+                    addPainter(p);
+                    addModelToPaintable(p,m);
+                }
+                loader.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        
 
         // agilentdata, msp, and bayes are all nearly identical.
         for (int i = 0; i < opts.agilentdata.size(); i++) {     

@@ -74,6 +74,7 @@ public class WarpOptions {
     public ArrayList<ExptNameVersion> peakCallers;
     public ArrayList<Experiment> exprExperiments;
     public ArrayList<ChipSeqLocator> chipseqExpts;
+    public ArrayList<ChipSeqLocator> pairedChipseqExpts;
     // filename to label mappings.  These are loaded from a file
     // and the data held statically
     public HashMap<String,String> regionTracks, regexes;
@@ -139,6 +140,7 @@ public class WarpOptions {
         otherannots = new ArrayList<String>();
         agilentdata= new ArrayList<ExptNameVersion>();
         chipseqExpts = new ArrayList<ChipSeqLocator>();
+        pairedChipseqExpts = new ArrayList<ChipSeqLocator>();
         agilentll = new ArrayList<AnalysisNameVersion>();
         bayesresults = new ArrayList<AnalysisNameVersion>();
         msp = new ArrayList<AnalysisNameVersion>();
@@ -165,6 +167,7 @@ public class WarpOptions {
         otherannots = new ArrayList<String>();
         agilentdata= new ArrayList<ExptNameVersion>();
         chipseqExpts = new ArrayList<ChipSeqLocator>();
+        pairedChipseqExpts = new ArrayList<ChipSeqLocator>();
         agilentll = new ArrayList<AnalysisNameVersion>();
         bayesresults = new ArrayList<AnalysisNameVersion>();
         msp = new ArrayList<AnalysisNameVersion>();
@@ -209,6 +212,7 @@ public class WarpOptions {
         mergeInto(otherannots,union.otherannots);
         mergeInto(agilentdata,union.agilentdata);
         mergeInto(chipseqExpts,union.chipseqExpts);
+        mergeInto(pairedChipseqExpts,union.pairedChipseqExpts);
         mergeInto(bayesresults,union.bayesresults);
         mergeInto(agilentll,union.agilentll);
         mergeInto(msp,union.msp);
@@ -272,6 +276,7 @@ public class WarpOptions {
         differenceOf(otherannots,other.otherannots);
         differenceOf(agilentdata,other.agilentdata);
         differenceOf(chipseqExpts,other.chipseqExpts);
+        differenceOf(pairedChipseqExpts,other.pairedChipseqExpts);
         differenceOf(bayesresults,other.bayesresults);
         differenceOf(agilentll,other.agilentll);
         differenceOf(msp,other.msp);
@@ -316,6 +321,7 @@ public class WarpOptions {
         o.otherannots = (ArrayList<String>) otherannots.clone();
         o.agilentdata = (ArrayList<ExptNameVersion>)agilentdata.clone();
         o.chipseqExpts = (ArrayList<ChipSeqLocator>)chipseqExpts.clone();
+        o.pairedChipseqExpts = (ArrayList<ChipSeqLocator>)pairedChipseqExpts.clone();
         o.bayesresults = (ArrayList<AnalysisNameVersion>)bayesresults.clone();
         o.agilentll = (ArrayList<AnalysisNameVersion>)agilentll.clone();
         o.msp = (ArrayList<AnalysisNameVersion>)msp.clone();
@@ -433,6 +439,17 @@ public class WarpOptions {
                     System.err.println("Couldn't parse --chipseq " + args[i]);
                 }
             }
+            if (args[i].equals("--pairedchipseq")) {
+                String pieces[] = args[++i].split(";");
+                if (pieces.length == 2) {
+                    opts.pairedChipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
+                } else if (pieces.length == 3) {
+                    opts.pairedChipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
+                } else {
+                    System.err.println("Couldn't parse --pairedchipseq " + args[i]);
+                }
+            }
+
             if (args[i].equals("--agilent") || args[i].equals("--chipchip")) {                
                 System.err.println("Parsing AGILENT option");
                 System.err.println("args[i+1] = " + args[i+1]);
@@ -479,16 +496,6 @@ public class WarpOptions {
                     env.setLabel(args[i]);
                 }
                 opts.msp.add(env);             
-            }
-            if (args[i].equals("--chipseq")) {
-                String pieces[] = args[++i].split(";");
-                if (pieces.length == 2) {
-                    opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
-                } else if (pieces.length == 3) {
-                    opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
-                } else {
-                        throw new IllegalArgumentException("--chipseq must have 2 or 3 semi-colon separated parts: name;replicate;alignment or name;alignment");
-                }
             }
             if (args[i].equals("--sgdOther")) {
                 opts.otherannots.add("sgdOther");

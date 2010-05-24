@@ -45,6 +45,7 @@ public class WarpOptionsPane
         annotationsPanel,
         chipChipPanel,
         chipSeqPanel,
+        pairedChipSeqPanel,
         optionsPanel,
         peakPanel, 
         exprPanel;
@@ -64,7 +65,7 @@ public class WarpOptionsPane
     private BindingScanSelectPanel bindingSelect;
     
     // chipseq tab
-    private ChipSeqSelectPanel chipSeqSelect;
+    private ChipSeqSelectPanel chipSeqSelect, pairedChipSeqSelect;
 
     // annotations tab
     private JList genes, ncrnas, otherfeats;
@@ -144,6 +145,7 @@ public class WarpOptionsPane
         exptSelect.close();
         exprSelect.close();
         chipSeqSelect.close();
+        pairedChipSeqSelect.close();
     	bindingSelect.close(); 
     	closed = true; 
     }
@@ -170,6 +172,7 @@ public class WarpOptionsPane
         annotationsPanel = new JPanel();
         chipChipPanel = new JPanel();       
         chipSeqPanel = new JPanel();
+        pairedChipSeqPanel = new JPanel();
         optionsPanel = new JPanel();
         peakPanel = new JPanel();
         exprPanel = new JPanel();
@@ -238,10 +241,13 @@ public class WarpOptionsPane
         exprPanel.add(exprSelect, BorderLayout.CENTER);
         
         // chipseq tab
-        chipSeqSelect = new ChipSeqSelectPanel();
-        
+        chipSeqSelect = new ChipSeqSelectPanel();        
         chipSeqPanel.setLayout(new BorderLayout());
         chipSeqPanel.add(chipSeqSelect, BorderLayout.CENTER);
+
+        pairedChipSeqSelect = new ChipSeqSelectPanel();
+        pairedChipSeqPanel.setLayout(new BorderLayout());
+        pairedChipSeqPanel.add(pairedChipSeqSelect, BorderLayout.CENTER);
         
         // peak tab
         peakPanel.setLayout(new BorderLayout());
@@ -324,7 +330,8 @@ public class WarpOptionsPane
         addTab("Peaks",peakPanel);
         addTab("Expression", exprPanel);
         
-        addTab("Chip-Seq", chipSeqPanel);
+        addTab("ChIP-Seq", chipSeqPanel);
+        addTab("Paired ChIP-Seq", pairedChipSeqPanel);
 
         dummy = new JPanel();  dummy.add(annotationsPanel); dummy.add(new JPanel());
         addTab("Annotations",new JScrollPane(dummy));
@@ -439,6 +446,7 @@ public class WarpOptionsPane
             }
         }       
         chipSeqSelect.addToSelected(opts.chipseqExpts);
+        pairedChipSeqSelect.addToSelected(opts.pairedChipseqExpts);
         bindingSelect.addToSelected(opts.bindingScans);
         exprSelect.addToSelected(opts.exprExperiments);
         filetracks.fill(opts.regionTracks);
@@ -540,6 +548,10 @@ public class WarpOptionsPane
         for(ChipSeqLocator loc : chipSeqSelect.getSelected()) { 
             these.chipseqExpts.add(loc);
         }
+        for(ChipSeqLocator loc : pairedChipSeqSelect.getSelected()) { 
+            these.pairedChipseqExpts.add(loc);
+        }
+
         
         // parse the exptSelect panel selections.
         for(ExptLocator loc : exptSelect.getSelected()) { 
@@ -587,6 +599,7 @@ public class WarpOptionsPane
 
         exptSelect.setGenome(lg);
         chipSeqSelect.setGenome(lg);
+        pairedChipSeqSelect.setGenome(lg);
         motifPanel.setGenome(lg);
         motifScanPanel.setGenome(lg);
         if(lg != null) { 
