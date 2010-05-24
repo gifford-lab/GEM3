@@ -18,9 +18,9 @@ import edu.mit.csail.cgs.utils.database.*;
  *   for the genes and the second contains a mapping from gene name to aliases.
  *   
  *   reads the properties file edu.mit.csail.cgs.ewok.verbs.gene_names which is formatted as 
- *     genomeversion=tablename,aliastablename,namecolumn,aliascolumn
+ *     genomeversion=tablename,symboltablename,namecolumn,symbolcolumn
  *
- *     namecolumn is the column in the aliastable that should match the name.  aliascolumn
+ *     namecolumn is the column in the symboltable that should match the name.  aliascolumn
  *     is the column in the alias table that contains the alias
  *
  *   RefGeneGenerator can query in several modes:
@@ -37,10 +37,10 @@ import edu.mit.csail.cgs.utils.database.*;
 public class RefGeneGenerator<X extends Region> 
     implements Expander<X,Gene>, SelfDescribingVerb, DefaultConstantsParameterized, edu.mit.csail.cgs.utils.Closeable {
 
-    private PreparedStatement ps, nameps;
+    private PreparedStatement ps, nameps, getalias, getgenesym;
     private java.sql.Connection cxn;
     private Genome genome;
-    private String tablename, aliastable, namecolumn, aliascolumn;
+    private String tablename, symboltable, namecolumn, symbolcolumn;
     private int aliastype;
     private boolean wantalias, flipstrand;
     private static final int YEAST = 1, MAMMAL = 2, FLY = 3, WORM = 4;    
@@ -55,6 +55,8 @@ public class RefGeneGenerator<X extends Region>
     public RefGeneGenerator(Genome g) {
         ps = null;
         nameps = null;
+        getalias = null;
+        getgenesym = null;
         wantsExons = true;
         setGenome(g, null);
         wantalias = true;
@@ -71,6 +73,8 @@ public class RefGeneGenerator<X extends Region>
     public RefGeneGenerator(Genome g, String t) {
         ps = null;
         nameps = null;
+        getalias = null;
+        getgenesym = null;
         wantsExons = true;
         setGenome(g, t);
         wantalias = true;
@@ -84,10 +88,12 @@ public class RefGeneGenerator<X extends Region>
     public RefGeneGenerator() { 
         ps = null;
         nameps = null;
+        getalias = null;
+        getgenesym = null;
         wantsExons = true;
         wantalias = true;
         genome = null;
-        tablename = aliastable = null;
+        tablename = symboltable = null;
         aliastype = -1;
         upstream = 0;
         downstream = 0;
@@ -121,11 +127,11 @@ public class RefGeneGenerator<X extends Region>
                 if (!key.equals(targetkey)) { continue;}
             }
             String props[] = res.getString(key).split(",");
-            aliastable = props[0];
+            symboltable = props[0];
             namecolumn = props[1];
-            aliascolumn = props[2];
+            symbolcolumn = props[2];
         }
-        if (aliastable == null) {
+        if (symboltable == null) {
             wantalias = false;
         }
         prepare();
@@ -143,7 +149,7 @@ public class RefGeneGenerator<X extends Region>
      * set the query parameters
      */
     public void setWantAlias(boolean b) {
-        wantalias = aliastable != null && b;        
+        wantalias = symboltable != null && b;        
     }
     public void setFlipStrand(boolean b) {
         flipstrand = b;
@@ -209,10 +215,18 @@ public class RefGeneGenerator<X extends Region>
                 nameps.close();
                 nameps = null;
             }
+            if (getalias != null) {
+                getalias.close();
+                getalias = null;
+            }
+            if (getgenesym != null) {
+                getgenesym.close();
+                getgenesym = null;
+            }
             if (cxn != null) {
                 DatabaseFactory.freeConnection(cxn);
                 cxn = null;
-            }
+            }            
         } catch (SQLException e) {
             throw new DatabaseException(e.toString(), e);
         }
@@ -257,7 +271,7 @@ public class RefGeneGenerator<X extends Region>
             ps = cxn.prepareStatement(query.toString());
 
             String namequery = getFields();
-            if (aliastable == null) {
+            if (symboltable == null) {
                 namequery += " from " + tablename + " g where g.name = ?";
             } else {
                 // this noop extra select is to fool the mysql query optimizer so it
@@ -265,10 +279,26 @@ public class RefGeneGenerator<X extends Region>
                 namequery += String.format(" from %s g where g.name = ? or g.name in (select id from (select %s as id from %s a where a.%s = ? ) as x)",
                                            tablename, 
                                            namecolumn,
-                                           aliastable,
-                                           aliascolumn);
+                                           symboltable,
+                                           symbolcolumn);
             }
             nameps = cxn.prepareStatement(namequery);
+            if (symboltable != null && symbolcolumn != null && namecolumn != null) {
+                getgenesym = cxn.prepareStatement(String.format("select %s from %s where %s=?",
+                                                                symbolcolumn, symboltable, namecolumn));
+            } else {
+                getgenesym = null;
+            }
+            if (wantalias && symboltable != null && symboltable.equals("kgXref")) {
+                try {
+                    cxn = genome.getUcscConnection();
+                    getalias = cxn.prepareStatement("select distinct(alias) from kgAlias where kgID in (select kgID from kgXref where " + 
+                                                    namecolumn + " = ?");
+                } catch (SQLException ex) {
+                ex.printStackTrace();
+                wantalias = false;
+                }                
+            }
         } catch (SQLException e) {
             throw new DatabaseException(e.toString(), e);
         }
@@ -279,7 +309,6 @@ public class RefGeneGenerator<X extends Region>
             close();
             setGenome(region.getGenome(), tablename);
         }
-
         int offset = 1;
         try {
             String chr = region.getChrom();
@@ -296,8 +325,7 @@ public class RefGeneGenerator<X extends Region>
                 offset = bindClosestOrder(ps, offset, region);
                 ps.setInt(offset++, closestN);
             } 
-            Iterator<Gene> results = parseResults(ps);
-            
+            Iterator<Gene> results = parseResults(ps);            
             return results;
         } catch (SQLException ex) {
             ex.printStackTrace();
@@ -308,7 +336,7 @@ public class RefGeneGenerator<X extends Region>
     public synchronized Iterator<Gene> byName(String name) {
         try {
             nameps.setString(1,name);
-            if (aliastable != null) {
+            if (symboltable != null) {
                 nameps.setString(2,name);
             }
             Iterator<Gene> results = parseResults(nameps);
@@ -325,24 +353,6 @@ public class RefGeneGenerator<X extends Region>
     public synchronized Iterator<Gene> parseResults(PreparedStatement ps) throws SQLException {
         ResultSet rs = ps.executeQuery();
         ArrayList<Gene> results = new ArrayList<Gene>();
-        PreparedStatement getalias = null;
-        PreparedStatement getgenesym = null;
-        java.sql.Connection cxn = null;
-        if (wantalias) {
-            try {
-                cxn = genome.getUcscConnection();
-                getalias = cxn.prepareStatement("select distinct(" + aliascolumn + ") from " + aliastable+ " where " +
-                                                namecolumn + "= ?");
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-                wantalias = false;
-            }                
-            if (aliastable != null && aliastable.equals("kgXref")) {
-                getgenesym = cxn.prepareStatement("select distinct(geneSymbol) from kgXref where refseq=?");
-            } else {
-                getgenesym = null;
-            }
-        }
         while (rs.next()) {
             String chr = rs.getString(2);
             chr = chr.replaceFirst("^chr","");
@@ -394,8 +404,7 @@ public class RefGeneGenerator<X extends Region>
                     } catch(IOException ie) { 
                         ie.printStackTrace(System.err);
                     }
-                }
-                
+                }                
             } else { 
                 char strand = rs.getString(3).charAt(0);
                 if (flipstrand) {
@@ -410,19 +419,18 @@ public class RefGeneGenerator<X extends Region>
                              strand,
                              "RefGene");
             }
-            if (wantalias) {
-                if(getgenesym != null) { 
-            		getgenesym.setString(1, g.getID());
-            		ResultSet gsrs = getgenesym.executeQuery();
-            		if(gsrs.next()) { 
-            			g.setName(gsrs.getString(1)); 
-            		}
-            		while(gsrs.next()) { 
-            			g.addAlias(gsrs.getString(1));
-            		}
-            		gsrs.close();
-            	}
-            	
+            if(getgenesym != null) { 
+                getgenesym.setString(1, g.getID());
+                ResultSet gsrs = getgenesym.executeQuery();
+                if(gsrs.next()) { 
+                    g.setName(gsrs.getString(1)); 
+                }
+                while(gsrs.next()) { 
+                    g.addAlias(gsrs.getString(1));
+                }
+                gsrs.close();
+            }
+            if (wantalias && getalias != null) {
                 try {
                     getalias.setString(1,rs.getString(1));                    
                     ResultSet aliasresults = getalias.executeQuery();
@@ -437,20 +445,6 @@ public class RefGeneGenerator<X extends Region>
             }
             results.add(g);
             
-        }
-        
-        if (wantalias) {
-            if(getgenesym != null) { 
-            	getgenesym.close();
-            }
-
-            try {
-                getalias.close();
-                DatabaseFactory.freeConnection(cxn);
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-                wantalias = false;
-            } 
         }
         rs.close();
         return results.iterator();

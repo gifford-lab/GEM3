@@ -212,11 +212,11 @@ public class GenePainter extends RegionPaintable {
             int nx = Math.max(x1 + 3, gx1 + 3);  // gotta do the Math.max(), to make sure the name is on the screen.
             int ny = my + (halfGeneHeight / 2) - 2;
             int fontsize = g.getFont().getSize();
-            System.err.println("Gene font size is " + fontsize);
             
             ArrayList<String> aliases = new ArrayList<String>();
-            aliases.addAll(gene.getAliases());
+            aliases.add(gene.getID());
             aliases.add(gene.getName());
+            aliases.addAll(gene.getAliases());
             String first = aliases.remove(0);
             String todraw = null;
             addLabel(gleft,gtop,rectwidth,gbottom-gtop,first);

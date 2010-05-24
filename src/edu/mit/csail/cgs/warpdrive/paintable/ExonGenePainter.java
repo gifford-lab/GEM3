@@ -248,11 +248,17 @@ public class ExonGenePainter extends RegionPaintable {
             int rectwidth = gright - gleft + 1;
 
             ArrayList<String> aliases = new ArrayList<String>();
-            labels.clear();
-            
-            aliases.addAll(gene.getAliases());
+            labels.clear();            
 
-            String first = gene.getName().endsWith("Rik") ? gene.getID() : gene.getName();
+            String first;
+            if (gene.getName().endsWith("Rik")) {
+                first = gene.getID();
+                aliases.add(gene.getName());
+            } else {
+                first = gene.getName();
+                aliases.add(gene.getID());
+            }
+            aliases.addAll(gene.getAliases());
             String todraw = null;
             addLabel(gleft,gy1,rectwidth,trackHeight*2,first);
 
