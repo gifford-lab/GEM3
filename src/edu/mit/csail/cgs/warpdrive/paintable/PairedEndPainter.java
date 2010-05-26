@@ -102,17 +102,18 @@ public class PairedEndPainter extends RegionPaintable {
                 rightx2 = rightx1;
                 rightx1 = x;
             }
-
-            g.setColor(hit.leftStrand ? plusColor : minusColor);
-            g.drawLine(leftx1, y1 + h, leftx2, y1+h);
-            g.setColor(hit.rightStrand ? plusColor : minusColor);
-            g.drawLine(rightx1, y1+h, rightx2, y1+h);
             g.setColor(hit.leftStrand == hit.rightStrand ? green : gray);
             if (leftx2 < rightx1) {
                 g.drawLine(leftx2, y1+h, rightx1, y1+h);
             } else {
                 g.drawLine(rightx2, y1+h, leftx1, y1+h);
             }
+            if (leftx2 == leftx1) {leftx2++;}
+            g.setColor(hit.leftStrand ? plusColor : minusColor);
+            g.drawLine(leftx1, y1 + h, leftx2, y1+h);
+            if (rightx2 == rightx1) {rightx2++;}
+            g.setColor(hit.rightStrand ? plusColor : minusColor);
+            g.drawLine(rightx1, y1+h, rightx2, y1+h);
 
             
             h -= linewidth * 2;
