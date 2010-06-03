@@ -1,0 +1,1 @@
+{"TF_binding":true, "model":"Empirical_Distribution_Ctcf3.txt", "peak_shape_distribution":"PeakShapeDistribution.txt", "mappable_genome_length":2.08E9, "q_value_threshold":2, "max_hit_per_bp":-1, "use_single_event":true, "window_size_factor":3, "max_shape":2,"min_strength":40,"sparseness":6, "use_dynamic_sparseness":false, print_mixing_probability:false, bmverbose:2}
