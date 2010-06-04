@@ -27,20 +27,24 @@ public class ChipSeqAnalyzer{
 		ArgParser ap = new ArgParser(args);
 		
 		try {
-			Pair<Organism, Genome> pair = Args.parseGenome(args);
-			if(pair==null){
+			if(ap.hasKey("species")){
+				Pair<Organism, Genome> pair = Args.parseGenome(args);
+				if(pair != null)
+					genome = pair.cdr();
+			}else{
 				//Make fake genome... chr lengths provided???
 				if(ap.hasKey("geninfo")){
 					genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
 	        	}else{
-	        		System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); printError();System.exit(1);
+	        		//System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); 
+	        		printError();System.exit(1);
 	        	}
-			}else{
-				genome = pair.cdr();
 			}
 		} catch (NotFoundException e) {
 			e.printStackTrace();
 		}
+		System.out.println("Welcome to GPS\nLoading data...");
+		
 		readLength = Args.parseInteger(args,"readlen",readLength);
 			
         //Experiments : Load each condition expt:ctrl Pair
@@ -148,7 +152,7 @@ public class ChipSeqAnalyzer{
 	}
 	
 	public static void main(String[] args){
-		System.out.println("Welcome to the GPS!");
+		//System.out.println("Welcome to the GPS!");
 		ChipSeqAnalyzer analyzer = new ChipSeqAnalyzer(args);
 		analyzer.runMixtureModel();
 		analyzer.close();
@@ -158,20 +162,25 @@ public class ChipSeqAnalyzer{
 	 * Command-line help
 	 */
 	public void printError() {
-		System.err.println("Usage:\n " +
-                "ChipSeqAnalyzer \n" +
-                "Using with Gifford Lab DB:\n" +
-                "  --species <organism name;genome version>"+
-                "  --dbexptX <IP expt (X is condition name)> " +
-                "  --dbctrlX <background expt (X is condition name)> \n" +
-                "Using wih flat-files:\n" +
-                "  --geninfo <file with chr name/length pairs> " +
-                "  --exptX <aligned reads file for expt (X is condition name)> " +
-                "  --ctrlX <aligned reads file for ctrl (X is condition name)> " +
-                "  --format <format of above files (default ELAND)> \n" +
-                "Remember to set the read length!\n" +
-                "  --readlen <length>\n" +
-                "");		
+		System.err.println("" +
+                "GPS Usage\n" +
+//                "   Using with Gifford Lab DB:\n" +
+//                "      --species <organism name;genome version>\n"+
+//                "      --dbexptX <IP expt (X is condition name)>\n" +
+//                "      --dbctrlX <background expt (X is condition name)>\n" +
+                "   Required options:\n" +
+                "      --read_distribution <read distribution model file>\n" +
+                "      --geninfo <file with chr name/length pairs>\n" +
+                "      --mappable_genome_length <length of mappable genome in bp>\n" +
+                "      --exptX <aligned reads file for expt (X is condition name)>\n" +
+                "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
+                "      --format <read file format BOWTIE/ELAND/NOVO/BED (default ELAND)>\n" +
+                "      --readlen <length>\n" +
+                "   Other options:\n" +
+                "      --out <output file base name>\n" +
+                "      --update_model <max times to refine read distribution model (default=3)>\n" +
+//                "      --nonunique [flag to use the non-uniquely mapping reads]\n" +
+                "\n");		
 	}
 
 	//Cleanup the loaders
@@ -180,19 +189,4 @@ public class ChipSeqAnalyzer{
 		mixture.cleanup();
 	}
 	
-	/* command line example
---property "ChipSeqAnalysis.Ctcf.properties.txt"  
---species "Mus musculus;mm8" 
---dbexptCtcf "Chen08_Solexa_CTCF_ES;ELAND_unique_26" 
---dbctrlCtcf  "Chen08_Solexa_GFP_ES;ELAND_unique_26" 
---out "CTCF_Sing_DB"
-
---property "ChipSeqAnalysis.Ctcf.properties.txt"  
---species "Mus musculus;mm8" 
---exptCtcf "Sing_ES_CTCF_all.bowtie.align" 
---ctrlCtcf  "Sing_ES_GFP_all.bowtie.align" 
---format "BOWTIE"
---out "CTCF_Sing_BOWTIE"
-
-	 */
 }

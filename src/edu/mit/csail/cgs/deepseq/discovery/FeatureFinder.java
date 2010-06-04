@@ -53,17 +53,20 @@ public abstract class FeatureFinder {
 			}
 			ArgParser ap = new ArgParser(args);
 			//Load genome
-			Pair<Organism, Genome> pair = Args.parseGenome(args);
-			if(pair==null){
+			if(ap.hasKey("species")){
+				Pair<Organism, Genome> pair = Args.parseGenome(args);
+				if(pair != null){
+					gen = pair.cdr();
+					dbconnected=true;
+				}
+			}else{
 				//Make fake genome... chr lengths provided???
 				if(ap.hasKey("geninfo")){
-	            	gen = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+					gen = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
 	        	}else{
-	        		System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); printError();System.exit(1);
+	        		//System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); 
+	        		printError();System.exit(1);
 	        	}
-			}else{
-				gen = pair.cdr();
-				dbconnected=true;
 			}
 			genomeLen = gen.getGenomeLength();
 			mappableGenome = Args.parseDouble(args, "mappable", 0.8);
