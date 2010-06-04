@@ -52,7 +52,7 @@ public class InteractiveGraphPanel extends JPanel {
     public void saveImage() { 
         FileChooser chooser = new FileChooser(null);
         int w = getWidth(), h = getHeight();
-        File f = chooser.choose();
+        File f = chooser.chooseSave();
         try {
             gp.saveImage(f, w, h, true);
         } catch (IOException e) {
