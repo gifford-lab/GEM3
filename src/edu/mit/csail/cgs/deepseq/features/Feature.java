@@ -44,5 +44,7 @@ public abstract class Feature{
     public abstract String toString();
     public abstract String toGFF();
     public abstract String headString();
+    public abstract String toString_v1();
+    public abstract String headString_v1();
     public abstract String toSequence(int win);
 }

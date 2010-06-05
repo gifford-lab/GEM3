@@ -419,7 +419,55 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         header.append("\n");
         return header.toString();
 	}
+	
+	//generate Header String, each field should match toString() output
+	// for GPS release v1
+	public String headString_v1(){
+		StringBuilder header = new StringBuilder("");
+		
+		header.append("Position\t")
+			  .append("IpStrength\t");       
+        
+        for(int c=0; c<numConditions; c++){
+        	String name = numConditions==1?"":conditionNames.get(c)+"_";
+        	if (numConditions!=1)		// if single condition, IP is same as total
+        		header.append(name+"IpStrength\t");
+        	header.append(name+"CtrlStrength\t")
+        	      .append(name+"Q_value_log10\t")
+  	      		  .append(name+"P_value_log10\t");
+        }
+        header.append("\n");
+        return header.toString();
+	}
+	//Print the feature
+	// for GPS release v1
+	//each field should match header String
+	public String toString_v1() {
+		StringBuilder result = new StringBuilder();
+		
+		result.append(position.getLocationString()).append("\t");
+		result.append(String.format("%.1f\t", totalSumResponsibility));
+       
+        for(int c=0; c<numConditions; c++){
+        	if (numConditions!=1)	// if single condition, IP is same as total
+        		result.append(String.format("%.1f\t", getEventReadCounts(c) ));
+        	if(unScaledControlCounts!=null)
+        		result.append(String.format("%.1f\t", getScaledControlCounts(c)));
+        	else
+        		result.append("NA\t");
+        
+        	result.append(String.format("%.2f\t", getQValueLog10(c)));
+        	
+        	if(unScaledControlCounts!=null)
+        		result.append(String.format("%.2f\t", -Math.log10(getPValue(c))));
+        	else
+        		result.append(String.format("%.2f\t", -Math.log10(getPValue_wo_ctrl(c))));
+        }
 
+        result.append("\n");
+
+		return result.toString();
+	}
 	public static void setNon_specific_ratio(double[] non_specific_ratio) {
 		ComponentFeature.non_specific_ratio = non_specific_ratio;
 	}

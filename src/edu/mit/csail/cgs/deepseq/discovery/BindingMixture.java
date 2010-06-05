@@ -44,7 +44,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	/****************************
 	 * Constants
 	 ***************************/
-	private final static boolean DEBUG=false;
+	private final static boolean LOG_ALL=false;
 	
 	// width for smoothing a read (used as a stddev for creating the Gaussian kernel of probability)
 	public final static int READ_KERNEL_ESTIMATOR_WIDTH = 25;
@@ -86,12 +86,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private final static boolean MAKE_HARD_ASSIGNMENT=false;
 	private StringBuilder pi_sb = new StringBuilder();
 	
+	private boolean development_mode = false;
 	private boolean do_model_selection=false;
 	private boolean linear_model_expansion=false;
     private boolean print_mixing_probabilities=false;
     private boolean use_multi_event = false;
 	private boolean TF_binding = true;
-	private boolean pre_artifact_filter=true;	
+	private boolean pre_artifact_filter=false;	
 	private boolean post_artifact_filter=false;	
     private int max_hit_per_bp = -1;
     private double q_value_threshold = 2.0;
@@ -200,7 +201,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						  String[] args){
 		super (args);
 		try{
-			logFileWriter = new FileWriter("Binding Mixture Log.txt", true); //append
+			logFileWriter = new FileWriter("GPS_Log.txt", true); //append
 			logFileWriter.write("\n==============================================\n");
 			logFileWriter.write(getDateTime());
 			logFileWriter.flush();
@@ -236,7 +237,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	q_value_threshold = Args.parseDouble(args, "q_value_threshold", 2.0);
     	max_hit_per_bp = Args.parseInteger(args, "max_hit_per_bp", -1);
     	top_event_percentile = Args.parseInteger(args, "top_event_percentile", 50);
-    	sparseness = Args.parseDouble(args, "sparseness", 6.0);
+    	sparseness = Args.parseDouble(args, "alpha_value", 6.0);
     	alpha_factor = Args.parseDouble(args, "alpha_factor", 3.0);
     	needle_height_factor = Args.parseInteger(args, "needle_height_factor", 2);
     	needle_hitCount_fraction = Args.parseDouble(args, "needle_hitCount_fraction", 0.1);
@@ -245,16 +246,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	Set<String> flags = Args.parseFlags(args);
     	// default as false, need the flag to turn it on
     	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
-    	reportProgress = flags.contains("reportProgress");
     	do_model_selection = flags.contains( "do_model_selection");
     	linear_model_expansion = flags.contains( "linear_model_expansion");
     	use_multi_event = flags.contains("refine_using_multi_event");
     	needToCleanBases = flags.contains("needToCleanBases");
+    	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
+    	development_mode = flags.contains("development_mode");
     	// default as true, need the opposite flag to turn it off
     	TF_binding = ! flags.contains("non_punctate_binding");
-    	use_dynamic_sparseness = ! flags.contains( "use_static_sparseness");
-    	pre_artifact_filter = ! flags.contains("no_artifact_filter");
+    	reportProgress =! flags.contains("no_report_progress");
+    	use_dynamic_sparseness = ! flags.contains( "fix_alpha_value");
     	use_internal_em_train = ! flags.contains( "use_multi_condition_em_train");
     	use_scanPeak = ! flags.contains( "do_not_scanPeak");
     	boolean loadWholeGenome = ! flags.contains( "loadRegionOnly");
@@ -416,7 +418,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		if (focusFormat==null){
     		setRegions(selectEnrichedRegions());    		
 		}
-		printNoneZeroRegions(true);
+		if (development_mode)
+			printNoneZeroRegions(true);
 		log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
 		
 		/* ****************************************************
@@ -734,10 +737,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
 		this.restrictRegions=mergeRegions(refinedRegions, true); 
 		
-		printNoneZeroRegions(false);		// print refined regions
-		printTowerRegions();
-		writeFile(outName+"_needles.txt", needleReport.toString());
-		log(1, "\nBinding event calling, execute(): "+timeElapsed(tic)+"\n");
+		if (development_mode){
+			printNoneZeroRegions(false);		// print refined regions
+			printTowerRegions();
+			writeFile(outName+"_needles.txt", needleReport.toString());
+		}
+		log(1, "\nFinish calling events: "+timeElapsed(tic)+"\n");
 		
 		// post processing
 		postEMProcessing(compFeatures);
@@ -1212,7 +1217,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			//Run EM and increase resolution
 			initializeComponents(r, numConditions );
 			while(nonZeroComponentNum>0){
-				double alpha = Math.max(Math.sqrt(StrandedBase.countBaseHits(bases))/3, sparseness);
+				double alpha = Math.max(Math.sqrt(StrandedBase.countBaseHits(bases))/alpha_factor, sparseness);
 				responsibilities = EMTrain(signals, alpha);
 				if(componentSpacing==1)
 					break;
@@ -3304,18 +3309,35 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		System.out.println("Adding other annotations");
 		addRegionAnnotations(signalFeatures);
 	}
-
+	
+	public void printFeatures(){
+		try{
+			String fname = outName+"_GPS_events.txt"; 
+			FileWriter fw = new FileWriter(fname);
+			boolean first=true;
+			for(Feature f : signalFeatures){
+				if(first){
+					fw.write(development_mode?f.headString():f.headString_v1()); 
+					first=false;
+				}
+				fw.write(development_mode?f.toString():f.toString_v1());
+			}
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}	
+	}
 	public void printInsignificantFeatures(){
 		try{
-			String fname = outName+"_Insignificant.peaks.txt"; 
+			String fname = outName+"_Insignificant_events.txt"; 
 			FileWriter fw = new FileWriter(fname);
 			boolean first=true;
 			for(Feature f : insignificantFeatures){
 				if(first){
-					fw.write(f.headString()); 
+					fw.write(development_mode?f.headString():f.headString_v1()); 
 					first=false;
 				}
-				fw.write(f.toString());
+				fw.write(development_mode?f.toString():f.toString_v1());
 			}
 			fw.close();
 		} catch (IOException e) {
@@ -3344,23 +3366,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				    }
 				});
 			}
-			
-			try{
-				String fname = outName + "_" + conditionNames.get(c) + "_peaks_P.txt"; 
-				FileWriter fw = new FileWriter(fname);
-				boolean first=true;
-				for(Feature f : fs){
-					if(first){
-						fw.write(f.headString()); 
-						first=false;
-					}
-					fw.write(f.toString());
-				}
-				fw.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			
+
+			String fname = outName + "_" + conditionNames.get(c) + "_GPS_events_P.txt"; 
+			printFeatures(fname, fs);
 		}
 	}
 
@@ -3385,22 +3393,26 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			});
 		}
 
+		String fname = outName+"_GPS_events_P.txt"; 
+		printFeatures(fname, fs);
+	}	
+	
+	private void printFeatures(String fname, ArrayList<ComponentFeature> fs){
 		try{
-			String fname = outName+"_peaks_P.txt"; 
 			FileWriter fw = new FileWriter(fname);
 			boolean first=true;
 			for(Feature f : fs){
 				if(first){
-					fw.write(f.headString()); 
+					fw.write(development_mode?f.headString():f.headString_v1()); 
 					first=false;
 				}
-				fw.write(f.toString());
+				fw.write(development_mode?f.toString():f.toString_v1());
 			}
 			fw.close();
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
-	}	
+		}		
+	}
 	public void printExpandedPeaks(int range){
 		try{
 			String fname = outName+"_peaks_"+range+"bp.txt"; 
@@ -3516,7 +3528,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// show the message in STDOUT and log file
 	// depending on "verbose" setting in property file
 	private void log(int mode, String msg){
-		if (DEBUG)
+		if (LOG_ALL)
 			log_all_msg.append(msg);
 		if ( bmverbose>=mode){
 	    	System.out.println(msg);
@@ -3527,7 +3539,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			catch (IOException e) {
 				e.printStackTrace();
 			}
-			if (DEBUG)
+			if (LOG_ALL)
 				log_all_msg.append("\n");
 		}
 	}

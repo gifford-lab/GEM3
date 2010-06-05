@@ -3,6 +3,7 @@ package edu.mit.csail.cgs.deepseq.discovery;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.Vector;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
@@ -15,6 +16,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class ChipSeqAnalyzer{
+	private boolean development_mode = false;
 
 	private String[] args;
 	private Genome genome;
@@ -25,7 +27,8 @@ public class ChipSeqAnalyzer{
 	ChipSeqAnalyzer(String[] args){
 		this.args = args;
 		ArgParser ap = new ArgParser(args);
-		
+		Set<String> flags = Args.parseFlags(args);
+		development_mode = flags.contains("development_mode");
 		try {
 			if(ap.hasKey("species")){
 				Pair<Organism, Genome> pair = Args.parseGenome(args);
@@ -75,7 +78,7 @@ public class ChipSeqAnalyzer{
         	}
 
         	if(name.length()>0)
-        		System.out.println("Init loading condition: "+name);
+        		System.out.println("    loading condition: "+name);
         	
         	List<ChipSeqLocator> dbexpts = Args.parseChipSeq(args,"dbexpt"+name);
         	List<ChipSeqLocator> dbctrls = Args.parseChipSeq(args,"dbctrl"+name);
@@ -102,7 +105,7 @@ public class ChipSeqAnalyzer{
 	        	System.exit(1);
 	        }
         }
-        System.out.println("Init done: "+BindingMixture.timeElapsed(loadData_tic));
+        System.out.println("    done: "+BindingMixture.timeElapsed(loadData_tic));
         try{
         	mixture = new BindingMixture(experiments, conditionNames, args);
         }
@@ -139,11 +142,13 @@ public class ChipSeqAnalyzer{
 		}
 		round--;
 		mixture.setOutName(peakFileName+"_"+round);
-		mixture.printExpandedPeaks(10);
-//		mixture.addAnnotations();
+		if (development_mode){
+			mixture.printExpandedPeaks(10);
+			mixture.addAnnotations();
+//			mixture.printPsortedFeatures();
+			mixture.printPsortedCondFeatures();
+		}
 		mixture.printFeatures();
-//		mixture.printPsortedFeatures();
-		mixture.printPsortedCondFeatures();
 		mixture.printInsignificantFeatures();
 		mixture.closeLogFile();
 		//		mixture.printPeakSequences();
@@ -175,10 +180,14 @@ public class ChipSeqAnalyzer{
                 "      --exptX <aligned reads file for expt (X is condition name)>\n" +
                 "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
                 "      --format <read file format BOWTIE/ELAND/NOVO/BED (default ELAND)>\n" +
-                "      --readlen <length>\n" +
+                "      --readlen <read length>\n" +
                 "   Other options:\n" +
                 "      --out <output file base name>\n" +
                 "      --update_model <max times to refine read distribution model (default=3)>\n" +
+                "      --alpha_value <minimum alpha value for sparse prior (default=6)\n" +
+                "      --q_value_threshold <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)\n" +
+                "   Optional flags: \n" +
+                "      --fix_alpha_value <GPS will use a fixed user-specified alpha value for all the regions>" +
 //                "      --nonunique [flag to use the non-uniquely mapping reads]\n" +
                 "\n");		
 	}
