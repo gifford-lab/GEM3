@@ -686,7 +686,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 			
 			if ((j+1) % displayStep==0 && reportProgress)
-				System.err.println((j+1)+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
+				System.out.println((j+1)+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
 
 		}// end of for (Region rr : restrictRegions) 
 		System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
