@@ -76,16 +76,26 @@ public class PairedEndPainter extends RegionPaintable {
             g.drawString("Paired " +getLabel(),x1 + g.getFont().getSize()*2,y1 + g.getFont().getSize());
         }
         if (hits.size() == 0) { return;}
-        //        int alphastep = Math.min(255, Math.max(255 / (height / (hits.size() * linewidth)), 1));
+        //        int alphastep = Math.min(255, Math.max(255 / (height / (hits.size() * linewidth)), 4));
         int alphastep = 255;
         int h = height;
         int scan = 0;
         Color plusColor = new Color(0, 0, 255, alphastep);
         Color minusColor = new Color(255, 0, 0, alphastep);
-        Color gray = new Color(200,200,200, alphastep);
-        Color green = new Color(0, 255,0, alphastep);
+        Color plusplus = new Color(0, 0, 255, alphastep / 2);
+        Color minusminus = new Color(255,0,0,alphastep/2);
+        Color plusminus = new Color(100,0,255,alphastep/2);
+        Color minusplus = new Color(255,0,100,alphastep/2);
+        double mindist = getProperties().MinDistance;
+        if (mindist < 1) {
+            mindist = mindist * (regionEnd - regionStart);
+        }
+
         for (int i = 0; i < hits.size(); i++) {
             PairedHit hit = hits.get(i);
+            if (Math.abs(hit.leftPos - hit.rightPos) < mindist) { continue; }
+
+
             int leftx1 = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
             int leftx2 = getXPos(hit.leftStrand ? hit.leftPos + hit.leftLength : hit.leftPos - hit.leftLength,
                                  regionStart, regionEnd, x1, x2);
@@ -102,10 +112,11 @@ public class PairedEndPainter extends RegionPaintable {
                 rightx2 = rightx1;
                 rightx1 = x;
             }
-            g.setColor(hit.leftStrand == hit.rightStrand ? green : gray);
             if (leftx2 < rightx1) {
+                g.setColor(hit.leftStrand ? (hit.rightStrand ? plusplus : plusminus) : (hit.rightStrand ? minusplus : minusminus));
                 g.drawLine(leftx2, y1+h, rightx1, y1+h);
             } else {
+                g.setColor(hit.rightStrand ? (hit.leftStrand ? plusplus : plusminus) : (hit.leftStrand ? minusplus : minusminus));
                 g.drawLine(rightx2, y1+h, leftx1, y1+h);
             }
             if (leftx2 == leftx1) {leftx2++;}
@@ -116,7 +127,7 @@ public class PairedEndPainter extends RegionPaintable {
             g.drawLine(rightx1, y1+h, rightx2, y1+h);
 
             
-            h -= linewidth * 2;
+            h -= (linewidth == 1 ? 2 : linewidth);
             if (h < 0) {
                 h = height;
             }            
