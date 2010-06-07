@@ -86,15 +86,9 @@ public class PairedEndPainter extends RegionPaintable {
         Color minusminus = new Color(255,0,0,alphastep/2);
         Color plusminus = new Color(100,0,255,alphastep/2);
         Color minusplus = new Color(255,0,100,alphastep/2);
-        double mindist = getProperties().MinDistance;
-        if (mindist < 1) {
-            mindist = mindist * (regionEnd - regionStart);
-        }
 
         for (int i = 0; i < hits.size(); i++) {
             PairedHit hit = hits.get(i);
-            if (Math.abs(hit.leftPos - hit.rightPos) < mindist) { continue; }
-
 
             int leftx1 = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
             int leftx2 = getXPos(hit.leftStrand ? hit.leftPos + hit.leftLength : hit.leftPos - hit.leftLength,

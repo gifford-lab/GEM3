@@ -19,7 +19,8 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
     private Region region;
     private boolean newinput;
     private List<PairedHit> results;
-    Comparator<PairedHit> comparator;
+    private Comparator<PairedHit> comparator;
+    private PairedEndProperties props;
 
     public PairedEndModel (Collection<ChipSeqAlignment> alignments) throws IOException, ClientException{
         client = new Client();
@@ -31,8 +32,9 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
             ids.add(Integer.toString(a.getDBID()));
         }
         results = null;
+        props = new PairedEndProperties();
     }
-
+    public PairedEndProperties getProperties() {return props;}
 
     public void clearValues() {
         results = null;
@@ -60,6 +62,10 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
             if (newinput) {
                 try {
                     results = new ArrayList<PairedHit>();
+                    double mindist = getProperties().MinimumDistance;
+                    if (mindist < 1) {
+                        mindist = mindist * region.getWidth();
+                    }
                     for (String alignid : ids) {
                         List<PairedHit> r = client.getPairedHits(alignid,
                                                                  region.getGenome().getChromID(region.getChrom()),
@@ -71,7 +77,8 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                         for (PairedHit h : r) {
                             if (h.leftChrom == h.rightChrom && 
                                 h.rightPos >= region.getStart() &&
-                                h.rightPos <= region.getEnd()) {
+                                h.rightPos <= region.getEnd() &&
+                                Math.abs(h.leftPos - h.rightPos) > mindist) {
                                 results.add(h);
                             }
                         }
