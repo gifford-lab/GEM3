@@ -28,7 +28,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
  *
  * --cutoff .7 minimum percent (specify between 0 and 1) match to maximum motif score that counts as a match.
  * --filtersig .001 maximum pvalue for reporting an enrichment between the two files
- * --minfoldchange 1
+ * --minfoldchangem 1
  * --minfrac 0   minimum fraction of the sequences that must contain the motif (can be in either file)
  *
  * The comparison code will check all percent cutoffs between the value you specify as --cutoff and 1 (in increments of .05) 
@@ -50,10 +50,8 @@ import edu.mit.csail.cgs.tools.utils.Args;
  */
 
 public class CompareEnrichment {
-    static Hashtable<WeightMatrix,Integer> firstmotifcounts, secondmotifcounts;
-    static int firstseqcount, secondseqcount;
-    static double cutoffpercent, minfrac;
 
+    static double cutoffpercent, minfrac;
     static Collection<WeightMatrix> matrices;
     static Map<String,char[]> foreground, background;
     static Binomial binomial;
@@ -111,17 +109,22 @@ public class CompareEnrichment {
         result.sizeone = fgsize;
         result.sizetwo = bgsize;
         while (percent <= 1.0) {
+            percent += .05;
             double t = maxscore * percent;
             int fgcount = countMeetsThreshold(fghits, t);
             int bgcount = countMeetsThreshold(bghits, t);
             if (bgcount == 0) {
-                percent += .05;
                 continue;
             }
 
             double thetaone = ((double)fgcount) / ((double)fgsize);
             double thetatwo = ((double)bgcount) / ((double)bgsize);
             //            double pval = Math.exp(Binomial.log_binomial_significance(fgcount, fgsize, thetatwo));
+            if (fgsize <= 0 || thetatwo <= 0 || thetatwo >= 1) {
+                continue;
+            }
+
+            //            System.err.println(String.format("Setting %d and %f for %d", fgsize, thetatwo, fgcount));
             binomial.setNandP(fgsize, thetatwo);
             double pval = 1 - binomial.cdf(fgcount);
             double fc = Math.log(thetaone/ thetatwo);
@@ -140,8 +143,6 @@ public class CompareEnrichment {
             } else {
                 //                System.err.println(String.format("Rejected %f, %f  %d %d", percent, pval,fgcount,bgcount));
             }
-
-            percent += .05;
         }
         return result;
     }
@@ -233,21 +234,21 @@ public class CompareEnrichment {
             CEResult result = doScan(wm,
                                      foreground, 
                                      background);
-
+            System.err.println("Scanning " + wm.toString());
             if (result.pval < filtersig && 
                 Math.abs(result.logfoldchange) > Math.abs(Math.log(minfoldchange)) &&
                 (result.freqone > minfrac || result.freqtwo > minfrac)) {
-                    System.out.println(nf.format(result.logfoldchange) + "\t" + 
-                                       result.countone + "\t" + 
-                                       foreground.size() + "\t" + 
-                                       nf.format(result.freqone) + "\t" + 
-                                       result.counttwo + "\t" + 
-                                       background.size() + "\t" + 
-                                       nf.format(result.freqtwo) + "\t" +
-                                       nf.format(result.pval) + "\t" + 
-                                       wm.name + "\t" + 
-                                       wm.version + "\t" + 
-                                       nf.format(result.percent));
+                System.out.println(String.format("%2.1f",result.logfoldchange) + "\t" + 
+                                   result.countone + "\t" + 
+                                   foreground.size() + "\t" + 
+                                   nf.format(result.freqone) + "\t" + 
+                                   result.counttwo + "\t" + 
+                                   background.size() + "\t" + 
+                                   nf.format(result.freqtwo) + "\t" +
+                                   nf.format(result.pval) + "\t" + 
+                                   wm.name + "\t" + 
+                                   wm.version + "\t" + 
+                                   String.format("%.2f",result.percent));
             }
         }
 
