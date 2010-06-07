@@ -32,8 +32,6 @@ public class CreateAlignment {
         String conditionstring = Args.parseString(args,"condition",null);
         String paramsfname = Args.parseString(args,"paramsfile",null);
         int readlength = Args.parseInteger(args,"readlength",36);
-
-        System.err.println("Getting/Creating expt and align for " + alignpieces[0] + ";" + alignpieces[1] + ";" + alignpieces[2]);
         
         ChipSeqExpt expt = null;
         ChipSeqAlignment alignment = null;
@@ -42,6 +40,7 @@ public class CreateAlignment {
         try {
             expt = loader.loadExperiment(alignpieces[0], alignpieces[1]);
         } catch (NotFoundException e) {
+            System.err.println("Creating experiment " + alignpieces[0] + ";" + alignpieces[1] + ";" + alignpieces[2]);
             PreparedStatement insert = ChipSeqExpt.createInsert(cxn);
             insert.setString(1, alignpieces[0]);
             insert.setString(2, alignpieces[1]);
@@ -69,6 +68,7 @@ public class CreateAlignment {
         if (alignment == null) {
             try {
                 PreparedStatement insert = ChipSeqAlignment.createInsertStatement(cxn);
+                System.err.println("Creating alignment " + alignpieces[0] + ";" + alignpieces[1] + ";" + alignpieces[2]);
                 System.err.println("Inserting alignment for experiment " + expt.getDBID());
                 insert.setInt(1, expt.getDBID());
                 insert.setString(2, alignpieces[2]);
