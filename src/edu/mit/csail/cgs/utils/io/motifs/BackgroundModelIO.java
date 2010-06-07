@@ -18,6 +18,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.io.LineByLineFileReader;
 import edu.mit.csail.cgs.utils.io.LineByLineFileWriter;
+import edu.mit.csail.cgs.tools.utils.Args;
 
 /**
  * @author rca
@@ -33,7 +34,6 @@ public class BackgroundModelIO {
   public static final Pattern BG_LINE_PROBS_PATTERN = Pattern.compile(BG_LINE_PROBS_REG_EX);
 
   public static void main(String[] args) {
-  	//testing...
   	try {
   		MarkovBackgroundModel mbg = BackgroundModelIO.parseMarkovBackgroundModel("mm8.back", Organism.findGenome("mm8"));
   		BackgroundModelIO.printProbsToFile(mbg, "foo.back");
