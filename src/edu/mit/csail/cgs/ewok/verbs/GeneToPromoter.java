@@ -10,6 +10,7 @@ import java.util.Iterator;
 
 import edu.mit.csail.cgs.datasets.general.NamedStrandedRegion;
 import edu.mit.csail.cgs.datasets.species.Gene;
+import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.ewok.types.*;
 
 /**
@@ -19,30 +20,36 @@ public class GeneToPromoter
     implements Mapper<Gene,NamedStrandedRegion>, SelfDescribingVerb, DefaultConstantsParameterized {
 
     private int upstream, downstream;
-    private ArrayList<RefGeneGenerator> refgene;
+    private ArrayList<Expander<Region, ? extends Region>> dontoverlap;
     
+    /** will generate promoter regions this many bases upstream and downstream of
+     *  the gene's start site.
+     */
     public GeneToPromoter(int up, int down) {
 		upstream = up;
 		downstream = down;
-        refgene = null;
+        dontoverlap = null;
     }
-    public GeneToPromoter(int up, int down, RefGeneGenerator rg) {
+    /** will generate promoter regions this many bases upstream and downstream of
+     *  the gene's start site and that do not overlap the features returned by otherfeature.
+     */
+    public GeneToPromoter(int up, int down, Expander<Region, ? extends Region> otherfeature) {
 		upstream = up;
 		downstream = down;
-        refgene = new ArrayList<RefGeneGenerator>();
-        refgene.add(rg);
+        dontoverlap = new ArrayList<Expander<Region, ? extends Region>>();
+        dontoverlap.add(otherfeature);
     }
-    public GeneToPromoter(int up, int down, Collection<RefGeneGenerator> rg) {
+    public GeneToPromoter(int up, int down, Collection<Expander<Region, ? extends Region>> otherfeatures) {
 		upstream = up;
 		downstream = down;
-        refgene = new ArrayList<RefGeneGenerator>();
-        refgene.addAll(rg);
+        dontoverlap = new ArrayList<Expander<Region, ? extends Region>>();
+        dontoverlap.addAll(otherfeatures);
     }
     
     public GeneToPromoter() { 
         upstream = 8000;
         downstream = 2000;
-        refgene = null;
+        dontoverlap = null;
     }
 
     /* (non-Javadoc)
@@ -51,28 +58,54 @@ public class GeneToPromoter
     public NamedStrandedRegion execute(Gene a) {
         int start, stop;
         NamedStrandedRegion output = null;
+        int chrlen = a.getGenome().getChromLength(a.getChrom());
+                
         switch(a.getStrand()) { 
         case '-':
             start = a.getEnd() - downstream;
             stop = a.getEnd() + upstream;
+            if (start < 0) {
+                start = 0;
+            }
+            if (stop < 0) {
+                stop = 0;
+            }
+            if (start >= chrlen) {
+                start = chrlen - 1;
+            }
+            if (stop >= chrlen) {
+                stop = chrlen - 1;
+            }
             output = new NamedStrandedRegion(a.getGenome(), a.getChrom(), start, stop, a.getID(), a.getStrand());
             break;
         default:
         case '+':
             start = a.getStart() - upstream;
             stop = a.getStart() + downstream;
+            if (start < 0) {
+                start = 0;
+            }
+            if (stop < 0) {
+                stop = 0;
+            }
+            if (start >= chrlen) {
+                start = chrlen - 1;
+            }
+            if (stop >= chrlen) {
+                stop = chrlen - 1;
+            }
             output = new NamedStrandedRegion(a.getGenome(), a.getChrom(), start, stop, a.getID(), a.getStrand());
             break;
         }
         //        System.err.println("Gene is " + a + "  -> " + a.getStart() +","+a.getEnd()+"," + a.getStrand()); 
         //        System.err.println("Intermediate output " + output + " ->  "  + start +"," + stop);
-        if (refgene != null) {
+        if (dontoverlap != null) {
             start = output.getStart();
             stop = output.getEnd();
-            for (RefGeneGenerator generator : refgene) {
-                Iterator<Gene> iter = generator.execute(output);
+            for (Expander<Region, ? extends Region> expander : dontoverlap) {
+                Iterator<? extends Region> iter = expander.execute(output);
                 while (iter.hasNext()) {
-                    Gene other = iter.next();
+                    Region other = iter.next();
                     if (other.getStart() == a.getStart() && other.getEnd() == a.getEnd()) {
                         continue;
                     }
