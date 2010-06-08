@@ -63,6 +63,7 @@ public class ServerTask {
         haventTriedRead = 0;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
         socket.setSendBufferSize(Server.BUFFERLEN);
+        socket.setSoTimeout(1000000);
         instream = new BufferedInputStream(socket.getInputStream());
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
@@ -96,26 +97,116 @@ public class ServerTask {
         boolean avail = false;
         if (bufferpos >= buffer.length) {
             shouldClose = true;
+            System.err.println("inputAvailable: Buffer was full.  Closing");
             return false;
         }
         try {
             avail = instream.available() > 0;
-            if (avail) {
+            if (avail || haventTriedRead++ > 1000) {
+                haventTriedRead = 0;
+                socket.setSoTimeout(1);
                 int r = instream.read();
+                socket.setSoTimeout(1000000);
                 if (r == -1) {
                     avail = false;
                     shouldClose = true;
+                    System.err.println("inputAvailable: Connection Closed");
                 } else {
-                    buffer[bufferpos++] = (byte)r;
+                    synchronized(buffer) {
+                        buffer[bufferpos++] = (byte)r;
+                    }
+                    //                    System.err.println("iA has read through " + new String(buffer,0,bufferpos));
                 }
-            } else {
-                shouldClose = true;
             }                
+        } catch (SocketTimeoutException e) {
+            // timeout means the socket is still open but there's no data.  That's ok.
+            try {
+                socket.setSoTimeout(1000000);   
+            } catch (IOException e2) {
+                e2.printStackTrace();
+                avail = false;
+                shouldClose = true;                
+            }
+            avail = false;
         } catch (IOException e) {
+            e.printStackTrace();
             avail = false;
             shouldClose = true;
         }
         return avail;
+    }
+    /** prints the response header signifying a valid request.  Only happens after
+     *  the ServerTask has read enough information from the socket and done
+     *  whatever else needs doing to be sure that it can satisfy the request.
+     */
+    public void printOK() throws IOException {
+        printString("OK\n");
+    }
+    /** prints the response header signifying an invalid request
+     */
+    public void printInvalid(String reason) throws IOException {
+        printString("INVALID " + reason + "\n");
+    }
+    /** prints the response header signifying lack of permissions */
+    public void printAuthError() throws IOException {
+        printString("Permission Denied\n");
+    }
+    /** sends the string s to the client
+     */
+    public void printString(String s) throws IOException {
+        //         if (server.debug()) {
+        //        System.err.println("SEND " + s);
+        //         }
+        outstream.write(s.getBytes());
+        outstream.flush();
+    }
+    /**
+     * Reads a line from the socket and returns it
+     */
+    public String readLine() throws IOException {
+        int i = 0;
+        boolean done = false;
+        for (i = 0; i < bufferpos; i++) {
+            if (buffer[i] == '\n') {
+                String out = new String(buffer,0,i);
+                synchronized(buffer) {
+                    for (int j = 0; j < i; j++) {
+                        buffer[j] = buffer[i+j+1];
+                    }
+                    bufferpos -= i+1;
+                }
+                //System.err.println("READ EXISTING " + out);
+                return out;
+            }
+        }
+        while (instream.available() > 0 && 
+               (i = instream.read()) != -1) {
+            if (i == '\n') {
+                done = true;
+                break;
+            } else {
+                if (bufferpos >= buffer.length) {
+                    System.err.println("readline would overflow. quitting");
+                    shouldClose = true;
+                    return null;
+                }
+                buffer[bufferpos++] = (byte)i;
+            }
+        }
+        if (i == -1) {
+            shouldClose = true;
+            System.err.println("read error in readline. quitting");
+            return null;
+        }
+        if (done) {
+            String out = new String(buffer,0,bufferpos);
+            bufferpos = 0;
+            //System.err.println("READ " + out);
+            return out;
+        } else {
+            //System.err.println("incomplete line in readline");
+            return null;
+        }
     }
     /**
      * main method for the task.  This method is asynchronous- it shouldn't block too long on the client.  It does block
@@ -136,6 +227,7 @@ public class ServerTask {
         try {
             if (username == null) {
                 if (!authenticate()) {
+                    System.err.println("Authenticate failed");
                     printAuthError();
                     shouldClose = true;
                     return;
@@ -183,6 +275,88 @@ public class ServerTask {
             return;
         }
     }
+    /**
+     * performs authentication exchange over the socket and sets the username field
+     * if successful.  Returns true if authenticate should continue or is successful.
+     * Returns false if authenticate has failed.
+     */
+    public boolean authenticate() throws IOException {
+        /* The SASL client and server give you back bytes to send
+           to the other side.  We achieve this by sending a length
+           line first (ascii encoded integer followed by '\n')
+           and then the raw bytes of the SASL exchange.  Two complexities:
+           1) input.read() doesn't necessarily read the expected number
+           of bytes all at once, so we have to loop around it until
+           it does.
+           2) I had problems with isComplete() returning true at different
+           times in the client and server.  The server sends an isComplete() byte
+           at the end of the loop to tell the client when it's done.
+        */
+        if (uname == null) {
+            uname = readLine();
+            if (uname == null) {
+                return true;
+            }
+        }
+        //        System.err.println("Going to auth for " + uname);
+        if (sasl == null) {
+            sasl = Sasl.createSaslServer(Server.SaslMechanisms[0],
+                                         "readdb",
+                                         socket.getInetAddress().getCanonicalHostName(),
+                                         saslprops,
+                                         new ServerTaskCallbackHandler(server,uname));
+        }
+        if (sasl == null || sasl.isComplete()) {
+            outstream.write("0\n".getBytes());
+            outstream.write((byte)0);
+            outstream.flush();
+            server.getLogger().log(Level.INFO,"Failed Authentication for " + uname);
+            return false;
+        }
+        while (!sasl.isComplete()) {
+            try {
+                String l = readLine();
+                if (l == null) {
+                    return true;
+                }
+                int length = Integer.parseInt(l);
+                byte[] response = new byte[length];
+                int read = 0;
+                while (read < length) {
+                    read += instream.read(response, read, length - read);
+                }                
+                byte[] challenge = sasl.evaluateResponse(response);
+                if (challenge == null) {
+                    challenge = new byte[0];
+                }
+                //                System.err.println("Got challenge of length " +  challenge.length + " in response to length " + read);
+                String s = challenge.length + "\n";
+                outstream.write(s.getBytes());
+                outstream.write(challenge);
+                outstream.write(sasl.isComplete() ? (byte)0 : (byte)1);
+                outstream.flush();
+                //                System.err.println("authenticate complete ? " + sasl.isComplete());
+            } catch (Exception e) {
+                System.err.println("CAUGHT AN EXCEPTION IN AUTHENTICATE");
+                e.printStackTrace();
+                outstream.write("0\n".getBytes());
+                outstream.write((byte)0);
+                outstream.flush();
+                break;
+            }
+        }
+        if (sasl.isComplete() && sasl.getAuthorizationID().equals(uname)) {
+            username = sasl.getAuthorizationID();
+            sasl.dispose();
+            return true;
+        } else {
+            sasl.dispose();
+            server.getLogger().log(Level.INFO,"Failed Authentication for " + uname);
+            return false;
+        }
+
+    }
+
 
     /** reads and handles a request on the Socket.
      */
@@ -198,6 +372,7 @@ public class ServerTask {
             } else if (request.type.equals("storepaired")) {
                 processPairedStore();
             } else if (request.type.equals("bye")) {
+                System.err.println("Got bye. quitting");
                 shouldClose = true;
             } else if (request.type.equals("getchroms")) {
                 processGetChroms();
@@ -301,87 +476,6 @@ public class ServerTask {
         header = null;
     }
 
-    /**
-     * performs authentication exchange over the socket and sets the username field
-     * if successful.  Returns true if authenticate should continue or is successful.
-     * Returns false if authenticate has failed.
-     */
-    public boolean authenticate() throws IOException {
-        /* The SASL client and server give you back bytes to send
-           to the other side.  We achieve this by sending a length
-           line first (ascii encoded integer followed by '\n')
-           and then the raw bytes of the SASL exchange.  Two complexities:
-           1) input.read() doesn't necessarily read the expected number
-           of bytes all at once, so we have to loop around it until
-           it does.
-           2) I had problems with isComplete() returning true at different
-           times in the client and server.  The server sends an isComplete() byte
-           at the end of the loop to tell the client when it's done.
-        */
-        if (uname == null) {
-            uname = readLine();
-            if (uname == null) {
-                return true;
-            }
-        }
-        if (sasl == null) {
-            sasl = Sasl.createSaslServer(Server.SaslMechanisms[0],
-                                         "readdb",
-                                         socket.getInetAddress().getCanonicalHostName(),
-                                         saslprops,
-                                         new ServerTaskCallbackHandler(server,uname));
-        }
-        if (sasl == null || sasl.isComplete()) {
-            outstream.write("0\n".getBytes());
-            outstream.write((byte)0);
-            outstream.flush();
-            server.getLogger().log(Level.INFO,"Failed Authentication for " + uname);
-            return false;
-        }
-        while (!sasl.isComplete()) {
-            try {
-                String l = readLine();
-                if (l == null) {
-                    return true;
-                }
-                int length = Integer.parseInt(l);
-                byte[] response = new byte[length];
-                int read = 0;
-                while (read < length) {
-                    read += instream.read(response, read, length - read);
-                    //                    System.err.println("   read " + read);
-                }                
-                byte[] challenge = sasl.evaluateResponse(response);
-                if (challenge == null) {
-                    challenge = new byte[0];
-                }
-                //                System.err.println("Got challenge of length " +  challenge.length + " in response to length " + read);
-                String s = challenge.length + "\n";
-                outstream.write(s.getBytes());
-                outstream.write(challenge);
-                outstream.write(sasl.isComplete() ? (byte)0 : (byte)1);
-                outstream.flush();
-                //                System.err.println("authenticate complete ? " + sasl.isComplete());
-            } catch (Exception e) {
-                System.err.println("CAUGHT AN EXCEPTION IN AUTHENTICATE");
-                e.printStackTrace();
-                outstream.write("0\n".getBytes());
-                outstream.write((byte)0);
-                outstream.flush();
-                break;
-            }
-        }
-        if (sasl.isComplete() && sasl.getAuthorizationID().equals(uname)) {
-            username = sasl.getAuthorizationID();
-            sasl.dispose();
-            return true;
-        } else {
-            sasl.dispose();
-            server.getLogger().log(Level.INFO,"Failed Authentication for " + uname);
-            return false;
-        }
-
-    }
     /* returns true iff the user named in the username field is allowed to
        access this file
     */
@@ -404,73 +498,6 @@ public class ServerTask {
             }
         }
         return false;
-    }
-    /** prints the response header signifying a valid request.  Only happens after
-     *  the ServerTask has read enough information from the socket and done
-     *  whatever else needs doing to be sure that it can satisfy the request.
-     */
-    public void printOK() throws IOException {
-        printString("OK\n");
-    }
-    /** prints the response header signifying an invalid request
-     */
-    public void printInvalid(String reason) throws IOException {
-        printString("INVALID " + reason + "\n");
-    }
-    /** prints the response header signifying lack of permissions */
-    public void printAuthError() throws IOException {
-        printString("Permission Denied\n");
-    }
-    /** sends the string s to the client
-     */
-    public void printString(String s) throws IOException {
-        //         if (server.debug()) {
-        //        System.err.println("SEND " + s);
-        //         }
-        outstream.write(s.getBytes());
-        outstream.flush();
-    }
-    /**
-     * Reads a line from the socket and returns it
-     */
-    public String readLine() throws IOException {
-        int i = 0;
-        boolean done = false;
-        for (i = 0; i < bufferpos; i++) {
-            if (buffer[i] == '\n') {
-                String out = new String(buffer,0,i);
-                for (int j = 0; j < i; j++) {
-                    buffer[j] = buffer[i+j+1];
-                }
-                bufferpos -= i+1;
-                return out;
-            }
-        }
-        while (instream.available() > 0 && 
-               (i = instream.read()) != -1) {
-            if (i == '\n') {
-                done = true;
-                break;
-            } else {
-                if (bufferpos >= buffer.length) {
-                    shouldClose = true;
-                    return null;
-                }
-                buffer[bufferpos++] = (byte)i;
-            }
-        }
-        if (i == -1) {
-            shouldClose = true;
-            return null;
-        }
-        if (done) {
-            String out = new String(buffer,0,bufferpos);
-            bufferpos = 0;
-            //            System.err.println("READ " + out);
-            return out;
-        } else {
-            return null;
-        }
     }
     public void processAddToGroup() throws IOException {
         String princ = request.map.get("princ");

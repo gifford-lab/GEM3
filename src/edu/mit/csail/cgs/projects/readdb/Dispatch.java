@@ -35,6 +35,7 @@ public class Dispatch implements Runnable {
      * be run.  Called by Server when it accepts a new connection.
      */
     public void addWork(ServerTask s) {
+        System.err.println("workqueue size is " + workQueue.size() + "\n");
         while (workQueue.size() > maxConnections) {
             try {
                 if (warnedMaxConn++ % 100 == 0) {
@@ -101,10 +102,10 @@ public class Dispatch implements Runnable {
                 } else {
                     noInputAvailable++;
                     workQueue.add(s);
-                    if (noInputAvailable > 1000) {
+                    if (noInputAvailable > 10) {
                         try {
                             synchronized(this) {
-                                wait(2);
+                                wait(1);
                             }
                         } catch (InterruptedException e) {}                
                         noInputAvailable = 0;

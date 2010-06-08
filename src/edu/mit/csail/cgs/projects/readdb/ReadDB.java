@@ -27,7 +27,7 @@ public class ReadDB {
 
     private Client client;
     private String[] otherargs;
-    private boolean paired, isleft;
+    private boolean paired, isleft, noclose;
 
     public static void main(String args[]) {
         ReadDB readdb = null;
@@ -38,7 +38,7 @@ public class ReadDB {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (readdb != null && readdb.client != null) {
+            if (readdb != null && readdb.client != null && !readdb.noclose) {
                 readdb.client.close();
             }
         }
@@ -55,6 +55,7 @@ public class ReadDB {
         options.addOption("p","passwd",true,"password");
         options.addOption("d","paired",false,"work on paired alignment?");
         options.addOption("r","right",false,"query right side reads when querying paired alignments");
+        options.addOption("C","noclose",false,"don't close the connection.  For debugging only");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
         String hostname = null, username = null, password = null;
@@ -78,6 +79,7 @@ public class ReadDB {
         }
         paired = line.hasOption("paired");
         isleft = !line.hasOption("right");
+        noclose = line.hasOption("noclose");
         otherargs = line.getArgs();
     }
 
