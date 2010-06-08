@@ -32,7 +32,7 @@ public class ServerTask {
     private Socket socket;
     private int haventTriedRead;
     //    private BufferedInputStream instream;
-    private PushbackInputStream instream;
+    private BufferedInputStream instream;
     private OutputStream outstream;
     private WritableByteChannel outchannel;
     /* if authenticate was successful, this holds a username.  Null otherwise */
@@ -63,7 +63,7 @@ public class ServerTask {
         haventTriedRead = 0;
         socket.setReceiveBufferSize(Server.BUFFERLEN);
         socket.setSendBufferSize(Server.BUFFERLEN);
-        instream = new PushbackInputStream(new BufferedInputStream(socket.getInputStream()));
+        instream = new BufferedInputStream(socket.getInputStream());
         outstream = socket.getOutputStream();
         outchannel = Channels.newChannel(outstream);
         bufferpos = 0;
@@ -94,29 +94,24 @@ public class ServerTask {
     }
     public boolean inputAvailable() {
         boolean avail = false;
+        if (bufferpos >= buffer.length) {
+            shouldClose = true;
+            return false;
+        }
         try {
-            if (!socket.isClosed() && socket.isConnected()) {
-                avail = instream.available() > 0;
-                if (avail) {
-                    int r = instream.read();
-                    if (r == -1) {
-                        avail = false;
-                        shouldClose = true;
-                    } else {
-                        instream.unread(r);
-                    }
+            avail = instream.available() > 0;
+            if (avail) {
+                int r = instream.read();
+                if (r == -1) {
+                    avail = false;
+                    shouldClose = true;
+                } else {
+                    buffer[bufferpos++] = (byte)r;
                 }
-
             } else {
-                //                 if (server.debug()) {
-                //                     System.err.println("Setting shouldClose 1 " + socket + " for " + this);
-                //                 }
                 shouldClose = true;
             }                
         } catch (IOException e) {
-            //             if (server.debug()) {
-            //                 System.err.println("Setting shouldClose 2 " + socket + " for " + this);
-            //             }
             avail = false;
             shouldClose = true;
         }
@@ -154,7 +149,7 @@ public class ServerTask {
             while (true) {
                 String p = readLine();
                 if (p == null) { 
-                    return; 
+                    break;
                 } else {
                     if (p.equals("ENDREQUEST")) {
                         String error = request.parse(args);
@@ -171,7 +166,7 @@ public class ServerTask {
                         args.add(p);
                         if (args.size() > MAXPARAMLINES) {                            
                             shouldClose = true;
-                            return;
+                            break;
                         }
                     }
                 }
@@ -441,14 +436,26 @@ public class ServerTask {
     public String readLine() throws IOException {
         int i = 0;
         boolean done = false;
-        boolean readany = false;
+        for (i = 0; i < bufferpos; i++) {
+            if (buffer[i] == '\n') {
+                String out = new String(buffer,0,i);
+                for (int j = 0; j < i; j++) {
+                    buffer[j] = buffer[i+j+1];
+                }
+                bufferpos -= i+1;
+                return out;
+            }
+        }
         while (instream.available() > 0 && 
                (i = instream.read()) != -1) {
-            readany = true;
             if (i == '\n') {
                 done = true;
                 break;
             } else {
+                if (bufferpos >= buffer.length) {
+                    shouldClose = true;
+                    return null;
+                }
                 buffer[bufferpos++] = (byte)i;
             }
         }
@@ -456,13 +463,6 @@ public class ServerTask {
             shouldClose = true;
             return null;
         }
-        // if (!readany) {
-        //     System.err.println("Someone called readLine with no input available.  They Lose!");
-        //     shouldClose = true;
-        //     return null;
-        // }
-
-
         if (done) {
             String out = new String(buffer,0,bufferpos);
             bufferpos = 0;
