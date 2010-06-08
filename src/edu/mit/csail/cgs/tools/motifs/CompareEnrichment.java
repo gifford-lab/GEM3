@@ -28,7 +28,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
  *
  * --cutoff .7 minimum percent (specify between 0 and 1) match to maximum motif score that counts as a match.
  * --filtersig .001 maximum pvalue for reporting an enrichment between the two files
- * --minfoldchangem 1
+ * --minfoldchange 1
  * --minfrac 0   minimum fraction of the sequences that must contain the motif (can be in either file)
  *
  * The comparison code will check all percent cutoffs between the value you specify as --cutoff and 1 (in increments of .05) 
@@ -51,7 +51,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 
 public class CompareEnrichment {
 
-    static double cutoffpercent, minfrac;
+    static double cutoffpercent, minfrac, minfoldchange, filtersig;
     static Collection<WeightMatrix> matrices;
     static Map<String,char[]> foreground, background;
     static Binomial binomial;
@@ -127,10 +127,12 @@ public class CompareEnrichment {
             //            System.err.println(String.format("Setting %d and %f for %d", fgsize, thetatwo, fgcount));
             binomial.setNandP(fgsize, thetatwo);
             double pval = 1 - binomial.cdf(fgcount);
-            double fc = Math.log(thetaone/ thetatwo);
-            if (pval < result.pval && 
-                Math.abs(fc) > Math.abs(result.logfoldchange) &&
-                (thetaone > minfrac || thetatwo > minfrac)) {
+            double fc = Math.log(thetaone / thetatwo);
+            if (pval <= filtersig && 
+                pval <= result.pval && 
+                Math.abs(fc) >= Math.abs(result.logfoldchange) &&
+                Math.abs(fc) >= Math.abs(Math.log(minfoldchange)) &&
+                (thetaone >= minfrac || thetatwo >= minfrac)) {
                 result.pval = pval;
                 result.percent = percent;
                 result.cutoff = t;
@@ -139,9 +141,9 @@ public class CompareEnrichment {
                 result.logfoldchange = fc;
                 result.freqone = thetaone;
                 result.freqtwo = thetatwo;
-                //                System.err.println(String.format("Accepted %f, %f  %d %d", percent, pval,fgcount,bgcount));
+                //                System.err.println(String.format("Accepted %f, %d and %d give %f and %f. fc %f.  thresh %f ", pval, fgcount, bgcount, thetaone, thetatwo, fc, t));
             } else {
-                //                System.err.println(String.format("Rejected %f, %f  %d %d", percent, pval,fgcount,bgcount));
+                //                System.err.println(String.format("Rejected %f, %d and %d give %f and %f. fc %f.  thresh %f ", pval, fgcount, bgcount, thetaone, thetatwo, fc, t));
             }
         }
         return result;
@@ -187,8 +189,8 @@ public class CompareEnrichment {
         matrices.addAll(WeightMatrix.getAllWeightMatrices());
 
         cutoffpercent = Args.parseDouble(args,"cutoff",.3);
-        double filtersig = Args.parseDouble(args,"filtersig",.001);
-        double minfoldchange = Args.parseDouble(args,"minfoldchange",1);
+        filtersig = Args.parseDouble(args,"filtersig",.001);
+        minfoldchange = Args.parseDouble(args,"minfoldchange",1);
         minfrac = Args.parseDouble(args,"minfrac",0);
         accept = Args.parseStrings(args,"accept");
         reject = Args.parseStrings(args,"reject");
@@ -235,9 +237,9 @@ public class CompareEnrichment {
                                      foreground, 
                                      background);
             System.err.println("Scanning " + wm.toString());
-            if (result.pval < filtersig && 
-                Math.abs(result.logfoldchange) > Math.abs(Math.log(minfoldchange)) &&
-                (result.freqone > minfrac || result.freqtwo > minfrac)) {
+            if (result.pval <= filtersig && 
+                Math.abs(result.logfoldchange) >= Math.abs(Math.log(minfoldchange)) &&
+                (result.freqone >= minfrac || result.freqtwo >= minfrac)) {
                 System.out.println(String.format("%2.1f",result.logfoldchange) + "\t" + 
                                    result.countone + "\t" + 
                                    foreground.size() + "\t" + 
