@@ -78,7 +78,7 @@ public class Dispatch implements Runnable {
     public void run() {
         int noTasksWaiting = 0;
         int noInputAvailable = 0;
-        int noThreadsFree = 0;
+        int sleep = server.getSleepiness();
         while (server.keepRunning()) {            
             if (workQueue.size() > 0) {
                 noTasksWaiting = 0;
@@ -86,7 +86,6 @@ public class Dispatch implements Runnable {
                 if (s.shouldClose()) {
                     System.err.println("run loop closing task " + s);
                     s.close();
-                    noInputAvailable = 0;
                 } else if (s.inputAvailable()) {
                     while (freePool.size() == 0) {                        
                         try {
@@ -98,14 +97,13 @@ public class Dispatch implements Runnable {
                     WorkerThread w = freePool.remove(0);
                     w.handle(s);
                     noInputAvailable = 0;
-                    noThreadsFree = 0;
                 } else {
                     noInputAvailable++;
                     workQueue.add(s);
-                    if (noInputAvailable > 10) {
+                    if (noInputAvailable > workQueue.size() * 2) {
                         try {
                             synchronized(this) {
-                                wait(1);
+                                wait(sleep);
                             }
                         } catch (InterruptedException e) {}                
                         noInputAvailable = 0;
@@ -115,7 +113,7 @@ public class Dispatch implements Runnable {
                 noTasksWaiting++;
                 try {
                     synchronized(this) {
-                        wait(2);
+                        wait(sleep*2);
                     }
                 } catch (InterruptedException e) {}                
             } 

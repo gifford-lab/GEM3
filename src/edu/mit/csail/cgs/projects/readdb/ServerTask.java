@@ -372,7 +372,6 @@ public class ServerTask {
             } else if (request.type.equals("storepaired")) {
                 processPairedStore();
             } else if (request.type.equals("bye")) {
-                System.err.println("Got bye. quitting");
                 shouldClose = true;
             } else if (request.type.equals("getchroms")) {
                 processGetChroms();
