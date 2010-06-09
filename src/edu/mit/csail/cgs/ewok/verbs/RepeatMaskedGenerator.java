@@ -32,7 +32,7 @@ public class RepeatMaskedGenerator<X extends Region> implements Expander<X,Repea
             }
             String tablename = onetable ? "rmsk" : (chr + "_rmsk");
             PreparedStatement ps = cxn.prepareStatement("select genoStart, genoEnd, strand, repName, repClass, repFamily, swScore from " + tablename + 
-                                                        " where genoName = ? and (genoStart <= ? and genoEnd >= ?) or (genoStart >= ? and genoStart <= ?) order by genoStart");
+                                                        " where genoName = ? and ((genoStart <= ? and genoEnd >= ?) or (genoStart >= ? and genoStart <= ?)) order by genoStart");
             ps.setString(1,chr);
             ps.setInt(2,region.getStart());
             ps.setInt(3,region.getStart());
