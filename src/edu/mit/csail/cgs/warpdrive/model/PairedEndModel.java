@@ -82,10 +82,8 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                                 results.add(h);
                             }
                         }
-                        Collections.sort(results, comparator);
-
                     }
-
+                    Collections.sort(results, comparator);
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     // assign empty output.  This is useful because Client
