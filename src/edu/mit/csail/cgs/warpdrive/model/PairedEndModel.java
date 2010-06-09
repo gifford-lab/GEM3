@@ -84,6 +84,22 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                         }
                     }
                     Collections.sort(results, comparator);
+                    if (getProperties().DeDuplicateByPosition && results.size() > 0) {
+                        ArrayList<PairedHit> deduped = new ArrayList<PairedHit>();
+                        deduped.add(results.get(0));
+                        for (int i = 1; i < results.size(); i++) {
+                            PairedHit a = results.get(i);
+                            PairedHit b = deduped.get(deduped.size() - 1);
+                            if (a.leftPos != b.leftPos ||
+                                a.rightPos != b.rightPos ||
+                                a.leftStrand != b.leftStrand ||
+                                a.rightStrand != b.rightStrand) {
+                                deduped.add(a);
+                            }
+                        }
+                        results = deduped;
+                    }
+
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     // assign empty output.  This is useful because Client
