@@ -117,7 +117,28 @@ public class Args {
         }
         return output;
     }
-    
+   
+    /**
+     * Parses all the doubles of the arguments that are named by <tt>key</tt>
+     * and returns them as a <tt>Collection</tt> of <tt>Doubles</tt> <br>
+     * Example: parseDoubles(args, "foo"); 
+     * where args ={"--foo", "3.2", "--min", "2.5", "--foo", "4.3"}  returns [3.2, 4.3].
+     * @param args arguments of the command line
+     * @param key the argument named by <tt>key</tt>
+     * @return
+     */
+    public static Collection<Double> parseDoubles(String args[], String key) {
+    	ArrayList<Double> output = new ArrayList<Double>();
+        if (!key.matches("^\\-\\-.*")) {
+            key = "--" + key;
+        }
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals(key)) {
+                output.add(new Double(args[++i]));
+            }
+        }
+        return output;
+    }
     
     /** Parses a long from the specified command line.
      * @see edu.mit.csail.cgs.tools.utils.Args.parseInteger
