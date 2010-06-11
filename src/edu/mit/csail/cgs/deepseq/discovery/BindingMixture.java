@@ -2978,7 +2978,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					List<StrandedBase>[] curr_channel_cond_signals = new List[2];
 					curr_channel_cond_signals[0] = new ArrayList<StrandedBase>(); // '+' strand
 					curr_channel_cond_signals[1] = new ArrayList<StrandedBase>(); // '-' strand
-					if(channel==0 || (channel==1 && controlDataExist)) { 
+					if(channel==0 || (channel==1 && controlDataExist)) {
 						for(StrandedBase sb:curr_chrom_signals.get(channel).get(t)) {
 							if(sb.getStrand() == '+')
 								curr_channel_cond_signals[0].add(sb);
