@@ -3002,7 +3002,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							for(StrandedBase sb:curr_channel_cond_signals[k])
 								currChromFivePrimesList[channel][t][k].add(sb.getCoordinate());
 						}
-						
 						Collections.sort(currChromFivePrimesList[channel][t][k]);
 					}
 				}
