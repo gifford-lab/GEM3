@@ -2986,21 +2986,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								curr_channel_cond_signals[1].add(sb);
 						}
 					}
-			
+					
 					for(int k = 0; k <= 1; k++) {
 						if(channel==0 || (channel==1 && controlDataExist)) {
 							for(StrandedBase sb:curr_channel_cond_signals[k])
 								currChromFivePrimesList[channel][t][k].add(sb.getCoordinate());
 						}
-						else if (channel==1 && !controlDataExist) {
+						else if(channel==1 && !controlDataExist) {
 							for(StrandedBase sb:curr_chrom_signals.get(channel-1).get(t)) {
 								if(sb.getStrand() == '+')
 									curr_channel_cond_signals[0].add(sb);
 								else
 									curr_channel_cond_signals[1].add(sb);
 							}
-							for(StrandedBase sb:curr_channel_cond_signals[k])
-								currChromFivePrimesList[channel][t][k].add(sb.getCoordinate());
 						}
 						Collections.sort(currChromFivePrimesList[channel][t][k]);
 					}
