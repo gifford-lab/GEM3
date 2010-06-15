@@ -54,22 +54,26 @@ public class BEDFileReader extends AlignmentFileReader {
 	            	//}
 	            	//String tag = words[3];
 	            	//if(tag.equals("U") || (useNonUnique && words.length>9 && tag.charAt(0)=='R')){
-            			chr = words[0];
-            			String[] tmp = chr.split("\\.");
-            			chr=tmp[0].replaceFirst("chr", "");
-            			chr=chr.replaceFirst("^>", "");
-            			start = new Integer(words[1]).intValue();
-            			end = new Integer(words[2]).intValue();
-            			if(readLength==-1)
-    	    				readLength = end-start+1;
-            			strand = words[5].charAt(0);
-    					ReadHit currHit = new ReadHit(gen,currID,chr, start, end, strand);
-    					currID++;
-    					//if(!ID.equals(lastID) || currRead==null){
-    					currRead = new Read((int)totalWeight);
-    					totalWeight++;
-    	            	//}
-    					currRead.addHit(currHit);
+	            		try{
+	            			chr = words[0];
+	            			String[] tmp = chr.split("\\.");
+	            			chr=tmp[0].replaceFirst("chr", "");
+	            			chr=chr.replaceFirst("^>", "");
+	            			start = new Integer(words[1]).intValue();
+	            			end = new Integer(words[2]).intValue();
+	            			if(readLength==-1)
+	    	    				readLength = end-start+1;
+	            			strand = words[5].charAt(0);
+	    					ReadHit currHit = new ReadHit(gen,currID,chr, start, end, strand);
+	    					currID++;
+	    					//if(!ID.equals(lastID) || currRead==null){
+	    					currRead = new Read((int)totalWeight);
+	    					totalWeight++;
+	    	            	//}
+	    					currRead.addHit(currHit);
+	            		} catch (NumberFormatException e){
+	            			// skip reading this line for header or comment lines
+	            		}
 	    			//}
 	            	//lastID=ID;
 	        	}

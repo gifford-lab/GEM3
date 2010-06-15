@@ -48,8 +48,8 @@ public class MethodComparisonMotifAnalysis {
 	private String[] args;
 	private String motifString;
 	private WeightMatrix motif = null;
-	protected String outName="out";
-
+	private String outName="out";
+	private boolean unspecified_species=false;
 	
 	// each element in the list is for one ChIP-Seq method
 	private ArrayList<String> methodNames = new ArrayList<String>();
@@ -114,7 +114,10 @@ public class MethodComparisonMotifAnalysis {
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
-
+	    
+	    Set<String> flags = Args.parseFlags(args);
+	    unspecified_species = flags.contains("unspecified_species");
+	    
 		// some parameters
 		windowSize = Args.parseInteger(args, "windowSize", 50);
 		isPreSorted = Args.parseInteger(args, "isPreSorted", 0)==1;
@@ -135,7 +138,7 @@ public class MethodComparisonMotifAnalysis {
 			motifString = Args.parseString(args, "motif", null);
 			String motifVersion = Args.parseString(args, "version", null);
 //			Organism org_mouse = new Organism("Mus musculus");
-			int wmid = WeightMatrix.getWeightMatrixID(org.getDBID(), motifString, motifVersion);
+			int wmid = WeightMatrix.getWeightMatrixID(unspecified_species?0:org.getDBID(), motifString, motifVersion);
 			motif = WeightMatrix.getWeightMatrix(wmid);
 		} 
 		catch (NotFoundException e) {
@@ -231,7 +234,7 @@ public class MethodComparisonMotifAnalysis {
 		
 		// output results, the spatial resolution (offset) 
 		StringBuilder sb = new StringBuilder();
-		sb.append(msg+"\n");
+		sb.append(args+"\t"+msg+"\n");
 		sb.append("MotifHit\tChrom\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"\t");
@@ -265,7 +268,7 @@ public class MethodComparisonMotifAnalysis {
 		
 		// output results, the spatial resolution (offset) 
 		sb = new StringBuilder();
-		sb.append(msg+"\n");
+		sb.append(args+"\t"+msg+"\n");
 		sb.append("MotifHit\tChrom\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"_offset\t");
@@ -320,7 +323,7 @@ public class MethodComparisonMotifAnalysis {
 		}		
 		// output results
 		sb = new StringBuilder();
-		sb.append(msg+"\n");
+		sb.append(args+"\t"+msg+"\n");
 		sb.append("Rank\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"\t");
