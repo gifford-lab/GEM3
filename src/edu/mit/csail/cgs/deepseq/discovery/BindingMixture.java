@@ -479,7 +479,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         		ratio_non_specific_total[i]=1;
         	}
         }
-		log(1, "\nmax_HitCount_per_base = "+max_HitCount_per_base);
+        if (development_mode)
+        	log(1, "\nmax_HitCount_per_base = "+max_HitCount_per_base);
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
 	}
 
