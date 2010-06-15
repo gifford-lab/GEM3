@@ -15,9 +15,11 @@ import edu.mit.csail.cgs.utils.database.*;
 public class RepeatMaskedGenerator<X extends Region> implements Expander<X,RepeatMaskedRegion> {
 
     private Genome genome;
+    private boolean onetable;
     
     public RepeatMaskedGenerator(Genome g) {
         genome = g;
+        onetable = false;
     }
 
     public Iterator<RepeatMaskedRegion> execute(X region) {
@@ -28,13 +30,14 @@ public class RepeatMaskedGenerator<X extends Region> implements Expander<X,Repea
             if (!chr.matches("^(chr|scaffold).*")) {
                 chr = "chr" + chr;
             }
-            String tablename = chr + "_rmsk";
+            String tablename = onetable ? "rmsk" : (chr + "_rmsk");
             PreparedStatement ps = cxn.prepareStatement("select genoStart, genoEnd, strand, repName, repClass, repFamily, swScore from " + tablename + 
-                                                        " where (genoStart <= ? and genoEnd >= ?) or (genoStart >= ? and genoStart <= ?) order by genoStart");
-            ps.setInt(1,region.getStart());
+                                                        " where genoName = ? and ((genoStart <= ? and genoEnd >= ?) or (genoStart >= ? and genoStart <= ?)) order by genoStart");
+            ps.setString(1,chr);
             ps.setInt(2,region.getStart());
             ps.setInt(3,region.getStart());
-            ps.setInt(4,region.getEnd());
+            ps.setInt(4,region.getStart());
+            ps.setInt(5,region.getEnd());
             ResultSet rs = ps.executeQuery();
             ArrayList<RepeatMaskedRegion> results = new ArrayList<RepeatMaskedRegion>();
             while (rs.next()) {
@@ -53,7 +56,13 @@ public class RepeatMaskedGenerator<X extends Region> implements Expander<X,Repea
             DatabaseFactory.freeConnection(cxn);
             return results.iterator();
         } catch (SQLException ex) {
-            throw new DatabaseException("Couldn't get UCSC repeat masked regions",ex);
+            ex.printStackTrace();
+            if (!onetable) {
+                onetable = true;
+                return execute(region);
+            } else {
+                throw new DatabaseException("Couldn't get UCSC repeat masked regions",ex);
+            }
         }
     }
 }

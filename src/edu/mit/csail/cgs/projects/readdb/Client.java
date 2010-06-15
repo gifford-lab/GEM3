@@ -164,7 +164,7 @@ public class Client implements ReadOnlyClient {
     /** sends a string to the server and flushes the socket 
      */
     private void sendString(String s) throws IOException {
-        //        System.err.println("SENDING " + s);
+        //System.err.println("SENDING " + s);
         outstream.write(s.getBytes());
         outstream.flush();
     }
@@ -181,7 +181,7 @@ public class Client implements ReadOnlyClient {
             }
         }
         String out = new String(buffer,0,pos);
-        //        System.err.println("READ " + out);
+        //System.err.println("READ " + out);
         return out;
     }
     public void shutdown() throws IOException, ClientException{

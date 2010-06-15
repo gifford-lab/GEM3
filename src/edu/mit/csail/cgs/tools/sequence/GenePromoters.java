@@ -9,6 +9,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.general.*;
 import edu.mit.csail.cgs.ewok.verbs.*;
+import edu.mit.csail.cgs.ewok.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 
 /**
@@ -49,7 +50,35 @@ public class GenePromoters {
         toFasta = Args.parseFlags(args).contains("fasta");
         dontOverlapOrfs = Args.parseFlags(args).contains("dontoverlaporfs");
         if (dontOverlapOrfs) {
-            promgen = new GeneToPromoter(upstream, downstream, geneGenerators);
+            Collection<Expander<Region, ? extends Region>> dontoverlap =
+                new ArrayList<Expander<Region, ? extends Region>>();
+            for (RefGeneGenerator g : geneGenerators) {
+                dontoverlap.add(g);
+            }
+            try {
+                RegionExpanderFactoryLoader<NamedTypedRegion> annotLoader =
+                    new RegionExpanderFactoryLoader<NamedTypedRegion>("annots");
+                RegionExpanderFactory factory = annotLoader.getFactory(genome,
+                                                                       "repBase");
+                dontoverlap.add(factory.getExpander(genome));
+                System.err.println("Also filtering against repbase");
+            } catch (Exception e) {
+                System.err.println("Trying to add repbase to list of things not to overlap (will continue):");
+                e.printStackTrace();
+            }
+            try {
+                RegionExpanderFactoryLoader<NamedTypedRegion> annotLoader =
+                    new RegionExpanderFactoryLoader<NamedTypedRegion>("annots");
+                RegionExpanderFactory factory = annotLoader.getFactory(genome,
+                                                                       "sgdOther");
+                dontoverlap.add(factory.getExpander(genome));
+                System.err.println("Also filtering against sgdOther");
+            } catch (Exception e) {
+                System.err.println("Trying to add sgdOther to list of things not to overlap (will continue):");
+                e.printStackTrace();
+            }
+            
+            promgen = new GeneToPromoter(upstream, downstream, dontoverlap);
         } else {
             promgen = new GeneToPromoter(upstream, downstream);
         }

@@ -22,6 +22,12 @@ public class PairedHitLeftComparator implements Comparator<PairedHit> {
                 result = a.rightChrom - b.rightChrom;
             }
         }
+        if (result == 0) {
+            result = a.leftLength - b.leftLength;
+        }
+        if (result == 0) {
+            result = a.rightLength - b.rightLength;
+        }
         return result;
     }
 }

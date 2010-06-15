@@ -24,7 +24,7 @@ public class Query {
     private String hostname;
     private String username, password;
     private int portnum, histogram = -1;
-    private boolean quiet, weights, paired, isleft;
+    private boolean quiet, weights, paired, isleft, noheader;
     
 
     public static void main(String args[]) throws Exception {
@@ -45,6 +45,7 @@ public class Query {
         options.addOption("H","histogram",true,"produce a histogram with this binsize instead of printing all read positions");
         options.addOption("d","paired",false,"work on paired alignment?");
         options.addOption("r","right",false,"query right side reads when querying paired alignments");
+        options.addOption("N","noheader",false,"skip printing the query header");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
         if (line.hasOption("port")) {
@@ -79,6 +80,7 @@ public class Query {
         weights = line.hasOption("weights");
         paired = line.hasOption("paired");
         isleft = !line.hasOption("right");
+        noheader = line.hasOption("noheader");
     }
 
     public void run(InputStream instream) throws IOException, ClientException {
@@ -143,7 +145,9 @@ public class Query {
                                                                     null,
                                                                     strand);
                         if (!quiet) {
-                            System.out.println(line);
+                            if (!noheader) {
+                                System.out.println(line);
+                            }
                             for (PairedHit h : hits) {
                                 System.out.println(h.toString());
                             }
@@ -156,7 +160,9 @@ public class Query {
                                                                     null,
                                                                     strand);
                         if (!quiet) {
-                            System.out.println(line);
+                            if (!noheader) {
+                                System.out.println(line);
+                            }
                             for (SingleHit h : hits) {
                                 System.out.println(h.toString());
                             }

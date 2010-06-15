@@ -18,7 +18,7 @@ public class Server {
 
 	private Logger logger;
     private int port;
-    private int numThreads, cacheSize, maxConnections;
+    private int numThreads, cacheSize, maxConnections, sleepiness;
     private boolean debug;
     /* topdir is the top-level directory for our data files.
       pwfile is "${topdir}/users.txt" and groupfile is 
@@ -41,6 +41,7 @@ public class Server {
 
     public Server () {
         port = 52000;
+        sleepiness = 4;
         numThreads = 5;
         cacheSize = numThreads * 10;
         maxConnections = 250;
@@ -58,6 +59,7 @@ public class Server {
         options.addOption("D","debug",false,"provide debugging output");
         options.addOption("C","cachesize",true,"how many files to keep open (this value times three)");
         options.addOption("M","maxconn",true,"how many connections are allowed");
+        options.addOption("S","sleepiness",true,"how sleepy the server should be while waiting for input.  1-100");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
         if (line.hasOption("port")) {
@@ -76,6 +78,16 @@ public class Server {
         if (line.hasOption("maxconn")) {
             maxConnections = Integer.parseInt(line.getOptionValue("maxconn"));
         }
+        if (line.hasOption("sleepiness")) {
+            sleepiness = Integer.parseInt(line.getOptionValue("sleepiness"));
+            if (sleepiness < 1) {
+                sleepiness = 1;
+            }
+            if (sleepiness > 100) {
+                sleepiness = 100;
+            }
+        }
+
 
         singleHits = new LRUCache<SingleHits>(cacheSize);
         pairedHits = new LRUCache<PairedHits>(cacheSize);
@@ -108,6 +120,7 @@ public class Server {
 
     }
     public boolean debug() {return debug;}
+    public int getSleepiness() {return sleepiness;}
     public void listen() throws IOException {
         Thread t = new Thread(new CacheGCHook(logger));
         t.start();
