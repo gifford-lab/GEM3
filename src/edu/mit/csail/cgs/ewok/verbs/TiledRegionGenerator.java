@@ -12,13 +12,15 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 
 
 /** maps a Region to a set of sub-regions that are tiled
- * in a particular array design 
+ * in a particular array design
+ * * 
  */
 
 public class TiledRegionGenerator<X extends Region> implements Expander<X,Region> {
     private String arrayDesign;
     private int designID;
     private int spacing, mincount, minlen;
+    private int addedProbes=0;
 
     /**
      * @param design name of the array design 
@@ -84,11 +86,9 @@ public class TiledRegionGenerator<X extends Region> implements Expander<X,Region
                     if (laststart < 0) {
                         clean = false;
                     } else {
-                        if (count >= mincount) {
-                        		if((laststop-laststart)>minlen){
-                        			Region found = new Region(g,r.getChrom(),laststart,laststop);
-                        			results.add(found);
-                        		}
+                        if (count >= mincount && (laststop-laststart)>minlen){
+                     			Region found = new Region(g,r.getChrom(),laststart,laststop);
+                      			results.add(found);
                         }
                         clean = true;
                     }
@@ -99,7 +99,7 @@ public class TiledRegionGenerator<X extends Region> implements Expander<X,Region
                 }
                 laststop = stop;
             }
-            if (!clean && (laststart > 0)) {
+            if (!clean && (laststart > 0) && count >= mincount && (laststop-laststart)>minlen) {
                 results.add(new Region(g,r.getChrom(),laststart,laststop));       
             }
             rs.close();
