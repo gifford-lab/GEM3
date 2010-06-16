@@ -227,9 +227,13 @@ public class MethodComparisonMotifAnalysis {
 				motifThreshold, windowSize, motifs_shared.size(), rank);
 		System.out.println(msg);
 		
+		StringBuilder args_str = new StringBuilder();
+		for (String arg:args){
+			args_str.append(arg).append(" ");
+		}
 		// output results, the spatial resolution (offset) 
 		StringBuilder sb = new StringBuilder();
-		sb.append(args+"\t"+msg+"\n");
+		sb.append(args_str+"\t"+msg+"\n");
 		sb.append("MotifHit\tChrom\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"\t");
@@ -263,7 +267,7 @@ public class MethodComparisonMotifAnalysis {
 		
 		// output results, the spatial resolution (offset) 
 		sb = new StringBuilder();
-		sb.append(args+"\t"+msg+"\n");
+		sb.append(args_str+"\t"+msg+"\n");
 		sb.append("MotifHit\tChrom\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"_offset\t");
@@ -318,7 +322,7 @@ public class MethodComparisonMotifAnalysis {
 		}		
 		// output results
 		sb = new StringBuilder();
-		sb.append(args+"\t"+msg+"\n");
+		sb.append(args_str+"\t"+msg+"\n");
 		sb.append("Rank\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"\t");
