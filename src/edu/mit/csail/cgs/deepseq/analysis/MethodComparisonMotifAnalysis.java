@@ -49,7 +49,6 @@ public class MethodComparisonMotifAnalysis {
 	private String motifString;
 	private WeightMatrix motif = null;
 	private String outName="out";
-	private boolean unspecified_species=false;
 	
 	// each element in the list is for one ChIP-Seq method
 	private ArrayList<String> methodNames = new ArrayList<String>();
@@ -114,10 +113,7 @@ public class MethodComparisonMotifAnalysis {
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
-	    
-	    Set<String> flags = Args.parseFlags(args);
-	    unspecified_species = flags.contains("unspecified_species");
-	    
+	    	    
 		// some parameters
 		windowSize = Args.parseInteger(args, "windowSize", 50);
 		isPreSorted = Args.parseInteger(args, "isPreSorted", 0)==1;
@@ -133,12 +129,11 @@ public class MethodComparisonMotifAnalysis {
 		
 		// load motif
 		try {
-//			int wmid = WeightMatrix.getWeightMatrixID(org.getDBID(), "Oct-4 (POU5F1)", "TRANSFAC 10.4, M01124");
-//			int wmid = WeightMatrix.getWeightMatrixID(org.getDBID(), "CTCF", "Shaun");
 			motifString = Args.parseString(args, "motif", null);
 			String motifVersion = Args.parseString(args, "version", null);
+			int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
 //			Organism org_mouse = new Organism("Mus musculus");
-			int wmid = WeightMatrix.getWeightMatrixID(unspecified_species?0:org.getDBID(), motifString, motifVersion);
+			int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:org.getDBID(), motifString, motifVersion);
 			motif = WeightMatrix.getWeightMatrix(wmid);
 		} 
 		catch (NotFoundException e) {
