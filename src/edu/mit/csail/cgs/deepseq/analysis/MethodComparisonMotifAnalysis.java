@@ -227,10 +227,12 @@ public class MethodComparisonMotifAnalysis {
 				motifThreshold, windowSize, motifs_shared.size(), rank);
 		System.out.println(msg);
 		
-		StringBuilder args_str = new StringBuilder();
+		StringBuilder args_sb = new StringBuilder();
 		for (String arg:args){
-			args_str.append(arg).append(" ");
+			args_sb.append(arg).append(" ");
 		}
+		String args_str = args_sb.toString();
+		
 		// output results, the spatial resolution (offset) 
 		StringBuilder sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
@@ -405,6 +407,9 @@ public class MethodComparisonMotifAnalysis {
 				peakPoints = loadCgsPointFile(filePath);
         	}  	
         	if (name.contains("QuEST")){
+				peakPoints = loadCgsPointFile(filePath);
+        	}  	
+        	if (name.contains("PICS")){
 				peakPoints = loadCgsPointFile(filePath);
         	}  	
 			peaks.add(peakPoints);
