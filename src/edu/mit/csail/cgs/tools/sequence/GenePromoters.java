@@ -17,6 +17,14 @@ import edu.mit.csail.cgs.tools.utils.Args;
  * cat gene_names.txt | java GenePromoters --species "$SC;Sigmav7" --genes s288cMapped --upstream 500 --downstream 100 --fasta
  * java GenePromoters --species "$SC;Sigmav7" --genes s288cMapped --upstream 500 --downstream 100 --fasta --allgenes
  *
+ * [--fasta] fasta formatted output
+ * [--dontoverlaporfs] don't overlap annotated genes or some other features like refBase and sgdOther
+ * [--phastmax] don't include regions with a phastcons score greater than this value
+ * [--phastmin] only include regions with a phastcons score greater than this value
+ * [--maskkeep] provide "name;score" for a ScoredRegionGenerator and minimum score to specify regions to keep
+ * [--maskout] provide "name;score" for a ScoredRegionGenerator and maximum score to specify regions to keep
+ * [--minlen] specify a minimum length for the output regions
+ *
  *
  */
 
