@@ -479,7 +479,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         		ratio_non_specific_total[i]=1;
         	}
         }
-		log(2, "\nmax_HitCount_per_base = "+max_HitCount_per_base);
+        if (development_mode)
+        	log(1, "\nmax_HitCount_per_base = "+max_HitCount_per_base);
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
 	}
 
@@ -2802,16 +2803,20 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		model = new BindingModel(dist);
 		model.setFileName(oldName);
 		model.smooth(BindingModel.SMOOTHING_STEPSIZE);
-		model.printToFile(outName+"_-"+left+"_"+right+"_"+model.getFileName());
+		if (development_mode)
+			model.printToFile(outName+"_-"+left+"_"+right+"_"+model.getFileName());
+		else
+			model.printToFile(outName+"_Read_Distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
 
 		double logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
-		log(1, "Refine read distribution from " + eventCountForModelUpdating +" binding events, "+
-				"(Strength>"+String.format("%.1f", strengthThreshold) +
-				", Shape<"+String.format("%.2f", shapeThreshold) +
-				"). \nlogKL=" + String.format("%.2f",logKL) + 
-				", +/- strand shift "+shift+" bp.\n");
+		String details = "(Strength>"+String.format("%.1f", strengthThreshold) +
+			", Shape<"+String.format("%.2f", shapeThreshold) +
+			"). \nlogKL=" + String.format("%.2f",logKL) + 
+			", +/- strand shift "+shift+" bp.\n";
+		log(1, "Refine read distribution from " + eventCountForModelUpdating +" binding events. "+
+				(development_mode?details:"\n"));
 		
 		return logKL;
 	}
