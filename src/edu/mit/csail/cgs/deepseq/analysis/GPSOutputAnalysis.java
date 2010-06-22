@@ -369,6 +369,42 @@ public class GPSOutputAnalysis {
     BindingMixture.writeFile(GPSfileName+"_BinaryMotifEvents.txt", sb_binary.toString());
   }
   
+  private void jointEvents(ArrayList<Point> points, int jointCutoff){
+	  Collections.sort(points);
+	  Point previous = points.get(0);
+	  ArrayList<Point> cluster = new ArrayList<Point>();
+	  ArrayList<ArrayList<Point>> clusters = new ArrayList<ArrayList<Point>>();
+	  clusters.add(cluster);
+	  boolean isJoint = false; 	// Previous point is joint event?
+	  for (int i=1;i<points.size();i++){
+		  Point p = points.get(i);
+		  if (p.getChrom().equals(previous.getChrom()) && p.distance(previous)<=jointCutoff){
+			  if (isJoint){
+				  cluster.add(p);
+			  }
+			  else{
+				  cluster = new ArrayList<Point>();
+				  clusters.add(cluster);
+				  cluster.add(previous);
+				  cluster.add(p);
+				  isJoint = true;
+			  }
+		  }
+		  else{
+			  isJoint = false;
+		  }
+	  }
+	  StringBuilder sb = new StringBuilder();
+	  for (ArrayList<Point> c:clusters){
+		  Point p = c.get(0);
+		  int start = p.getLocation();
+		  int end = c.get(c.size()-1).getLocation();
+		  Region r = new Region(p.getGenome(), p.getChrom(), start, end);
+		  sb.append(r.toString()).append("\t").append(c.size()).append("\n");
+	  }
+	  System.out.println(sb.toString());
+  }
+  
   private void geneAnnotation(){
     boolean annotOverlapOnly=false;	
     

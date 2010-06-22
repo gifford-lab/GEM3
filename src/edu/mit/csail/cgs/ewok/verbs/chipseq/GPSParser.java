@@ -34,17 +34,17 @@ public class GPSParser {
 			
 			String line;
 			while((line = bin.readLine()) != null) { 
-			  if (count % 1000 == 0) {
-			    if (count % 10000 == 0) {
-			      System.out.println(count);
-			    }
-			    else {
-			      System.out.print(count);
-			    }
-			  }
-			  else if (count % 100 == 0) {
-			    System.out.print(".");
-			  }
+//			  if (count % 1000 == 0) {
+//			    if (count % 10000 == 0) {
+//			      System.out.println(count);
+//			    }
+//			    else {
+//			      System.out.print(count);
+//			    }
+//			  }
+//			  else if (count % 100 == 0) {
+//			    System.out.print(".");
+//			  }
 				line = line.trim();
 	            String[] f=line.split("\t");
 	            if (line.charAt(0)=='#'||f[0].equals("chr")){
