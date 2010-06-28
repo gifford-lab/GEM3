@@ -85,7 +85,7 @@ public class ChipSeqAnalyzer{
         	List<File> expts = Args.parseFileHandles(args, "expt"+name);
         	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
         	boolean nonUnique = ap.hasKey("nonunique") ? true : false;
-        	String fileFormat = Args.parseString(args, "format", "ELAND");
+        	String fileFormat = Args.parseString(args, "format", "BED");
         	
         	if(expts.size()>0 && dbexpts.size() == 0 && rdbexpts.size()==0){
         		readLength = -1;	// For file, read length will be obtained from the data
@@ -194,7 +194,7 @@ public class ChipSeqAnalyzer{
                 "      --mappable_genome_length <length of mappable genome in bp>\n" +
                 "      --exptX <aligned reads file for expt (X is condition name)>\n" +
                 "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
-                "      --format <read file format BOWTIE/ELAND/NOVO/BED (default ELAND)>\n" +
+                "      --format <read file format BOWTIE/ELAND/NOVO/BED (default BED)>\n" +
                 "   Other options:\n" +
                 "      --out <output file base name>\n" +
                 "      --update_model <max times to refine read distribution model (default=1)>\n" +
@@ -202,6 +202,14 @@ public class ChipSeqAnalyzer{
                 "      --q_value_threshold <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)\n" +
                 "   Optional flags: \n" +
                 "      --fix_alpha_value <GPS will use a fixed user-specified alpha value for all the regions>" +
+                "\n\n" +
+                "   Output format:\n" +
+                "      The output file contains five fields in a tab-delimited file:\n" +
+                "        - Binding event coordinate\n" +
+                "        - IP read count\n" +
+                "        - Control read count\n" +
+                "        - P-value\n" +
+                "        - Q-value (multiple hypothesis corrected)\n"+
 //                "      --nonunique [flag to use the non-uniquely mapping reads]\n" +
                 "\n");		
 	}
