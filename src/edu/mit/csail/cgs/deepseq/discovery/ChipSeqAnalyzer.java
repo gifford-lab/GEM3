@@ -20,7 +20,7 @@ public class ChipSeqAnalyzer{
 
 	private String[] args;
 	private Genome genome;
-	private int readLength=32;
+	private int readLength=-1;
 	
 	private BindingMixture mixture=null;
 	
@@ -48,8 +48,6 @@ public class ChipSeqAnalyzer{
 		}
 		System.out.println("Welcome to GPS\nLoading data...");
 		
-		readLength = Args.parseInteger(args,"readlen",readLength);
-			
         //Experiments : Load each condition expt:ctrl Pair
 		ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> experiments = new ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>>();
 		long loadData_tic = System.currentTimeMillis();
@@ -90,16 +88,32 @@ public class ChipSeqAnalyzer{
         	String fileFormat = Args.parseString(args, "format", "ELAND");
         	
         	if(expts.size()>0 && dbexpts.size() == 0 && rdbexpts.size()==0){
+        		readLength = -1;	// For file, read length will be obtained from the data
 	        	DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
 	        	DeepSeqExpt c = new DeepSeqExpt(genome, ctrls, nonUnique, fileFormat, readLength);
         		experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
 	        	exptHitCount+=e.getHitCount();
 	        	ctrlHitCount+=c.getHitCount();
-	        }else if(dbexpts.size()>0 && expts.size() == 0){
+	        }
+        	else if(dbexpts.size()>0 && expts.size() == 0){
+	    		readLength = Args.parseInteger(args,"readlen",readLength);
+				if (readLength==-1){
+		        	System.err.println("Read length is required to use Gifford lab DB");
+		        	printError();
+		        	System.exit(1);
+				}
 	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, dbexpts, "db", readLength),new DeepSeqExpt(genome, dbctrls, "db", readLength)));
-	        }else if(rdbexpts.size()>0 && expts.size() == 0){
+	        }
+	        else if(rdbexpts.size()>0 && expts.size() == 0){
+	    		readLength = Args.parseInteger(args,"readlen",readLength);
+				if (readLength==-1){
+		        	System.err.println("Read length is required to use Gifford lab read DB");
+		        	printError();
+		        	System.exit(1);
+				}
 	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, rdbexpts, "readdb", readLength),new DeepSeqExpt(genome, rdbctrls, "readdb", readLength)));
-	        }else{
+	        }
+	        else{
 	        	System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
 	        	printError();
 	        	System.exit(1);
@@ -126,7 +140,7 @@ public class ChipSeqAnalyzer{
 		mixture.setOutName(peakFileName+"_"+round);
 		
 //		mixture.countNonSpecificReads();
-		int update_model_round = Args.parseInteger(args,"update_model", 0);
+		int update_model_round = Args.parseInteger(args,"update_model", 1);
 		while (kl>-6 && round<=update_model_round){
 			mixture.execute();
 			mixture.printFeatures();
@@ -173,6 +187,7 @@ public class ChipSeqAnalyzer{
 //                "      --species <organism name;genome version>\n"+
 //                "      --dbexptX <IP expt (X is condition name)>\n" +
 //                "      --dbctrlX <background expt (X is condition name)>\n" +
+//                "      --readlen <read length>\n" +
                 "   Required options:\n" +
                 "      --read_distribution <read distribution model file>\n" +
                 "      --geninfo <file with chr name/length pairs>\n" +
@@ -180,10 +195,9 @@ public class ChipSeqAnalyzer{
                 "      --exptX <aligned reads file for expt (X is condition name)>\n" +
                 "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
                 "      --format <read file format BOWTIE/ELAND/NOVO/BED (default ELAND)>\n" +
-                "      --readlen <read length>\n" +
                 "   Other options:\n" +
                 "      --out <output file base name>\n" +
-                "      --update_model <max times to refine read distribution model (default=3)>\n" +
+                "      --update_model <max times to refine read distribution model (default=1)>\n" +
                 "      --alpha_value <minimum alpha value for sparse prior (default=6)\n" +
                 "      --q_value_threshold <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)\n" +
                 "   Optional flags: \n" +
