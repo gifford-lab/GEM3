@@ -38,7 +38,8 @@ public class JointEventAnalysis {
   private Organism org;
   private String[] args;
   private WeightMatrix motif = null;
-  double motifThreshold;
+  private double motifThreshold;
+  private int topRank;
   
   ArrayList<Point> events;
   
@@ -70,6 +71,9 @@ public class JointEventAnalysis {
     } catch (NotFoundException e) {
       e.printStackTrace();
     }
+    
+    topRank = Args.parseInteger(args, "topRank", -1);
+    
     // load motif
     try {
       String motifString = Args.parseString(args, "motif", null);
@@ -93,12 +97,16 @@ public class JointEventAnalysis {
 	    File gpsFile = new File(GPSfileName);
 	    List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
 	    events = new ArrayList<Point>();
+	    int count=0;
 	    for (GPSPeak g: gpsPeaks){
 	    	events.add(g);
+			count++;
+			if (count>=topRank)
+				break;
 	    }
     }
     else{
-    	loadCgsPointFile(Args.parseString(args, "Events", null));
+    	events = loadCgsPointFile(Args.parseString(args, "events", null));
     }
   }
   
@@ -113,6 +121,7 @@ public class JointEventAnalysis {
 		FileReader in = null;
 		BufferedReader bin = null;
 		ArrayList<Point> points = new ArrayList<Point>();
+		int count = 0;
 		try {
 			in = new FileReader(file);
 			bin = new BufferedReader(in);
@@ -121,6 +130,9 @@ public class JointEventAnalysis {
 				line = line.trim();
 				Region point = Region.fromString(genome, line);
 				points.add(new Point(genome, point.getChrom(),point.getStart()));
+				count++;
+				if (count>=topRank)
+					break;
 			}
 		}
 		catch(IOException ioex) {

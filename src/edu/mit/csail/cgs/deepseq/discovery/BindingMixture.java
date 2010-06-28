@@ -228,7 +228,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
         if (SPLINE_SMOOTH)
         	model.smooth(BindingModel.SMOOTHING_STEPSIZE);
-		model.printToFile(outName+"_0_"+modelFile);
+		model.printToFile(outName+"_0_Read_distribution.txt");
 		
 		// Required input parameter
     	mappable_genome_length = Args.parseDouble(args, "mappable_genome_length", 2.08E9);
@@ -2804,9 +2804,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		model.setFileName(oldName);
 		model.smooth(BindingModel.SMOOTHING_STEPSIZE);
 		if (development_mode)
-			model.printToFile(outName+"_-"+left+"_"+right+"_"+model.getFileName());
+			model.printToFile(outName+"_-"+left+"_"+right+"_Read_distribution.txt");
 		else
-			model.printToFile(outName+"_Read_Distribution.txt");
+			model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
 

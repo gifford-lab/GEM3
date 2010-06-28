@@ -152,8 +152,8 @@ public class GPSOutputAnalysis {
     
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(args);
 //    analysis.buildEmpiricalDistribution();
-    analysis.jointBindingMotifAnalysis(true);
-//    analysis.geneAnnotation();
+//    analysis.jointBindingMotifAnalysis(true);
+    analysis.geneAnnotation();
 //    analysis.expressionIntegration();
   }
   
@@ -173,21 +173,24 @@ public class GPSOutputAnalysis {
       }else{
         genome = pair.cdr();
         org = pair.car();
-      }
-//      genome = Organism.findGenome("mm8");
-//      org = Organism.getOrganism("Mus musculus");     
+      }  
     } catch (NotFoundException e) {
       e.printStackTrace();
     }
     // load motif
-    try {
+    try {   
       String motifString = Args.parseString(args, "motif", null);
-      String motifVersion = Args.parseString(args, "version", null);
-      motifThreshold = Args.parseDouble(args, "threshold", 10.0);
-      if (motifThreshold==10.0)
-        System.err.println("No motif threshold was provided, default=10.0 is used.");
-      int wmid = WeightMatrix.getWeightMatrixID(org.getDBID(), motifString, motifVersion);
-      motif = WeightMatrix.getWeightMatrix(wmid);
+      if (motifString!=null){
+	      String motifVersion = Args.parseString(args, "version", null);
+	      motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
+	      if (motifThreshold==-1){
+	    	  System.err.println("No motif threshold was provided, default=10.0 is used.");
+	    	  motifThreshold = 10.0;
+	      }
+		  int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
+		  int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:org.getDBID(), motifString, motifVersion);
+		  motif = WeightMatrix.getWeightMatrix(wmid);
+      }
     } 
     catch (NotFoundException e) {
       e.printStackTrace();
@@ -369,44 +372,8 @@ public class GPSOutputAnalysis {
     BindingMixture.writeFile(GPSfileName+"_BinaryMotifEvents.txt", sb_binary.toString());
   }
   
-  private void jointEvents(ArrayList<Point> points, int jointCutoff){
-	  Collections.sort(points);
-	  Point previous = points.get(0);
-	  ArrayList<Point> cluster = new ArrayList<Point>();
-	  ArrayList<ArrayList<Point>> clusters = new ArrayList<ArrayList<Point>>();
-	  clusters.add(cluster);
-	  boolean isJoint = false; 	// Previous point is joint event?
-	  for (int i=1;i<points.size();i++){
-		  Point p = points.get(i);
-		  if (p.getChrom().equals(previous.getChrom()) && p.distance(previous)<=jointCutoff){
-			  if (isJoint){
-				  cluster.add(p);
-			  }
-			  else{
-				  cluster = new ArrayList<Point>();
-				  clusters.add(cluster);
-				  cluster.add(previous);
-				  cluster.add(p);
-				  isJoint = true;
-			  }
-		  }
-		  else{
-			  isJoint = false;
-		  }
-	  }
-	  StringBuilder sb = new StringBuilder();
-	  for (ArrayList<Point> c:clusters){
-		  Point p = c.get(0);
-		  int start = p.getLocation();
-		  int end = c.get(c.size()-1).getLocation();
-		  Region r = new Region(p.getGenome(), p.getChrom(), start, end);
-		  sb.append(r.toString()).append("\t").append(c.size()).append("\n");
-	  }
-	  System.out.println(sb.toString());
-  }
-  
   private void geneAnnotation(){
-    boolean annotOverlapOnly=false;	
+    boolean annotOverlapOnly=true;	
     
     ArrayList<AnnotationLoader> geneAnnotations = new ArrayList<AnnotationLoader>();
     geneAnnotations.add(new AnnotationLoader(genome, "GPS", "refGene", maxAnnotDistance, annotOverlapOnly));
