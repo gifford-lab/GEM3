@@ -106,11 +106,15 @@ public class PairedEndPainter extends RegionPaintable {
                 rightx2 = rightx1;
                 rightx1 = x;
             }
+            //Shaun thinks there was a problem with the way this was coded. 
+            //For the case when "left" should mean "first read off the machine", the color of the edge should not depend on leftx2<rightx1.
+            //For the case when "left" means lower coordinate, it should depend on leftx2<rightx1, but this is enforced by the leftAlwaysLesser option and it's call to the flip method.
+            g.setColor(hit.leftStrand ? (hit.rightStrand ? plusplus : plusminus) : (hit.rightStrand ? minusplus : minusminus));
             if (leftx2 < rightx1) {
-                g.setColor(hit.leftStrand ? (hit.rightStrand ? plusplus : plusminus) : (hit.rightStrand ? minusplus : minusminus));
+            	//g.setColor(hit.leftStrand ? (hit.rightStrand ? plusplus : plusminus) : (hit.rightStrand ? minusplus : minusminus));
                 g.drawLine(leftx2, y1+h, rightx1, y1+h);
             } else {
-                g.setColor(hit.rightStrand ? (hit.leftStrand ? plusplus : plusminus) : (hit.leftStrand ? minusplus : minusminus));
+                //g.setColor(hit.rightStrand ? (hit.leftStrand ? plusplus : plusminus) : (hit.leftStrand ? minusplus : minusminus));
                 g.drawLine(rightx2, y1+h, leftx1, y1+h);
             }
             if (leftx2 == leftx1) {leftx2++;}
