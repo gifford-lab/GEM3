@@ -48,7 +48,11 @@ public class FileReadLoader extends ReadLoader{
 		
 		for(File file : files){
 			if(!file.isFile()){System.err.println("Invalid file: "+file.getName());System.exit(1);}
-			if(format.equals("ELAND")){
+			if(format.equals("SAM")){
+				SAMReader currReader = new SAMReader(file,gen,maxMismatch,useNonUnique, currID);
+				fileReaders.add(currReader);
+				currID = currReader.getCurrID();
+			}else if(format.equals("ELAND")){
 				ElandFileReader currReader = new ElandFileReader(file,gen,maxMismatch,useNonUnique, currID);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
@@ -88,16 +92,6 @@ public class FileReadLoader extends ReadLoader{
 		ArrayList<ReadHit> hits = new ArrayList<ReadHit>();
 		for(AlignmentFileReader a : fileReaders){
 			hits.addAll(a.loadHits(r));
-			//List<Read> reads = a.loadReads(r);
-			
-			/*
-			//Filter
-			for(Read x : reads){
-				for(ReadHit h : x.getHits()){
-					if(h.overlaps(r))
-						hits.add(h);
-				}
-			}*/
 		}
 		return hits;
 	}
