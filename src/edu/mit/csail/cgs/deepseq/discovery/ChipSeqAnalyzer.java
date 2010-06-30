@@ -39,8 +39,7 @@ public class ChipSeqAnalyzer{
 				if(ap.hasKey("geninfo")){
 					genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
 	        	}else{
-	        		//System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); 
-	        		printError();System.exit(1);
+	        		genome=null;
 	        	}
 			}
 		} catch (NotFoundException e) {
@@ -91,11 +90,19 @@ public class ChipSeqAnalyzer{
         		readLength = -1;	// For file, read length will be obtained from the data
 	        	DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
 	        	DeepSeqExpt c = new DeepSeqExpt(genome, ctrls, nonUnique, fileFormat, readLength);
+        		if(genome==null){
+	        		genome = DeepSeqExpt.combineFakeGenomes(e,c);
+	        		e.setGenome(genome);
+	        		c.setGenome(genome);
+	        	}
         		experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
 	        	exptHitCount+=e.getHitCount();
 	        	ctrlHitCount+=c.getHitCount();
 	        }
         	else if(dbexpts.size()>0 && expts.size() == 0){
+        		if(genome==null){
+        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
+        		}
 	    		readLength = Args.parseInteger(args,"readlen",readLength);
 				if (readLength==-1){
 		        	System.err.println("Read length is required to use Gifford lab DB");
@@ -105,6 +112,9 @@ public class ChipSeqAnalyzer{
 	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, dbexpts, "db", readLength),new DeepSeqExpt(genome, dbctrls, "db", readLength)));
 	        }
 	        else if(rdbexpts.size()>0 && expts.size() == 0){
+	        	if(genome==null){
+        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
+        		}
 	    		readLength = Args.parseInteger(args,"readlen",readLength);
 				if (readLength==-1){
 		        	System.err.println("Read length is required to use Gifford lab read DB");

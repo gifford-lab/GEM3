@@ -8,12 +8,15 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.utilities.AlignmentFileReader;
 import edu.mit.csail.cgs.deepseq.utilities.DBReadLoader;
 import edu.mit.csail.cgs.deepseq.utilities.FileReadLoader;
 import edu.mit.csail.cgs.deepseq.utilities.ReadDBReadLoader;
@@ -43,6 +46,9 @@ public class DeepSeqExpt {
 	
 	
 	public DeepSeqExpt(Genome g, List<ChipSeqLocator> locs, String db, int readLen){
+		if(gen==null){
+			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
+		}
 		rLen = readLen;
 		gen = g;
 		try {
@@ -70,6 +76,8 @@ public class DeepSeqExpt {
 		rLen = readLen;
 		useNonUniqueReads=useNonUnique;
 		loader = new FileReadLoader(gen, files, format,maxMismatches,useNonUniqueReads, idStart, rLen);
+		if(gen==null)
+			gen = loader.getGenome();
 		rLen = loader.getReadLen();
 		startShift=0;
 		fivePrimeExt=0;
@@ -78,6 +86,7 @@ public class DeepSeqExpt {
 	
 	//Accessors
 	public Genome getGenome(){return gen;}
+	public void setGenome(Genome g){gen = g; loader.setGenome(g);}
 	public int getReadLen(){return rLen;}
 	public double getHitCount(){return loader.getHitCount();} 
 	public double getWeightTotal(){return loader.getTotalWeight();}
@@ -230,6 +239,22 @@ public class DeepSeqExpt {
 	//Clean up the loaders
 	public void closeLoaders(){
 		loader.cleanup();
+	}
+	public static Genome combineFakeGenomes(DeepSeqExpt e, DeepSeqExpt c) {
+		//Combine the chromosome information
+		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
+		Map<String, Integer> currMap = e.getGenome().getChromLengthMap();
+		for(String s: currMap.keySet()){
+			if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
+				chrLenMap.put(s, currMap.get(s)+1000);
+		}
+		currMap = c.getGenome().getChromLengthMap();
+		for(String s: currMap.keySet()){
+			if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
+				chrLenMap.put(s, currMap.get(s));
+		}
+		Genome comboGenome=new Genome("Genome", chrLenMap);
+		return(comboGenome);
 	}
 }
 

@@ -2,8 +2,10 @@ package edu.mit.csail.cgs.deepseq.utilities;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashMap;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.Read;
@@ -15,6 +17,41 @@ public class NovoFileReader extends AlignmentFileReader {
 		super(f,g,-1,useNonUnique, idStart);
 	}
 
+	//Estimate chromosome lengths
+	protected void estimateGenome() {
+		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
+		BufferedReader reader;
+		try {
+			reader = new BufferedReader(new FileReader(inFile));
+			String line;
+			while ((line = reader.readLine()) != null) {
+	        	line = line.trim();
+	        	if(line.charAt(0)!='#'){
+		            String[] words = line.split("\\s+");
+		            if(readLength==-1)
+	    				readLength = words[2].length();
+		            String chr = words[7];
+		            String[] tmp = chr.split("\\.");
+	            	chr=tmp[0].replaceFirst("chr", "");
+	            	chr=chr.replaceFirst("^>", "");
+	            	int max = new Integer(words[8]).intValue()+readLength;
+	            	
+	        		if(!chrLenMap.containsKey(chr) || chrLenMap.get(chr)<max)
+						chrLenMap.put(chr, max);
+	        	}
+			}
+			gen=new Genome("Genome", chrLenMap);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NumberFormatException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 	
 	//Return the total reads and weight
 	protected void countReads() {

@@ -44,7 +44,7 @@ public abstract class AlignmentFileReader{
 	protected int misMatch;
 	protected boolean useNonUnique;
 	protected int numChroms;
-	
+		
 	//Data structures for pre-loading
 	
 	/**
@@ -93,6 +93,9 @@ public abstract class AlignmentFileReader{
 	protected int currID=0;
 	
 	public AlignmentFileReader(File f, Genome g, int mis, boolean nonUnique, int idSeed){
+		if(g==null){
+			estimateGenome();
+		}
 		System.out.print("Loading reads from: "+f.getName()+" ... ");
 		totalHits=0;
 		totalWeight=0;
@@ -130,6 +133,10 @@ public abstract class AlignmentFileReader{
 		System.out.println("Loaded");		
 	}
 	
+	//Accessors
+	public Genome getGenome(){return gen;}
+	public void setGenome(Genome g){gen = g;}
+	
 	/**
 	 * Loads reads that have hits in coords that pass the mismatch thresholds
 	 * @param coords
@@ -138,30 +145,32 @@ public abstract class AlignmentFileReader{
 	public List<ReadHit> loadHits(Region coords) {
 		List<ReadHit> hits = new ArrayList<ReadHit>();
 		String chr = coords.getChrom();
-		int chrID = chrom2ID.get(chr);
-		
-		// j = 0 <=> strand = '+', j = 1 <=> strand = '-'
-		for(int j = 0; j <= 1; j++) {
+		if(chrom2ID.containsKey(chr)){
+			int chrID = chrom2ID.get(chr);
 			
-			//assumes tempStarts is sorted
-			int[] tempStarts = starts[chrID][j];
-			
-			if(tempStarts.length != 0) {
-				int start_ind = Arrays.binarySearch(tempStarts, coords.getStart());
-				int end_ind   = Arrays.binarySearch(tempStarts, coords.getEnd());
+			// j = 0 <=> strand = '+', j = 1 <=> strand = '-'
+			for(int j = 0; j <= 1; j++) {
 				
-				if( start_ind < 0 ) { start_ind = -start_ind - 1; }
-				if( end_ind < 0 )   { end_ind   = -end_ind - 1; }
+				//assumes tempStarts is sorted
+				int[] tempStarts = starts[chrID][j];
 				
-				start_ind = StatUtil.searchFrom(tempStarts, ">=", coords.getStart(), start_ind);
-				end_ind   = StatUtil.searchFrom(tempStarts, "<=",   coords.getEnd(), end_ind);
-				
-				char str = j == 0 ? '+' : '-';			
-				for(int k = start_ind; k <= end_ind; k++) {
-					double weight = 1/(double)hitCounts[chrID][j][k];
-					hits.add(new ReadHit(gen, hitIDs[chrID][j][k], chr, tempStarts[k], tempStarts[k]+readLength-1, str, weight ));
-				}	
-			}						
+				if(tempStarts.length != 0) {
+					int start_ind = Arrays.binarySearch(tempStarts, coords.getStart());
+					int end_ind   = Arrays.binarySearch(tempStarts, coords.getEnd());
+					
+					if( start_ind < 0 ) { start_ind = -start_ind - 1; }
+					if( end_ind < 0 )   { end_ind   = -end_ind - 1; }
+					
+					start_ind = StatUtil.searchFrom(tempStarts, ">=", coords.getStart(), start_ind);
+					end_ind   = StatUtil.searchFrom(tempStarts, "<=",   coords.getEnd(), end_ind);
+					
+					char str = j == 0 ? '+' : '-';			
+					for(int k = start_ind; k <= end_ind; k++) {
+						double weight = 1/(double)hitCounts[chrID][j][k];
+						hits.add(new ReadHit(gen, hitIDs[chrID][j][k], chr, tempStarts[k], tempStarts[k]+readLength-1, str, weight ));
+					}	
+				}						
+			}
 		}
 		return hits;
 	}//end of loadHits method
@@ -171,21 +180,23 @@ public abstract class AlignmentFileReader{
 		ArrayList<Integer> hits = new ArrayList<Integer>();
 		ArrayList<Float> counts = new ArrayList<Float>();
 		String chr = coords.getChrom();
-		int chrID = chrom2ID.get(chr);		
-		int j = strand == '+'?0:1;	// j = 0 <=> strand = '+', j = 1 <=> strand = '-'
-		int shift = strand=='+'?0:readLength-1; 		// shift for minus strand
-		int[] tempStarts = starts[chrID][j];	//assumes tempStarts is sorted	
-		if(tempStarts.length != 0) {
-			int start_ind = Arrays.binarySearch(tempStarts, coords.getStart()-shift);
-			int end_ind   = Arrays.binarySearch(tempStarts, coords.getEnd()-shift);
-			if( start_ind < 0 ) { start_ind = -start_ind - 1; }
-			if( end_ind < 0 )   { end_ind   = -end_ind - 1; }
-			start_ind = StatUtil.searchFrom(tempStarts, ">=", coords.getStart()-shift, start_ind);
-			end_ind   = StatUtil.searchFrom(tempStarts, "<=",   coords.getEnd()-shift, end_ind);
-				
-			for(int k = start_ind; k <= end_ind; k++) {
-				hits.add(tempStarts[k]+shift);
-				counts.add((float)hitCounts[chrID][j][k]);
+		if(chrom2ID.containsKey(chr)){
+			int chrID = chrom2ID.get(chr);
+			int j = strand == '+'?0:1;	// j = 0 <=> strand = '+', j = 1 <=> strand = '-'
+			int shift = strand=='+'?0:readLength-1; 		// shift for minus strand
+			int[] tempStarts = starts[chrID][j];	//assumes tempStarts is sorted	
+			if(tempStarts.length != 0) {
+				int start_ind = Arrays.binarySearch(tempStarts, coords.getStart()-shift);
+				int end_ind   = Arrays.binarySearch(tempStarts, coords.getEnd()-shift);
+				if( start_ind < 0 ) { start_ind = -start_ind - 1; }
+				if( end_ind < 0 )   { end_ind   = -end_ind - 1; }
+				start_ind = StatUtil.searchFrom(tempStarts, ">=", coords.getStart()-shift, start_ind);
+				end_ind   = StatUtil.searchFrom(tempStarts, "<=",   coords.getEnd()-shift, end_ind);
+					
+				for(int k = start_ind; k <= end_ind; k++) {
+					hits.add(tempStarts[k]+shift);
+					counts.add((float)hitCounts[chrID][j][k]);
+				}
 			}
 		}
 		return new Pair<ArrayList<Integer>,ArrayList<Float>>(hits, counts);
@@ -194,8 +205,12 @@ public abstract class AlignmentFileReader{
 	 * Count total reads & weight
 	 */
 	protected abstract void countReads();
+		
+	/**
+	 * Estimate a fake genome from the observed read coordinates
+	 */
+	protected abstract void estimateGenome();
 	
-
 	/**
 	 * Gets the stranded weight of all hits (of all chromosomes) for the specified strand
 	 * @param strand 
@@ -294,25 +309,29 @@ public abstract class AlignmentFileReader{
 	 * Get sorted start positions of all reads (regardless of strand) in one chrom
 	 */
 	public int[] getStartCoords(String chrom){
-		int chromID = chrom2ID.get(chrom);
-		int[] watsonReads = starts[chromID][0];
-		int[] crickReads = starts[chromID][0];
-		int[] allReads = new int[watsonReads.length+crickReads.length];
-		int watson_idx=0; 
-		int crick_idx=0;
-		for (int i=0;i<allReads.length;i++){
-			if (watsonReads[watson_idx]>crickReads[crick_idx]){
-				allReads[i]=crickReads[crick_idx];
-				if (crick_idx<crickReads.length-1)
-					crick_idx++;
+		if(chrom2ID.containsKey(chrom)){
+			int chromID = chrom2ID.get(chrom);
+			int[] watsonReads = starts[chromID][0];
+			int[] crickReads = starts[chromID][0];
+			int[] allReads = new int[watsonReads.length+crickReads.length];
+			int watson_idx=0; 
+			int crick_idx=0;
+			for (int i=0;i<allReads.length;i++){
+				if (watsonReads[watson_idx]>crickReads[crick_idx]){
+					allReads[i]=crickReads[crick_idx];
+					if (crick_idx<crickReads.length-1)
+						crick_idx++;
+				}
+				else{
+					allReads[i]=watsonReads[watson_idx];
+					if (watson_idx<watsonReads.length-1)
+						watson_idx++;
+				}
 			}
-			else{
-				allReads[i]=watsonReads[watson_idx];
-				if (watson_idx<watsonReads.length-1)
-					watson_idx++;
-			}
+			return allReads;
+		}else{
+			return null;
 		}
-		return allReads;
 	}
 	/**
 	 * Converts lists of integers to integer arrays, deletes the lists for saving
