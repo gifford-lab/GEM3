@@ -34,7 +34,7 @@ public class BEDFileReader extends AlignmentFileReader {
 	        while ((line = reader.readLine()) != null) {
 	        	line = line.trim();
 	        	if(line.charAt(0)!='#'){
-		            String[] words = line.split("\\t");
+		            String[] words = line.split("\\s+");
 		            String chr="."; char strand = '.';
 		            int start=0, end=0;
 		            
