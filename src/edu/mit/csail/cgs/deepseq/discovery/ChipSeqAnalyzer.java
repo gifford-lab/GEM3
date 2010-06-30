@@ -86,7 +86,7 @@ public class ChipSeqAnalyzer{
         	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
         	boolean nonUnique = ap.hasKey("nonunique") ? true : false;
         	String fileFormat = Args.parseString(args, "format", "BED");
-        	
+
         	if(expts.size()>0 && dbexpts.size() == 0 && rdbexpts.size()==0){
         		readLength = -1;	// For file, read length will be obtained from the data
 	        	DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);

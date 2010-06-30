@@ -68,6 +68,9 @@ public class FileReadLoader extends ReadLoader{
 				BEDFileReader currReader = new BEDFileReader(file,gen,useNonUnique, currID);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
+			}else{
+			    System.err.println("Unknown file format: "+format);
+			    System.exit(1);
 			}
 		}
 		
