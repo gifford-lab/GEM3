@@ -93,19 +93,19 @@ public abstract class AlignmentFileReader{
 	protected int currID=0;
 	
 	public AlignmentFileReader(File f, Genome g, int mis, boolean nonUnique, int idSeed){
-		if(g==null){
-			estimateGenome();
-		}
-		System.out.print("Loading reads from: "+f.getName()+" ... ");
 		totalHits=0;
 		totalWeight=0;
 		inFile=f;
-		gen=g;
 		misMatch=mis;
 		useNonUnique = nonUnique;
 		currID=idSeed;
+		if(g==null)
+			estimateGenome();
+		gen=g;
 		List<String> chromList = g.getChromList();
 		numChroms = chromList.size();
+		
+		System.out.print("Loading reads from: "+f.getName()+" ... ");
 		
 		//Initialize the chromosome name lookup tables
 		int i=0; 
