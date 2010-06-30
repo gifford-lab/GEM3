@@ -414,6 +414,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		expts = null;
 		System.gc();
 		
+		log(1, "\nSorting reads and selecting regions for analysis.");
     	// if no focus list, directly estimate candidate regions from data
 		if (focusFormat==null){
     		setRegions(selectEnrichedRegions());    		
@@ -544,15 +545,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         signalFeatures.clear();	
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
-		System.out.println("\nRunning EM for each region, please wait ...\n");
+		System.out.println("\nRunning EM for each region, please wait ...");
 		int totalRegionCount = restrictRegions.size();
-		int displayStep = 10000;
+		int displayStep = 5000;
 		if (totalRegionCount<10000)
 			displayStep = 1000;
 		if (totalRegionCount<1000)
 			displayStep = 100;
 		if (totalRegionCount<100)
 			displayStep = 10;	
+		System.out.println("(Progress will be reported in steps of "+displayStep+" regions).\n");
 		
 		//for each test region
 		for (int j=0;j<restrictRegions.size();j++) {
