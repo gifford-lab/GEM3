@@ -1,43 +1,38 @@
 package edu.mit.csail.cgs.deepseq.utilities;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.LineNumberReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.deepseq.Read;
-import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
-import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 /**
  * Modify from AlignmentFileReader.java
  * 
  * Here we use it as a memory cache to store the data.
- * The starts field for each chrom/strand will be distinct. 
+ * The fivePrimes field for each chrom/strand will be distinct. 
  * Multiple reads mapped to the bp position will store as counts.
  * Thus, the count field is different from AlignmentFileReader.java.
  * 
  * This class basically stores the hits coming from the correspoding files. <br>
  * We have made use of an unusual convention for reducing running time purposes. <br>
- * The hits are basically being represented by 3 main fields: <tt>starts, hitCounts</tt>
+ * The hits are basically being represented by 3 main fields: <tt>fivePrimes, hitCounts</tt>
  * and <tt>hitIDs</tt>. <br>
  * Each of these fields are 3D arrays where:  <br>
  * - the first dimension corresponds to the chromosome that a hit belongs to (based on
  * the mapping from a chromosome as a <tt>String</tt> to an integer via the 
  * <tt>chrom2ID</tt> map).    <br>
  * - the second dimension corresponds to the strand. 0 for '+' (Watson), 1 for '-' (Crick). <br>
- * - the third dimension contains information for a hit (e.g. its start, counts, ID).
+ * - the third dimension contains information for a hit (e.g. its fivePrimes, counts, ID).
  * 
- * @author shaunmahony
+ * @author Yuchun
  *
  */
 public class ReadCache{
@@ -327,14 +322,14 @@ public class ReadCache{
 		for (int i=0;i<binCounts.length;i++){
 			sb.append(i+"\t"+binCounts[i]+"\n");
 		}
-		BindingMixture.writeFile(name+"1bpCount.txt", sb.toString());
+		writeFile(name+"1bpCount.txt", sb.toString());
 	}
 	public void printBin500Counts(){
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<bin500Counts.length;i++){
 			sb.append(i+"\t"+bin500Counts[i]+"\n");
 		}
-		BindingMixture.writeFile(name+"500bpCount.txt", sb.toString());
+		writeFile(name+"500bpCount.txt", sb.toString());
 	}
 	public int getMaxHitPerBP(double fraction){
 		double toKeep = (1-fraction) * totalHits;
@@ -346,4 +341,14 @@ public class ReadCache{
 		}
 		return binCounts.length;
 	}
+	private void writeFile(String fileName, String text){
+		try{
+			FileWriter fw = new FileWriter(fileName, false); //new file
+			fw.write(text);
+			fw.close();
+		} 
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+	}	
 }

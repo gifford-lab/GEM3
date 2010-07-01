@@ -236,9 +236,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		/* ***************************************************
 		 * Load Binding Model, empirical distribution
 		 * ***************************************************/
-		String modelFile = Args.parseString(args, "read_distribution", null);
-		if(modelFile==null){System.err.println("--read_distribution is a required option");System.exit(1);}
-		
+		String modelFile = Args.parseString(args, "d", null);	// read distribution file
+
 		commonInit(modelFile);
 
         if (SPLINE_SMOOTH)
@@ -246,14 +245,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		
 		// Required input parameter
-    	mappable_genome_length = Args.parseDouble(args, "mappable_genome_length", 2.08E9);
+    	mappable_genome_length = Args.parseDouble(args, "s", 2.08E9);	// size of mappable genome
     	
     	// Optional input parameter
-    	q_value_threshold = Args.parseDouble(args, "q_value_threshold", 2.0);
+    	q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
+    	sparseness = Args.parseDouble(args, "a", 6.0);	// alpha parameter for sparse prior
+    	alpha_factor = Args.parseDouble(args, "alpha_factor", 3.0); // denominator in calculating alpha value
     	max_hit_per_bp = Args.parseInteger(args, "max_hit_per_bp", -1);
     	top_event_percentile = Args.parseInteger(args, "top_event_percentile", 50);
-    	sparseness = Args.parseDouble(args, "alpha_value", 6.0);
-    	alpha_factor = Args.parseDouble(args, "alpha_factor", 3.0);
     	needle_height_factor = Args.parseInteger(args, "needle_height_factor", 2);
     	needle_hitCount_fraction = Args.parseDouble(args, "needle_hitCount_fraction", 0.1);
     	
@@ -269,9 +268,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	development_mode = flags.contains("development_mode");
     	// default as true, need the opposite flag to turn it off
+    	use_dynamic_sparseness = ! flags.contains( "fa"); // fix alpha parameter
     	TF_binding = ! flags.contains("non_punctate_binding");
     	reportProgress =! flags.contains("no_report_progress");
-    	use_dynamic_sparseness = ! flags.contains( "fix_alpha_value");
     	use_internal_em_train = ! flags.contains( "use_multi_condition_em_train");
     	use_scanPeak = ! flags.contains( "do_not_scanPeak");
     	boolean loadWholeGenome = ! flags.contains( "loadRegionOnly");
