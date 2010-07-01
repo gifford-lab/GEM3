@@ -148,6 +148,23 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
     	dataset = null;
     }
     
+    public Genome(String tempName, Map<String, Integer> chrLengthMap) {
+    	species = "FakeOrganism";
+    	version = tempName;
+    	speciesid = dbid = -1;
+    	cxn = null;
+    	isyeast = false;
+    	chroms = new HashMap<String,ChromosomeInfo>();
+    	revchroms = new HashMap<Integer,ChromosomeInfo>();
+    	int id=0;
+    	for(String s : chrLengthMap.keySet()){
+    		ChromosomeInfo info = new ChromosomeInfo(id--, chrLengthMap.get(s), s);
+        	chroms.put(info.getName(), info);
+        	revchroms.put(info.dbid, info);
+    	}
+	   dataset = null;
+    }
+    
     public Genome(String tempSpecies, String tempVersion, Pair<String,Integer>... lengths) { 
     	species = tempSpecies;
     	version = tempVersion;

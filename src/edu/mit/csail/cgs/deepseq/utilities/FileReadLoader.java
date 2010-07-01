@@ -7,8 +7,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAlignment;
@@ -74,6 +76,20 @@ public class FileReadLoader extends ReadLoader{
 			}
 		}
 		
+		if(gen==null){
+			//Combine the chromosome information
+			HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
+			for(AlignmentFileReader a : fileReaders){
+				Map<String, Integer> currMap = a.getGenome().getChromLengthMap();
+				for(String s: currMap.keySet()){
+					if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
+						chrLenMap.put(s, currMap.get(s));
+				}
+			}
+			Genome comboGenome=new Genome("Genome", chrLenMap);
+			this.setGenome(comboGenome);
+		}
+		
 		for(AlignmentFileReader a : fileReaders){
 			totalHits+=a.getTotalHits();
 			totalWeight+=a.getTotalWeight();
@@ -132,7 +148,20 @@ public class FileReadLoader extends ReadLoader{
 	}
 
 	public int[] getStartCoords(String chrom){
-		return fileReaders.get(0).getStartCoords(chrom);
+		ArrayList<Integer> list = new ArrayList<Integer>();
+		for(AlignmentFileReader r : fileReaders){
+			int [] starts = r.getStartCoords(chrom);
+			for(int i=0; i<starts.length; i++){
+				list.add(starts[i]);
+			}
+		}Collections.sort(list);
+		int [] arr = new int[list.size()];
+		int c=0;
+		for(Integer x : list){
+			arr[c]=x.intValue();
+			c++;
+		}
+		return arr;
 	}
 	
 	//Load the extended reads from our files
@@ -177,6 +206,13 @@ public class FileReadLoader extends ReadLoader{
 			count+=a.getStrandedTotalWeight(strand);
 		}
 		return count;
+	}
+	//Set a new genome
+	public void setGenome(Genome g){
+		gen=g;
+		for(AlignmentFileReader a : fileReaders){
+			a.setGenome(g);
+		}
 	}
 	
 	public void cleanup(){}

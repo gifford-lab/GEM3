@@ -58,34 +58,34 @@ public abstract class FeatureFinder {
 				if(pair != null){
 					gen = pair.cdr();
 					dbconnected=true;
+					genomeLen = gen.getGenomeLength();
 				}
 			}else{
 				//Make fake genome... chr lengths provided???
 				if(ap.hasKey("geninfo")){
 					gen = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-	        	}else{
-	        		//System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); 
-	        		printError();System.exit(1);
-	        	}
+					genomeLen = gen.getGenomeLength();
+				}else{
+				    gen = null;
+				}
 			}
-			genomeLen = gen.getGenomeLength();
 			mappableGenome = Args.parseDouble(args, "mappable", 0.8);
 			readLength = Args.parseDouble(args,"readlen",readLength);
 			
-	        setOutName(Args.parseString(args,"out",outName));
-	        setSeqwin(Args.parseInteger(args,"seqwin",seqwin));
+			setOutName(Args.parseString(args,"out",outName));
+			setSeqwin(Args.parseInteger(args,"seqwin",seqwin));
 			//Load annotations
-	        setAnnotOverlapOnly(Args.parseFlags(args).contains("annotoverlap"));
-	        setMaxAnnotDistance(Args.parseInteger(args,"maxannotdist",maxAnnotDistance));
-	            //Gene Annotations
-	        Collection<String> tfiles = Args.parseStrings(args,"transcripts");
-	        Collection<String> dbgenes = Args.parseStrings(args,"dbgenes");
-	        //Special case default
-	        if(dbgenes.size()==0 && tfiles.size()==0 && dbconnected){
-	        	String geneSource = (gen.getSpecies().equals("Saccharomyces cerevisiae") ||
-	        			gen.getSpecies().equals("Mycobacterium tuberculosis") )? 
-	        			"sgdGene":"refGene";
-	        	geneAnnotations.add(new AnnotationLoader(gen, geneSource,geneSource, maxAnnotDistance, annotOverlapOnly));
+			setAnnotOverlapOnly(Args.parseFlags(args).contains("annotoverlap"));
+			setMaxAnnotDistance(Args.parseInteger(args,"maxannotdist",maxAnnotDistance));
+			//Gene Annotations
+			Collection<String> tfiles = Args.parseStrings(args,"transcripts");
+			Collection<String> dbgenes = Args.parseStrings(args,"dbgenes");
+			//Special case default
+			if(dbgenes.size()==0 && tfiles.size()==0 && dbconnected){
+			    String geneSource = (gen.getSpecies().equals("Saccharomyces cerevisiae") ||
+						 gen.getSpecies().equals("Mycobacterium tuberculosis") )? 
+				"sgdGene":"refGene";
+			    geneAnnotations.add(new AnnotationLoader(gen, geneSource,geneSource, maxAnnotDistance, annotOverlapOnly));
 			}
 	        for(String s:dbgenes)
 	        	geneAnnotations.add(new AnnotationLoader(gen, s, "refGene", maxAnnotDistance, annotOverlapOnly));

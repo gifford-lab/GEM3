@@ -29,6 +29,7 @@ public abstract class ReadLoader {
 		totalWeight=0;
 	}
 	//Accessors
+	public Genome getGenome(){return(gen);}
 	public int getReadLen(){return readLength;}
 	public double getHitCount(){return(totalHits);}
 	public double getTotalWeight(){return(totalWeight);}
@@ -57,5 +58,5 @@ public abstract class ReadLoader {
 	public abstract int countHits (Region r);
 	public abstract double sumWeights (Region r);
 	public abstract void cleanup();
-	
+	public abstract void setGenome(Genome g);
 }

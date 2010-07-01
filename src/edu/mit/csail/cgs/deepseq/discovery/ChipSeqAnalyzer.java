@@ -25,6 +25,7 @@ public class ChipSeqAnalyzer{
 	private BindingMixture mixture=null;
 	
 	ChipSeqAnalyzer(String[] args){
+		if(args.length==0){ printError(); System.exit(1); }
 		this.args = args;
 		ArgParser ap = new ArgParser(args);
 		Set<String> flags = Args.parseFlags(args);
@@ -43,8 +44,7 @@ public class ChipSeqAnalyzer{
 				if(ap.hasKey("g")){
 					genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
 	        	}else{
-	        		//System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); 
-	        		printError();System.exit(1);
+	        		genome=null;
 	        	}
 			}
 		} catch (NotFoundException e) {
@@ -60,20 +60,26 @@ public class ChipSeqAnalyzer{
 			System.err.println("The mappable genome size is required.\n");
 			printError();System.exit(1);
 		}
-		System.out.println("Welcome to GPS\nLoading data...");
 		
+		System.out.println("Welcome to GPS\nLoading data...");
+
         //Experiments : Load each condition expt:ctrl Pair
 		ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> experiments = new ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>>();
 		long loadData_tic = System.currentTimeMillis();
-    	ArrayList<String> conditionNames = new ArrayList<String>();
-        int exptHitCount=0;
-        int ctrlHitCount=0;
-        Vector<String> exptTags=new Vector<String>();
-        for(String s : args)
+		ArrayList<String> conditionNames = new ArrayList<String>();
+		int exptHitCount=0;
+		int ctrlHitCount=0;
+		Vector<String> exptTags=new Vector<String>();
+		for(String s : args)
         	if(s.contains("expt"))
         		if(!exptTags.contains(s))
         			exptTags.add(s);
-    	
+		
+		if(exptTags.size()==0){
+		    System.err.println("Error: No signal experiments provided.\nUse the --expt option.");
+		    printError();
+		    System.exit(1);
+		}
         // each tag represents a condition
         for(String tag : exptTags){
         	String name="";
@@ -105,11 +111,19 @@ public class ChipSeqAnalyzer{
         		readLength = -1;	// For file, read length will be obtained from the data
 	        	DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
 	        	DeepSeqExpt c = new DeepSeqExpt(genome, ctrls, nonUnique, fileFormat, readLength);
+        		if(genome==null){
+	        		genome = DeepSeqExpt.combineFakeGenomes(e,c);
+	        		e.setGenome(genome);
+	        		c.setGenome(genome);
+	        	}
         		experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
 	        	exptHitCount+=e.getHitCount();
 	        	ctrlHitCount+=c.getHitCount();
 	        }
         	else if(dbexpts.size()>0 && expts.size() == 0){
+        		if(genome==null){
+        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
+        		}
 	    		readLength = Args.parseInteger(args,"readlen",readLength);
 				if (readLength==-1){
 		        	System.err.println("Read length is required to use Gifford lab DB");
@@ -119,6 +133,9 @@ public class ChipSeqAnalyzer{
 	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, dbexpts, "db", readLength),new DeepSeqExpt(genome, dbctrls, "db", readLength)));
 	        }
 	        else if(rdbexpts.size()>0 && expts.size() == 0){
+	        	if(genome==null){
+        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
+        		}
 	    		readLength = Args.parseInteger(args,"readlen",readLength);
 				if (readLength==-1){
 		        	System.err.println("Read length is required to use Gifford lab read DB");
@@ -135,7 +152,7 @@ public class ChipSeqAnalyzer{
         }
         System.out.println("    done: "+BindingMixture.timeElapsed(loadData_tic));
         try{
-        	mixture = new BindingMixture(experiments, conditionNames, args);
+	    mixture = new BindingMixture(genome, experiments, conditionNames, args);
         }
         catch(Exception ex){
         	for(Pair<DeepSeqExpt,DeepSeqExpt> e : experiments){

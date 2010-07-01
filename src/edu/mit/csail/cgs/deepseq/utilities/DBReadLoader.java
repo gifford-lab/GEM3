@@ -120,6 +120,7 @@ public class DBReadLoader extends ReadLoader{
 			e.printStackTrace();
 		}
 	}
+	public void setGenome(Genome g){gen = g;}
 
 	protected double countHits(){
 		totalHits=0;

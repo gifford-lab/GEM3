@@ -343,6 +343,10 @@ public class ReadDBReadLoader extends ReadLoader{
 		}
         return(r);
 	}
+
+	public void setGenome(Genome g) {
+		gen=g;
+	}
 	
 	//Close the loaders
 	public void cleanup(){
