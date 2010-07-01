@@ -62,8 +62,9 @@ public abstract class FeatureFinder {
 				}
 			}else{
 				//Make fake genome... chr lengths provided???
-				if(ap.hasKey("geninfo")){
-					gen = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+				if(ap.hasKey("geninfo") || ap.hasKey("g")){
+					String fName = ap.hasKey("geninfo") ? ap.getKeyValue("geninfo") : ap.getKeyValue("g");
+					gen = new Genome("Genome", new File(fName));
 					genomeLen = gen.getGenomeLength();
 				}else{
 				    gen = null;
