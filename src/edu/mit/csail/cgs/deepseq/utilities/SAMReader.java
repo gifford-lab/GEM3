@@ -28,7 +28,8 @@ public class SAMReader extends AlignmentFileReader{
 		SAMSequenceDictionary dictionary = reader.getFileHeader().getSequenceDictionary();
 		if(dictionary !=null){
 			for(SAMSequenceRecord record : dictionary.getSequences()){
-				chrLenMap.put(record.getSequenceName(), record.getSequenceLength());
+			    String chr = record.getSequenceName().replaceFirst("^chr", "");
+			    chrLenMap.put(chr, record.getSequenceLength());
 			}
 		}else{
 			CloseableIterator<SAMRecord> iter = reader.iterator();

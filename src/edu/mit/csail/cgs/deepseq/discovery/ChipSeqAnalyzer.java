@@ -45,20 +45,27 @@ public class ChipSeqAnalyzer{
 		} catch (NotFoundException e) {
 			e.printStackTrace();
 		}
+		if(args.length==0){ printError(); System.exit(1); }
+
 		System.out.println("Welcome to GPS\nLoading data...");
-		
+
         //Experiments : Load each condition expt:ctrl Pair
 		ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> experiments = new ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>>();
 		long loadData_tic = System.currentTimeMillis();
-    	ArrayList<String> conditionNames = new ArrayList<String>();
-        int exptHitCount=0;
-        int ctrlHitCount=0;
-        Vector<String> exptTags=new Vector<String>();
-        for(String s : args)
+		ArrayList<String> conditionNames = new ArrayList<String>();
+		int exptHitCount=0;
+		int ctrlHitCount=0;
+		Vector<String> exptTags=new Vector<String>();
+		for(String s : args)
         	if(s.contains("expt"))
         		if(!exptTags.contains(s))
         			exptTags.add(s);
-    	
+		
+		if(exptTags.size()==0){
+		    System.err.println("Error: No signal experiments provided.\nUse the --expt option.");
+		    printError();
+		    System.exit(1);
+		}
         // each tag represents a condition
         for(String tag : exptTags){
         	String name="";
@@ -131,7 +138,7 @@ public class ChipSeqAnalyzer{
         }
         System.out.println("    done: "+BindingMixture.timeElapsed(loadData_tic));
         try{
-        	mixture = new BindingMixture(experiments, conditionNames, args);
+	    mixture = new BindingMixture(genome, experiments, conditionNames, args);
         }
         catch(Exception ex){
         	for(Pair<DeepSeqExpt,DeepSeqExpt> e : experiments){
