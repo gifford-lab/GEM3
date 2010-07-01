@@ -26,6 +26,7 @@ import cern.jet.random.engine.DRand;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
@@ -138,7 +139,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 ****************/
 	private boolean wholeGenomeDataLoaded = false;
 	// memory cache to store all the read data, loaded from DB or file
-	protected ArrayList<Pair<ReadCache, ReadCache>> experiments;
+	protected ArrayList<Pair<ReadCache, ReadCache>> caches;
 	protected ArrayList<String> conditionNames = new ArrayList<String>();
 	// Do we have matched control data?
 	protected boolean controlDataExist=false;
@@ -196,10 +197,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * This constructor will get most parameters from property file 
 	 * It is usually called from ChipSeqAnalyzer.
 	 */
-	public BindingMixture(ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
+	public BindingMixture(Genome g, ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
 						  ArrayList<String> conditionNames, 
 						  String[] args){
-		super (args);
+		super (args, g, expts);
 		try{
 			logFileWriter = new FileWriter("GPS_Log.txt", true); //append
 			logFileWriter.write("\n==============================================\n");
@@ -295,15 +296,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		/* ***************************************************
 		 * ChIP-Seq data
 		 * ***************************************************/
-		this.experiments = new ArrayList<Pair<ReadCache, ReadCache>>();
-		this.numConditions = expts.size();
+		this.caches = new ArrayList<Pair<ReadCache, ReadCache>>();
+		this.numConditions = experiments.size();
 		this.conditionNames = conditionNames;
 		ComponentFeature.setConditionNames(conditionNames);
 		condSignalFeats = new ArrayList[this.numConditions];
 		for(int c = 0; c < this.numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
 		long tic = System.currentTimeMillis();
-		for (int i=0;i<expts.size();i++){
-			Pair<DeepSeqExpt, DeepSeqExpt> pair = expts.get(i);
+		for (int i=0;i<experiments.size();i++){
+			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
 			DeepSeqExpt ip = pair.car();
 			DeepSeqExpt ctrl = pair.cdr();
 			if(ctrl.getHitCount()>0){
@@ -313,7 +314,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			ReadCache ctrlCache = null;
 			if (controlDataExist)
 				ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
-			this.experiments.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
+			this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
 			
 			// cache sorted start positions and counts of all positions
 			if (ip.isFromReadDB()){		// load from read DB
@@ -404,14 +405,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		} //end for each condition
 		
 		// If data was loaded from ReadDB, clean up the database connection 
-		if(expts.get(0).car().isFromReadDB()) {
-			for(Pair<DeepSeqExpt,DeepSeqExpt> e : expts){
+		if(experiments.get(0).car().isFromReadDB()) {
+			for(Pair<DeepSeqExpt,DeepSeqExpt> e : experiments){
 				e.car().closeLoaders();
 				e.cdr().closeLoaders();
 			}
 			System.out.println("Finish loading data from ReadDB, " + timeElapsed(tic));			
 		}
-		expts = null;
+		experiments = null;
 		System.gc();
 		
 		log(1, "\nSorting reads and selecting regions for analysis.");
@@ -450,8 +451,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         sigHitCounts=new double[numConditions];
         seqwin=100;
         if (focusFormat == null){		// estimate some parameters if whole genome data
-	        for(int i=0; i<experiments.size(); i++){
-				Pair<ReadCache,ReadCache> e = experiments.get(i);
+	        for(int i=0; i<caches.size(); i++){
+				Pair<ReadCache,ReadCache> e = caches.get(i);
 				double ipCount = e.car().getHitCount();
 				// estimate max hit count per BP
 				// if user supply using max_hit_per_bp, use it
@@ -475,7 +476,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         else{	// want to analyze only specified regions, set default
         	if (max_hit_per_bp!=-1)
 				max_HitCount_per_base = max_hit_per_bp;
-        	for(int i=0; i<experiments.size(); i++){
+        	for(int i=0; i<caches.size(); i++){
         		ratio_total[i]=1;
         		ratio_non_specific_total[i]=1;
         	}
@@ -701,7 +702,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		towerStrength.clear();
 		for (Region tower: towerRegions){
 			float allCount=0;
-			for(Pair<ReadCache,ReadCache> e : experiments){
+			for(Pair<ReadCache,ReadCache> e : caches){
 				List<StrandedBase> bases_p= e.car().getStrandedBases(tower, '+');  // reads of the current region - IP channel
 				List<StrandedBase> bases_m= e.car().getStrandedBases(tower, '-');  // reads of the current region - IP channel
 				allCount += StrandedBase.countBaseHits(bases_p)+ StrandedBase.countBaseHits(bases_m);
@@ -930,7 +931,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		ArrayList<List<StrandedBase>> signals = new ArrayList<List<StrandedBase>>();
 		if(channel.equalsIgnoreCase("IP")) {
 			//Load each condition's read hits
-			for(Pair<ReadCache,ReadCache> e : experiments){
+			for(Pair<ReadCache,ReadCache> e : caches){
 				List<StrandedBase> bases_p= e.car().getStrandedBases(w, '+');  // reads of the current region - IP channel
 				List<StrandedBase> bases_m= e.car().getStrandedBases(w, '-');  // reads of the current region - IP channel
 				
@@ -960,7 +961,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		else if(channel.equalsIgnoreCase("CTRL")) {
 			//Load each condition's read hits
-			for(Pair<ReadCache,ReadCache> e : experiments){
+			for(Pair<ReadCache,ReadCache> e : caches){
 				List<StrandedBase> bases_p= e.cdr().getStrandedBases(w, '+');  // reads of the current region - Ctrl channel
 				List<StrandedBase> bases_m= e.cdr().getStrandedBases(w, '-');  // reads of the current region - Ctrl channel
 				bases_p.addAll(bases_m);
@@ -1116,17 +1117,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		double ctrlReadSum = 0;
 		for (Region chunk: chunks){
 			if (controlDataExist){		
-				for(int c=0; c<experiments.size(); c++){	// each condition
-					List<StrandedBase> bases_p= experiments.get(c).cdr().getStrandedBases(chunk, '+');  // plus reads of the current region - CTRL channel
-					List<StrandedBase> bases_m= experiments.get(c).cdr().getStrandedBases(chunk, '-');  // minus reads of the current region - CTRL channel				
+				for(int c=0; c<caches.size(); c++){	// each condition
+					List<StrandedBase> bases_p= caches.get(c).cdr().getStrandedBases(chunk, '+');  // plus reads of the current region - CTRL channel
+					List<StrandedBase> bases_m= caches.get(c).cdr().getStrandedBases(chunk, '-');  // minus reads of the current region - CTRL channel				
 					if(needToCleanBases) {
 						cleanBases(bases_p);
 						cleanBases(bases_m);
 					}
 				
 					if (pre_artifact_filter){
-						filterBases(bases_p, experiments.get(c).cdr(), chunk, '+');
-						filterBases(bases_m, experiments.get(c).cdr(), chunk, '-');
+						filterBases(bases_p, caches.get(c).cdr(), chunk, '+');
+						filterBases(bases_m, caches.get(c).cdr(), chunk, '-');
 					}
 					
 					ctrlReadSum += (StrandedBase.countBaseHits(bases_m)+StrandedBase.countBaseHits(bases_p))*ratio_total[c];
@@ -2005,7 +2006,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			Region wholeChrom = new Region(gen, chrom, 0, length-1);
 			List<Region> rs = new ArrayList<Region>();
 			List<StrandedBase> allBases = new ArrayList<StrandedBase>();
-			for (Pair<ReadCache, ReadCache> pair: experiments){
+			for (Pair<ReadCache, ReadCache> pair: caches){
 				ReadCache ip = pair.car();
 				List<StrandedBase> bases = ip.getUnstrandedBases(wholeChrom); 
 				if (bases==null || bases.size()==0){
@@ -2358,8 +2359,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				r=new Region(r.getGenome(), r.getChrom(), r.getStart(),comps.get(comps.size()-1).getLocation().getLocation()+modelRange);
 			}
 				
-			for(int c=0; c<experiments.size(); c++){	// each condition
-				Pair<ReadCache,ReadCache> exptPair = experiments.get(c);
+			for(int c=0; c<caches.size(); c++){	// each condition
+				Pair<ReadCache,ReadCache> exptPair = caches.get(c);
 				ReadCache control = exptPair.cdr();
 				// read count from Control data in specified region 
 				List<StrandedBase> bases= control.getStrandedBases(r, '+');  // plus reads of the current region - CTRL channel
@@ -2502,7 +2503,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		
 		ArrayList<List<StrandedBase>> signals = new ArrayList<List<StrandedBase>>();
 		//Load and filter each condition's read hits
-		for(Pair<ReadCache,ReadCache> e : experiments){
+		for(Pair<ReadCache,ReadCache> e : caches){
 			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  // reads of the current region - IP channel
 			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-');  // reads of the current region - IP channel
 			// filter
@@ -2606,7 +2607,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		//Load each condition's read hits
 		int totalHitCounts = 0;
 		for(int c=0;c<numConditions;c++){
-			Pair<ReadCache,ReadCache> e = experiments.get(c);
+			Pair<ReadCache,ReadCache> e = caches.get(c);
 			List<StrandedBase> bases_p= e.car().getStrandedBases(plusRegion, '+');  // reads of the current region - IP channel
 			List<StrandedBase> bases_m= e.car().getStrandedBases(minusRegion, '-');  // reads of the current region - IP channel
 			
@@ -2744,7 +2745,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         double[][] newModel_minus=new double[numConditions][modelWidth];    	
 		// sum the read profiles from all qualified binding events for updating model			
 		for (int c=0;c<numConditions;c++){
-			ReadCache ip = experiments.get(c).car();
+			ReadCache ip = caches.get(c).car();
 			for (Feature f: signalFeatures){
 				ComponentFeature cf = (ComponentFeature)f;	
 				// the events that are used to refine read distribution should be
@@ -2848,7 +2849,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures){	
 		if(controlDataExist) {
 			for (ComponentFeature cf: compFeatures){
-				for(int cond=0; cond<experiments.size(); cond++){
+				for(int cond=0; cond<caches.size(); cond++){
 					// scale control read count by non-specific read count ratio
 					double controlCount = cf.getScaledControlCounts(cond);
 					double ipCount = cf.getEventReadCounts(cond);
@@ -2889,7 +2890,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		else {
 			shift_size = eval_avg_shift_size(compFeatures, num_top_mfold_feats);
 			for (ComponentFeature cf: compFeatures){
-				for(int cond=0; cond<experiments.size(); cond++){
+				for(int cond=0; cond<caches.size(); cond++){
 					double pValue_wo_ctrl = evalFeatureSignificance(cf, cond);
 					cf.setPValue_wo_ctrl(pValue_wo_ctrl, cond);
 				}
@@ -3262,8 +3263,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		int totalLength=0;	// total length of non-overlapping peak regions
 		for(Region r : restrictRegions){
 			totalLength += r.getWidth();
-			for(int i=0; i<experiments.size(); i++){
-				Pair<ReadCache,ReadCache> e = experiments.get(i);
+			for(int i=0; i<caches.size(); i++){
+				Pair<ReadCache,ReadCache> e = caches.get(i);
 				expt_test_region_total[i] += e.car().countHits(r);
 				if(controlDataExist)
 					crtl_test_region_total[i] += e.cdr().countHits(r);
@@ -3272,8 +3273,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		log(1, "\nPeak regions total length: "+totalLength);
 		
 		// non-specific = total - specific
-		for(int i=0; i<experiments.size(); i++){
-			Pair<ReadCache,ReadCache> e = experiments.get(i);
+		for(int i=0; i<caches.size(); i++){
+			Pair<ReadCache,ReadCache> e = caches.get(i);
 			expt_non_specific_total[i]=(int)e.car().getHitCount()-expt_test_region_total[i];
 			if(controlDataExist) {
 				crtl_non_specific_total[i]=(int)e.cdr().getHitCount()-crtl_test_region_total[i];

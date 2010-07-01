@@ -29,7 +29,12 @@ public abstract class MultiConditionFeatureFinder extends FeatureFinder{
 	}
 	public MultiConditionFeatureFinder(String[] args){
 		super(args);
-		// TODO Auto-generated constructor stub
+	}
+	public MultiConditionFeatureFinder(String[] args, Genome g, ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts){
+		super(args);
+		gen = g;
+		genomeLen = g.getGenomeLength();
+		experiments = expts;
 	}
 
 	//Call this method before exiting
