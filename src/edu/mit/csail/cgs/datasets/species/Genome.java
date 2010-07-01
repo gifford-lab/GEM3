@@ -122,7 +122,7 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
     	isyeast = false;
     	chroms = new HashMap<String,ChromosomeInfo>();
     	revchroms = new HashMap<Integer,ChromosomeInfo>();
-    	if(!chrLengths.isFile()){System.err.println("Invalid positive file name");System.exit(1);}
+    	if(!chrLengths.isFile()){System.err.println("Invalid genome info file name");System.exit(1);}
         BufferedReader reader;
 		try {
 			reader = new BufferedReader(new FileReader(chrLengths));
