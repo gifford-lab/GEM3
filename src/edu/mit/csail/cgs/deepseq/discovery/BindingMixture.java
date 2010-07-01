@@ -237,6 +237,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 * Load Binding Model, empirical distribution
 		 * ***************************************************/
 		String modelFile = Args.parseString(args, "read_distribution", null);
+		if(modelFile==null){System.err.println("--read_distribution is a required option");System.exit(1);}
+		
 		commonInit(modelFile);
 
         if (SPLINE_SMOOTH)
