@@ -42,7 +42,7 @@ public class ChipSeqAnalyzer{
 			}else{
 				//Make fake genome... chr lengths provided???
 				if(ap.hasKey("g")){
-					genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+					genome = new Genome("Genome", new File(ap.getKeyValue("g")));
 	        	}else{
 	        		genome=null;
 	        	}
