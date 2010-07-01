@@ -29,6 +29,10 @@ public class ChipSeqAnalyzer{
 		ArgParser ap = new ArgParser(args);
 		Set<String> flags = Args.parseFlags(args);
 		development_mode = flags.contains("development_mode");
+		if ( (ap.hasKey("help"))) {
+			printError();System.exit(1);
+		}
+
 		try {
 			if(ap.hasKey("species")){
 				Pair<Organism, Genome> pair = Args.parseGenome(args);
@@ -36,7 +40,7 @@ public class ChipSeqAnalyzer{
 					genome = pair.cdr();
 			}else{
 				//Make fake genome... chr lengths provided???
-				if(ap.hasKey("geninfo")){
+				if(ap.hasKey("g")){
 					genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
 	        	}else{
 	        		//System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); 
@@ -45,6 +49,16 @@ public class ChipSeqAnalyzer{
 			}
 		} catch (NotFoundException e) {
 			e.printStackTrace();
+		}
+		
+		// checking all required parameters
+		if (! (ap.hasKey("d"))) {
+			System.err.println("The read distribution file is required.\n");
+			printError();System.exit(1);
+		}
+		if (! (ap.hasKey("s"))) {
+			System.err.println("The mappable genome size is required.\n");
+			printError();System.exit(1);
 		}
 		System.out.println("Welcome to GPS\nLoading data...");
 		
@@ -85,7 +99,7 @@ public class ChipSeqAnalyzer{
         	List<File> expts = Args.parseFileHandles(args, "expt"+name);
         	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
         	boolean nonUnique = ap.hasKey("nonunique") ? true : false;
-        	String fileFormat = Args.parseString(args, "format", "BED");
+        	String fileFormat = Args.parseString(args, "f", "BED");
 
         	if(expts.size()>0 && dbexpts.size() == 0 && rdbexpts.size()==0){
         		readLength = -1;	// For file, read length will be obtained from the data
@@ -140,7 +154,7 @@ public class ChipSeqAnalyzer{
 		mixture.setOutName(peakFileName+"_"+round);
 		
 //		mixture.countNonSpecificReads();
-		int update_model_round = Args.parseInteger(args,"update_model", 1);
+		int update_model_round = Args.parseInteger(args,"r", 1);
 		while (kl>-6 && round<=update_model_round){
 			mixture.execute();
 			mixture.printFeatures();
@@ -188,22 +202,22 @@ public class ChipSeqAnalyzer{
 //                "      --dbexptX <IP expt (X is condition name)>\n" +
 //                "      --dbctrlX <background expt (X is condition name)>\n" +
 //                "      --readlen <read length>\n" +
-                "   Required options:\n" +
-                "      --read_distribution <read distribution model file>\n" +
-                "      --geninfo <file with chr name/length pairs>\n" +
-                "      --mappable_genome_length <length of mappable genome in bp>\n" +
+                "   Required parameters:\n" +
+                "      --d <read distribution file>\n" +
+                "      --g <genome info file with chr name/length pairs>\n" +
+                "      --s <size of mappable genome in bp>\n" +
                 "      --exptX <aligned reads file for expt (X is condition name)>\n" +
                 "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
-                "      --format <read file format BOWTIE/ELAND/NOVO/BED (default BED)>\n" +
-                "   Other options:\n" +
+                "   Optional parameters:\n" +
+                "      --f <read file format BED/BOWTIE/ELAND/NOVO (default BED)>\n" +
+                "      --r <max times to refine read distribution (default=3)>\n" +
+                "      --a <minimum alpha value for sparse prior (default=6)>\n" +
+                "      --q <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)>\n" +
                 "      --out <output file base name>\n" +
-                "      --update_model <max times to refine read distribution model (default=1)>\n" +
-                "      --alpha_value <minimum alpha value for sparse prior (default=6)\n" +
-                "      --q_value_threshold <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)\n" +
                 "   Optional flags: \n" +
-                "      --fix_alpha_value <GPS will use a fixed user-specified alpha value for all the regions>" +
-                "\n\n" +
-                "   Output format:\n" +
+                "      --fa <use a fixed user-specified alpha value for all the regions>\n" +
+                "      --help <print help information and exit>\n" +
+                "\n   Output format:\n" +
                 "      The output file contains five fields in a tab-delimited file:\n" +
                 "        - Binding event coordinate\n" +
                 "        - IP read count\n" +
