@@ -314,7 +314,7 @@ public class ReadCache{
 	public String getName(){
 		return name;
 	}
-	public void printStats(){
+	public void displayStats(){
 		System.out.println("ReadCache\t"+name+"\tBases: "+totalBases+"\tHitCounts: "+totalHits);
 	}
 	public void printBinCounts(){

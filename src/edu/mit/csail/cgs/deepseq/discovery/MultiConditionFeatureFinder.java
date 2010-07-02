@@ -39,6 +39,8 @@ public abstract class MultiConditionFeatureFinder extends FeatureFinder{
 
 	//Call this method before exiting
 	public void cleanup(){
+		if (experiments==null)
+			return;
 		for(Pair<DeepSeqExpt,DeepSeqExpt> p : experiments){
 			if(p.car()!=null)
 				p.car().closeLoaders();

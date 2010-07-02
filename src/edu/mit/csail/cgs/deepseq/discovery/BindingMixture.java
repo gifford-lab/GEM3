@@ -123,10 +123,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	
 	//Gaussian kernel for density estimation
 	protected double[] gaussian;
-	// precomputed lookup table of alpha values given read# in control
-	private TreeMap<Integer, Double> alphaTable;
-    // text file holding the mean and stddev of normal distribution of logKL value for some number of reads
-//  private String peak_shape_distribution="PeakShapeDistribution.txt";
 	// peak strength --> <mean, std>
 	private HashMap<Integer, Pair<Double, Double>> shapeParameters;
 
@@ -334,11 +330,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				System.out.println("Loading data from ReadDB ... \n");
 				if (loadWholeGenome){		// if whole genome
 					
-					for (String chrom: gen.getChromList()){
-						
-/* ----------> REMEMBER TO REMOVE THIS <---------- */						
-//						if(chrom.equals("1")) {
-									
+					for (String chrom: gen.getChromList()){									
 						// load  data for this chromosome.
 						int length = gen.getChromLength(chrom);
 						Region wholeChrom = new Region(gen, chrom, 0, length-1);
@@ -370,10 +362,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								ctrlCache.addHits(chrom, '-', hits.car(), hits.cdr());
 							}
 						}
-						
-						
-//					}//if(chrom.equals("1"))
-						
 					} // for each chrom
 					wholeGenomeDataLoaded = true;
 				} //if (loadWholeGenome==1){
@@ -392,12 +380,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}					
 				}
 				ipCache.populateArrays();
-				ipCache.printStats();
+				ipCache.displayStats();
 //				ipCache.printBin500Counts();
 //				ipCache.printBinCounts();
 				if (controlDataExist){
 					ctrlCache.populateArrays();
-					ctrlCache.printStats();
+					ctrlCache.displayStats();
 //					ctrlCache.printBinCounts();
 //					ctrlCache.printBin500Counts();
 				}
@@ -436,28 +424,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		if (development_mode)
 			printNoneZeroRegions(true);
 		log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
-		
-		/* ****************************************************
-		 * load peak shape distribution parameters estimated from simulation 
-		 * ****************************************************/
-//		loadPeakShapeParameters(properties.peak_shape_distribution);
-		
-		/* ****************************************************
-		 * pre-calculate alpha value given the control read count
-		 * ****************************************************/
-		alphaTable = new TreeMap<Integer, Double>();
-		double threshold = Math.pow(10, - q_value_threshold);
-		int ipStart = 1;
-		for (int ctrl=0; ctrl<200;ctrl++){
-			for (int ip=ipStart;ip<500;ip++){
-				double pValue = StatUtil.binomialPValue(ctrl, ctrl +ip);
-				if (pValue<threshold){
-					alphaTable.put(ctrl, ip*0.75);
-					ipStart = ip;
-					break;
-				}
-			}
-		}
 		
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
@@ -559,8 +525,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         signalFeatures.clear();	
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
-		System.out.println("\nRunning EM for each region, please wait ...");
 		int totalRegionCount = restrictRegions.size();
+		System.out.println("\nRunning EM for each of "+totalRegionCount+" regions, please wait ...");
 		int displayStep = 5000;
 		if (totalRegionCount<10000)
 			displayStep = 1000;
@@ -568,6 +534,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			displayStep = 100;
 		if (totalRegionCount<100)
 			displayStep = 10;	
+		if (totalRegionCount<20)
+			displayStep = 2;	
 		System.out.println("(Progress will be reported in steps of "+displayStep+" regions).\n");
 		
 		//for each test region
@@ -1111,81 +1079,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 	}
-	
-	// dynamically determine an alpha value for this sliding window based on control reads
-	// divide sliding window in 500bp chunks, find the smallest control read count
-	// estimate a minimum IP read count needed to pass significance threshold  
-	private double estimateAlpha(Region window){
-		ArrayList<Region> chunks = new ArrayList<Region>();
-		int lastEnd = window.getStart()+modelWidth-1;
-		chunks.add(new Region(window.getGenome(), window.getChrom(), window.getStart(), lastEnd));
-		while(lastEnd<window.getEnd()){
-			int newStart = lastEnd+1;
-			lastEnd = Math.min(newStart+modelWidth-1, window.getEnd());
-			if (lastEnd==window.getEnd())
-				newStart = lastEnd+1-modelWidth;
-			chunks.add(new Region(window.getGenome(), window.getChrom(), newStart, lastEnd));
-		}
-		// get the average value
-		double ctrlReadSum = 0;
-		for (Region chunk: chunks){
-			if (controlDataExist){		
-				for(int c=0; c<caches.size(); c++){	// each condition
-					List<StrandedBase> bases_p= caches.get(c).cdr().getStrandedBases(chunk, '+');  // plus reads of the current region - CTRL channel
-					List<StrandedBase> bases_m= caches.get(c).cdr().getStrandedBases(chunk, '-');  // minus reads of the current region - CTRL channel				
-					if(needToCleanBases) {
-						cleanBases(bases_p);
-						cleanBases(bases_m);
-					}
-				
-					if (pre_artifact_filter){
-						filterBases(bases_p, caches.get(c).cdr(), chunk, '+');
-						filterBases(bases_m, caches.get(c).cdr(), chunk, '-');
-					}
-					
-					ctrlReadSum += (StrandedBase.countBaseHits(bases_m)+StrandedBase.countBaseHits(bases_p))*ratio_total[c];
-				}
-			}
-		}
-		int ctrlReadAvg = (int) ctrlReadSum / chunks.size();
-		// get the min value from chunks
-//		int min = Integer.MAX_VALUE;
-//		for (Region chunk: chunks){
-//			if (controlDataExist){		
-//				for(int c=0; c<experiments.size(); c++){	// each condition
-//					List<StrandedBase> bases= experiments.get(c).cdr().getBases(chunk);  // control reads
-//					if(bases.isEmpty()){
-//						min=0;
-//						break;
-//					}
-//					if (!properties.allow_duplicate_reads){
-//						//filter out duplicate bases (potential tower, needles, but could be real reads)
-//						for (StrandedBase b: bases){
-//							if(b.getCount()>max_HitCount_per_base)
-//								b.setCount(this.max_HitCount_per_base);
-//						}
-//					}
-//					min = Math.min((int)(StrandedBase.countBaseHits(bases)*ratio_total[c]), min);
-//				}
-//			}
-//		}
-		if (!alphaTable.containsKey(ctrlReadAvg)){
-			double threshold = Math.pow(10, -q_value_threshold);
-			int ip_prev = (int) alphaTable.get(alphaTable.lastKey()).doubleValue();
-			for (int ctrl=alphaTable.lastKey();ctrl<=ctrlReadAvg;ctrl++){
-				for (int ip=ip_prev;ip<2*ctrl;ip++){
-					double pValue = StatUtil.binomialPValue(ctrl, ctrl+ip);
-					if (pValue<threshold){
-						alphaTable.put(ctrl, ip*0.75);
-						ip_prev = ip;
-						break;
-					}
-				}
-			}
-		}
-		return alphaTable.get(ctrlReadAvg);
-	}
-	
+
 	// dynamically determine an alpha value for this sliding window based on IP reads
 	// find a 500bp(modelWidth) region with maximum read counts, set alpha=sqrt(maxCount)/3  
 
@@ -3468,9 +3362,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// save the list of regions to file
 		try{
 			StringBuilder fileName = new StringBuilder(outName).append("_");
-//			for (String cond: conditionNames){
-//				fileName.append(cond).append("_");
-//			}
 			if (initial)
 				fileName.append("Init_");
 			else
@@ -3481,7 +3372,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			
 			StringBuilder txt = new StringBuilder();
 			for (Region r:restrictRegions){
-				txt.append(r.toString()).append("\n");
+				txt.append(r.toString()).append("\t").append(r.getWidth()).append("\t");
+				txt.append(countIpReads(r)).append("\n");
 			}
 			fw.write(txt.toString());
 			fw.close();
@@ -3490,6 +3382,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			e.printStackTrace();
 		}
 	}
+	
+	private float countIpReads(Region r){
+		float count=0;
+		for(Pair<ReadCache,ReadCache> e : caches){
+			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  // reads of the current region - IP channel
+			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-');  // reads of the current region - IP channel
+			count+=StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+		}
+		return count;
+	}
+	
 	private void printTowerRegions(){
 		// save the list of regions to file
 		try{
