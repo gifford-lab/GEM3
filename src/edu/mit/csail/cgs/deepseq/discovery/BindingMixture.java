@@ -33,6 +33,7 @@ import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
+import edu.mit.csail.cgs.ewok.verbs.binding.BindingEventAnalyzer.Size;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSPeakRegion;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -179,19 +180,24 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	
 	/** Stores the reads as <tt>StrandedBase</tt> structures.
 	 * key:chrom
-	 * value:{first dimension: IP or CTRL channel, second:condition, third:reads as StrandedBases ('+' and '-' are mixed)}
+	 * value:{first dimension: IP or CTRL channel, second:condition, third:reads as StrandedBases ('+' and '-' reads are mixed)}
 	 */
 	private Map<String,List<ArrayList<List<StrandedBase>>>> chrom_signals = new HashMap<String,List<ArrayList<List<StrandedBase>>>>();
 	
+	/** reads of this chromosome (position and count) as <tt>StrandedBases</tt> for this channel, condition and strand
+	 * key:chrom
+	 * value:{first dimension: IP or CTRL channel, second: condition, third:strand}  */
+	private Map<String, List<StrandedBase>[][][]> chromUniqueFivePrimes;
+
 	/** key:chrom, value:{first dimension: IP or CTRL channel, second: condition, 
-	 * third:strand, fourth:five primes of this chromosome for that condition and channel} */
-	private Map<String, int[][][][]> chromFivePrimes; 
+	 * third:strand, fourth:unique positions of reads of this chromosome for this channel, condition and strand} */
+	private Map<String, int[][][][]> chromUniqueFivePrimePos;
 	
 	/** Total IP counts for each chromosome (summed over all conditions) */
 	private Map<String, Integer> totalIPCounts;
 	
-	/** Read counts for each chromosome for each condition. 
-	 * List 0 => IP channel, List 1 => CTRL channel */
+	/** For each chromosome, the counts of reads for each channel and condition are stored.     <br>
+	/** key:chrom, value:{first list: IP or CTRL channel, second list: condition */
 	private Map<String, List<List<Integer>>> condHitCounts;
 
 	
@@ -256,19 +262,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	Set<String> flags = Args.parseFlags(args);
     	// default as false, need the flag to turn it on
     	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
-    	do_model_selection = flags.contains( "do_model_selection");
-    	linear_model_expansion = flags.contains( "linear_model_expansion");
+    	do_model_selection = flags.contains("do_model_selection");
+    	linear_model_expansion = flags.contains("linear_model_expansion");
     	use_multi_event = flags.contains("refine_using_multi_event");
     	needToCleanBases = flags.contains("needToCleanBases");
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	development_mode = flags.contains("development_mode");
     	// default as true, need the opposite flag to turn it off
-    	use_dynamic_sparseness = ! flags.contains( "fa"); // fix alpha parameter
+    	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
     	TF_binding = ! flags.contains("non_punctate_binding");
     	reportProgress =! flags.contains("no_report_progress");
-    	use_internal_em_train = ! flags.contains( "use_multi_condition_em_train");
-    	use_scanPeak = ! flags.contains( "do_not_scanPeak");
+    	use_internal_em_train = ! flags.contains("multi");
+    	use_scanPeak = ! flags.contains("do_not_scanPeak");
     	boolean loadWholeGenome = ! flags.contains( "loadRegionOnly");
     	
 		/* **************************************************
@@ -731,7 +737,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		
 		// post processing
 		postEMProcessing(compFeatures);
-		for(int c = 0; c < numConditions; c++) { condSignalFeats[c] = condPostFiltering(signalFeatures, c); }
+		for(int c = 0; c < numConditions; c++)
+			condSignalFeats[c] = condPostFiltering(signalFeatures, c);
 		
 		return signalFeatures;
 	}// end of execute method
@@ -1146,7 +1153,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	
 	private List<Feature> condPostFiltering(List<Feature> signifFeats, int cond){
 		List<Feature> condFeats = new ArrayList<Feature>();
-		for (Feature sf:signifFeats){
+		for (Feature sf:signifFeats) {
 			boolean significant = false;
 			// If TF binding keep the condition-wise component that exceeds the threshold
 			if (TF_binding) {
@@ -1158,10 +1165,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// if not TF binding, it is Chromatin data, keep all components
 			else { significant = true; }
 			
-			if (significant && ((ComponentFeature)sf).getCondBetas()[cond] > 0.0 )
+			if (significant && ((ComponentFeature)sf).getCondBetas()[cond] > 0.0 ) {
+				((ComponentFeature)sf).setCondSignificance(cond, significant);
 				condFeats.add((ComponentFeature)sf);
-			else
-				significant = false;
+			}
 		}
 		
 		return condFeats;
@@ -2206,7 +2213,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @param width width of the region whose components will be determined
 	 * @param pos unique positions of the reads
 	 * @param window expansion window
-	 * @param spacing spacing between the component
+	 * @param spacing spacing between the components
 	 * @return
 	 */
 	private int[] setComponentPositions(int width, int[][] pos, int window, int spacing) {
@@ -2795,7 +2802,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		else {
-			shift_size = eval_avg_shift_size(compFeatures, num_top_mfold_feats);
+//			I commented the evaluation of the average shift size
+//			We won't need it cause in our data, we do not shift reads.
+//			Besides, we will consider a fixed region of modelRange bp, as the peak region.
+			
+			createChromStats(compFeatures);
+//			shift_size = eval_avg_shift_size(compFeatures, num_top_mfold_feats);
 			for (ComponentFeature cf: compFeatures){
 				for(int cond=0; cond<caches.size(); cond++){
 					double pValue_wo_ctrl = evalFeatureSignificance(cf, cond);
@@ -2850,18 +2862,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 	}//end of benjaminiHochbergCorrection method
 	
-	private double eval_avg_shift_size(ArrayList<ComponentFeature> compFeatures, int num_top_mfold_feats) {
-		double avg_shift_size;
-		ComponentFeature[] top_mfold_Feats; 
-		
+	private void createChromStats(ArrayList<ComponentFeature> compFeatures) {
 		/******************************************
 		 *****  Create chromosome statistics  *****
 		 *****************************************/
-		totalIPCounts = new HashMap<String, Integer>();
-		chromFivePrimes = new HashMap<String, int[][][][]>();
-		condHitCounts = new HashMap<String, List<List<Integer>>>();
-		// In this loop we will create chromosome statistics.
-		// That is, we will store the total IP counts for each chromosome (for all conditions): totalIPCounts
+		totalIPCounts           = new HashMap<String, Integer>();
+		chromUniqueFivePrimes   = new HashMap<String, List<StrandedBase>[][][]>();
+		chromUniqueFivePrimePos = new HashMap<String, int[][][][]>();
+		condHitCounts           = new HashMap<String, List<List<Integer>>>();
+
+		// In this loop we will store the total IP counts for each chromosome (for all conditions): totalIPCounts
 		// as well as the counts for each channel (IP, CTRL) and for each condition: condHitCounts
 		for(String chrom:gen.getChromList()){
 			int chromLen       = gen.getChromLength(chrom);
@@ -2880,17 +2890,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			curr_chrom_signals.add(ctrl_chrom_signals);
 			chrom_signals.put(chrom, curr_chrom_signals);
 			
-			// first dimension: IP or CTRL channel
-			// second: condition, 
-			// third:strand of this chromosome for this channel and condition,
-			// Each list contains five primes of this chromosome for that condition, channel and strand
-			List<Integer>[][][] currChromFivePrimesList = new ArrayList[curr_chrom_signals.size()][numConditions][2];
-			for(int channel = 0; channel < currChromFivePrimesList.length; channel++)
+			// first dimension : IP or CTRL channel
+			// second dimension: condition
+			// third dimension : strand of this chromosome
+			// Each list contains five primes (position and counts) of this chromosome for that condition, channel and strand
+			List<StrandedBase>[][][] currChromUniqueFivePrimes = new ArrayList[2][numConditions][2];
+			int[][][][] currChromUniqueFivePrimesPos           = new int[2][numConditions][2][];
+			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++)
 				for(int t = 0; t < numConditions; t++)
 					for(int k = 0; k <= 1; k++)  // '+' or '-' strand
-						currChromFivePrimesList[channel][t][k] = new ArrayList<Integer>();
+						currChromUniqueFivePrimes[channel][t][k] = new ArrayList<StrandedBase>();
 			
-			for(int channel = 0; channel < currChromFivePrimesList.length; channel++) {
+			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++) {
 				for(int t = 0; t < numConditions; t++) {
 					// We store the bases of each strand separately
 					List<StrandedBase>[] curr_channel_cond_signals = new ArrayList[2];
@@ -2905,30 +2916,28 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					
 					for(StrandedBase sb:curr_chrom_signals.get(used_channel).get(t)) {
 						if(sb.getStrand() == '+')
-							curr_channel_cond_signals[0].add(sb);
+							currChromUniqueFivePrimes[channel][t][0].add(sb);
 						else
-							curr_channel_cond_signals[1].add(sb);
+							currChromUniqueFivePrimes[channel][t][1].add(sb);
 					}
 					
+					for(int k = 0; k <= 1; k++)  // sort in terms of unique bases position
+						Collections.sort(currChromUniqueFivePrimes[channel][t][k]);
+					
 					for(int k = 0; k <= 1; k++) {
-						for(StrandedBase sb:curr_channel_cond_signals[k])
-							currChromFivePrimesList[channel][t][k].add(sb.getCoordinate());
-						Collections.sort(currChromFivePrimesList[channel][t][k]);
+						currChromUniqueFivePrimesPos[channel][t][k] = new int[currChromUniqueFivePrimes[channel][t][k].size()];
+						for(int q = 0; q < currChromUniqueFivePrimesPos[channel][t][k].length; q++)
+							currChromUniqueFivePrimesPos[channel][t][k][q] = currChromUniqueFivePrimes[channel][t][k].get(q).getCoordinate();
 					}
 				}
 			}
 			
-			// dim 1: channel, dim 2: condition, dim 3: strand, dim 4: five primes
-			int[][][][] currChromFivePrimes = new int[currChromFivePrimesList.length][numConditions][2][];
-			for(int channel = 0; channel < currChromFivePrimesList.length; channel++)
-				for(int t = 0; t < numConditions; t++)
-					for(int k = 0; k <= 1; k++)
-						currChromFivePrimes[channel][t][k] = Utils.ref2prim(currChromFivePrimesList[channel][t][k].toArray(new Integer[0]));
+			chromUniqueFivePrimes.put(chrom, currChromUniqueFivePrimes);
+			chromUniqueFivePrimePos.put(chrom, currChromUniqueFivePrimesPos);
 			
-			chromFivePrimes.put(chrom, currChromFivePrimes);
 			int counts = 0;
-			// read counts. List 0 for IP, List 1 for CTRL
-			// For each of the above lists the read counts for each condition are stored
+			// Read counts. List 0 for IP, List 1 for CTRL. 
+			// Each List contains the read counts for each condition
 			List<List<Integer>> currChromCondCounts = new ArrayList<List<Integer>>();
 			currChromCondCounts.add(new ArrayList<Integer>()); currChromCondCounts.add(new ArrayList<Integer>());
 			for(List<StrandedBase> ip_chrom_signal_cond:curr_chrom_signals.get(0)) {
@@ -2946,7 +2955,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			
 			totalIPCounts.put(chrom, counts);
 			condHitCounts.put(chrom, currChromCondCounts);
-		}//end of Create chromosome statistics
+		}//end of for(String chrom:gen.getChromList()) loop
+		
+	}//end of createChromStats method
+	
+	private double eval_avg_shift_size(ArrayList<ComponentFeature> compFeatures, int num_top_mfold_feats) {
+		double avg_shift_size;
+		ComponentFeature[] top_mfold_Feats; 
 		
 		for(ComponentFeature cf:compFeatures) {
 			String chrom     = cf.getPosition().getChrom();
@@ -3032,22 +3047,20 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	
 	private double evalFeatureSignificance(ComponentFeature cf, int c) {
 		double pVal;
-		double local_lambda, lambda_bg, lambda_peak_ip, first_lambda_ip, second_lambda_ip, third_lambda_ip, lambda_peak_ctrl, first_lambda_ctrl, second_lambda_ctrl, third_lambda_ctrl;
+		double local_lambda, lambda_bg, first_lambda_ip, second_lambda_ip, third_lambda_ip, lambda_peak_ctrl, first_lambda_ctrl, second_lambda_ctrl, third_lambda_ctrl;
 		
-		String chrom       = cf.getPosition().getChrom();
-		int chromLen       = gen.getChromLength(chrom);
-		Region peakRegion  = cf.getPeak().expand(modelRange);
+		String chrom      = cf.getPosition().getChrom();
+		int chromLen      = gen.getChromLength(chrom);
+		Region peakRegion = cf.getPeak().expand(modelRange);
 		
-		List<StrandedBase> ip_signals   = chrom_signals.get(chrom).get(0).get(c);
-		List<StrandedBase> ctrl_signals = new ArrayList<StrandedBase>();
-		if(controlDataExist)
-			ctrl_signals = chrom_signals.get(chrom).get(1).get(c);
-		else
-			ctrl_signals.addAll(ip_signals);
-		
-		Collections.sort(ip_signals);
-		Collections.sort(ctrl_signals);
-				
+		int left_peak,  left_third_region,  left_second_region,  left_first_region;
+		int right_peak, right_third_region, right_second_region, right_first_region;
+	
+		int num_first_lambda_ip = 0, num_second_lambda_ip = 0, num_third_lambda_ip = 0;
+		int num_peak_ctrl = 0, num_first_lambda_ctrl = 0, num_second_lambda_ctrl = 0, num_third_lambda_ctrl = 0;
+
+		double num_peak_ip;
+						
 		double ipCounts = condHitCounts.get(chrom).get(0).get(c);
 		double ctrlCounts; 
 		if(controlDataExist)		
@@ -3055,89 +3068,116 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		else
 			ctrlCounts = ipCounts;
 				
-		int left_peak           = (int)Math.min(chromLen-1, peakRegion.getStart() + shift_size);
-		int left_third_region   = (int)Math.max(         0, cf.getPosition().getLocation() - third_lambda_region_width/2);
-		int left_second_region  = (int)Math.max(         0, cf.getPosition().getLocation() - second_lambda_region_width/2);
-		int left_first_region   = (int)Math.max(         0, cf.getPosition().getLocation() - first_lambda_region_width/2);
-		int right_peak          = (int)Math.max(         0, peakRegion.getEnd()   - shift_size);
-		int right_third_region  = (int)Math.min(chromLen-1, cf.getPosition().getLocation() + third_lambda_region_width/2);
-		int right_second_region = (int)Math.min(chromLen-1, cf.getPosition().getLocation() + second_lambda_region_width/2);
-		int right_first_region  = (int)Math.min(chromLen-1, cf.getPosition().getLocation() + first_lambda_region_width/2);
+//		int left_peak           = (int)Math.min(chromLen-1, peakRegion.getStart() + shift_size);
+		left_peak           = (int)Math.min(chromLen-1, peakRegion.getStart());
+		left_third_region   = (int)Math.max(         0, cf.getPosition().getLocation() - third_lambda_region_width/2);
+		left_second_region  = (int)Math.max(         0, cf.getPosition().getLocation() - second_lambda_region_width/2);
+		left_first_region   = (int)Math.max(         0, cf.getPosition().getLocation() - first_lambda_region_width/2);
 		
-		int num_peak_ip = 0, num_first_lambda_ip = 0, num_second_lambda_ip = 0, num_third_lambda_ip = 0;
-		int num_peak_ctrl = 0, num_first_lambda_ctrl = 0, num_second_lambda_ctrl = 0, num_third_lambda_ctrl = 0;
+//		int right_peak          = (int)Math.max(         0, peakRegion.getEnd()   - shift_size);
+		right_peak          = (int)Math.max(         0, peakRegion.getEnd());
+		right_third_region  = (int)Math.min(chromLen-1, cf.getPosition().getLocation() + third_lambda_region_width/2);
+		right_second_region = (int)Math.min(chromLen-1, cf.getPosition().getLocation() + second_lambda_region_width/2);
+		right_first_region  = (int)Math.min(chromLen-1, cf.getPosition().getLocation() + first_lambda_region_width/2);
 		
 		int smallestLeft = (int) Math.min(left_peak, Math.min(left_third_region, Math.min(left_second_region, left_first_region)));
 		int largestRight = (int) Math.max(right_peak, Math.max(right_third_region, Math.max(right_second_region, right_first_region)));
 		
+		// Get the number of reads assigned to the peak - soft assignment
+		num_peak_ip = cf.getEventReadCounts(c);
+		
 		// k = 0: '+' strand, k = 1: '-' strand
 		for(int k = 0; k <= 1; k++) {
 			// IP Channel
-			int[] ipFivePrimes = chromFivePrimes.get(chrom)[0][c][k];		
-			int s_idx = Arrays.binarySearch(ipFivePrimes, smallestLeft);
-			int e_idx = Arrays.binarySearch(ipFivePrimes, largestRight);
+			int[] ipStrandFivePrimePos = chromUniqueFivePrimePos.get(chrom)[0][c][k];
+			List<StrandedBase> ipStrandFivePrimes = chromUniqueFivePrimes.get(chrom)[0][c][k];
+			int s_idx = Arrays.binarySearch(ipStrandFivePrimePos, smallestLeft);
+			int e_idx = Arrays.binarySearch(ipStrandFivePrimePos, largestRight);
 			if(s_idx < 0) { s_idx = -s_idx-1; }
 			if(e_idx < 0) { e_idx = -e_idx-1; }
-			s_idx = StatUtil.searchFrom(ipFivePrimes, ">=", smallestLeft, s_idx);
-			e_idx = StatUtil.searchFrom(ipFivePrimes, "<=", largestRight, e_idx);
+			s_idx = StatUtil.searchFrom(ipStrandFivePrimePos, ">=", smallestLeft, s_idx);
+			e_idx = StatUtil.searchFrom(ipStrandFivePrimePos, "<=", largestRight, e_idx);
+			
 			for(int i = s_idx; i <= e_idx; i++) {
-				if(left_peak <= ip_signals.get(i).getCoordinate() && ip_signals.get(i).getCoordinate() <= right_peak)
-					num_peak_ip += ip_signals.get(i).getCount();
-				
-				if(left_first_region <= ip_signals.get(i).getCoordinate() && ip_signals.get(i).getCoordinate() <= right_first_region) {
-					num_first_lambda_ip  += ip_signals.get(i).getCount();
-					num_second_lambda_ip += ip_signals.get(i).getCount();
-					num_third_lambda_ip  += ip_signals.get(i).getCount();
+				if(left_first_region <= ipStrandFivePrimePos[i] && ipStrandFivePrimePos[i] <= right_first_region) {
+					num_first_lambda_ip  += ipStrandFivePrimes.get(i).getCount();
+					num_second_lambda_ip += ipStrandFivePrimes.get(i).getCount();
+					num_third_lambda_ip  += ipStrandFivePrimes.get(i).getCount();
 				}
-				else if(left_second_region <= ip_signals.get(i).getCoordinate() && ip_signals.get(i).getCoordinate() <= right_second_region) {
-					num_second_lambda_ip += ip_signals.get(i).getCount();
-					num_third_lambda_ip  += ip_signals.get(i).getCount();
+				else if(left_second_region <= ipStrandFivePrimePos[i] && ipStrandFivePrimePos[i] <= right_second_region) {
+					num_second_lambda_ip += ipStrandFivePrimes.get(i).getCount();
+					num_third_lambda_ip  += ipStrandFivePrimes.get(i).getCount();
 				}
-				else if(left_third_region <= ip_signals.get(i).getCoordinate() && ip_signals.get(i).getCoordinate() <= right_third_region) {
-					num_third_lambda_ip  += ip_signals.get(i).getCount();
+				else if(left_third_region <= ipStrandFivePrimePos[i] && ipStrandFivePrimePos[i] <= right_third_region) {
+					num_third_lambda_ip  += ipStrandFivePrimes.get(i).getCount();
 				}	
 			}
 			
-			// Ctrl Channel
-			int[] ctrlFivePrimes = chromFivePrimes.get(chrom)[1][c][k];		
-			s_idx = Arrays.binarySearch(ctrlFivePrimes, smallestLeft);
-			e_idx = Arrays.binarySearch(ctrlFivePrimes, largestRight);
+			// CTRL Channel
+			int[] ctrlStrandFivePrimePos = chromUniqueFivePrimePos.get(chrom)[1][c][k];
+			List<StrandedBase> ctrlStrandFivePrimes = chromUniqueFivePrimes.get(chrom)[1][c][k];
+			
+			s_idx = Arrays.binarySearch(ctrlStrandFivePrimePos, smallestLeft);
+			e_idx = Arrays.binarySearch(ctrlStrandFivePrimePos, largestRight);
 			if(s_idx < 0) { s_idx = -s_idx-1; }
 			if(e_idx < 0) { e_idx = -e_idx-1; }
-			s_idx = StatUtil.searchFrom(ctrlFivePrimes, ">=", smallestLeft, s_idx);
-			e_idx = StatUtil.searchFrom(ctrlFivePrimes, "<=", largestRight, e_idx);
+			s_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos, ">=", smallestLeft, s_idx);
+			e_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos, "<=", largestRight, e_idx);
 			for(int i = s_idx; i <= e_idx; i++) {
-				if(left_peak <= ctrl_signals.get(i).getCoordinate() && ctrl_signals.get(i).getCoordinate() <= right_peak)
-					num_peak_ctrl += ctrl_signals.get(i).getCount();
+				if(left_peak <= ctrlStrandFivePrimePos[i] && ctrlStrandFivePrimePos[i] <= right_peak)
+					num_peak_ctrl += ctrlStrandFivePrimes.get(i).getCount();
 				
-				if(left_first_region <= ctrl_signals.get(i).getCoordinate() && ctrl_signals.get(i).getCoordinate() <= right_first_region) {
-					num_first_lambda_ctrl  += ctrl_signals.get(i).getCount();
-					num_second_lambda_ctrl += ctrl_signals.get(i).getCount();
-					num_third_lambda_ctrl  += ctrl_signals.get(i).getCount();
+				if(left_first_region <= ctrlStrandFivePrimePos[i] && ctrlStrandFivePrimePos[i] <= right_first_region) {
+					num_first_lambda_ctrl  += ctrlStrandFivePrimes.get(i).getCount();
+					num_second_lambda_ctrl += ctrlStrandFivePrimes.get(i).getCount();
+					num_third_lambda_ctrl  += ctrlStrandFivePrimes.get(i).getCount();
 				}
-				else if(left_second_region <= ctrl_signals.get(i).getCoordinate() && ctrl_signals.get(i).getCoordinate() <= right_second_region) {
-					num_second_lambda_ctrl += ctrl_signals.get(i).getCount();
-					num_third_lambda_ctrl  += ctrl_signals.get(i).getCount();
+				else if(left_second_region <= ctrlStrandFivePrimePos[i] && ctrlStrandFivePrimePos[i] <= right_second_region) {
+					num_second_lambda_ctrl += ctrlStrandFivePrimes.get(i).getCount();
+					num_third_lambda_ctrl  += ctrlStrandFivePrimes.get(i).getCount();
 				}
-				else if(left_third_region <= ctrl_signals.get(i).getCoordinate() && ctrl_signals.get(i).getCoordinate() <= right_third_region) {
-					num_third_lambda_ctrl  += ctrl_signals.get(i).getCount();
+				else if(left_third_region <= ctrlStrandFivePrimePos[i] && ctrlStrandFivePrimePos[i] <= right_third_region) {
+					num_third_lambda_ctrl  += ctrlStrandFivePrimes.get(i).getCount();
 				}	
 			}	
 		}
 		
-		double ip2ctrl_ratio = ipCounts/ctrlCounts;
-		lambda_bg            = ctrlCounts/chromLen; //numMappedBases.get(chrom).get(1);
+		// Subtract the number of reads that are inside the peak region
+		// We just want to compare it against the surrounding regions (excl. the peak specific signal)
+		num_first_lambda_ip  = Math.max(0, num_first_lambda_ip  - (int)num_peak_ip);
+		num_second_lambda_ip = Math.max(0, num_second_lambda_ip - (int)num_peak_ip);
+		num_third_lambda_ip  = Math.max(0, num_third_lambda_ip  - (int)num_peak_ip);
+		if(!controlDataExist) {
+			num_peak_ctrl          = Math.max(0, num_peak_ctrl          - (int)num_peak_ip);
+			num_first_lambda_ctrl  = Math.max(0, num_first_lambda_ctrl  - (int)num_peak_ip);
+			num_second_lambda_ctrl = Math.max(0, num_second_lambda_ctrl - (int)num_peak_ip);
+			num_third_lambda_ctrl  = Math.max(0, num_third_lambda_ctrl  - (int)num_peak_ip);
+			ctrlCounts             = Math.max(0, ctrlCounts             - (int)num_peak_ip);
+		}		
 
-		lambda_peak_ip   = 1.0*num_peak_ip;
-		first_lambda_ip  = 1.0*num_first_lambda_ip*((double)peakRegion.getWidth()/(double)first_lambda_region_width);
-		second_lambda_ip = 1.0*num_second_lambda_ip*((double)peakRegion.getWidth()/(double)second_lambda_region_width);
-		third_lambda_ip  = 1.0*num_third_lambda_ip*((double)peakRegion.getWidth()/(double)third_lambda_region_width);
+		first_lambda_ip      = 1.0*num_first_lambda_ip*((double)peakRegion.getWidth()/(double)(first_lambda_region_width-peakRegion.getWidth()));
+		second_lambda_ip     = 1.0*num_second_lambda_ip*((double)peakRegion.getWidth()/(double)(second_lambda_region_width-peakRegion.getWidth()));
+		third_lambda_ip      = 1.0*num_third_lambda_ip*((double)peakRegion.getWidth()/(double)(third_lambda_region_width-peakRegion.getWidth()));
 		
-		lambda_peak_ctrl   = 1.0*num_peak_ctrl*ip2ctrl_ratio;
-		first_lambda_ctrl  = 1.0*num_first_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)first_lambda_region_width);
-		second_lambda_ctrl = 1.0*num_second_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)second_lambda_region_width);
-		third_lambda_ctrl  = 1.0*num_third_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)third_lambda_region_width);
-		lambda_bg          = 1.0*lambda_bg*ip2ctrl_ratio*(double)peakRegion.getWidth();
+		double ip2ctrl_ratio   = ipCounts/ctrlCounts;
+		int skippedRegionWidth = controlDataExist ? 0 : peakRegion.getWidth();
+		lambda_peak_ctrl       = 1.0*num_peak_ctrl*ip2ctrl_ratio;
+		first_lambda_ctrl      = 1.0*num_first_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)(first_lambda_region_width-skippedRegionWidth));
+		second_lambda_ctrl     = 1.0*num_second_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)(second_lambda_region_width-skippedRegionWidth));
+		third_lambda_ctrl      = 1.0*num_third_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)(third_lambda_region_width-skippedRegionWidth));		
+		lambda_bg              = 1.0*ctrlCounts*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)(chromLen-peakRegion.getWidth()));
+
+
+//		Use exactly what they do in MACS statistical method
+//		double ip2ctrl_ratio = ipCounts/ctrlCounts;
+//		first_lambda_ip    = 1.0*num_first_lambda_ip*((double)peakRegion.getWidth()/(double)first_lambda_region_width);
+//		second_lambda_ip   = 1.0*num_second_lambda_ip*((double)peakRegion.getWidth()/(double)second_lambda_region_width);
+//		third_lambda_ip    = 1.0*num_third_lambda_ip*((double)peakRegion.getWidth()/(double)third_lambda_region_width);
+//		lambda_peak_ctrl   = 1.0*num_peak_ctrl*ip2ctrl_ratio;
+//		first_lambda_ctrl  = 1.0*num_first_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)first_lambda_region_width);
+//		second_lambda_ctrl = 1.0*num_second_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)second_lambda_region_width);
+//		third_lambda_ctrl  = 1.0*num_third_lambda_ctrl*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)third_lambda_region_width);		
+//		lambda_bg          = 1.0*ctrlCounts*ip2ctrl_ratio*((double)peakRegion.getWidth()/(double)chromLen);
 
 		if(controlDataExist)
 			local_lambda = Math.max(lambda_bg, Math.max(first_lambda_ip, Math.max(second_lambda_ip, Math.max(third_lambda_ip, Math.max(lambda_peak_ctrl, Math.max(first_lambda_ctrl, Math.max(second_lambda_ctrl, third_lambda_ctrl)))))));
@@ -3145,7 +3185,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			local_lambda = Math.max(lambda_bg, Math.max(second_lambda_ip, Math.max(third_lambda_ip, Math.max(second_lambda_ctrl, third_lambda_ctrl))));
 		
 		Poisson poisson = new Poisson(local_lambda, new DRand());
-		pVal = 1 - poisson.cdf((int)lambda_peak_ip);
+		pVal = 1 - poisson.cdf((int)num_peak_ip);
 		return pVal;
 	}//end of evalFeatureSignificance method
 	

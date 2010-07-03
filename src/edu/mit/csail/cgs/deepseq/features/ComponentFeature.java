@@ -16,6 +16,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected double mixingProb;
 	protected double mfold;
 	protected double[] conditionBeta;
+	protected boolean[] condSignificance;
 	protected int numConditions=0;
 	protected double[] condSumResponsibility;
 	protected double totalSumResponsibility=0;
@@ -60,6 +61,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		conditionBeta = new double[numConditions];
 		for(int c=0; c<numConditions; c++){ conditionBeta[c]=b.getConditionBeta(c); }
 		
+		condSignificance = new boolean[numConditions];
 		p_values = new double[numConditions];
 		p_values_wo_ctrl = new double[numConditions];
 		q_value_log10 = new double[numConditions];
@@ -78,6 +80,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public Point getEMPosition() { return EM_position;}
 
 	public double[] getCondBetas() { return conditionBeta; }
+	public boolean[] getCondSignificance() { return condSignificance; }
 	public double getTotalSumResponsibility(){return(totalSumResponsibility);}
 	public double getCondSumResponsibility(int cond){return condSumResponsibility[cond];}
 	public double[] getUnscaledControlCounts(){return(unScaledControlCounts);}
@@ -125,6 +128,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		}
 		unScaledControlCounts[cond] = controlCount;
 	}
+	
+	public void setCondSignificance(int cond, boolean val) { condSignificance[cond] = val; }
 
 	// overall average logKL
 	public double getAverageLogKL(){
@@ -316,8 +321,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 //        }
        
         for(int c=0; c<numConditions; c++){
-        	if (numConditions!=1)	// if single condition, IP is same as total
+        	if (numConditions!=1) {	// if single condition, IP is same as total
+        		result.append(String.format("%c\t", condSignificance[c] ? 'T' : 'F' ));
         		result.append(String.format("%.1f\t", getEventReadCounts(c) ));
+        	}
         	if(unScaledControlCounts!=null)
         		result.append(String.format("%.1f\t", getScaledControlCounts(c)));
         	else
@@ -397,8 +404,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         
         for(int c=0; c<numConditions; c++){
         	String name = numConditions==1?"":conditionNames.get(c)+"_";
-        	if (numConditions!=1)		// if single condition, IP is same as total
+        	if (numConditions!=1) {	// if single condition, IP is same as total
+        		header.append(name+"Significant\t");
         		header.append(name+"IpStrength\t");
+        	}
         	header.append(name+"CtrlStrength\t")
         	      .append(name+"Q_value_log10\t")
   	      		  .append(name+"P_value_log10\t");
@@ -430,8 +439,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         
         for(int c=0; c<numConditions; c++){
         	String name = numConditions==1?"":conditionNames.get(c)+"_";
-        	if (numConditions!=1)		// if single condition, IP is same as total
+        	if (numConditions!=1) {		// if single condition, IP is same as total
+        		header.append(name+"Significant\t");
         		header.append(name+"IpStrength\t");
+        	}
         	header.append(name+"CtrlStrength\t")
         	      .append(name+"Q_value_log10\t")
   	      		  .append(name+"P_value_log10\t");
@@ -449,8 +460,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		result.append(String.format("%.1f\t", totalSumResponsibility));
        
         for(int c=0; c<numConditions; c++){
-        	if (numConditions!=1)	// if single condition, IP is same as total
+        	if (numConditions!=1) {	// if single condition, IP is same as total
+        		result.append(String.format("%c\t", condSignificance[c] ? 'T' : 'F' ));
         		result.append(String.format("%.1f\t", getEventReadCounts(c) ));
+        	}
         	if(unScaledControlCounts!=null)
         		result.append(String.format("%.1f\t", getScaledControlCounts(c)));
         	else
@@ -465,7 +478,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         }
 
         result.append("\n");
-
 		return result.toString();
 	}
 	public static void setNon_specific_ratio(double[] non_specific_ratio) {
