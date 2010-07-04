@@ -233,6 +233,7 @@ public class ChipSeqAnalyzer{
                 "      --out <output file base name>\n" +
                 "   Optional flags: \n" +
                 "      --fa <use a fixed user-specified alpha value for all the regions>\n" +
+                "      --multi <run the multicondition mode of the method>\n" +
                 "      --help <print help information and exit>\n" +
                 "\n   Output format:\n" +
                 "      The output file contains five fields in a tab-delimited file:\n" +
