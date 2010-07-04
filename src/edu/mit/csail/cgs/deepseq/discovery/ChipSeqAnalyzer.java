@@ -134,7 +134,7 @@ public class ChipSeqAnalyzer{
 	        }
 	        else if(rdbexpts.size()>0 && expts.size() == 0){
 	        	if(genome==null){
-        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
+        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); System.exit(1);
         		}
 	    		readLength = Args.parseInteger(args,"readlen",readLength);
 				if (readLength==-1){

@@ -46,7 +46,7 @@ public class DeepSeqExpt {
 	
 	
 	public DeepSeqExpt(Genome g, List<ChipSeqLocator> locs, String db, int readLen){
-		if(gen==null){
+		if(g==null){
 			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
 		}
 		rLen = readLen;

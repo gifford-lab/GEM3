@@ -54,7 +54,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	
 	//Maximum region (in bp) considered for running EM
 	protected final int MAX_REGION_LEN=200000;
-
+	//IP/Control Fold change threshold
+	protected final int IP_CTRL_FOLD = 2;
+	
 	//Maximum number of components that EM can handle efficiently
 	protected final int MAX_NUM_COMPONENTS=1000;
 	protected final int OPTIMAL_NUM_COMPONENTS=100;
@@ -88,7 +90,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private StringBuilder pi_sb = new StringBuilder();
 	
 	private boolean development_mode = false;
-	private boolean do_model_selection=false;
+	private boolean do_model_selection=true;
 	private boolean linear_model_expansion=false;
     private boolean print_mixing_probabilities=false;
     private boolean use_multi_event = false;
@@ -256,7 +258,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	Set<String> flags = Args.parseFlags(args);
     	// default as false, need the flag to turn it on
     	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
-    	do_model_selection = flags.contains( "do_model_selection");
     	linear_model_expansion = flags.contains( "linear_model_expansion");
     	use_multi_event = flags.contains("refine_using_multi_event");
     	needToCleanBases = flags.contains("needToCleanBases");
@@ -270,7 +271,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	use_internal_em_train = ! flags.contains( "use_multi_condition_em_train");
     	use_scanPeak = ! flags.contains( "do_not_scanPeak");
     	boolean loadWholeGenome = ! flags.contains( "loadRegionOnly");
-    	
+    	do_model_selection = !flags.contains( "no_model_selection");    	
 		/* **************************************************
 		 * Determine the focus regions to run EM
  		 * It can be specified as a file from command line.
@@ -301,6 +302,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        	setRegions(focusFile, false);    		
 	    	}
     	}
+    	
+		log(1, "\nSorting reads and selecting regions for analysis ...");
 
 		/* ***************************************************
 		 * ChIP-Seq data
@@ -416,15 +419,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		experiments = null;
 		System.gc();
 		
-		log(1, "\nSorting reads and selecting regions for analysis.");
-    	// if no focus list, directly estimate candidate regions from data
-		if (focusFormat==null){
-    		setRegions(selectEnrichedRegions());    		
-		}
-		if (development_mode)
-			printNoneZeroRegions(true);
-		log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
-		
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
@@ -462,6 +456,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         }
         if (development_mode)
         	log(1, "\nmax_HitCount_per_base = "+max_HitCount_per_base);
+        
+    	// if no focus list, directly estimate candidate regions from data
+		if (focusFormat==null){
+    		setRegions(selectEnrichedRegions());    		
+		}
+		if (development_mode)
+			printNoneZeroRegions(true);
+		log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
+		
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
 	}
 
@@ -590,7 +593,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
 								for (BindingComponent m:comps){
 									if (tightRegion.overlaps(m.getLocation().expand(0)))
-									toRemove.add(m);
+										toRemove.add(m);
 								}
 								comps.removeAll(toRemove);
 								// reprocess the refined region
@@ -1919,7 +1922,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				if (bases==null || bases.size()==0){
 					continue;
 				}
-				allBases.addAll(bases);
+				allBases.addAll(bases);	// pool all conditions
 			}
 			Collections.sort(allBases); 
 			int start=0;
@@ -1948,9 +1951,30 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				rs.add(r);						
 			}
 			
-			// got region list from all conditions, merge overlapped regions
-			if (!rs.isEmpty())
-				regions.addAll(rs);
+			// check regions, exclude un-enriched regions based on control counts
+			ArrayList<Region> toRemove = new ArrayList<Region>();
+			for (Region r: rs){
+				if (r.getWidth()<=100){
+					toRemove.add(r);
+				}
+				// for regions <= 500bp, most likely single event, can be compared to control
+				if (r.getWidth()<=modelWidth){
+					boolean enriched = false;
+					for (int c=0;c<numConditions;c++){
+						if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>IP_CTRL_FOLD){
+							enriched = true;
+							break;
+						}
+					}
+					if (!enriched)	// remove this region if it is not enriched in any condition
+						toRemove.add(r);
+				}
+			}
+			rs.removeAll(toRemove);
+			
+			if (!rs.isEmpty()){
+					regions.addAll(rs);
+			}
 		} // each chrom
 		
 		log(3, "selectEnrichedRegions(): "+timeElapsed(tic));
@@ -3386,13 +3410,31 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private float countIpReads(Region r){
 		float count=0;
 		for(Pair<ReadCache,ReadCache> e : caches){
-			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  // reads of the current region - IP channel
-			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-');  // reads of the current region - IP channel
+			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  
+			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-');  
 			count+=StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
 		}
 		return count;
 	}
-	
+	private float countIpReads(Region r, int cond){
+		List<StrandedBase> bases_p= caches.get(cond).car().getStrandedBases(r, '+');  
+		List<StrandedBase> bases_m= caches.get(cond).car().getStrandedBases(r, '-');  
+		return StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+	}
+	private float countCtrlReads(Region r){
+		float count=0;
+		for(Pair<ReadCache,ReadCache> e : caches){
+			List<StrandedBase> bases_p= e.cdr().getStrandedBases(r, '+');  // reads of the current region - IP channel
+			List<StrandedBase> bases_m= e.cdr().getStrandedBases(r, '-');  // reads of the current region - IP channel
+			count+=StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+		}
+		return count;
+	}	
+	private float countCtrlReads(Region r, int cond){
+		List<StrandedBase> bases_p= caches.get(cond).cdr().getStrandedBases(r, '+');  
+		List<StrandedBase> bases_m= caches.get(cond).cdr().getStrandedBases(r, '-');  
+		return StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+	}
 	private void printTowerRegions(){
 		// save the list of regions to file
 		try{

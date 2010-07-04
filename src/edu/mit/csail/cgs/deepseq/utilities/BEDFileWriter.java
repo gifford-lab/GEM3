@@ -164,8 +164,8 @@ public class BEDFileWriter{
 		System.err.println("Usage:\n " +
                 "BEDFileWriter \n" +
                 "Using with Gifford Lab Read DB:\n" +
-                "  --species <organism name;genome version>"+
-                "  --rdbexptX <IP expt (X is condition name)> " +
+                "  --species <organism name;genome version>\n"+
+                "  --rdbexptX <IP expt (X is condition name)>\n" +
                 "  --rdbctrlX <background expt (X is condition name)> \n" +
                 "Remember to set the read length!\n" +
                 "  --readlen <length>\n" +
