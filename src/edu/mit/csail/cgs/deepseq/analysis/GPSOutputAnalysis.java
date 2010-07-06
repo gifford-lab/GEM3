@@ -19,6 +19,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.utilities.AnnotationLoader;
+import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
@@ -148,12 +149,13 @@ public class GPSOutputAnalysis {
     };
   
   
-   // args = args_nanog_macisaac_2;
+    int win = Args.parseInteger(args, "win", 50);
     
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(args);
 //    analysis.buildEmpiricalDistribution();
 //    analysis.jointBindingMotifAnalysis(true);
-    analysis.geneAnnotation();
+//    analysis.geneAnnotation();
+    analysis.printSequences(win);
 //    analysis.expressionIntegration();
   }
   
@@ -417,6 +419,19 @@ public class GPSOutputAnalysis {
     }
   }
   
+  private void printSequences(int win){
+	StringBuilder sb = new StringBuilder();
+	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+	Region peakWin=null;
+	for (GPSPeak gpspeak : gpsPeaks) {
+        peakWin = gpspeak.expand(win/2);
+		sb.append(">"+peakWin.getLocationString()+"\t"+peakWin.getWidth() +"\n");
+		sb.append(seqgen.execute(peakWin)+"\n");
+	}
+	String filename = GPSfileName+"_sequence.txt";
+	BindingMixture.writeFile(filename, sb.toString());  
+  }
+
   private void expressionIntegration(){
     // loading array annotation file
     String arrayFilename = Args.parseString(args, "ArrayProbeMap", null);
