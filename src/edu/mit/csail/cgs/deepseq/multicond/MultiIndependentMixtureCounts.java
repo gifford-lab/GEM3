@@ -526,8 +526,6 @@ public class MultiIndependentMixtureCounts {
 			 **			GLOBAL E STEP              **
 			 ***************************************/
 			E_step(glob_pos, glob_count, glob_strand, glob_prior_weight, glob_sum_ga);
-			StatUtil.normalize(glob_sum_ga);
-			for(int j = 0; j < M; j++) { glob_sum_ga[j] *= Ntot; }
 			
 			/****************************************
 			 **		    GLOBAL M STEP              **
@@ -630,9 +628,7 @@ public class MultiIndependentMixtureCounts {
 					 ***************************************/
 					char[] curr_strand = strand.length != 0 ? strand[t] : new char[0];
 					E_step(pos[t], count[t], curr_strand, prior_weight[t], sum_ga[t]);
-					StatUtil.normalize(sum_ga[t]);
-					for(int j = 0; j < M; j++) { sum_ga[t][j] *= N[t]; }
-
+			
 					/****************************************
 					 **		    CONDITION-WISE M STEP      **
 					 ***************************************/
@@ -714,9 +710,7 @@ public class MultiIndependentMixtureCounts {
 			 **			GLOBAL E STEP              **
 			 ***************************************/
 			E_step(glob_pos, glob_count, glob_strand, glob_prior_weight, glob_sum_ga);
-			StatUtil.normalize(glob_sum_ga);
-			for(int j = 0; j < M; j++) { glob_sum_ga[j] *= Ntot; }
-
+			
 			/****************************************
 			 **		    GLOBAL M STEP              **
 			 ***************************************/
@@ -775,8 +769,6 @@ public class MultiIndependentMixtureCounts {
 					 ***************************************/
 					char[] curr_strand = strand.length != 0 ? strand[t] : new char[0];
 					E_step(pos[t], count[t], curr_strand, prior_weight[t], sum_ga[t]);
-					StatUtil.normalize(sum_ga[t]);
-					for(int j = 0; j < M; j++) { sum_ga[t][j] *= N[t]; }
 					
 					/****************************************
 					 **		    CONDITION-WISE M STEP      **
@@ -842,9 +834,7 @@ public class MultiIndependentMixtureCounts {
 			 **			GLOBAL E STEP              **
 			 ***************************************/
 			E_step(glob_pos, glob_count, glob_strand, glob_prior_weight, glob_sum_ga);
-			StatUtil.normalize(glob_sum_ga);
-			for(int j = 0; j < M; j++) { glob_sum_ga[j] *= Ntot; }
-
+			
 			/****************************************
 			 **		    GLOBAL M STEP              **
 			 ***************************************/
@@ -869,9 +859,7 @@ public class MultiIndependentMixtureCounts {
 					 **********************************************************/
 					char[] curr_strand = strand.length != 0 ? strand[t] : new char[0];
 					E_step(pos[t], count[t], curr_strand, prior_weight[t], sum_ga[t]);
-					StatUtil.normalize(sum_ga[t]);
-					for(int j = 0; j < M; j++) { sum_ga[t][j] *= N[t]; }
-
+			
 					/***********************************************************
 					 **              CONDITION-WISE M STEP                    **
 					 **********************************************************/
