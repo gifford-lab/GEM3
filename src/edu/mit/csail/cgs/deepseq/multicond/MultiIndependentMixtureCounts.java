@@ -7,7 +7,6 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -401,6 +400,8 @@ public class MultiIndependentMixtureCounts {
 		 **			 TRAINING             **
 		 **********************************/
 		
+		AggregatedData ad = new AggregatedData(pos, count, strand);
+		
 		/*****************************************
 		 **		    SERIAL VERSION              **
 		 **        First, global EM,  	    	** 
@@ -414,7 +415,7 @@ public class MultiIndependentMixtureCounts {
 		/*****************************************
 		 **		    PARALLEL VERSION            **
 		 **  Global and condition-specific EMs  ** 
-		 **     are run at the same time.		**
+		 **      run at the same time.			**
 		 ****************************************/
 		else  // Parallel Version
 			parallel_train(pos, count, strand);
@@ -444,6 +445,12 @@ public class MultiIndependentMixtureCounts {
 			
 			StatUtil.normalize(glob_prior_weight);
 		}
+		
+		// Evaluate the global likelihood (of all data)
+		int[] glob_pos     = AggregatedData.get_glob_pos();
+		int[] glob_count   = AggregatedData.get_glob_count();
+		char[] glob_strand = AggregatedData.get_glob_strand();
+		glob_loglik = eval_loglik(glob_pos, glob_count, glob_strand, glob_prior_weight);
 		
 		// Construct (final) responsibilities
 		ga = new HashMap<Integer, double[][]>();
@@ -488,15 +495,10 @@ public class MultiIndependentMixtureCounts {
 	}//end of train method
 	
 	private void serial_hard_train(int[][] pos, int[][] count, char[][] strand) {
-		List<Integer> glob_pos_list      = new ArrayList<Integer>();
-		List<Integer> glob_count_list    = new ArrayList<Integer>();
-		List<Character> glob_strand_list = new ArrayList<Character>();	
-		aggregate_data(glob_pos_list, glob_count_list, glob_strand_list, pos, count, strand);
-		int[] glob_pos     = Utils.ref2prim(glob_pos_list.toArray(new Integer[0]));
-		int[] glob_count   = Utils.ref2prim(glob_count_list.toArray(new Integer[0]));
-		char[] glob_strand = Utils.ref2prim(glob_strand_list.toArray(new Character[0]));
+		int[] glob_pos     = AggregatedData.get_glob_pos();
+		int[] glob_count   = AggregatedData.get_glob_count();
+		char[] glob_strand = AggregatedData.get_glob_strand();
 		double prev_glob_loglik = Double.NEGATIVE_INFINITY;
-
 
 /***************/
 //		System.out.println("Global Prior weights initially");
@@ -540,8 +542,9 @@ public class MultiIndependentMixtureCounts {
 			glob_loglik = eval_loglik(glob_pos, glob_count, glob_strand, glob_prior_weight);
 			glob_logliks.add(glob_loglik);
 			
-			// Check if the thresholding criterion has been satisfied
-			hasConverged = em_converged(glob_loglik, prev_glob_loglik, thres, check_increased, decr_thres);
+			// Check if the thresholding criterion has been satisfied (after the maximum number of annealing iterations has been exceeded)
+			if(numIters >= anneal_maxIters || !isBatchElimOn)
+				hasConverged = convergence_check(glob_loglik, prev_glob_loglik, thres, check_increased, decr_thres);
 			
 			prev_glob_loglik = glob_loglik;
 			numIters++;
@@ -565,6 +568,8 @@ public class MultiIndependentMixtureCounts {
 <---------
 */			
 		}//end of while loop
+		
+//		System.out.println("numIters\t" + numIters + "\t MLIters\t" + ML_maxIters + "\t annealIters\t" + anneal_maxIters + "\tmaxIters\t" + maxIters);
 		
 		if(C > 1) {
 			int M_temp = M;
@@ -642,7 +647,7 @@ public class MultiIndependentMixtureCounts {
 					logliks[t].add(loglik[t]);
 					
 					// Check if the thresholding criterion has been satisfied
-					hasConverged = em_converged(loglik[t], prev_loglik[t], thres, check_increased, decr_thres);
+					hasConverged = convergence_check(loglik[t], prev_loglik[t], thres, check_increased, decr_thres);
 		
 					prev_loglik[t] = loglik[t];
 					numIters++;
@@ -686,13 +691,9 @@ public class MultiIndependentMixtureCounts {
 	}//end of serial_hard_train method
 	
 	private void serial_soft_train(int[][] pos, int[][] count, char[][] strand) {
-		List<Integer> glob_pos_list      = new ArrayList<Integer>();
-		List<Integer> glob_count_list    = new ArrayList<Integer>();
-		List<Character> glob_strand_list = new ArrayList<Character>();	
-		aggregate_data(glob_pos_list, glob_count_list, glob_strand_list, pos, count, strand);
-		int[] glob_pos     = Utils.ref2prim(glob_pos_list.toArray(new Integer[0]));
-		int[] glob_count   = Utils.ref2prim(glob_count_list.toArray(new Integer[0]));
-		char[] glob_strand = Utils.ref2prim(glob_strand_list.toArray(new Character[0]));
+		int[] glob_pos     = AggregatedData.get_glob_pos();
+		int[] glob_count   = AggregatedData.get_glob_count();
+		char[] glob_strand = AggregatedData.get_glob_strand();
 		double prev_glob_loglik = Double.NEGATIVE_INFINITY;
 		
 		while(numIters < maxIters && !hasConverged) {
@@ -729,8 +730,9 @@ public class MultiIndependentMixtureCounts {
 			glob_loglik = eval_loglik(glob_pos, glob_count, glob_strand, glob_prior_weight);
 			glob_logliks.add(glob_loglik);
 			
-			// Check if the thresholding criterion has been satisfied
-			hasConverged = em_converged(glob_loglik, prev_glob_loglik, thres, check_increased, decr_thres);
+			// Check if the thresholding criterion has been satisfied (after the maximum number of annealing iterations has been exceeded)
+			if(numIters >= anneal_maxIters || !isBatchElimOn)
+				hasConverged = convergence_check(glob_loglik, prev_glob_loglik, thres, check_increased, decr_thres);
 			
 			prev_glob_loglik = glob_loglik;
 			numIters++;
@@ -790,7 +792,7 @@ public class MultiIndependentMixtureCounts {
 					logliks[t].add(loglik[t]);
 					
 					// Check if the thresholding criterion has been satisfied
-					hasConverged = em_converged(loglik[t], prev_loglik[t], thres, check_increased, decr_thres);
+					hasConverged = convergence_check(loglik[t], prev_loglik[t], thres, check_increased, decr_thres);
 		
 					prev_loglik[t] = loglik[t];
 					numIters++;
@@ -816,14 +818,10 @@ public class MultiIndependentMixtureCounts {
 	}//end of serial_soft_train method
 	
 	private void parallel_train(int[][] pos, int[][] count, char[][] strand) {
-		List<Integer> glob_pos_list      = new ArrayList<Integer>();
-		List<Integer> glob_count_list    = new ArrayList<Integer>();
-		List<Character> glob_strand_list = new ArrayList<Character>();	
-		aggregate_data(glob_pos_list, glob_count_list, glob_strand_list, pos, count, strand);
-		int[] glob_pos     = Utils.ref2prim(glob_pos_list.toArray(new Integer[0]));
-		int[] glob_count   = Utils.ref2prim(glob_count_list.toArray(new Integer[0]));
-		char[] glob_strand = Utils.ref2prim(glob_strand_list.toArray(new Character[0]));
-		double prev_glob_loglik = Double.NEGATIVE_INFINITY;		
+		int[] glob_pos     = AggregatedData.get_glob_pos();
+		int[] glob_count   = AggregatedData.get_glob_count();
+		char[] glob_strand = AggregatedData.get_glob_strand();
+		double prev_glob_loglik = Double.NEGATIVE_INFINITY;
 		
 		while(numIters < maxIters && !hasConverged) {
 			
@@ -897,8 +895,9 @@ public class MultiIndependentMixtureCounts {
 				}	
 			}
 			
-			// Check if the thresholding criterion has been satisfied
-			hasConverged = em_converged(glob_loglik, prev_glob_loglik, thres, check_increased, decr_thres);
+			// Check if the thresholding criterion has been satisfied (after the maximum number of annealing iterations has been exceeded)
+			if(numIters >= anneal_maxIters || !isBatchElimOn)
+				hasConverged = convergence_check(glob_loglik, prev_glob_loglik, thres, check_increased, decr_thres);
 			
 			prev_glob_loglik = glob_loglik;
 			numIters++;
@@ -976,15 +975,20 @@ public class MultiIndependentMixtureCounts {
 		if(isBatchElimOn) {
 			for(int j = 0; j < M; j++) { prior_weight[j] = Math.max(0.0, sum_ga[j] - pseudocounts[j]); }	
 		}
-		else {			
-			minResp_minIndex = StatUtil.findMin(sum_ga);
+		else {
+			double[] sum_ga_temp = sum_ga.clone();
+			for(int j = 0; j < M; j++)
+				if(sum_ga_temp[j] < 1e-100)
+					sum_ga_temp[j] = Double.POSITIVE_INFINITY;
+			
+			minResp_minIndex = StatUtil.findMin(sum_ga_temp);
 			// (minimum_responsibility-alpha) > zero => Perform sparse prior to all components
 			if(minResp_minIndex.car() - pseudocounts[0] > 0) { 
 				for(int j = 0; j < M; j++) { prior_weight[j] = Math.max(0.0, sum_ga[j] - pseudocounts[j]); } 
 			}
 			// There is at least one component with (responsibility-alpha) <= zero => Eliminate only the ones with the minimum value
-			else { 
-				prior_weight = sum_ga.clone();
+			else {
+				for(int j = 0; j < M; j++) { prior_weight[j] = sum_ga[j]; }
 				for(int j_prime:minResp_minIndex.cdr()) { prior_weight[j_prime] = 0.0; } 
 			}	
 		}
@@ -1035,7 +1039,7 @@ public class MultiIndependentMixtureCounts {
 	 * is less than <tt>thres</tt> times the average likelihood, where we accept.
 	 * @return <tt>true</tt> if it has converged, <tt>false</tt> otherwise.
 	 */
-	private boolean em_converged(double loglik, double prev_loglik, double thres, boolean check_increased, double decr_thres) {
+	public boolean convergence_check(double loglik, double prev_loglik, double thres, boolean check_increased, double decr_thres) {
 		
 		if(thres < 0 || thres > 1 || decr_thres > 0 || decr_thres < -1)
 			throw new IllegalArgumentException("thres must be a positive number between 0 and 1 and particularly close to 0.\n" +
@@ -1060,7 +1064,7 @@ public class MultiIndependentMixtureCounts {
 			hasConverged = true;
 		
 		return hasConverged;		
-	}//end of em_converged method
+	}//end of convergence_check method
 
 	
 	/*********************
@@ -1072,6 +1076,8 @@ public class MultiIndependentMixtureCounts {
 	public double[][] get_cond_prior_weight() { return prior_weight; }
 	
 	public Map<Integer, double[][]> get_resp() { return ga; }
+	
+	public double get_glob_loglik() { return glob_loglik; }
 	
 	public List<Double> get_glob_loglik_history() { return glob_logliks; }
 	
@@ -1198,9 +1204,13 @@ public class MultiIndependentMixtureCounts {
 		return binarized_f;
 	}
 
-	private void aggregate_data(List<Integer> glob_pos_list, List<Integer> glob_count_list, List<Character> glob_strand_list, int[][] pos, int[][] count, char[][] strand) {
+	private static void gather_data(List<Integer> glob_pos_list, List<Integer> glob_count_list, List<Character> glob_strand_list, int[][] pos, int[][] count, char[][] strand) {
 		Map<Integer, Integer> aggr_posCount_plus  = new LinkedHashMap<Integer, Integer>();
 		Map<Integer, Integer> aggr_posCount_minus = new LinkedHashMap<Integer, Integer>();
+		
+		int C   = pos.length;
+		int[] V = new int[C];
+		for(int t = 0; t < C; t++) { V[t] = pos[t].length; }
 		
 		for(int t = 0; t < C; t++) {
 			for(int k = 0; k < V[t]; k++) {
@@ -1223,7 +1233,7 @@ public class MultiIndependentMixtureCounts {
 		
 		for(int i = 0; i < aggr_posCount_plus.size(); i++)  { glob_strand_list.add('+'); }
 		for(int i = 0; i < aggr_posCount_minus.size(); i++) { glob_strand_list.add('-'); }
-	}//end of aggregate_data method
+	}//end of gather_data method
 	
 	/**
 	 * Returns the emission probability <tt>p(x=pos|z=compPos[event_idx])</tt> of the data point with
@@ -1281,6 +1291,27 @@ public class MultiIndependentMixtureCounts {
 		 for(int i = 0; i < b.length; i++) { for(int j = 0; j < b[i].length; j++)  b[i][j] = a[j][i];}
 		 return b;
 	 }//end of transpose method
+     
+     private static class AggregatedData {
+    	 private static int[] glob_pos;
+    	 private static int[] glob_count;
+    	 private static char[] glob_strand;
+    	 
+    	 public AggregatedData(int[][] pos, int[][] count, char[][] strand) {
+    		 List<Integer> glob_pos_list      = new ArrayList<Integer>();
+    		 List<Integer> glob_count_list    = new ArrayList<Integer>();
+    		 List<Character> glob_strand_list = new ArrayList<Character>();	
+    		 gather_data(glob_pos_list, glob_count_list, glob_strand_list, pos, count, strand);
+    		 glob_pos    = Utils.ref2prim(glob_pos_list.toArray(new Integer[0]));
+    		 glob_count  = Utils.ref2prim(glob_count_list.toArray(new Integer[0]));
+    		 glob_strand = Utils.ref2prim(glob_strand_list.toArray(new Character[0]));
+    	 }
+    	 
+    	 public static int[]  get_glob_pos()     { return glob_pos;    }
+    	 public static int[]  get_glob_count()   { return glob_count;  }
+    	 public static char[] get_glob_strand()  { return glob_strand; }
+
+     }//end of AggregatedData class
 
      private String get_duration_info(long msec_duration) {
        	if( msec_duration < 0) { throw new IllegalArgumentException("msec_duration must be a non-negative integer."); }
@@ -1333,7 +1364,7 @@ public class MultiIndependentMixtureCounts {
     	 List<Integer> glob_pos_list = new ArrayList<Integer>();
     	 List<Integer> glob_count_list = new ArrayList<Integer>();
     	 List<Character> glob_strand_list = new ArrayList<Character>();
-    	 mim.aggregate_data(glob_pos_list, glob_count_list, glob_strand_list, pos, count, str);
+    	 mim.gather_data(glob_pos_list, glob_count_list, glob_strand_list, pos, count, str);
     	 
     	 int foo = 3;
     	 
