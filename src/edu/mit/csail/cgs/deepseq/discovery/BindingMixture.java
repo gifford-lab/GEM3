@@ -910,9 +910,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				nonZeroComponentNum  = components.size();
 			}// end of else condition (running it with TC)
 
-			if(nonZeroComponentNum > 5)
-				System.err.println(w.toString() + "\tMany non-zero components\t" + nonZeroComponentNum);
-
 			if (nonZeroComponentNum==0)	return null;
 			setComponentResponsibilities(signals, responsibilities);
 		} 	// if not single event region
