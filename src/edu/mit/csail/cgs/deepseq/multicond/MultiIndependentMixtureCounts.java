@@ -520,6 +520,7 @@ public class MultiIndependentMixtureCounts {
 				else                       { curr_alpha = Math.max(minResp_minIndex.car(), alpha/2); }
 			}
 			
+			
 		    /**	    		GLOBAL				   **/
 			
 			/****************************************
