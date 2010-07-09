@@ -822,8 +822,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				int countIters = 0;
 				while(nonZeroComponentNum>0){
 					lastResolution = componentSpacing;
-
-					int numAllComps = components.size();
+//					int numAllComps = components.size();
 					// EM learning, components list will only contains non-zero components
 					responsibilities = EMTrain(signals, alpha);
 					// log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
@@ -1624,7 +1623,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
             		// eliminate only the worst cases
             		// redistribute to boost neighbor component by next round of EM
                    	// in this case, we do not need annealing schedule for alpha
-
+            		
             		double r_sum[]=new double[numComp];
                     for(int j=0;j<numComp;j++){
 	                	if (pi[j]!=0){
@@ -1641,6 +1640,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	                		// set a large value to prevent this component being selected in findMin()
 	                		r_sum[j]=9999;
                 	}
+            		
                     // find the worst component
                     Pair<Double, TreeSet<Integer>> min = StatUtil.findMin(r_sum);
                     if (min.car()-currAlpha>0){
@@ -2796,13 +2796,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			for (int c=0;c<signals.size();c++)
 				maxComp.setConditionBeta(c, 1.0);   //beta is being evaluated for one condition separately
 		}
-
-		for(StrandedBase base : allBases){
-			for(int c = 0; c < numConditions; c++) {
+	
+		for(int c = 0; c < numConditions; c++)
+			for(StrandedBase base:signals.get(c))
 				if (maxComp.scoreBase(base)>0 && maxComp.getConditionBeta(c) > 0.0)
 					maxComp.setResponsibility(c, base, 1.0);
-			}
-		}
 
 		int coord = maxComp.getLocation().getLocation();
 		for(int c=0; c<numConditions; c++){
