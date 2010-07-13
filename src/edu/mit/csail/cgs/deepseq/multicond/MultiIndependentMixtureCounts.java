@@ -420,21 +420,20 @@ public class MultiIndependentMixtureCounts {
 		else  // Parallel Version
 			parallel_train(pos, count, strand);
 				
-		
-		boolean isAnyNonZeroComponent = false;
+		boolean areAllZeroComponents = true;
 		for(int j = 0; j < M; j++) {
 			if(glob_prior_weight[j] > 0.0) {
-				isAnyNonZeroComponent = true;
+				areAllZeroComponents = false;
 				break;
 			}
 		}
 		
-		if(!isAnyNonZeroComponent)
+		if(areAllZeroComponents)
 			for(int t = 0; t < C; t++)
 				prior_weight[t] = new double[M];
 		
 		// Keep only the components that exceed a minimum weight threshold
-		if(C>1 && isAnyNonZeroComponent) {		
+		if(C>1 && !areAllZeroComponents) {		
 			for(int t = 0; t < C; t++)
 				for(int j = 0; j < M; j++)
 					if(prior_weight[t][j] < prior_weight_thres)
@@ -451,7 +450,7 @@ public class MultiIndependentMixtureCounts {
 			}
 			StatUtil.normalize(glob_prior_weight);			
 		}
-		else if(isAnyNonZeroComponent) {
+		else if(!areAllZeroComponents) {
 			for(int j = 0; j < M; j++)
 				if(glob_prior_weight[j] < prior_weight_thres)
 					glob_prior_weight[j] = 0.0;
