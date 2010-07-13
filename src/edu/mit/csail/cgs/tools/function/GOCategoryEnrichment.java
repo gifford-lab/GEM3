@@ -43,7 +43,7 @@ public class GOCategoryEnrichment {
         for (String c : output.keySet()) {
             Enrichment e = output.get(c);
             if (e.getLogPValue() < thresh) {
-                System.err.println(String.format("%s : %d/%d vs %d/%d -> %.5f", c, 
+                System.out.println(String.format("%s\t%d/%d\t%d/%d\t%.5f", c, 
                                                  e.getx(), e.getn(), e.getTheta(), e.getN(), e.getLogPValue()));
             }
         }
