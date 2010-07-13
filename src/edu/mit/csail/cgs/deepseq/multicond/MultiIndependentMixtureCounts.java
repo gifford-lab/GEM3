@@ -420,8 +420,21 @@ public class MultiIndependentMixtureCounts {
 		else  // Parallel Version
 			parallel_train(pos, count, strand);
 				
+		
+		boolean isAnyNonZeroComponent = false;
+		for(int j = 0; j < M; j++) {
+			if(glob_prior_weight[j] > 0.0) {
+				isAnyNonZeroComponent = true;
+				break;
+			}
+		}
+		
+		if(!isAnyNonZeroComponent)
+			for(int t = 0; t < C; t++)
+				prior_weight[t] = new double[M];
+		
 		// Keep only the components that exceed a minimum weight threshold
-		if(C>1) {		
+		if(C>1 && isAnyNonZeroComponent) {		
 			for(int t = 0; t < C; t++)
 				for(int j = 0; j < M; j++)
 					if(prior_weight[t][j] < prior_weight_thres)
@@ -438,7 +451,7 @@ public class MultiIndependentMixtureCounts {
 			}
 			StatUtil.normalize(glob_prior_weight);			
 		}
-		else {
+		else if(isAnyNonZeroComponent) {
 			for(int j = 0; j < M; j++)
 				if(glob_prior_weight[j] < prior_weight_thres)
 					glob_prior_weight[j] = 0.0;
@@ -570,7 +583,7 @@ public class MultiIndependentMixtureCounts {
 		
 //		System.out.println("numIters\t" + numIters + "\t MLIters\t" + ML_maxIters + "\t annealIters\t" + anneal_maxIters + "\tmaxIters\t" + maxIters);
 		
-		if(C > 1) {
+		if(C > 1 && glob_prior_weight.length > 0) {
 			int M_temp = M;
 			int[] compPos_temp = compPos.clone();
 			double[][] emit_mat_transp_temp = null;
