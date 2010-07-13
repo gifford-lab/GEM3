@@ -16,7 +16,7 @@ import edu.mit.csail.cgs.ewok.verbs.*;
 /**
  * DifferentialExpression --species "$SC;Sigmav6" --one "Sigma polyA RNA, haploid from 2/9/09;3/17/09;bowtie --best -m 100 -k 100" \
  *                        --two "Sigma polyA RNA, tetraploid from 2/9/09;3/17/09;bowtie --best -m 100 -k 100" --genes sgdGene \
- *                        [--bothstrands] [--byweight] [--flipgenetrands]
+ *                        [--bothstrands] [--byweight] [--flipgenetrands] [--exons]
  *
  * Output columns are
  * - gene name
@@ -34,7 +34,7 @@ public class DifferentialExpression {
     List<ChipSeqAlignment> one, two;
     RefGeneGenerator genes;
     Genome genome;
-    boolean bothstrands, byweight;
+    boolean bothstrands, byweight, exons;
 
     public static void main(String args[]) throws Exception {
         DifferentialExpression d = new DifferentialExpression();
@@ -68,6 +68,10 @@ public class DifferentialExpression {
         }
         bothstrands = Args.parseFlags(args).contains("bothstrands");
         byweight = Args.parseFlags(args).contains("byweight");
+        exons = Args.parseFlags(args).contains("exons");
+        if (exons) {
+            genes.retrieveExons(true);
+        }
     }
 
     public void run() throws SQLException, IOException {
@@ -86,28 +90,45 @@ public class DifferentialExpression {
         System.err.println("Total weight two is " + totalweighttwo + " hits two is " + totalcounttwo);
         
         Binomial binomial = new Binomial(100,.1,new DRand((int)(System.currentTimeMillis() % 0xFFFFFFFF)));
-        
+
+        List<StrandedRegion> geneRegions = new ArrayList<StrandedRegion>();
         while (chroms.hasNext()) {
             Region chrom = chroms.next();
             Iterator<Gene> geneiter = genes.execute(chrom);
             while (geneiter.hasNext()) {
                 Gene g = geneiter.next();
-                double countone, counttwo;
-                if (bothstrands) {
-                    if (byweight) {
-                        countone = loader.weightByRegion(one,(Region)g);
-                        counttwo = loader.weightByRegion(two,(Region)g);
-                    } else {
-                        countone = loader.countByRegion(one,(Region)g);
-                        counttwo = loader.countByRegion(two,(Region)g);
+                double countone = 0, counttwo = 0;
+                geneRegions.clear();
+                if (exons && g instanceof ExonicGene) {
+                    Iterator<Region> exoniter = ((ExonicGene)g).getExons();
+                    while (exoniter.hasNext()) {
+                        geneRegions.add(new StrandedRegion(exoniter.next(), g.getStrand()));
                     }
                 } else {
-                    if (byweight) {
-                        countone = loader.weightByRegion(one,g);
-                        counttwo = loader.weightByRegion(two,g);
-                    } else {
-                        countone = loader.countByRegion(one,g);
-                        counttwo = loader.countByRegion(two,g);
+                    geneRegions.add(g);
+                }
+                for (StrandedRegion r : geneRegions) {
+                    try {
+                        if (bothstrands) {
+                            if (byweight) {
+                                countone += loader.weightByRegion(one,(Region)r);
+                                counttwo += loader.weightByRegion(two,(Region)r);
+                            } else {
+                                countone += loader.countByRegion(one,(Region)r);
+                                counttwo += loader.countByRegion(two,(Region)r);
+                            }
+                        } else {
+                            if (byweight) {
+                                countone += loader.weightByRegion(one,r);
+                                counttwo += loader.weightByRegion(two,r);
+                            } else {
+                                countone += loader.countByRegion(one,r);
+                                counttwo += loader.countByRegion(two,r);
+                            }
+                        }
+
+                    } catch (IllegalArgumentException e) {
+                        // this is just it complaining about invalid chromosomes
                     }
                 }
 
