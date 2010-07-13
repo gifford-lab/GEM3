@@ -420,16 +420,16 @@ public class MultiIndependentMixtureCounts {
 		else  // Parallel Version
 			parallel_train(pos, count, strand);
 				
-		// Keep only the components that exceed a minimum weight threshold
-		if(C>1) {
-			boolean areAllZeroComponents = true;
-			for(int j = 0; j < M; j++) {
-				if(glob_prior_weight[j] > 0.0) {
-					areAllZeroComponents = false;
-					break;
-				}
+		boolean areAllZeroComponents = true;
+		for(int j = 0; j < M; j++) {
+			if(glob_prior_weight[j] > 0.0) {
+				areAllZeroComponents = false;
+				break;
 			}
-			
+		}
+
+		// Keep only the components that exceed a minimum weight threshold
+		if(C>1) {			
 			if(areAllZeroComponents) {
 				for(int t = 0; t < C; t++)
 					for(int j = 0; j < M; j++)
@@ -457,7 +457,6 @@ public class MultiIndependentMixtureCounts {
 			for(int j = 0; j < M; j++)
 				if(glob_prior_weight[j] < prior_weight_thres)
 					glob_prior_weight[j] = 0.0;
-			
 			StatUtil.normalize(glob_prior_weight);
 		}
 		
@@ -465,7 +464,11 @@ public class MultiIndependentMixtureCounts {
 		int[] glob_pos     = AggregatedData.get_glob_pos();
 		int[] glob_count   = AggregatedData.get_glob_count();
 		char[] glob_strand = AggregatedData.get_glob_strand();
-		glob_loglik = eval_loglik(glob_pos, glob_count, glob_strand, glob_prior_weight);
+		
+		if(areAllZeroComponents)
+			glob_loglik = Double.NEGATIVE_INFINITY;
+		else
+			glob_loglik = eval_loglik(glob_pos, glob_count, glob_strand, glob_prior_weight);
 		
 		// Construct (final) responsibilities
 		ga = new HashMap<Integer, double[][]>();
@@ -593,9 +596,6 @@ public class MultiIndependentMixtureCounts {
 			}
 		}
 		
-		if(areAllZeroComponents)
-			System.out.println("Aha! Got you!");
-
 		if(C > 1 && !areAllZeroComponents) {
 			int M_temp = M;
 			int[] compPos_temp = compPos.clone();
