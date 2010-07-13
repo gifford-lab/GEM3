@@ -425,6 +425,89 @@ public class Args {
         }
         return out;
     }
+    public static Collection<WeightMatrix> filterMatrices(Collection<String> accepts,
+                                                          Collection<String> rejects,
+                                                          Collection<String> acceptvers,
+                                                          Collection<String> rejectvers,
+                                                          Collection<String> accepttypes,
+                                                          Collection<String> rejecttypes,
+                                                          Collection<WeightMatrix> matrices) {
+        ArrayList<WeightMatrix> out = new ArrayList<WeightMatrix>();
+        for (WeightMatrix wm : matrices) {
+            boolean reject = false;
+            for (String s : rejects) {
+                if (wm.name.matches(s)) {
+                    reject = true;
+                    break;
+                }
+            }
+            for (String s : rejectvers) {
+                if (wm.version.matches(s)) {
+                    reject = true;
+                    break;
+                }
+            }
+            for (String s : rejecttypes) {
+                if (wm.type.matches(s)) {
+                    reject = true;
+                    break;
+                }
+            }
+            if (reject) {
+                continue;
+            }
+            reject = false;
+            if (accepts.size() > 0) {
+                boolean any = false;
+                for (String s : accepts) {
+                    if (wm.name.matches(s)) {
+                        any = true;
+                        break;
+                    }
+                }
+                reject = !any;
+            }
+
+            if (acceptvers.size() > 0) {
+                boolean any = false;
+                for (String s : acceptvers) {
+                    if (wm.version.matches(s)) {
+                        any = true;
+                        break;
+                    }
+                }
+                reject = reject || !any;
+            }
+
+            if (accepttypes.size() > 0) {
+                boolean any = false;
+                for (String s : accepttypes) {
+                    if (wm.type.matches(s)) {
+                        any = true;
+                    }
+                }
+                reject = reject || !any;
+            }
+            
+            if (reject) {
+                continue;
+            }
+            out.add(wm);
+        }
+        return out;
+    }
+    public static Collection<WeightMatrix> parseWeightMatrices(String args[]) throws NotFoundException {
+        ArrayList<WeightMatrix> matrices = new ArrayList<WeightMatrix>();
+        matrices.addAll(WeightMatrix.getAllWeightMatrices());
+        return filterMatrices(parseStrings(args,"acceptwm"),
+                              parseStrings(args,"rejectwm"),
+                              parseStrings(args,"acceptwmver"),
+                              parseStrings(args,"rejectwmver"),
+                              parseStrings(args,"acceptwmtype"),
+                              parseStrings(args,"rejectwmtype"),
+                              matrices);
+
+    }
     /** regularization computes ratios as ratio = (ip + alpha)/(wce + alpha) <br>
      * Argument should appear as: <tt>--regularize alpha</tt>
      */

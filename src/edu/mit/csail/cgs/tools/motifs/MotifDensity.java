@@ -63,7 +63,7 @@ public class MotifDensity {
             System.err.println("Couldn't get metadata for " + bgmodelname);
         }
                 
-        matrices = CompareEnrichment.filterMatrices(accept,reject,matrices);
+        matrices = Args.parseWeightMatrices(args);
         System.err.println("Scanning for " + matrices.size() + " matrices");
         if (bgModel == null) {
             for (WeightMatrix m : matrices) {

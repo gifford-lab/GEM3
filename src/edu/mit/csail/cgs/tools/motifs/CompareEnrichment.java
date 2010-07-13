@@ -51,10 +51,11 @@ import edu.mit.csail.cgs.tools.utils.Args;
 
 public class CompareEnrichment {
 
-    static double cutoffpercent, minfrac, minfoldchange, filtersig;
-    static Collection<WeightMatrix> matrices;
-    static Map<String,char[]> foreground, background;
-    static Binomial binomial;
+    public static final double step = .05;
+    double cutoffpercent, minfrac, minfoldchange, filtersig, maxbackfrac;
+    Collection<WeightMatrix> matrices;
+    Map<String,char[]> foreground, background;
+    Binomial binomial;
 
     public static Map<String,char[]> readFasta(BufferedReader reader) throws IOException {
         FASTAStream stream = new FASTAStream(reader);
@@ -67,7 +68,7 @@ public class CompareEnrichment {
     }
 
     public static int countMeetsThreshold(Map<String,List<WMHit>> hits,
-                                           double t) {
+                                          double t) {
         int count = 0;
         for (String s : hits.keySet()) {
             List<WMHit> list = hits.get(s);
@@ -81,9 +82,9 @@ public class CompareEnrichment {
         return count;
     }
 
-    public static  CEResult doScan(WeightMatrix matrix,
-                                    Map<String,char[]> fg, 
-                                    Map<String,char[]> bg) {
+    public   CEResult doScan(WeightMatrix matrix,
+                             Map<String,char[]> fg, 
+                             Map<String,char[]> bg) {
         Map<String,List<WMHit>> fghits = new HashMap<String,List<WMHit>>();
         Map<String,List<WMHit>> bghits = new HashMap<String,List<WMHit>>();
         double maxscore = matrix.getMaxScore();
@@ -109,7 +110,7 @@ public class CompareEnrichment {
         result.sizeone = fgsize;
         result.sizetwo = bgsize;
         while (percent <= 1.0) {
-            percent += .05;
+            percent += step;
             double t = maxscore * percent;
             int fgcount = countMeetsThreshold(fghits, t);
             int bgcount = countMeetsThreshold(bghits, t);
@@ -132,10 +133,11 @@ public class CompareEnrichment {
                 pval <= result.pval && 
                 Math.abs(fc) >= Math.abs(result.logfoldchange) &&
                 Math.abs(fc) >= Math.abs(Math.log(minfoldchange)) &&
+                (thetatwo < maxbackfrac) && 
                 (thetaone >= minfrac || thetatwo >= minfrac)) {
                 result.pval = pval;
-                result.percent = percent;
-                result.cutoff = t;
+                result.percentString = Double.toString(percent);
+                result.cutoffString = Double.toString(t);
                 result.countone = fgcount;
                 result.counttwo = bgcount;
                 result.logfoldchange = fc;
@@ -149,51 +151,16 @@ public class CompareEnrichment {
         return result;
     }
 
-    public static Collection<WeightMatrix> filterMatrices(Collection<String> accepts,
-                                                          Collection<String> rejects,
-                                                          Collection<WeightMatrix> matrices) {
-        ArrayList<WeightMatrix> out = new ArrayList<WeightMatrix>();
-        for (WeightMatrix wm : matrices) {
-            boolean reject = false;
-            for (String s : rejects) {
-                if (wm.name.matches(s)) {
-                    reject = true;
-                }
-            }
-            if (reject) {
-                continue;
-            }
-            reject = false;
-            if (accepts.size() > 0) {
-                boolean any = false;
-                for (String s : accepts) {
-                    if (wm.name.matches(s)) {
-                        any = true;
-                    }
-                }
-                reject = !any;
-            }
-            if (reject) {
-                continue;
-            }
-            out.add(wm);
-        }
-        return out;
-    }
-
-    public static void main(String args[]) throws Exception {
+    public void parseArgs(String args[]) throws Exception {
         binomial = new Binomial(100, .01, RandomEngine.makeDefault());
         String firstfname = null, secondfname = null;
         Collection<String> accept, reject;
-        matrices = new ArrayList<WeightMatrix>();
-        matrices.addAll(WeightMatrix.getAllWeightMatrices());
 
         cutoffpercent = Args.parseDouble(args,"cutoff",.3);
         filtersig = Args.parseDouble(args,"filtersig",.001);
         minfoldchange = Args.parseDouble(args,"minfoldchange",1);
         minfrac = Args.parseDouble(args,"minfrac",0);
-        accept = Args.parseStrings(args,"accept");
-        reject = Args.parseStrings(args,"reject");
+        maxbackfrac = Args.parseDouble(args,"maxbackfrac",1.0);
         firstfname = Args.parseString(args,"first",null);
         secondfname = Args.parseString(args,"second",null);
         MarkovBackgroundModel bgModel = null;
@@ -211,7 +178,7 @@ public class CompareEnrichment {
             System.err.println("Couldn't get metadata for " + bgmodelname);
         }
                 
-        matrices = filterMatrices(accept,reject,matrices);
+        matrices = Args.parseWeightMatrices(args);
         if (bgModel == null) {
             for (WeightMatrix m : matrices) {
                 m.toLogOdds();
@@ -230,15 +197,17 @@ public class CompareEnrichment {
         System.err.println("Going to scan for " + matrices.size() + " matrices");
         foreground = readFasta(new BufferedReader(new FileReader(firstfname)));
         background = readFasta(new BufferedReader(new FileReader(secondfname)));
-
+    }
+    
+    public void doScan() {
         DecimalFormat nf = new DecimalFormat("0.000E000");
-        for (WeightMatrix wm : matrices) {            
-            CEResult result = doScan(wm,
+        for (WeightMatrix matrix : matrices) {            
+            CEResult result = doScan(matrix,
                                      foreground, 
                                      background);
-            System.err.println("Scanning " + wm.toString());
             if (result.pval <= filtersig && 
                 Math.abs(result.logfoldchange) >= Math.abs(Math.log(minfoldchange)) &&
+                (result.freqtwo <= maxbackfrac) && 
                 (result.freqone >= minfrac || result.freqtwo >= minfrac)) {
                 System.out.println(String.format("%2.1f",result.logfoldchange) + "\t" + 
                                    result.countone + "\t" + 
@@ -248,19 +217,25 @@ public class CompareEnrichment {
                                    background.size() + "\t" + 
                                    nf.format(result.freqtwo) + "\t" +
                                    nf.format(result.pval) + "\t" + 
-                                   wm.name + "\t" + 
-                                   wm.version + "\t" + 
-                                   String.format("%.2f",result.percent));
+                                   result.matrix.name + "\t" + 
+                                   result.matrix.version + "\t" + result.percentString + "\t" + result.cutoffString);
             }
         }
+    }
 
-    }    
+    public static void main(String args[]) throws Exception {
+        CompareEnrichment ce = new CompareEnrichment();
+        ce.parseArgs(args);
+        ce.doScan();
+    }
+
 }
 
 class CEResult {
 
-    public double pval, logfoldchange, percent, cutoff, freqone, freqtwo;
+    public double pval, logfoldchange, freqone, freqtwo;
     public WeightMatrix matrix;
     public int sizeone, sizetwo, countone, counttwo;
+    public String percentString, cutoffString;
     
 }
