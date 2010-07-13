@@ -421,22 +421,37 @@ public class MultiIndependentMixtureCounts {
 			parallel_train(pos, count, strand);
 				
 		// Keep only the components that exceed a minimum weight threshold
-		if(C>1) {		
-			for(int t = 0; t < C; t++)
-				for(int j = 0; j < M; j++)
-					if(prior_weight[t][j] < prior_weight_thres)
-						prior_weight[t][j] = 0.0;
-			
-			StatUtil.normalize(prior_weight, 1);
-			
+		if(C>1) {
+			boolean areAllZeroComponents = true;
 			for(int j = 0; j < M; j++) {
-				double sum = 0.0;
-				for(int t = 0; t < C; t++)
-					sum += prior_weight[t][j];
-				
-				if(sum < prior_weight_thres) { glob_prior_weight[j] = 0.0; }
+				if(glob_prior_weight[j] > 0.0) {
+					areAllZeroComponents = false;
+					break;
+				}
 			}
-			StatUtil.normalize(glob_prior_weight);			
+			
+			if(areAllZeroComponents) {
+				for(int t = 0; t < C; t++)
+					for(int j = 0; j < M; j++)
+						prior_weight[t][j] = 0.0;
+			}
+			else {
+				for(int t = 0; t < C; t++)
+					for(int j = 0; j < M; j++)
+						if(prior_weight[t][j] < prior_weight_thres)
+							prior_weight[t][j] = 0.0;
+				
+				StatUtil.normalize(prior_weight, 1);
+				
+				for(int j = 0; j < M; j++) {
+					double sum = 0.0;
+					for(int t = 0; t < C; t++)
+						sum += prior_weight[t][j];
+					
+					if(sum < prior_weight_thres) { glob_prior_weight[j] = 0.0; }
+				}
+				StatUtil.normalize(glob_prior_weight);			
+			}	
 		}
 		else {
 			for(int j = 0; j < M; j++)
@@ -577,6 +592,9 @@ public class MultiIndependentMixtureCounts {
 				break;
 			}
 		}
+		
+		if(areAllZeroComponents)
+			System.out.println("Aha! Got you!");
 
 		if(C > 1 && !areAllZeroComponents) {
 			int M_temp = M;
