@@ -601,14 +601,33 @@ public class WeightMatrixScanner {
        scanid, it just fills those in with -1 for someone else to fix later.
      */
     public static List<WMHit> scanSequence(WeightMatrix matrix,
-            float scorecutoff,
-            char[] sequence) {
+                                           float scorecutoff,
+                                           char[] sequence) {
         ArrayList<WMHit> results = new ArrayList<WMHit>();
+        float[] scoreleft = new float[matrix.matrix.length + 1];
+        scoreleft[scoreleft.length - 1] = 0;
+        for (int i = scoreleft.length - 2; i >= 0; i--) {
+            double maxval = Double.NEGATIVE_INFINITY;
+            if (matrix.matrix[i]['A'] > maxval) {
+                maxval = matrix.matrix[i]['A'];
+            }
+            if (matrix.matrix[i]['C'] > maxval) {
+                maxval = matrix.matrix[i]['C'];
+            }
+            if (matrix.matrix[i]['T'] > maxval) {
+                maxval = matrix.matrix[i]['T'];
+            }
+            if (matrix.matrix[i]['G'] > maxval) {
+                maxval = matrix.matrix[i]['G'];
+            }
+            scoreleft[i] = scoreleft[i+1] + (float)maxval;
+        }
+
         /* scan through the sequence */
         int length = matrix.length();
         for (int i = 0; i < sequence.length - length; i++) {
             float score = 0;
-            for (int j = 0; j < length; j++) {
+            for (int j = 0; j < length && scoreleft[j] + score > scorecutoff; j++) {
                 score += matrix.matrix[j][sequence[i+j]];
             }
             // save the hit
@@ -622,7 +641,7 @@ public class WeightMatrixScanner {
         SequenceUtils.reverseComplement(sequence);
         for (int i = 0; i < sequence.length - length; i++) {
             float score = 0;
-            for (int j = 0; j < length; j++) {
+            for (int j = 0; j < length && scoreleft[j] + score > scorecutoff; j++) {
                 score += matrix.matrix[j][sequence[i+j]];
             }
             if (score >= scorecutoff) {
