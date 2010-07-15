@@ -287,7 +287,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         }
         boolean and = false;
         if (name != null || replicate != null || factor != null || cells != null || condition != null) {
-            query += " expt in ( select it from chipseqexpt where ";
+            query += " expt in ( select id from chipseqexpts where ";
             if (name != null) { query += " name = ? "; and = true;}
             if (replicate != null) { query += (and ? " and " : " ") + " replicate = ? "; and = true;}
             if (factor != null) { query += (and ? " and " : " ") + " factor = " + factor; and = true;}
