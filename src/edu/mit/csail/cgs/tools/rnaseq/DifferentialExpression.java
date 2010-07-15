@@ -16,7 +16,7 @@ import edu.mit.csail.cgs.ewok.verbs.*;
 /**
  * DifferentialExpression --species "$SC;Sigmav6" --one "Sigma polyA RNA, haploid from 2/9/09;3/17/09;bowtie --best -m 100 -k 100" \
  *                        --two "Sigma polyA RNA, tetraploid from 2/9/09;3/17/09;bowtie --best -m 100 -k 100" --genes sgdGene \
- *                        [--bothstrands] [--byweight] [--flipgenetrands] [--exons]
+ *                        [--bothstrands] [--byweight] [--flipgenetrands] [--exons] [--lengthnorm]
  *
  * Output columns are
  * - gene name
@@ -34,7 +34,7 @@ public class DifferentialExpression {
     List<ChipSeqAlignment> one, two;
     RefGeneGenerator genes;
     Genome genome;
-    boolean bothstrands, byweight, exons;
+    boolean bothstrands, byweight, exons, lengthnorm;
 
     public static void main(String args[]) throws Exception {
         DifferentialExpression d = new DifferentialExpression();
@@ -69,6 +69,7 @@ public class DifferentialExpression {
         bothstrands = Args.parseFlags(args).contains("bothstrands");
         byweight = Args.parseFlags(args).contains("byweight");
         exons = Args.parseFlags(args).contains("exons");
+        lengthnorm = Args.parseFlags(args).contains("lengthnorm");
         if (exons) {
             genes.retrieveExons(true);
         }
@@ -98,6 +99,7 @@ public class DifferentialExpression {
             while (geneiter.hasNext()) {
                 Gene g = geneiter.next();
                 double countone = 0, counttwo = 0;
+                int length = 0;
                 geneRegions.clear();
                 if (exons && g instanceof ExonicGene) {
                     Iterator<Region> exoniter = ((ExonicGene)g).getExons();
@@ -108,6 +110,7 @@ public class DifferentialExpression {
                     geneRegions.add(g);
                 }
                 for (StrandedRegion r : geneRegions) {
+                    length += r.getWidth();
                     try {
                         if (bothstrands) {
                             if (byweight) {
@@ -135,6 +138,12 @@ public class DifferentialExpression {
                 if (countone < 2 && counttwo < 2) { continue; }
                 if (countone < 2) {countone = 2;}
                 if (counttwo < 2) {counttwo = 2;}
+
+                if (lengthnorm) {
+                    countone = countone * 1000.0 / length;
+                    counttwo = counttwo * 1000.0 / length;
+                }
+
                 
                 double pone = countone / totalcountone;
                 double ptwo = counttwo / totalcounttwo;
