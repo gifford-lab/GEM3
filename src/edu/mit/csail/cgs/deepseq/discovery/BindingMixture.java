@@ -82,7 +82,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	// Max number of reads to load from DB
 	private final static int MAXREAD = 1000000;
-    private final static int WINDOW_SIZE_FACTOR = 3;
+    private final static int WINDOW_SIZE_FACTOR = 6;	//number of model width per window
     // true:  eliminated component in batch, as long as matching criteria in EM derivation
     // false: eliminate only the worse case components, re-distribute the reads of eliminated component
 	private final static boolean BATCH_ELIMINATION = false;
@@ -254,7 +254,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
     	// Optional input parameter
     	q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
-    	sparseness = Args.parseDouble(args, "a", 6.0);	// alpha parameter for sparse prior
+    	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "alpha_factor", 3.0); // denominator in calculating alpha value
     	max_hit_per_bp = Args.parseInteger(args, "max_hit_per_bp", -1);
     	top_event_percentile = Args.parseInteger(args, "top_event_percentile", 50);
@@ -270,14 +270,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	needToCleanBases = flags.contains("needToCleanBases");
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
-    	development_mode = flags.contains("development_mode");
+    	development_mode = flags.contains("dev");
     	// default as true, need the opposite flag to turn it off
     	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
     	TF_binding = ! flags.contains("non_punctate_binding");
     	reportProgress =! flags.contains("no_report_progress");
     	use_internal_em_train = ! flags.contains("multi");
     	use_scanPeak = ! flags.contains("do_not_scanPeak");
-    	boolean loadWholeGenome = ! flags.contains( "loadRegionOnly");
     	do_model_selection = !flags.contains("no_model_selection");
 
 		/* **************************************************
@@ -286,30 +285,32 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 * If no file pre-specified, estimate the enrichedRegions after loading the data.
 		 * We do not want to run EM on regions with little number of reads
 		 * **************************************************/
-    	String focusFormat = Args.parseString(args, "focusFormat", null);
     	String focusFile = Args.parseString(args, "focusFile", null);
-
-    	if (focusFormat!=null){
-	    	// take candidate regions from MACS output, expand point to regions, merge overlaps
-	    	if (focusFormat.equals("MACS")){
-	    		File peakFlie = new File(focusFile);
-	    		List<MACSPeakRegion> peaks = MACSParser.parseMACSOutput(peakFlie.getAbsolutePath(), gen);
-	    		setRegions(peaks);
-	    	}
+     	boolean loadWholeGenome = true;
+     	if (focusFile!=null){
+     		loadWholeGenome = false;
+     		String focusFormat = Args.parseString(args, "focusFormat", null);
+        	if (focusFormat==null){
+    	    	// take candidate regions from previous analysis of mixture model
+    	    	// Do not expand the regions, precisely defined already
+    	        	setRegions(focusFile, true);
+        	}        	
+        	else if (focusFormat.equals("MACS")){
+    	    	// take candidate regions from MACS output, expand point to regions, merge overlaps
+    	    		File peakFlie = new File(focusFile);
+    	    		List<MACSPeakRegion> peaks = MACSParser.parseMACSOutput(peakFlie.getAbsolutePath(), gen);
+    	    		setRegions(peaks);
+    	    }
 	    	// take candidate regions from output of statistical peak finder by Shaun,
 	    	// will expand point to regions, merge overlaps
 	    	else if (focusFormat.equals("StatPeak")){
 	    		setRegions(focusFile, false);
 	    	}
-	    	// take candidate regions from previous analysis of mixture model
-	    	// Do not expand the regions, precisely defined already
-	    	else if (focusFormat.equals("Regions")){
-	        	setRegions(focusFile, true);
-	    	}
 	    	else if (focusFormat.equals("RegionsToMerge")){
 	        	setRegions(focusFile, false);
 	    	}
-    	}
+        }
+
 
 		/* ***************************************************
 		 * ChIP-Seq data
@@ -427,7 +428,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
     	// if no focus list, directly estimate candidate regions from data
-		if (focusFormat==null){
+		if (focusFile==null){
     		setRegions(selectEnrichedRegions());
 		}
 		if (development_mode)
@@ -438,7 +439,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-        if (focusFormat == null){		// estimate some parameters if whole genome data
+        if (focusFile == null){		// estimate some parameters if whole genome data
 	        for(int i=0; i<caches.size(); i++){
 				Pair<ReadCache,ReadCache> e = caches.get(i);
 				double ipCount = e.car().getHitCount();
@@ -560,7 +561,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		//for each test region
 		for (int j=0;j<restrictRegions.size();j++) {
 			Region rr = restrictRegions.get(j);
-			// Cut long regions into windowSize(4kb) sliding window (500bp overlap) to analyze
+			// Cut long regions into windowSize(2kb) sliding window (500bp overlap) to analyze
 			ArrayList<Region> windows = new ArrayList<Region>();
 			if (rr.getWidth()<=windowSize)
 				windows.add(rr);
@@ -568,73 +569,115 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				int lastEnd = rr.getStart()+windowSize-1;
 				windows.add(new Region(rr.getGenome(), rr.getChrom(), rr.getStart(), lastEnd));
 				while(lastEnd<rr.getEnd()){
-					int newStart = lastEnd+1-modelWidth;	//overlap length = modelWidth
+					int newStart = lastEnd+1-modelWidth*2;	//overlap length = modelWidth*2
 					lastEnd = Math.min(newStart+windowSize-1, rr.getEnd());
 					windows.add(new Region(rr.getGenome(), rr.getChrom(), newStart, lastEnd));
 				}
 			}
+			
 
-			// process for each window
-			ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
+			// process for each window (version 2)
+			ArrayList<ArrayList<BindingComponent>> comps_all_wins= new ArrayList<ArrayList<BindingComponent>>();
 			for (Region w : windows){
+				ArrayList<BindingComponent> comp_win = new ArrayList<BindingComponent>();
 				ArrayList<BindingComponent> result = analyzeWindow(w);
 				if (result!=null){
-					comps.addAll(result);
-//					try {
-//						bw.write(String.format("%s\t%s\t%s\t%d\t%d\t%d%n", rr.toString(), w.toString(), "Before", compFeatures.size(), comps.size(), result.size()));
-//					} catch (IOException e) {
-//						// TODO Auto-generated catch block
-//						e.printStackTrace();
-//					}
+					comp_win.addAll(result);
 				}
+				comps_all_wins.add(comp_win);
 			}
 
 			/* ****************************************************************
 			 * fix sliding window boundary effect
+			 * take the events in the left half of boundary from left window
+			 * take the events in the right half of boundary from right window
 			 */
 			if (windows.size()>1){
-				Collections.sort(comps);
-				ArrayList<Region> rs = new ArrayList<Region>();
-				for (BindingComponent m:comps){
-					rs.add(m.getLocation().expand(0));
-				}
-				// expand with modelRange padding, and merge overlapped regions
-				// ==> Refined enriched regions
-				rs=mergeRegions(rs, true);
-				for (Region r:rs){
-					if (r.getWidth()>2*modelRange+1){ // for non-unary events (for unary event, one of the windows should contain it in full, no need to evaluate again)
-						// the regions in rs includes the influence paddings, remove it here
-						Region tightRegion = new Region(r.getGenome(), r.getChrom(), r.getStart()+modelRange, r.getEnd()-modelRange);
-						for (int i=0;i<windows.size()-1;i++){
-//							int end = windows.get(i).getEnd();
-							Region boundary = windows.get(i).getOverlap(windows.get(i+1));
-//							Region boundary = new Region(r.getGenome(), r.getChrom(), end-modelWidth, end);
-							// if the predicted component overlaps with boundary of sliding window
-							if (boundary.overlaps(tightRegion)){
-								// remove old
-								ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
-								for (BindingComponent m:comps){
-									if (tightRegion.overlaps(m.getLocation().expand(0)))
-									toRemove.add(m);
-								}
-								comps.removeAll(toRemove);
-								// reprocess the refined region
-								ArrayList<BindingComponent> result = analyzeWindow(r);
-								if (result!=null){
-									comps.addAll(result);
-//									try {
-//										bw.write(String.format("%s\t%s\t%s\t%d\t%d\t%d%n", rr.toString(), r.toString(), "After", compFeatures.size(), comps.size(), result.size()));
-//									} catch (IOException e) {
-//										// TODO Auto-generated catch block
-//										e.printStackTrace();
-//									}
-								}
-								break;	// break from testing more boundary
-							}
-						}
+				for (int i=0;i<windows.size()-1;i++){
+					Region boundary = windows.get(i).getOverlap(windows.get(i+1));
+					int midCoor = boundary.getMidpoint().getLocation();
+					ArrayList<BindingComponent> leftComps = comps_all_wins.get(i);
+					ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+					for (BindingComponent m:leftComps){
+						if (m.getLocation().getLocation()>midCoor)
+							toRemove.add(m);
 					}
+					leftComps.removeAll(toRemove);
+					ArrayList<BindingComponent> rightComps = comps_all_wins.get(i+1);
+					toRemove = new ArrayList<BindingComponent>();	//reset
+					for (BindingComponent m:rightComps){
+						if (m.getLocation().getLocation()<=midCoor)
+							toRemove.add(m);
+					}
+					rightComps.removeAll(toRemove);
 				}
 			}
+			ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
+			for (ArrayList<BindingComponent>comps_win:comps_all_wins){
+				comps.addAll(comps_win);
+			}
+
+//			// process for each window (version 1)
+//			ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
+//			for (Region w : windows){
+//				ArrayList<BindingComponent> result = analyzeWindow(w);
+//				if (result!=null){
+//					comps.addAll(result);
+////					try {
+////						bw.write(String.format("%s\t%s\t%s\t%d\t%d\t%d%n", rr.toString(), w.toString(), "Before", compFeatures.size(), comps.size(), result.size()));
+////					} catch (IOException e) {
+////						// TODO Auto-generated catch block
+////						e.printStackTrace();
+////					}
+//				}
+//			}
+//
+//			/* ****************************************************************
+//			 * fix sliding window boundary effect
+//			 */
+//			if (windows.size()>1){
+//				Collections.sort(comps);
+//				ArrayList<Region> rs = new ArrayList<Region>();
+//				for (BindingComponent m:comps){
+//					rs.add(m.getLocation().expand(0));
+//				}
+//				// expand with modelRange padding, and merge overlapped regions
+//				// ==> Refined enriched regions
+//				rs=mergeRegions(rs, true);
+//				for (Region r:rs){
+//					if (r.getWidth()>2*modelRange+1){ // for non-unary events (for unary event, one of the windows should contain it in full, no need to evaluate again)
+//						// the regions in rs includes the influence paddings, remove it here
+//						Region tightRegion = new Region(r.getGenome(), r.getChrom(), r.getStart()+modelRange, r.getEnd()-modelRange);
+//						for (int i=0;i<windows.size()-1;i++){
+////							int end = windows.get(i).getEnd();
+//							Region boundary = windows.get(i).getOverlap(windows.get(i+1));
+////							Region boundary = new Region(r.getGenome(), r.getChrom(), end-modelWidth, end);
+//							// if the predicted component overlaps with boundary of sliding window
+//							if (boundary.overlaps(tightRegion)){
+//								// remove old
+//								ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+//								for (BindingComponent m:comps){
+//									if (tightRegion.overlaps(m.getLocation().expand(0)))
+//									toRemove.add(m);
+//								}
+//								comps.removeAll(toRemove);
+//								// reprocess the refined region
+//								ArrayList<BindingComponent> result = analyzeWindow(r);
+//								if (result!=null){
+//									comps.addAll(result);
+////									try {
+////										bw.write(String.format("%s\t%s\t%s\t%d\t%d\t%d%n", rr.toString(), r.toString(), "After", compFeatures.size(), comps.size(), result.size()));
+////									} catch (IOException e) {
+////										// TODO Auto-generated catch block
+////										e.printStackTrace();
+////									}
+//								}
+//								break;	// break from testing more boundary
+//							}
+//						}
+//					}
+//				}
+//			}
 
 			/* ****************************************************************
 			 * refine unary events and collect all the events as features
@@ -807,7 +850,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// dynamically determine an alpha value for this sliding window
 			double alpha = sparseness;
 			if (use_dynamic_sparseness)
-				alpha = Math.max(estimateAlpha2(w, signals), sparseness);
+				alpha = Math.max(estimateAlpha(w, signals), sparseness);
 
 			HashMap<Integer, double[][]> responsibilities = null;
 
@@ -1181,7 +1224,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// dynamically determine an alpha value for this sliding window based on IP reads
 	// find a 500bp(modelWidth) region with maximum read counts, set alpha=sqrt(maxCount)/3
 
-	private double estimateAlpha2(Region window, ArrayList<List<StrandedBase>> signals){
+	private double estimateAlpha(Region window, ArrayList<List<StrandedBase>> signals){
 		float maxCount = 0;
 		int left = Math.abs(model.getMin());
 		int right = Math.abs(model.getMax());
@@ -2627,7 +2670,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// dynamically determine an alpha value for this sliding window
 			double alpha = sparseness;
 			if (use_dynamic_sparseness)
-				alpha = Math.max(estimateAlpha2(r, signals), sparseness);
+				alpha = Math.max(estimateAlpha(r, signals), sparseness);
 
 			HashMap<Integer, double[][]> responsibilities = null;
 
