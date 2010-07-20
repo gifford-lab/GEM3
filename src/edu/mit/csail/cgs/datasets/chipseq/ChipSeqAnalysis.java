@@ -40,17 +40,113 @@ public class ChipSeqAnalysis {
     public void addResult(ChipSeqAnalysisResult result) {
         results.add(result);
     }
-
+    public String toString() {
+        return name + ";" + version + ";" + program;
+    }
     /* these methods are primarily for querying an object that you've gotten back
        from the database */
     public Integer getDBID() {return dbid;}
     public String getName() {return name;}
     public String getVersion() {return version;}
     public String getProgramName() {return program;}
-    public Map<String,String> getParams() {return params;}
-    public Set<ChipSeqAlignment> getForeground() {return foreground;}
-    public Set<ChipSeqAlignment> getBackground() {return background;}
+    public Map<String,String> getParams() {
+        if (params == null) {
+            try {
+                loadParams();
+            } catch (SQLException e) {
+                throw new DatabaseException(e.toString(),e);
+            }
+        }
+        return params;
+    }
+    public Set<ChipSeqAlignment> getForeground() {
+        if (foreground == null) {
+            try {
+                loadInputs();
+            } catch (SQLException e) {
+                throw new DatabaseException(e.toString(),e);
+            }
+        }
+        return foreground;
+    }
+    public Set<ChipSeqAlignment> getBackground() {
+        if (background == null) {
+            try {
+                loadInputs();
+            } catch (SQLException e) {
+                throw new DatabaseException(e.toString(),e);
+            }
+        }
+        return background;
+    }
+    private void loadInputs() throws SQLException {
+        java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
+        PreparedStatement ps = cxn.prepareStatement("select name,value from analysisparameters where analysis = ?");
+        ps.setInt(1,dbid);
+        ResultSet rs = ps.executeQuery();
+        HashMap<String,String> params = new HashMap<String,String>();
+        while (rs.next()) {
+            params.put(rs.getString(1), rs.getString(2));
+        }
+        setParameters(params);
+        rs.close();
+        ps.close();        
+        DatabaseFactory.freeConnection(cxn);
+    }
+    private void loadParams() throws SQLException {
+        java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
+        PreparedStatement ps = cxn.prepareStatement("select alignment, inputtype from analysisinputs where analysis = ?");
+        ps.setInt(1,dbid);
+        HashSet<ChipSeqAlignment> fg = new HashSet<ChipSeqAlignment>();
+        HashSet<ChipSeqAlignment> bg = new HashSet<ChipSeqAlignment>();
+        ResultSet rs = ps.executeQuery();
+        try {
+            ChipSeqLoader loader = new ChipSeqLoader(false);
+            while (rs.next()) {
+                if (rs.getString(2).equals("foreground")) {
+                    fg.add(loader.loadAlignment(rs.getInt(1)));
+                } else if (rs.getString(2).equals("background")) {
+                    bg.add(loader.loadAlignment(rs.getInt(1)));
+                }
+            }
+            setInputs(fg,bg);
+            rs.close();
+            ps.close();
+            loader.close();
 
+        } catch (IOException e) {
+            /* IOException comes from the loader trying to connect to readdb,
+               but we told it not to do that.  So this shouldn't
+               happen
+            */
+            throw new RuntimeException(e.toString(),e);
+        } catch (NotFoundException e) {
+            /* the loader throws a NotFoundException if it can't
+               find the alignment.  But the database constraints should
+               have prevented us from getting an invalid alignment id back.
+            */
+            throw new DatabaseException(e.toString(),e);
+        }
+        DatabaseFactory.freeConnection(cxn);
+    }
+    public static Collection<ChipSeqAnalysis> getAll() throws DatabaseException, SQLException {
+        ArrayList<ChipSeqAnalysis> output = new ArrayList<ChipSeqAnalysis>();
+        java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
+        PreparedStatement ps = cxn.prepareStatement("select id, name, version, program from chipseqanalysis");
+        ResultSet rs = ps.executeQuery();
+        while (rs.next()) {
+            ChipSeqAnalysis a = new ChipSeqAnalysis(rs.getString(2),
+                                                    rs.getString(3),
+                                                    rs.getString(4));
+            a.dbid = rs.getInt(1);
+            output.add(a);
+        }
+        rs.close();
+        ps.close();
+		DatabaseFactory.freeConnection(cxn);
+        return output;
+        
+    }
     /* these methods interact with the database */
     public static ChipSeqAnalysis get(ChipSeqLoader loader, String name, String version) throws NotFoundException, DatabaseException, SQLException {
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
@@ -63,31 +159,6 @@ public class ChipSeqAnalysis {
         }
         ChipSeqAnalysis result = new ChipSeqAnalysis(name,version, rs.getString(2));
         result.dbid = rs.getInt(1);
-        rs.close();
-        ps.close();
-        ps = cxn.prepareStatement("select name,value from analysisparameters where analysis = ?");
-        ps.setInt(1,result.dbid);
-        rs = ps.executeQuery();
-        HashMap<String,String> params = new HashMap<String,String>();
-        while (rs.next()) {
-            params.put(rs.getString(1), rs.getString(2));
-        }
-        result.setParameters(params);
-        rs.close();
-        ps.close();
-        ps = cxn.prepareStatement("select alignment, inputtype from analysisinputs where analysis = ?");
-        ps.setInt(1,result.dbid);
-        HashSet<ChipSeqAlignment> fg = new HashSet<ChipSeqAlignment>();
-        HashSet<ChipSeqAlignment> bg = new HashSet<ChipSeqAlignment>();
-        rs = ps.executeQuery();
-        while (rs.next()) {
-            if (rs.getString(2).equals("foreground")) {
-                fg.add(loader.loadAlignment(rs.getInt(1)));
-            } else if (rs.getString(2).equals("background")) {
-                bg.add(loader.loadAlignment(rs.getInt(1)));
-            }
-        }
-        result.setInputs(fg,bg);
         rs.close();
         ps.close();
 		DatabaseFactory.freeConnection(cxn);
