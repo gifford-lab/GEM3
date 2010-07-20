@@ -46,12 +46,10 @@ public class BindingComponent implements Comparable<BindingComponent>{
 		model=m;
 		position=pos;
 		numConditions = numConds;
-		conditionBeta=new double[numConditions];
-		// uniform initialization
-		double uc=1/(double)numConditions;
-		for(int c=0; c<numConditions; c++){
-			conditionBeta[c]=uc;
-		}
+		conditionBeta = new double[numConditions];
+		sum_resp      = new double[numConditions];
+		for(int c=0; c<numConditions; c++)
+			conditionBeta[c]=1.0/(double)numConditions; // uniform initialization
 		mixingProb=1;
 	}//end of BindingComponent constructor
 	
@@ -116,7 +114,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	//Mutators
 	public void setMixProb(double p){mixingProb=p;}
 	
-	public void setSumResponsibility(double[] sum_resp) { this.sum_resp = sum_resp; }
+	public void setSumResponsibility(double[] sum_resp)              { this.sum_resp = sum_resp;            }
+	
+	public void setSumResponsibility(int cond, double cond_sum_resp) { this.sum_resp[cond] = cond_sum_resp; }
 	
 	public void setConditionBeta(int cond, double beta){
 		if(cond<numConditions){
