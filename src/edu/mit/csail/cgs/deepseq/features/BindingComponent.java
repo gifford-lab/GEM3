@@ -18,8 +18,8 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	private Point position;
 	private double mixingProb;
 	private double[] conditionBeta;
-	private int numConditions;
-	private HashMap<StrandedBase,Double>[] responsibilities;
+	private int numConditions;	
+	private double[] sum_resp;
 	private double[][] readProfile_plus;
 	private double[][] readProfile_minus;
 	private Point EM_position;		// EM result
@@ -53,9 +53,7 @@ public class BindingComponent implements Comparable<BindingComponent>{
 			conditionBeta[c]=uc;
 		}
 		mixingProb=1;
-		responsibilities = new HashMap[numConditions];
-		for(int c = 0; c < numConditions; c++) { responsibilities[c] = new HashMap<StrandedBase,Double>(); /*normalized*/ }			
-	}
+	}//end of BindingComponent constructor
 	
 	//Accessors
 	public double scoreHit(ReadHit h){
@@ -74,10 +72,7 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public double getMixProb(){return mixingProb;}
 
 	public double getSumResponsibility(int cond){
-		double sum = 0;
-		for (StrandedBase base:responsibilities[cond].keySet())
-			sum += base.getCount()*responsibilities[cond].get(base);
-		return(sum);
+		return sum_resp[cond];
 	}
 	
 	public double getTotalSumResponsibility(){
@@ -85,7 +80,6 @@ public class BindingComponent implements Comparable<BindingComponent>{
 		for(int c = 0; c < numConditions; c++) { sum += getSumResponsibility(c); }
 		return sum;
 	}
-	
 
 	public double getConditionBeta(int c){
 		if(c>=numConditions){return -1;}
@@ -93,18 +87,23 @@ public class BindingComponent implements Comparable<BindingComponent>{
 			return(conditionBeta[c]);
 		}
 	}
+	
 	public double[][] getReadProfile_plus(){
 		return readProfile_plus;
 	}
+	
 	public double[][] getReadProfile_minus(){
 		return readProfile_minus;
 	}
+	
 	public double[] getReadProfile_plus(int condition){
 		return readProfile_plus[condition];
 	}
+	
 	public double[] getReadProfile_minus(int condition){
 		return readProfile_minus[condition];
-	}	
+	}
+	
 	public double getReadProfile(int cond, int index, char strand){
 		double result=0;
 		if (strand=='+')
@@ -113,14 +112,18 @@ public class BindingComponent implements Comparable<BindingComponent>{
 			result=readProfile_minus[cond][index];
 		return result;
 	}
+	
 	//Mutators
 	public void setMixProb(double p){mixingProb=p;}
-	public void setResponsibility(int cond, StrandedBase b, double x){responsibilities[cond].put(b, x);}
+	
+	public void setSumResponsibility(double[] sum_resp) { this.sum_resp = sum_resp; }
+	
 	public void setConditionBeta(int cond, double beta){
 		if(cond<numConditions){
 			conditionBeta[cond]=beta;
 		}
 	}
+	
 	public void setReadProfile(int cond, double[] profile, char strand){
 		if (readProfile_plus==null){
 			readProfile_plus = new double[numConditions][profile.length];
@@ -137,13 +140,16 @@ public class BindingComponent implements Comparable<BindingComponent>{
 //		return compareByAvgQValue(f);
 		return getLocation().compareTo(m.getLocation());
 	}
+	
 	public void setAlpha(double alpha) {
 		this.alpha = alpha;		
 	}
+	
 	public double getAlpha(){
 		return alpha;
 	}
+	
 	public String toString(){
 		return getLocation().getLocationString()+" EM:"+getEMPosition().getLocationString();
 	}
-}
+}//end of BindingComponent class
