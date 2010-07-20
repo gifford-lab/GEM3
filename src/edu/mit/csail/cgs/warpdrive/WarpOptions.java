@@ -9,6 +9,7 @@ import edu.mit.csail.cgs.datasets.chipchip.AnalysisNameVersion;
 import edu.mit.csail.cgs.datasets.chipchip.ExptNameVersion;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqExpt;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
+import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAnalysis;
 import edu.mit.csail.cgs.datasets.expression.Experiment;
 import edu.mit.csail.cgs.datasets.locators.ExptLocator;
 import edu.mit.csail.cgs.datasets.motifs.*;

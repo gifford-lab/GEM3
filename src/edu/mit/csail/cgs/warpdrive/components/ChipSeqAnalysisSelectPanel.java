@@ -36,10 +36,10 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
     public void retrieveData() {
         analyses.clear();
         try {
-            synchronized(locators) {
+            synchronized(analyses) {
                 Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll();
-                for(ChipSeqAlignment a :all) { 
-                    locators.add(a);
+                for(ChipSeqAnalysis a :all) { 
+                    analyses.add(a);
                 }
             }
         } catch (SQLException e) {
@@ -49,7 +49,7 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
     public void updateComponents() {
         selectedModel.clear();
         filteredModel.clear();
-        synchronized(analysis) {
+        synchronized(analyses) {
             for (ChipSeqAnalysis a : analyses) {
                 filteredModel.addObject(a);
             }
@@ -64,7 +64,7 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         synchronized(analyses) {
             analyses.clear();
             try {
-                for (ChipSeqAnalysis a : ChipSeqAnalyses.getAll()) {
+                for (ChipSeqAnalysis a : ChipSeqAnalysis.getAll()) {
                     Set<ChipSeqAlignment> fg = a.getForeground();
                     Iterator<ChipSeqAlignment> i = fg.iterator();
                     if (!i.next().getGenome().equals(getGenome())) {

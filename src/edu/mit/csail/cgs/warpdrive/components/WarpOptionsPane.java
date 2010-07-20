@@ -14,6 +14,7 @@ import java.io.*;
 import edu.mit.csail.cgs.datasets.binding.BindingScan;
 import edu.mit.csail.cgs.datasets.chipchip.ChipChipDataset;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
+import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAnalysis;
 import edu.mit.csail.cgs.datasets.expression.Experiment;
 import edu.mit.csail.cgs.datasets.general.NamedTypedRegion;
 import edu.mit.csail.cgs.datasets.locators.*;
@@ -67,6 +68,7 @@ public class WarpOptionsPane
     
     // chipseq tab
     private ChipSeqSelectPanel chipSeqSelect, pairedChipSeqSelect;
+    private ChipSeqAnalysisSelectPanel chipSeqAnalysisSelect;
 
     // annotations tab
     private JList genes, ncrnas, otherfeats;
@@ -559,6 +561,9 @@ public class WarpOptionsPane
         }
         for(ChipSeqLocator loc : pairedChipSeqSelect.getSelected()) { 
             these.pairedChipseqExpts.add(loc);
+        }
+        for (ChipSeqAnalysis a : chipSeqAnalysisSelect.getSelected()) {
+            these.chipseqAnalyses.add(a);
         }
 
         

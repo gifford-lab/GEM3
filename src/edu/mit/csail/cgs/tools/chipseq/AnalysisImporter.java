@@ -41,12 +41,22 @@ import edu.mit.csail.cgs.datasets.chipseq.*;
 public class AnalysisImporter {
 
     public static void main(String args[]) throws NotFoundException, SQLException, DatabaseException, IOException {
+        AnalysisImporter importer = new AnalysisImporter();
+        importer.parseArgs(args);
+        importer.run(System.in);
+        importer.close();
+    }
+
+    private ChipSeqAnalysis analysis;
+    private Genome genome;
+    public AnalysisImporter() {}
+    public void parseArgs(String args[]) throws NotFoundException, SQLException, DatabaseException, IOException {
         String name = Args.parseString(args,"name",null);
         String version = Args.parseString(args,"version",null);
         String program = Args.parseString(args,"program",null);
-        Genome g = Args.parseGenome(args).cdr();
+        genome = Args.parseGenome(args).cdr();
         ChipSeqLoader loader = new ChipSeqLoader();
-        ChipSeqAnalysis analysis = new ChipSeqAnalysis(name,version,program);
+        analysis = new ChipSeqAnalysis(name,version,program);
 
         String paramsfname = Args.parseString(args,"paramfile",null);
         if (paramsfname != null) {
@@ -57,9 +67,9 @@ public class AnalysisImporter {
         for (String s : Args.parseStrings(args,"foreground")) {
             String pieces[] = s.split(";");
             if (pieces.length == 2) {
-                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1]),g));
+                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1]),genome));
             } else if (pieces.length == 3) {
-                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2]),g));
+                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2]),genome));
             } else {
                 System.err.println("Bad alignment spec: " + s);
             }
@@ -67,20 +77,21 @@ public class AnalysisImporter {
         for (String s : Args.parseStrings(args,"background")) {
             String pieces[] = s.split(";");
             if (pieces.length == 2) {
-                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1]),g));
+                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1]),genome));
             } else if (pieces.length == 3) {
-                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2]),g));
+                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2]),genome));
             } else {
                 System.err.println("Bad alignment spec: " + s);
             }
         }
         analysis.setInputs(fg,bg);
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+    }
+    public void run(InputStream input) throws SQLException, IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(input));
         String line;
         while ((line = reader.readLine()) != null) {
             String pieces[] = line.split("\\t");
-            analysis.addResult(new ChipSeqAnalysisResult(g,
+            analysis.addResult(new ChipSeqAnalysisResult(genome,
                                                          pieces[0],
                                                          Integer.parseInt(pieces[1]),
                                                          Integer.parseInt(pieces[2]),
@@ -93,7 +104,7 @@ public class AnalysisImporter {
                                                          pieces[9].length() > 0 ? Double.parseDouble(pieces[9]) : null));
         }
         analysis.store();
-
     }
+    public void close() {}
     
 }
