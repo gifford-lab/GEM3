@@ -18,7 +18,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  * 
  * Here we use it as a memory cache to store the data.
  * The fivePrimes field for each chrom/strand will be distinct. 
- * Multiple reads mapped to the bp position will store as counts.
+ * Multiple reads mapped to the same bp position will be stored as counts.
  * Thus, the count field is different from AlignmentFileReader.java.
  * 
  * This class basically stores the hits coming from the correspoding files. <br>
@@ -35,7 +35,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  * @author Yuchun
  *
  */
-public class ReadCache{
+public class ReadCache {
 
 	private Genome gen;
 	private int numChroms;
@@ -79,6 +79,7 @@ public class ReadCache{
 	//protected char[][] strands=null;
 	
 	private HashMap<String, Integer> chrom2ID=new HashMap<String,Integer>();
+	
 	private HashMap<Integer,String> id2Chrom=new HashMap<Integer,String>();
 	
 	public ReadCache(Genome g, String name){
@@ -106,7 +107,7 @@ public class ReadCache{
 		
 		hitCountsList = new ArrayList[numChroms][2];
 		for(i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
-	}
+	}//end of ReadCache constructor
 	
 	/**
 	 * Loads hits in the region
@@ -141,7 +142,7 @@ public class ReadCache{
 			}	
 		}	
 		return bases;
-	}
+	}//end of getStrandedBases method
 	
 	public float countHits(Region r) {
 		return StrandedBase.countBaseHits(getUnstrandedBases(r));
@@ -163,11 +164,12 @@ public class ReadCache{
 		return count;
 	}//end of getStrandedTotalCount method
 	
-	
-	// Add hits to data structure
-	// It is called for ReadDB loader, store data loaded from DB
-	// It is called multiple times to retrieve all the data, then populateArrays() is called
-	public void addHits(String chrom, char strand, Collection<Integer>starts, Collection<Float> counts){
+	/**
+	 * 	Add hits to data structure
+	 * 	It is called for ReadDB loader, store data loaded from DB
+	 * 	It is called multiple times to retrieve all the data, then populateArrays() is called 
+	 */
+	public void addHits(String chrom, char strand, Collection<Integer> starts, Collection<Float> counts){
 		int chrID   = chrom2ID.get(chrom);
 		int strandInd = strand == '+' ? 0 : 1;
 		fivePrimesList[chrID][strandInd].addAll(starts);
@@ -177,9 +179,11 @@ public class ReadCache{
 		totalBases += starts.size();
 	}//end of addHits method	
 	
-	// Add all hit starts from all chrom and strand
-	// It is called once for file reader that has loaded data into memory
-	// assuming the data structure of starts is same as file reader
+	/**
+	 * Add all hit starts from all chrom and strand
+	 * It is called once for file reader that has loaded data into memory
+	 * assuming the data structure of starts is same as file reader 
+	 */
 	public void addAllFivePrimes(ArrayList<int[][][]> allStarts, int readLength){
 		for(int i = 0; i < fivePrimesList.length; i++){			// chrom
 			for(int j = 0; j < fivePrimesList[i].length; j++){	// strand
@@ -224,8 +228,9 @@ public class ReadCache{
 					totalHits += c;
 			}
 		}
-	}
-	private int[] mergeOrderedList(int[]a, int[]b){
+	}//end of addAllFivePrimes method
+	
+	private int[] mergeOrderedList(int[] a, int[] b){
 		int[] result = new int[a.length+b.length];
 		int ai=0; int bi=0;
 		for (int i=0;i<result.length;i++){
@@ -239,7 +244,8 @@ public class ReadCache{
 			}
 		}
 		return result;
-	}
+	}//end of mergeOrderedList method
+	
 	/**
 	 * Converts lists of Integers to integer arrays, deletes the lists for saving memory
 	 * all array elements are ordered in terms of the array <tt>starts</tt>.
@@ -254,10 +260,10 @@ public class ReadCache{
 				hitCounts[i][j] = list2float(hitCountsList[i][j]);
 		hitCountsList = null;
 		System.gc();
-		
 		generateStats();
-	}
-	public void generateStats(){
+	}//end of populateArrays method
+	
+	public void generateStats() {
 		// count readHit numbers in 1bp bins
 		int max = 200;
 		binCounts = new int[max+1];
@@ -282,7 +288,7 @@ public class ReadCache{
 				bin500Counts[count]++;
 			}
 		}	
-	}
+	}//end of generateStats method
 	
 	public void filterBaseBias(int maxPerBP){
 	}
@@ -293,6 +299,7 @@ public class ReadCache{
 			out[i] = list.get(i);
 		return out;
 	}
+	
 	private float[] list2float(List<Float> list) {
 		float[] out = new float[list.size()];
 		for(int i = 0; i < out.length; i++)
@@ -308,15 +315,19 @@ public class ReadCache{
 	public double getHitCount(){
 		return totalHits;
 	} 
+	
 	public double getBaseCount(){
 		return totalBases;
 	} 
+	
 	public String getName(){
 		return name;
 	}
+	
 	public void displayStats(){
 		System.out.println("ReadCache\t"+name+"\tBases: "+totalBases+"\tHitCounts: "+totalHits);
 	}
+	
 	public void printBinCounts(){
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<binCounts.length;i++){
@@ -331,6 +342,7 @@ public class ReadCache{
 		}
 		writeFile(name+"500bpCount.txt", sb.toString());
 	}
+	
 	public int getMaxHitPerBP(double fraction){
 		double toKeep = (1-fraction) * totalHits;
 		int accumulative = 0;
@@ -341,6 +353,7 @@ public class ReadCache{
 		}
 		return binCounts.length;
 	}
+	
 	private void writeFile(String fileName, String text){
 		try{
 			FileWriter fw = new FileWriter(fileName, false); //new file
@@ -350,5 +363,6 @@ public class ReadCache{
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-	}	
-}
+	}
+	
+}//end of ReadCache class

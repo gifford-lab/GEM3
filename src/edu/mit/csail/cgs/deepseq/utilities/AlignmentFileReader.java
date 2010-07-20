@@ -35,7 +35,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  * @author shaunmahony
  *
  */
-public abstract class AlignmentFileReader{
+public abstract class AlignmentFileReader {
 
 	protected File inFile;
 	protected double totalHits;
@@ -231,7 +231,6 @@ public abstract class AlignmentFileReader{
 	
 	//Add hits to data structure
 	protected void addHits(Read r){
-		
 		int numHits = r.getHits().size();
 		for(ReadHit h : r.getHits()){
 			int chrID   = chrom2ID.get(h.getChrom());
@@ -241,15 +240,58 @@ public abstract class AlignmentFileReader{
 			startsList[chrID][strandInd].add(h.getStart());
 			hitIDsList[chrID][strandInd].add(h.getID());
 			hitCountsList[chrID][strandInd].add(numHits);
-			
 			totalHits++;
 		}
-	}//end of addHits method	
+	}//end of addHits method
+	
+	/**
+	 * Converts lists of integers to integer arrays, deletes the lists for saving
+	 * memory and permutes all array elements so that they are ordered in terms of
+	 * the array <tt>starts</tt>.
+	 */
+	protected void populateArrays() {
+		
+		for(int i = 0; i < startsList.length; i++)
+			for(int j = 0; j < startsList[i].length; j++)
+				starts[i][j] = list2int(startsList[i][j]);
+		
+		for(int i = 0; i < startsList.length; i++) { for(int j = 0; j < startsList[i].length; j++) { startsList[i][j].clear(); } }
+		startsList = null;
 
+		////////////////////////////////////////////////////////////////////////
+
+		for(int i = 0; i < hitIDsList.length; i++)
+			for(int j = 0; j < hitIDsList[i].length; j++)
+				hitIDs[i][j] = list2int(hitIDsList[i][j]);
+		
+		for(int i = 0; i < hitIDsList.length; i++) { for(int j = 0; j < hitIDsList[i].length; j++) { hitIDsList[i][j].clear(); } }
+		hitIDsList = null;
+		
+		////////////////////////////////////////////////////////////////////////
+
+		for(int i = 0; i < hitCountsList.length; i++)
+			for(int j = 0; j < hitCountsList[i].length; j++)
+				hitCounts[i][j] = list2int(hitCountsList[i][j]);
+		
+		for(int i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j].clear(); } }
+		hitCountsList = null;
+		
+		////////////////////////////////////////////////////////////////////////
+		
+		for(int i = 0; i < starts.length; i++) {  // chr
+			for(int j = 0; j < starts[i].length; j++) { // strand
+				int[] inds = StatUtil.findSort(starts[i][j]);
+				hitIDs[i][j] = StatUtil.permute(hitIDs[i][j], inds);
+				hitCounts[i][j] = StatUtil.permute(hitCounts[i][j], inds);
+			}
+		}
+	}//end of populateArrays method
 
 	
+	/***************
+	 ** ACCESSORS **
+	 **************/
 	
-	//Accessors
 	/**
 	 * Get the read length
 	 */
@@ -291,19 +333,19 @@ public abstract class AlignmentFileReader{
 			done.printStackTrace();
 		}
 		return(0);
-	}
+	}//end of countMaxHits method
+	
 	/**
 	 * get all the start positions
 	 * clean the memory space
 	 * @return
 	 */
-	public int[][][]getStarts(){
+	public int[][][] getStarts(){
 		hitIDs = null;
 		hitCounts = null;
 		System.gc();
 		return starts;
-	}
-	
+	}//end of getStarts method
 	
 	/**
 	 * Get sorted start positions of all reads (regardless of strand) in one chrom
@@ -332,75 +374,14 @@ public abstract class AlignmentFileReader{
 		}else{
 			return null;
 		}
-	}
-	/**
-	 * Converts lists of integers to integer arrays, deletes the lists for saving
-	 * memory and permutes all array elements so that they are ordered in terms of
-	 * the array <tt>starts</tt>.
-	 */
-	protected void populateArrays() {
+	}//end of getStartCoords method
 		
-		for(int i = 0; i < startsList.length; i++)
-			for(int j = 0; j < startsList[i].length; j++)
-				starts[i][j] = list2int(startsList[i][j]);
-		
-		for(int i = 0; i < startsList.length; i++) { for(int j = 0; j < startsList[i].length; j++) { startsList[i][j].clear(); } }
-		startsList = null;
-
-		////////////////////////////////////////////////////////////////////////
-
-		for(int i = 0; i < hitIDsList.length; i++)
-			for(int j = 0; j < hitIDsList[i].length; j++)
-				hitIDs[i][j] = list2int(hitIDsList[i][j]);
-		
-		for(int i = 0; i < hitIDsList.length; i++) { for(int j = 0; j < hitIDsList[i].length; j++) { hitIDsList[i][j].clear(); } }
-		hitIDsList = null;
-		
-		////////////////////////////////////////////////////////////////////////
-
-		for(int i = 0; i < hitCountsList.length; i++)
-			for(int j = 0; j < hitCountsList[i].length; j++)
-				hitCounts[i][j] = list2int(hitCountsList[i][j]);
-		
-		for(int i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j].clear(); } }
-		hitCountsList = null;
-		
-		////////////////////////////////////////////////////////////////////////
-		
-		for(int i = 0; i < starts.length; i++) {
-			for(int j = 0; j < starts[i].length; j++) {
-				
-				int[] inds = StatUtil.findSort(starts[i][j]);
-				hitIDs[i][j] = StatUtil.permute(hitIDs[i][j], inds);
-				hitCounts[i][j] = StatUtil.permute(hitCounts[i][j], inds);
-				
-				/*
-				Integer[] tempStarts = new Integer[starts[i][j].length];
-				for(int k = 0; k < tempStarts.length; k++) { tempStarts[k] = starts[i][j][k]; }
-				int[] inds = StatUtil.findSort(starts[i][j]);
-				for(int k = 0; k < starts[i][j].length; k++) { starts[i][j][k] = tempStarts[k]; }
-				
-				Integer[] tempHitIDs = new Integer[hitIDs[i][j].length];
-				for(int k = 0; k < tempHitIDs.length; k++) { tempHitIDs[k] = hitIDs[i][j][k]; }
-				hitIDs[i][j] = StatUtil.permute(hitIDs[i][j], inds);
-				for(int k = 0; k < hitIDs[i][j].length; k++) { hitIDs[i][j][k] = tempHitIDs[k]; }
-				
-				Integer[] temphitCounts = new Integer[hitCounts[i][j].length];
-				for(int k = 0; k < temphitCounts.length; k++) { temphitCounts[k] = hitCounts[i][j][k]; }
-				hitCounts[i][j] = StatUtil.permute(hitCounts[i][j], inds);
-				for(int k = 0; k < hitCounts[i][j].length; k++) { hitCounts[i][j][k] = temphitCounts[k]; }  
-				*/
-			}
-		}
-		
-	}
-	
 	private int[] list2int(List<Integer> list) {
 		int[] out = new int[list.size()];
 		for(int i = 0; i < out.length; i++)
 			out[i] = list.get(i);
 	   
 		return out;
-	}
+	}//end of list2int method
 
-}
+}//end of AlignmentFileReader class
