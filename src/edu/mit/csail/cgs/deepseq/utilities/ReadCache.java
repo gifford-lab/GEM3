@@ -79,6 +79,7 @@ public class ReadCache{
 	//protected char[][] strands=null;
 	
 	private HashMap<String, Integer> chrom2ID=new HashMap<String,Integer>();
+	
 	private HashMap<Integer,String> id2Chrom=new HashMap<Integer,String>();
 	
 	public ReadCache(Genome g, String name){
