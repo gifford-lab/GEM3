@@ -75,6 +75,7 @@ public class WarpOptions {
     public ArrayList<Experiment> exprExperiments;
     public ArrayList<ChipSeqLocator> chipseqExpts;
     public ArrayList<ChipSeqLocator> pairedChipseqExpts;
+    public ArrayList<ChipSeqAnalysis> chipseqAnalyses;
     // filename to label mappings.  These are loaded from a file
     // and the data held statically
     public HashMap<String,String> regionTracks, regexes;
@@ -110,7 +111,8 @@ public class WarpOptions {
         MOTIFSCANS = 17,
         REGEXMATCHER = 18,
         REGIONTRACKS = 19,
-        PYRPURCONTENT = 20;
+        PYRPURCONTENT = 20,
+        CHIPSEQANALYSES = 21;
     
     
     public WarpOptions(String gname) {
@@ -150,6 +152,7 @@ public class WarpOptions {
         exprExperiments = new ArrayList<Experiment>();
         regionTracks = new HashMap<String,String>();
         regexes = new HashMap<String,String>();
+        chipseqAnalyses = new ArrayList<ChipSeqAnalysis>();
     }
 
     public WarpOptions() {
@@ -177,6 +180,7 @@ public class WarpOptions {
         exprExperiments = new ArrayList<Experiment>();
         regionTracks = new HashMap<String,String>();
         regexes = new HashMap<String,String>();
+        chipseqAnalyses = new ArrayList<ChipSeqAnalysis>();
     }
 
     /* adds options from this into union.  For lists, it generates the 
@@ -222,6 +226,7 @@ public class WarpOptions {
         mergeInto(exprExperiments,union.exprExperiments);
         mergeInto(regionTracks,union.regionTracks);
         mergeInto(regexes, union.regexes);
+        mergeInto(chipseqAnalyses, union.chipseqAnalyses);
     }
 
     public void mergeInto(ArrayList source, ArrayList target) {
@@ -286,6 +291,7 @@ public class WarpOptions {
         differenceOf(exprExperiments, other.exprExperiments);
         differenceOf(regionTracks,other.regionTracks);
         differenceOf(regexes,other.regexes);
+        differenceOf(chipseqAnalyses, other.chipseqAnalyses);
     }
 
     public void differenceOf(ArrayList removeFrom, ArrayList other) {
@@ -331,6 +337,7 @@ public class WarpOptions {
         o.exprExperiments = (ArrayList<Experiment>)exprExperiments.clone();
         o.regionTracks = (HashMap<String,String>)regionTracks.clone();
         o.regexes = (HashMap<String,String>)regexes.clone();
+        o.chipseqAnalyses = (ArrayList<ChipSeqAnalysis>)chipseqAnalyses.clone();
         return o;
     }
 
