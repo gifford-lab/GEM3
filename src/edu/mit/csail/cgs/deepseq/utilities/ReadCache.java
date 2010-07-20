@@ -35,7 +35,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  * @author Yuchun
  *
  */
-public class ReadCache{
+public class ReadCache {
 
 	private Genome gen;
 	private int numChroms;
@@ -107,7 +107,7 @@ public class ReadCache{
 		
 		hitCountsList = new ArrayList[numChroms][2];
 		for(i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
-	}
+	}//end of ReadCache constructor
 	
 	/**
 	 * Loads hits in the region
@@ -142,7 +142,7 @@ public class ReadCache{
 			}	
 		}	
 		return bases;
-	}
+	}//end of getStrandedBases method
 	
 	public float countHits(Region r) {
 		return StrandedBase.countBaseHits(getUnstrandedBases(r));
@@ -228,7 +228,7 @@ public class ReadCache{
 					totalHits += c;
 			}
 		}
-	}
+	}//end of addAllFivePrimes method
 	
 	private int[] mergeOrderedList(int[] a, int[] b){
 		int[] result = new int[a.length+b.length];
@@ -244,7 +244,7 @@ public class ReadCache{
 			}
 		}
 		return result;
-	}
+	}//end of mergeOrderedList method
 	
 	/**
 	 * Converts lists of Integers to integer arrays, deletes the lists for saving memory
@@ -261,9 +261,9 @@ public class ReadCache{
 		hitCountsList = null;
 		System.gc();
 		generateStats();
-	}
+	}//end of populateArrays method
 	
-	public void generateStats(){
+	public void generateStats() {
 		// count readHit numbers in 1bp bins
 		int max = 200;
 		binCounts = new int[max+1];
@@ -288,7 +288,7 @@ public class ReadCache{
 				bin500Counts[count]++;
 			}
 		}	
-	}
+	}//end of generateStats method
 	
 	public void filterBaseBias(int maxPerBP){
 	}
@@ -363,5 +363,6 @@ public class ReadCache{
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-	}	
-}
+	}
+	
+}//end of ReadCache class
