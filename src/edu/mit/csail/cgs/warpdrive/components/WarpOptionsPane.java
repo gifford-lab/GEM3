@@ -14,6 +14,7 @@ import java.io.*;
 import edu.mit.csail.cgs.datasets.binding.BindingScan;
 import edu.mit.csail.cgs.datasets.chipchip.ChipChipDataset;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
+import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAnalysis;
 import edu.mit.csail.cgs.datasets.expression.Experiment;
 import edu.mit.csail.cgs.datasets.general.NamedTypedRegion;
 import edu.mit.csail.cgs.datasets.locators.*;
@@ -45,6 +46,7 @@ public class WarpOptionsPane
         annotationsPanel,
         chipChipPanel,
         chipSeqPanel,
+        chipSeqAnalysisPanel,
         pairedChipSeqPanel,
         optionsPanel,
         peakPanel, 
@@ -66,6 +68,7 @@ public class WarpOptionsPane
     
     // chipseq tab
     private ChipSeqSelectPanel chipSeqSelect, pairedChipSeqSelect;
+    private ChipSeqAnalysisSelectPanel chipSeqAnalysisSelect;
 
     // annotations tab
     private JList genes, ncrnas, otherfeats;
@@ -172,6 +175,7 @@ public class WarpOptionsPane
         annotationsPanel = new JPanel();
         chipChipPanel = new JPanel();       
         chipSeqPanel = new JPanel();
+        chipSeqAnalysisPanel = new JPanel();
         pairedChipSeqPanel = new JPanel();
         optionsPanel = new JPanel();
         peakPanel = new JPanel();
@@ -249,6 +253,11 @@ public class WarpOptionsPane
         pairedChipSeqPanel.setLayout(new BorderLayout());
         pairedChipSeqPanel.add(pairedChipSeqSelect, BorderLayout.CENTER);
         
+        // chipseq analysis
+        chipSeqAnalysisSelect = new ChipSeqAnalysisSelectPanel();
+        chipSeqAnalysisPanel.setLayout(new BorderLayout());
+        chipSeqAnalysisPanel.add(chipSeqAnalysisSelect, BorderLayout.CENTER);
+
         // peak tab
         peakPanel.setLayout(new BorderLayout());
         try {
@@ -332,6 +341,8 @@ public class WarpOptionsPane
         
         addTab("ChIP-Seq", chipSeqPanel);
         addTab("Paired ChIP-Seq", pairedChipSeqPanel);
+        addTab("ChipSeq Analysis", chipSeqAnalysisPanel);
+
 
         dummy = new JPanel();  dummy.add(annotationsPanel); dummy.add(new JPanel());
         addTab("Annotations",new JScrollPane(dummy));
@@ -550,6 +561,9 @@ public class WarpOptionsPane
         }
         for(ChipSeqLocator loc : pairedChipSeqSelect.getSelected()) { 
             these.pairedChipseqExpts.add(loc);
+        }
+        for (ChipSeqAnalysis a : chipSeqAnalysisSelect.getSelected()) {
+            these.chipseqAnalyses.add(a);
         }
 
         

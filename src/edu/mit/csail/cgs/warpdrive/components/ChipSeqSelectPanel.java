@@ -147,6 +147,8 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
 
     public void close() {
         super.close();
-        chipSeqLoader.close();
+        if (chipSeqLoader != null) {
+            chipSeqLoader.close();
+        }
     }
 }
