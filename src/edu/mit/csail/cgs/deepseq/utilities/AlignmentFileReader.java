@@ -240,7 +240,6 @@ public abstract class AlignmentFileReader {
 			startsList[chrID][strandInd].add(h.getStart());
 			hitIDsList[chrID][strandInd].add(h.getID());
 			hitCountsList[chrID][strandInd].add(numHits);
-			
 			totalHits++;
 		}
 	}//end of addHits method
