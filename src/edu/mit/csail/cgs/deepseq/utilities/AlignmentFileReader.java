@@ -231,7 +231,6 @@ public abstract class AlignmentFileReader {
 	
 	//Add hits to data structure
 	protected void addHits(Read r){
-		
 		int numHits = r.getHits().size();
 		for(ReadHit h : r.getHits()){
 			int chrID   = chrom2ID.get(h.getChrom());
