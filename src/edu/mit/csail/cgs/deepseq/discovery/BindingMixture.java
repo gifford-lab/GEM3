@@ -898,17 +898,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 				}
 
-//				OLD WAY OF DEFINING SPACING
-//				if(w.getWidth() > 2*modelRange+1) { // non-unary events
-//					componentSpacing = 6;   // previously it was 3
-//					compPos = setComponentPositions(w.getWidth(), pos, modelRange, componentSpacing);
-//				}
-//				else { // unary events
-//					componentSpacing = 4;   // previously it was 2
-//					compPos = setComponentPositions(w.getWidth(), pos, modelRange, componentSpacing);
-//				}
-
-
 				// Create and just initialize the list to pass the while loop for the first time
 				List<BindingComponent> nonZeroComponents = new ArrayList<BindingComponent>();
 				nonZeroComponents.add(new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), -1), numConditions));
@@ -955,12 +944,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			if (nonZeroComponentNum==0)	return null;
 			setComponentResponsibilities(signals, responsibilities);
 		} 	// if not single event region
-
+		
 		else{// if single event region, just scan it
 			BindingComponent peak = scanPeak(singleEventRegions.get(w));
 			components = new ArrayList<BindingComponent>();
 			components.add(peak);
 		}
+		
 		return components;
 	}//end of analyzeWindow method
 
@@ -987,37 +977,26 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		for(int j = 0; j < M; j++) {
 			if(glob_pi[j] > 0.0) {
-				// Multi-condition experiment
-				if(numConditions > 1) {
-					BindingComponent comp = null;
-					for(int t = 0; t < numConditions; t++) {
-						if(pi[t][j] > 0.0) {
-							// if there is at least one non-zero condition-specific event => initialize the component
-							comp = new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), w.getStart() + compPos[j]), numConditions);
-							comp.setMixProb(glob_pi[j]);
-							comp.setAlpha(alpha);
-							comp.setOld_index(j);
-							break;
-						}
-					}
-
-					if(comp != null) {
-						for(int t = 0; t < numConditions; t++)
-							comp.setConditionBeta(t, pi[t][j]);
-
-						nonZeroComponents.add(comp);
-					}
+				BindingComponent comp = new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), w.getStart() + compPos[j]), numConditions);
+				comp.setMixProb(glob_pi[j]);
+				comp.setAlpha(alpha);
+				comp.setOld_index(j);
+				
+				for(int t = 0; t < numConditions; t++) {
+					comp.setConditionBeta(t, pi[t][j]);
+					comp.setSumResponsibility(t, mim.get_sum_resp()[t][j]);
 				}
-				// Single-condition experiment
-				else {
-					BindingComponent comp = new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), w.getStart() + compPos[j]), numConditions);
-					comp.setMixProb(glob_pi[j]);
-					comp.setAlpha(alpha);
-					comp.setOld_index(j);
-					nonZeroComponents.add(comp);
-				}
+					
+				// If there is only one condition, pi[0][j], that is, 
+				// the condition-specific pi will be set by default to 0.
+				// So, we set it to 1.
+				if(numConditions == 1)
+					comp.setConditionBeta(0, 1.0);
+					
+				nonZeroComponents.add(comp);
 			}
 		}
+		
 		return nonZeroComponents;
 	}// end of determineNonZeroComps method
 
@@ -1184,7 +1163,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 	// evaluate if a predicted peak is a tower
 
-
 	private void setComponentResponsibilities(ArrayList<List<StrandedBase>> signals, HashMap<Integer, double[][]> responsibilities) {
 		// Set responsibility profile for each component (for kernel density and KL calculation)
 		for(int j=0;j<components.size();j++){
@@ -1201,12 +1179,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					StrandedBase base = bases.get(i);
 					if (rc[i][jr]>0){
 						try{
-						comp.setResponsibility(c, base, rc[i][jr]);
-						if (base.getStrand()=='+')
-							profile_plus[base.getCoordinate()-comp.getLocation().getLocation()-model.getMin()]=rc[i][jr]*base.getCount();
-						else{
-							profile_minus[comp.getLocation().getLocation()-base.getCoordinate()-model.getMin()]=rc[i][jr]*base.getCount();
-						}
+							if (base.getStrand()=='+')
+								profile_plus[base.getCoordinate()-comp.getLocation().getLocation()-model.getMin()]=rc[i][jr]*base.getCount();
+							else
+								profile_minus[comp.getLocation().getLocation()-base.getCoordinate()-model.getMin()]=rc[i][jr]*base.getCount();
 						}
 						catch (Exception e){
 							System.err.println(comp.toString()+"\t"+base.getStrand()+"\t"+base.getCoordinate());
@@ -1214,8 +1190,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 					}
 				}
-
-				comp.setReadProfile(c, profile_plus, '+');
+				comp.setReadProfile(c, profile_plus,  '+');
 				comp.setReadProfile(c, profile_minus, '-');
 			}
 		}
@@ -1474,7 +1449,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// Run EM steps
 		//////////
 		EM_MAP(counts, h, r, b, pi, i_start, i_end, alpha);
-
+		
 		//////////
 		// re-assign EM result back to the objects
 		//////////
@@ -1506,10 +1481,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			double[][]rc = r.get(c);
 			List<StrandedBase> bases = signals.get(c);
 			int numBases = bases.size();
-			for(int i=0;i<numBases;i++){
+			for(int i=0; i<numBases; i++){
 				StrandedBase base = bases.get(i);
 				double respSum = 0;
-				for(int j=0;j<components.size();j++){
+				for(int j=0; j<components.size(); j++){
 					BindingComponent comp = components.get(j);
 					int oldIndex = comp.getOld_index();
 					int dist = base.getStrand()=='+' ? base.getCoordinate()-comp.getLocation().getLocation(): comp.getLocation().getLocation()-base.getCoordinate();
@@ -1523,7 +1498,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 			}
 		}
-
+		
+		double[][] sum_resp = new double[components.size()][numConditions];
+		for(int c = 0; c < numConditions; c++)
+			for(int j = 0; j < components.size(); j++)
+				for(int i = 0; i < signals.get(c).size(); i++)
+					sum_resp[j][c] += counts.get(c)[i]*r.get(c)[i][j];
+		
+		for(int j = 0; j < components.size(); j++)
+			components.get(j).setSumResponsibility(sum_resp[j]);
+		
 		return r;
 	}//end of EMTrain method
 
@@ -2780,7 +2764,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		if (signals==null||totalHitCounts==0) // check for empty read region
 			return null;
 
-		return scanPeak( signals, scanRegion);
+		return scanPeak(signals, scanRegion);
 	}
 
 	private BindingComponent scanPeak(ArrayList<List<StrandedBase>> signals, Region scanRegion){
@@ -2822,28 +2806,26 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			maxComp = new BindingComponent(model, maxComp.getLocation(), numConditions);
 		// set pi, beta, responsibility, note it is a single event
 		maxComp.setMixProb(1);
-
+	
+		// Since we expanded the binding model, all the reads in a condition are assigned to the unique component
 		float[] hitCounts = new float[numConditions];
 		int totalHitCounts = 0;
-		for(int c=0;c<numConditions;c++){
+		for(int c = 0; c < numConditions; c++) {
 			List<StrandedBase> bases= signals.get(c);
-			hitCounts[c] = StrandedBase.countBaseHits(bases);
+			hitCounts[c]    = StrandedBase.countBaseHits(bases);
 			totalHitCounts += hitCounts[c];
+			maxComp.setSumResponsibility(c, hitCounts[c]);
 		}
-
+		
 		if(use_internal_em_train) {
-			for (int c=0;c<signals.size();c++)
+			for (int c=0;c<numConditions;c++)
 				maxComp.setConditionBeta(c, hitCounts[c]/totalHitCounts);  //beta is being evaluated for one point across all conditions
 		}
 		else {
-			for (int c=0;c<signals.size();c++)
-				maxComp.setConditionBeta(c, 1.0);   //beta is being evaluated for one condition separately
+			for(int c=0; c<numConditions; c++)
+				if(maxComp.getSumResponsibility(c) > 0.0)
+					maxComp.setConditionBeta(c, 1.0);   //beta is being evaluated for each condition separately
 		}
-	
-		for(int c = 0; c < numConditions; c++)
-			for(StrandedBase base:signals.get(c))
-				if (maxComp.scoreBase(base)>0 && maxComp.getConditionBeta(c) > 0.0)
-					maxComp.setResponsibility(c, base, 1.0);
 
 		int coord = maxComp.getLocation().getLocation();
 		for(int c=0; c<numConditions; c++){
