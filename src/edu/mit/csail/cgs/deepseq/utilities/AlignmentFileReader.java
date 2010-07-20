@@ -278,8 +278,8 @@ public abstract class AlignmentFileReader {
 		
 		////////////////////////////////////////////////////////////////////////
 		
-		for(int i = 0; i < starts.length; i++) {
-			for(int j = 0; j < starts[i].length; j++) {
+		for(int i = 0; i < starts.length; i++) {  // chr
+			for(int j = 0; j < starts[i].length; j++) { // strand
 				int[] inds = StatUtil.findSort(starts[i][j]);
 				hitIDs[i][j] = StatUtil.permute(hitIDs[i][j], inds);
 				hitCounts[i][j] = StatUtil.permute(hitCounts[i][j], inds);
