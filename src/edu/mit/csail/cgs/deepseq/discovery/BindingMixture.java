@@ -183,20 +183,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// Maximum number of components determined by the data
 	protected int componentMax;
 
-	/** Stores the reads as <tt>StrandedBase</tt> structures.
-	 * key:chrom
-	 * value:{first dimension: IP or CTRL channel, second:condition, third:reads as StrandedBases ('+' and '-' reads are mixed)}
-	 */
-	private Map<String,List<ArrayList<List<StrandedBase>>>> chrom_signals = new HashMap<String,List<ArrayList<List<StrandedBase>>>>();
-
 	/** reads of this chromosome (position and count) as <tt>StrandedBases</tt> for this channel, condition and strand
 	 * key:chrom
 	 * value:{first dimension: IP or CTRL channel, second: condition, third:strand}  */
-	private Map<String, List<StrandedBase>[][][]> chromUniqueFivePrimes;
+//	private Map<String, List<StrandedBase>[][][]> chromUniqueFivePrimes;
 
 	/** key:chrom, value:{first dimension: IP or CTRL channel, second: condition,
 	 * third:strand, fourth:unique positions of reads of this chromosome for this channel, condition and strand} */
-	private Map<String, int[][][][]> chromUniqueFivePrimePos;
+//	private Map<String, int[][][][]> chromUniqueFivePrimePos;
 
 	/** Total IP counts for each chromosome (summed over all conditions) */
 	private Map<String, Integer> totalIPCounts;
@@ -3024,29 +3018,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						System.err.println(cf.toString());
 					}
 					cf.setPValue(pValue, cond);
-
-					//				// peak shape parameter
-					//				double logKL = cf.getLogKL(cond).car();
-					//				int strength = (int)Math.round(cf.getEventReadCounts(cond));
-					//				if (strength>99) strength = 99;
-					//				if (strength<5) strength = 5;
-					//				// get mean and std of the normal distribution (of logKL values)
-					//				Pair<Double, Double> params = shapeParameters.get(strength);
-					//				if (params==null){
-					//					System.err.println(cf.getPeak().toString()+" "+strength);
-					//					continue;
-					//				}
-					//				double z_score = (logKL-params.car())/params.cdr();
-					//				cf.setShapeZScore(z_score, cond);
-					//				double shapeParam = z_score*Math.log(strength);
-					//				cf.setShapeParameter(shapeParam, cond);
 				}
 			}
 		}
 		else {
 //			I commented the evaluation of the average shift size
 //			We won't need it cause in our data, we do not shift reads.
-//			Besides, we will consider a fixed region of modelRange bp, as the peak region.
+//			Besides, we will consider a fixed region of modelRange bp as the peak region.
 
 			createChromStats(compFeatures);
 //			shift_size = eval_avg_shift_size(compFeatures, num_top_mfold_feats);
@@ -3109,87 +3087,97 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 *****  Create chromosome statistics  *****
 		 *****************************************/
 		totalIPCounts           = new HashMap<String, Integer>();
-		chromUniqueFivePrimes   = new HashMap<String, List<StrandedBase>[][][]>();
-		chromUniqueFivePrimePos = new HashMap<String, int[][][][]>();
 		condHitCounts           = new HashMap<String, List<List<Integer>>>();
-
+//		chromUniqueFivePrimes   = new HashMap<String, List<StrandedBase>[][][]>();
+//		chromUniqueFivePrimePos = new HashMap<String, int[][][][]>();
+		
 		// In this loop we will store the total IP counts for each chromosome (for all conditions): totalIPCounts
 		// as well as the counts for each channel (IP, CTRL) and for each condition: condHitCounts
 		for(String chrom:gen.getChromList()){
-			int chromLen       = gen.getChromLength(chrom);
-			Region chromRegion = new Region(gen, chrom, 0, chromLen-1);
-			List<ArrayList<List<StrandedBase>>> curr_chrom_signals = new ArrayList<ArrayList<List<StrandedBase>>>();
+//			int chromLen       = gen.getChromLength(chrom);
+//			Region chromRegion = new Region(gen, chrom, 0, chromLen-1);
+//			List<ArrayList<List<StrandedBase>>> curr_chrom_signals = new ArrayList<ArrayList<List<StrandedBase>>>();
+//
+//			ArrayList<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP", false);
+//			ArrayList<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
+//			if(controlDataExist)
+//				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL", false);
+//			else
+//				for(int t = 0; t < numConditions; t++)
+//					ctrl_chrom_signals.add(new ArrayList<StrandedBase>());
+//
+//			curr_chrom_signals.add(ip_chrom_signals);
+//			curr_chrom_signals.add(ctrl_chrom_signals);
+//
+//			// first dimension : IP or CTRL channel
+//			// second dimension: condition
+//			// third dimension : strand of this chromosome
+//			// Each list contains five primes (position and counts) of this chromosome for that condition, channel and strand
+//			List<StrandedBase>[][][] currChromUniqueFivePrimes = new ArrayList[2][numConditions][2];
+//			int[][][][] currChromUniqueFivePrimesPos           = new int[2][numConditions][2][];
+//			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++)
+//				for(int t = 0; t < numConditions; t++)
+//					for(int k = 0; k <= 1; k++)  // '+' or '-' strand
+//						currChromUniqueFivePrimes[channel][t][k] = new ArrayList<StrandedBase>();
+//
+//			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++) {
+//				for(int t = 0; t < numConditions; t++) {
+//					// We store the bases of each strand separately
+//					List<StrandedBase>[] curr_channel_cond_signals = new ArrayList[2];
+//					curr_channel_cond_signals[0] = new ArrayList<StrandedBase>(); // '+' strand
+//					curr_channel_cond_signals[1] = new ArrayList<StrandedBase>(); // '-' strand
+//
+//					int used_channel = -1;
+//					if(channel==0 || (channel==1 && controlDataExist))  // IP or CTRL
+//						used_channel = channel;
+//					else if(channel==1 && !controlDataExist)            // There is no CTRL => Use IP instead
+//						used_channel = channel-1;
+//
+//					for(StrandedBase sb:curr_chrom_signals.get(used_channel).get(t)) {
+//						if(sb.getStrand() == '+')
+//							currChromUniqueFivePrimes[channel][t][0].add(sb);
+//						else
+//							currChromUniqueFivePrimes[channel][t][1].add(sb);
+//					}
+//
+//					for(int k = 0; k <= 1; k++)  // sort in terms of unique bases position
+//						Collections.sort(currChromUniqueFivePrimes[channel][t][k]);
+//
+//					for(int k = 0; k <= 1; k++) {
+//						currChromUniqueFivePrimesPos[channel][t][k] = new int[currChromUniqueFivePrimes[channel][t][k].size()];
+//						for(int q = 0; q < currChromUniqueFivePrimesPos[channel][t][k].length; q++)
+//							currChromUniqueFivePrimesPos[channel][t][k][q] = currChromUniqueFivePrimes[channel][t][k].get(q).getCoordinate();
+//					}
+//				}
+//			}
+//
+//			chromUniqueFivePrimes.put(chrom, currChromUniqueFivePrimes);
+//			chromUniqueFivePrimePos.put(chrom, currChromUniqueFivePrimesPos);
 
-			ArrayList<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP", false);
-			ArrayList<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
-			if(controlDataExist)
+			Region chromRegion = new Region(gen, chrom, 0, gen.getChromLength(chrom)-1);			
+			List<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP", false);
+			List<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
+			if(controlDataExist) {
 				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL", false);
-			else
+			}
+			else {
 				for(int t = 0; t < numConditions; t++)
 					ctrl_chrom_signals.add(new ArrayList<StrandedBase>());
-
-			curr_chrom_signals.add(ip_chrom_signals);
-			curr_chrom_signals.add(ctrl_chrom_signals);
-			chrom_signals.put(chrom, curr_chrom_signals);
-
-			// first dimension : IP or CTRL channel
-			// second dimension: condition
-			// third dimension : strand of this chromosome
-			// Each list contains five primes (position and counts) of this chromosome for that condition, channel and strand
-			List<StrandedBase>[][][] currChromUniqueFivePrimes = new ArrayList[2][numConditions][2];
-			int[][][][] currChromUniqueFivePrimesPos           = new int[2][numConditions][2][];
-			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++)
-				for(int t = 0; t < numConditions; t++)
-					for(int k = 0; k <= 1; k++)  // '+' or '-' strand
-						currChromUniqueFivePrimes[channel][t][k] = new ArrayList<StrandedBase>();
-
-			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++) {
-				for(int t = 0; t < numConditions; t++) {
-					// We store the bases of each strand separately
-					List<StrandedBase>[] curr_channel_cond_signals = new ArrayList[2];
-					curr_channel_cond_signals[0] = new ArrayList<StrandedBase>(); // '+' strand
-					curr_channel_cond_signals[1] = new ArrayList<StrandedBase>(); // '-' strand
-
-					int used_channel = -1;
-					if(channel==0 || (channel==1 && controlDataExist))  // IP or CTRL
-						used_channel = channel;
-					else if(channel==1 && !controlDataExist)            // There is no CTRL => Use IP instead
-						used_channel = channel-1;
-
-					for(StrandedBase sb:curr_chrom_signals.get(used_channel).get(t)) {
-						if(sb.getStrand() == '+')
-							currChromUniqueFivePrimes[channel][t][0].add(sb);
-						else
-							currChromUniqueFivePrimes[channel][t][1].add(sb);
-					}
-
-					for(int k = 0; k <= 1; k++)  // sort in terms of unique bases position
-						Collections.sort(currChromUniqueFivePrimes[channel][t][k]);
-
-					for(int k = 0; k <= 1; k++) {
-						currChromUniqueFivePrimesPos[channel][t][k] = new int[currChromUniqueFivePrimes[channel][t][k].size()];
-						for(int q = 0; q < currChromUniqueFivePrimesPos[channel][t][k].length; q++)
-							currChromUniqueFivePrimesPos[channel][t][k][q] = currChromUniqueFivePrimes[channel][t][k].get(q).getCoordinate();
-					}
-				}
 			}
-
-			chromUniqueFivePrimes.put(chrom, currChromUniqueFivePrimes);
-			chromUniqueFivePrimePos.put(chrom, currChromUniqueFivePrimesPos);
-
+			
 			int counts = 0;
 			// Read counts. List 0 for IP, List 1 for CTRL.
 			// Each List contains the read counts for each condition
 			List<List<Integer>> currChromCondCounts = new ArrayList<List<Integer>>();
 			currChromCondCounts.add(new ArrayList<Integer>()); currChromCondCounts.add(new ArrayList<Integer>());
-			for(List<StrandedBase> ip_chrom_signal_cond:curr_chrom_signals.get(0)) {
+			for(List<StrandedBase> ip_chrom_signal_cond:ip_chrom_signals) {
 				int currCondHitCounts = (int)StrandedBase.countBaseHits(ip_chrom_signal_cond);
 				currChromCondCounts.get(0).add(currCondHitCounts);
 				counts += currCondHitCounts;
 			}
 
 			if(controlDataExist) {
-				for(List<StrandedBase> ctrl_chrom_signal_cond:curr_chrom_signals.get(1)) {
+				for(List<StrandedBase> ctrl_chrom_signal_cond:ctrl_chrom_signals) {
 					int currCondHitCounts = (int)StrandedBase.countBaseHits(ctrl_chrom_signal_cond);
 					currChromCondCounts.get(1).add(currCondHitCounts);
 				}
@@ -3293,6 +3281,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		String chrom      = cf.getPosition().getChrom();
 		int chromLen      = gen.getChromLength(chrom);
+		Region chromRegion = new Region(gen, chrom, 0, chromLen-1);
 		Region peakRegion = cf.getPeak().expand(modelRange);
 
 		int left_peak,  left_third_region,  left_second_region,  left_first_region;
@@ -3330,9 +3319,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		// k = 0: '+' strand, k = 1: '-' strand
 		for(int k = 0; k <= 1; k++) {
+			
+			char str = k == 0 ? '+' : '-';
+			
 			// IP Channel
-			int[] ipStrandFivePrimePos = chromUniqueFivePrimePos.get(chrom)[0][c][k];
-			List<StrandedBase> ipStrandFivePrimes = chromUniqueFivePrimes.get(chrom)[0][c][k];
+			List<StrandedBase> ipStrandFivePrimes = caches.get(c).car().getStrandedBases(chromRegion, str);
+			int[] ipStrandFivePrimePos = new int[ipStrandFivePrimes.size()];
+			for(int v = 0; v < ipStrandFivePrimePos.length; v++)
+				ipStrandFivePrimePos[v] = ipStrandFivePrimes.get(v).getCoordinate();
+						
 			int s_idx = Arrays.binarySearch(ipStrandFivePrimePos, smallestLeft);
 			int e_idx = Arrays.binarySearch(ipStrandFivePrimePos, largestRight);
 			if(s_idx < 0) { s_idx = -s_idx-1; }
@@ -3356,8 +3351,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 
 			// CTRL Channel
-			int[] ctrlStrandFivePrimePos = chromUniqueFivePrimePos.get(chrom)[1][c][k];
-			List<StrandedBase> ctrlStrandFivePrimes = chromUniqueFivePrimes.get(chrom)[1][c][k];
+			List<StrandedBase> ctrlStrandFivePrimes = caches.get(c).cdr().getStrandedBases(chromRegion, str);
+			int[] ctrlStrandFivePrimePos = new int[ctrlStrandFivePrimes.size()];
+			for(int v = 0; v < ctrlStrandFivePrimePos.length; v++)
+				ctrlStrandFivePrimePos[v] = ctrlStrandFivePrimes.get(v).getCoordinate();
 
 			s_idx = Arrays.binarySearch(ctrlStrandFivePrimePos, smallestLeft);
 			e_idx = Arrays.binarySearch(ctrlStrandFivePrimePos, largestRight);
