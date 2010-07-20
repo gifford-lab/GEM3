@@ -148,9 +148,7 @@ public class StatUtil {
 			return y[n];
 		}
 	}
-	
-	
-	
+
 	/**
 	 * Sorts the array and returns the positions of the original array corresponding
 	 * to the ordered elements
@@ -171,17 +169,16 @@ public class StatUtil {
 		
 		Arrays.sort(a);
 	
-		Set uniqueEls = new LinkedHashSet();
+		Set<Integer> uniqueEls = new LinkedHashSet<Integer>();
 		for(int i = 0; i < a.length; i++) { uniqueEls.add(a[i]); }
 		int count = 0;
 		for(Object key:uniqueEls.toArray()){
-			List<Integer> currVal_inds = val2Index.get(key);
-			for(Integer currInd:currVal_inds)
-				sortedInds[count++] = currInd;
+			List<Integer> currVal_idxs = val2Index.get(key);
+			for(Integer curr_idx:currVal_idxs)
+				sortedInds[count++] = curr_idx;
 		}
-		
 		return sortedInds;	
-	}//end of findSort method - accepts only primitive ints
+	}//end of findSort method - accepts only primitive integers
 	
 	
 	/**
