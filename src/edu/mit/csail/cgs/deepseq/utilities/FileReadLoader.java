@@ -24,8 +24,14 @@ import edu.mit.csail.cgs.utils.Pair;
 
 /**
  * Loads reads from a file. Formats supported:
- * ELAND, NOVO, BOWTIE, BED
+ * ELAND, NOVO, BOWTIE, BED								<br>
  * 
+ * <tt>NOTE</tt>: For each new file loader when we create the method
+ * <tt>countReads()</tt>,											<br> 
+ * we should always call at the end of this method
+ * the <tt>AlignmentFileReader.populateArrays</tt>, 				<br>
+ * since it not only populates the desired entries but sorts them out as well, 
+ * something that is necessary.
  * @author shaun
  *
  */
