@@ -36,6 +36,8 @@ import edu.mit.csail.cgs.datasets.chipseq.*;
  * 9) pvalue (double)
  * 10 fold enrichment (double)
  *
+ * Paramsfile is in key=value format
+ *
  */
 
 public class AnalysisImporter {
@@ -67,8 +69,14 @@ public class AnalysisImporter {
         for (String s : Args.parseStrings(args,"foreground")) {
             String pieces[] = s.split(";");
             if (pieces.length == 2) {
-                fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1]),genome));
+                System.err.println("fg 2");
+                fg.addAll(loader.loadAlignments(pieces[0],
+                                                null,
+                                                pieces[1],
+                                                null,null,null,
+                                                genome));
             } else if (pieces.length == 3) {
+                System.err.println("fg 3");
                 fg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2]),genome));
             } else {
                 System.err.println("Bad alignment spec: " + s);
@@ -77,26 +85,35 @@ public class AnalysisImporter {
         for (String s : Args.parseStrings(args,"background")) {
             String pieces[] = s.split(";");
             if (pieces.length == 2) {
-                bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1]),genome));
+                bg.addAll(loader.loadAlignments(pieces[0],
+                                                null,
+                                                pieces[1],
+                                                null,null,null,
+                                                genome));
+
             } else if (pieces.length == 3) {
                 bg.addAll(loader.loadAlignments(new ChipSeqLocator(pieces[0],pieces[1],pieces[2]),genome));
             } else {
                 System.err.println("Bad alignment spec: " + s);
             }
         }
+        System.err.println("FG is : " + fg + "   and BG is " + bg);
         analysis.setInputs(fg,bg);
     }
     public void run(InputStream input) throws SQLException, IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(input));
         String line;
         while ((line = reader.readLine()) != null) {
-            analysis.addResult(parseLine(line));
+            ChipSeqAnalysisResult r = parseLine(line);
+            if (r != null) {
+                analysis.addResult(r);
+            }
         }
         analysis.store();
     }
     public ChipSeqAnalysisResult parseLine(String line) {
         String pieces[] = line.split("\\t");
-        return new ChipSeqAnalysisResult(genome,
+        return new ChipSeqAnalysisResult(getGenome(),
                                          pieces[0],
                                          Integer.parseInt(pieces[1]),
                                          Integer.parseInt(pieces[2]),
@@ -109,5 +126,5 @@ public class AnalysisImporter {
                                          pieces[9].length() > 0 ? Double.parseDouble(pieces[9]) : null);
     }
     public void close() {}
-    
+    public Genome getGenome() {return genome;}
 }
