@@ -90,20 +90,23 @@ public class AnalysisImporter {
         BufferedReader reader = new BufferedReader(new InputStreamReader(input));
         String line;
         while ((line = reader.readLine()) != null) {
-            String pieces[] = line.split("\\t");
-            analysis.addResult(new ChipSeqAnalysisResult(genome,
-                                                         pieces[0],
-                                                         Integer.parseInt(pieces[1]),
-                                                         Integer.parseInt(pieces[2]),
-                                                         pieces[3].length() > 0 ? Integer.parseInt(pieces[3]) : null,
-                                                         pieces[4].length() > 0 ? Double.parseDouble(pieces[4]) : null,
-                                                         pieces[5].length() > 0 ? Double.parseDouble(pieces[5]) : null,
-                                                         pieces[6].length() > 0 ? Double.parseDouble(pieces[6]) : null,
-                                                         pieces[7].length() > 0 ? Double.parseDouble(pieces[7]) : null,
-                                                         pieces[8].length() > 0 ? Double.parseDouble(pieces[8]) : null,
-                                                         pieces[9].length() > 0 ? Double.parseDouble(pieces[9]) : null));
+            analysis.addResult(parseLine(line));
         }
         analysis.store();
+    }
+    public ChipSeqAnalysisResult parseLine(String line) {
+        String pieces[] = line.split("\\t");
+        return new ChipSeqAnalysisResult(genome,
+                                         pieces[0],
+                                         Integer.parseInt(pieces[1]),
+                                         Integer.parseInt(pieces[2]),
+                                         pieces[3].length() > 0 ? Integer.parseInt(pieces[3]) : null,
+                                         pieces[4].length() > 0 ? Double.parseDouble(pieces[4]) : null,
+                                         pieces[5].length() > 0 ? Double.parseDouble(pieces[5]) : null,
+                                         pieces[6].length() > 0 ? Double.parseDouble(pieces[6]) : null,
+                                         pieces[7].length() > 0 ? Double.parseDouble(pieces[7]) : null,
+                                         pieces[8].length() > 0 ? Double.parseDouble(pieces[8]) : null,
+                                         pieces[9].length() > 0 ? Double.parseDouble(pieces[9]) : null);
     }
     public void close() {}
     
