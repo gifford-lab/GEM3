@@ -153,6 +153,10 @@ public class JointEventAnalysis {
 	} 
 	
   private void jointEvents(int jointCutoff){
+	  if (events.size()==0){
+		  System.err.println("No binding events!!");
+		  System.exit(0);
+	  }
 	  Collections.sort(events);
 	  Point previous = events.get(0);
 	  ArrayList<Point> cluster = null;

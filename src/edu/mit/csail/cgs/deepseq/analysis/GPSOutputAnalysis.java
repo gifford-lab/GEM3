@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -52,110 +53,14 @@ public class GPSOutputAnalysis {
    * @param args
    */
   public static void main(String[] args) {
-    //String ctcf_results = "/home/rca/psrg/projects/GPS/GPS_results/CTCF_Chen08_GPS.peaks.txt";
-    String ctcf_results = "/home/rca/psrg/projects/GPS/GPS_results/Sing_CTCF_ES_1_signal.peaks.txt";
-    String[] args_ctcf = new String[] {"--motif", "CTCF",
-        "--version", "090828",
-        "--threshold", "16.08",
-        "--GPS", ctcf_results        
-    };
-    
-    //Nanog
-//    String nanog_results = "/home/rca/psrg/projects/GPS/GPS_results/Nanog_rep1_YL_0_signal.peaks.txt";
-//    String nanog_results = "/home/rca/psrg/projects/GPS/GPS_results/Nanog_YL_2_signal.peaks.txt";
-    String nanog_results = "/home/rca/psrg/projects/GPS/GPS_results/Nanog_Chen08_3_signal.peaks.txt";
-    
-    String[] args_nanog_osnt = new String[] {"--motif", "OSNT",
-        "--version", "YoungLab",
-        "--threshold", "12.72",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_ji = new String[] {"--motif", "NanogSox2",
-        "--version", "Ji2008_NanogSox2",
-        "--threshold", "8.33",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_M01123 = new String[] {"--motif", "Nanog",
-        "--version", "TRANSFAC 10.4, M01123",
-        "--threshold", "9.13",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_M01247 = new String[] {"--motif", "Nanog",
-        "--version", "TRANSFAC 2009.4, M01247",
-        "--threshold", "9.095",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_he = new String[] {"--motif", "Nanog",
-        "--version", "He2009",
-        "--threshold", "7.73",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_mitsui = new String[] {"--motif", "Nanog",
-        "--version", "Mitsui2003",
-        "--threshold", "7.82",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_macisaac_0 = new String[] {"--motif", "Nanog",
-        "--version", "MacIsaac2006_Nanog0",
-        "--threshold", "10.97",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_macisaac_1 = new String[] {"--motif", "Nanog",
-        "--version", "MacIsaac2006_Nanog1",
-        "--threshold", "11.88",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_macisaac_2 = new String[] {"--motif", "Nanog",
-        "--version", "MacIsaac2006_Nanog2",
-        "--threshold", "11.02",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_macisaac_3 = new String[] {"--motif", "Nanog",
-        "--version", "MacIsaac2006_Nanog3",
-        "--threshold", "11.80",
-        "--GPS", nanog_results        
-    };
-    String[] args_nanog_macisaac_4 = new String[] {"--motif", "Nanog",
-        "--version", "MacIsaac2006_Nanog4",
-        "--threshold", "11.45",
-        "--GPS", nanog_results        
-    };
-    
-    
-    //Oct4
-//    String oct4_results = "/home/rca/psrg/projects/GPS/GPS_results/Oct4_YL_0_signal.peaks.txt";
-//    String oct4_results = "/home/rca/psrg/projects/GPS/GPS_results/YL_Oct4_ES_1_signal.peaks.txt";
-    String oct4_results = "/home/rca/psrg/projects/GPS/GPS_results/Sing_Oct4_ES_2_signal.peaks.txt";
-    String[] args_oct4_pou5f1 = new String[] {"--motif", "Oct-4 (POU5F1)",
-        "--version", "TRANSFAC 10.4, M01124",
-        "--threshold", "12.82",
-        "--GPS", oct4_results        
-    };
-    String[] args_oct4_osnt = new String[] {"--motif", "OSNT",
-        "--version", "YoungLab",
-        "--threshold", "12.72",
-        "--GPS", oct4_results        
-    };
-    
-    //Sox2
-//    String sox2_results = "/home/rca/psrg/projects/GPS/GPS_results/Sox2_rep1_YL_0_signal.peaks.txt";
-//    String sox2_results = "/home/rca/psrg/projects/GPS/GPS_results/YL_Sox2_ES_2_signal.peaks.txt";
-    String sox2_results = "/home/rca/psrg/projects/GPS/GPS_results/Sing_Sox2_ES_2_signal.peaks.txt";
-    
-    String[] args_sox2_osnt = new String[] {"--motif", "OSNT",
-        "--version", "YoungLab",
-        "--threshold", "12.72",
-        "--GPS", sox2_results        
-    };
-  
-  
-    int win = Args.parseInteger(args, "win", 50);
     
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(args);
 //    analysis.buildEmpiricalDistribution();
 //    analysis.jointBindingMotifAnalysis(true);
 //    analysis.geneAnnotation();
-    analysis.printSequences(win);
+    int win = Args.parseInteger(args, "win", 50);
+    int top = Args.parseInteger(args, "top", 100);
+    analysis.printSequences(win, top);
 //    analysis.expressionIntegration();
   }
   
@@ -206,7 +111,11 @@ public class GPSOutputAnalysis {
     }
     File gpsFile = new File(GPSfileName);
     gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
-    
+	Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
+	    public int compare(GPSPeak o1, GPSPeak o2) {
+	        return o1.compareByPValue(o2);
+	    }
+	});
     // parameter for building empirical distribution
 //    chipSeqExpt = Args.parseString(args, "chipSeqExpt", null);
 //    chipSeqVersion = Args.parseString(args, "chipSeqVersion", null);
@@ -419,13 +328,15 @@ public class GPSOutputAnalysis {
     }
   }
   
-  private void printSequences(int win){
+  private void printSequences(int win, int top){
 	StringBuilder sb = new StringBuilder();
 	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	Region peakWin=null;
-	for (GPSPeak gpspeak : gpsPeaks) {
+	top = Math.min(top, gpsPeaks.size());
+	for (int i=0;i<top;i++){
+		GPSPeak gpspeak = gpsPeaks.get(i);
         peakWin = gpspeak.expand(win/2);
-		sb.append(">"+peakWin.getLocationString()+"\t"+peakWin.getWidth() +"\n");
+		sb.append(">"+peakWin.getLocationString()+"\t"+peakWin.getWidth() +"\t"+gpspeak.getStrength() +"\n");
 		sb.append(seqgen.execute(peakWin)+"\n");
 	}
 	String filename = GPSfileName+"_sequence.txt";

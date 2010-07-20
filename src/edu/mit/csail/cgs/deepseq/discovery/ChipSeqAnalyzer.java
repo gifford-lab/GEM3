@@ -29,7 +29,7 @@ public class ChipSeqAnalyzer{
 		this.args = args;
 		ArgParser ap = new ArgParser(args);
 		Set<String> flags = Args.parseFlags(args);
-		development_mode = flags.contains("development_mode");
+		development_mode = flags.contains("dev");
 		if ( (ap.hasKey("help"))) {
 			printError();System.exit(1);
 		}
