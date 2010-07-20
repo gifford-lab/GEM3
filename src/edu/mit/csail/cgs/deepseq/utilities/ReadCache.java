@@ -169,7 +169,7 @@ public class ReadCache{
 	 * 	It is called for ReadDB loader, store data loaded from DB
 	 * 	It is called multiple times to retrieve all the data, then populateArrays() is called 
 	 */
-	public void addHits(String chrom, char strand, Collection<Integer>starts, Collection<Float> counts){
+	public void addHits(String chrom, char strand, Collection<Integer> starts, Collection<Float> counts){
 		int chrID   = chrom2ID.get(chrom);
 		int strandInd = strand == '+' ? 0 : 1;
 		fivePrimesList[chrID][strandInd].addAll(starts);
