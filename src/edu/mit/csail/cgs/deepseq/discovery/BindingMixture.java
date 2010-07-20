@@ -82,7 +82,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	// Max number of reads to load from DB
 	private final static int MAXREAD = 1000000;
-    private final static int WINDOW_SIZE_FACTOR = 4;	//number of model width per window
+    private final static int WINDOW_SIZE_FACTOR = 3;	//number of model width per window
     // true:  eliminated component in batch, as long as matching criteria in EM derivation
     // false: eliminate only the worse case components, re-distribute the reads of eliminated component
 	private final static boolean BATCH_ELIMINATION = false;
