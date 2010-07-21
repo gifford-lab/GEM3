@@ -54,7 +54,9 @@ public class BindingModel {
 	                if (p.cdr().doubleValue()>=0)	// should be non-negative value
 	                	empiricalDistribution.add(p);
 	                else
+	                {
 	                	System.err.println("\nRead distribution file contains negative probability(count) value!"); System.exit(1);
+	                }
 	              }
 	            }
 	        }
