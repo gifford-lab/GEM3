@@ -591,9 +591,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// process for each window 
 			ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
 			for (Region w : windows){
-				if(w.toString().equals("6:3150691-3152193"))
-					System.out.println("Check this region");
-					
 				ArrayList<BindingComponent> result = analyzeWindow(w);
 				if (result!=null){
 					comps.addAll(result);
@@ -1516,15 +1513,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		
-		double[][] sum_resp = new double[components.size()][numConditions];
-		for(int c = 0; c < numConditions; c++)
-			for(int j = 0; j < components.size(); j++)
+		// Assign the summed responsibilities only to non-zero components
+		for(int j = 0; j < components.size(); j++) {
+			int oldIndex = components.get(j).getOld_index();
+			for(int c = 0; c < numConditions; c++) {
+				double sum_resp = 0.0;
 				for(int i = 0; i < signals.get(c).size(); i++)
-					sum_resp[j][c] += counts.get(c)[i]*r.get(c)[i][j];
-		
-		for(int j = 0; j < components.size(); j++)
-			components.get(j).setSumResponsibility(sum_resp[j]);
-		
+					sum_resp += counts.get(c)[i]*r.get(c)[i][oldIndex];
+				
+				components.get(j).setSumResponsibility(c, sum_resp);
+			}
+		}
+	
 		return r;
 	}//end of EMTrain method
 
