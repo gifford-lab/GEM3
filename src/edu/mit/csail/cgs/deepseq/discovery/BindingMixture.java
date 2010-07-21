@@ -440,13 +440,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		System.gc();
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
-    	// if no focus list, directly estimate candidate regions from data
-		if (focusFile==null){
-    		setRegions(selectEnrichedRegions());
-		}
-		if (development_mode)
-			printNoneZeroRegions(true);
-		log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
 
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
@@ -474,6 +467,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					System.out.println(String.format(conditionNames.get(i)+"\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", ipCount, ctrlCount, ratio_total[i]));
 				}
 	        }
+	        
+	    	// if no focus list, directly estimate candidate regions from data
+			if (focusFile==null){
+	    		setRegions(selectEnrichedRegions());
+			}
+			if (development_mode)
+				printNoneZeroRegions(true);
+			log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
+
         }
         else{	// want to analyze only specified regions, set default
         	if (max_hit_per_bp!=-1)
@@ -514,7 +516,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private void commonInit(String modelFile){
 		//Load Binding Model
 		File pFile = new File(modelFile);
-		if(!pFile.isFile()){System.err.println("Cannot find binding model file");System.exit(1);}
+		if(!pFile.isFile()){System.err.println("\nCannot find read distribution file!");System.exit(1);}
         model = new BindingModel(pFile);
         modelWidth = model.getWidth();
         modelRange = model.getRange();
@@ -1513,15 +1515,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		
-		double[][] sum_resp = new double[components.size()][numConditions];
-		for(int c = 0; c < numConditions; c++)
-			for(int j = 0; j < components.size(); j++)
+		// Assign the summed responsibilities only to non-zero components
+		for(int j = 0; j < components.size(); j++) {
+			int oldIndex = components.get(j).getOld_index();
+			for(int c = 0; c < numConditions; c++) {
+				double sum_resp = 0.0;
 				for(int i = 0; i < signals.get(c).size(); i++)
-					sum_resp[j][c] += counts.get(c)[i]*r.get(c)[i][j];
-		
-		for(int j = 0; j < components.size(); j++)
-			components.get(j).setSumResponsibility(sum_resp[j]);
-		
+					sum_resp += counts.get(c)[i]*r.get(c)[i][oldIndex];
+				
+				components.get(j).setSumResponsibility(c, sum_resp);
+			}
+		}
+	
 		return r;
 	}//end of EMTrain method
 
@@ -3093,8 +3098,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						ipStrandFivePrimes[k].clear();
 						ctrlStrandFivePrimes[k].clear();
 					}
-					ipStrandFivePrimes   = null;
-					ctrlStrandFivePrimes = null;
 				}				
 			}			
 		}
