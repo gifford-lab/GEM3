@@ -25,6 +25,7 @@ public class ChipSeqAnalyzer{
 	private BindingMixture mixture=null;
 	
 	ChipSeqAnalyzer(String[] args){
+		System.out.println("Welcome to GPS!");
 		if(args.length==0){ printError(); System.exit(1); }
 		this.args = args;
 		ArgParser ap = new ArgParser(args);
@@ -60,9 +61,13 @@ public class ChipSeqAnalyzer{
 			System.err.println("The mappable genome size is required.\n");
 			printError();System.exit(1);
 		}
-		
-		System.out.println("Welcome to GPS\nLoading data...");
+		String modelFile = Args.parseString(args, "d", null);	// read distribution file
+		if (modelFile!=null){
+			File pFile = new File(modelFile);
+			if(!pFile.isFile()){System.err.println("\nCannot find read distribution file!");System.exit(1);}
+		}
 
+		System.out.println("Loading data...");
         //Experiments : Load each condition expt:ctrl Pair
 		ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> experiments = new ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>>();
 		long loadData_tic = System.currentTimeMillis();
@@ -173,7 +178,7 @@ public class ChipSeqAnalyzer{
 //		mixture.countNonSpecificReads();
 		int update_model_round = Args.parseInteger(args,"r", 3);
 		while (kl>-6 && round<=update_model_round){
-			System.out.println("\n============================ GPS round "+round+" ============================");
+			System.out.println("\n============================ Round "+round+" ============================");
 			mixture.execute();
 			mixture.printFeatures();
 			mixture.printInsignificantFeatures();

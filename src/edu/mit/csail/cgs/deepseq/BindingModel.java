@@ -51,7 +51,10 @@ public class BindingModel {
 	              //make sure the current data point is within the specified range
 	              if ((dist.intValue() >= minDist) && (dist.intValue() <= maxDist)) {
 	                Pair<Integer,Double> p = new Pair<Integer,Double>(dist, new Double(words[1]));
-	                empiricalDistribution.add(p);
+	                if (p.cdr().doubleValue()>=0)	// should be non-negative value
+	                	empiricalDistribution.add(p);
+	                else
+	                	System.err.println("\nRead distribution file contains negative probability(count) value!"); System.exit(1);
 	              }
 	            }
 	        }

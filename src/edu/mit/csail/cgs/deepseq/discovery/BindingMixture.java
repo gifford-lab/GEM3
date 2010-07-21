@@ -505,7 +505,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private void commonInit(String modelFile){
 		//Load Binding Model
 		File pFile = new File(modelFile);
-		if(!pFile.isFile()){System.err.println("Cannot find binding model file");System.exit(1);}
+		if(!pFile.isFile()){System.err.println("\nCannot find read distribution file!");System.exit(1);}
         model = new BindingModel(pFile);
         modelWidth = model.getWidth();
         modelRange = model.getRange();
