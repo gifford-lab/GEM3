@@ -173,6 +173,7 @@ public class ChipSeqAnalyzer{
 //		mixture.countNonSpecificReads();
 		int update_model_round = Args.parseInteger(args,"r", 3);
 		while (kl>-6 && round<=update_model_round){
+			System.out.println("\n============================ GPS round "+round+" ============================");
 			mixture.execute();
 			mixture.printFeatures();
 			mixture.printInsignificantFeatures();

@@ -57,7 +57,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	//Maximum region (in bp) considered for running EM
 	protected final int MAX_REGION_LEN=200000;
-
+	//IP/Control Fold change threshold
+	protected final int IP_CTRL_FOLD = 2;
 	//Maximum number of components that EM can handle efficiently
 	protected final int MAX_NUM_COMPONENTS=1000;
 	protected final int OPTIMAL_NUM_COMPONENTS=100;
@@ -82,7 +83,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	// Max number of reads to load from DB
 	private final static int MAXREAD = 1000000;
-    private final static int WINDOW_SIZE_FACTOR = 4;	//number of model width per window
     // true:  eliminated component in batch, as long as matching criteria in EM derivation
     // false: eliminate only the worse case components, re-distribute the reads of eliminated component
 	private final static boolean BATCH_ELIMINATION = false;
@@ -103,6 +103,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double q_value_threshold = 2.0;
     private double alpha_factor = 3.0;
     private int top_event_percentile = 50;
+    private int window_size_factor = 3;	//number of model width per window
+    private int min_region_width = 50;	//minimum width for select enriched region
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
     private int first_lambda_region_width  =  1000;
@@ -181,20 +183,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// Maximum number of components determined by the data
 	protected int componentMax;
 
-	/** Stores the reads as <tt>StrandedBase</tt> structures.
-	 * key:chrom
-	 * value:{first dimension: IP or CTRL channel, second:condition, third:reads as StrandedBases ('+' and '-' reads are mixed)}
-	 */
-	private Map<String,List<ArrayList<List<StrandedBase>>>> chrom_signals = new HashMap<String,List<ArrayList<List<StrandedBase>>>>();
-
 	/** reads of this chromosome (position and count) as <tt>StrandedBases</tt> for this channel, condition and strand
 	 * key:chrom
 	 * value:{first dimension: IP or CTRL channel, second: condition, third:strand}  */
-	private Map<String, List<StrandedBase>[][][]> chromUniqueFivePrimes;
+//	private Map<String, List<StrandedBase>[][][]> chromUniqueFivePrimes;
 
 	/** key:chrom, value:{first dimension: IP or CTRL channel, second: condition,
 	 * third:strand, fourth:unique positions of reads of this chromosome for this channel, condition and strand} */
-	private Map<String, int[][][][]> chromUniqueFivePrimePos;
+//	private Map<String, int[][][][]> chromUniqueFivePrimePos;
 
 	/** Total IP counts for each chromosome (summed over all conditions) */
 	private Map<String, Integer> totalIPCounts;
@@ -203,6 +199,21 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	/** key:chrom, value:{first list: IP or CTRL channel, second list: condition */
 	private Map<String, List<List<Integer>>> condHitCounts;
 
+	/** Contains the StrandedBases of the current chromosome for the IP chanel <br>
+	 *  1x2 array list. 1st element: a list for strand '+', 2nd element: a list for strand '-' */
+	private List<StrandedBase>[] ipStrandFivePrimes;
+	
+	/** A 2-D matrix containing the five prime positions of IP channel the current chromosome.
+	 * Row 1: five primes for strand '+', Row 2: five primes for strand '-' */
+	private int[][] ipStrandFivePrimePos;
+	
+	/** Contains the StrandedBases of the current chromosome for the CTRL chanel <br>
+	 *  1x2 array list. 1st element: a list for strand '+', 2nd element: a list for strand '-' */
+	private List<StrandedBase>[] ctrlStrandFivePrimes;
+	
+	/** A 2-D matrix containing the five prime positions of CTRL channel the current chromosome.
+	 * Row 1: five primes for strand '+', Row 2: five primes for strand '-' */
+	private int[][] ctrlStrandFivePrimePos;
 
     private StringBuilder config = new StringBuilder();
 	private StringBuilder log_all_msg = new StringBuilder();
@@ -255,19 +266,21 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	// Optional input parameter
     	q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
-    	alpha_factor = Args.parseDouble(args, "alpha_factor", 3.0); // denominator in calculating alpha value
-    	max_hit_per_bp = Args.parseInteger(args, "max_hit_per_bp", -1);
+    	alpha_factor = Args.parseDouble(args, "af", 3.0); // denominator in calculating alpha value
+    	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
     	top_event_percentile = Args.parseInteger(args, "top_event_percentile", 50);
     	needle_height_factor = Args.parseInteger(args, "needle_height_factor", 2);
     	needle_hitCount_fraction = Args.parseDouble(args, "needle_hitCount_fraction", 0.1);
-
+    	window_size_factor = Args.parseInteger(args, "wsf", 3);
+    	min_region_width = Args.parseInteger(args, "min_region_width", 50);
+    	
     	// flags
     	Set<String> flags = Args.parseFlags(args);
     	// default as false, need the flag to turn it on
     	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
     	linear_model_expansion = flags.contains("linear_model_expansion");
     	use_multi_event = flags.contains("refine_using_multi_event");
-    	needToCleanBases = flags.contains("needToCleanBases");
+    	needToCleanBases = flags.contains("bf");	// base filtering (using max_hit_per_bp)
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	development_mode = flags.contains("dev");
@@ -505,7 +518,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         model = new BindingModel(pFile);
         modelWidth = model.getWidth();
         modelRange = model.getRange();
-        windowSize = modelWidth * WINDOW_SIZE_FACTOR;
+        windowSize = modelWidth * window_size_factor;
 
         //init the Guassian kernel prob. for smoothing the read profile of called events
 		gaussian = new double[modelWidth];
@@ -649,9 +662,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 									 * 		 but it is the trade-off against running EM on a huge large region
 									 * 		 and run for whole region might lead to inaccuracy too, because of too many components
 									 */
-									if (windows.size()>1){
-										for (int ii=0;ii<windows.size()-1;ii++){
-											int midCoor = windows.get(ii).getOverlap(windows.get(ii+1)).getMidpoint().getLocation();
+									if (wins.size()>1){
+										for (int ii=0;ii<wins.size()-1;ii++){
+											int midCoor = wins.get(ii).getOverlap(wins.get(ii+1)).getMidpoint().getLocation();
 											ArrayList<BindingComponent> leftComps = comps_all_wins.get(ii);
 											toRemove = new ArrayList<BindingComponent>();//reset
 											for (BindingComponent m:leftComps){
@@ -755,7 +768,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 
 		}// end of for (Region rr : restrictRegions)
-		System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
+		if (!(totalRegionCount % displayStep==0 && reportProgress))	//avoid repeating report
+			System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
 
 //		try {
 //			bw.flush();
@@ -898,17 +912,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 				}
 
-//				OLD WAY OF DEFINING SPACING
-//				if(w.getWidth() > 2*modelRange+1) { // non-unary events
-//					componentSpacing = 6;   // previously it was 3
-//					compPos = setComponentPositions(w.getWidth(), pos, modelRange, componentSpacing);
-//				}
-//				else { // unary events
-//					componentSpacing = 4;   // previously it was 2
-//					compPos = setComponentPositions(w.getWidth(), pos, modelRange, componentSpacing);
-//				}
-
-
 				// Create and just initialize the list to pass the while loop for the first time
 				List<BindingComponent> nonZeroComponents = new ArrayList<BindingComponent>();
 				nonZeroComponents.add(new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), -1), numConditions));
@@ -955,12 +958,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			if (nonZeroComponentNum==0)	return null;
 			setComponentResponsibilities(signals, responsibilities);
 		} 	// if not single event region
-
+		
 		else{// if single event region, just scan it
 			BindingComponent peak = scanPeak(singleEventRegions.get(w));
 			components = new ArrayList<BindingComponent>();
 			components.add(peak);
 		}
+		
 		return components;
 	}//end of analyzeWindow method
 
@@ -987,37 +991,26 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		for(int j = 0; j < M; j++) {
 			if(glob_pi[j] > 0.0) {
-				// Multi-condition experiment
-				if(numConditions > 1) {
-					BindingComponent comp = null;
-					for(int t = 0; t < numConditions; t++) {
-						if(pi[t][j] > 0.0) {
-							// if there is at least one non-zero condition-specific event => initialize the component
-							comp = new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), w.getStart() + compPos[j]), numConditions);
-							comp.setMixProb(glob_pi[j]);
-							comp.setAlpha(alpha);
-							comp.setOld_index(j);
-							break;
-						}
-					}
-
-					if(comp != null) {
-						for(int t = 0; t < numConditions; t++)
-							comp.setConditionBeta(t, pi[t][j]);
-
-						nonZeroComponents.add(comp);
-					}
+				BindingComponent comp = new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), w.getStart() + compPos[j]), numConditions);
+				comp.setMixProb(glob_pi[j]);
+				comp.setAlpha(alpha);
+				comp.setOld_index(j);
+				
+				for(int t = 0; t < numConditions; t++) {
+					comp.setConditionBeta(t, pi[t][j]);
+					comp.setSumResponsibility(t, mim.get_sum_resp()[t][j]);
 				}
-				// Single-condition experiment
-				else {
-					BindingComponent comp = new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), w.getStart() + compPos[j]), numConditions);
-					comp.setMixProb(glob_pi[j]);
-					comp.setAlpha(alpha);
-					comp.setOld_index(j);
-					nonZeroComponents.add(comp);
-				}
+					
+				// If there is only one condition, pi[0][j], that is, 
+				// the condition-specific pi will be set by default to 0.
+				// So, we set it to 1.
+				if(numConditions == 1)
+					comp.setConditionBeta(0, 1.0);
+					
+				nonZeroComponents.add(comp);
 			}
 		}
+		
 		return nonZeroComponents;
 	}// end of determineNonZeroComps method
 
@@ -1184,7 +1177,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 	// evaluate if a predicted peak is a tower
 
-
 	private void setComponentResponsibilities(ArrayList<List<StrandedBase>> signals, HashMap<Integer, double[][]> responsibilities) {
 		// Set responsibility profile for each component (for kernel density and KL calculation)
 		for(int j=0;j<components.size();j++){
@@ -1201,12 +1193,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					StrandedBase base = bases.get(i);
 					if (rc[i][jr]>0){
 						try{
-						comp.setResponsibility(c, base, rc[i][jr]);
-						if (base.getStrand()=='+')
-							profile_plus[base.getCoordinate()-comp.getLocation().getLocation()-model.getMin()]=rc[i][jr]*base.getCount();
-						else{
-							profile_minus[comp.getLocation().getLocation()-base.getCoordinate()-model.getMin()]=rc[i][jr]*base.getCount();
-						}
+							if (base.getStrand()=='+')
+								profile_plus[base.getCoordinate()-comp.getLocation().getLocation()-model.getMin()]=rc[i][jr]*base.getCount();
+							else
+								profile_minus[comp.getLocation().getLocation()-base.getCoordinate()-model.getMin()]=rc[i][jr]*base.getCount();
 						}
 						catch (Exception e){
 							System.err.println(comp.toString()+"\t"+base.getStrand()+"\t"+base.getCoordinate());
@@ -1214,8 +1204,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 					}
 				}
-
-				comp.setReadProfile(c, profile_plus, '+');
+				comp.setReadProfile(c, profile_plus,  '+');
 				comp.setReadProfile(c, profile_minus, '-');
 			}
 		}
@@ -1474,7 +1463,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// Run EM steps
 		//////////
 		EM_MAP(counts, h, r, b, pi, i_start, i_end, alpha);
-
+		
 		//////////
 		// re-assign EM result back to the objects
 		//////////
@@ -1506,10 +1495,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			double[][]rc = r.get(c);
 			List<StrandedBase> bases = signals.get(c);
 			int numBases = bases.size();
-			for(int i=0;i<numBases;i++){
+			for(int i=0; i<numBases; i++){
 				StrandedBase base = bases.get(i);
 				double respSum = 0;
-				for(int j=0;j<components.size();j++){
+				for(int j=0; j<components.size(); j++){
 					BindingComponent comp = components.get(j);
 					int oldIndex = comp.getOld_index();
 					int dist = base.getStrand()=='+' ? base.getCoordinate()-comp.getLocation().getLocation(): comp.getLocation().getLocation()-base.getCoordinate();
@@ -1523,7 +1512,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 			}
 		}
-
+		
+		double[][] sum_resp = new double[components.size()][numConditions];
+		for(int c = 0; c < numConditions; c++)
+			for(int j = 0; j < components.size(); j++)
+				for(int i = 0; i < signals.get(c).size(); i++)
+					sum_resp[j][c] += counts.get(c)[i]*r.get(c)[i][j];
+		
+		for(int j = 0; j < components.size(); j++)
+			components.get(j).setSumResponsibility(sum_resp[j]);
+		
 		return r;
 	}//end of EMTrain method
 
@@ -2063,7 +2061,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				if (bases==null || bases.size()==0){
 					continue;
 				}
-				allBases.addAll(bases);
+				allBases.addAll(bases); // pool all conditions
 			}
 			Collections.sort(allBases);
 			int start=0;
@@ -2092,7 +2090,27 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				rs.add(r);
 			}
 
-			// got region list from all conditions, merge overlapped regions
+			// check regions, exclude un-enriched regions based on control counts
+			ArrayList<Region> toRemove = new ArrayList<Region>();
+			for (Region r: rs){
+				if (r.getWidth()<=min_region_width){
+					toRemove.add(r);
+				}
+				// for regions <= 500bp, most likely single event, can be compared to control
+				if (this.controlDataExist)
+					if (r.getWidth()<=modelWidth){
+						boolean enriched = false;
+						for (int c=0;c<numConditions;c++){
+							if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>IP_CTRL_FOLD){
+								enriched = true;
+								break;
+							}
+						}
+						if (!enriched)	// remove this region if it is not enriched in any condition
+							toRemove.add(r);
+					}
+			}
+			rs.removeAll(toRemove);
 			if (!rs.isEmpty())
 				regions.addAll(rs);
 		} // each chrom
@@ -2780,7 +2798,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		if (signals==null||totalHitCounts==0) // check for empty read region
 			return null;
 
-		return scanPeak( signals, scanRegion);
+		return scanPeak(signals, scanRegion);
 	}
 
 	private BindingComponent scanPeak(ArrayList<List<StrandedBase>> signals, Region scanRegion){
@@ -2822,28 +2840,26 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			maxComp = new BindingComponent(model, maxComp.getLocation(), numConditions);
 		// set pi, beta, responsibility, note it is a single event
 		maxComp.setMixProb(1);
-
+	
+		// Since we expanded the binding model, all the reads in a condition are assigned to the unique component
 		float[] hitCounts = new float[numConditions];
 		int totalHitCounts = 0;
-		for(int c=0;c<numConditions;c++){
+		for(int c = 0; c < numConditions; c++) {
 			List<StrandedBase> bases= signals.get(c);
-			hitCounts[c] = StrandedBase.countBaseHits(bases);
+			hitCounts[c]    = StrandedBase.countBaseHits(bases);
 			totalHitCounts += hitCounts[c];
+			maxComp.setSumResponsibility(c, hitCounts[c]);
 		}
-
+		
 		if(use_internal_em_train) {
-			for (int c=0;c<signals.size();c++)
+			for (int c=0;c<numConditions;c++)
 				maxComp.setConditionBeta(c, hitCounts[c]/totalHitCounts);  //beta is being evaluated for one point across all conditions
 		}
 		else {
-			for (int c=0;c<signals.size();c++)
-				maxComp.setConditionBeta(c, 1.0);   //beta is being evaluated for one condition separately
+			for(int c=0; c<numConditions; c++)
+				if(maxComp.getSumResponsibility(c) > 0.0)
+					maxComp.setConditionBeta(c, 1.0);   //beta is being evaluated for each condition separately
 		}
-	
-		for(int c = 0; c < numConditions; c++)
-			for(StrandedBase base:signals.get(c))
-				if (maxComp.scoreBase(base)>0 && maxComp.getConditionBeta(c) > 0.0)
-					maxComp.setResponsibility(c, base, 1.0);
 
 		int coord = maxComp.getLocation().getLocation();
 		for(int c=0; c<numConditions; c++){
@@ -3017,38 +3033,70 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						System.err.println(cf.toString());
 					}
 					cf.setPValue(pValue, cond);
-
-					//				// peak shape parameter
-					//				double logKL = cf.getLogKL(cond).car();
-					//				int strength = (int)Math.round(cf.getEventReadCounts(cond));
-					//				if (strength>99) strength = 99;
-					//				if (strength<5) strength = 5;
-					//				// get mean and std of the normal distribution (of logKL values)
-					//				Pair<Double, Double> params = shapeParameters.get(strength);
-					//				if (params==null){
-					//					System.err.println(cf.getPeak().toString()+" "+strength);
-					//					continue;
-					//				}
-					//				double z_score = (logKL-params.car())/params.cdr();
-					//				cf.setShapeZScore(z_score, cond);
-					//				double shapeParam = z_score*Math.log(strength);
-					//				cf.setShapeParameter(shapeParam, cond);
 				}
 			}
 		}
 		else {
 //			I commented the evaluation of the average shift size
 //			We won't need it cause in our data, we do not shift reads.
-//			Besides, we will consider a fixed region of modelRange bp, as the peak region.
+//			Besides, we will consider a fixed region of modelRange bp as the peak region.
 
 			createChromStats(compFeatures);
 //			shift_size = eval_avg_shift_size(compFeatures, num_top_mfold_feats);
-			for (ComponentFeature cf: compFeatures){
-				for(int cond=0; cond<caches.size(); cond++){
-					double pValue_wo_ctrl = evalFeatureSignificance(cf, cond);
-					cf.setPValue_wo_ctrl(pValue_wo_ctrl, cond);
-				}
+			
+			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
+			for(int i = 0; i < compFeatures.size(); i++) {
+				String chrom = compFeatures.get(i).getPosition().getChrom();
+				if(!chrom_comp_pair.containsKey(chrom))
+					chrom_comp_pair.put(chrom, new ArrayList<Integer>());
+				
+				chrom_comp_pair.get(chrom).add(i);
 			}
+			
+			ipStrandFivePrimes   = new ArrayList[2];
+			Arrays.fill(ipStrandFivePrimes, new ArrayList<StrandedBase>());
+			ctrlStrandFivePrimes = new ArrayList[2];
+			Arrays.fill(ctrlStrandFivePrimes, new ArrayList<StrandedBase>());
+			ipStrandFivePrimePos   = new int[2][];
+			ctrlStrandFivePrimePos = new int[2][];
+			
+			for(String chrom:chrom_comp_pair.keySet()) {
+				int chromLen      = gen.getChromLength(chrom);
+				Region chromRegion = new Region(gen, chrom, 0, chromLen-1);			
+				for(int c = 0; c < numConditions; c++) {
+					ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(chromRegion, '+');
+					ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(chromRegion, '-');
+					
+					if(controlDataExist) {
+						ctrlStrandFivePrimes[0] = caches.get(c).cdr().getStrandedBases(chromRegion, '+');
+						ctrlStrandFivePrimes[1] = caches.get(c).cdr().getStrandedBases(chromRegion, '-');
+					}
+					else {
+						ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
+					}
+					
+					for(int k = 0; k < ipStrandFivePrimes.length; k++) {
+						ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
+						ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
+						for(int v = 0; v < ipStrandFivePrimePos[k].length; v++)
+							ipStrandFivePrimePos[k][v] = ipStrandFivePrimes[k].get(v).getCoordinate();
+						for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
+							ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
+					}
+					
+					for(int i:chrom_comp_pair.get(chrom)) {
+						double pValue_wo_ctrl = evalFeatureSignificance(compFeatures.get(i), c);
+						compFeatures.get(i).setPValue_wo_ctrl(pValue_wo_ctrl, c);
+					}
+					
+					for(int k = 0; k < ipStrandFivePrimes.length; k++) {
+						ipStrandFivePrimes[k].clear();
+						ctrlStrandFivePrimes[k].clear();
+					}
+					ipStrandFivePrimes   = null;
+					ctrlStrandFivePrimes = null;
+				}				
+			}			
 		}
 
 		// calculate q-values, correction for multiple testing
@@ -3102,87 +3150,97 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 *****  Create chromosome statistics  *****
 		 *****************************************/
 		totalIPCounts           = new HashMap<String, Integer>();
-		chromUniqueFivePrimes   = new HashMap<String, List<StrandedBase>[][][]>();
-		chromUniqueFivePrimePos = new HashMap<String, int[][][][]>();
 		condHitCounts           = new HashMap<String, List<List<Integer>>>();
-
+//		chromUniqueFivePrimes   = new HashMap<String, List<StrandedBase>[][][]>();
+//		chromUniqueFivePrimePos = new HashMap<String, int[][][][]>();
+		
 		// In this loop we will store the total IP counts for each chromosome (for all conditions): totalIPCounts
 		// as well as the counts for each channel (IP, CTRL) and for each condition: condHitCounts
 		for(String chrom:gen.getChromList()){
-			int chromLen       = gen.getChromLength(chrom);
-			Region chromRegion = new Region(gen, chrom, 0, chromLen-1);
-			List<ArrayList<List<StrandedBase>>> curr_chrom_signals = new ArrayList<ArrayList<List<StrandedBase>>>();
+//			int chromLen       = gen.getChromLength(chrom);
+//			Region chromRegion = new Region(gen, chrom, 0, chromLen-1);
+//			List<ArrayList<List<StrandedBase>>> curr_chrom_signals = new ArrayList<ArrayList<List<StrandedBase>>>();
+//
+//			ArrayList<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP", false);
+//			ArrayList<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
+//			if(controlDataExist)
+//				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL", false);
+//			else
+//				for(int t = 0; t < numConditions; t++)
+//					ctrl_chrom_signals.add(new ArrayList<StrandedBase>());
+//
+//			curr_chrom_signals.add(ip_chrom_signals);
+//			curr_chrom_signals.add(ctrl_chrom_signals);
+//
+//			// first dimension : IP or CTRL channel
+//			// second dimension: condition
+//			// third dimension : strand of this chromosome
+//			// Each list contains five primes (position and counts) of this chromosome for that condition, channel and strand
+//			List<StrandedBase>[][][] currChromUniqueFivePrimes = new ArrayList[2][numConditions][2];
+//			int[][][][] currChromUniqueFivePrimesPos           = new int[2][numConditions][2][];
+//			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++)
+//				for(int t = 0; t < numConditions; t++)
+//					for(int k = 0; k <= 1; k++)  // '+' or '-' strand
+//						currChromUniqueFivePrimes[channel][t][k] = new ArrayList<StrandedBase>();
+//
+//			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++) {
+//				for(int t = 0; t < numConditions; t++) {
+//					// We store the bases of each strand separately
+//					List<StrandedBase>[] curr_channel_cond_signals = new ArrayList[2];
+//					curr_channel_cond_signals[0] = new ArrayList<StrandedBase>(); // '+' strand
+//					curr_channel_cond_signals[1] = new ArrayList<StrandedBase>(); // '-' strand
+//
+//					int used_channel = -1;
+//					if(channel==0 || (channel==1 && controlDataExist))  // IP or CTRL
+//						used_channel = channel;
+//					else if(channel==1 && !controlDataExist)            // There is no CTRL => Use IP instead
+//						used_channel = channel-1;
+//
+//					for(StrandedBase sb:curr_chrom_signals.get(used_channel).get(t)) {
+//						if(sb.getStrand() == '+')
+//							currChromUniqueFivePrimes[channel][t][0].add(sb);
+//						else
+//							currChromUniqueFivePrimes[channel][t][1].add(sb);
+//					}
+//
+//					for(int k = 0; k <= 1; k++)  // sort in terms of unique bases position
+//						Collections.sort(currChromUniqueFivePrimes[channel][t][k]);
+//
+//					for(int k = 0; k <= 1; k++) {
+//						currChromUniqueFivePrimesPos[channel][t][k] = new int[currChromUniqueFivePrimes[channel][t][k].size()];
+//						for(int q = 0; q < currChromUniqueFivePrimesPos[channel][t][k].length; q++)
+//							currChromUniqueFivePrimesPos[channel][t][k][q] = currChromUniqueFivePrimes[channel][t][k].get(q).getCoordinate();
+//					}
+//				}
+//			}
+//
+//			chromUniqueFivePrimes.put(chrom, currChromUniqueFivePrimes);
+//			chromUniqueFivePrimePos.put(chrom, currChromUniqueFivePrimesPos);
 
-			ArrayList<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP", false);
-			ArrayList<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
-			if(controlDataExist)
+			Region chromRegion = new Region(gen, chrom, 0, gen.getChromLength(chrom)-1);			
+			List<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP", false);
+			List<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
+			if(controlDataExist) {
 				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL", false);
-			else
+			}
+			else {
 				for(int t = 0; t < numConditions; t++)
 					ctrl_chrom_signals.add(new ArrayList<StrandedBase>());
-
-			curr_chrom_signals.add(ip_chrom_signals);
-			curr_chrom_signals.add(ctrl_chrom_signals);
-			chrom_signals.put(chrom, curr_chrom_signals);
-
-			// first dimension : IP or CTRL channel
-			// second dimension: condition
-			// third dimension : strand of this chromosome
-			// Each list contains five primes (position and counts) of this chromosome for that condition, channel and strand
-			List<StrandedBase>[][][] currChromUniqueFivePrimes = new ArrayList[2][numConditions][2];
-			int[][][][] currChromUniqueFivePrimesPos           = new int[2][numConditions][2][];
-			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++)
-				for(int t = 0; t < numConditions; t++)
-					for(int k = 0; k <= 1; k++)  // '+' or '-' strand
-						currChromUniqueFivePrimes[channel][t][k] = new ArrayList<StrandedBase>();
-
-			for(int channel = 0; channel < currChromUniqueFivePrimes.length; channel++) {
-				for(int t = 0; t < numConditions; t++) {
-					// We store the bases of each strand separately
-					List<StrandedBase>[] curr_channel_cond_signals = new ArrayList[2];
-					curr_channel_cond_signals[0] = new ArrayList<StrandedBase>(); // '+' strand
-					curr_channel_cond_signals[1] = new ArrayList<StrandedBase>(); // '-' strand
-
-					int used_channel = -1;
-					if(channel==0 || (channel==1 && controlDataExist))  // IP or CTRL
-						used_channel = channel;
-					else if(channel==1 && !controlDataExist)            // There is no CTRL => Use IP instead
-						used_channel = channel-1;
-
-					for(StrandedBase sb:curr_chrom_signals.get(used_channel).get(t)) {
-						if(sb.getStrand() == '+')
-							currChromUniqueFivePrimes[channel][t][0].add(sb);
-						else
-							currChromUniqueFivePrimes[channel][t][1].add(sb);
-					}
-
-					for(int k = 0; k <= 1; k++)  // sort in terms of unique bases position
-						Collections.sort(currChromUniqueFivePrimes[channel][t][k]);
-
-					for(int k = 0; k <= 1; k++) {
-						currChromUniqueFivePrimesPos[channel][t][k] = new int[currChromUniqueFivePrimes[channel][t][k].size()];
-						for(int q = 0; q < currChromUniqueFivePrimesPos[channel][t][k].length; q++)
-							currChromUniqueFivePrimesPos[channel][t][k][q] = currChromUniqueFivePrimes[channel][t][k].get(q).getCoordinate();
-					}
-				}
 			}
-
-			chromUniqueFivePrimes.put(chrom, currChromUniqueFivePrimes);
-			chromUniqueFivePrimePos.put(chrom, currChromUniqueFivePrimesPos);
-
+			
 			int counts = 0;
 			// Read counts. List 0 for IP, List 1 for CTRL.
 			// Each List contains the read counts for each condition
 			List<List<Integer>> currChromCondCounts = new ArrayList<List<Integer>>();
 			currChromCondCounts.add(new ArrayList<Integer>()); currChromCondCounts.add(new ArrayList<Integer>());
-			for(List<StrandedBase> ip_chrom_signal_cond:curr_chrom_signals.get(0)) {
+			for(List<StrandedBase> ip_chrom_signal_cond:ip_chrom_signals) {
 				int currCondHitCounts = (int)StrandedBase.countBaseHits(ip_chrom_signal_cond);
 				currChromCondCounts.get(0).add(currCondHitCounts);
 				counts += currCondHitCounts;
 			}
 
 			if(controlDataExist) {
-				for(List<StrandedBase> ctrl_chrom_signal_cond:curr_chrom_signals.get(1)) {
+				for(List<StrandedBase> ctrl_chrom_signal_cond:ctrl_chrom_signals) {
 					int currCondHitCounts = (int)StrandedBase.countBaseHits(ctrl_chrom_signal_cond);
 					currChromCondCounts.get(1).add(currCondHitCounts);
 				}
@@ -3322,57 +3380,52 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		num_peak_ip = cf.getEventReadCounts(c);
 
 		// k = 0: '+' strand, k = 1: '-' strand
-		for(int k = 0; k <= 1; k++) {
+		for(int k = 0; k <= 1; k++) {			
 			// IP Channel
-			int[] ipStrandFivePrimePos = chromUniqueFivePrimePos.get(chrom)[0][c][k];
-			List<StrandedBase> ipStrandFivePrimes = chromUniqueFivePrimes.get(chrom)[0][c][k];
-			int s_idx = Arrays.binarySearch(ipStrandFivePrimePos, smallestLeft);
-			int e_idx = Arrays.binarySearch(ipStrandFivePrimePos, largestRight);
+			int s_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], smallestLeft);
+			int e_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], largestRight);
 			if(s_idx < 0) { s_idx = -s_idx-1; }
 			if(e_idx < 0) { e_idx = -e_idx-1; }
-			s_idx = StatUtil.searchFrom(ipStrandFivePrimePos, ">=", smallestLeft, s_idx);
-			e_idx = StatUtil.searchFrom(ipStrandFivePrimePos, "<=", largestRight, e_idx);
+			s_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], ">=", smallestLeft, s_idx);
+			e_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], "<=", largestRight, e_idx);
 
 			for(int i = s_idx; i <= e_idx; i++) {
-				if(left_first_region <= ipStrandFivePrimePos[i] && ipStrandFivePrimePos[i] <= right_first_region) {
-					num_first_lambda_ip  += ipStrandFivePrimes.get(i).getCount();
-					num_second_lambda_ip += ipStrandFivePrimes.get(i).getCount();
-					num_third_lambda_ip  += ipStrandFivePrimes.get(i).getCount();
+				if(left_first_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_first_region) {
+					num_first_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+					num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
+					num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
 				}
-				else if(left_second_region <= ipStrandFivePrimePos[i] && ipStrandFivePrimePos[i] <= right_second_region) {
-					num_second_lambda_ip += ipStrandFivePrimes.get(i).getCount();
-					num_third_lambda_ip  += ipStrandFivePrimes.get(i).getCount();
+				else if(left_second_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_second_region) {
+					num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
+					num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
 				}
-				else if(left_third_region <= ipStrandFivePrimePos[i] && ipStrandFivePrimePos[i] <= right_third_region) {
-					num_third_lambda_ip  += ipStrandFivePrimes.get(i).getCount();
+				else if(left_third_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_third_region) {
+					num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
 				}
 			}
 
 			// CTRL Channel
-			int[] ctrlStrandFivePrimePos = chromUniqueFivePrimePos.get(chrom)[1][c][k];
-			List<StrandedBase> ctrlStrandFivePrimes = chromUniqueFivePrimes.get(chrom)[1][c][k];
-
-			s_idx = Arrays.binarySearch(ctrlStrandFivePrimePos, smallestLeft);
-			e_idx = Arrays.binarySearch(ctrlStrandFivePrimePos, largestRight);
+			s_idx = Arrays.binarySearch(ctrlStrandFivePrimePos[k], smallestLeft);
+			e_idx = Arrays.binarySearch(ctrlStrandFivePrimePos[k], largestRight);
 			if(s_idx < 0) { s_idx = -s_idx-1; }
 			if(e_idx < 0) { e_idx = -e_idx-1; }
-			s_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos, ">=", smallestLeft, s_idx);
-			e_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos, "<=", largestRight, e_idx);
+			s_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos[k], ">=", smallestLeft, s_idx);
+			e_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos[k], "<=", largestRight, e_idx);
 			for(int i = s_idx; i <= e_idx; i++) {
-				if(left_peak <= ctrlStrandFivePrimePos[i] && ctrlStrandFivePrimePos[i] <= right_peak)
-					num_peak_ctrl += ctrlStrandFivePrimes.get(i).getCount();
+				if(left_peak <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_peak)
+					num_peak_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
 
-				if(left_first_region <= ctrlStrandFivePrimePos[i] && ctrlStrandFivePrimePos[i] <= right_first_region) {
-					num_first_lambda_ctrl  += ctrlStrandFivePrimes.get(i).getCount();
-					num_second_lambda_ctrl += ctrlStrandFivePrimes.get(i).getCount();
-					num_third_lambda_ctrl  += ctrlStrandFivePrimes.get(i).getCount();
+				if(left_first_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_first_region) {
+					num_first_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
+					num_second_lambda_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
+					num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
 				}
-				else if(left_second_region <= ctrlStrandFivePrimePos[i] && ctrlStrandFivePrimePos[i] <= right_second_region) {
-					num_second_lambda_ctrl += ctrlStrandFivePrimes.get(i).getCount();
-					num_third_lambda_ctrl  += ctrlStrandFivePrimes.get(i).getCount();
+				else if(left_second_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_second_region) {
+					num_second_lambda_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
+					num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
 				}
-				else if(left_third_region <= ctrlStrandFivePrimePos[i] && ctrlStrandFivePrimePos[i] <= right_third_region) {
-					num_third_lambda_ctrl  += ctrlStrandFivePrimes.get(i).getCount();
+				else if(left_third_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_third_region) {
+					num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
 				}
 			}
 		}
@@ -3661,13 +3714,31 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private float countIpReads(Region r){
 		float count=0;
 		for(Pair<ReadCache,ReadCache> e : caches){
-			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  // reads of the current region - IP channel
-			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-');  // reads of the current region - IP channel
+			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  
+			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-'); 
 			count+=StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
 		}
 		return count;
 	}
-
+	private float countIpReads(Region r, int cond){
+			List<StrandedBase> bases_p= caches.get(cond).car().getStrandedBases(r, '+');  
+			List<StrandedBase> bases_m= caches.get(cond).car().getStrandedBases(r, '-');  
+		return StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+	}
+	private float countCtrlReads(Region r){
+		float count=0;
+		for(Pair<ReadCache,ReadCache> e : caches){
+			List<StrandedBase> bases_p= e.cdr().getStrandedBases(r, '+');  
+			List<StrandedBase> bases_m= e.cdr().getStrandedBases(r, '-');  
+			count+=StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+		}
+		return count;
+	}	
+	private float countCtrlReads(Region r, int cond){
+		List<StrandedBase> bases_p= caches.get(cond).cdr().getStrandedBases(r, '+');  
+		List<StrandedBase> bases_m= caches.get(cond).cdr().getStrandedBases(r, '-');  
+		return StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+	}
 	private void printTowerRegions(){
 		// save the list of regions to file
 		try{
