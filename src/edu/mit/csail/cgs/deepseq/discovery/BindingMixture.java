@@ -440,13 +440,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		System.gc();
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
-    	// if no focus list, directly estimate candidate regions from data
-		if (focusFile==null){
-    		setRegions(selectEnrichedRegions());
-		}
-		if (development_mode)
-			printNoneZeroRegions(true);
-		log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
 
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
@@ -474,6 +467,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					System.out.println(String.format(conditionNames.get(i)+"\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", ipCount, ctrlCount, ratio_total[i]));
 				}
 	        }
+	        
+	    	// if no focus list, directly estimate candidate regions from data
+			if (focusFile==null){
+	    		setRegions(selectEnrichedRegions());
+			}
+			if (development_mode)
+				printNoneZeroRegions(true);
+			log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
+
         }
         else{	// want to analyze only specified regions, set default
         	if (max_hit_per_bp!=-1)

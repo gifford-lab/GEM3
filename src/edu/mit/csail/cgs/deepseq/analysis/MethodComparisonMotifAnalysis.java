@@ -412,7 +412,10 @@ public class MethodComparisonMotifAnalysis {
         	if (name.contains("PICS")){
 				peakPoints = loadCgsPointFile(filePath);
         	}  	
-			peaks.add(peakPoints);
+        	if (name.contains("FindPeaks")){
+				peakPoints = loadCgsPointFile(filePath);
+        	}  
+        	peaks.add(peakPoints);
         }
 	}
 	
