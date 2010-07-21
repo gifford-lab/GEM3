@@ -591,6 +591,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// process for each window 
 			ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
 			for (Region w : windows){
+				if(w.toString().equals("6:3150691-3152193"))
+					System.out.println("Check this region");
+					
 				ArrayList<BindingComponent> result = analyzeWindow(w);
 				if (result!=null){
 					comps.addAll(result);
@@ -3093,8 +3096,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						ipStrandFivePrimes[k].clear();
 						ctrlStrandFivePrimes[k].clear();
 					}
-					ipStrandFivePrimes   = null;
-					ctrlStrandFivePrimes = null;
 				}				
 			}			
 		}
