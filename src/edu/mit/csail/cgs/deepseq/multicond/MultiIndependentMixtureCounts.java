@@ -486,7 +486,14 @@ public class MultiIndependentMixtureCounts {
 				StatUtil.normalize(cond_ga, 1);
 			}
 			ga.put(t, cond_ga);
-		}			
+		}
+		
+		// Re-evaluate the summed responsibilities for each component and condition
+		sum_ga = new double[C][M];
+		for(int t = 0; t < C; t++)
+			for(int j = 0; j < M; j++)
+				for(int k = 0; k < V[t]; k++)
+					sum_ga[t][j] += count[t][k]*ga.get(t)[k][j];
 
 		
 		/****************************************
@@ -1091,6 +1098,8 @@ public class MultiIndependentMixtureCounts {
 	public double[][] get_cond_prior_weight() { return prior_weight; }
 	
 	public Map<Integer, double[][]> get_resp() { return ga; }
+	
+	public double[][] get_sum_resp() { return sum_ga; }
 	
 	public double get_glob_loglik() { return glob_loglik; }
 	
