@@ -288,16 +288,17 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         boolean and = false;
         if (name != null || replicate != null || factor != null || cells != null || condition != null) {
             query += " expt in ( select id from chipseqexpts where ";
-            if (name != null) { query += " name = ? ";}
-            if (replicate != null) { query += (and ? " and " : " ") + " replicate = ? ";}
-            if (factor != null) { query += (and ? " and " : " ") + " factor = " + factor;}
-            if (cells != null) { query += (and ? " and " : " ") + " cells = " + cells;}
-            if (condition != null) { query += (and ? " and " : " ") + " condition = " + condition;}
+            if (name != null) { query += " name = ? "; and = true;}
+            if (replicate != null) { query += (and ? " and " : " ") + " replicate = ? "; and = true;}
+            if (factor != null) { query += (and ? " and " : " ") + " factor = " + factor; and = true;}
+            if (cells != null) { query += (and ? " and " : " ") + " cells = " + cells; and = true;}
+            if (condition != null) { query += (and ? " and " : " ") + " condition = " + condition; and = true;}
             query += ")";
             and = true;
         }
         if (genome != null) {query += (and ? " and " : " ") + " genome = " + genome.getDBID(); and = true; }
         if (align != null) {query += (and ? " and " : " ") + " name = ? "; and = true; }
+
         PreparedStatement ps = cxn.prepareStatement(query);
         int index = 1;
         if (name != null || replicate != null) {
