@@ -3066,38 +3066,39 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			ctrlStrandFivePrimePos = new int[2][];
 			
 			for(String chrom:chrom_comp_pair.keySet()) {
-				int chromLen      = gen.getChromLength(chrom);
-				Region chromRegion = new Region(gen, chrom, 0, chromLen-1);			
-				for(int c = 0; c < numConditions; c++) {
-					ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(chromRegion, '+');
-					ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(chromRegion, '-');
-					
-					if(controlDataExist) {
-						ctrlStrandFivePrimes[0] = caches.get(c).cdr().getStrandedBases(chromRegion, '+');
-						ctrlStrandFivePrimes[1] = caches.get(c).cdr().getStrandedBases(chromRegion, '-');
-					}
-					else {
-						ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
-					}
-					
-					for(int k = 0; k < ipStrandFivePrimes.length; k++) {
-						ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
-						ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
-						for(int v = 0; v < ipStrandFivePrimePos[k].length; v++)
-							ipStrandFivePrimePos[k][v] = ipStrandFivePrimes[k].get(v).getCoordinate();
-						for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
-							ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
-					}
-					
+				int chromLen = gen.getChromLength(chrom);
+				for(int c = 0; c < numConditions; c++) {					
 					for(int i:chrom_comp_pair.get(chrom)) {
-						double pValue_wo_ctrl = evalFeatureSignificance(compFeatures.get(i), c);
-						compFeatures.get(i).setPValue_wo_ctrl(pValue_wo_ctrl, c);
-					}
-					
-					for(int k = 0; k < ipStrandFivePrimes.length; k++) {
-						ipStrandFivePrimes[k].clear();
-						ctrlStrandFivePrimes[k].clear();
-					}
+						ComponentFeature comp = compFeatures.get(i);
+						Region expandedRegion = new Region(gen, chrom, Math.max(0, comp.getPeak().getLocation()-third_lambda_region_width), Math.min(chromLen-1, comp.getPeak().getLocation()+third_lambda_region_width));
+						ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
+						ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
+						
+						if(controlDataExist) {
+							ctrlStrandFivePrimes[0] = caches.get(c).cdr().getStrandedBases(expandedRegion, '+');
+							ctrlStrandFivePrimes[1] = caches.get(c).cdr().getStrandedBases(expandedRegion, '-');
+						}
+						else {
+							ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
+						}
+						
+						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
+							ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
+							ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
+							for(int v = 0; v < ipStrandFivePrimePos[k].length; v++)
+								ipStrandFivePrimePos[k][v] = ipStrandFivePrimes[k].get(v).getCoordinate();
+							for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
+								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
+						}
+
+						double pValue_wo_ctrl = evalFeatureSignificance(comp, c);
+						comp.setPValue_wo_ctrl(pValue_wo_ctrl, c);
+						
+						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
+							ipStrandFivePrimes[k].clear();
+							ctrlStrandFivePrimes[k].clear();
+						}
+					}//end of for(int i:chrom_comp_pair.get(chrom)) LOOP	
 				}				
 			}			
 		}
@@ -3383,55 +3384,62 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		num_peak_ip = cf.getEventReadCounts(c);
 
 		// k = 0: '+' strand, k = 1: '-' strand
-		for(int k = 0; k <= 1; k++) {			
-			// IP Channel
-			int s_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], smallestLeft);
-			int e_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], largestRight);
-			if(s_idx < 0) { s_idx = -s_idx-1; }
-			if(e_idx < 0) { e_idx = -e_idx-1; }
-			s_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], ">=", smallestLeft, s_idx);
-			e_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], "<=", largestRight, e_idx);
+		for(int k = 0; k <= 1; k++) {
+			
+			int s_idx, e_idx;
+			
+			if(ipStrandFivePrimePos[k].length > 0) {
+				// IP Channel
+				s_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], smallestLeft);
+				e_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], largestRight);
+				if(s_idx < 0) { s_idx = -s_idx-1; }
+				if(e_idx < 0) { e_idx = -e_idx-1; }
+				s_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], ">=", smallestLeft, s_idx);
+				e_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], "<=", largestRight, e_idx);
 
-			for(int i = s_idx; i <= e_idx; i++) {
-				if(left_first_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_first_region) {
-					num_first_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
-					num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
-					num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
-				}
-				else if(left_second_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_second_region) {
-					num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
-					num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
-				}
-				else if(left_third_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_third_region) {
-					num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
-				}
+				for(int i = s_idx; i <= e_idx; i++) {
+					if(left_first_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_first_region) {
+						num_first_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+						num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
+						num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+					}
+					else if(left_second_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_second_region) {
+						num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
+						num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+					}
+					else if(left_third_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_third_region) {
+						num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+					}
+				}	
 			}
 
-			// CTRL Channel
-			s_idx = Arrays.binarySearch(ctrlStrandFivePrimePos[k], smallestLeft);
-			e_idx = Arrays.binarySearch(ctrlStrandFivePrimePos[k], largestRight);
-			if(s_idx < 0) { s_idx = -s_idx-1; }
-			if(e_idx < 0) { e_idx = -e_idx-1; }
-			s_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos[k], ">=", smallestLeft, s_idx);
-			e_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos[k], "<=", largestRight, e_idx);
-			for(int i = s_idx; i <= e_idx; i++) {
-				if(left_peak <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_peak)
-					num_peak_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
+			if(ctrlStrandFivePrimePos[k].length > 0) {
+				// CTRL Channel
+				s_idx = Arrays.binarySearch(ctrlStrandFivePrimePos[k], smallestLeft);
+				e_idx = Arrays.binarySearch(ctrlStrandFivePrimePos[k], largestRight);
+				if(s_idx < 0) { s_idx = -s_idx-1; }
+				if(e_idx < 0) { e_idx = -e_idx-1; }
+				s_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos[k], ">=", smallestLeft, s_idx);
+				e_idx = StatUtil.searchFrom(ctrlStrandFivePrimePos[k], "<=", largestRight, e_idx);
+				for(int i = s_idx; i <= e_idx; i++) {
+					if(left_peak <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_peak)
+						num_peak_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
 
-				if(left_first_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_first_region) {
-					num_first_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
-					num_second_lambda_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
-					num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
-				}
-				else if(left_second_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_second_region) {
-					num_second_lambda_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
-					num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
-				}
-				else if(left_third_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_third_region) {
-					num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
+					if(left_first_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_first_region) {
+						num_first_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
+						num_second_lambda_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
+						num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
+					}
+					else if(left_second_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_second_region) {
+						num_second_lambda_ctrl += ctrlStrandFivePrimes[k].get(i).getCount();
+						num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
+					}
+					else if(left_third_region <= ctrlStrandFivePrimePos[k][i] && ctrlStrandFivePrimePos[k][i] <= right_third_region) {
+						num_third_lambda_ctrl  += ctrlStrandFivePrimes[k].get(i).getCount();
+					}
 				}
 			}
-		}
+		}//end of for(int k = 0; k <= 1; k++) LOOP
 
 		// Subtract the number of reads that are inside the peak region
 		// We just want to compare it against the surrounding regions (excl. the peak specific signal)
