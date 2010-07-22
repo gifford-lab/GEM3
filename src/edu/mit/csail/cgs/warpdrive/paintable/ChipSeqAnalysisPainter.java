@@ -28,6 +28,7 @@ public class ChipSeqAnalysisPainter extends RegionPaintable {
         attrib = DynamicAttribute.getGlobalAttributes();
         layout = new NonOverlappingLayout<ChipSeqAnalysisResult>();
         cs = new ColorSet();
+        initLabels();
     }
 
     public ChipSeqAnalysisProperties getProperties() {return props;}
@@ -68,6 +69,7 @@ public class ChipSeqAnalysisPainter extends RegionPaintable {
         int start = region.getStart(), end = region.getEnd();
 
         cs.reset();
+        clearLabels();
         for (ChipSeqAnalysisResult r : results) {
             int x1 = getXPos(r.getStart(),
                              region.getStart(),
@@ -85,11 +87,16 @@ public class ChipSeqAnalysisPainter extends RegionPaintable {
             int y1 = uly + trackHeight * track;            
             g.setColor(cs.getColor());
             g.fillRect(x1,y1,x2-x1,trackHeight-spacing);
+            addLabel(x1,y1,x2-x1,trackHeight-spacing, String.format("%.1f/%.1f p=%.2f",
+                                                                    r.foregroundReadCount,
+                                                                    r.backgroundReadCount,
+                                                                    r.pvalue));
         }
-
-
-
-
+        if (getProperties().DrawTrackLabel) {
+            g.setFont(attrib.getLargeLabelFont(w,h));
+            g.setColor(Color.BLACK);
+            g.drawString(getLabel(),ulx + g.getFont().getSize()*2,uly + g.getFont().getSize());
+        }
     }
 
 }
