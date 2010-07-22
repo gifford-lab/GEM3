@@ -57,7 +57,9 @@ public class GuessControlExpt {
                 alignments.addAll(loader.loadAlignments(l, genome));
             }
             for (ChipSeqAlignment a : alignments) {
-                output.add(a.getExpt().getName() + ";" + a.getName());
+                for (ChipSeqAlignment c : controlsForAlignment(a)) {
+                    output.add(c.getExpt().getName() + ";" + c.getName());
+                }
             }
         }
         for (String a : output) {
