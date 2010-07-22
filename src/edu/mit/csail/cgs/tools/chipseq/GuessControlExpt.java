@@ -34,8 +34,11 @@ public class GuessControlExpt {
         controlFactorNames.add("WCE");
         controlFactorNames.add("IgG");
         controlFactorNames.add("Input");
-        controlFactorNames.add("GFP");
+        controlFactorNames.add("GFP");        
         controlFactorIDs = new ArrayList<Integer>();
+
+        boolean strict = Args.parseFlags(args).contains("strict");
+
         for (String f : controlFactorNames) {
             Factor factor = core.findFactor(f);
             if (factor != null) {
@@ -57,7 +60,14 @@ public class GuessControlExpt {
                 alignments.addAll(loader.loadAlignments(l, genome));
             }
             for (ChipSeqAlignment a : alignments) {
-                for (ChipSeqAlignment c : controlsForAlignment(a)) {
+                Collection<ChipSeqAlignment> controls = controlsForAlignment(a);
+                if (controls.size() == 0) {
+                    System.err.println("No controls for " + a);
+                    if (strict) {
+                        System.exit(1);
+                    }
+                }
+                for (ChipSeqAlignment c : controls) {
                     output.add(c.getExpt().getName() + ";" + c.getName());
                 }
             }
