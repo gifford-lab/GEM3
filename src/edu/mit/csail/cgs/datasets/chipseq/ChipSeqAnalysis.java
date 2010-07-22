@@ -9,7 +9,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.database.*;
 
-public class ChipSeqAnalysis {
+public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
 
     private Map<String,String> params;
     private Set<ChipSeqAlignment> foreground, background;
@@ -79,7 +79,7 @@ public class ChipSeqAnalysis {
         }
         return background;
     }
-    private void loadInputs() throws SQLException {
+    private void loadParams() throws SQLException {
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
         PreparedStatement ps = cxn.prepareStatement("select name,value from analysisparameters where analysis = ?");
         ps.setInt(1,dbid);
@@ -93,7 +93,7 @@ public class ChipSeqAnalysis {
         ps.close();        
         DatabaseFactory.freeConnection(cxn);
     }
-    private void loadParams() throws SQLException {
+    private void loadInputs() throws SQLException {
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
         PreparedStatement ps = cxn.prepareStatement("select alignment, inputtype from analysisinputs where analysis = ?");
         ps.setInt(1,dbid);
@@ -184,12 +184,14 @@ public class ChipSeqAnalysis {
         ps.setString(3, program);
         ps.execute();
         ps.close();
-        ps = cxn.prepareStatement(edu.mit.csail.cgs.utils.database.Sequence.getInsertSQL(cxn, "chipseqanalysis_id"));
+        String sql = edu.mit.csail.cgs.utils.database.Sequence.getLastSQLStatement(cxn, "chipseqanalysis_id");
+        ps = cxn.prepareStatement(sql);
         ResultSet rs = ps.executeQuery();
         rs.next();
         dbid = rs.getInt(1);
         rs.close();
         ps.close();
+        ps = null;
         
         if (params != null && params.size() > 0) {
             ps = cxn.prepareStatement("insert into analysisparameters(analysis,name,value) values (?,?,?)");
@@ -203,14 +205,14 @@ public class ChipSeqAnalysis {
         }
         ps = null;
         if (foreground != null && foreground.size() > 0) {
-            ps = cxn.prepareStatement("insert into analysisinputs(analysis, alignment, type) values (?,?,?)");
+            ps = cxn.prepareStatement("insert into analysisinputs(analysis, alignment, inputtype) values (?,?,?)");
             for (ChipSeqAlignment a : foreground) {
                 storeinputs(ps, "foreground", dbid, a.getDBID());
             }
         }
         if (background != null && background.size() > 0) {
             if (ps == null) {
-                ps = cxn.prepareStatement("insert into analysisinputs(analysis, alignment, type) values (?,?,?)");
+                ps = cxn.prepareStatement("insert into analysisinputs(analysis, alignment, inputtype) values (?,?,?)");
             }
             for (ChipSeqAlignment a : background) {
                 storeinputs(ps, "background", dbid, a.getDBID());
@@ -266,6 +268,7 @@ public class ChipSeqAnalysis {
             }
             ps.close();
         }
+        cxn.commit();
 		DatabaseFactory.freeConnection(cxn);
     }
     public Collection<ChipSeqAnalysisResult> getResults(Genome g) throws SQLException {
@@ -325,7 +328,17 @@ public class ChipSeqAnalysis {
 		DatabaseFactory.freeConnection(cxn);
         return result;        
     }
-        
+ 
+    public int compareTo(ChipSeqAnalysis other) {
+        int c = name.compareTo(other.name);
+        if (c == 0) {
+            c = version.compareTo(other.version);
+            if (c == 0) {
+                c = program.compareTo(other.program);
+            }
+        }
+        return c;
+    }
 
 
 }

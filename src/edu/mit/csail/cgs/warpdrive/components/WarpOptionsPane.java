@@ -149,6 +149,7 @@ public class WarpOptionsPane
         exprSelect.close();
         chipSeqSelect.close();
         pairedChipSeqSelect.close();
+        chipSeqAnalysisSelect.close();
     	bindingSelect.close(); 
     	closed = true; 
     }
@@ -458,6 +459,7 @@ public class WarpOptionsPane
         }       
         chipSeqSelect.addToSelected(opts.chipseqExpts);
         pairedChipSeqSelect.addToSelected(opts.pairedChipseqExpts);
+        chipSeqAnalysisSelect.addToSelected(opts.chipseqAnalyses);
         bindingSelect.addToSelected(opts.bindingScans);
         exprSelect.addToSelected(opts.exprExperiments);
         filetracks.fill(opts.regionTracks);
@@ -614,6 +616,7 @@ public class WarpOptionsPane
         exptSelect.setGenome(lg);
         chipSeqSelect.setGenome(lg);
         pairedChipSeqSelect.setGenome(lg);
+        chipSeqAnalysisSelect.setGenome(lg);
         motifPanel.setGenome(lg);
         motifScanPanel.setGenome(lg);
         if(lg != null) { 
