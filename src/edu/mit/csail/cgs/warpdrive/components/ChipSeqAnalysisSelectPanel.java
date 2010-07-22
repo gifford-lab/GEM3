@@ -38,6 +38,7 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         try {
             synchronized(analyses) {
                 Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll();
+                System.err.println("CSASP.RD -> " + all);
                 for(ChipSeqAnalysis a :all) { 
                     analyses.add(a);
                 }
@@ -64,7 +65,9 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         synchronized(analyses) {
             analyses.clear();
             try {
-                for (ChipSeqAnalysis a : ChipSeqAnalysis.getAll()) {
+                Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll();
+                System.err.println("CSASP.F -> " + all);
+                for (ChipSeqAnalysis a : all) {
                     Set<ChipSeqAlignment> fg = a.getForeground();
                     Iterator<ChipSeqAlignment> i = fg.iterator();
                     if (!i.next().getGenome().equals(getGenome())) {
