@@ -190,7 +190,7 @@ public class ReadCache {
 				int[][][] tmp = allStarts.get(0);
 				int[] allPositions = tmp[i][j];
 				tmp[i][j]=null;
-				for (int k=1;k<allStarts.size();k++){		// files: duplicates
+				for (int k=1;k<allStarts.size();k++){		// for each of files/replicates
 					tmp = allStarts.get(k);
 					allPositions = mergeOrderedList(allPositions, tmp[i][j]);
 					tmp[i][j]=null;

@@ -99,6 +99,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private boolean TF_binding = true;
 	private boolean pre_artifact_filter=false;
 	private boolean post_artifact_filter=false;
+    private boolean sort_by_location=false;
     private int max_hit_per_bp = -1;
     private double q_value_threshold = 2.0;
     private double alpha_factor = 3.0;
@@ -284,6 +285,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	development_mode = flags.contains("dev");
+    	sort_by_location = flags.contains("sl");
     	// default as true, need the opposite flag to turn it off
     	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
     	TF_binding = ! flags.contains("non_punctate_binding");
@@ -516,7 +518,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private void commonInit(String modelFile){
 		//Load Binding Model
 		File pFile = new File(modelFile);
-		if(!pFile.isFile()){System.err.println("\nCannot find read distribution file!");System.exit(1);}
+		if(!pFile.isFile()){
+			System.err.println("\nCannot find read distribution file!");
+			System.exit(1);
+		}
         model = new BindingModel(pFile);
         modelWidth = model.getWidth();
         modelRange = model.getRange();
@@ -1997,7 +2002,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		ArrayList<Region> rset = new ArrayList<Region>();
 		try{
 			File rFile = new File(fname);
-			if(!rFile.isFile()){System.err.println("Invalid file name");System.exit(1);}
+			if(!rFile.isFile()){
+				System.err.println("Invalid file name for regions!");
+				System.exit(1);
+			}
 	        BufferedReader reader = new BufferedReader(new FileReader(rFile));
 	        String line;
 	        while ((line = reader.readLine()) != null) {
@@ -3599,11 +3607,35 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		addRegionAnnotations(signalFeatures);
 	}
 
+	/* Default printing option
+	 * for single condition, sort by p-value
+	 * for multiple conditions, sort by location
+	 */
 	public void printFeatures(){
+		// fs is sorted by location by default
 		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
 		for(Feature f : signalFeatures){
 			fs.add((ComponentFeature)f);
 		}
+		//for single condition, sort by p-value
+		if (!sort_by_location && this.numConditions==1){
+			ComponentFeature.setSortingCondition(0);
+			if(controlDataExist) {
+				Collections.sort(fs, new Comparator<ComponentFeature>(){
+				    public int compare(ComponentFeature o1, ComponentFeature o2) {
+				        return o1.compareByPValue(o2);
+				    }
+				});
+			}
+			else {
+				Collections.sort(fs, new Comparator<ComponentFeature>(){
+				    public int compare(ComponentFeature o1, ComponentFeature o2) {
+				        return o1.compareByPValue_wo_ctrl(o2);
+				    }
+				});
+			}
+		}
+			
 		String fname = outName+"_GPS_events.txt";
 		printFeatures(fname, fs);
 	}

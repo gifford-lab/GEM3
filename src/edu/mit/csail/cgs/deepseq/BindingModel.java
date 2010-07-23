@@ -53,9 +53,9 @@ public class BindingModel {
 	                Pair<Integer,Double> p = new Pair<Integer,Double>(dist, new Double(words[1]));
 	                if (p.cdr().doubleValue()>=0)	// should be non-negative value
 	                	empiricalDistribution.add(p);
-	                else
-	                {
-	                	System.err.println("\nRead distribution file contains negative probability(count) value!"); System.exit(1);
+	                else {
+	                	System.err.println("\nRead distribution file contains negative probability(count) value!"); 
+	                	System.exit(1);
 	                }
 	              }
 	            }
@@ -161,7 +161,8 @@ public class BindingModel {
 			double val = p.cdr();
 			//if list is not properly sorted (need to make this into an exception)
 			if(index-last<0){
-				System.err.println("Incorrectly sorted binding model data!"); System.exit(1);
+				System.err.println("Incorrectly sorted binding read distribution data!"); 
+				System.exit(1);
 			}
 			//if unevenly spaced, smooth linearly between values
 			if(index-last>1){
@@ -324,8 +325,10 @@ public class BindingModel {
 			String outfile = Args.parseString(args, "out", "out.model");
 			String outfile_smooth = Args.parseString(args, "out_smooth", "out_smooth.model");
 			File pFile = new File(infile);
-			if(!pFile.isFile()){System.err.println("Invalid file name");System.exit(1);}
-	        
+			if(!pFile.isFile()){
+				System.err.println("Invalid file name");
+				System.exit(1);
+			}
 	        //File loaded, make a BindingModel
 	        BindingModel model = new BindingModel(pFile);
 	        model.printToFile(outfile);
