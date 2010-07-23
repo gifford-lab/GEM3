@@ -352,7 +352,7 @@ public class Args {
                 } else if (pieces.length == 3) {
                     output.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
                 } else {
-                    System.err.println("Couldn't parse a ChipSeqLocator from " + args[i]);
+                    throw new RuntimeException("Couldn't parse a ChipSeqLocator from " + args[i]);
                 }
             }
         }

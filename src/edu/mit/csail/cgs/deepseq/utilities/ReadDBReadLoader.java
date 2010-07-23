@@ -39,7 +39,11 @@ public class ReadDBReadLoader extends ReadLoader{
 	
 	public ReadDBReadLoader(Genome g, List<ChipSeqLocator> locs, int rLen){
 		super(g, rLen);
-		
+
+        if (locs.size() == 0) {
+            System.err.println("Created a ReadDBReadLoader with no ChipSeqLocators");
+        }
+
 		currID=new Random(System.currentTimeMillis()).nextInt();
 		try {
 			client = new Client();
@@ -75,10 +79,12 @@ public class ReadDBReadLoader extends ReadLoader{
 		        } else {
 		        	if(locator.getReplicates().isEmpty()) {//Given alignment name, no replicate names
 		        		Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
+                        System.err.println("Have name but no replicates.  Got " + expts.size() + " experiments for " + locator.getExptName());
 		        		for(ChipSeqExpt expt : expts) { 
 		                	Collection<ChipSeqAlignment> alignments;
 							alignments = loader.loadAllAlignments(expt);
 							for (ChipSeqAlignment currentAlign : alignments) {
+                                System.err.println("  " + currentAlign);
 		            			if (currentAlign.getGenome().equals(g) && currentAlign.getName().equals(locator.getAlignName())) { 
 		            				aligns.add(currentAlign);
 		    						break;
@@ -94,7 +100,12 @@ public class ReadDBReadLoader extends ReadLoader{
 		        		}
 		            }
 		        }
-			}countHits();
+			}
+            if (locs.size() != 0 && aligns.size() == 0) {
+                System.err.println("Locators were " + locs + " but didn't get any alignments");
+            }
+
+            countHits();
 			
 			//Error that doesn't seem to be caught by the exceptions
             //			if(totalHits==0){
@@ -201,8 +212,14 @@ public class ReadDBReadLoader extends ReadLoader{
                                                 r.getEnd(),
                                                 null,
                                                 strand == '+');
-            coords.addAll(allHits.keySet());
-            counts.addAll(allHits.values());
+            if (allHits == null) {
+                if (alignids.size() != 0) {
+                    throw new NullPointerException("how did client.getWeightHistogram return null?");
+                }
+            } else {
+                coords.addAll(allHits.keySet());
+                counts.addAll(allHits.values());
+            }
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
