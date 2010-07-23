@@ -32,6 +32,10 @@ public class GPSAnalysisImporter extends AnalysisImporter {
         }
         String chrompos[] = pieces[0].split(":");
         int pos = Integer.parseInt(chrompos[1]);
+        if (pieces[2].equals("NA")) {
+            pieces[2] = "1";
+        }
+
         double ip = Double.parseDouble(pieces[1]);
         double wce = Double.parseDouble(pieces[2]);
         double pval = Math.max(Math.pow(10, -1 * Double.parseDouble(pieces[4])),
