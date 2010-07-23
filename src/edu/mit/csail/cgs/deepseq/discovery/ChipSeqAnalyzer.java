@@ -26,13 +26,17 @@ public class ChipSeqAnalyzer{
 	
 	ChipSeqAnalyzer(String[] args){
 		System.out.println("Welcome to GPS!");
-		if(args.length==0){ printError(); System.exit(1); }
+		if(args.length==0){ 
+			printError(); 
+			System.exit(1); 
+		}
 		this.args = args;
 		ArgParser ap = new ArgParser(args);
 		Set<String> flags = Args.parseFlags(args);
 		development_mode = flags.contains("dev");
 		if ( (ap.hasKey("help"))) {
-			printError();System.exit(1);
+			printError();
+			System.exit(1);
 		}
 
 		try {
@@ -55,16 +59,21 @@ public class ChipSeqAnalyzer{
 		// checking all required parameters
 		if (! (ap.hasKey("d"))) {
 			System.err.println("The read distribution file is required.\n");
-			printError();System.exit(1);
+			printError();
+			System.exit(1);
 		}
 		if (! (ap.hasKey("s"))) {
 			System.err.println("The mappable genome size is required.\n");
-			printError();System.exit(1);
+			printError();
+			System.exit(1);
 		}
 		String modelFile = Args.parseString(args, "d", null);	// read distribution file
 		if (modelFile!=null){
 			File pFile = new File(modelFile);
-			if(!pFile.isFile()){System.err.println("\nCannot find read distribution file!");System.exit(1);}
+			if(!pFile.isFile()){
+				System.err.println("\nCannot find read distribution file!");
+				System.exit(1);
+			}
 		}
 
 		System.out.println("Loading data...");
@@ -110,7 +119,7 @@ public class ChipSeqAnalyzer{
         	List<File> expts = Args.parseFileHandles(args, "expt"+name);
         	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
         	boolean nonUnique = ap.hasKey("nonunique") ? true : false;
-        	String fileFormat = Args.parseString(args, "f", "BED");
+        	String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
 
         	if(expts.size()>0 && dbexpts.size() == 0 && rdbexpts.size()==0){
         		readLength = -1;	// For file, read length will be obtained from the data
@@ -127,7 +136,8 @@ public class ChipSeqAnalyzer{
 	        }
         	else if(dbexpts.size()>0 && expts.size() == 0){
         		if(genome==null){
-        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
+        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); 
+        			System.exit(1);
         		}
 	    		readLength = Args.parseInteger(args,"readlen",readLength);
 				if (readLength==-1){
@@ -139,7 +149,8 @@ public class ChipSeqAnalyzer{
 	        }
 	        else if(rdbexpts.size()>0 && expts.size() == 0){
 	        	if(genome==null){
-        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); System.exit(1);
+        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); 
+        			System.exit(1);
         		}
 	    		readLength = Args.parseInteger(args,"readlen",readLength);
 				if (readLength==-1){
@@ -197,7 +208,7 @@ public class ChipSeqAnalyzer{
 			mixture.printExpandedPeaks(10);
 			mixture.addAnnotations();
 //			mixture.printPsortedFeatures();
-			mixture.printPsortedCondFeatures();
+//			mixture.printPsortedCondFeatures();
 		}
 		mixture.printFeatures();
 		mixture.printInsignificantFeatures();

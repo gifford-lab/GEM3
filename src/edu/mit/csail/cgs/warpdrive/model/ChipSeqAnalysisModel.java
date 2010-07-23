@@ -50,8 +50,12 @@ public class ChipSeqAnalysisModel extends WarpModel implements RegionModel, Runn
                     e.printStackTrace();
                     results = new ArrayList<ChipSeqAnalysisResult>();
                 }
+                newinput = false;
+                notifyListeners();
+
             }
         }
+        
     }
 
 }

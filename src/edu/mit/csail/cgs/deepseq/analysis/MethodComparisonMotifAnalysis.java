@@ -54,17 +54,13 @@ public class MethodComparisonMotifAnalysis {
 	private ArrayList<String> methodNames = new ArrayList<String>();
 	private ArrayList<ArrayList<Point>> peaks = new ArrayList<ArrayList<Point>>();
 	private ArrayList<HashMap<Point, MotifHit>> maps = new ArrayList<HashMap<Point, MotifHit>>();	
-//	ArrayList<HashMap<Point, ArrayList<MotifHit>>> maps_cisgenome = null;
 	
 	private ArrayList<Point> peaks_gps = new ArrayList<Point>();
 	private ArrayList<Point> peaks_macs = new ArrayList<Point>();
-	private ArrayList<Point> peaks_cisgenome = new ArrayList<Point>();
 	HashMap<Point, ArrayList<MotifHit>> maps_gps = null;
 	HashMap<Point, ArrayList<MotifHit>> maps_macs = null;
-	HashMap<Point, ArrayList<MotifHit>> maps_cisgenome = null;
 	HashMap<Point, MotifHit> map_gps = null;
 	HashMap<Point, MotifHit> map_macs = null;
-	HashMap<Point, MotifHit> map_cisgenome = null;
 	
 	// motif score cutoffs
 	//	double[] motifThresholds = new double[]{0,4,8,12,16,20,24,28};
@@ -1019,7 +1015,8 @@ public class MethodComparisonMotifAnalysis {
 			while((line = bin.readLine()) != null) { 
 				line = line.trim();
 				Region point = Region.fromString(genome, line);
-				points.add(new Point(genome, point.getChrom(),point.getStart()));
+				if (point!=null)
+					points.add(new Point(genome, point.getChrom(),point.getStart()));
 			}
 		}
 		catch(IOException ioex) {

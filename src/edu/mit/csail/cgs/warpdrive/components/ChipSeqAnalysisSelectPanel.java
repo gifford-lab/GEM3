@@ -38,6 +38,7 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         try {
             synchronized(analyses) {
                 Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll();
+                System.err.println("CSASP.RD -> " + all);
                 for(ChipSeqAnalysis a :all) { 
                     analyses.add(a);
                 }
@@ -64,20 +65,29 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         synchronized(analyses) {
             analyses.clear();
             try {
-                for (ChipSeqAnalysis a : ChipSeqAnalysis.getAll()) {
+                Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll();
+                System.err.println("CSASP.F -> " + all);
+                for (ChipSeqAnalysis a : all) {
                     Set<ChipSeqAlignment> fg = a.getForeground();
                     Iterator<ChipSeqAlignment> i = fg.iterator();
-                    if (!i.next().getGenome().equals(getGenome())) {
-                        continue;
-                    }
-                    if (patt == null || patt.matcher(a.toString()).find()) {
-                        analyses.add(a);
+
+                    if (i.hasNext()) {
+                        ChipSeqAlignment align = i.next();
+                        System.err.println("CHECKING " + a + " -> " + align);
+                        if (!align.getGenome().equals(getGenome())) {
+                            continue;
+                        }
+                        System.err.println("Wrong Genome");
+                        if (patt == null || patt.matcher(a.toString()).find()) {
+                            analyses.add(a);
+                        }
                     }
                 }
             } catch (SQLException e) {
                 throw new RuntimeException(e.toString(), e);
             }
             filteredModel.clear();
+            System.err.println("Going to add " + analyses);
             for (ChipSeqAnalysis a : analyses) {
                 filteredModel.addObject(a);
             }
