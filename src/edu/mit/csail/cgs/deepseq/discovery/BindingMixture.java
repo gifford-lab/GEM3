@@ -1993,7 +1993,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @param fname the file containing the regions
 	 * @return
 	 */
-	public void setRegions(String fname, boolean expandedRegion) {
+	public void setRegions(String fname, boolean toExpandRegion) {
 		ArrayList<Region> rset = new ArrayList<Region>();
 		try{
 			File rFile = new File(fname);
@@ -2014,10 +2014,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			e.printStackTrace();
 		}
 
-		if (expandedRegion){			// if regions are from previous round of analysis
+		if (toExpandRegion){			// if regions are from previous round of analysis - Do NOT expand
 			restrictRegions = mergeRegions(rset, false);
 		}
-		else{							// if regions are from other sources (i.e. StatPeakFinder)
+		else{							// if regions are from other sources (i.e. StatPeakFinder) - Expand
 			restrictRegions = mergeRegions(rset, true);
 		}
 	}
