@@ -301,7 +301,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 * We do not want to run EM on regions with little number of reads
 		 * **************************************************/
     	String focus = Args.parseString(args, "focs", null);
-    	if(focus != null) { focus = Args.parseString(args, "focf", null); }
+    	if(focus == null) { focus = Args.parseString(args, "focf", null); }
     	List<Region> focusRegions = new ArrayList<Region>();
      	boolean loadWholeGenome = true;
      	if (focus!=null && Args.parseString(args, "focf", null) != null) {
@@ -458,8 +458,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 			System.out.println("Finish loading data from ReadDB, " + timeElapsed(tic));
 		}
-		experiments = null;
-		System.gc();
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
 
@@ -467,7 +465,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-        if (focus == null || experiments.get(0).car().isFromFile()){		// estimate some parameters if whole genome data
+        if (focus == null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "focf", null) == null )){		// estimate some parameters if whole genome data
 	        for(int i=0; i<caches.size(); i++){
 				Pair<ReadCache,ReadCache> e = caches.get(i);
 				double ipCount = e.car().getHitCount();
@@ -491,7 +489,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        }
 	        
 	    	// if no focus list, directly estimate candidate regions from data
-			if (focus==null || experiments.get(0).car().isFromFile()){
+			if (focus==null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "focf", null) == null )){
 	    		setRegions(selectEnrichedRegions(focusRegions));
 			}
 			if (development_mode)
@@ -510,6 +508,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         if (development_mode)
         	log(1, "\nmax_HitCount_per_base = "+max_HitCount_per_base);
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
+		experiments = null;
+		System.gc();
 	}//end of BindingMixture constructor
 
 	/**
