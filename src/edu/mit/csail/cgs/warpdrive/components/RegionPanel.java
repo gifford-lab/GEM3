@@ -386,7 +386,27 @@ public class RegionPanel extends JPanel
                 e.printStackTrace();
             }
         }
-        
+        if (opts.chipseqAnalyses.size() > 0) {
+            try {
+                ChipSeqLoader loader = new ChipSeqLoader(true);
+                for (int i = 0; i < opts.chipseqAnalyses.size(); i++) {
+                    ChipSeqAnalysis a = opts.chipseqAnalyses.get(i);
+                    ChipSeqAnalysisModel m = new ChipSeqAnalysisModel(a);
+                    ChipSeqAnalysisPainter p = new ChipSeqAnalysisPainter(a,m);
+                    addModel(m);
+                    Thread t = new Thread((Runnable)m); t.start();
+                    p.setLabel(a.toString());
+                    
+                    p.addEventListener(this);
+                    addPainter(p);
+                    addModelToPaintable(p,m);
+                }
+                loader.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
 
         // agilentdata, msp, and bayes are all nearly identical.
         for (int i = 0; i < opts.agilentdata.size(); i++) {     

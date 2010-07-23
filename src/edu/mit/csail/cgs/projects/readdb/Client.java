@@ -18,6 +18,23 @@ import javax.security.auth.callback.*;
  *  hit. 
  *
  * Client IS NOT REENTRANT.  Do not overlap calls to a single Client object.
+ *
+ * Most method parameters that are object types (eg Integer, Boolean) are optional.  If a null value
+ * is passed then no filtering is done based on that parameter.  
+
+ * Standard parameters shared across methods:
+ *
+ * - alignid is the name of the alignment.
+ * - isPaired specifies whether to work on single-ended reads (false) or paired-end reads (true)
+ * - isLeft is isPaired is true, then isLeft specifies whether to work on the left read (true)(
+ *     or right read (false) of the pair
+ * - plusStrand specifies whether to return only reads on the plus strand (true) or minus strand (false). null
+ *     means that reads on both strands should be returned.
+ * - minWeight specifies the minimum weight of reads (or read pairs) to be returned or included in 
+ *     the histogram
+ * - start, stop specify the lowest (inclusive) and highest (exclusive) coordinates of reads
+ *     that should be included in the results
+ *
  * 
  */
 public class Client implements ReadOnlyClient {    
@@ -184,11 +201,20 @@ public class Client implements ReadOnlyClient {
         //System.err.println("READ " + out);
         return out;
     }
+    /**
+     * Closes the connection to the server.  You need to call this
+     * when you're done with the Client
+     */
     public void shutdown() throws IOException, ClientException{
         request.clear();
         request.type = "shutdown";
         sendString(request.toString());
     }
+    /**
+     * Stores a set of SingleHit objects (representing an un-paired or single-ended read
+     * aligned to a genome) in the specified alignment.  The hits are appended
+     * to any hits that have already been stored in the alignment
+     */
     public void storeSingle(String alignid, List<SingleHit> allhits) throws IOException, ClientException {
         int step = 10000000;
         for (int pos = 0; pos < allhits.size(); pos += step) {
@@ -239,6 +265,11 @@ public class Client implements ReadOnlyClient {
             }
         }
     }
+    /**
+     * Stores a set of PairedHit objects (representing an paired-ended read
+     * aligned to a genome) in the specified alignment.  The hits are appended
+     * to any hits that have already been stored in the alignment
+     */
     public void storePaired(String alignid, List<PairedHit> allhits) throws IOException, ClientException {
         Map<Integer, List<PairedHit>> map = new HashMap<Integer,List<PairedHit>>();
         for (PairedHit h : allhits) {
@@ -316,7 +347,7 @@ public class Client implements ReadOnlyClient {
     }
     /**
      * Deletes an alignment (all chromosomes).  isPaired specifies whether to delete
-     * the paired or single ended reads
+     * the paired or single ended reads.
      */
     public void deleteAlignment(String alignid, Boolean isPaired) throws IOException, ClientException {
         request.clear();
@@ -330,7 +361,7 @@ public class Client implements ReadOnlyClient {
         }
     }
     /**
-     * Returns the set of chromosomes that exist for this alignment
+     * Returns the set of chromosomes that exist for this alignment. 
      */
     public Set<Integer> getChroms(String alignid, boolean isPaired, Boolean isLeft) throws IOException, ClientException {
         request.clear();
@@ -352,7 +383,7 @@ public class Client implements ReadOnlyClient {
         return output;
     }
     /**
-     * Returns the total number of hits in this alignment
+     * Returns the total number of hits in this alignment.  
      */
     public int getCount(String alignid, boolean isPaired, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
         int count = 0;
@@ -375,13 +406,13 @@ public class Client implements ReadOnlyClient {
     /** returns the total number of hits on the specified chromosome in the alignment.
      * Any of the object parameters can be set to null to specify "no value"
      */
-    public int getCount(String alignid, int chromid, boolean paired, Integer start, Integer end, Float minWeight, Boolean isLeft, Boolean plusStrand)  throws IOException, ClientException {
+    public int getCount(String alignid, int chromid, boolean paired, Integer start, Integer stop, Float minWeight, Boolean isLeft, Boolean plusStrand)  throws IOException, ClientException {
         request.clear();
         request.type="count";
         request.alignid=alignid;
         request.chromid=chromid;
         request.start = start;
-        request.end = end;
+        request.end = stop;
         request.minWeight = minWeight;
         request.isPlusStrand = plusStrand;
         request.isPaired = paired;
@@ -396,13 +427,13 @@ public class Client implements ReadOnlyClient {
     }
     /** returns the total weight on the specified chromosome in this alignment
      */
-    public double getWeight(String alignid, int chromid, boolean paired, Integer start, Integer end, Float minWeight, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
+    public double getWeight(String alignid, int chromid, boolean paired, Integer start, Integer stop, Float minWeight, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
         request.clear();
         request.type="weight";
         request.alignid=alignid;
         request.chromid=chromid;
         request.start = start;
-        request.end = end;
+        request.end = stop;
         request.minWeight = minWeight;
         request.isPlusStrand = plusStrand;
         request.isPaired = paired;
