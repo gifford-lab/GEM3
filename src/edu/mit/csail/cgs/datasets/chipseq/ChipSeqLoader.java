@@ -56,8 +56,6 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
     
     public ChipSeqLoader() throws SQLException, IOException{this(true);}
 	public ChipSeqLoader(boolean openClient) throws SQLException, IOException {
-		metaLoader = new MetadataLoader();
-		closeMetaLoader = true;
 		if(openClient){
 	        try {
 	            client = new Client();
@@ -65,11 +63,27 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	            throw new IllegalArgumentException(e);
 	        }
 		}
-		cxn = DatabaseFactory.getConnection(role);
 	}
-
-
+    public java.sql.Connection getConnection() {
+        if (cxn == null) {
+            try {
+                cxn = DatabaseFactory.getConnection(role);   
+            } catch (SQLException e) {
+                throw new DatabaseException(e.toString(),e);
+            }
+        }
+        return cxn;
+    }
+    
 	public MetadataLoader getMetadataLoader() {
+        if (metaLoader == null) {
+            try {
+                metaLoader = new MetadataLoader();
+                closeMetaLoader = true;                   
+            } catch (SQLException e) {
+                throw new DatabaseException(e.toString(),e);
+            }
+        }
 		return metaLoader;
 	}
 
@@ -88,7 +102,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	public Collection<Genome> loadExperimentGenomes(ChipSeqExpt expt) throws SQLException {
 		LinkedList<Genome> genomes = new LinkedList<Genome>();
 		String query = String.format("select genome from chipseqalignments where expt=%d", expt.getDBID());
-		Statement s = cxn.createStatement();
+		Statement s = getConnection().createStatement();
 		ResultSet rs = s.executeQuery(query);
 		while (rs.next()) {
 			int gid = rs.getInt(1);
@@ -107,7 +121,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 
 	public Collection<ChipSeqExpt> loadAllExperiments() throws SQLException {
-		PreparedStatement ps = ChipSeqExpt.createLoadAll(cxn);
+		PreparedStatement ps = ChipSeqExpt.createLoadAll(getConnection());
 		LinkedList<ChipSeqExpt> expts = new LinkedList<ChipSeqExpt>();
 		ResultSet rs = ps.executeQuery();
 		while (rs.next()) {
@@ -121,7 +135,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 
 	public ChipSeqExpt loadExperiment(String name, String rep) throws NotFoundException, SQLException {
-		PreparedStatement ps = ChipSeqExpt.createLoadByNameReplicate(cxn);
+		PreparedStatement ps = ChipSeqExpt.createLoadByNameReplicate(getConnection());
 		ps.setString(1, name);
 		ps.setString(2, rep);
 		ResultSet rs = ps.executeQuery();
@@ -138,7 +152,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 
 	public Collection<ChipSeqExpt> loadExperiments(String name) throws SQLException {
-		PreparedStatement ps = ChipSeqExpt.createLoadByName(cxn);
+		PreparedStatement ps = ChipSeqExpt.createLoadByName(getConnection());
 		LinkedList<ChipSeqExpt> expts = new LinkedList<ChipSeqExpt>();
 		ps.setString(1, name);
 		ResultSet rs = ps.executeQuery();
@@ -155,7 +169,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 
 	public ChipSeqExpt loadExperiment(int dbid) throws NotFoundException, SQLException {
-		PreparedStatement ps = ChipSeqExpt.createLoadByDBID(cxn);
+		PreparedStatement ps = ChipSeqExpt.createLoadByDBID(getConnection());
 		ps.setInt(1, dbid);
 		ResultSet rs = ps.executeQuery();
 		ChipSeqExpt expt = null;
@@ -174,7 +188,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
     public Collection<ChipSeqAlignment> loadAlignments (Genome g) throws SQLException {
 		Collection<ChipSeqAlignment> aligns = new LinkedList<ChipSeqAlignment>();
-		PreparedStatement ps = ChipSeqAlignment.createLoadAllByGenomeStatement(cxn);
+		PreparedStatement ps = ChipSeqAlignment.createLoadAllByGenomeStatement(getConnection());
 		ps.setInt(1, g.getDBID());
         ResultSet rs = ps.executeQuery();
 		while (rs.next()) {
@@ -194,7 +208,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 	public Collection<ChipSeqAlignment> loadAllAlignments(ChipSeqExpt expt) throws SQLException {
 		Collection<ChipSeqAlignment> aligns = new LinkedList<ChipSeqAlignment>();
-		PreparedStatement ps = ChipSeqAlignment.createLoadAllByExptStatement(cxn);
+		PreparedStatement ps = ChipSeqAlignment.createLoadAllByExptStatement(getConnection());
 		ps.setInt(1, expt.getDBID());
 
 		ResultSet rs = ps.executeQuery();
@@ -211,7 +225,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 	public ChipSeqAlignment loadAlignment(ChipSeqExpt expt, String n, Genome g) throws NotFoundException, SQLException {
 		ChipSeqAlignment align = null;
-		PreparedStatement ps = ChipSeqAlignment.createLoadByNameAndExptStatement(cxn);
+		PreparedStatement ps = ChipSeqAlignment.createLoadByNameAndExptStatement(getConnection());
 		ps.setString(1, n);
 		ps.setInt(2, expt.getDBID());
 
@@ -232,7 +246,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	}
 	public ChipSeqAlignment loadAlignment(int dbid) throws NotFoundException, SQLException {
 		ChipSeqAlignment align = null;
-		PreparedStatement ps = ChipSeqAlignment.createLoadByIDStatement(cxn);
+		PreparedStatement ps = ChipSeqAlignment.createLoadByIDStatement(getConnection());
 		ps.setInt(1, dbid);
 
 		ResultSet rs = ps.executeQuery();
@@ -299,7 +313,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         if (genome != null) {query += (and ? " and " : " ") + " genome = " + genome.getDBID(); and = true; }
         if (align != null) {query += (and ? " and " : " ") + " name = ? "; and = true; }
 
-        PreparedStatement ps = cxn.prepareStatement(query);
+        PreparedStatement ps = getConnection().prepareStatement(query);
         int index = 1;
         if (name != null || replicate != null) {
             if (name != null) { ps.setString(index++,name);}
@@ -572,7 +586,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 
 	public void addAlignmentParameters(ChipSeqAlignment align, Map<String, ? extends Object> params) throws SQLException {
-		PreparedStatement insert = cxn.prepareStatement("insert into alignmentparameters(alignment,name,value) values(?,?,?)");
+		PreparedStatement insert = getConnection().prepareStatement("insert into alignmentparameters(alignment,name,value) values(?,?,?)");
 		insert.setInt(1, align.getDBID());
 		for (String k : params.keySet()) {
 			insert.setString(2, k);
@@ -595,7 +609,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 
 	public Map<String, String> getAlignmentParameters(ChipSeqAlignment align) throws SQLException {
-		Statement get = cxn.createStatement();
+		Statement get = getConnection().createStatement();
 		ResultSet rs = get.executeQuery("select name, value from alignmentparameters where alignment = " + align.getDBID());
 		Map<String, String> output = new HashMap<String, String>();
 		while (rs.next()) {
@@ -665,7 +679,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
      */
     public double[] kernalDensityInRegion(ChipSeqAlignment align, char strand, Region r, int std) throws SQLException {
         
-        PreparedStatement stmt = cxn.prepareStatement("select startpos as pos, sum(weight) from chipseqhits " +
+        PreparedStatement stmt = getConnection().prepareStatement("select startpos as pos, sum(weight) from chipseqhits " +
         	"where alignment = ? and chromosome = ? and startpos >= ? and startpos < ? and strand = ? group by startpos");
         stmt.setInt(1,align.getDBID());
         stmt.setInt(2, r.getGenome().getChromID(r.getChrom()));
@@ -693,8 +707,10 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
             client.close();
             client = null;
         }
-		DatabaseFactory.freeConnection(cxn);
-		cxn = null;
+        if (cxn != null) {
+            DatabaseFactory.freeConnection(cxn);
+            cxn = null;
+        }
 	}
 
 

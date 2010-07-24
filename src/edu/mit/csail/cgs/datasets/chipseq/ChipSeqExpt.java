@@ -60,7 +60,8 @@ public class ChipSeqExpt {
         int condID = rs.getInt(7);
         int factorID = rs.getInt(8);
         
-        MetadataLoader mloader = loader.getMetadataLoader();
+        MetadataLoader mloader = loader == null ? new MetadataLoader() : loader.getMetadataLoader();
+
         factor = mloader.loadFactor(factorID);
         cells = mloader.loadCells(cellsID);
         condition = mloader.loadCondition(condID);

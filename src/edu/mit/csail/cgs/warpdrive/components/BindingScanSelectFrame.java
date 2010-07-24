@@ -41,7 +41,7 @@ public class BindingScanSelectFrame extends JFrame implements ActionListener {
 
         try {
 			bssp = new BindingScanSelectPanel();
-            csasp = new ChipSeqAnalysisSelectPanel();
+            csasp = new ChipSeqAnalysisSelectPanel(g);
 		} catch (UnknownRoleException e) {
 			e.printStackTrace();
 			throw new IllegalArgumentException(e.getMessage());

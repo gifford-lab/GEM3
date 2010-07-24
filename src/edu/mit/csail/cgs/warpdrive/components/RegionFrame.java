@@ -175,7 +175,7 @@ public class RegionFrame extends JFrame {
             });
 
 
-        navigationmenu.add((item = new JMenuItem("ChipChip Binding Scan Annotation")));
+        navigationmenu.add((item = new JMenuItem("Binding Scan Annotation")));
         item.addActionListener(new ActionListener()  {
                 public void actionPerformed(ActionEvent e) {
                     BindingEventAnnotationPanel beap = new BindingEventAnnotationPanel(thispanel, new ArrayList<BindingEvent>());

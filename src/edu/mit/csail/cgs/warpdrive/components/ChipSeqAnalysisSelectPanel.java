@@ -9,6 +9,7 @@ import javax.swing.event.*;
 import javax.swing.table.*;
 import java.sql.*;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.viz.components.GenericSelectPanel;
 
@@ -18,7 +19,15 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
     private JTextField regex;
     private ChipSeqAnalysisTableModel selectedModel, filteredModel;
 
+    public ChipSeqAnalysisSelectPanel(Genome g) { 
+        super(g);
+        analyses = new TreeSet<ChipSeqAnalysis>();
+        selectedModel = new ChipSeqAnalysisTableModel();
+        filteredModel = new ChipSeqAnalysisTableModel();
+        init(filteredModel,selectedModel);
+    }
     public ChipSeqAnalysisSelectPanel() { 
+        super();
         analyses = new TreeSet<ChipSeqAnalysis>();
         selectedModel = new ChipSeqAnalysisTableModel();
         filteredModel = new ChipSeqAnalysisTableModel();
@@ -66,19 +75,15 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
             analyses.clear();
             try {
                 Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll();
-                System.err.println("CSASP.F -> " + all);
                 for (ChipSeqAnalysis a : all) {
-                    Set<ChipSeqAlignment> fg = a.getForeground();
-                    Iterator<ChipSeqAlignment> i = fg.iterator();
-
-                    if (i.hasNext()) {
-                        ChipSeqAlignment align = i.next();
-                        System.err.println("CHECKING " + a + " -> " + align);
-                        if (!align.getGenome().equals(getGenome())) {
-                            continue;
-                        }
-                        System.err.println("Wrong Genome");
-                        if (patt == null || patt.matcher(a.toString()).find()) {
+                    if (patt == null || patt.matcher(a.toString()).find()) {
+                        Set<ChipSeqAlignment> fg = a.getForeground();
+                        Iterator<ChipSeqAlignment> i = fg.iterator();                        
+                        if (i.hasNext()) {
+                            ChipSeqAlignment align = i.next();
+                            if (!align.getGenome().equals(getGenome())) {
+                                continue;
+                            }                            
                             analyses.add(a);
                         }
                     }
