@@ -228,7 +228,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 */
 	public BindingMixture(Genome g, ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
 						  ArrayList<String> conditionNames,
-						  String[] args){
+						  String[] args) {
 		super (args, g, expts);
 		try{
 			logFileWriter = new FileWriter("GPS_Log.txt", true); //append
@@ -300,32 +300,52 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 * If no file pre-specified, estimate the enrichedRegions after loading the data.
 		 * We do not want to run EM on regions with little number of reads
 		 * **************************************************/
-    	String focusFile = Args.parseString(args, "focusFile", null);
+    	String focus = Args.parseString(args, "focs", null);
+    	if(focus == null) { focus = Args.parseString(args, "focf", null); }
+    	List<Region> focusRegions = new ArrayList<Region>();
      	boolean loadWholeGenome = true;
-     	if (focusFile!=null){
+     	if (focus!=null && Args.parseString(args, "focf", null) != null) {
      		loadWholeGenome = false;
      		String focusFormat = Args.parseString(args, "focusFormat", null);
         	if (focusFormat==null){
     	    	// take candidate regions from previous analysis of mixture model
     	    	// Do not expand the regions, precisely defined already
-    	        	setRegions(focusFile, true);
+    	        	setRegions(focus, false);
         	}        	
         	else if (focusFormat.equals("MACS")){
     	    	// take candidate regions from MACS output, expand point to regions, merge overlaps
-    	    		File peakFlie = new File(focusFile);
+    	    		File peakFlie = new File(focus);
     	    		List<MACSPeakRegion> peaks = MACSParser.parseMACSOutput(peakFlie.getAbsolutePath(), gen);
     	    		setRegions(peaks);
     	    }
 	    	// take candidate regions from output of statistical peak finder by Shaun,
 	    	// will expand point to regions, merge overlaps
 	    	else if (focusFormat.equals("StatPeak")){
-	    		setRegions(focusFile, false);
+	    		setRegions(focus, true);
 	    	}
 	    	else if (focusFormat.equals("RegionsToMerge")){
-	        	setRegions(focusFile, false);
+	        	setRegions(focus, true);
 	    	}
         }
-
+     	else if (focus!=null && Args.parseString(args, "focs", null) != null) {
+     		String COMPLETE_REGION_REG_EX = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
+     		String[] reg_toks = focus.split("\\s");
+     		for(String regionStr:reg_toks) {
+     			// Region already presented in the form x:xxxx-xxxxx
+     			if(regionStr.matches(COMPLETE_REGION_REG_EX)) {
+     				focusRegions.add(Region.fromString(gen, regionStr));
+     			}
+     			// Check if it is about a whole chromosome
+     			else {
+     	     		for(String chrom:gen.getChromList()) {
+     	     			if(regionStr.equalsIgnoreCase(chrom)) {
+     	     				focusRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
+     	     				break;
+     	     			}
+     	     		}
+     			}
+     		}
+     	}
 
 		/* ***************************************************
 		 * ChIP-Seq data
@@ -438,8 +458,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 			System.out.println("Finish loading data from ReadDB, " + timeElapsed(tic));
 		}
-		experiments = null;
-		System.gc();
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
 
@@ -447,7 +465,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-        if (focusFile == null){		// estimate some parameters if whole genome data
+        if (focus == null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "focf", null) == null )){		// estimate some parameters if whole genome data
 	        for(int i=0; i<caches.size(); i++){
 				Pair<ReadCache,ReadCache> e = caches.get(i);
 				double ipCount = e.car().getHitCount();
@@ -471,8 +489,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        }
 	        
 	    	// if no focus list, directly estimate candidate regions from data
-			if (focusFile==null){
-	    		setRegions(selectEnrichedRegions());
+			if (focus==null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "focf", null) == null )){
+	    		setRegions(selectEnrichedRegions(focusRegions));
 			}
 			if (development_mode)
 				printNoneZeroRegions(true);
@@ -490,7 +508,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         if (development_mode)
         	log(1, "\nmax_HitCount_per_base = "+max_HitCount_per_base);
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
-	}
+		experiments = null;
+		System.gc();
+	}//end of BindingMixture constructor
 
 	/**
 	 * This constructor is only called from Robustness analysis
@@ -1998,7 +2018,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @param fname the file containing the regions
 	 * @return
 	 */
-	public void setRegions(String fname, boolean expandedRegion) {
+	public void setRegions(String fname, boolean toExpandRegion) {
 		ArrayList<Region> rset = new ArrayList<Region>();
 		try{
 			File rFile = new File(fname);
@@ -2022,12 +2042,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			e.printStackTrace();
 		}
 
-		if (expandedRegion){			// if regions are from previous round of analysis
-			restrictRegions = mergeRegions(rset, false);
-		}
-		else{							// if regions are from other sources (i.e. StatPeakFinder)
+		if(toExpandRegion)		// if regions are from other sources (i.e. StatPeakFinder) => Expand
 			restrictRegions = mergeRegions(rset, true);
-		}
+			
+		else				    // if regions are from previous round of analysis => do NOT expand							
+			restrictRegions = mergeRegions(rset, false);
 	}
 
 	// merge the overlapped regions
@@ -2059,78 +2078,100 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return mergedRegions;
 	}//end of mergeRegions method
 
-	// get the list of enriched regions directly from data
-	private ArrayList<Region> selectEnrichedRegions(){
+	/**
+	 * Select the regions where the method will run on.    <br>
+	 * It will be either whole genome, chromosome(s) or extended region(s).
+	 * @param focusRegion
+	 * @return
+	 */
+	private ArrayList<Region> selectEnrichedRegions(List<Region> focusRegions){
 		long tic = System.currentTimeMillis();
 		ArrayList<Region> regions = new ArrayList<Region>();
-		for (String chrom: gen.getChromList()){
-			int length = gen.getChromLength(chrom);
-			Region wholeChrom = new Region(gen, chrom, 0, length-1);
-			List<Region> rs = new ArrayList<Region>();
-			List<StrandedBase> allBases = new ArrayList<StrandedBase>();
-			for (Pair<ReadCache, ReadCache> pair: caches){
-				ReadCache ip = pair.car();
-				List<StrandedBase> bases = ip.getUnstrandedBases(wholeChrom);
-				if (bases==null || bases.size()==0){
-					continue;
-				}
-				allBases.addAll(bases); // pool all conditions
+		Map<String, List<Region>> chr_focusReg_pair = new HashMap<String, List<Region>>();
+		
+		if(focusRegions.size() > 0) {
+			for(Region focusRegion:focusRegions) {
+				if(!chr_focusReg_pair.containsKey(focusRegion.getChrom()))
+					chr_focusReg_pair.put(focusRegion.getChrom(), new ArrayList<Region>());
+				chr_focusReg_pair.get(focusRegion.getChrom()).add(focusRegion);
+			}			
+		}
+		else {
+			for (String chrom:gen.getChromList()){
+				Region wholeChrom = new Region(gen, chrom, 0, gen.getChromLength(chrom)-1);
+				chr_focusReg_pair.put(chrom, new ArrayList<Region>());
+				chr_focusReg_pair.get(chrom).add(wholeChrom);
 			}
-			Collections.sort(allBases);
-			int start=0;
-			for (int i=1;i<allBases.size();i++){
-				int distance = allBases.get(i).getCoordinate()-allBases.get(i-1).getCoordinate();
-				if (distance > modelWidth){ // a large enough gap to cut
-					// only select region with read count larger than minimum count
-					float count = 0;
-					for(int m=start;m<=i-1;m++){
-						count += allBases.get(m).getCount();
+		}
+		
+		for(String chrom:chr_focusReg_pair.keySet()) {
+			for(Region focusRegion:chr_focusReg_pair.get(chrom)) {
+				List<Region> rs = new ArrayList<Region>();
+				List<StrandedBase> allBases = new ArrayList<StrandedBase>();
+				for (Pair<ReadCache, ReadCache> pair:caches){
+					ReadCache ip = pair.car();
+					List<StrandedBase> bases = ip.getUnstrandedBases(focusRegion);
+					if (bases==null || bases.size()==0){
+						continue;
 					}
-					if (count >= sparseness){
-						Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(i-1).getCoordinate());
-						rs.add(r);
-					}
-					start = i;
+					allBases.addAll(bases); // pool all conditions
 				}
-			}
-			// check last continuous region
-			float count = 0;
-			for(int m=start;m<allBases.size();m++){
-				count += allBases.get(m).getCount();
-			}
-			if (count>=sparseness){
-				Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(allBases.size()-1).getCoordinate());
-				rs.add(r);
-			}
-
-			// check regions, exclude un-enriched regions based on control counts
-			ArrayList<Region> toRemove = new ArrayList<Region>();
-			for (Region r: rs){
-				if (r.getWidth()<=min_region_width){
-					toRemove.add(r);
-				}
-				// for regions <= 500bp, most likely single event, can be compared to control
-				if (this.controlDataExist)
-					if (r.getWidth()<=modelWidth){
-						boolean enriched = false;
-						for (int c=0;c<numConditions;c++){
-							if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>IP_CTRL_FOLD){
-								enriched = true;
-								break;
-							}
+				Collections.sort(allBases);
+				int start=0;
+				for (int i=1;i<allBases.size();i++){
+					int distance = allBases.get(i).getCoordinate()-allBases.get(i-1).getCoordinate();
+					if (distance > modelWidth){ // a large enough gap to cut
+						// only select region with read count larger than minimum count
+						float count = 0;
+						for(int m=start;m<=i-1;m++){
+							count += allBases.get(m).getCount();
 						}
-						if (!enriched)	// remove this region if it is not enriched in any condition
-							toRemove.add(r);
+						if (count >= sparseness){
+							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(i-1).getCoordinate());
+							rs.add(r);
+						}
+						start = i;
 					}
-			}
-			rs.removeAll(toRemove);
-			if (!rs.isEmpty())
-				regions.addAll(rs);
-		} // each chrom
+				}
+				// check last continuous region
+				float count = 0;
+				for(int m=start;m<allBases.size();m++){
+					count += allBases.get(m).getCount();
+				}
+				if (count>=sparseness){
+					Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(allBases.size()-1).getCoordinate());
+					rs.add(r);
+				}
 
-		log(3, "selectEnrichedRegions(): "+timeElapsed(tic));
+				// check regions, exclude un-enriched regions based on control counts
+				ArrayList<Region> toRemove = new ArrayList<Region>();
+				for (Region r: rs){
+					if (r.getWidth()<=min_region_width){
+						toRemove.add(r);
+					}
+					// for regions <= 500bp, most likely single event, can be compared to control
+					if (this.controlDataExist)
+						if (r.getWidth()<=modelWidth){
+							boolean enriched = false;
+							for (int c=0;c<numConditions;c++){
+								if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>IP_CTRL_FOLD){
+									enriched = true;
+									break;
+								}
+							}
+							if (!enriched)	// remove this region if it is not enriched in any condition
+								toRemove.add(r);
+						}
+				}
+				rs.removeAll(toRemove);
+				if (!rs.isEmpty())
+					regions.addAll(rs);
+			}
+		}
+		
+		log(3, "selectEnrichedRegions(): " + timeElapsed(tic));
 		return regions;
-	}
+	}//end of selectEnrichedRegions method
 
 	/**
 	 * Initializes the components. Spaces them evenly along the region for now.
