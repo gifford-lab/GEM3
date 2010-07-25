@@ -50,7 +50,7 @@ public class FileReadLoader extends ReadLoader{
 		this.maxMismatch=maxMismatch;
 		this.useNonUnique=useNonUnique;
 		files=f;
-		if(format==null){this.format="ELAND";}
+		if(format==null){this.format="BED";}
 		else{this.format=format;}
 		currID = idSeed;
 		
