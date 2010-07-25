@@ -12,6 +12,7 @@ import cern.jet.random.engine.DRand;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.NamedRegion;
+import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Gene;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
@@ -28,6 +29,7 @@ public class SeqEnrichmentByRegion {
 
 	protected DeepSeqExpt signal;
 	protected DeepSeqExpt control;
+	protected int regionExtension = 1000;
 	protected Genome gen=null;
 	protected boolean scanGenesOnly=true;
 	protected boolean annotOverlapOnly=true;
@@ -123,17 +125,18 @@ public class SeqEnrichmentByRegion {
 		testRegions = geneList.iterator();
 		
 		while (testRegions.hasNext()) {
-			Gene currGene = testRegions.next();
-			List<ReadHit> hits = signal.loadHits(currGene);
+			Gene currG = testRegions.next();
+			Region currReg = currG.expand(regionExtension, regionExtension);
+			List<ReadHit> hits = signal.loadHits(currReg);
 			double sigweight = 0, ctrlweight=0;
 			for(ReadHit h : hits){	sigweight+=h.getWeight();}
 			if(!noControl){
-				List<ReadHit> chits = control.loadHits(currGene);
+				List<ReadHit> chits = control.loadHits(currReg);
 				for(ReadHit h : chits){	ctrlweight+=h.getWeight();}
 				ctrlweight*=control.getScalingFactor();
 			}
-			double sigavg = sigweight>0 ? sigweight/(double)currGene.getWidth() : 0;
-			double ctrlavg = ctrlweight>0 ? ctrlweight/(double)currGene.getWidth() : 0;
+			double sigavg = sigweight>0 ? sigweight/(double)currReg.getWidth() : 0;
+			double ctrlavg = ctrlweight>0 ? ctrlweight/(double)currReg.getWidth() : 0;
 			double fold = ctrlweight>0 ? sigweight/ctrlweight : sigweight;
 			double logfold = fold>0 ? Math.log(fold) : 0;
 			double pval = ctrlweight>0 || sigweight>0 ? binomialPValue(ctrlweight, ctrlweight+sigweight) : 0.5;
@@ -141,7 +144,7 @@ public class SeqEnrichmentByRegion {
 				pval=1-pval;
 			
 			SeqEnrichResult r = new SeqEnrichResult();
-			r.g=currGene;
+			r.g=currG;
 			r.sig=sigweight;
 			r.ctrl=ctrlweight;
 			r.fold=fold;
