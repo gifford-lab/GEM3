@@ -192,6 +192,7 @@ public class ChipSeqAnalyzer{
 			System.out.println("\n============================ Round "+round+" ============================");
 			mixture.execute();
 			mixture.printFeatures();
+			mixture.printFilteredFeatures();
 			mixture.printInsignificantFeatures();
 			
 			round++;
@@ -212,6 +213,7 @@ public class ChipSeqAnalyzer{
 		}
 		mixture.printFeatures();
 		mixture.printInsignificantFeatures();
+		mixture.printFilteredFeatures();
 		mixture.closeLogFile();
 		//		mixture.printPeakSequences();
 //		mixture.writeDebugFile();
