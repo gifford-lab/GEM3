@@ -1,7 +1,6 @@
 package edu.mit.csail.cgs.deepseq.discovery;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -20,7 +19,6 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 import cern.jet.random.Poisson;
@@ -35,7 +33,6 @@ import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
-import edu.mit.csail.cgs.ewok.verbs.binding.BindingEventAnalyzer.Size;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSPeakRegion;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -51,7 +48,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private final static boolean LOG_ALL=false;
 
 	// width for smoothing a read (used as a stddev for creating the Gaussian kernel of probability)
-	public final static int READ_KERNEL_ESTIMATOR_WIDTH = 25;
+	public final static int READ_KERNEL_ESTIMATOR_WIDTH = 5;
 	// the range to scan a peak if we know position from EM result
 	protected final static int SCAN_RANGE = 50;
 
@@ -99,6 +96,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private boolean TF_binding = true;
 	private boolean pre_artifact_filter=false;
 	private boolean post_artifact_filter=false;
+	private boolean filter=false;
     private boolean sort_by_location=false;
     private int max_hit_per_bp = -1;
     private double q_value_threshold = 2.0;
@@ -108,6 +106,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private int min_region_width = 50;	//minimum width for select enriched region
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
+    private double fold = 0;
+    private double logkl = 0;
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
     private int third_lambda_region_width  = 10000;
@@ -156,6 +156,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// List of all EM predictions
 	protected ArrayList<ComponentFeature> allFeatures;
 	protected ArrayList<Feature> insignificantFeatures;	// does not pass statistical significance
+	protected ArrayList<Feature> filteredFeatures;	// filtered artifacts (bad shape or low fold enrichment)
 	protected List<Feature>[] condSignalFeats; //Signal channel features in each condition
 
 	//Regions to be evaluated by EM, estimated whole genome, or specified by a file
@@ -267,6 +268,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	// Optional input parameter
     	q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
+    	fold = Args.parseDouble(args, "fold", 4.0); // minimum fold enrichment IP/Control for filtering
+    	logkl = Args.parseDouble(args, "logkl", 2.5); // maximum logkl value for filtering
     	alpha_factor = Args.parseDouble(args, "af", 3.0); // denominator in calculating alpha value
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
     	top_event_percentile = Args.parseInteger(args, "top_event_percentile", 50);
@@ -284,6 +287,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	needToCleanBases = flags.contains("bf");	// base filtering (using max_hit_per_bp)
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
+    	filter = flags.contains("filter");
     	development_mode = flags.contains("dev");
     	sort_by_location = flags.contains("sl");
     	// default as true, need the opposite flag to turn it off
@@ -1341,26 +1345,44 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		allFeatures = compFeatures;
 
 		insignificantFeatures = new ArrayList<Feature>();
+		filteredFeatures = new ArrayList<Feature>();
 		for (ComponentFeature cf: compFeatures){
 			boolean significant = false;
 			// for multi-condition, at least be significant in one condition
 			// The read count test is for each condition
 			if (TF_binding)
-				for (int cond=0; cond<conditionNames.size(); cond++){
+				for (int cond=0; cond<numConditions; cond++){
 					if(cf.getQValueLog10(cond)>q_value_threshold &&
-							cf.getEventReadCounts(cond)>sparseness)
+							cf.getEventReadCounts(cond)>sparseness){
 						significant = true;
+					}
 				}
 			else	// if not TF binding, it is Chromatin data, keep all components
 				significant = true;
+			
 
-			if (significant)
-				signalFeatures.add(cf);
+			boolean notFiltered = false;
+			for (int cond=0; cond<numConditions; cond++){
+				// if one condition is good event, this position is GOOD
+				// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
+				if (cf.getLogKL(cond).car()<=logkl && (cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond)>=fold)){
+					notFiltered = true;
+				}
+			}
+
+			if (significant){
+				if (notFiltered)
+					signalFeatures.add(cf);
+				else
+					filteredFeatures.add(cf);
+			}
 			else
 				insignificantFeatures.add(cf);
 		}
 
-		log(1, "Significant events: "+signalFeatures.size()+"\tInsignificant: "+insignificantFeatures.size()+"\n");
+		log(1, "Significant: "+signalFeatures.size()+
+				"\tInsignificant: "+insignificantFeatures.size()+
+				"\tFiltered: "+filteredFeatures.size()+"\n");
 	}
 
 
@@ -2660,8 +2682,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 					}
 					comp.setControlReadCounts(total, c);
-					double logKL_plus  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
-					double logKL_minus = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
+//					double logKL_plus  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
+//					double logKL_minus = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
+					double logKL_plus  = logKL_profile(profile_plus);
+					double logKL_minus = logKL_profile(profile_minus);
 					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
@@ -2683,12 +2707,33 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		double[] logKL_plus = new double[numConditions];
 		double[] logKL_minus = new double[numConditions];
 		for (int c=0;c<numConditions;c++){
-			logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
-			logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
+//			logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
+//			logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
+			logKL_plus[c]  = logKL_profile(b.getReadProfile_plus(c));
+			logKL_minus[c] = logKL_profile(b.getReadProfile_minus(c));
 		}
 		cf.setProfileLogKL(logKL_plus, logKL_minus);
 
 		return cf;
+	}
+	/*
+	 * Calculate logKL for read profile around an event
+	 * Dynamically determin Gaussian Width based on the event read counts
+	 */
+	private double logKL_profile(double[]profile){
+		double sum = 0.0;
+		for(int n = 0; n < profile.length; n++) { 
+			sum += profile[n]; 
+		}
+		if (sum<=1){
+			return 3;	// a value of large logKL
+		}
+		double width = 40/(Math.log(sum)+0.5);	// just some empirical formula, not special theory here
+		double[] gaus = new double[modelWidth];
+		NormalDistribution gaussianDist = new NormalDistribution(0, width*width);
+		for (int i=0;i<gaus.length;i++)
+			gaus[i]=gaussianDist.calcProbability((double)i);
+		return StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile, gaus));
 	}
 
 	private ArrayList<BindingComponent> postArtifactFilter(ArrayList<BindingComponent> comps){
@@ -3656,7 +3701,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// fs is sorted by location by default
 		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
 		for(Feature f : signalFeatures){
-			fs.add((ComponentFeature)f);
+			ComponentFeature cf = (ComponentFeature)f;
+			fs.add(cf);
 		}
 		//for single condition, sort by p-value
 		if (!sort_by_location && this.numConditions==1){
@@ -3689,7 +3735,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		String fname = outName+"_Insignificant_events.txt";
 		printFeatures(fname, fs);
 	}
-
+	
+	public void printFilteredFeatures(){
+		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
+		for(Feature f : filteredFeatures){
+			fs.add((ComponentFeature)f);
+		}
+		String fname = outName+"_Filtered_events.txt";
+		printFeatures(fname, fs);
+	}
+	
 	public void printPsortedCondFeatures(){
 		for(int c = 0; c < numConditions; c++) {
 			ComponentFeature.setSortingCondition(c);

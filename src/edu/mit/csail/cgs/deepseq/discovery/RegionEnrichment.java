@@ -69,9 +69,9 @@ public class RegionEnrichment extends SingleConditionFeatureFinder {
 		geneMeasurements = new ArrayList<EnrichedNamedRegion>();
 		
 		double ipTot = signal.getWeightTotal();
-        double ctrlTot = noControl ? 1 : control.getWeightTotal(); // set to 1 if no background so the binomial test doesn't return NaN        
+		double ctrlTot = noControl ? 1 : control.getWeightTotal(); // set to 1 if no background so the binomial test doesn't return NaN        
 		
-        while (testRegions.hasNext()) {
+		while (testRegions.hasNext()) {
 			NamedRegion currReg = testRegions.next();
 		
 			double ipW = signal.sumWeights(currReg);
@@ -81,7 +81,7 @@ public class RegionEnrichment extends SingleConditionFeatureFinder {
 			double ipFPKM = ((ipW/ipTot)*1000000)/((double)currReg.getWidth()/1000);
 			double ctrlFPKM = noControl ? 0 : (ctrlW/(ctrlTot*control.getScalingFactor())*1000000)/((double)currReg.getWidth()/1000);
 			
-			double pval = binomialPValue(ctrlW, ipW+ctrlW);
+			double pval = (ipW+ctrlW)>0 ? binomialPValue(ctrlW, ipW+ctrlW) : 1.0;
 			
 			EnrichedNamedRegion currRes = new EnrichedNamedRegion(currReg, ipW, ctrlW, ipFPKM, ctrlFPKM, pval, over);
 			
@@ -124,6 +124,7 @@ public class RegionEnrichment extends SingleConditionFeatureFinder {
 	
 	public static void main(String[] args){
 		RegionEnrichment re = new RegionEnrichment(args);
+		re.scanOnlyGenes(true);
 		List<Feature> res = re.execute();
 		re.printFeatures();
 	}
