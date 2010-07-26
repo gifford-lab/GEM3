@@ -23,7 +23,7 @@ import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
-public class GPS_ReadlDistribution {
+public class GPS_ReadDistribution {
 	static final int MOTIF_DISTANCE = 50;	
 	
 	private Genome genome;
@@ -44,11 +44,11 @@ public class GPS_ReadlDistribution {
 	private String name = null;
 	
 	public static void main(String[] args) {
-		GPS_ReadlDistribution analysis = new GPS_ReadlDistribution(args);
+		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
 		analysis.printEmpiricalDistribution(analysis.points);;
 	}
 	
-	public GPS_ReadlDistribution(String[] args) {
+	public GPS_ReadDistribution(String[] args) {
 		ArgParser ap = new ArgParser(args);
 		
 		try {
