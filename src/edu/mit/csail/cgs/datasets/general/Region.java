@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.LinkedList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -712,6 +713,10 @@ public class Region implements Comparable<Region>, Saveable {
     }
     return Integer.parseInt(s);
   }
+  
+  public static boolean[] overlap(List<Region> sourceRegions, List<Region> targetRegions) {
+	  return overlap(sourceRegions.toArray(new Region[0]), targetRegions.toArray(new Region[0]));
+  }//end of overlap method
   
   /**
    * This method finds all possible overlaps between <tt>N source</tt> and <tt>M target</tt>
