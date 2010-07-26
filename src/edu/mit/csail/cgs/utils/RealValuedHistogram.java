@@ -150,7 +150,7 @@ public class RealValuedHistogram {
     
     public void printContents(){
     	for(int i = 0; i < bins.length; i++) { 
-            System.out.println(String.format("%d\t%f", i, bins[i]));
+            System.out.println(String.format("%f\t%f", start+((double)i*binWidth), bins[i]));
         }
     }
 }
