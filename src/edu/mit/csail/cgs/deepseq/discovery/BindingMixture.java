@@ -277,6 +277,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	needle_hitCount_fraction = Args.parseDouble(args, "needle_hitCount_fraction", 0.1);
     	window_size_factor = Args.parseInteger(args, "wsf", 3);
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
+    	second_lambda_region_width = Args.parseInteger(args, "w2", 5000);
+    	third_lambda_region_width = Args.parseInteger(args, "w3", 10000);
+    	
+    	if(second_lambda_region_width < first_lambda_region_width) {
+    		System.err.println("\nThe first control region width (w2) has to be more than " + first_lambda_region_width + " bp.");
+    		System.exit(-1);
+    	}
+    	
+    	if(third_lambda_region_width < second_lambda_region_width) {
+    		System.err.println("\nThe second control region width (w3) has to be more than " + second_lambda_region_width + " bp.");
+    		System.exit(-1);
+    	}
     	
     	// flags
     	Set<String> flags = Args.parseFlags(args);
