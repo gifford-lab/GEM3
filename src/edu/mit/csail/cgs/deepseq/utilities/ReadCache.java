@@ -290,6 +290,20 @@ public class ReadCache {
 		}	
 	}//end of generateStats method
 	
+	/**
+	 * This method renormalizes the counts of this channel 
+	 * by multiplying with a constant factor.
+	 * @param factor
+	 */
+	public void normalizeCounts(double factor) {
+		for(int i = 0; i < hitCounts.length; i++)
+			for(int j = 0; j < hitCounts[i].length; j++)
+				for(int k = 0; k < hitCounts[i][j].length; k++)
+					hitCounts[i][j][k] *= factor;
+					
+		generateStats();
+	}//end of normalizeCounts method
+	
 	public void filterBaseBias(int maxPerBP){
 	}
 	

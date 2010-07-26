@@ -152,7 +152,7 @@ public class EnrichedNamedRegion extends Feature implements Comparable<EnrichedN
 	 * the output of EnrichedFeature.toString().
 	 */
 	public String headString(){
-		return new String("Region\tWidth\tPeak\tPeakOffset\tMaxSigHits\tMaxBackHits\tScore\tTotalSigHits\tTotalBackHits\tOverRep\tClosestGene\tTSSDist\tOtherAnnotations\n");
+		return new String("Name\tRegion\tWidth\tP-value\tSignalHits\tBackHits\tOverRep\tSignalFPKM\tBackFPKM\n");
 	}
 	
 	

@@ -24,9 +24,9 @@ public class StrandedBase implements Comparable<StrandedBase>{
 	private float count;
 	
 	public StrandedBase(char strand, int coord, float count){
+		this.setStrand(strand);
 		this.setCoordinate(coord);
 		this.setCount(count);
-		this.setStrand(strand);
 	}
 
 	public void setStrand(char strand) {

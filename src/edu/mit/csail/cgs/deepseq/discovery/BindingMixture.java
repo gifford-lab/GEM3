@@ -277,6 +277,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	needle_hitCount_fraction = Args.parseDouble(args, "needle_hitCount_fraction", 0.1);
     	window_size_factor = Args.parseInteger(args, "wsf", 3);
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
+    	second_lambda_region_width = Args.parseInteger(args, "w2", 5000);
+    	third_lambda_region_width = Args.parseInteger(args, "w3", 10000);
+    	
+    	if(second_lambda_region_width < first_lambda_region_width) {
+    		System.err.println("\nThe first control region width (w2) has to be more than " + first_lambda_region_width + " bp.");
+    		System.exit(-1);
+    	}
+    	
+    	if(third_lambda_region_width < second_lambda_region_width) {
+    		System.err.println("\nThe second control region width (w3) has to be more than " + second_lambda_region_width + " bp.");
+    		System.exit(-1);
+    	}
     	
     	// flags
     	Set<String> flags = Args.parseFlags(args);
@@ -333,22 +345,34 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         }
      	else if (focus!=null && Args.parseString(args, "focs", null) != null) {
      		String COMPLETE_REGION_REG_EX = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
+     		String CHROMOSOME_REG_EX = "^\\s*([\\w\\d]+)\\s*$";
      		String[] reg_toks = focus.split("\\s");
      		for(String regionStr:reg_toks) {
+     			
      			// Region already presented in the form x:xxxx-xxxxx
      			if(regionStr.matches(COMPLETE_REGION_REG_EX)) {
      				focusRegions.add(Region.fromString(gen, regionStr));
      			}
+     			
      			// Check if it is about a whole chromosome
-     			else {
-     	     		for(String chrom:gen.getChromList()) {
-     	     			if(regionStr.equalsIgnoreCase(chrom)) {
-     	     				focusRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
-     	     				break;
-     	     			}
-     	     		}
+     			else if(regionStr.matches(CHROMOSOME_REG_EX)) {
+     				regionStr = regionStr.replaceFirst("^chromosome", "");
+     				regionStr = regionStr.replaceFirst("^chrom", "");
+     				regionStr = regionStr.replaceFirst("^chr", "");
+     					
+         	     		for(String chrom:gen.getChromList()) {
+         	     			String chromNumber = chrom;
+         	     			chromNumber = chromNumber.replaceFirst("^chromosome", "");
+         	     			chromNumber = chromNumber.replaceFirst("^chrom", "");
+         	     			chromNumber = chromNumber.replaceFirst("^chr", "");
+
+         	     			if(regionStr.equalsIgnoreCase(chromNumber)) {
+         	     				focusRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
+         	     				break;
+         	     			}
+         	     		}
      			}
-     		}
+     		}//end of for(String regionStr:reg_toks) LOOP
      	}
 
 		/* ***************************************************
@@ -462,6 +486,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 			System.out.println("Finish loading data from ReadDB, " + timeElapsed(tic));
 		}
+		
+		// Normalize experiments based on the averaged total counts
+		normExpts(caches);
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
 
@@ -1333,7 +1360,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * If a control is used, the current method is used. Otherwise, MACS proposed method is used.
 	 * @param compFeatures
 	 */
-	private void postEMProcessing(ArrayList<ComponentFeature> compFeatures){
+	private void postEMProcessing(ArrayList<ComponentFeature> compFeatures) {
 		// use the refined regions to count non-specific reads
 		countNonSpecificReads(compFeatures);
 
@@ -1383,7 +1410,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		log(1, "Significant: "+signalFeatures.size()+
 				"\tInsignificant: "+insignificantFeatures.size()+
 				"\tFiltered: "+filteredFeatures.size()+"\n");
-	}
+	}//end of postEMProcessing
 
 
 	/**
@@ -2987,7 +3014,38 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return maxComp;
 	}//end of scanPeak method
 
+	/**
+	 * This method normalizes experiments as follows:							<br>
+	 * It takes the total counts across all conditions for a channel and then evaluates
+	 * the average of the total counts (which is the total counts divided by the number of conditions).	<br>
+	 * Lastly, it scales all conditions to have the same counts as the aveaged total counts.
+	 * @param caches
+	 */
+	private void normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches) {
+		double totIPCounts   = 0.0;
+		double totCtrlCounts = 0.0;
+		int C = caches.size();   // # conds
+		for(int t = 0; t < C; t++) {
+			ReadCache ipCache = caches.get(t).car();
+			totIPCounts += ipCache.getHitCount();
+			if(controlDataExist) {
+				ReadCache ctrlCache = caches.get(t).cdr();
+				totCtrlCounts += ctrlCache.getHitCount();
+			}
+		}
 
+		for(int t = 0; t < C; t++) {
+			ReadCache ipCache   = caches.get(t).car();
+			double IPNormFactor = (totIPCounts/C)/ipCache.getHitCount();
+			ipCache.normalizeCounts(IPNormFactor);
+			if(controlDataExist) {
+				ReadCache ctrlCache = caches.get(t).cdr();
+				double CtrlNormFactor = (totCtrlCounts/C)/ctrlCache.getHitCount();
+				ctrlCache.normalizeCounts(CtrlNormFactor);
+			}
+		}
+	}//end of normExpts method
+	
 	public double updateBindingModel(int left, int right){
 		if (signalFeatures.size()==0)
 			return -100;
@@ -3110,7 +3168,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	// evaluate confidence of each called events
 	// calculate p-value from binomial distribution, and peak shape parameter
-	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures){
+	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures) {
 		if(controlDataExist) {
 			for (ComponentFeature cf: compFeatures){
 				for(int cond=0; cond<caches.size(); cond++){
@@ -3199,7 +3257,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		// calculate q-values, correction for multiple testing
 		benjaminiHochbergCorrection(compFeatures);
-	}
+	}//end of evaluateConfidence method
 
 	//Multiple hypothesis testing correction
 	// -- assumes peaks ordered according to p-value
@@ -3578,7 +3636,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			local_lambda = Math.max(lambda_bg, Math.max(second_lambda_ip, Math.max(third_lambda_ip, Math.max(second_lambda_ctrl, third_lambda_ctrl))));
 
 		Poisson poisson = new Poisson(local_lambda, new DRand());
-		pVal = 1 - poisson.cdf((int)num_peak_ip);
+		pVal = 1 - poisson.cdf((int)num_peak_ip);			
 		return pVal;
 	}//end of evalFeatureSignificance method
 
