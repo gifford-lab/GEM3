@@ -133,8 +133,8 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
 	            String[] words = line.split("\\s+");
 	            if(words.length>=2){
 	            	String chr = words[0].replaceFirst("^chromosome", "");
-	            	chr = words[0].replaceFirst("^chrom", "");
-	            	chr = words[0].replaceFirst("^chr", "");
+	            	chr = chr.replaceFirst("^chrom", "");
+	            	chr = chr.replaceFirst("^chr", "");
 	            	ChromosomeInfo info = new ChromosomeInfo(-(id+1), Integer.parseInt(words[1]), chr);
 	            	chroms.put(info.getName(), info);
 	            	revchroms.put(info.dbid, info);
