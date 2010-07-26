@@ -411,6 +411,13 @@ public class MethodComparisonMotifAnalysis {
         	if (name.contains("FindPeaks")){
 				peakPoints = loadCgsPointFile(filePath);
         	}  
+        	if (name.contains("spp_wtd")){
+				peakPoints = loadCgsPointFile(filePath);
+        	}  
+           	if (name.contains("spp_mtc")){
+				peakPoints = loadCgsPointFile(filePath);
+        	}  
+
         	peaks.add(peakPoints);
         }
 	}
