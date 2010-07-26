@@ -344,22 +344,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
      			
      			// Check if it is about a whole chromosome
      			else if(regionStr.matches(CHROMOSOME_REG_EX)) {
-     				if(regionStr.startsWith("chromosome"))
-     					regionStr = regionStr.substring(regionStr.indexOf("chromosome") + 1);
-     				else if(regionStr.startsWith("chrom"))
-     					regionStr = regionStr.substring(regionStr.indexOf("chrom") + 1);
-     				else if(regionStr.startsWith("chr"))
-     					regionStr = regionStr.substring(regionStr.indexOf("chr") + 1);
+     				regionStr = regionStr.replaceFirst("^chromosome", "");
+     				regionStr = regionStr.replaceFirst("^chrom", "");
+     				regionStr = regionStr.replaceFirst("^chr", "");
      					
          	     		for(String chrom:gen.getChromList()) {
          	     			String chromNumber = chrom;
-         	     			if(chromNumber.startsWith("chromosome"))
-             					chromNumber = chromNumber.substring(chromNumber.indexOf("chromosome") + 1);
-             				else if(chromNumber.startsWith("chrom"))
-             					chromNumber = chromNumber.substring(chromNumber.indexOf("chrom") + 1);
-             				else if(chromNumber.startsWith("chr"))
-             					chromNumber = chromNumber.substring(chromNumber.indexOf("chr") + 1);
-         	     			
+         	     			chromNumber = chromNumber.replaceFirst("^chromosome", "");
+         	     			chromNumber = chromNumber.replaceFirst("^chrom", "");
+         	     			chromNumber = chromNumber.replaceFirst("^chr", "");
+
          	     			if(regionStr.equalsIgnoreCase(chromNumber)) {
          	     				focusRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
          	     				break;
