@@ -475,7 +475,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			System.out.println("Finish loading data from ReadDB, " + timeElapsed(tic));
 		}
 		
-		normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches);
+		// Normalize experiments based on the averaged total counts
+		normExpts(caches);
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
 
@@ -1347,7 +1348,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * If a control is used, the current method is used. Otherwise, MACS proposed method is used.
 	 * @param compFeatures
 	 */
-	private void postEMProcessing(ArrayList<ComponentFeature> compFeatures){
+	private void postEMProcessing(ArrayList<ComponentFeature> compFeatures) {
 		// use the refined regions to count non-specific reads
 		countNonSpecificReads(compFeatures);
 
@@ -1397,7 +1398,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		log(1, "Significant: "+signalFeatures.size()+
 				"\tInsignificant: "+insignificantFeatures.size()+
 				"\tFiltered: "+filteredFeatures.size()+"\n");
-	}
+	}//end of postEMProcessing
 
 
 	/**
@@ -3155,7 +3156,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	// evaluate confidence of each called events
 	// calculate p-value from binomial distribution, and peak shape parameter
-	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures){
+	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures) {
 		if(controlDataExist) {
 			for (ComponentFeature cf: compFeatures){
 				for(int cond=0; cond<caches.size(); cond++){
@@ -3244,7 +3245,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		// calculate q-values, correction for multiple testing
 		benjaminiHochbergCorrection(compFeatures);
-	}
+	}//end of evaluateConfidence method
 
 	//Multiple hypothesis testing correction
 	// -- assumes peaks ordered according to p-value
@@ -3623,7 +3624,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			local_lambda = Math.max(lambda_bg, Math.max(second_lambda_ip, Math.max(third_lambda_ip, Math.max(second_lambda_ctrl, third_lambda_ctrl))));
 
 		Poisson poisson = new Poisson(local_lambda, new DRand());
-		pVal = 1 - poisson.cdf((int)num_peak_ip);
+		pVal = 1 - poisson.cdf((int)num_peak_ip);			
 		return pVal;
 	}//end of evalFeatureSignificance method
 
