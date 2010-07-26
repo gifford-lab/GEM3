@@ -474,6 +474,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 			System.out.println("Finish loading data from ReadDB, " + timeElapsed(tic));
 		}
+		
+		normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches);
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
 
@@ -2999,7 +3001,38 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return maxComp;
 	}//end of scanPeak method
 
+	/**
+	 * This method normalizes experiments as follows:							<br>
+	 * It takes the total counts across all conditions for a channel and then evaluates
+	 * the average of the total counts (which is the total counts divided by the number of conditions).	<br>
+	 * Lastly, it scales all conditions to have the same counts as the aveaged total counts.
+	 * @param caches
+	 */
+	private void normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches) {
+		double totIPCounts   = 0.0;
+		double totCtrlCounts = 0.0;
+		int C = caches.size();   // # conds
+		for(int t = 0; t < C; t++) {
+			ReadCache ipCache = caches.get(t).car();
+			totIPCounts += ipCache.getHitCount();
+			if(controlDataExist) {
+				ReadCache ctrlCache = caches.get(t).cdr();
+				totCtrlCounts += ctrlCache.getHitCount();
+			}
+		}
 
+		for(int t = 0; t < C; t++) {
+			ReadCache ipCache   = caches.get(t).car();
+			double IPNormFactor = (totIPCounts/C)/ipCache.getHitCount();
+			ipCache.normalizeCounts(IPNormFactor);
+			if(controlDataExist) {
+				ReadCache ctrlCache = caches.get(t).cdr();
+				double CtrlNormFactor = (totCtrlCounts/C)/ctrlCache.getHitCount();
+				ctrlCache.normalizeCounts(CtrlNormFactor);
+			}
+		}
+	}//end of normExpts method
+	
 	public double updateBindingModel(int left, int right){
 		if (signalFeatures.size()==0)
 			return -100;
