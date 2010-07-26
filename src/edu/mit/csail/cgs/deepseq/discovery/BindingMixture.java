@@ -333,22 +333,40 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         }
      	else if (focus!=null && Args.parseString(args, "focs", null) != null) {
      		String COMPLETE_REGION_REG_EX = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
+     		String CHROMOSOME_REG_EX = "^\\s*([\\w\\d]+)\\s*$";
      		String[] reg_toks = focus.split("\\s");
      		for(String regionStr:reg_toks) {
+     			
      			// Region already presented in the form x:xxxx-xxxxx
      			if(regionStr.matches(COMPLETE_REGION_REG_EX)) {
      				focusRegions.add(Region.fromString(gen, regionStr));
      			}
+     			
      			// Check if it is about a whole chromosome
-     			else {
-     	     		for(String chrom:gen.getChromList()) {
-     	     			if(regionStr.equalsIgnoreCase(chrom)) {
-     	     				focusRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
-     	     				break;
-     	     			}
-     	     		}
+     			else if(regionStr.matches(CHROMOSOME_REG_EX)) {
+     				if(regionStr.startsWith("chromosome"))
+     					regionStr = regionStr.substring(regionStr.indexOf("chromosome") + 1);
+     				else if(regionStr.startsWith("chrom"))
+     					regionStr = regionStr.substring(regionStr.indexOf("chrom") + 1);
+     				else if(regionStr.startsWith("chr"))
+     					regionStr = regionStr.substring(regionStr.indexOf("chr") + 1);
+     					
+         	     		for(String chrom:gen.getChromList()) {
+         	     			String chromNumber = chrom;
+         	     			if(chromNumber.startsWith("chromosome"))
+             					chromNumber = chromNumber.substring(chromNumber.indexOf("chromosome") + 1);
+             				else if(chromNumber.startsWith("chrom"))
+             					chromNumber = chromNumber.substring(chromNumber.indexOf("chrom") + 1);
+             				else if(chromNumber.startsWith("chr"))
+             					chromNumber = chromNumber.substring(chromNumber.indexOf("chr") + 1);
+         	     			
+         	     			if(regionStr.equalsIgnoreCase(chromNumber)) {
+         	     				focusRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
+         	     				break;
+         	     			}
+         	     		}
      			}
-     		}
+     		}//end of for(String regionStr:reg_toks) LOOP
      	}
 
 		/* ***************************************************
