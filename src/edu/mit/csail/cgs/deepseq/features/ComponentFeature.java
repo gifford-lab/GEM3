@@ -94,30 +94,11 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public double get_mfold() { return mfold; }
 	public void set_mfold(double mf) { mfold = mf; }
 	
-//	public double getReadProfile(int cond, int index, char strand){
-//		double result=0;
-//		if (strand=='+')
-//			result=readProfile_plus[cond][index];
-//		else if (strand=='-')
-//			result=readProfile_minus[cond][index];
-//		return result;
-//	}
-//	public void calc_logKL_Divergence(double[] model, double[]smootherKernel){
-//		logKL_plus = new double[numConditions];
-//		logKL_minus = new double[numConditions];
-//		for(int c=0; c<numConditions; c++){
-//			logKL_plus[c] = StatUtil.log_KL_Divergence(model, StatUtil.symmetricKernelSmoother(readProfile_plus[c],smootherKernel));
-//			logKL_minus[c] = StatUtil.log_KL_Divergence(model, StatUtil.symmetricKernelSmoother(readProfile_minus[c],smootherKernel));
-//		}
-//	}
 	public void setProfileLogKL(double[] logKL_plus, double[] logKL_minus){
 		this.logKL_plus = logKL_plus;
 		this.logKL_minus = logKL_minus;
 	}
-//	public void clearReadProfiles(){
-//		readProfile_plus = null;
-//		readProfile_minus = null;
-//	}
+
 	public void setCtrlProfileLogKL(int cond, double logKL_plus, double logKL_minus){
 		logKL_ctrl_plus[cond] = logKL_plus;
 		logKL_ctrl_minus[cond] = logKL_minus;
