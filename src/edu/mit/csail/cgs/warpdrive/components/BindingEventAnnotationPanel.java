@@ -360,7 +360,9 @@ public class BindingEventAnnotationPanel extends JPanel implements RegionList {
         progressFrame.setVisible(true);
         progressFrame.pack();
 
+        System.err.println("Calling get annotations");
         BindingEventAnnotations annotations = getAnnotations(bar);
+        System.err.println("getting rid of progress bar");
         progressFrame.dispose();
         System.err.println("Annotating " + annotations.getNumItems());
         HashSet targets = new HashSet();
