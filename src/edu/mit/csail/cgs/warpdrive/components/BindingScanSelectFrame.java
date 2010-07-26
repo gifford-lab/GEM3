@@ -134,7 +134,10 @@ public class BindingScanSelectFrame extends JFrame implements ActionListener {
                     }
                     for (ChipSeqAnalysis analysis : analyses) {
                         for (ChipSeqAnalysisResult r : analysis.getResults(genome, chrom)) {
-                                list.addRegion(r);
+                            list.addRegion(new BindingEvent(r,
+                                                            r.foldEnrichment,
+                                                            r.pvalue,
+                                                            analysis.getProgramName()));
                         }
                     }
                 }                               
