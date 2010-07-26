@@ -288,7 +288,7 @@ public class Args {
             }
         }
         if(speciesname==null && genomename==null){
-        	System.err.println("Warning: genome unspecified");return null;
+        	return null;
         }
         Organism org = new Organism(speciesname);
         Genome genome = org.getGenome(genomename);
