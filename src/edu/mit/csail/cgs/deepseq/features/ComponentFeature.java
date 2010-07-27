@@ -307,9 +307,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null)
-        		result.append(String.format("%.1f\t", getScaledControlCounts(c)));
+        		result.append(String.format("%.1f\t", getScaledControlCounts(c)))
+        			  .append(String.format("%.1f\t", getEventReadCounts(c)/getScaledControlCounts(c)));
         	else
-        		result.append("NA\t");
+        		result.append("NA\t").append("NA\t");
         
         	result.append(String.format("%.2f\t", getQValueLog10(c)));
         	
@@ -390,6 +391,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IpStrength\t");
         	}
         	header.append(name+"CtrlStrength\t")
+        		  .append(name+"Fold\t")
         	      .append(name+"Q_value_log10\t")
   	      		  .append(name+"P_value_log10\t");
         }
