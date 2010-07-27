@@ -274,7 +274,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	// Optional input parameter
     	q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
-    	fold = Args.parseDouble(args, "fold", 4.0); // minimum fold enrichment IP/Control for filtering
+    	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
     	logkl = Args.parseDouble(args, "logkl", 2.5); // maximum logkl value for filtering
     	alpha_factor = Args.parseDouble(args, "af", 3.0); // denominator in calculating alpha value
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
@@ -1341,8 +1341,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// use the refined regions to count non-specific reads
 //		countNonSpecificReads(compFeatures);
 
-		if(controlDataExist)
+		if(controlDataExist){
 			ratio_non_specific_total = calcSlopes(compFeatures, pcr, numConditions);
+			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
+			for (int c=0;c<numConditions;c++){
+				System.out.println(String.format("Scaling %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+			}
+			System.out.println();
+		}			
 		
 		// calculate p-values with or without control
 		evaluateConfidence(compFeatures);
@@ -2691,8 +2697,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					comp.setControlReadCounts(total, c);
 //					double logKL_plus  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
 //					double logKL_minus = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
-					double logKL_plus  = logKL_profile(profile_plus);
-					double logKL_minus = logKL_profile(profile_minus);
+
+					double width;
+					if (total>6){
+						width = 50/Math.log(total);	// just some empirical formula, no special theory here
+					}
+					else{
+						width=28;
+					}
+					double logKL_plus  = logKL_profile(profile_plus, width);
+					double logKL_minus = logKL_profile(profile_minus, width);
 					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
@@ -2711,8 +2725,21 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		for (int c=0;c<numConditions;c++){
 //			logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
 //			logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
-			logKL_plus[c]  = logKL_profile(b.getReadProfile_plus(c));
-			logKL_minus[c] = logKL_profile(b.getReadProfile_minus(c));
+			double count = 0.0;
+			double[] profile_plus = b.getReadProfile_plus(c);
+			double[] profile_minus = b.getReadProfile_minus(c);
+			for(int n = 0; n < profile_plus.length; n++) { 
+				count += profile_plus[n]+profile_minus[n]; 
+			}
+			double width;
+			if (count>6){
+				width = 50/Math.log(count);	// just some empirical formula, no special theory here
+			}
+			else{
+				width=28;
+			}
+			logKL_plus[c]  = logKL_profile(profile_plus, width);
+			logKL_minus[c] = logKL_profile(profile_minus, width);
 		}
 		cf.setProfileLogKL(logKL_plus, logKL_minus);
 
@@ -2722,15 +2749,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * Calculate logKL for read profile around an event
 	 * Dynamically determin Gaussian Width based on the event read counts
 	 */
-	private double logKL_profile(double[]profile){
-		double sum = 0.0;
-		for(int n = 0; n < profile.length; n++) { 
-			sum += profile[n]; 
-		}
-		if (sum<=1){
-			return 3;	// a value of large logKL
-		}
-		double width = 40/(Math.log(sum)+0.5);	// just some empirical formula, not special theory here
+	private double logKL_profile(double[]profile, double width){
 		double[] gaus = new double[modelWidth];
 		NormalDistribution gaussianDist = new NormalDistribution(0, width*width);
 		for (int i=0;i<gaus.length;i++)
@@ -3062,6 +3081,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				int start = 0;
 				int prev_reg_idx = 0;
 				int curr_reg_idx = 0;
+
 				while(start < chromLen) {
 					Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
 					
@@ -3075,7 +3095,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
 					}
 					start += non_specific_reg_len;
-				}
+				}	
 				
 				// Estimate the (ipCount, ctrlCount) pairs 
 				for(Region r:chrom_non_specific_regs) {
