@@ -3081,7 +3081,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				int start = 0;
 				int prev_reg_idx = 0;
 				int curr_reg_idx = 0;
-
 				while(start < chromLen) {
 					Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
 					
