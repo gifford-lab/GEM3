@@ -177,7 +177,7 @@ public class ChipSeqAnalyzer{
 			}
         	ex.printStackTrace();
         }
-	}
+	}//end of ChipSeqAnalyzer constructor
 	
 	public void runMixtureModel(){
 		
