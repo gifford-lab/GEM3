@@ -3069,13 +3069,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						chrom_non_specific_regs.add(non_specific_reg);
 					}
 					else {
-						while(non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))
+						while(curr_reg_idx < chr_cand_regs.size() && non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))
 							curr_reg_idx++; 
 						curr_reg_idx = Math.min(chr_cand_regs.size()-1, curr_reg_idx);
 						prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
-						
 					}
-				
 					start += non_specific_reg_len;
 				}
 				
@@ -3096,7 +3094,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end of calcSlopes method
 	
 	private double calcSlope(List<PairedCountData> scalePairs) {
-		double slope = 0.0;
+		double slope;
         if(scalePairs==null || scalePairs.size()==0) { return 1.0; }
         DataFrame df = new DataFrame(edu.mit.csail.cgs.deepseq.PairedCountData.class, scalePairs.iterator());
         DataRegression r = new DataRegression(df, "x~y - 1");
