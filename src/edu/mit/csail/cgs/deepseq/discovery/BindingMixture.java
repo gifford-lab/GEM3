@@ -3070,11 +3070,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				List<Region> chrom_non_specific_regs = new ArrayList<Region>();
 				int chromLen = gen.getChromLength(chrom);
 				// Get the candidate (enriched) regions of this chrom sorted by location
-				List<Region> chr_cand_regs = new ArrayList<Region>();
+				List<Region> chr_enriched_regs = new ArrayList<Region>();
 				if(chrom_comp_pair.containsKey(chrom)) {
 					for(Integer idx:chrom_comp_pair.get(chrom))
-						chr_cand_regs.add(compFeatures.get(idx).getPosition().expand(modelRange));
-					Collections.sort(chr_cand_regs);
+						chr_enriched_regs.add(compFeatures.get(idx).getPosition().expand(modelRange));
+					Collections.sort(chr_enriched_regs);
 				}
 				
 				// Get the non specific regions and check for overlapping with the candidate (enriched) regions
@@ -3084,16 +3084,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				while(start < chromLen) {
 					Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
 					
-					if(chr_cand_regs.size() > 0) {
-						if(!(non_specific_reg.overlaps(chr_cand_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))) {
+					if(chr_enriched_regs.size() > 0) {
+						if(!(non_specific_reg.overlaps(chr_enriched_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_enriched_regs.get(curr_reg_idx)))) {
 							chrom_non_specific_regs.add(non_specific_reg);
 						}
 						else {
-							while(curr_reg_idx < chr_cand_regs.size() && non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))
+							while(curr_reg_idx < chr_enriched_regs.size() && non_specific_reg.overlaps(chr_enriched_regs.get(curr_reg_idx)))
 								curr_reg_idx++; 
-							curr_reg_idx = Math.min(chr_cand_regs.size()-1, curr_reg_idx);
+							curr_reg_idx = Math.min(chr_enriched_regs.size()-1, curr_reg_idx);
 							prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
 						}
+					}
+					else {
+						chrom_non_specific_regs.add(non_specific_reg);
 					}
 				
 					start += non_specific_reg_len;
