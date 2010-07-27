@@ -3084,15 +3084,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				while(start < chromLen) {
 					Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
 					
-					if(!(non_specific_reg.overlaps(chr_cand_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))) {
-						chrom_non_specific_regs.add(non_specific_reg);
+					if(chr_cand_regs.size() > 0) {
+						if(!(non_specific_reg.overlaps(chr_cand_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))) {
+							chrom_non_specific_regs.add(non_specific_reg);
+						}
+						else {
+							while(curr_reg_idx < chr_cand_regs.size() && non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))
+								curr_reg_idx++; 
+							curr_reg_idx = Math.min(chr_cand_regs.size()-1, curr_reg_idx);
+							prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
+						}
 					}
-					else {
-						while(curr_reg_idx < chr_cand_regs.size() && non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))
-							curr_reg_idx++; 
-						curr_reg_idx = Math.min(chr_cand_regs.size()-1, curr_reg_idx);
-						prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
-					}
+				
 					start += non_specific_reg_len;
 				}	
 				
