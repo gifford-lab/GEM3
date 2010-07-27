@@ -3077,42 +3077,28 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					Collections.sort(chr_cand_regs);
 				}
 				
-				chr_cand_regs.add(new Region(gen, chrom, chromLen+1,chromLen+1));
-				
 				// Get the non specific regions and check for overlapping with the candidate (enriched) regions
 				int start = 0;
+				int prev_reg_idx = 0;
 				int curr_reg_idx = 0;
+
 				while(start < chromLen) {
 					Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
 					
-					if(! non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx))) {
+					if(!(non_specific_reg.overlaps(chr_cand_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))) {
 						chrom_non_specific_regs.add(non_specific_reg);
-						start += non_specific_reg_len;
 					}
 					else {
-						while(non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx))){
+						while(non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))
 							curr_reg_idx++; 
-							curr_reg_idx = Math.min(chr_cand_regs.size()-1, curr_reg_idx);
-						}
+						curr_reg_idx = Math.min(chr_cand_regs.size()-1, curr_reg_idx);
+						prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
 						
 					}
-				}
-//				while(start < chromLen) {
-//					Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
-//					
-//					if(!(non_specific_reg.overlaps(chr_cand_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))) {
-//						chrom_non_specific_regs.add(non_specific_reg);
-//					}
-//					else {
-//						while(non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))
-//							curr_reg_idx++; 
-//						curr_reg_idx = Math.min(chr_cand_regs.size()-1, curr_reg_idx);
-//						prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
-//						
-//					}
-//				
-//					start += non_specific_reg_len;
-//				}				
+				
+					start += non_specific_reg_len;
+				}	
+				
 				// Estimate the (ipCount, ctrlCount) pairs 
 				for(Region r:chrom_non_specific_regs) {
 					double ipCounts   = countIpReads(r, t);
