@@ -3081,7 +3081,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for(Region r:chrom_non_specific_regs) {
 					double ipCounts   = countIpReads(r, t);
 					double ctrlCounts = countCtrlReads(r, t);
-					scalePairs.add(new PairedCountData(ipCounts, ctrlCounts));
+					scalePairs.add(new PairedCountData(ctrlCounts, ipCounts));  // we want to see how many time ipCounts are larger from ctrlCounts
 				}
 			}//end of for(String chrom:gen.getChromList()) LOOP
 			
@@ -3097,10 +3097,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		double slope;
         if(scalePairs==null || scalePairs.size()==0) { return 1.0; }
         DataFrame df = new DataFrame(edu.mit.csail.cgs.deepseq.PairedCountData.class, scalePairs.iterator());
-        DataRegression r = new DataRegression(df, "x~y - 1");
+        DataRegression r = new DataRegression(df, "y~x - 1");
         r.calculate();
         Map<String, Double> map = r.collectCoefficients();
-        slope = map.get("y");
+        slope = map.get("x");
         return slope;
     }//end of calcSlope method
 
