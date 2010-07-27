@@ -300,6 +300,12 @@ public class ReadCache {
 			for(int j = 0; j < hitCounts[i].length; j++)
 				for(int k = 0; k < hitCounts[i][j].length; k++)
 					hitCounts[i][j][k] *= factor;
+		
+		totalHits = 0.0;
+		for(int i = 0; i < hitCounts.length; i++)
+			for(int j = 0; j < hitCounts[i].length; j++)
+				for(int k = 0; k < hitCounts[i][j].length; k++)
+					totalHits += hitCounts[i][j][k];
 					
 		generateStats();
 	}//end of normalizeCounts method
