@@ -29,6 +29,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
+import edu.mit.csail.cgs.deepseq.PairedCountData;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
@@ -38,6 +39,8 @@ import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSPeakRegion;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.Utils;
+import edu.mit.csail.cgs.utils.models.data.DataFrame;
+import edu.mit.csail.cgs.utils.models.data.DataRegression;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
@@ -99,6 +102,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private boolean filter=false;
     private boolean sort_by_location=false;
     private int max_hit_per_bp = -1;
+    /** percentage of candidate (enriched) peaks to take into account
+     *  during the evaluation of non-specific signal */
+    private double pcr = 0.0;
     private double q_value_threshold = 2.0;
     private double alpha_factor = 3.0;
     private int top_event_percentile = 50;
@@ -279,6 +285,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
     	second_lambda_region_width = Args.parseInteger(args, "w2", 5000);
     	third_lambda_region_width = Args.parseInteger(args, "w3", 10000);
+    	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
     	
     	if(second_lambda_region_width < first_lambda_region_width) {
     		System.err.println("\nThe first control region width (w2) has to be more than " + first_lambda_region_width + " bp.");
@@ -619,16 +626,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			displayStep = 2;
 		System.out.println("(Progress will be reported in steps of "+displayStep+" regions).\n");
 
-//		BufferedWriter bw = null;
-//		try {
-//			bw = new BufferedWriter(new FileWriter("check_non_zero.txt"));
-//			bw.write(String.format("region\twindow\tmerge\tfeats\tcomps/reg\tcomps/win\n"));
-//			bw.flush();
-//		} catch (IOException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		}
-
 		//for each test region
 		for (int j=0;j<restrictRegions.size();j++) {
 			Region rr = restrictRegions.get(j);
@@ -815,26 +812,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 			}
 
-			if ((j+1) % displayStep==0 && reportProgress) {
+			if ((j+1) % displayStep==0 && reportProgress)
 				System.out.println((j+1)+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
-//				try {
-//					bw.flush();
-//				} catch (IOException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
-			}
 
 		}// end of for (Region rr : restrictRegions)
 		if (!(totalRegionCount % displayStep==0 && reportProgress))	//avoid repeating report
 			System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
-
-//		try {
-//			bw.flush();
-//		} catch (IOException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		}
 
 		/* ********************************************************
 		 * merge nearby tower regions, filter events in or at the edge of tower regions
@@ -853,12 +836,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 
 		ArrayList<ComponentFeature> toBeRemoved=new ArrayList<ComponentFeature>();
-//		for (ComponentFeature cf:compFeatures){
-//			for (Region tower: towerRegions){
-//				if (tower.overlaps(cf.getPeak().expand(modelRange))) { toBeRemoved.add(cf); break; }
-//			}
-//		}
-
 		Region[] compfeatRegions = new Region[compFeatures.size()];
 		for(int i = 0; i < compfeatRegions.length; i++) { compfeatRegions[i] = compFeatures.get(i).getPeak().expand(modelRange); }
 		boolean[] isTower = Region.overlap(compfeatRegions, towerRegions.toArray(new Region[0]));
@@ -1362,8 +1339,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 */
 	private void postEMProcessing(ArrayList<ComponentFeature> compFeatures) {
 		// use the refined regions to count non-specific reads
-		countNonSpecificReads(compFeatures);
+//		countNonSpecificReads(compFeatures);
 
+		if(controlDataExist)
+			ratio_non_specific_total = calcSlopes(compFeatures, pcr, numConditions);
+		
 		// calculate p-values with or without control
 		evaluateConfidence(compFeatures);
 
@@ -1373,7 +1353,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		insignificantFeatures = new ArrayList<Feature>();
 		filteredFeatures = new ArrayList<Feature>();
-		for (ComponentFeature cf: compFeatures){
+		for (ComponentFeature cf:compFeatures){
 			boolean significant = false;
 			// for multi-condition, at least be significant in one condition
 			// The read count test is for each condition
@@ -2724,11 +2704,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// make componentFeature based on the bindingComponent
 	private ComponentFeature callFeature(BindingComponent b, boolean use_internal_em_train){
 		ComponentFeature cf = new ComponentFeature(b, use_internal_em_train);
-//		double mfold = eval_mfold(b);
-//		cf.set_mfold(mfold);
-//
-//
-//		mm
 
 		// KL
 		double[] logKL_plus = new double[numConditions];
@@ -3045,6 +3020,92 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 	}//end of normExpts method
+	
+	/**
+	 * 
+	 * @param compFeatures Candidate components/features
+	 * @param pcr
+	 * @return
+	 */
+	private double[] calcSlopes(List<ComponentFeature> compFeatures, double pcr, int numConds) {
+		double[] slope = new double[numConds];
+		int numIncludedCandRegs = (int)Math.round(pcr*compFeatures.size());
+		int non_specific_reg_len = 10000;
+		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
+			public int compare(ComponentFeature o1, ComponentFeature o2) {
+				return o1.compareByTotalResponsibility(o2);
+			}
+		});
+		
+		Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
+		for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
+			String chrom = compFeatures.get(i).getPosition().getChrom();
+			if(!chrom_comp_pair.containsKey(chrom))
+				chrom_comp_pair.put(chrom, new ArrayList<Integer>());
+			chrom_comp_pair.get(chrom).add(i);
+		}
+
+		for(int t = 0; t < numConds; t++) {
+			List<PairedCountData> scalePairs = new ArrayList<PairedCountData>();
+			for(String chrom:gen.getChromList()) {
+				List<Region> chrom_non_specific_regs = new ArrayList<Region>();
+				int chromLen = gen.getChromLength(chrom);
+				// Get the candidate (enriched) regions of this chrom sorted by location
+				List<Region> chr_cand_regs = new ArrayList<Region>();
+				if(chrom_comp_pair.containsKey(chrom)) {
+					for(Integer idx:chrom_comp_pair.get(chrom))
+						chr_cand_regs.add(compFeatures.get(idx).getPosition().expand(modelRange));
+					Collections.sort(chr_cand_regs);
+				}
+				
+				// Get the non specific regions and check for overlapping with the candidate (enriched) regions
+				int start = 0;
+				int prev_reg_idx = 0;
+				int curr_reg_idx = 0;
+				while(start < chromLen) {
+					Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
+					
+					if(!(non_specific_reg.overlaps(chr_cand_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))) {
+						chrom_non_specific_regs.add(non_specific_reg);
+					}
+					else {
+						while(non_specific_reg.overlaps(chr_cand_regs.get(curr_reg_idx)))
+							curr_reg_idx++; 
+						curr_reg_idx = Math.min(chr_cand_regs.size()-1, curr_reg_idx);
+						prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
+						
+					}
+				
+					start += non_specific_reg_len;
+				}
+				
+				// Estimate the (ipCount, ctrlCount) pairs 
+				for(Region r:chrom_non_specific_regs) {
+					double ipCounts   = countIpReads(r, t);
+					double ctrlCounts = countCtrlReads(r, t);
+					scalePairs.add(new PairedCountData(ipCounts, ctrlCounts));
+				}
+			}//end of for(String chrom:gen.getChromList()) LOOP
+			
+			// Calculate the slope for this condition
+			slope[t] = calcSlope(scalePairs);
+			scalePairs.clear();
+		}
+		
+		return slope;
+	}//end of calcSlopes method
+	
+	private double calcSlope(List<PairedCountData> scalePairs) {
+		double slope = 0.0;
+        if(scalePairs==null || scalePairs.size()==0) { return 1.0; }
+        DataFrame df = new DataFrame(edu.mit.csail.cgs.deepseq.PairedCountData.class, scalePairs.iterator());
+        DataRegression r = new DataRegression(df, "x~y - 1");
+        r.calculate();
+        Map<String, Double> map = r.collectCoefficients();
+        slope = map.get("y");
+        return slope;
+    }//end of calcSlope method
+
 	
 	public double updateBindingModel(int left, int right){
 		if (signalFeatures.size()==0)
