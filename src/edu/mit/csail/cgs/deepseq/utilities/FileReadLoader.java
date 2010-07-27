@@ -55,7 +55,7 @@ public class FileReadLoader extends ReadLoader{
 		currID = idSeed;
 		
 		for(File file : files){
-			if(!file.isFile()){System.err.println("Invalid file: "+file.getName());System.exit(1);}
+			if(!file.isFile()){System.err.println("File not found: "+file.getName());System.exit(1);}
 			if(format.equals("SAM")){
 				SAMReader currReader = new SAMReader(file,gen,maxMismatch,useNonUnique, currID);
 				fileReaders.add(currReader);
