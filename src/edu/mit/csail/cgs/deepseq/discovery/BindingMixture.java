@@ -351,6 +351,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    	}
         }
      	else if (focus!=null && Args.parseString(args, "focs", null) != null) {
+			loadWholeGenome = false;
      		String COMPLETE_REGION_REG_EX = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
      		String CHROMOSOME_REG_EX = "^\\s*([\\w\\d]+)\\s*$";
      		String[] reg_toks = focus.split("\\s");
@@ -389,10 +390,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		this.numConditions = experiments.size();
 		this.conditionNames = conditionNames;
 		ComponentFeature.setConditionNames(conditionNames);
-		condSignalFeats = new ArrayList[this.numConditions];
-		for(int c = 0; c < this.numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
+		condSignalFeats = new ArrayList[numConditions];
+		for(int c = 0; c < numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
 		long tic = System.currentTimeMillis();
-		for (int i=0;i<experiments.size();i++){
+		for (int i=0;i<numConditions;i++){
 			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
 			DeepSeqExpt ip = pair.car();
 			DeepSeqExpt ctrl = pair.cdr();
@@ -504,7 +505,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         sigHitCounts=new double[numConditions];
         seqwin=100;
         if (focus == null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "focf", null) == null )){		// estimate some parameters if whole genome data
-	        for(int i=0; i<caches.size(); i++){
+	        for(int i=0; i<numConditions; i++){
 				Pair<ReadCache,ReadCache> e = caches.get(i);
 				double ipCount = e.car().getHitCount();
 				// estimate max hit count per BP
@@ -538,8 +539,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         else{	// want to analyze only specified regions, set default
         	if (max_hit_per_bp!=-1)
 				max_HitCount_per_base = max_hit_per_bp;
-        	for(int i=0; i<caches.size(); i++){
-        		ratio_total[i]=1;
+        	for(int i=0; i<numConditions; i++){
+        		Pair<ReadCache,ReadCache> e = caches.get(i);
+        		if (e.cdr()!=null){
+					ratio_total[i]=e.car().getHitCount()/e.cdr().getHitCount();
+        		}
         		ratio_non_specific_total[i]=1;
         	}
         }
@@ -562,7 +566,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    controlDataExist = false;
 	    numConditions = 1;
 
-	    String modelFile = Args.parseString(args, "read_distribution", null);
+	    String modelFile = Args.parseString(args, "d", null);
 		commonInit(modelFile);
 
         // the configuration of mixture model
@@ -1339,16 +1343,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 */
 	private void postEMProcessing(ArrayList<ComponentFeature> compFeatures) {
 		// use the refined regions to count non-specific reads
-//		countNonSpecificReads(compFeatures);
-
-		if(controlDataExist){
+		countNonSpecificReads(compFeatures);
+		
+		// if we have whole genome data, linear regression to get the IP/control ratio
+		if(controlDataExist && wholeGenomeDataLoaded){
 			ratio_non_specific_total = calcSlopes(compFeatures, pcr, numConditions);
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
-			for (int c=0;c<numConditions;c++){
-				System.out.println(String.format("Scaling %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
-			}
-			System.out.println();
-		}			
+		}	
+		
+		for (int c=0;c<numConditions;c++){
+			System.out.println(String.format("Scaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+		}
+		System.out.println();
 		
 		// calculate p-values with or without control
 		evaluateConfidence(compFeatures);
@@ -3732,8 +3738,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * We assume the noise in expt and control should be comparable, can be used to scale reads.
 	 */
 	public void countNonSpecificReads(ArrayList<ComponentFeature> compFeatures){
-		if (!wholeGenomeDataLoaded){	// default ratio = 1;
-			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
+		if (!wholeGenomeDataLoaded){	
+			ratio_non_specific_total=ratio_total;
+			ComponentFeature.setNon_specific_ratio(ratio_total);
 			return;
 		}
 //		System.out.println("\nCounting non-specific read numbers ...\n");
@@ -3753,10 +3760,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					crtl_test_region_total[i] += e.cdr().countHits(r);
 			}
 		}
-		log(1, "\nPeak regions total length: "+totalLength);
+		log(1, "\nSpecific event regions total length: "+totalLength);
 
 		// non-specific = total - specific
-		for(int i=0; i<caches.size(); i++){
+		for(int i=0; i<numConditions; i++){
 			Pair<ReadCache,ReadCache> e = caches.get(i);
 			expt_non_specific_total[i]=(int)e.car().getHitCount()-expt_test_region_total[i];
 			if(controlDataExist) {
@@ -3773,7 +3780,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    	              "\nRatio total\t\t" +String.format("%.3f", (controlDataExist ? e.car().getHitCount()/e.cdr().getHitCount() : 0 ))+
 	    	              "\nSignal non-specific\t" +expt_non_specific_total[i]+
 	    	              "\nControl non-specific\t" +crtl_non_specific_total[i]+
-	    	              "\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
+//	    	              "\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
 	    	              "\nNoise reads per 1000bp\t" +String.format("%.2f",noiseReadNum_per_kbp)+
 	    	              "\n");
 		}
