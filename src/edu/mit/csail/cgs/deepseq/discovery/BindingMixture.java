@@ -318,48 +318,48 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	do_model_selection = !flags.contains("no_model_selection");
 
 		/* **************************************************
-		 * Determine the focus regions to run EM
+		 * Determine the Args.parseString(args, "subs") subset of regions to run EM
  		 * It can be specified as a file from command line.
 		 * If no file pre-specified, estimate the enrichedRegions after loading the data.
 		 * We do not want to run EM on regions with little number of reads
 		 * **************************************************/
-    	String focus = Args.parseString(args, "focs", null);
-    	if(focus == null) { focus = Args.parseString(args, "focf", null); }
-    	List<Region> focusRegions = new ArrayList<Region>();
+    	String subset_str = Args.parseString(args, "subs", null);
+    	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
+    	List<Region> subsetRegions = new ArrayList<Region>();
      	boolean loadWholeGenome = true;
-     	if (focus!=null && Args.parseString(args, "focf", null) != null) {
+     	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
      		loadWholeGenome = false;
-     		String focusFormat = Args.parseString(args, "focusFormat", null);
-        	if (focusFormat==null){
+     		String subsetFormat = Args.parseString(args, "focusFormat", null);
+        	if (subsetFormat==null){
     	    	// take candidate regions from previous analysis of mixture model
     	    	// Do not expand the regions, precisely defined already
-    	        	setRegions(focus, false);
+    	        	setRegions(subset_str, false);
         	}        	
-        	else if (focusFormat.equals("MACS")){
+        	else if (subsetFormat.equals("MACS")){
     	    	// take candidate regions from MACS output, expand point to regions, merge overlaps
-    	    		File peakFlie = new File(focus);
+    	    		File peakFlie = new File(subset_str);
     	    		List<MACSPeakRegion> peaks = MACSParser.parseMACSOutput(peakFlie.getAbsolutePath(), gen);
     	    		setRegions(peaks);
     	    }
 	    	// take candidate regions from output of statistical peak finder by Shaun,
 	    	// will expand point to regions, merge overlaps
-	    	else if (focusFormat.equals("StatPeak")){
-	    		setRegions(focus, true);
+	    	else if (subsetFormat.equals("StatPeak")){
+	    		setRegions(subset_str, true);
 	    	}
-	    	else if (focusFormat.equals("RegionsToMerge")){
-	        	setRegions(focus, true);
+	    	else if (subsetFormat.equals("RegionsToMerge")){
+	        	setRegions(subset_str, true);
 	    	}
         }
-     	else if (focus!=null && Args.parseString(args, "focs", null) != null) {
+     	else if (subset_str!=null && Args.parseString(args, "subs", null) != null) {
 			loadWholeGenome = false;
      		String COMPLETE_REGION_REG_EX = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
      		String CHROMOSOME_REG_EX = "^\\s*([\\w\\d]+)\\s*$";
-     		String[] reg_toks = focus.split("\\s");
+     		String[] reg_toks = subset_str.split("\\s");
      		for(String regionStr:reg_toks) {
      			
      			// Region already presented in the form x:xxxx-xxxxx
      			if(regionStr.matches(COMPLETE_REGION_REG_EX)) {
-     				focusRegions.add(Region.fromString(gen, regionStr));
+     				subsetRegions.add(Region.fromString(gen, regionStr));
      			}
      			
      			// Check if it is about a whole chromosome
@@ -375,7 +375,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
          	     			chromNumber = chromNumber.replaceFirst("^chr", "");
 
          	     			if(regionStr.equalsIgnoreCase(chromNumber)) {
-         	     				focusRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
+         	     				subsetRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
          	     				break;
          	     			}
          	     		}
@@ -504,7 +504,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-        if (focus == null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "focf", null) == null )){		// estimate some parameters if whole genome data
+        if (subset_str == null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "subf", null) == null )){		// estimate some parameters if whole genome data
 	        for(int i=0; i<numConditions; i++){
 				Pair<ReadCache,ReadCache> e = caches.get(i);
 				double ipCount = e.car().getHitCount();
@@ -528,8 +528,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        }
 	        
 	    	// if no focus list, directly estimate candidate regions from data
-			if (focus==null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "focf", null) == null )){
-	    		setRegions(selectEnrichedRegions(focusRegions));
+			if (subset_str==null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "subf", null) == null )){
+	    		setRegions(selectEnrichedRegions(subsetRegions));
 			}
 			if (development_mode)
 				printNoneZeroRegions(true);
