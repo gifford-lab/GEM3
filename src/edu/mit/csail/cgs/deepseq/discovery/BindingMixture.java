@@ -113,7 +113,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
     private double fold = 0;
-    private double logkl = 0;
+    private double logkl = 1.5;
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
     private int third_lambda_region_width  = 10000;
@@ -275,8 +275,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
-    	logkl = Args.parseDouble(args, "logkl", 2.5); // maximum logkl value for filtering
-    	alpha_factor = Args.parseDouble(args, "af", 3.0); // denominator in calculating alpha value
+    	logkl = Args.parseDouble(args, "logkl", logkl); // maximum logkl value for filtering
+    	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
     	top_event_percentile = Args.parseInteger(args, "top_event_percentile", 50);
     	needle_height_factor = Args.parseInteger(args, "needle_height_factor", 2);
@@ -311,9 +311,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	sort_by_location = flags.contains("sl");
     	// default as true, need the opposite flag to turn it off
     	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
+    	use_internal_em_train = ! flags.contains("multi");
     	TF_binding = ! flags.contains("non_punctate_binding");
     	reportProgress =! flags.contains("no_report_progress");
-    	use_internal_em_train = ! flags.contains("multi");
     	use_scanPeak = ! flags.contains("do_not_scanPeak");
     	do_model_selection = !flags.contains("no_model_selection");
 
@@ -2711,8 +2711,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					else{
 						width=28;
 					}
-					double logKL_plus  = logKL_profile(profile_plus, width);
-					double logKL_minus = logKL_profile(profile_minus, width);
+//					double logKL_plus  = logKL_profile(profile_plus, width);
+//					double logKL_minus = logKL_profile(profile_minus, width);
+					double logKL_plus  = avgSqDistance(profile_plus);
+					double logKL_minus = avgSqDistance(profile_minus);
 					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
@@ -2744,8 +2746,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			else{
 				width=28;
 			}
-			logKL_plus[c]  = logKL_profile(profile_plus, width);
-			logKL_minus[c] = logKL_profile(profile_minus, width);
+//			logKL_plus[c]  = logKL_profile(profile_plus, width);
+//			logKL_minus[c] = logKL_profile(profile_minus, width);
+			logKL_plus[c]  = avgSqDistance(profile_plus);
+			logKL_minus[c] = avgSqDistance(profile_minus);
 		}
 		cf.setProfileLogKL(logKL_plus, logKL_minus);
 
@@ -2761,6 +2765,48 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		for (int i=0;i<gaus.length;i++)
 			gaus[i]=gaussianDist.calcProbability((double)i);
 		return StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile, gaus));
+	}
+	
+	/*
+	 * Calculate average square distance for read profile 
+	 * 
+	 */
+	private double avgSqDistance(double[]profile){
+		double sqDistance = 0;
+		double[] m = model.getProbabilities();
+		int nzPosCount = 0;
+		double totalCount = 0;
+		double nzProbSum = 0;
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				nzPosCount++;
+				totalCount+=profile[i];
+				nzProbSum += m[i];
+			}
+		}
+		if (nzPosCount==0)
+			return 2;
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				double expected = totalCount*m[i]/nzProbSum;
+				sqDistance += (profile[i]-expected)*(profile[i]-expected);
+			}
+		}
+		return sqDistance/totalCount;
+//		return Math.sqrt(sqDistance/nzPosCount);
+	}
+	private double avgSqDistance2(double[]profile){
+		double sqDistance = 0;
+		double[] m = model.getProbabilities();
+		double totalCount = 0;
+		for (int i=0;i<profile.length;i++){
+			totalCount+=profile[i];
+		}
+		for (int i=0;i<profile.length;i++){
+				double expected = totalCount*m[i];
+				sqDistance += (profile[i]-expected)*(profile[i]-expected);
+		}
+		return Math.sqrt(sqDistance/profile.length);
 	}
 
 	private ArrayList<BindingComponent> postArtifactFilter(ArrayList<BindingComponent> comps){
@@ -3116,6 +3162,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 			}//end of for(String chrom:gen.getChromList()) LOOP
 			
+			if (this.development_mode)
+				System.out.println(String.format("Calculating IP/Ctrl ratio for condition %s from regression, %d non-specific regions ... ", conditionNames.get(t), scalePairs.size()));
 			// Calculate the slope for this condition
 			slope[t] = calcSlope(scalePairs);
 			scalePairs.clear();
