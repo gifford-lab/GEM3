@@ -113,7 +113,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
     private double fold = 0;
-    private double logkl = 1.5;
+    private double logkl = 0.9;
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
     private int third_lambda_region_width  = 10000;
@@ -826,31 +826,31 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		/* ********************************************************
 		 * merge nearby tower regions, filter events in or at the edge of tower regions
 		 */
-		towerRegions = mergeRegions(towerRegions, false);
-		towerStrength.clear();
-		for (Region tower: towerRegions){
-			float allCount=0;
-			for(Pair<ReadCache,ReadCache> e : caches){
-				List<StrandedBase> bases_p= e.car().getStrandedBases(tower, '+');  // reads of the current region - IP channel
-				List<StrandedBase> bases_m= e.car().getStrandedBases(tower, '-');  // reads of the current region - IP channel
-				allCount += StrandedBase.countBaseHits(bases_p)+ StrandedBase.countBaseHits(bases_m);
-			}
-			towerStrength.add(allCount);
-		}
-
-
-		ArrayList<ComponentFeature> toBeRemoved=new ArrayList<ComponentFeature>();
-		Region[] compfeatRegions = new Region[compFeatures.size()];
-		for(int i = 0; i < compfeatRegions.length; i++) { compfeatRegions[i] = compFeatures.get(i).getPeak().expand(modelRange); }
-		boolean[] isTower = Region.overlap(compfeatRegions, towerRegions.toArray(new Region[0]));
-		for(int i = 0; i < isTower.length; i++)
-			if(isTower[i]) { toBeRemoved.add(compFeatures.get(i)); }
-
-
-		for (ComponentFeature cf:toBeRemoved){
-			while(compFeatures.remove(cf));  // remove all the features that are towers
-			System.out.println(cf.getPeak().toString()+"\tPrediction in tower region.");
-		}
+//		towerRegions = mergeRegions(towerRegions, false);
+//		towerStrength.clear();
+//		for (Region tower: towerRegions){
+//			float allCount=0;
+//			for(Pair<ReadCache,ReadCache> e : caches){
+//				List<StrandedBase> bases_p= e.car().getStrandedBases(tower, '+');  // reads of the current region - IP channel
+//				List<StrandedBase> bases_m= e.car().getStrandedBases(tower, '-');  // reads of the current region - IP channel
+//				allCount += StrandedBase.countBaseHits(bases_p)+ StrandedBase.countBaseHits(bases_m);
+//			}
+//			towerStrength.add(allCount);
+//		}
+//
+//
+//		ArrayList<ComponentFeature> toBeRemoved=new ArrayList<ComponentFeature>();
+//		Region[] compfeatRegions = new Region[compFeatures.size()];
+//		for(int i = 0; i < compfeatRegions.length; i++) { compfeatRegions[i] = compFeatures.get(i).getPeak().expand(modelRange); }
+//		boolean[] isTower = Region.overlap(compfeatRegions, towerRegions.toArray(new Region[0]));
+//		for(int i = 0; i < isTower.length; i++)
+//			if(isTower[i]) { toBeRemoved.add(compFeatures.get(i)); }
+//
+//
+//		for (ComponentFeature cf:toBeRemoved){
+//			while(compFeatures.remove(cf));  // remove all the features that are towers
+//			System.out.println(cf.getPeak().toString()+"\tPrediction in tower region.");
+//		}
 
 		/* ********************************************************
 		 * refine the specific regions that contain binding events
@@ -865,8 +865,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		if (development_mode){
 			printNoneZeroRegions(false);		// print refined regions
-			printTowerRegions();
-			writeFile(outName+"_needles.txt", needleReport.toString());
+//			printTowerRegions();
+//			writeFile(outName+"_needles.txt", needleReport.toString());
 		}
 		log(1, "\nFinish calling events: "+timeElapsed(tic)+"\n");
 
@@ -2715,8 +2715,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 //					double logKL_plus  = logKL_profile(profile_plus, width);
 //					double logKL_minus = logKL_profile(profile_minus, width);
-					double logKL_plus  = avgSqDistance(profile_plus);
-					double logKL_minus = avgSqDistance(profile_minus);
+					double logKL_plus  = calcAbsDiff(profile_plus);
+					double logKL_minus = calcAbsDiff(profile_minus);
 					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
@@ -2750,8 +2750,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 //			logKL_plus[c]  = logKL_profile(profile_plus, width);
 //			logKL_minus[c] = logKL_profile(profile_minus, width);
-			logKL_plus[c]  = avgSqDistance(profile_plus);
-			logKL_minus[c] = avgSqDistance(profile_minus);
+			logKL_plus[c]  = calcAbsDiff(profile_plus);
+			logKL_minus[c] = calcAbsDiff(profile_minus);
 		}
 		cf.setProfileLogKL(logKL_plus, logKL_minus);
 
@@ -2773,8 +2773,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * Calculate average square distance for read profile 
 	 * 
 	 */
-	private double avgSqDistance(double[]profile){
-		double sqDistance = 0;
+	private double calcSqDiff(double[]profile){
+		double sqDiff = 0;
 		double[] m = model.getProbabilities();
 		int nzPosCount = 0;
 		double totalCount = 0;
@@ -2787,15 +2787,35 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		if (nzPosCount==0)
-			return 2;
+			return logkl*2*0.75;
 		for (int i=0;i<profile.length;i++){
 			if (profile[i]!=0){
 				double expected = totalCount*m[i]/nzProbSum;
-				sqDistance += (profile[i]-expected)*(profile[i]-expected);
+				sqDiff += (profile[i]-expected)*(profile[i]-expected);
 			}
 		}
-		return sqDistance/totalCount;
-//		return Math.sqrt(sqDistance/nzPosCount);
+		return sqDiff/totalCount;
+	}
+	private double calcAbsDiff(double[]profile){
+		double absDiff = 0;
+		double[] m = model.getProbabilities();
+		double totalCount = 0;
+		double nzProbSum = 0;
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				totalCount+=profile[i];
+				nzProbSum += m[i];
+			}
+		}
+		if (totalCount==0)
+			return logkl*2*0.75;
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				double expected = totalCount*m[i]/nzProbSum;
+				absDiff += Math.abs(profile[i]-expected);
+			}
+		}
+		return absDiff/totalCount;
 	}
 	private double avgSqDistance2(double[]profile){
 		double sqDistance = 0;
