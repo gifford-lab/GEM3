@@ -1,6 +1,7 @@
 package edu.mit.csail.cgs.ewok.verbs.chipseq;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -11,12 +12,39 @@ import java.util.Vector;
 
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.tools.utils.Args;
+import edu.mit.csail.cgs.utils.ArgParser;
+import edu.mit.csail.cgs.utils.NotFoundException;
+import edu.mit.csail.cgs.utils.Pair;
 
 /* 
  * Class to parse out put from GPS Chip-Seq binding peak finder
  */
 public class GPSParser {
-
+	
+	public static void main(String[] args) {
+		Genome genome=null;
+		ArgParser ap = new ArgParser(args);
+	    try {
+	      Pair<Organism, Genome> pair = Args.parseGenome(args);
+	      if(pair==null){
+	        //Make fake genome... chr lengths provided???
+	        if(ap.hasKey("geninfo")){
+	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+	            }else{
+	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
+	            }
+	      }else{
+	        genome = pair.cdr();
+	      }
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+	    String filename = Args.parseString(args,"GPS",null); 
+	    List<GPSPeak> peaks = parseGPSOutput(filename, genome);
+	    System.out.println(peaks.size());
+	}
 	/**
 	 * Parses data in the GPS output format
 	 * @param filename name of the file containing the data
@@ -95,7 +123,7 @@ public class GPSParser {
 	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-	if (t.length < 14) {
+	if (t.length < 12) {
       try { 
       Region r = Region.fromString(g, t[0]);
 			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
@@ -113,6 +141,18 @@ public class GPSParser {
 				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
 						Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
 						Double.parseDouble(t[5]), Double.parseDouble(t[1]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
+	      }
+	      catch (Exception ex) {
+	        //logger.error("Parse error on line " + lineNumber + ".", ex);
+	        return null;
+	      }
+	    }
+	else if (t.length == 13) {
+	      try { 
+	      Region r = Region.fromString(g, t[0]);
+				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+						Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[5]), 
+						Double.parseDouble(t[6]), Double.parseDouble(t[1]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
 	      }
 	      catch (Exception ex) {
 	        //logger.error("Parse error on line " + lineNumber + ".", ex);
