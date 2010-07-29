@@ -495,7 +495,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			System.out.println("Finish loading data from ReadDB, " + timeElapsed(tic));
 		}
 		
-		// Normalize experiments based on the averaged total counts
+		// Normalize experiments
 		normExpts(caches);
 
 		log(1, "\nSorting reads and selecting regions for analysis.");
@@ -1346,7 +1346,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		countNonSpecificReads(compFeatures);
 		
 		// if we have whole genome data, linear regression to get the IP/control ratio
-		if(controlDataExist && wholeGenomeDataLoaded){
+		if(controlDataExist && wholeGenomeDataLoaded) {
+			ratio_non_specific_total = new double[numConditions];
 			for(int t = 0; t < numConditions; t++)
 				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", compFeatures, pcr);
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
@@ -3261,8 +3262,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			else {
 				// Estimate the (ipCount, ctrlCount) pairs
 				for(Region r:chrom_non_specific_regs) {
-					double ctrlCounts_X = countCtrlReads(r, condY_idx);
-					double ipCounts_Y   = countIpReads(r, condX_idx);
+					double ctrlCounts_X = countCtrlReads(r, condX_idx);
+					double ipCounts_Y   = countIpReads(r, condY_idx);
 					scalePairs.add(new PairedCountData(ctrlCounts_X, ipCounts_Y));  // we want to see how many time ipCounts are larger from ctrlCounts
 				}
 			}
