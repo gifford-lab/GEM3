@@ -1347,7 +1347,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		
 		// if we have whole genome data, linear regression to get the IP/control ratio
 		if(controlDataExist && wholeGenomeDataLoaded){
-			ratio_non_specific_total = calcSlopes(compFeatures, pcr, numConditions);
+			for(int t = 0; t < numConditions; t++)
+				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", compFeatures, pcr);
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
 		}	
 		
@@ -3068,9 +3069,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @param caches
 	 */
 	private void normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches) {
+		int C = caches.size();   // # conds
+		if(C <= 1) return;
+		
+		// Get the total read counts in IP and Control
 		double totIPCounts   = 0.0;
 		double totCtrlCounts = 0.0;
-		int C = caches.size();   // # conds
 		for(int t = 0; t < C; t++) {
 			ReadCache ipCache = caches.get(t).car();
 			totIPCounts += ipCache.getHitCount();
@@ -3079,27 +3083,111 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				totCtrlCounts += ctrlCache.getHitCount();
 			}
 		}
-
-		for(int t = 0; t < C; t++) {
-			ReadCache ipCache   = caches.get(t).car();
-			double IPNormFactor = (totIPCounts/C)/ipCache.getHitCount();
-			ipCache.normalizeCounts(IPNormFactor);
+		
+		// Get the ratios between IP pairs and Ctrl pairs separately based on linear regression
+		List<ComponentFeature> emptyFeats = new ArrayList<ComponentFeature>();
+		double pcr = 0.0;
+		double[] ip_ratio   = new double[C];;
+		double[] ctrl_ratio = new double[C];;
+		ip_ratio[0] = 1.0;
+		for(int t = 1; t < C; t++)
+			ip_ratio[t] = getSlope(0, t, "IP", emptyFeats, pcr);
+		if(controlDataExist) {
+			ctrl_ratio = new double[C];
+			ctrl_ratio[0] = 1.0;
+			for(int t = 1; t < C; t++)
+				ctrl_ratio[t] = getSlope(0, t, "CTRL", emptyFeats, pcr);
+		}
+		
+		// Re-scale counts by multiplying each read (in each condition) with the corresponding ratio
+		for(int t = 1; t < C; t++) {
+			ReadCache ipCache = caches.get(t).car();
+			ipCache.normalizeCounts(ip_ratio[t]);
 			if(controlDataExist) {
 				ReadCache ctrlCache = caches.get(t).cdr();
-				double CtrlNormFactor = (totCtrlCounts/C)/ctrlCache.getHitCount();
-				ctrlCache.normalizeCounts(CtrlNormFactor);
+				ctrlCache.normalizeCounts(ctrl_ratio[t]);
+			}
+		}
+
+		// The total read counts now in IP and Ctrl are different. Calculate them.
+		double new_totIPCounts   = 0.0;
+		double new_totCtrlCounts = 0.0;
+		for(int t = 0; t < C; t++) {
+			ReadCache ipCache = caches.get(t).car();
+			new_totIPCounts += ipCache.getHitCount();
+			if(controlDataExist) {
+				ReadCache ctrlCache = caches.get(t).cdr();
+				new_totCtrlCounts += ctrlCache.getHitCount();
+			}
+		}
+
+		// Find how many times the new read counts are larger than the old ones
+		double ip_norm_factor   = 0.0;
+		double ctrl_norm_factor = 0.0;
+		ip_norm_factor = new_totIPCounts/totIPCounts;
+		if(controlDataExist)
+			ctrl_norm_factor = new_totCtrlCounts/totCtrlCounts;
+		
+		// Re-scale counts by dividing each read (in each condition) with the 
+		// corresponding ratio so that the total read counts remain constant
+		for(int t = 0; t < C; t++) {
+			ReadCache ipCache = caches.get(t).car();
+			ipCache.normalizeCounts(1.0/ip_norm_factor);
+			if(controlDataExist) {
+				ReadCache ctrlCache = caches.get(t).cdr();
+				ctrlCache.normalizeCounts(1.0/ctrl_norm_factor);
 			}
 		}
 	}//end of normExpts method
 	
+//	private void normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches) {
+//		double totIPCounts   = 0.0;
+//		double totCtrlCounts = 0.0;
+//		int C = caches.size();   // # conds
+//		for(int t = 0; t < C; t++) {
+//			ReadCache ipCache = caches.get(t).car();
+//			totIPCounts += ipCache.getHitCount();
+//			if(controlDataExist) {
+//				ReadCache ctrlCache = caches.get(t).cdr();
+//				totCtrlCounts += ctrlCache.getHitCount();
+//			}
+//		}
+//
+//		for(int t = 0; t < C; t++) {
+//			ReadCache ipCache   = caches.get(t).car();
+//			double IPNormFactor = (totIPCounts/C)/ipCache.getHitCount();
+//			ipCache.normalizeCounts(IPNormFactor);
+//			if(controlDataExist) {
+//				ReadCache ctrlCache = caches.get(t).cdr();
+//				double CtrlNormFactor = (totCtrlCounts/C)/ctrlCache.getHitCount();
+//				ctrlCache.normalizeCounts(CtrlNormFactor);
+//			}
+//		}
+//	}//end of normExpts method
+
 	/**
 	 * 
-	 * @param compFeatures Candidate components/features
-	 * @param pcr
+	 * @param condX_idx index of condition (channel) where it will be used a dependent variable 
+	 * @param condY_idx index of condition (channel) where it will be used an independent variable
+	 * @param flag <tt>IP</tt> for pairs of IP conditions, <tt>CTRL</tt> for pairs of control conditions, <tt>IP/CTRL</tt> for ip/control pairs 
+	 * @param compFeatures enriched features
+	 * @param pcr percentage of enriched features to be taken into account during regression
 	 * @return
 	 */
-	private double[] calcSlopes(List<ComponentFeature> compFeatures, double pcr, int numConds) {
-		double[] slope = new double[numConds];
+	private double getSlope(int condX_idx, int condY_idx, String flag, List<ComponentFeature> compFeatures, double pcr) {
+		if(condX_idx < 0 || condX_idx >= numConditions)
+			throw new IllegalArgumentException(String.format("cond1_idx, cond2_idx have to be numbers between 0 and %d.", numConditions-1));
+		if(condY_idx < 0 || condY_idx >= numConditions)
+			throw new IllegalArgumentException(String.format("cond1_idx, cond2_idx have to be numbers between 0 and %d.", numConditions-1));
+		if(!(flag.equalsIgnoreCase("IP") || flag.equalsIgnoreCase("CTRL") || flag.equalsIgnoreCase("IP/CTRL")))
+			throw new IllegalArgumentException("The valid arguments for the flag argument is: IP, CTRL, IP/CTRL.");
+		if(flag.equalsIgnoreCase("IP/CTRL") && (condX_idx != condY_idx))
+			throw new IllegalArgumentException("When you submit IP/CTRL pairs the condition has to be the same.");
+			
+		double slope;
+		List<PairedCountData> scalePairs = new ArrayList<PairedCountData>();
+		
+		// Determine how many of the enriched regions will be included during the regression evaluation
 		int numIncludedCandRegs = (int)Math.round(pcr*compFeatures.size());
 		int non_specific_reg_len = 10000;
 		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
@@ -3116,61 +3204,81 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			chrom_comp_pair.get(chrom).add(i);
 		}
 
-		for(int t = 0; t < numConds; t++) {
-			List<PairedCountData> scalePairs = new ArrayList<PairedCountData>();
-			for(String chrom:gen.getChromList()) {
-				List<Region> chrom_non_specific_regs = new ArrayList<Region>();
-				int chromLen = gen.getChromLength(chrom);
-				// Get the candidate (enriched) regions of this chrom sorted by location
-				List<Region> chr_enriched_regs = new ArrayList<Region>();
-				if(chrom_comp_pair.containsKey(chrom)) {
-					for(Integer idx:chrom_comp_pair.get(chrom))
-						chr_enriched_regs.add(compFeatures.get(idx).getPosition().expand(modelRange));
-					Collections.sort(chr_enriched_regs);
-				}
+		for(String chrom:gen.getChromList()) {
+			List<Region> chrom_non_specific_regs = new ArrayList<Region>();
+			int chromLen = gen.getChromLength(chrom);
+			// Get the candidate (enriched) regions of this chrom sorted by location
+			List<Region> chr_enriched_regs = new ArrayList<Region>();
+			if(chrom_comp_pair.containsKey(chrom)) {
+				for(Integer idx:chrom_comp_pair.get(chrom))
+					chr_enriched_regs.add(compFeatures.get(idx).getPosition().expand(modelRange));
+				Collections.sort(chr_enriched_regs);
+			}
 				
-				// Get the non specific regions and check for overlapping with the candidate (enriched) regions
-				int start = 0;
-				int prev_reg_idx = 0;
-				int curr_reg_idx = 0;
-				while(start < chromLen) {
-					Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
-					
-					if(chr_enriched_regs.size() > 0) {
-						if(!(non_specific_reg.overlaps(chr_enriched_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_enriched_regs.get(curr_reg_idx)))) {
-							chrom_non_specific_regs.add(non_specific_reg);
-						}
-						else {
-							while(curr_reg_idx < chr_enriched_regs.size() && non_specific_reg.overlaps(chr_enriched_regs.get(curr_reg_idx)))
-								curr_reg_idx++; 
-							curr_reg_idx = Math.min(chr_enriched_regs.size()-1, curr_reg_idx);
-							prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
-						}
-					}
-					else {
+			// Get the non-specific regions and check for overlapping with the candidate (enriched) regions
+			int start = 0;
+			int prev_reg_idx = 0;
+			int curr_reg_idx = 0;
+			while(start < chromLen) {
+				Region non_specific_reg = new Region(gen, chrom, start, Math.min(start + non_specific_reg_len -1, chromLen-1));
+				
+				if(chr_enriched_regs.size() > 0) {
+					if(!(non_specific_reg.overlaps(chr_enriched_regs.get(prev_reg_idx)) || non_specific_reg.overlaps(chr_enriched_regs.get(curr_reg_idx)))) {
 						chrom_non_specific_regs.add(non_specific_reg);
 					}
-				
-					start += non_specific_reg_len;
-				}	
-				
-				// Estimate the (ipCount, ctrlCount) pairs 
-				for(Region r:chrom_non_specific_regs) {
-					double ipCounts   = countIpReads(r, t);
-					double ctrlCounts = countCtrlReads(r, t);
-					scalePairs.add(new PairedCountData(ctrlCounts, ipCounts));  // we want to see how many time ipCounts are larger from ctrlCounts
+					else {
+						while(curr_reg_idx < chr_enriched_regs.size() && non_specific_reg.overlaps(chr_enriched_regs.get(curr_reg_idx)))
+							curr_reg_idx++;
+						curr_reg_idx = Math.min(chr_enriched_regs.size()-1, curr_reg_idx);
+						prev_reg_idx = Math.max(prev_reg_idx, curr_reg_idx-1);
+					}
 				}
-			}//end of for(String chrom:gen.getChromList()) LOOP
+				else {
+					chrom_non_specific_regs.add(non_specific_reg);
+				}
+				
+				start += non_specific_reg_len;
+			}//end of while LOOP
 			
-			if (this.development_mode)
-				System.out.println(String.format("Calculating IP/Ctrl ratio for condition %s from regression, %d non-specific regions ... ", conditionNames.get(t), scalePairs.size()));
-			// Calculate the slope for this condition
-			slope[t] = calcSlope(scalePairs);
-			scalePairs.clear();
+			if(flag.equalsIgnoreCase("IP")) {
+				// Estimate the (ipCounts_cond1, ipCounts_cond2) pairs
+				for(Region r:chrom_non_specific_regs) {				
+					double ipCounts_condX = countIpReads(r, condX_idx);
+					double ipCounts_condY = countIpReads(r, condY_idx);
+					scalePairs.add(new PairedCountData(ipCounts_condX, ipCounts_condY));  // we want to see how many time ipCounts_condY are larger from ipCounts_condX
+				}
+			}
+			else if(flag.equalsIgnoreCase("CTRL")) {
+				// Estimate the (ctrlCounts_cond1, ctrlCounts_cond2) pairs
+				for(Region r:chrom_non_specific_regs) {				
+					double ctrlCounts_condX = countCtrlReads(r, condX_idx);
+					double ctrlCounts_condY = countCtrlReads(r, condY_idx);
+					scalePairs.add(new PairedCountData(ctrlCounts_condX, ctrlCounts_condY));  // we want to see how many time ctrlCounts_condY are larger from ctrlCounts_condX
+				}
+			}
+			else {
+				// Estimate the (ipCount, ctrlCount) pairs
+				for(Region r:chrom_non_specific_regs) {
+					double ctrlCounts_X = countCtrlReads(r, condY_idx);
+					double ipCounts_Y   = countIpReads(r, condX_idx);
+					scalePairs.add(new PairedCountData(ctrlCounts_X, ipCounts_Y));  // we want to see how many time ipCounts are larger from ctrlCounts
+				}
+			}
+		}//end of for(String chrom:gen.getChromList()) LOOP
+			
+		if(this.development_mode) {
+			if(flag.equalsIgnoreCase("IP"))
+				System.out.println(String.format("Calculating IP_cond%d/IP_cond%d (%s/%s) ratio from regression, %d non-specific regions ... ", condY_idx, condX_idx, conditionNames.get(condY_idx), conditionNames.get(condX_idx), scalePairs.size()));
+			else if(flag.equalsIgnoreCase("CTRL"))
+				System.out.println(String.format("Calculating Ctrl_cond%d/Ctrl_cond%d (%s/%s) ratio from regression, %d non-specific regions ... ", condY_idx, condX_idx, conditionNames.get(condY_idx), conditionNames.get(condX_idx), scalePairs.size()));
+			else
+				System.out.println(String.format("Calculating IP_cond%d/Ctrl_cond%d ratio for condition %s from regression, %d non-specific regions ... ", condY_idx, condX_idx, conditionNames.get(condY_idx), scalePairs.size()));
 		}
-		
+		// Calculate the slope for this condition
+		slope = calcSlope(scalePairs);
+		scalePairs.clear();
 		return slope;
-	}//end of calcSlopes method
+	}//end of getSlope method
 	
 	private double calcSlope(List<PairedCountData> scalePairs) {
 		double slope;
