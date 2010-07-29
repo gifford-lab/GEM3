@@ -3063,9 +3063,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	/**
 	 * This method normalizes experiments as follows:							<br>
-	 * It takes the total counts across all conditions for a channel and then evaluates
-	 * the average of the total counts (which is the total counts divided by the number of conditions).	<br>
-	 * Lastly, it scales all conditions to have the same counts as the aveaged total counts.
+	 * It evaluates the slope between each pair of an IP condition and a reference one.
+	 * Here, chosen to be condition 1. It does the same for the Ctrl channel.    <br>
+	 * Then, it re-scales all reads for each condition by multipying with the corresponding slopes.  <br>
+	 * Lastly, it evaluates the ratio between the original and the 'inflated' read counts
+	 * and divides every read weight with this amount to ensure that the total read counts remain constant.
 	 * @param caches
 	 */
 	private void normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches) {
