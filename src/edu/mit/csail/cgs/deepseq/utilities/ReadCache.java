@@ -301,18 +301,25 @@ public class ReadCache {
 				for(int k = 0; k < hitCounts[i][j].length; k++)
 					hitCounts[i][j][k] *= factor;
 		
+		updateTotalHits();
+	}//end of normalizeCounts method
+	
+	public void filterAllBases(float maxReadperBP){
+		for(int i = 0; i < hitCounts.length; i++)
+			for(int j = 0; j < hitCounts[i].length; j++)
+				for(int k = 0; k < hitCounts[i][j].length; k++)
+					if (hitCounts[i][j][k] > maxReadperBP)
+						hitCounts[i][j][k] = maxReadperBP;
+						
+		updateTotalHits();
+	}
+	private void updateTotalHits(){
 		totalHits = 0.0;
 		for(int i = 0; i < hitCounts.length; i++)
 			for(int j = 0; j < hitCounts[i].length; j++)
 				for(int k = 0; k < hitCounts[i][j].length; k++)
 					totalHits += hitCounts[i][j][k];
-					
-		generateStats();
-	}//end of normalizeCounts method
-	
-	public void filterBaseBias(int maxPerBP){
 	}
-	
 	private int[] list2int(List<Integer> list) {
 		int[] out = new int[list.size()];
 		for(int i = 0; i < out.length; i++)
@@ -345,7 +352,7 @@ public class ReadCache {
 	}
 	
 	public void displayStats(){
-		System.out.println("ReadCache\t"+name+"\tBases: "+totalBases+"\tHitCounts: "+totalHits);
+		System.out.println(name+"\tBases: "+totalBases+"\tHitCounts: "+totalHits);
 	}
 	
 	public void printBinCounts(){
