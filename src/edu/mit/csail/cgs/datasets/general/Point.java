@@ -135,17 +135,20 @@ public class Point implements Comparable<Point> {
   }
 
 
-  // Distance to another point
+  /*
+   * Absolute distance to another point
+   */
   public int distance(Point p) {
     if (!chrom.equals(p.getChrom())) {
       throw new IllegalArgumentException(p.getChrom());
     }
-
     return Math.abs(location - p.getLocation());
   }
 
 
-  // Offset relative to another point (offset = this-p)
+  /*
+   *  Offset relative to another point (offset = this-p)
+   */
   public int offset(Point p) {
     if (!chrom.equals(p.getChrom())) {
       throw new IllegalArgumentException(p.getChrom());

@@ -192,24 +192,25 @@ public class MethodComparisonMotifAnalysis {
 		System.out.println(BindingMixture.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
+		Collections.sort(allRegions);		// sort regions, the motifs should be sorted
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
 		System.out.println(BindingMixture.timeElapsed(tic));
 		System.out.printf("%n%d motifs (in %d regions).%n%n", allMotifs.size(), allRegions.size());
-		
-		// Get the set of motif matches for all peak calls
-		
+
+		// Get the set of motif matches for all peak calls		
 		System.out.printf("Peaks within a %d bp window to a motif:%n", windowSize);
 		for (int i=0;i<peaks.size();i++){
+			System.out.printf("%s \t#peaks: ", methodNames.get(i));
 			HashMap<Point, MotifHit> motifs = getNearestMotif2(peaks.get(i), allMotifs, allMotifScores);
 			maps.add(motifs);
-			System.out.printf("%s:%d\t", methodNames.get(i), motifs.keySet().size());
+			System.out.printf("\t#motifs: %d", motifs.keySet().size());
+			System.out.println();
 		}
-		System.out.println();
 		System.out.println(BindingMixture.timeElapsed(tic));
 		
-		System.out.printf("%nMotifs close to a peak:%n");
+		System.out.printf("%nMotifs covered by a peak:%n");
 		for(int i = 0; i < methodNames.size(); i++)
 			System.out.printf("%s\t%d/%d (%.1f%%)%n", methodNames.get(i), maps.get(i).size(), allMotifs.size(), 100.0*((double)maps.get(i).size())/(double)allMotifs.size());
 				
@@ -254,7 +255,8 @@ public class MethodComparisonMotifAnalysis {
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
-		// ************************************************************
+// ************************************************************************************
+// ************************************************************************************
 		
 		// get the union (motifs at least by one of all methods)
 		Set<Point> motifs_union = maps.get(0).keySet();
@@ -298,28 +300,21 @@ public class MethodComparisonMotifAnalysis {
 				+windowSize+".txt", sb.toString());
 		
 		System.out.println();
-		System.out.printf("Top peaks close to a motif:%n");
-		// ************************************************************
+		
+// ************************************************************************************
+// ************************************************************************************
 		// motif occurrence / motif coverage (sensitivity)
 		// get the motif offset of the peaks (rank indexed by each method)
 		// if no motif hit, offset=NOHIT=999
 		// print out the offset, for Matlab processing and plotting
-		ArrayList<int[]> trueHits = new ArrayList<int[]>();
+		
+		System.out.println("Get ranked peak-motif offset list ... ");
+		
+		ArrayList<HashMap<Point, Integer>> allPeakOffsets = new ArrayList<HashMap<Point, Integer>>();
 		for (int i=0; i<methodNames.size();i++){
-			int[] hits = new int[maxCount];
-			for (int j=0;j<maxCount;j++){
-				hits[j]=NOHIT_OFFSET;
-			}
-			int numExistingTopHits = 0; 
-			for (MotifHit hit: maps.get(i).values()){
-				if (hit.rank < rank) {
-					hits[hit.rank]=hit.offset;
-					numExistingTopHits++;
-				}
-			}
-			trueHits.add(hits);
-			System.out.printf("%s\t%d/%d (%.1f%%)%n", methodNames.get(i), numExistingTopHits, rank, 100.0*((double)numExistingTopHits)/(double)rank);
-		}		
+			allPeakOffsets.add(peak2MotifOffset(peaks.get(i), allMotifs));
+		}
+		
 		// output results
 		sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
@@ -330,9 +325,15 @@ public class MethodComparisonMotifAnalysis {
 		sb.append("\n");
 		for(int j=0;j<maxCount;j++){
 			sb.append(j+"\t");
-			for (int i=0;i<maps.size();i++){
-				sb.append(trueHits.get(i)[j]);
-				if (i==maps.size()-1)
+			for (int i=0;i<allPeakOffsets.size();i++){
+				if (j<peaks.get(i).size()){
+					Point peak = peaks.get(i).get(j);
+					sb.append(allPeakOffsets.get(i).containsKey(peak)?allPeakOffsets.get(i).get(peak):NOHIT_OFFSET);
+				}
+				else
+					sb.append(NOHIT_OFFSET);
+				
+				if (i==allPeakOffsets.size()-1)
 					sb.append("\n");
 				else
 					sb.append("\t");
@@ -341,9 +342,9 @@ public class MethodComparisonMotifAnalysis {
 		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_rankedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
+		System.out.println("Done! " + BindingMixture.timeElapsed(tic));
 	}
-	
-	
+
 	private void readPeakLists(){
         Vector<String> peakTags=new Vector<String>();
         for(String s : args)
@@ -906,25 +907,42 @@ public class MethodComparisonMotifAnalysis {
 		}
 		return motifs;
 	}
-	// get the all nearest motif hits in the region (windowSize) 
-	// around each peak in the list
+	// get the nearest motif hit in the region (windowSize) around each peak in the list
+	// this is motif-centered, some peak may associate with a motif by then took away by other peaks
 	// if a motif have more than one peaks nearby, associate it with the nearest peak
-	private HashMap<Point, MotifHit> getNearestMotif2(ArrayList<Point> peaks, ArrayList<Point> allMotifs, ArrayList<Double>allMotifScores){	
+	// Assuming the motif positions are sorted
+	private HashMap<Point, MotifHit> getNearestMotif2(ArrayList<Point> peaks, ArrayList<Point> allMotifs, ArrayList<Double>allMotifScores){
+		// make a copy and sort
+		ArrayList<Point> ps = (ArrayList<Point>) peaks.clone();
+		Collections.sort(ps);
+		
 		HashMap<Point, MotifHit> motifs = new HashMap<Point, MotifHit>();
 		int numPeaksWithinMotifs = 0;
-		for(int i=0;i<peaks.size();i++){
-			Point peak =peaks.get(i);
+		int firstMatchIndex = 0;		// the index of first motif match index for previous peak
+										// this will be use as start search position of the inner loop
+		for(int i=0;i<ps.size();i++){
+			Point peak =ps.get(i);
 			int nearestIndex = -1;
 			int nearestDistance = windowSize;
-			//TODO: should search for the position, not iterate everyone
-			for(int j=0;j<allMotifs.size();j++){
+			boolean firstMatchFound = false;
+			// search for the position, not iterate everyone
+			for(int j=firstMatchIndex;j<allMotifs.size();j++){
 				Point motif =allMotifs.get(j);
 				if (peak.getChrom().equalsIgnoreCase(motif.getChrom())){
 					int distance = peak.distance(motif);
 					if (distance<=nearestDistance){
+						if (!firstMatchFound){		// update on the first match
+							firstMatchIndex = j;
+							firstMatchFound = true;
+						}							
 						nearestDistance = distance;
 						nearestIndex = j;
 					}
+					else{		// if distance > nearest, and found a match already, it is getting farther away, stop search 
+						if (firstMatchFound){	
+							break;
+						}
+					}					
 				}
 			}
 			
@@ -942,10 +960,52 @@ public class MethodComparisonMotifAnalysis {
 				}
 			}
 		}
-		System.out.printf("%d/%d (%.1f%%)%n", numPeaksWithinMotifs, peaks.size(), 100.0*((double)numPeaksWithinMotifs)/(double)peaks.size(), windowSize);
+		System.out.printf("%d/%d (%.1f%%)", numPeaksWithinMotifs, peaks.size(), 100.0*((double)numPeaksWithinMotifs)/(double)peaks.size(), windowSize);
 		return motifs;
 	}
-	
+	// get the nearest motif offset in the region (windowSize) around each peak in the list
+	// this is peak-centered, all peaks will have a offset, NOHIT_OFFSET for no motif found.
+	private HashMap<Point, Integer> peak2MotifOffset(ArrayList<Point> peaks, ArrayList<Point> allMotifs){
+		// make a copy of the list and sort
+		ArrayList<Point> ps = (ArrayList<Point>) peaks.clone();
+		Collections.sort(ps);
+		
+		HashMap<Point, Integer> peaksOffsets = new HashMap<Point, Integer>();
+		int firstMatchIndex = 0;		// the index of first motif match index for previous peak
+										// this will be use as start search position of the inner loop
+		for(int i=0;i<ps.size();i++){
+			Point peak =ps.get(i);
+			int nearestIndex = -1;
+			int nearestDistance = windowSize;
+			boolean firstMatchFound = false;
+			// search for the position, not iterate everyone
+			for(int j=firstMatchIndex;j<allMotifs.size();j++){
+				Point motif =allMotifs.get(j);
+				if (peak.getChrom().equalsIgnoreCase(motif.getChrom())){
+					int distance = peak.distance(motif);
+					if (distance<=nearestDistance){
+						if (!firstMatchFound){		// update on the first match
+							firstMatchIndex = j;
+							firstMatchFound = true;
+						}							
+						nearestDistance = distance;
+						nearestIndex = j;
+					}
+					else{		// if distance > nearest, and found a match already, it is getting farther away, stop search 
+						if (firstMatchFound){	
+							break;
+						}
+					}					
+				}
+			}
+			
+			if (nearestIndex !=-1){			// motif hit is within the window
+				Point nearestMotif = allMotifs.get(nearestIndex);
+				peaksOffsets.put(peak, peak.offset(nearestMotif));
+			}
+		}
+		return peaksOffsets;
+	}	
 	// this is an alternative test to exclude the possibility that one method may 
 	// take advantage by predicting multiple peaks around the motif position
 	// therefore, if a motif have more than one peaks nearby, do not include it
