@@ -96,6 +96,8 @@ public class JointEventAnalysis {
     if (GPSfileName!=null){
 	    File gpsFile = new File(GPSfileName);
 	    List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
+	    if (topRank==-1)
+	    	topRank = gpsPeaks.size();
 	    events = new ArrayList<Point>();
 	    int count=0;
 	    for (GPSPeak g: gpsPeaks){
@@ -157,6 +159,7 @@ public class JointEventAnalysis {
 		  System.err.println("No binding events!!");
 		  System.exit(0);
 	  }
+	  
 	  Collections.sort(events);
 	  Point previous = events.get(0);
 	  ArrayList<Point> cluster = null;
@@ -184,6 +187,7 @@ public class JointEventAnalysis {
 	  
 	  StringBuilder sb = new StringBuilder();
 	  System.out.println("Total "+clusters.size()+" joint event clusters.");
+	  sb.append("      Region       \tEvents\tMotifs\tDistances\tMinDistance\n");
 	  for (ArrayList<Point> c:clusters){
 		  if (c.size()==0)
 			  continue;
@@ -195,8 +199,15 @@ public class JointEventAnalysis {
 		  
 		  sb.append(r.toString()).append("\t")
 		    .append(c.size()).append("\t")
-		    .append(motifs.car().size()).append("\t")
-		    .append(r.getWidth()).append("\n");
+		    .append(motifs.car().size()).append("\t");
+		  int min = Integer.MAX_VALUE;
+		  for (int i=0;i<c.size()-1;i++){
+			  int distance = c.get(i+1).distance(c.get(i));
+			  sb.append(distance).append(" ");
+			  if (distance < min)
+				  min = distance;
+		  }
+		  sb.append("\t").append(min).append("\n");
 	  }
 //	  System.out.println(sb.toString());
 	  String outName = Args.parseString(args, "out", "");

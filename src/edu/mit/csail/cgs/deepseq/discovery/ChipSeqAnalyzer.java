@@ -217,7 +217,7 @@ public class ChipSeqAnalyzer{
 		mixture.closeLogFile();
 		//		mixture.printPeakSequences();
 //		mixture.writeDebugFile();
-		System.out.println("Finished! Binding events are printed to: "+mixture.getOutName());
+		System.out.println("Finished! Binding events are printed to: "+mixture.getOutName()+"_GPS_significant.txt");
 	}
 	
 	public static void main(String[] args){

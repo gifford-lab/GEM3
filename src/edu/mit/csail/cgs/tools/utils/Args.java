@@ -348,7 +348,7 @@ public class Args {
         ArrayList<ChipSeqLocator> output = new ArrayList<ChipSeqLocator>();
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals(argname)) {
-                String[] pieces = args[++i].split(";");
+                String[] pieces = args[++i].trim().split(";");
                 if (pieces.length == 2) {
                     output.add(new ChipSeqLocator(pieces[0], pieces[1]));
                 } else if (pieces.length == 3) {
