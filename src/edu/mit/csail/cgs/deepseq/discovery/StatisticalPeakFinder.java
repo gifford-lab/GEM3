@@ -824,6 +824,8 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                 "  --sigthres <significance threshold \n"+
                 "  --highlogconf <log 10 Poisson threshold for signal channel> \n" +
                 "  --lowlogconf <log 10 Poisson threshold for control channel> \n" +
+                "  --pblogconf <log 10 Poisson threshold per base> \n" +
+                "  --fixed <fixed per base occurrence> \n" +
                 "  --dynback <dynamic background thresholds (-1/0/window = genomic/gene/local window)> \n" +
                 "  --readlen <length> \n" +
                 "  --read5ext <5' extension> --read3ext <3' extension> --readshift <shift tags this distance> \n"+
