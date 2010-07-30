@@ -42,6 +42,7 @@ public class MethodComparisonMotifAnalysis {
 	private int windowSize = 50;	
 	private int rank = 0;
 	private List<Region> restrictRegions;
+	private boolean sortByStrength = false;
 	
 	private Genome genome;
 	private Organism org;
@@ -91,8 +92,8 @@ public class MethodComparisonMotifAnalysis {
 	
 	MethodComparisonMotifAnalysis(String[] args){
 		this.args = args;
-		
-	    ArgParser ap = new ArgParser(args);
+		ArgParser ap = new ArgParser(args);
+		Set<String> flags = Args.parseFlags(args);		
 	    try {
 	      Pair<Organism, Genome> pair = Args.parseGenome(args);
 	      if(pair==null){
@@ -112,10 +113,11 @@ public class MethodComparisonMotifAnalysis {
 	    	    
 		// some parameters
 		windowSize = Args.parseInteger(args, "windowSize", 50);
-		isPreSorted = Args.parseInteger(args, "isPreSorted", 0)==1;
 		rank = Args.parseInteger(args, "rank", 0);
 		motifThreshold = Args.parseDouble(args, "motifThreshold", 10);
 		outName = Args.parseString(args,"out",outName);
+		sortByStrength = flags.contains("ss");	// only for GPS
+		isPreSorted = flags.contains("sorted");
 		try{
 			restrictRegions = Args.parseRegions(args);
 		}
@@ -372,12 +374,22 @@ public class MethodComparisonMotifAnalysis {
         	if (name.contains("GPS")){
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				// sort by descending pValue (-log P-value)
-				if (!isPreSorted)
-					Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
-					    public int compare(GPSPeak o1, GPSPeak o2) {
-					        return o1.compareByPValue(o2);
-					    }
-					});
+				if (!isPreSorted){
+					if (sortByStrength){
+						Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
+						    public int compare(GPSPeak o1, GPSPeak o2) {
+						        return o1.compareByIPStrength(o2);
+						    }
+						});	
+					}
+					else{
+						Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
+						    public int compare(GPSPeak o1, GPSPeak o2) {
+						        return o1.compareByPValue(o2);
+						    }
+						});
+					}
+				}
 				for (GPSPeak p: gpsPeaks){
 					peakPoints.add(p);
 				}
