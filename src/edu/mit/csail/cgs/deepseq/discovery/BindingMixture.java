@@ -1426,9 +1426,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				insignificantFeatures.add(cf);
 		}
 
-		log(1, "Events discovered \nSignificant: "+signalFeatures.size()+
-				"\nInsignificant: "+insignificantFeatures.size()+
-				"\nFiltered: "+filteredFeatures.size()+"\n");
+		log(1, "Events discovered \nSignificant:\t"+signalFeatures.size()+
+				"\nInsignificant:\t"+insignificantFeatures.size()+
+				"\nFiltered:\t"+filteredFeatures.size()+"\n");
 	}//end of postEMProcessing
 
 
@@ -4079,7 +4079,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 			
-		String fname = outName+"_GPS_events.txt";
+		String fname = outName+"_GPS_significant.txt";
 		printFeatures(fname, fs);
 	}
 
@@ -4088,17 +4088,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		for(Feature f : insignificantFeatures){
 			fs.add((ComponentFeature)f);
 		}
-		String fname = outName+"_Insignificant_events.txt";
+		String fname = outName+"_GPS_insignificant.txt";
 		printFeatures(fname, fs);
 	}
 	
 	public void printFilteredFeatures(){
-		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
-		for(Feature f : filteredFeatures){
-			fs.add((ComponentFeature)f);
+		if (!filteredFeatures.isEmpty()){
+			ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
+			for(Feature f : filteredFeatures){
+				fs.add((ComponentFeature)f);
+			}
+			String fname = outName+"_GPS_filtered.txt";
+			printFeatures(fname, fs);
 		}
-		String fname = outName+"_Filtered_events.txt";
-		printFeatures(fname, fs);
 	}
 	
 	public void printPsortedCondFeatures(){
@@ -4149,7 +4151,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			});
 		}
 
-		String fname = outName+"_GPS_events_P.txt";
+		String fname = outName+"_GPS_significant.txt";
 		printFeatures(fname, fs);
 	}
 
