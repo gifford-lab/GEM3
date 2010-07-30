@@ -37,7 +37,7 @@ public class GPSAnalysisImporter extends AnalysisImporter {
         }
 
         double ip = Double.parseDouble(pieces[1]);
-        double wce = Double.parseDouble(pieces[2]);
+        double wce = Math.max(Double.parseDouble(pieces[2]), .1);
         double pval = Math.max(Math.pow(10, -1 * Double.parseDouble(pieces[4])),
                                minpval);
         return new ChipSeqAnalysisResult(getGenome(),
