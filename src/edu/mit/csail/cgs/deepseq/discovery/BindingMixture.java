@@ -93,7 +93,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	private boolean development_mode = false;
 	private boolean do_model_selection=false;
-	private boolean linear_model_expansion=false;
+	private boolean linear_model_expansion=true;
     private boolean print_mixing_probabilities=false;
     private boolean use_multi_event = false;
 	private boolean TF_binding = true;
@@ -303,7 +303,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
      	sort_by_location = flags.contains("sl");
     	development_mode = flags.contains("dev");
      	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
-    	linear_model_expansion = flags.contains("linear_model_expansion");
     	use_multi_event = flags.contains("refine_using_multi_event");
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
@@ -314,8 +313,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	filterEvents = !flags.contains("nf");	// not filtering of predicted events
     	TF_binding = ! flags.contains("non_punctate_binding");
     	reportProgress =! flags.contains("no_report_progress");
-    	use_scanPeak = ! flags.contains("do_not_scanPeak");
+    	use_scanPeak = ! flags.contains("no_scanPeak");
     	do_model_selection = !flags.contains("no_model_selection");
+    	linear_model_expansion = !flags.contains("no_linear_model_expansion");
 
 		/* **************************************************
 		 * Determine the Args.parseString(args, "subs") subset of regions to run EM
