@@ -3293,7 +3293,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for(Region r:chrom_non_specific_regs) {				
 					double ipCounts_condX = countIpReads(r, condX_idx);
 					double ipCounts_condY = countIpReads(r, condY_idx);
-					scalePairs.add(new PairedCountData(ipCounts_condX, ipCounts_condY));  // we want to see how many time ipCounts_condY are larger from ipCounts_condX
+					if (ipCounts_condX!=0 && ipCounts_condY!=0)	// only for non-zero counts, as PeakSeq Paper
+						scalePairs.add(new PairedCountData(ipCounts_condX, ipCounts_condY));  // we want to see how many time ipCounts_condY are larger from ipCounts_condX
 				}
 			}
 			else if(flag.equalsIgnoreCase("CTRL")) {
@@ -3301,7 +3302,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for(Region r:chrom_non_specific_regs) {				
 					double ctrlCounts_condX = countCtrlReads(r, condX_idx);
 					double ctrlCounts_condY = countCtrlReads(r, condY_idx);
-					scalePairs.add(new PairedCountData(ctrlCounts_condX, ctrlCounts_condY));  // we want to see how many time ctrlCounts_condY are larger from ctrlCounts_condX
+					if (ctrlCounts_condX!=0 && ctrlCounts_condY!=0)
+						scalePairs.add(new PairedCountData(ctrlCounts_condX, ctrlCounts_condY));  // we want to see how many time ctrlCounts_condY are larger from ctrlCounts_condX
 				}
 			}
 			else {
@@ -3309,7 +3311,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for(Region r:chrom_non_specific_regs) {
 					double ctrlCounts_X = countCtrlReads(r, condX_idx);
 					double ipCounts_Y   = countIpReads(r, condY_idx);
-					scalePairs.add(new PairedCountData(ctrlCounts_X, ipCounts_Y));  // we want to see how many time ipCounts are larger from ctrlCounts
+					if (ctrlCounts_X!=0 && ipCounts_Y!=0)
+						scalePairs.add(new PairedCountData(ctrlCounts_X, ipCounts_Y));  // we want to see how many time ipCounts are larger from ctrlCounts
 				}
 			}
 		}//end of for(String chrom:gen.getChromList()) LOOP
@@ -3320,7 +3323,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			else if(flag.equalsIgnoreCase("CTRL"))
 				System.out.println(String.format("Calculating Ctrl_cond%d/Ctrl_cond%d (%s/%s) ratio from regression, %d non-specific regions ... ", condY_idx, condX_idx, conditionNames.get(condY_idx), conditionNames.get(condX_idx), scalePairs.size()));
 			else
-				System.out.println(String.format("Calculating IP_cond%d/Ctrl_cond%d ratio for condition %s from regression, %d non-specific regions ... ", condY_idx, condX_idx, conditionNames.get(condY_idx), scalePairs.size()));
+				System.out.println(String.format("Calculating IP/Ctrl ratio for condition %s from regression, %d non-specific regions ... ", conditionNames.get(condY_idx), scalePairs.size()));
 		}
 		// Calculate the slope for this condition
 		slope = calcSlope(scalePairs);
