@@ -1370,11 +1370,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", compFeatures, pcr);
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
 		}	
-		
-		for (int c=0;c<numConditions;c++){
-			System.out.println(String.format("Scaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+		if(controlDataExist){
+			for (int c=0;c<numConditions;c++){
+				System.out.println(String.format("Scaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+			}
+			System.out.println();
 		}
-		System.out.println();
 		
 		// calculate p-values with or without control
 		evaluateConfidence(compFeatures);
@@ -3977,15 +3978,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    	double noiseReadNum_per_kbp = (double) expt_non_specific_total[i] * 1000
 	    		/ (mappable_genome_length - totalLength);
 
-	    	log(1, conditionNames.get(i)+" read stats:");
-	    	log(1, "Signal total\t\t" +(int)e.car().getHitCount()+
-	    	              "\nControl total\t\t" + (controlDataExist ? (int)e.cdr().getHitCount() : 0 )+
-	    	              "\nRatio total\t\t" +String.format("%.3f", (controlDataExist ? e.car().getHitCount()/e.cdr().getHitCount() : 0 ))+
-	    	              "\nSignal non-specific\t" +expt_non_specific_total[i]+
-	    	              "\nControl non-specific\t" +crtl_non_specific_total[i]+
-//	    	              "\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
-	    	              "\nNoise reads per 1000bp\t" +String.format("%.2f",noiseReadNum_per_kbp)+
-	    	              "\n");
+	    	StringBuilder sb = new StringBuilder();
+	    	sb.append(conditionNames.get(i)+" read stats:\n");
+	    	sb.append("Signal total\t\t" +(int)e.car().getHitCount());
+	    	if (controlDataExist){
+	    		sb.append("\nControl total\t\t" + (int)e.cdr().getHitCount() );
+	    	    sb.append("\nRatio total\t\t" +String.format("%.3f", e.car().getHitCount()/e.cdr().getHitCount() ));
+	    	    sb.append("\nSignal non-specific\t" +expt_non_specific_total[i]);
+	    	    sb.append("\nControl non-specific\t" +crtl_non_specific_total[i]);
+//	    	    sb.append("\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
+	    	}
+	    	sb.append("\nNoise reads per 1000bp\t" +String.format("%.2f",noiseReadNum_per_kbp)+"\n");
+	    	log(1, sb.toString());
 		}
 		ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
 
