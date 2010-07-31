@@ -114,7 +114,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
     private double fold = 0;
-    private double shapeDeviation = 0.9;
+    private double shapeDeviation = 0;
+    private boolean use_KL_filtering = false;
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
     private int third_lambda_region_width  = 10000;
@@ -269,6 +270,33 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         	model.smooth(BindingModel.SMOOTHING_STEPSIZE);
 		model.printToFile(outName+"_0_Read_distribution.txt");
 
+    	/* *********************************
+    	 * Flags
+    	 ***********************************/
+    	Set<String> flags = Args.parseFlags(args);
+    	// default as false, need the flag to turn it on
+    	base_filtering = flags.contains("bf");	// base filtering (use max_HitCount_per_base)
+     	sort_by_location = flags.contains("sl");
+    	development_mode = flags.contains("dev");
+    	use_KL_filtering = flags.contains("klf");  // use KL to filter events
+     	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
+    	use_multi_event = flags.contains("refine_using_multi_event");
+    	pre_artifact_filter =  flags.contains("pre_artifact_filter");
+    	post_artifact_filter = flags.contains("post_artifact_filter");
+    	
+    	// default as true, need the opposite flag to turn it off
+    	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
+    	use_internal_em_train = ! flags.contains("multi");
+    	filterEvents = !flags.contains("nf");	// not filtering of predicted events
+    	TF_binding = ! flags.contains("non_punctate_binding");
+    	reportProgress =! flags.contains("no_report_progress");
+    	use_scanPeak = ! flags.contains("no_scanPeak");
+    	do_model_selection = !flags.contains("no_model_selection");
+    	linear_model_expansion = !flags.contains("no_linear_model_expansion");
+
+    	/* *********************************
+    	 * Command line parameters
+    	 ***********************************/
 		// Required input parameter
     	mappable_genome_length = Args.parseDouble(args, "s", 2.08E9);	// size of mappable genome
 
@@ -277,6 +305,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
     	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
+    	shapeDeviation =  use_KL_filtering? -0.4 : 0.9;		// set default according to filter type    		
     	shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
      	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
@@ -296,28 +325,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     		System.err.println("\nThe second control region width (w3) has to be more than " + second_lambda_region_width + " bp.");
     		System.exit(-1);
     	}
-    	
-    	// flags
-    	Set<String> flags = Args.parseFlags(args);
-    	// default as false, need the flag to turn it on
-    	base_filtering = flags.contains("bf");	// base filtering (use max_HitCount_per_base)
-     	sort_by_location = flags.contains("sl");
-    	development_mode = flags.contains("dev");
-     	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
-    	use_multi_event = flags.contains("refine_using_multi_event");
-    	pre_artifact_filter =  flags.contains("pre_artifact_filter");
-    	post_artifact_filter = flags.contains("post_artifact_filter");
-    	
-    	// default as true, need the opposite flag to turn it off
-    	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
-    	use_internal_em_train = ! flags.contains("multi");
-    	filterEvents = !flags.contains("nf");	// not filtering of predicted events
-    	TF_binding = ! flags.contains("non_punctate_binding");
-    	reportProgress =! flags.contains("no_report_progress");
-    	use_scanPeak = ! flags.contains("no_scanPeak");
-    	do_model_selection = !flags.contains("no_model_selection");
-    	linear_model_expansion = !flags.contains("no_linear_model_expansion");
-
+   
 		/* **************************************************
 		 * Determine the Args.parseString(args, "subs") subset of regions to run EM
  		 * It can be specified as a file from command line.
@@ -738,7 +746,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 									 * so that the events we reported have at least 500bp data as margin
 									 * Note: this may result in slight inaccuracy comparing to re-process whole region
 									 * 		 but it is the trade-off against running EM on a huge large region
-									 * 		 and run for whole region might lead to inaccuracy too, because of too many components
+									 * 		 and running for whole region might lead to inaccuracy too, because of too many components
 									 */
 									if (wins.size()>1){
 										for (int ii=0;ii<wins.size()-1;ii++){
@@ -893,6 +901,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		postEMProcessing(compFeatures);
 		for(int c = 0; c < numConditions; c++)
 			condSignalFeats[c] = condPostFiltering(signalFeatures, c);
+
+		log(1, "Finish further processing events: "+CommonUtils.timeElapsed(tic)+"\n");
 
 		return signalFeatures;
 	}// end of execute method
@@ -2775,7 +2785,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 			logKL_plus[c]  = logKL_profile(profile_plus, width);
 			logKL_minus[c] = logKL_profile(profile_minus, width);
-			shapeDeviation[c]  = calcAbsDiff(profile_plus)+calcAbsDiff(profile_minus);
+			if (use_KL_filtering)
+				shapeDeviation[c]  = (calcNzKL(profile_plus)+calcNzKL(profile_minus))/2;
+			else
+				shapeDeviation[c]  = (calcAbsDiff(profile_plus)+calcAbsDiff(profile_minus))/2;
+//			System.err.println(String.format("%.2f\t%.2f\t%.2f\t%s", 
+//					shapeDeviation[c],
+//					calcAbsDiff(profile_plus), 
+//					calcAbsDiff(profile_minus),
+//					b.getLocation().toString()));
 		}
 		cf.setProfileLogKL(logKL_plus, logKL_minus);
 		cf.setShapeDeviation(shapeDeviation);
@@ -2791,6 +2809,58 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		for (int i=0;i<gaus.length;i++)
 			gaus[i]=gaussianDist.calcProbability((double)i);
 		return StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile, gaus));
+	}
+
+	private double calcAbsDiff(double[]profile){
+		double absDiff = 0;
+		double[] m = model.getProbabilities();
+		double totalCount = 0;
+		double nzProbSum = 0;
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				totalCount+=profile[i];
+				nzProbSum += m[i];
+			}
+		}
+		if (totalCount==0)
+			return shapeDeviation*2*0.75;
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				double expected = totalCount*m[i]/nzProbSum;
+				absDiff += Math.abs(profile[i]-expected);
+			}
+		}
+		return absDiff/totalCount;
+	}
+	/*
+	 *   logKL of whole discrete profile
+	 *   no gaussian density, use all (including zero read counts)
+	 */
+	private double calcAbsDiff_v2(double[]profile){
+		return StatUtil.log_KL_Divergence(model.getProbabilities(), profile);
+	}
+
+	/*
+	 *   logKL of non-zero discrete profile
+	 *   no gaussian density, use only non-zero read counts
+	 */
+	private double calcNzKL(double[]profile){
+		ArrayList<Integer> nzPos = new ArrayList<Integer>();
+		double[] m = model.getProbabilities();
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				nzPos.add(i);
+			}
+		}
+		if (nzPos.size()<=2)
+			return -0.2;
+		double[] m_nz = new double[nzPos.size()];
+		double[] p_nz = new double[nzPos.size()];
+		for (int i=0;i<nzPos.size();i++){
+			m_nz[i] = m[nzPos.get(i)];
+			p_nz[i] = profile[nzPos.get(i)];
+		}
+		return StatUtil.log10_KL_Divergence(m_nz, p_nz);
 	}
 	
 	/*
@@ -2819,40 +2889,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		return sqDiff/totalCount;
-	}
-	private double calcAbsDiff(double[]profile){
-		double absDiff = 0;
-		double[] m = model.getProbabilities();
-		double totalCount = 0;
-		double nzProbSum = 0;
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				totalCount+=profile[i];
-				nzProbSum += m[i];
-			}
-		}
-		if (totalCount==0)
-			return shapeDeviation*2*0.75;
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				double expected = totalCount*m[i]/nzProbSum;
-				absDiff += Math.abs(profile[i]-expected);
-			}
-		}
-		return absDiff/totalCount;
-	}
-	private double avgSqDistance2(double[]profile){
-		double sqDistance = 0;
-		double[] m = model.getProbabilities();
-		double totalCount = 0;
-		for (int i=0;i<profile.length;i++){
-			totalCount+=profile[i];
-		}
-		for (int i=0;i<profile.length;i++){
-				double expected = totalCount*m[i];
-				sqDistance += (profile[i]-expected)*(profile[i]-expected);
-		}
-		return Math.sqrt(sqDistance/profile.length);
 	}
 
 	private ArrayList<BindingComponent> postArtifactFilter(ArrayList<BindingComponent> comps){

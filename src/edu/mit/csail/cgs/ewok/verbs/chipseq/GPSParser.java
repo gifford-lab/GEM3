@@ -140,6 +140,7 @@ public class GPSParser {
       }
     }
 	else if (t.length == 12) {
+// GPS output format 2010-07-31		
 // Position	IpStrength	CtrlStrength	Enrichment	Q_value_log10	P_value_log10	
 // ShapeDev	UnaryEvent	NearestGene	Distance	Alpha	EM_Position
 	      try { 
