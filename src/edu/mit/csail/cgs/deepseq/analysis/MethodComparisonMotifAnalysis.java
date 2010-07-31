@@ -22,6 +22,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.analysis.KnnAnalysis.KnnPoint;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
@@ -114,7 +115,6 @@ public class MethodComparisonMotifAnalysis {
 		// some parameters
 		windowSize = Args.parseInteger(args, "windowSize", 50);
 		rank = Args.parseInteger(args, "rank", 0);
-		motifThreshold = Args.parseDouble(args, "motifThreshold", 10);
 		outName = Args.parseString(args,"out",outName);
 		sortByStrength = flags.contains("ss");	// only for GPS
 		isPreSorted = flags.contains("sorted");
@@ -126,18 +126,12 @@ public class MethodComparisonMotifAnalysis {
 		}
 		
 		// load motif
-		try {
-			motifString = Args.parseString(args, "motif", null);
-			String motifVersion = Args.parseString(args, "version", null);
-			int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
-//			Organism org_mouse = new Organism("Mus musculus");
-			int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:org.getDBID(), motifString, motifVersion);
-			motif = WeightMatrix.getWeightMatrix(wmid);
-		} 
-		catch (NotFoundException e) {
-			e.printStackTrace();
-		}		
+		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+		motif = wm.car();
+		motifThreshold = wm.cdr();
+		motifString = Args.parseString(args, "motif", null);
 	}
+	
 	// This method print three text files
 	// 1. sharedMotifOffset, for spatial resolution histogram
 	// Only consider the motif positions that are shared by all methods, 
@@ -189,14 +183,14 @@ public class MethodComparisonMotifAnalysis {
 			}
 			allRegions.addAll( mergeRegions(byChrom));
 		}
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
 		Collections.sort(allRegions);		// sort regions, the motifs should be sorted
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		System.out.printf("%n%d motifs (in %d regions).%n%n", allMotifs.size(), allRegions.size());
 
 		// Get the set of motif matches for all peak calls		
@@ -208,7 +202,7 @@ public class MethodComparisonMotifAnalysis {
 			System.out.printf("\t#motifs: %d", motifs.keySet().size());
 			System.out.println();
 		}
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		System.out.printf("%nMotifs covered by a peak:%n");
 		for(int i = 0; i < methodNames.size(); i++)
@@ -251,7 +245,7 @@ public class MethodComparisonMotifAnalysis {
 					sb.append("\t");
 			}
 		}
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_sharedMotifOffsets_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_sharedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
@@ -295,7 +289,7 @@ public class MethodComparisonMotifAnalysis {
 					sb.append("\t");
 			}
 		}
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_allMotifOffsets_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_allMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
@@ -339,10 +333,10 @@ public class MethodComparisonMotifAnalysis {
 					sb.append("\t");
 			}
 		}
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_rankedMotifOffsets_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_rankedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
-		System.out.println("Done! " + BindingMixture.timeElapsed(tic));
+		System.out.println("Done! " + CommonUtils.timeElapsed(tic));
 	}
 
 	private void readPeakLists(){
@@ -412,23 +406,8 @@ public class MethodComparisonMotifAnalysis {
     				peakPoints.add(p.getPeak());
     			}
         	}
-        	if (name.contains("cisGenome")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  	
-        	if (name.contains("QuEST")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  	
-        	if (name.contains("PICS")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  	
-        	if (name.contains("FindPeaks")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  
-        	if (name.contains("spp_wtd")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  
-           	if (name.contains("spp_mtc")){
-				peakPoints = loadCgsPointFile(filePath);
+        	else{
+				peakPoints = CommonUtils.loadCgsPointFile(filePath, genome);
         	}  
 
         	peaks.add(peakPoints);
@@ -502,13 +481,13 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}
 
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// get all the n-ary motifs (within interDistance)
 		int interDistance = 500;
@@ -588,10 +567,10 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}//each chrom
 		
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents500bp_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents500bp_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb2.toString());
 	}
@@ -664,13 +643,13 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}
 
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// get all the single motifs (no neighbors within interDistance)
 		int interDistance = 500;
@@ -735,10 +714,10 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}//each chrom
 		
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_singleMotifEvents_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_singleMotifEvents_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_singleMotifEvents500bp_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_singleMotifEvents500bp_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb2.toString());
 	}
@@ -771,13 +750,13 @@ public class MethodComparisonMotifAnalysis {
 			}
 			allRegions.addAll( mergeRegions(byChrom));
 		}
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// Get the set of motif matches for all peak calls
 		for (int i=0;i<peaks.size();i++){
@@ -800,7 +779,7 @@ public class MethodComparisonMotifAnalysis {
 			System.out.println(methodNames.get(i)+": "+ps.size());
 			maps.add(getNearestMotif2(ps, allMotifs, allMotifScores));
 		}
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// get the intersection (motifs shared by all methods, upto top rank)
 		System.out.print("\nRunning Spatial Resolution analysis ...\n");
@@ -833,7 +812,7 @@ public class MethodComparisonMotifAnalysis {
 					sb.append("\t");
 			}
 		}
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_unaryEventLists_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_unaryEventLists_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
@@ -1079,41 +1058,7 @@ public class MethodComparisonMotifAnalysis {
 		}
 	}
 
-	// load text file in CGS Point format
-	// chr:coord, e.g. 1:234234
-	private ArrayList<Point> loadCgsPointFile(String filename) {
 
-		File file = new File(filename);
-		FileReader in = null;
-		BufferedReader bin = null;
-		ArrayList<Point> points = new ArrayList<Point>();
-		try {
-			in = new FileReader(file);
-			bin = new BufferedReader(in);
-			String line;
-			while((line = bin.readLine()) != null) { 
-				line = line.trim();
-				Region point = Region.fromString(genome, line);
-				if (point!=null)
-					points.add(new Point(genome, point.getChrom(),point.getStart()));
-			}
-		}
-		catch(IOException ioex) {
-			//logger.error("Error parsing file", ioex);
-		}
-		finally {
-			try {
-				if (bin != null) {
-					bin.close();
-				}
-			}
-			catch(IOException ioex2) {
-				//nothing left to do here, just log the error
-				//logger.error("Error closing buffered reader", ioex2);
-			}			
-		}
-		return points;
-	}
 
 	/** load text file in SISSRS output BED format, then sort by p-value
 	 * 	Chr		cStart	cEnd	NumTags	Fold	p-value
@@ -1234,7 +1179,7 @@ public class MethodComparisonMotifAnalysis {
 			}
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_motif_distance_byScore_"+windowSize+"_"+method+".txt", sb.toString());
+		CommonUtils.writeFile("CTCF_motif_distance_byScore_"+windowSize+"_"+method+".txt", sb.toString());
 	}	
 		
 	private void motifBasedAnalysis(){
@@ -1244,7 +1189,7 @@ public class MethodComparisonMotifAnalysis {
 		maps_gps = getAllNearestMotifs(peaks_gps, motifThresholds[0]);
 		System.out.print("\nGetting motifs from MACS result ...\n");
 		maps_macs = getAllNearestMotifs(peaks_macs, motifThresholds[0]);
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		sharedMotif_SpatialResolution();
 //		bindingSpatialResolutionHistrogram();
 //		motifCoverage();
@@ -1317,7 +1262,7 @@ public class MethodComparisonMotifAnalysis {
 				sb.append("\t"+resolution[0][i][j]);
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_GPS_SpatialResolution_"+windowSize+".txt", sb.toString());
+		CommonUtils.writeFile("CTCF_GPS_SpatialResolution_"+windowSize+".txt", sb.toString());
 
 		sb = new StringBuilder();
 		sb.append("#"+motif.name+" "+ motif.version+"\n");
@@ -1332,8 +1277,8 @@ public class MethodComparisonMotifAnalysis {
 				sb.append("\t"+resolution[1][i][j]);
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_MACS_SpatialResolution_"+windowSize+".txt", sb.toString());
-		System.out.println(BindingMixture.timeElapsed(tic));
+		CommonUtils.writeFile("CTCF_MACS_SpatialResolution_"+windowSize+".txt", sb.toString());
+		System.out.println(CommonUtils.timeElapsed(tic));
 	}
 	
 	// for all the shared motif, pick the nearest peaks
@@ -1400,7 +1345,7 @@ public class MethodComparisonMotifAnalysis {
 							String.format("%.2f", resolution[1][j])+"\n");
 				}
 			}
-			BindingMixture.writeFile("CTCF_SpatialResolutionHistogram_"
+			CommonUtils.writeFile("CTCF_SpatialResolutionHistogram_"
 					+String.format("%.2f_",motifThresholds[m])
 					+windowSize+".txt", sb.toString());
 		}
@@ -1485,7 +1430,7 @@ public class MethodComparisonMotifAnalysis {
 				sb.append("\t"+motifCovered[0][i][j]);
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_GPS_MotifCoverage_"+windowSize+".txt", sb.toString());
+		CommonUtils.writeFile("CTCF_GPS_MotifCoverage_"+windowSize+".txt", sb.toString());
 
 		sb = new StringBuilder();
 		sb.append("#"+motif.name+" "+ motif.version+"\n");
@@ -1504,8 +1449,8 @@ public class MethodComparisonMotifAnalysis {
 				sb.append("\t"+motifCovered[1][i][j]);
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_MACS_MotifCoverage_"+windowSize+".txt", sb.toString());
-		System.out.println(BindingMixture.timeElapsed(tic));
+		CommonUtils.writeFile("CTCF_MACS_MotifCoverage_"+windowSize+".txt", sb.toString());
+		System.out.println(CommonUtils.timeElapsed(tic));
 	}	
 	
 	// get the all nearest motif hits in the region (within windowSize) 

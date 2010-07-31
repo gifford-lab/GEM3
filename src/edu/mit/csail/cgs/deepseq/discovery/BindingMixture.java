@@ -33,6 +33,7 @@ import edu.mit.csail.cgs.deepseq.PairedCountData;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSPeakRegion;
@@ -240,7 +241,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		try{
 			logFileWriter = new FileWriter("GPS_Log.txt", true); //append
 			logFileWriter.write("\n==============================================\n");
-			logFileWriter.write(getDateTime());
+			logFileWriter.write(CommonUtils.getDateTime());
 			logFileWriter.flush();
 		}
 		catch (IOException e) {
@@ -490,7 +491,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				e.car().closeLoaders();
 				e.cdr().closeLoaders();
 			}
-			System.out.println("Finish loading data from ReadDB, " + timeElapsed(tic));
+			System.out.println("Finish loading data from ReadDB, " + CommonUtils.timeElapsed(tic));
 		}
 		
 		if (base_filtering){
@@ -835,11 +836,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 
 			if ((j+1) % displayStep==0 && reportProgress)
-				System.out.println((j+1)+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
+				System.out.println((j+1)+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 
 		}// end of for (Region rr : restrictRegions)
 		if (!(totalRegionCount % displayStep==0 && reportProgress))	//avoid repeating report
-			System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+timeElapsed(tic));
+			System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 
 		/* ********************************************************
 		 * merge nearby tower regions, filter events in or at the edge of tower regions
@@ -886,7 +887,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //			printTowerRegions();
 //			writeFile(outName+"_needles.txt", needleReport.toString());
 		}
-		log(1, "Finish predicting events: "+timeElapsed(tic)+"\n");
+		log(1, "Finish predicting events: "+CommonUtils.timeElapsed(tic)+"\n");
 
 		// post processing
 		postEMProcessing(compFeatures);
@@ -2237,7 +2238,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		
-		log(3, "selectEnrichedRegions(): " + timeElapsed(tic));
+		log(3, "selectEnrichedRegions(): " + CommonUtils.timeElapsed(tic));
 		return regions;
 	}//end of selectEnrichedRegions method
 
@@ -4261,46 +4262,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			e.printStackTrace();
 		}
 	}
-	public static String timeElapsed(long tic){
-		return timeString(System.currentTimeMillis()-tic);
-	}
-	private static String timeString(long length){
-		float sec = length/1000F;
-		return sec>60?
-			String.format("%.1f",sec/60)+" min":
-			String.format("%.1f",sec)+" sec";
-	}
-	public static String getDateTime() {
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
-        Date date = new Date();
-        return dateFormat.format(date);
-    }
-	public static void printArray(double[]array, String msgBefore, String msgAfter){
-		System.out.print(msgBefore);
-		System.out.print(arrayToString(array));
-		System.out.print(msgAfter);
-	}
-	public static void printArray(int[]array, String msgBefore, String msgAfter){
-		System.out.print(msgBefore);
-		System.out.print(arrayToString(array));
-		System.out.print(msgAfter);
-	}
-	public static String arrayToString(int[] array){
-        StringBuilder output = new StringBuilder();
-        for (int i=0;i<array.length-1;i++){
-        	output.append(String.format("%d\t",array[i]));
-        }
-        output.append(String.format("%d",array[array.length-1]));
-        return output.toString();
-	}
-	public static String arrayToString(double[] array){
-        StringBuilder output = new StringBuilder();
-        for (int i=0;i<array.length-1;i++){
-        	output.append(String.format("%.2f\t",array[i]));
-        }
-        output.append(String.format("%.2f",array[array.length-1]));
-        return output.toString();
-	}
 
 	public void writeDebugFile(){
 		try{
@@ -4351,17 +4312,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			e.printStackTrace();
 		}
 	}
-	public static void writeFile(String fileName, String text){
-		try{
-			FileWriter fw = new FileWriter(fileName, false); //new file
-			fw.write(text);
-			fw.close();
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-		}
-//		System.out.println("File was written to "+fileName);
-	}
+
 	public void printError() {
 
 	}

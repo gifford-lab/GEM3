@@ -20,6 +20,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.utilities.AnnotationLoader;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
@@ -84,24 +85,10 @@ public class GPSOutputAnalysis {
     } catch (NotFoundException e) {
       e.printStackTrace();
     }
-    // load motif
-    try {   
-      String motifString = Args.parseString(args, "motif", null);
-      if (motifString!=null){
-	      String motifVersion = Args.parseString(args, "version", null);
-	      motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
-	      if (motifThreshold==-1){
-	    	  System.err.println("No motif threshold was provided, default=10.0 is used.");
-	    	  motifThreshold = 10.0;
-	      }
-		  int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
-		  int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:org.getDBID(), motifString, motifVersion);
-		  motif = WeightMatrix.getWeightMatrix(wmid);
-      }
-    } 
-    catch (NotFoundException e) {
-      e.printStackTrace();
-    }   
+	// load motif
+	Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+	motif = wm.car();
+	motifThreshold = wm.cdr();
     
     // load GPS results
     GPSfileName = Args.parseString(args, "GPS", null);
@@ -279,8 +266,8 @@ public class GPSOutputAnalysis {
 	  sb.append(99999999).append("\n");  //interpeak distance
 
   
-    BindingMixture.writeFile(GPSfileName+"_JointPeak_Motif.txt", sb.toString());
-    BindingMixture.writeFile(GPSfileName+"_BinaryMotifEvents.txt", sb_binary.toString());
+	  CommonUtils.writeFile(GPSfileName+"_JointPeak_Motif.txt", sb.toString());
+	  CommonUtils.writeFile(GPSfileName+"_BinaryMotifEvents.txt", sb_binary.toString());
   }
   
   private void geneAnnotation(){
@@ -324,7 +311,7 @@ public class GPSOutputAnalysis {
                   .append("\t").append(distToGene).append("\n");
             }
       String filename = GPSfileName+(annotOverlapOnly?"_overlap_genes.txt":"_nearest_genes.txt");
-      BindingMixture.writeFile(filename, sb.toString());  
+      CommonUtils.writeFile(filename, sb.toString());  
     }
   }
   
@@ -340,7 +327,7 @@ public class GPSOutputAnalysis {
 		sb.append(seqgen.execute(peakWin)+"\n");
 	}
 	String filename = GPSfileName+"_sequence.txt";
-	BindingMixture.writeFile(filename, sb.toString());  
+	CommonUtils.writeFile(filename, sb.toString());  
   }
 
   private void expressionIntegration(){
@@ -434,7 +421,7 @@ public class GPSOutputAnalysis {
       }
       sb.append("\n");
     }
-    BindingMixture.writeFile(GPSfileName+"_GPS_DiffExpr.txt", sb.toString()); 
+    CommonUtils.writeFile(GPSfileName+"_GPS_DiffExpr.txt", sb.toString()); 
   }
 
 }

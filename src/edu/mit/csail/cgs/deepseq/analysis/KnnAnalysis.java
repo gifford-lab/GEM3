@@ -13,6 +13,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -104,7 +105,7 @@ public class KnnAnalysis {
 		// distance calculation
 		long tic = System.currentTimeMillis();
 		calcDistance_Naive(knnPoints);
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 
 //		int[] kValues = new int[10];
@@ -151,7 +152,7 @@ public class KnnAnalysis {
 					.append(String.format("%.3f", falsePositives[n]/truePositives[n]))
 					.append("\n");
 			}
-			BindingMixture.writeFile(outName+"_K"+k+".txt", sb.toString());
+			CommonUtils.writeFile(outName+"_K"+k+".txt", sb.toString());
 			
 			// output n-sorted peaks list
 			Collections.sort(knnPoints, new Comparator<KnnPoint>(){
@@ -165,14 +166,14 @@ public class KnnAnalysis {
 					sb.append(p.peak.toGPS()).append("\t")
 					.append(p.n).append("\t").append(k).append("\n");
 			}
-			BindingMixture.writeFile(outName+"_K"+k+"_N"+n_cutoff+"_Peaks.txt", sb.toString());
+			CommonUtils.writeFile(outName+"_K"+k+"_N"+n_cutoff+"_Peaks.txt", sb.toString());
 			sb = new StringBuilder();
 			for (KnnPoint p:knnPoints){
 				if(p.isIP && p.n<n_cutoff)
 					sb.append(p.peak.toGPS()).append("\t")
 					.append(p.n).append("\t").append(k).append("\n");
 			}
-			BindingMixture.writeFile(outName+"_K"+k+"_N"+n_cutoff+"_Insig_Peaks.txt", sb.toString());
+			CommonUtils.writeFile(outName+"_K"+k+"_N"+n_cutoff+"_Insig_Peaks.txt", sb.toString());
 		}
 	}
 	// naive implementation: calculating distance to all other points

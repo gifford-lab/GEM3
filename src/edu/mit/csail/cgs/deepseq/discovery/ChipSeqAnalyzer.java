@@ -10,6 +10,7 @@ import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -166,7 +167,7 @@ public class ChipSeqAnalyzer{
 	        	System.exit(1);
 	        }
         }
-        System.out.println("    done: "+BindingMixture.timeElapsed(loadData_tic));
+        System.out.println("    done: "+CommonUtils.timeElapsed(loadData_tic));
         try{
 	    mixture = new BindingMixture(genome, experiments, conditionNames, args);
         }

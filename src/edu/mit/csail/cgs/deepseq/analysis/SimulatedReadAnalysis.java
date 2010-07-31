@@ -11,6 +11,7 @@ import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.discovery.ChipSeqAnalysisProperties;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadSimulator;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
@@ -187,7 +188,7 @@ public class SimulatedReadAnalysis {
 	        resolutions.removeAllElements();
 	        logKLs.removeAllElements();
 		}
-		timeString = "Total time:\t"+BindingMixture.timeElapsed(tic);
+		timeString = "Total time:\t"+CommonUtils.timeElapsed(tic);
         System.out.println(timeString);
 	}
 
@@ -223,16 +224,16 @@ public class SimulatedReadAnalysis {
 	        resolutions.removeAllElements();
 	        logKLs.removeAllElements();
 		}
-		timeString = "Total time:\t"+BindingMixture.timeElapsed(tic);
+		timeString = "Total time:\t"+CommonUtils.timeElapsed(tic);
         System.out.println(timeString);
 	}
 	
 	public void output(String name_prefix){
-        BindingMixture.printArray(readCounts, "", "\n");
-        BindingMixture.printArray(meanResolutions, "", "\n");
-        BindingMixture.printArray(stdevResolutions, "", "\n");
-        BindingMixture.printArray(meanLogKLs, "", "\n");
-        BindingMixture.printArray(stdevLogKLs, "", "\n");
+		CommonUtils.printArray(readCounts, "", "\n");
+		CommonUtils.printArray(meanResolutions, "", "\n");
+		CommonUtils.printArray(stdevResolutions, "", "\n");
+		CommonUtils.printArray(meanLogKLs, "", "\n");
+		CommonUtils.printArray(stdevLogKLs, "", "\n");
         
         StringBuilder output = new StringBuilder();
         output.append("#args: ");
@@ -244,14 +245,13 @@ public class SimulatedReadAnalysis {
 		output.append("Gaussian width:\t").append(smoother_width).append("\n");
 		output.append("Sample number:\t").append(numSamples).append("\n\n");
 		
-        output.append(BindingMixture.arrayToString(readCounts)).append("\n")
-        	  .append(BindingMixture.arrayToString(meanResolutions)).append("\n")
-        	  .append(BindingMixture.arrayToString(stdevResolutions)).append("\n")
-        	  .append(BindingMixture.arrayToString(meanLogKLs)).append("\n")
-        	  .append(BindingMixture.arrayToString(stdevLogKLs));
+        output.append(CommonUtils.arrayToString(readCounts)).append("\n")
+        	  .append(CommonUtils.arrayToString(meanResolutions)).append("\n")
+        	  .append(CommonUtils.arrayToString(stdevResolutions)).append("\n")
+        	  .append(CommonUtils.arrayToString(meanLogKLs)).append("\n")
+        	  .append(CommonUtils.arrayToString(stdevLogKLs));
         
-//        BindingMixture.writeFile("Binding site stats "+BindingMixture.getDateTime()+".txt", output.toString());
-        BindingMixture.writeFile(name_prefix + "_noise"+String.format("%.3f", noise)+ "_width"+smoother_width+".txt", output.toString());
+       CommonUtils.writeFile(name_prefix + "_noise"+String.format("%.3f", noise)+ "_width"+smoother_width+".txt", output.toString());
 	}
 	
 
@@ -300,7 +300,7 @@ public class SimulatedReadAnalysis {
         for (double kl: logKLs){
         	output.append(kl).append("\n");
         }
-        BindingMixture.writeFile("Read"+readNum+"_logKLs.txt", output.toString());
+        CommonUtils.writeFile("Read"+readNum+"_logKLs.txt", output.toString());
 	}
 	
 	private void peakShapeDistributionParameters(){

@@ -10,6 +10,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -100,8 +101,8 @@ public class RegionMotifAnalysis {
 			if (motifFound)
 				output.append(r.getMidpoint().toString()).append(String.format("\t%.1f\n", score));
 		}
-		System.out.println(BindingMixture.timeElapsed(tic));
-		BindingMixture.writeFile(outName, output.toString());
+		System.out.println(CommonUtils.timeElapsed(tic));
+		CommonUtils.writeFile(outName, output.toString());
 	}	
 
 	// load text file in CGS Region format
