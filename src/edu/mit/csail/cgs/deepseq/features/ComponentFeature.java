@@ -263,7 +263,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		
 		result.append(position.getLocationString()).append("\t");
 		result.append(String.format("%.1f\t", totalSumResponsibility));
-		result.append(String.format("%.2f\t", getAvgShapeDeviation()));
 			
         for(int c=0; c<numConditions; c++){
         	if (numConditions!=1) {	// if single condition, IP is same as total
@@ -284,6 +283,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%.2f\t", -Math.log10(getPValue_wo_ctrl(c))));
         }
 
+		result.append(String.format("%.2f\t", getAvgShapeDeviation()));
         result.append(mixingProb==1?1:0).append("\t");
 //        result.append(String.format("%.4f\t", mixingProb));
          
@@ -313,8 +313,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		StringBuilder header = new StringBuilder("%");
 		
 		header.append("Position\t")
-			  .append("IpStrength\t")
-			  .append("ShapeDev\t");  
+			  .append("IpStrength\t");
         
         for(int c=0; c<numConditions; c++){
         	String name = numConditions==1?"":conditionNames.get(c)+"_";
@@ -328,7 +327,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
   	      		  .append(name+"P_value_log10\t");
         }
         
-        header.append("UnaryEvent\t");
+        header.append("ShapeDev\t").append("UnaryEvent\t");
 		header.append("NearestGene\t").append("Distance\t");
 		
         if (annotations != null) {
@@ -347,8 +346,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		StringBuilder header = new StringBuilder("");
 		
 		header.append("Position\t")
-			  .append("IpStrength\t") 
-			  .append("ShapeDev\t");        
+			  .append("IpStrength\t");        
         
         for(int c=0; c<numConditions; c++){
         	String name = numConditions==1?"":conditionNames.get(c)+"_";
@@ -359,7 +357,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	header.append(name+"CtrlStrength\t")
   		  		  .append(name+"Enrichment\t")
         	      .append(name+"Q_value_log10\t")
-  	      		  .append(name+"P_value_log10");
+  	      		  .append(name+"P_value_log10\t")
+  	      		  .append("ShapeDev");
         	if (c<numConditions-1)
         		header.append("\t");
         }
@@ -374,7 +373,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		
 		result.append(position.getLocationString()).append("\t");
 		result.append(String.format("%.1f\t", totalSumResponsibility));
-		result.append(String.format("%.2f\t", getAvgShapeDeviation()));
       
         for(int c=0; c<numConditions; c++){
         	if (numConditions!=1) {	// if single condition, IP is same as total
@@ -392,8 +390,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	if(unScaledControlCounts!=null)
         		result.append(String.format("%.2f\t", -Math.log10(getPValue(c))));
         	else
-        		result.append(String.format("%.2f", -Math.log10(getPValue_wo_ctrl(c))));
-        	
+        		result.append(String.format("%.2f\t", -Math.log10(getPValue_wo_ctrl(c))));
+
+    		result.append(String.format("%.2f", getAvgShapeDeviation()));
         	if (c<numConditions-1)
         		result.append("\t");
         }
