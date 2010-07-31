@@ -44,6 +44,10 @@ public class GPSParser {
 	    String filename = Args.parseString(args,"GPS",null); 
 	    List<GPSPeak> peaks = parseGPSOutput(filename, genome);
 	    System.out.println(peaks.size());
+	    System.out.println(GPSPeak.toGPS_Header());
+	    System.out.println(peaks.get(0).toGPS());
+	    System.out.println(GPSPeak.toGPS_short_Header());
+	    System.out.println(peaks.get(0).toGPS_short());
 	}
 	/**
 	 * Parses data in the GPS output format
@@ -136,11 +140,14 @@ public class GPSParser {
       }
     }
 	else if (t.length == 12) {
+// Position	IpStrength	ShapeDev	CtrlStrength	Enrichment	Q_value_log10	
+// P_value_log10	UnaryEvent	NearestGene	Distance	Alpha	EM_Position
+
 	      try { 
-	      Region r = Region.fromString(g, t[0]);
+	    	  Region r = Region.fromString(g, t[0]);
 				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-						Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
-						Double.parseDouble(t[5]), Double.parseDouble(t[1]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
+						Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[5]), 
+						Double.parseDouble(t[6]), Double.parseDouble(t[2]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
 	      }
 	      catch (Exception ex) {
 	        //logger.error("Parse error on line " + lineNumber + ".", ex);
