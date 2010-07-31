@@ -114,7 +114,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
     private double fold = 0;
-    private double logkl = 0.9;
+    private double shapeDeviation = 0.9;
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
     private int third_lambda_region_width  = 10000;
@@ -277,7 +277,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
     	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
-    	logkl = Args.parseDouble(args, "logkl", logkl); // maximum logkl value for filtering
+    	shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
      	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
      	window_size_factor = Args.parseInteger(args, "wsf", 3);
@@ -1408,7 +1408,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for (int cond=0; cond<numConditions; cond++){
 					// if one condition is good event, this position is GOOD
 					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
-					if (cf.getLogKL(cond).car()<=logkl && (cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond)>=fold)){
+					if (cf.getShapeDeviation(cond)<=shapeDeviation && (cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond)>=fold)){
 						notFiltered = true;
 						break;
 					}
@@ -2739,10 +2739,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					else{
 						width=28;
 					}
-//					double logKL_plus  = logKL_profile(profile_plus, width);
-//					double logKL_minus = logKL_profile(profile_minus, width);
-					double logKL_plus  = calcAbsDiff(profile_plus);
-					double logKL_minus = calcAbsDiff(profile_minus);
+					double logKL_plus  = logKL_profile(profile_plus, width);
+					double logKL_minus = logKL_profile(profile_minus, width);
 					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
@@ -2758,6 +2756,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// KL
 		double[] logKL_plus = new double[numConditions];
 		double[] logKL_minus = new double[numConditions];
+		double[] shapeDeviation = new double[numConditions];
 		for (int c=0;c<numConditions;c++){
 //			logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
 //			logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
@@ -2774,13 +2773,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			else{
 				width=28;
 			}
-//			logKL_plus[c]  = logKL_profile(profile_plus, width);
-//			logKL_minus[c] = logKL_profile(profile_minus, width);
-			logKL_plus[c]  = calcAbsDiff(profile_plus);
-			logKL_minus[c] = calcAbsDiff(profile_minus);
+			logKL_plus[c]  = logKL_profile(profile_plus, width);
+			logKL_minus[c] = logKL_profile(profile_minus, width);
+			shapeDeviation[c]  = calcAbsDiff(profile_plus)+calcAbsDiff(profile_minus);
 		}
 		cf.setProfileLogKL(logKL_plus, logKL_minus);
-
+		cf.setShapeDeviation(shapeDeviation);
 		return cf;
 	}
 	/*
@@ -2813,7 +2811,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		if (nzPosCount==0)
-			return logkl*2*0.75;
+			return shapeDeviation*2*0.75;
 		for (int i=0;i<profile.length;i++){
 			if (profile[i]!=0){
 				double expected = totalCount*m[i]/nzProbSum;
@@ -2834,7 +2832,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		if (totalCount==0)
-			return logkl*2*0.75;
+			return shapeDeviation*2*0.75;
 		for (int i=0;i<profile.length;i++){
 			if (profile[i]!=0){
 				double expected = totalCount*m[i]/nzProbSum;
@@ -4023,24 +4021,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 	public String getConfigString(){
 		return "BindingMixture Configurations\n"+config.toString();
-	}
-
-	// rank for peak-shape
-	private void rankPeakShape(ArrayList<ComponentFeature> compFeatures){
-		for (int cond=0; cond<conditionNames.size(); cond++){
-			ComponentFeature.setSortingCondition(cond);
-			Collections.sort(compFeatures, new Comparator<ComponentFeature>(){
-			    public int compare(ComponentFeature o1, ComponentFeature o2) {
-			        return o1.compareByPeakShape(o2);
-			    }
-			});
-
-			int rank =1;
-			for(ComponentFeature cf : compFeatures){
-				cf.addRank_sum(rank);
-				rank++;
-			}
-		}
 	}
 
 	public void addAnnotations(){
