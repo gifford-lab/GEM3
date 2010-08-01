@@ -6,19 +6,19 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 public class GPSPeak extends Point{
 	double strength;
 	double controlStrength;
-	Point EM_position;
 	double qvalue;
 	double pvalue;
 	double shape;
+	private boolean jointEvent;		// 1 for joint event, 0 for unary, etc
 	String nearestGene;
 	int distance;
-	private boolean jointEvent;		// 1 for joint event, 0 for unary, etc
+	Point EM_position;
 
-	public GPSPeak(Genome g, String chr, int pos, double strength, 
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double controlStrength, double qvalue, double pvalue, double shape, 
 			int joint, String nearestGene, int distance){
 		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = strength;
+		this.strength = ipStrength;
 		this.controlStrength = controlStrength;
 		this.qvalue = qvalue;
 		this.pvalue = pvalue;
@@ -28,10 +28,10 @@ public class GPSPeak extends Point{
 		this.distance = distance;
 	}
 	
-	public GPSPeak(Genome g, String chr, int pos, double strength, 
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double ctrlStrength, double qvalue, double pvalue, double shape){
 		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = strength;
+		this.strength = ipStrength;
 		this.controlStrength = ctrlStrength;
 		this.qvalue = qvalue;
 		this.pvalue = pvalue;
