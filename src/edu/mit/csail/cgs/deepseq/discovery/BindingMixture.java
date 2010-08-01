@@ -96,7 +96,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private boolean do_model_selection=false;
 	private boolean linear_model_expansion=true;
     private boolean print_mixing_probabilities=false;
-    private boolean use_multi_event = false;
+    private boolean use_joint_event = false;
 	private boolean TF_binding = true;
 	private boolean pre_artifact_filter=false;
 	private boolean post_artifact_filter=false;
@@ -283,7 +283,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
      	sort_by_location = flags.contains("sl");
     	development_mode = flags.contains("dev");
      	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
-    	use_multi_event = flags.contains("refine_using_multi_event");
+    	use_joint_event = flags.contains("refine_using_joint_event");
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	
@@ -294,7 +294,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	if (use_internal_em_train)
     		ComponentFeature.use_internal_em_train();
     	filterEvents = !flags.contains("nf");	// not filtering of predicted events
-    	TF_binding = ! flags.contains("non_punctate_binding");
+    	TF_binding = ! flags.contains("notf");	// Not TF data, is histone or pol II
+    	if (!TF_binding)
+    		use_joint_event = true;
     	reportProgress =! flags.contains("no_report_progress");
     	use_scanPeak = ! flags.contains("no_scanPeak");
     	do_model_selection = !flags.contains("no_model_selection");
@@ -1395,17 +1397,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			boolean significant = false;
 			// for multi-condition, at least be significant in one condition
 			// The read count test is for each condition
-			if (TF_binding)
-				for (int cond=0; cond<numConditions; cond++){
-					if(cf.getQValueLog10(cond)>q_value_threshold &&
-							cf.getEventReadCounts(cond)>sparseness){
-						significant = true;
-						break;
+		
+			for (int cond=0; cond<numConditions; cond++){
+				if(cf.getEventReadCounts(cond)>sparseness){	// first pass read count test
+					if (TF_binding){	// single event IP/ctrf only applies to TF
+						if (cf.getQValueLog10(cond)>q_value_threshold){
+							significant = true;
+							break;
+						}
 					}
+					else		//TODO: if histone data, need to test as a set of events
+						significant = true;
 				}
-			else	// if not TF binding, it is Chromatin data, keep all components
-				significant = true;
-			
+			}
 
 			boolean notFiltered = false;
 			if (filterEvents){
@@ -3438,7 +3442,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				ComponentFeature cf = (ComponentFeature)f;
 				// the events that are used to refine read distribution should be
 				// having strength and shape at the upper half ranking
-				if ((use_multi_event || !cf.isJointEvent())
+				if ((use_joint_event || !cf.isJointEvent())
 						&& cf.getAverageLogKL()<=shapeThreshold
 						&& cf.getTotalSumResponsibility()>=strengthThreshold){
 					if (cf.getQValueLog10(c)>q_value_threshold){
