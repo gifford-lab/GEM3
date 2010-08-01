@@ -2855,8 +2855,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				nzPos.add(i);
 			}
 		}
-		if (nzPos.size()<=2)
+		if (nzPos.size()<=1)
 			return -0.2;
+		else if (nzPos.size()==2)
+			return -0.1;
+			
 		double[] m_nz = new double[nzPos.size()];
 		double[] p_nz = new double[nzPos.size()];
 		for (int i=0;i<nzPos.size();i++){
@@ -4014,24 +4017,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //		log(1, "countNonSpecificReads(): "+timeElapsed(tic));
 	}
 
-	private void loadPeakShapeParameters(String peak_shape_distribution) {
-		try{
-			BufferedReader file = new BufferedReader(new FileReader(new File(peak_shape_distribution)));
-			String[] readNums = file.readLine().trim().split("\t");
-			String[] means = file.readLine().trim().split("\t");
-			String[] stds = file.readLine().trim().split("\t");
-			shapeParameters = new HashMap<Integer, Pair<Double, Double>>();
-			for (int i=0;i<readNums.length;i++){
-				shapeParameters.put(Integer.parseInt(readNums[i]),
-						new Pair<Double, Double>(Double.parseDouble(means[i]),
-								Double.parseDouble(stds[i])));
-			}
-			file.close();
-		}catch(IOException e){
-			System.err.println(e.toString());
-		}
-
-	}
 	private void addConfigString(String name, boolean value){
 		config.append(name).append("\t").append(new Boolean(value).toString()).append("\n");
 	}
@@ -4062,23 +4047,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		//for single condition, sort by p-value
 		if (!sort_by_location && this.numConditions==1){
-			ComponentFeature.setSortingCondition(0);
-			if(controlDataExist) {
-				Collections.sort(fs, new Comparator<ComponentFeature>(){
-				    public int compare(ComponentFeature o1, ComponentFeature o2) {
-				        return o1.compareByPValue(o2);
-				    }
-				});
-			}
-			else {
-				Collections.sort(fs, new Comparator<ComponentFeature>(){
-				    public int compare(ComponentFeature o1, ComponentFeature o2) {
-				        return o1.compareByPValue_wo_ctrl(o2);
-				    }
-				});
-			}
-		}
-			
+			Collections.sort(fs, new Comparator<ComponentFeature>(){
+			    public int compare(ComponentFeature o1, ComponentFeature o2) {
+			    	if(controlDataExist)
+			    		return o1.compareByPValue(o2);
+			    	else
+			    		return o1.compareByPValue_wo_ctrl(o2);
+			    }
+			});
+		}			
 		String fname = outName+"_GPS_significant.txt";
 		printFeatures(fname, fs);
 	}
@@ -4087,6 +4064,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
 		for(Feature f : insignificantFeatures){
 			fs.add((ComponentFeature)f);
+		}
+		//for single condition, sort by p-value
+		if (!sort_by_location && this.numConditions==1){
+			Collections.sort(fs, new Comparator<ComponentFeature>(){
+			    public int compare(ComponentFeature o1, ComponentFeature o2) {
+			    	if(controlDataExist)
+			    		return o1.compareByPValue(o2);
+			    	else
+			    		return o1.compareByPValue_wo_ctrl(o2);
+			    }
+			});
 		}
 		String fname = outName+"_GPS_insignificant.txt";
 		printFeatures(fname, fs);
@@ -4097,6 +4085,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
 			for(Feature f : filteredFeatures){
 				fs.add((ComponentFeature)f);
+			}
+			//for single condition, sort by p-value
+			if (!sort_by_location && this.numConditions==1){
+				Collections.sort(fs, new Comparator<ComponentFeature>(){
+				    public int compare(ComponentFeature o1, ComponentFeature o2) {
+				    	return o1.compareByTotalResponsibility(o2);
+				    }
+				});
 			}
 			String fname = outName+"_GPS_filtered.txt";
 			printFeatures(fname, fs);
