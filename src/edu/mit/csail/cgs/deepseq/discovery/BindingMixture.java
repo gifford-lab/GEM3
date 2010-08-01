@@ -311,7 +311,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
     	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
-    	shapeDeviation =  use_KL_filtering? -0.45 : 0.9;		// set default according to filter type    		
+    	shapeDeviation =  use_KL_filtering? -0.3 : 0.9;		// set default according to filter type    		
     	shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
      	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
@@ -1433,6 +1433,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		
 		// set joint event flag in the events
 		if (signalFeatures.size()>=2){
+			for (int i=0;i<signalFeatures.size();i++){
+				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+				cf.setJointEvent(false);		// clean the mark first
+			}
 			for (int i=0;i<signalFeatures.size()-1;i++){
 				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
 				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
@@ -2872,6 +2876,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 *   no gaussian density, use only non-zero read counts
 	 */
 	private double calc2StrandNzKL(double[]profile_p, double[]profile_m){
+		double asym_p = profile_p.length>2?0:0.2;	// penalty of having too few reads on one strand
+		double asym_m = profile_m.length>2?0:0.2;
+		
 		double[] profile = new double[profile_p.length+profile_m.length];
 		System.arraycopy(profile_p, 0, profile, 0, profile_p.length); 
 		System.arraycopy(profile_m, 0, profile, profile_p.length, profile_m.length); 
@@ -2882,21 +2889,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		System.arraycopy(m, 0, m2, m.length, m.length); 
 
 		ArrayList<Integer> nzPos = new ArrayList<Integer>();
-		
 		for (int i=0;i<profile.length;i++){
 			if (profile[i]!=0){
 				nzPos.add(i);
 			}
 		}
-		if (nzPos.size()<=1)
-			return -0.15;
 		double[] m_nz = new double[nzPos.size()];
 		double[] p_nz = new double[nzPos.size()];
 		for (int i=0;i<nzPos.size();i++){
 			m_nz[i] = m2[nzPos.get(i)];
 			p_nz[i] = profile[nzPos.get(i)];
 		}
-		return StatUtil.log10_KL_Divergence(m_nz, p_nz);
+		return StatUtil.log10_KL_Divergence(m_nz, p_nz)+asym_p+asym_m;
 	}	
 	/*
 	 * Calculate average square distance for read profile 
