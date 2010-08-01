@@ -114,7 +114,7 @@ public class GPS_ReadDistribution {
 			strength = Args.parseInteger(args,"strength",40);
 			ArrayList<Point> points = new ArrayList<Point>();
 			for (GPSPeak gps: gpsPeaks){
-				if (gps.getMixProb()==1 && gps.getStrength()>strength && gps.getShape()<2.5){
+				if ((!gps.isJointEvent()) && gps.getStrength()>40 && gps.getShape()<-1){
 					if (useMotif){
 						Region r= gps.expand(MOTIF_DISTANCE);
 						WeightMatrixScoreProfile profiler = scorer.execute(r);

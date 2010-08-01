@@ -116,8 +116,7 @@ public class GPSOutputAnalysis {
     }
     ArrayList<Point> points = new ArrayList<Point>();
     for (GPSPeak gps: gpsPeaks){
-//      if (gps.getMixProb()==1 && gps.getQvalue()>5 && gps.getShape()<1)
-      if (gps.getMixProb()==1 && gps.getStrength()>40 && gps.getShape()<1){
+      if ((!gps.isJointEvent()) && gps.getStrength()>40 && gps.getShape()<-1){
         if (useMotif){
           Region r= gps.expand(MOTIF_DISTANCE);
           WeightMatrixScoreProfile profiler = scorer.execute(r);

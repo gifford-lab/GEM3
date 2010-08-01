@@ -12,18 +12,18 @@ public class GPSPeak extends Point{
 	double shape;
 	String nearestGene;
 	int distance;
-	private int jointEvent;		// 1 for joint event, 0 for unary, etc
+	private boolean jointEvent;		// 1 for joint event, 0 for unary, etc
 
 	public GPSPeak(Genome g, String chr, int pos, double strength, 
 			double controlStrength, double qvalue, double pvalue, double shape, 
-			int unaryEvent, String nearestGene, int distance){
+			int joint, String nearestGene, int distance){
 		super(g, chr.replaceFirst("chr", ""), pos);
 		this.strength = strength;
 		this.controlStrength = controlStrength;
 		this.qvalue = qvalue;
 		this.pvalue = pvalue;
 		this.shape = shape;
-		this.jointEvent = unaryEvent;
+		this.jointEvent = joint==1;
 		this.nearestGene = nearestGene;
 		this.distance = distance;
 	}
@@ -64,9 +64,13 @@ public class GPSPeak extends Point{
 		this.pvalue = pvalue;
 		this.shape = shape;
 		if (mixProb==1)
-			jointEvent = 1;
+			jointEvent = false;
 		this.nearestGene = nearestGene;
 		this.distance = distance;
+	}
+
+	public boolean isJointEvent() {
+		return jointEvent;
 	}
 
 	public double getStrength() {
