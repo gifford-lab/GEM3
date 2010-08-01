@@ -2859,7 +2859,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			return -0.15;
 		else if (nzPos.size()==2)
 			return -0.2;
-			
 		double[] m_nz = new double[nzPos.size()];
 		double[] p_nz = new double[nzPos.size()];
 		for (int i=0;i<nzPos.size();i++){
