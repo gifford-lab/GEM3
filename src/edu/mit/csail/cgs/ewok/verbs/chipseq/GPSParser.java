@@ -127,7 +127,21 @@ public class GPSParser {
 	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-	if (t.length < 12) {
+		if (t.length == 7) {
+// GPS output format 2010-07-31		
+// Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
+	      try { 
+	    	  Region r = Region.fromString(g, t[0]);
+				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+						Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
+						Double.parseDouble(t[5]), Double.parseDouble(t[6]));
+	      }
+	      catch (Exception ex) {
+	        //logger.error("Parse error on line " + lineNumber + ".", ex);
+	        return null;
+	      }
+	    }
+	else if (t.length < 12) {
       try { 
       Region r = Region.fromString(g, t[0]);
 			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
@@ -140,7 +154,7 @@ public class GPSParser {
       }
     }
 	else if (t.length == 12) {
-// GPS output format 2010-07-31		
+// GPS dev output format 2010-07-31		
 //	Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
 //	Joint	NearestGene	Distance	Alpha	EM_Position
 	      try { 
