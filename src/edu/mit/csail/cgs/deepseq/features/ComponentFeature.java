@@ -16,7 +16,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	private static int numConditions=0;
 	// these are set later
 	private static double non_specific_ratio[];
-	private static int sortingCondition;	// the condition to compare p-values
+	private static int sortingCondition=0;	// the condition to compare p-values
 	
 	protected Point position;
 	// isJointEvent first set using mixing prob, but later updated 
