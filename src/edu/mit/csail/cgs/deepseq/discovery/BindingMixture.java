@@ -116,7 +116,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double sparseness=6.0;
     private double fold = 0;
     private double shapeDeviation = 0;
-    private boolean use_KL_filtering = false;
+    private boolean use_KL_filtering = true;	// use KL to filter events
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
     private int third_lambda_region_width  = 10000;
@@ -282,14 +282,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	base_filtering = flags.contains("bf");	// base filtering (use max_HitCount_per_base)
      	sort_by_location = flags.contains("sl");
     	development_mode = flags.contains("dev");
-    	use_KL_filtering = flags.contains("klf");  // use KL to filter events
      	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
     	use_multi_event = flags.contains("refine_using_multi_event");
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	
     	// default as true, need the opposite flag to turn it off
-    	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
+    	use_KL_filtering = !flags.contains("1norm");  	// use 1-norm distance filtering
+      	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
     	use_internal_em_train = ! flags.contains("multi");
     	if (use_internal_em_train)
     		ComponentFeature.use_internal_em_train();
@@ -311,7 +311,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
     	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
-    	shapeDeviation =  use_KL_filtering? -0.3 : 0.9;		// set default according to filter type    		
+    	shapeDeviation =  use_KL_filtering? -0.45 : 0.9;		// set default according to filter type    		
     	shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
      	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
@@ -2789,7 +2789,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			logKL_plus[c]  = logKL_profile(profile_plus, width);
 			logKL_minus[c] = logKL_profile(profile_minus, width);
 			if (use_KL_filtering)
-				shapeDeviation[c]  = (calcNzKL(profile_plus)+calcNzKL(profile_minus))/2;
+				shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
 			else
 				shapeDeviation[c]  = (calcAbsDiff(profile_plus)+calcAbsDiff(profile_minus))/2;
 //			System.err.println(String.format("%.2f\t%.2f\t%.2f\t%s", 
@@ -2867,7 +2867,37 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		return StatUtil.log10_KL_Divergence(m_nz, p_nz);
 	}
-	
+	/*
+	 *   logKL of non-zero discrete profile
+	 *   no gaussian density, use only non-zero read counts
+	 */
+	private double calc2StrandNzKL(double[]profile_p, double[]profile_m){
+		double[] profile = new double[profile_p.length+profile_m.length];
+		System.arraycopy(profile_p, 0, profile, 0, profile_p.length); 
+		System.arraycopy(profile_m, 0, profile, profile_p.length, profile_m.length); 
+		
+		double[] m = model.getProbabilities();
+		double[] m2 = new double[profile.length];
+		System.arraycopy(m, 0, m2, 0, m.length); 
+		System.arraycopy(m, 0, m2, m.length, m.length); 
+
+		ArrayList<Integer> nzPos = new ArrayList<Integer>();
+		
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				nzPos.add(i);
+			}
+		}
+		if (nzPos.size()<=1)
+			return -0.15;
+		double[] m_nz = new double[nzPos.size()];
+		double[] p_nz = new double[nzPos.size()];
+		for (int i=0;i<nzPos.size();i++){
+			m_nz[i] = m2[nzPos.get(i)];
+			p_nz[i] = profile[nzPos.get(i)];
+		}
+		return StatUtil.log10_KL_Divergence(m_nz, p_nz);
+	}	
 	/*
 	 * Calculate average square distance for read profile 
 	 * 
