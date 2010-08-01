@@ -131,13 +131,13 @@ public class GPSPeak extends Point{
 		return	diff==0?0:(diff<0)?1:-1;	//ip strength: descending
 	}
 	public String toGPS(){
-		return toString()+"\t"+"\t"+strength+"\t"+controlStrength+"\t"+qvalue+"\t"+pvalue
+		return toString()+"\t"+strength+"\t"+controlStrength+"\t"+qvalue+"\t"+pvalue
 		+"\t"+shape+"\t"+unaryEvent+"\t"+nearestGene+"\t"+distance;
 	}
 	
 	public static String toGPS_Header(){
-		return "GPS Peak\tIP reads\tControl reads\tQ-value(-log10)\tP-value(-log10)\t"+
-		"shapeDev\tunaryEvent\tNearestGene\tDistance";
+		return "GPS Event\tIP\tControl\tQ_-lg10\tP_-lg10\t"+
+		"Shape\tJoint\tNearestGene\tDistance";
 	}
 	
 	public String toGPS_short(){
@@ -146,8 +146,8 @@ public class GPSPeak extends Point{
 	}
 	
 	public static String toGPS_short_Header(){
-		return "Event Location\tNearestGene\tDistance\tIP reads\tControl reads\tQ-value(-log10)\t"+
-		"P-value(-log10)\tshapeDev\tunaryEvent";
+		return "Event Location\tNearestGene\tDist\tIP\tControl\tQ_-lg10\t"+
+		"P_-lg10\tShape\tJoint";
 	}
 	
 	public String toGPS_motifShort(){
