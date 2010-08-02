@@ -494,7 +494,6 @@ public class WeightMatrix {
         Arrays.sort(letters,cmp);
         return letters;
     }
-
 }
 class WMLetterCmp implements Comparator<Character> {
     WeightMatrix matrix;

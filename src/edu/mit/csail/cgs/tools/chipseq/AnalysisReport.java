@@ -7,6 +7,8 @@ import edu.mit.csail.cgs.datasets.general.*;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.datasets.function.*;
+import edu.mit.csail.cgs.datasets.motifs.*;
+import edu.mit.csail.cgs.tools.motifs.WeightMatrixScanner;
 import edu.mit.csail.cgs.ewok.verbs.*;
 import edu.mit.csail.cgs.utils.Enrichment;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -35,8 +37,9 @@ public class AnalysisReport {
     private Genome genome;
     private ChipSeqAnalysis analysis;
     private List<RefGenePromoterGenerator> promoterGenerators;
+    private Collection<WeightMatrix> matrices;
     private int up, down, topEvents;
-    private double thresh;
+    private double thresh, wmcutoff;
     private boolean dumpEvents, dumpGenes, dumpGO, html, noGO, noGenes;
     private String outputBase;
 
@@ -53,6 +56,7 @@ public class AnalysisReport {
         report.parseArgs(args);
         report.run();
         report.printReport();
+        report.runMotifReport();
     }
 
     public AnalysisReport() {
@@ -64,9 +68,11 @@ public class AnalysisReport {
         regions = Args.parseRegionsOrDefault(args);
         geneGenerators = Args.parseGenes(args);
         promoterGenerators = new ArrayList<RefGenePromoterGenerator>();
+        matrices = Args.parseWeightMatrices(args);
         up = Args.parseInteger(args,"up",4000);
         down = Args.parseInteger(args,"down",200);
         thresh = Math.log(Args.parseDouble(args,"thresh",.01));
+        wmcutoff = Args.parseDouble(args,"wmcutoff",.4);
         topEvents = Args.parseInteger(args,"topevents",-1);
         for (RefGeneGenerator rg : geneGenerators) {
             promoterGenerators.add(new RefGenePromoterGenerator(genome,
@@ -87,6 +93,31 @@ public class AnalysisReport {
             noGO = true;
         }
         events = new ArrayList<ChipSeqAnalysisResult>();
+
+        MarkovBackgroundModel bgModel = null;
+        String bgmodelname = Args.parseString(args,"bgmodel","whole genome zero order");
+        BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModel(bgmodelname,
+                                                                              1,
+                                                                              "MARKOV",
+                                                                              genome.getDBID());
+        if (md != null) {
+            bgModel = BackgroundModelLoader.getMarkovModel(md);
+        } else {
+            System.err.println("Couldn't get metadata for " + bgmodelname);
+        }
+        if (bgModel == null) {
+            for (WeightMatrix m : matrices) {
+                m.toLogOdds();
+            }            
+        } else {
+            for (WeightMatrix m : matrices) {
+                m.toLogOdds(bgModel);
+            }            
+        }
+
+
+        
+
     }
     private void getEvents() throws SQLException {
         for (Region r : regions) {
@@ -225,6 +256,46 @@ public class AnalysisReport {
         System.out.println("Total Events\t" + events.size());
         System.out.println("Total Bound Genes\t" + boundGenes.size());
         System.out.println("GO enriched categories\t" + enrichments.size());
+    }
+    public void runMotifReport() throws IOException {
+        if (matrices.size() == 0) {
+            System.err.println("No weight matrices available.  Not running report");
+            return;
+        }
+
+        PrintWriter pw = new PrintWriter(outputBase + ".motifs");
+        pw.print("BindingLocation\tBindingStrength\tBindingPval\tBindingFoldEnrichment\tBindingFGCount\tBindingBGCount");
+        for (WeightMatrix wm : matrices) {
+            pw.print("\t" + wm.toString());
+        }
+        pw.println();
+        SequenceGenerator seqgen = new SequenceGenerator();
+        for (ChipSeqAnalysisResult a : events) {
+            Region toScan = a.expand(100,100);
+            char[] seq = seqgen.execute(toScan).toCharArray();
+            pw.print(String.format("%s\t%.2f\t%.2e\t%.2f\t%.2f\t%.2f",
+                                     a.toString(),
+                                     a.strength,
+                                     a.pvalue,
+                                     a.foldEnrichment,
+                                     a.foregroundReadCount,
+                                     a.backgroundReadCount));
+
+            for (WeightMatrix wm : matrices) {
+                List<WMHit> hits = WeightMatrixScanner.scanSequence(wm,
+                                                                    (float)(wm.getMaxScore() * wmcutoff),
+                                                                    seq);
+                float bestscore = 0;
+                for (WMHit h : hits) {
+                    if (h.score > bestscore) {
+                        bestscore = h.score;
+                    }
+                }
+                pw.print(String.format("\t%.2f",bestscore));                
+            }
+            pw.println();
+        }
+        pw.close();
     }
    
 
