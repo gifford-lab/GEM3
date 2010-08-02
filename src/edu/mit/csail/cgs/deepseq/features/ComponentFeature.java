@@ -275,15 +275,15 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	else
         		result.append("NA\t").append("NA\t");
         
-        	result.append(String.format("%7.2f\t", getQValueLog10(c)));
+        	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
         	if(unScaledControlCounts!=null)
-        		result.append(String.format("%7.2f\t", -Math.log10(getPValue(c))));
+        		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
         	else
-        		result.append(String.format("%7.2f\t", -Math.log10(getPValue_wo_ctrl(c))));
+        		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
         }
 
-		result.append(String.format("%7.2f\t", getAvgShapeDeviation()));
+		result.append(String.format("%7.3f\t", getAvgShapeDeviation()));
         result.append(isJointEvent?1:0).append("\t");
 //        result.append(String.format("%.4f\t", mixingProb));
          
@@ -391,14 +391,14 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	else
         		result.append("NA\t").append("NA\t");
         
-        	result.append(String.format("%7.2f\t", getQValueLog10(c)));
+        	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
         	if(unScaledControlCounts!=null)
-        		result.append(String.format("%7.2f\t", -Math.log10(getPValue(c))));
+        		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
         	else
-        		result.append(String.format("%7.2f\t", -Math.log10(getPValue_wo_ctrl(c))));
+        		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
 
-    		result.append(String.format("%7.2f", getAvgShapeDeviation()));
+    		result.append(String.format("%7.3f", getAvgShapeDeviation()));
         	if (c<numConditions-1)
         		result.append("\t");
         }

@@ -57,11 +57,11 @@ public class GPSOutputAnalysis {
     
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(args);
 //    analysis.buildEmpiricalDistribution();
-//    analysis.jointBindingMotifAnalysis(true);
+    analysis.jointBindingMotifAnalysis(true);
 //    analysis.geneAnnotation();
     int win = Args.parseInteger(args, "win", 50);
     int top = Args.parseInteger(args, "top", 100);
-    analysis.printSequences(win, top);
+//    analysis.printSequences(win, top);
 //    analysis.expressionIntegration();
   }
   
