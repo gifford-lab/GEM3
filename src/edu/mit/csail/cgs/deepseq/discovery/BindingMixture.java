@@ -295,8 +295,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     		ComponentFeature.use_internal_em_train();
     	filterEvents = !flags.contains("nf");	// not filtering of predicted events
     	TF_binding = ! flags.contains("notf");	// Not TF data, is histone or pol II
-    	if (!TF_binding)
+    	if (!TF_binding){
     		use_joint_event = true;
+    		sort_by_location = true;
+    	}
     	reportProgress =! flags.contains("no_report_progress");
     	use_scanPeak = ! flags.contains("no_scanPeak");
     	do_model_selection = !flags.contains("no_model_selection");
@@ -4124,7 +4126,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				fs.add((ComponentFeature)f);
 			}
 			//for single condition, sort by p-value
-			if (!sort_by_location && this.numConditions==1){
+			if (numConditions==1){
 				Collections.sort(fs, new Comparator<ComponentFeature>(){
 				    public int compare(ComponentFeature o1, ComponentFeature o2) {
 				    	return o1.compareByTotalResponsibility(o2);

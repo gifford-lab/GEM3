@@ -389,11 +389,11 @@ public class MethodComparisonMotifAnalysis {
 					peakPoints.add(p);
 				}
         	}
-        	if (name.contains("SISSRS")){
+        	else if (name.contains("SISSRS")){
         		// assume be sorted by pvalue if (!isPreSorted)
 				peakPoints = load_SISSRS_File(filePath);
         	}
-        	if (name.contains("MACS")){
+        	else if (name.contains("MACS")){
     			List<MACSPeakRegion> macsPeaks = MACSParser.parseMACSOutput(filePath, genome);
     			if (!isPreSorted)
 	    			Collections.sort(macsPeaks, new Comparator<MACSPeakRegion>(){
@@ -1094,7 +1094,7 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}
 		catch(IOException ioex) {
-			//logger.error("Error parsing file", ioex);
+			ioex.printStackTrace();
 		}
 		finally {
 			try {
