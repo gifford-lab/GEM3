@@ -101,6 +101,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private boolean pre_artifact_filter=false;
 	private boolean post_artifact_filter=false;
 	private boolean filterEvents=false;
+	private boolean kl_count_adjusted = false;
     private boolean sort_by_location=false;
     private int max_hit_per_bp = -1;
     /** percentage of candidate (enriched) peaks to take into account
@@ -134,13 +135,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private int modelWidth; 		// width of empirical read distribution, 500bp
 	private int windowSize;			// size for EM sliding window for splitting long regions
 
+	private double[] profile_plus_sum;
+	private double[] profile_minus_sum;
+	
 	// Max number of reads on a base position, to filter out towers and needles.
 	private int max_HitCount_per_base = 3;
 
 	//Gaussian kernel for density estimation
 	protected double[] gaussian;
-	// peak strength --> <mean, std>
-	private HashMap<Integer, Pair<Double, Double>> shapeParameters;
 
 	protected boolean doScanning=true;
 	//Spacing between the components
@@ -286,6 +288,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	use_joint_event = flags.contains("refine_using_joint_event");
     	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
+    	kl_count_adjusted = flags.contains("adjust_kl");
     	
     	// default as true, need the opposite flag to turn it off
     	use_KL_filtering = !flags.contains("1norm");  	// use 1-norm distance filtering
@@ -294,7 +297,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	if (use_internal_em_train)
     		ComponentFeature.use_internal_em_train();
     	filterEvents = !flags.contains("nf");	// not filtering of predicted events
-    	TF_binding = ! flags.contains("notf");	// Not TF data, is histone or pol II
+    	TF_binding = ! flags.contains("br");	// broad region, not TF data, is histone or pol II
     	if (!TF_binding){
     		use_joint_event = true;
     		sort_by_location = true;
@@ -315,7 +318,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
     	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
-    	shapeDeviation =  use_KL_filtering? -0.45 : 0.9;		// set default according to filter type    		
+    	shapeDeviation =  use_KL_filtering? (TF_binding?-0.45:-0.3) : 0.9;		// set default according to filter type    		
     	shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
      	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
@@ -344,8 +347,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 * We do not want to run EM on regions with little number of reads
 		 * **************************************************/
     	String subset_str = Args.parseString(args, "subs", null);
+    	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
     	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
-    	List<Region> subsetRegions = new ArrayList<Region>();
+    	ArrayList<Region> subsetRegions = new ArrayList<Region>();
      	boolean loadWholeGenome = true;
      	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
      		loadWholeGenome = false;
@@ -401,6 +405,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
          	     		}
      			}
      		}//end of for(String regionStr:reg_toks) LOOP
+     		restrictRegions = mergeRegions(subsetRegions, false);
      	}
 
 		/* ***************************************************
@@ -513,36 +518,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			System.out.println("Finish loading data from ReadDB, " + CommonUtils.timeElapsed(tic));
 		}
 		
+		//  set max read count for bases to filter PCR artifacts (optional)
 		if (base_filtering){
-	        for(int i=0; i<numConditions; i++){
-				Pair<ReadCache,ReadCache> e = caches.get(i);
-				double ipCount = e.car().getHitCount();
-				// estimate max hit count per BP
-				// if user supply using max_hit_per_bp, use it
-				// if not supplied, take the max of default (3) and possion expected count
-				if (max_hit_per_bp==-1){
-					int maxPerBP = calcHitCount_per_BP(ipCount, 1e-9);
-					max_HitCount_per_base = Math.max(max_HitCount_per_base, maxPerBP);
-				}
-				else
-					max_HitCount_per_base = max_hit_per_bp;
-	        }
-
-	        log(1, "\nFiltering duplicate reads, max read count on each base = "+max_HitCount_per_base);
-	        
-			// Re-scale counts by multiplying each read (in each condition) with the corresponding ratio
-			for(int t = 0; t < numConditions; t++) {
-				ReadCache ipCache = caches.get(t).car();
-				ipCache.filterAllBases(max_HitCount_per_base);
-				ipCache.displayStats();
-				if(controlDataExist) {
-					ReadCache ctrlCache = caches.get(t).cdr();
-					ctrlCache.filterAllBases(max_HitCount_per_base);
-					ctrlCache.displayStats();
-				}
-			}
-		} // filter bases 
-		
+			doBaseFiltering();
+		} 		
 		
 		// Normalize experiments
 		normExpts(caches);
@@ -580,11 +559,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         }
         else{	// want to analyze only specified regions, set default
         	for(int i=0; i<numConditions; i++){
-        		Pair<ReadCache,ReadCache> e = caches.get(i);
-        		if (e.cdr()!=null){
-					ratio_total[i]=e.car().getHitCount()/e.cdr().getHitCount();
+        		if (subsetRatio!=-1){
+        			ratio_total[i]=subsetRatio;
+        			ratio_non_specific_total[i]=subsetRatio;
         		}
-        		ratio_non_specific_total[i]=1;
+        		else {
+	        		Pair<ReadCache,ReadCache> e = caches.get(i);
+	        		if (e.cdr()!=null)
+						ratio_total[i]=e.car().getHitCount()/e.cdr().getHitCount();
+	        		else
+	        			ratio_total[i]=1;
+	        		ratio_non_specific_total[i]=1;
+        		}
+        		
         	}
         }
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
@@ -640,6 +627,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 */
 	public List<Feature> execute() {
 		long tic = System.currentTimeMillis();
+		// refresh the total profile sums every round
+		profile_plus_sum = new double[modelWidth];
+		profile_minus_sum = new double[modelWidth];
+		
 		// if we have predicted events from previous round, setup the restrictRegions
 		// because when we update the model, the model range might changed.
 		if (allFeatures!=null && (!allFeatures.isEmpty())){
@@ -685,7 +676,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 			}
  
-			// process for each window 
+			// run EM for each window 
 			ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
 			for (Region w : windows){
 				ArrayList<BindingComponent> result = analyzeWindow(w);
@@ -724,14 +715,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								}
 								comps.removeAll(toRemove);
 								// re-process the boundary region
-								int winSize = modelWidth*6;
+								int winSize = modelWidth*10;
 								if (r.getWidth()<winSize){ // if the region is small, directly process it
 									ArrayList<BindingComponent> result = analyzeWindow(r);
 									if (result!=null){
 										comps.addAll(result);
 									}
 								}
-								else {	// if the region is too long, split into windows (3kb size, 1kb overlap)
+								else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
 									ArrayList<Region> wins = new ArrayList<Region>();
 									int lastEnd = r.getStart()+winSize-1;
 									wins.add(new Region(r.getGenome(), r.getChrom(), r.getStart(), lastEnd));
@@ -889,10 +880,21 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //			while(compFeatures.remove(cf));  // remove all the features that are towers
 //			System.out.println(cf.getPosition().toString()+"\tPrediction in tower region.");
 //		}
-
+		
+//		// remove events with IP < alpha (this happens because EM exit before convergence)
+//		ArrayList<Integer> toBeRemoved=new ArrayList<Integer>();
+//		for(int i = 0; i < compFeatures.size(); i++) {
+//			if (compFeatures.get(i).getTotalSumResponsibility()<sparseness)
+//				toBeRemoved.add(i);
+//		}
+//		for (int i:toBeRemoved){
+//			compFeatures.remove(i);
+//		}
+//		toBeRemoved = null;
+		
 		/* ********************************************************
 		 * refine the specific regions that contain binding events
-		 */
+		 * ********************************************************/
 		Collections.sort(compFeatures);
 		ArrayList<Region> refinedRegions = new ArrayList<Region>();
 		for (ComponentFeature cf:compFeatures){
@@ -910,6 +912,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		// post processing
 		postEMProcessing(compFeatures);
+		
 		for(int c = 0; c < numConditions; c++)
 			condSignalFeats[c] = condPostFiltering(signalFeatures, c);
 
@@ -1112,6 +1115,35 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			return false;
 	}//end of checkCompExactMatching method
 
+	private void doBaseFiltering(){
+        for(int i=0; i<numConditions; i++){
+			Pair<ReadCache,ReadCache> e = caches.get(i);
+			double ipCount = e.car().getHitCount();
+			// estimate max hit count per BP
+			// if user supply using max_hit_per_bp, use it
+			// if not supplied, take the max of default (3) and possion expected count
+			if (max_hit_per_bp==-1){
+				int maxPerBP = calcHitCount_per_BP(ipCount, 1e-9);
+				max_HitCount_per_base = Math.max(max_HitCount_per_base, maxPerBP);
+			}
+			else
+				max_HitCount_per_base = max_hit_per_bp;
+        }
+
+        log(1, "\nFiltering duplicate reads, max read count on each base = "+max_HitCount_per_base);
+        
+		// Re-scale counts by multiplying each read (in each condition) with the corresponding ratio
+		for(int t = 0; t < numConditions; t++) {
+			ReadCache ipCache = caches.get(t).car();
+			ipCache.filterAllBases(max_HitCount_per_base);
+			ipCache.displayStats();
+			if(controlDataExist) {
+				ReadCache ctrlCache = caches.get(t).cdr();
+				ctrlCache.filterAllBases(max_HitCount_per_base);
+				ctrlCache.displayStats();
+			}
+		}
+	}
 	private ArrayList<List<StrandedBase>> loadBasesInWindow(Region w){
 		return loadBasesInWindow(w, "IP", true);
 	}
@@ -1341,6 +1373,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}// end of simpleExecute method
 
 	private List<Feature> condPostFiltering(List<Feature> signifFeats, int cond){
+		if (cond>1)
+			return signifFeats;
 		List<Feature> condFeats = new ArrayList<Feature>();
 		for (Feature sf:signifFeats) {
 			boolean significant = false;
@@ -2663,9 +2697,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			return features;
 
 		//Make feature calls (all non-zero components)
+		// remove events with IP < alpha (this happens because EM exit before convergence)
 		for(BindingComponent b : comps){
-			if(b.getMixProb()>0){
-				features.add(callFeature(b, use_internal_em_train));
+			if(b.getMixProb()>0 && b.getTotalSumResponsibility()>=sparseness){
+				features.add(callFeature(b));
 			}
 		}
 
@@ -2752,18 +2787,24 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 					}
 					comp.setControlReadCounts(total, c);
-//					double logKL_plus  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
-//					double logKL_minus = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
-
-					double width;
-					if (total>6){
-						width = 50/Math.log(total);	// just some empirical formula, no special theory here
+					
+					double logKL_plus;
+					double logKL_minus; 
+					if (kl_count_adjusted){
+						logKL_plus  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
+						logKL_minus = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
 					}
 					else{
-						width=28;
+						double width;
+						if (total>6){
+							width = 50/Math.log(total);	// just some empirical formula, no special theory here
+						}
+						else{
+							width=28;
+						}
+						logKL_plus  = logKL_profile(profile_plus, width);
+						logKL_minus = logKL_profile(profile_minus, width);
 					}
-					double logKL_plus  = logKL_profile(profile_plus, width);
-					double logKL_minus = logKL_profile(profile_minus, width);
 					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
@@ -2773,7 +2814,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 
 	// make componentFeature based on the bindingComponent
-	private ComponentFeature callFeature(BindingComponent b, boolean use_internal_em_train){
+	private ComponentFeature callFeature(BindingComponent b){
 		ComponentFeature cf = new ComponentFeature(b);
 
 		// KL
@@ -2781,23 +2822,27 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		double[] logKL_minus = new double[numConditions];
 		double[] shapeDeviation = new double[numConditions];
 		for (int c=0;c<numConditions;c++){
-//			logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
-//			logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
-			double count = 0.0;
 			double[] profile_plus = b.getReadProfile_plus(c);
 			double[] profile_minus = b.getReadProfile_minus(c);
-			for(int n = 0; n < profile_plus.length; n++) { 
-				count += profile_plus[n]+profile_minus[n]; 
-			}
-			double width;
-			if (count>6){
-				width = 50/Math.log(count);	// just some empirical formula, no special theory here
+			if (kl_count_adjusted){
+				logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
+				logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
 			}
 			else{
-				width=28;
+				double count = 0.0;
+				for(int n = 0; n < profile_plus.length; n++) { 
+					count += profile_plus[n]+profile_minus[n]; 
+				}
+				double width;
+				if (count>6){
+					width = 50/Math.log(count);	// just some empirical formula, no special theory here
+				}
+				else{
+					width=28;
+				}
+				logKL_plus[c]  = logKL_profile(profile_plus, width);
+				logKL_minus[c] = logKL_profile(profile_minus, width);
 			}
-			logKL_plus[c]  = logKL_profile(profile_plus, width);
-			logKL_minus[c] = logKL_profile(profile_minus, width);
 			if (use_KL_filtering)
 				shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
 			else
@@ -2807,6 +2852,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //					calcAbsDiff(profile_plus), 
 //					calcAbsDiff(profile_minus),
 //					b.getLocation().toString()));
+			
+			// sum the read profiles (optional)
+			// at this point, we do not have p-value, etc, this is our best guess
+			if (use_joint_event && 
+					shapeDeviation[c]<this.shapeDeviation &&
+					(logKL_plus[c]<0 || logKL_minus[c]<0)){
+				for (int i=0;i<profile_plus.length;i++){
+					profile_plus_sum[i] += profile_plus[i];
+					profile_minus_sum[i] += profile_minus[i];
+				}
+			}
 		}
 		cf.setProfileLogKL(logKL_plus, logKL_minus);
 		cf.setShapeDeviation(shapeDeviation);
@@ -3468,10 +3524,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// but here we only use single model for all conditions
 		double[] model_plus = new double[modelWidth];
 		double[] model_minus = new double[modelWidth];
-		for (int i=0;i<modelWidth;i++){
-			for (int c=0; c<numConditions; c++){
-				model_plus[i]+= newModel_plus[c][i];
-				model_minus[i]+= newModel_minus[c][i];
+		if (use_joint_event){
+			model_plus = profile_plus_sum;
+			model_minus = profile_minus_sum;
+		}
+		else{
+			for (int i=0;i<modelWidth;i++){
+				for (int c=0; c<numConditions; c++){
+					model_plus[i]+= newModel_plus[c][i];
+					model_minus[i]+= newModel_minus[c][i];
+				}
 			}
 		}
 
@@ -4094,7 +4156,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			    		return o1.compareByPValue_wo_ctrl(o2);
 			    }
 			});
-		}			
+		}	
+		else
+			Collections.sort(fs);
 		String fname = outName+"_GPS_significant.txt";
 		printFeatures(fname, fs);
 	}
@@ -4115,6 +4179,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			    }
 			});
 		}
+		else
+			Collections.sort(fs);
 		String fname = outName+"_GPS_insignificant.txt";
 		printFeatures(fname, fs);
 	}
@@ -4125,7 +4191,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			for(Feature f : filteredFeatures){
 				fs.add((ComponentFeature)f);
 			}
-			//for single condition, sort by p-value
+			//for single condition, sort by IP count
 			if (numConditions==1){
 				Collections.sort(fs, new Comparator<ComponentFeature>(){
 				    public int compare(ComponentFeature o1, ComponentFeature o2) {
