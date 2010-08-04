@@ -84,6 +84,13 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                         }
                     }
                     Collections.sort(results, comparator);
+                    if (getProperties().PrintData) {
+                        for (PairedHit h : results) {
+                            System.out.println(h.toString());
+                        }
+
+                    }
+
                     if (getProperties().DeDuplicateByPosition && results.size() > 0) {
                         ArrayList<PairedHit> deduped = new ArrayList<PairedHit>();
                         deduped.add(results.get(0));
