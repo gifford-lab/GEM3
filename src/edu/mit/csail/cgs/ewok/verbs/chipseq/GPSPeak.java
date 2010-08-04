@@ -6,15 +6,37 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 public class GPSPeak extends Point{
 	double strength;
 	double controlStrength;
-	Point EM_position;
 	double qvalue;
 	double pvalue;
 	double shape;
-	double shapeZ;
+	private boolean jointEvent;		// 1 for joint event, 0 for unary, etc
 	String nearestGene;
 	int distance;
-	double mixProb;
-	int unaryEvent;		// 1 for unary event, 0 for binary, etc
+	Point EM_position;
+
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
+			double controlStrength, double qvalue, double pvalue, double shape, 
+			int joint, String nearestGene, int distance){
+		super(g, chr.replaceFirst("chr", ""), pos);
+		this.strength = ipStrength;
+		this.controlStrength = controlStrength;
+		this.qvalue = qvalue;
+		this.pvalue = pvalue;
+		this.shape = shape;
+		this.jointEvent = joint==1;
+		this.nearestGene = nearestGene;
+		this.distance = distance;
+	}
+	
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
+			double ctrlStrength, double qvalue, double pvalue, double shape){
+		super(g, chr.replaceFirst("chr", ""), pos);
+		this.strength = ipStrength;
+		this.controlStrength = ctrlStrength;
+		this.qvalue = qvalue;
+		this.pvalue = pvalue;
+		this.shape = shape;
+	}
 	
 	 public GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
       double controlStrength, double qvalue, double shape, double shapeZ,
@@ -25,8 +47,6 @@ public class GPSPeak extends Point{
     this.controlStrength = controlStrength;
     this.qvalue = qvalue;
     this.shape = shape;
-    this.shapeZ = shapeZ;
-    this.mixProb = mixProb;
     this.nearestGene = nearestGene;
     this.distance = distance;
     
@@ -43,28 +63,16 @@ public class GPSPeak extends Point{
 		this.qvalue = qvalue;
 		this.pvalue = pvalue;
 		this.shape = shape;
-		this.shapeZ = shapeZ;
-		this.mixProb = mixProb;
 		if (mixProb==1)
-			unaryEvent = 1;
+			jointEvent = false;
 		this.nearestGene = nearestGene;
 		this.distance = distance;
 	}
-	public GPSPeak(Genome g, String chr, int pos, double strength, 
-			double controlStrength, double qvalue, double pvalue, double shape, 
-			int unaryEvent, String nearestGene, int distance){
-		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = strength;
-		this.controlStrength = controlStrength;
-		this.qvalue = qvalue;
-		this.pvalue = pvalue;
-		this.shape = shape;
-		this.unaryEvent = unaryEvent;
-		if (unaryEvent==1)
-			mixProb = 1;
-		this.nearestGene = nearestGene;
-		this.distance = distance;
+
+	public boolean isJointEvent() {
+		return jointEvent;
 	}
+
 	public double getStrength() {
 		return strength;
 	}
@@ -83,9 +91,6 @@ public class GPSPeak extends Point{
 	public double getShape() {
 		return shape;
 	}
-	public double getShapeZ() {
-		return shapeZ;
-	}
 	public void setStrength(double strength) {
 		this.strength = strength;
 	}
@@ -101,9 +106,7 @@ public class GPSPeak extends Point{
 	public void setShape(double shape) {
 		this.shape = shape;
 	}
-	public void setShapeZ(double shapeZ) {
-		this.shapeZ = shapeZ;
-	}
+
 	public String getNearestGene() {
 		return nearestGene;
 	}
@@ -116,12 +119,6 @@ public class GPSPeak extends Point{
 	public void setDistance(int distance) {
 		this.distance = distance;
 	}
-	public double getMixProb() {
-		return mixProb;
-	}
-	public void setMixProb(double mixProb) {
-		this.mixProb = mixProb;
-	}
 	public int compareByPValue(GPSPeak p) {
 		double diff = getPvalue()- p.getPvalue();
 		return	diff==0?0:(diff<0)?1:-1;	//p-value: descending
@@ -131,23 +128,23 @@ public class GPSPeak extends Point{
 		return	diff==0?0:(diff<0)?1:-1;	//ip strength: descending
 	}
 	public String toGPS(){
-		return toString()+"\t"+"\t"+strength+"\t"+controlStrength+"\t"+qvalue+"\t"+pvalue
-		+"\t"+shape+"\t"+unaryEvent+"\t"+nearestGene+"\t"+distance;
+		return toString()+"\t"+strength+"\t"+controlStrength+"\t"+qvalue+"\t"+pvalue
+		+"\t"+shape+"\t"+jointEvent+"\t"+nearestGene+"\t"+distance;
 	}
 	
 	public static String toGPS_Header(){
-		return "GPS Peak\tIP reads\tControl reads\tQ-value(-log10)\tP-value(-log10)\t"+
-		"shape\tunaryEvent\tNearestGene\tDistance";
+		return "GPS Event\tIP\tControl\tQ_-lg10\tP_-lg10\t"+
+		"Shape\tJoint\tNearestGene\tDistance";
 	}
 	
 	public String toGPS_short(){
 		return toString()+"\t"+nearestGene+"\t"+distance+"\t"+strength+"\t"
-		+controlStrength+"\t"+qvalue+"\t"+pvalue+"\t"+shape+"\t"+unaryEvent;
+		+controlStrength+"\t"+qvalue+"\t"+pvalue+"\t"+shape+"\t"+jointEvent;
 	}
 	
 	public static String toGPS_short_Header(){
-		return "Event Location\tNearestGene\tDistance\tIP reads\tControl reads\tQ-value(-log10)\t"+
-		"P-value(-log10)\tshape\tunaryEvent";
+		return "Event Location\tNearestGene\tDist\tIP\tControl\tQ_-lg10\t"+
+		"P_-lg10\tShape\tJoint";
 	}
 	
 	public String toGPS_motifShort(){

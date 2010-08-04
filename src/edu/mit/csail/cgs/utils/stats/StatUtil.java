@@ -1144,33 +1144,29 @@ public class StatUtil {
 		return yy;
 	}	
 	
-	// log of K-L divergence for discrete probability distributions P and Q 
-		//	http://en.wikipedia.org/wiki/Kullback-Leibler_divergence
-	public static double log_KL_Divergence( double[]P, double[]Q){
-		double d=0;
-		// Make sure that P and Q are all proper probability values
-		mutate_normalize(P);
-		mutate_normalize(Q);
-		for (int i=0;i<P.length;i++){
-			d+=P[i]*(Math.log(P[i])-Math.log(Q[i]));
-		}
-		return Math.log(d);
-	}
-	
 	// K-L divergence for discrete probability distributions P and Q 
 	//	http://en.wikipedia.org/wiki/Kullback-Leibler_divergence
 	public static double KL_Divergence( double[]P, double[]Q){
 		double d=0;
-		// Make sure that P and Q are all proper probability values
-		mutate_normalize(P);
-		mutate_normalize(Q);
-		for (int i=0;i<P.length;i++){
-			d+=P[i]*(Math.log(P[i])-Math.log(Q[i]));
+		double[] p=P.clone();
+		double[] q=Q.clone();
+		// Make sure that p and q are all proper probability values
+		mutate_normalize(p);
+		mutate_normalize(q);
+		for (int i=0;i<p.length;i++){
+			d+=p[i]*(Math.log(p[i])-Math.log(q[i]));
 		}
 		return d;
 	}
-
-// Uses COLT binomial test
+	// log of K-L divergence 
+	public static double log_KL_Divergence( double[]P, double[]Q){
+		return Math.log(KL_Divergence(P,Q));
+	}
+	public static double log10_KL_Divergence( double[]P, double[]Q){
+		return Math.log10(KL_Divergence(P,Q));
+	}
+	
+	// Uses COLT binomial test
 	// Binomial CDF assuming scaled control. k=scaled control, n=scaled control+signal
 	public static double binomialPValue(double k, double n){
 		if (n==0)

@@ -19,6 +19,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.utilities.AnnotationLoader;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
@@ -75,21 +76,9 @@ public class JointEventAnalysis {
     topRank = Args.parseInteger(args, "topRank", -1);
     
     // load motif
-    try {
-      String motifString = Args.parseString(args, "motif", null);
-      if (motifString!=null){
-	      String motifVersion = Args.parseString(args, "version", null);
-	      motifThreshold = Args.parseDouble(args, "motifThreshold", 10.0);
-	      if (motifThreshold==10.0)
-	    	  System.err.println("No motif threshold was provided, default=10.0 is used.");
-		  int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
-		  int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:org.getDBID(), motifString, motifVersion);
-		  motif = WeightMatrix.getWeightMatrix(wmid);
-      }
-    } 
-    catch (NotFoundException e) {
-      e.printStackTrace();
-    }   
+	Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+	motif = wm.car();
+	motifThreshold = wm.cdr(); 
     
     // load GPS results
     String GPSfileName = Args.parseString(args, "GPS", null);
@@ -211,7 +200,7 @@ public class JointEventAnalysis {
 	  }
 //	  System.out.println(sb.toString());
 	  String outName = Args.parseString(args, "out", "");
-	  BindingMixture.writeFile(outName+"_jointEvents.txt", sb.toString());
+	  CommonUtils.writeFile(outName+"_jointEvents.txt", sb.toString());
   }
   
 	// get the all motif hits in the region (windowSize) 

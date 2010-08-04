@@ -9,48 +9,42 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class ComponentFeature extends Feature  implements Comparable<ComponentFeature>{
-	private static double non_specific_ratio[];
-	private static int sortingCondition;	// the condition to compare p-values
+	// these should be set at the beginning of BindingMixure
+	private static boolean use_internal_em_train=false;
+	public static void use_internal_em_train() { use_internal_em_train = true;}
 	private static ArrayList<String> conditionNames;
+	private static int numConditions=0;
+	// these are set later
+	private static double non_specific_ratio[];
+	private static int sortingCondition=0;	// the condition to compare p-values
+	
 	protected Point position;
-	protected double mixingProb;
+	// isJointEvent first set using mixing prob, but later updated 
+	// using inter-event distance (500) only considering significant events
+	protected boolean isJointEvent = false;
 	protected double mfold;
 	protected double[] conditionBeta;
 	protected boolean[] condSignificance;
-	protected int numConditions=0;
 	protected double[] condSumResponsibility;
 	protected double totalSumResponsibility=0;
-//	protected double[][] readProfile_plus;
-//	protected double[][] readProfile_minus;
 	protected double logKL_plus[];
 	protected double logKL_minus[];
 	protected double logKL_ctrl_plus[];
 	protected double logKL_ctrl_minus[];
+	protected double shapeDeviation[];
 	protected double unScaledControlCounts[];
 	protected double p_values[];
 	protected double p_values_wo_ctrl[];
 	protected double q_value_log10[];
-	protected double shape_z_weighted[];
-	protected double shape_z_scores[];
-	// the sum of ranking by control based p-value and peak shape parameter
-	// each condition will have its contribution to the ranking sum
-	protected int rank_sum=0; 			
 	protected Point EM_position;		//  EM result
 	protected double alpha;
-	protected boolean use_internal_em_train;
 	
-	
-	public ComponentFeature(BindingComponent b, boolean use_internal_em){
-		this(b);
-		this.use_internal_em_train = use_internal_em;
-	}
-
 	public ComponentFeature(BindingComponent b){
 		super(null);
 		position = b.getLocation();
 		coords = position.expand(1);
-		mixingProb = b.getMixProb();
-		numConditions = b.getNumConditions();
+		if(b.getMixProb()!=1)
+			isJointEvent = true;
 		
 		condSumResponsibility = new double[numConditions];
 		for(int c = 0; c < numConditions; c++) { condSumResponsibility[c] = b.getSumResponsibility(c); }
@@ -65,8 +59,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		p_values = new double[numConditions];
 		p_values_wo_ctrl = new double[numConditions];
 		q_value_log10 = new double[numConditions];
-		shape_z_weighted = new double[numConditions];
-		shape_z_scores = new double[numConditions];
 		EM_position = b.getEMPosition();
 		alpha = b.getAlpha();
 		logKL_ctrl_plus = new double[numConditions];
@@ -74,11 +66,11 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	}
 	
 	//Accessors 
-	public double getMixProb(){return(mixingProb);}
 	public double getAlpha(){return(alpha);}
 	public Point getPosition() { return position;}
 	public Point getEMPosition() { return EM_position;}
-
+	public boolean isJointEvent() {return isJointEvent;}
+	public void setJointEvent(boolean isJointEvent) {this.isJointEvent = isJointEvent;}
 	public double[] getCondBetas() { return conditionBeta; }
 	public boolean[] getCondSignificance() { return condSignificance; }
 	public double getTotalSumResponsibility(){return(totalSumResponsibility);}
@@ -93,7 +85,19 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	}
 	public double get_mfold() { return mfold; }
 	public void set_mfold(double mf) { mfold = mf; }
-	
+	public double getShapeDeviation(int cond) {
+		return shapeDeviation[cond];
+	}
+	public double getAvgShapeDeviation() {
+		double sum=0;
+		for(int c=0; c<numConditions; c++){
+			sum += shapeDeviation[c];
+		}
+		return sum/numConditions;
+	}
+	public void setShapeDeviation(double[] shapeDeviation) {
+		this.shapeDeviation = shapeDeviation;
+	}	
 	public void setProfileLogKL(double[] logKL_plus, double[] logKL_minus){
 		this.logKL_plus = logKL_plus;
 		this.logKL_minus = logKL_minus;
@@ -141,6 +145,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public static void setSortingCondition(int cond){
 		sortingCondition = cond;
 	}
+	public boolean onSameChrom(ComponentFeature f){
+		return position.getChrom().equalsIgnoreCase(f.getPosition().getChrom());
+	}
 	
 	//Comparable default method
 	public int compareTo(ComponentFeature f) {
@@ -148,12 +155,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		return compareByLocation(f);
 	}
 	
-	// The following method can be called from creating a new Comparator.
+	// The following methods can be called from creating a new Comparator.
 	// See benjaminiHochbergCorrection() in BindingMixture for example use
-	public int compareByRankSum(ComponentFeature f) {
-		double diff = getRank_sum()-f.getRank_sum();
-		return diff==0?0:(diff<0)?-1:1;
-	}
 	public int compareByTotalResponsibility(ComponentFeature f) {
 		if(totalSumResponsibility>f.getTotalSumResponsibility()){return(-1);}
 		else if(totalSumResponsibility<f.getTotalSumResponsibility()){return(1);}
@@ -163,11 +166,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		double diff = getAverageLogKL() - f.getAverageLogKL();
 		return diff==0?0:(diff<0)?-1:1; // smaller logKL, more similar distribution
 	}	
-	public int compareByPeakShape(ComponentFeature f) {
-		if(shape_z_weighted[sortingCondition]<f.getShapeParameter(sortingCondition)){return(-1);}
-		else if(shape_z_weighted[sortingCondition]>f.getShapeParameter(sortingCondition)){return(1);}
-		else return(0);
-	}
 	public int compareByLocation(ComponentFeature f) {
 		return getPeak().compareTo(f.getPeak());
 	}
@@ -251,76 +249,42 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void setQValueLog10(double qValue, int cond){
 		q_value_log10[cond] = qValue;
 	}
-	public double getShapeParameter(int cond){
-		return shape_z_weighted[cond];
-	}
-	public void setShapeParameter(double pValue, int cond){
-		shape_z_weighted[cond] = pValue;
-	}
-	public double getShapeZScore(int cond){
-		return shape_z_scores[cond];
-	}
-	public void setShapeZScore(double zscore, int cond){
-		shape_z_scores[cond] = zscore;
-	}
+
 	//Print the feature
 	//each field should match header String
 	public String toString() {
 		StringBuilder result = new StringBuilder();
 		
 		result.append(position.getLocationString()).append("\t");
-//		result.append(rank_sum).append("\t");
-		result.append(String.format("%.1f\t", totalSumResponsibility));
-//		result.append(EM_position.getLocationString()).append("\t");
-		result.append(String.format("%.2f\t", getAverageLogKL()));
-				
-//        for(int c=0; c<numConditions; c++){
-//        	Pair<Double, Double> logKL = getLogKL(c);
-//        	if (numConditions>1){
-//	        	result.append(String.format("%.4f\t", conditionBeta[c]));
-//	        	result.append(String.format("%.2f\t", logKL.car()));
-//        	}
-//        	result.append(String.format("%.4f\t", getShapeZScore(c)));
-//        	result.append(String.format("%.6f\t", getShapeParameter(c)));
-//        	result.append(String.format("%.2f\t", logKL.cdr()));
-//        }
-
-//        if (!(unScaledControlCounts==null)){
-//	        for(int c=0; c<numConditions; c++){
-//	        	if (numConditions!=1)	// if single condition, IP is same as total
-//	        		result.append(String.format("%.1f\t", getEventReadCounts(c) ));
-//	        	result.append(String.format("%.1f\t", getScaledControlCounts(c)));
-//	        	result.append(String.format("%.2f\t", getQValueLog10(c)));
-//	        	result.append(String.format("%.2f\t", -Math.log10(getPValue(c))));
-//	        }
-//        }
-//        else{
-//	        for(int c=0; c<numConditions; c++){
-//	        	result.append(String.format("%.1f\t", getEventReadCounts(c) ));
-//	        }
-//	        result.append("NA\t");
-//        }
-       
+		result.append(String.format("%7.1f\t", totalSumResponsibility));
+			
         for(int c=0; c<numConditions; c++){
         	if (numConditions!=1) {	// if single condition, IP is same as total
         		result.append(String.format("%c\t", condSignificance[c] ? 'T' : 'F' ));
-        		result.append(String.format("%.1f\t", getEventReadCounts(c) ));
+        		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
-        	if(unScaledControlCounts!=null)
-        		result.append(String.format("%.1f\t", getScaledControlCounts(c)))
-        			  .append(String.format("%.1f\t", getEventReadCounts(c)/getScaledControlCounts(c)));
+        	if(unScaledControlCounts!=null){
+        		double fold = 0;
+        		if (getScaledControlCounts(c)==0)
+        			fold = 9999.9;
+        		else
+        			fold = getEventReadCounts(c)/getScaledControlCounts(c);
+        		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
+        			  .append(String.format("%7.1f\t", fold));
+        	}
         	else
         		result.append("NA\t").append("NA\t");
         
-        	result.append(String.format("%.2f\t", getQValueLog10(c)));
+        	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
         	if(unScaledControlCounts!=null)
-        		result.append(String.format("%.2f\t", -Math.log10(getPValue(c))));
+        		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
         	else
-        		result.append(String.format("%.2f\t", -Math.log10(getPValue_wo_ctrl(c))));
+        		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
         }
 
-        result.append(mixingProb==1?1:0).append("\t");
+		result.append(String.format("%7.3f\t", getAvgShapeDeviation()));
+        result.append(isJointEvent?1:0).append("\t");
 //        result.append(String.format("%.4f\t", mixingProb));
          
 		String gene = nearestGene == null ? "NONE" : nearestGene.getName();
@@ -333,13 +297,14 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
             }
             result.append("\t");
         }
-        result.append(String.format("%.1f\t", alpha));
-        result.append(String.format("%.2f\t", getAverageCtrlLogKL()));
-        result.append(EM_position.getLocationString() + "\t");
+        result.append(String.format("%7.1f\t", alpha));
+        result.append(EM_position.getLocationString());
         result.append("\n");
 
 		return result.toString();
 	}
+
+
 	//GFF3 (fill in later)
 	public String toGFF(){
 		return("");
@@ -347,67 +312,30 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	
 	//generate Header String, each field should match toString() output
 	public String headString(){
-		StringBuilder header = new StringBuilder("%");
+		StringBuilder header = new StringBuilder();
 		
 		header.append("Position\t")
-//			  .append("Rank_Sum\t")
-			  .append("IpStrength\t")
-//			  .append("EM_Posi\t")
-			  .append("Shape\t");
-				
-//        for(int c=0; c<numConditions; c++){
-//        	String name = numConditions==1?"":conditionNames.get(c)+"_";
-//        	if (numConditions>1)
-//        		header.append(name+"Proportion\t")
-//        	      	  .append(name+"Shape\t");
-//    	    header.append("Shape_Z\t");
-//    	    header.append("Shape_Param\t");
-//    	    header.append(name+"ShapeAsymmetry\t");
-//        }
-
-//        if (!(unScaledControlCounts==null)){
-//	        for(int c=0; c<numConditions; c++){
-//	        	String name = numConditions==1?"":conditionNames.get(c)+"_";
-//	        	if (numConditions!=1)		// if single condition, IP is same as total
-//	        		header.append(name+"IpStrength\t");
-//	        	header.append(name+"CtrlStrength\t")
-//      	      		  .append(name+"Q_value_log10\t")
-//      	      		  .append(name+"P_value_log10\t");
-//	        }
-//        }
-//        else{
-//	        for(int c=0; c<numConditions; c++){
-//	        	String name = numConditions==1?"":conditionNames.get(c)+"_";
-//	        	header.append(name+"IpStrength\t");
-//	        }
-//	        header.append("Control\t");
-//        }
-//        
+			  .append("   IP\t");
         
         for(int c=0; c<numConditions; c++){
         	String name = numConditions==1?"":conditionNames.get(c)+"_";
         	if (numConditions!=1) {	// if single condition, IP is same as total
-        		header.append(name+"Significant\t");
-        		header.append(name+"IpStrength\t");
+        		header.append(name+"Present\t");
+        		header.append(name+"IP\t");
         	}
-        	header.append(name+"CtrlStrength\t")
-        		  .append(name+"Fold\t")
-        	      .append(name+"Q_value_log10\t")
-  	      		  .append(name+"P_value_log10\t");
+        	header.append(name+"Control\t")
+        		  .append(name+"IP/Ctrl\t")
+        	      .append(name+"Q_-lg10\t")
+  	      		  .append(name+"P_-lg10\t");
         }
         
-        header.append("UnaryEvent\t");
+        header.append("  Shape\t").append("Joint\t");
 		header.append("NearestGene\t").append("Distance\t");
 		
         if (annotations != null) {
             header.append("Annotations").append("\t");
         }
-        header.append("Alpha");
-        header.append("\t");
-        header.append("ControlLogKL");
-        header.append("\t");
-        header.append("EM_Position");
-        header.append("\t");
+        header.append("Alpha\t").append("EM_Position");
         header.append("\n");
         return header.toString();
 	}
@@ -415,20 +343,24 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	//generate Header String, each field should match toString() output
 	// for GPS release v1
 	public String headString_v1(){
-		StringBuilder header = new StringBuilder("");
+		StringBuilder header = new StringBuilder();
 		
 		header.append("Position\t")
-			  .append("IpStrength\t");       
+			  .append("     IP\t");        
         
         for(int c=0; c<numConditions; c++){
         	String name = numConditions==1?"":conditionNames.get(c)+"_";
         	if (numConditions!=1) {		// if single condition, IP is same as total
-        		header.append(name+"Significant\t");
-        		header.append(name+"IpStrength\t");
+        		header.append(name+"Present\t");
+        		header.append(name+"IP\t");
         	}
-        	header.append(name+"CtrlStrength\t")
-        	      .append(name+"Q_value_log10\t")
-  	      		  .append(name+"P_value_log10\t");
+        	header.append(name+"Control\t")
+  		  		  .append(name+"IP/Ctrl\t")
+        	      .append(name+"Q_-lg10\t")
+  	      		  .append(name+"P_-lg10\t")
+  	      		  .append("  Shape");
+        	if (c<numConditions-1)
+        		header.append("\t");
         }
         header.append("\n");
         return header.toString();
@@ -440,24 +372,35 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		StringBuilder result = new StringBuilder();
 		
 		result.append(position.getLocationString()).append("\t");
-		result.append(String.format("%.1f\t", totalSumResponsibility));
-       
+		result.append(String.format("%7.1f\t", totalSumResponsibility));
+      
         for(int c=0; c<numConditions; c++){
         	if (numConditions!=1) {	// if single condition, IP is same as total
         		result.append(String.format("%c\t", condSignificance[c] ? 'T' : 'F' ));
-        		result.append(String.format("%.1f\t", getEventReadCounts(c) ));
+        		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
-        	if(unScaledControlCounts!=null)
-        		result.append(String.format("%.1f\t", getScaledControlCounts(c)));
+        	if(unScaledControlCounts!=null){
+        		double fold = 0;
+        		if (getScaledControlCounts(c)==0)
+        			fold = 9999.9;
+        		else
+        			fold = getEventReadCounts(c)/getScaledControlCounts(c);
+        		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
+        			  .append(String.format("%7.1f\t", fold));
+        	}
         	else
-        		result.append("NA\t");
+        		result.append("NA\t").append("NA\t");
         
-        	result.append(String.format("%.2f\t", getQValueLog10(c)));
+        	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
         	if(unScaledControlCounts!=null)
-        		result.append(String.format("%.2f\t", -Math.log10(getPValue(c))));
+        		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
         	else
-        		result.append(String.format("%.2f\t", -Math.log10(getPValue_wo_ctrl(c))));
+        		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
+
+    		result.append(String.format("%7.3f", getAvgShapeDeviation()));
+        	if (c<numConditions-1)
+        		result.append("\t");
         }
 
         result.append("\n");
@@ -469,13 +412,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 
 	public static void setConditionNames(ArrayList<String> conditionNames) {
 		ComponentFeature.conditionNames = conditionNames;
+		numConditions = conditionNames.size();
 	}
+	
 
-	public int getRank_sum() {
-		return rank_sum;
-	}
-
-	public void addRank_sum(int rank_sum) {
-		this.rank_sum += rank_sum;
-	}
 }

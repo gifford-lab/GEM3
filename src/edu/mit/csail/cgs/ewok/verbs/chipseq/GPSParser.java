@@ -44,6 +44,10 @@ public class GPSParser {
 	    String filename = Args.parseString(args,"GPS",null); 
 	    List<GPSPeak> peaks = parseGPSOutput(filename, genome);
 	    System.out.println(peaks.size());
+	    System.out.println(GPSPeak.toGPS_Header());
+	    System.out.println(peaks.get(0).toGPS());
+	    System.out.println(GPSPeak.toGPS_short_Header());
+	    System.out.println(peaks.get(0).toGPS_short());
 	}
 	/**
 	 * Parses data in the GPS output format
@@ -75,7 +79,7 @@ public class GPSParser {
 //			  }
 				line = line.trim();
 	            String[] f=line.split("\t");
-	            if (line.charAt(0)=='#'||f[0].equals("chr")){
+	            if (f[0].equals("Position")||f[0].equals("chr")){
 	            	continue;
 	            }
 				GPSPeak hit = GPSParser.parseLine(g, line, 0);
@@ -123,7 +127,21 @@ public class GPSParser {
 	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-	if (t.length < 12) {
+		if (t.length == 7) {
+// GPS output format 2010-07-31		
+// Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
+	      try { 
+	    	  Region r = Region.fromString(g, t[0]);
+				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+						Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
+						Double.parseDouble(t[5]), Double.parseDouble(t[6]));
+	      }
+	      catch (Exception ex) {
+	        //logger.error("Parse error on line " + lineNumber + ".", ex);
+	        return null;
+	      }
+	    }
+	else if (t.length < 12) {
       try { 
       Region r = Region.fromString(g, t[0]);
 			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
@@ -136,11 +154,14 @@ public class GPSParser {
       }
     }
 	else if (t.length == 12) {
+// GPS dev output format 2010-07-31		
+//	Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
+//	Joint	NearestGene	Distance	Alpha	EM_Position
 	      try { 
-	      Region r = Region.fromString(g, t[0]);
+	    	  Region r = Region.fromString(g, t[0]);
 				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-						Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
-						Double.parseDouble(t[5]), Double.parseDouble(t[1]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
+						Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
+						Double.parseDouble(t[5]), Double.parseDouble(t[6]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
 	      }
 	      catch (Exception ex) {
 	        //logger.error("Parse error on line " + lineNumber + ".", ex);

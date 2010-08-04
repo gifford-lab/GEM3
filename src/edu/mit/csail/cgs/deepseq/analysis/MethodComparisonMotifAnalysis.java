@@ -22,6 +22,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.analysis.KnnAnalysis.KnnPoint;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
@@ -42,6 +43,7 @@ public class MethodComparisonMotifAnalysis {
 	private int windowSize = 50;	
 	private int rank = 0;
 	private List<Region> restrictRegions;
+	private boolean sortByStrength = false;
 	
 	private Genome genome;
 	private Organism org;
@@ -91,8 +93,8 @@ public class MethodComparisonMotifAnalysis {
 	
 	MethodComparisonMotifAnalysis(String[] args){
 		this.args = args;
-		
-	    ArgParser ap = new ArgParser(args);
+		ArgParser ap = new ArgParser(args);
+		Set<String> flags = Args.parseFlags(args);		
 	    try {
 	      Pair<Organism, Genome> pair = Args.parseGenome(args);
 	      if(pair==null){
@@ -112,10 +114,10 @@ public class MethodComparisonMotifAnalysis {
 	    	    
 		// some parameters
 		windowSize = Args.parseInteger(args, "windowSize", 50);
-		isPreSorted = Args.parseInteger(args, "isPreSorted", 0)==1;
 		rank = Args.parseInteger(args, "rank", 0);
-		motifThreshold = Args.parseDouble(args, "motifThreshold", 10);
 		outName = Args.parseString(args,"out",outName);
+		sortByStrength = flags.contains("ss");	// only for GPS
+		isPreSorted = flags.contains("sorted");
 		try{
 			restrictRegions = Args.parseRegions(args);
 		}
@@ -124,18 +126,12 @@ public class MethodComparisonMotifAnalysis {
 		}
 		
 		// load motif
-		try {
-			motifString = Args.parseString(args, "motif", null);
-			String motifVersion = Args.parseString(args, "version", null);
-			int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
-//			Organism org_mouse = new Organism("Mus musculus");
-			int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:org.getDBID(), motifString, motifVersion);
-			motif = WeightMatrix.getWeightMatrix(wmid);
-		} 
-		catch (NotFoundException e) {
-			e.printStackTrace();
-		}		
+		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+		motif = wm.car();
+		motifThreshold = wm.cdr();
+		motifString = Args.parseString(args, "motif", null);
 	}
+	
 	// This method print three text files
 	// 1. sharedMotifOffset, for spatial resolution histogram
 	// Only consider the motif positions that are shared by all methods, 
@@ -187,27 +183,28 @@ public class MethodComparisonMotifAnalysis {
 			}
 			allRegions.addAll( mergeRegions(byChrom));
 		}
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
+		Collections.sort(allRegions);		// sort regions, the motifs should be sorted
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		System.out.printf("%n%d motifs (in %d regions).%n%n", allMotifs.size(), allRegions.size());
-		
-		// Get the set of motif matches for all peak calls
-		
+
+		// Get the set of motif matches for all peak calls		
 		System.out.printf("Peaks within a %d bp window to a motif:%n", windowSize);
 		for (int i=0;i<peaks.size();i++){
+			System.out.printf("%s \t#peaks: ", methodNames.get(i));
 			HashMap<Point, MotifHit> motifs = getNearestMotif2(peaks.get(i), allMotifs, allMotifScores);
 			maps.add(motifs);
-			System.out.printf("%s:%d\t", methodNames.get(i), motifs.keySet().size());
+			System.out.printf("\t#motifs: %d", motifs.keySet().size());
+			System.out.println();
 		}
-		System.out.println();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
-		System.out.printf("%nMotifs close to a peak:%n");
+		System.out.printf("%nMotifs covered by a peak:%n");
 		for(int i = 0; i < methodNames.size(); i++)
 			System.out.printf("%s\t%d/%d (%.1f%%)%n", methodNames.get(i), maps.get(i).size(), allMotifs.size(), 100.0*((double)maps.get(i).size())/(double)allMotifs.size());
 				
@@ -248,11 +245,12 @@ public class MethodComparisonMotifAnalysis {
 					sb.append("\t");
 			}
 		}
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_sharedMotifOffsets_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_sharedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
-		// ************************************************************
+// ************************************************************************************
+// ************************************************************************************
 		
 		// get the union (motifs at least by one of all methods)
 		Set<Point> motifs_union = maps.get(0).keySet();
@@ -291,33 +289,26 @@ public class MethodComparisonMotifAnalysis {
 					sb.append("\t");
 			}
 		}
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_allMotifOffsets_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_allMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
 		System.out.println();
-		System.out.printf("Top peaks close to a motif:%n");
-		// ************************************************************
+		
+// ************************************************************************************
+// ************************************************************************************
 		// motif occurrence / motif coverage (sensitivity)
 		// get the motif offset of the peaks (rank indexed by each method)
 		// if no motif hit, offset=NOHIT=999
 		// print out the offset, for Matlab processing and plotting
-		ArrayList<int[]> trueHits = new ArrayList<int[]>();
+		
+		System.out.println("Get ranked peak-motif offset list ... ");
+		
+		ArrayList<HashMap<Point, Integer>> allPeakOffsets = new ArrayList<HashMap<Point, Integer>>();
 		for (int i=0; i<methodNames.size();i++){
-			int[] hits = new int[maxCount];
-			for (int j=0;j<maxCount;j++){
-				hits[j]=NOHIT_OFFSET;
-			}
-			int numExistingTopHits = 0; 
-			for (MotifHit hit: maps.get(i).values()){
-				if (hit.rank < rank) {
-					hits[hit.rank]=hit.offset;
-					numExistingTopHits++;
-				}
-			}
-			trueHits.add(hits);
-			System.out.printf("%s\t%d/%d (%.1f%%)%n", methodNames.get(i), numExistingTopHits, rank, 100.0*((double)numExistingTopHits)/(double)rank);
-		}		
+			allPeakOffsets.add(peak2MotifOffset(peaks.get(i), allMotifs));
+		}
+		
 		// output results
 		sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
@@ -328,20 +319,26 @@ public class MethodComparisonMotifAnalysis {
 		sb.append("\n");
 		for(int j=0;j<maxCount;j++){
 			sb.append(j+"\t");
-			for (int i=0;i<maps.size();i++){
-				sb.append(trueHits.get(i)[j]);
-				if (i==maps.size()-1)
+			for (int i=0;i<allPeakOffsets.size();i++){
+				if (j<peaks.get(i).size()){
+					Point peak = peaks.get(i).get(j);
+					sb.append(allPeakOffsets.get(i).containsKey(peak)?allPeakOffsets.get(i).get(peak):NOHIT_OFFSET);
+				}
+				else
+					sb.append(NOHIT_OFFSET);
+				
+				if (i==allPeakOffsets.size()-1)
 					sb.append("\n");
 				else
 					sb.append("\t");
 			}
 		}
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_rankedMotifOffsets_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_rankedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
+		System.out.println("Done! " + CommonUtils.timeElapsed(tic));
 	}
-	
-	
+
 	private void readPeakLists(){
         Vector<String> peakTags=new Vector<String>();
         for(String s : args)
@@ -372,21 +369,31 @@ public class MethodComparisonMotifAnalysis {
         	if (name.contains("GPS")){
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				// sort by descending pValue (-log P-value)
-				if (!isPreSorted)
-					Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
-					    public int compare(GPSPeak o1, GPSPeak o2) {
-					        return o1.compareByPValue(o2);
-					    }
-					});
+				if (!isPreSorted){
+					if (sortByStrength){
+						Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
+						    public int compare(GPSPeak o1, GPSPeak o2) {
+						        return o1.compareByIPStrength(o2);
+						    }
+						});	
+					}
+					else{
+						Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
+						    public int compare(GPSPeak o1, GPSPeak o2) {
+						        return o1.compareByPValue(o2);
+						    }
+						});
+					}
+				}
 				for (GPSPeak p: gpsPeaks){
 					peakPoints.add(p);
 				}
         	}
-        	if (name.contains("SISSRS")){
+        	else if (name.contains("SISSRS")){
         		// assume be sorted by pvalue if (!isPreSorted)
 				peakPoints = load_SISSRS_File(filePath);
         	}
-        	if (name.contains("MACS")){
+        	else if (name.contains("MACS")){
     			List<MACSPeakRegion> macsPeaks = MACSParser.parseMACSOutput(filePath, genome);
     			if (!isPreSorted)
 	    			Collections.sort(macsPeaks, new Comparator<MACSPeakRegion>(){
@@ -399,23 +406,8 @@ public class MethodComparisonMotifAnalysis {
     				peakPoints.add(p.getPeak());
     			}
         	}
-        	if (name.contains("cisGenome")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  	
-        	if (name.contains("QuEST")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  	
-        	if (name.contains("PICS")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  	
-        	if (name.contains("FindPeaks")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  
-        	if (name.contains("spp_wtd")){
-				peakPoints = loadCgsPointFile(filePath);
-        	}  
-           	if (name.contains("spp_mtc")){
-				peakPoints = loadCgsPointFile(filePath);
+        	else{
+				peakPoints = CommonUtils.loadCgsPointFile(filePath, genome);
         	}  
 
         	peaks.add(peakPoints);
@@ -489,13 +481,13 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}
 
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// get all the n-ary motifs (within interDistance)
 		int interDistance = 500;
@@ -575,10 +567,10 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}//each chrom
 		
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents500bp_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents500bp_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb2.toString());
 	}
@@ -651,13 +643,13 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}
 
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// get all the single motifs (no neighbors within interDistance)
 		int interDistance = 500;
@@ -722,10 +714,10 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}//each chrom
 		
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_singleMotifEvents_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_singleMotifEvents_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_singleMotifEvents500bp_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_singleMotifEvents500bp_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb2.toString());
 	}
@@ -758,13 +750,13 @@ public class MethodComparisonMotifAnalysis {
 			}
 			allRegions.addAll( mergeRegions(byChrom));
 		}
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// Get the set of motif matches for all peak calls
 		for (int i=0;i<peaks.size();i++){
@@ -787,7 +779,7 @@ public class MethodComparisonMotifAnalysis {
 			System.out.println(methodNames.get(i)+": "+ps.size());
 			maps.add(getNearestMotif2(ps, allMotifs, allMotifScores));
 		}
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// get the intersection (motifs shared by all methods, upto top rank)
 		System.out.print("\nRunning Spatial Resolution analysis ...\n");
@@ -820,7 +812,7 @@ public class MethodComparisonMotifAnalysis {
 					sb.append("\t");
 			}
 		}
-		BindingMixture.writeFile(outName+"_"+methodNames.size()+"methods_unaryEventLists_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_unaryEventLists_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
@@ -894,25 +886,42 @@ public class MethodComparisonMotifAnalysis {
 		}
 		return motifs;
 	}
-	// get the all nearest motif hits in the region (windowSize) 
-	// around each peak in the list
+	// get the nearest motif hit in the region (windowSize) around each peak in the list
+	// this is motif-centered, some peak may associate with a motif by then took away by other peaks
 	// if a motif have more than one peaks nearby, associate it with the nearest peak
-	private HashMap<Point, MotifHit> getNearestMotif2(ArrayList<Point> peaks, ArrayList<Point> allMotifs, ArrayList<Double>allMotifScores){	
+	// Assuming the motif positions are sorted
+	private HashMap<Point, MotifHit> getNearestMotif2(ArrayList<Point> peaks, ArrayList<Point> allMotifs, ArrayList<Double>allMotifScores){
+		// make a copy and sort
+		ArrayList<Point> ps = (ArrayList<Point>) peaks.clone();
+		Collections.sort(ps);
+		
 		HashMap<Point, MotifHit> motifs = new HashMap<Point, MotifHit>();
 		int numPeaksWithinMotifs = 0;
-		for(int i=0;i<peaks.size();i++){
-			Point peak =peaks.get(i);
+		int firstMatchIndex = 0;		// the index of first motif match index for previous peak
+										// this will be use as start search position of the inner loop
+		for(int i=0;i<ps.size();i++){
+			Point peak =ps.get(i);
 			int nearestIndex = -1;
 			int nearestDistance = windowSize;
-			//TODO: should search for the position, not iterate everyone
-			for(int j=0;j<allMotifs.size();j++){
+			boolean firstMatchFound = false;
+			// search for the position, not iterate everyone
+			for(int j=firstMatchIndex;j<allMotifs.size();j++){
 				Point motif =allMotifs.get(j);
 				if (peak.getChrom().equalsIgnoreCase(motif.getChrom())){
 					int distance = peak.distance(motif);
 					if (distance<=nearestDistance){
+						if (!firstMatchFound){		// update on the first match
+							firstMatchIndex = j;
+							firstMatchFound = true;
+						}							
 						nearestDistance = distance;
 						nearestIndex = j;
 					}
+					else{		// if distance > nearest, and found a match already, it is getting farther away, stop search 
+						if (firstMatchFound){	
+							break;
+						}
+					}					
 				}
 			}
 			
@@ -930,10 +939,52 @@ public class MethodComparisonMotifAnalysis {
 				}
 			}
 		}
-		System.out.printf("%d/%d (%.1f%%)%n", numPeaksWithinMotifs, peaks.size(), 100.0*((double)numPeaksWithinMotifs)/(double)peaks.size(), windowSize);
+		System.out.printf("%d/%d (%.1f%%)", numPeaksWithinMotifs, peaks.size(), 100.0*((double)numPeaksWithinMotifs)/(double)peaks.size(), windowSize);
 		return motifs;
 	}
-	
+	// get the nearest motif offset in the region (windowSize) around each peak in the list
+	// this is peak-centered, all peaks will have a offset, NOHIT_OFFSET for no motif found.
+	private HashMap<Point, Integer> peak2MotifOffset(ArrayList<Point> peaks, ArrayList<Point> allMotifs){
+		// make a copy of the list and sort
+		ArrayList<Point> ps = (ArrayList<Point>) peaks.clone();
+		Collections.sort(ps);
+		
+		HashMap<Point, Integer> peaksOffsets = new HashMap<Point, Integer>();
+		int firstMatchIndex = 0;		// the index of first motif match index for previous peak
+										// this will be use as start search position of the inner loop
+		for(int i=0;i<ps.size();i++){
+			Point peak =ps.get(i);
+			int nearestIndex = -1;
+			int nearestDistance = windowSize;
+			boolean firstMatchFound = false;
+			// search for the position, not iterate everyone
+			for(int j=firstMatchIndex;j<allMotifs.size();j++){
+				Point motif =allMotifs.get(j);
+				if (peak.getChrom().equalsIgnoreCase(motif.getChrom())){
+					int distance = peak.distance(motif);
+					if (distance<=nearestDistance){
+						if (!firstMatchFound){		// update on the first match
+							firstMatchIndex = j;
+							firstMatchFound = true;
+						}							
+						nearestDistance = distance;
+						nearestIndex = j;
+					}
+					else{		// if distance > nearest, and found a match already, it is getting farther away, stop search 
+						if (firstMatchFound){	
+							break;
+						}
+					}					
+				}
+			}
+			
+			if (nearestIndex !=-1){			// motif hit is within the window
+				Point nearestMotif = allMotifs.get(nearestIndex);
+				peaksOffsets.put(peak, peak.offset(nearestMotif));
+			}
+		}
+		return peaksOffsets;
+	}	
 	// this is an alternative test to exclude the possibility that one method may 
 	// take advantage by predicting multiple peaks around the motif position
 	// therefore, if a motif have more than one peaks nearby, do not include it
@@ -1007,41 +1058,7 @@ public class MethodComparisonMotifAnalysis {
 		}
 	}
 
-	// load text file in CGS Point format
-	// chr:coord, e.g. 1:234234
-	private ArrayList<Point> loadCgsPointFile(String filename) {
 
-		File file = new File(filename);
-		FileReader in = null;
-		BufferedReader bin = null;
-		ArrayList<Point> points = new ArrayList<Point>();
-		try {
-			in = new FileReader(file);
-			bin = new BufferedReader(in);
-			String line;
-			while((line = bin.readLine()) != null) { 
-				line = line.trim();
-				Region point = Region.fromString(genome, line);
-				if (point!=null)
-					points.add(new Point(genome, point.getChrom(),point.getStart()));
-			}
-		}
-		catch(IOException ioex) {
-			//logger.error("Error parsing file", ioex);
-		}
-		finally {
-			try {
-				if (bin != null) {
-					bin.close();
-				}
-			}
-			catch(IOException ioex2) {
-				//nothing left to do here, just log the error
-				//logger.error("Error closing buffered reader", ioex2);
-			}			
-		}
-		return points;
-	}
 
 	/** load text file in SISSRS output BED format, then sort by p-value
 	 * 	Chr		cStart	cEnd	NumTags	Fold	p-value
@@ -1077,7 +1094,7 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}
 		catch(IOException ioex) {
-			//logger.error("Error parsing file", ioex);
+			ioex.printStackTrace();
 		}
 		finally {
 			try {
@@ -1162,7 +1179,7 @@ public class MethodComparisonMotifAnalysis {
 			}
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_motif_distance_byScore_"+windowSize+"_"+method+".txt", sb.toString());
+		CommonUtils.writeFile("CTCF_motif_distance_byScore_"+windowSize+"_"+method+".txt", sb.toString());
 	}	
 		
 	private void motifBasedAnalysis(){
@@ -1172,7 +1189,7 @@ public class MethodComparisonMotifAnalysis {
 		maps_gps = getAllNearestMotifs(peaks_gps, motifThresholds[0]);
 		System.out.print("\nGetting motifs from MACS result ...\n");
 		maps_macs = getAllNearestMotifs(peaks_macs, motifThresholds[0]);
-		System.out.println(BindingMixture.timeElapsed(tic));
+		System.out.println(CommonUtils.timeElapsed(tic));
 		sharedMotif_SpatialResolution();
 //		bindingSpatialResolutionHistrogram();
 //		motifCoverage();
@@ -1245,7 +1262,7 @@ public class MethodComparisonMotifAnalysis {
 				sb.append("\t"+resolution[0][i][j]);
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_GPS_SpatialResolution_"+windowSize+".txt", sb.toString());
+		CommonUtils.writeFile("CTCF_GPS_SpatialResolution_"+windowSize+".txt", sb.toString());
 
 		sb = new StringBuilder();
 		sb.append("#"+motif.name+" "+ motif.version+"\n");
@@ -1260,8 +1277,8 @@ public class MethodComparisonMotifAnalysis {
 				sb.append("\t"+resolution[1][i][j]);
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_MACS_SpatialResolution_"+windowSize+".txt", sb.toString());
-		System.out.println(BindingMixture.timeElapsed(tic));
+		CommonUtils.writeFile("CTCF_MACS_SpatialResolution_"+windowSize+".txt", sb.toString());
+		System.out.println(CommonUtils.timeElapsed(tic));
 	}
 	
 	// for all the shared motif, pick the nearest peaks
@@ -1328,7 +1345,7 @@ public class MethodComparisonMotifAnalysis {
 							String.format("%.2f", resolution[1][j])+"\n");
 				}
 			}
-			BindingMixture.writeFile("CTCF_SpatialResolutionHistogram_"
+			CommonUtils.writeFile("CTCF_SpatialResolutionHistogram_"
 					+String.format("%.2f_",motifThresholds[m])
 					+windowSize+".txt", sb.toString());
 		}
@@ -1413,7 +1430,7 @@ public class MethodComparisonMotifAnalysis {
 				sb.append("\t"+motifCovered[0][i][j]);
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_GPS_MotifCoverage_"+windowSize+".txt", sb.toString());
+		CommonUtils.writeFile("CTCF_GPS_MotifCoverage_"+windowSize+".txt", sb.toString());
 
 		sb = new StringBuilder();
 		sb.append("#"+motif.name+" "+ motif.version+"\n");
@@ -1432,8 +1449,8 @@ public class MethodComparisonMotifAnalysis {
 				sb.append("\t"+motifCovered[1][i][j]);
 			sb.append("\n");
 		}
-		BindingMixture.writeFile("CTCF_MACS_MotifCoverage_"+windowSize+".txt", sb.toString());
-		System.out.println(BindingMixture.timeElapsed(tic));
+		CommonUtils.writeFile("CTCF_MACS_MotifCoverage_"+windowSize+".txt", sb.toString());
+		System.out.println(CommonUtils.timeElapsed(tic));
 	}	
 	
 	// get the all nearest motif hits in the region (within windowSize) 
