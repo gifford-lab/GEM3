@@ -49,6 +49,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	/****************************
 	 * Constants
 	 ***************************/
+	public final static String GPS_VERSION = "0.8";
 	private final static boolean LOG_ALL=false;
 
 	// width for smoothing a read (used as a stddev for creating the Gaussian kernel of probability)

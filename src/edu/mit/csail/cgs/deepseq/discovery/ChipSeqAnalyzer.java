@@ -26,7 +26,7 @@ public class ChipSeqAnalyzer{
 	private BindingMixture mixture=null;
 	
 	ChipSeqAnalyzer(String[] args){
-		System.out.println("Welcome to GPS!");
+		System.out.println("Welcome to GPS (version "+BindingMixture.GPS_VERSION+")!");
 		if(args.length==0){ 
 			printError(); 
 			System.exit(1); 
