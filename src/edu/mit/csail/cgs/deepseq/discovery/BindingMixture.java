@@ -292,7 +292,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	kl_count_adjusted = flags.contains("adjust_kl");
     	
     	// default as true, need the opposite flag to turn it off
-    	use_KL_filtering = !flags.contains("1norm");  	// use 1-norm distance filtering
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
     	use_internal_em_train = ! flags.contains("multi");
     	if (use_internal_em_train)
@@ -303,6 +302,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     		use_joint_event = true;
     		sort_by_location = true;
     	}
+    	use_KL_filtering = !flags.contains("1norm");  	// use 1-norm distance filtering
     	reportProgress =! flags.contains("no_report_progress");
     	use_scanPeak = ! flags.contains("no_scanPeak");
     	do_model_selection = !flags.contains("no_model_selection");
