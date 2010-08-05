@@ -27,6 +27,17 @@ public class Interaction {
 	public Region getRight() {
 		return right;
 	}
+	
+	public boolean similarTo(Interaction other, int distance) {
+		if (((this.left.getChrom().equals(other.left.getChrom()) && this.left.distance(other.left) <= distance) && 
+				(this.right.getChrom().equals(other.right.getChrom()) && this.right.distance(other.right) <= distance)) || 
+				((this.left.getChrom().equals(other.right.getChrom()) && this.left.distance(other.right) <= distance) && 
+						(this.right.getChrom().equals(other.left.getChrom()) && this.right.distance(other.left) <= distance))) {
+			return true;
+		} else {
+			return false;
+		}
+	}
 
 	@Override
 	public boolean equals(Object obj) {
