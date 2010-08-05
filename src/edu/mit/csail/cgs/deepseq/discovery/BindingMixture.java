@@ -1145,6 +1145,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 	}
+	
 	private ArrayList<List<StrandedBase>> loadBasesInWindow(Region w){
 		return loadBasesInWindow(w, "IP", true);
 	}
@@ -3318,6 +3319,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				ctrlCache.normalizeCounts(1.0/ctrl_norm_factor);
 			}
 		}
+		
+		// report normalization result
+		StringBuilder sb = new StringBuilder();
+		sb.append("Normalize read counts across multiple conditions:\n");
+		for(int t = 0; t < C; t++) {
+			ReadCache ipCache = caches.get(t).car();
+			sb.append(ipCache.getName()+ipCache.getHitCount()+"\n");
+			if(controlDataExist) {
+				ReadCache ctrlCache = caches.get(t).cdr();
+				sb.append(ctrlCache.getName()+ctrlCache.getHitCount()+"\n");
+			}
+		}
+		
 	}//end of normExpts method
 	
 //	private void normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches) {
