@@ -104,6 +104,22 @@ public class CommonUtils {
         output.append(String.format("%.2f",array[array.length-1]));
         return output.toString();
 	}
+	public static String arrayToString(double[] array, int digit){
+        StringBuilder output = new StringBuilder();
+        for (int i=0;i<array.length-1;i++){
+        	output.append(String.format("%."+digit+"f\t",array[i]));
+        }
+        output.append(String.format("%."+digit+"f",array[array.length-1]));
+        return output.toString();
+	}	
+	public static String matrixToString(double[][] matrix, int digit){
+        StringBuilder output = new StringBuilder();
+        for (int i=0;i<matrix.length;i++){
+        	output.append(arrayToString(matrix[i], digit)).append("\n");
+        }
+        return output.toString();
+	}
+	
 	public static void writeFile(String fileName, String text){
 		try{
 			FileWriter fw = new FileWriter(fileName, false); //new file

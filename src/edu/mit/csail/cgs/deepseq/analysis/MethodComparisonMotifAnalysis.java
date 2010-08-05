@@ -87,6 +87,7 @@ public class MethodComparisonMotifAnalysis {
 		case 1:analysis.proximalEventAnalysis();break;
 		case 2:analysis.getUnaryEventList();break;
 		case 3:analysis.singleMotifEventAnalysis();break;
+		case 4:analysis.printOverlapTable();break;
 		default: System.err.println("Unrecognize analysis type: "+type);
 		}
 	}
@@ -575,6 +576,74 @@ public class MethodComparisonMotifAnalysis {
 				+windowSize+".txt", sb2.toString());
 	}
 	
+	private void printOverlapTable(){
+		long tic = System.currentTimeMillis();
+		readPeakLists();
+		
+		int numMethods = peaks.size();
+		double[][] overlaps = new double[numMethods][numMethods];	//percentage
+		for (int i=0;i<numMethods;i++){
+			for (int j=0;j<numMethods;j++){
+				if (i==j)
+					overlaps[i][j]=100;
+				else{
+					int count = countOverlaps(peaks.get(i), peaks.get(j));
+					overlaps[i][j] = 100*count/(double)peaks.get(i).size();
+				}
+			}
+		}
+		StringBuilder sb = new StringBuilder();
+		for (int i=0;i<methodNames.size()-1;i++){
+			sb.append(methodNames.get(i)).append("\t");
+		}
+		sb.append(methodNames.get(methodNames.size()-1)).append("\n");
+		for (int i=0;i<peaks.size()-1;i++){
+			sb.append(peaks.get(i).size()).append("\t");
+		}
+		sb.append(peaks.get(methodNames.size()-1).size()).append("\n");
+		sb.append(CommonUtils.matrixToString(overlaps, 0));
+		sb.append(CommonUtils.timeElapsed(tic));
+		System.out.println(sb.toString());
+	}
+	
+	// report number of events in list1 that is found within DISTNACE bp window of peaks in list 2
+	private int countOverlaps(ArrayList<Point> list1, ArrayList<Point> list2){
+		int DISTANCE = 200;
+		int overlap=0;
+		ArrayList<Point> a = (ArrayList<Point> )list1.clone();
+		ArrayList<Point> b = (ArrayList<Point> )list2.clone();
+		Collections.sort(a);
+		Collections.sort(b);
+		
+		int nextSearchIndex = 0;		// the index of first b match for previous peak in a
+		// this will be use as start search position of the inner loop
+		for(int i=0;i<a.size();i++){
+			Point pa =a.get(i);
+			// search for the position, not iterate everyone
+			for(int j=nextSearchIndex;j<b.size();j++){
+				Point pb =b.get(j);
+				if (pa.getChrom().equalsIgnoreCase(pb.getChrom())){
+					int offset = pa.offset(pb);
+					if (offset>DISTANCE)	// pa is far right, continue with next b
+						continue;
+					else if (offset<-DISTANCE){	// pa is far left, no match, next a
+						break;
+					}
+					else{					// match found, next a
+						overlap++;
+						nextSearchIndex=j;
+						break;
+					}
+				}
+				else{				// diff chrom, next a
+					nextSearchIndex=j+1;
+					break;
+				}
+			}
+		}
+		return overlap;
+	}
+
 	// counting number of event calls in the regions with SINGLE motif 
 	// this is to check the false positives of joint event calls
 	private void singleMotifEventAnalysis(){
