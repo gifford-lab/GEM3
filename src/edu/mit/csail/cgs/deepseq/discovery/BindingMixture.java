@@ -517,6 +517,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				e.cdr().closeLoaders();
 			}
 			System.out.println("Finish loading data from ReadDB, " + CommonUtils.timeElapsed(tic));
+			System.out.println();
 		}
 		
 		//  set max read count for bases to filter PCR artifacts (optional)
@@ -3322,17 +3323,22 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		
 		// report normalization result
-		StringBuilder sb = new StringBuilder();
-		sb.append("Normalize read counts across multiple conditions:\n");
-		for(int t = 0; t < C; t++) {
-			ReadCache ipCache = caches.get(t).car();
-			sb.append(ipCache.getName()+ipCache.getHitCount()+"\n");
-			if(controlDataExist) {
-				ReadCache ctrlCache = caches.get(t).cdr();
-				sb.append(ctrlCache.getName()+ctrlCache.getHitCount()+"\n");
+		if (development_mode){
+			StringBuilder sb = new StringBuilder();
+			sb.append("\nNormalize read counts across multiple conditions:\n");
+			for(int t = 0; t < C; t++) {
+				ReadCache ipCache = caches.get(t).car();
+				sb.append(String.format("%s %.1f \t", ipCache.getName(), ipCache.getHitCount()));
+				if(controlDataExist) {
+					ReadCache ctrlCache = caches.get(t).cdr();
+					sb.append(String.format("%s %.1f", ctrlCache.getName(), ctrlCache.getHitCount()));
+				}
+				sb.append("\n");
 			}
+			
+			log(1, sb.toString());
 		}
-		log(1, sb.toString());
+		
 	}//end of normExpts method
 	
 //	private void normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches) {
@@ -3367,7 +3373,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @param flag <tt>IP</tt> for pairs of IP conditions, <tt>CTRL</tt> for pairs of control conditions, <tt>IP/CTRL</tt> for ip/control pairs 
 	 * @param compFeatures enriched features
 	 * @param pcr percentage of enriched features to be taken into account during regression
-	 * @return
+	 * @return slope, as the ratio of ( 1st dataset / 2nd dataset )
 	 */
 	private double getSlope(int condX_idx, int condY_idx, String flag, List<ComponentFeature> compFeatures, double pcr) {
 		if(condX_idx < 0 || condX_idx >= numConditions)
@@ -3441,7 +3447,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					double ipCounts_condX = countIpReads(r, condX_idx);
 					double ipCounts_condY = countIpReads(r, condY_idx);
 					if (ipCounts_condX!=0 && ipCounts_condY!=0)	// only for non-zero counts, as PeakSeq Paper
-						scalePairs.add(new PairedCountData(ipCounts_condX, ipCounts_condY));  // we want to see how many time ipCounts_condY are larger from ipCounts_condX
+						scalePairs.add(new PairedCountData(ipCounts_condY, ipCounts_condX));  // we want to see how many time ipCounts_condY are larger from ipCounts_condX
 				}
 			}
 			else if(flag.equalsIgnoreCase("CTRL")) {
@@ -3450,7 +3456,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					double ctrlCounts_condX = countCtrlReads(r, condX_idx);
 					double ctrlCounts_condY = countCtrlReads(r, condY_idx);
 					if (ctrlCounts_condX!=0 && ctrlCounts_condY!=0)
-						scalePairs.add(new PairedCountData(ctrlCounts_condX, ctrlCounts_condY));  // we want to see how many time ctrlCounts_condY are larger from ctrlCounts_condX
+						scalePairs.add(new PairedCountData(ctrlCounts_condY, ctrlCounts_condX));  // we want to see how many time ctrlCounts_condY are larger from ctrlCounts_condX
 				}
 			}
 			else {
@@ -3466,9 +3472,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			
 		if(this.development_mode) {
 			if(flag.equalsIgnoreCase("IP"))
-				System.out.println(String.format("Calculating IP_cond%d/IP_cond%d (%s/%s) ratio from regression, %d non-specific regions ... ", condY_idx, condX_idx, conditionNames.get(condY_idx), conditionNames.get(condX_idx), scalePairs.size()));
+				System.out.println(String.format("Calculating %s/%s IP ratio from regression, %d non-specific regions ... ", conditionNames.get(condY_idx), conditionNames.get(condX_idx), scalePairs.size()));
 			else if(flag.equalsIgnoreCase("CTRL"))
-				System.out.println(String.format("Calculating Ctrl_cond%d/Ctrl_cond%d (%s/%s) ratio from regression, %d non-specific regions ... ", condY_idx, condX_idx, conditionNames.get(condY_idx), conditionNames.get(condX_idx), scalePairs.size()));
+				System.out.println(String.format("Calculating %s/%s Ctrl ratio from regression, %d non-specific regions ... ", conditionNames.get(condY_idx), conditionNames.get(condX_idx), scalePairs.size()));
 			else
 				System.out.println(String.format("Calculating IP/Ctrl ratio for condition %s from regression, %d non-specific regions ... ", conditionNames.get(condY_idx), scalePairs.size()));
 		}
