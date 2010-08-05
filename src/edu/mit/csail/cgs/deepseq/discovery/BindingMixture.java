@@ -2933,7 +2933,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			m_nz[i] = m[nzPos.get(i)];
 			p_nz[i] = profile[nzPos.get(i)];
 		}
-		return StatUtil.log10_KL_Divergence(m_nz, p_nz);
+		double log10KL = StatUtil.log10_KL_Divergence(m_nz, p_nz);
+		return Math.min(log10KL, -4);
 	}
 	/*
 	 *   logKL of non-zero discrete profile
@@ -3331,7 +3332,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				sb.append(ctrlCache.getName()+ctrlCache.getHitCount()+"\n");
 			}
 		}
-		
+		log(1, sb.toString());
 	}//end of normExpts method
 	
 //	private void normExpts(ArrayList<Pair<ReadCache, ReadCache>> caches) {

@@ -260,7 +260,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 			
         for(int c=0; c<numConditions; c++){
         	if (numConditions!=1) {	// if single condition, IP is same as total
-        		result.append(String.format("%c\t", condSignificance[c] ? 'T' : 'F' ));
+        		result.append(String.format("%d\t", condSignificance[c] ? 1 : 0 ));
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
@@ -376,7 +376,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
       
         for(int c=0; c<numConditions; c++){
         	if (numConditions!=1) {	// if single condition, IP is same as total
-        		result.append(String.format("%c\t", condSignificance[c] ? 'T' : 'F' ));
+        		result.append(String.format("%d\t", condSignificance[c] ? 1 : 0 ));
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
