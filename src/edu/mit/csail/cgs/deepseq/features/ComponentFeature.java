@@ -281,11 +281,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
         	else
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
+    		result.append(String.format("%7.3f\t", getShapeDeviation(c)));
         }
 
-		result.append(String.format("%7.3f\t", getAvgShapeDeviation()));
         result.append(isJointEvent?1:0).append("\t");
-//        result.append(String.format("%.4f\t", mixingProb));
          
 		String gene = nearestGene == null ? "NONE" : nearestGene.getName();
 		result.append(gene).append("\t");
@@ -398,7 +397,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	else
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
 
-    		result.append(String.format("%7.3f", getAvgShapeDeviation()));
+    		result.append(String.format("%7.3f", getShapeDeviation(c)));
         	if (c<numConditions-1)
         		result.append("\t");
         }

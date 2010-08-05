@@ -2935,7 +2935,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			p_nz[i] = profile[nzPos.get(i)];
 		}
 		double log10KL = StatUtil.log10_KL_Divergence(m_nz, p_nz);
-		return Math.min(log10KL, -4);
+		return Math.max(log10KL, -10);
 	}
 	/*
 	 *   logKL of non-zero discrete profile
@@ -2966,7 +2966,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			m_nz[i] = m2[nzPos.get(i)];
 			p_nz[i] = profile[nzPos.get(i)];
 		}
-		return StatUtil.log10_KL_Divergence(m_nz, p_nz)+asym_p+asym_m;
+		
+		double log10KL = StatUtil.log10_KL_Divergence(m_nz, p_nz)+asym_p+asym_m;
+		return Math.max(log10KL, -4);
 	}	
 	/*
 	 * Calculate average square distance for read profile 
