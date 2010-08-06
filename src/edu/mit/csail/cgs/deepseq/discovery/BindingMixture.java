@@ -55,7 +55,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// width for smoothing a read (used as a stddev for creating the Gaussian kernel of probability)
 	public final static int READ_KERNEL_ESTIMATOR_WIDTH = 5;
 	// the range to scan a peak if we know position from EM result
-	protected final static int SCAN_RANGE = 50;
+	protected final static int SCAN_RANGE = 100;
 
 	//Maximum region (in bp) considered for running EM
 	protected final int MAX_REGION_LEN=200000;
@@ -1618,6 +1618,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							double alpha)
 	{
 		int numComp = pi.length;
+		int expectedMaxNum = (int) (numComp * 0.3);		// this is used for worst 20% elimination
 
 		ArrayList<EM_State> models = new  ArrayList<EM_State> ();
 
@@ -1673,7 +1674,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			//////////
 
 			//Pi
-			nonZeroComponentNum=0;
 			// ML: standard EM
 			if (t<=ML_ITER){
             	for(int j=0;j<numComp;j++){
@@ -1762,8 +1762,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                 	}
             		
                     // find the worst component
-                    Pair<Double, TreeSet<Integer>> min = StatUtil.findMin(r_sum);
-                    if (min.car()-currAlpha>0){
+                    Pair<Double, TreeSet<Integer>> worst=null;	// worst components
+                    if (nonZeroComponentNum>expectedMaxNum)
+                    	worst = findSmallestCases(r_sum, 0.2*nonZeroComponentNum, currAlpha);
+                    else
+                    	worst = StatUtil.findMin(r_sum);
+                    if (worst.car() > currAlpha){
                     	// no component to be eliminated, update pi(j)
                     	 for(int j=0;j<numComp;j++)
                     		 if (pi[j]!=0)
@@ -1774,7 +1778,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     else{
                     	// eliminate worst case components, could be 1 or multiple components
                     	// redistribute responsibilities in next E step
-                    	for (int j: min.cdr()){
+                    	for (int j: worst.cdr()){
                         	pi[j]=0;
 	                		// clear responsibility
 	                		for(int c=0; c<numConditions; c++){
@@ -1791,7 +1795,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     	// keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
                     	// give EM a time to stabilize before eliminating the next components
 //                    	System.out.println(t+":\t"+currAlpha+"\t elimination");
-                    	currAlpha = Math.max(min.car(), alpha/2);
+                    	currAlpha = Math.max(worst.car(), alpha/2);
                     }
             	}
             }
@@ -2010,30 +2014,51 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 
 		// make hard assignment
-		if (componentSpacing==1 && MAKE_HARD_ASSIGNMENT){
-			for(int c=0; c<numConditions; c++){
-				double[][] rc = r.get(c);
-				int numReads = rc.length;
-				for(int i=0;i<numReads;i++){
-					Pair<Double,  TreeSet<Integer>> max = StatUtil.findMax(rc[i]);
-					if (max.car()==0)	// max is 0, this read is not assigned to any event
-						continue;
-					int index = max.cdr().first();
-					for(int j=0;j<numComp;j++){
-						if (j==index)
-							rc[i][j]=1;
-						else
-							rc[i][j]=0;
-					}
-				}
-			}
-		}
+//		if (componentSpacing==1 && MAKE_HARD_ASSIGNMENT){
+//			for(int c=0; c<numConditions; c++){
+//				double[][] rc = r.get(c);
+//				int numReads = rc.length;
+//				for(int i=0;i<numReads;i++){
+//					Pair<Double,  TreeSet<Integer>> max = StatUtil.findMax(rc[i]);
+//					if (max.car()==0)	// max is 0, this read is not assigned to any event
+//						continue;
+//					int index = max.cdr().first();
+//					for(int j=0;j<numComp;j++){
+//						if (j==index)
+//							rc[i][j]=1;
+//						else
+//							rc[i][j]=0;
+//					}
+//				}
+//			}
+//		}
 
 //		log(4, "EM_MAP(): "+timeElapsed(tic)+"\tt="+t+"\t"+
 //				String.format("%.6f",LAP)+"\t("+(int)nonZeroComponents+" events)");
 
 	}//end of EM_Steps method
 
+	/*
+	 * return the bottom number of x that are less than max
+	 */
+	private Pair<Double, TreeSet<Integer>> findSmallestCases(double[] x, double number, double max){
+		TreeSet<Integer> cases = new TreeSet<Integer>();
+		double maxSmallest = 0; 
+		number = Math.min(number, x.length);
+		int[] oldIdx = StatUtil.findSort(x);
+		for (int i=0;i<number;i++){
+			if (x[i] < max){
+				cases.add(oldIdx[i]);
+				maxSmallest = x[i];
+			}
+			else
+				break;
+		}
+		if (cases.isEmpty())
+			maxSmallest = x[0];
+		Pair<Double, TreeSet<Integer>> result = new Pair<Double, TreeSet<Integer>>(maxSmallest, cases);
+		return result;
+	}
 	/**
 	 * Loads a set of regions from a MACS peak file. <br>
 	 * For the proper function of the method, regions contained in the MACS file should be sorted,
