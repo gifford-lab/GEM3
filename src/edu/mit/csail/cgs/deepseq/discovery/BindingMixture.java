@@ -99,7 +99,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean print_mixing_probabilities=false;
     private boolean use_joint_event = false;
 	private boolean TF_binding = true;
-	private boolean pre_artifact_filter=false;
 	private boolean post_artifact_filter=false;
 	private boolean filterEvents=false;
 	private boolean kl_count_adjusted = false;
@@ -287,7 +286,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	development_mode = flags.contains("dev");
      	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
     	use_joint_event = flags.contains("refine_using_joint_event");
-    	pre_artifact_filter =  flags.contains("pre_artifact_filter");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	kl_count_adjusted = flags.contains("adjust_kl");
     	
@@ -926,7 +924,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	private ArrayList<BindingComponent> analyzeWindow(Region w){
 
-		ArrayList<List<StrandedBase>> signals = loadBasesInWindow(w, "IP", this.pre_artifact_filter);
+		ArrayList<List<StrandedBase>> signals = loadBasesInWindow(w, "IP");
 		if (signals==null || signals.isEmpty())
 			return null;
 
@@ -1146,42 +1144,33 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 	}
-	
-	private ArrayList<List<StrandedBase>> loadBasesInWindow(Region w){
-		return loadBasesInWindow(w, "IP", true);
+	// determine the max hit count by threshold of Poisson p-value
+	// set average read as lambda parameter for Poisson distribution
+	protected int calcHitCount_per_BP(double totalReads, double threshold){
+		int countThres=0;
+		DRand re = new DRand();
+		Poisson P = new Poisson(0, re);
+		double lambda = totalReads/mappable_genome_length;
+		P.setMean(lambda);
+		double l=1;
+		for(int b=1; l>threshold; b++){
+			l=1-P.cdf(b);	//p-value as the tail of Poisson
+			countThres=b;
+		}
+		return Math.max(1,countThres);
 	}
 
 	// Load the reads from all conditions in the region
-	// filter out needles, but still return reads for EM processing
-	// if many needles, record as a tower
-	private ArrayList<List<StrandedBase>> loadBasesInWindow(Region w, String channel, boolean needToFilterBases){
-		boolean isTowerRegion = false;
-//		float allCount = 0;
+	private ArrayList<List<StrandedBase>> loadBasesInWindow(Region w, String channel){
 		ArrayList<List<StrandedBase>> signals = new ArrayList<List<StrandedBase>>();
 		if(channel.equalsIgnoreCase("IP")) {
 			//Load each condition's read hits
 			for(Pair<ReadCache,ReadCache> e : caches){
 				List<StrandedBase> bases_p= e.car().getStrandedBases(w, '+');  // reads of the current region - IP channel
 				List<StrandedBase> bases_m= e.car().getStrandedBases(w, '-');  // reads of the current region - IP channel
-
-				if(needToFilterBases) {
-					boolean isTower_p = filterBases(bases_p, e.car(), w, '+');
-					boolean isTower_m = filterBases(bases_m, e.car(), w, '-');
-					// if it is tower
-					if (isTower_p || isTower_m){
-						isTowerRegion = true;
-					}
-				}
 				bases_p.addAll(bases_m);
 				signals.add(bases_p);
 			} // for loop
-
-			if (isTowerRegion){
-//				System.err.println("Tower region!\t" + w.getLocationString()+"\tHit#:"+ allCount);
-				towerRegions.add(w);
-//				towerStrength.add(allCount);
-				return null;
-			}
 		}
 		else if(channel.equalsIgnoreCase("CTRL")) {
 			//Load each condition's read hits
@@ -1198,85 +1187,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		return signals;
 	}
-
-	// if only few needles, reset the baseCount for needles
-	// if many needles, report as tower
-	private boolean filterBases(List<StrandedBase> bases, ReadCache cache, Region region, char strand){
-		if (bases.isEmpty())
-			return false;
-		int summit = model.getSummit();
-		int min = model.getMin();
-		int max = model.getMax();
-		float topProb = (float) model.probability(summit);
-		boolean isTower = false;
-		boolean[] isNeedles = new boolean[bases.size()];
-		float needlesHitCount = 0;
-
-		for (int i=0;i<bases.size();i++){
-			StrandedBase base = bases.get(i);
-			float count = base.getCount();
-			// only check bases that pass the threshold
-			if (count > max_HitCount_per_base){
-				// assume this position corresponds to summit of empirical distribution.
-				Region r = null;
-				int b = base.getCoordinate();
-				if (strand=='+')
-					r = new Region(gen, region.getChrom(), b-(summit-min), b+(max-summit));
-				else
-					r = new Region(gen, region.getChrom(), b-(max-summit), b+(summit-min));
-				List<StrandedBase> neighbours = cache.getStrandedBases(r, strand);
-				// excluding this base for calculation
-				float totalCount = (StrandedBase.countBaseHits(neighbours)-count) / (1-topProb);
-				float expectedCount = totalCount * topProb;
-				// if count of this base is higher than needle_height_factor (4) times expected count from emp.dist.
-				if (count> expectedCount * needle_height_factor){
-					isNeedles[i]=true;
-					needlesHitCount+= expectedCount;
-					base.setCount(expectedCount);
-				}
-//				// find the most likely binding event that contains this base position
-//				// using empirical distribution, only based on this condition.
-//				int b = base.getCoordinate();
-//				Region scanRegion = new Point(gen, chrom, b).expand(modelRange);
-//				Region dataRegion = scanRegion.expand(modelRange, modelRange);
-//				ArrayList<List<StrandedBase>> data = new ArrayList<List<StrandedBase>>();
-//				data.add(cache.getUnstrandedBases(dataRegion));
-//				BindingComponent event = scanPeak(data, scanRegion);
-//				if (event!=null){
-//					Region eventRegion = event.getLocation().expand(modelRange);
-//					List<StrandedBase> neighbours = cache.getStrandedBases(eventRegion, strand);
-//					float totalCount = StrandedBase.countBaseHits(neighbours);
-//					// if count of this base is higher than 2 times expected from emp.dist.
-//					if (count> totalCount*model.probability(b-event.getLocation().getLocation())*2){
-//						isNeedles[i]=true;
-//						base.setCount(max_HitCount_per_base);
-//					}
-//				}
-//				else{
-////					System.out.println("event==null: "+dataRegion.toString());
-//					isNeedles[i]=true;
-//					base.setCount(max_HitCount_per_base);
-//				}
-			}
-		}
-		int needleCount = 0;
-		for (boolean isNeedle:isNeedles)
-			if (isNeedle)
-				needleCount ++;
-		int width = bases.get(bases.size()-1).getCoordinate()-bases.get(0).getCoordinate();
-		float correctedRatio = needlesHitCount/StrandedBase.countBaseHits(bases);
-		if (correctedRatio > needle_hitCount_fraction)
-			isTower = true;
-		// more than 10 needles --> tower
-		// allow 5 needles per 500bp, 1 needle per 8 positions
-//		if (needleCount>=10 ||(needleCount>5.0*width/modelWidth && needleCount>bases.size()/8.0))
-//			isTower = true;
-		if (needleCount>0 && cache.getName().endsWith(":IP  "))
-			needleReport.append(region.toString()+"\t"+strand+"\t"+
-					needleCount+"\t"+width+"\t"+bases.size()+"\t"+isTower+"\t"+correctedRatio+"\n");
-		return isTower;
-	}
-	// evaluate if a predicted peak is a tower
 
 	private void setComponentResponsibilities(ArrayList<List<StrandedBase>> signals, HashMap<Integer, double[][]> responsibilities) {
 		// Set responsibility profile for each component (for kernel density and KL calculation)
@@ -2724,11 +2634,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				List<StrandedBase> bases= control.getStrandedBases(r, '+');  // plus reads of the current region - CTRL channel
 				List<StrandedBase> bases_m= control.getStrandedBases(r, '-');  // minus reads of the current region - CTRL channel
 
-				if (pre_artifact_filter){
-					filterBases(bases, control, r, '+');
-					filterBases(bases_m, control, r, '-');
-				}
-
 				if (post_artifact_filter){
 					// filter bases using probability landscape (knowledge of predicted events and read distribution)
 					double landscape_p[] = new double[r.getWidth()];
@@ -2771,44 +2676,44 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					int pos = comp.getPosition().getLocation();
 					// set control reads count and logKL
 					double total=0;
-					double[] profile_plus = new double[modelWidth];
-					double[] profile_minus = new double[modelWidth];
+//					double[] profile_plus = new double[modelWidth];
+//					double[] profile_minus = new double[modelWidth];
 					for(int i=0;i<bases.size();i++){
 						StrandedBase base = bases.get(i);
 						if (assignment[i][j]>0){
-							if (base.getStrand()=='+'){
-								if (base.getCoordinate()-pos-model.getMin()>modelWidth)
-									System.err.println(pos+"\t+\t"+base.getCoordinate());
-								profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
-							}
-							else{
-								if (pos-base.getCoordinate()-model.getMin()>modelWidth)
-									System.err.println(pos+"\t-\t"+base.getCoordinate());
-								profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
-							}
+//							if (base.getStrand()=='+'){
+//								if (base.getCoordinate()-pos-model.getMin()>modelWidth)
+//									System.err.println(pos+"\t+\t"+base.getCoordinate());
+//								profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
+//							}
+//							else{
+//								if (pos-base.getCoordinate()-model.getMin()>modelWidth)
+//									System.err.println(pos+"\t-\t"+base.getCoordinate());
+//								profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
+//							}
 							total += assignment[i][j]*base.getCount();
 						}
 					}
 					comp.setControlReadCounts(total, c);
 					
-					double logKL_plus;
-					double logKL_minus; 
-					if (kl_count_adjusted){
-						logKL_plus  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
-						logKL_minus = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
-					}
-					else{
-						double width;
-						if (total>6){
-							width = 50/Math.log(total);	// just some empirical formula, no special theory here
-						}
-						else{
-							width=28;
-						}
-						logKL_plus  = logKL_profile(profile_plus, width);
-						logKL_minus = logKL_profile(profile_minus, width);
-					}
-					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
+//					double logKL_plus;
+//					double logKL_minus; 
+//					if (kl_count_adjusted){
+//						logKL_plus  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
+//						logKL_minus = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
+//					}
+//					else{
+//						double width;
+//						if (total>6){
+//							width = 50/Math.log(total);	// just some empirical formula, no special theory here
+//						}
+//						else{
+//							width=28;
+//						}
+//						logKL_plus  = logKL_profile(profile_plus, width);
+//						logKL_minus = logKL_profile(profile_minus, width);
+//					}
+//					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
 		}
@@ -2904,41 +2809,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		return absDiff/totalCount;
 	}
-	/*
-	 *   logKL of whole discrete profile
-	 *   no gaussian density, use all (including zero read counts)
-	 */
-	private double calcAbsDiff_v2(double[]profile){
-		return StatUtil.log_KL_Divergence(model.getProbabilities(), profile);
-	}
 
 	/*
-	 *   logKL of non-zero discrete profile
-	 *   no gaussian density, use only non-zero read counts
-	 */
-	private double calcNzKL(double[]profile){
-		ArrayList<Integer> nzPos = new ArrayList<Integer>();
-		double[] m = model.getProbabilities();
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				nzPos.add(i);
-			}
-		}
-		if (nzPos.size()<=1)
-			return -0.15;
-		else if (nzPos.size()==2)
-			return -0.2;
-		double[] m_nz = new double[nzPos.size()];
-		double[] p_nz = new double[nzPos.size()];
-		for (int i=0;i<nzPos.size();i++){
-			m_nz[i] = m[nzPos.get(i)];
-			p_nz[i] = profile[nzPos.get(i)];
-		}
-		double log10KL = StatUtil.log10_KL_Divergence(m_nz, p_nz);
-		return Math.max(log10KL, -10);
-	}
-	/*
-	 *   logKL of non-zero discrete profile
+	 *   logKL of non-zero discrete profile, concat 2 strands
 	 *   no gaussian density, use only non-zero read counts
 	 */
 	private double calc2StrandNzKL(double[]profile_p, double[]profile_m){
@@ -2970,157 +2843,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		double log10KL = StatUtil.log10_KL_Divergence(m_nz, p_nz)+asym_p+asym_m;
 		return Math.max(log10KL, -4);
 	}	
-	/*
-	 * Calculate average square distance for read profile 
-	 * 
-	 */
-	private double calcSqDiff(double[]profile){
-		double sqDiff = 0;
-		double[] m = model.getProbabilities();
-		int nzPosCount = 0;
-		double totalCount = 0;
-		double nzProbSum = 0;
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				nzPosCount++;
-				totalCount+=profile[i];
-				nzProbSum += m[i];
-			}
-		}
-		if (nzPosCount==0)
-			return shapeDeviation*2*0.75;
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				double expected = totalCount*m[i]/nzProbSum;
-				sqDiff += (profile[i]-expected)*(profile[i]-expected);
-			}
-		}
-		return sqDiff/totalCount;
-	}
-
-	private ArrayList<BindingComponent> postArtifactFilter(ArrayList<BindingComponent> comps){
-		ArrayList<BindingComponent> filteredComponents = new ArrayList<BindingComponent>();
-
-		// expand to the region covering all events
-		Collections.sort(comps);
-		Region r = comps.get(0).getLocation().expand(modelRange);
-		if (comps.size()>1){
-			r=new Region(r.getGenome(), r.getChrom(), r.getStart(),comps.get(comps.size()-1).getLocation().getLocation()+modelRange);
-		}
-		// filter bases using probability landscape (knowledge of predicted events and read distribution)
-		double landscape_p[] = new double[r.getWidth()];
-		double landscape_m[] = new double[r.getWidth()];
-		double readDensity[] = model.getProbabilities();
-		for (BindingComponent b: comps){
-			for (int i=0; i<readDensity.length;i++){
-				int index = b.getLocation().getLocation()-r.getStart()+model.getMin()+i;
-				// if the position is on the edge of chrom, the index will be out of bound, skip it
-				if (index<0 || index>=landscape_p.length){
-					//System.out.println("postArtifactFilter\t"+b.getLocation().getLocationString()+"\tindex="+index);
-					return comps;
-				}
-				landscape_p[index] += b.getTotalSumResponsibility()*readDensity[i];
-				int index2 = b.getLocation().getLocation()-r.getStart()-model.getMin()-i;
-				if (index2<0 || index2>=landscape_p.length){
-					//System.out.println("postArtifactFilter\t"+b.getLocation().getLocationString()+"\tindex="+index2);
-					return comps;
-				}
-				landscape_m[index2] += b.getTotalSumResponsibility()*readDensity[i];
-			}
-		}
-		StatUtil.normalize(landscape_p);
-		StatUtil.normalize(landscape_m);
-
-		ArrayList<List<StrandedBase>> signals = new ArrayList<List<StrandedBase>>();
-		//Load and filter each condition's read hits
-		for(Pair<ReadCache,ReadCache> e : caches){
-			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  // reads of the current region - IP channel
-			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-');  // reads of the current region - IP channel
-			// filter
-			filterBases( bases_p, r.getStart(), landscape_p);
-			filterBases( bases_m, r.getStart(), landscape_m);
-
-			bases_p.addAll(bases_m);
-			signals.add(bases_p);
-		}
-
-		// We want to run EM only for joint events
-		if (comps.size()>1) {
-			// dynamically determine an alpha value for this sliding window
-			double alpha = sparseness;
-			if (use_dynamic_sparseness)
-				alpha = Math.max(estimateAlpha(r, signals), sparseness);
-
-			HashMap<Integer, double[][]> responsibilities = null;
-
-			// Multi-condition??
-			if(use_internal_em_train) {
-				//Run EM and increase resolution
-				initializeComponents(r, numConditions);
-				int lastResolution;
-
-				while(nonZeroComponentNum>0){
-					lastResolution = componentSpacing;
-					// EM learning, components list will only contains non-zero components
-					responsibilities = EMTrain(signals, alpha);
-					// log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
-
-					// increase resolution
-					updateComponentResolution(r, numConditions, lastResolution);
-					if(componentSpacing==lastResolution)
-						break;
-				} 	// end of while (resolution)
-
-			}
-			else {
-				//TODO: Multi-condition??
-			}
-
-			if (nonZeroComponentNum==0)	return filteredComponents;
-			setComponentResponsibilities(signals, responsibilities);
-			filteredComponents = this.components;
-		} 	// if not single event region
-		else{// if single event region, just scan it
-			BindingComponent peak = scanPeak(signals, r);
-			filteredComponents = new ArrayList<BindingComponent>();
-			filteredComponents.add(peak);
-		}
-
-		return filteredComponents;
-	}
-
-	void filterBases(List<StrandedBase> bases, int startCoor, double[] landscape){
-		float totalCount = StrandedBase.countBaseHits(bases);
-		for (int i=0;i<bases.size();i++){
-			StrandedBase base = bases.get(i);
-			float count = base.getCount();
-			// only check bases that pass the threshold
-			if (count > max_HitCount_per_base){
-				// assume this position corresponds to summit of empirical distribution.
-				double prob = landscape[base.getCoordinate()-startCoor];
-				// excluding this base for calculation
-				double expectedCount = (totalCount-count) / (1-prob) * prob* needle_height_factor;
-				// if count of this base is higher than needle_height_factor (2) times expected count from emp.dist.
-				if (count> expectedCount ){
-					base.setCount((float)Math.max(1, expectedCount));
-				}
-			}
-			//System.out.println(base.getCoordinate()+"\t"+count+"\t"+base.getCount());
-		}
-	}
 
 
-//	private double eval_mfold(BindingComponent b) {
-//		Region r = b.getRegion();
-//		ArrayList<List<StrandedBase>> signals = loadBasesInWindow(r);
-//		float[] sigHitCounts = new float[signals.size()];
-//		int totalSigCount=0;
-//		for(int c=0; c<signals.size(); c++){
-//			sigHitCounts[c]=StrandedBase.countBaseHits(signals.get(c));
-//			totalSigCount += sigHitCounts[c];
-//		}
-//
-//	}
+
 
 	/**
 	 * Finds the exact peak in the region by scanning for maximum-likelihood using a <tt>BindingModel</tt>
@@ -3140,11 +2865,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			Pair<ReadCache,ReadCache> e = caches.get(c);
 			List<StrandedBase> bases_p= e.car().getStrandedBases(plusRegion, '+');  // reads of the current region - IP channel
 			List<StrandedBase> bases_m= e.car().getStrandedBases(minusRegion, '-');  // reads of the current region - IP channel
-
-			if (pre_artifact_filter){
-				filterBases(bases_p, e.car(), plusRegion, '+');
-				filterBases(bases_m, e.car(), minusRegion, '-');
-			}
 
 			bases_p.addAll(bases_m);
 			totalHitCounts += StrandedBase.countBaseHits(bases_p);
@@ -3608,21 +3328,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return model;
 	}
 
-	// determine the max hit count by threshold of Poisson p-value
-	// set average read as lambda parameter for Poisson distribution
-	protected int calcHitCount_per_BP(double totalReads, double threshold){
-		int countThres=0;
-		DRand re = new DRand();
-		Poisson P = new Poisson(0, re);
-		double lambda = totalReads/mappable_genome_length;
-		P.setMean(lambda);
-		double l=1;
-		for(int b=1; l>threshold; b++){
-			l=1-P.cdf(b);	//p-value as the tail of Poisson
-			countThres=b;
-		}
-		return Math.max(1,countThres);
-	}
+
 
 	// evaluate confidence of each called events
 	// calculate p-value from binomial distribution, and peak shape parameter
@@ -3813,10 +3519,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //			chromUniqueFivePrimePos.put(chrom, currChromUniqueFivePrimesPos);
 
 			Region chromRegion = new Region(gen, chrom, 0, gen.getChromLength(chrom)-1);			
-			List<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP", false);
+			List<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP");
 			List<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
 			if(controlDataExist) {
-				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL", false);
+				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL");
 			}
 			else {
 				for(int t = 0; t < numConditions; t++)
@@ -3847,42 +3553,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	}//end of createChromStats method
 
-	private double eval_avg_shift_size(ArrayList<ComponentFeature> compFeatures, int num_top_mfold_feats) {
-		double avg_shift_size;
-		ComponentFeature[] top_mfold_Feats;
-
-		for(ComponentFeature cf:compFeatures) {
-			String chrom     = cf.getPosition().getChrom();
-			double lambda_bg = (double)totalIPCounts.get(chrom)/gen.getChromLength(chrom); // IP mapped bases
-			double mfold = cf.getTotalSumResponsibility()/(lambda_bg*cf.getPosition().expand(modelRange).getWidth());
-			cf.set_mfold(mfold);
-		}
-
-		Collections.sort(compFeatures, new Comparator<ComponentFeature>(){
-			public int compare(ComponentFeature o1, ComponentFeature o2) {
-				return o1.compareByMfold(o2);
-			}
-		});
-
-		if(num_top_mfold_feats > compFeatures.size()) { num_top_mfold_feats = compFeatures.size(); }
-
-		top_mfold_Feats = new ComponentFeature[num_top_mfold_feats];
-		int count = 0;
-		for(int i = compFeatures.size()-1; i > compFeatures.size() - num_top_mfold_feats-1; i--)
-			top_mfold_Feats[count++] = compFeatures.get(i);
-
-		double[] shift_size = new double[top_mfold_Feats.length];
-		for(int i = 0; i < top_mfold_Feats.length; i++)
-			shift_size[i] = eval_shift_size(top_mfold_Feats[i]);
-
-		double sum = 0.0;
-		int countNonNan = 0;
-		for(int i = 0; i < shift_size.length; i++)
-			if(!Double.isNaN(shift_size[i])) { sum += shift_size[i]; countNonNan++;}
-
-		avg_shift_size = Math.round(sum/countNonNan);
-		return avg_shift_size;
-	}//end of eval_avg_shift_size method
 
 	private double eval_shift_size(ComponentFeature cf) {
 		double shift_size = Double.NaN;
@@ -3894,7 +3564,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		StrandedBase[] bases_m;
 
 		Region r = cf.getPosition().expand(modelRange);
-		ArrayList<List<StrandedBase>> ip_signals = loadBasesInWindow(r);
+		ArrayList<List<StrandedBase>> ip_signals = loadBasesInWindow(r, "IP");
 
 		if(ip_signals != null) {
 			for(List<StrandedBase> cond_bases:ip_signals) {
@@ -3932,7 +3602,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return shift_size;
 	}//end eval_shift_size method
 
-
+	/*
+	 * evalute significance when there is no control
+	 */
 	private double evalFeatureSignificance(ComponentFeature cf, int c) {
 		double pVal;
 		double local_lambda, lambda_bg, first_lambda_ip, second_lambda_ip, third_lambda_ip, lambda_peak_ctrl, first_lambda_ctrl, second_lambda_ctrl, third_lambda_ctrl;
@@ -4361,28 +4033,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		List<StrandedBase> bases_m= caches.get(cond).cdr().getStrandedBases(r, '-');  
 		return StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
 	}
-	private void printTowerRegions(){
-		// save the list of regions to file
-		try{
-			StringBuilder fileName = new StringBuilder(outName).append("_");
-//			for (String cond: conditionNames){
-//				fileName.append(cond).append("_");
-//			}
-			fileName.append("TowerRegions.txt");
-			FileWriter fw = new FileWriter(fileName.toString());
 
-			StringBuilder txt = new StringBuilder();
-			for (int i=0;i<towerRegions.size();i++){
-				txt.append(towerRegions.get(i).toString()).append("\t");
-				txt.append(towerStrength.get(i)).append("\n");
-			}
-			fw.write(txt.toString());
-			fw.close();
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
 
 	public void writeDebugFile(){
 		try{
@@ -4437,6 +4088,213 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	public void printError() {
 
 	}
+	private void printTowerRegions(){
+		// save the list of regions to file
+		try{
+			StringBuilder fileName = new StringBuilder(outName).append("_");
+//			for (String cond: conditionNames){
+//				fileName.append(cond).append("_");
+//			}
+			fileName.append("TowerRegions.txt");
+			FileWriter fw = new FileWriter(fileName.toString());
+
+			StringBuilder txt = new StringBuilder();
+			for (int i=0;i<towerRegions.size();i++){
+				txt.append(towerRegions.get(i).toString()).append("\t");
+				txt.append(towerStrength.get(i)).append("\n");
+			}
+			fw.write(txt.toString());
+			fw.close();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	private ArrayList<BindingComponent> postArtifactFilter(ArrayList<BindingComponent> comps){
+		ArrayList<BindingComponent> filteredComponents = new ArrayList<BindingComponent>();
+
+		// expand to the region covering all events
+		Collections.sort(comps);
+		Region r = comps.get(0).getLocation().expand(modelRange);
+		if (comps.size()>1){
+			r=new Region(r.getGenome(), r.getChrom(), r.getStart(),comps.get(comps.size()-1).getLocation().getLocation()+modelRange);
+		}
+		// filter bases using probability landscape (knowledge of predicted events and read distribution)
+		double landscape_p[] = new double[r.getWidth()];
+		double landscape_m[] = new double[r.getWidth()];
+		double readDensity[] = model.getProbabilities();
+		for (BindingComponent b: comps){
+			for (int i=0; i<readDensity.length;i++){
+				int index = b.getLocation().getLocation()-r.getStart()+model.getMin()+i;
+				// if the position is on the edge of chrom, the index will be out of bound, skip it
+				if (index<0 || index>=landscape_p.length){
+					//System.out.println("postArtifactFilter\t"+b.getLocation().getLocationString()+"\tindex="+index);
+					return comps;
+				}
+				landscape_p[index] += b.getTotalSumResponsibility()*readDensity[i];
+				int index2 = b.getLocation().getLocation()-r.getStart()-model.getMin()-i;
+				if (index2<0 || index2>=landscape_p.length){
+					//System.out.println("postArtifactFilter\t"+b.getLocation().getLocationString()+"\tindex="+index2);
+					return comps;
+				}
+				landscape_m[index2] += b.getTotalSumResponsibility()*readDensity[i];
+			}
+		}
+		StatUtil.normalize(landscape_p);
+		StatUtil.normalize(landscape_m);
+
+		ArrayList<List<StrandedBase>> signals = new ArrayList<List<StrandedBase>>();
+		//Load and filter each condition's read hits
+		for(Pair<ReadCache,ReadCache> e : caches){
+			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  // reads of the current region - IP channel
+			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-');  // reads of the current region - IP channel
+			// filter
+			filterBases( bases_p, r.getStart(), landscape_p);
+			filterBases( bases_m, r.getStart(), landscape_m);
+
+			bases_p.addAll(bases_m);
+			signals.add(bases_p);
+		}
+
+		// We want to run EM only for joint events
+		if (comps.size()>1) {
+			// dynamically determine an alpha value for this sliding window
+			double alpha = sparseness;
+			if (use_dynamic_sparseness)
+				alpha = Math.max(estimateAlpha(r, signals), sparseness);
+
+			HashMap<Integer, double[][]> responsibilities = null;
+
+			// Multi-condition??
+			if(use_internal_em_train) {
+				//Run EM and increase resolution
+				initializeComponents(r, numConditions);
+				int lastResolution;
+
+				while(nonZeroComponentNum>0){
+					lastResolution = componentSpacing;
+					// EM learning, components list will only contains non-zero components
+					responsibilities = EMTrain(signals, alpha);
+					// log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
+
+					// increase resolution
+					updateComponentResolution(r, numConditions, lastResolution);
+					if(componentSpacing==lastResolution)
+						break;
+				} 	// end of while (resolution)
+
+			}
+			else {
+				//TODO: Multi-condition??
+			}
+
+			if (nonZeroComponentNum==0)	return filteredComponents;
+			setComponentResponsibilities(signals, responsibilities);
+			filteredComponents = this.components;
+		} 	// if not single event region
+		else{// if single event region, just scan it
+			BindingComponent peak = scanPeak(signals, r);
+			filteredComponents = new ArrayList<BindingComponent>();
+			filteredComponents.add(peak);
+		}
+
+		return filteredComponents;
+	}
+
+	void filterBases(List<StrandedBase> bases, int startCoor, double[] landscape){
+		float totalCount = StrandedBase.countBaseHits(bases);
+		for (int i=0;i<bases.size();i++){
+			StrandedBase base = bases.get(i);
+			float count = base.getCount();
+			// only check bases that pass the threshold
+			if (count > max_HitCount_per_base){
+				// assume this position corresponds to summit of empirical distribution.
+				double prob = landscape[base.getCoordinate()-startCoor];
+				// excluding this base for calculation
+				double expectedCount = (totalCount-count) / (1-prob) * prob* needle_height_factor;
+				// if count of this base is higher than needle_height_factor (2) times expected count from emp.dist.
+				if (count> expectedCount ){
+					base.setCount((float)Math.max(1, expectedCount));
+				}
+			}
+			//System.out.println(base.getCoordinate()+"\t"+count+"\t"+base.getCount());
+		}
+	}
+	/*
+	 * Calculate average square distance for read profile 
+	 * 
+	 */
+	private double calcSqDiff(double[]profile){
+		double sqDiff = 0;
+		double[] m = model.getProbabilities();
+		int nzPosCount = 0;
+		double totalCount = 0;
+		double nzProbSum = 0;
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				nzPosCount++;
+				totalCount+=profile[i];
+				nzProbSum += m[i];
+			}
+		}
+		if (nzPosCount==0)
+			return shapeDeviation*2*0.75;
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				double expected = totalCount*m[i]/nzProbSum;
+				sqDiff += (profile[i]-expected)*(profile[i]-expected);
+			}
+		}
+		return sqDiff/totalCount;
+	}
+	private double eval_avg_shift_size(ArrayList<ComponentFeature> compFeatures, int num_top_mfold_feats) {
+		double avg_shift_size;
+		ComponentFeature[] top_mfold_Feats;
+
+		for(ComponentFeature cf:compFeatures) {
+			String chrom     = cf.getPosition().getChrom();
+			double lambda_bg = (double)totalIPCounts.get(chrom)/gen.getChromLength(chrom); // IP mapped bases
+			double mfold = cf.getTotalSumResponsibility()/(lambda_bg*cf.getPosition().expand(modelRange).getWidth());
+			cf.set_mfold(mfold);
+		}
+
+		Collections.sort(compFeatures, new Comparator<ComponentFeature>(){
+			public int compare(ComponentFeature o1, ComponentFeature o2) {
+				return o1.compareByMfold(o2);
+			}
+		});
+
+		if(num_top_mfold_feats > compFeatures.size()) { num_top_mfold_feats = compFeatures.size(); }
+
+		top_mfold_Feats = new ComponentFeature[num_top_mfold_feats];
+		int count = 0;
+		for(int i = compFeatures.size()-1; i > compFeatures.size() - num_top_mfold_feats-1; i--)
+			top_mfold_Feats[count++] = compFeatures.get(i);
+
+		double[] shift_size = new double[top_mfold_Feats.length];
+		for(int i = 0; i < top_mfold_Feats.length; i++)
+			shift_size[i] = eval_shift_size(top_mfold_Feats[i]);
+
+		double sum = 0.0;
+		int countNonNan = 0;
+		for(int i = 0; i < shift_size.length; i++)
+			if(!Double.isNaN(shift_size[i])) { sum += shift_size[i]; countNonNan++;}
+
+		avg_shift_size = Math.round(sum/countNonNan);
+		return avg_shift_size;
+	}//end of eval_avg_shift_size method
+
+//	private double eval_mfold(BindingComponent b) {
+//		Region r = b.getRegion();
+//		ArrayList<List<StrandedBase>> signals = loadBasesInWindow(r);
+//		float[] sigHitCounts = new float[signals.size()];
+//		int totalSigCount=0;
+//		for(int c=0; c<signals.size(); c++){
+//			sigHitCounts[c]=StrandedBase.countBaseHits(signals.get(c));
+//			totalSigCount += sigHitCounts[c];
+//		}
+//
+//	}
 	class EM_State{
 		double[][][] resp;
 		double[][]beta;
