@@ -325,10 +325,11 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	header.append(name+"Control\t")
         		  .append(name+"IP/Ctrl\t")
         	      .append(name+"Q_-lg10\t")
-  	      		  .append(name+"P_-lg10\t");
+  	      		  .append(name+"P_-lg10\t")
+      		  	  .append(name+"Shape\t");
         }
         
-        header.append("  Shape\t").append("Joint\t");
+        header.append("Joint\t");
 		header.append("NearestGene\t").append("Distance\t");
 		
         if (annotations != null) {

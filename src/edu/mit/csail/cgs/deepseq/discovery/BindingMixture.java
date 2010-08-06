@@ -1285,9 +1285,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return callFeatures(components);
 	}// end of simpleExecute method
 
+	/*
+	 * TODO: purpose of this method is to set significance for each condition
+	 */
 	private List<Feature> condPostFiltering(List<Feature> signifFeats, int cond){
-		if (cond>1)
+		if (numConditions==1)
 			return signifFeats;
+		
 		List<Feature> condFeats = new ArrayList<Feature>();
 		for (Feature sf:signifFeats) {
 			boolean significant = false;
@@ -1301,7 +1305,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// if not TF binding, it is Chromatin data, keep all components
 			else { significant = true; }
 
-			if (significant && ((ComponentFeature)sf).getCondBetas()[cond] > 0.0 ) {
+//			if (significant && ((ComponentFeature)sf).getCondBetas()[cond] > 0.0 ) {
+			if (significant)  {
 				((ComponentFeature)sf).setCondSignificance(cond, significant);
 				condFeats.add((ComponentFeature)sf);
 			}
