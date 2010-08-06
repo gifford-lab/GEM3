@@ -417,6 +417,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		condSignalFeats = new ArrayList[numConditions];
 		for(int c = 0; c < numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
 		long tic = System.currentTimeMillis();
+		System.out.println("\nGetting reads ...");
+
 		for (int i=0;i<numConditions;i++){
 			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
 			DeepSeqExpt ip = pair.car();
@@ -526,7 +528,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// Normalize experiments
 		normExpts(caches);
 
-		log(1, "\nSorting reads and selecting regions for analysis.");
+		System.out.println("\nSorting reads and selecting regions for analysis.");
 
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
@@ -1763,7 +1765,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
             		
                     // find the worst component
                     Pair<Double, TreeSet<Integer>> worst=null;	// worst components
-                    if (nonZeroComponentNum>expectedMaxNum)
+                    if (nonZeroComponentNum>expectedMaxNum && componentSpacing!=1)
                     	worst = findSmallestCases(r_sum, 0.2*nonZeroComponentNum, currAlpha);
                     else
                     	worst = StatUtil.findMin(r_sum);
