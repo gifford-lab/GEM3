@@ -413,11 +413,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		this.caches = new ArrayList<Pair<ReadCache, ReadCache>>();
 		this.numConditions = experiments.size();
 		this.conditionNames = conditionNames;
+		boolean fromReadDB = experiments.get(0).car().isFromReadDB();
 		ComponentFeature.setConditionNames(conditionNames);
 		condSignalFeats = new ArrayList[numConditions];
 		for(int c = 0; c < numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
 		long tic = System.currentTimeMillis();
-		System.out.println("\nGetting reads ...");
+		System.out.println("\nGetting 5' positions of all reads...");
 
 		for (int i=0;i<numConditions;i++){
 			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
@@ -433,7 +434,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
 
 			// cache sorted start positions and counts of all positions
-			if (ip.isFromReadDB()){		// load from read DB
+			if (fromReadDB){		// load from read DB
 				System.out.println("\nLoading data from ReadDB ...");
 				if (loadWholeGenome){		// if whole genome
 
@@ -462,11 +463,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							ipCache.addHits(chrom, '+', hits.car(), hits.cdr());
 							hits = ip.loadStrandedBaseCounts(chunk, '-');
 							ipCache.addHits(chrom, '-', hits.car(), hits.cdr());
+							
 							if (controlDataExist){
 								hits = ctrl.loadStrandedBaseCounts(chunk, '+');
 								ctrlCache.addHits(chrom, '+', hits.car(), hits.cdr());
 								hits = ctrl.loadStrandedBaseCounts(chunk, '-');
 								ctrlCache.addHits(chrom, '-', hits.car(), hits.cdr());
+								
 							}
 						}
 					} // for each chrom
@@ -496,9 +499,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //					ctrlCache.printBinCounts();
 //					ctrlCache.printBin500Counts();
 				}
-
 			}
-			else if (ip.isFromFile()){		// load from File
+			else if (!fromReadDB){		// load from File
 				ipCache.addAllFivePrimes(ip.getAllStarts(), ip.getReadLen());
 				ipCache.populateArrays();
 				if (controlDataExist){
@@ -507,15 +509,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 				wholeGenomeDataLoaded = true;
 			}
+			// cleanup			// clean up connection if it is readDB, cleanup data object if it is file
+			ip.closeLoaders();
+			ctrl.closeLoaders();
+			ip=null;
+			ctrl=null;
 			System.gc();
-		} //end for each condition
+		} // for each condition
 
-		// If data was loaded from ReadDB, clean up the database connection
-		if(experiments.get(0).car().isFromReadDB()) {
-			for(Pair<DeepSeqExpt,DeepSeqExpt> e : experiments){
-				e.car().closeLoaders();
-				e.cdr().closeLoaders();
-			}
+		if (fromReadDB){
 			System.out.println("Finish loading data from ReadDB, " + CommonUtils.timeElapsed(tic));
 			System.out.println();
 		}
@@ -525,16 +527,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			doBaseFiltering();
 		} 		
 		
-		// Normalize experiments
+		// Normalize conditions
 		normExpts(caches);
-
-		System.out.println("\nSorting reads and selecting regions for analysis.");
-
+		
+		
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-//        if (subset_str == null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "subf", null) == null )){		// estimate some parameters if whole genome data
+//        if (subset_str == null || ((!fromReadDB) && Args.parseString(args, "subf", null) == null )){		// estimate some parameters if whole genome data
         if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
 	        // estimate IP/Ctrl ratio from all reads
         	for(int i=0; i<numConditions; i++){
@@ -548,9 +549,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					System.out.println(String.format(conditionNames.get(i)+"\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", ipCount, ctrlCount, ratio_total[i]));
 				}
 	        }
-	        
+        	System.out.println("\nSorting reads and selecting regions for analysis ...");
 	    	// if no focus list, directly estimate candidate regions from data
-			if (subset_str==null || (experiments.get(0).car().isFromFile() && Args.parseString(args, "subf", null) == null )){
+			if (subset_str==null || ((!fromReadDB) && Args.parseString(args, "subf", null) == null )){
 	    		setRegions(selectEnrichedRegions(subsetRegions));
 			}
 			if (development_mode)
@@ -2997,7 +2998,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end of scanPeak method
 
 	/**
-	 * This method normalizes experiments as follows:							<br>
+	 * This method normalizes conditions as follows:							<br>
 	 * It evaluates the slope between each pair of an IP condition and a reference one.
 	 * Here, chosen to be condition 1. It does the same for the Ctrl channel.    <br>
 	 * Then, it re-scales all reads for each condition by multipying with the corresponding slopes.  <br>

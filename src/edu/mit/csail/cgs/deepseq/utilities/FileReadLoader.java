@@ -221,6 +221,10 @@ public class FileReadLoader extends ReadLoader{
 		}
 	}
 	
-	public void cleanup(){}
+	public void cleanup(){
+		for(AlignmentFileReader a : fileReaders){
+			a.cleanup();
+		}
+	}
 }
 
