@@ -17,6 +17,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class ChipSeqAnalyzer{
+	public final static String GPS_VERSION = "0.88";
 	private boolean development_mode = false;
 
 	private String[] args;
@@ -26,7 +27,7 @@ public class ChipSeqAnalyzer{
 	private BindingMixture mixture=null;
 	
 	ChipSeqAnalyzer(String[] args){
-		System.out.println("Welcome to GPS (version "+BindingMixture.GPS_VERSION+")!");
+		System.out.println("Welcome to GPS (version "+GPS_VERSION+")!");
 		if(args.length==0){ 
 			printError(); 
 			System.exit(1); 
@@ -222,7 +223,6 @@ public class ChipSeqAnalyzer{
 	}
 	
 	public static void main(String[] args){
-		//System.out.println("Welcome to the GPS!");
 		ChipSeqAnalyzer analyzer = new ChipSeqAnalyzer(args);
 		analyzer.runMixtureModel();
 		analyzer.close();
