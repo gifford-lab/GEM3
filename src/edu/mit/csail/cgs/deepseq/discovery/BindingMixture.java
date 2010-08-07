@@ -68,8 +68,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// Maximum number of EM iterations
 	protected final int MAX_EM_ITER=10000;
 	protected final int MAX_EM_ML_ITER=1;
-	//Run EM up until <tt>ML_ITER</tt> without using sparse prior
-	protected final int ML_ITER=10;
 	//Run EM up until <tt>ANNEALING_ITER</tt> with smaller alpha based on the current iteration
 	protected final int ANNEALING_ITER=200;
 
@@ -128,6 +126,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private int bmverbose=1;		// BindingMixture verbose mode
 	private int needle_height_factor = 2;	// threshold to call a base as needle, (height/expected height)
 	private double needle_hitCount_fraction = 0.1;	//threshold to call a region as tower, (hit_needles / hit_total)
+	//Run EM up until <tt>ML_ITER</tt> without using sparse prior
+	private int ML_ITER=5;
 
 	//Binding model representing the empirical distribution of a binding event
 	private BindingModel model;
@@ -329,6 +329,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	needle_height_factor = Args.parseInteger(args, "needle_height_factor", 2);
     	needle_hitCount_fraction = Args.parseDouble(args, "needle_hitCount_fraction", 0.1);
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
+    	
+    	// These are options for EM performance tuning
+    	// should NOT expose to user
+    	// therefore, still use UPPER CASE to distinguish
+    	ML_ITER = Args.parseInteger(args, "ML_ITER", ML_ITER);
     	
     	if(second_lambda_region_width < first_lambda_region_width) {
     		System.err.println("\nThe first control region width (w2) has to be more than " + first_lambda_region_width + " bp.");
@@ -1435,11 +1440,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		HashMap<Integer, double[]>   b= new HashMap<Integer, double[]>();		// Beta
 		double[] pi = new double[numComp];										// Pi
 
+		// NOT USED, because to implement model selection, we essentially extend
+		// the model to cover all the reads
+		
 		// nz_start, nz_end to mark the non-zero (for H) range of i for each j. condition specific.
 		// used to reduce number of unnecessary computation
 		// assume the reads are sorted by genome location
-		HashMap<Integer, int[]> i_start= new HashMap<Integer, int[]>();		// start read index for NZ Hij
-		HashMap<Integer, int[]> i_end = new HashMap<Integer, int[]>();			// end read index for NZ Hij
+//		HashMap<Integer, int[]> i_start= new HashMap<Integer, int[]>();		// start read index for NZ Hij
+//		HashMap<Integer, int[]> i_end = new HashMap<Integer, int[]>();			// end read index for NZ Hij
 
 		StringBuilder sb = new StringBuilder();
 		for(int j=0;j<numComp;j++){
@@ -1508,30 +1516,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 			h.put(c, hc);
 
-			//TODO: read has + and - strand, H prob. is not completely sorted
-			int[] c_i_start=new int[numComp];
-			int[] c_i_end=new int[numComp];
-			for(int j=0;j<numComp;j++){
-				for(int i=0;i<numBases;i++){
-					if (hc[i][j]>0){
-						c_i_start[j]=i;
-						break;
-					}
-				}
-				for(int k=numBases-1;k>=0;k--){
-					if (hc[k][j]>0){
-						c_i_end[j]=k;
-						break;
-					}
-				}
-			}
-			i_start.put(c, c_i_start);
-			i_end.put(c, c_i_end);
-
 			//Initial Semi-E-step: initialize unnormalized responsibilities
 			double[][] rc= new double[numBases][numComp];
 			for(int j=0;j<numComp;j++){
-				for(int i=c_i_start[j];i<c_i_end[j];i++){
+				for(int i=0;i<numBases;i++){
 					rc[i][j] = hc[i][j]*pi[j]*bc[j];
 				}
 			}
@@ -1541,7 +1529,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		//////////
 		// Run EM steps
 		//////////
-		EM_MAP(counts, h, r, b, pi, i_start, i_end, alpha);
+		EM_MAP(counts, h, r, b, pi, alpha);
 		
 		//////////
 		// re-assign EM result back to the objects
@@ -1616,8 +1604,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							HashMap<Integer, double[][]> r,
 							HashMap<Integer, double[]>   b,
 							double[] pi,
-							HashMap<Integer, int[]> i_start,
-							HashMap<Integer, int[]> i_end,
+//							HashMap<Integer, int[]> i_start,
+//							HashMap<Integer, int[]> i_end,
 							double alpha)
 	{
 		int numComp = pi.length;
@@ -1650,23 +1638,25 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			//////////
 			for(int c=0; c<numConditions; c++){
 				double[][] rc = r.get(c);
-				int numReads = rc.length;
-				double totalResp[] = new double[numReads];
-				int c_i_start[]=i_start.get(c);
-				int c_i_end[] = i_end.get(c);
+				int numBases = rc.length;
+				double totalResp[] = new double[numBases];
+//				int c_i_start[]=i_start.get(c);
+//				int c_i_end[] = i_end.get(c);
 				// init
-				for(int i=0;i<numReads;i++){
+				for(int i=0;i<numBases;i++){
 					totalResp[i] = 0;
 				}
 				// sum
 				for(int j=0;j<numComp;j++)
 					if (pi[j]!=0)
-						for(int i=c_i_start[j];i<c_i_end[j];i++)
+//						for(int i=c_i_start[j];i<c_i_end[j];i++)
+						for(int i=0;i<numBases;i++)
 							totalResp[i] += rc[i][j];
 				// normalize
 				for(int j=0;j<numComp;j++)
 					if (pi[j]!=0)
-						for(int i=c_i_start[j];i<c_i_end[j];i++)
+//						for(int i=c_i_start[j];i<c_i_end[j];i++)
+						for(int i=0;i<numBases;i++)
 							if (totalResp[i]>0)
 								rc[i][j] = rc[i][j]/totalResp[i];
 			}
@@ -1684,11 +1674,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     for(int c=0; c<numConditions; c++){
         				double[][] rc = r.get(c);
         				double[]counts_c = counts.get(c);
-        				int c_i_start[]=i_start.get(c);
-        				int c_i_end[] = i_end.get(c);
-        				for(int i=c_i_start[j];i<c_i_end[j];i++){
+//        				int c_i_start[]=i_start.get(c);
+//        				int c_i_end[] = i_end.get(c);
+//						for(int i=c_i_start[j];i<c_i_end[j];i++)
+						for(int i=0;i<rc.length;i++)
                     		r_sum += rc[i][j]*counts_c[i];
-                    	}
                     }
                     pi[j]=r_sum;    // standard EM ML
             	}
@@ -1716,11 +1706,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		                    for(int c=0; c<numConditions; c++){
 		        				double[][] rc = r.get(c);
 		        				double[]counts_c = counts.get(c);
-		        				int c_i_start[]=i_start.get(c);
-		        				int c_i_end[] = i_end.get(c);
-		        				for(int i=c_i_start[j];i<c_i_end[j];i++){
+//		        				int c_i_start[]=i_start.get(c);
+//		        				int c_i_end[] = i_end.get(c);
+//								for(int i=c_i_start[j];i<c_i_end[j];i++)
+								for(int i=0;i<rc.length;i++)
 		                    		r_sum += rc[i][j]*counts_c[i];
-		                    	}
 		                    }
 
 		                    // component elimination
@@ -1730,13 +1720,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		                    if (pi[j]==0){
 		                		for(int c=0; c<numConditions; c++){
 		            				double[][] rc = r.get(c);
-		            				int c_i_start[]=i_start.get(c);
-		            				int c_i_end[] = i_end.get(c);
-		            				for(int i=c_i_start[j];i<c_i_end[j];i++){
+//		            				int c_i_start[]=i_start.get(c);
+//		            				int c_i_end[] = i_end.get(c);
+//		    						for(int i=c_i_start[j];i<c_i_end[j];i++)
+		    						for(int i=0;i<rc.length;i++)
 		                        		rc[i][j] = 0;
-		                        	}
-		            				c_i_start[j]=0;
-		            				c_i_end[j]=0;
+//		            				c_i_start[j]=0;
+//		            				c_i_end[j]=0;
 		                        }
 		                	}
 	                	}
@@ -1753,9 +1743,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		                	for(int c=0; c<numConditions; c++){
 		        				double[][] rc = r.get(c);
 		        				double[]counts_c = counts.get(c);
-		        				int c_i_start[]=i_start.get(c);
-		        				int c_i_end[] = i_end.get(c);
-		        				for(int i=c_i_start[j];i<c_i_end[j];i++)
+//		        				int c_i_start[]=i_start.get(c);
+//		        				int c_i_end[] = i_end.get(c);
+//								for(int i=c_i_start[j];i<c_i_end[j];i++)
+								for(int i=0;i<rc.length;i++)
 		                    		r_sum[j] += rc[i][j]*counts_c[i];
 		                    }
 	                	}
@@ -1786,13 +1777,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	                		// clear responsibility
 	                		for(int c=0; c<numConditions; c++){
 	            				double[][] rc = r.get(c);
-	            				int c_i_start[]=i_start.get(c);
-	            				int c_i_end[] = i_end.get(c);
-	            				for(int i=c_i_start[j];i<c_i_end[j];i++){
+//	            				int c_i_start[]=i_start.get(c);
+//	            				int c_i_end[] = i_end.get(c);
+//								for(int i=c_i_start[j];i<c_i_end[j];i++)
+								for(int i=0;i<rc.length;i++)
 	                        		rc[i][j] = 0;
-	                        	}
-	            				c_i_start[j]=0;
-	            				c_i_end[j]=0;
+//	            				c_i_start[j]=0;
+//	            				c_i_end[j]=0;
 	                        }
                     	}
                     	// keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
@@ -1841,10 +1832,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        				double[]bc = b.get(c);
 	        				double[]counts_c = counts.get(c);
 	        				double sum_i=0;
-	        				int c_i_start[]=i_start.get(c);
-	        				int c_i_end[] = i_end.get(c);
-	        				for(int i=c_i_start[j];i<c_i_end[j];i++)
-	                    		sum_i += rc[i][j]*counts_c[i];	//TODO: verify
+//	        				int c_i_start[]=i_start.get(c);
+//	        				int c_i_end[] = i_end.get(c);
+//							for(int i=c_i_start[j];i<c_i_end[j];i++)
+							for(int i=0;i<rc.length;i++)
+	                    		sum_i += rc[i][j]*counts_c[i];	
 
 	                    	bc[j]=sum_i;
 	                    	b_sum+=sum_i;
@@ -1869,11 +1861,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						double[][] rc = r.get(c);
 						double[][] hc = h.get(c);
 						double[] bc = b.get(c);
-						int c_i_start[]=i_start.get(c);
-        				int c_i_end[] = i_end.get(c);
-        				for(int i=c_i_start[j];i<c_i_end[j];i++){
+//						int c_i_start[]=i_start.get(c);
+//        				int c_i_end[] = i_end.get(c);
+//						for(int i=c_i_start[j];i<c_i_end[j];i++)
+						for(int i=0;i<rc.length;i++)
 							rc[i][j] = pi[j]*bc[j]*hc[i][j];
-						}
 					}
 				}
 			}
