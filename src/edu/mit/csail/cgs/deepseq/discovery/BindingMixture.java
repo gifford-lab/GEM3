@@ -1626,6 +1626,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		double lastLAP=0, LAP=0; // log posterior prob
 		int t=0;
 		double currAlpha = alpha/2;
+		boolean minElimination = false;
+		// index of non-zero components, used to iterate components
+		ArrayList<Integer> nzComps = new ArrayList<Integer>();	
+		for (int j=0;j<pi.length;j++){
+			nzComps.add(j);
+		}
 		log(5, (int)nonZeroComponentNum+" ");
 		//Run EM while not converged
 		for(t=0; t<MAX_EM_ITER ; t++){
@@ -1647,18 +1653,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					totalResp[i] = 0;
 				}
 				// sum
-				for(int j=0;j<numComp;j++)
-					if (pi[j]!=0)
-//						for(int i=c_i_start[j];i<c_i_end[j];i++)
-						for(int i=0;i<numBases;i++)
-							totalResp[i] += rc[i][j];
+				for(int j:nzComps)
+//					for(int i=c_i_start[j];i<c_i_end[j];i++)
+					for(int i=0;i<numBases;i++)
+						totalResp[i] += rc[i][j];
 				// normalize
-				for(int j=0;j<numComp;j++)
-					if (pi[j]!=0)
-//						for(int i=c_i_start[j];i<c_i_end[j];i++)
-						for(int i=0;i<numBases;i++)
-							if (totalResp[i]>0)
-								rc[i][j] = rc[i][j]/totalResp[i];
+				for(int j:nzComps)
+//					for(int i=c_i_start[j];i<c_i_end[j];i++)
+					for(int i=0;i<numBases;i++)
+						if (totalResp[i]>0)
+							rc[i][j] = rc[i][j]/totalResp[i];
 			}
 
 
@@ -1669,8 +1673,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			//Pi
 			// ML: standard EM
 			if (t<=ML_ITER){
-            	for(int j=0;j<numComp;j++){
-                    double r_sum=0;
+				for(int j:nzComps){
+					double r_sum=0;
                     for(int c=0; c<numConditions; c++){
         				double[][] rc = r.get(c);
         				double[]counts_c = counts.get(c);
@@ -1700,36 +1704,35 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                 	// 		 at the initial EM runs (has not reached proper assignment)
                 	// 		 when pi[j] is too small (too many components)
                 	// 		 That is the reason of having the annealing cycles.
-	                for(int j=0;j<numComp;j++){
-	                	if (pi[j]!=0){
-		                	double r_sum=0;
-		                    for(int c=0; c<numConditions; c++){
-		        				double[][] rc = r.get(c);
-		        				double[]counts_c = counts.get(c);
+                	for(int j:nzComps){
+	                	double r_sum=0;
+	                    for(int c=0; c<numConditions; c++){
+	        				double[][] rc = r.get(c);
+	        				double[]counts_c = counts.get(c);
 //		        				int c_i_start[]=i_start.get(c);
 //		        				int c_i_end[] = i_end.get(c);
 //								for(int i=c_i_start[j];i<c_i_end[j];i++)
-								for(int i=0;i<rc.length;i++)
-		                    		r_sum += rc[i][j]*counts_c[i];
-		                    }
+							for(int i=0;i<rc.length;i++)
+	                    		r_sum += rc[i][j]*counts_c[i];
+	                    }
 
-		                    // component elimination
-		                    pi[j]=Math.max(0,r_sum-currAlpha);
+	                    // component elimination
+	                    pi[j]=Math.max(0,r_sum-currAlpha);
 
-	                		// if component prob becomes 0, clear responsibility
-		                    if (pi[j]==0){
-		                		for(int c=0; c<numConditions; c++){
-		            				double[][] rc = r.get(c);
+                		// if component prob becomes 0, clear responsibility
+	                    if (pi[j]==0){
+	                		for(int c=0; c<numConditions; c++){
+	            				double[][] rc = r.get(c);
 //		            				int c_i_start[]=i_start.get(c);
 //		            				int c_i_end[] = i_end.get(c);
 //		    						for(int i=c_i_start[j];i<c_i_end[j];i++)
-		    						for(int i=0;i<rc.length;i++)
-		                        		rc[i][j] = 0;
+	    						for(int i=0;i<rc.length;i++)
+	                        		rc[i][j] = 0;
 //		            				c_i_start[j]=0;
 //		            				c_i_end[j]=0;
-		                        }
-		                	}
+	                        }
 	                	}
+	                	
 	                }
             	}
             	else{ 	//batch_elimination is false
@@ -1755,17 +1758,20 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	                		r_sum[j]=9999;
                 	}
             		
-                    // find the worst component
+                    // find the worst components
                     Pair<Double, TreeSet<Integer>> worst=null;	// worst components
-                    if (nonZeroComponentNum>expectedMaxNum && componentSpacing!=1)
-                    	worst = findSmallestCases(r_sum, 0.2*nonZeroComponentNum, currAlpha);
+                    if ( (!minElimination) && (componentSpacing!=1))
+                    	worst = findSmallestCases(r_sum, currAlpha);
                     else
                     	worst = StatUtil.findMin(r_sum);
+//                    System.out.print(t+": "+nonZeroComponentNum+" "+currAlpha+" "+
+//                    		String.format("%.4f", worst.car())+" "+worst.cdr().size()+"\n");
                     if (worst.car() > currAlpha){
                     	// no component to be eliminated, update pi(j)
-                    	 for(int j=0;j<numComp;j++)
-                    		 if (pi[j]!=0)
-                    			 pi[j]=r_sum[j]-currAlpha;
+                    	for(int j:nzComps)
+                    		pi[j]=r_sum[j]-currAlpha;
+                    	// stop Smallest cases elimination, only eliminate min from now on
+                    	minElimination = true;
 
 //                     	System.out.println(t+":\t"+currAlpha+"\t iterating");
                     }
@@ -1774,16 +1780,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     	// redistribute responsibilities in next E step
                     	for (int j: worst.cdr()){
                         	pi[j]=0;
+                        	nzComps.remove(new Integer(j)); // update nz comp index
 	                		// clear responsibility
 	                		for(int c=0; c<numConditions; c++){
 	            				double[][] rc = r.get(c);
-//	            				int c_i_start[]=i_start.get(c);
-//	            				int c_i_end[] = i_end.get(c);
-//								for(int i=c_i_start[j];i<c_i_end[j];i++)
 								for(int i=0;i<rc.length;i++)
 	                        		rc[i][j] = 0;
-//	            				c_i_start[j]=0;
-//	            				c_i_end[j]=0;
 	                        }
                     	}
                     	// keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
@@ -1797,14 +1799,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
             // update component count, normalize pi
             double totalPi=0;
             double count = 0;
-            for(int j=0;j<numComp;j++){
+            for(int j:nzComps){
             	totalPi+=pi[j];
-            	if (pi[j]!=0)
-            		count++;
+            	count++;
             }
             nonZeroComponentNum = count;
             if (totalPi!=0){
-	            for(int j=0;j<numComp;j++){
+            	for(int j:nzComps){
 	            	pi[j]=pi[j]/totalPi;
 	            }
             }
@@ -1819,54 +1820,45 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 			//Beta parameters
 			if(numConditions>1){
-				for(int j=0;j<numComp;j++){
-	                if (pi[j]==0)
-	                	for(int c=0; c<numConditions; c++){
-	                		double[]bc = b.get(c);
-	                        bc[j] = 1.0/numConditions;
-	                	}
-	                else{
-	                    double b_sum=0;
-		                for(int c=0; c<numConditions; c++){
-	        				double[][] rc = r.get(c);
-	        				double[]bc = b.get(c);
-	        				double[]counts_c = counts.get(c);
-	        				double sum_i=0;
+				for(int j:nzComps){
+                    double b_sum=0;
+	                for(int c=0; c<numConditions; c++){
+        				double[][] rc = r.get(c);
+        				double[]bc = b.get(c);
+        				double[]counts_c = counts.get(c);
+        				double sum_i=0;
 //	        				int c_i_start[]=i_start.get(c);
 //	        				int c_i_end[] = i_end.get(c);
 //							for(int i=c_i_start[j];i<c_i_end[j];i++)
-							for(int i=0;i<rc.length;i++)
-	                    		sum_i += rc[i][j]*counts_c[i];	
+						for(int i=0;i<rc.length;i++)
+                    		sum_i += rc[i][j]*counts_c[i];	
 
-	                    	bc[j]=sum_i;
-	                    	b_sum+=sum_i;
-	                    }
+                    	bc[j]=sum_i;
+                    	b_sum+=sum_i;
+                    }
 
-	                    // normalize across conditions
-		                if (b_sum!=0){
-			                for(int c=0; c<numConditions; c++){
-			                	double[]bc = b.get(c);
-			                	bc[j] = bc[j]/b_sum;
-			                }
+                    // normalize across conditions
+	                if (b_sum!=0){
+		                for(int c=0; c<numConditions; c++){
+		                	double[]bc = b.get(c);
+		                	bc[j] = bc[j]/b_sum;
 		                }
-	                } // else
+	                }
 				} // for
 				// Beta clustering would go here.
 			}
 
 			//Semi-E-step:Calculate next un-normalized responsibilities
-			for(int j=0;j<numComp;j++){
-				if (pi[j]!=0){
-					for(int c=0; c<numConditions; c++){
-						double[][] rc = r.get(c);
-						double[][] hc = h.get(c);
-						double[] bc = b.get(c);
+			for(int j:nzComps){
+				for(int c=0; c<numConditions; c++){
+					double[][] rc = r.get(c);
+					double[][] hc = h.get(c);
+					double[] bc = b.get(c);
 //						int c_i_start[]=i_start.get(c);
 //        				int c_i_end[] = i_end.get(c);
 //						for(int i=c_i_start[j];i<c_i_end[j];i++)
-						for(int i=0;i<rc.length;i++)
-							rc[i][j] = pi[j]*bc[j]*hc[i][j];
-					}
+					for(int i=0;i<rc.length;i++)
+						rc[i][j] = pi[j]*bc[j]*hc[i][j];
 				}
 			}
 
@@ -1878,7 +1870,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				int numReads = rc.length;
 				for(int i=0;i<numReads;i++){
 					double sum_j=0;
-					for(int j=0;j<numComp;j++)
+					for(int j:nzComps)
 						sum_j += rc[i][j]*counts_c[i];
 
 					if (sum_j!=0)
@@ -1887,9 +1879,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 			// log prior
 			double LP=0;
-			for(int j=0;j<numComp;j++)
-				if(pi[j]>0)
-					LP+=Math.log(pi[j]);
+			for(int j:nzComps)
+				LP+=Math.log(pi[j]);
 
 			LP= -currAlpha*LP;
 			LAP = LL+LP;
@@ -1985,10 +1976,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			for (int c=0;c<numConditions; c++){
 				b.put(c, bestModel.beta[c]);
 			}
-			for (int i=0;i<pi.length;i++){
-				pi[i] = bestModel.pi[i];
-//				System.out.print(String.format("%.2f ", pi[i]));
+			nzComps.clear();
+			for (int j=0;j<pi.length;j++){
+				pi[j] = bestModel.pi[j];
+				if (pi[j]!=0)
+					nzComps.add(j);
+//				System.out.print(String.format("%.2f ", pi[j]));
 			}
+			
+			
 //			System.out.println();
 		}
 		// normalize responsibilities here
@@ -1997,11 +1993,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			int numBases = rc.length;
 			for(int i=0;i<numBases;i++){
 				double totalResp = 0;
-				for(int j=0;j<numComp;j++){
+				for(int j:nzComps){
 					totalResp += rc[i][j];
 				}
 				if (totalResp!=0){
-					for(int j=0;j<numComp;j++){
+					for(int j:nzComps){
 						rc[i][j] = rc[i][j]/totalResp;
 					}
 				}
@@ -2034,9 +2030,34 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end of EM_Steps method
 
 	/*
+	 * return the bottom elements of x 
+	 * so that their sum is less than maxSum
+	 * alpha is passed in as maxSum, this essentially ensure that 
+	 * we do not eliminate too much, but as quick as possible to reduce run time
+	 */
+	private Pair<Double, TreeSet<Integer>> findSmallestCases(double[] x, double maxSum){
+		TreeSet<Integer> cases = new TreeSet<Integer>();
+		double maxSmallest = 0; 
+		double sum = 0;
+		int[] oldIdx = StatUtil.findSort(x);
+		for (int i=0;i<x.length;i++){
+			sum += x[i];
+			if (sum < maxSum){
+				cases.add(oldIdx[i]);
+				maxSmallest = x[i];
+			}
+			else
+				break;
+		}
+		if (cases.isEmpty())
+			maxSmallest = x[0];
+		Pair<Double, TreeSet<Integer>> result = new Pair<Double, TreeSet<Integer>>(maxSmallest, cases);
+		return result;
+	}
+	/*
 	 * return the bottom number of x that are less than max
 	 */
-	private Pair<Double, TreeSet<Integer>> findSmallestCases(double[] x, double number, double max){
+	private Pair<Double, TreeSet<Integer>> findSmallestCases_old(double[] x, double number, double max){
 		TreeSet<Integer> cases = new TreeSet<Integer>();
 		double maxSmallest = 0; 
 		number = Math.min(number, x.length);
