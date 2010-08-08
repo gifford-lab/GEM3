@@ -1378,9 +1378,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for (int cond=0; cond<numConditions; cond++){
 					// if one condition is good event, this position is GOOD
 					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
-					if (cf.getShapeDeviation(cond)<=shapeDeviation && (cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond)>=fold)){
-						notFiltered = true;
-						break;
+					if (cf.getShapeDeviation(cond)<=shapeDeviation){
+						if (!controlDataExist){
+							notFiltered = true;
+							break;
+						}
+						else{
+							if (cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond)>=fold){
+								notFiltered = true;
+								break;
+							}
+						}						
 					}
 				}
 			}
@@ -3486,7 +3494,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			double total = compFeatures.size();
 			int rank =1;
 			for(ComponentFeature cf : compFeatures){
-				cf.setQValueLog10( -Math.log10(cf.getPValue(cond)*(total/(double)rank)), cond);
+				if(controlDataExist) 
+					cf.setQValueLog10( -Math.log10(cf.getPValue(cond)*(total/(double)rank)), cond);
+				else
+					cf.setQValueLog10( -Math.log10(cf.getPValue_wo_ctrl(cond)*(total/(double)rank)), cond);
+				
 				rank++;
 			}
 		}
