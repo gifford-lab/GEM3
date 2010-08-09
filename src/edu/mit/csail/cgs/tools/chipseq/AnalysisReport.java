@@ -61,7 +61,7 @@ public class AnalysisReport {
 
     public AnalysisReport() {
     }
-    public void parseArgs(String args[]) throws SQLException, NotFoundException {
+    public void parseArgs(String args[]) throws SQLException, NotFoundException, IOException {
         genome = Args.parseGenome(args).cdr();
         analysis = null;
         analysis = Args.parseChipSeqAnalysis(args,"analysis");                                                
@@ -113,11 +113,8 @@ public class AnalysisReport {
             for (WeightMatrix m : matrices) {
                 m.toLogOdds(bgModel);
             }            
-        }
-
-
-        
-
+        }        
+        dumpParams(args);
     }
     private void getEvents() throws SQLException {
         for (Region r : regions) {
@@ -188,7 +185,27 @@ public class AnalysisReport {
         getEnrichedCategories();
         Collections.sort(enrichments, new EnrichmentPvalueComparator());
     }
+    public void dumpParams(String args[]) throws IOException {
+        PrintWriter pw = new PrintWriter(outputBase + ".params");
+        pw.print("cmdline=java edu.mit.csail.cgs.tools.chipseq.AnalysisReport ");
+        for (int i = 0; i < args.length; i++) {
+            pw.print(args[i] + " ");
+        }
+        pw.println();
+        pw.println("genome=" + genome.toString());
+        pw.println("up=" + up);
+        pw.println("down=" + down);
+        pw.println("topEvents=" + topEvents);
+        pw.println("thresh=" + thresh);
+        pw.println("wmcutoff=" + wmcutoff);
+        for (WeightMatrix m : matrices) {
+            pw.println("matrix="+m.toString());
+        }
+        pw.println("analysis=" + analysis.toString());
 
+
+        
+    }
     public void dumpEvents() throws IOException {
         if (!dumpEvents) {
             return;
