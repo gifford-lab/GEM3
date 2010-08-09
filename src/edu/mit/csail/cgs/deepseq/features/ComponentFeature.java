@@ -260,7 +260,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 			
         for(int c=0; c<numConditions; c++){
         	if (numConditions!=1) {	// if single condition, IP is same as total
-        		result.append(String.format("%c\t", condSignificance[c] ? 'T' : 'F' ));
+        		result.append(String.format("%d\t", condSignificance[c] ? 1 : 0 ));
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
@@ -281,11 +281,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
         	else
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
+    		result.append(String.format("%7.3f\t", getShapeDeviation(c)));
         }
 
-		result.append(String.format("%7.3f\t", getAvgShapeDeviation()));
         result.append(isJointEvent?1:0).append("\t");
-//        result.append(String.format("%.4f\t", mixingProb));
          
 		String gene = nearestGene == null ? "NONE" : nearestGene.getName();
 		result.append(gene).append("\t");
@@ -326,10 +325,11 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	header.append(name+"Control\t")
         		  .append(name+"IP/Ctrl\t")
         	      .append(name+"Q_-lg10\t")
-  	      		  .append(name+"P_-lg10\t");
+  	      		  .append(name+"P_-lg10\t")
+      		  	  .append(name+"Shape\t");
         }
         
-        header.append("  Shape\t").append("Joint\t");
+        header.append("Joint\t");
 		header.append("NearestGene\t").append("Distance\t");
 		
         if (annotations != null) {
@@ -376,7 +376,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
       
         for(int c=0; c<numConditions; c++){
         	if (numConditions!=1) {	// if single condition, IP is same as total
-        		result.append(String.format("%c\t", condSignificance[c] ? 'T' : 'F' ));
+        		result.append(String.format("%d\t", condSignificance[c] ? 1 : 0 ));
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
@@ -398,7 +398,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	else
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
 
-    		result.append(String.format("%7.3f", getAvgShapeDeviation()));
+    		result.append(String.format("%7.3f", getShapeDeviation(c)));
         	if (c<numConditions-1)
         		result.append("\t");
         }

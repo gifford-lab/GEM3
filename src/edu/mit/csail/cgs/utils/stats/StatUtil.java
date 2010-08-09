@@ -180,7 +180,35 @@ public class StatUtil {
 		return sortedInds;	
 	}//end of findSort method - accepts only primitive integers
 	
+	/**
+	 * Sorts the double array and returns the positions of the original array corresponding
+	 * to the ordered elements
+	 * @param a double array to be sorted
+	 * @return
+	 */
+	public static int[] findSort(double[] a) {
+		int[] sortedInds = new int[a.length];
+		Map<Double, ArrayList<Integer>> val2Index = new HashMap<Double, ArrayList<Integer>>();
+		
+		for(int i = 0; i < a.length; i++)
+		{
+			if( !val2Index.containsKey(a[i])) 
+				val2Index.put(a[i], new ArrayList<Integer>());
+			val2Index.get(a[i]).add(i);
+		}
+		Arrays.sort(a);
 	
+		Set<Double> uniqueEls = new LinkedHashSet<Double>();
+		for(int i = 0; i < a.length; i++) { uniqueEls.add(a[i]); }
+		int count = 0;
+		for(Object key:uniqueEls.toArray()){
+			List<Integer> currVal_idxs = val2Index.get(key);
+			for(Integer curr_idx:currVal_idxs)
+				sortedInds[count++] = curr_idx;
+		}
+		return sortedInds;	
+	}//end of findSort method - accepts only primitive double
+		
 	/**
 	 * @see  edu.mit.csail.cgs.utils.stats.StatUtil#findSort(Object[], Comparator)
 	 */

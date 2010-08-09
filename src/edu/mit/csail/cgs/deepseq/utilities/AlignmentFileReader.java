@@ -384,4 +384,9 @@ public abstract class AlignmentFileReader {
 		return out;
 	}//end of list2int method
 
+	public void cleanup(){
+		starts=null;
+		hitCounts=null;
+		hitIDs=null;
+	}
 }//end of AlignmentFileReader class
