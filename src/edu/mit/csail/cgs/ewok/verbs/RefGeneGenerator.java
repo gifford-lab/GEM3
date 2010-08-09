@@ -37,7 +37,7 @@ import edu.mit.csail.cgs.utils.database.*;
 public class RefGeneGenerator<X extends Region> 
     implements Expander<X,Gene>, SelfDescribingVerb, DefaultConstantsParameterized, edu.mit.csail.cgs.utils.Closeable {
 
-    private PreparedStatement ps, nameps, getalias, getgenesym;
+    private PreparedStatement ps, nameps, getalias, getgenesym, getallps;
     private java.sql.Connection cxn;
     private Genome genome;
     private String tablename, symboltable, namecolumn, symbolcolumn;
@@ -223,6 +223,11 @@ public class RefGeneGenerator<X extends Region>
                 getgenesym.close();
                 getgenesym = null;
             }
+            if (getallps != null) {
+                getallps.close();
+                getallps = null;
+            }
+
             if (cxn != null) {
                 DatabaseFactory.freeConnection(cxn);
                 cxn = null;
@@ -269,6 +274,8 @@ public class RefGeneGenerator<X extends Region>
             }
             
             ps = cxn.prepareStatement(query.toString());
+            
+            getallps = cxn.prepareStatement(getFields() + " from " + tablename);
 
             String namequery = getFields();
             if (symboltable == null) {
@@ -332,7 +339,9 @@ public class RefGeneGenerator<X extends Region>
             throw new DatabaseException("Couldn't get UCSC RefGenes",ex);
         }
     }
-
+    public synchronized Iterator<Gene> getAll() throws SQLException {
+            return parseResults(getallps);  
+        }
     public synchronized Iterator<Gene> byName(String name) {
         try {
             nameps.setString(1,name);
