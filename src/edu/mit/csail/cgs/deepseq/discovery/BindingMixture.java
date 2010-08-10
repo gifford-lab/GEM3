@@ -325,7 +325,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	second_lambda_region_width = Args.parseInteger(args, "w2", 5000);
     	third_lambda_region_width = Args.parseInteger(args, "w3", 10000);
     	joint_event_distance = Args.parseInteger(args, "j", 10000);		// max distance of joint events
-    	top_event_percentile = Args.parseInteger(args, "top_event_percentile", 50);
+    	top_event_percentile = Args.parseInteger(args, "top", 50);
     	needle_height_factor = Args.parseInteger(args, "needle_height_factor", 2);
     	needle_hitCount_fraction = Args.parseDouble(args, "needle_hitCount_fraction", 0.1);
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
@@ -3840,7 +3840,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					crtl_test_region_total[i] += e.cdr().countHits(r);
 			}
 		}
-		log(1, "\nSpecific event regions total length: "+totalLength);
+		log(1, "\nTotal length of specific binding regions: "+totalLength);
 
 		// non-specific = total - specific
 		for(int i=0; i<numConditions; i++){
@@ -3855,12 +3855,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    		/ (mappable_genome_length - totalLength);
 
 	    	StringBuilder sb = new StringBuilder();
-	    	sb.append(conditionNames.get(i)+" read stats:\n");
-	    	sb.append("Signal total\t\t" +(int)e.car().getHitCount());
+	    	sb.append(conditionNames.get(i)+" data summary:\n");
+	    	sb.append("IP total   \t\t" +(int)e.car().getHitCount());
 	    	if (controlDataExist){
 	    		sb.append("\nControl total\t\t" + (int)e.cdr().getHitCount() );
-	    	    sb.append("\nRatio total\t\t" +String.format("%.3f", e.car().getHitCount()/e.cdr().getHitCount() ));
-	    	    sb.append("\nSignal non-specific\t" +expt_non_specific_total[i]);
+	    	    sb.append("\nIP/Control  \t\t" +String.format("%.3f", e.car().getHitCount()/e.cdr().getHitCount() ));
+	    	    sb.append("\nIP non-specific\t" +expt_non_specific_total[i]);
 	    	    sb.append("\nControl non-specific\t" +crtl_non_specific_total[i]);
 //	    	    sb.append("\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
 	    	}
