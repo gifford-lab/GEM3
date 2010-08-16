@@ -1,5 +1,12 @@
 package edu.mit.csail.cgs.deepseq.discovery;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -20,6 +27,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+
+import javax.imageio.ImageIO;
 
 import cern.jet.random.Poisson;
 import cern.jet.random.engine.DRand;
@@ -126,6 +135,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private int bmverbose=1;		// BindingMixture verbose mode
 	private int needle_height_factor = 2;	// threshold to call a base as needle, (height/expected height)
 	private double needle_hitCount_fraction = 0.1;	//threshold to call a region as tower, (hit_needles / hit_total)
+	private int windowSize;			// size for EM sliding window for splitting long regions
 	//Run EM up until <tt>ML_ITER</tt> without using sparse prior
 	private int ML_ITER=5;
 
@@ -133,10 +143,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private BindingModel model;
 	private int modelRange;			// max length of one side
 	private int modelWidth; 		// width of empirical read distribution, 500bp
-	private int windowSize;			// size for EM sliding window for splitting long regions
 
 	private double[] profile_plus_sum;
 	private double[] profile_minus_sum;
+	
+	private HashMap<String, BindingModel> allModels = new HashMap<String, BindingModel>();
 	
 	// Max number of reads on a base position, to filter out towers and needles.
 	private int max_HitCount_per_base = 3;
@@ -275,7 +286,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         if (SPLINE_SMOOTH)
         	model.smooth(BindingModel.SMOOTHING_STEPSIZE);
 		model.printToFile(outName+"_0_Read_distribution.txt");
-
+		allModels.put(outName, model);
+		
     	/* *********************************
     	 * Flags
     	 ***********************************/
@@ -3366,6 +3378,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
+		allModels.put(outName, model);
 
 		double logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
 		String details = "(Strength>"+String.format("%.1f", strengthThreshold) +
@@ -3382,6 +3395,54 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return model;
 	}
 
+	public void plotAllReadDistributions(){
+		Color[] colors = {Color.black, Color.red, Color.blue, Color.green, Color.cyan, Color.orange};
+		String filename = outName + "_All_Read_Distributions.png";
+		File f = new File(filename);
+		int w = 800;
+		int h = 600;
+		int margin= 50;
+	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+	    Graphics g = im.getGraphics();
+	    Graphics2D g2 = (Graphics2D)g;
+	    g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
+	    g2.setColor(Color.white);
+	    g2.fillRect(0, 0, w, h);	
+	    g2.setColor(Color.gray);
+	    g2.drawLine(20, h-margin, w-20, h-margin);		// x-axis
+	    g2.drawLine(w/2, margin, w/2, h-margin);	// y-axis    
+	    
+	    double maxProb = 0;	    
+	    String[] rounds = new String[allModels.keySet().size()];
+	    allModels.keySet().toArray(rounds);
+	    for (String key:rounds){
+	    	int summit = allModels.get(key).getSummit();
+	    	maxProb = Math.max(maxProb, allModels.get(key).probability(summit));
+	    }
+	    
+	    for (int i=0;i<rounds.length;i++){
+	    	BindingModel m = allModels.get(rounds[i]);
+	    	List<Pair<Integer, Double>> points = m.getEmpiricalDistribution();
+		    g2.setColor(colors[i % colors.length]);
+		    g2.setStroke(new BasicStroke(4));
+		    for (int p=0;p<points.size()-1;p++){
+		    	int x1=points.get(p).car()+w/2;
+		    	int y1=(int) (h-points.get(p).cdr()/maxProb*(h-margin*2)*0.8)-margin;
+		    	int x2=points.get(p+1).car()+w/2;
+		    	int y2=(int) (h-points.get(p+1).cdr()/maxProb*(h-margin*2)*0.8)-margin;
+		    	g2.drawLine(x1, y1, x2, y2);	    
+		    }
+		    g.setFont(new Font("Arial",Font.PLAIN,20));
+		    g2.drawString(rounds[i], w-300, i*25+margin+25);
+	    }
+
+	    try{
+	    	ImageIO.write(im, "png", f);
+	    }
+	    catch(IOException e){
+	    	System.err.println("Error in printing file "+filename);
+	    }
+	}
 
 
 	// evaluate confidence of each called events
