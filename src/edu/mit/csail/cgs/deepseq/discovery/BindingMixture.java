@@ -286,7 +286,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         if (SPLINE_SMOOTH)
         	model.smooth(BindingModel.SMOOTHING_STEPSIZE);
 		model.printToFile(outName+"_0_Read_distribution.txt");
-		allModels.put(outName, model);
+		allModels.put(outName+"_0", model);
 		
     	/* *********************************
     	 * Flags
@@ -3397,7 +3397,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	public void plotAllReadDistributions(){
 		Color[] colors = {Color.black, Color.red, Color.blue, Color.green, Color.cyan, Color.orange};
-		String filename = outName + "_All_Read_Distributions.png";
+		String filename = outName.substring(0, outName.length()-3) + "_All_Read_Distributions.png";
 		File f = new File(filename);
 		int w = 800;
 		int h = 600;
@@ -3413,15 +3413,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    g2.drawLine(w/2, margin, w/2, h-margin);	// y-axis    
 	    
 	    double maxProb = 0;	    
-	    String[] rounds = new String[allModels.keySet().size()];
-	    allModels.keySet().toArray(rounds);
+	    ArrayList<String> rounds = new ArrayList<String>();
+	    rounds.addAll(allModels.keySet());
+	    Collections.sort(rounds);
 	    for (String key:rounds){
 	    	int summit = allModels.get(key).getSummit();
 	    	maxProb = Math.max(maxProb, allModels.get(key).probability(summit));
 	    }
 	    
-	    for (int i=0;i<rounds.length;i++){
-	    	BindingModel m = allModels.get(rounds[i]);
+	    for (int i=0;i<rounds.size();i++){
+	    	BindingModel m = allModels.get(rounds.get(i));
 	    	List<Pair<Integer, Double>> points = m.getEmpiricalDistribution();
 		    g2.setColor(colors[i % colors.length]);
 		    g2.setStroke(new BasicStroke(4));
@@ -3433,7 +3434,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		    	g2.drawLine(x1, y1, x2, y2);	    
 		    }
 		    g.setFont(new Font("Arial",Font.PLAIN,20));
-		    g2.drawString(rounds[i], w-300, i*25+margin+25);
+		    g2.drawString(rounds.get(i), w-300, i*25+margin+25);
 	    }
 
 	    try{
