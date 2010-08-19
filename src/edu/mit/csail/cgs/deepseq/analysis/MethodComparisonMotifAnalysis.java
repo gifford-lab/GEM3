@@ -72,7 +72,7 @@ public class MethodComparisonMotifAnalysis {
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		MethodComparisonMotifAnalysis analysis = new MethodComparisonMotifAnalysis(args);
 		// peak based analysis
 		// We only print out the motif (at diff threshold) distances for each peak
@@ -148,7 +148,7 @@ public class MethodComparisonMotifAnalysis {
 	
 	// 3. rankedMotifOffset, both for motif coverage and occurrence curve
 	// Each column is ranked as its original method, so each row is not matched
-	private void printMotifOffsets(){
+	private void printMotifOffsets() throws IOException {
 		long tic = System.currentTimeMillis();
 		readPeakLists();
 		
@@ -340,7 +340,7 @@ public class MethodComparisonMotifAnalysis {
 		System.out.println("Done! " + CommonUtils.timeElapsed(tic));
 	}
 
-	private void readPeakLists(){
+	private void readPeakLists() throws IOException {
         Vector<String> peakTags=new Vector<String>();
         for(String s : args)
         	if(s.contains("peakCall"))
@@ -416,7 +416,7 @@ public class MethodComparisonMotifAnalysis {
 	}
 	
 	// counting number of event calls in the regions with clustered motifs
-	private void proximalEventAnalysis(){
+	private void proximalEventAnalysis() throws IOException {
 		long tic = System.currentTimeMillis();
 
 		readPeakLists();
@@ -646,7 +646,7 @@ public class MethodComparisonMotifAnalysis {
 
 	// counting number of event calls in the regions with SINGLE motif 
 	// this is to check the false positives of joint event calls
-	private void singleMotifEventAnalysis(){
+	private void singleMotifEventAnalysis() throws IOException {
 		long tic = System.currentTimeMillis();
 
 		readPeakLists();
@@ -790,7 +790,7 @@ public class MethodComparisonMotifAnalysis {
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb2.toString());
 	}
-	private void getUnaryEventList(){
+	private void getUnaryEventList() throws IOException{
 		long tic = System.currentTimeMillis();
 		readPeakLists();
 		int minCount = Integer.MAX_VALUE;

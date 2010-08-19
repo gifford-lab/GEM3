@@ -2,6 +2,8 @@ package edu.mit.csail.cgs.tools.chipseq;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAnalysisResult;
@@ -19,6 +21,8 @@ public class GPSAnalysisImporter extends AnalysisImporter {
     */
     public final static double minpval = Math.pow(10,-100);
 
+    private int lineno = 0;
+
     public static void main(String args[]) throws NotFoundException, SQLException, DatabaseException, IOException {
         GPSAnalysisImporter importer = new GPSAnalysisImporter();
         importer.parseArgs(args);
@@ -26,31 +30,23 @@ public class GPSAnalysisImporter extends AnalysisImporter {
         importer.close();
     }
     public ChipSeqAnalysisResult parseLine(String line) {
-        String pieces[] = line.split("\\t");
-        if (pieces[0].equals("Position")) {
-            return null;
-        }
-        String chrompos[] = pieces[0].split(":");
-        int pos = Integer.parseInt(chrompos[1]);
-        if (pieces[2].equals("NA")) {
-            pieces[2] = "1";
-        }
+        GPSPeak p = GPSParser.parseLine(getGenome(),
+                                        line,
+                                        ++lineno);
 
-        double ip = Double.parseDouble(pieces[1]);
-        double wce = Double.parseDouble(pieces[2]);
-        double pval = Math.max(Math.pow(10, -1 * Double.parseDouble(pieces[4])),
-                               minpval);
+
+
         return new ChipSeqAnalysisResult(getGenome(),
-                                         chrompos[0],
-                                         pos,
-                                         pos+1,
-                                         pos,
-                                         ip,
-                                         wce,
-                                         0.0,
-                                         0.0,
-                                         pval,
-                                         ip/wce);
+                                         p.getChrom(),
+                                         p.getLocation(),
+                                         p.getLocation()+1,
+                                         p.getLocation(),
+                                         p.getStrength(),
+                                         p.getControlStrength(),
+                                         p.getStrength(),
+                                         p.getShape(),
+                                         p.getPvalue(),
+                                         p.getStrength()/p.getControlStrength());
     }
 
 

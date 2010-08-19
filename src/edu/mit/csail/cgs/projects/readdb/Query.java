@@ -100,7 +100,7 @@ public class Query {
             try {
                 String pieces[] = line.split("[\\:]");
                 int chr = Integer.parseInt(pieces[0].replaceFirst("^chr",""));
-                boolean strand = pieces.length >= 3 ? pieces[2].equals("+") : null;
+                Boolean strand = pieces.length >= 3 ? pieces[2].equals("+") : null;
                 pieces = pieces[1].split("\\-");
                 int start = Integer.parseInt(pieces[0]);
                 int stop = Integer.parseInt(pieces[1]);

@@ -53,7 +53,7 @@ public class GPSOutputAnalysis {
   /**
    * @param args
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(args);
 	int type = Args.parseInteger(args, "type", 0);
@@ -69,7 +69,7 @@ public class GPSOutputAnalysis {
 	}
   }
   
-  public GPSOutputAnalysis(String[] args) {
+  public GPSOutputAnalysis(String[] args) throws IOException {
     this.args = args;
     ArgParser ap = new ArgParser(args);
     

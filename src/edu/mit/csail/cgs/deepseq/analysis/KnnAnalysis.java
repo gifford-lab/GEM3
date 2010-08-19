@@ -1,5 +1,6 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
+import java.io.IOException;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,7 +34,7 @@ public class KnnAnalysis {
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		KnnAnalysis analysis = new KnnAnalysis(args);
 		analysis.run();
 	}
@@ -54,7 +55,7 @@ public class KnnAnalysis {
 	}
 
 	
-	private void run(){
+	private void run() throws IOException {
 		List<GPSPeak> ipPeaks=null;
 		ArrayList<KnnPoint> knnPoints=new ArrayList<KnnPoint>();
 		List<GPSPeak> ctrlPeaks=null;

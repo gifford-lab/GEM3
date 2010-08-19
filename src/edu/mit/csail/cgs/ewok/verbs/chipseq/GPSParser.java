@@ -1,9 +1,6 @@
 package edu.mit.csail.cgs.ewok.verbs.chipseq;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +20,7 @@ import edu.mit.csail.cgs.utils.Pair;
  */
 public class GPSParser {
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		Genome genome=null;
 		ArgParser ap = new ArgParser(args);
 	    try {
@@ -54,18 +51,20 @@ public class GPSParser {
 	 * @param filename name of the file containing the data
 	 * @return a List of hit objects
 	 */
-	public static List<GPSPeak> parseGPSOutput(String filename, Genome g) {
+	public static List<GPSPeak> parseGPSOutput(String filename, Genome g) throws IOException {
+        return parseGPSOutput(new FileInputStream(filename), g);
+    }
+
+
+	public static List<GPSPeak> parseGPSOutput(InputStream stream, Genome g) throws IOException {
 		ArrayList<GPSPeak> results = new ArrayList<GPSPeak>();
 
-		FileReader in = null;
 		BufferedReader bin = null;
 		int count = 0;
-		try {
-			in = new FileReader(filename);
-			bin = new BufferedReader(in);
-			
-			String line;
-			while((line = bin.readLine()) != null) { 
+        bin = new BufferedReader(new InputStreamReader(stream));
+		
+        String line;
+        while((line = bin.readLine()) != null) { 
 //			  if (count % 1000 == 0) {
 //			    if (count % 10000 == 0) {
 //			      System.out.println(count);
@@ -77,34 +76,21 @@ public class GPSParser {
 //			  else if (count % 100 == 0) {
 //			    System.out.print(".");
 //			  }
-				line = line.trim();
-	            String[] f=line.split("\t");
-	            if (f[0].equals("Position")||f[0].equals("chr")){
-	            	continue;
-	            }
-				GPSPeak hit = GPSParser.parseLine(g, line, 0);
-				if (hit!=null) {
-					results.add(hit);
-			  }
+            line = line.trim();
+            String[] f=line.split("\t");
+            if (f[0].equals("Position")||f[0].equals("chr")){
+                continue;
+            }
+            GPSPeak hit = GPSParser.parseLine(g, line, 0);
+            if (hit!=null) {
+                results.add(hit);
+            }
 				
-				count++;
-			}			
-			System.out.println();
-		}
-		catch(IOException ioex) {
-			//logger.error("Error parsing file", ioex);
-		}
-		finally {
-			try {
-				if (bin != null) {
-					bin.close();
-				}
-			}
-			catch(IOException ioex2) {
-				//nothing left to do here, just log the error
-				//logger.error("Error closing buffered reader", ioex2);
-			}			
-		}
+            count++;
+        }			
+        if (bin != null) {
+            bin.close();
+        }
 		return results;
 	}
 
@@ -124,7 +110,7 @@ public class GPSParser {
 	 * @param gpsLine a line of text representing a hit
 	 * @return a hit object containing the data from the specified line
 	 */
-	private static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
+	public static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
 		if (t.length == 7) {

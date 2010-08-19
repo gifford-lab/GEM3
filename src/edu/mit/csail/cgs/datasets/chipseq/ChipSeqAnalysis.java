@@ -273,6 +273,7 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
         }
     }
     public Collection<ChipSeqAnalysisResult> getResults(Genome genome, Region queryRegion) throws SQLException {
+        
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
         String query = "select chromosome, startpos, stoppos, position, fgcount, bgcount, strength, peak_shape, pvalue, fold_enrichment " +
             " from analysisresults where analysis = ? ";
@@ -300,6 +301,10 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
                                                                 isnulldouble(rs,8),
                                                                 isnulldouble(rs,9),
                                                                 isnulldouble(rs,10));
+            if (Double.isInfinite(r.foldEnrichment)) {
+                r.foldEnrichment = r.foregroundReadCount / Math.max(.1, r.backgroundReadCount);
+            }
+
             result.add(r);                                                                
         }
         rs.close();
@@ -307,6 +312,30 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
 		DatabaseFactory.freeConnection(cxn);
         return result;        
     }
+    public int countResults(Genome genome) throws SQLException {
+        java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
+        String chrstring = "";
+        Map<String,Integer> map = genome.getChromIDMap();
+        Iterator<Integer> iter = map.values().iterator();
+        if (iter.hasNext()) {
+            chrstring = Integer.toString(iter.next());
+        }
+        while (iter.hasNext()) {
+            chrstring = chrstring + "," + Integer.toString(iter.next());
+        }
+
+        String query = "select count(*) from analysisresults where analysis = ? and chromosome in (" +chrstring+")";
+        PreparedStatement ps = cxn.prepareStatement(query);
+        ps.setInt(1,dbid);
+        ResultSet rs = ps.executeQuery();
+        rs.next();
+        int count = rs.getInt(1);
+        rs.close();
+        ps.close();
+		DatabaseFactory.freeConnection(cxn);
+        return count;
+    }
+
     /** retrieves all ChipSeqAnalysis objects from the database */
     public static Collection<ChipSeqAnalysis> getAll() throws DatabaseException, SQLException {
         ArrayList<ChipSeqAnalysis> output = new ArrayList<ChipSeqAnalysis>();

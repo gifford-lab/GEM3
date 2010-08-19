@@ -21,6 +21,7 @@ public class ChromColumn2ID {
     public static void main(String args[]) throws Exception {
         Genome genome = Args.parseGenome(args).cdr();
         Collection<String> fs = Args.parseStrings(args,"column");
+        boolean reverse = Args.parseFlags(args).contains("reverse");
         int fields[] = new int[fs.size()];
         int i = 0;
         for (String fieldstring : fs) {
@@ -33,7 +34,11 @@ public class ChromColumn2ID {
             String pieces[] = line.split("\\t");
             for (i = 0; i < fields.length; i++) {
                 int field = fields[i];
-                pieces[field] = Integer.toString(genome.getChromID(pieces[field].replaceAll("^chr","")));
+                if (reverse) {
+                    pieces[field] = genome.getChromName(Integer.parseInt(pieces[field]));
+                } else {
+                    pieces[field] = Integer.toString(genome.getChromID(pieces[field].replaceAll("^chr","")));
+                }
             }
             out.delete(0,out.length());
             out.append(pieces[0]);
