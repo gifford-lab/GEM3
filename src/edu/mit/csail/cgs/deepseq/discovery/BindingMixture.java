@@ -3399,7 +3399,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		Color[] colors = {Color.black, Color.red, Color.blue, Color.green, Color.cyan, Color.orange};
 		String filename = outName.substring(0, outName.length()-2) + "_All_Read_Distributions.png";
 		File f = new File(filename);
-		int w = 800;
+		int w = 1000;
 		int h = 600;
 		int margin= 50;
 	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
@@ -3411,6 +3411,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    g2.setColor(Color.gray);
 	    g2.drawLine(20, h-margin, w-20, h-margin);		// x-axis
 	    g2.drawLine(w/2, margin, w/2, h-margin);	// y-axis    
+	    g.setFont(new Font("Arial",Font.PLAIN,16));
+	    for (int p=-2;p<=2;p++){
+	    	g2.drawLine(w/2+p*200, h-margin-10, w/2+p*200, h-margin);	// tick  
+	    	g2.drawString(""+p*200, w/2+p*200-5, h-margin+22);			// tick label
+	    }
 	    
 	    double maxProb = 0;	    
 	    ArrayList<String> rounds = new ArrayList<String>();
