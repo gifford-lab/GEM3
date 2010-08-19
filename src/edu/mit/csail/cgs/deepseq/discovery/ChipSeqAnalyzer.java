@@ -224,9 +224,11 @@ public class ChipSeqAnalyzer{
 	}
 	
 	public static void main(String[] args){
+		long tic = System.currentTimeMillis();
 		ChipSeqAnalyzer analyzer = new ChipSeqAnalyzer(args);
 		analyzer.runMixtureModel();
 		analyzer.close();
+		 System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic));
 	}
 
 	/**
