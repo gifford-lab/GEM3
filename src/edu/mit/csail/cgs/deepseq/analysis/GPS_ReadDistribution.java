@@ -43,12 +43,12 @@ public class GPS_ReadDistribution {
 	
 	private String name = null;
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
 		analysis.printEmpiricalDistribution(analysis.points);;
 	}
 	
-	public GPS_ReadDistribution(String[] args) {
+	public GPS_ReadDistribution(String[] args) throws IOException {
 		ArgParser ap = new ArgParser(args);
 		
 		try {

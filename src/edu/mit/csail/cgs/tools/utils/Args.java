@@ -2,6 +2,7 @@ package edu.mit.csail.cgs.tools.utils;
 
 import java.util.*;
 import java.io.*;
+import java.sql.SQLException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.ewok.verbs.MotifScanResultsGenerator;
@@ -13,6 +14,7 @@ import edu.mit.csail.cgs.datasets.general.*;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.chipchip.*;
 import edu.mit.csail.cgs.datasets.chipseq.*;
+import edu.mit.csail.cgs.utils.database.DatabaseException;
 
 /**
  * <code>Args</code> is a utility class for parsing command line arguments.  It can parse 
@@ -357,6 +359,45 @@ public class Args {
             }
         }
         return output;
+    }
+
+    public static ChipSeqAnalysis parseChipSeqAnalysis(String args[], String argname) {
+        String base = parseString(args,argname,null);
+        String aname = parseString(args,"analysisname",null);
+        String aversion = parseString(args,"analysisversion",null);
+        String pieces[] = base == null ? null : base.split(";");
+        if (pieces != null && pieces.length != 2 ) {
+            throw new RuntimeException("Invalid string for ChipSeqAnalysis " + base);
+        }
+        ChipSeqAnalysis a = null;
+        ChipSeqLoader loader = null;
+        try {
+            loader = new ChipSeqLoader(false);
+            if (pieces != null) {
+                try {
+                    a = ChipSeqAnalysis.get(loader,pieces[0],pieces[1]);
+                } catch (NotFoundException e) {}
+            }
+            if (a == null && aname != null && aversion != null) {
+                try {
+                    a = ChipSeqAnalysis.get(loader,aname,aversion);
+                } catch (NotFoundException e) {}
+            }
+            if (a == null) {
+                throw new RuntimeException("Couldn't parse or find a ChipSeqAnalysis from " + base + " or " + aname +","+aversion);
+            }            
+        } catch (SQLException e) {
+            throw new DatabaseException(e.toString(),e);
+        } catch (Exception e) {
+            throw new RuntimeException(e.toString(),e);
+        } finally {
+            if (loader != null) {
+                loader.close();        
+            }
+            loader = null;
+        }
+
+        return a;
     }
 
     /**

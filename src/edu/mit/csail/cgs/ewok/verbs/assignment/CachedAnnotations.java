@@ -106,7 +106,7 @@ public class CachedAnnotations<Item,Annotation> implements Annotations<Item, Ann
                 Annotation evt = evts.next();
                 eventVector.add(evt);
             }
-            
+
             targetAnnotations.put(key, eventVector);
             nonZeroCount += (eventVector.isEmpty() ? 0 : 1);
             markProgress();

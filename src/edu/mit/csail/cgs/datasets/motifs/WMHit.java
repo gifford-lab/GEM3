@@ -1,6 +1,6 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
-public class WMHit {
+public class WMHit implements Comparable<WMHit> {
     public int scanid, chromid, start, end;
     public String strand;
     public float score;
@@ -22,4 +22,7 @@ public class WMHit {
     public int getChromID() {return chromid;}
     public String getStrand() {return strand;}
     public float getScore() {return score;}
+    public int compareTo(WMHit other) {
+        return Float.compare(score,other.score);
+    }
 }

@@ -47,12 +47,12 @@ public class JointEventAnalysis {
   /**
    * @param args
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
 	  JointEventAnalysis analysis = new JointEventAnalysis(args);
 	  analysis.jointEvents(JOINT_DISTANCE);
   }
   
-  public JointEventAnalysis(String[] args) {
+  public JointEventAnalysis(String[] args) throws IOException {
     this.args = args;
     ArgParser ap = new ArgParser(args);
     
