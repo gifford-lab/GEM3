@@ -56,13 +56,17 @@ public class GPSOutputAnalysis {
   public static void main(String[] args) throws IOException {
     
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(args);
-//    analysis.buildEmpiricalDistribution();
-    analysis.jointBindingMotifAnalysis(true);
-//    analysis.geneAnnotation();
+	int type = Args.parseInteger(args, "type", 0);
     int win = Args.parseInteger(args, "win", 50);
     int top = Args.parseInteger(args, "top", 100);
-//    analysis.printSequences(win, top);
-//    analysis.expressionIntegration();
+	switch(type){
+	case 0: analysis.jointBindingMotifAnalysis(true);break;
+	case 1: analysis.printSequences(win, top);break;
+	case 2:	analysis.geneAnnotation();break;
+	case 3:	analysis.expressionIntegration();break;
+	case 4: analysis.buildEmpiricalDistribution();break;
+	default: System.err.println("Unrecognize analysis type: "+type);
+	}
   }
   
   public GPSOutputAnalysis(String[] args) throws IOException {
@@ -86,9 +90,12 @@ public class GPSOutputAnalysis {
       e.printStackTrace();
     }
 	// load motif
-	Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-	motif = wm.car();
-	motifThreshold = wm.cdr();
+    String motifString = Args.parseString(args, "motif", null);
+    if (motifString!=null){
+		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+		motif = wm.car();
+		motifThreshold = wm.cdr();
+    }
     
     // load GPS results
     GPSfileName = Args.parseString(args, "GPS", null);

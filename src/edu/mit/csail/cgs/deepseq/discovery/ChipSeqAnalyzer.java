@@ -216,6 +216,7 @@ public class ChipSeqAnalyzer{
 		mixture.printFeatures();
 		mixture.printInsignificantFeatures();
 		mixture.printFilteredFeatures();
+		mixture.plotAllReadDistributions();
 		mixture.closeLogFile();
 		//		mixture.printPeakSequences();
 //		mixture.writeDebugFile();
