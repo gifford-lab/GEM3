@@ -3397,7 +3397,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	public void plotAllReadDistributions(){
 		Color[] colors = {Color.black, Color.red, Color.blue, Color.green, Color.cyan, Color.orange};
-		String filename = outName.substring(0, outName.length()-3) + "_All_Read_Distributions.png";
+		String filename = outName.substring(0, outName.length()-2) + "_All_Read_Distributions.png";
 		File f = new File(filename);
 		int w = 800;
 		int h = 600;
