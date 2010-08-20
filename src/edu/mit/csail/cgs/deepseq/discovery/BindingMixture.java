@@ -4438,7 +4438,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// BIC=LL-#param/2*ln(n)
 		// # param: Each component has 2 parameters, mixing prob and position, thus "*2";
 		// "-1" comes from the fact that total mix prob sum to 1.
-		// for multi-condition, # of beta variables is (numCondiction-1)*numComponents
+		// for multi-condition, # of beta variables is (numConditions-1)*numComponents
 		// n: is the number of data point, i.e. the count of reads summing over all base positions.
 		// n: is the number of data point, i.e. the base positions.
 		double BIC(double n){

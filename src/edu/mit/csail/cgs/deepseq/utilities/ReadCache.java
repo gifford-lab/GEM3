@@ -166,17 +166,17 @@ public class ReadCache {
 	
 	/**
 	 * 	Add hits to data structure
-	 * 	It is called for ReadDB loader, store data loaded from DB
+	 * 	It is called for ReadDB loader, store data loaded from ReadDB
 	 * 	It is called multiple times to retrieve all the data, then populateArrays() is called 
 	 */
-	public void addHits(String chrom, char strand, Collection<Integer> starts, Collection<Float> counts){
+	public void addHits(String chrom, char strand, Collection<Integer> coords, Collection<Float> counts){
 		int chrID   = chrom2ID.get(chrom);
 		int strandInd = strand == '+' ? 0 : 1;
-		fivePrimesList[chrID][strandInd].addAll(starts);
+		fivePrimesList[chrID][strandInd].addAll(coords);
 		hitCountsList[chrID][strandInd].addAll(counts);
 		for (float c: counts)
 			totalHits += c;
-		totalBases += starts.size();
+		totalBases += coords.size();
 	}//end of addHits method	
 	
 	/**

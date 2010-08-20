@@ -99,11 +99,7 @@ public class ChipSeqAnalyzer{
         // each tag represents a condition
         for(String tag : exptTags){
         	String name="";
-        	if(tag.startsWith("--db")){
-        		name = tag.replaceFirst("--dbexpt", ""); 
-        		conditionNames.add(name);
-        	}
-        	else if(tag.startsWith("--rdb")){
+        	if(tag.startsWith("--rdb")){
         		name = tag.replaceFirst("--rdbexpt", ""); 
         		conditionNames.add(name);
         	}else{
@@ -114,8 +110,6 @@ public class ChipSeqAnalyzer{
         	if(name.length()>0)
         		System.out.println("    loading condition: "+name);
         	
-        	List<ChipSeqLocator> dbexpts = Args.parseChipSeq(args,"dbexpt"+name);
-        	List<ChipSeqLocator> dbctrls = Args.parseChipSeq(args,"dbctrl"+name);
         	List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdbexpt"+name);
         	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
         	List<File> expts = Args.parseFileHandles(args, "expt"+name);
@@ -123,7 +117,7 @@ public class ChipSeqAnalyzer{
         	boolean nonUnique = ap.hasKey("nonunique") ? true : false;
         	String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
 
-        	if(expts.size()>0 && dbexpts.size() == 0 && rdbexpts.size()==0){
+        	if(expts.size()>0 && rdbexpts.size()==0){
         		readLength = -1;	// For file, read length will be obtained from the data
 	        	DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
 	        	DeepSeqExpt c = new DeepSeqExpt(genome, ctrls, nonUnique, fileFormat, readLength);
@@ -136,30 +130,12 @@ public class ChipSeqAnalyzer{
 	        	exptHitCount+=e.getHitCount();
 	        	ctrlHitCount+=c.getHitCount();
 	        }
-        	else if(dbexpts.size()>0 && expts.size() == 0){
-        		if(genome==null){
-        			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); 
-        			System.exit(1);
-        		}
-	    		readLength = Args.parseInteger(args,"readlen",readLength);
-				if (readLength==-1){
-		        	System.err.println("Read length is required to use Gifford lab DB");
-		        	printError();
-		        	System.exit(1);
-				}
-	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, dbexpts, "db", readLength),new DeepSeqExpt(genome, dbctrls, "db", readLength)));
-	        }
 	        else if(rdbexpts.size()>0 && expts.size() == 0){
 	        	if(genome==null){
         			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); 
         			System.exit(1);
         		}
-	    		readLength = Args.parseInteger(args,"readlen",readLength);
-				if (readLength==-1){
-		        	System.err.println("Read length is required to use Gifford lab read DB");
-		        	printError();
-		        	System.exit(1);
-				}
+	    		readLength = -1;
 	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, rdbexpts, "readdb", readLength),new DeepSeqExpt(genome, rdbctrls, "readdb", readLength)));
 	        }
 	        else{

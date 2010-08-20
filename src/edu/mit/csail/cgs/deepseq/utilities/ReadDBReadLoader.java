@@ -193,7 +193,9 @@ public class ReadDBReadLoader extends ReadLoader{
 		return total;
 	}
 	
-    // load paired read hit coordinates (sorted) and counts
+    /* load paired read hit 5' coordinates (sorted) and counts
+     * 
+     */
     public Pair<ArrayList<Integer>,ArrayList<Float>> loadStrandedBaseCounts(Region r, char strand){
         Collection<String> alignids = new ArrayList<String>();
         for(ChipSeqAlignment alignment : aligns) {
