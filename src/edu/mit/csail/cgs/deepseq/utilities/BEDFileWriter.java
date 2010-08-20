@@ -21,7 +21,7 @@ public class BEDFileWriter{
 	private final static int MAXREAD = 1000000;
 	private ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> experiments = new ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>>();
 	private Genome gen;
-	private int readLength=36;
+	private int readLength=-1;
 	private double fraction = 1;
 	private ArrayList<String> conditionNames = new ArrayList<String>();
 	

@@ -238,8 +238,6 @@ public class ReadDBReadLoader extends ReadLoader{
 		String head="chr"+r.getChrom()+"\t";
 		String tail="\tU\t0\t"+strand;
 		StringBuilder sb = new StringBuilder();
-		int start = 0;
-		int end = 0;
 		try {
 			for(ChipSeqAlignment alignment : aligns) {
                 for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
@@ -248,7 +246,15 @@ public class ReadDBReadLoader extends ReadLoader{
                                                         r.getEnd(),
                                                         null,
                                                         strand == '+')) {
-                    sb.append(head).append(h.pos).append("\t").append(strand == '+' ? (h.pos+h.length) : (h.pos - h.length)).append(tail).append("\n");                    
+                	
+                	if (random.nextDouble()>=probability)
+                		continue;
+                	//BED format is half open - The chromEnd base is not included in the display of the feature. 
+                	// For example, the first 100 bases of a chromosome are defined as chromStart=0, chromEnd=100, and span the bases numbered 0-99.
+                	if (strand == '+')
+                		sb.append(head).append(h.pos).append("\t").append(h.pos+h.length).append(tail).append("\n");  
+                	else
+                		sb.append(head).append(h.pos-h.length+1).append("\t").append(h.pos+1).append(tail).append("\n");  
                 }
 			}
 		} catch (IOException e) {
