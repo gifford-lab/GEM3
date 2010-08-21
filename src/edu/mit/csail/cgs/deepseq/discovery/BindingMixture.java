@@ -13,13 +13,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -68,8 +65,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	//Maximum region (in bp) considered for running EM
 	protected final int MAX_REGION_LEN=200000;
-	//IP/Control Fold change threshold
-	protected final int IP_CTRL_FOLD = 2;
 	//Maximum number of components that EM can handle efficiently
 	protected final int MAX_NUM_COMPONENTS=1000;
 	protected final int OPTIMAL_NUM_COMPONENTS=100;
@@ -122,7 +117,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private int min_region_width = 50;	//minimum width for select enriched region
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
-    private double fold = 0;
+    private double fold = 3.0;
     private double shapeDeviation = 0;
     private boolean use_KL_filtering = true;	// use KL to filter events
     private int first_lambda_region_width  =  1000;
@@ -2231,21 +2226,49 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 				Collections.sort(allBases);
 				int start=0;
-				for (int i=1;i<allBases.size();i++){
-					int distance = allBases.get(i).getCoordinate()-allBases.get(i-1).getCoordinate();
-					if (distance > modelWidth){ // a large enough gap to cut
+				for (int i=2;i<allBases.size();i++){
+					int distance = allBases.get(i).getCoordinate()-allBases.get(i-2).getCoordinate();
+					if (distance > modelWidth){ // a large enough gap (with 1 base in middle) to cut
 						// only select region with read count larger than minimum count
+						int breakPoint = -1;
+						if (allBases.get(i-1).getStrand()=='+')
+							breakPoint = i-2;
+						else
+							breakPoint = i-1;
 						float count = 0;
-						for(int m=start;m<=i-1;m++){
+						for(int m=start;m<=breakPoint;m++){
 							count += allBases.get(m).getCount();
 						}
 						if (count >= sparseness){
-							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(i-1).getCoordinate());
+							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(breakPoint).getCoordinate());
+							// if the average read count per modelWidth is less than sparseness/2, find sparse point to further split
+//							if (development_mode & count/r.getWidth()*modelWidth <= sparseness/2){
+//								System.err.println(String.format("%s:\t%d\t%.1f", r.toString(), r.getWidth(), count));
+//							}
 							rs.add(r);
 						}
-						start = i;
+						start = breakPoint+1;
 					}
 				}
+//				for (int i=1;i<allBases.size();i++){
+//					int distance = allBases.get(i).getCoordinate()-allBases.get(i-1).getCoordinate();
+//					if (distance > modelWidth){ // a large enough gap to cut
+//						// only select region with read count larger than minimum count
+//						float count = 0;
+//						for(int m=start;m<=i-1;m++){
+//							count += allBases.get(m).getCount();
+//						}
+//						if (count >= sparseness){
+//							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(i-1).getCoordinate());
+//							// if the average read count per modelWidth is less than sparseness/2, find sparse point to further split
+//							if (count/r.getWidth()*modelWidth <= sparseness/2){
+//								System.err.println(String.format("%s:\t%d\t%.1f", r.toString(), r.getWidth(), count));
+//							}
+//							rs.add(r);
+//						}
+//						start = i;
+//					}
+//				}
 				// check last continuous region
 				float count = 0;
 				for(int m=start;m<allBases.size();m++){
@@ -2262,12 +2285,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					if (r.getWidth()<=min_region_width){
 						toRemove.add(r);
 					}
-					// for regions <= 500bp, most likely single event, can be compared to control
+					// for regions <= modelWidth, most likely single event, can be compared to control
 					if (this.controlDataExist)
 						if (r.getWidth()<=modelWidth){
 							boolean enriched = false;
 							for (int c=0;c<numConditions;c++){
-								if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>IP_CTRL_FOLD){
+								if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>fold){
 									enriched = true;
 									break;
 								}
