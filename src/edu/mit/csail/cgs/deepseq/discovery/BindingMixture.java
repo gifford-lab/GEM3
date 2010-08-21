@@ -3046,6 +3046,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		int C = caches.size();   // # conds
 		if(C <= 1) return;
 		
+		System.out.println("\nNormalizing read counts across multiple conditions ...");
+		
 		// Get the total read counts in IP and Control
 		double totIPCounts   = 0.0;
 		double totCtrlCounts = 0.0;
