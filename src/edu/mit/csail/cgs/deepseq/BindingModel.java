@@ -384,8 +384,8 @@ public class BindingModel {
 				break;
 			}
 		}
-		int left=summit-(summit-leftHalfHeightEnd)*4;
-		int right=summit+(rightHalfHeightEnd-summit)*3;
+		int left=Math.abs(summit-(summit-leftHalfHeightEnd)*4);
+		int right=Math.abs(summit+(rightHalfHeightEnd-summit)*3);
 
 		return new Pair<Integer, Integer>(left, right);
 	}
