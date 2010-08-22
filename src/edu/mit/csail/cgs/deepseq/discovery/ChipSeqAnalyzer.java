@@ -176,10 +176,13 @@ public class ChipSeqAnalyzer{
 			round++;
 			mixture.setOutName(peakFileName+"_"+round);
 			kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-			int newMax = mixture.getModel().findNewMax();
-			if (newMax!=mixture.getModel().getMax() && round==1){
-				kl = mixture.updateBindingModel(mixture.getModel().getWidth()-1-newMax, newMax);
-			}
+			Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds();
+			kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
+
+//			int newMax = mixture.getModel().findNewMax();
+//			if (newMax!=mixture.getModel().getMax() && round==1){
+//				kl = mixture.updateBindingModel(mixture.getModel().getWidth()-1-newMax, newMax);
+//			}
 		}
 		round--;
 		mixture.setOutName(peakFileName+"_"+round);
