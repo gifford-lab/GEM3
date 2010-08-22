@@ -177,7 +177,8 @@ public class ChipSeqAnalyzer{
 			mixture.setOutName(peakFileName+"_"+round);
 			kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
 			Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds();
-			kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
+			if (round==1)
+				kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
 
 //			int newMax = mixture.getModel().findNewMax();
 //			if (newMax!=mixture.getModel().getMax() && round==1){
