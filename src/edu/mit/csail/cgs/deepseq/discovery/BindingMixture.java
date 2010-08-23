@@ -3325,7 +3325,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		for (int i=0; i<signalFeatures.size();i++){
 			ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
 			strengths[i] = cf.getTotalSumResponsibility();
-			shapes[i] = cf.getAverageLogKL();
+			shapes[i] = cf.getAvgShapeDeviation();
 		}
 		Arrays.sort(strengths);
 		Arrays.sort(shapes);
@@ -3344,7 +3344,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				// the events that are used to refine read distribution should be
 				// having strength and shape at the upper half ranking
 				if ((use_joint_event || !cf.isJointEvent())
-						&& cf.getAverageLogKL()<=shapeThreshold
+						&& cf.getAvgShapeDeviation()<=shapeThreshold
 						&& cf.getTotalSumResponsibility()>=strengthThreshold){
 					if (cf.getQValueLog10(c)>q_value_threshold){
 						Region region = cf.getPosition().expand(0).expand(left, right);
