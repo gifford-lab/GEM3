@@ -21,7 +21,6 @@ public class BEDFileWriter{
 	private final static int MAXREAD = 1000000;
 	private ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> experiments = new ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>>();
 	private Genome gen;
-	private int readLength=36;
 	private double fraction = 1;
 	private ArrayList<String> conditionNames = new ArrayList<String>();
 	
@@ -43,7 +42,6 @@ public class BEDFileWriter{
 		} catch (NotFoundException e) {
 			e.printStackTrace();
 		}
-		readLength = Args.parseInteger(args,"readlen",readLength);
 		fraction = Args.parseDouble(args,"fraction",fraction);
 
         //Experiments : Load each condition expt:ctrl Pair
@@ -67,7 +65,7 @@ public class BEDFileWriter{
         	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
         	
         	if(rdbexpts.size()>0){
-	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(gen, rdbexpts, "readdb", readLength),new DeepSeqExpt(gen, rdbctrls, "readdb", readLength)));
+	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(gen, rdbexpts, "readdb", -1),new DeepSeqExpt(gen, rdbctrls, "readdb", -1)));
 	        }else{
 	        	System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
 	        	printError();

@@ -576,7 +576,7 @@ public class MethodComparisonMotifAnalysis {
 				+windowSize+".txt", sb2.toString());
 	}
 	
-	private void printOverlapTable() throws IOException {
+	private void printOverlapTable() throws IOException{
 		long tic = System.currentTimeMillis();
 		readPeakLists();
 		

@@ -367,6 +367,28 @@ public class BindingModel {
 		}
 		return max;
 	}
+
+	public Pair<Integer, Integer> getNewEnds(){
+		double halfHeight = probability(summit)*0.5;
+		int leftHalfHeightEnd = 0;
+		int rightHalfHeightEnd = 0;
+		for (int i=min; i<=max; i++){
+			if (probability(i)>=halfHeight){
+				leftHalfHeightEnd = i;
+				break;
+			}
+		}
+		for (int i=max; i<=min; i--){
+			if (probability(i)>=halfHeight){
+				rightHalfHeightEnd = i;
+				break;
+			}
+		}
+		int left=Math.max(300, Math.abs(summit-(summit-leftHalfHeightEnd)*4));
+		int right=Math.max(150,Math.abs(summit+(rightHalfHeightEnd-summit)*3));
+
+		return new Pair<Integer, Integer>(left, right);
+	}
 	
 	// shift two array elements to give best KL-divergence
 	// it will mutate the two input arrays.

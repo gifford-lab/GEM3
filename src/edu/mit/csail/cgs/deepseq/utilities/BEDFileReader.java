@@ -95,12 +95,15 @@ public class BEDFileReader extends AlignmentFileReader {
 	            			String[] tmp = chr.split("\\.");
 	            			chr=tmp[0].replaceFirst("chr", "");
 	            			chr=chr.replaceFirst("^>", "");
+	// http://genome.ucsc.edu/FAQ/FAQformat.html#format1
+	//BED format is half open - The chromEnd base is not included  
+	// For example, the first 100 bases of a chromosome are defined as chromStart=0, chromEnd=100, and span the bases numbered 0-99.
 	            			start = new Integer(words[1]).intValue();
 	            			end = new Integer(words[2]).intValue();
 	            			if(readLength==-1)
-	    	    				readLength = end-start+1;
+	    	    				readLength = end-start;
 	            			strand = words[5].charAt(0);
-	    					ReadHit currHit = new ReadHit(gen,currID,chr, start, end, strand);
+	    					ReadHit currHit = new ReadHit(gen,currID,chr, start, end-1, strand);
 	    					currID++;
 	    					//if(!ID.equals(lastID) || currRead==null){
 	    					currRead = new Read((int)totalWeight);

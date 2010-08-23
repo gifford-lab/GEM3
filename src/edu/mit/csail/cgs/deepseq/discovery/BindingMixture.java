@@ -13,13 +13,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -68,8 +65,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	//Maximum region (in bp) considered for running EM
 	protected final int MAX_REGION_LEN=200000;
-	//IP/Control Fold change threshold
-	protected final int IP_CTRL_FOLD = 2;
 	//Maximum number of components that EM can handle efficiently
 	protected final int MAX_NUM_COMPONENTS=1000;
 	protected final int OPTIMAL_NUM_COMPONENTS=100;
@@ -122,7 +117,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private int min_region_width = 50;	//minimum width for select enriched region
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
-    private double fold = 0;
+    private double fold = 3.0;
     private double shapeDeviation = 0;
     private boolean use_KL_filtering = true;	// use KL to filter events
     private int first_lambda_region_width  =  1000;
@@ -132,6 +127,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean use_internal_em_train  = true;
     private boolean use_scanPeak  = true;
     private boolean base_filtering = false;
+    private boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
     private int bmverbose=1;		// BindingMixture verbose mode
 	private int needle_height_factor = 2;	// threshold to call a base as needle, (height/expected height)
 	private double needle_hitCount_fraction = 0.1;	//threshold to call a region as tower, (hit_needles / hit_total)
@@ -300,6 +296,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	use_joint_event = flags.contains("refine_using_joint_event");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	kl_count_adjusted = flags.contains("adjust_kl");
+    	refine_regions = flags.contains("refine_regions");
     	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -653,16 +650,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		
 		// if we have predicted events from previous round, setup the restrictRegions
 		// because when we update the model, the model range might changed.
-		if (allFeatures!=null && (!allFeatures.isEmpty())){
-			Collections.sort(allFeatures);
-			ArrayList<Region> potentialRegions = new ArrayList<Region>();
-			for (ComponentFeature cf:allFeatures){
-				potentialRegions.add(cf.getPosition().expand(0));
+		if (refine_regions){
+			if (allFeatures!=null && (!allFeatures.isEmpty())){
+				Collections.sort(allFeatures);
+				ArrayList<Region> potentialRegions = new ArrayList<Region>();
+				for (ComponentFeature cf:allFeatures){
+					potentialRegions.add(cf.getPosition().expand(0));
+				}
+				// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
+				this.restrictRegions=mergeRegions(potentialRegions, true);
 			}
-			// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
-			this.restrictRegions=mergeRegions(potentialRegions, true);
 		}
-
         signalFeatures.clear();
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
@@ -921,7 +919,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			refinedRegions.add(cf.getPosition().expand(0));
 		}
 		// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
-		this.restrictRegions=mergeRegions(refinedRegions, true);
+		if (refine_regions)
+			this.restrictRegions=mergeRegions(refinedRegions, true);
 
 		if (development_mode){
 			printNoneZeroRegions(false);		// print refined regions
@@ -1961,11 +1960,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// 3. find best solution
 			double totalCount = 0;
 			for(int c=0; c<numConditions; c++){
-				double[]counts_c = counts.get(c);
-				for (double cc:counts_c){
-					totalCount +=cc;
-				}
+				totalCount += counts.get(c).length;
 			}
+//			for(int c=0; c<numConditions; c++){
+//				double[]counts_c = counts.get(c);
+//				for (double cc:counts_c){
+//					totalCount +=cc;
+//				}
+//			}
 			int best = 0;
 			double bestBIC = models.get(0).BIC(totalCount);
 			for (int i=1;i<models.size();i++){
@@ -2228,21 +2230,49 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 				Collections.sort(allBases);
 				int start=0;
-				for (int i=1;i<allBases.size();i++){
-					int distance = allBases.get(i).getCoordinate()-allBases.get(i-1).getCoordinate();
-					if (distance > modelWidth){ // a large enough gap to cut
+				for (int i=2;i<allBases.size();i++){
+					int distance = allBases.get(i).getCoordinate()-allBases.get(i-2).getCoordinate();
+					if (distance > modelWidth){ // a large enough gap (with 1 base in middle) to cut
 						// only select region with read count larger than minimum count
+						int breakPoint = -1;
+						if (allBases.get(i-1).getStrand()=='+')
+							breakPoint = i-2;
+						else
+							breakPoint = i-1;
 						float count = 0;
-						for(int m=start;m<=i-1;m++){
+						for(int m=start;m<=breakPoint;m++){
 							count += allBases.get(m).getCount();
 						}
 						if (count >= sparseness){
-							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(i-1).getCoordinate());
+							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(breakPoint).getCoordinate());
+							// if the average read count per modelWidth is less than sparseness/2, find sparse point to further split
+//							if (development_mode & count/r.getWidth()*modelWidth <= sparseness/2){
+//								System.err.println(String.format("%s:\t%d\t%.1f", r.toString(), r.getWidth(), count));
+//							}
 							rs.add(r);
 						}
-						start = i;
+						start = breakPoint+1;
 					}
 				}
+//				for (int i=1;i<allBases.size();i++){
+//					int distance = allBases.get(i).getCoordinate()-allBases.get(i-1).getCoordinate();
+//					if (distance > modelWidth){ // a large enough gap to cut
+//						// only select region with read count larger than minimum count
+//						float count = 0;
+//						for(int m=start;m<=i-1;m++){
+//							count += allBases.get(m).getCount();
+//						}
+//						if (count >= sparseness){
+//							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(i-1).getCoordinate());
+//							// if the average read count per modelWidth is less than sparseness/2, find sparse point to further split
+//							if (count/r.getWidth()*modelWidth <= sparseness/2){
+//								System.err.println(String.format("%s:\t%d\t%.1f", r.toString(), r.getWidth(), count));
+//							}
+//							rs.add(r);
+//						}
+//						start = i;
+//					}
+//				}
 				// check last continuous region
 				float count = 0;
 				for(int m=start;m<allBases.size();m++){
@@ -2259,12 +2289,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					if (r.getWidth()<=min_region_width){
 						toRemove.add(r);
 					}
-					// for regions <= 500bp, most likely single event, can be compared to control
+					// for regions <= modelWidth, most likely single event, can be compared to control
 					if (this.controlDataExist)
 						if (r.getWidth()<=modelWidth){
 							boolean enriched = false;
 							for (int c=0;c<numConditions;c++){
-								if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>IP_CTRL_FOLD){
+								if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>fold){
 									enriched = true;
 									break;
 								}
@@ -3043,6 +3073,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		int C = caches.size();   // # conds
 		if(C <= 1) return;
 		
+		System.out.println("\nNormalizing read counts across multiple conditions ...");
+		
 		// Get the total read counts in IP and Control
 		double totIPCounts   = 0.0;
 		double totCtrlCounts = 0.0;
@@ -3287,12 +3319,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	public double updateBindingModel(int left, int right){
 		if (signalFeatures.size()==0)
 			return -100;
+		int width = left+right+1;
 		double[] strengths = new double[signalFeatures.size()];
 		double[] shapes = new double[signalFeatures.size()];
 		for (int i=0; i<signalFeatures.size();i++){
 			ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
 			strengths[i] = cf.getTotalSumResponsibility();
-			shapes[i] = cf.getAverageLogKL();
+			shapes[i] = cf.getAvgShapeDeviation();
 		}
 		Arrays.sort(strengths);
 		Arrays.sort(shapes);
@@ -3301,8 +3334,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		int eventCountForModelUpdating=0;
         // data for all conditions
-        double[][] newModel_plus=new double[numConditions][modelWidth];
-        double[][] newModel_minus=new double[numConditions][modelWidth];
+        double[][] newModel_plus=new double[numConditions][width];
+        double[][] newModel_minus=new double[numConditions][width];
 		// sum the read profiles from all qualified binding events for updating model
 		for (int c=0;c<numConditions;c++){
 			ReadCache ip = caches.get(c).car();
@@ -3311,7 +3344,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				// the events that are used to refine read distribution should be
 				// having strength and shape at the upper half ranking
 				if ((use_joint_event || !cf.isJointEvent())
-						&& cf.getAverageLogKL()<=shapeThreshold
+						&& cf.getAvgShapeDeviation()<=shapeThreshold
 						&& cf.getTotalSumResponsibility()>=strengthThreshold){
 					if (cf.getQValueLog10(c)>q_value_threshold){
 						Region region = cf.getPosition().expand(0).expand(left, right);
@@ -3332,14 +3365,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		// we have collected data for both strands, all conditions
 		// but here we only use single model for all conditions
-		double[] model_plus = new double[modelWidth];
-		double[] model_minus = new double[modelWidth];
+		double[] model_plus = new double[width];
+		double[] model_minus = new double[width];
 		if (use_joint_event){
 			model_plus = profile_plus_sum;
 			model_minus = profile_minus_sum;
 		}
 		else{
-			for (int i=0;i<modelWidth;i++){
+			for (int i=0;i<width;i++){
 				for (int c=0; c<numConditions; c++){
 					model_plus[i]+= newModel_plus[c][i];
 					model_minus[i]+= newModel_minus[c][i];
@@ -3360,7 +3393,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		//use single model for now
 		List<Pair<Integer, Double>> dist = new ArrayList<Pair<Integer, Double>>();
-		for (int i=0;i<modelWidth;i++){
+		for (int i=0;i<width;i++){
 			double sum = model_plus[i]+model_minus[i];
 			sum = sum>=0?sum:2.0E-300;
 			Pair<Integer, Double> p = new Pair<Integer, Double>(i-left, sum);
@@ -3372,19 +3405,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		model = new BindingModel(dist);
 		model.setFileName(oldName);
 		model.smooth(BindingModel.SMOOTHING_STEPSIZE);
-		if (development_mode)
-			model.printToFile(outName+"_-"+left+"_"+right+"_Read_distribution.txt");
-		else
-			model.printToFile(outName+"_Read_distribution.txt");
+		model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
 		allModels.put(outName, model);
 
-		double logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
-		String details = "(Strength>"+String.format("%.1f", strengthThreshold) +
-			", Shape<"+String.format("%.2f", shapeThreshold) +
-			"). \nlogKL=" + String.format("%.2f",logKL) +
-			", +/- strand shift "+shift+" bp.\n";
+		double logKL = 0;
+		if (oldModel.length==modelWidth)
+			logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
+		String details = String.format("([-%d, %d] Strength>%.1f, Shape<%.2f). \nlogKL=%.2f, +/- strand shift %d bp.\n", 
+				left, right, strengthThreshold, shapeThreshold, logKL, shift);
 		log(1, "Refine read distribution from " + eventCountForModelUpdating +" binding events. "+
 				(development_mode?details:"\n"));
 
@@ -3397,9 +3427,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	public void plotAllReadDistributions(){
 		Color[] colors = {Color.black, Color.red, Color.blue, Color.green, Color.cyan, Color.orange};
-		String filename = outName.substring(0, outName.length()-3) + "_All_Read_Distributions.png";
+		String filename = outName.substring(0, outName.length()-2) + "_All_Read_Distributions.png";
 		File f = new File(filename);
-		int w = 800;
+		int w = 1000;
 		int h = 600;
 		int margin= 50;
 	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
@@ -3411,6 +3441,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    g2.setColor(Color.gray);
 	    g2.drawLine(20, h-margin, w-20, h-margin);		// x-axis
 	    g2.drawLine(w/2, margin, w/2, h-margin);	// y-axis    
+	    g.setFont(new Font("Arial",Font.PLAIN,16));
+	    for (int p=-2;p<=2;p++){
+	    	g2.drawLine(w/2+p*200, h-margin-10, w/2+p*200, h-margin);	// tick  
+	    	g2.drawString(""+p*200, w/2+p*200-5, h-margin+22);			// tick label
+	    }
 	    
 	    double maxProb = 0;	    
 	    ArrayList<String> rounds = new ArrayList<String>();
@@ -4430,9 +4465,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// BIC=LL-#param/2*ln(n)
 		// # param: Each component has 2 parameters, mixing prob and position, thus "*2";
 		// "-1" comes from the fact that total mix prob sum to 1.
+		// for multi-condition, # of beta variables is (numConditions-1)*numComponents
 		// n: is the number of data point, i.e. the count of reads summing over all base positions.
+		// n: is the number of data point, i.e. the base positions.
 		double BIC(double n){
-			return LL - (numComponent*2-1)/2*Math.log(n);
+			return LL - (numComponent*2-1 + (numConditions-1)*numComponent )/2*Math.log(n);
 		}
 		public String toString(){
 			return String.format("%.3f\t%.0f", LL, numComponent);
