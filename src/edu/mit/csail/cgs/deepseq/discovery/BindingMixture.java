@@ -127,7 +127,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean use_internal_em_train  = true;
     private boolean use_scanPeak  = true;
     private boolean base_filtering = false;
-    private boolean refineRegion = false;		// refine the enrichedRegions for next round using EM results
+    private boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
     private int bmverbose=1;		// BindingMixture verbose mode
 	private int needle_height_factor = 2;	// threshold to call a base as needle, (height/expected height)
 	private double needle_hitCount_fraction = 0.1;	//threshold to call a region as tower, (hit_needles / hit_total)
@@ -296,7 +296,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	use_joint_event = flags.contains("refine_using_joint_event");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	kl_count_adjusted = flags.contains("adjust_kl");
-    	refineRegion = flags.contains("refine_regions");
+    	refine_regions = flags.contains("refine_regions");
     	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -650,16 +650,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		
 		// if we have predicted events from previous round, setup the restrictRegions
 		// because when we update the model, the model range might changed.
-		if (allFeatures!=null && (!allFeatures.isEmpty())){
-			Collections.sort(allFeatures);
-			ArrayList<Region> potentialRegions = new ArrayList<Region>();
-			for (ComponentFeature cf:allFeatures){
-				potentialRegions.add(cf.getPosition().expand(0));
+		if (refine_regions){
+			if (allFeatures!=null && (!allFeatures.isEmpty())){
+				Collections.sort(allFeatures);
+				ArrayList<Region> potentialRegions = new ArrayList<Region>();
+				for (ComponentFeature cf:allFeatures){
+					potentialRegions.add(cf.getPosition().expand(0));
+				}
+				// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
+				this.restrictRegions=mergeRegions(potentialRegions, true);
 			}
-			// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
-			this.restrictRegions=mergeRegions(potentialRegions, true);
 		}
-
         signalFeatures.clear();
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
@@ -918,7 +919,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			refinedRegions.add(cf.getPosition().expand(0));
 		}
 		// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
-		if (refineRegion)
+		if (refine_regions)
 			this.restrictRegions=mergeRegions(refinedRegions, true);
 
 		if (development_mode){
