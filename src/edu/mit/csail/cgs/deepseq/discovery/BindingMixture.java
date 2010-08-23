@@ -3319,6 +3319,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	public double updateBindingModel(int left, int right){
 		if (signalFeatures.size()==0)
 			return -100;
+		int width = left+right+1;
 		double[] strengths = new double[signalFeatures.size()];
 		double[] shapes = new double[signalFeatures.size()];
 		for (int i=0; i<signalFeatures.size();i++){
@@ -3333,8 +3334,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		int eventCountForModelUpdating=0;
         // data for all conditions
-        double[][] newModel_plus=new double[numConditions][modelWidth];
-        double[][] newModel_minus=new double[numConditions][modelWidth];
+        double[][] newModel_plus=new double[numConditions][width];
+        double[][] newModel_minus=new double[numConditions][width];
 		// sum the read profiles from all qualified binding events for updating model
 		for (int c=0;c<numConditions;c++){
 			ReadCache ip = caches.get(c).car();
@@ -3364,14 +3365,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		// we have collected data for both strands, all conditions
 		// but here we only use single model for all conditions
-		double[] model_plus = new double[modelWidth];
-		double[] model_minus = new double[modelWidth];
+		double[] model_plus = new double[width];
+		double[] model_minus = new double[width];
 		if (use_joint_event){
 			model_plus = profile_plus_sum;
 			model_minus = profile_minus_sum;
 		}
 		else{
-			for (int i=0;i<modelWidth;i++){
+			for (int i=0;i<width;i++){
 				for (int c=0; c<numConditions; c++){
 					model_plus[i]+= newModel_plus[c][i];
 					model_minus[i]+= newModel_minus[c][i];
@@ -3392,7 +3393,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		//use single model for now
 		List<Pair<Integer, Double>> dist = new ArrayList<Pair<Integer, Double>>();
-		for (int i=0;i<modelWidth;i++){
+		for (int i=0;i<width;i++){
 			double sum = model_plus[i]+model_minus[i];
 			sum = sum>=0?sum:2.0E-300;
 			Pair<Integer, Double> p = new Pair<Integer, Double>(i-left, sum);
@@ -3409,7 +3410,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		modelWidth = model.getWidth();
 		allModels.put(outName, model);
 
-		double logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
+		double logKL = 0;
+		if (oldModel.length==modelWidth)
+			logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
 		String details = String.format("([-%d, %d] Strength>%.1f, Shape<%.2f). \nlogKL=%.2f, +/- strand shift %d bp.\n", 
 				left, right, strengthThreshold, shapeThreshold, logKL, shift);
 		log(1, "Refine read distribution from " + eventCountForModelUpdating +" binding events. "+
