@@ -127,6 +127,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean use_internal_em_train  = true;
     private boolean use_scanPeak  = true;
     private boolean base_filtering = false;
+    private boolean refineRegion = false;		// refine the enrichedRegions for next round using EM results
     private int bmverbose=1;		// BindingMixture verbose mode
 	private int needle_height_factor = 2;	// threshold to call a base as needle, (height/expected height)
 	private double needle_hitCount_fraction = 0.1;	//threshold to call a region as tower, (hit_needles / hit_total)
@@ -295,6 +296,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	use_joint_event = flags.contains("refine_using_joint_event");
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	kl_count_adjusted = flags.contains("adjust_kl");
+    	refineRegion = flags.contains("refine_regions");
     	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -916,7 +918,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			refinedRegions.add(cf.getPosition().expand(0));
 		}
 		// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
-		this.restrictRegions=mergeRegions(refinedRegions, true);
+		if (refineRegion)
+			this.restrictRegions=mergeRegions(refinedRegions, true);
 
 		if (development_mode){
 			printNoneZeroRegions(false);		// print refined regions
@@ -3400,19 +3403,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		model = new BindingModel(dist);
 		model.setFileName(oldName);
 		model.smooth(BindingModel.SMOOTHING_STEPSIZE);
-		if (development_mode)
-			model.printToFile(outName+"_-"+left+"_"+right+"_Read_distribution.txt");
-		else
-			model.printToFile(outName+"_Read_distribution.txt");
+		model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
 		allModels.put(outName, model);
 
 		double logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
-		String details = "(Strength>"+String.format("%.1f", strengthThreshold) +
-			", Shape<"+String.format("%.2f", shapeThreshold) +
-			"). \nlogKL=" + String.format("%.2f",logKL) +
-			", +/- strand shift "+shift+" bp.\n";
+		String details = String.format("([-%d, %d] Strength>%.1f, Shape<%.2f). \nlogKL=%.2f, +/- strand shift %d bp.\n", 
+				left, right, strengthThreshold, shapeThreshold, logKL, shift);
 		log(1, "Refine read distribution from " + eventCountForModelUpdating +" binding events. "+
 				(development_mode?details:"\n"));
 
