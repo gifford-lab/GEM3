@@ -166,7 +166,7 @@ public class ChipSeqAnalyzer{
 		
 //		mixture.countNonSpecificReads();
 		int update_model_round = Args.parseInteger(args,"r", 3);
-		while (kl>-6 && round<=update_model_round){
+		while (kl>-5 && round<=update_model_round){
 			System.out.println("\n============================ Round "+round+" ============================");
 			mixture.execute();
 			mixture.printFeatures();
