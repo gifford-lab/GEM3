@@ -64,7 +64,7 @@ public class ReadCache {
 	private ArrayList<Integer>[][] fivePrimesList = null;
 	
 	/**
-	 * Number of hits that corresponds to the start position
+	 * Number of read hits that corresponds to the 5' position
 	 * First dimension represents the corresponding chromosome ID. <br>
 	 * Second dimension represents the strand. 0 for '+', 1 for '-' <br>
 	 * Third dimension contains the number of hits at corresponding start position 
@@ -184,7 +184,7 @@ public class ReadCache {
 	 * It is called once for file reader that has loaded data into memory
 	 * assuming the data structure of starts is same as file reader 
 	 */
-	public void addAllFivePrimes(ArrayList<int[][][]> allStarts, int readLength){
+	public void addAllFivePrimes(ArrayList<int[][][]> allStarts){
 		for(int i = 0; i < fivePrimesList.length; i++){			// chrom
 			for(int j = 0; j < fivePrimesList[i].length; j++){	// strand
 				int[][][] tmp = allStarts.get(0);
@@ -206,20 +206,14 @@ public class ReadCache {
 						count++;
 					}
 					else{
-						if (j==0)	
-							fivePrimesList[i][j].add(previous);				// + strand, start
-						else
-							fivePrimesList[i][j].add(previous+readLength-1);	// - strand, end
+						fivePrimesList[i][j].add(previous);				// now file reader stores 5' end
 						hitCountsList[i][j].add((float)count);
 						count=1;
 						previous = allPositions[m];
 					}
 				}
 				// add the last element
-				if (j==0)	
-					fivePrimesList[i][j].add(previous);				// + strand, start
-				else
-					fivePrimesList[i][j].add(previous+readLength-1);	// - strand, end
+				fivePrimesList[i][j].add(previous);				// now file reader stores 5' end
 				hitCountsList[i][j].add((float)count);
 
 				// update stats

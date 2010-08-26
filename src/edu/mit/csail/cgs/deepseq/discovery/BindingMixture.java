@@ -515,10 +515,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 			}
 			else if (!fromReadDB){		// load from File
-				ipCache.addAllFivePrimes(ip.getAllStarts(), ip.getReadLen());
+				ipCache.addAllFivePrimes(ip.getAllStarts());
 				ipCache.populateArrays();
 				if (controlDataExist){
-					ctrlCache.addAllFivePrimes(ctrl.getAllStarts(), ctrl.getReadLen());
+					ctrlCache.addAllFivePrimes(ctrl.getAllStarts());
 					ctrlCache.populateArrays();
 				}
 				wholeGenomeDataLoaded = true;
@@ -571,7 +571,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			if (development_mode)
 				printNoneZeroRegions(true);
 			
-			log(1, "\n"+restrictRegions.size()+" regions loaded for analysis.");
+			log(1, "\nThe data are segmented into "+restrictRegions.size()+" regions for analysis.");
 
         }
         else{	// want to analyze only specified regions, set default
