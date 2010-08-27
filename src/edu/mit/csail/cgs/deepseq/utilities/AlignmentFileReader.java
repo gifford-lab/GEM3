@@ -23,7 +23,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 /**
  * This class basically stores the hits coming from the correspoding files. <br>
  * We have made use of an unusual convention for reducing running time purposes. <br>
- * The hits are basically being represented by 3 main fields: <tt>starts, hitCounts</tt>
+ * The hits are basically being represented by 3 main fields: <tt>starts (5'), hitCounts</tt>
  * and <tt>hitIDs</tt>. <br>
  * Each of these fields are 3D arrays where:  <br>
  * - the first dimension corresponds to the chromosome that a hit belongs to (based on
@@ -53,7 +53,7 @@ public abstract class AlignmentFileReader {
 	//protected int[] chrs=null;
 	
 	/**
-	 * Starts of the read hits. <br>
+	 * 5 prime end of the read hits. <br>
 	 * First dimension represents the corresponding chromosome ID. <br>
 	 * Second dimension represents the strand. 0 for '+', 1 for '-' <br>
 	 * Third dimension contains the starts of the hits
@@ -237,7 +237,7 @@ public abstract class AlignmentFileReader {
 			char strand = h.getStrand();
 			int strandInd = strand == '+' ? 0 : 1;
 			//System.out.println(h.getChrom()+"\t"+h.getStart()+"\t"+h.getStrand());
-			startsList[chrID][strandInd].add(h.getStart());
+			startsList[chrID][strandInd].add(strand == '+' ?h.getStart():h.getEnd());
 			hitIDsList[chrID][strandInd].add(h.getID());
 			hitCountsList[chrID][strandInd].add(numHits);
 			totalHits++;

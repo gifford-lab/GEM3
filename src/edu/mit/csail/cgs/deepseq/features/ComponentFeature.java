@@ -80,8 +80,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		return unScaledControlCounts[cond]*non_specific_ratio[cond];
 	}
 	public double getEventReadCounts(int cond){
-		if(use_internal_em_train) { return totalSumResponsibility*conditionBeta[cond]; }
-		else                      { return condSumResponsibility[cond];                }
+		return condSumResponsibility[cond]; 
 	}
 	public double get_mfold() { return mfold; }
 	public void set_mfold(double mf) { mfold = mf; }

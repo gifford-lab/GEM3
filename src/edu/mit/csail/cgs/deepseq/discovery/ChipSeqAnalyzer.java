@@ -166,7 +166,7 @@ public class ChipSeqAnalyzer{
 		
 //		mixture.countNonSpecificReads();
 		int update_model_round = Args.parseInteger(args,"r", 3);
-		while (kl>-6 && round<=update_model_round){
+		while (kl>-5 && round<=update_model_round){
 			System.out.println("\n============================ Round "+round+" ============================");
 			mixture.execute();
 			mixture.printFeatures();
@@ -208,7 +208,7 @@ public class ChipSeqAnalyzer{
 		ChipSeqAnalyzer analyzer = new ChipSeqAnalyzer(args);
 		analyzer.runMixtureModel();
 		analyzer.close();
-		 System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic));
+		System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
 	}
 
 	/**
