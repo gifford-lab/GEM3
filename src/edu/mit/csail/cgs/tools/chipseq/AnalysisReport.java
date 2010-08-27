@@ -40,7 +40,7 @@ public class AnalysisReport {
     private Collection<WeightMatrix> matrices;
     private int up, down, topEvents;
     private double thresh, wmcutoff;
-    private boolean dumpEvents, dumpGenes, dumpGO, html, noGO, noGenes;
+    private boolean dumpEvents, dumpGenes, dumpGO, dumpMotifs, html, noGO, noGenes;
     private String outputBase;
 
     // these all get filled in by run() and
@@ -85,6 +85,7 @@ public class AnalysisReport {
         outputBase = Args.parseString(args,"output",outputBase);
         dumpEvents  = Args.parseFlags(args).contains("dumpevents");
         dumpGenes = Args.parseFlags(args).contains("dumpgenes");
+        dumpMotifs = Args.parseFlags(args).contains("dumpmotifs");
         dumpGO = Args.parseFlags(args).contains("dumpgo");
         html = Args.parseFlags(args).contains("html");
         noGO = Args.parseFlags(args).contains("nogo");
@@ -275,6 +276,9 @@ public class AnalysisReport {
         System.out.println("GO enriched categories\t" + enrichments.size());
     }
     public void runMotifReport() throws IOException {
+        if (!dumpMotifs) {
+            return;
+        }
         if (matrices.size() == 0) {
             System.err.println("No weight matrices available.  Not running report");
             return;
