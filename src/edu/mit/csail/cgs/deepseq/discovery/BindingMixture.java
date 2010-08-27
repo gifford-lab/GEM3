@@ -338,6 +338,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	needle_height_factor = Args.parseInteger(args, "needle_height_factor", 2);
     	needle_hitCount_fraction = Args.parseDouble(args, "needle_hitCount_fraction", 0.1);
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
+    	bmverbose = Args.parseInteger(args, "bmverbose", bmverbose);
     	
     	// These are options for EM performance tuning
     	// should NOT expose to user
@@ -680,6 +681,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		//for each test region
 		for (int j=0;j<restrictRegions.size();j++) {
 			Region rr = restrictRegions.get(j);
+			log(2, rr.toString());
 			// Cut long regions into windowSize(2kb) sliding window (500bp overlap) to analyze
 			ArrayList<Region> windows = new ArrayList<Region>();
 			if (rr.getWidth()<=windowSize)
@@ -741,6 +743,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 									}
 								}
 								else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
+									if (development_mode)
+										System.err.println("Warning: very large continuouse region, "+ r.toString());
 									ArrayList<Region> wins = new ArrayList<Region>();
 									int lastEnd = r.getStart()+winSize-1;
 									wins.add(new Region(r.getGenome(), r.getChrom(), r.getStart(), lastEnd));
