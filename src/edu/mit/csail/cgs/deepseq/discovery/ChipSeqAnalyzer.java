@@ -208,7 +208,7 @@ public class ChipSeqAnalyzer{
 		ChipSeqAnalyzer analyzer = new ChipSeqAnalyzer(args);
 		analyzer.runMixtureModel();
 		analyzer.close();
-		 System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic));
+		System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
 	}
 
 	/**

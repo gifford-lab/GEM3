@@ -3953,15 +3953,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	    	StringBuilder sb = new StringBuilder();
 	    	sb.append(conditionNames.get(i)+" data summary:\n");
-	    	sb.append("IP total   \t\t" +(int)e.car().getHitCount());
+	    	sb.append("\tIP total   \t\t" +(int)e.car().getHitCount());
 	    	if (controlDataExist){
-	    		sb.append("\nControl total\t\t" + (int)e.cdr().getHitCount() );
-	    	    sb.append("\nIP/Control  \t\t" +String.format("%.3f", e.car().getHitCount()/e.cdr().getHitCount() ));
-	    	    sb.append("\nIP non-specific\t" +expt_non_specific_total[i]);
-	    	    sb.append("\nControl non-specific\t" +crtl_non_specific_total[i]);
+	    		sb.append("\n\tControl total\t\t" + (int)e.cdr().getHitCount() );
+	    	    sb.append("\n\tIP/Control  \t\t" +String.format("%.3f", e.car().getHitCount()/e.cdr().getHitCount() ));
+	    	    sb.append("\n\tIP non-specific\t" +expt_non_specific_total[i]);
+	    	    sb.append("\n\tControl non-specific\t" +crtl_non_specific_total[i]);
 //	    	    sb.append("\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
 	    	}
-	    	sb.append("\nNoise reads per 1000bp\t" +String.format("%.2f",noiseReadNum_per_kbp)+"\n");
+	    	sb.append("\n\tNoise reads per 1000bp\t" +String.format("%.2f",noiseReadNum_per_kbp)+"\n");
 	    	log(1, sb.toString());
 		}
 		ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
