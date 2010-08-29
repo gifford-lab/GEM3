@@ -116,7 +116,7 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	
 	public void setSumResponsibility(double[] sum_resp)              { this.sum_resp = sum_resp;            }
 	
-	public void setSumResponsibility(int cond, double cond_sum_resp) { this.sum_resp[cond] = cond_sum_resp; }
+	public void setCondSumResponsibility(int cond, double cond_sum_resp) { this.sum_resp[cond] = cond_sum_resp; }
 	
 	public void setConditionBeta(int cond, double beta){
 		if(cond<numConditions){
