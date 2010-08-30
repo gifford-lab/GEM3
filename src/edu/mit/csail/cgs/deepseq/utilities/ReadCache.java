@@ -12,7 +12,8 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
-
+import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.datasets.general.Point;
 /**
  * Modify from AlignmentFileReader.java
  * 
@@ -307,6 +308,24 @@ public class ReadCache {
 						hitCounts[i][j][k] = maxReadperBP;
 						
 		updateTotalHits();
+	}
+	/*
+	 * Reset bases with huge number of reads to 1
+	 * Return the base positions that are reset
+	 */
+	public ArrayList<Pair<Point, Float>> resetHugeBases(float threshold){
+		ArrayList<Pair<Point, Float>> bases = new ArrayList<Pair<Point, Float>>();
+		for(int i = 0; i < hitCounts.length; i++)
+			for(int j = 0; j < hitCounts[i].length; j++)
+				for(int k = 0; k < hitCounts[i][j].length; k++)
+					if (hitCounts[i][j][k] > threshold){
+						Point p = new Point(gen, id2Chrom.get(i), fivePrimes[i][j][k]);
+						bases.add(new Pair<Point, Float>(p, hitCounts[i][j][k]));
+						hitCounts[i][j][k] = 1;
+					}
+						
+		updateTotalHits();
+		return bases;
 	}
 	private void updateTotalHits(){
 		totalHits = 0.0;
