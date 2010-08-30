@@ -261,7 +261,7 @@ public class GPSOutputAnalysis {
   }
   public String printMotifHitList(){
 	StringBuilder statStr = new StringBuilder();
-	statStr.append(String.format("%s\nTotal Event #:\t%d", 
+	statStr.append(String.format("\n----------------------------------------------\n%s\nTotal Event #:\t%d", 
 				outputFileName, gpsPeaks.size()));
 	System.out.println(statStr.toString());  
 	findNearestMotifHit();

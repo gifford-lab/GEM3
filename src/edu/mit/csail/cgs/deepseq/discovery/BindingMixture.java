@@ -3972,7 +3972,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    	if (controlDataExist){
 	    		sb.append("\n\tControl total\t\t" + (int)e.cdr().getHitCount() );
 	    	    sb.append("\n\tIP/Control  \t\t" +String.format("%.3f", e.car().getHitCount()/e.cdr().getHitCount() ));
-	    	    sb.append("\n\tIP non-specific\t" +expt_non_specific_total[i]);
+	    	    sb.append("\n\tIP non-specific\t\t" +expt_non_specific_total[i]);
 	    	    sb.append("\n\tControl non-specific\t" +crtl_non_specific_total[i]);
 //	    	    sb.append("\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
 	    	}

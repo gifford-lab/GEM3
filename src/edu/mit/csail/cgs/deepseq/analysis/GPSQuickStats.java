@@ -96,7 +96,7 @@ public class GPSQuickStats{
 	GPSOutputAnalysis gpsAnalysis = new GPSOutputAnalysis(genome, motif, motifThreshold, gpsPeaks, 
 			"Analysis_"+GPSfileName.substring(0, GPSfileName.length()-4), motif_window);
 	String stats = gpsAnalysis.printMotifHitList();
-	String msg = "\n"+CommonUtils.timeElapsed(tic)+ "\n----------------------------------------------\n\n";
+	String msg = "\n"+CommonUtils.timeElapsed(tic)+ "\n";
 	System.out.print(msg);
 	return stats+msg;
   }
