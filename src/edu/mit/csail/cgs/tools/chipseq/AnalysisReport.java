@@ -132,6 +132,15 @@ public class AnalysisReport {
                 }
             }
         }
+        for (RefGeneGenerator rg : geneGenerators) {
+            for (ChipSeqAnalysisResult event : events) {
+                Iterator<Gene> iter = rg.execute(event);
+                while (iter.hasNext()) {
+                    boundGenes.add(iter.next());
+                }
+            }
+        }
+
     }
     private void getEnrichedCategories() throws SQLException {
         
