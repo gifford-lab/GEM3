@@ -353,7 +353,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	}
    
 		/* **************************************************
-		 * Determine the Args.parseString(args, "subs") subset of regions to run EM
+		 * Determine the Args.parseString(args, "subs") 
+		 * subset of regions to run EM
  		 * It can be specified as a file from command line.
 		 * If no file pre-specified, estimate the enrichedRegions after loading the data.
 		 * We do not want to run EM on regions with little number of reads
@@ -419,6 +420,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
      		}//end of for(String regionStr:reg_toks) LOOP
      		restrictRegions = mergeRegions(subsetRegions, false);
      	}
+     	
+     	String excludedName = Args.parseString(args, "ex", null);
+     	ArrayList<Region> exludedRegions = null;
+     	if (excludedName!=null)
+     		exludedRegions = CommonUtils.loadRegionFile(excludedName, gen);
 
 		/* ***************************************************
 		 * ChIP-Seq data
@@ -553,7 +559,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-//        if (subset_str == null || ((!fromReadDB) && Args.parseString(args, "subf", null) == null )){		// estimate some parameters if whole genome data
         if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
 	        // estimate IP/Ctrl ratio from all reads
         	for(int i=0; i<numConditions; i++){
@@ -572,6 +577,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			if (subset_str==null || ((!fromReadDB) && Args.parseString(args, "subf", null) == null )){
 	    		setRegions(selectEnrichedRegions(subsetRegions));
 			}
+			
 			if (development_mode)
 				printNoneZeroRegions(true);
 			
@@ -592,9 +598,29 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        			ratio_total[i]=1;
 	        		ratio_non_specific_total[i]=1;
         		}
-        		
         	}
         }
+        
+        // exclude regions?
+        if (exludedRegions!=null){
+	        	ArrayList<Region> toRemove = new ArrayList<Region>();
+	        ArrayList<Region> toAdd = new ArrayList<Region>();
+	
+	    	for (Region ex: exludedRegions){
+	    		for (Region r:restrictRegions){
+	        		if (r.overlaps(ex)){
+	        			toRemove.add(r);
+	        			if (r.getStart()<ex.getStart())
+	        				toAdd.add(new Region(gen, r.getChrom(), r.getStart(), ex.getStart()-1));
+	        			if (r.getEnd()>ex.getEnd())
+	        				toAdd.add(new Region(gen, r.getChrom(), ex.getEnd()+1, r.getEnd()));
+	        		}
+	        	}
+	        }
+	        restrictRegions.addAll(toAdd);
+	        restrictRegions.removeAll(toRemove);
+        }
+        
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
 		experiments = null;
 		System.gc();
@@ -648,6 +674,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 */
 	public List<Feature> execute() {
 		long tic = System.currentTimeMillis();
+		
+		int totalRegionCount = restrictRegions.size();
+		if (totalRegionCount==0)
+			return new ArrayList<Feature>();
+		
 		// refresh the total profile sums every round
 		profile_plus_sum = new double[modelWidth];
 		profile_minus_sum = new double[modelWidth];
@@ -668,7 +699,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         signalFeatures.clear();
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
-		int totalRegionCount = restrictRegions.size();
 		System.out.println("\nRunning EM for each of "+totalRegionCount+" regions, please wait ...");
 		int displayStep = 5000;
 		if (totalRegionCount<10000)
@@ -2148,28 +2178,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @return
 	 */
 	public void setRegions(String fname, boolean toExpandRegion) {
-		ArrayList<Region> rset = new ArrayList<Region>();
-		try{
-			File rFile = new File(fname);
-			if(!rFile.isFile()){
-				System.err.println("Invalid file name for regions!");
-				System.exit(1);
-			}
-	        BufferedReader reader = new BufferedReader(new FileReader(rFile));
-	        String line;
-	        while ((line = reader.readLine()) != null) {
-	            line = line.trim();
-	            String[] words = line.split("\\s+");
-            	Region r = Region.fromString(gen, words[0]);
-            	if (r!=null)
-            		rset.add(r);
-            }
-	        reader.close();
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		ArrayList<Region> rset = CommonUtils.loadRegionFile(fname, gen);
 
 		if(toExpandRegion)		// if regions are from other sources (i.e. StatPeakFinder) => Expand
 			restrictRegions = mergeRegions(rset, true);
@@ -4030,6 +4039,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 
 	public void printInsignificantFeatures(){
+		if (insignificantFeatures==null || insignificantFeatures.size()==0)
+			return;
+		
 		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
 		for(Feature f : insignificantFeatures){
 			fs.add((ComponentFeature)f);
@@ -4052,7 +4064,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 	
 	public void printFilteredFeatures(){
-		if (!filteredFeatures.isEmpty()){
+		if (filteredFeatures!=null && !filteredFeatures.isEmpty()){
 			ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
 			for(Feature f : filteredFeatures){
 				fs.add((ComponentFeature)f);

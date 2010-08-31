@@ -264,6 +264,8 @@ public class GPSOutputAnalysis {
 	statStr.append(String.format("\n----------------------------------------------\n%s\nTotal Event #:\t%d", 
 				outputFileName, gpsPeaks.size()));
 	System.out.println(statStr.toString());  
+	if (gpsPeaks.size()==0)
+		return statStr.toString();
 	findNearestMotifHit();
 	  
 	ArrayList<GPSPeak> hitList = new ArrayList<GPSPeak>();
@@ -291,8 +293,11 @@ public class GPSOutputAnalysis {
 		offsets[i]=Math.abs(unbiasedOffset);
 		offsets_hit.set(i, unbiasedOffset);
 	}
-	double mean = StatUtil.mean(offsets);		// distance mean
-	Arrays.sort(offsets);	
+	double mean = 0;
+	if (offsets_hit.size()>0){
+		mean = StatUtil.mean(offsets);		// distance mean
+		Arrays.sort(offsets);
+	}
 	
 	// motif hit list
 	StringBuilder sb = new StringBuilder();
