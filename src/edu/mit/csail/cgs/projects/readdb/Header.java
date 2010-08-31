@@ -31,7 +31,7 @@ public class Header implements Closeable {
         }
         int p = Arrays.binarySearch(indexPositions, position);
         //        System.err.println("First maps " + position + " to " + p);
-        if (p > 0) {
+        if (p >= 0) {
             //            System.err.println("Returning " + indexPointers[p]);
             return indexPointers[p];
         } else {
@@ -51,7 +51,7 @@ public class Header implements Closeable {
         }
         int p = Arrays.binarySearch(indexPositions, position);
         //        System.err.println("Last maps " + position + " to " + p);
-        if (p > 0) {
+        if (p >= 0) {
             p++;
         } else {
             p = (p+1)*-1;
