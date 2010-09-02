@@ -327,6 +327,41 @@ public class ReadCache {
 		updateTotalHits();
 		return bases;
 	}
+	/*
+	 * Exclude the data from specified regions
+	 * It will truncate the data arrays.
+	 */
+	public void excludeRegions(ArrayList<Region> regions){
+		for (Region r:regions){
+			int chrID = chrom2ID.get(r.getChrom());
+			for(int j = 0; j < fivePrimes[chrID].length; j++){
+				int[] tempStarts = fivePrimes[chrID][j];		
+				if(tempStarts.length != 0) {
+					int start_ind = Arrays.binarySearch(tempStarts, r.getStart());
+					int end_ind   = Arrays.binarySearch(tempStarts, r.getEnd());					
+					if( start_ind < 0 ) { start_ind = -start_ind - 1; }
+					if( end_ind < 0 )   { end_ind   = -end_ind-1-1 ; }
+					
+					int length = start_ind + tempStarts.length-end_ind-1;
+					int[] newData = new int[length];
+					float[] tempCounts = hitCounts[chrID][j];
+					float[] newCounts = new float[length];
+					if (start_ind>0){
+						System.arraycopy(tempStarts, 0, newData, 0, start_ind);
+						System.arraycopy(tempCounts, 0, newCounts, 0, start_ind);
+					}
+					if (tempStarts.length-end_ind-1>0){
+						System.arraycopy(tempStarts, end_ind+1, newData, start_ind, tempStarts.length-end_ind-1);
+						System.arraycopy(tempCounts, end_ind+1, newCounts, start_ind, tempCounts.length-end_ind-1);
+					}
+					fivePrimes[chrID][j] = newData;
+					hitCounts[chrID][j] = newCounts;
+				}	
+			}					
+		}
+		updateTotalHits();
+		
+	}
 	private void updateTotalHits(){
 		totalHits = 0.0;
 		for(int i = 0; i < hitCounts.length; i++)

@@ -178,6 +178,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	//Regions to be evaluated by EM, estimated whole genome, or specified by a file
 	protected ArrayList<Region> restrictRegions = new ArrayList<Region>();
+	//Regions to be excluded, supplied by user
+	protected ArrayList<Region> excludedRegions = null;
+
 	// Regions that have towers (many reads stack on same base positions)
 	protected ArrayList<Region> towerRegions = new ArrayList<Region>();
 	protected ArrayList<Float> towerStrength = new ArrayList<Float>();
@@ -421,11 +424,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
      		restrictRegions = mergeRegions(subsetRegions, false);
      	}
      	
-     	String excludedName = Args.parseString(args, "ex", null);
-     	ArrayList<Region> exludedRegions = null;
-     	if (excludedName!=null)
-     		exludedRegions = CommonUtils.loadRegionFile(excludedName, gen);
-
 		/* ***************************************************
 		 * ChIP-Seq data
 		 * ***************************************************/
@@ -541,14 +539,27 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			System.out.println();
 		}
 		
+		// exclude some regions
+     	String excludedName = Args.parseString(args, "ex", null);
+     	if (excludedName!=null){
+     		excludedRegions = mergeRegions(CommonUtils.loadRegionFile(excludedName, gen), false);
+     		log(1, "Exclude " + excludedRegions.size() + " regions.");
+			for(int c = 0; c < numConditions; c++) {
+				caches.get(c).car().excludeRegions(excludedRegions);
+				if(controlDataExist) {
+					caches.get(c).cdr().excludeRegions(excludedRegions);
+				}
+			}     	
+     	}
+
 		// Filtering/reset bases 
 		doBaseFiltering();			 		
 		
 		// print resulting dataset counts
-		for(int t = 0; t < numConditions; t++) {
-			caches.get(t).car().displayStats();
+		for(int c = 0; c < numConditions; c++) {
+			caches.get(c).car().displayStats();
 			if(controlDataExist) {
-				caches.get(t).cdr().displayStats();
+				caches.get(c).cdr().displayStats();
 			}
 		}
 		
@@ -602,24 +613,24 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         }
         
         // exclude regions?
-        if (exludedRegions!=null){
-	        	ArrayList<Region> toRemove = new ArrayList<Region>();
-	        ArrayList<Region> toAdd = new ArrayList<Region>();
-	
-	    	for (Region ex: exludedRegions){
-	    		for (Region r:restrictRegions){
-	        		if (r.overlaps(ex)){
-	        			toRemove.add(r);
-	        			if (r.getStart()<ex.getStart())
-	        				toAdd.add(new Region(gen, r.getChrom(), r.getStart(), ex.getStart()-1));
-	        			if (r.getEnd()>ex.getEnd())
-	        				toAdd.add(new Region(gen, r.getChrom(), ex.getEnd()+1, r.getEnd()));
-	        		}
-	        	}
-	        }
-	        restrictRegions.addAll(toAdd);
-	        restrictRegions.removeAll(toRemove);
-        }
+//        if (excludedRegions!=null){
+//	        	ArrayList<Region> toRemove = new ArrayList<Region>();
+//	        ArrayList<Region> toAdd = new ArrayList<Region>();
+//	
+//	    	for (Region ex: excludedRegions){
+//	    		for (Region r:restrictRegions){
+//	        		if (r.overlaps(ex)){
+//	        			toRemove.add(r);
+//	        			if (r.getStart()<ex.getStart())
+//	        				toAdd.add(new Region(gen, r.getChrom(), r.getStart(), ex.getStart()-1));
+//	        			if (r.getEnd()>ex.getEnd())
+//	        				toAdd.add(new Region(gen, r.getChrom(), ex.getEnd()+1, r.getEnd()));
+//	        		}
+//	        	}
+//	        }
+//	        restrictRegions.addAll(toAdd);
+//	        restrictRegions.removeAll(toRemove);
+//        }
         
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
 		experiments = null;
