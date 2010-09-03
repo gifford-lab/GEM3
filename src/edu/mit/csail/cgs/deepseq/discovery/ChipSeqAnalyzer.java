@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class ChipSeqAnalyzer{
-	public final static String GPS_VERSION = "0.8.8";
+	public final static String GPS_VERSION = "0.9";
 	private boolean development_mode = false;
 
 	private String[] args;
@@ -216,7 +216,7 @@ public class ChipSeqAnalyzer{
 	 */
 	public void printError() {
 		System.err.println("" +
-                "GPS Usage\n" +
+                "GPS Usage                      (more at http://cgs.csail.mit.edu/gps/)\n" +
 //                "   Using with Gifford Lab DB:\n" +
 //                "      --species <organism name;genome version>\n"+
 //                "      --dbexptX <IP expt (X is condition name)>\n" +
@@ -239,13 +239,14 @@ public class ChipSeqAnalyzer{
                 "      --multi <run the multicondition mode of the method>\n" +
                 "      --help <print help information and exit>\n" +
                 "\n   Output format:\n" +
-                "      The output file contains five fields in a tab-delimited file:\n" +
+                "      The output file contains seven fields in a tab-delimited file:\n" +
                 "        - Binding event coordinate\n" +
                 "        - IP read count\n" +
                 "        - Control read count\n" +
+                "        - Fold enrichment (IP/Control)\n" +                
                 "        - P-value\n" +
                 "        - Q-value (multiple hypothesis corrected)\n"+
-//                "      --nonunique [flag to use the non-uniquely mapping reads]\n" +
+                "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
                 "\n");		
 	}
 

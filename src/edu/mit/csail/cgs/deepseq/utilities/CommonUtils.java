@@ -5,6 +5,7 @@ package edu.mit.csail.cgs.deepseq.utilities;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -63,6 +64,32 @@ public class CommonUtils {
 			}			
 		}
 		return points;
+	}
+	
+	public static ArrayList<Region> loadRegionFile(String fname, Genome gen){
+		ArrayList<Region> rset = new ArrayList<Region>();
+		try{
+			File rFile = new File(fname);
+			if(!rFile.isFile()){
+				System.err.println("Invalid file name for regions!");
+				System.exit(1);
+			}
+	        BufferedReader reader = new BufferedReader(new FileReader(rFile));
+	        String line;
+	        while ((line = reader.readLine()) != null) {
+	            line = line.trim();
+	            String[] words = line.split("\\s+");
+            	Region r = Region.fromString(gen, words[0]);
+            	if (r!=null)
+            		rset.add(r);
+            }
+	        reader.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return rset;
 	}
 	public static String timeElapsed(long tic){
 		return timeString(System.currentTimeMillis()-tic);
