@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
@@ -70,11 +71,18 @@ public class GPS_ReadDistribution {
 		}
 		
 		// parameter for building empirical distribution
-		String chipSeqFile = Args.parseString(args, "chipseq", null);	
-		String fileFormat = Args.parseString(args, "f", "BED");  
-		List<File> expts = new ArrayList<File>();
-		expts.add(new File(chipSeqFile));
-		chipSeqExpt = new DeepSeqExpt(genome, expts, false, fileFormat, -1);
+		String chipSeqFile = Args.parseString(args, "chipseq", null);
+		if (chipSeqFile!=null){
+			String fileFormat = Args.parseString(args, "f", "BED");  
+			List<File> expts = new ArrayList<File>();
+			expts.add(new File(chipSeqFile));
+			chipSeqExpt = new DeepSeqExpt(genome, expts, false, fileFormat, -1);
+		}
+		else{
+			List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdb");
+			chipSeqExpt = new DeepSeqExpt(genome, rdbexpts, "readdb", -1);
+		}
+			
 		range = Args.parseInteger(args, "range", range);
 		name = Args.parseString(args, "name", "noname");
 

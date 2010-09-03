@@ -508,13 +508,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 				ipCache.populateArrays();
 				ipCache.displayStats();
-//				ipCache.printBin500Counts();
-//				ipCache.printBinCounts();
 				if (controlDataExist){
 					ctrlCache.populateArrays();
 					ctrlCache.displayStats();
-//					ctrlCache.printBinCounts();
-//					ctrlCache.printBin500Counts();
 				}
 			}
 			else if (!fromReadDB){		// load from File
@@ -566,6 +562,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// Normalize conditions
 		normExpts(caches);
 				
+		// print binCount stats
+		if (development_mode){
+			for(int c = 0; c < numConditions; c++) {
+				caches.get(c).car().printBinCounts();
+				caches.get(c).car().printBin500Counts();
+				if(controlDataExist) {
+					caches.get(c).cdr().printBinCounts();
+					caches.get(c).cdr().printBin500Counts();
+				}
+			}	
+		}
+		
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];

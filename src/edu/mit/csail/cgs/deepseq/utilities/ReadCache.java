@@ -409,14 +409,14 @@ public class ReadCache {
 		for (int i=0;i<binCounts.length;i++){
 			sb.append(i+"\t"+binCounts[i]+"\n");
 		}
-		writeFile(name+"1bpCount.txt", sb.toString());
+		writeFile(name.trim()+"_1bpCount.txt", sb.toString());
 	}
 	public void printBin500Counts(){
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<bin500Counts.length;i++){
 			sb.append(i+"\t"+bin500Counts[i]+"\n");
 		}
-		writeFile(name+"500bpCount.txt", sb.toString());
+		writeFile(name.trim()+"_500bpCount.txt", sb.toString());
 	}
 	
 	public int getMaxHitPerBP(double fraction){
