@@ -595,6 +595,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	    	// if no focus list, directly estimate candidate regions from data
 			if (subset_str==null || ((!fromReadDB) && Args.parseString(args, "subf", null) == null )){
 	    		setRegions(selectEnrichedRegions(subsetRegions));
+	    		// ip/ctrl ratio by regression on non-enriched regions
+	    		calcIpCtrlRatio(restrictRegions);
+	    		
 			}
 			
 			if (development_mode)
@@ -2065,17 +2068,23 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// use the refined regions to count non-specific reads
 		countNonSpecificReads(compFeatures);
 		
-		// if we have whole genome data, linear regression to get the IP/control ratio
-		if(controlDataExist && wholeGenomeDataLoaded) {
-			ratio_non_specific_total = new double[numConditions];
-			for(int t = 0; t < numConditions; t++)
-				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", compFeatures, pcr);
-			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
-		}	
-		if(controlDataExist){
-			for (int c=0;c<numConditions;c++){
-				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+		// collect enriched regions to exclude to define non-specific region
+		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
+			public int compare(ComponentFeature o1, ComponentFeature o2) {
+				return o1.compareByTotalResponsibility(o2);
 			}
+		});
+		// Determine how many of the enriched regions will be included during the regression evaluation
+		int numIncludedCandRegs = (int)Math.round(pcr*compFeatures.size());	
+		ArrayList<Region> enrichedRegions = new ArrayList<Region>();
+		for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
+			enrichedRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
+		}
+		
+		calcIpCtrlRatio(enrichedRegions);
+		if(controlDataExist && wholeGenomeDataLoaded) {
+			for(int t = 0; t < numConditions; t++)
+				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
 			System.out.println();
 		}
 		
@@ -2162,6 +2171,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end of postEMProcessing
 
 
+
+	private void calcIpCtrlRatio(ArrayList<Region> enrichedRegions) {
+		// if we have whole genome data, linear regression to get the IP/control ratio
+		if(controlDataExist && wholeGenomeDataLoaded) {
+			ratio_non_specific_total = new double[numConditions];
+			for(int t = 0; t < numConditions; t++){
+				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", enrichedRegions);
+			}
+			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
+		}
+	}
 
 	/**
 	 * Loads a set of regions from a MACS peak file. <br>
@@ -2299,6 +2319,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						start = breakPoint+1;
 					}
 				}
+//	Old version, most conservative, but may result in long regions				
 //				for (int i=1;i<allBases.size();i++){
 //					int distance = allBases.get(i).getCoordinate()-allBases.get(i-1).getCoordinate();
 //					if (distance > modelWidth){ // a large enough gap to cut
@@ -2309,10 +2330,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //						}
 //						if (count >= sparseness){
 //							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(i-1).getCoordinate());
-//							// if the average read count per modelWidth is less than sparseness/2, find sparse point to further split
-//							if (count/r.getWidth()*modelWidth <= sparseness/2){
-//								System.err.println(String.format("%s:\t%d\t%.1f", r.toString(), r.getWidth(), count));
-//							}
 //							rs.add(r);
 //						}
 //						start = i;
@@ -3131,18 +3148,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		
 		// Get the ratios between IP pairs and Ctrl pairs separately based on linear regression
-		List<ComponentFeature> emptyFeats = new ArrayList<ComponentFeature>();
-		double pcr = 0.0;
+		ArrayList<Region> emptyReg = new ArrayList<Region>();
 		double[] ip_ratio   = new double[C];;
 		double[] ctrl_ratio = new double[C];;
 		ip_ratio[0] = 1.0;
 		for(int t = 1; t < C; t++)
-			ip_ratio[t] = getSlope(0, t, "IP", emptyFeats, pcr);
+			ip_ratio[t] = getSlope(0, t, "IP", emptyReg);
 		if(controlDataExist) {
 			ctrl_ratio = new double[C];
 			ctrl_ratio[0] = 1.0;
 			for(int t = 1; t < C; t++)
-				ctrl_ratio[t] = getSlope(0, t, "CTRL", emptyFeats, pcr);
+				ctrl_ratio[t] = getSlope(0, t, "CTRL", emptyReg);
 		}
 		
 		// Re-scale counts by multiplying each read (in each condition) with the corresponding ratio
@@ -3230,15 +3246,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //	}//end of normExpts method
 
 	/**
-	 * 
+	 * This method will run regression on two dataset (can be IP/IP, or IP/Ctrl, or Ctrl/Ctrl), 
+	 * using the non-specific region (all the genome regions, excluding the enriched (specific) regions.
 	 * @param condX_idx index of condition (channel) where it will be used a dependent variable 
 	 * @param condY_idx index of condition (channel) where it will be used an independent variable
 	 * @param flag <tt>IP</tt> for pairs of IP conditions, <tt>CTRL</tt> for pairs of control conditions, <tt>IP/CTRL</tt> for ip/control pairs 
-	 * @param compFeatures enriched features
-	 * @param pcr percentage of enriched features to be taken into account during regression
+	 * @param enrichedRegions regions to exclude for data for regression
 	 * @return slope, as the ratio of ( 1st dataset / 2nd dataset )
 	 */
-	private double getSlope(int condX_idx, int condY_idx, String flag, List<ComponentFeature> compFeatures, double pcr) {
+	private double getSlope(int condX_idx, int condY_idx, String flag, ArrayList<Region> enrichedRegions) {
 		if(condX_idx < 0 || condX_idx >= numConditions)
 			throw new IllegalArgumentException(String.format("cond1_idx, cond2_idx have to be numbers between 0 and %d.", numConditions-1));
 		if(condY_idx < 0 || condY_idx >= numConditions)
@@ -3250,22 +3266,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			
 		double slope;
 		List<PairedCountData> scalePairs = new ArrayList<PairedCountData>();
-		
-		// Determine how many of the enriched regions will be included during the regression evaluation
-		int numIncludedCandRegs = (int)Math.round(pcr*compFeatures.size());
-		int non_specific_reg_len = 10000;
-		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
-			public int compare(ComponentFeature o1, ComponentFeature o2) {
-				return o1.compareByTotalResponsibility(o2);
-			}
-		});
-		
-		Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
-		for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
-			String chrom = compFeatures.get(i).getPosition().getChrom();
-			if(!chrom_comp_pair.containsKey(chrom))
-				chrom_comp_pair.put(chrom, new ArrayList<Integer>());
-			chrom_comp_pair.get(chrom).add(i);
+		int non_specific_reg_len = 10000;	
+		Map<String, ArrayList<Region>> chrom_regions_map = new HashMap<String, ArrayList<Region>>();
+		for(Region r:enrichedRegions) {
+			String chrom = r.getChrom();
+			if(!chrom_regions_map.containsKey(chrom))
+				chrom_regions_map.put(chrom, new ArrayList<Region>());
+			chrom_regions_map.get(chrom).add(r);
 		}
 
 		for(String chrom:gen.getChromList()) {
@@ -3273,9 +3280,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			int chromLen = gen.getChromLength(chrom);
 			// Get the candidate (enriched) regions of this chrom sorted by location
 			List<Region> chr_enriched_regs = new ArrayList<Region>();
-			if(chrom_comp_pair.containsKey(chrom)) {
-				for(Integer idx:chrom_comp_pair.get(chrom))
-					chr_enriched_regs.add(compFeatures.get(idx).getPosition().expand(modelRange));
+			if(chrom_regions_map.containsKey(chrom)) {
+				chr_enriched_regs = chrom_regions_map.get(chrom);
 				Collections.sort(chr_enriched_regs);
 			}
 				
@@ -3346,7 +3352,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		scalePairs.clear();
 		return slope;
 	}//end of getSlope method
-	
+		
 	private double calcSlope(List<PairedCountData> scalePairs) {
 		double slope;
         if(scalePairs==null || scalePairs.size()==0) { return 1.0; }
