@@ -594,10 +594,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         	System.out.println("\nSorting reads and selecting regions for analysis ...");
 	    	// if no focus list, directly estimate candidate regions from data
 			if (subset_str==null || ((!fromReadDB) && Args.parseString(args, "subf", null) == null )){
-	    		setRegions(selectEnrichedRegions(subsetRegions));
+	    		setRegions(selectEnrichedRegions(subsetRegions, false));
 	    		// ip/ctrl ratio by regression on non-enriched regions
 	    		calcIpCtrlRatio(restrictRegions);
-	    		
+	    		setRegions(selectEnrichedRegions(subsetRegions, true));
 			}
 			
 			if (development_mode)
@@ -2261,7 +2261,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @param focusRegion
 	 * @return
 	 */
-	private ArrayList<Region> selectEnrichedRegions(List<Region> focusRegions){
+	private ArrayList<Region> selectEnrichedRegions(List<Region> focusRegions, boolean useSubtractedData){
 		long tic = System.currentTimeMillis();
 		ArrayList<Region> regions = new ArrayList<Region>();
 		Map<String, List<Region>> chr_focusReg_pair = new HashMap<String, List<Region>>();
@@ -2285,9 +2285,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			for(Region focusRegion:chr_focusReg_pair.get(chrom)) {
 				List<Region> rs = new ArrayList<Region>();
 				List<StrandedBase> allBases = new ArrayList<StrandedBase>();
-				for (Pair<ReadCache, ReadCache> pair:caches){
-					ReadCache ip = pair.car();
-					List<StrandedBase> bases = ip.getUnstrandedBases(focusRegion);
+				for (int c=0; c<caches.size(); c++){
+					ReadCache ip = caches.get(c).car();
+					List<StrandedBase> bases = null;
+					if (this.controlDataExist && useSubtractedData)
+						bases = ip.getSubtractedBases(focusRegion, caches.get(c).cdr(), ratio_non_specific_total[c]);
+					else
+						bases = ip.getUnstrandedBases(focusRegion);
 					if (bases==null || bases.size()==0){
 						continue;
 					}
