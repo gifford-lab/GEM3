@@ -105,6 +105,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private boolean filterEvents=false;
 	private boolean kl_count_adjusted = false;
     private boolean sort_by_location=false;
+    private boolean subtract_for_segmentation=false;
     private int max_hit_per_bp = -1;
     /** percentage of candidate (enriched) peaks to take into account
      *  during the evaluation of non-specific signal */
@@ -299,6 +300,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	post_artifact_filter = flags.contains("post_artifact_filter");
     	kl_count_adjusted = flags.contains("adjust_kl");
     	refine_regions = flags.contains("refine_regions");
+    	subtract_for_segmentation = flags.contains("subtract_ctrl_for_segmentation");
     	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -603,7 +605,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
      			setRegions(selectEnrichedRegions(subsetRegions, false));
     			calcIpCtrlRatio(restrictRegions);
     		}
-    		setRegions(selectEnrichedRegions(subsetRegions, true));
+			if (subtract_for_segmentation)
+				setRegions(selectEnrichedRegions(subsetRegions, true));
 		}
 		else{
 			setRegions(subsetRegions);
