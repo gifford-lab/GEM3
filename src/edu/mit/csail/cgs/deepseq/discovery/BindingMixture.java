@@ -364,34 +364,21 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 * **************************************************/
     	String subset_str = Args.parseString(args, "subs", null);
     	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
+     	String subsetFormat = Args.parseString(args, "subFormat", null);
+     	boolean toSegmentRegions = subsetFormat.equals("RegionsToSegment");
     	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
     	ArrayList<Region> subsetRegions = new ArrayList<Region>();
-     	boolean loadWholeGenome = true;
      	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
-     		loadWholeGenome = false;
-     		String subsetFormat = Args.parseString(args, "focusFormat", null);
-        	if (subsetFormat==null){
-    	    	// take candidate regions from previous analysis of mixture model
-    	    	// Do not expand the regions, precisely defined already
-    	        	setRegions(subset_str, false);
-        	}        	
-        	else if (subsetFormat.equals("MACS")){
-    	    	// take candidate regions from MACS output, expand point to regions, merge overlaps
-    	    		File peakFlie = new File(subset_str);
-    	    		List<MACSPeakRegion> peaks = MACSParser.parseMACSOutput(peakFlie.getAbsolutePath(), gen);
-    	    		setRegions(peaks);
-    	    }
-	    	// take candidate regions from output of statistical peak finder by Shaun,
-	    	// will expand point to regions, merge overlaps
-	    	else if (subsetFormat.equals("StatPeak")){
-	    		setRegions(subset_str, true);
+	    	if (subsetFormat.equals("Points")){	// To expand
+	    		subsetRegions = CommonUtils.loadRegionFile(subset_str, gen);
+	    		subsetRegions = mergeRegions(subsetRegions, true);
 	    	}
-	    	else if (subsetFormat.equals("RegionsToMerge")){
-	        	setRegions(subset_str, true);
+	    	else {
+	    		subsetRegions = CommonUtils.loadRegionFile(subset_str, gen);
+	    		subsetRegions = mergeRegions(subsetRegions, false);
 	    	}
         }
      	else if (subset_str!=null && Args.parseString(args, "subs", null) != null) {
-			loadWholeGenome = false;
      		String COMPLETE_REGION_REG_EX = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
      		String CHROMOSOME_REG_EX = "^\\s*([\\w\\d]+)\\s*$";
      		String[] reg_toks = subset_str.split("\\s");
@@ -408,20 +395,20 @@ public class BindingMixture extends MultiConditionFeatureFinder{
      				regionStr = regionStr.replaceFirst("^chrom", "");
      				regionStr = regionStr.replaceFirst("^chr", "");
      					
-         	     		for(String chrom:gen.getChromList()) {
-         	     			String chromNumber = chrom;
-         	     			chromNumber = chromNumber.replaceFirst("^chromosome", "");
-         	     			chromNumber = chromNumber.replaceFirst("^chrom", "");
-         	     			chromNumber = chromNumber.replaceFirst("^chr", "");
+     	     		for(String chrom:gen.getChromList()) {
+     	     			String chromNumber = chrom;
+     	     			chromNumber = chromNumber.replaceFirst("^chromosome", "");
+     	     			chromNumber = chromNumber.replaceFirst("^chrom", "");
+     	     			chromNumber = chromNumber.replaceFirst("^chr", "");
 
-         	     			if(regionStr.equalsIgnoreCase(chromNumber)) {
-         	     				subsetRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
-         	     				break;
-         	     			}
-         	     		}
+     	     			if(regionStr.equalsIgnoreCase(chromNumber)) {
+     	     				subsetRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
+     	     				break;
+     	     			}
+     	     		}
      			}
      		}//end of for(String regionStr:reg_toks) LOOP
-     		restrictRegions = mergeRegions(subsetRegions, false);
+     		subsetRegions = mergeRegions(subsetRegions, false);
      	}
      	
 		/* ***************************************************
@@ -453,7 +440,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// cache sorted start positions and counts of all positions
 			if (fromReadDB){		// load from read DB
 				System.out.println("\nLoading data from ReadDB ...");
-				if (loadWholeGenome){		// if whole genome
+				if (subsetRegions.isEmpty()){		// if whole genome
 
 					for (String chrom: gen.getChromList()){
 						// load  data for this chromosome.
@@ -491,9 +478,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 					} // for each chrom
 					wholeGenomeDataLoaded = true;
-				} //if (loadWholeGenome==1){
-				else{	// if loadWholeGenome==0, only load these reads
-					for (Region region: restrictRegions){
+				} //if (subsetRegions.isEmpty()){
+				else{	// if subsetRegions notEmpty, only load these regions
+					for (Region region: subsetRegions){
 						Pair<ArrayList<Integer>,ArrayList<Float>> hits = ip.loadStrandedBaseCounts(region, '+');
 						ipCache.addHits(region.getChrom(), '+', hits.car(), hits.cdr());
 						hits = ip.loadStrandedBaseCounts(region, '-');
@@ -507,10 +494,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 				}
 				ipCache.populateArrays();
-				ipCache.displayStats();
+//				ipCache.displayStats();
 				if (controlDataExist){
 					ctrlCache.populateArrays();
-					ctrlCache.displayStats();
+//					ctrlCache.displayStats();
 				}
 			}
 			else if (!fromReadDB){		// load from File
@@ -574,6 +561,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}	
 		}
 		
+		// estimate ratio and segment genome into regions
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
@@ -582,8 +570,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        // estimate IP/Ctrl ratio from all reads
         	for(int i=0; i<numConditions; i++){
 				Pair<ReadCache,ReadCache> e = caches.get(i);
-				double ipCount = e.car().getHitCount();
-				
+				double ipCount = e.car().getHitCount();				
 				double ctrlCount = 0;
 				if (e.cdr()!=null){
 					ctrlCount = e.cdr().getHitCount();
@@ -591,20 +578,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					System.out.println(String.format(conditionNames.get(i)+"\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", ipCount, ctrlCount, ratio_total[i]));
 				}
 	        }
-        	System.out.println("\nSorting reads and selecting regions for analysis ...");
-	    	// if no focus list, directly estimate candidate regions from data
-			if (subset_str==null || ((!fromReadDB) && Args.parseString(args, "subf", null) == null )){
-	    		setRegions(selectEnrichedRegions(subsetRegions, false));
-	    		// ip/ctrl ratio by regression on non-enriched regions
-	    		calcIpCtrlRatio(restrictRegions);
-	    		setRegions(selectEnrichedRegions(subsetRegions, true));
-			}
-			
-			if (development_mode)
-				printNoneZeroRegions(true);
-			
-			log(1, "\nThe data are segmented into "+restrictRegions.size()+" regions for analysis.");
-
         }
         else{	// want to analyze only specified regions, set default
         	for(int i=0; i<numConditions; i++){
@@ -621,7 +594,24 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        		ratio_non_specific_total[i]=1;
         		}
         	}
-        }
+        }        	
+        System.out.println("\nSorting reads and selecting regions for analysis ...");
+    	// if no focus list, directly estimate candidate regions from data
+		if (wholeGenomeDataLoaded || toSegmentRegions){
+     		// ip/ctrl ratio by regression on non-enriched regions
+			if (subsetRatio==-1){
+     			setRegions(selectEnrichedRegions(subsetRegions, false));
+    			calcIpCtrlRatio(restrictRegions);
+    		}
+    		setRegions(selectEnrichedRegions(subsetRegions, true));
+		}
+		
+		if (development_mode)
+			printNoneZeroRegions(true);
+		
+		log(1, "\nThe data are segmented into "+restrictRegions.size()+" regions for analysis.");
+
+        
         
         // exclude regions?
 //        if (excludedRegions!=null){
@@ -737,18 +727,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		for (int j=0;j<restrictRegions.size();j++) {
 			Region rr = restrictRegions.get(j);
 			log(2, rr.toString());
-			// Cut long regions into windowSize(2kb) sliding window (500bp overlap) to analyze
+			// Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
 			ArrayList<Region> windows = new ArrayList<Region>();
 			if (rr.getWidth()<=windowSize)
 				windows.add(rr);
 			else{
-				int lastEnd = rr.getStart()+windowSize-1;
-				windows.add(new Region(rr.getGenome(), rr.getChrom(), rr.getStart(), lastEnd));
-				while(lastEnd<rr.getEnd()){
-					int newStart = lastEnd+1-modelWidth;	//overlap length = modelWidth
-					lastEnd = Math.min(newStart+windowSize-1, rr.getEnd());
-					windows.add(new Region(rr.getGenome(), rr.getChrom(), newStart, lastEnd));
-				}
+				windows = splitWindows(rr);
 			}
  
 			// run EM for each window 
@@ -1027,6 +1011,65 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return signalFeatures;
 	}// end of execute method
 
+	// split a region into smaller windows if the width is larger than windowSize
+	private ArrayList<Region> splitWindows(Region r){
+		ArrayList<Region> windows=new ArrayList<Region>();
+		if (r.getWidth()<=windowSize)
+			return windows;
+		List<StrandedBase> allBases = new ArrayList<StrandedBase>();
+		for (int c=0; c<caches.size(); c++){
+			ReadCache ip = caches.get(c).car();
+			List<StrandedBase> bases = ip.getUnstrandedBases(r);
+			if (bases==null || bases.size()==0)
+				continue;
+			allBases.addAll(bases); // pool all conditions
+		}
+		Collections.sort(allBases);
+		
+		int[] distances = new int[allBases.size()-1];
+		int[]coords = new int[allBases.size()];
+		for (int i=0;i<distances.length;i++){
+			distances[i] = allBases.get(i+1).getCoordinate()-allBases.get(i).getCoordinate();
+			coords[i]=allBases.get(i).getCoordinate();
+		}
+		coords[coords.length-1] = allBases.get(coords.length-1).getCoordinate();
+		TreeSet<Integer> breakPoints = new TreeSet<Integer>();
+		split(distances, coords, breakPoints);
+
+		breakPoints.add(coords[coords.length-1]);
+		
+		int start = r.getStart();
+		for (int p:breakPoints){
+			windows.add(new Region(r.getGenome(), r.getChrom(), 
+					Math.max(r.getStart(),start-modelWidth/2), 
+					Math.min(r.getEnd(), p-modelWidth/2)));
+			start = p;
+		}
+		return windows;
+	}
+	
+	private void split(int[]distances, int coords[], TreeSet<Integer> breakPoints){
+		int[] idx = StatUtil.findSort(distances.clone());
+		int breakIdx = idx[idx.length-1];
+		int breakCoor = (coords[breakIdx]+coords[breakIdx+1])/2;
+		breakPoints.add(breakCoor);
+		// if width of region is still large, recursively split
+		if (coords[breakIdx]-coords[0]>windowSize){
+			int[] left_distances = new int[breakIdx];
+			int[] left_coords = new int[breakIdx+1];
+			System.arraycopy(distances, 0, left_distances, 0, breakIdx);
+			System.arraycopy(coords, 0, left_coords, 0, breakIdx+1);
+			split(left_distances, left_coords, breakPoints);
+		}
+		// skip distances[breakIdx], b/c it is selected
+		if (coords[coords.length-1]-coords[breakIdx+1]>windowSize){
+			int[] right_distances = new int[distances.length-breakIdx-1];
+			int[] right_coords = new int[coords.length-breakIdx-1];
+			System.arraycopy(distances, breakIdx+1, right_distances, 0, distances.length-breakIdx-1);
+			System.arraycopy(coords, breakIdx+1, right_coords, 0, coords.length-breakIdx-1);
+			split(right_distances, right_coords, breakPoints);
+		}
+	}
 
 	private ArrayList<BindingComponent> analyzeWindow(Region w){
 
@@ -2182,32 +2225,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
 		}
 	}
-
-	/**
-	 * Loads a set of regions from a MACS peak file. <br>
-	 * For the proper function of the method, regions contained in the MACS file should be sorted,
-	 *  something done inside the method's body.
-	 * @param peaks The <tt>List</tt> created by a MACS file
-	 * @return
-	 */
-	public void setRegions(List<MACSPeakRegion> peaks){
-		ArrayList<Region> regions= new ArrayList<Region>();
-		for (MACSPeakRegion p: peaks){
-			// filter towers
-			if (p.getTags()>1000 && p.getFold_enrichment()<5){
-				//TODO: should compare with WCE to decide it is really a tower
-				continue;
-			}
-			regions.add(p);
-		}
-		restrictRegions = mergeRegions(regions, true);
-	}
-
-
+	
 	public void setRegions(ArrayList<Region> regions){
 		restrictRegions = regions;
 	}
-
 
 	/**
 	 * Loads a set of regions (Format: Chrom:start-end). <br>
@@ -2218,12 +2239,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 */
 	public void setRegions(String fname, boolean toExpandRegion) {
 		ArrayList<Region> rset = CommonUtils.loadRegionFile(fname, gen);
-
-		if(toExpandRegion)		// if regions are from other sources (i.e. StatPeakFinder) => Expand
-			restrictRegions = mergeRegions(rset, true);
-			
-		else				    // if regions are from previous round of analysis => do NOT expand							
-			restrictRegions = mergeRegions(rset, false);
+		restrictRegions = mergeRegions(rset, toExpandRegion);
 	}
 
 	// merge the overlapped regions
@@ -2354,6 +2370,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for (Region r: rs){
 					if (r.getWidth()<=min_region_width){
 						toRemove.add(r);
+						continue;
 					}
 					// for regions <= modelWidth, most likely single event, can be compared to control
 					if (this.controlDataExist)
@@ -2365,8 +2382,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 									break;
 								}
 							}
-							if (!enriched)	// remove this region if it is not enriched in any condition
+							if (!enriched){	// remove this region if it is not enriched in any condition
 								toRemove.add(r);
+								continue;
+							}
 						}
 				}
 				rs.removeAll(toRemove);

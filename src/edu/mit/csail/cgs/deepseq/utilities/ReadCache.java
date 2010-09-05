@@ -129,13 +129,18 @@ public class ReadCache {
 			List<StrandedBase> ctrl_bases = ctrl.getStrandedBases(r,s==0?'+':'-');
 			int ctrl_idx = 0;
 			for (StrandedBase b: ip_bases){
-				while(ctrl_idx<ip_bases.size() && 
+				while(ctrl_idx<ctrl_bases.size() && 
 						ctrl_bases.get(ctrl_idx).getCoordinate()<b.getCoordinate()){
 					ctrl_idx++;
 				}
+				if (ctrl_idx==ctrl_bases.size()){	// reach end of control reads
+					bases.add(b);
+					continue;
+				}
+					
 				// if there is control reads at the same position, subtract it
-				if (ctrl_bases.get(ctrl_idx).getCoordinate()==b.getCoordinate()){
-					float count = (float) (b.getCount() - ctrl_bases.get(ctrl_idx).getCoordinate()*ratio);
+				if ( ctrl_bases.get(ctrl_idx).getCoordinate()==b.getCoordinate()){
+					float count = (float) (b.getCount() - ctrl_bases.get(ctrl_idx).getCount()*ratio);
 					if (count>0){
 						b.setCount(count);
 						bases.add(b);
