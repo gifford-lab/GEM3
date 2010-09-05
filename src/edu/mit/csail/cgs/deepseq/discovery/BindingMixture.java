@@ -120,6 +120,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double sparseness=6.0;
     private double fold = 3.0;
     private double shapeDeviation = 0;
+    private int gentle_elimination_factor = 2;
+    private int resolution_extend = 1;
     private boolean use_KL_filtering = true;	// use KL to filter events
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
@@ -347,6 +349,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	// should NOT expose to user
     	// therefore, still use UPPER CASE to distinguish
     	ML_ITER = Args.parseInteger(args, "ML_ITER", ML_ITER);
+    	resolution_extend = Args.parseInteger(args, "resolution_extend", resolution_extend);
+    	gentle_elimination_factor = Args.parseInteger(args, "gentle_elimination_factor", gentle_elimination_factor);
     	
     	if(second_lambda_region_width < first_lambda_region_width) {
     		System.err.println("\nThe first control region width (w2) has to be more than " + first_lambda_region_width + " bp.");
@@ -733,6 +737,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		for (int j=0;j<restrictRegions.size();j++) {
 			Region rr = restrictRegions.get(j);
 			log(2, rr.toString());
+//			System.out.println(rr.toString()+" Running EM \t"+CommonUtils.timeElapsed(tic));
 			// Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
 			ArrayList<Region> windows = new ArrayList<Region>();
 			if (rr.getWidth()<=windowSize)
@@ -744,11 +749,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			// run EM for each window 
 			ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
 			for (Region w : windows){
+//				System.out.println(" Running analyzeWindow() \t"+w.toString()+"\t"+CommonUtils.timeElapsed(tic));
 				ArrayList<BindingComponent> result = analyzeWindow(w);
 				if (result!=null){
 					comps.addAll(result);
 				}
 			}
+//			System.out.println("Fix sliding window boundary effect \t"+CommonUtils.timeElapsed(tic));
 
 			/* ****************************************************************
 			 * fix sliding window boundary effect (version 1)
@@ -860,7 +867,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 				}
 			}
-
+//			System.out.println("Refine position\t"+CommonUtils.timeElapsed(tic));
 			/* ****************************************************************
 			 * refine unary events and collect all the events as features
 			 * this is last step because fixing boundary may result in some new unary events
@@ -1532,7 +1539,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     	worst = findSmallestCases(r_sum, currAlpha);
                     else
                     	worst = StatUtil.findMin(r_sum);
-//                    System.out.print(t+":\t"+nonZeroComponentNum+"\t"+currAlpha+"\t"+
+//                    System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+"\t"+currAlpha+"\t"+
 //                    		String.format("%.2f", worst.car())+"\t"+worst.cdr().size()+"\n");
                     if (worst.car() > currAlpha){
                     	// no component to be eliminated, update pi(j)
@@ -1558,7 +1565,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     	// keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
                     	// give EM a time to stabilize before eliminating the next components
 //                    	System.out.println(t+":\t"+currAlpha+"\t elimination");
-                    	currAlpha = Math.max(worst.car(), alpha/3);
+                    	currAlpha = Math.max(worst.car(), alpha/gentle_elimination_factor);
                     }
             	}
             }
@@ -2573,7 +2580,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	//Update the resolution of the components
 	//Add new components in around non-zero components
 	protected void updateComponentResolution(Region currReg, int numCond, int lastResolution){
-		double extend=2;
 		ArrayList<BindingComponent> newComponents = new ArrayList<BindingComponent>();
 
 		//First map the valid bases around non-zero components
@@ -2581,8 +2587,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		int[] valid = new int[currReg.getWidth()];
 //		for(int v=0; v<currReg.getWidth(); v++){valid[v]=0;}
 		for(BindingComponent b : components){
-			for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*extend)-currReg.getStart());
-			    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*extend)-currReg.getStart());
+			for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*resolution_extend)-currReg.getStart());
+			    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*resolution_extend)-currReg.getStart());
 			    v++){
 				if(valid[v]==0){
 					valid[v]=1;
@@ -2598,8 +2604,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			//Set up the components
 			double totalMP =0;
 			for(BindingComponent b: components){
-				for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*extend+1)-currReg.getStart());
-				    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*extend-1)-currReg.getStart());
+				for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*resolution_extend+1)-currReg.getStart());
+				    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*resolution_extend-1)-currReg.getStart());
 				    v+=componentSpacing){
 					Point pos = new Point(gen, currReg.getChrom(), currReg.getStart()+v);
 					//Reusing the valid array for the sake of it
