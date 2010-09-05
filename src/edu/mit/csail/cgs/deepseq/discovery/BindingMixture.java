@@ -364,7 +364,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		 * **************************************************/
     	String subset_str = Args.parseString(args, "subs", null);
     	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
-     	String subsetFormat = Args.parseString(args, "subFormat", null);
+     	String subsetFormat = Args.parseString(args, "subFormat", "");
      	boolean toSegmentRegions = subsetFormat.equals("RegionsToSegment");
     	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
     	ArrayList<Region> subsetRegions = new ArrayList<Region>();
