@@ -1042,7 +1042,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		for (int p:breakPoints){
 			windows.add(new Region(r.getGenome(), r.getChrom(), 
 					Math.max(r.getStart(),start-modelWidth/2), 
-					Math.min(r.getEnd(), p-modelWidth/2)));
+					Math.min(r.getEnd(), p+modelWidth/2)));
 			start = p;
 		}
 		return windows;
