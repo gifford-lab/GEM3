@@ -2005,8 +2005,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								profile_minus[comp.getLocation().getLocation()-base.getCoordinate()-model.getMin()]=rc[jr][i]*base.getCount();
 						}
 						catch (Exception e){
-							System.err.println(comp.toString()+"\t"+base.getStrand()+"\t"+base.getCoordinate());
-							e.printStackTrace(System.err);
+							if (development_mode){
+								System.err.println(comp.toString()+"\t"+base.getStrand()+"\t"+base.getCoordinate());
+								e.printStackTrace(System.err);
+							}
 						}
 					}
 				}
