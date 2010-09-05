@@ -552,11 +552,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// print binCount stats
 		if (development_mode){
 			for(int c = 0; c < numConditions; c++) {
-				caches.get(c).car().printBinCounts();
-				caches.get(c).car().printBin500Counts();
+				caches.get(c).car().printBinCounts(outName);
+				caches.get(c).car().printBin500Counts(outName);
 				if(controlDataExist) {
-					caches.get(c).cdr().printBinCounts();
-					caches.get(c).cdr().printBin500Counts();
+					caches.get(c).cdr().printBinCounts(outName);
+					caches.get(c).cdr().printBin500Counts(outName);
 				}
 			}	
 		}
