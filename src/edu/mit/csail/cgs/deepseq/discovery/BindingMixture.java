@@ -605,6 +605,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     		}
     		setRegions(selectEnrichedRegions(subsetRegions, true));
 		}
+		else{
+			setRegions(subsetRegions);
+		}
 		
 		if (development_mode)
 			printNoneZeroRegions(true);
@@ -783,7 +786,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 									ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
 									for (BindingComponent m:comps){
 										if (tightRegion.overlaps(m.getLocation().expand(0)))
-										toRemove.add(m);
+											toRemove.add(m);
 									}
 									comps.removeAll(toRemove);
 									// re-process the boundary region
@@ -1214,7 +1217,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// H function and responsibility will be stored using an indirect indexing method
 		// Because only the components within modelRange matters, we only store those components around the reads
 		// and use a mapping array to keep track of the component index
-		// This will reduce the memory requirement from N*numComp, to N*numCompInRange
+		// This will reduce the memory requirement from N*numComp, to NInRange*numComp
 		// and should save some running time because we only iterate the effective base-comps
 		double[][]   counts= new double[numConditions][];	// Hit Count
 		double[][][] h= new double[numConditions][][]; 		// H function
@@ -1235,9 +1238,42 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		if(print_mixing_probabilities)
 			pi_sb.append(sb.toString().trim()+"\n");
 
+		boolean no_data_bin = false;
 		for(int c=0; c<numConditions; c++){
-			List<StrandedBase> bases = signals.get(c);
+			List<StrandedBase> bases_old = signals.get(c);
+			List<StrandedBase> bases = new ArrayList<StrandedBase>();
+			if (componentSpacing==1 || no_data_bin)
+				bases = bases_old;
+			else{
+				char strand = '+';
+				int pos = bases_old.get(0).getCoordinate()+componentSpacing/2;
+				float count = 0;
+				for (StrandedBase bb:bases_old){
+					if (bb.getStrand()!=strand){
+						if (count!=0)
+							bases.add(new StrandedBase(strand, pos, count));
+						strand = '-';
+						pos = bb.getCoordinate()+componentSpacing/2;
+						count = 0;
+					}
+					if( bb.getCoordinate()>=pos-componentSpacing/2 &&
+						bb.getCoordinate()<=pos+componentSpacing-componentSpacing/2-1){
+						count += bb.getCount();
+					}
+					else{
+						if (count!=0)
+							bases.add(new StrandedBase(strand, pos, count));
+						count=bb.getCount();
+						pos = bb.getCoordinate()+componentSpacing/2;
+					}
+				}
+				if (count!=0)
+					bases.add(new StrandedBase(strand, pos, count));
+			}
+				
 			int numBases = bases.size();
+//			System.out.println(StrandedBase.countBaseHits(bases));
+//			System.out.println(StrandedBase.countBaseHits(bases_old));
 			double[] bc= new double[numComp];
 			for(int j=0;j<numComp;j++)
 				bc[j]=1.0/numConditions;
@@ -1330,16 +1366,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		components = nonZeroComponents;
 
-		for(int c=0; c<numConditions; c++){
-			for(int j=0;j<components.size();j++){	
-				double sum_resp = 0.0;	
-				int oldIndex = components.get(j).getOld_index();
-				int[] baseIdx = c2b[c][oldIndex];
-				for(int i=0;i<baseIdx.length;i++){
-					sum_resp += counts[c][baseIdx[i]]*r[c][oldIndex][i];
+		if (componentSpacing==1){
+			for(int c=0; c<numConditions; c++){
+				for(int j=0;j<components.size();j++){	
+					double sum_resp = 0.0;	
+					int oldIndex = components.get(j).getOld_index();
+					int[] baseIdx = c2b[c][oldIndex];
+					for(int i=0;i<baseIdx.length;i++){
+						sum_resp += counts[c][baseIdx[i]]*r[c][oldIndex][i];
+					}
+					// Assign the summed responsibilities only to non-zero components
+					components.get(j).setCondSumResponsibility(c, sum_resp);
 				}
-				// Assign the summed responsibilities only to non-zero components
-				components.get(j).setCondSumResponsibility(c, sum_resp);
 			}
 		}
 	
