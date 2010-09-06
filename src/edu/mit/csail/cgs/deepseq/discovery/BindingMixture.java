@@ -120,7 +120,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double sparseness=6.0;
     private double fold = 3.0;
     private double shapeDeviation = 0;
-    private int gentle_elimination_factor = 2;
+    private int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
     private int resolution_extend = 1;
     private boolean use_KL_filtering = true;	// use KL to filter events
     private int first_lambda_region_width  =  1000;
