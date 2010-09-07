@@ -110,18 +110,55 @@ public class ReadCache {
 		for(i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
 	}//end of ReadCache constructor
 	
-	/**
-	 * Loads hits in the region
-	 * @param r
-	 * @return
-	 */
 	public List<StrandedBase> getUnstrandedBases(Region r) {
 		List<StrandedBase> bases = new ArrayList<StrandedBase>();
 		bases.addAll(getStrandedBases(r,'+'));
 		bases.addAll(getStrandedBases(r,'-'));
 		return bases;
 	}
+	/*
+	 * Return both stranded base counts
+	 * Subtract IP count by Ctrl count (stranded) (scaled by ratio)
+	 * We do not want to modify the readCaches, thus do it here on the fly
+	 */
+	public List<StrandedBase> getSubtractedBases(Region r, ReadCache ctrl, double ratio) {
+		List<StrandedBase> bases = new ArrayList<StrandedBase>();
+		
+		for (int s=0;s<2;s++){
+			List<StrandedBase> ip_bases = getStrandedBases(r,s==0?'+':'-');
+			List<StrandedBase> ctrl_bases = ctrl.getStrandedBases(r,s==0?'+':'-');
+			int ctrl_idx = 0;
+			for (StrandedBase b: ip_bases){
+				while(ctrl_idx<ctrl_bases.size() && 
+						ctrl_bases.get(ctrl_idx).getCoordinate()<b.getCoordinate()){
+					ctrl_idx++;
+				}
+				if (ctrl_idx==ctrl_bases.size()){	// reach end of control reads
+					bases.add(b);
+					continue;
+				}
+					
+				// if there is control reads at the same position, subtract it
+				if ( ctrl_bases.get(ctrl_idx).getCoordinate()==b.getCoordinate()){
+					float count = (float) (b.getCount() - ctrl_bases.get(ctrl_idx).getCount()*ratio);
+					if (count>0){
+						b.setCount(count);
+						bases.add(b);
+					}
+				}
+				else{
+					bases.add(b);
+				}
+			}
+		}
+		return bases;
+	}
 	
+	/**
+	 * Loads hits in the region
+	 * @param r
+	 * @return
+	 */
 	public List<StrandedBase> getStrandedBases(Region r, char strand) {
 		List<StrandedBase> bases = new ArrayList<StrandedBase>();
 		String chr = r.getChrom();
@@ -404,19 +441,19 @@ public class ReadCache {
 		System.out.println(name+"\tBases: "+totalBases+"\tHitCounts: "+totalHits);
 	}
 	
-	public void printBinCounts(){
+	public void printBinCounts(String prefix){
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<binCounts.length;i++){
 			sb.append(i+"\t"+binCounts[i]+"\n");
 		}
-		writeFile(name+"1bpCount.txt", sb.toString());
+		writeFile(prefix+"_"+name.trim()+"_1bpCount.txt", sb.toString());
 	}
-	public void printBin500Counts(){
+	public void printBin500Counts(String prefix){
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<bin500Counts.length;i++){
 			sb.append(i+"\t"+bin500Counts[i]+"\n");
 		}
-		writeFile(name+"500bpCount.txt", sb.toString());
+		writeFile(prefix+"_"+name.trim()+"_500bpCount.txt", sb.toString());
 	}
 	
 	public int getMaxHitPerBP(double fraction){
