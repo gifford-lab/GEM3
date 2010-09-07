@@ -1908,9 +1908,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			ArrayList<Pair<Point, Float>> f = e.car().resetHugeBases(base_reset_threshold);
 			for (Pair<Point, Float> p:f)
 				System.err.printf("Warning: %s IP read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
-			f = e.cdr().resetHugeBases(base_reset_threshold);
-			for (Pair<Point, Float> p:f)
-				System.err.printf("Warning: %s Ctrl read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
+			if (controlDataExist){
+				f = e.cdr().resetHugeBases(base_reset_threshold);
+				for (Pair<Point, Float> p:f)
+					System.err.printf("Warning: %s Ctrl read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
+			}
 		}
 		
 		
