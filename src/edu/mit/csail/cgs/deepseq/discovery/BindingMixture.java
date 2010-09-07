@@ -1902,24 +1902,23 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end of checkCompExactMatching method
 
 	private void doBaseFiltering(){
-		// Mandatory base reset for extremely high read counts
-		for(int i=0; i<numConditions; i++){
-			Pair<ReadCache,ReadCache> e = caches.get(i);
-			ArrayList<Pair<Point, Float>> f = e.car().resetHugeBases(base_reset_threshold);
-			for (Pair<Point, Float> p:f)
-				System.err.printf("Warning: %s IP read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
-			if (controlDataExist){
-				f = e.cdr().resetHugeBases(base_reset_threshold);
-				for (Pair<Point, Float> p:f)
-					System.err.printf("Warning: %s Ctrl read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
-			}
-		}
-		
-		
 		//  set max read count for bases to filter PCR artifacts (optional)
 		if (!base_filtering){
+			// Mandatory base reset for extremely high read counts
+			for(int i=0; i<numConditions; i++){
+				Pair<ReadCache,ReadCache> e = caches.get(i);
+				ArrayList<Pair<Point, Float>> f = e.car().resetHugeBases(base_reset_threshold);
+				for (Pair<Point, Float> p:f)
+					System.err.printf("Warning: %s IP read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
+				if (controlDataExist){
+					f = e.cdr().resetHugeBases(base_reset_threshold);
+					for (Pair<Point, Float> p:f)
+						System.err.printf("Warning: %s Ctrl read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
+				}
+			}
 			return;
 		}
+		
         for(int i=0; i<numConditions; i++){
 			Pair<ReadCache,ReadCache> e = caches.get(i);
 			double ipCount = e.car().getHitCount();
@@ -1946,6 +1945,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 	}
+	
 	// determine the max hit count by threshold of Poisson p-value
 	// set average read as lambda parameter for Poisson distribution
 	protected int calcHitCount_per_BP(double totalReads, double threshold){
@@ -4100,13 +4100,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 
 	public void addAnnotations(){
-		//Add closest genes
-		System.out.println("Adding gene annotations");
-		addClosestGenes(signalFeatures);
-
-		//Add other annotations
-		System.out.println("Adding other annotations");
-		addRegionAnnotations(signalFeatures);
+		try{
+			//Add closest genes
+			System.out.println("Adding gene annotations");
+			addClosestGenes(signalFeatures);
+	
+			//Add other annotations
+			System.out.println("Adding other annotations");
+			addRegionAnnotations(signalFeatures);
+		}
+		catch(Exception e){
+			System.err.println("Error in adding annotations.");
+			e.printStackTrace(System.err);
+		}
 	}
 
 	/* Default printing option
