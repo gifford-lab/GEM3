@@ -114,122 +114,63 @@ public class GPSParser {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
 		if (t.length == 7) {
-// GPS output format 2010-07-31		
-// Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
-	      try { 
-	    	  Region r = Region.fromString(g, t[0]);
-				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-						Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
-						Double.parseDouble(t[5]), Double.parseDouble(t[6]));
-	      }
-	      catch (Exception ex) {
-	        //logger.error("Parse error on line " + lineNumber + ".", ex);
-	        return null;
-	      }
-	    }
-	else if (t.length < 12) {
-      try { 
-      Region r = Region.fromString(g, t[0]);
+            // GPS output format 2010-07-31		
+            // Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
+            Region r = Region.fromString(g, t[0]);
+            peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+                               Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
+                               Double.parseDouble(t[5]), Double.parseDouble(t[6]));
+	    } else if (t.length < 12) {
+            Region r = Region.fromString(g, t[0]);
 			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-					Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
-					Double.parseDouble(t[5]), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
-      }
-      catch (Exception ex) {
-        //logger.error("Parse error on line " + lineNumber + ".", ex);
-        return null;
-      }
+                               Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
+                               Double.parseDouble(t[5]), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
+        } else if (t.length == 12) {
+            // GPS dev output format 2010-07-31		
+            //	Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
+            //	Joint	NearestGene	Distance	Alpha	EM_Position
+            Region r = Region.fromString(g, t[0]);
+            peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+                               Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
+                               Double.parseDouble(t[5]), Double.parseDouble(t[6]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
+	    } else if (t.length == 13) {
+            Region r = Region.fromString(g, t[0]);
+            peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+                               Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[5]), 
+                               Double.parseDouble(t[6]), Double.parseDouble(t[1]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
+        } else if (t.length == 14) {
+            Region r = Region.fromString(g, t[0]);
+            Region em_pos = Region.fromString(g, t[3]);
+            //        GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
+            //            double controlStrength, double qvalue, double shape, double shapeZ)
+            peak = new GPSPeak(g, r.getChrom(), r.getStart(), em_pos.getStart(),
+                               Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]),
+                               Double.parseDouble(t[4]), Double.parseDouble(t[5]), Double.parseDouble(t[11]), t[12], Integer.parseInt(t[13]));
+        } else if (t.length == 15) {
+            Region r = Region.fromString(g, t[0]);
+            Region em_pos = Region.fromString(g, t[3]);
+            //				GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
+            //						double controlStrength, double qvalue, double shape, double shapeZ)
+            peak = new GPSPeak(g, r.getChrom(), r.getStart(), em_pos.getStart(),
+                               Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]), Double.parseDouble(t[11]),
+                               Double.parseDouble(t[4]), Double.parseDouble(t[5]), Double.parseDouble(t[12]), t[13], Integer.parseInt(t[14]));
+        } else if (t.length == 16) {
+            Region r = Region.fromString(g, t[0]);
+            //			GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
+            //					double controlStrength, double qvalue, double shape, double shapeZ)		
+            peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+                               Double.parseDouble(t[3+0]), 0.0, 0.0, 
+                               0.0, Double.parseDouble(t[10]), Integer.parseInt(t[10]), t[11], Integer.parseInt(t[12]));
+        } else if (t.length == 17) {
+            Region r = Region.fromString(g, t[0]);
+            //			GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
+            //					double controlStrength, double qvalue, double shape, double shapeZ)		
+            peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+                               Double.parseDouble(t[3+0]), Double.parseDouble(t[3+1]), Double.parseDouble(t[3+2]), 
+                               Double.parseDouble(t[3+3]), Double.parseDouble(t[2]), Integer.parseInt(t[11]), t[11+1], Integer.parseInt(t[11+2]));
+        } else {
+            throw new RuntimeException("Invalid number of fields (" + t.length + ") on line " + lineNumber + ": " + gpsLine);
+        }
+        return peak;
     }
-	else if (t.length == 12) {
-// GPS dev output format 2010-07-31		
-//	Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
-//	Joint	NearestGene	Distance	Alpha	EM_Position
-	      try { 
-	    	  Region r = Region.fromString(g, t[0]);
-				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-						Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
-						Double.parseDouble(t[5]), Double.parseDouble(t[6]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
-	      }
-	      catch (Exception ex) {
-	        //logger.error("Parse error on line " + lineNumber + ".", ex);
-	        return null;
-	      }
-	    }
-	else if (t.length == 13) {
-	      try { 
-	      Region r = Region.fromString(g, t[0]);
-				peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-						Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[5]), 
-						Double.parseDouble(t[6]), Double.parseDouble(t[1]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
-	      }
-	      catch (Exception ex) {
-	        //logger.error("Parse error on line " + lineNumber + ".", ex);
-	        return null;
-	      }
-	    }
-	else if (t.length == 14) {
-      try { 
-        Region r = Region.fromString(g, t[0]);
-        Region em_pos = Region.fromString(g, t[3]);
-//        GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
-//            double controlStrength, double qvalue, double shape, double shapeZ)
-        peak = new GPSPeak(g, r.getChrom(), r.getStart(), em_pos.getStart(),
-            Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]),
-            Double.parseDouble(t[4]), Double.parseDouble(t[5]), Double.parseDouble(t[11]), t[12], Integer.parseInt(t[13]));
-      }
-      catch (Exception ex) {
-        //logger.error("Parse error on line " + lineNumber + ".", ex);
-        return null;
-      }
-    }
-    else if (t.length == 15) {
-			try { 
-				Region r = Region.fromString(g, t[0]);
-				Region em_pos = Region.fromString(g, t[3]);
-//				GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
-//						double controlStrength, double qvalue, double shape, double shapeZ)
-				peak = new GPSPeak(g, r.getChrom(), r.getStart(), em_pos.getStart(),
-						Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]), Double.parseDouble(t[11]),
-						Double.parseDouble(t[4]), Double.parseDouble(t[5]), Double.parseDouble(t[12]), t[13], Integer.parseInt(t[14]));
-			}
-			catch (Exception ex) {
-				//logger.error("Parse error on line " + lineNumber + ".", ex);
-				return null;
-			}
-		}
-    else if (t.length == 16) {
-		try { 
-			Region r = Region.fromString(g, t[0]);
-//			GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
-//					double controlStrength, double qvalue, double shape, double shapeZ)		
-			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-					Double.parseDouble(t[3+0]), 0.0, 0.0, 
-					0.0, Double.parseDouble(t[10]), Integer.parseInt(t[10]), t[11], Integer.parseInt(t[12]));
-		}
-				
-		catch (Exception ex) {
-			//logger.error("Parse error on line " + lineNumber + ".", ex);
-			return null;
-		}
-	}
-	
-    else if (t.length == 17) {
-		try { 
-			Region r = Region.fromString(g, t[0]);
-//			GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
-//					double controlStrength, double qvalue, double shape, double shapeZ)		
-			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
-					Double.parseDouble(t[3+0]), Double.parseDouble(t[3+1]), Double.parseDouble(t[3+2]), 
-					Double.parseDouble(t[3+3]), Double.parseDouble(t[2]), Integer.parseInt(t[11]), t[11+1], Integer.parseInt(t[11+2]));
-		}
-		catch (Exception ex) {
-			//logger.error("Parse error on line " + lineNumber + ".", ex);
-			return null;
-		}
-    }
-		else {
-			//logger.error("Line " + lineNumber + " has " + tokens.length + " tokens.");
-			return null;
-		}
-		return peak;
-	}
 }
