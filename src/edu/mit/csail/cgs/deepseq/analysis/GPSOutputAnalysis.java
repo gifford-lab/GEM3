@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -33,45 +34,34 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class GPSOutputAnalysis {
-  static final int MOTIF_DISTANCE = 200;  
+  static final int NOHIT_OFFSET = 999;
   static final int maxAnnotDistance=50000;
   
+  private int motif_window = 100;  
   private Genome genome;
-  private Organism org;
   private String[] args;
   private WeightMatrix motif = null;
-  double motifThreshold;
+  private double motifThreshold;
   
-  List<GPSPeak> gpsPeaks;
-  String GPSfileName;
+  private int[]motif_offsets;
+  private double[]motif_scores;
+  
+  private List<GPSPeak> gpsPeaks;
+  private String outputFileName;
   
   // build empirical distribution
-  String chipSeqExpt = null;
-  String chipSeqVersion = null;
-  boolean useMotif = true;
+  private String chipSeqExpt = null;
+  private String chipSeqVersion = null;
+  private boolean useMotif = true;
   
   /**
    * @param args
    */
   public static void main(String[] args) throws IOException {
-    
-    GPSOutputAnalysis analysis = new GPSOutputAnalysis(args);
-	int type = Args.parseInteger(args, "type", 0);
-    int win = Args.parseInteger(args, "win", 50);
-    int top = Args.parseInteger(args, "top", 100);
-	switch(type){
-	case 0: analysis.jointBindingMotifAnalysis(true);break;
-	case 1: analysis.printSequences(win, top);break;
-	case 2:	analysis.geneAnnotation();break;
-	case 3:	analysis.expressionIntegration();break;
-	case 4: analysis.buildEmpiricalDistribution();break;
-	default: System.err.println("Unrecognize analysis type: "+type);
-	}
-  }
-  
-  public GPSOutputAnalysis(String[] args) throws IOException {
-    this.args = args;
     ArgParser ap = new ArgParser(args);
+    
+    Organism org=null;
+    Genome genome=null;
     
     try {
       Pair<Organism, Genome> pair = Args.parseGenome(args);
@@ -91,69 +81,53 @@ public class GPSOutputAnalysis {
     }
 	// load motif
     String motifString = Args.parseString(args, "motif", null);
+    Pair<WeightMatrix, Double> wm = null;
     if (motifString!=null){
-		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-		motif = wm.car();
-		motifThreshold = wm.cdr();
+		wm = CommonUtils.loadPWM(args, org.getDBID());
     }
+    int motif_window = Args.parseInteger(args, "windowSize", 100);
     
     // load GPS results
-    GPSfileName = Args.parseString(args, "GPS", null);
+    String GPSfileName = Args.parseString(args, "GPS", null);
     if (GPSfileName==null){
       System.err.println("GPS file not found!");
       System.exit(0);
     }
     File gpsFile = new File(GPSfileName);
-    gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
-	Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
-	    public int compare(GPSPeak o1, GPSPeak o2) {
-	        return o1.compareByPValue(o2);
-	    }
-	});
-    // parameter for building empirical distribution
-//    chipSeqExpt = Args.parseString(args, "chipSeqExpt", null);
-//    chipSeqVersion = Args.parseString(args, "chipSeqVersion", null);
-//    useMotif = Args.parseInteger(args, "useMotif", 0)==1?true:false;
+    List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
+//		Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
+//		    public int compare(GPSPeak o1, GPSPeak o2) {
+//		        return o1.compareByPValue(o2);
+//		    }
+//		});
+		
+		
+    GPSOutputAnalysis analysis = new GPSOutputAnalysis(genome, 
+    		wm.car(), wm.cdr().doubleValue(), gpsPeaks, GPSfileName, motif_window);
+	
+    int type = Args.parseInteger(args, "type", 0);
+    int win = Args.parseInteger(args, "win", 50);
+    int top = Args.parseInteger(args, "top", 100);
+	switch(type){
+	case 0: analysis.jointBindingMotifAnalysis(true);break;
+	case 1: analysis.printSequences(win, top);break;
+	case 2:	analysis.geneAnnotation();break;
+	case 3:	analysis.expressionIntegration();break;
+	case 4: analysis.buildEmpiricalDistribution();break;
+	default: System.err.println("Unrecognize analysis type: "+type);
+	}
   }
   
-  public void buildEmpiricalDistribution(){
-    WeightMatrixScorer scorer=null;
-    if (useMotif){
-      scorer = new WeightMatrixScorer(motif);
-    }
-    ArrayList<Point> points = new ArrayList<Point>();
-    for (GPSPeak gps: gpsPeaks){
-      if ((!gps.isJointEvent()) && gps.getStrength()>40 && gps.getShape()<-1){
-        if (useMotif){
-          Region r= gps.expand(MOTIF_DISTANCE);
-          WeightMatrixScoreProfile profiler = scorer.execute(r);
-          int halfWidth = profiler.getMatrix().length()/2;
-          //search from BS outwards, to find the nearest strong motif
-          for(int z=0; z<=r.getWidth()/2; z++){
-            double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
-            double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);  
-            int position = -Integer.MAX_VALUE;  // middle of motif, relative to GPS peak
-            if(rightScore>=motifThreshold){
-              position = z+halfWidth;
-            }
-            if(leftScore>=motifThreshold){
-              position = -z+halfWidth;
-            }
-            if(position > -Integer.MAX_VALUE){
-              Point motifPos = new Point(genome, gps.getChrom(), gps.getLocation()+position);
-              points.add(motifPos);
-              break;  // break from the motif search of this peak
-            }
-          }
-        }
-        else
-          points.add((Point)gps);
-      }
-    }
-    ChipSeqStats.printEmpiricalDistribution(points, chipSeqExpt, chipSeqVersion );
-    System.out.println(points.size()+" GPS peaks are used to build empricaldistribution.");
+  public GPSOutputAnalysis(Genome g, WeightMatrix wm, double threshold, 
+		  List<GPSPeak> p, String outputFile, int motif_win) {
+	  genome = g;
+	  motif = wm;
+	  motifThreshold = threshold;
+	  gpsPeaks = p;
+	  outputFileName = outputFile;
+	  motif_window = motif_win;
   }
-
+  
   
   /**
    * For each peak find the occurrence of a motif match >= the specified 
@@ -163,6 +137,9 @@ public class GPSOutputAnalysis {
   public void jointBindingMotifAnalysis(boolean analyzeMotif){
     System.out.println("Analyzing motif matches");
     Collections.sort(gpsPeaks);
+    
+    if (analyzeMotif)
+    	findNearestMotifHit();
     
     int interPeak_distances[] = new int[gpsPeaks.size()];
     interPeak_distances[0]=99999999;
@@ -174,12 +151,70 @@ public class GPSOutputAnalysis {
       else
         interPeak_distances[i]=99999999;
     }
+     
+    //sort by inter-event distance
+    int old_index[] = StatUtil.findSort(interPeak_distances);
+    
+    // output results
+    StringBuilder sb = new StringBuilder();
+    StringBuilder sb_binary = new StringBuilder();
+    // header
+    sb.append("# motif: "+motif.getName()+" "+motif.version+" ");
+    sb.append("threshold="+motifThreshold+" within "+motif_window+" bps\n");
+//    sb.append("GPS Peak\tNearestGene\tDistance\tSample reads\tControl reads\t"+"Motif_score\tMotif_peak\n"); 
+    //old style verbose header
+    //sb.append("threshold="+motifThreshold+" within "+MOTIF_DISTANCE+" bps\n");
+    sb.append(GPSPeak.toGPS_short_Header()+"\tMotif_score\tMotif_peak\tMotif_prevPeak\tPeak_distance\n"); 
+    
+    // all other peaks
+    for (int j=0;j<old_index.length;j++){
+    	int i=old_index[j];
+    	if (i==0)
+    		continue;
+//      sb.append(gpsPeaks.get(i).toGPS_motifShort()).append("\t");
+      sb.append(gpsPeaks.get(i).toGPS_short()).append("\t");
+      sb.append(String.format("%.2f", motif_scores[i])).append("\t");
+      sb.append(motif_offsets[i]).append("\t");
+      sb.append(motif_offsets[i-1]).append("\t");
+      sb.append(interPeak_distances[j]).append("\n");     
+      if (motif_offsets[i-1]-motif_offsets[i]!=interPeak_distances[j] 
+          && motif_offsets[i]!=NOHIT_OFFSET
+          && motif_offsets[i-1]!=NOHIT_OFFSET
+          && interPeak_distances[j]<=1000){
+    	  sb_binary.append(gpsPeaks.get(i).toGPS_short()).append("\t");
+    	  sb_binary.append(String.format("%.2f", motif_scores[i])).append("\t");
+    	  sb_binary.append(motif_offsets[i]).append("\t");
+    	  sb_binary.append(motif_offsets[i-1]).append("\t");
+    	  sb_binary.append(interPeak_distances[j]).append("\n");     
+      }
+    }
+    // first peak
+	//  sb.append(gpsPeaks.get(0).toGPS_motifShort()).append("\t");
+	  sb.append(gpsPeaks.get(0).toGPS_short()).append("\t");
+	  sb.append(String.format("%.2f", motif_scores[0])).append("\t");
+	  sb.append(motif_offsets[0]).append("\t");
+	  sb.append(NOHIT_OFFSET).append("\t"); //prev motif distance
+	  sb.append(99999999).append("\n");  //interpeak distance
 
+  
+	  CommonUtils.writeFile(outputFileName+"_JointPeak_Motif.txt", sb.toString());
+	  CommonUtils.writeFile(outputFileName+"_BinaryMotifEvents.txt", sb_binary.toString());
+  }
+  
+  /*
+   * find nearest motif hit for each peak
+   * motif hits are stranded, the offset is the relative position from the motif (positive copy)
+   * offset = 999 (NOHIT_OFFSET) if no hit is found
+   */
+  public void findNearestMotifHit(){
+	if (motif_offsets!=null)
+		return;
+	  
     // motif
-    int[]motif_distances = new int[gpsPeaks.size()];
-    double[]motif_scores = new double[gpsPeaks.size()];
-    if (analyzeMotif){
+    motif_offsets = new int[gpsPeaks.size()];
+    motif_scores = new double[gpsPeaks.size()];
       WeightMatrixScorer scorer = new WeightMatrixScorer(motif);
+      int halfWidth = motif.length()/2;		// center of motif
       // for each GPS peak, search nearest motif with threshold
       for(int i=0; i<gpsPeaks.size(); i++){
         if (i % 1000 == 0) {
@@ -194,89 +229,111 @@ public class GPSOutputAnalysis {
           System.out.print(".");
         }
         GPSPeak peak = gpsPeaks.get(i);
-        Region r= peak.expand(MOTIF_DISTANCE);
+        Region r= peak.expand(motif_window+halfWidth);
         WeightMatrixScoreProfile profiler = scorer.execute(r);
-        int halfWidth = profiler.getMatrix().length()/2;
         //search from BS outwards
-        for(int z=0; z<=MOTIF_DISTANCE; z++){
+        for(int z=0; z<=motif_window; z++){
           double leftScore = Double.NEGATIVE_INFINITY;
           double rightScore = Double.NEGATIVE_INFINITY;
-          if ((MOTIF_DISTANCE+z) < profiler.length()) {
-            rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);        
+          if ((motif_window+z) < profiler.length()) {
+            rightScore= profiler.getMaxScore(motif_window+z);        
             if(rightScore>=motifThreshold){
-              motif_distances[i] = z+halfWidth;
+              motif_offsets[i] = z * (profiler.getMaxStrand(z)=='+'?1:-1);
               motif_scores[i] = rightScore;
               break;
             }
           }
-          if ((MOTIF_DISTANCE-z) >= 0) {
-            leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
+          if ((motif_window-z) >= 0) {
+            leftScore= profiler.getMaxScore(motif_window-z);
             if(leftScore>=motifThreshold){
-              motif_distances[i] = -z+halfWidth;
+              motif_offsets[i] = -z * (profiler.getMaxStrand(z)=='+'?1:-1);
               motif_scores[i] = leftScore;
               break;
             }
           }
           // if motif score at this position is too small, and reach end of region
-          if (z==r.getWidth()/2){
-            motif_distances[i] = 999;
+          if (z==motif_window){
+            motif_offsets[i] = NOHIT_OFFSET;
             motif_scores[i] = Math.max(leftScore, rightScore);
           }
         }
       }
-      System.out.println();
-    }
-     
-    //sort by inter-event distance
-    int old_index[] = StatUtil.findSort(interPeak_distances);
-    
-    // output results
-    StringBuilder sb = new StringBuilder();
-    StringBuilder sb_binary = new StringBuilder();
-    // header
-    sb.append("# motif: "+motif.getName()+" "+motif.version+" ");
-    sb.append("threshold="+motifThreshold+" within "+MOTIF_DISTANCE+" bps\n");
-//    sb.append("GPS Peak\tNearestGene\tDistance\tSample reads\tControl reads\t"+"Motif_score\tMotif_peak\n"); 
-    //old style verbose header
-    //sb.append("threshold="+motifThreshold+" within "+MOTIF_DISTANCE+" bps\n");
-    sb.append(GPSPeak.toGPS_short_Header()+"\tMotif_score\tMotif_peak\tMotif_prevPeak\tPeak_distance\n"); 
-    
-    // all other peaks
-    for (int j=0;j<old_index.length;j++){
-    	int i=old_index[j];
-    	if (i==0)
-    		continue;
-//      sb.append(gpsPeaks.get(i).toGPS_motifShort()).append("\t");
-      sb.append(gpsPeaks.get(i).toGPS_short()).append("\t");
-      sb.append(String.format("%.2f", motif_scores[i])).append("\t");
-      sb.append(motif_distances[i]).append("\t");
-      sb.append(motif_distances[i-1]).append("\t");
-      sb.append(interPeak_distances[j]).append("\n");     
-      if (motif_distances[i-1]-motif_distances[i]!=interPeak_distances[j] 
-          && motif_distances[i]!=999
-          && motif_distances[i-1]!=999
-          && interPeak_distances[j]<=1000){
-    	  sb_binary.append(gpsPeaks.get(i).toGPS_short()).append("\t");
-    	  sb_binary.append(String.format("%.2f", motif_scores[i])).append("\t");
-    	  sb_binary.append(motif_distances[i]).append("\t");
-    	  sb_binary.append(motif_distances[i-1]).append("\t");
-    	  sb_binary.append(interPeak_distances[j]).append("\n");     
-      }
-    }
-    // first peak
-	//  sb.append(gpsPeaks.get(0).toGPS_motifShort()).append("\t");
-	  sb.append(gpsPeaks.get(0).toGPS_short()).append("\t");
-	  sb.append(String.format("%.2f", motif_scores[0])).append("\t");
-	  sb.append(motif_distances[0]).append("\t");
-	  sb.append(999).append("\t"); //prev motif distance
-	  sb.append(99999999).append("\n");  //interpeak distance
-
-  
-	  CommonUtils.writeFile(GPSfileName+"_JointPeak_Motif.txt", sb.toString());
-	  CommonUtils.writeFile(GPSfileName+"_BinaryMotifEvents.txt", sb_binary.toString());
+  }
+  public String printMotifHitList(){
+	StringBuilder statStr = new StringBuilder();
+	statStr.append(String.format("\n----------------------------------------------\n%s\nTotal Event #:\t%d", 
+				outputFileName, gpsPeaks.size()));
+	System.out.println(statStr.toString());  
+	if (gpsPeaks.size()==0)
+		return statStr.toString();
+	findNearestMotifHit();
+	  
+	ArrayList<GPSPeak> hitList = new ArrayList<GPSPeak>();
+	ArrayList<GPSPeak> nohitList = new ArrayList<GPSPeak>();
+	ArrayList<Integer> offsets_hit= new ArrayList<Integer>();
+	for (int i=0;i<gpsPeaks.size();i++){
+		  if (motif_offsets[i]!=NOHIT_OFFSET){
+			  hitList.add(gpsPeaks.get(i));
+			  offsets_hit.add(motif_offsets[i]);
+		  }
+		  else
+			  nohitList.add(gpsPeaks.get(i));
+	}
+	
+	int[]offsets = new int[offsets_hit.size()];
+	for (int i=0;i<offsets_hit.size();i++)
+		offsets[i]=offsets_hit.get(i);
+	double bias = 0;
+	// only calc bias when sufficient points, because we assume positive and negative offsets 
+	// are balanced when we have sufficient number of points
+	if (offsets_hit.size()>200)
+		bias= StatUtil.mean(offsets);		// position bias (motif center point may not be binding site)
+	for (int i=0;i<offsets_hit.size();i++){
+		int unbiasedOffset = offsets_hit.get(i)-(int)bias;
+		offsets[i]=Math.abs(unbiasedOffset);
+		offsets_hit.set(i, unbiasedOffset);
+	}
+	double mean = 0;
+	if (offsets_hit.size()>0){
+		mean = StatUtil.mean(offsets);		// distance mean
+		Arrays.sort(offsets);
+	}
+	
+	// motif hit list
+	StringBuilder sb = new StringBuilder();
+	sb.append("# motif: "+motif.getName()+" "+motif.version+" (" + motif.speciesid+") ");
+	sb.append("threshold="+motifThreshold+" within "+motif_window+" bps\n");
+	sb.append(GPSPeak.toGPS_short_Header()+"\tOffset\n"); 
+	for (int i=0;i<hitList.size();i++){
+		sb.append(hitList.get(i).toGPS_short()).append("\t").append(offsets_hit.get(i)).append("\n");
+	}
+	CommonUtils.writeFile(outputFileName+"_motifHit.txt", sb.toString());
+	
+	// no hit list
+	sb = new StringBuilder();
+	sb.append("# motif: "+motif.getName()+" "+motif.version+" ");
+	sb.append("threshold="+motifThreshold+" within "+motif_window+" bps\n");
+	sb.append(GPSPeak.toGPS_short_Header()+"\n"); 
+	for (GPSPeak p : nohitList){
+		sb.append(p.toGPS_short()).append("\n");
+	}
+	CommonUtils.writeFile(outputFileName+"_noHit.txt", sb.toString());
+	
+	// overall stats
+	String msg = String.format("\nWith motif:\t%d (%.1f%%)\nNO motif:\t%d (%.1f%%)\n\n", 
+			hitList.size(), (double)hitList.size()/gpsPeaks.size()*100,
+			nohitList.size(), (double)nohitList.size()/gpsPeaks.size()*100);
+	statStr.append(msg);
+	System.out.print(msg);
+	msg = String.format("Average SR (spatial resolution) = %.2f bp, bias=%.1f\n"+
+			"SR(quantile)  %d(25%%)  %d(50%%)  %d(75%%)\n",
+			mean, bias, offsets[offsets.length/4], offsets[offsets.length/2], offsets[offsets.length*3/4]);
+	statStr.append(msg);
+	System.out.print(msg);
+	return statStr.toString();
   }
   
-  private void geneAnnotation(){
+  public void geneAnnotation(){
     boolean annotOverlapOnly=true;	
     
     ArrayList<AnnotationLoader> geneAnnotations = new ArrayList<AnnotationLoader>();
@@ -316,12 +373,16 @@ public class GPSOutputAnalysis {
                 sb.append(gpspeak.toGPS()).append("\t").append(geneID).append("\t").append(geneName)
                   .append("\t").append(distToGene).append("\n");
             }
-      String filename = GPSfileName+(annotOverlapOnly?"_overlap_genes.txt":"_nearest_genes.txt");
+      String filename = outputFileName+(annotOverlapOnly?"_overlap_genes.txt":"_nearest_genes.txt");
       CommonUtils.writeFile(filename, sb.toString());  
     }
   }
-  
-  private void printSequences(int win, int top){
+  /*
+   * Output sequences around the binding events
+   * --win	window size
+   * --top	for top # of events
+   */
+  public void printSequences(int win, int top){
 	StringBuilder sb = new StringBuilder();
 	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	Region peakWin=null;
@@ -332,11 +393,49 @@ public class GPSOutputAnalysis {
 		sb.append(">"+peakWin.getLocationString()+"\t"+peakWin.getWidth() +"\t"+gpspeak.getStrength() +"\n");
 		sb.append(seqgen.execute(peakWin)+"\n");
 	}
-	String filename = GPSfileName+"_sequence.txt";
+	String filename = outputFileName+"_sequence.txt";
 	CommonUtils.writeFile(filename, sb.toString());  
   }
 
-  private void expressionIntegration(){
+  public void buildEmpiricalDistribution(){
+    WeightMatrixScorer scorer=null;
+    if (useMotif){
+      scorer = new WeightMatrixScorer(motif);
+    }
+    ArrayList<Point> points = new ArrayList<Point>();
+    for (GPSPeak gps: gpsPeaks){
+      if ((!gps.isJointEvent()) && gps.getStrength()>40 && gps.getShape()<-1){
+        if (useMotif){
+          Region r= gps.expand(motif_window);
+          WeightMatrixScoreProfile profiler = scorer.execute(r);
+          int halfWidth = profiler.getMatrix().length()/2;
+          //search from BS outwards, to find the nearest strong motif
+          for(int z=0; z<=r.getWidth()/2; z++){
+            double leftScore= profiler.getMaxScore(motif_window-z);
+            double rightScore= profiler.getMaxScore(motif_window+z);  
+            int position = -Integer.MAX_VALUE;  // middle of motif, relative to GPS peak
+            if(rightScore>=motifThreshold){
+              position = z+halfWidth;
+            }
+            if(leftScore>=motifThreshold){
+              position = -z+halfWidth;
+            }
+            if(position > -Integer.MAX_VALUE){
+              Point motifPos = new Point(genome, gps.getChrom(), gps.getLocation()+position);
+              points.add(motifPos);
+              break;  // break from the motif search of this peak
+            }
+          }
+        }
+        else
+          points.add((Point)gps);
+      }
+    }
+    ChipSeqStats.printEmpiricalDistribution(points, chipSeqExpt, chipSeqVersion );
+    System.out.println(points.size()+" GPS peaks are used to build empricaldistribution.");
+  }
+
+  public void expressionIntegration(){
     // loading array annotation file
     String arrayFilename = Args.parseString(args, "ArrayProbeMap", null);
     if (arrayFilename==null){
@@ -427,7 +526,7 @@ public class GPSOutputAnalysis {
       }
       sb.append("\n");
     }
-    CommonUtils.writeFile(GPSfileName+"_GPS_DiffExpr.txt", sb.toString()); 
+    CommonUtils.writeFile(outputFileName+"_GPS_DiffExpr.txt", sb.toString()); 
   }
 
 }

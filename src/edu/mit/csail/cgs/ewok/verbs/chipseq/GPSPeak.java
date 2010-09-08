@@ -138,13 +138,14 @@ public class GPSPeak extends Point{
 	}
 	
 	public String toGPS_short(){
-		return toString()+"\t"+nearestGene+"\t"+distance+"\t"+strength+"\t"
-		+controlStrength+"\t"+qvalue+"\t"+pvalue+"\t"+shape+"\t"+jointEvent;
+		double fold = controlStrength==0 ? 9999:strength/controlStrength;
+		String out = String.format("%s\t%.1f\t%.1f\t%.1f\t%.3f\t%.3f\t%.3f", 
+				toString(), strength, controlStrength, fold, qvalue, pvalue, shape);
+		return out;
 	}
 	
 	public static String toGPS_short_Header(){
-		return "Event Location\tNearestGene\tDist\tIP\tControl\tQ_-lg10\t"+
-		"P_-lg10\tShape\tJoint";
+		return "Event Location\tIP\tControl\tIP/Ctrl\tQ_-lg10\tP_-lg10\tShape";
 	}
 	
 	public String toGPS_motifShort(){

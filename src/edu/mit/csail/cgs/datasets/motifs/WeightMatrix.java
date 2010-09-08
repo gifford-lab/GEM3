@@ -95,6 +95,7 @@ public class WeightMatrix {
         matrix = new float[length][MAXLETTERVAL];                
     }
 
+
     public static Collection<WeightMatrix> getAllWeightMatrices() {
         try {
             java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");

@@ -251,6 +251,7 @@ public class ReadDBReadLoader extends ReadLoader{
                 		continue;
                 	//BED format is half open - The chromEnd base is not included in the display of the feature. 
                 	// For example, the first 100 bases of a chromosome are defined as chromStart=0, chromEnd=100, and span the bases numbered 0-99.
+                	// RDB store the 5' end of reads, for '-' strand, h.pos is the end position
                 	if (strand == '+')
                 		sb.append(head).append(h.pos).append("\t").append(h.pos+h.length).append(tail).append("\n");  
                 	else

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
@@ -14,6 +15,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
@@ -29,7 +31,8 @@ public class GPS_ReadDistribution {
 	private Genome genome;
 	private Organism org;
 	
-	private ArrayList<Point> points; 
+	private boolean smooth_distribution=true;
+	private ArrayList<Point> points = new ArrayList<Point>(); 
 	private String GPSfileName;
 	private int strength=40;
 	
@@ -37,7 +40,6 @@ public class GPS_ReadDistribution {
 	private DeepSeqExpt chipSeqExpt = null;
 	private int range = 250;
 	
-	private boolean useMotif = true;
 	private WeightMatrix motif = null;
 	private double motifThreshold;
 	
@@ -70,14 +72,21 @@ public class GPS_ReadDistribution {
 		}
 		
 		// parameter for building empirical distribution
-		String chipSeqFile = Args.parseString(args, "chipseq", null);	
-		String fileFormat = Args.parseString(args, "f", "BED");  
-		List<File> expts = new ArrayList<File>();
-		expts.add(new File(chipSeqFile));
-		chipSeqExpt = new DeepSeqExpt(genome, expts, false, fileFormat, -1);
+		String chipSeqFile = Args.parseString(args, "chipseq", null);
+		if (chipSeqFile!=null){
+			String fileFormat = Args.parseString(args, "f", "BED");  
+			List<File> expts = new ArrayList<File>();
+			expts.add(new File(chipSeqFile));
+			chipSeqExpt = new DeepSeqExpt(genome, expts, false, fileFormat, -1);
+		}
+		else{
+			List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdb");
+			chipSeqExpt = new DeepSeqExpt(genome, rdbexpts, "readdb", -1);
+		}
+			
 		range = Args.parseInteger(args, "range", range);
 		name = Args.parseString(args, "name", "noname");
-
+		smooth_distribution = !Args.parseFlags(args).contains("no_smoothing");
 		// load points
 		String coordFile = Args.parseString(args, "coords", null);
 		if (coordFile!=null){
@@ -91,31 +100,22 @@ public class GPS_ReadDistribution {
 				System.exit(0);
 			}			
 			// load motif
-			useMotif = Args.parseInteger(args, "useMotif", 0)==1?true:false;
-			WeightMatrixScorer scorer=null;
-			if (useMotif){
-				try {
-					String motifString = Args.parseString(args, "motif", null);
-					String motifVersion = Args.parseString(args, "version", null);
-					motifThreshold = Args.parseDouble(args, "threshold", 10.0);
-					if (motifThreshold==10.0)
-						System.err.println("No motif threshold was provided, default=10.0 is used.");
-					int wmid = WeightMatrix.getWeightMatrixID(org.getDBID(), motifString, motifVersion);
-					motif = WeightMatrix.getWeightMatrix(wmid);
-				} 
-				catch (NotFoundException e) {
-					e.printStackTrace();
-				}	
-				scorer = new WeightMatrixScorer(motif);
-			}
+		    String motifString = Args.parseString(args, "motif", null);
+		    Pair<WeightMatrix, Double> wm = null;
+		    WeightMatrixScorer scorer=null;
+		    if (motifString!=null){
+				wm = CommonUtils.loadPWM(args, org.getDBID());
+				System.out.println("Using motif "+wm.getFirst().name);
+				scorer = new WeightMatrixScorer(wm.getFirst());
+				motifThreshold = wm.cdr().doubleValue();
+		    }
 			
 			File gpsFile = new File(GPSfileName);
 			List<GPSPeak>gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
 			strength = Args.parseInteger(args,"strength",40);
-			ArrayList<Point> points = new ArrayList<Point>();
 			for (GPSPeak gps: gpsPeaks){
-				if ((!gps.isJointEvent()) && gps.getStrength()>40 && gps.getShape()<-1){
-					if (useMotif){
+				if ((!gps.isJointEvent()) && gps.getStrength()>strength ){
+					if (wm!=null){
 						Region r= gps.expand(MOTIF_DISTANCE);
 						WeightMatrixScoreProfile profiler = scorer.execute(r);
 						int halfWidth = profiler.getMatrix().length()/2;
@@ -188,7 +188,8 @@ public class GPS_ReadDistribution {
 				dist.add(new Pair<Integer, Double>(pos, (double)sum[i]));
 			}
 		BindingModel model=new BindingModel(dist);
-		model.smooth(BindingModel.SMOOTHING_STEPSIZE);
+		if (smooth_distribution)
+			model.smooth(BindingModel.SMOOTHING_STEPSIZE);
 		return model;
 	}
 	

@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class ChipSeqAnalyzer{
-	public final static String GPS_VERSION = "0.8.8";
+	public final static String GPS_VERSION = "0.9.9";
 	private boolean development_mode = false;
 
 	private String[] args;
@@ -166,7 +166,7 @@ public class ChipSeqAnalyzer{
 		
 //		mixture.countNonSpecificReads();
 		int update_model_round = Args.parseInteger(args,"r", 3);
-		while (kl>-6 && round<=update_model_round){
+		while (kl>-5 && round<=update_model_round){
 			System.out.println("\n============================ Round "+round+" ============================");
 			mixture.execute();
 			mixture.printFeatures();
@@ -176,10 +176,13 @@ public class ChipSeqAnalyzer{
 			round++;
 			mixture.setOutName(peakFileName+"_"+round);
 			kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-			Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds();
-			if (round==1)
-				kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
-
+			if (round==1){
+				boolean fixModelRange = Args.parseFlags(args).contains("fix_model_range");
+				if (!fixModelRange){
+					Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds();
+					kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
+				}
+			}
 //			int newMax = mixture.getModel().findNewMax();
 //			if (newMax!=mixture.getModel().getMax() && round==1){
 //				kl = mixture.updateBindingModel(mixture.getModel().getWidth()-1-newMax, newMax);
@@ -208,7 +211,7 @@ public class ChipSeqAnalyzer{
 		ChipSeqAnalyzer analyzer = new ChipSeqAnalyzer(args);
 		analyzer.runMixtureModel();
 		analyzer.close();
-		 System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic));
+		System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
 	}
 
 	/**
@@ -216,7 +219,7 @@ public class ChipSeqAnalyzer{
 	 */
 	public void printError() {
 		System.err.println("" +
-                "GPS Usage\n" +
+                "GPS Usage                      (more at http://cgs.csail.mit.edu/gps/)\n" +
 //                "   Using with Gifford Lab DB:\n" +
 //                "      --species <organism name;genome version>\n"+
 //                "      --dbexptX <IP expt (X is condition name)>\n" +
@@ -239,13 +242,14 @@ public class ChipSeqAnalyzer{
                 "      --multi <run the multicondition mode of the method>\n" +
                 "      --help <print help information and exit>\n" +
                 "\n   Output format:\n" +
-                "      The output file contains five fields in a tab-delimited file:\n" +
+                "      The output file contains seven fields in a tab-delimited file:\n" +
                 "        - Binding event coordinate\n" +
                 "        - IP read count\n" +
                 "        - Control read count\n" +
+                "        - Fold enrichment (IP/Control)\n" +                
                 "        - P-value\n" +
                 "        - Q-value (multiple hypothesis corrected)\n"+
-//                "      --nonunique [flag to use the non-uniquely mapping reads]\n" +
+                "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
                 "\n");		
 	}
 

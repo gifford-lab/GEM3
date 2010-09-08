@@ -23,6 +23,7 @@ public class BEDFileWriter{
 	private Genome gen;
 	private double fraction = 1;
 	private ArrayList<String> conditionNames = new ArrayList<String>();
+	private String chr;
 	
 	BEDFileWriter(String[] args){
 		ArgParser ap = new ArgParser(args);
@@ -43,7 +44,7 @@ public class BEDFileWriter{
 			e.printStackTrace();
 		}
 		fraction = Args.parseDouble(args,"fraction",fraction);
-
+		chr = Args.parseString(args, "chr", null);
         //Experiments : Load each condition expt:ctrl Pair
         Vector<String> exptTags=new Vector<String>();
         for(String s : args)
@@ -80,8 +81,8 @@ public class BEDFileWriter{
 			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
 			DeepSeqExpt ip = pair.car();
 			DeepSeqExpt ctrl = pair.cdr();
-			String name_ip = conditionNames.get(i)+"_ip_"+fraction+".bed";
-			String name_ctrl = conditionNames.get(i)+"_ctrl_"+fraction+".bed";
+			String name_ip = conditionNames.get(i)+(chr!=null?"_chr"+chr:"")+"_ip"+ (fraction==1?"":("_"+fraction))+".bed";
+			String name_ctrl = conditionNames.get(i)+(chr!=null?"_chr"+chr:"")+"_ctrl"+ (fraction==1?"":("_"+fraction))+".bed";
 			// clean the target file if exists
 			boolean fileCleaned = resetFile(name_ip);
 			if (!fileCleaned){
@@ -95,7 +96,12 @@ public class BEDFileWriter{
 			}
 			
 			System.out.println("\nWriting Experiment "+conditionNames.get(i)+" ...");
-			for (String chrom: gen.getChromList()){
+			List<String> chroms = new ArrayList<String>();
+			if (chr!=null)
+				chroms.add(chr);
+			else
+				chroms =gen.getChromList();
+			for (String chrom: chroms){
 				System.out.println("Writing Chomosome "+chrom+" ...");
 				// load  data for this chromosome.
 				int length = gen.getChromLength(chrom);
@@ -165,8 +171,7 @@ public class BEDFileWriter{
                 "  --species <organism name;genome version>\n"+
                 "  --rdbexptX <IP expt (X is condition name)>\n" +
                 "  --rdbctrlX <background expt (X is condition name)> \n" +
-                "Remember to set the read length!\n" +
-                "  --readlen <length>\n" +
+                "Optional\n" +
                 "  --fraction <fraction of reads to output>\n" +
             	"");		
 	}
@@ -176,6 +181,5 @@ public class BEDFileWriter{
 --species "Mus musculus;mm8" 
 --rdbexptCtcf "Sing_CTCF_ES;bowtie_unique" 
 --rdbctrlCtcf  "Sing_GFP_ES;bowtie_unique"
---readlen 36
 	 */
 }
