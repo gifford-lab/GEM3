@@ -147,9 +147,9 @@ public class GPS_ReadDistribution {
 
 	private void printEmpiricalDistribution(ArrayList<Point> points){
 		BindingModel model_plus = getStrandedDistribution (points, '+');
-//		model_plus.printToFile(name+"_plus_Distribution.txt");
+		model_plus.printToFile("Read_Distribution_plus_"+name+".txt");
 		BindingModel model_minus = getStrandedDistribution (points, '-');
-//		model_minus.printToFile(name+"_minus_Distribution.txt");
+		model_minus.printToFile("Read_Distribution_minus_"+name+".txt");
 		
 		double[] prob_plus = model_plus.getProbabilities();
 		double[] prob_minus = model_minus.getProbabilities();
