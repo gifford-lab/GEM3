@@ -36,6 +36,7 @@ public class MetaMaker {
 			Genome gen = pair.cdr();
 			int winLen = Args.parseInteger(args,"win", 10000);
 			int bins = Args.parseInteger(args,"bins", 100);
+			int readExt = Args.parseInteger(args,"readext", 0);
 			double lineMin = Args.parseDouble(args,"linemin", 0);
 			double lineMax = Args.parseDouble(args,"linemax", 100);
 			int lineThick = Args.parseInteger(args,"linethick", 1);
@@ -61,7 +62,7 @@ public class MetaMaker {
 		
 			PointProfiler profiler=null;
 			boolean normalizeProfile=false;
-			if(profilerType.equals("simplechipseq")){
+			if(profilerType.equals("simplechipseq") || profilerType.equals("fiveprime")){
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
 				for(ChipSeqLocator loc : exptlocs){
@@ -69,7 +70,9 @@ public class MetaMaker {
 					exptexps.add(new ChipSeqExpander(loc));
 				}
 				System.out.println("Loading data...");
-				profiler = new SimpleChipSeqProfiler(params, exptexps, 174);
+				if(profilerType.equals("fiveprime"))
+					readExt = -1;
+				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt);
 			}else if(profilerType.equals("chipseq5prime")){
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
@@ -83,13 +86,13 @@ public class MetaMaker {
 				ArrayList<ChipSeqLocator> exptlocs = (ArrayList<ChipSeqLocator>) Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqLocator> backlocs = backs.size()==0 ? null : (ArrayList<ChipSeqLocator>) Args.parseChipSeq(args,"back");
 				System.out.println("Loading data...");
-				profiler = new ChipSeqProfiler(params, gen, exptlocs,backlocs, 26, 174);
+				profiler = new ChipSeqProfiler(params, gen, exptlocs,backlocs, 32, readExt);
 			}else if(profilerType.equals("chipseqz")){
 				normalizeProfile=true;
 				ArrayList<ChipSeqLocator> exptlocs = (ArrayList<ChipSeqLocator>) Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqLocator> backlocs = backs.size()==0 ? null : (ArrayList<ChipSeqLocator>) Args.parseChipSeq(args,"back");
 				System.out.println("Loading data...");
-				profiler = new ChipSeqProfiler(params, gen, exptlocs,backlocs, 26, 174, true);
+				profiler = new ChipSeqProfiler(params, gen, exptlocs,backlocs, 32, readExt, true);
 			}else if(profilerType.equals("chipchip") || profilerType.equals("chipchipip") || profilerType.equals("chipchipwce")){
 				normalizeProfile=true;
 				ArrayList<ChipChipLocator> exptlocs = (ArrayList<ChipChipLocator>) Args.parseChipChip(gen, args, "expt");
@@ -157,9 +160,10 @@ public class MetaMaker {
 	private static void printError(){
 		System.err.println("Usage: MetaMaker --species <organism;genome> \n" +
 				"--win <profile width> --bins <num bins> \n" +
+				"--readext <read extension> \n" +
 				"--linemin <min>  --linemax <max> \n" +
-				"--profiler <simplechipseq/chipseq/chipseqz/chipchip> \n" +
-				"--expt <experiment names> --back <control experiment names (only applies to chipSeq)> \n" +
+				"--profiler <simplechipseq/fiveprime/chipseq/chipseqz/chipchip> \n" +
+				"--expt <experiment names> --back <control experiment names (only applies to chipseq)> \n" +
 				"--peaks <peaks file name> --out <output root name> \n" +
 				"--color <red/green/blue> \n" +
 				"--cluster [flag to cluster in batch mode] \n" +

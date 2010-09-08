@@ -38,6 +38,14 @@ public class ChipSeqHit extends StrandedRegion {
       return new ChipSeqHit(getGenome(), getChrom(), getStart() - ext, getEnd(), getStrand(), align, weight);
     }
   }
+  public ChipSeqHit fivePrime() { 
+    if(getStrand() == '+') { 
+	      return new ChipSeqHit(getGenome(), getChrom(), getStart(), getStart() + 1, getStrand(), align, weight);
+	    } else { 
+	      return new ChipSeqHit(getGenome(), getChrom(), getEnd()-1, getEnd(), getStrand(), align, weight);
+	    }
+  }
+  
   public ChipSeqHit shiftExtendHit(int ext, int shift) { 
     if(getStrand() == '+') { 
       return new ChipSeqHit(getGenome(), getChrom(), getStart()+shift-(ext/2), getEnd()+shift+(ext/2), getStrand(), align, weight);

@@ -16,6 +16,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 	private BinningParameters params;
 	private List<ChipSeqExpander> expanders;
 	private int extension; 
+	private boolean useFivePrime = false;
 	
 	public SimpleChipSeqProfiler(BinningParameters ps, ChipSeqExpander exp) { 
 		this(ps, exp, 175);
@@ -25,16 +26,21 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		expanders = new ArrayList<ChipSeqExpander>(); 
 		expanders.add(exp);
 		extension=ext;
+		if(extension==-1)
+			useFivePrime=true;
 	}
 	public SimpleChipSeqProfiler(BinningParameters ps, List<ChipSeqExpander> exps, int ext) {
 		params = ps;
 		expanders = exps;
 		extension=ext;
+		if(extension==-1)
+			useFivePrime=true;
 	}
 
 	public BinningParameters getBinningParameters() {
 		return params;
 	}
+	public void setUseFivePrime(boolean ufp){useFivePrime = ufp;}
 
 	public PointProfile execute(Point a) {
 		int window = params.getWindowSize();
@@ -56,7 +62,11 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		for(ChipSeqExpander expander : expanders){
 			Iterator<ChipSeqHit> hits = expander.execute(query);
 			while(hits.hasNext()) {
-				ChipSeqHit hit = hits.next().extendHit(extension);
+				ChipSeqHit hit=null;
+				if(useFivePrime)
+					hit = hits.next().fivePrime();
+				else
+					hit = hits.next().extendHit(extension);
 				int startOffset = Math.max(0, hit.getStart()-query.getStart());
 				int endOffset = Math.max(0, Math.min(query.getEnd(), hit.getEnd()-query.getStart()));
 				
