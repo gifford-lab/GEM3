@@ -272,7 +272,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         			  .append(String.format("%7.1f\t", fold));
         	}
         	else
-        		result.append("NA\t").append("NA\t");
+        		result.append("NaN\t").append("NaN\t");
         
         	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
@@ -388,7 +388,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         			  .append(String.format("%7.1f\t", fold));
         	}
         	else
-        		result.append("NA\t").append("NA\t");
+        		result.append("NaN\t").append("NaN\t");
         
         	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
