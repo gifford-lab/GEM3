@@ -25,6 +25,8 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  *
  */
 public class BindingModel {
+	public final static int SMOOTHING_STEPSIZE = 10;
+	public final static int SMOOTHING_AVG_PTS = 30;
 	protected int min, max;		// the start and end position
 	protected int summit;		// the position of highest prob point
 	protected double[] data;
@@ -33,8 +35,6 @@ public class BindingModel {
 	private String fileName;
 
 	protected List<Pair<Integer, Double>> empiricalDistribution;
-	public final static int SMOOTHING_STEPSIZE = 30;
-	public final static int SMOOTHING_AVG_PTS = 30;
 	
 	public BindingModel(File f, int minDist, int maxDist){
 		min=0; max=0;

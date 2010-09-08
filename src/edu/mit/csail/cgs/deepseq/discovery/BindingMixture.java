@@ -581,7 +581,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				if (e.cdr()!=null){
 					ctrlCount = e.cdr().getHitCount();
 					ratio_total[i]=ipCount/ctrlCount;
-					System.out.println(String.format(conditionNames.get(i)+"\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", ipCount, ctrlCount, ratio_total[i]));
+					System.out.println(String.format("\n%s\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", conditionNames.get(i), ipCount, ctrlCount, ratio_total[i]));
 				}
 	        }
         }
@@ -1933,7 +1933,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				max_HitCount_per_base = max_hit_per_bp;
         }
 
-        log(1, "\nFiltering duplicate reads, max read count on each base = "+max_HitCount_per_base);
+        log(1, "\nFiltering duplicate reads, max read count on each base = "+max_HitCount_per_base+"\n");
         
 		// Re-scale counts by multiplying each read (in each condition) with the corresponding ratio
 		for(int t = 0; t < numConditions; t++) {
@@ -2263,7 +2263,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		log(1, "Events discovered \nSignificant:\t"+signalFeatures.size()+
 				"\nInsignificant:\t"+insignificantFeatures.size()+
 				"\nFiltered:\t"+filteredFeatures.size()+"\n");
-	}//end of postEMProcessing
+	}//end of post EM Processing
 
 
 
@@ -4045,13 +4045,20 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 //		System.out.println("\nCounting non-specific read numbers ...\n");
 
+		// construct the refined specific binding regions
+		ArrayList<Region> refinedRegions = new ArrayList<Region>();
+		for (ComponentFeature cf:compFeatures){
+			refinedRegions.add(cf.getPosition().expand(0));
+		}
+		refinedRegions = mergeRegions(refinedRegions, true);
+		
 		//Count the specific read numbers
 		int expt_test_region_total[]=new int[numConditions];
 		int crtl_test_region_total[]=new int[numConditions];
 		int expt_non_specific_total[]=new int[numConditions];
 		int crtl_non_specific_total[]=new int[numConditions];
 		int totalLength=0;	// total length of non-overlapping peak regions
-		for(Region r : restrictRegions){
+		for(Region r : refinedRegions){
 			totalLength += r.getWidth();
 			for(int i=0; i<caches.size(); i++){
 				Pair<ReadCache,ReadCache> e = caches.get(i);
