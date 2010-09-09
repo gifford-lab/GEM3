@@ -783,7 +783,22 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					// ==> Refined enriched regions
 					rs=mergeRegions(subr, true);
 					for (Region r:rs){
-						if (r.getWidth()>2*modelRange+1){ // for joint events (for unary event, one of the windows should contain it in full, no need to evaluate again)
+						if (r.getWidth()==2*modelRange+1){	// for unary event, one of the windows should contain it in full, no need to evaluate again
+							if (subr.size()>1){	// if multiple windows predict the same unary event
+								Point p = r.getMidpoint();
+								ArrayList<BindingComponent> duplicates = new ArrayList<BindingComponent>(); 
+								for (BindingComponent b: comps){
+									if (b.getLocation().equals(p))
+										duplicates.add(b);
+								}
+								if (duplicates.size()>1){
+									for (int i=1;i<duplicates.size();i++){
+										comps.remove(duplicates.get(i));
+									}
+								}
+							}
+						}
+						else { // for joint events 
 							// the regions in rs includes the influence paddings, remove it here
 							Region tightRegion = new Region(r.getGenome(), r.getChrom(), r.getStart()+modelRange, r.getEnd()-modelRange);
 							for (int i=0;i<windows.size()-1;i++){
