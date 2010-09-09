@@ -33,8 +33,7 @@ public class ColorSet {
                                             Color.MAGENTA,
                                             Color.PINK.darker(),
                                             new Color(180,0,230),
-                                            Color.DARK_GRAY,
-                                            Color.YELLOW};
+                                            Color.DARK_GRAY};
     
     private Vector<Color> colors;
     private int pos;
