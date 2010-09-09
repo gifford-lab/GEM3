@@ -137,7 +137,6 @@ public class BindingComponent implements Comparable<BindingComponent>{
 
 	//Comparable default method
 	public int compareTo(BindingComponent m) {
-//		return compareByAvgQValue(f);
 		return getLocation().compareTo(m.getLocation());
 	}
 	
