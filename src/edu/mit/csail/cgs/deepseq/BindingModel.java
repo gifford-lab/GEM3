@@ -25,8 +25,8 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  *
  */
 public class BindingModel {
-	public final static int SMOOTHING_STEPSIZE = 10;
-	public final static int SMOOTHING_AVG_PTS = 10;
+	public final static int SMOOTHING_STEPSIZE = 20;
+	public final static int SMOOTHING_AVG_PTS = 20;
 	protected int min, max;		// the start and end position
 	protected int summit;		// the position of highest prob point
 	protected double[] data;

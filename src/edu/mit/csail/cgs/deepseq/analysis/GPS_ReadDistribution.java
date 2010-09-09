@@ -39,6 +39,7 @@ public class GPS_ReadDistribution {
 	// build empirical distribution
 	private DeepSeqExpt chipSeqExpt = null;
 	private int range = 250;
+	private int smooth_step = 10;
 	
 	private WeightMatrix motif = null;
 	private double motifThreshold;
@@ -86,7 +87,8 @@ public class GPS_ReadDistribution {
 			
 		range = Args.parseInteger(args, "range", range);
 		name = Args.parseString(args, "name", "noname");
-		smooth_distribution = !Args.parseFlags(args).contains("no_smoothing");
+		smooth_step = Args.parseInteger(args, "smooth_step", smooth_step);
+		smooth_distribution = smooth_step>0;
 		// load points
 		String coordFile = Args.parseString(args, "coords", null);
 		if (coordFile!=null){
@@ -189,7 +191,7 @@ public class GPS_ReadDistribution {
 			}
 		BindingModel model=new BindingModel(dist);
 		if (smooth_distribution)
-			model.smooth(BindingModel.SMOOTHING_STEPSIZE);
+			model.smooth(smooth_step);
 		return model;
 	}
 	
