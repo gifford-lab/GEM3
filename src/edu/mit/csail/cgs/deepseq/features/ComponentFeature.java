@@ -106,6 +106,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		logKL_ctrl_plus[cond] = logKL_plus;
 		logKL_ctrl_minus[cond] = logKL_minus;
 	}
+	/*
+	 * Set control read count for the specified condition
+	 * If no control, the local lambda for Poisson is stored here.
+	 */
 	public void setControlReadCounts(double controlCount, int cond) {
 		if (unScaledControlCounts == null){
 			unScaledControlCounts = new double[numConditions];
@@ -271,8 +275,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
         			  .append(String.format("%7.1f\t", fold));
         	}
-        	else
-        		result.append("NaN\t").append("NaN\t");
+//        	else
+//        		result.append("NaN\t").append("NaN\t");
         
         	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
@@ -387,8 +391,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
         			  .append(String.format("%7.1f\t", fold));
         	}
-        	else
-        		result.append("NaN\t").append("NaN\t");
+//        	else
+//        		result.append("NaN\t").append("NaN\t");
         
         	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	

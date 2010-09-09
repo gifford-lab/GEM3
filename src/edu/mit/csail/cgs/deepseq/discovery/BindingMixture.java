@@ -371,7 +371,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	String subset_str = Args.parseString(args, "subs", null);
     	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
      	String subsetFormat = Args.parseString(args, "subFormat", "");
-     	boolean toSegmentRegions = subsetFormat.equals("RegionsToSegment");
+     	boolean toSegmentRegions = !subsetFormat.equals("Regions");
     	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
     	ArrayList<Region> subsetRegions = new ArrayList<Region>();
      	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
@@ -743,7 +743,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			if (rr.getWidth()<=windowSize)
 				windows.add(rr);
 			else{
-				windows = splitWindows(rr);
+				windows = splitWindows(rr, windowSize, modelWidth/2);
 			}
  
 			// run EM for each window 
@@ -809,15 +809,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 									}
 									else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
 										if (development_mode)
-											System.err.println("Warning: very large continuouse region, "+ r.toString());
-										ArrayList<Region> wins = new ArrayList<Region>();
-										int lastEnd = r.getStart()+winSize-1;
-										wins.add(new Region(r.getGenome(), r.getChrom(), r.getStart(), lastEnd));
-										while(lastEnd<r.getEnd()){
-											int newStart = lastEnd+1-modelWidth*2;	//overlap length = modelWidth*2
-											lastEnd = Math.min(newStart+winSize-1, r.getEnd());
-											wins.add(new Region(r.getGenome(), r.getChrom(), newStart, lastEnd));
-										}
+											System.err.println("Warning: very large contiguous region, "+ r.toString());
+										ArrayList<Region> wins = splitWindows(r, winSize, modelWidth);
+//										ArrayList<Region> wins = new ArrayList<Region>();
+//										int lastEnd = r.getStart()+winSize-1;
+//										wins.add(new Region(r.getGenome(), r.getChrom(), r.getStart(), lastEnd));
+//										while(lastEnd<r.getEnd()){
+//											int newStart = lastEnd+1-modelWidth*2;	//overlap length = modelWidth*2
+//											lastEnd = Math.min(newStart+winSize-1, r.getEnd());
+//											wins.add(new Region(r.getGenome(), r.getChrom(), newStart, lastEnd));
+//										}
 										// process each window, then fix boundary 
 										ArrayList<ArrayList<BindingComponent>> comps_all_wins= new ArrayList<ArrayList<BindingComponent>>();
 										for (Region w : wins){
@@ -929,9 +930,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								b = bl.get(max_maxCompIdx.cdr().first());
 							}
 						}
-	
 						bs.add(b);
-						compFeatures.addAll(callFeatures(bs));
 						singleEventRegions.put(subr.get(0), b.getLocation());
 					}
 					else{	// for joint events
@@ -941,9 +940,25 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								if (r.overlaps(m.getLocation().expand(0)))
 									bs.add(m);
 							}
-							compFeatures.addAll(callFeatures(bs));
 						}
 					}
+					Collections.sort(bs);
+					if (bs.size()>=2){
+						ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+						for (int i=1;i<bs.size();i++){
+							int distance = bs.get(i).getLocation().distance(bs.get(i-1).getLocation());
+							if (distance==0){
+								if (bs.get(i).getTotalSumResponsibility()>bs.get(i-1).getTotalSumResponsibility())
+									toRemove.add(bs.get(i-1));
+								else
+									toRemove.add(bs.get(i));
+							}
+							if (development_mode && distance<20)
+								System.err.println("Very close events: "+bs.get(i-1).getLocation().toString()+" "+bs.get(i).getLocation().toString());
+						}
+						bs.removeAll(toRemove);
+					}
+					compFeatures.addAll(callFeatures(bs));
 				}
 			}
 
@@ -1025,7 +1040,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}// end of execute method
 
 	// split a region into smaller windows if the width is larger than windowSize
-	private ArrayList<Region> splitWindows(Region r){
+	private ArrayList<Region> splitWindows(Region r, int windowSize, int overlapSize){
 		ArrayList<Region> windows=new ArrayList<Region>();
 		if (r.getWidth()<=windowSize)
 			return windows;
@@ -1047,21 +1062,21 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		coords[coords.length-1] = allBases.get(coords.length-1).getCoordinate();
 		TreeSet<Integer> breakPoints = new TreeSet<Integer>();
-		split(distances, coords, breakPoints);
+		split(distances, coords, breakPoints, windowSize);
 
 		breakPoints.add(coords[coords.length-1]);
 		
 		int start = r.getStart();
 		for (int p:breakPoints){
 			windows.add(new Region(r.getGenome(), r.getChrom(), 
-					Math.max(r.getStart(),start-modelWidth/2), 
-					Math.min(r.getEnd(), p+modelWidth/2)));
+					Math.max(r.getStart(),start-overlapSize), 
+					Math.min(r.getEnd(), p+overlapSize)));
 			start = p;
 		}
 		return windows;
 	}
 	
-	private void split(int[]distances, int coords[], TreeSet<Integer> breakPoints){
+	private void split(int[]distances, int coords[], TreeSet<Integer> breakPoints, int windowSize){
 		int[] idx = StatUtil.findSort(distances.clone());
 		int breakIdx = idx[idx.length-1];
 		int breakCoor = (coords[breakIdx]+coords[breakIdx+1])/2;
@@ -1072,7 +1087,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			int[] left_coords = new int[breakIdx+1];
 			System.arraycopy(distances, 0, left_distances, 0, breakIdx);
 			System.arraycopy(coords, 0, left_coords, 0, breakIdx+1);
-			split(left_distances, left_coords, breakPoints);
+			split(left_distances, left_coords, breakPoints, windowSize);
 		}
 		// skip distances[breakIdx], b/c it is selected
 		if (coords[coords.length-1]-coords[breakIdx+1]>windowSize){
@@ -1080,7 +1095,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			int[] right_coords = new int[coords.length-breakIdx-1];
 			System.arraycopy(distances, breakIdx+1, right_distances, 0, distances.length-breakIdx-1);
 			System.arraycopy(coords, breakIdx+1, right_coords, 0, coords.length-breakIdx-1);
-			split(right_distances, right_coords, breakPoints);
+			split(right_distances, right_coords, breakPoints, windowSize);
 		}
 	}
 
@@ -3681,8 +3696,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
 						}
 
-						double pValue_wo_ctrl = evalFeatureSignificance(comp, c);
-						comp.setPValue_wo_ctrl(pValue_wo_ctrl, c);
+						Pair<Double, Double> result = evalFeatureSignificance(comp, c);
+						comp.setPValue_wo_ctrl(result.car(), c);
+						comp.setControlReadCounts(result.cdr(), c);
 						
 						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
 							ipStrandFivePrimes[k].clear();
@@ -3883,7 +3899,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	/*
 	 * evalute significance when there is no control
 	 */
-	private double evalFeatureSignificance(ComponentFeature cf, int c) {
+	private Pair<Double, Double> evalFeatureSignificance(ComponentFeature cf, int c) {
 		double pVal;
 		double local_lambda, lambda_bg, first_lambda_ip, second_lambda_ip, third_lambda_ip, lambda_peak_ctrl, first_lambda_ctrl, second_lambda_ctrl, third_lambda_ctrl;
 
@@ -4027,7 +4043,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		Poisson poisson = new Poisson(local_lambda, new DRand());
 		pVal = 1 - poisson.cdf((int)num_peak_ip);			
-		return pVal;
+		return new Pair<Double, Double>(pVal,local_lambda);
 	}//end of evalFeatureSignificance method
 
 	/**
