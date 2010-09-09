@@ -611,6 +611,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     		}
 			if (subtract_for_segmentation)
 				setRegions(selectEnrichedRegions(subsetRegions, true));
+			else
+				setRegions(selectEnrichedRegions(subsetRegions, false));
 		}
 		else{
 			setRegions(subsetRegions);
@@ -3474,16 +3476,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			return -100;
 		int width = left+right+1;
 		double[] strengths = new double[signalFeatures.size()];
-		double[] shapes = new double[signalFeatures.size()];
+//		double[] shapes = new double[signalFeatures.size()];
 		for (int i=0; i<signalFeatures.size();i++){
 			ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
 			strengths[i] = cf.getTotalSumResponsibility();
-			shapes[i] = cf.getAvgShapeDeviation();
+//			shapes[i] = cf.getAvgShapeDeviation();
 		}
 		Arrays.sort(strengths);
-		Arrays.sort(shapes);
+//		Arrays.sort(shapes);
 		double strengthThreshold = strengths[strengths.length*(100-top_event_percentile)/100];
-		double shapeThreshold = shapes[shapes.length*top_event_percentile/100];
+//		double shapeThreshold = shapes[shapes.length*top_event_percentile/100];
 
 		int eventCountForModelUpdating=0;
         // data for all conditions
@@ -3497,7 +3499,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				// the events that are used to refine read distribution should be
 				// having strength and shape at the upper half ranking
 				if ((use_joint_event || !cf.isJointEvent())
-						&& cf.getAvgShapeDeviation()<=shapeThreshold
+//						&& cf.getAvgShapeDeviation()<=shapeThreshold
 						&& cf.getTotalSumResponsibility()>=strengthThreshold){
 					if (cf.getQValueLog10(c)>q_value_threshold){
 						Region region = cf.getPosition().expand(0).expand(left, right);
@@ -3566,8 +3568,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		double logKL = 0;
 		if (oldModel.length==modelWidth)
 			logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
-		String details = String.format("([-%d, %d] Strength>%.1f, Shape<%.2f). \nlogKL=%.2f, +/- strand shift %d bp.\n", 
-				left, right, strengthThreshold, shapeThreshold, logKL, shift);
+		String details = String.format("([-%d, %d] Strength>%.1f). \nlogKL=%.2f, +/- strand shift %d bp.\n", 
+				left, right, strengthThreshold,  logKL, shift);
+//		String details = String.format("([-%d, %d] Strength>%.1f, Shape<%.2f). \nlogKL=%.2f, +/- strand shift %d bp.\n", 
+//				left, right, strengthThreshold, shapeThreshold, logKL, shift);
 		log(1, "Refine read distribution from " + eventCountForModelUpdating +" binding events. "+
 				(development_mode?details:"\n"));
 
