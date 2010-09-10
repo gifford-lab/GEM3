@@ -19,8 +19,6 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
     private Set<ChipSeqAlignment> alignments;
     private Set<String> ids;
     private ChipSeqHistogramProperties props;
-    private double[] gaussian;	//Gaussian kernel for density estimation
-    private int kernelWidth = 0;
 
     private Region region;
     private boolean newinput;
@@ -49,14 +47,6 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
     }    
     public ChipSeqHistogramProperties getProperties() {return props;}
     
-  //pre-calculate and store the Guassian kernel prob., for efficiency
-    private void initGaussianKernel(int width){
-    	kernelWidth = width;
-		gaussian = new double[250]; 
-		NormalDistribution gaussianDist = new NormalDistribution(0, width*width);
-		for (int i=0;i<gaussian.length;i++)
-			gaussian[i]=gaussianDist.calcProbability((double)i);
-    }
     
     public void clearValues() {
         resultsPlus = null;
@@ -196,23 +186,6 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                         }
 
                     }
-                    // Gaussian kernel density plot
-                    // update the two data hashtables with probability
-                    if (props.GaussianKernelWidth!=0){
-//                    	//long tic = System.currentTimeMillis();
-//                    	if (gaussian==null){
-//                    		this.initGaussianKernel(props.GaussianKernelWidth);
-//                    	}
-//                    	else if (props.GaussianKernelWidth!=kernelWidth){
-//                    		this.initGaussianKernel(props.GaussianKernelWidth);
-//                    	}
-//                    	
-//                    	int readCount = convertKernelDensity(resultsPlus);
-//                    	readCount += convertKernelDensity(resultsMinus);
-//                    	props.setTotalReadCount(readCount);
-//                    	notifyListeners();
-//                    	System.out.println((System.currentTimeMillis()-tic)/10*0.01+" sec in density esitmation");
-                    }
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     // assign empty output.  This is useful because Client
@@ -228,37 +201,4 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
         System.err.println("ChipSeqHistogram Model is closing");
         client.close();
     }                     
-    // convert a weight histogram to a gaussian kernel density profile
-    private int convertKernelDensity(Map<Integer,Float> results){
-
-    	int count = results.size();
-    	int min= Integer.MAX_VALUE;
-    	int max= Integer.MIN_VALUE;
-    	for (int pos: results.keySet()){
-    		if (min>pos)
-    			min = pos;
-    		if (max<pos)
-    			max= pos;
-    	}
-    	// get all reads, convert to basepair-resolution density
-    	double[] profile = new double[max-min+1+100];	// add 50bp padding to the ends
-    	for (int pos: results.keySet()){
-    		profile[pos-min+50]=(double)results.get(pos);
-    	}
-    	
-    	
-    	double[] densities = StatUtil.symmetricKernelSmoother(profile, gaussian);
-//    		StatUtil.gaussianSmoother(profile, props.GaussianKernelWidth);
-    	// set density values back to the positions (only at certain resolution
-    	// so that we can paint efficiently
-    	int step = 1;
-    	if (max-min>1024)
-    		step = (max-min)/1024;
-    	results.clear();
-    	for (int i=min-50; i<=max+50; i+=step){
-    		results.put(i, (float)densities[i-min+50]);
-    	}
-    	return count;
-    }
-
-}
+ }

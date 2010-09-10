@@ -150,7 +150,7 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
         
         // For density probabilities
         int gk_width = model.getProperties().GaussianKernelWidth; 
-        if (gk_width!=0){
+        if (gk_width!=0 && regionEnd-regionStart<=5000){
         	//long tic = System.currentTimeMillis();
         	if (gaussian==null){
         		this.initGaussianKernel(gk_width);

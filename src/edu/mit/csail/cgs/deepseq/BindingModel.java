@@ -25,8 +25,8 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  *
  */
 public class BindingModel {
-	public final static int SMOOTHING_STEPSIZE = 10;
-	public final static int SMOOTHING_AVG_PTS = 10;
+	public final static int SMOOTHING_STEPSIZE = 30;
+	public final static int SMOOTHING_AVG_PTS = 30;
 	protected int min, max;		// the start and end position
 	protected int summit;		// the position of highest prob point
 	protected double[] data;
@@ -202,8 +202,8 @@ public class BindingModel {
 //		}
 	}
 	
-	public void smooth(int stepSize){
-		probs=StatUtil.cubicSpline(probs, stepSize, SMOOTHING_AVG_PTS);
+	public void smooth(int splineStepSize, int avgStepSize){
+		probs=StatUtil.cubicSpline(probs, splineStepSize, avgStepSize);
 		Pair<Double, TreeSet<Integer>> sorted = StatUtil.findMax(probs);
 		summit = sorted.cdr().first()+min;
 	}
@@ -333,12 +333,13 @@ public class BindingModel {
 	        BindingModel model = new BindingModel(pFile);
 	        model.printToFile(outfile);
 	        
-	        model.smooth(SMOOTHING_STEPSIZE);
+	        model.smooth(SMOOTHING_STEPSIZE, SMOOTHING_AVG_PTS);
 	        model.printToFile(outfile_smooth);
 		}else{
 			System.out.println("Usage: BindingModel --in GPSfileName --out outfile");
 		}
 	}
+	
 	public List<Pair<Integer, Double>> getEmpiricalDistribution() {
 		List<Pair<Integer, Double>> newDist = new ArrayList<Pair<Integer, Double>> ();
 		for (Pair<Integer, Double> p: empiricalDistribution)
