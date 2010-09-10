@@ -802,11 +802,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 						else { // for joint events 
 							// the regions in rs includes the influence paddings, remove it here
-							Region tightRegion = new Region(r.getGenome(), r.getChrom(), r.getStart()+modelRange, r.getEnd()-modelRange);
+							int start=r.getStart();
+							int end=r.getEnd();
+							if (start!=0)
+								start += modelRange;
+							if (end!=gen.getChromID(r.getChrom()))
+								end -= modelRange;
+							Region tightRegion = new Region(r.getGenome(), r.getChrom(), start, end);
 							for (int i=0;i<windows.size()-1;i++){
-	//							int end = windows.get(i).getEnd();
 								Region boundary = windows.get(i).getOverlap(windows.get(i+1));
-	//							Region boundary = new Region(r.getGenome(), r.getChrom(), end-modelWidth, end);
 								// if the predicted component overlaps with boundary of sliding window
 								if (boundary.overlaps(tightRegion)){
 									// remove old
