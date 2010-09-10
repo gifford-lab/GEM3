@@ -809,6 +809,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 									start += modelRange;
 								if (end!=gen.getChromID(r.getChrom()))
 									end -= modelRange;
+								if (start>end){
+									int tmp = start;
+									end = tmp;
+									start = end;
+								}
 								Region tightRegion = new Region(r.getGenome(), r.getChrom(), start, end);
 								for (int i=0;i<windows.size()-1;i++){
 									Region boundary = windows.get(i).getOverlap(windows.get(i+1));
