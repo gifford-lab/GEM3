@@ -285,7 +285,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		commonInit(modelFile);
 
         if (SPLINE_SMOOTH)
-        	model.smooth(BindingModel.SMOOTHING_STEPSIZE);
+        	model.smooth(BindingModel.SMOOTHING_STEPSIZE, 5);
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 		
@@ -3559,7 +3559,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		String oldName = model.getFileName();
 		model = new BindingModel(dist);
 		model.setFileName(oldName);
-		model.smooth(BindingModel.SMOOTHING_STEPSIZE);
+		model.smooth(BindingModel.SMOOTHING_STEPSIZE, 5);
 		model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
