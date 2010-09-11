@@ -709,6 +709,13 @@ public class Client implements ReadOnlyClient {
         TreeMap<Integer,Integer> output = null;
         for (String alignid : alignids) {
             TreeMap<Integer,Integer> o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
+            for (int k : o.keySet()) {
+                if ((k - start - binsize / 2) % binsize != 0 ) {
+                    System.err.println(String.format("Bad key %d for binsize %d and start %d in %s,%d",
+                                                     k, binsize, start, alignid,chromid));
+                }
+            }
+
             if (output == null) {
                 output = o;
             } else {

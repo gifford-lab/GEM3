@@ -6,6 +6,7 @@ import java.io.*;
 import edu.mit.csail.cgs.datasets.general.*;
 import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.chipseq.*;
+import edu.mit.csail.cgs.projects.readdb.*;
 import edu.mit.csail.cgs.datasets.function.*;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.WeightMatrixScanner;
@@ -23,13 +24,14 @@ import edu.mit.csail.cgs.tools.utils.Args;
  * --analysisname "PPG ES iCdx2 p2A 7-28-10 lane 5 (36bp)" \
  * --analysisversion "vs PPG Day4 null-antiV5 iTF_iOlig2 1 (default params) run 2 round 3" \
  * --genes refGene [--up 5000] [--down 200] [--thresh .001] [--nogenes] [--nogo]
- * [--output base_file_name] [--dumpevents] [--dumpgenes] [--dumpgo]
- * [--topevents 10000]
+ * [--output base_file_name] [--dumpevents] [--dumpgenes] [--dumpgo] [--dumptrack]
+ * [--topevents 10000] [--project syscode]
  *
  * --up and --down specify how far upstream and downstream from a gene's TSS should
  * make a binding event count as binding that gene.
  * --thresh is the p-value threshold for GO enrichment
  * --nogo and --nogenes suppress reporting of GO cats and bound genes
+ * --project is used to determine the URL on nanog for the bigbed and bigwig files
  */
 
 public class AnalysisReport {
@@ -38,10 +40,10 @@ public class AnalysisReport {
     private ChipSeqAnalysis analysis;
     private List<RefGenePromoterGenerator> promoterGenerators;
     private Collection<WeightMatrix> matrices;
-    private int up, down, topEvents;
+    private int up, down, topEvents, analysisdbid;
     private double thresh, wmcutoff;
-    private boolean dumpEvents, dumpGenes, dumpGO, dumpMotifs, html, noGO, noGenes;
-    private String outputBase;
+    private boolean dumpEvents, dumpGenes, dumpGO, dumpMotifs, html, noGO, noGenes, dumpTrack;
+    private String outputBase, projectName;
 
     // these all get filled in by run() and
     // used by report() 
@@ -85,11 +87,13 @@ public class AnalysisReport {
         outputBase = Args.parseString(args,"output",outputBase);
         dumpEvents  = Args.parseFlags(args).contains("dumpevents");
         dumpGenes = Args.parseFlags(args).contains("dumpgenes");
+        dumpTrack = Args.parseFlags(args).contains("dumptrack");
         dumpMotifs = Args.parseFlags(args).contains("dumpmotifs");
         dumpGO = Args.parseFlags(args).contains("dumpgo");
         html = Args.parseFlags(args).contains("html");
         noGO = Args.parseFlags(args).contains("nogo");
         noGenes = Args.parseFlags(args).contains("nogenes");
+        projectName = Args.parseString(args,"project","syscode");
         if (noGenes) {
             noGO = true;
         }
@@ -132,6 +136,15 @@ public class AnalysisReport {
                 }
             }
         }
+        for (RefGeneGenerator rg : geneGenerators) {
+            for (ChipSeqAnalysisResult event : events) {
+                Iterator<Gene> iter = rg.execute(event);
+                while (iter.hasNext()) {
+                    boundGenes.add(iter.next());
+                }
+            }
+        }
+
     }
     private void getEnrichedCategories() throws SQLException {
         
@@ -207,6 +220,92 @@ public class AnalysisReport {
 
         
     }
+    public void dumpTrack() throws IOException {
+        if (!dumpTrack) {
+            return;
+        }
+        PrintWriter bed = new PrintWriter(analysisdbid + ".bedtrack");
+        PrintWriter wiggle = new PrintWriter(analysisdbid + ".wigtrack");
+
+        bed.println(String.format("track type=bigBed name=\"%s\" description=\"%s\" visibility=full db=%s bigDataUrl=http://nanog.csail.mit.edu/%s_tracks/%d.bb",
+                                  analysis.getName(), analysis.toString(), genome.getVersion(),projectName,analysisdbid));
+        wiggle.println(String.format("track type=bigWig name=\"%s\" description=\"Data for %s\" visibility=full db=%s bigDataUrl=http://nanog.csail.mit.edu/%s_tracks/%d.bw",
+                                     analysis.getName(), analysis.toString(), genome.getVersion(),projectName,analysisdbid));
+        bed.close();
+        wiggle.close();
+        bed = new PrintWriter(analysisdbid + ".bed");
+        wiggle = new PrintWriter(analysisdbid + ".wig");
+
+        for (ChipSeqAnalysisResult a : events) {
+            bed.println(String.format("chr%s\t%d\t%d",
+                                        a.getChrom(),
+                                        a.getStart(),
+                                        a.getEnd()));
+        }
+        bed.close();
+        Set<ChipSeqAlignment> fg = analysis.getForeground();
+        Collection<String> alignids = new ArrayList<String>();
+        for (ChipSeqAlignment align : fg) {
+            alignids.add(Integer.toString(align.getDBID()));
+        }
+        Client client = null;
+        try {
+            client = new Client();
+        } catch (Exception e) {
+            e.printStackTrace();
+            wiggle.close();
+            return;
+        }
+        Map<String,Integer> chroms = genome.getChromIDMap();
+        Map<String,Integer> lengths = genome.getChromLengthMap();
+        int binsize = 50;
+        for (String chromname : chroms.keySet()) {
+            try {
+                int chromid = chroms.get(chromname);
+
+                Map<Integer,Integer> plus = client.getHistogram(alignids,
+                                                                chromid,
+                                                                false,
+                                                                false,
+                                                                binsize,
+                                                                0,1000000000,
+                                                                null, // minweight
+                                                                true); // plus strand
+                Map<Integer,Integer> minus = client.getHistogram(alignids,
+                                                                 chromid,
+                                                                 false,false,
+                                                                 binsize,
+                                                                 0,1000000000,
+                                                                 null, // minweight
+                                                                 false); // plus strand
+                wiggle.println(String.format("variableStep chrom=chr%s span=%d",
+                                             chromname, binsize/2));
+                TreeSet<Integer> allPos = new TreeSet<Integer>();
+                allPos.addAll(plus.keySet());
+                allPos.addAll(minus.keySet());
+                for (int pos : allPos) {
+                    if (pos + binsize > lengths.get(chromname)) {
+                        break;
+                    }
+                    if (plus.containsKey(pos)) {
+                        wiggle.println(String.format("%d\t%d",
+                                                     pos,plus.get(pos)));
+                    }
+                    if (minus.containsKey(pos)) {
+                        wiggle.println(String.format("%d\t-%d",
+                                                     pos+binsize/2,minus.get(pos)));
+                    }                    
+                }
+            } catch (ClientException e) {
+                e.printStackTrace();
+            }                
+        }
+        if (client != null) {
+            client.close();
+        }
+        wiggle.close();
+
+    }
     public void dumpEvents() throws IOException {
         if (!dumpEvents) {
             return;
@@ -221,8 +320,7 @@ public class AnalysisReport {
                                      a.foregroundReadCount,
                                      a.backgroundReadCount));
         }
-        pw.close();
-
+        pw.close();            
     }
     public void dumpGenes() throws IOException {
         if (!dumpGenes) {
@@ -250,6 +348,7 @@ public class AnalysisReport {
         dumpEvents();
         dumpGenes();
         dumpGO();
+        dumpTrack();
         if (html) {
             printHTMLReport();
         } else {
