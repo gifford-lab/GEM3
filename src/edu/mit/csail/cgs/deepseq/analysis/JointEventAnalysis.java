@@ -73,13 +73,14 @@ public class JointEventAnalysis {
       e.printStackTrace();
     }
     
-    topRank = Args.parseInteger(args, "topRank", -1);
+    topRank = Args.parseInteger(args, "top", -1);
     
     // load motif
 	Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-	motif = wm.car();
-	motifThreshold = wm.cdr(); 
-    
+	if (wm!=null){
+		motif = wm.car();
+		motifThreshold = wm.cdr(); 
+	}
     // load GPS results
     String GPSfileName = Args.parseString(args, "GPS", null);
     if (GPSfileName!=null){
@@ -176,7 +177,10 @@ public class JointEventAnalysis {
 	  
 	  StringBuilder sb = new StringBuilder();
 	  System.out.println("Total "+clusters.size()+" joint event clusters.");
-	  sb.append("      Region       \tEvents\tMotifs\tDistances\tMinDistance\n");
+	  if (motif!=null)
+		  sb.append("      Region       \tEvents\tMotifs\tDistances\tMinDistance\n");
+	  else
+		  sb.append("      Region       \tEvents\tDistances\tMinDistance\n");
 	  for (ArrayList<Point> c:clusters){
 		  if (c.size()==0)
 			  continue;
@@ -184,11 +188,12 @@ public class JointEventAnalysis {
 		  int start = p.getLocation();
 		  int end = c.get(c.size()-1).getLocation();
 		  Region r = new Region(p.getGenome(), p.getChrom(), start, end);
-		  Pair<ArrayList<Point>, ArrayList<Double>> motifs = getAllMotifs(r.expand(MOTIF_DISTANCE, MOTIF_DISTANCE), motifThreshold);
-		  
 		  sb.append(r.toString()).append("\t")
-		    .append(c.size()).append("\t")
-		    .append(motifs.car().size()).append("\t");
+		    .append(c.size()).append("\t");
+		  if (motif!=null){
+			  Pair<ArrayList<Point>, ArrayList<Double>> motifs = getAllMotifs(r.expand(MOTIF_DISTANCE, MOTIF_DISTANCE), motifThreshold);
+			  sb.append(motifs.car().size()).append("\t");
+		  }
 		  int min = Integer.MAX_VALUE;
 		  for (int i=0;i<c.size()-1;i++){
 			  int distance = c.get(i+1).distance(c.get(i));
