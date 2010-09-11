@@ -139,7 +139,7 @@ public class BindingModelGenerator {
 	public void setPFilter(double p){pFilter=p;}
 	public void setOverRepFilter(double o){overrepFilter=o;}
 	public BindingModel getBindingModel(){return model;}
-	public void smoothModel(){model.smooth(BindingModel.SMOOTHING_STEPSIZE);}
+	public void smoothModel(){model.smooth(BindingModel.SMOOTHING_STEPSIZE, BindingModel.SMOOTHING_AVG_PTS);}
 	
 	//Execute the binding model generator
 	//Includes tower & needle filter

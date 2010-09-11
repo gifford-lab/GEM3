@@ -1812,7 +1812,8 @@ public class BindingMotifHMM extends SingleConditionFeatureFinder {
        * This Map is set up so that the available duration should be used as the
        * key to find the appropriate adjusted probabilities.
        */
-      return hmm_LogAdjustedTransProb.ceilingEntry(maxStateLength).getValue();
+    	return hmm_LogA;
+//      return hmm_LogAdjustedTransProb.ceilingEntry(maxStateLength).getValue();
     }    
   }
   

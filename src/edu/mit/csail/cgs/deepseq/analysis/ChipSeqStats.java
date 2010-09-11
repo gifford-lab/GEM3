@@ -295,7 +295,7 @@ public class ChipSeqStats {
 				dist.add(new Pair<Integer, Double>(pos, (double)sum[i]));
 			}
 		BindingModel model=new BindingModel(dist);
-		model.smooth(BindingModel.SMOOTHING_STEPSIZE);
+		model.smooth(BindingModel.SMOOTHING_STEPSIZE, BindingModel.SMOOTHING_AVG_PTS);
 		return model;
 	}
 	

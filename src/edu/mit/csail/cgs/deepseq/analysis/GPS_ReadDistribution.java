@@ -35,11 +35,13 @@ public class GPS_ReadDistribution {
 	private ArrayList<Point> points = new ArrayList<Point>(); 
 	private String GPSfileName;
 	private int strength=40;
-	
+	private int mrc = 10;
+
 	// build empirical distribution
 	private DeepSeqExpt chipSeqExpt = null;
 	private int range = 250;
 	private int smooth_step = 10;
+	private int top = 1000;
 	
 	private WeightMatrix motif = null;
 	private double motifThreshold;
@@ -86,13 +88,16 @@ public class GPS_ReadDistribution {
 		}
 			
 		range = Args.parseInteger(args, "range", range);
+		top = Args.parseInteger(args, "top", top);			// number of top point positions to use
+		mrc = Args.parseInteger(args, "mrc", mrc);			// max read count
 		name = Args.parseString(args, "name", "noname");
-		smooth_step = Args.parseInteger(args, "smooth_step", smooth_step);
+		smooth_step = Args.parseInteger(args, "smooth", smooth_step);
 		smooth_distribution = smooth_step>0;
 		// load points
 		String coordFile = Args.parseString(args, "coords", null);
+		ArrayList<Point> coords = null;
 		if (coordFile!=null){
-			points = loadCgsPointFile(coordFile);
+			coords = loadCgsPointFile(coordFile, top);
 		}
 		else{
 			// load GPS results
@@ -100,58 +105,65 @@ public class GPS_ReadDistribution {
 			if (GPSfileName==null){
 				System.err.println("Coordinate file not found!");
 				System.exit(0);
-			}			
-			// load motif
-		    String motifString = Args.parseString(args, "motif", null);
-		    Pair<WeightMatrix, Double> wm = null;
-		    WeightMatrixScorer scorer=null;
-		    if (motifString!=null){
-				wm = CommonUtils.loadPWM(args, org.getDBID());
-				System.out.println("Using motif "+wm.getFirst().name);
-				scorer = new WeightMatrixScorer(wm.getFirst());
-				motifThreshold = wm.cdr().doubleValue();
-		    }
-			
+			}
 			File gpsFile = new File(GPSfileName);
 			List<GPSPeak>gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
 			strength = Args.parseInteger(args,"strength",40);
+			coords = new ArrayList<Point>();
 			for (GPSPeak gps: gpsPeaks){
-				if ((!gps.isJointEvent()) && gps.getStrength()>strength ){
-					if (wm!=null){
-						Region r= gps.expand(MOTIF_DISTANCE);
-						WeightMatrixScoreProfile profiler = scorer.execute(r);
-						int halfWidth = profiler.getMatrix().length()/2;
-						//search from BS outwards, to find the nearest strong motif
-						for(int z=0; z<=r.getWidth()/2; z++){
-							double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
-							double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);	
-							int position = -Integer.MAX_VALUE;	// middle of motif, relative to GPS peak
-							if(rightScore>=motifThreshold){
-								position = z+halfWidth;
-							}
-							if(leftScore>=motifThreshold){
-								position = -z+halfWidth;
-							}
-							if(position > -Integer.MAX_VALUE){
-								Point motifPos = new Point(genome, gps.getChrom(), gps.getLocation()+position);
-								points.add(motifPos);
-								break; 	// break from the motif search of this peak
-							}
-						}
-					}
-					else
-						points.add((Point)gps);
-				}
+				if ((!gps.isJointEvent()) && gps.getStrength()>strength )
+					coords.add(gps);
 			}
 		}
-		System.out.println(points.size()+" coordinates are used to build empirical distribution.");
+		
+		// load motif
+	    String motifString = Args.parseString(args, "motif", null);
+	    Pair<WeightMatrix, Double> wm = null;
+	    WeightMatrixScorer scorer=null;
+	    if (motifString!=null){
+			wm = CommonUtils.loadPWM(args, org.getDBID());
+			System.out.println("Using motif "+wm.getFirst().name);
+			scorer = new WeightMatrixScorer(wm.getFirst());
+			motifThreshold = wm.cdr().doubleValue();
+	    }		
+		// get points or motif points
+		for (Point p: coords){
+			if (points.size()>=top)
+				break;
+			
+			if (wm!=null){
+				Region r= p.expand(MOTIF_DISTANCE);
+				WeightMatrixScoreProfile profiler = scorer.execute(r);
+				int halfWidth = profiler.getMatrix().length()/2;
+				//search from BS outwards, to find the nearest strong motif
+				for(int z=0; z<=r.getWidth()/2; z++){
+					double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
+					double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);	
+					int position = -Integer.MAX_VALUE;	// middle of motif, relative to GPS peak
+					if(rightScore>=motifThreshold){
+						position = z+halfWidth;
+					}
+					if(leftScore>=motifThreshold){
+						position = -z+halfWidth;
+					}
+					if(position > -Integer.MAX_VALUE){
+						Point motifPos = new Point(genome, p.getChrom(), p.getLocation()+position);
+						points.add(motifPos);
+						break; 	// break from the motif search of this peak
+					}
+				}
+			}
+			else
+				points.add(p);
+		}	// each point
+		System.out.println(points.size()+" coordinates are used.");
 	}
 
 	private void printEmpiricalDistribution(ArrayList<Point> points){
 		BindingModel model_plus = getStrandedDistribution (points, '+');
-		model_plus.printToFile("Read_Distribution_plus_"+name+".txt");
+		model_plus.printToFile(String.format("Read_Distribution_%s_%d_plus.txt", name, points.size()));
 		BindingModel model_minus = getStrandedDistribution (points, '-');
-		model_minus.printToFile("Read_Distribution_minus_"+name+".txt");
+		model_minus.printToFile(String.format("Read_Distribution_%s_%d_minus.txt", name, points.size()));
 		
 		double[] prob_plus = model_plus.getProbabilities();
 		double[] prob_minus = model_minus.getProbabilities();
@@ -163,8 +175,9 @@ public class GPS_ReadDistribution {
 			dist.add(new Pair<Integer, Double>(i, prob_plus[index]+prob_minus[index]));
 		}
 		BindingModel model=new BindingModel(dist);
-		model.printToFile("Read_Distribution_"+name+".txt");
-		System.out.println("Read_Distribution_"+name+".txt is written.");
+		String outFile = String.format("Read_Distribution_%s_%d.txt", name, points.size());
+		model.printToFile(outFile);
+		System.out.println(outFile+" is written.");
 	}	
 	
 	private BindingModel getStrandedDistribution (ArrayList<Point> points, char strand){
@@ -174,7 +187,7 @@ public class GPS_ReadDistribution {
 			int pos = p.getLocation();
 			pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), strand);
 			for (int i=0;i<pair.car().size();i++){
-				sum[pair.car().get(i)-pos+range]+=pair.cdr().get(i);
+				sum[pair.car().get(i)-pos+range] += Math.min(pair.cdr().get(i), mrc);
 			}
 		}
 
@@ -191,11 +204,11 @@ public class GPS_ReadDistribution {
 			}
 		BindingModel model=new BindingModel(dist);
 		if (smooth_distribution)
-			model.smooth(smooth_step);
+			model.smooth(smooth_step, smooth_step);
 		return model;
 	}
 	
-	private ArrayList<Point> loadCgsPointFile(String filename) {
+	private ArrayList<Point> loadCgsPointFile(String filename, int ptCount) {
 
 		File file = new File(filename);
 		if(!file.isFile()){
@@ -210,6 +223,8 @@ public class GPS_ReadDistribution {
 			bin = new BufferedReader(in);
 			String line;
 			while((line = bin.readLine()) != null) { 
+				if (points.size()>=ptCount)
+					break;
 				line = line.trim();
 				Region point = Region.fromString(genome, line);
 				if (point!=null)
