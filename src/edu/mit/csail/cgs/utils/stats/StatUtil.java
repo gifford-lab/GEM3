@@ -1131,18 +1131,24 @@ public class StatUtil {
 	public static double[] gaussianSmoother( double[]Y, double width){
 		int length = Y.length;
 		double[] yy = new double[length];
+		double[] yy_weight = new double[length];
 		// width --> stdev, width*width --> variance
 		NormalDistribution gaussian = new NormalDistribution(0, width*width);
 		double total=0;
 		for (int i=0;i<length;i++){
 			yy[i]=2.0E-300;		// init with very small number
+			yy_weight[i]=2.0E-300;	
 			for (int j=0;j<length;j++){
-				yy[i]+=Y[j]*gaussian.calcProbability((double)j-i);
+				double gaussianProb = gaussian.calcProbability((double)j-i);
+				yy[i] += Y[j]*gaussianProb;
+				yy_weight[i] += gaussianProb;
 			}
-			total+=yy[i];
+			yy[i] /= yy_weight[i];
+			total += yy[i];
 		}
+		// normalize
 		for (int i=0;i<length;i++){
-			yy[i]=yy[i]/total;
+			yy[i] /= total;
 		}
 		return yy;
 	}
@@ -1153,17 +1159,17 @@ public class StatUtil {
 		int length = Y.length;
 		int kernel_length = kernel.length;
 		double[] yy = new double[length];
+		double[] yy_weight = new double[length];
 		double total=0;
 		for (int i=0;i<length;i++){
 			yy[i]=2.0E-300;		// init with very small number
-			int count=0;
 			for (int j=0;j<length;j++){
 				if (Math.abs(j-i)<kernel_length){
 					yy[i]+=Y[j]*kernel[Math.abs(j-i)];
-					count++;
+					yy_weight[i] += kernel[Math.abs(j-i)];
 				}
 			}
-			yy[i]=yy[i]/count;
+			yy[i] /= yy_weight[i];
 			total+=yy[i];
 		}
 		for (int i=0;i<length;i++){
