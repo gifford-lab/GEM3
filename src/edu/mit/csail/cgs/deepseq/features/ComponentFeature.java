@@ -10,8 +10,6 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class ComponentFeature extends Feature  implements Comparable<ComponentFeature>{
 	// these should be set at the beginning of BindingMixure
-	private static boolean use_internal_em_train=false;
-	public static void use_internal_em_train() { use_internal_em_train = true;}
 	private static ArrayList<String> conditionNames;
 	private static int numConditions=0;
 	// these are set later

@@ -90,7 +90,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     // true:  eliminated component in batch, as long as matching criteria in EM derivation
     // false: eliminate only the worse case components, re-distribute the reads of eliminated component
 	private final static boolean BATCH_ELIMINATION = false;
-	private final static boolean SPLINE_SMOOTH = true;
     private final static boolean SMART_SPACING = true;		// dynamically determine init comopent spacing
     private final static boolean MAKE_HARD_ASSIGNMENT=false;
 	private StringBuilder pi_sb = new StringBuilder();
@@ -113,7 +112,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double q_value_threshold = 2.0;
     private double joint_event_distance = 500;
     private double alpha_factor = 3.0;
-    private int top_event_percentile = 50;
+    private int top_events = 2000;
+    private int smooth_step = BindingModel.SMOOTHING_STEPSIZE;
+	private boolean SPLINE_SMOOTH = true;
     private int window_size_factor = 3;	//number of model width per window
     private int min_region_width = 50;	//minimum width for select enriched region
     private double mappable_genome_length = 2.08E9; // mouse genome
@@ -127,7 +128,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private int second_lambda_region_width =  5000;
     private int third_lambda_region_width  = 10000;
     private boolean use_dynamic_sparseness = true;
-    private boolean use_internal_em_train  = true;
+    private boolean use_betaEM  = true;
     private boolean use_scanPeak  = true;
     private boolean base_filtering = false;
     private boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
@@ -244,7 +245,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private StringBuilder log_all_msg = new StringBuilder();
 	private FileWriter logFileWriter;
 	private boolean reportProgress = true;
-	private StringBuilder needleReport = new StringBuilder();
 
 	/**
 	 * This constructor will get most parameters from property file
@@ -306,9 +306,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
-    	use_internal_em_train = ! flags.contains("multi");
-    	if (use_internal_em_train)
-    		ComponentFeature.use_internal_em_train();
+    	use_betaEM = ! flags.contains("poolEM");
     	filterEvents = !flags.contains("nf");	// not filtering of predicted events
     	TF_binding = ! flags.contains("br");	// broad region, not TF data, is histone or pol II
     	if (!TF_binding){
@@ -340,11 +338,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	second_lambda_region_width = Args.parseInteger(args, "w2", 5000);
     	third_lambda_region_width = Args.parseInteger(args, "w3", 10000);
     	joint_event_distance = Args.parseInteger(args, "j", 10000);		// max distance of joint events
-    	top_event_percentile = Args.parseInteger(args, "top", 50);
+    	top_events = Args.parseInteger(args, "top", top_events);
     	base_reset_threshold = Args.parseInteger(args, "reset", base_reset_threshold);
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
     	bmverbose = Args.parseInteger(args, "bmverbose", bmverbose);
-    	
+    	smooth_step = Args.parseInteger(args, "smooth", smooth_step);
+    	SPLINE_SMOOTH = smooth_step>0;
     	// These are options for EM performance tuning
     	// should NOT expose to user
     	// therefore, still use UPPER CASE to distinguish
@@ -935,7 +934,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								for (BindingComponent m:comps){
 									if (p.getLocation()==m.getLocation().getLocation()) {
 										b.setAlpha(m.getAlpha());	// inherit alpha value from previous EM component
-										if(!use_internal_em_train) {
+										if(!use_betaEM) {
 											for(int c = 0; c < numConditions; c++) { 
 												b.setConditionBeta(c, m.getConditionBeta(c)); 
 											}
@@ -1161,8 +1160,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 //			System.out.print("\n\n\n" + w.toString() + "\t");
 
-			// Choose either Yuchun's internal EM or Temporal Coupling
-			if(use_internal_em_train) {
+			// Choose either Yuchun's beta EM or Giorgos's pool EM methods
+			if(use_betaEM) {
 				//Run EM and increase resolution
 				initializeComponents(w, numConditions);
 				int lastResolution;
@@ -3204,7 +3203,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			maxComp.setCondSumResponsibility(c, hitCounts[c]);
 		}
 		
-		if(use_internal_em_train) {
+		if(use_betaEM) {
 			for (int c=0;c<numConditions;c++)
 				maxComp.setConditionBeta(c, hitCounts[c]/totalHitCounts);  //beta is being evaluated for one point across all conditions
 		}
@@ -3499,8 +3498,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		Arrays.sort(strengths);
 //		Arrays.sort(shapes);
-		double strengthThreshold = strengths[strengths.length*(100-top_event_percentile)/100];
-//		double shapeThreshold = shapes[shapes.length*top_event_percentile/100];
+		double strengthThreshold = strengths[strengths.length-top_events];
+//		double shapeThreshold = shapes[shapes.length*top_events/100];
 
 		int eventCountForModelUpdating=0;
         // data for all conditions
@@ -3550,11 +3549,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 
-		// smooth the model profile
-		if (SPLINE_SMOOTH){
-			model_plus=StatUtil.cubicSpline(model_plus, BindingModel.SMOOTHING_STEPSIZE, 3);
-			model_minus=StatUtil.cubicSpline(model_minus, BindingModel.SMOOTHING_STEPSIZE, 3);
-		}
 		StatUtil.mutate_normalize(model_plus);
 		StatUtil.mutate_normalize(model_minus);
 
@@ -3574,7 +3568,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		String oldName = model.getFileName();
 		model = new BindingModel(dist);
 		model.setFileName(oldName);
-		model.smooth(BindingModel.SMOOTHING_STEPSIZE, 5);
+		// smooth the model profile
+		if (SPLINE_SMOOTH)
+			model.smooth(smooth_step, 5);
 		model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
