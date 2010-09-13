@@ -30,6 +30,10 @@ public class GPSAnalysisImporter extends AnalysisImporter {
         importer.close();
     }
     public ChipSeqAnalysisResult parseLine(String line) {
+        if (line.matches("^Position.*")) {
+            return null;
+        }
+
         GPSPeak p = GPSParser.parseLine(getGenome(),
                                         line,
                                         ++lineno);

@@ -182,7 +182,7 @@ public class ChipSeqPeakFinder extends StatisticalPeakFinder{
 			bmg.setPFilter(1e-7);
 			bmg.setOverRepFilter(10);
 			BindingModel bm = bmg.execute();
-			bm.smooth(BindingModel.SMOOTHING_STEPSIZE);
+			bm.smooth(BindingModel.SMOOTHING_STEPSIZE, BindingModel.SMOOTHING_AVG_PTS);
 			setBindingModel(bm); //Update shift, ext
 			setLRBalPeaks(false);
 			setModelPeaks(true);

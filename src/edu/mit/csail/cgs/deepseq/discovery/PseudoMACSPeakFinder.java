@@ -66,7 +66,7 @@ public class PseudoMACSPeakFinder extends StatisticalPeakFinder{
 			bmg.setPFilter(1e-8);
 			bmg.setOverRepFilter(10);
 			setBindingModel(bmg.execute()); //Update shift, ext
-			bindingModel.smooth(BindingModel.SMOOTHING_STEPSIZE);
+			bindingModel.smooth(BindingModel.SMOOTHING_STEPSIZE, BindingModel.SMOOTHING_AVG_PTS);
 			setModelPeaks(true);
 			bmg.printModel(new String(getOutName()+"_model.txt"));
 		}

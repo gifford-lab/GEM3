@@ -104,10 +104,20 @@ public class AnalysisImporter {
         BufferedReader reader = new BufferedReader(new InputStreamReader(input));
         String line;
         while ((line = reader.readLine()) != null) {
-            ChipSeqAnalysisResult r = parseLine(line);
+            ChipSeqAnalysisResult r = null;
+            try {
+                r = parseLine(line);
+            } catch (Exception e) {
+                System.err.println("Couldn't parse line " + line);
+                e.printStackTrace();
+                continue;
+            }
             if (r != null) {
                 analysis.addResult(r);
+            } else {
+                System.err.println("Couldn't parse line " + line);
             }
+
         }
         analysis.store();
     }
