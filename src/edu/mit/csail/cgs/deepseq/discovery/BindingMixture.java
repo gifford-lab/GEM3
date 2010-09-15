@@ -114,7 +114,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double alpha_factor = 3.0;
     private int top_events = 2000;
     private int smooth_step = BindingModel.SMOOTHING_STEPSIZE;
-	private boolean SPLINE_SMOOTH = true;
     private int window_size_factor = 3;	//number of model width per window
     private int min_region_width = 50;	//minimum width for select enriched region
     private double mappable_genome_length = 2.08E9; // mouse genome
@@ -283,9 +282,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		String modelFile = Args.parseString(args, "d", null);	// read distribution file
 
 		commonInit(modelFile);
-
-        if (SPLINE_SMOOTH)
-        	model.smooth(BindingModel.SMOOTHING_STEPSIZE, 5);
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 		
@@ -343,7 +339,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
     	bmverbose = Args.parseInteger(args, "bmverbose", bmverbose);
     	smooth_step = Args.parseInteger(args, "smooth", smooth_step);
-    	SPLINE_SMOOTH = smooth_step>0;
+    	
     	// These are options for EM performance tuning
     	// should NOT expose to user
     	// therefore, still use UPPER CASE to distinguish
@@ -3569,8 +3565,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		model = new BindingModel(dist);
 		model.setFileName(oldName);
 		// smooth the model profile
-		if (SPLINE_SMOOTH)
-			model.smooth(smooth_step, 5);
+		if (smooth_step>0)
+			model.smoothGaussian(smooth_step);
 		model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
