@@ -723,7 +723,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
 		System.out.println("\nRunning EM for each of "+totalRegionCount+" regions, please wait ...");
-		int displayStep = 5000;
+		int displayStep = 10000;
 		if (totalRegionCount<10000)
 			displayStep = 1000;
 		if (totalRegionCount<1000)
@@ -988,7 +988,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 				}
 	
-				if ((j+1) % displayStep==0 && reportProgress)
+				if (((j+1) % displayStep==0 || j+1==10 || j+1==100 || j+1==1000 ) && reportProgress)
 					System.out.println((j+1)+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 			}
 			catch(Exception e){
@@ -3498,7 +3498,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		Arrays.sort(strengths);
 //		Arrays.sort(shapes);
-		double strengthThreshold = strengths[strengths.length-top_events];
+		double strengthThreshold = strengths[(strengths.length-top_events>0)?top_events:0];
 //		double shapeThreshold = shapes[shapes.length*top_events/100];
 
 		int eventCountForModelUpdating=0;
