@@ -23,9 +23,13 @@ public class TestHits {
         hits = new IntBP(NUMHITS);
         weights = new FloatBP(NUMHITS);
         las = new IntBP(NUMHITS);
-        hits.put(0, (int)Math.round(Math.random() * 5));
-        for (int i = 1; i < NUMHITS; i++) {
-            hits.put(i, hits.get(i-1) + (int)Math.round(Math.random() * 4));
+        int[] temp = new int[NUMHITS];
+        for (int i = 0; i < NUMHITS; i++) {
+            temp[i] =  (int)Math.round(Math.random() * 4000);
+        }
+        Arrays.sort(temp);
+        for (int i = 0; i < NUMHITS; i++) {
+            hits.put(i, temp[i]);
         }
         MAXVALUE = hits.get(NUMHITS - 1);
         for (int i = 0; i < hits.limit(); i++) {
@@ -229,7 +233,7 @@ public class TestHits {
             int binsize = 10 + (int)Math.round(Math.random() * 40);
             int[] histogram = hitsfile.histogram(header.getFirstIndex(start),
                                                  header.getLastIndex(end),
-                                                 start,end,binsize,null,null,false);
+                                                 start,end,binsize,0,null,null,false);
             int[] myhist = new int[(end - start) / binsize + 1];
             for (int i = 0; i < hits.size(); i++) {
                 if (hits.get(i) >= start && hits.get(i) <= end) {
@@ -243,6 +247,66 @@ public class TestHits {
         }        
     }
 
+    @Test public void testDeDupHistogram() throws IOException {
+        for (int q = 0; q < 300; q++) {
+            int start = (int)Math.round(Math.random() * (MAXVALUE - 10));
+            int end = start + (int)(Math.round(Math.random() * MAXVALUE) % (MAXVALUE - start));
+            if (end < start) {
+                throw new RuntimeException("end < start");
+            }
+            int binsize = 10 + (int)Math.round(Math.random() * 40);
+            int k = 0;
+            // while (hits.get(k) < binsize) {
+            //     System.out.println("k=" + k + "  val=" + hits.get(k));
+            //     k++;
+            // }
+
+
+            int[] histogram = hitsfile.histogram(header.getFirstIndex(start),
+                                                 header.getLastIndex(end),
+                                                 start,end,binsize,1,null,null,false);
+
+            int[] myhist = new int[(end - start) / binsize + 1];
+            for (int i = 0; i < hits.size(); i++) {
+                if (hits.get(i) >= start && hits.get(i) <= end) {
+                    if (i == 0 || hits.get(i-1) != hits.get(i)) {
+                        myhist[(hits.get(i) - start) / binsize]++;
+                    }
+                }
+            }
+            assertTrue(myhist.length == histogram.length);
+            for (int i = 0; i < myhist.length; i++) {
+                if (myhist[i] != histogram[i]) {
+                    System.err.println(String.format("At dup1  %d, %d != %d",i,myhist[i],histogram[i]));
+                }
+                assertTrue(myhist[i] == histogram[i]);
+            }
+
+
+            histogram = hitsfile.histogram(header.getFirstIndex(start),
+                                                 header.getLastIndex(end),
+                                                 start,end,binsize,2,null,null,false);
+
+            myhist = new int[(end - start) / binsize + 1];
+            for (int i = 0; i < hits.size(); i++) {
+                if (hits.get(i) >= start && hits.get(i) <= end) {
+                    if (i < 2  || (hits.get(i-1) != hits.get(i) ||
+                                   hits.get(i-2) != hits.get(i))) {
+                        myhist[(hits.get(i) - start) / binsize]++;
+                    }
+                }
+            }
+            assertTrue(myhist.length == histogram.length);
+            for (int i = 0; i < myhist.length; i++) {
+                if (myhist[i] != histogram[i]) {
+                    System.err.println(String.format("At dup2  %d, %d != %d",i,myhist[i],histogram[i]));
+                }
+                assertTrue(myhist[i] == histogram[i]);
+            }
+        }        
+    }
+
+
     @Test public void testMinWeightHistogram() throws IOException {
         for (int q = 0; q < 300; q++) {
             int start = (int)Math.round(Math.random() * MAXVALUE);
@@ -254,7 +318,7 @@ public class TestHits {
             float weight = (float)Math.random() * MAXWEIGHT;
             int[] histogram = hitsfile.histogram(header.getFirstIndex(start),
                                                  header.getLastIndex(end),
-                                                 start,end,binsize,weight,null,false);
+                                                 start,end,binsize,0,weight,null,false);
             int[] myhist = new int[(end - start) / binsize + 1];
             for (int i = 0; i < hits.size(); i++) {
                 if (hits.get(i) >= start && hits.get(i) <= end && weights.get(i) >= weight) {
@@ -278,7 +342,7 @@ public class TestHits {
             int binsize = 10 + (int)Math.round(Math.random() * 40);
             float[] histogram = hitsfile.weightHistogram(header.getFirstIndex(start),
                                                          header.getLastIndex(end),
-                                                         start,end,binsize,null,null,false);
+                                                         start,end,binsize,0,null,null,false);
             float[] myhist = new float[(end - start) / binsize + 1];
             for (int i = 0; i < hits.size(); i++) {
                 if (hits.get(i) >= start && hits.get(i) <= end) {

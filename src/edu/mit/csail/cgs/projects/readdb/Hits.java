@@ -378,6 +378,7 @@ public abstract class Hits implements Closeable {
                            int start,
                            int stop,
                            int stepsize,
+                           int dedup,
                            Float minweight,
                            Boolean isPlus,
                            boolean extension) throws IOException {
@@ -387,23 +388,46 @@ public abstract class Hits implements Closeable {
         }
 
         int[] p = getIndices(firstindex, lastindex, start,stop);        
+        int lastpos = -1, lastposcount = 0;
         if (!extension) {
             for (int i = p[0]; i < p[1]; i++) {
-                assert(positions.get(i) >= start);
-                assert(positions.get(i) <= stop);
+                int pos = positions.get(i);
+                assert(pos >= start);
+                assert(pos <= stop);
+                if (dedup != 0) {
+                    if (pos == lastpos) {
+                        if (++lastposcount >= dedup) {
+                            continue;
+                        }
+                    } else {
+                        lastposcount = 0;
+                    }
+                }
                 if ((minweight == null || weights.get(i) > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
+                    lastpos = pos;
                     output[(positions.get(i) - start) / stepsize]++;            
                 }
             }
         } else {
             IntBP las = getLASBuffer();
             for (int i = p[0]; i < p[1]; i++) {
-                assert(positions.get(i) >= start);
-                assert(positions.get(i) <= stop);
+                int pos = positions.get(i);
+                assert(pos >= start);
+                assert(pos <= stop);
+                if (dedup != 0) {
+                    if (pos == lastpos) {
+                        if (++lastposcount >= dedup) {
+                            continue;
+                        }
+                    } else {
+                        lastposcount = 0;
+                    }
+                }
                 if ((minweight == null || weights.get(i) > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
-                    int bin = (positions.get(i) - start) / stepsize;
+                    lastpos = pos;
+                    int bin = (pos - start) / stepsize;
                     int l = las.get(i);
                     short len = getLengthOne(l);
                     boolean strand = getStrandOne(l);
@@ -428,6 +452,7 @@ public abstract class Hits implements Closeable {
                                    int start,
                                    int stop,
                                    int stepsize,
+                                   int dedup,
                                    Float minweight,
                                    Boolean isPlus,
                                    boolean extension) throws IOException {
@@ -437,25 +462,48 @@ public abstract class Hits implements Closeable {
         }
 
         int[] p = getIndices(firstindex, lastindex, start,stop);        
+        int lastpos = -1, lastposcount = 0;
         if (!extension) {
             for (int i = p[0]; i < p[1]; i++) {
-                assert(positions.get(i) >= start);
-                assert(positions.get(i) <= stop);
+                int pos = positions.get(i);
+                assert(pos >= start);
+                assert(pos <= stop);
+                if (dedup != 0) {
+                    if (pos == lastpos) {
+                        if (++lastposcount >= dedup) {
+                            continue;
+                        }
+                    } else {
+                        lastposcount = 0;
+                    }
+                }
                 float f = weights.get(i);
                 if ((minweight == null || f > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
-                    output[(positions.get(i) - start) / stepsize] += f;            
+                    lastpos = pos;
+                    output[(pos - start) / stepsize] += f;            
                 }
             }
         } else {
             IntBP las = getLASBuffer();
             for (int i = p[0]; i < p[1]; i++) {
-                assert(positions.get(i) >= start);
-                assert(positions.get(i) <= stop);
+                int pos = positions.get(i);
+                assert(pos >= start);
+                assert(pos <= stop);
+                if (dedup != 0) {
+                    if (pos == lastpos) {
+                        if (++lastposcount >= dedup) {
+                            continue;
+                        }
+                    } else {
+                        lastposcount = 0;
+                    }
+                }
                 float f = weights.get(i);
                 if ((minweight == null || f > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
-                    int bin = (positions.get(i) - start) / stepsize;
+                    lastpos = pos;
+                    int bin = (pos - start) / stepsize;
                     int l = las.get(i);
                     short len = getLengthOne(l);
                     boolean strand = getStrandOne(l);
