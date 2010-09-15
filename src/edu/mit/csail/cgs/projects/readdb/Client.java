@@ -636,6 +636,12 @@ public class Client implements ReadOnlyClient {
      *
      * minweight is the minimum weight for reads to be included in the histogram.
      *
+     * dedup is the limit on how many times reads with any given 5' position will be counted.
+     *  A value of zero means no limit.  A limit of, eg, 2, means that at most two reads at
+     *  any 5' position will be included in the output.  For weighted histograms, the choice of reads
+     *  included is unspecified.  For methods that operate on a set of alignments, this many
+     *  reads from each alignment will be included.
+     *
      * Normally, a read is only counted in a single bin as defined by its position (generally
      * the 5' end of the read).  A non-zero read-Extension counts the read in any
      * bin that you cross within that many bases of the read's position.  A negative value
@@ -644,9 +650,9 @@ public class Client implements ReadOnlyClient {
      * working with.
      */
     public TreeMap<Integer,Integer> getHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
-        return getHistogram(alignid, chromid, paired, doReadExtension,binsize,start,stop,minWeight,plusStrand,true);
+        return getHistogram(alignid, chromid, paired, doReadExtension,binsize,0,start,stop,minWeight,plusStrand,true);
     }
-    public TreeMap<Integer,Integer> getHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand, boolean isLeft) throws IOException, ClientException {
+    public TreeMap<Integer,Integer> getHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, int dedup, Integer start, Integer stop, Float minWeight, Boolean plusStrand, boolean isLeft) throws IOException, ClientException {
         request.clear();
         request.type="histogram";
         request.alignid=alignid;
@@ -658,6 +664,9 @@ public class Client implements ReadOnlyClient {
         request.isPlusStrand = plusStrand;
         request.isPaired = paired;
         request.map.put("binsize",Integer.toString(binsize));
+        if (dedup > 0) {
+            request.map.put("dedup",Integer.toString(dedup));
+        }
         if (doReadExtension) {
             request.map.put("extension","1");
         }
@@ -676,6 +685,9 @@ public class Client implements ReadOnlyClient {
         return output;
     }
     public TreeMap<Integer,Float> getWeightHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        return getWeightHistogram(alignid, chromid, paired, doReadExtension, binsize, 0, start,stop,minWeight,plusStrand);
+    }
+    public TreeMap<Integer,Float> getWeightHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, int dedup, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
         request.clear();
         request.type="weighthistogram";
         request.alignid=alignid;
@@ -686,6 +698,10 @@ public class Client implements ReadOnlyClient {
         request.isPlusStrand = plusStrand;
         request.isPaired = paired;
         request.map.put("binsize",Integer.toString(binsize));
+        if (dedup > 0) {
+            request.map.put("dedup",Integer.toString(dedup));
+        }
+
         if (doReadExtension) {
             request.map.put("extension","1");
         }
