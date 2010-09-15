@@ -1119,6 +1119,10 @@ public class ServerTask {
             printString("missing or invalid bin size : " + request.map.get("binsize") + "\n");
             return;
         }
+        int dedup = 0;
+        if (request.map.containsKey("dedup")) {
+            dedup = Integer.parseInt(request.map.get("dedup"));
+        }
         boolean extension = request.map.containsKey("extension");
         int first = header.getFirstIndex(request.start);
         int last = header.getLastIndex(request.end);
@@ -1127,6 +1131,7 @@ public class ServerTask {
                                    request.start,
                                    request.end,
                                    binsize,
+                                   dedup,
                                    request.minWeight,
                                    request.isPlusStrand,
                                    extension);
@@ -1172,6 +1177,10 @@ public class ServerTask {
             printString("missing or invalid bin size : " + request.map.get("binsize") + "\n");
             return;
         }
+        int dedup = 0;
+        if (request.map.containsKey("dedup")) {
+            dedup = Integer.parseInt(request.map.get("dedup"));
+        }
         boolean extension = request.map.containsKey("extension");
         int first = header.getFirstIndex(request.start);
         int last = header.getLastIndex(request.end);
@@ -1180,6 +1189,7 @@ public class ServerTask {
                                            request.start,
                                            request.end,
                                            binsize,
+                                           dedup,
                                            request.minWeight,
                                            request.isPlusStrand,
                                            extension);
