@@ -38,8 +38,6 @@ public class GPSAnalysisImporter extends AnalysisImporter {
                                         line,
                                         ++lineno);
 
-
-
         return new ChipSeqAnalysisResult(getGenome(),
                                          p.getChrom(),
                                          p.getLocation(),
@@ -49,7 +47,7 @@ public class GPSAnalysisImporter extends AnalysisImporter {
                                          p.getControlStrength(),
                                          p.getStrength(),
                                          p.getShape(),
-                                         p.getPvalue(),
+                                         Math.max(p.getPvalue(), minpval),
                                          p.getStrength()/p.getControlStrength());
     }
 

@@ -18,6 +18,7 @@ import edu.mit.csail.cgs.datasets.chipseq.*;
  * --name "iCdx2 at Day4 in P2A, bowtie_unique"
  * --version "GPS stringent threshold"
  * --program "GPS, git commit abc123"
+ * [--inactive]
  * [--paramfile params.txt]
  * [--foreground "exptname;exprreplicate;alignname"]  (can specify multiple --foreground)
  * [--background "exptname;exprreplicate;alignname"]  (can specify multiple --background)
@@ -37,6 +38,9 @@ import edu.mit.csail.cgs.datasets.chipseq.*;
  * 10 fold enrichment (double)
  *
  * Paramsfile is in key=value format
+ *
+ * specify --inactive if you want to save the results but don't want them to show up by default in lists of analyses.
+ * You might do this, eg, for early rounds of GPS output.
  *
  */
 
@@ -58,7 +62,7 @@ public class AnalysisImporter {
         String program = Args.parseString(args,"program",null);
         genome = Args.parseGenome(args).cdr();
         ChipSeqLoader loader = new ChipSeqLoader();
-        analysis = new ChipSeqAnalysis(name,version,program);
+        analysis = new ChipSeqAnalysis(name,version,program, !Args.parseFlags(args).contains("inactive"));
 
         String paramsfname = Args.parseString(args,"paramfile",null);
         if (paramsfname != null) {

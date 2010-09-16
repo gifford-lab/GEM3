@@ -27,6 +27,7 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
     private String name, version, program;
     private Integer dbid;
     private List<ChipSeqAnalysisResult> results;
+    private boolean active;
 
     /* these methods (through store()) are primarily for constructing a 
        ChipSeqAnalysis and saving it to the DB */
@@ -39,7 +40,20 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
         foreground = null;
         background = null;
         results = new ArrayList<ChipSeqAnalysisResult>();
+        this.active = true;
     }
+    public ChipSeqAnalysis (String name, String version, String program, boolean active) {
+        this.name = name;
+        this.version = version;
+        this.program = program;
+        dbid = null;
+        params = null;
+        foreground = null;
+        background = null;
+        results = new ArrayList<ChipSeqAnalysisResult>();
+        this.active = active;
+    }
+    public void setActive(boolean b) {active = b;}
     public void setParameters(Map<String,String> params) {
         this.params = params;
     }
@@ -64,11 +78,12 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
     public void store() throws SQLException {
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
         cxn.setAutoCommit(false);
-        String q = "insert into chipseqanalysis (id, name, version, program) values (%s,?,?,?)";
+        String q = "insert into chipseqanalysis (id, name, version, program, active) values (%s,?,?,?,?)";
         PreparedStatement ps = cxn.prepareStatement(String.format(q,edu.mit.csail.cgs.utils.database.Sequence.getInsertSQL(cxn, "chipseqanalysis_id")));
         ps.setString(1, name);
         ps.setString(2, version);
         ps.setString(3, program);
+        ps.setInt(4,active ? 1 : 0);
         ps.execute();
         ps.close();
         String sql = edu.mit.csail.cgs.utils.database.Sequence.getLastSQLStatement(cxn, "chipseqanalysis_id");
@@ -158,6 +173,23 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
         cxn.commit();
 		DatabaseFactory.freeConnection(cxn);
     }
+    /* stores the active flag to the database.  Must be done
+       on an object that has already been stored such that it has a DBID */
+    public void storeActiveDB() throws SQLException {
+        if (dbid == null) {
+            throw new RuntimeException("Must have a dbid");
+        }
+        String sql = "update chipseqanalysis set active = ? where id = ?";
+        java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
+        PreparedStatement ps = cxn.prepareStatement(sql);
+        
+        ps.setInt(1, active ? 1 : 0);
+        ps.setInt(2, dbid);
+        ps.execute();
+        cxn.commit();
+        DatabaseFactory.freeConnection(cxn);
+        
+    }
 
     /* these methods are primarily for querying an object that you've gotten back
        from the database */
@@ -168,6 +200,7 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
     public String getName() {return name;}
     public String getVersion() {return version;}
     public String getProgramName() {return program;}
+    public boolean isActive() {return active;}
     public Map<String,String> getParams() {
         if (params == null) {
             try {
@@ -338,14 +371,23 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
 
     /** retrieves all ChipSeqAnalysis objects from the database */
     public static Collection<ChipSeqAnalysis> getAll() throws DatabaseException, SQLException {
+        return getAll(true);
+    }
+    public static Collection<ChipSeqAnalysis> getAll(Boolean active) throws DatabaseException, SQLException {
         ArrayList<ChipSeqAnalysis> output = new ArrayList<ChipSeqAnalysis>();
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
-        PreparedStatement ps = cxn.prepareStatement("select id, name, version, program from chipseqanalysis");
+        String sql = "select id, name, version, program, active from chipseqanalysis";
+        if (active != null) {
+            sql = sql + " where active = " + (active ? 1 : 0);
+        }
+
+        PreparedStatement ps = cxn.prepareStatement(sql);
         ResultSet rs = ps.executeQuery();
         while (rs.next()) {
             ChipSeqAnalysis a = new ChipSeqAnalysis(rs.getString(2),
                                                     rs.getString(3),
-                                                    rs.getString(4));
+                                                    rs.getString(4),
+                                                    rs.getInt(5) != 0 ? true : false);
             a.dbid = rs.getInt(1);
             output.add(a);
         }
@@ -357,15 +399,22 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
     }
     /** Retrieves the ChipSeqAnalysis with the specified name and version */
     public static ChipSeqAnalysis get(ChipSeqLoader loader, String name, String version) throws NotFoundException, DatabaseException, SQLException {
+        return get(loader,name,version,true);
+    }
+    public static ChipSeqAnalysis get(ChipSeqLoader loader, String name, String version, Boolean active) throws NotFoundException, DatabaseException, SQLException {
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
-        PreparedStatement ps = cxn.prepareStatement("select id, program from chipseqanalysis where name = ? and version = ?");
+        String sql = "select id, program, active from chipseqanalysis where name = ? and version = ?";
+        if (active != null) {
+            sql = sql + " where active = " + (active ? 1 : 0);
+        }
+        PreparedStatement ps = cxn.prepareStatement(sql);
         ps.setString(1,name);
         ps.setString(2,version);
         ResultSet rs = ps.executeQuery();
         if (!rs.next()) {
             throw new NotFoundException("Couldn't find analysis " + name + "," + version);
         }
-        ChipSeqAnalysis result = new ChipSeqAnalysis(name,version, rs.getString(2));
+        ChipSeqAnalysis result = new ChipSeqAnalysis(name,version, rs.getString(2), rs.getInt(3) != 0 ? true : false);
         result.dbid = rs.getInt(1);
         rs.close();
         ps.close();
