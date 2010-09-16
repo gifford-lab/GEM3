@@ -207,7 +207,11 @@ public class BindingModel {
 		Pair<Double, TreeSet<Integer>> sorted = StatUtil.findMax(probs);
 		summit = sorted.cdr().first()+min;
 	}
-	
+	public void smoothGaussian (int kernelWidth){
+		probs=StatUtil.gaussianSmoother(probs, kernelWidth);
+		Pair<Double, TreeSet<Integer>> sorted = StatUtil.findMax(probs);
+		summit = sorted.cdr().first()+min;
+	}	
 	//Look up the probability corresponding to a distance
 	// Distance should be defined as (Read position - Peak position)
 	public double probability(int distance){
