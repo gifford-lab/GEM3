@@ -3485,48 +3485,52 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		if (signalFeatures.size()==0)
 			return -100;
 		int width = left+right+1;
-		double[] strengths = new double[signalFeatures.size()];
-//		double[] shapes = new double[signalFeatures.size()];
-		for (int i=0; i<signalFeatures.size();i++){
-			ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
-			strengths[i] = cf.getTotalSumResponsibility();
-//			shapes[i] = cf.getAvgShapeDeviation();
+		
+		ArrayList<ComponentFeature> cfs = new ArrayList<ComponentFeature>();
+		for (Feature f: signalFeatures){
+			ComponentFeature cf = (ComponentFeature)f;
+			// the events that are used to refine read distribution should be
+			// having strength and shape at the upper half ranking
+			if (use_joint_event || !cf.isJointEvent() )
+				cfs.add(cf);
 		}
-		Arrays.sort(strengths);
-//		Arrays.sort(shapes);
-		double strengthThreshold = strengths[(strengths.length-top_events>0)?top_events:0];
-//		double shapeThreshold = shapes[shapes.length*top_events/100];
-
-		int eventCountForModelUpdating=0;
+		Collections.sort(cfs, new Comparator<ComponentFeature>(){
+			public int compare(ComponentFeature o1, ComponentFeature o2) {
+				return o1.compareByTotalResponsibility(o2);
+			}
+		});
+		
+		int eventCounter=0;
         // data for all conditions
         double[][] newModel_plus=new double[numConditions][width];
         double[][] newModel_minus=new double[numConditions][width];
 		// sum the read profiles from all qualified binding events for updating model
+        double strengthThreshold=-1;
 		for (int c=0;c<numConditions;c++){
 			ReadCache ip = caches.get(c).car();
-			for (Feature f: signalFeatures){
-				ComponentFeature cf = (ComponentFeature)f;
-				// the events that are used to refine read distribution should be
-				// having strength and shape at the upper half ranking
-				if ((use_joint_event || !cf.isJointEvent())
-//						&& cf.getAvgShapeDeviation()<=shapeThreshold
-						&& cf.getTotalSumResponsibility()>=strengthThreshold){
-					if (cf.getQValueLog10(c)>q_value_threshold){
-						Region region = cf.getPosition().expand(0).expand(left, right);
-						List<StrandedBase> bases = ip.getStrandedBases(region, '+');
-						for (StrandedBase base:bases){
-							newModel_plus[c][base.getCoordinate()-region.getStart()]+=base.getCount();
-						}
-						region = cf.getPosition().expand(0).expand(right, left);
-						bases = ip.getStrandedBases(region, '-');
-						for (StrandedBase base:bases){
-							newModel_minus[c][region.getEnd()-base.getCoordinate()]+=base.getCount();
-						}
-						eventCountForModelUpdating++;
+			eventCounter=0;
+			for (ComponentFeature cf: cfs){
+				if (cf.getQValueLog10(c)>q_value_threshold){
+					Region region = cf.getPosition().expand(0).expand(left, right);
+					List<StrandedBase> bases = ip.getStrandedBases(region, '+');
+					for (StrandedBase base:bases){
+						newModel_plus[c][base.getCoordinate()-region.getStart()]+=base.getCount();
+					}
+					region = cf.getPosition().expand(0).expand(right, left);
+					bases = ip.getStrandedBases(region, '-');
+					for (StrandedBase base:bases){
+						newModel_minus[c][region.getEnd()-base.getCoordinate()]+=base.getCount();
+					}
+					eventCounter++;
+					if (eventCounter>top_events){	// reach the top counts
+						strengthThreshold = cf.getTotalSumResponsibility();
+						break;
 					}
 				}
 			}
 		}
+		if (strengthThreshold==-1)		// if not set, then we are using all events
+			strengthThreshold=cfs.get(cfs.size()-1).getTotalSumResponsibility();
 
 		// we have collected data for both strands, all conditions
 		// but here we only use single model for all conditions
@@ -3566,7 +3570,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		model.setFileName(oldName);
 		// smooth the model profile
 		if (smooth_step>0)
-			model.smoothGaussian(smooth_step);
+			model.smooth(smooth_step, smooth_step);
 		model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
@@ -3577,9 +3581,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			logKL = StatUtil.log_KL_Divergence(oldModel, model.getProbabilities());
 		String details = String.format("([-%d, %d] Strength>%.1f). \nlogKL=%.2f, +/- strand shift %d bp.\n", 
 				left, right, strengthThreshold,  logKL, shift);
-//		String details = String.format("([-%d, %d] Strength>%.1f, Shape<%.2f). \nlogKL=%.2f, +/- strand shift %d bp.\n", 
-//				left, right, strengthThreshold, shapeThreshold, logKL, shift);
-		log(1, "Refine read distribution from " + eventCountForModelUpdating +" binding events. "+
+		log(1, "Refine read distribution from " + eventCounter +" binding events. "+
 				(development_mode?details:"\n"));
 
 		return logKL;
