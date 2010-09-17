@@ -17,6 +17,7 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
 
     TreeSet<ChipSeqAnalysis> analyses;
     private JTextField regex;
+    private JCheckBox active;
     private ChipSeqAnalysisTableModel selectedModel, filteredModel;
 
     public ChipSeqAnalysisSelectPanel(Genome g) { 
@@ -37,6 +38,8 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         JPanel inputPanel = new JPanel(); inputPanel.setLayout(new BorderLayout());
         inputPanel.setLayout(new BorderLayout());
         regex = new JTextField();
+        active = new JCheckBox("Active Analyses Only?", true);
+        inputPanel.add(active, BorderLayout.EAST);
         inputPanel.add(new JLabel("pattern to filter analyses"), BorderLayout.WEST);
         inputPanel.add(regex, BorderLayout.CENTER);        
         return inputPanel;
@@ -46,7 +49,7 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         analyses.clear();
         try {
             synchronized(analyses) {
-                Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll();
+                Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll(active.isSelected() ? true : null);
                 System.err.println("CSASP.RD -> " + all);
                 for(ChipSeqAnalysis a :all) { 
                     analyses.add(a);
@@ -74,7 +77,7 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         synchronized(analyses) {
             analyses.clear();
             try {
-                Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll();
+                Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll(active.isSelected() ? true : null);
                 for (ChipSeqAnalysis a : all) {
                     if (patt == null || patt.matcher(a.toString()).find()) {
                         Set<ChipSeqAlignment> fg = a.getForeground();
@@ -92,7 +95,6 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
                 throw new RuntimeException(e.toString(), e);
             }
             filteredModel.clear();
-            System.err.println("Going to add " + analyses);
             for (ChipSeqAnalysis a : analyses) {
                 filteredModel.addObject(a);
             }

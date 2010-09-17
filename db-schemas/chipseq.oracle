@@ -64,6 +64,7 @@ create table chipseqanalysis (
        name varchar2(200) not null,
        version varchar2(200) not null,
        program varchar2(200),
+       active int(1) default 1,
        constraint csa_pk primary key(name,version)       	       
 );
 
