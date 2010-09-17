@@ -3649,30 +3649,42 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// calculate p-value from binomial distribution, and peak shape parameter
 	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures) {
 		if(controlDataExist) {
+
+            double totalControlCount[] = new double[caches.size()];
+            double totalIPCount[] = new double[caches.size()];
+            for (int i = 0; i < caches.size(); i++) {
+                totalIPCount[i] += caches.get(i).car().getHitCount();
+                totalControlCount[i] += caches.get(i).cdr().getHitCount();
+            }
+
 			for (ComponentFeature cf: compFeatures){
 				for(int cond=0; cond<caches.size(); cond++){
 					// scale control read count by non-specific read count ratio
-					double controlCount = cf.getScaledControlCounts(cond);
+					double controlCount = cf.getUnscaledControlCounts()[cond];
 					double ipCount = cf.getEventReadCounts(cond);
-					double pValue=1;
+					double pValueControl = 1, pValueUniform = 1;
 					if ((controlCount+ipCount)>=0){
 						try{
-							pValue = StatUtil.binomialPValue(controlCount,
-									controlCount+ipCount);
+                            double p = controlCount / totalControlCount[cond];
+							pValueControl = StatUtil.binomialPValue(ipCount,
+                                                                    totalIPCount[cond],
+                                                                    p);
+                            p = totalIPCount[cond] * (windowSize / mappable_genome_length);
+                            pValueUniform = StatUtil.binomialPValue(ipCount,
+                                                                    totalIPCount[cond],
+                                                                    p);
 						}
 						catch(Exception err){
 							err.printStackTrace();
 							System.err.println(cf.toString());
 						}
-					}
-					else{
+					} else{
 						System.err.println(cf.toString());
 					}
-					cf.setPValue(pValue, cond);
+					cf.setPValue(Math.max(pValueControl,pValueUniform), cond);
 				}
 			}
-		}
-		else {
+		} else {
 //			I commented the evaluation of the average shift size
 //			We won't need it cause in our data, we do not shift reads.
 //			Besides, we will consider a fixed region of modelRange bp as the peak region.
