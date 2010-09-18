@@ -113,7 +113,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double joint_event_distance = 500;
     private double alpha_factor = 3.0;
     private int top_events = 2000;
-    private int smooth_step = BindingModel.SMOOTHING_STEPSIZE;
+    private int smooth_step = 30;
     private int window_size_factor = 3;	//number of model width per window
     private int min_region_width = 50;	//minimum width for select enriched region
     private double mappable_genome_length = 2.08E9; // mouse genome
