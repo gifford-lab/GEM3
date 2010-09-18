@@ -942,7 +942,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							// Do not want to scan peak
 							//		Run EM again on the unary region and take the component with the maximum strength
 							else {
-								ArrayList<BindingComponent> bl = analyzeWindow(subr.get(0));
+								ArrayList<BindingComponent> bl = analyzeWindow(subr.get(0).expand(modelRange, modelRange));
 								if(bl == null || bl.size() == 0)      { continue; }
 								else if(bl.size() == 1) { b = bl.get(0); }
 								else {
@@ -3522,7 +3522,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						newModel_minus[c][region.getEnd()-base.getCoordinate()]+=base.getCount();
 					}
 					eventCounter++;
-					if (eventCounter>top_events){	// reach the top counts
+					if (eventCounter>top_events-1){	// reach the top counts
 						strengthThreshold = cf.getTotalSumResponsibility();
 						break;
 					}
