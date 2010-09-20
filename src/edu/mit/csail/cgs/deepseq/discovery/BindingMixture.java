@@ -3650,12 +3650,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// calculate p-value from binomial distribution, and peak shape parameter
 	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures) {
         Binomial binomial = new Binomial(100, .5, new DRand());
+        double totalIPCount[] = new double[caches.size()];
+        double totalControlCount[] = new double[caches.size()];
+        for (int i = 0; i < caches.size(); i++) {
+            totalIPCount[i] += caches.get(i).car().getHitCount();
+        }
 		if(controlDataExist) {
-
-            double totalControlCount[] = new double[caches.size()];
-            double totalIPCount[] = new double[caches.size()];
             for (int i = 0; i < caches.size(); i++) {
-                totalIPCount[i] += caches.get(i).car().getHitCount();
                 totalControlCount[i] += caches.get(i).cdr().getHitCount();
             }
 
@@ -3663,33 +3664,32 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for(int cond=0; cond<caches.size(); cond++){
 					// scale control read count by non-specific read count ratio
 					double controlCount = cf.getUnscaledControlCounts()[cond];
-					double ipCount = cf.getEventReadCounts(cond);
-					double pValueControl = 1, pValueUniform = 1;
-					if ((controlCount+ipCount)>=0){
-						try{
-                            assert (totalIPCount[cond] > 0);
-                            assert (ipCount <= totalIPCount[cond]);
-                            double p = controlCount / totalControlCount[cond];
-                            if (p <= 0) {
-                                p = 1.0/totalControlCount[cond];
-                            } else if (p >= 1) {
-                                System.err.println(String.format("p>=1 at evaluateConfidence from %f/%f", controlCount, totalControlCount[cond]));
-                                p = 1.0 - 1.0/totalControlCount[cond];
-                            } 
-                            binomial.setNandP((int)totalIPCount[cond],p);
-							pValueControl = 1 - binomial.cdf((int)Math.ceil(ipCount));
-                            p = windowSize / mappable_genome_length;
-                            binomial.setNandP((int)totalIPCount[cond],p);
-                            pValueUniform = 1 - binomial.cdf((int)Math.ceil(ipCount));
-						} catch(Exception err){
-							err.printStackTrace();
-							System.err.println(cf.toString());
-                            throw new RuntimeException(err.toString(), err);
-						}
-					} else{
-						System.err.println(cf.toString());
-					}
-					cf.setPValue(Math.max(pValueControl,pValueUniform), cond);
+                    double scaledControlCount = cf.getScaledControlCounts(cond);
+					double pValueControl = 1, pValueUniform = 1, pValueBalance;
+                    double ipCount = cf.getEventReadCounts(cond);
+                    try{
+                        assert (totalIPCount[cond] > 0);
+                        assert (ipCount <= totalIPCount[cond]);
+                        double p = controlCount / totalControlCount[cond];
+                        if (p <= 0) {
+                            p = 1.0/totalControlCount[cond];
+                        } else if (p >= 1) {
+                            System.err.println(String.format("p>=1 at evaluateConfidence from %f/%f", controlCount, totalControlCount[cond]));
+                            p = 1.0 - 1.0/totalControlCount[cond];
+                        } 
+                        binomial.setNandP((int)totalIPCount[cond],p);
+                        pValueControl = 1 - binomial.cdf((int)Math.ceil(ipCount));
+                        p = windowSize / mappable_genome_length;
+                        binomial.setNandP((int)totalIPCount[cond],p);
+                        pValueUniform = 1 - binomial.cdf((int)Math.ceil(ipCount));
+                        binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
+                        pValueBalance = 1 - binomial.cdf((int)Math.ceil(ipCount));
+                    } catch(Exception err){
+                        err.printStackTrace();
+                        System.err.println(cf.toString());
+                        throw new RuntimeException(err.toString(), err);
+                    }
+					cf.setPValue(Math.max(pValueBalance,Math.max(pValueControl,pValueUniform)), cond);
 				}
 			}
 		} else {
