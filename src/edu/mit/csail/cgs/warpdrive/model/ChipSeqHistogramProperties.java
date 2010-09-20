@@ -3,6 +3,7 @@ package edu.mit.csail.cgs.warpdrive.model;
 public class ChipSeqHistogramProperties extends ModelProperties {
 
     public Integer BinWidth = 10;
+    public Integer DeDuplicate = 2;
     public Boolean UseWeights = Boolean.TRUE;
     public Integer GaussianKernelWidth = 0;
     public Boolean ReadExtension = Boolean.TRUE;
