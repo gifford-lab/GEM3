@@ -60,8 +60,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	// width for smoothing a read (used as a stddev for creating the Gaussian kernel of probability)
 	public final static int READ_KERNEL_ESTIMATOR_WIDTH = 5;
-	// the range to scan a peak if we know position from EM result
-	protected final static int SCAN_RANGE = 100;
 
 	//Maximum region (in bp) considered for running EM
 	protected final int MAX_REGION_LEN=200000;
@@ -136,6 +134,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private int windowSize;			// size for EM sliding window for splitting long regions
 	//Run EM up until <tt>ML_ITER</tt> without using sparse prior
 	private int ML_ITER=10;
+	// the range to scan a peak if we know position from EM result
+	private int SCAN_RANGE = 20;
 
 	//Binding model representing the empirical distribution of a binding event
 	private BindingModel model;
@@ -344,6 +344,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	// should NOT expose to user
     	// therefore, still use UPPER CASE to distinguish
     	ML_ITER = Args.parseInteger(args, "ML_ITER", ML_ITER);
+    	SCAN_RANGE = Args.parseInteger(args, "SCAN_RANGE", SCAN_RANGE);
     	resolution_extend = Args.parseInteger(args, "resolution_extend", resolution_extend);
     	gentle_elimination_factor = Args.parseInteger(args, "gentle_elimination_factor", gentle_elimination_factor);
     	
