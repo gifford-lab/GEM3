@@ -87,20 +87,20 @@ public class SAMReader extends AlignmentFileReader{
 	
         float weight = 1 / ((float)mapcount);
         Read currRead = new Read((int)totalWeight);
-	for (SAMRecord record : records) {
-	    int start = record.getReadNegativeStrandFlag() ? record.getAlignmentEnd() : record.getAlignmentStart();
-	    int end = start + record.getReadLength()-1;
-	    ReadHit currHit = new ReadHit(gen,
-					  currID,
-					  record.getReferenceName().replaceFirst("^chr", ""), 
-					  start, end, 
-					  record.getReadNegativeStrandFlag() ? '-' : '+',
-					  weight);
-	    currRead.addHit(currHit);
-	    currID++;
-	}currRead.setNumHits(mapcount);
-	addHits(currRead);
-	totalWeight++;
+		for (SAMRecord record : records) {
+		    int start = record.getAlignmentStart();
+		    int end = record.getAlignmentEnd();
+		    ReadHit currHit = new ReadHit(gen,
+						  currID,
+						  record.getReferenceName().replaceFirst("^chr", ""), 
+						  start, end, 
+						  record.getReadNegativeStrandFlag() ? '-' : '+',
+						  weight);
+		    currRead.addHit(currHit);
+		    currID++;
+		}currRead.setNumHits(mapcount);
+		addHits(currRead);
+		totalWeight++;
     }//end of processRead
 
 }
