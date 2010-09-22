@@ -31,7 +31,6 @@ public class GPS_ReadDistribution {
 	private Genome genome;
 	private Organism org;
 	
-	private boolean smooth_distribution=true;
 	private ArrayList<Point> points = new ArrayList<Point>(); 
 	private String GPSfileName;
 	private int strength=40;
@@ -92,7 +91,6 @@ public class GPS_ReadDistribution {
 		mrc = Args.parseInteger(args, "mrc", mrc);			// max read count
 		name = Args.parseString(args, "name", "noname");
 		smooth_step = Args.parseInteger(args, "smooth", smooth_step);
-		smooth_distribution = smooth_step>0;
 		// load points
 		String coordFile = Args.parseString(args, "coords", null);
 		ArrayList<Point> coords = null;
@@ -203,7 +201,7 @@ public class GPS_ReadDistribution {
 				dist.add(new Pair<Integer, Double>(pos, (double)sum[i]));
 			}
 		BindingModel model=new BindingModel(dist);
-		if (smooth_distribution)
+		if (smooth_step>0)
 			model.smooth(smooth_step, smooth_step);
 		return model;
 	}

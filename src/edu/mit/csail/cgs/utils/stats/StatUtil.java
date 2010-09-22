@@ -1105,7 +1105,7 @@ public class StatUtil {
 			x[i]=i*stepSize+stepSize/2;
 			yx[i]=0;
 			for (int j=0;j<averageWidth;j++){
-				yx[i]+=y[(i*stepSize+stepSize/2)+(j-averageWidth/2)]/averageWidth;
+				yx[i]+=y[(int)x[i]+(j-averageWidth/2)]/averageWidth;
 			}
 		}
 		// last sample point, average from last data points

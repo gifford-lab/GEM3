@@ -158,6 +158,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	
 	// The following methods can be called from creating a new Comparator.
 	// See benjaminiHochbergCorrection() in BindingMixture for example use
+	/* 
+	 * sort componentFeatures in decreasing binding strength
+	 */
 	public int compareByTotalResponsibility(ComponentFeature f) {
 		if(totalSumResponsibility>f.getTotalSumResponsibility()){return(-1);}
 		else if(totalSumResponsibility<f.getTotalSumResponsibility()){return(1);}
