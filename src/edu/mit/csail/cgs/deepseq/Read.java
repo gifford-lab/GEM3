@@ -31,14 +31,18 @@ public class Read {
 			x.setWeight(w);
 		}
 	}
-	public void addHit(ReadHit h){
+	public void addHit(ReadHit h){addHit(h, true);}
+	public void addHit(ReadHit h, boolean updateWeight){
 		//First add the hit
 		hits.add(h);
 		numHits++;
-		//Now propagate the effect of adding the hit to the read weights
-		double w = 1/numHits;
-		for(ReadHit x : hits){
-			x.setWeight(w);
+		
+		if(updateWeight){
+			//Now propagate the effect of adding the hit to the read weights
+			double w = 1/numHits;
+			for(ReadHit x : hits){
+				x.setWeight(w);
+			}
 		}
 	}
 	
