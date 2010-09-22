@@ -3650,6 +3650,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// calculate p-value from binomial distribution, and peak shape parameter
 	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures) {
         Binomial binomial = new Binomial(100, .5, new DRand());
+		Poisson poisson = new Poisson(1, new DRand());
         double totalIPCount[] = new double[caches.size()];
         double totalControlCount[] = new double[caches.size()];
         for (int i = 0; i < caches.size(); i++) {
@@ -3665,8 +3666,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					// scale control read count by non-specific read count ratio
 					double controlCount = cf.getUnscaledControlCounts()[cond];
                     double scaledControlCount = cf.getScaledControlCounts(cond);
-					double pValueControl = 1, pValueUniform = 1, pValueBalance;
-                    double ipCount = cf.getEventReadCounts(cond);
+					double pValueControl = 1, pValueUniform = 1, pValueBalance = 1, pValuePoisson = 1;
+                    int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
                     try{
                         assert (totalIPCount[cond] > 0);
                         assert (ipCount <= totalIPCount[cond]);
@@ -3678,18 +3679,20 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                             p = 1.0 - 1.0/totalControlCount[cond];
                         } 
                         binomial.setNandP((int)totalIPCount[cond],p);
-                        pValueControl = 1 - binomial.cdf((int)Math.ceil(ipCount));
+                        pValueControl = 1 - binomial.cdf(ipCount);
                         p = windowSize / mappable_genome_length;
                         binomial.setNandP((int)totalIPCount[cond],p);
-                        pValueUniform = 1 - binomial.cdf((int)Math.ceil(ipCount));
+                        pValueUniform = 1 - binomial.cdf(ipCount);
                         binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
-                        pValueBalance = 1 - binomial.cdf((int)Math.ceil(ipCount));
+                        pValueBalance = 1 - binomial.cdf(ipCount);
+                        poisson.setMean(Math.max(scaledControlCount, totalIPCount[cond] * windowSize / mappable_genome_length  ));
+                        pValuePoisson = 1 - poisson.cdf(ipCount);
                     } catch(Exception err){
                         err.printStackTrace();
                         System.err.println(cf.toString());
                         throw new RuntimeException(err.toString(), err);
                     }
-					cf.setPValue(Math.max(pValueBalance,Math.max(pValueControl,pValueUniform)), cond);
+                    cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
 				}
 			}
 		} else {
