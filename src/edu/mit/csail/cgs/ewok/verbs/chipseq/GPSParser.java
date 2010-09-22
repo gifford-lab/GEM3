@@ -119,12 +119,12 @@ public class GPSParser {
             Region r = Region.fromString(g, t[0]);
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                                Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
-                               Double.parseDouble(t[5]), Double.parseDouble(t[6]));
+                               Math.pow(10,-1*Double.parseDouble(t[5])), Double.parseDouble(t[6]));
 	    } else if (t.length < 12) {
             Region r = Region.fromString(g, t[0]);
 			peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                                Double.parseDouble(t[1]), Double.parseDouble(t[3]), Double.parseDouble(t[4]), 
-                               Double.parseDouble(t[5]), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
+                               Math.pow(10,-1*Double.parseDouble(t[5])), Double.parseDouble(t[2]), Integer.parseInt(t[6]), t[7], Integer.parseInt(t[8]));
         } else if (t.length == 12) {
             // GPS dev output format 2010-07-31		
             //	Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
@@ -132,12 +132,12 @@ public class GPSParser {
             Region r = Region.fromString(g, t[0]);
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                                Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
-                               Double.parseDouble(t[5]), Double.parseDouble(t[6]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
+                               Math.pow(10,-1*Double.parseDouble(t[5])), Double.parseDouble(t[6]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
 	    } else if (t.length == 13) {
             Region r = Region.fromString(g, t[0]);
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                                Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[5]), 
-                               Double.parseDouble(t[6]), Double.parseDouble(t[1]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
+                               Math.pow(10,-1*Double.parseDouble(t[6])), Double.parseDouble(t[1]), Integer.parseInt(t[7]), t[8], Integer.parseInt(t[9]));
         } else if (t.length == 14) {
             Region r = Region.fromString(g, t[0]);
             Region em_pos = Region.fromString(g, t[3]);
@@ -145,14 +145,14 @@ public class GPSParser {
             //            double controlStrength, double qvalue, double shape, double shapeZ)
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), em_pos.getStart(),
                                Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]),
-                               Double.parseDouble(t[4]), Double.parseDouble(t[5]), Double.parseDouble(t[11]), t[12], Integer.parseInt(t[13]));
+                               Math.pow(10,-1*Double.parseDouble(t[4])), Double.parseDouble(t[5]), Double.parseDouble(t[11]), t[12], Integer.parseInt(t[13]));
         } else if (t.length == 15) {
             Region r = Region.fromString(g, t[0]);
             Region em_pos = Region.fromString(g, t[3]);
             //				GPSPeak(Genome g, String chr, int pos, int EM_pos, double strength, 
             //						double controlStrength, double qvalue, double shape, double shapeZ)
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), em_pos.getStart(),
-                               Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]), Double.parseDouble(t[11]),
+                               Double.parseDouble(t[2]), Double.parseDouble(t[9]), Double.parseDouble(t[10]), Math.pow(10,-1*Double.parseDouble(t[11])),
                                Double.parseDouble(t[4]), Double.parseDouble(t[5]), Double.parseDouble(t[12]), t[13], Integer.parseInt(t[14]));
         } else if (t.length == 16) {
             Region r = Region.fromString(g, t[0]);
