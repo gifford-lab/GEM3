@@ -28,6 +28,7 @@ import java.util.TreeSet;
 import javax.imageio.ImageIO;
 
 import cern.jet.random.Poisson;
+import cern.jet.random.Binomial;
 import cern.jet.random.engine.DRand;
 
 import edu.mit.csail.cgs.datasets.general.Point;
@@ -3701,36 +3702,36 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 //			We won't need it cause in our data, we do not shift reads.
 //			Besides, we will consider a fixed region of modelRange bp as the peak region.
 			createChromStats(compFeatures);
-//			shift_size = eval_avg_shift_size(compFeatures, num_top_mfold_feats);			
+//			shift_size = eval_avg_shift_size(compFeatures, num_top_mfold_feats);
+			
 			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
 			for(int i = 0; i < compFeatures.size(); i++) {
 				String chrom = compFeatures.get(i).getPosition().getChrom();
 				if(!chrom_comp_pair.containsKey(chrom))
-					chrom_comp_pair.put(chrom, new ArrayList<Integer>());				
+					chrom_comp_pair.put(chrom, new ArrayList<Integer>());
+				
 				chrom_comp_pair.get(chrom).add(i);
-			}			
+			}
+			
 			ipStrandFivePrimes   = new ArrayList[2];
 			Arrays.fill(ipStrandFivePrimes, new ArrayList<StrandedBase>());
 			ctrlStrandFivePrimes = new ArrayList[2];
 			Arrays.fill(ctrlStrandFivePrimes, new ArrayList<StrandedBase>());
 			ipStrandFivePrimePos   = new int[2][];
-			ctrlStrandFivePrimePos = new int[2][];			
+			ctrlStrandFivePrimePos = new int[2][];
+			
 			for(String chrom:chrom_comp_pair.keySet()) {
 				int chromLen = gen.getChromLength(chrom);
-				for(int c = 0; c < numConditions; c++) {					
+				for(int c = 0; c < numConditions; c++) {
+					
 					for(int i:chrom_comp_pair.get(chrom)) {
 						ComponentFeature comp = compFeatures.get(i);
 						Region expandedRegion = new Region(gen, chrom, Math.max(0, comp.getPosition().getLocation()-third_lambda_region_width), Math.min(chromLen-1, comp.getPosition().getLocation()+third_lambda_region_width));
 						ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
 						ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
 						
-						if(controlDataExist) {
-							ctrlStrandFivePrimes[0] = caches.get(c).cdr().getStrandedBases(expandedRegion, '+');
-							ctrlStrandFivePrimes[1] = caches.get(c).cdr().getStrandedBases(expandedRegion, '-');
-						}
-						else {
-							ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
-						}						
+                        ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
+						
 						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
 							ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
 							ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
@@ -3739,9 +3740,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
 								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
 						}
-						Pair<Double, Double> result = evalFeatureSignificance(comp, c);
-						comp.setPValue_wo_ctrl(result.car(), c);
-						comp.setControlReadCounts(result.cdr(), c);						
+                        Pair<Double,Double> pair = evalFeatureSignificance(comp, c);
+                        double num_peak_ip = pair.car();
+                        double local_lambda = pair.cdr();
+						comp.setControlReadCounts(local_lambda, c);                        
+                        poisson.setMean(Math.max(local_lambda, totalIPCount[c] * windowSize / mappable_genome_length));
+						comp.setPValue_wo_ctrl(1 - poisson.cdf((int)Math.ceil(num_peak_ip)), c);
+						
 						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
 							ipStrandFivePrimes[k].clear();
 							ctrlStrandFivePrimes[k].clear();
@@ -3938,9 +3943,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end eval_shift_size method
 
 	/*
-	 * evalute significance when there is no control
+	 * evalute significance when there is no control.  Returns the estimate of thelocal 
+     * local read density and the number of reads assigned ot the peak
 	 */
-	private Pair<Double, Double> evalFeatureSignificance(ComponentFeature cf, int c) {
+	private Pair<Double,Double> evalFeatureSignificance(ComponentFeature cf, int c) {
 		double pVal;
 		double local_lambda, lambda_bg, first_lambda_ip, second_lambda_ip, third_lambda_ip, lambda_peak_ctrl, first_lambda_ctrl, second_lambda_ctrl, third_lambda_ctrl;
 
@@ -4082,9 +4088,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		else //skip first lambda regions (1K)
 			local_lambda = Math.max(lambda_bg, Math.max(second_lambda_ip, Math.max(third_lambda_ip, Math.max(second_lambda_ctrl, third_lambda_ctrl))));
 
-		Poisson poisson = new Poisson(local_lambda, new DRand());
-		pVal = 1 - poisson.cdf((int)num_peak_ip);			
-		return new Pair<Double, Double>(pVal,local_lambda);
+        return new Pair<Double,Double>(local_lambda, num_peak_ip);
 	}//end of evalFeatureSignificance method
 
 	/**
