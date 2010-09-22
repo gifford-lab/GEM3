@@ -1203,10 +1203,14 @@ public class StatUtil {
 	// Uses COLT binomial test
 	// Binomial CDF assuming scaled control. k=scaled control, n=scaled control+signal
 	public static double binomialPValue(double k, double n){
+        return binomialPValue(k,n,.5);
+    }
+	// Uses COLT binomial test
+    public static double binomialPValue(double k, double n, double p){
 		if (n==0)
 			return Double.NaN;
 		double pval=1;
-		Binomial b = new Binomial((int)Math.ceil(n), 0.5, new DRand());
+		Binomial b = new Binomial((int)Math.ceil(n), p, new DRand());
 		pval = b.cdf((int) Math.ceil(k));
 		return(pval);		
 	}

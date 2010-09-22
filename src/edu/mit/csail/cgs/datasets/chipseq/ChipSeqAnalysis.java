@@ -405,7 +405,7 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
         String sql = "select id, program, active from chipseqanalysis where name = ? and version = ?";
         if (active != null) {
-            sql = sql + " where active = " + (active ? 1 : 0);
+            sql = sql + " and active = " + (active ? 1 : 0);
         }
         PreparedStatement ps = cxn.prepareStatement(sql);
         ps.setString(1,name);

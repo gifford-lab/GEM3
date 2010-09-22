@@ -722,9 +722,12 @@ public class Client implements ReadOnlyClient {
     }
 
     public TreeMap<Integer,Integer> getHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        return getHistogram(alignids,chromid,paired,doReadExtension,binsize,0,start,stop,minWeight,plusStrand);
+    }
+    public TreeMap<Integer,Integer> getHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, int dedup, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
         TreeMap<Integer,Integer> output = null;
         for (String alignid : alignids) {
-            TreeMap<Integer,Integer> o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
+            TreeMap<Integer,Integer> o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand,true);
             for (int k : o.keySet()) {
                 if ((k - start - binsize / 2) % binsize != 0 ) {
                     System.err.println(String.format("Bad key %d for binsize %d and start %d in %s,%d",
@@ -747,9 +750,12 @@ public class Client implements ReadOnlyClient {
         return output;
     }
     public TreeMap<Integer,Float> getWeightHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+        return getWeightHistogram(alignids,chromid,paired,doReadExtension,binsize,0,start,stop,minWeight,plusStrand);
+    }
+    public TreeMap<Integer,Float> getWeightHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, int dedup, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
         TreeMap<Integer,Float> output = null;
         for (String alignid : alignids) {
-            TreeMap<Integer,Float> o = getWeightHistogram(alignid,chromid,paired,doReadExtension,binsize,start,stop,minWeight,plusStrand);
+            TreeMap<Integer,Float> o = getWeightHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand);
             if (output == null) {
                 output = o;
             } else {
