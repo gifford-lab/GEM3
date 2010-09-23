@@ -60,6 +60,10 @@ public class FileReadLoader extends ReadLoader{
 				SAMReader currReader = new SAMReader(file,gen,maxMismatch,useNonUnique, currID);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
+			}else if(format.equals("TOPSAM")){
+				TophatSAMReader currReader = new TophatSAMReader(file,gen,maxMismatch,useNonUnique, currID);
+				fileReaders.add(currReader);
+				currID = currReader.getCurrID();
 			}else if(format.equals("ELAND")){
 				ElandFileReader currReader = new ElandFileReader(file,gen,maxMismatch,useNonUnique, currID);
 				fileReaders.add(currReader);

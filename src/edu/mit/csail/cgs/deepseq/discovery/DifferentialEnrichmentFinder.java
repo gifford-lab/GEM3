@@ -563,7 +563,7 @@ public abstract class DifferentialEnrichmentFinder extends SingleConditionFeatur
                 "Using with flat-files:\n" +
                 "  --expt <aligned reads file for expt> \n" +
                 "  --ctrl <aligned reads file for ctrl> \n" +
-                "  --format <ELAND/NOVO/BOWTIE/BED (default ELAND)> \n" +
+                "  --format <ELAND/NOVO/BOWTIE/BED/SAM/TOPSAM (default ELAND)> \n" +
                 "  --nonunique [use nonunique reads]\n" +
                 "Required:\n"+
                 "  --species <organism name;genome version>\n  OR\n"+
