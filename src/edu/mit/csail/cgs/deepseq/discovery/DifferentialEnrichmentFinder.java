@@ -316,14 +316,14 @@ public abstract class DifferentialEnrichmentFinder extends SingleConditionFeatur
 						}
 						currBin++;
 					}
+
 					//Now count the total reads for each peak
 					countTotalReadsInPeaks(currSigRes, ipHits, backHits, true);
 					countTotalReadsInPeaks(currCtrlRes, backHits, ipHits, false);
-					
 					if(postProcess){
 						//Trim
-						trimPeaks(currSigRes, ipHits,str);
-						trimPeaks(currCtrlRes, backHits,str);						
+						//trimPeaks(currSigRes, ipHits,str);
+						//trimPeaks(currCtrlRes, backHits,str);						
 					}
 					//Add to results
 					signalEvents.addAll(currSigRes);
@@ -430,9 +430,11 @@ public abstract class DifferentialEnrichmentFinder extends SingleConditionFeatur
 	//count the total reads within each peak 
 	protected void countTotalReadsInPeaks(ArrayList<EnrichedFeature> peaks, ArrayList<ReadHit> ipHits, ArrayList<ReadHit> backHits, boolean forIPPeaks){
 		for(EnrichedFeature peak : peaks){
-			peak.signalTotalHits= forIPPeaks ? overlappingHits(ipHits, peak.coords, peak.strand).size() : overlappingHits(ipHits, peak.coords, peak.strand).size()*control.getScalingFactor();
-			peak.backTotalHits = (backHits==null || backHits.size()==0) ? 0 : (forIPPeaks ? overlappingHits(backHits, peak.coords, peak.strand).size()*control.getScalingFactor() : overlappingHits(backHits, peak.coords, peak.strand).size());
-			peak.overrep = peak.backTotalHits==0 ? peak.signalTotalHits : peak.signalTotalHits/peak.backTotalHits;
+		    peak.signalTotalHits = forIPPeaks ? signal.sumWeights(peak.coords) : control.sumWeights(peak.coords)*control.getScalingFactor();
+		    peak.backTotalHits   = forIPPeaks ? control.sumWeights(peak.coords)*control.getScalingFactor() : signal.sumWeights(peak.coords);
+		    //peak.signalTotalHits= forIPPeaks ? overlappingHits(ipHits, peak.coords, peak.strand).size() : overlappingHits(ipHits, peak.coords, peak.strand).size()*control.getScalingFactor();
+		    //peak.backTotalHits = (backHits==null || backHits.size()==0) ? 0 : (forIPPeaks ? overlappingHits(backHits, peak.coords, peak.strand).size()*control.getScalingFactor() : overlappingHits(backHits, peak.coords, peak.strand).size());
+		    peak.overrep = peak.backTotalHits==0 ? peak.signalTotalHits : peak.signalTotalHits/peak.backTotalHits;
 		}
 	}
 	
@@ -448,11 +450,15 @@ public abstract class DifferentialEnrichmentFinder extends SingleConditionFeatur
 	protected EnrichedFeature addEnrichedReg(ArrayList<EnrichedFeature> currres, EnrichedFeature lastHit, Region currWin, double ipWinHits, double backWinHits, double ipTotHits, double backTotHits, char str){
 		EnrichedFeature resHit=null;
 		double score = -1;
-		if(useBinomialTest)
-			score = binomialPValue(ipWinHits, ipTotHits, backWinHits/backTotHits);
-		else
-			score = binomialSampleEquality(ipWinHits, backWinHits, ipTotHits, backTotHits);
-		
+		if(useBinomialTest){
+		    double p = backWinHits/backTotHits;
+		    if (p <= 0) 
+			p = 1.0/backTotHits;
+		    score = binomialPValue(ipWinHits, ipTotHits, p);
+		}else{
+		    score = binomialSampleEquality(ipWinHits, backWinHits, ipTotHits, backTotHits);
+		}
+
 		//Is this hit close to the previously added one?
 		if(lastHit!=null && currWin.distance(lastHit.coords)<=binWidth){
 			lastHit.coords=new Region(gen, lastHit.coords.getChrom(), lastHit.coords.getStart(), currWin.getEnd()-1);
@@ -480,6 +486,7 @@ public abstract class DifferentialEnrichmentFinder extends SingleConditionFeatur
 	//Binomial CDF assuming scaled control. Uses COLT binomial test
 	// k=signal in region, n=total signal, p = scaled control/scaled total control
 	protected double binomialPValue(double k, double n, double p){
+	    //System.out.println(k+"\t"+n+"\t"+p);
 		double pval=1;
 		Binomial b = new Binomial((int)Math.ceil(n), p, new DRand());
 		pval = 1 - b.cdf((int) Math.ceil(k));

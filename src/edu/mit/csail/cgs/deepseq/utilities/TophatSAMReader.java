@@ -11,6 +11,7 @@ import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.util.CloseableIterator;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
@@ -26,6 +27,7 @@ public class TophatSAMReader extends AlignmentFileReader{
 	protected void estimateGenome() {
 		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
 		SAMFileReader reader = new SAMFileReader(inFile);
+		reader.setValidationStringency(ValidationStringency.SILENT);
 		SAMSequenceDictionary dictionary = reader.getFileHeader().getSequenceDictionary();
 		if(dictionary !=null){
 			for(SAMSequenceRecord record : dictionary.getSequences()){
@@ -53,26 +55,27 @@ public class TophatSAMReader extends AlignmentFileReader{
 		totalWeight=0;
 		
 		SAMFileReader reader = new SAMFileReader(inFile);
+		reader.setValidationStringency(ValidationStringency.SILENT);
 		CloseableIterator<SAMRecord> iter = reader.iterator();
 		while (iter.hasNext()) {
 		    currID++;
 		    SAMRecord record = iter.next();
 		    
 		    if (record.getReadUnmappedFlag()) {continue; }
-		    float weight = 1/record.getFloatAttribute("NH");
+		    float weight = 1/(float)record.getIntegerAttribute("NH");
 		    if(readLength ==-1)
 		    	readLength = record.getReadLength();
 		    
-	        Read currRead = new Read((int)totalWeight);
+		    Read currRead = new Read((int)totalWeight);
 	        
-	        List<AlignmentBlock> blocks = record.getAlignmentBlocks();
+		    List<AlignmentBlock> blocks = record.getAlignmentBlocks();
 		    for(int a=0; a<blocks.size(); a++){ //Iterate over alignment blocks
 		    	AlignmentBlock currBlock = blocks.get(a);
 		    	int aStart = currBlock.getReferenceStart();
 		    	int aEnd = aStart + currBlock.getLength()-1;
 		    	int aLen = currBlock.getLength();
 		    	boolean nearbyBlocks=true;
-		    	while(nearbyBlocks && a<blocks.size()){
+		    	while(nearbyBlocks && a<blocks.size()-1){
 		    		if(blocks.get(a+1).getReferenceStart() - currBlock.getReferenceStart() < record.getReadLength()){
 		    			aEnd = blocks.get(a+1).getReferenceStart() + blocks.get(a+1).getLength()-1;
 		    			aLen += blocks.get(a+1).getLength();
