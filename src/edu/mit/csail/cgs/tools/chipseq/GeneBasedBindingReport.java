@@ -24,6 +24,11 @@ public class GeneBasedBindingReport {
      * --analysisversion "vs PPG Day4 null-antiV5 iTF_iOlig2 1 (default params) run 2 round 3" \
      * --genes refGene [--proxup 5000] [--proxdown200] [--up 10000] [--thresh .001]
      *
+     * Output columns are
+     * 0) gene name
+     * 1) positions of distal binding events
+     * 2) positions of proximal binding events
+     * 3) positions of intronic or exonic binding events
      */
 
     private Genome genome;
