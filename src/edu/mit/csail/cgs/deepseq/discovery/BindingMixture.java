@@ -3741,8 +3741,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
 						}
                         Pair<Double,Double> pair = evalFeatureSignificance(comp, c);
-                        double num_peak_ip = pair.car();
-                        double local_lambda = pair.cdr();
+                        double local_lambda = pair.car();
+                        double num_peak_ip = pair.cdr();
 						comp.setControlReadCounts(local_lambda, c);                        
                         poisson.setMean(Math.max(local_lambda, totalIPCount[c] * windowSize / mappable_genome_length));
 						comp.setPValue_wo_ctrl(1 - poisson.cdf((int)Math.ceil(num_peak_ip)), c);
