@@ -3484,8 +3484,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	
 	public double updateBindingModel(int left, int right){
-		if (signalFeatures.size()==0)
+		if (signalFeatures.size()<=500){
+			System.err.println("Warning: The read distribution is not updated because of too few("+signalFeatures.size()+") significant events.");
 			return -100;
+		}
 		int width = left+right+1;
 		
 		ArrayList<ComponentFeature> cfs = new ArrayList<ComponentFeature>();
@@ -3682,12 +3684,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                         } 
                         binomial.setNandP((int)totalIPCount[cond],p);
                         pValueControl = 1 - binomial.cdf(ipCount);
-                        p = windowSize / mappable_genome_length;
+                        p = modelWidth / mappable_genome_length;
                         binomial.setNandP((int)totalIPCount[cond],p);
                         pValueUniform = 1 - binomial.cdf(ipCount);
                         binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
                         pValueBalance = 1 - binomial.cdf(ipCount);
-                        poisson.setMean(Math.max(scaledControlCount, totalIPCount[cond] * windowSize / mappable_genome_length  ));
+                        poisson.setMean(Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / mappable_genome_length  ));
                         pValuePoisson = 1 - poisson.cdf(ipCount);
                     } catch(Exception err){
                         err.printStackTrace();
