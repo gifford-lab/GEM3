@@ -721,7 +721,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
 		System.out.println("\nRunning EM for each of "+totalRegionCount+" regions, please wait ...");
-		int displayStep = 10000;
+		int displayStep = 100000;
+		if (totalRegionCount<100000)
+			displayStep = 10000;
 		if (totalRegionCount<10000)
 			displayStep = 1000;
 		if (totalRegionCount<1000)
@@ -986,7 +988,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 				}
 	
-				if (((j+1) % displayStep==0 || j+1==10 || j+1==100 || j+1==1000 ) && reportProgress)
+				if (((j+1) % displayStep==0 || j+1==10 || j+1==100 || j+1==1000 || j+1==10000 ) && reportProgress)
 					System.out.println((j+1)+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 			}
 			catch(Exception e){
@@ -3552,7 +3554,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 			}
 		}
-
+		// smooth the model profile
+		if (smooth_step>0){
+			model_plus = StatUtil.cubicSpline(model_plus, smooth_step, smooth_step);
+			model_minus = StatUtil.cubicSpline(model_minus, smooth_step, smooth_step);
+		}
 		StatUtil.mutate_normalize(model_plus);
 		StatUtil.mutate_normalize(model_minus);
 
@@ -3572,9 +3578,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		String oldName = model.getFileName();
 		model = new BindingModel(dist);
 		model.setFileName(oldName);
-		// smooth the model profile
-		if (smooth_step>0)
-			model.smooth(smooth_step, smooth_step);
 		model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
