@@ -24,6 +24,7 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
     
     private ChipSeqLoader chipSeqLoader;
     private TreeSet<ChipSeqLocator> locators;
+    private ArrayList<ChipSeqAlignment> alignments;
     private JTextField regex;
     private ChipSeqTableModel selectedModel, filteredModel;
 
@@ -35,6 +36,7 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
             chipSeqLoader = null;
         }
         locators = new TreeSet<ChipSeqLocator>();
+        alignments = new ArrayList<ChipSeqAlignment>();
         selectedModel = new ChipSeqTableModel();
         filteredModel = new ChipSeqTableModel();
         init(filteredModel,selectedModel);
@@ -71,14 +73,16 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
     }
 
     public void retrieveData() {
-        locators.clear();
         try {
             synchronized(locators) {
-                Collection<ChipSeqAlignment> aligns = chipSeqLoader.loadAlignments(getGenome());
-                for(ChipSeqAlignment align : aligns) { 
+                locators.clear();
+                System.err.println("Getting all alignments from retrieveData");
+                alignments.clear();
+                alignments.addAll(chipSeqLoader.loadAlignments(getGenome()));
+                for(ChipSeqAlignment align : alignments) { 
                     locators.add(new ChipSeqLocator(align.getExpt().getName(),
-                                                    align.getExpt().getReplicate(),
-                                                    align.getName()));
+                                                       align.getExpt().getReplicate(),
+                                                       align.getName()));
                 }
             }
         } catch (SQLException e) {
@@ -102,16 +106,13 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
         }
         synchronized(locators) {
             locators.clear();
-            try {
-                for (ChipSeqAlignment align : chipSeqLoader.loadAlignments(getGenome())){
-                    if (patt == null || patt.matcher(align.toString()).find()) {
-                        locators.add(new ChipSeqLocator(align.getExpt().getName(),
-                                                        align.getExpt().getReplicate(),
-                                                        align.getName()));
-                    }
+            System.err.println("Getting all alignments from filter()");
+            for (ChipSeqAlignment align : alignments){
+                if (patt == null || patt.matcher(align.toString()).find()) {
+                    locators.add(new ChipSeqLocator(align.getExpt().getName(),
+                                                    align.getExpt().getReplicate(),
+                                                    align.getName()));
                 }
-            } catch (SQLException e) {
-                throw new RuntimeException(e.toString(), e);
             }
             filteredModel.clear();
             for (ChipSeqLocator l : locators) {
