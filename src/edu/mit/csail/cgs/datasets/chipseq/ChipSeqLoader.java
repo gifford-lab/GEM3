@@ -122,6 +122,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 	public Collection<ChipSeqExpt> loadAllExperiments() throws SQLException {
 		PreparedStatement ps = ChipSeqExpt.createLoadAll(getConnection());
+        ps.setFetchSize(1000);
 		LinkedList<ChipSeqExpt> expts = new LinkedList<ChipSeqExpt>();
 		ResultSet rs = ps.executeQuery();
 		while (rs.next()) {
@@ -187,22 +188,31 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	}
 
     public Collection<ChipSeqAlignment> loadAlignments (Genome g) throws SQLException {
+        long start = System.currentTimeMillis();
+
+        Collection<ChipSeqExpt> allexpts = loadAllExperiments();
+        Map<Integer,ChipSeqExpt> exptmap = new HashMap<Integer,ChipSeqExpt>();
+        for (ChipSeqExpt e : allexpts) {
+            exptmap.put(e.getDBID(), e);
+        }
+
+        long expttime = System.currentTimeMillis();
+        System.err.println("Got expts in " + (expttime - start) + "ms");
+
 		Collection<ChipSeqAlignment> aligns = new LinkedList<ChipSeqAlignment>();
 		PreparedStatement ps = ChipSeqAlignment.createLoadAllByGenomeStatement(getConnection());
+        ps.setFetchSize(1000);
 		ps.setInt(1, g.getDBID());
         ResultSet rs = ps.executeQuery();
 		while (rs.next()) {
-            try {
-                ChipSeqAlignment align = new ChipSeqAlignment(rs, loadExperiment(rs.getInt(2)));
-                aligns.add(align);
-            } catch (NotFoundException e) {
-                // this only happens if we get back an invalid expt ID, which shouldn't happen.
-                e.printStackTrace();
-                throw new DatabaseException(e.toString());
-            }
+            ChipSeqAlignment align = new ChipSeqAlignment(rs, exptmap.get(rs.getInt(2)));
+            aligns.add(align);
 		}
 		rs.close();
 		ps.close();
+        
+        long end = System.currentTimeMillis();
+        System.err.println("Got all alignments in " + (end - start) + " ms");
 		return aligns;
     }
 
