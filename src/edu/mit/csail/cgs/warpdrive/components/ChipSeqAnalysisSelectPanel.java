@@ -50,7 +50,6 @@ public class ChipSeqAnalysisSelectPanel extends GenericSelectPanel<ChipSeqAnalys
         try {
             synchronized(analyses) {
                 Collection<ChipSeqAnalysis> all = ChipSeqAnalysis.getAll(active.isSelected() ? true : null);
-                System.err.println("CSASP.RD -> " + all);
                 for(ChipSeqAnalysis a :all) { 
                     analyses.add(a);
                 }

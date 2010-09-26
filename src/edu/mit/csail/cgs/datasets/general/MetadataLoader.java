@@ -57,6 +57,7 @@ public class MetadataLoader implements edu.mit.csail.cgs.utils.Closeable {
     private java.sql.Connection cxn;
     
     private PreparedStatement loadCells, loadCond, loadFactor;
+    private PreparedStatement loadAllCells, loadAllCond, loadAllFactor;
     private PreparedStatement loadCellsByName, loadCondByName, loadFactorByName;
 	
     public MetadataLoader() throws SQLException { 
@@ -69,6 +70,11 @@ public class MetadataLoader implements edu.mit.csail.cgs.utils.Closeable {
         loadCells = cxn.prepareStatement("select id, name from cells where id=?");
         loadCond = cxn.prepareStatement("select id, name from conditions where id=?");
         loadFactor = cxn.prepareStatement("select id, name from factors where id=?");
+
+
+        loadAllCells = cxn.prepareStatement("select id, name from cells");
+        loadAllCond = cxn.prepareStatement("select id, name from conditions");
+        loadAllFactor = cxn.prepareStatement("select id, name from factors");
 
         loadCellsByName = cxn.prepareStatement("select id, name from cells where name=?");
         loadCondByName = cxn.prepareStatement("select id, name from conditions where name=?");
@@ -89,6 +95,10 @@ public class MetadataLoader implements edu.mit.csail.cgs.utils.Closeable {
             loadCells.close(); loadCells = null;
             loadCond.close();  loadCond = null;
             loadFactor.close(); loadFactor = null;
+
+            loadAllCells.close(); loadAllCells = null;
+            loadAllCond.close();  loadAllCond = null;
+            loadAllFactor.close(); loadAllFactor = null;
             
             loadCellsByName.close();  loadCellsByName = null;
             loadCondByName.close(); loadCondByName = null;
@@ -308,16 +318,15 @@ public class MetadataLoader implements edu.mit.csail.cgs.utils.Closeable {
     public Collection<Cells> loadAllCells() throws SQLException {
         
         HashSet<Cells> values = new HashSet<Cells>();
-        Statement s = cxn.createStatement();
-        ResultSet rs = s.executeQuery("select id from cells");
+        ResultSet rs = loadAllCells.executeQuery();
 
         while(rs.next()) { 
-            int id = rs.getInt(1);
-            values.add(loadCells(id));
+            Cells c = new Cells(rs);
+            values.add(c);
+            cellsNames.put(c.getName(), c);
+            cellsIDs.put(c.getDBID(),c);
         }
-
         rs.close();
-        s.close();
         return values;
     }	
 	
@@ -330,16 +339,16 @@ public class MetadataLoader implements edu.mit.csail.cgs.utils.Closeable {
 
     public Collection<Condition> loadAllConditions() throws SQLException { 
         HashSet<Condition> values = new HashSet<Condition>();
-        Statement s = cxn.createStatement();
-        ResultSet rs = s.executeQuery("select id from conditions");
+        ResultSet rs = loadAllCond.executeQuery();
 
         while(rs.next()) { 
-            int id = rs.getInt(1);
-            values.add(loadCondition(id));
+            Condition c = new Condition(rs);
+            values.add(c);
+            condNames.put(c.getName(), c);
+            condIDs.put(c.getDBID(),c);
         }
-
         rs.close();
-        s.close();
+
         return values;
     }	
 	
@@ -352,16 +361,15 @@ public class MetadataLoader implements edu.mit.csail.cgs.utils.Closeable {
 
     public Collection<Factor> loadAllFactors() throws SQLException { 
         HashSet<Factor> values = new HashSet<Factor>();
-        Statement s = cxn.createStatement();
-        ResultSet rs = s.executeQuery("select id from factors");
+        ResultSet rs = loadAllFactor.executeQuery();
 
         while(rs.next()) { 
-            int id = rs.getInt(1);
-            values.add(loadFactor(id));
+            Factor f = new Factor(rs);
+            values.add(f);
+            factorNames.put(f.getName(), f);
+            factorIDs.put(f.getDBID(),f);
         }
-
         rs.close();
-        s.close();
         return values;
     }	
 	

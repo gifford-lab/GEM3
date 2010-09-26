@@ -16,7 +16,8 @@ public class GOCategoryEnrichment {
         FunctionLoader funcloader = new GOFunctionLoader(GOFunctionLoader.getDefaultDBName());
         FunctionalUtils funcutils = new FunctionalUtils(funcloader, genome.getSpecies());
         double thresh = Math.log(Args.parseDouble(args,"thresh",.01));
-        
+        int mincount = Args.parseInteger(args,"mincount",0);
+
         Set<String> allGeneNames = new HashSet<String>();
         Map<String,Integer> chromlengths = genome.getChromLengthMap();
         List<RefGeneGenerator> genegens = Args.parseGenes(args);
@@ -40,16 +41,28 @@ public class GOCategoryEnrichment {
         //        System.err.println("BG " + allGeneNames);
 
         Map<String,Enrichment> output = funcutils.calculateTotalEnrichments(allGeneNames, foreground);
-        for (String c : output.keySet()) {
+        ArrayList<String> keys = new ArrayList<String>();
+        keys.addAll(output.keySet());
+        Collections.sort(keys, new EnrichmentComparator(output));
+        for (String c : keys) {
             Enrichment e = output.get(c);
-            if (e.getLogPValue() < thresh) {
+            if (e.getLogPValue() < thresh && e.getx() > mincount) {
                 System.out.println(String.format("%s\t%d/%d\t%d/%d\t%.5f", c, 
                                                  e.getx(), e.getn(), e.getTheta(), e.getN(), e.getLogPValue()));
             }
         }
+    }
+}
 
+class EnrichmentComparator implements Comparator<String> {
 
+    private Map<String, Enrichment> map;
+    public EnrichmentComparator(Map<String, Enrichment> m) {
+        map = m;
+    }
 
+    public int compare(String a, String b) {
+        return Double.compare(map.get(a).getLogPValue(), map.get(b).getLogPValue());
     }
 
 }

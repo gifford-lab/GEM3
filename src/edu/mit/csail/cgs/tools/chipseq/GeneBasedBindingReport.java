@@ -22,14 +22,19 @@ public class GeneBasedBindingReport {
      * java edu.mit.csail.cgs.tools.chipseq.GeneBasedBindingReport --species "$MM;mm9" \
      * --analysisname "PPG ES iCdx2 p2A 7-28-10 lane 5 (36bp)"          \
      * --analysisversion "vs PPG Day4 null-antiV5 iTF_iOlig2 1 (default params) run 2 round 3" \
-     * --genes refGene [--proxup 5000] [--proxdown200] [--up 10000] [--thresh .001]
+     * --genes refGene [--proxup 5000] [--proxdown200] [--up 10000] [--intronlen 10000] [--thresh .001]
      *
+     * Output columns are
+     * 0) gene name
+     * 1) positions of distal binding events
+     * 2) positions of proximal binding events
+     * 3) positions of intronic or exonic binding events
      */
 
     private Genome genome;
     private ChipSeqAnalysis analysis;
     private List<RefGeneGenerator> geneGenerators;
-    private int proxup, proxdown, up, analysisdbid;
+    private int proxup, proxdown, up, intronlen, analysisdbid;
     private double thresh;
 
     public static void main(String args[]) throws Exception {
@@ -44,8 +49,12 @@ public class GeneBasedBindingReport {
         geneGenerators = Args.parseGenes(args);
         proxup = Args.parseInteger(args,"proxup",4000);
         up = Args.parseInteger(args,"up",10000);
+        intronlen = Args.parseInteger(args,"intronlen",10000);
         proxdown = Args.parseInteger(args,"proxdown",200);
         thresh = Args.parseDouble(args,"thresh",.01);
+        if (intronlen < proxdown) {
+            intronlen = proxdown + 1;
+        }
     }
 
 
@@ -63,6 +72,8 @@ public class GeneBasedBindingReport {
 
                 Region proximalPromoter = g.getStrand() == '+' ? new Region(g.getGenome(), g.getChrom(), g.getStart() - proxup, g.getStart() + proxdown) :
                     new Region(g.getGenome(), g.getChrom(), g.getEnd() - proxdown, g.getEnd() + proxup);
+                Region intronicRegion  = g.getStrand() == '+' ? new Region(g.getGenome(), g.getChrom(), g.getStart() + proxdown, g.getStart() + intronlen) :
+                    new Region(g.getGenome(), g.getChrom(), g.getEnd() - intronlen, g.getEnd() - proxdown);
 
                 Collection<ChipSeqAnalysisResult> allResults = analysis.getResults(genome, wholeRegion);
                 for (ChipSeqAnalysisResult r : allResults) {
@@ -74,7 +85,7 @@ public class GeneBasedBindingReport {
                         distalevents.add(r);
                     } else if (r.overlaps(proximalPromoter)) {
                         proxevents.add(r);
-                    } else if (r.overlaps(g)) {
+                    } else if (r.overlaps(intronicRegion)) {
                         intronevents.add(r);
                     } 
 
