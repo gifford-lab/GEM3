@@ -7,10 +7,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -99,6 +96,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean print_mixing_probabilities=false;
     private boolean use_joint_event = false;
 	private boolean TF_binding = true;
+	private boolean isDNase = false;
+	private boolean testPValues = false;
 	private boolean post_artifact_filter=false;
 	private boolean filterEvents=false;
 	private boolean kl_count_adjusted = false;
@@ -300,6 +299,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	kl_count_adjusted = flags.contains("adjust_kl");
     	refine_regions = flags.contains("refine_regions");
     	subtract_for_segmentation = flags.contains("subtract_ctrl_for_segmentation");
+    	isDNase = flags.contains("DNase");
+    	testPValues = flags.contains("testP");
     	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -721,7 +722,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
 		System.out.println("\nRunning EM for each of "+totalRegionCount+" regions, please wait ...");
-		int displayStep = 10000;
+		int displayStep = 100000;
+		if (totalRegionCount<100000)
+			displayStep = 10000;
 		if (totalRegionCount<10000)
 			displayStep = 1000;
 		if (totalRegionCount<1000)
@@ -986,7 +989,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 				}
 	
-				if (((j+1) % displayStep==0 || j+1==10 || j+1==100 || j+1==1000 ) && reportProgress)
+				if (((j+1) % displayStep==0 || j+1==10 || j+1==100 || j+1==1000 || j+1==10000 ) && reportProgress)
 					System.out.println((j+1)+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 			}
 			catch(Exception e){
@@ -2228,7 +2231,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		
 		// calculate p-values with or without control
-		evaluateConfidence(compFeatures);
+		evaluateSignificance(compFeatures);
 
 		// sort features for final output, by location
 		Collections.sort(compFeatures);
@@ -3552,7 +3555,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				}
 			}
 		}
-
+		// smooth the model profile
+		if (smooth_step>0){
+			model_plus = StatUtil.cubicSpline(model_plus, smooth_step, smooth_step);
+			model_minus = StatUtil.cubicSpline(model_minus, smooth_step, smooth_step);
+		}
 		StatUtil.mutate_normalize(model_plus);
 		StatUtil.mutate_normalize(model_minus);
 
@@ -3572,9 +3579,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		String oldName = model.getFileName();
 		model = new BindingModel(dist);
 		model.setFileName(oldName);
-		// smooth the model profile
-		if (smooth_step>0)
-			model.smooth(smooth_step, smooth_step);
 		model.printToFile(outName+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
@@ -3651,9 +3655,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 
 
-	// evaluate confidence of each called events
+	// evaluate significance of each called events
 	// calculate p-value from binomial distribution, and peak shape parameter
-	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures) {
+	private void evaluateSignificance(ArrayList<ComponentFeature> compFeatures) {
         Binomial binomial = new Binomial(100, .5, new DRand());
 		Poisson poisson = new Poisson(1, new DRand());
         double totalIPCount[] = new double[caches.size()];
@@ -3696,7 +3700,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                         System.err.println(cf.toString());
                         throw new RuntimeException(err.toString(), err);
                     }
-                    cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+                    if (testPValues)
+                    	cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+                    else
+                    	cf.setPValue(pValueBalance, cond);
 				}
 			}
 		} else {
@@ -3727,8 +3734,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for(int c = 0; c < numConditions; c++) {
 					
 					for(int i:chrom_comp_pair.get(chrom)) {
-						ComponentFeature comp = compFeatures.get(i);
-						Region expandedRegion = new Region(gen, chrom, Math.max(0, comp.getPosition().getLocation()-third_lambda_region_width), Math.min(chromLen-1, comp.getPosition().getLocation()+third_lambda_region_width));
+						ComponentFeature cf = compFeatures.get(i);
+						Region expandedRegion = new Region(gen, chrom, Math.max(0, cf.getPosition().getLocation()-third_lambda_region_width), Math.min(chromLen-1, cf.getPosition().getLocation()+third_lambda_region_width));
 						ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
 						ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
 						
@@ -3742,13 +3749,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
 								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
 						}
-                        Pair<Double,Double> pair = evalFeatureSignificance(comp, c);
-                        double local_lambda = pair.car();
-                        double num_peak_ip = pair.cdr();
+
+						double local_lambda = estimateLocalLambda(cf, c);
 						comp.setControlReadCounts(local_lambda, c);                        
-                        poisson.setMean(Math.max(local_lambda, totalIPCount[c] * windowSize / mappable_genome_length));
-						comp.setPValue_wo_ctrl(1 - poisson.cdf((int)Math.ceil(num_peak_ip)), c);
-						
+						if (testPValues)
+							poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / mappable_genome_length));
+						else
+							poisson.setMean(local_lambda);
+
+						cf.setPValue_wo_ctrl(1 - poisson.cdf((int)Math.ceil(cf.getEventReadCounts(c))), c);						
 						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
 							ipStrandFivePrimes[k].clear();
 							ctrlStrandFivePrimes[k].clear();
@@ -3945,11 +3954,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end eval_shift_size method
 
 	/*
-	 * evalute significance when there is no control.  Returns the estimate of thelocal 
-     * local read density and the number of reads assigned ot the peak
+	 * evalute significance when there is no control.  Returns the estimate of the 
+     * local read density 
 	 */
-	private Pair<Double,Double> evalFeatureSignificance(ComponentFeature cf, int c) {
-		double pVal;
+	private double estimateLocalLambda(ComponentFeature cf, int c) {
 		double local_lambda, lambda_bg, first_lambda_ip, second_lambda_ip, third_lambda_ip, lambda_peak_ctrl, first_lambda_ctrl, second_lambda_ctrl, third_lambda_ctrl;
 
 		Point pos = cf.getPosition();
@@ -4090,7 +4098,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		else //skip first lambda regions (1K)
 			local_lambda = Math.max(lambda_bg, Math.max(second_lambda_ip, Math.max(third_lambda_ip, Math.max(second_lambda_ctrl, third_lambda_ctrl))));
 
-        return new Pair<Double,Double>(local_lambda, num_peak_ip);
+        return local_lambda;
 	}//end of evalFeatureSignificance method
 
 	/**
