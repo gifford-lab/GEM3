@@ -3703,7 +3703,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     if (testPValues)
                     	cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
                     else
-                    	cf.setPValue(pValueBalance, cond);
+                    	cf.setPValue(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
 				}
 			}
 		} else {
