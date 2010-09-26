@@ -3750,9 +3750,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
 						}
 						double local_lambda = estimateLocalLambda(cf, c);
-						cf.setControlReadCounts(local_lambda, c);                        
-//                        poisson.setMean(Math.max(local_lambda, totalIPCount[c] * windowSize / mappable_genome_length));
-						poisson.setMean(local_lambda);
+						cf.setControlReadCounts(local_lambda, c);    
+						if (testPValues)
+							poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / mappable_genome_length));
+						else
+							poisson.setMean(local_lambda);
 						cf.setPValue_wo_ctrl(1 - poisson.cdf((int)Math.ceil(cf.getEventReadCounts(c))), c);
 						
 						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
