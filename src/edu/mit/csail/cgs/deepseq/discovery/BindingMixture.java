@@ -7,10 +7,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -99,6 +96,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean print_mixing_probabilities=false;
     private boolean use_joint_event = false;
 	private boolean TF_binding = true;
+	private boolean isDNase = false;
+	private boolean testPValues = false;
 	private boolean post_artifact_filter=false;
 	private boolean filterEvents=false;
 	private boolean kl_count_adjusted = false;
@@ -300,6 +299,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	kl_count_adjusted = flags.contains("adjust_kl");
     	refine_regions = flags.contains("refine_regions");
     	subtract_for_segmentation = flags.contains("subtract_ctrl_for_segmentation");
+    	isDNase = flags.contains("DNase");
+    	testPValues = flags.contains("testP");
     	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -3699,7 +3700,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                         System.err.println(cf.toString());
                         throw new RuntimeException(err.toString(), err);
                     }
-                    cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+                    if (testPValues)
+                    	cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+                    else
+                    	cf.setPValue(pValueBalance, cond);
 				}
 			}
 		} else {
