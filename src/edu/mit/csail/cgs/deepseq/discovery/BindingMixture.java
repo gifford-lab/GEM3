@@ -2230,7 +2230,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		
 		// calculate p-values with or without control
-		evaluateConfidence(compFeatures);
+		evaluateSignificance(compFeatures);
 
 		// sort features for final output, by location
 		Collections.sort(compFeatures);
@@ -3654,9 +3654,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 
 
-	// evaluate confidence of each called events
+	// evaluate significance of each called events
 	// calculate p-value from binomial distribution, and peak shape parameter
-	private void evaluateConfidence(ArrayList<ComponentFeature> compFeatures) {
+	private void evaluateSignificance(ArrayList<ComponentFeature> compFeatures) {
         Binomial binomial = new Binomial(100, .5, new DRand());
 		Poisson poisson = new Poisson(1, new DRand());
         double totalIPCount[] = new double[caches.size()];
@@ -3730,8 +3730,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				for(int c = 0; c < numConditions; c++) {
 					
 					for(int i:chrom_comp_pair.get(chrom)) {
-						ComponentFeature comp = compFeatures.get(i);
-						Region expandedRegion = new Region(gen, chrom, Math.max(0, comp.getPosition().getLocation()-third_lambda_region_width), Math.min(chromLen-1, comp.getPosition().getLocation()+third_lambda_region_width));
+						ComponentFeature cf = compFeatures.get(i);
+						Region expandedRegion = new Region(gen, chrom, Math.max(0, cf.getPosition().getLocation()-third_lambda_region_width), Math.min(chromLen-1, cf.getPosition().getLocation()+third_lambda_region_width));
 						ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
 						ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
 						
@@ -3745,12 +3745,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
 								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
 						}
-                        Pair<Double,Double> pair = evalFeatureSignificance(comp, c);
-                        double num_peak_ip = pair.car();
-                        double local_lambda = pair.cdr();
-						comp.setControlReadCounts(local_lambda, c);                        
-                        poisson.setMean(Math.max(local_lambda, totalIPCount[c] * windowSize / mappable_genome_length));
-						comp.setPValue_wo_ctrl(1 - poisson.cdf((int)Math.ceil(num_peak_ip)), c);
+						double local_lambda = estimateLocalLambda(cf, c);
+						cf.setControlReadCounts(local_lambda, c);                        
+//                        poisson.setMean(Math.max(local_lambda, totalIPCount[c] * windowSize / mappable_genome_length));
+						poisson.setMean(local_lambda);
+						cf.setPValue_wo_ctrl(1 - poisson.cdf((int)Math.ceil(cf.getEventReadCounts(c))), c);
 						
 						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
 							ipStrandFivePrimes[k].clear();
@@ -3948,11 +3947,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end eval_shift_size method
 
 	/*
-	 * evalute significance when there is no control.  Returns the estimate of thelocal 
-     * local read density and the number of reads assigned ot the peak
+	 * evalute significance when there is no control.  Returns the estimate of the 
+     * local read density 
 	 */
-	private Pair<Double,Double> evalFeatureSignificance(ComponentFeature cf, int c) {
-		double pVal;
+	private double estimateLocalLambda(ComponentFeature cf, int c) {
 		double local_lambda, lambda_bg, first_lambda_ip, second_lambda_ip, third_lambda_ip, lambda_peak_ctrl, first_lambda_ctrl, second_lambda_ctrl, third_lambda_ctrl;
 
 		Point pos = cf.getPosition();
@@ -4093,7 +4091,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		else //skip first lambda regions (1K)
 			local_lambda = Math.max(lambda_bg, Math.max(second_lambda_ip, Math.max(third_lambda_ip, Math.max(second_lambda_ctrl, third_lambda_ctrl))));
 
-        return new Pair<Double,Double>(local_lambda, num_peak_ip);
+        return local_lambda;
 	}//end of evalFeatureSignificance method
 
 	/**
