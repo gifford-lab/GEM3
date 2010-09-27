@@ -3687,14 +3687,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                             p = 1.0 - 1.0/totalControlCount[cond];
                         } 
                         binomial.setNandP((int)totalIPCount[cond],p);
-                        pValueControl = 1 - binomial.cdf(ipCount);
+                        pValueControl = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
                         p = modelWidth / mappable_genome_length;
                         binomial.setNandP((int)totalIPCount[cond],p);
-                        pValueUniform = 1 - binomial.cdf(ipCount);
+                        pValueUniform = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
                         binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
-                        pValueBalance = 1 - binomial.cdf(ipCount);
+                        pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
                         poisson.setMean(Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / mappable_genome_length  ));
-                        pValuePoisson = 1 - poisson.cdf(ipCount);
+                        pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
                     } catch(Exception err){
                         err.printStackTrace();
                         System.err.println(cf.toString());
@@ -3751,13 +3751,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 
 						double local_lambda = estimateLocalLambda(cf, c);
-						comp.setControlReadCounts(local_lambda, c);                        
+						cf.setControlReadCounts(local_lambda, c);                        
 						if (testPValues)
 							poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / mappable_genome_length));
 						else
 							poisson.setMean(local_lambda);
 
-						cf.setPValue_wo_ctrl(1 - poisson.cdf((int)Math.ceil(cf.getEventReadCounts(c))), c);						
+                        int count = (int)Math.ceil(cf.getEventReadCounts(c));
+                        double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
+						cf.setPValue_wo_ctrl(pValue, c);						
 						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
 							ipStrandFivePrimes[k].clear();
 							ctrlStrandFivePrimes[k].clear();
