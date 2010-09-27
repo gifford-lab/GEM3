@@ -36,6 +36,7 @@ public class GeneBasedBindingReport {
     private List<RefGeneGenerator> geneGenerators;
     private int proxup, proxdown, up, intronlen, analysisdbid;
     private double thresh;
+    private boolean firstIntron;
 
     public static void main(String args[]) throws Exception {
         GeneBasedBindingReport report = new GeneBasedBindingReport();
@@ -52,6 +53,7 @@ public class GeneBasedBindingReport {
         intronlen = Args.parseInteger(args,"intronlen",10000);
         proxdown = Args.parseInteger(args,"proxdown",200);
         thresh = Args.parseDouble(args,"thresh",.01);
+        firstIntron = Args.parseFlags(args).contains("firstintron");
         if (intronlen < proxdown) {
             intronlen = proxdown + 1;
         }
@@ -62,18 +64,35 @@ public class GeneBasedBindingReport {
         ArrayList<ChipSeqAnalysisResult> proxevents = new ArrayList<ChipSeqAnalysisResult>(), 
             distalevents= new ArrayList<ChipSeqAnalysisResult>() , intronevents = new ArrayList<ChipSeqAnalysisResult>();
         for (RefGeneGenerator generator : geneGenerators) {
+            generator.retrieveExons(firstIntron);
             Iterator<Gene> all = generator.getAll();
             while (all.hasNext()) {
                 Gene g = all.next();
                 proxevents.clear(); distalevents.clear(); intronevents.clear();
                 StrandedRegion wholeRegion = g.expand(up,0);
+                int thisintronlen = Math.min(intronlen, g.getWidth());
                 Region distalPromoter = g.getStrand() == '+' ? new Region(g.getGenome(), g.getChrom(), g.getStart() - up, g.getStart() - proxup) :
                     new Region(g.getGenome(), g.getChrom(), g.getEnd() + proxup, g.getEnd() + up);
 
                 Region proximalPromoter = g.getStrand() == '+' ? new Region(g.getGenome(), g.getChrom(), g.getStart() - proxup, g.getStart() + proxdown) :
                     new Region(g.getGenome(), g.getChrom(), g.getEnd() - proxdown, g.getEnd() + proxup);
-                Region intronicRegion  = g.getStrand() == '+' ? new Region(g.getGenome(), g.getChrom(), g.getStart() + proxdown, g.getStart() + intronlen) :
-                    new Region(g.getGenome(), g.getChrom(), g.getEnd() - intronlen, g.getEnd() - proxdown);
+                Region intronicRegion = null;
+                if (firstIntron ) {
+                    Iterator<Region> iter = ((ExonicGene)g).getExons();
+                    while (iter.hasNext()) {
+                        Region intron = iter.next();
+                        if (intronicRegion == null || (intron.distance(proximalPromoter) < intronicRegion.distance(proximalPromoter))) {
+                            intronicRegion = intron;
+                        }
+                    }
+                    if (intronicRegion == null) {
+                        intronicRegion = new Region(g.getGenome(), g.getChrom(), 1,1);
+                    }
+
+                } else {
+                    intronicRegion = g.getStrand() == '+' ? new Region(g.getGenome(), g.getChrom(), g.getStart() + proxdown, g.getStart() + thisintronlen) :
+                        new Region(g.getGenome(), g.getChrom(), g.getEnd() - thisintronlen, g.getEnd() - proxdown);
+                }
 
                 Collection<ChipSeqAnalysisResult> allResults = analysis.getResults(genome, wholeRegion);
                 for (ChipSeqAnalysisResult r : allResults) {
