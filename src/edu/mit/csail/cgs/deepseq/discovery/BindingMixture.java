@@ -2224,7 +2224,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		
 		calcIpCtrlRatio(enrichedRegions);
-		if(controlDataExist && wholeGenomeDataLoaded) {
+		if(controlDataExist) {
 			for(int t = 0; t < numConditions; t++)
 				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
 			System.out.println();
@@ -2315,8 +2315,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 
 	private void calcIpCtrlRatio(ArrayList<Region> enrichedRegions) {
-		// if we have whole genome data, linear regression to get the IP/control ratio
-		if(controlDataExist && wholeGenomeDataLoaded) {
+		// linear regression to get the IP/control ratio
+		// now we do not require whole genome data, because partial data could be run on 1 chrom, still enough data to esitmates
+		if(controlDataExist) {
 			ratio_non_specific_total = new double[numConditions];
 			for(int t = 0; t < numConditions; t++){
 				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", enrichedRegions);
@@ -3389,6 +3390,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		List<PairedCountData> scalePairs = new ArrayList<PairedCountData>();
 		int non_specific_reg_len = 10000;	
 		Map<String, ArrayList<Region>> chrom_regions_map = new HashMap<String, ArrayList<Region>>();
+		// group regions by chrom
 		for(Region r:enrichedRegions) {
 			String chrom = r.getChrom();
 			if(!chrom_regions_map.containsKey(chrom))
@@ -3405,8 +3407,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				chr_enriched_regs = chrom_regions_map.get(chrom);
 				Collections.sort(chr_enriched_regs);
 			}
+			else{	// We only estimate using the chrom that contains enriched data regions
+				continue;
+			}
 				
-			// Get the non-specific regions and check for overlapping with the candidate (enriched) regions
+			// Construct the non-specific regions and check for overlapping with the candidate (enriched) regions
 			int start = 0;
 			int prev_reg_idx = 0;
 			int curr_reg_idx = 0;
