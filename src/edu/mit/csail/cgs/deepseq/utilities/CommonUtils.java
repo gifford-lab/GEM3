@@ -139,9 +139,11 @@ public class CommonUtils {
         output.append(String.format("%."+digit+"f",array[array.length-1]));
         return output.toString();
 	}	
-	public static String matrixToString(double[][] matrix, int digit){
+	public static String matrixToString(double[][] matrix, int digit, String[] names){
         StringBuilder output = new StringBuilder();
         for (int i=0;i<matrix.length;i++){
+        	if (names!=null)
+        		output.append(names[i]).append("\t");
         	output.append(arrayToString(matrix[i], digit)).append("\n");
         }
         return output.toString();

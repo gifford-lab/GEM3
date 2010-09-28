@@ -577,6 +577,7 @@ public class MethodComparisonMotifAnalysis {
 	}
 	
 	private void printOverlapTable() throws IOException{
+		int overlapWindowSize = windowSize;
 		long tic = System.currentTimeMillis();
 		readPeakLists();
 		
@@ -587,28 +588,33 @@ public class MethodComparisonMotifAnalysis {
 				if (i==j)
 					overlaps[i][j]=100;
 				else{
-					int count = countOverlaps(peaks.get(i), peaks.get(j));
+					int count = countOverlaps(peaks.get(i), peaks.get(j), overlapWindowSize);
 					overlaps[i][j] = 100*count/(double)peaks.get(i).size();
 				}
 			}
 		}
 		StringBuilder sb = new StringBuilder();
+		
+		sb.append(" ").append("\t");
 		for (int i=0;i<methodNames.size()-1;i++){
 			sb.append(methodNames.get(i)).append("\t");
 		}
 		sb.append(methodNames.get(methodNames.size()-1)).append("\n");
+		
+		sb.append("Total").append("\t");
 		for (int i=0;i<peaks.size()-1;i++){
 			sb.append(peaks.get(i).size()).append("\t");
 		}
 		sb.append(peaks.get(methodNames.size()-1).size()).append("\n");
-		sb.append(CommonUtils.matrixToString(overlaps, 0));
+		
+		sb.append(CommonUtils.matrixToString(overlaps, 0, (String[])methodNames.toArray(new String[methodNames.size()])));
+		sb.append("\nOverlapping window size is "+overlapWindowSize+"\n\n");
 		sb.append(CommonUtils.timeElapsed(tic));
 		System.out.println(sb.toString());
 	}
 	
 	// report number of events in list1 that is found within DISTNACE bp window of peaks in list 2
-	private int countOverlaps(ArrayList<Point> list1, ArrayList<Point> list2){
-		int DISTANCE = 200;
+	private int countOverlaps(ArrayList<Point> list1, ArrayList<Point> list2, int windowSize){
 		int overlap=0;
 		ArrayList<Point> a = (ArrayList<Point> )list1.clone();
 		ArrayList<Point> b = (ArrayList<Point> )list2.clone();
@@ -624,9 +630,9 @@ public class MethodComparisonMotifAnalysis {
 				Point pb =b.get(j);
 				if (pa.getChrom().equalsIgnoreCase(pb.getChrom())){
 					int offset = pa.offset(pb);
-					if (offset>DISTANCE)	// pa is far right, continue with next b
+					if (offset>windowSize)	// pa is far right, continue with next b
 						continue;
-					else if (offset<-DISTANCE){	// pa is far left, no match, next a
+					else if (offset<-windowSize){	// pa is far left, no match, next a
 						break;
 					}
 					else{					// match found, next a
