@@ -79,11 +79,11 @@ public class BAMQuery {
             HttpResponse response = httpclient.execute(httpget);
             HttpEntity entity = response.getEntity();
 
+            indexFilename = File.createTempFile("bam","index").getAbsolutePath();
             if (entity != null) {
-                    entity.consumeContent();
-                    FileOutputStream os = new FileOutputStream(indexFilename);
-                    entity.writeTo(os);
-                    os.close();
+                FileOutputStream os = new FileOutputStream(indexFilename);
+                entity.writeTo(os);
+                os.close();
             }
             httpclient.getConnectionManager().shutdown();        
         } else {
@@ -131,7 +131,7 @@ public class BAMQuery {
                         continue;
                     }
                     if (!quiet) {
-                        System.out.println(String.format("chrom %d, pos %d, %s, len %d",
+                        System.out.println(String.format("chrom %s, pos %d, %s, len %d",
                                                          record.getReferenceName(),
                                                          record.getReadNegativeStrandFlag() ? record.getAlignmentEnd() : record.getAlignmentStart(),
                                                          record.getReadNegativeStrandFlag() ? "-" : "+",
