@@ -593,15 +593,19 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}
 		StringBuilder sb = new StringBuilder();
+		sb.append(" ").append("\t");
 		for (int i=0;i<methodNames.size()-1;i++){
 			sb.append(methodNames.get(i)).append("\t");
 		}
 		sb.append(methodNames.get(methodNames.size()-1)).append("\n");
+		
+		sb.append("Total").append("\t");
 		for (int i=0;i<peaks.size()-1;i++){
 			sb.append(peaks.get(i).size()).append("\t");
 		}
 		sb.append(peaks.get(methodNames.size()-1).size()).append("\n");
-		sb.append(CommonUtils.matrixToString(overlaps, 0));
+		
+		sb.append(CommonUtils.matrixToString(overlaps, 0, (String[])methodNames.toArray(new String[methodNames.size()])));
 		sb.append(CommonUtils.timeElapsed(tic));
 		System.out.println(sb.toString());
 	}
