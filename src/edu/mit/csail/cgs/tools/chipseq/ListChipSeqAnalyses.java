@@ -16,6 +16,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
  * 3) event count
  * 4) fg expts
  * 5) bg expts
+ * 6) dbid
  *
  */
 
@@ -28,7 +29,7 @@ public class ListChipSeqAnalyses {
         all.addAll(ChipSeqAnalysis.getAll());
         Collections.sort(all);
         if (html) {
-            System.out.println("<tr><th>Name</th><th>Version</th><th>Analysis Program</th><th>Number of Binding Events</th><th>IP Experiments</th><th>Control Experimentss</th></tr>");
+            System.out.println("<tr><th>Name</th><th>Version</th><th>Analysis Program</th><th>Number of Binding Events</th><th>IP Experiments</th><th>Control Experimentss</th><th>database id</th></tr>");
         } 
 
 
@@ -38,21 +39,23 @@ public class ListChipSeqAnalyses {
                 continue;
             }
             if (html) {
-                System.out.println(String.format("<tr><th>%s</th><th>%s</th><th>%s</th><th>%d</th><th>%s</th><th>%s</th></tr>",
+                System.out.println(String.format("<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>%d</td></tr>",
                                                  a.getName(),
                                                  a.getVersion(),
                                                  a.getProgramName(),
                                                  count,
                                                  a.getForeground().toString(),
-                                                 a.getBackground().toString()));
+                                                 a.getBackground().toString(),
+                                                 a.getDBID()));
             } else {
-                System.out.println(String.format("%s\t%s\t%s\t%d\t%s\t%s",
+                System.out.println(String.format("%s\t%s\t%s\t%d\t%s\t%s\t%d",
                                                  a.getName(),
                                                  a.getVersion(),
                                                  a.getProgramName(),
                                                  count,
                                                  a.getForeground().toString(),
-                                                 a.getBackground().toString()));
+                                                 a.getBackground().toString(),
+                                                 a.getDBID()));
             }
         }
     }
