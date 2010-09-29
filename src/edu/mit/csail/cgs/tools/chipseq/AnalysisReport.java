@@ -23,7 +23,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
  * java edu.mit.csail.cgs.tools.chipseq.AnalysisReport --species "$MM;mm9" \
  * --analysisname "PPG ES iCdx2 p2A 7-28-10 lane 5 (36bp)" \
  * --analysisversion "vs PPG Day4 null-antiV5 iTF_iOlig2 1 (default params) run 2 round 3" \
- * --genes refGene [--up 5000] [--down 200] [--thresh .001] [--nogenes] [--nogo]
+ * --genes refGene [--up 5000] [--down 200] [--eventthresh .001] [--gothresh .001] [--nogenes] [--nogo]
  * [--output base_file_name] [--dumpevents] [--dumpgenes] [--dumpgo] [--dumptrack]
  * [--topevents 10000] [--project syscode]
  *
@@ -38,10 +38,9 @@ public class AnalysisReport {
 
     private Genome genome;
     private ChipSeqAnalysis analysis;
-    private List<RefGenePromoterGenerator> promoterGenerators;
     private Collection<WeightMatrix> matrices;
     private int up, down, topEvents, analysisdbid;
-    private double thresh, wmcutoff;
+    private double eventthresh, gothresh, wmcutoff;
     private boolean dumpEvents, dumpGenes, dumpGO, dumpMotifs, html, noGO, noGenes, dumpTrack;
     private String outputBase, projectName;
 
@@ -67,21 +66,16 @@ public class AnalysisReport {
         genome = Args.parseGenome(args).cdr();
         analysis = null;
         analysis = Args.parseChipSeqAnalysis(args,"analysis");                                                
+        analysisdbid = analysis.getDBID();
         regions = Args.parseRegionsOrDefault(args);
         geneGenerators = Args.parseGenes(args);
-        promoterGenerators = new ArrayList<RefGenePromoterGenerator>();
         matrices = Args.parseWeightMatrices(args);
         up = Args.parseInteger(args,"up",4000);
         down = Args.parseInteger(args,"down",200);
-        thresh = Math.log(Args.parseDouble(args,"thresh",.01));
+        gothresh = Math.log(Args.parseDouble(args,"gothresh",.01));
+        eventthresh = Args.parseDouble(args,"eventthresh",.01);
         wmcutoff = Args.parseDouble(args,"wmcutoff",.4);
         topEvents = Args.parseInteger(args,"topevents",-1);
-        for (RefGeneGenerator rg : geneGenerators) {
-            promoterGenerators.add(new RefGenePromoterGenerator(genome,
-                                                                rg.getTable(),
-                                                                up,
-                                                                down));
-        }
         outputBase = analysis.getName() + "___" + analysis.getVersion();
         outputBase = outputBase.replaceAll("[^\\w]+","_");
         outputBase = Args.parseString(args,"output",outputBase);
@@ -123,28 +117,40 @@ public class AnalysisReport {
     }
     private void getEvents() throws SQLException {
         for (Region r : regions) {
-            events.addAll(analysis.getResults(genome,r));
+            for (ChipSeqAnalysisResult result : analysis.getResults(genome,r)) {
+                if (result.pvalue <= eventthresh) {
+                    events.add(result);
+                }
+            }
         }
     }
     private void getBoundGenes() throws SQLException {
         boundGenes = new HashSet<Gene>();
-        for (RefGenePromoterGenerator pg : promoterGenerators) {
-            for (ChipSeqAnalysisResult event : events) {
-                Iterator<Gene> iter = pg.execute(event);
-                while (iter.hasNext()) {
-                    boundGenes.add(iter.next());
-                }
+        Map<String,ArrayList<ChipSeqAnalysisResult>> map = new HashMap<String, ArrayList<ChipSeqAnalysisResult>>();
+        for (ChipSeqAnalysisResult event : events) {
+            if (!map.containsKey(event.getChrom())) {
+                map.put(event.getChrom(), new ArrayList<ChipSeqAnalysisResult>());
             }
-        }
-        for (RefGeneGenerator rg : geneGenerators) {
-            for (ChipSeqAnalysisResult event : events) {
-                Iterator<Gene> iter = rg.execute(event);
-                while (iter.hasNext()) {
-                    boundGenes.add(iter.next());
+            map.get(event.getChrom()).add(event);
+        }        
+        for (RefGeneGenerator generator : geneGenerators) {
+            Iterator<Gene> all = generator.getAll();
+            while (all.hasNext()) {
+                Gene g = all.next();
+                Region r = g.expand(up, down - g.getWidth());
+                if (!map.containsKey(g.getChrom())) {
+                    continue;
                 }
-            }
-        }
+                for (ChipSeqAnalysisResult event : map.get(g.getChrom())) {
+                    if (event.overlaps(r)) {
+                        boundGenes.add(g);
+                        break;
+                    }
+                }
 
+            }
+
+        }
     }
     private void getEnrichedCategories() throws SQLException {
         
@@ -171,7 +177,7 @@ public class AnalysisReport {
         enrichments = new ArrayList<Enrichment>();
         for (String c : output.keySet()) {
             Enrichment e = output.get(c);
-            if (e.getLogPValue() <= thresh) {
+            if (e.getLogPValue() <= gothresh) {
                 enrichments.add(e);
             }
         }
@@ -210,7 +216,8 @@ public class AnalysisReport {
         pw.println("up=" + up);
         pw.println("down=" + down);
         pw.println("topEvents=" + topEvents);
-        pw.println("thresh=" + thresh);
+        pw.println("gothresh=" + gothresh);
+        pw.println("eventthresh=" + eventthresh);
         pw.println("wmcutoff=" + wmcutoff);
         for (WeightMatrix m : matrices) {
             pw.println("matrix="+m.toString());
@@ -237,10 +244,11 @@ public class AnalysisReport {
         wiggle = new PrintWriter(analysisdbid + ".wig");
 
         for (ChipSeqAnalysisResult a : events) {
-            bed.println(String.format("chr%s\t%d\t%d",
-                                        a.getChrom(),
-                                        a.getStart(),
-                                        a.getEnd()));
+            bed.println(String.format("chr%s\t%d\t%d\tbinding\t%f",
+                                      a.getChrom(),
+                                      a.getStart(),
+                                      a.getEnd(),
+                                      a.foldEnrichment*10));
         }
         bed.close();
         Set<ChipSeqAlignment> fg = analysis.getForeground();
@@ -339,7 +347,12 @@ public class AnalysisReport {
         }
         PrintWriter pw = new PrintWriter(outputBase + ".go");
         for (Enrichment e : enrichments) {
-            pw.println(e.toString());
+            pw.println(String.format("%s, pval=%.e2, %d / %d = %.3f (freq in GO %.3f)",
+                                     e.getCategory(),
+                                     Math.exp(e.getLogPValue()),
+                                     e.getx(),
+                                     e.getn(),
+                                     e.getTheta()));
         }
         pw.close();
 
