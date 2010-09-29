@@ -71,9 +71,9 @@ public class BAMQuery {
     public SAMFileReader createReader() throws IOException, URISyntaxException {
         URI indexURI = new URI(index);
         String indexFilename = null;
-        if (indexURI.getScheme().equals("file")) {
+        if (indexURI.getScheme() != null && indexURI.getScheme().equals("file")) {
             indexFilename = indexURI.getPath();
-        } else if (indexURI.getScheme().equals("http")) {
+        } else if (indexURI.getScheme() != null && indexURI.getScheme().equals("http")) {
             DefaultHttpClient httpclient = new DefaultHttpClient();
             HttpGet httpget = new HttpGet(indexURI);
             HttpResponse response = httpclient.execute(httpget);
@@ -89,7 +89,12 @@ public class BAMQuery {
         } else {
             indexFilename = index; // hope for the best here
         }        
-        return new SAMFileReader(new URL(data), new File(indexFilename), false);       
+        File datafile = new File(data);
+        if (datafile.exists()) {
+            return new SAMFileReader(datafile, new File(indexFilename), false);       
+        } else {
+            return new SAMFileReader(new URL(data), new File(indexFilename), false);       
+        }
     }
     public void run(InputStream instream) throws IOException, URISyntaxException {
         SAMFileReader bam = createReader();
@@ -97,12 +102,21 @@ public class BAMQuery {
         BufferedReader reader = new BufferedReader(new InputStreamReader(instream));
         String line = null;
         while ((line = reader.readLine()) != null) {
-            String pieces[] = line.split("[\\:]");
-            String chr = pieces[0];
-            Boolean strand = pieces.length >= 3 ? pieces[2].equals("-") : null;
-            pieces = pieces[1].split("\\-");
-            int start = Integer.parseInt(pieces[0]);
-            int stop = Integer.parseInt(pieces[1]);
+            int start = 0, stop = 0;
+            String chr = null;
+            Boolean strand = null;
+            try {
+                String pieces[] = line.split("[\\:]");
+                chr = pieces[0];
+                strand = pieces.length >= 3 ? pieces[2].equals("-") : null;
+                pieces = pieces[1].split("\\-");
+                start = Integer.parseInt(pieces[0]);
+                stop = Integer.parseInt(pieces[1]);
+            } catch (Exception e) {
+                System.err.println("Error parsing line " + line + " FROM " + e.toString());
+                continue;
+            }
+
             
             SAMRecordIterator iter = bam.query(chr, start, stop, false);
 
@@ -115,7 +129,7 @@ public class BAMQuery {
                     }
                     int pos = record.getReadNegativeStrandFlag() ? record.getAlignmentEnd() : record.getAlignmentStart();
                     int bin = (pos - start) / histogram;
-                    if (bin < hist.length) {
+                    if (bin < hist.length && bin >= 0) {
                         hist[bin]++;
                     }
                 }
@@ -142,6 +156,7 @@ public class BAMQuery {
                 }
 
             }
+            iter.close();
         }
         reader.close();
         bam.close();
