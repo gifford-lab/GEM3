@@ -97,7 +97,7 @@ public class GeneBasedBindingReport {
                 Collection<ChipSeqAnalysisResult> allResults = analysis.getResults(genome, wholeRegion);
                 for (ChipSeqAnalysisResult r : allResults) {
                     if (!Double.isInfinite(r.pvalue) && r.pvalue > thresh) {
-                        System.err.println("Skipping " + r + " because " + r.pvalue);
+                        //                        System.err.println("Skipping " + r + " because " + r.pvalue);
                         continue;
                     }
                     if (r.overlaps(distalPromoter)) {
