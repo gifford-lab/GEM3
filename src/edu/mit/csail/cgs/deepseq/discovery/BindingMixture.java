@@ -97,6 +97,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean use_joint_event = false;
 	private boolean TF_binding = true;
 	private boolean isDNase = false;
+	private boolean outputBED = false;
 	private boolean testPValues = false;
 	private boolean post_artifact_filter=false;
 	private boolean filterEvents=false;
@@ -299,6 +300,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	kl_count_adjusted = flags.contains("adjust_kl");
     	refine_regions = flags.contains("refine_regions");
     	subtract_for_segmentation = flags.contains("subtract_ctrl_for_segmentation");
+    	outputBED = flags.contains("outBED");
     	isDNase = flags.contains("DNase");
     	testPValues = flags.contains("testP");
     	
@@ -4336,6 +4338,22 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				fw.write(development_mode?f.toString():f.toString_v1());
 			}
 			fw.close();
+			
+			// BED format
+			if(outputBED){
+				fname=fname.replaceAll("txt", "bed");
+				fw = new FileWriter(fname);
+				first=true;
+				for(ComponentFeature f : fs){
+					if(first){
+						fw.write("track name=GPS_"+outName+" description=\"GPS Event Call\"\n");
+	//					fw.write(f.headString_BED());
+						first=false;
+					}
+					fw.write(f.toBED());
+				}
+				fw.close();
+			}	
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
