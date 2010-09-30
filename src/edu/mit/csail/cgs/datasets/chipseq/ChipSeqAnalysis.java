@@ -421,6 +421,31 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
 		DatabaseFactory.freeConnection(cxn);
         return result;
     }
+    /** returns the collection of active analyses that have a result in the specified region
+     */
+    public static Collection<ChipSeqAnalysis> withResultsIn(ChipSeqLoader loader, Region r) throws SQLException {
+        java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
+        String sql = "select id, name, version, program, active from chipseqanalysis where id in (select unique(analysis) from analysisresults where chromosome = ? and startpos >= ? and stoppos <= ?) and active = 1";
+        ArrayList<ChipSeqAnalysis> output = new ArrayList<ChipSeqAnalysis>();
+        PreparedStatement ps = cxn.prepareStatement(sql);
+        ps.setInt(1, r.getGenome().getChromID(r.getChrom()));
+        ps.setInt(2, r.getStart());
+        ps.setInt(3, r.getEnd());
+        ResultSet rs = ps.executeQuery();
+        while (rs.next()) {
+            ChipSeqAnalysis a = new ChipSeqAnalysis(rs.getString(2),
+                                                    rs.getString(3),
+                                                    rs.getString(4),
+                                                    rs.getInt(5) != 0 ? true : false);
+            a.dbid = rs.getInt(1);
+            output.add(a);
+        }
+        rs.close();
+        ps.close();
+		DatabaseFactory.freeConnection(cxn);
+        return output;
+        
+    }
  
     public int compareTo(ChipSeqAnalysis other) {
         int c = name.compareTo(other.name);

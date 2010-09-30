@@ -410,6 +410,50 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         result.append("\n");
 		return result.toString();
 	}
+	
+	//Print the feature in BED format
+	// for GPS release v1
+	public String toBED() {
+		StringBuilder bed = new StringBuilder();
+		bed.append("chr"+position.getChrom()).append("\t");
+		bed.append(position.getLocation()-5).append("\t");
+		bed.append(position.getLocation()+5).append("\t");
+		bed.append(position.getLocationString()).append("\t");
+		bed.append(String.format("%7.1f\t", totalSumResponsibility));
+        bed.append("\n");
+		return bed.toString();
+	}
+	
+	//generate Header String for BED file, each field should match BED() output
+	// for GPS release v1
+	public String headString_BED(){
+		StringBuilder header = new StringBuilder();
+		
+		header.append("Chrom\t")
+			  .append("Coord-5\t")
+			  .append("Coord+5\t")
+			  .append("Coordinate\t")
+			  .append("     IP\t")
+			  .append("Strand\t");        
+        
+        for(int c=0; c<numConditions; c++){
+        	String name = numConditions==1?"":conditionNames.get(c)+"_";
+        	if (numConditions!=1) {		// if single condition, IP is same as total
+        		header.append(name+"Present\t");
+        		header.append(name+"IP\t");
+        	}
+        	header.append(name+"Control\t")
+  		  		  .append(name+"IP/Ctrl\t")
+        	      .append(name+"Q_-lg10\t")
+  	      		  .append(name+"P_-lg10\t")
+  	      		  .append("  Shape");
+        	if (c<numConditions-1)
+        		header.append("\t");
+        }
+        header.append("\n");
+        return header.toString();
+	}
+	
 	public static void setNon_specific_ratio(double[] non_specific_ratio) {
 		ComponentFeature.non_specific_ratio = non_specific_ratio;
 	}

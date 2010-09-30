@@ -88,7 +88,7 @@ public class Client implements ReadOnlyClient {
             if (url != null) {
                 bundle = new PropertyResourceBundle(url.openStream());
             } else {
-                throw new IOException("Can't read connection properties from " + fname);
+                throw new IOException("Can't read connection properties from " + url);
             }
         }
         String hostname = bundle.getString("hostname");

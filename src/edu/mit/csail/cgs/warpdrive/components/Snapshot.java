@@ -1,5 +1,6 @@
 package edu.mit.csail.cgs.warpdrive.components;
 
+import java.sql.SQLException;
 import edu.mit.csail.cgs.warpdrive.WarpOptions;
 import java.io.File;
 import java.io.IOException;
@@ -11,6 +12,7 @@ public class Snapshot {
     public static void main(String args[]) {
         String picturename = null;
         int w = 1600, h = 1200;
+        boolean exit = true;
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--picture")) {
                 picturename = args[++i];
@@ -20,7 +22,11 @@ public class Snapshot {
             }
             if (args[i].equals("--height")) {
                 h = Integer.parseInt(args[++i]);
+            } 
+            if (args[i].equals("--noexit")) {
+                exit = false;
             }
+
         }
         if (picturename == null) {return;}
         try {
@@ -32,14 +38,17 @@ public class Snapshot {
                 Thread.yield();
             }
             panel.saveImage(file,w,h,true);
+            panel.close();
 		} catch (NotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
             e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-
-        
-        System.exit(0);
+        if (exit) {
+            System.exit(0);
+        }
     }
 
 

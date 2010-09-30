@@ -3,6 +3,8 @@ package edu.mit.csail.cgs.warpdrive.components;
 import java.awt.*;
 import java.util.*;
 import java.awt.event.*;
+import java.io.IOException;
+import java.sql.SQLException;
 
 import javax.swing.*;
 
@@ -269,7 +271,7 @@ public class WarpOptionsFrame extends JFrame implements ActionListener {
         	
             WarpOptions opts = WarpOptions.parseCL(args);
 			new WarpOptionsFrame(opts);
-		} catch (NotFoundException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
     }

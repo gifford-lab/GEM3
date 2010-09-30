@@ -202,11 +202,11 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     resultsPlus = new TreeMap<Integer,Float>();
                     resultsMinus = resultsPlus;
                 }
+
                 newinput = false;
                 notifyListeners();
             }
         }
-        System.err.println("ChipSeqHistogram Model is closing");
         client.close();
     }                     
  }

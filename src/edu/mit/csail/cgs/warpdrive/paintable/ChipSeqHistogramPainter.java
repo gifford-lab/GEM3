@@ -41,6 +41,9 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
         super.cleanup();
         model.removeEventListener(this);
     }
+    public boolean canPaint() {
+        return model.isReady();
+    }
     public synchronized void eventRegistered(EventObject e) {        
         if (e.getSource() == model && model.isReady()) {
             setCanPaint(true);
@@ -97,8 +100,6 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
         if (!canPaint()) {
             return;
         }
-        if(!model.isReady()) { return; }
-
         int width = x2 - x1;
         int height = y2 - y1;
         boolean stranded = getProperties().Stranded;

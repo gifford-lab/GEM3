@@ -121,6 +121,9 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 
 	public Collection<ChipSeqExpt> loadAllExperiments() throws SQLException {
+        getMetadataLoader().loadAllFactors();
+        getMetadataLoader().loadAllCells();
+        getMetadataLoader().loadAllConditions();
 		PreparedStatement ps = ChipSeqExpt.createLoadAll(getConnection());
         ps.setFetchSize(1000);
 		LinkedList<ChipSeqExpt> expts = new LinkedList<ChipSeqExpt>();

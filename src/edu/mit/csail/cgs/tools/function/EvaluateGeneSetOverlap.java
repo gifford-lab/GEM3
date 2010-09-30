@@ -18,6 +18,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
  * the set of all genes.
  *
  * java edu.mit.csail.cgs.tools.function.EvaluateGeneSetOverlap --species "$MM;mm9" --genes refGene --one gene_names_one.txt --two gene_names_two.txt
+ * java edu.mit.csail.cgs.tools.function.EvaluateGeneSetOverlap --species "$MM;mm9" --all allgenes.txt --one gene_names_one.txt --two gene_names_two.txt
  *
  */
 
@@ -38,6 +39,10 @@ public class EvaluateGeneSetOverlap {
         genome = g;
         setGeneTable(genes);        
     }
+    public EvaluateGeneSetOverlap(Genome g, InputStream allGenesStream) throws IOException {
+        genome = g;
+        readGenes(allGenesStream);
+    }
     public void setGeneTable(String table) throws SQLException {
         refgene = new RefGeneGenerator(genome, table);
         allNames = new HashSet<String>();
@@ -45,6 +50,15 @@ public class EvaluateGeneSetOverlap {
         while (all.hasNext()) {
             allNames.add(all.next().getName());
         }
+    }
+    public void readGenes(InputStream s) throws IOException {
+        BufferedReader r = new BufferedReader(new InputStreamReader(s));
+        String l = null;
+        allNames = new HashSet<String>();
+        while ((l = r.readLine()) != null) {
+            allNames.add(l);
+        }
+        r.close();
     }
     public void setSetOne(Set<String> names) {
         namesOne = names;
@@ -83,7 +97,13 @@ public class EvaluateGeneSetOverlap {
 
     public static void main(String args[]) throws IOException, NotFoundException, SQLException {
         String genes = Args.parseString(args,"genes","refGene");
-        EvaluateGeneSetOverlap overlap = new EvaluateGeneSetOverlap(Args.parseGenome(args).cdr(), genes);
+        String all = Args.parseString(args,"all",null);
+        EvaluateGeneSetOverlap overlap; 
+        if (all != null) {
+            overlap = new EvaluateGeneSetOverlap(Args.parseGenome(args).cdr(), new FileInputStream(all));
+        } else {
+            overlap = new EvaluateGeneSetOverlap(Args.parseGenome(args).cdr(), genes);
+        }
         overlap.setSetOne(parseFile(Args.parseString(args,"one",null)));
         overlap.setSetTwo(parseFile(Args.parseString(args,"two",null)));
         overlap.compute();

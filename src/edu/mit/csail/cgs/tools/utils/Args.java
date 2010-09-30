@@ -376,7 +376,9 @@ public class Args {
             if (pieces != null) {
                 try {
                     a = ChipSeqAnalysis.get(loader,pieces[0],pieces[1]);
-                } catch (NotFoundException e) {}
+                } catch (NotFoundException e) {
+                    System.err.println("Couldn't find analysis from " + pieces[0] + " and " + pieces[1]);
+                }
             }
             if (a == null && aname != null && aversion != null) {
                 try {
