@@ -7,6 +7,7 @@ import javax.swing.*;
 import java.util.*;
 import java.io.File;
 import java.io.IOException;
+import java.sql.SQLException;
 
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.viz.DynamicAttribute;
@@ -21,7 +22,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 
 public class RegionFrame extends JFrame {
     
-    public static void main(String args[]) throws NotFoundException {
+    public static void main(String args[]) throws NotFoundException, SQLException, IOException {
         WarpOptions opts = WarpOptions.parseCL(args);
         RegionFrame frame = new RegionFrame(opts);
     }

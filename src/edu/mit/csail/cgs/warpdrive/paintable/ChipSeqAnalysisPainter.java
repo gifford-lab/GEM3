@@ -37,7 +37,9 @@ public class ChipSeqAnalysisPainter extends RegionPaintable {
         int numTracks = layout.getNumTracks();
         return Math.min(Math.max(40,numTracks * 12),120);
     }
-
+    public boolean canPaint() {
+        return model.isReady();
+    }
     
     public void cleanup() { 
         super.cleanup();

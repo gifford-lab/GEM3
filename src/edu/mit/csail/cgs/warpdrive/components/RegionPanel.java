@@ -1037,6 +1037,7 @@ public class RegionPanel extends JPanel
        and m */
     
     public void setRegion (Region newRegion) {
+        System.err.println("RegionPanel is setting regin to " + newRegion);
         if (newRegion.getChrom().matches("^chr.*")) {            
             newRegion = new Region(newRegion.getGenome(),
                                    newRegion.getChrom().replaceAll("^chr",""),
@@ -1462,9 +1463,7 @@ public class RegionPanel extends JPanel
             }
         }
     }
-    public void saveImage(File f, int w, int h, boolean raster) 
-    throws IOException { 
-
+    public void saveImage(File f, int w, int h, boolean raster) throws IOException { 
         if (raster) {
             BufferedImage im = 
                 new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
@@ -1473,6 +1472,7 @@ public class RegionPanel extends JPanel
             g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
             mainPanel.paintComponent(g,0,0,w,h);
             ImageIO.write(im, "png", f);
+            g.dispose();
         } else {
             DOMImplementation domImpl =
                 GenericDOMImplementation.getDOMImplementation();

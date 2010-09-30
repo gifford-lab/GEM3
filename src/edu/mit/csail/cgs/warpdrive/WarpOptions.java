@@ -3,12 +3,14 @@ package edu.mit.csail.cgs.warpdrive;
 import java.util.*;
 import java.util.prefs.*;
 import java.io.*;
+import java.sql.SQLException;
 
 import edu.mit.csail.cgs.datasets.binding.BindingScan;
 import edu.mit.csail.cgs.datasets.chipchip.AnalysisNameVersion;
 import edu.mit.csail.cgs.datasets.chipchip.ExptNameVersion;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqExpt;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
+import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLoader;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAnalysis;
 import edu.mit.csail.cgs.datasets.expression.Experiment;
 import edu.mit.csail.cgs.datasets.locators.ExptLocator;
@@ -343,7 +345,7 @@ public class WarpOptions {
     }
 
     /* Fills in a WarpOptions from command line arguments */
-    public static WarpOptions parseCL(String[] args) throws NotFoundException {
+    public static WarpOptions parseCL(String[] args) throws NotFoundException, SQLException, IOException {
     	/**
     	 * TODO add a restore defaults option and an import option so that if 
     	 * someone screws up the warp drive options that are maintained with 
@@ -351,6 +353,7 @@ public class WarpOptions {
     	 */
         WarpOptions opts = new WarpOptions();
         WeightMatrixLoader wmloader = new WeightMatrixLoader();
+        ChipSeqLoader chipseqloader = new ChipSeqLoader();
 
         try {        
             ResourceBundle res = ResourceBundle.getBundle("defaultgenome");
@@ -456,6 +459,14 @@ public class WarpOptions {
                 } else {
                     System.err.println("Couldn't parse --pairedchipseq " + args[i]);
                 }
+            }
+            if (args[i].equals("--chipseqanalysis")) {
+                String pieces[] = args[++i].split(";");
+                if (pieces.length == 2) {
+                    opts.chipseqAnalyses.add(ChipSeqAnalysis.get(chipseqloader, pieces[0], pieces[1]));
+                } else {
+                    System.err.println("Couldn't parse --chipseqanalysis " + args[i]);
+                }                
             }
 
             if (args[i].equals("--agilent") || args[i].equals("--chipchip")) {                
