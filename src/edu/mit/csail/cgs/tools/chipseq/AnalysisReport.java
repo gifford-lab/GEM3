@@ -347,12 +347,15 @@ public class AnalysisReport {
         }
         PrintWriter pw = new PrintWriter(outputBase + ".go");
         for (Enrichment e : enrichments) {
-            pw.println(String.format("%s, pval=%.e2, %d / %d = %.3f (freq in GO %.3f)",
+            pw.println(String.format("%s, pval= %.2e, %d / %d = %.3f (freq in GO %d / %d = %.3f)",
                                      e.getCategory(),
                                      Math.exp(e.getLogPValue()),
                                      e.getx(),
                                      e.getn(),
-                                     e.getTheta()));
+                                     (double)((double)e.getx())/e.getn(),
+                                     e.getTheta(),
+                                     e.getN(),
+                                     (double)((double)e.getTheta())/e.getN()));
         }
         pw.close();
 
