@@ -90,14 +90,14 @@ public class GeneBasedBindingReport {
                     }
 
                 } else {
-                    intronicRegion = g.getStrand() == '+' ? new Region(g.getGenome(), g.getChrom(), g.getStart() + proxdown, g.getStart() + thisintronlen) :
-                        new Region(g.getGenome(), g.getChrom(), g.getEnd() - thisintronlen, g.getEnd() - proxdown);
+                    intronicRegion = g.getStrand() == '+' ? new Region(g.getGenome(), g.getChrom(), g.getStart() + proxdown, g.getStart() + proxdown + thisintronlen) :
+                        new Region(g.getGenome(), g.getChrom(), g.getEnd() - proxdown - thisintronlen, g.getEnd() - proxdown);
                 }
 
                 Collection<ChipSeqAnalysisResult> allResults = analysis.getResults(genome, wholeRegion);
                 for (ChipSeqAnalysisResult r : allResults) {
                     if (!Double.isInfinite(r.pvalue) && r.pvalue > thresh) {
-                        System.err.println("Skipping " + r + " because " + r.pvalue);
+                        //                        System.err.println("Skipping " + r + " because " + r.pvalue);
                         continue;
                     }
                     if (r.overlaps(distalPromoter)) {
