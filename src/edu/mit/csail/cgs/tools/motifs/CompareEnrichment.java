@@ -14,17 +14,24 @@ import edu.mit.csail.cgs.utils.io.parsing.FASTAStream;
 import edu.mit.csail.cgs.utils.*;
 //import edu.mit.csail.cgs.utils.probability.Binomial;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.*;
 import edu.mit.csail.cgs.tools.utils.Args;
+import edu.mit.csail.cgs.ewok.verbs.*;
 
 /** Compare the frequencies of a set of motifs between two FASTA files
  * usage:
- *   java edu.mit.csail.cgs.tools.motifs.CompareEnrichment --species "$SC;SGDv2" --first foo.fasta --second bar.fasta
+ *   java edu.mit.csail.cgs.tools.motifs.CompareEnrichment --species "$SC;SGDv2" [--first foo.fasta] [--second bar.fasta]
  *
- * can also specify --accept to give a regex which the motif name must match
- * of --reject to specify a regex that the motif name must not match.  Remember the regex must match
+ * can also specify --acceptwm to give a regex which the motif name must match
+ * of --rejectwm to specify a regex that the motif name must not match.  Remember the regex must match
  * the *entire* name, so use something like Hnf.*
+ *
+ * If --first is not supplied, then regions are read from STDIN.  If --second is not supplied, then random 
+ * regions are chosen according to --randombgcount and --randombgsize.  
+ *
+ * Input files ending in .fasta or .fa are parsed as fasta.  Otherwise, they're parsed as a list of regions.
  *
  * --cutoff .7 minimum percent (specify between 0 and 1) match to maximum motif score that counts as a match.
  * --filtersig .001 maximum pvalue for reporting an enrichment between the two files
@@ -52,6 +59,8 @@ import edu.mit.csail.cgs.tools.utils.Args;
 public class CompareEnrichment {
 
     public static final double step = .05;
+    int randombgcount = 1000, randombgsize = 100, parsedregionexpand;
+    Genome genome;
     double cutoffpercent, minfrac, minfoldchange, filtersig, maxbackfrac;
     Collection<WeightMatrix> matrices;
     Map<String,char[]> foreground, background;
@@ -63,6 +72,57 @@ public class CompareEnrichment {
         while (stream.hasNext()) {
             Pair<String,String> pair = stream.next();
             output.put(pair.car(), pair.cdr().toCharArray());
+        }
+        return output;
+    }
+    public static Map<String,char[]> readRegions(Genome g, BufferedReader reader, int parsedregionexpand) throws IOException, NotFoundException {
+        String line = null;
+        Map<String,char[]> output = new HashMap<String,char[]>();
+        SequenceGenerator seqgen = new SequenceGenerator();
+        while ((line = reader.readLine()) != null) {
+            Region region = Region.fromString(g, line);
+            if (parsedregionexpand > 0) {
+                region = region.expand(parsedregionexpand,parsedregionexpand);
+            }
+            output.put(line,
+                       seqgen.execute(region).toCharArray());
+                       
+        }
+        return output;
+    }
+    public static Map<String,char[]> randomRegions(Genome genome, int count, int size) {
+        Map<String,char[]> output = new HashMap<String,char[]>();
+        SequenceGenerator seqgen = new SequenceGenerator();
+        Map<String,Integer> chromlengthmap = genome.getChromLengthMap();
+        ArrayList<String> chromnames = new ArrayList<String>();
+        ArrayList<Integer> chromlengths = new ArrayList<Integer>();
+        chromnames.addAll(chromlengthmap.keySet());
+        long totallength = 0;
+        for (String s : chromnames) {
+            totallength += chromlengthmap.get(s);
+            chromlengths.add(chromlengthmap.get(s));
+            
+        }
+        while (count-- > 0) {
+            long target = (long)(Math.random() * totallength);
+            for (int i = 0; i < chromlengths.size(); i++) {
+                if (i == chromlengths.size() - 1 ||
+                    target + size < chromlengths.get(i)) {
+                    Region r = new Region(genome,
+                                          chromnames.get(i),
+                                          (int)target,
+                                          (int)target+size);
+                    String seq = seqgen.execute(r);
+                    output.put(r.toString(),seq.toCharArray() );
+                    break;
+                } else {
+                    target -= chromlengths.get(i);
+                    if (target < 0) {
+                        target = 10;
+                    }
+                }
+
+            }
         }
         return output;
     }
@@ -156,6 +216,7 @@ public class CompareEnrichment {
         String firstfname = null, secondfname = null;
         Collection<String> accept, reject;
 
+        genome = Args.parseGenome(args).cdr();
         cutoffpercent = Args.parseDouble(args,"cutoff",.3);
         filtersig = Args.parseDouble(args,"filtersig",.001);
         minfoldchange = Args.parseDouble(args,"minfoldchange",1);
@@ -163,6 +224,9 @@ public class CompareEnrichment {
         maxbackfrac = Args.parseDouble(args,"maxbackfrac",1.0);
         firstfname = Args.parseString(args,"first",null);
         secondfname = Args.parseString(args,"second",null);
+        randombgcount = Args.parseInteger(args,"randombgcount",1000);
+        randombgsize = Args.parseInteger(args,"randombgsize",100);
+        parsedregionexpand = Args.parseInteger(args,"parsedregionexpand",0);
         MarkovBackgroundModel bgModel = null;
         String bgmodelname = Args.parseString(args,"bgmodel","whole genome zero order");
         BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModel(bgmodelname,
@@ -188,15 +252,35 @@ public class CompareEnrichment {
                 m.toLogOdds(bgModel);
             }            
         }
+        System.err.println("Going to scan for " + matrices.size() + " matrices");
         if (firstfname == null) {
-            throw new RuntimeException("Must supply a --first");
+            System.err.println("No --first specified.  Reading from stdin");
+            foreground = readRegions(genome,new BufferedReader(new InputStreamReader(System.in)), parsedregionexpand);
+        } else {
+            if (firstfname.matches(".*\\.fasta") ||
+                firstfname.matches(".*\\.fa")) {
+                foreground = readFasta(new BufferedReader(new FileReader(firstfname)));
+            } else {
+                foreground = readRegions(genome,new BufferedReader(new FileReader(firstfname)), parsedregionexpand);
+            }
+
+
+
         }
         if (secondfname == null) {
-            throw new RuntimeException("Must supply a --second");
+            System.err.println("No background file given.  Generating " + randombgcount + " regions of size " + randombgsize);
+            background = randomRegions(genome,
+                                       randombgcount,
+                                       randombgsize);
+        } else {
+            if (secondfname.matches(".*\\.fasta") ||
+                secondfname.matches(".*\\.fa")){
+                background = readFasta(new BufferedReader(new FileReader(secondfname)));
+            } else {
+                background = readRegions(genome, new BufferedReader(new FileReader(secondfname)), parsedregionexpand);
+            }
+
         }
-        System.err.println("Going to scan for " + matrices.size() + " matrices");
-        foreground = readFasta(new BufferedReader(new FileReader(firstfname)));
-        background = readFasta(new BufferedReader(new FileReader(secondfname)));
     }
     
     public void doScan() {
