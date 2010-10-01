@@ -9,7 +9,9 @@ import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.ewok.verbs.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
+import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.warpdrive.components.Snapshot;
+
 
 /**
  * Reads regions on STDIN, from a file, or uses a list such as all genes
@@ -89,28 +91,43 @@ public class GetBindingInRegion {
         System.out.println();
     }
     public void plot(Region r) throws SQLException, NotFoundException, IOException {
-        r = r.expand(plotExpand,plotExpand);
-        System.err.println("Doing plot for " + r);
         Collection<ChipSeqAnalysis> analyses = getAnalysesForRegion(r);
         if (analyses.size() == 0) { return ;}
+        r = r.expand(plotExpand,plotExpand);
+        System.err.println("Doing plot for " + r);
         ArrayList<String> args = new ArrayList<String>();
         args.add("--noexit");
         args.add("--species");
         args.add(String.format("%s;%s", genome.getSpecies(), genome.getVersion()));
         args.add("--picture");
-        args.add(plotPrefix + r.toString() + ".png");
+        args.add(plotPrefix + (r.toString().replaceAll(":","_")) + ".png");
         args.add("--genes");
         args.add("refGene");
         args.add("--chrom");
         args.add(String.format("%s:%d-%d",r.getChrom(), r.getStart(),r.getEnd()));
+        Map<Pair<String,String>, List<String>> chipseqtracks = new HashMap<Pair<String,String>, List<String>>();
         for (ChipSeqAnalysis analysis : analyses) {
+            args.add("--chipseqanalysis");
+            args.add(analysis.getName() + ";" + analysis.getVersion());
             for (ChipSeqAlignment align : analysis.getForeground()) {
-                args.add("--chipseq");
-                args.add(String.format("%s;%s;%s",align.getExpt().getName(),align.getExpt().getReplicate(),align.getName()));
-                args.add("--chipseqanalysis");
-                args.add(analysis.getName() + ";" + analysis.getVersion());
+                Pair<String,String> namever = new Pair<String,String>(align.getExpt().getName(),
+                                                                      align.getName());
+                if (!chipseqtracks.containsKey(namever)) {
+                    chipseqtracks.put(namever, new ArrayList<String>());
+                }
+                chipseqtracks.get(namever).add(align.getExpt().getReplicate());
             }
-        }        
+        }
+        for (Pair<String,String> p : chipseqtracks.keySet()) {
+            args.add("--chipseq");
+            String arg = p.car();
+            for (String rep : chipseqtracks.get(p)) {
+                arg = arg + ";" + rep;
+            }
+            arg = arg + ";" + p.cdr();
+            args.add(arg);
+        }
+
         System.err.println("Args are " + args);
         String[] asarray = new String[args.size()];
         for (int i = 0; i < args.size(); i++) {
