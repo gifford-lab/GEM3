@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class ChipSeqAnalyzer{
-	public final static String GPS_VERSION = "0.9.9";
+	public final static String GPS_VERSION = "0.10.1";
 	private boolean development_mode = false;
 
 	private String[] args;

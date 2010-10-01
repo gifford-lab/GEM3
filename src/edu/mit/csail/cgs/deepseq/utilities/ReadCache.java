@@ -225,39 +225,45 @@ public class ReadCache {
 	public void addAllFivePrimes(ArrayList<int[][][]> allStarts){
 		for(int i = 0; i < fivePrimesList.length; i++){			// chrom
 			for(int j = 0; j < fivePrimesList[i].length; j++){	// strand
-				int[][][] tmp = allStarts.get(0);
-				int[] allPositions = tmp[i][j];
-				tmp[i][j]=null;
-				for (int k=1;k<allStarts.size();k++){		// for each of files/replicates
-					tmp = allStarts.get(k);
-					allPositions = mergeOrderedList(allPositions, tmp[i][j]);
+				try{
+					int[][][] tmp = allStarts.get(0);
+					int[] allPositions = tmp[i][j];
 					tmp[i][j]=null;
-				}
-				System.gc();
-				if (allPositions.length==0)
-					continue;
-				// consolidate counts of same bp position
-				int count = 1;
-				int previous = allPositions[0];
-				for (int m=1;m<allPositions.length;m++){
-					if (allPositions[m]==previous){
-						count++;
+					for (int k=1;k<allStarts.size();k++){		// for each of files/replicates
+						tmp = allStarts.get(k);
+						allPositions = mergeOrderedList(allPositions, tmp[i][j]);
+						tmp[i][j]=null;
 					}
-					else{
-						fivePrimesList[i][j].add(previous);				// now file reader stores 5' end
-						hitCountsList[i][j].add((float)count);
-						count=1;
-						previous = allPositions[m];
+					System.gc();
+					if (allPositions.length==0)
+						continue;
+					// consolidate counts of same bp position
+					int count = 1;
+					int previous = allPositions[0];
+					for (int m=1;m<allPositions.length;m++){
+						if (allPositions[m]==previous){
+							count++;
+						}
+						else{
+							fivePrimesList[i][j].add(previous);				// now file reader stores 5' end
+							hitCountsList[i][j].add((float)count);
+							count=1;
+							previous = allPositions[m];
+						}
 					}
+					// add the last element
+					fivePrimesList[i][j].add(previous);				// now file reader stores 5' end
+					hitCountsList[i][j].add((float)count);
+	
+					// update stats
+					totalBases += fivePrimesList[i][j].size();
+					for (float c: hitCountsList[i][j])
+						totalHits += c;
+				}catch (Exception e){
+					System.err.println("Error: loading chomosome "+id2Chrom.get(i)+" "+(j==0?"+":"-")+" strand.");
+					e.printStackTrace(System.err);
+					System.exit(-1);
 				}
-				// add the last element
-				fivePrimesList[i][j].add(previous);				// now file reader stores 5' end
-				hitCountsList[i][j].add((float)count);
-
-				// update stats
-				totalBases += fivePrimesList[i][j].size();
-				for (float c: hitCountsList[i][j])
-					totalHits += c;
 			}
 		}
 	}//end of addAllFivePrimes method
