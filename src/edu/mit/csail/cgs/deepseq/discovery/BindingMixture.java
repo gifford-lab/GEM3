@@ -1681,15 +1681,27 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 			//Log-likelihood calculation
 			double LL =0;
+			// get the background probability if a read is out of range of the event
+			double bgProb = Math.min(model.probability(model.getMax()),model.probability(model.getMin()));
 			for(int c=0; c<numConditions; c++){
 				for(int i=0;i<counts[c].length;i++){
-					for(int j:nzComps)
+					// for each read, each event will give a conditional prob or bg prob
+					double j_sum=0;
+					for(int j:nzComps){
+						boolean found = false;
 						for (int ii=0;ii<c2b[c][j].length;ii++)
 							if (i==c2b[c][j][ii] ){
-								if (r[c][j][ii]!=0)
-									LL += Math.log(r[c][j][ii])*counts[c][i];
-								break;
+								if (r[c][j][ii]!=0){
+									j_sum += r[c][j][ii];
+									found = true;
+									break;
+								}
 							}
+						if (!found)
+							j_sum += pi[j]*b[c][j]*bgProb;
+					}
+					if (j_sum!=0)
+						LL += Math.log(j_sum)*counts[c][i];
 				}
 			}
 			// log prior
@@ -2769,18 +2781,23 @@ public class BindingMixture extends MultiConditionFeatureFinder{
             }
             StatUtil.mutate_normalize(pi);
 
-			//Semi-E-step:Calculate next un-normalized responsibilities
+			//Semi-E-step:Calculate new un-normalized responsibilities
     		for(int j=0;j<numComp;j++){
     			for(int i=0;i<numBases;i++){
     				r[i][j] = h[i][j]*pi[j];
     			}
     		}
+    		
 			//Log-likelihood calculation
 			LL =0;
 			for(int i=0;i<numBases;i++){
+				double sum_j=0;
 				for(int j=0;j<numComp;j++){
-					if (r[i][j]!=0)
-						LL += Math.log(r[i][j])*counts[i];
+					sum_j += r[i][j];
+				}
+
+				if (sum_j!=0){
+					LL+=Math.log(sum_j)*counts[i];
 				}
 			}
 
@@ -4543,7 +4560,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		// # param: Each component has 2 parameters, mixing prob and position, thus "*2";
 		// "-1" comes from the fact that total mix prob sum to 1.
 		// for multi-condition, # of beta variables is (numConditions-1)*numComponents
-		// n: is the number of data point, i.e. the count of reads summing over all base positions.
 		// n: is the number of data point, i.e. the base positions.
 		double BIC(double n){
 			return LL - (numComponent*2-1 + (numConditions-1)*numComponent )/2*Math.log(n);
