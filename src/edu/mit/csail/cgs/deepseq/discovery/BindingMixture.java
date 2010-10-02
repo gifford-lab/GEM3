@@ -1683,15 +1683,13 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			double LL =0;
 			for(int c=0; c<numConditions; c++){
 				for(int i=0;i<counts[c].length;i++){
-					double sum_j=0;
 					for(int j:nzComps)
 						for (int ii=0;ii<c2b[c][j].length;ii++)
 							if (i==c2b[c][j][ii] ){
-								sum_j += r[c][j][ii]*counts[c][i];
+								if (r[c][j][ii]!=0)
+									LL += Math.log(r[c][j][ii])*counts[c][i];
 								break;
 							}
-					if (sum_j!=0)
-						LL+=Math.log(sum_j);
 				}
 			}
 			// log prior
@@ -2780,13 +2778,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			//Log-likelihood calculation
 			LL =0;
 			for(int i=0;i<numBases;i++){
-				double sum_j=0;
 				for(int j=0;j<numComp;j++){
-					sum_j += r[i][j]*counts[i];
-				}
-
-				if (sum_j!=0){
-					LL+=Math.log(sum_j);
+					if (r[i][j]!=0)
+						LL += Math.log(r[i][j])*counts[i];
 				}
 			}
 
@@ -3168,32 +3162,18 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		BindingModel newModel = model.getExpandedModel(newModelRange-Math.abs(model.getMin()),
 				newModelRange-Math.abs(model.getMax()));
 
+		double[] likelihoods = scoreLikelihoods(newModel, allBases, scanRegion, 1);
 		BindingComponent maxComp=null;
+		int maxIdx = 0;
 		double maxScore=Double.NEGATIVE_INFINITY;
-		// scan in the given region the find the component that
-		// gives the max likelihood from all reads
-		for(int i=scanRegion.getStart(); i<=scanRegion.getEnd(); i++){
-			BindingComponent component = new BindingComponent(newModel, new Point(gen, scanRegion.getChrom(), i), numConditions);
-			double logLikelihood=0;
-			for(StrandedBase base : allBases){
-				double prob = component.scoreBase(base);
-				// single peak assumption, pi=1, prob*pi = prob
-				logLikelihood += Math.log(prob*base.getCount());
+		for (int i=0;i<likelihoods.length;i++){
+			if(likelihoods[i]!=0 && likelihoods[i]>maxScore ){
+				maxIdx = i;
+				maxScore = likelihoods[i];
 			}
-			if(logLikelihood>maxScore){
-				maxComp=component;
-				maxScore = logLikelihood;
-			}
-//			System.out.println(i-region.getStart()+"\t"
-//					+String.format("%.2f", logLikelihood)+"\t"
-//					+String.format("%.2f", maxScore));
 		}
-
 		// make a new binding component with original binding model
-		if (maxComp==null)
-			maxComp = new BindingComponent(model, scanRegion.getMidpoint(), numConditions);
-		else
-			maxComp = new BindingComponent(model, maxComp.getLocation(), numConditions);
+		maxComp = new BindingComponent(model, new Point(gen, scanRegion.getChrom(), scanRegion.getStart()+maxIdx), numConditions);
 		// set pi, beta, responsibility, note it is a single event
 		maxComp.setMixProb(1);
 	
@@ -3244,6 +3224,27 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return maxComp;
 	}//end of scanPeak method
 
+	private double[]scoreLikelihoods(BindingModel distr, ArrayList<StrandedBase> bases, Region scanRegion, int step){
+		double[] likelihoods = new double[scanRegion.getWidth()];
+		
+		Region dataRegion = scanRegion.expand(modelRange, modelRange);
+		ArrayList<StrandedBase> data = new ArrayList<StrandedBase>();
+		for (StrandedBase b: bases){
+			if (b.getCoordinate()>=dataRegion.getStart() && b.getCoordinate()>=dataRegion.getEnd())
+				data.add(b);
+		}
+		// score LL for all the data when we have an event on each position in the region
+		for(int i=scanRegion.getStart(); i<=scanRegion.getEnd(); i+=step){
+			double logLikelihood=0;
+			for(StrandedBase b : data){
+				int dist = b.getStrand()=='+' ? b.getCoordinate()-i:i-b.getCoordinate();
+				logLikelihood += Math.log(distr.probability(dist))*b.getCount();
+			}
+			likelihoods[i-scanRegion.getStart()] = logLikelihood;
+		}
+		return likelihoods;
+	}
+	
 	/**
 	 * This method normalizes conditions as follows:							<br>
 	 * It evaluates the slope between each pair of an IP condition and a reference one.
