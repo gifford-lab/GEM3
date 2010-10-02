@@ -50,6 +50,17 @@ public class Enrichment implements Comparable<Enrichment> {
     public String toString() { 
         return String.format("%.5f\t%s (%d %d)", Math.exp(log_pvalue), category, x, n);
     }
+    public String reportLine() {
+        return String.format("%s, pval= %.2e, %d / %d = %.3f (freq in GO %d / %d = %.3f)",
+                             getCategory(),
+                             Math.exp(getLogPValue()),
+                             getx(),
+                             getn(),
+                             (double)((double)getx())/getn(),
+                             getTheta(),
+                             getN(),
+                             (double)((double)getTheta())/getN());
+    }
     
     public int compareTo(Enrichment e) { 
         if(log_pvalue < e.log_pvalue) { return -1; }

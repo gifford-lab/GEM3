@@ -234,9 +234,9 @@ public class AnalysisReport {
         PrintWriter bed = new PrintWriter(analysisdbid + ".bedtrack");
         PrintWriter wiggle = new PrintWriter(analysisdbid + ".wigtrack");
 
-        bed.println(String.format("track type=bigBed name=\"%s\" description=\"%s\" visibility=full db=%s bigDataUrl=http://nanog.csail.mit.edu/%s_tracks/%d.bb",
+        bed.println(String.format("track type=bigBed name=\"%s calls\" description=\"Calls for %s\" visibility=full db=%s bigDataUrl=http://nanog.csail.mit.edu/%s_tracks/%d.bb",
                                   analysis.getName(), analysis.toString(), genome.getVersion(),projectName,analysisdbid));
-        wiggle.println(String.format("track type=bigWig name=\"%s\" description=\"Data for %s\" visibility=full db=%s bigDataUrl=http://nanog.csail.mit.edu/%s_tracks/%d.bw",
+        wiggle.println(String.format("track type=bigWig name=\"%s data\" description=\"Data for %s\" visibility=full db=%s bigDataUrl=http://nanog.csail.mit.edu/%s_tracks/%d.bw",
                                      analysis.getName(), analysis.toString(), genome.getVersion(),projectName,analysisdbid));
         bed.close();
         wiggle.close();
@@ -244,11 +244,11 @@ public class AnalysisReport {
         wiggle = new PrintWriter(analysisdbid + ".wig");
 
         for (ChipSeqAnalysisResult a : events) {
-            bed.println(String.format("chr%s\t%d\t%d\tbinding\t%f",
+            bed.println(String.format("chr%s\t%d\t%d\tbinding\t%d",
                                       a.getChrom(),
                                       a.getStart(),
                                       a.getEnd(),
-                                      a.foldEnrichment*10));
+                                      (int)Math.round(a.foldEnrichment*10)));
         }
         bed.close();
         Set<ChipSeqAlignment> fg = analysis.getForeground();
@@ -347,15 +347,7 @@ public class AnalysisReport {
         }
         PrintWriter pw = new PrintWriter(outputBase + ".go");
         for (Enrichment e : enrichments) {
-            pw.println(String.format("%s, pval= %.2e, %d / %d = %.3f (freq in GO %d / %d = %.3f)",
-                                     e.getCategory(),
-                                     Math.exp(e.getLogPValue()),
-                                     e.getx(),
-                                     e.getn(),
-                                     (double)((double)e.getx())/e.getn(),
-                                     e.getTheta(),
-                                     e.getN(),
-                                     (double)((double)e.getTheta())/e.getN()));
+            pw.println(e.reportLine());
         }
         pw.close();
 
@@ -458,20 +450,3 @@ class ChipSeqAnalysisPValueComparator implements Comparator<ChipSeqAnalysisResul
     }
 }
 
-class EnrichmentPvalueComparator implements Comparator<Enrichment> {
-
-    public boolean equals(Object o) {
-        return o instanceof EnrichmentPvalueComparator;
-    }
-    public int compare(Enrichment a, Enrichment b) {
-        double diff = b.getLogPValue() - a.getLogPValue();
-        if (diff < 0) {
-            return -1;
-        } else if (diff > 0) {
-            return 1;
-        } else {
-            return 0;
-        }
-
-    }
-}

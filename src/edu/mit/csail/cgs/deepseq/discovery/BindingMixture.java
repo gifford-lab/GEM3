@@ -601,7 +601,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         		}
         	}
         }        	
-        System.out.println("\nSorting reads and selecting regions for analysis ...");
+        System.out.println("\nSorting reads and selecting enriched regions ...");
     	// if no focus list, directly estimate candidate regions from data
 		if (wholeGenomeDataLoaded || toSegmentRegions){
      		// ip/ctrl ratio by regression on non-enriched regions
@@ -621,7 +621,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		if (development_mode)
 			printNoneZeroRegions(true);
 		
-		log(1, "\nThe data are segmented into "+restrictRegions.size()+" regions for analysis.");
+		log(1, "\nThe genome is segmented into "+restrictRegions.size()+" regions for analysis.");
 
         
         
@@ -735,7 +735,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			displayStep = 10;
 		if (totalRegionCount<20)
 			displayStep = 2;
-		System.out.println("(Progress will be reported in steps of "+displayStep+" regions).");
+//		System.out.println("(Progress will be reported in steps of "+displayStep+" regions).");
 
 		//for each test region
 		for (int j=0;j<restrictRegions.size();j++) {

@@ -444,8 +444,12 @@ public class WarpOptions {
                 String pieces[] = args[++i].split(";");
                 if (pieces.length == 2) {
                     opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
-                } else if (pieces.length == 3) {
-                    opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
+                } else if (pieces.length >= 3) {
+                    Set<String> repnames = new HashSet<String>();
+                    for (int j = 1; j < pieces.length - 1; j++) {
+                        repnames.add(pieces[j]);
+                    }
+                    opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], repnames, pieces[pieces.length-1]));
                 } else {
                     System.err.println("Couldn't parse --chipseq " + args[i]);
                 }
