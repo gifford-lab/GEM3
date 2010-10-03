@@ -1178,6 +1178,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					countIters++;
 //					System.out.printf("%s\tupdateIter\t%d\tnumComps\t%d\tnumNonZeroComps\t%d%n", w.toString(), countIters, numAllComps, components.size());
 					// increase resolution
+					if (componentSpacing==1)
+						break;
 					updateComponentResolution(w, numConditions, lastResolution);
 					if(componentSpacing==lastResolution)
 						break;
@@ -1351,7 +1353,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					StrandedBase base = bases.get(i);
 					int dist = base.getStrand()=='+' ? base.getCoordinate()-comp.getLocation().getLocation(): comp.getLocation().getLocation()-base.getCoordinate();
 					prob_comp[i] = model.probability(dist);
-					if (prob_comp[i]!=0){
+					if (prob_comp[i]>1e-10){
 						nzBases.add(i);
 					}
 				}
@@ -2066,7 +2068,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				double[] profile_plus = new double[modelWidth];
 				double[] profile_minus = new double[modelWidth];
 				for(int i=0;i<c2b[c][jr].length;i++){
-					StrandedBase base = bases.get(c2b[c][jr][i]);
+					int base_idx = c2b[c][jr][i];
+					StrandedBase base = bases.get(base_idx);
 					if (rc[jr][i]>0){
 						try{
 							if (base.getStrand()=='+')
@@ -2664,30 +2667,31 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		//Reset the componentMax to reflect the number of reads in the valid areas
 		//Calc new resolution
 		componentSpacing = componentMax>=numValidBases ? 1 : Math.max(2, (numValidBases/componentMax)+1);
-		if(componentSpacing<lastResolution){
-			//Set up the components
-			double totalMP =0;
-			for(BindingComponent b: components){
-				for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*resolution_extend+1)-currReg.getStart());
-				    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*resolution_extend-1)-currReg.getStart());
-				    v+=componentSpacing){
-					Point pos = new Point(gen, currReg.getChrom(), currReg.getStart()+v);
-					//Reusing the valid array for the sake of it
-					if(valid[v]!=-1){
-						BindingComponent currComp = new BindingComponent(model, pos, numCond);
-						currComp.setMixProb(1.0);
-						totalMP+=currComp.getMixProb();
-						newComponents.add(currComp);
-						valid[v]=-1;
-			}	}	}
+		if(componentSpacing>=lastResolution)
+			componentSpacing = lastResolution -1;
+		
+		//Set up the components
+		double totalMP =0;
+		for(BindingComponent b: components){
+			for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*resolution_extend+1)-currReg.getStart());
+			    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*resolution_extend-1)-currReg.getStart());
+			    v+=componentSpacing){
+				Point pos = new Point(gen, currReg.getChrom(), currReg.getStart()+v);
+				//Reusing the valid array for the sake of it
+				if(valid[v]!=-1){
+					BindingComponent currComp = new BindingComponent(model, pos, numCond);
+					currComp.setMixProb(1.0);
+					totalMP+=currComp.getMixProb();
+					newComponents.add(currComp);
+					valid[v]=-1;
+		}	}	}
 
-			//Normalize mixProbs
-			for(BindingComponent b : newComponents){
-				b.setMixProb(b.getMixProb()/totalMP);
-			}
-			components=newComponents;
-			nonZeroComponentNum = components.size();
+		//Normalize mixProbs
+		for(BindingComponent b : newComponents){
+			b.setMixProb(b.getMixProb()/totalMP);
 		}
+		components=newComponents;
+		nonZeroComponentNum = components.size();
 	}//end of updateComponentResolution method
 
 	/* Given the bases data, and the position of events
