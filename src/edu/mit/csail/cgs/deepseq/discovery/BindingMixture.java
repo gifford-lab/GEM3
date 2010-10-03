@@ -64,7 +64,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	//Maximum number of components that EM can handle efficiently
 	protected final int MAX_NUM_COMPONENTS=1000;
 	protected final int OPTIMAL_NUM_COMPONENTS=100;
-	protected final int INIT_RESOLUTION=5;
+	protected final int INIT_SPACING=5;
 	// Maximum number of EM iterations
 	protected final int MAX_EM_ITER=10000;
 	protected final int MAX_EM_ML_ITER=1;
@@ -92,7 +92,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	private boolean development_mode = false;
 	private boolean do_model_selection=false;
-	private boolean linear_model_expansion=true;
     private boolean print_mixing_probabilities=false;
     private boolean use_joint_event = false;
 	private boolean TF_binding = true;
@@ -120,7 +119,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double fold = 3.0;
     private double shapeDeviation = 0;
     private int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
-    private int resolution_extend = 1;
+    private int resolution_extend = 2;
     private boolean use_KL_filtering = true;	// use KL to filter events
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
@@ -317,7 +316,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	reportProgress =! flags.contains("no_report_progress");
     	use_scanPeak = ! flags.contains("no_scanPeak");
     	do_model_selection = !flags.contains("no_model_selection");
-    	linear_model_expansion = !flags.contains("no_linear_model_expansion");
 
     	/* *********************************
     	 * Command line parameters
@@ -1472,7 +1470,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		double lastLAP=0, LAP=0; // log posterior prob
 		int t=0;
-		double currAlpha = alpha/2;
+		double currAlpha = alpha/gentle_elimination_factor;
 		boolean minElimination = false;
 		// index of non-zero components, used to iterate components
 		ArrayList<Integer> nzComps = new ArrayList<Integer>();	
@@ -1519,7 +1517,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 			//Pi
 			// ML: standard EM
-			if (t<=ML_ITER){
+			if (t<=ML_ITER || currAlpha==0){
 				for(int j:nzComps){
 					double r_sum=0;
                     for(int c=0; c<numConditions; c++){
@@ -1609,12 +1607,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	        					for(int i=0; i<c2b[c][nzComps.get(jnz)].length;i++)
 	                        		r[c][nzComps.get(jnz)][i] = 0;
 	                        }
-                    	}
-                    	
+                    	}                    	
                     	// keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
                     	// give EM a time to stabilize before eliminating the next components
 //                    	System.out.println(t+":\t"+currAlpha+"\t elimination");
-                    	currAlpha = Math.max(worst.car(), alpha/gentle_elimination_factor);
+                    	currAlpha = Math.max(worst.car(), alpha/gentle_elimination_factor/2);
+//                    	currAlpha = 0;
                     }
             	}
             }
@@ -1713,13 +1711,17 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			LP= -currAlpha*LP;
 			LAP = LL+LP;
 
-			log(5, (int)nonZeroComponentNum+" ");
-
-//			log(5, "\nEM: "+t+"\t"+currAlpha+"\t"+LAP+"\t"+lastLAP+"\t("+(int)nonZeroComponents+" non-zero components).");
+//			System.out.println("EM: "+t+"\t"+currAlpha+"\t"+LAP+"\t"+lastLAP+"\t("+nzComps.size()+" non-zero components).");
 			if (t<2 || Math.abs(LAP-lastLAP)>EM_CONVERGENCE){
 				continue;
 			}
 			else{
+//				System.out.println("Converged\t"+currAlpha);
+				// if converge on smallest alpha, raise one level
+				if (currAlpha<alpha/gentle_elimination_factor){
+					currAlpha = alpha/gentle_elimination_factor;
+					continue;
+				}
 				// if converge on a smaller alpha value
 				if (currAlpha<alpha){
 					currAlpha = alpha;		// raise alpha, it may come down again after eliminating the next comp
@@ -2527,10 +2529,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		if(componentMax>0){
 			if (SMART_SPACING){
 				int spacing = componentMax>=currReg.getWidth() ? 1 : Math.max(2, (currReg.getWidth()/componentMax)+1);
-				componentSpacing = Math.max(currReg.getWidth()/MAX_NUM_COMPONENTS, Math.min(spacing, INIT_RESOLUTION));
+				componentSpacing = Math.max(currReg.getWidth()/MAX_NUM_COMPONENTS, Math.min(spacing, INIT_SPACING));
 			}
 			else
-				componentSpacing = Math.max(currReg.getWidth()/MAX_NUM_COMPONENTS, INIT_RESOLUTION);
+				componentSpacing = Math.max(currReg.getWidth()/MAX_NUM_COMPONENTS, INIT_SPACING);
 
 			int numComponents = currReg.getWidth()/componentSpacing;
 
@@ -2557,7 +2559,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		componentMax = Math.max(OPTIMAL_NUM_COMPONENTS, w.getWidth()/50);
 		if(componentMax > 0 && SMART_SPACING && w.getWidth() > componentMax)
 			spacing = Math.max(2, (int)Math.round(1.0*w.getWidth()/componentMax));
-		spacing = Math.max(w.getWidth()/MAX_NUM_COMPONENTS, Math.min(spacing, INIT_RESOLUTION));
+		spacing = Math.max(w.getWidth()/MAX_NUM_COMPONENTS, Math.min(spacing, INIT_SPACING));
 		return spacing;
 	}//end of initSpacing method
 
