@@ -3253,7 +3253,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		Region dataRegion = scanRegion.expand(modelRange, modelRange);
 		ArrayList<StrandedBase> data = new ArrayList<StrandedBase>();
 		for (StrandedBase b: bases){
-			if (b.getCoordinate()>=dataRegion.getStart() && b.getCoordinate()>=dataRegion.getEnd())
+			if (b.getCoordinate()>=dataRegion.getStart() && b.getCoordinate()<=dataRegion.getEnd())
 				data.add(b);
 		}
 		// score LL for all the data when we have an event on each position in the region
