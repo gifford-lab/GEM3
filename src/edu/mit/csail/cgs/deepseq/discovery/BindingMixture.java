@@ -606,6 +606,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			if (subsetRatio==-1){
      			setRegions(selectEnrichedRegions(subsetRegions, false));
     			calcIpCtrlRatio(restrictRegions);
+    			if(controlDataExist) {
+    				for(int t = 0; t < numConditions; t++)
+    					System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
+    			}
     		}
 			if (subtract_for_segmentation)
 				setRegions(selectEnrichedRegions(subsetRegions, true));
@@ -1139,12 +1143,39 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 		//initialize count arrays
 		totalSigCount=0;
-		for(int c=0; c<signals.size(); c++){
+		for (int c=0; c<numConditions; c++){
 			sigHitCounts[c]=StrandedBase.countBaseHits(signals.get(c));
 			totalSigCount+=sigHitCounts[c];
 		}
 		// if less than significant number of reads
 		if (totalSigCount<sparseness)
+			return null;
+		
+		// if IP/Control enrichment ratios are lower than cutoff for all 500bp sliding windows in all conditions, skip
+		boolean enriched = false;
+		for (int s=w.getStart(); s<w.getEnd();s+=modelWidth/2){
+			int startPos = s;
+			int endPos = s+modelWidth;
+			if (endPos>w.getEnd()){
+				endPos = w.getEnd();
+				startPos = endPos - modelWidth;
+			}
+			Region sw = new Region(gen, w.getChrom(), startPos, endPos);		//sliding window
+			for (int c=0; c<numConditions; c++){
+				float ip = countIpReads(sw, c);
+				float ctrl = countCtrlReads(sw, c);
+				if (ctrl==0)
+					enriched = true;
+				else
+					if (ip/ctrl/ratio_non_specific_total[c] >= fold)
+						enriched = true;
+				if (enriched)
+					break;
+			}
+			if (enriched)
+				break;
+		}
+		if (!enriched)
 			return null;
 
 		// We want to run EM only for potential overlapping regions
@@ -2242,8 +2273,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		
 		calcIpCtrlRatio(enrichedRegions);
 		if(controlDataExist) {
-			for(int t = 0; t < numConditions; t++)
-				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
+			for(int c = 0; c < numConditions; c++)
+				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
 			System.out.println();
 		}
 		
@@ -3497,7 +3528,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			else if(flag.equalsIgnoreCase("CTRL"))
 				System.out.println(String.format("Calculating %s/%s Ctrl ratio from regression, %d non-specific regions ... ", conditionNames.get(condY_idx), conditionNames.get(condX_idx), scalePairs.size()));
 			else
-				System.out.println(String.format("Calculating IP/Ctrl ratio for condition %s from regression, %d non-specific regions ... ", conditionNames.get(condY_idx), scalePairs.size()));
+				System.out.println(String.format("\nCalculating IP/Ctrl ratio for condition %s from regression, %d non-specific regions ... ", conditionNames.get(condY_idx), scalePairs.size()));
 		}
 		// Calculate the slope for this condition
 		slope = calcSlope(scalePairs);
