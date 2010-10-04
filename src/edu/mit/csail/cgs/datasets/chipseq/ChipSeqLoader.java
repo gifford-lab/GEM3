@@ -716,7 +716,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 			metaLoader.close();
             metaLoader = null;
 		}
-        if (closeMetaLoader && client != null) {
+        if (client != null) {
             client.close();
             client = null;
         }
