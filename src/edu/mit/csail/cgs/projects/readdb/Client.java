@@ -240,6 +240,8 @@ public class Client implements ReadOnlyClient {
                     sendString(request.toString());
                     String response = readLine();
                     if (!response.equals("OK")) {
+                        System.err.println("not-OK response to request: " + response);
+                        System.err.println("request was " + request);
                         throw new ClientException(response);
                     }
                     int[] ints = new int[count];
@@ -294,6 +296,8 @@ public class Client implements ReadOnlyClient {
                 sendString(request.toString());
                 String response = readLine();
                 if (!response.equals("OK")) {
+                    System.err.println("not-OK response to request: " + response);
+                    System.err.println("request was " + request);
                     throw new ClientException(response);
                 }
                 int[] ints = new int[count];
@@ -357,6 +361,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
     }
@@ -372,7 +378,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println(response);
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numchroms = Integer.parseInt(readLine());
@@ -420,6 +427,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
@@ -441,6 +450,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         return Double.parseDouble(readLine());
@@ -464,6 +475,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
@@ -484,6 +497,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
@@ -505,6 +520,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         List<SingleHit> output = new ArrayList<SingleHit>();
@@ -551,6 +568,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(String.format("align %s chrom %d: %s", alignid, chromid, response));
         }
         List<PairedHit> output = new ArrayList<PairedHit>();
@@ -673,7 +692,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println("Asking for histogram said " + response);
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
@@ -708,7 +728,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println("Asking for histogram said " + response + " for align " + alignid + " and chrom " + chromid);
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
@@ -781,6 +802,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         Map<String,Set<String>> output = new HashMap<String,Set<String>>();
@@ -814,6 +837,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }   
     }
@@ -825,6 +850,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
     }

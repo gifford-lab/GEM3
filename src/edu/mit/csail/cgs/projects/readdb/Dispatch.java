@@ -65,7 +65,6 @@ public class Dispatch implements Runnable {
     public void freeThread(WorkerThread t, ServerTask s) {
         if (s.shouldClose()) {
             s.close();
-            System.err.println("freeThread closing task " + s);
         } else {
             workQueue.add(s);
         }
@@ -88,7 +87,6 @@ public class Dispatch implements Runnable {
                 noTasksWaiting = 0;
                 ServerTask s = workQueue.remove(0);
                 if (s.shouldClose()) {
-                    System.err.println("run loop closing task " + s);
                     s.close();
                 } else if (s.inputAvailable()) {
                     while (freePool.size() == 0) {                        
@@ -125,7 +123,7 @@ public class Dispatch implements Runnable {
                 threadCheck = 0;
                 for (int i = 0; i < threads.size(); i++) {
                     if (!threads.get(i).isAlive()) {
-                        System.err.println("DEAD THREAD.  Adding a new one");
+                        server.getLogger().log(Level.INFO,"Dispatch","run: DEAD THREAD.  Adding a new one");
                         WorkerThread servthread = new WorkerThread(this);
                         Thread t = new Thread(servthread);
                         t.start();
@@ -134,8 +132,7 @@ public class Dispatch implements Runnable {
                         try {
                             allThreads.get(i).stopRunning();
                         } catch (Exception e) {
-                            System.err.println("Tried to stop a workerthread and got ");
-                            e.printStackTrace();
+                            server.getLogger().logp(Level.INFO,"Dispatch","run: trying to stop old thread",e.toString(),e);
                         }
                         allThreads.set(i,servthread);
                     }
