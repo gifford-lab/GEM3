@@ -384,190 +384,197 @@ public class WarpOptions {
             }
 
         }            
-        Genome genome = null; Organism organism = null;
-        if (opts.species != null && opts.genome != null) {
-            organism = new Organism(opts.species);
-            genome = organism.getGenome(opts.genome);
-        }
+        try {
+            Genome genome = null; Organism organism = null;
+            if (opts.species != null && opts.genome != null) {
+                organism = new Organism(opts.species);
+                genome = organism.getGenome(opts.genome);
+            }
 
-        System.err.println("Parsing args of length " + args.length);
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("--chrom") || args[i].equals("--region")) {
-                if (args[i+1].matches(".+:.+\\-.+")) {
-                    int colon = args[i+1].indexOf(':');
-                    int dash = args[i+1].indexOf('-');
-                    opts.chrom = args[i+1].substring(0, colon);
-                    String startstring = args[i+1].substring(colon+1,dash);
-                    String stopstring = args[i+1].substring(dash+1);
-                    opts.start = stringToNum(startstring);
-                    opts.stop = stringToNum(stopstring);
-                    i++;
-                } else {
-                    opts.chrom = args[i+1];
-                }
-            }
-            if (args[i].equals("--saveimage")) {
-            	opts.saveimage = true;
-            	opts.filename = args[++i];
-            }
-            if (args[i].equals("--gene")) {
-                opts.gene = args[++i];
-            }
-            if (args[i].equals("--hash")) { 
-                opts.hash = true;
-            }
-            if (args[i].equals("--gccontent")) {
-                opts.gccontent = true;
-            }
-            if (args[i].equals("--pyrpurcontent")) {
-                opts.pyrpurcontent = true;
-            }
-            if (args[i].equals("--cpg")) {
-                opts.cpg = true;
-            }
-            if (args[i].equals("--repeatmasked")) {
-                opts.otherannots.add("RepeatMasker");
-            }
-            if (args[i].equals("--repeatmasker")) {
-                opts.otherannots.add("RepeatMasker");
-            }
-            if (args[i].equals("--cpgislands")) {
-                opts.otherannots.add("CpGIslands");
-            }
-            if (args[i].equals("--relative")) {
-                opts.relative = true;
-            }
-            if (args[i].equals("--genes")) {
-                opts.genes.add(args[++i]);;
-            }            
-            if (args[i].equals("--chipseq")) {
-                String pieces[] = args[++i].split(";");
-                if (pieces.length == 2) {
-                    opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
-                } else if (pieces.length >= 3) {
-                    Set<String> repnames = new HashSet<String>();
-                    for (int j = 1; j < pieces.length - 1; j++) {
-                        repnames.add(pieces[j]);
+            System.err.println("Parsing args of length " + args.length);
+            for (int i = 0; i < args.length; i++) {
+                if (args[i].equals("--chrom") || args[i].equals("--region")) {
+                    if (args[i+1].matches(".+:.+\\-.+")) {
+                        int colon = args[i+1].indexOf(':');
+                        int dash = args[i+1].indexOf('-');
+                        opts.chrom = args[i+1].substring(0, colon);
+                        String startstring = args[i+1].substring(colon+1,dash);
+                        String stopstring = args[i+1].substring(dash+1);
+                        opts.start = stringToNum(startstring);
+                        opts.stop = stringToNum(stopstring);
+                        i++;
+                    } else {
+                        opts.chrom = args[i+1];
                     }
-                    opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], repnames, pieces[pieces.length-1]));
-                } else {
-                    System.err.println("Couldn't parse --chipseq " + args[i]);
                 }
-            }
-            if (args[i].equals("--pairedchipseq")) {
-                String pieces[] = args[++i].split(";");
-                if (pieces.length == 2) {
-                    opts.pairedChipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
-                } else if (pieces.length == 3) {
-                    opts.pairedChipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
-                } else {
-                    System.err.println("Couldn't parse --pairedchipseq " + args[i]);
+                if (args[i].equals("--saveimage")) {
+                    opts.saveimage = true;
+                    opts.filename = args[++i];
                 }
-            }
-            if (args[i].equals("--chipseqanalysis")) {
-                String pieces[] = args[++i].split(";");
-                if (pieces.length == 2) {
-                    opts.chipseqAnalyses.add(ChipSeqAnalysis.get(chipseqloader, pieces[0], pieces[1]));
-                } else {
-                    System.err.println("Couldn't parse --chipseqanalysis " + args[i]);
-                }                
-            }
+                if (args[i].equals("--gene")) {
+                    opts.gene = args[++i];
+                }
+                if (args[i].equals("--hash")) { 
+                    opts.hash = true;
+                }
+                if (args[i].equals("--gccontent")) {
+                    opts.gccontent = true;
+                }
+                if (args[i].equals("--pyrpurcontent")) {
+                    opts.pyrpurcontent = true;
+                }
+                if (args[i].equals("--cpg")) {
+                    opts.cpg = true;
+                }
+                if (args[i].equals("--repeatmasked")) {
+                    opts.otherannots.add("RepeatMasker");
+                }
+                if (args[i].equals("--repeatmasker")) {
+                    opts.otherannots.add("RepeatMasker");
+                }
+                if (args[i].equals("--cpgislands")) {
+                    opts.otherannots.add("CpGIslands");
+                }
+                if (args[i].equals("--relative")) {
+                    opts.relative = true;
+                }
+                if (args[i].equals("--genes")) {
+                    opts.genes.add(args[++i]);;
+                }            
+                if (args[i].equals("--chipseq")) {
+                    String pieces[] = args[++i].split(";");
+                    if (pieces.length == 2) {
+                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
+                    } else if (pieces.length >= 3) {
+                        Set<String> repnames = new HashSet<String>();
+                        for (int j = 1; j < pieces.length - 1; j++) {
+                            repnames.add(pieces[j]);
+                        }
+                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], repnames, pieces[pieces.length-1]));
+                    } else {
+                        System.err.println("Couldn't parse --chipseq " + args[i]);
+                    }
+                }
+                if (args[i].equals("--pairedchipseq")) {
+                    String pieces[] = args[++i].split(";");
+                    if (pieces.length == 2) {
+                        opts.pairedChipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
+                    } else if (pieces.length == 3) {
+                        opts.pairedChipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
+                    } else {
+                        System.err.println("Couldn't parse --pairedchipseq " + args[i]);
+                    }
+                }
+                if (args[i].equals("--chipseqanalysis")) {
+                    String pieces[] = args[++i].split(";");
+                    if (pieces.length == 2) {
+                        opts.chipseqAnalyses.add(ChipSeqAnalysis.get(chipseqloader, pieces[0], pieces[1]));
+                    } else {
+                        System.err.println("Couldn't parse --chipseqanalysis " + args[i]);
+                    }                
+                }
 
-            if (args[i].equals("--agilent") || args[i].equals("--chipchip")) {                
-                System.err.println("Parsing AGILENT option");
-                System.err.println("args[i+1] = " + args[i+1]);
-                String pieces[] = args[++i].split(";");
-                ExptNameVersion env = null;
-                if (pieces.length == 2) {
-                    env = new ExptNameVersion(pieces[0],pieces[1]);
-                } else if (pieces.length == 3) {
-                    env = new ExptNameVersion(pieces[0],pieces[1], pieces[2]);
+                if (args[i].equals("--agilent") || args[i].equals("--chipchip")) {                
+                    System.err.println("Parsing AGILENT option");
+                    System.err.println("args[i+1] = " + args[i+1]);
+                    String pieces[] = args[++i].split(";");
+                    ExptNameVersion env = null;
+                    if (pieces.length == 2) {
+                        env = new ExptNameVersion(pieces[0],pieces[1]);
+                    } else if (pieces.length == 3) {
+                        env = new ExptNameVersion(pieces[0],pieces[1], pieces[2]);
+                    }
+                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
+                        i += 2;
+                        env.setLabel(args[i]);
+                    }
+                    opts.agilentdata.add(env);
                 }
-                if (i < args.length - 2 && args[i + 1].equals("--label")) {
-                    i += 2;
-                    env.setLabel(args[i]);
+                if (args[i].equals("--ll") ||
+                    args[i].equals("--mle")) {
+                    String pieces[] = args[++i].split(";");
+                    AnalysisNameVersion env = null;
+                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
+                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
+                        i += 2;
+                        env.setLabel(args[i]);
+                    }
+                    opts.agilentll.add(env);
+                }            
+                if (args[i].equals("--bayes")) {
+                    String pieces[] = args[++i].split(";");
+                    AnalysisNameVersion env = null;
+                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
+                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
+                        i += 2;
+                        env.setLabel(args[i]);
+                    }
+                    opts.bayesresults.add(env);
                 }
-                opts.agilentdata.add(env);
-            }
-            if (args[i].equals("--ll") ||
-                args[i].equals("--mle")) {
-                String pieces[] = args[++i].split(";");
-                AnalysisNameVersion env = null;
-                env = new AnalysisNameVersion(pieces[0],pieces[1]);
-                if (i < args.length - 2 && args[i + 1].equals("--label")) {
-                    i += 2;
-                    env.setLabel(args[i]);
+                if (args[i].equals("--msp")) {
+                    String pieces[] = args[++i].split(";");
+                    AnalysisNameVersion env = null;
+                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
+                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
+                        i += 2;
+                        env.setLabel(args[i]);
+                    }
+                    opts.msp.add(env);             
                 }
-                opts.agilentll.add(env);
-            }            
-            if (args[i].equals("--bayes")) {
-                String pieces[] = args[++i].split(";");
-                AnalysisNameVersion env = null;
-                env = new AnalysisNameVersion(pieces[0],pieces[1]);
-                if (i < args.length - 2 && args[i + 1].equals("--label")) {
-                    i += 2;
-                    env.setLabel(args[i]);
+                if (args[i].equals("--sgdOther")) {
+                    opts.otherannots.add("sgdOther");
                 }
-                opts.bayesresults.add(env);
-            }
-            if (args[i].equals("--msp")) {
-                String pieces[] = args[++i].split(";");
-                AnalysisNameVersion env = null;
-                env = new AnalysisNameVersion(pieces[0],pieces[1]);
-                if (i < args.length - 2 && args[i + 1].equals("--label")) {
-                    i += 2;
-                    env.setLabel(args[i]);
+                if (args[i].equals("--regionList")) {
+                    opts.regionListFile = args[++i];
                 }
-                opts.msp.add(env);             
-            }
-            if (args[i].equals("--sgdOther")) {
-                opts.otherannots.add("sgdOther");
-            }
-            if (args[i].equals("--regionList")) {
-                opts.regionListFile = args[++i];
-            }
-            if (args[i].equals("--otherannot")) {
-                opts.otherannots.add(args[++i]);
-            }
-            if (args[i].equals("--wmscan")) {
-                String[] pieces = args[++i].split(";");
-                Organism thisorg = organism;
-                if (pieces.length == 4) {
-                    thisorg = new Organism(pieces[3]);
-                }                
-                WeightMatrix matrix = wmloader.query(thisorg.getDBID(),pieces[0],pieces[1]);
-                WeightMatrixScan scan = WeightMatrixScan.getScanForMatrix(matrix.dbid, pieces[2]);
-                opts.motifscans.add(scan);
-            }
-            if (args[i].equals("--wm")) {
-                String[] pieces = args[++i].split(";");
-                Organism thisorg = organism;
-                if (pieces.length == 3) {
-                    thisorg = new Organism(pieces[2]);
-                }                
-                WeightMatrix matrix = wmloader.query(thisorg.getDBID(),pieces[0],pieces[1]);
-                opts.motifs.add(matrix);
-            }
-            if (args[i].equals("--regex")) {
-                opts.regexmatcher = true;
-                String[] pieces = args[++i].split(";");
-                if (pieces.length == 1) {
-                    opts.regexes.put("regex" + i, pieces[0]);
-                } else if (pieces.length >= 2) {
-                    opts.regexes.put(pieces[1],pieces[0]);
+                if (args[i].equals("--otherannot")) {
+                    opts.otherannots.add(args[++i]);
                 }
-            }
-            if (args[i].equals("--fileTrack")) {
-                String pieces[] = args[++i].split(";");
-                if (pieces.length == 1) {
-                    opts.regionTracks.put(pieces[0],pieces[0]);
-                } else {
-                    opts.regionTracks.put(pieces[0],pieces[1]);
+                if (args[i].equals("--wmscan")) {
+                    String[] pieces = args[++i].split(";");
+                    Organism thisorg = organism;
+                    if (pieces.length == 4) {
+                        thisorg = new Organism(pieces[3]);
+                    }                
+                    WeightMatrix matrix = wmloader.query(thisorg.getDBID(),pieces[0],pieces[1]);
+                    WeightMatrixScan scan = WeightMatrixScan.getScanForMatrix(matrix.dbid, pieces[2]);
+                    opts.motifscans.add(scan);
                 }
-            }
+                if (args[i].equals("--wm")) {
+                    String[] pieces = args[++i].split(";");
+                    Organism thisorg = organism;
+                    if (pieces.length == 3) {
+                        thisorg = new Organism(pieces[2]);
+                    }                
+                    WeightMatrix matrix = wmloader.query(thisorg.getDBID(),pieces[0],pieces[1]);
+                    opts.motifs.add(matrix);
+                }
+                if (args[i].equals("--regex")) {
+                    opts.regexmatcher = true;
+                    String[] pieces = args[++i].split(";");
+                    if (pieces.length == 1) {
+                        opts.regexes.put("regex" + i, pieces[0]);
+                    } else if (pieces.length >= 2) {
+                        opts.regexes.put(pieces[1],pieces[0]);
+                    }
+                }
+                if (args[i].equals("--fileTrack")) {
+                    String pieces[] = args[++i].split(";");
+                    if (pieces.length == 1) {
+                        opts.regionTracks.put(pieces[0],pieces[0]);
+                    } else {
+                        opts.regionTracks.put(pieces[0],pieces[1]);
+                    }
+                }
 
 
+            }
+        } finally {
+            wmloader.close();
+            chipseqloader.close();
         }
+
+
         return opts;
     }
 
