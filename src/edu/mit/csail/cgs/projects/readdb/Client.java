@@ -326,6 +326,8 @@ public class Client implements ReadOnlyClient {
                 outstream.flush();        
                 response = readLine();
                 if (!response.equals("OK")) {
+                    System.err.println("not-OK response to request: " + response);
+                    System.err.println("request was " + request);
                     throw new ClientException(response);
                 }
             }

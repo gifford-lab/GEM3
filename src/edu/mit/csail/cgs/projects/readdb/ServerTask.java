@@ -353,7 +353,7 @@ public class ServerTask {
 
     /** reads and handles a request on the Socket.
      */
-    public void processRequest () throws IOException {
+    public void processRequest () {
         try {
             if (request.alignid != null) {
                 Lock.readLock(request.alignid);
@@ -377,7 +377,7 @@ public class ServerTask {
             } else if (request.type.equals("addtogroup")) {
                 processAddToGroup();
             } else if (request.type.equals("shutdown")) {
-                server.getLogger().logp(Level.INFO,"ServerTask","authenticate " + toString(),"Received shutdown from " + username);
+                server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Received shutdown from " + username);
                 if (server.isAdmin(username)) {
                     printOK();
                     server.keepRunning(false);
@@ -389,7 +389,8 @@ public class ServerTask {
                 processFileRequest();
             }
         } catch (IOException e) {
-            throw e;
+            server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Error in request " + request.toString());
+            server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Exception " + e.toString(),e);
         } finally {
             Lock.releaseLocks();
         }
