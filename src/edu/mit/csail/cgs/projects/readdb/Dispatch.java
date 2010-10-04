@@ -12,6 +12,7 @@ public class Dispatch implements Runnable {
 
     private Vector<WorkerThread> freePool, allThreads;
     private Vector<ServerTask> workQueue;
+    private Vector<Thread> threads;
     private Server server;
     private int maxConnections;
     private int warnedMaxConn = 0;
@@ -20,10 +21,12 @@ public class Dispatch implements Runnable {
         workQueue = new Vector<ServerTask>();
         freePool = new Vector<WorkerThread>();
         allThreads = new Vector<WorkerThread>();
+        threads = new Vector<Thread>();
         for (int i = 0; i < numThreads; i++) {
             WorkerThread servthread = new WorkerThread(this);
             Thread t = new Thread(servthread);
             t.start();
+            threads.add(t);
             freePool.add(servthread);
             allThreads.add(servthread);
         }
@@ -78,6 +81,7 @@ public class Dispatch implements Runnable {
     public void run() {
         int noTasksWaiting = 0;
         int noInputAvailable = 0;
+        int threadCheck = 0;
         int sleep = server.getSleepiness();
         while (server.keepRunning()) {            
             if (workQueue.size() > 0) {
@@ -117,6 +121,26 @@ public class Dispatch implements Runnable {
                     }
                 } catch (InterruptedException e) {}                
             } 
+            if (threadCheck++ > 1000) {
+                threadCheck = 0;
+                for (int i = 0; i < threads.size(); i++) {
+                    if (!threads.get(i).isAlive()) {
+                        System.err.println("DEAD THREAD.  Adding a new one");
+                        WorkerThread servthread = new WorkerThread(this);
+                        Thread t = new Thread(servthread);
+                        t.start();
+                        threads.set(i,t);
+                        freePool.add(servthread);
+                        try {
+                            allThreads.get(i).stopRunning();
+                        } catch (Exception e) {
+                            System.err.println("Tried to stop a workerthread and got ");
+                            e.printStackTrace();
+                        }
+                        allThreads.set(i,servthread);
+                    }
+                }
+            }
         }
         while (freePool.size() < allThreads.size()) {
             try {
