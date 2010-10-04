@@ -15,7 +15,7 @@ import net.sf.samtools.util.CloseableIterator;
  * 
  * Options:	--nosuboptimal (flag to only take the hits with the minimum number of mismatches)
  * 			--uniquehits (flag to only print 1:1 read to hit mappings)
- * 			--pairedends (flag to only print pairs)
+ * 			--pairedend (flag to only print pairs)
  * 			--junctions (flag to only print junction mapping reads as pairs)
  * 
  * nosuboptimal is applied before uniquehits
