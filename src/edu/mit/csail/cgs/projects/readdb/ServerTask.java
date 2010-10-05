@@ -123,7 +123,7 @@ public class ServerTask {
             try {
                 socket.setSoTimeout(1000000);   
             } catch (IOException e2) {
-                e2.printStackTrace();
+                server.getLogger().logp(Level.INFO,"serverTask","inputAvailable","socket.setSoTimeout",e2);
                 avail = false;
                 shouldClose = true;                
             }
@@ -186,7 +186,7 @@ public class ServerTask {
                 break;
             } else {
                 if (bufferpos >= buffer.length) {
-                    System.err.println("readline would overflow. quitting");
+                    server.getLogger().logp(Level.WARNING,"ServerTask","readLine " + toString(),"readline would overflow.  quitting");
                     shouldClose = true;
                     return null;
                 }
@@ -195,7 +195,7 @@ public class ServerTask {
         }
         if (i == -1) {
             shouldClose = true;
-            System.err.println("read error in readline. quitting");
+            server.getLogger().logp(Level.WARNING,"ServerTask","readLine " + toString(),"error in readline.  quitting");
             return null;
         }
         if (done) {
@@ -227,7 +227,7 @@ public class ServerTask {
         try {
             if (username == null) {
                 if (!authenticate()) {
-                    System.err.println("Authenticate failed");
+                    server.getLogger().logp(Level.INFO,"serverTask","run " + toString(),"not authenticated in ");
                     printAuthError();
                     shouldClose = true;
                     return;
@@ -235,7 +235,7 @@ public class ServerTask {
                 if (username == null) { 
                     return ;
                 }
-                server.getLogger().log(Level.INFO,"ServerTask " + Thread.currentThread() + " authenticated " + username + " from " + socket.getInetAddress() + ":" + socket.getPort());
+                server.getLogger().logp(Level.INFO,"ServerTask","run " + toString(), " authenticated " + username + " from " + socket.getInetAddress() + ":" + socket.getPort());
                 printString("authenticated as " + username + "\n");
             }
             while (true) {
@@ -248,8 +248,8 @@ public class ServerTask {
                         if (error == null) {
                             processRequest();
                         } else {
+                            server.getLogger().logp(Level.INFO,"ServerTask","run()" + toString(), "error parsing request: " + error);
                             printString("error parsing request: " + error + "\n");
-                            System.err.println("Error parsing request from " + args);
                         }
                         args.clear();
                         if (outstream != null) { outstream.flush(); }                            
@@ -264,10 +264,7 @@ public class ServerTask {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
-            //             if (server.debug()) {
-            //                 System.err.println("Setting shouldClose 5 " + socket + " for " + this);
-            //             }
+            server.getLogger().logp(Level.INFO,"serverTask","run " + toString(),"error " + e.toString(),e);
             args.clear();
             shouldClose = true;
             System.gc();
@@ -298,7 +295,6 @@ public class ServerTask {
                 return true;
             }
         }
-        //        System.err.println("Going to auth for " + uname);
         if (sasl == null) {
             sasl = Sasl.createSaslServer(Server.SaslMechanisms[0],
                                          "readdb",
@@ -310,7 +306,7 @@ public class ServerTask {
             outstream.write("0\n".getBytes());
             outstream.write((byte)0);
             outstream.flush();
-            server.getLogger().log(Level.INFO,"Failed Authentication for " + uname);
+            server.getLogger().logp(Level.INFO,"ServerTask","authenticate " + toString(),"Failed Authentication for " + uname);
             return false;
         }
         while (!sasl.isComplete()) {
@@ -329,16 +325,13 @@ public class ServerTask {
                 if (challenge == null) {
                     challenge = new byte[0];
                 }
-                //                System.err.println("Got challenge of length " +  challenge.length + " in response to length " + read);
                 String s = challenge.length + "\n";
                 outstream.write(s.getBytes());
                 outstream.write(challenge);
                 outstream.write(sasl.isComplete() ? (byte)0 : (byte)1);
                 outstream.flush();
-                //                System.err.println("authenticate complete ? " + sasl.isComplete());
             } catch (Exception e) {
-                System.err.println("CAUGHT AN EXCEPTION IN AUTHENTICATE");
-                e.printStackTrace();
+                server.getLogger().logp(Level.INFO,"serverTask","authenticate " + toString(),e.toString(),e);
                 outstream.write("0\n".getBytes());
                 outstream.write((byte)0);
                 outstream.flush();
@@ -351,7 +344,7 @@ public class ServerTask {
             return true;
         } else {
             sasl.dispose();
-            server.getLogger().log(Level.INFO,"Failed Authentication for " + uname);
+            server.getLogger().logp(Level.INFO,"ServerTask","authenticate " +toString(),"Failed Authentication for " + uname);
             return false;
         }
 
@@ -360,7 +353,7 @@ public class ServerTask {
 
     /** reads and handles a request on the Socket.
      */
-    public void processRequest () throws IOException {
+    public void processRequest () {
         try {
             if (request.alignid != null) {
                 Lock.readLock(request.alignid);
@@ -384,7 +377,7 @@ public class ServerTask {
             } else if (request.type.equals("addtogroup")) {
                 processAddToGroup();
             } else if (request.type.equals("shutdown")) {
-                server.getLogger().log(Level.INFO,"Received shutdown from " + username);
+                server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Received shutdown from " + username);
                 if (server.isAdmin(username)) {
                     printOK();
                     server.keepRunning(false);
@@ -395,8 +388,9 @@ public class ServerTask {
             } else {
                 processFileRequest();
             }
-        } catch (IOException e) {
-            throw e;
+        } catch (Exception e) {
+            server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Error in request " + request.toString());
+            server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Exception " + e.toString(),e);
         } finally {
             Lock.releaseLocks();
         }
@@ -427,16 +421,18 @@ public class ServerTask {
             acl = server.getACL(request.alignid);
         } catch (IOException e) {
             // happens if the file doesn't exist or if we can't read it at the OS level
-            server.getLogger().log(Level.INFO,String.format("read error on acl for %s : %s",
-                                                            request.alignid,
-                                                            e.toString()));
+            server.getLogger().logp(Level.INFO,"ServerTask","processFileRequest "+ toString(),
+                                   String.format("read error on acl for %s : %s",
+                                                 request.alignid,
+                                                 e.toString()));
             printInvalid(e.toString());
             return;
         }
         if (!authorizeRead(acl)) {
-            server.getLogger().log(Level.INFO,String.format("%s can't read %s",
-                                                            username,
-                                                            request.alignid));
+            server.getLogger().logp(Level.INFO,"ServerTask","processFileRequest "+toString(),
+                                   String.format("%s can't read %s",
+                                                 username,
+                                                 request.alignid));
             printAuthError();
             return;
         }
@@ -452,9 +448,10 @@ public class ServerTask {
             }
         } catch (IOException e) {
             // happens if the file doesn't exist or if we can't read it at the OS level
-            server.getLogger().log(Level.INFO,String.format("read error on header or hits for %s, %d, %s : %s",
-                                                            request.alignid, request.chromid, request.isLeft,
-                                                            e.toString()));
+            server.getLogger().logp(Level.INFO,"ServerTask","processFileRequest " + toString(),
+                                   String.format("read error on header or hits for %s, %d, %s : %s",
+                                                 request.alignid, request.chromid, request.isLeft,
+                                                 e.toString()));
             printInvalid(e.toString());
             return;
         }
@@ -600,7 +597,7 @@ public class ServerTask {
                 printString("exists but no read permissions\n");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            server.getLogger().logp(Level.INFO,"serverTask","processExists " +toString(),e.toString(),e);
             printString("unknown\n");
         }
     }
@@ -676,7 +673,6 @@ public class ServerTask {
         /* list of files to delete:
            datafiles first, then the directory itself
         */
-        System.err.println("Deleting with ispaired=" + request.isPaired);
         boolean allgone = true;
         for (int i = 0; i < files.length; i++) {
             String name = files[i].getName();
@@ -715,7 +711,8 @@ public class ServerTask {
             boolean deleted = f.delete();
             allDeleted = allDeleted && deleted;
             if (!deleted) {
-                server.getLogger().log(Level.INFO,"ServerTask.processDeleteAlignment didn't delete " + fname);
+                server.getLogger().logp(Level.INFO,"ServerTask","processDeleteAlignment "+ toString(),
+                                       "ServerTask.processDeleteAlignment didn't delete " + fname);
             }
         }
         if (allDeleted) {
@@ -738,6 +735,8 @@ public class ServerTask {
         try {
             numHits = Integer.parseInt(request.map.get("numhits"));
         } catch (NumberFormatException e) {
+            server.getLogger().logp(Level.INFO,"ServerTask","processSingleStore "+ toString(),
+                                   "Invalid numhits " + request.map.get("numhits"),e);
             printString("Invalid numhits value : " + request.map.get("numhits") + "\n");
             return;
         }
@@ -791,7 +790,7 @@ public class ServerTask {
                         return;
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    server.getLogger().logp(Level.INFO,"serverTask","processSingleStore "+toString(),e.toString(),e);
                     printInvalid(e.toString());
                     return;
                 }
@@ -802,7 +801,7 @@ public class ServerTask {
                                                 server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
                                                 request.chromid);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    server.getLogger().logp(Level.INFO,"ServerTask","processSingleStore "+toString(),"error writing hits",e);
                     printInvalid(e.toString());
                     return;
                 }
@@ -816,7 +815,7 @@ public class ServerTask {
                 }
                 File dir = new File(server.getAlignmentDir(request.alignid));
                 if (!dir.exists() && !dir.mkdirs()) {
-                    System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
+                    server.getLogger().logp(Level.INFO,"ServerTask","processSingleStore "+ toString(),"Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
                     printAuthError();
                     return;
                 }
@@ -835,7 +834,7 @@ public class ServerTask {
             header.writeIndexFile(server.getSingleHeaderFileName(request.alignid,
                                                                  request.chromid));
         } catch (IOException e) {
-            printString("IOException trying to save files : " + e.toString() + "\n");
+            server.getLogger().logp(Level.INFO,"ServerTask","processSingleStore "+ toString(),"IOException trying to save files : " + e.toString(),e);
             return;
         }
         printOK();
@@ -852,6 +851,7 @@ public class ServerTask {
         try {
             numHits = Integer.parseInt(request.map.get("numhits"));
         } catch (NumberFormatException e) {
+            server.getLogger().logp(Level.INFO,"ServerTask","processSingleStore "+ toString(),"Invalid numhits " + request.map.get("numhits"),e);
             printString("Invalid numhits value : " + request.map.get("numhits") + "\n");
             return;
         }
@@ -866,7 +866,7 @@ public class ServerTask {
         f = new File(server.getAlignmentDir(request.alignid));
         if (!f.exists()) {
             if (!f.mkdirs()) {
-                System.err.println("Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
+                server.getLogger().logp(Level.INFO,"ServerTask","processPairedStore "+ toString(), "Can't create directories for " + request.alignid + ":" + server.getAlignmentDir(request.alignid));
                 printAuthError();
                 return;
             }
@@ -896,7 +896,7 @@ public class ServerTask {
                     return;
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                server.getLogger().logp(Level.INFO,"ServerTask","processPairedStore "+ toString(), "IOException reading acls : " + e.toString(),e);
                 printInvalid(e.toString());
                 return;
             }
@@ -936,7 +936,7 @@ public class ServerTask {
             appendPairedHits(hits,false);
             hits = null;
         } catch (IOException e) {
-            e.printStackTrace();
+            server.getLogger().logp(Level.INFO,"ServerTask","processPairedStore "+toString(), "IOException trying to save files : " + e.toString(),e);
             printString("Failed to write hits : " + e.toString() + "\n");
             return;
         }
@@ -969,7 +969,6 @@ public class ServerTask {
                                                           chromid,
                                                           isLeft);
                 IntBP positions = oldhits.getPositionsBuffer();
-                //                System.err.println("  there are " + positions.limit() + " old hits");
                 FloatBP weights = oldhits.getWeightsBuffer();
                 IntBP las = oldhits.getLASBuffer();
                 IntBP otherchrom = oldhits.getChromsBuffer();
@@ -1116,6 +1115,7 @@ public class ServerTask {
         try {
             binsize = Integer.parseInt(request.map.get("binsize"));
         } catch (Exception e) {
+            server.getLogger().logp(Level.INFO,"ServerTask","processHistogram "+toString(), "Exception parsing binsize : " + request.map.get("binsize"),e);
             printString("missing or invalid bin size : " + request.map.get("binsize") + "\n");
             return;
         }
@@ -1174,6 +1174,7 @@ public class ServerTask {
         try {
             binsize = Integer.parseInt(request.map.get("binsize"));
         } catch (Exception e) {
+            server.getLogger().logp(Level.INFO,"ServerTask","processWeightHistogram "+toString(), "Exception parsing binsize : " + request.map.get("binsize"),e);
             printString("missing or invalid bin size : " + request.map.get("binsize") + "\n");
             return;
         }
@@ -1214,8 +1215,11 @@ public class ServerTask {
         Bits.sendInts(parray, outstream, buffer);        
         Bits.sendFloats(farray, outstream, buffer);
     }
-    public String toString() {         
-        return "ServerTask user=" + username + " remoteip=" + socket.getInetAddress() + ":" + socket.getPort();
+    public String toString() {
+        return String.format("thread %s, user %s, remote %s:%d",
+                             Thread.currentThread().toString(),
+                             username,
+                             socket.getInetAddress(), socket.getPort());
     }
 }
 

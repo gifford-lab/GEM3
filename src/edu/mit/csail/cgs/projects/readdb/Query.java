@@ -174,7 +174,6 @@ public class Query {
                 e.printStackTrace();
             }
         }
-
         client.close();
     }
 
