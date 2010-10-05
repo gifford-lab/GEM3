@@ -136,7 +136,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private int ML_ITER=10;
 	// the range to scan a peak if we know position from EM result
 	private int SCAN_RANGE = 20;
-
+	private int gentle_elimination_iterations = 10;
 	//Binding model representing the empirical distribution of a binding event
 	private BindingModel model;
 	private int modelRange;			// max length of one side
@@ -745,161 +745,171 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			log(2, rr.toString());
 			try{
 	//			System.out.println(rr.toString()+" Running EM \t"+CommonUtils.timeElapsed(tic));
-				// Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
-				ArrayList<Region> windows = new ArrayList<Region>();
-				if (rr.getWidth()<=windowSize)
-					windows.add(rr);
-				else{
-					windows = splitWindows(rr, windowSize, modelWidth/2);
-				}
-	 
-				// run EM for each window 
 				ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
-				for (Region w : windows){
-	//				System.out.println(" Running analyzeWindow() \t"+w.toString()+"\t"+CommonUtils.timeElapsed(tic));
-					ArrayList<BindingComponent> result = analyzeWindow(w);
-					if (result!=null){
-						comps.addAll(result);
+				
+				if (!isDNase){	// ChIP-Seq data
+					// Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
+					ArrayList<Region> windows = new ArrayList<Region>();
+					if (rr.getWidth()<=windowSize)
+						windows.add(rr);
+					else{
+						windows = splitWindows(rr, windowSize, modelWidth/2);
 					}
-				}
-	//			System.out.println("Fix sliding window boundary effect \t"+CommonUtils.timeElapsed(tic));
-	
-				/* ****************************************************************
-				 * fix sliding window boundary effect (version 1)
-				 */
-				if (windows.size()>1 && comps.size()>0){
-					Collections.sort(comps);
-					// The whole region can be divided into subRegions with gap >= modelWidth
-					ArrayList<ArrayList<Region>> subRegions = new ArrayList<ArrayList<Region>>();
-					ArrayList<Region> rs = new ArrayList<Region>();
-					rs.add(comps.get(0).getLocation().expand(0));
-					subRegions.add(rs);
-					if (comps.size()>1){
-						for (int i=1;i<comps.size();i++){
-							if (comps.get(i).getLocation().distance(comps.get(i-1).getLocation())>modelWidth){
-								rs = new ArrayList<Region>();
-								subRegions.add(rs);
-								rs.add(comps.get(i).getLocation().expand(0));
-							}
-							else	// in same subregions
-								rs.add(comps.get(i).getLocation().expand(0));
+		 
+					// run EM for each window 
+					for (Region w : windows){
+		//				System.out.println(" Running analyzeWindow() \t"+w.toString()+"\t"+CommonUtils.timeElapsed(tic));
+						ArrayList<BindingComponent> result = analyzeWindow(w);
+						if (result!=null){
+							comps.addAll(result);
 						}
 					}
-					for (ArrayList<Region> subr : subRegions){
-						// expand with modelRange padding, and merge overlapped regions
-						// ==> Refined enriched regions
-						rs=mergeRegions(subr, true);
-						for (Region r:rs){
-							if (r.getWidth()==2*modelRange+1){	// for unary event, one of the windows should contain it in full, no need to evaluate again
-								if (subr.size()>1){	// if multiple windows predict the same unary event
-									Point p = r.getMidpoint();
-									ArrayList<BindingComponent> duplicates = new ArrayList<BindingComponent>(); 
-									for (BindingComponent b: comps){
-										if (b.getLocation().equals(p))
-											duplicates.add(b);
-									}
-									if (duplicates.size()>1){
-										for (int i=1;i<duplicates.size();i++){
-											comps.remove(duplicates.get(i));
-										}
-									}
+		//			System.out.println("Fix sliding window boundary effect \t"+CommonUtils.timeElapsed(tic));
+		
+					/* ****************************************************************
+					 * fix sliding window boundary effect (version 1)
+					 */
+					if (windows.size()>1 && comps.size()>0){
+						Collections.sort(comps);
+						// The whole region can be divided into subRegions with gap >= modelWidth
+						ArrayList<ArrayList<Region>> subRegions = new ArrayList<ArrayList<Region>>();
+						ArrayList<Region> rs = new ArrayList<Region>();
+						rs.add(comps.get(0).getLocation().expand(0));
+						subRegions.add(rs);
+						if (comps.size()>1){
+							for (int i=1;i<comps.size();i++){
+								if (comps.get(i).getLocation().distance(comps.get(i-1).getLocation())>modelWidth){
+									rs = new ArrayList<Region>();
+									subRegions.add(rs);
+									rs.add(comps.get(i).getLocation().expand(0));
 								}
+								else	// in same subregions
+									rs.add(comps.get(i).getLocation().expand(0));
 							}
-							else { // for joint events 
-								// the regions in rs includes the influence paddings, remove it here
-								int start=r.getStart();
-								int end=r.getEnd();
-								if (start!=0)
-									start += modelRange;
-								if (end!=gen.getChromID(r.getChrom()))
-									end -= modelRange;
-								if (start>end){
-									int tmp = start;
-									end = tmp;
-									start = end;
-								}
-								Region tightRegion = new Region(r.getGenome(), r.getChrom(), start, end);
-								for (int i=0;i<windows.size()-1;i++){
-									Region boundary = windows.get(i).getOverlap(windows.get(i+1));
-									// if the predicted component overlaps with boundary of sliding window
-									if (boundary.overlaps(tightRegion)){
-										// remove old
-										ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
-										for (BindingComponent m:comps){
-											if (tightRegion.overlaps(m.getLocation().expand(0)))
-												toRemove.add(m);
+						}
+						for (ArrayList<Region> subr : subRegions){
+							// expand with modelRange padding, and merge overlapped regions
+							// ==> Refined enriched regions
+							rs=mergeRegions(subr, true);
+							for (Region r:rs){
+								if (r.getWidth()==2*modelRange+1){	// for unary event, one of the windows should contain it in full, no need to evaluate again
+									if (subr.size()>1){	// if multiple windows predict the same unary event
+										Point p = r.getMidpoint();
+										ArrayList<BindingComponent> duplicates = new ArrayList<BindingComponent>(); 
+										for (BindingComponent b: comps){
+											if (b.getLocation().equals(p))
+												duplicates.add(b);
 										}
-										comps.removeAll(toRemove);
-										// re-process the boundary region
-										int winSize = modelWidth*10;
-										if (r.getWidth()<winSize){ // if the region is small, directly process it
-											ArrayList<BindingComponent> result = analyzeWindow(r);
-											if (result!=null){
-												comps.addAll(result);
+										if (duplicates.size()>1){
+											for (int i=1;i<duplicates.size();i++){
+												comps.remove(duplicates.get(i));
 											}
 										}
-										else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
-											if (development_mode)
-												System.err.println("Warning: very large contiguous region, "+ r.toString());
-											ArrayList<Region> wins = splitWindows(r, winSize, modelWidth);
-	//										ArrayList<Region> wins = new ArrayList<Region>();
-	//										int lastEnd = r.getStart()+winSize-1;
-	//										wins.add(new Region(r.getGenome(), r.getChrom(), r.getStart(), lastEnd));
-	//										while(lastEnd<r.getEnd()){
-	//											int newStart = lastEnd+1-modelWidth*2;	//overlap length = modelWidth*2
-	//											lastEnd = Math.min(newStart+winSize-1, r.getEnd());
-	//											wins.add(new Region(r.getGenome(), r.getChrom(), newStart, lastEnd));
-	//										}
-											// process each window, then fix boundary 
-											ArrayList<ArrayList<BindingComponent>> comps_all_wins= new ArrayList<ArrayList<BindingComponent>>();
-											for (Region w : wins){
-												ArrayList<BindingComponent> comp_win = new ArrayList<BindingComponent>();
-												ArrayList<BindingComponent> result = analyzeWindow(w);
+									}
+								}
+								else { // for joint events 
+									// the regions in rs includes the influence paddings, remove it here
+									int start=r.getStart();
+									int end=r.getEnd();
+									if (start!=0)
+										start += modelRange;
+									if (end!=gen.getChromID(r.getChrom()))
+										end -= modelRange;
+									if (start>end){
+										int tmp = start;
+										end = tmp;
+										start = end;
+									}
+									Region tightRegion = new Region(r.getGenome(), r.getChrom(), start, end);
+									for (int i=0;i<windows.size()-1;i++){
+										Region boundary = windows.get(i).getOverlap(windows.get(i+1));
+										// if the predicted component overlaps with boundary of sliding window
+										if (boundary.overlaps(tightRegion)){
+											// remove old
+											ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+											for (BindingComponent m:comps){
+												if (tightRegion.overlaps(m.getLocation().expand(0)))
+													toRemove.add(m);
+											}
+											comps.removeAll(toRemove);
+											// re-process the boundary region
+											int winSize = modelWidth*10;
+											if (r.getWidth()<winSize){ // if the region is small, directly process it
+												ArrayList<BindingComponent> result = analyzeWindow(r);
 												if (result!=null){
-													comp_win.addAll(result);
-												}
-												comps_all_wins.add(comp_win);
-											}
-											/* ****************************************************************
-											 * fix sliding window boundary effect (version 2)
-											 * take the events in the left half of boundary from left window
-											 * take the events in the right half of boundary from right window
-											 * so that the events we reported have at least 500bp data as margin
-											 * Note: this may result in slight inaccuracy comparing to re-process whole region
-											 * 		 but it is the trade-off against running EM on a huge large region
-											 * 		 and running for whole region might lead to inaccuracy too, because of too many components
-											 */
-											if (wins.size()>1){
-												for (int ii=0;ii<wins.size()-1;ii++){
-													int midCoor = wins.get(ii).getOverlap(wins.get(ii+1)).getMidpoint().getLocation();
-													ArrayList<BindingComponent> leftComps = comps_all_wins.get(ii);
-													toRemove = new ArrayList<BindingComponent>();//reset
-													for (BindingComponent m:leftComps){
-														if (m.getLocation().getLocation()>midCoor)
-															toRemove.add(m);
-													}
-													leftComps.removeAll(toRemove);
-													ArrayList<BindingComponent> rightComps = comps_all_wins.get(ii+1);
-													toRemove = new ArrayList<BindingComponent>();	//reset
-													for (BindingComponent m:rightComps){
-														if (m.getLocation().getLocation()<=midCoor)
-															toRemove.add(m);
-													}
-													rightComps.removeAll(toRemove);
+													comps.addAll(result);
 												}
 											}
-											for (ArrayList<BindingComponent>comps_win:comps_all_wins){
-												comps.addAll(comps_win);
+											else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
+												if (development_mode)
+													System.err.println("Warning: very large contiguous region, "+ r.toString());
+												ArrayList<Region> wins = splitWindows(r, winSize, modelWidth);
+		//										ArrayList<Region> wins = new ArrayList<Region>();
+		//										int lastEnd = r.getStart()+winSize-1;
+		//										wins.add(new Region(r.getGenome(), r.getChrom(), r.getStart(), lastEnd));
+		//										while(lastEnd<r.getEnd()){
+		//											int newStart = lastEnd+1-modelWidth*2;	//overlap length = modelWidth*2
+		//											lastEnd = Math.min(newStart+winSize-1, r.getEnd());
+		//											wins.add(new Region(r.getGenome(), r.getChrom(), newStart, lastEnd));
+		//										}
+												// process each window, then fix boundary 
+												ArrayList<ArrayList<BindingComponent>> comps_all_wins= new ArrayList<ArrayList<BindingComponent>>();
+												for (Region w : wins){
+													ArrayList<BindingComponent> comp_win = new ArrayList<BindingComponent>();
+													ArrayList<BindingComponent> result = analyzeWindow(w);
+													if (result!=null){
+														comp_win.addAll(result);
+													}
+													comps_all_wins.add(comp_win);
+												}
+												/* ****************************************************************
+												 * fix sliding window boundary effect (version 2)
+												 * take the events in the left half of boundary from left window
+												 * take the events in the right half of boundary from right window
+												 * so that the events we reported have at least 500bp data as margin
+												 * Note: this may result in slight inaccuracy comparing to re-process whole region
+												 * 		 but it is the trade-off against running EM on a huge large region
+												 * 		 and running for whole region might lead to inaccuracy too, because of too many components
+												 */
+												if (wins.size()>1){
+													for (int ii=0;ii<wins.size()-1;ii++){
+														int midCoor = wins.get(ii).getOverlap(wins.get(ii+1)).getMidpoint().getLocation();
+														ArrayList<BindingComponent> leftComps = comps_all_wins.get(ii);
+														toRemove = new ArrayList<BindingComponent>();//reset
+														for (BindingComponent m:leftComps){
+															if (m.getLocation().getLocation()>midCoor)
+																toRemove.add(m);
+														}
+														leftComps.removeAll(toRemove);
+														ArrayList<BindingComponent> rightComps = comps_all_wins.get(ii+1);
+														toRemove = new ArrayList<BindingComponent>();	//reset
+														for (BindingComponent m:rightComps){
+															if (m.getLocation().getLocation()<=midCoor)
+																toRemove.add(m);
+														}
+														rightComps.removeAll(toRemove);
+													}
+												}
+												for (ArrayList<BindingComponent>comps_win:comps_all_wins){
+													comps.addAll(comps_win);
+												}
 											}
+											break;	// break from testing more boundary
 										}
-										break;	// break from testing more boundary
 									}
 								}
 							}
 						}
-					}
+					}// END: fix sliding window boundary effect
 				}
-	//			System.out.println("Refine position\t"+CommonUtils.timeElapsed(tic));
+				else{	
+					// DNase data
+					ArrayList<List<StrandedBase>> signals = loadData_checkEnrichment(rr);
+					comps = analyzeDNaseData(signals, rr);
+
+					System.exit(0);
+				}
+
 				/* ****************************************************************
 				 * refine unary events and collect all the events as features
 				 * this is last step because fixing boundary may result in some new unary events
@@ -1075,6 +1085,141 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return signalFeatures;
 	}// end of execute method
 
+	// DNase data: using a greedy construction method
+	private ArrayList<BindingComponent> analyzeDNaseData(ArrayList<List<StrandedBase>> signals, Region rr){
+		ArrayList<BindingComponent> comps = new ArrayList<BindingComponent>();
+		if (signals==null)
+			return null;
+		// for multi-condition data, pool all reads
+		ArrayList<StrandedBase> allBases = new ArrayList<StrandedBase>();
+		for (int c=0;c<numConditions;c++){
+			allBases.addAll(signals.get(c));
+		}
+		Collections.sort(allBases);
+		ArrayList<StrandedBase> consolidatedBases = new ArrayList<StrandedBase>();
+		StrandedBase current = allBases.get(0);
+		for (int i=1; i<allBases.size(); i++){
+			StrandedBase next = allBases.get(i);
+			if (current.equals(next))
+				current.setCount(current.getCount()+next.getCount());
+			else{
+				consolidatedBases.add(current);
+				current = next;
+			}
+		}
+		consolidatedBases.add(current);
+		System.out.println(StrandedBase.countBaseHits(allBases)+"\t"+StrandedBase.countBaseHits(consolidatedBases));
+		allBases = null;
+		
+		// extend the model to cover all reads
+		int newModelRange = rr.getWidth()-1+modelRange;
+		BindingModel newModel = model.getExpandedModel(newModelRange-Math.abs(model.getMin()),
+				newModelRange-Math.abs(model.getMax()));
+		// find local maxima in likelihood
+		double[] Ls = scoreLikelihoods(newModel, consolidatedBases, rr, 1);
+		double[] dLs = new double[Ls.length]; // first derivative
+		boolean[] localMax = new boolean[Ls.length]; // this position is a localMax
+		for (int i=0;i<Ls.length-1;i++){
+			dLs[i] = Ls[i+1]-Ls[i];
+		}
+		dLs = StatUtil.cubicSpline(dLs, 15, 15);
+		
+		int count = 0;
+		for (int i=1;i<Ls.length;i++){
+			localMax[i] = (dLs[i]<0 && dLs[i-1]>=0) || (dLs[i]<=0 && dLs[i-1]>0) ;
+			if (localMax[i]){
+				System.out.print(i+rr.getStart()+" ");
+				count++;
+			}
+		}
+		System.out.println();
+//		for (int i=0;i<Ls.length-1;i++){
+//			System.out.println(""+Ls[i]+"\t"+dLs[i]+"\t"+localMax[i]);
+//		}
+		// init local maxima with events (strength scaled to responsibility)
+		
+		int[] pos = new int[count];
+		double[] pi = new double[pos.length];
+		count=0;
+		for (int i=0;i<Ls.length;i++){
+			Ls[i]=0;
+			if (localMax[i]){
+				pos[count] = i;
+				pi[count] = countIpReads(new Point(gen, rr.getChrom(), i+rr.getStart()).expand(modelRange));
+				System.out.print(pi[count]+" ");
+				count++;
+			}
+		}
+		System.out.println();
+		
+		int numComp = pi.length;
+		int numBases = consolidatedBases.size();
+		int[][] c2b = new int[numComp][];
+		double[][] h= new double[numComp][];
+		double [] probAtEvent = new double[numBases];
+		for(int j=0;j<numComp;j++){
+			int eventPos = pos[j]+rr.getStart();
+			ArrayList<Integer> nzBases = new ArrayList<Integer>();
+			for(int i=0;i<numBases;i++){
+				StrandedBase base = consolidatedBases.get(i);
+				int dist = base.getStrand()=='+' ? base.getCoordinate()-eventPos: eventPos-base.getCoordinate();
+				probAtEvent[i] = model.probability(dist);
+				if (probAtEvent[i]>1e-10){
+					nzBases.add(i);
+				}
+			}
+			c2b[j] = new int[nzBases.size()];
+			h[j] = new double[nzBases.size()];				
+			for(int i=0;i<nzBases.size();i++){
+				c2b[j][i] = nzBases.get(i);
+				h[j][i] = probAtEvent[nzBases.get(i)];
+			}
+		}
+		float[] counts = new float[numBases];
+		for (int i=0;i<numBases;i++){
+			counts[i] = consolidatedBases.get(i).getCount();
+		}
+
+		// run EM for 10 iterations
+		double[][] r= new double[numComp][];
+		for (int t=0; t<10; t++){	
+			/**** E-step ***/
+			double totalResp[] = new double[numBases];
+			// sum
+			for(int j=0;j<numComp;j++){
+				int[] baseIdx = c2b[j];
+				r[j] = new double[baseIdx.length];
+				for(int i=0;i<baseIdx.length;i++){
+					r[j][i] = h[j][i]*pi[j];
+					totalResp[baseIdx[i]] += r[j][i];
+				}
+			}
+			// normalize
+			for(int j=0; j<pi.length; j++){
+				int[] baseIdx = c2b[j];
+				for(int i=0;i<baseIdx.length;i++)
+					if (totalResp[baseIdx[i]]>0)
+						r[j][i] = r[j][i]/totalResp[baseIdx[i]];
+			}
+			/**** M-step ***/
+			for(int j=0; j<pi.length; j++){
+            	double r_sum=0;
+                for(int c=0; c<numConditions; c++){
+    				int[] baseIdx = c2b[j];
+    				for(int i=0;i<baseIdx.length;i++)
+                		r_sum += r[j][i]*counts[baseIdx[i]];
+                }
+                pi[j]=r_sum;          	
+            }
+		}
+		for (double p:pi){
+			System.out.print(String.format("%.2f ", p));
+		}
+		System.out.println();
+		
+		
+		return comps;
+	}
 	// split a region into smaller windows if the width is larger than windowSize
 	private ArrayList<Region> splitWindows(Region r, int windowSize, int overlapSize){
 		ArrayList<Region> windows=new ArrayList<Region>();
@@ -1137,45 +1282,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	private ArrayList<BindingComponent> analyzeWindow(Region w){
 
-		ArrayList<List<StrandedBase>> signals = loadBasesInWindow(w, "IP");
-		if (signals==null || signals.isEmpty())
-			return null;
-
-		//initialize count arrays
-		totalSigCount=0;
-		for (int c=0; c<numConditions; c++){
-			sigHitCounts[c]=StrandedBase.countBaseHits(signals.get(c));
-			totalSigCount+=sigHitCounts[c];
-		}
-		// if less than significant number of reads
-		if (totalSigCount<sparseness)
-			return null;
-		
-		// if IP/Control enrichment ratios are lower than cutoff for all 500bp sliding windows in all conditions, skip
-		boolean enriched = false;
-		for (int s=w.getStart(); s<w.getEnd();s+=modelWidth/2){
-			int startPos = s;
-			int endPos = s+modelWidth;
-			if (endPos>w.getEnd()){
-				endPos = w.getEnd();
-				startPos = endPos - modelWidth;
-			}
-			Region sw = new Region(gen, w.getChrom(), startPos, endPos);		//sliding window
-			for (int c=0; c<numConditions; c++){
-				float ip = countIpReads(sw, c);
-				float ctrl = countCtrlReads(sw, c);
-				if (ctrl==0)
-					enriched = true;
-				else
-					if (ip/ctrl/ratio_non_specific_total[c] >= fold)
-						enriched = true;
-				if (enriched)
-					break;
-			}
-			if (enriched)
-				break;
-		}
-		if (!enriched)
+		ArrayList<List<StrandedBase>> signals = loadData_checkEnrichment(w);
+		if (signals==null)
 			return null;
 
 		// We want to run EM only for potential overlapping regions
@@ -1293,6 +1401,50 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return components;
 	}//end of analyzeWindow method
 
+	private ArrayList<List<StrandedBase>> loadData_checkEnrichment(Region w){
+		ArrayList<List<StrandedBase>> signals = loadBasesInWindow(w, "IP");
+		if (signals==null || signals.isEmpty())
+			return null;
+
+		//initialize count arrays
+		totalSigCount=0;
+		for (int c=0; c<numConditions; c++){
+			sigHitCounts[c]=StrandedBase.countBaseHits(signals.get(c));
+			totalSigCount+=sigHitCounts[c];
+		}
+		// if less than significant number of reads
+		if (totalSigCount<sparseness)
+			return null;
+		
+		// if IP/Control enrichment ratios are lower than cutoff for all 500bp sliding windows in all conditions, skip
+		boolean enriched = false;
+		for (int s=w.getStart(); s<w.getEnd();s+=modelWidth/2){
+			int startPos = s;
+			int endPos = s+modelWidth;
+			if (endPos>w.getEnd()){
+				endPos = w.getEnd();
+				startPos = endPos - modelWidth;
+			}
+			Region sw = new Region(gen, w.getChrom(), startPos, endPos);		//sliding window
+			for (int c=0; c<numConditions; c++){
+				float ip = countIpReads(sw, c);
+				float ctrl = countCtrlReads(sw, c);
+				if (ctrl==0)
+					enriched = true;
+				else
+					if (ip/ctrl/ratio_non_specific_total[c] >= fold)
+						enriched = true;
+				if (enriched)
+					break;
+			}
+			if (enriched)
+				break;
+		}
+		if (!enriched)
+			return null;
+		
+		return signals;
+	}
 	/**
 	 * EM training
 	 *
@@ -1505,6 +1657,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		int t=0;
 		double currAlpha = alpha/gentle_elimination_factor;
 		boolean minElimination = false;
+		int gentleCounts = 0; 	// count the iterations that we run on gentle mode after last elimination
+								// when reach the threshold, increase currAlpha value
 		// index of non-zero components, used to iterate components
 		ArrayList<Integer> nzComps = new ArrayList<Integer>();	
 		for (int j=0;j<pi.length;j++){
@@ -1612,6 +1766,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	                    		r_sum[jnz] += r[c][nzComps.get(jnz)][i]*counts[c][baseIdx[i]];
 	                    }
                 	}
+                    if (gentleCounts>=gentle_elimination_iterations &&
+                    		currAlpha<alpha )
+                    	currAlpha=Math.min(alpha, currAlpha);
             		
                     // find the worst components
                     Pair<Double, TreeSet<Integer>> worst=null;	// worst components
@@ -1627,7 +1784,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     		pi[nzComps.get(jnz)]=r_sum[jnz]-currAlpha;	// not normailzed yet
                     	// stop Smallest cases elimination, only eliminate min from now on
                     	minElimination = true;
-
+                    	gentleCounts ++;
 //                     	System.out.println(t+":\t"+currAlpha+"\t iterating");
                     }
                     else{
@@ -1645,6 +1802,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     	// give EM a time to stabilize before eliminating the next components
 //                    	System.out.println(t+":\t"+currAlpha+"\t elimination");
                     	currAlpha = Math.max(worst.car(), alpha/gentle_elimination_factor/2);
+                    	gentleCounts = 0;
 //                    	currAlpha = 0;
                     }
             	}
