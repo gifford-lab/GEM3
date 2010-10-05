@@ -231,7 +231,7 @@ public class Client implements ReadOnlyClient {
                 Collections.sort(hits);
                 int chunk = step;
                 for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
-                    int count = startindex + chunk < hits.size() ? chunk : (hits.size() - startindex);
+                    int count = ((startindex + chunk) < hits.size()) ? chunk : (hits.size() - startindex);
                     request.clear();
                     request.type="storesingle";
                     request.alignid=alignid;
@@ -285,7 +285,7 @@ public class Client implements ReadOnlyClient {
             System.err.println("SENDING PAIRED HITS n="+hits.size() + " for chrom " + chromid);
             int chunk = 2000000;
             for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
-                int count = startindex + chunk < hits.size() ? chunk : (hits.size() - startindex);
+                int count = ((startindex + chunk) < hits.size()) ? chunk : (hits.size() - startindex);
 
                 request.clear();
                 request.type="storepaired";
@@ -302,24 +302,24 @@ public class Client implements ReadOnlyClient {
                 }
                 int[] ints = new int[count];
                 for (int i = startindex; i < startindex + count; i++) {
-                    ints[i] = hits.get(i).leftPos;
+                    ints[i-startindex] = hits.get(i).leftPos;
                 }        
                 Bits.sendInts(ints, outstream,buffer);
                 float[] floats = new float[count];
                 for (int i = startindex; i < startindex + count; i++) {
-                    floats[i] = hits.get(i).weight;
-                    ints[i] = Hits.makeLAS(hits.get(i).leftLength, hits.get(i).leftStrand,
-                                           hits.get(i).rightLength, hits.get(i).rightStrand);
+                    floats[i-startindex] = hits.get(i).weight;
+                    ints[i-startindex] = Hits.makeLAS(hits.get(i).leftLength, hits.get(i).leftStrand,
+                                                      hits.get(i).rightLength, hits.get(i).rightStrand);
 
                 }
                 Bits.sendFloats(floats, outstream,buffer);
                 Bits.sendInts(ints, outstream,buffer);
-                for (int i = 0; i < hits.size(); i++) {
-                    ints[i] = hits.get(i).rightChrom;
+                for (int i = startindex; i < startindex + count; i++) {
+                    ints[i-startindex] = hits.get(i).rightChrom;
                 }        
                 Bits.sendInts(ints, outstream,buffer);
-                for (int i = 0; i < hits.size(); i++) {
-                    ints[i] = hits.get(i).rightPos;
+                for (int i = startindex; i < startindex + count; i++) {
+                    ints[i-startindex] = hits.get(i).rightPos;
                 }        
                 Bits.sendInts(ints, outstream,buffer);
                 System.err.println("Sent " + hits.size() + " hits to the server");
