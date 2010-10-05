@@ -388,7 +388,7 @@ public class ServerTask {
             } else {
                 processFileRequest();
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Error in request " + request.toString());
             server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Exception " + e.toString(),e);
         } finally {
