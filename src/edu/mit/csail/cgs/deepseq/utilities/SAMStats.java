@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.util.CloseableIterator;
 
 import org.apache.commons.cli.CommandLine;
@@ -39,6 +40,7 @@ public class SAMStats {
 	public SAMStats(){
 		histo = new RealValuedHistogram(0, 1000, 100);
 		SAMFileReader reader = new SAMFileReader(System.in);
+		reader.setValidationStringency(ValidationStringency.SILENT);
         CloseableIterator<SAMRecord> iter = reader.iterator();
         while (iter.hasNext()) {
             SAMRecord record = iter.next();
@@ -58,7 +60,7 @@ public class SAMStats {
 			if(r.getReadPairedFlag()){
 				if(r.getMateUnmappedFlag())
 					singleEnd++;
-				else if(r.getMateReferenceName().equals("="))
+				else if(r.getMateReferenceName().equals(r.getReferenceName()))
 					pairedEndSameChr++;
 				else
 					pairedEndDiffChr++;
@@ -71,8 +73,10 @@ public class SAMStats {
 					LHits++;
 					if(r.getProperPairFlag()){
 						properPairL++;
-						if(r.getInferredInsertSize()<1000 && r.getInferredInsertSize()>0)
-							histo.addValue(r.getInferredInsertSize());
+						if(!r.getReadNegativeStrandFlag() && r.getMateNegativeStrandFlag()){
+							double dist = (r.getMateAlignmentStart()+r.getReadLength())-r.getAlignmentStart();
+							histo.addValue(dist);
+						}
 					}
 				}else if(r.getSecondOfPairFlag()){
 					RHits++;
@@ -99,7 +103,7 @@ public class SAMStats {
 		System.out.println("Left Mappings\t"+LHits);
 		System.out.println("Right Mappings\t"+RHits);
 		System.out.println("Paired Hit Mappings\t"+pairMapped);
-		System.out.println("Proper pairs (L):\t$"+properPairL);
+		System.out.println("Proper pairs (L):\t"+properPairL);
 		System.out.println("Proper pairs (R):\t"+properPairR);
 		System.out.println("UnMapped:\t"+unMapped);
 		System.out.println("NotPrimary:\t"+notPrimary);
