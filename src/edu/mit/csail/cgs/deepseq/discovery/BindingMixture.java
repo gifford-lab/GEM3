@@ -246,13 +246,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private boolean reportProgress = true;
 
 	/**
-	 * This constructor will get most parameters from property file
-	 * It is usually called from ChipSeqAnalyzer.
+	 * This constructor usually called from ChipSeqAnalyzer.
 	 */
 	public BindingMixture(Genome g, ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
 						  ArrayList<String> conditionNames,
 						  String[] args) {
 		super (args, g, expts);
+		if (development_mode)
+			CommonUtils.writeFile(outName+"_genome.info", g.getGenomeInfo());
+
 		try{
 			logFileWriter = new FileWriter("GPS_Log.txt", true); //append
 			logFileWriter.write("\n==============================================\n");
@@ -1417,32 +1419,33 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			return null;
 		
 		// if IP/Control enrichment ratios are lower than cutoff for all 500bp sliding windows in all conditions, skip
-		boolean enriched = false;
-		for (int s=w.getStart(); s<w.getEnd();s+=modelWidth/2){
-			int startPos = s;
-			int endPos = s+modelWidth;
-			if (endPos>w.getEnd()){
-				endPos = w.getEnd();
-				startPos = endPos - modelWidth;
-			}
-			Region sw = new Region(gen, w.getChrom(), startPos, endPos);		//sliding window
-			for (int c=0; c<numConditions; c++){
-				float ip = countIpReads(sw, c);
-				float ctrl = countCtrlReads(sw, c);
-				if (ctrl==0)
-					enriched = true;
-				else
-					if (ip/ctrl/ratio_non_specific_total[c] >= fold)
+		if (controlDataExist){
+			boolean enriched = false;
+			for (int s=w.getStart(); s<w.getEnd();s+=modelWidth/2){
+				int startPos = s;
+				int endPos = s+modelWidth;
+				if (endPos>w.getEnd()){
+					endPos = w.getEnd();
+					startPos = endPos - modelWidth;
+				}
+				Region sw = new Region(gen, w.getChrom(), startPos, endPos);		//sliding window
+				for (int c=0; c<numConditions; c++){
+					float ip = countIpReads(sw, c);
+					float ctrl = countCtrlReads(sw, c);
+					if (ctrl==0)
 						enriched = true;
+					else
+						if (ip/ctrl/ratio_non_specific_total[c] >= fold)
+							enriched = true;
+					if (enriched)
+						break;
+				}
 				if (enriched)
 					break;
 			}
-			if (enriched)
-				break;
+			if (!enriched)
+				return null;
 		}
-		if (!enriched)
-			return null;
-		
 		return signals;
 	}
 	/**
