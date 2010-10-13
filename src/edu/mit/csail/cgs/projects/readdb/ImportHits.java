@@ -64,13 +64,19 @@ public class ImportHits {
     }    
     public void parseArgs(String args[]) throws IllegalArgumentException, ParseException {
         Options options = new Options();
-        options.addOption("h","hostname",true,"server to connect to");
+        options.addOption("H","hostname",true,"server to connect to");
         options.addOption("P","port",true,"port to connect to");
         options.addOption("a","align",true,"alignment name");
         options.addOption("u","user",true,"username");
         options.addOption("p","passwd",true,"password");
+        options.addOption("h","help",false,"print help message");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
+        if (line.hasOption("help")) {
+            printHelp();
+            System.exit(0);
+        }
+
         if (line.hasOption("port")) {
             portnum = Integer.parseInt(line.getOptionValue("port"));
         }
@@ -89,8 +95,19 @@ public class ImportHits {
         if (line.hasOption("passwd")) {
             password = line.getOptionValue("passwd");
         }
-
-
+    }
+    public void printHelp() {
+        System.out.println("ImportHits to ReadDB");
+        System.out.println("usage: cat foo.sam | java edu.mit.csail.cgs.projects.readdb.SAMToReadDB | java edu.mit.csail.cgs.projects.readdb.ImportHits \\");
+        System.out.println(" --align alignmentname");
+        System.out.println(" [--help] print usage");
+        System.out.println("");
+        System.out.println("Input format is tab delimited with either five or nine fields per line.");
+        System.out.println("For single-ended reads, fields are ");
+        System.out.println("  (1) chromosome (2) position of 5' end of read (3) strand (4) length (5) weight");
+        System.out.println("For paired-end reads, fields are ");
+        System.out.println("  (1) L chromosome (2) position of 5' end of L read (3) L strand (4) L length ");
+        System.out.println("  (5) R chromosome (6) position of 5' end of R read (7) R strand (8) R length (9) weight");
     }
 
     public void run(InputStream instream) throws IOException, ClientException {
