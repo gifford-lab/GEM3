@@ -1,0 +1,141 @@
+ReadDB is client-server software for storing and accessing mapped short
+reads.
+
+Server Setup
+============
+
+You need to create a directory for ReadDB that contains the following files
+
+users.txt
+---------
+
+one line per user, in the format
+username:password
+
+The users.txt file is re-read each time a user attempts to authenticate,
+so you can modify it while the server is running.
+
+groups.txt
+----------
+
+one line per group, in the format
+groupname: userone usertwo userthree
+
+Groups let you assign permissions to multiple users at once.  The
+special group "admin" is for users who can shut down the server, add
+users, and add users to groups.
+
+defaultACL.txt
+--------------
+
+This is the default, initial ACL for new alignments.  It looks like
+
+read: groupone usertwo grouptwo
+write: grouptwo usertwo
+admin: usertwo
+
+
+admin is the set of users and groups who can change the ACL.
+
+
+
+Starting the Server
+===================
+
+Once users.txt, groups.txt, and defaultACL.txt are in place (eg, in
+"datadir"), you can start the server with
+
+ java -Xmx3G -cp readdb.jar edu.mit.csail.cgs.projects.readdb.Server -M \
+ 400 -d datadir -p 52000 -C 400
+
+-p is the port number to listen on
+-M is the number of connections to allow
+-C is the number of files to cache
+-t is the number of threads to spawn
+
+The server will log on STDERR.
+
+I haven't done extensive testing to correlate the java heap size and the
+number of cached files.  3GB seems adequate for our usage and 400
+files.  Don't be too alarmed if you see high memory usage with top or
+other tools- ReadDB uses mmap to access data files.  The full file size
+will be included in the process's virtual size even if the data isn't in
+RAM.  
+
+Client Setup
+============
+
+The client software will look for a ~/.readdb_passwd file that looks
+like
+
+username=userone
+passwd=mypassword
+hostname=readdb.csail.mit.edu
+port=52000
+
+
+Loading Data
+============
+
+You can load data by passing it on STDIN to 
+
+java -cp readdb.jar edu.mit.csail.cgs.projects.readdb.ImportHits --align \
+alignmentname
+
+Lines for unpaired reads must be tab delimited with the following
+fields:
+1) chromosome (integer)
+2) position
+3) strand
+4) length
+5) weight
+
+Lines for paired reads must be tab delimited with the following fields
+1) chromosome for left read
+2) pos for left read
+3) strand for left read
+4) length for left read
+5) chromosome for right read
+6) pos for right read
+7) strand for right read
+8) length for right read
+9) weight (applies to the whole pair)
+
+
+edu.mit.csail.cgs.projects.readdb.SAMToReadDB will convert from SAM/BAM
+format to ReadDB, except that it does not convert string chromosome
+identifiers to the numeric identifiers needed by ReadDB.  Feel free to
+modify it to suit your local convention for non-numeric chromosomes.
+
+Command Line Queries
+====================
+
+edu.mit.csail.cgs.projects.readdb.Query is the basic query class.  It
+reads regions (eg, "4:1000000-2000000" or "15:0-10000:+") on STDIN and
+produces output on STDOUT with either aligned read information or a
+histogram.
+
+--align specifies the alignment to query
+--histogram 40 says to produce a histogram with 40bp bins
+--weights says to include alignment weights in the output
+--paired says to query paired reads rather than single-ended reads
+--noheader says not to print the queried region on STDOUT
+
+edu.mit.csail.cgs.projects.readdb.ReadDB provides additional query
+functionality as
+
+edu.mit.csail.cgs.projects.readdb.ReadDB takes a command and additional
+args.  Commands are
+  exists alignmentname
+  getchroms alignmentname
+  getacl alignmentname
+  setacl alignmentname user add write  
+  setacl alignmentname user delete read
+  getcount alignmentname
+    (gets the number of hits in the alignment)
+  getcount alignmentname chromosome
+  addtogroup username groupname
+
+
+
+

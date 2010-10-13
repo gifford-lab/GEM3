@@ -24,7 +24,7 @@ public class Query {
     private String hostname;
     private String username, password;
     private int portnum, histogram = -1;
-    private boolean quiet, weights, paired, isleft, noheader;
+    private boolean quiet, weights, paired, isleft, noheader, bed, wiggle;
     
 
     public static void main(String args[]) throws Exception {
@@ -46,6 +46,8 @@ public class Query {
         options.addOption("d","paired",false,"work on paired alignment?");
         options.addOption("r","right",false,"query right side reads when querying paired alignments");
         options.addOption("N","noheader",false,"skip printing the query header");
+        options.addOption("W","wiggle",true,"output in wiggle format with the specified bin format");
+        options.addOption("B","bed",false,"output in BED format");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
         if (line.hasOption("port")) {
@@ -81,6 +83,18 @@ public class Query {
         paired = line.hasOption("paired");
         isleft = !line.hasOption("right");
         noheader = line.hasOption("noheader");
+        bed = line.hasOption("bed");
+        if (bed) {
+            histogram = 0;
+            noheader = true;
+            if (paired) {
+                System.err.println("Can't do BED formatted output in paired-end mode");
+            }
+        }
+        if (line.hasOption("wiggle")) {
+            wiggle = true;
+            histogram = Integer.parseInt(line.getOptionValue("wiggle"));
+        }
     }
 
     public void run(InputStream instream) throws IOException, ClientException {
@@ -96,7 +110,7 @@ public class Query {
             client = new Client();
         }
 
-        while ((line = reader.readLine()) != null) {
+        while ((line = reader.readLine()) != null) {            
             try {
                 String pieces[] = line.split("[\\:]");
                 int chr = Integer.parseInt(pieces[0].replaceFirst("^chr",""));
@@ -104,6 +118,10 @@ public class Query {
                 pieces = pieces[1].split("\\-");
                 int start = Integer.parseInt(pieces[0]);
                 int stop = Integer.parseInt(pieces[1]);
+                if (wiggle) {
+                    System.out.println(String.format("variableStep chrom=chr%d span=%d",chr, histogram));
+                }
+
                 if (histogram > 0) {
                     TreeMap<Integer,Integer> hits = client.getHistogram(alignname,
                                                                         chr,
@@ -129,7 +147,11 @@ public class Query {
                     if (!quiet) {
                         for (int i : hits.keySet()) {
                             if (weights) {
-                                System.out.println(String.format("%d\t%d\t%f", i, hits.get(i), weightsmap.get(i)));  
+                                if (wiggle) {
+                                    System.out.println(String.format("%d\t%f", i,weightsmap.get(i)));  
+                                } else {
+                                    System.out.println(String.format("%d\t%d\t%f", i, hits.get(i), weightsmap.get(i)));  
+                                }
                             } else {
                                 System.out.println(String.format("%d\t%d", i, hits.get(i)));
                             }
@@ -148,7 +170,7 @@ public class Query {
                             if (!noheader) {
                                 System.out.println(line);
                             }
-                            for (PairedHit h : hits) {
+                            for (PairedHit h : hits) {                                
                                 System.out.println(h.toString());
                             }
                         }
@@ -164,7 +186,18 @@ public class Query {
                                 System.out.println(line);
                             }
                             for (SingleHit h : hits) {
-                                System.out.println(h.toString());
+                                if (bed) {
+                                    System.out.println(String.format("chr%d\t%d\t%d\thit\t%f\t%s\n",
+                                                                     h.chrom, 
+                                                                     h.strand ? h.pos : h.pos - h.length,
+                                                                     h.strand ? h.pos + h.length : h.pos,
+                                                                     h.weight,
+                                                                     h.strand ? "+" : "-"));
+                                                                     
+                                                                     
+                                } else {
+                                    System.out.println(h.toString());
+                                }
                             }
                         }
                     }
