@@ -182,8 +182,10 @@
   <target name="makereaddbjar" depends="compilereaddb, unjarcli">
     <delete dir="${build.unjar.dir}/META-INF"/>
     <jar destfile="${build.dist.dir}/cgs-readdb.jar" manifest="manifests/warpdrive_manifest.txt">	    
+      <fileset dir="${src.dir}" includes="**readdb/HOWTO"/>
+      <fileset dir="${src.dir}" includes="**readdb/*.java"/>
       <fileset dir="${build.classes.dir}" includes="**/readdb/*.class"/>
-      <fileset dir="${build.unjar.dir}"/>	    
+      <fileset dir="${build.unjar.dir}" includes="**org/apache/commons/cli/*.class"/>	    
     </jar>  
     <chmod file="${build.dist.dir}/cgs-readdb.jar" perm="755"/>
   </target>
