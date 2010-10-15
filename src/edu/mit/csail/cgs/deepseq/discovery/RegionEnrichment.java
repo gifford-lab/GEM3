@@ -16,10 +16,12 @@ import edu.mit.csail.cgs.deepseq.features.EnrichedNamedRegion;
 import edu.mit.csail.cgs.deepseq.features.Feature;
 import edu.mit.csail.cgs.deepseq.utilities.AnnotationLoader;
 import edu.mit.csail.cgs.ewok.verbs.ChromRegionIterator;
+import edu.mit.csail.cgs.tools.utils.Args;
 
 public class RegionEnrichment extends SingleConditionFeatureFinder {
 	public ArrayList<EnrichedNamedRegion> geneMeasurements;
 	public int regionExtension = 1000;
+	public boolean scanPromotersOnly=false;
 	
 	//Constructors
 	public RegionEnrichment(DeepSeqExpt signal){this(signal,null);}	
@@ -32,12 +34,14 @@ public class RegionEnrichment extends SingleConditionFeatureFinder {
 		super(args);
 		if(!noControl)
 			control.setScalingFactor(signal.getWeightTotal()/control.getWeightTotal());
+		scanOnlyPromoters(Args.parseFlags(args).contains("scanpromotersonly"));
+		setRegionExt(Args.parseInteger(args, "regionext", 1000));
 	}
 	
 	public List<Feature> execute() {
 		//Initialize the iterator for the test regions/genes
 		Iterator<NamedRegion> testRegions=null;
-		if(!scanGenesOnly){
+		if(!scanGenesOnly && !scanPromotersOnly){
 			//testRegions = new ChromosomeGenerator().execute(gen);
 			//CHANGE TO LOAD REGIONS FROM FILE (remember to name the regions)
 		}else{
@@ -47,8 +51,14 @@ public class RegionEnrichment extends SingleConditionFeatureFinder {
 				while(chroms.hasNext()){
 					NamedRegion c = chroms.next();
 					for(Gene r : loader.getGenes(c)){
-						int start = r.getStart()-regionExtension < 1 ? 1 : r.getStart()-regionExtension;
-						int end = r.getEnd()+regionExtension > c.getEnd() ? c.getEnd() : r.getEnd()+regionExtension; 
+						int start=-1, end=-1;
+						if(scanGenesOnly){
+							start = r.getStart()-regionExtension < 1 ? 1 : r.getStart()-regionExtension;
+							end = r.getEnd()+regionExtension > c.getEnd() ? c.getEnd() : r.getEnd()+regionExtension;
+						}else if(scanPromotersOnly){
+							start = r.getTSS()-regionExtension < 1 ? 1 : r.getTSS()-regionExtension;
+							end = r.getTSS()+regionExtension > c.getEnd() ? c.getEnd() : r.getTSS()+regionExtension;
+						}
 						geneList.add(new NamedRegion(r.getGenome(), r.getChrom(), start, end, r.getName()));
                     }
 				}
@@ -124,11 +134,14 @@ public class RegionEnrichment extends SingleConditionFeatureFinder {
 	
 	public static void main(String[] args){
 		RegionEnrichment re = new RegionEnrichment(args);
-		re.scanOnlyGenes(true);
 		List<Feature> res = re.execute();
 		re.printFeatures();
 	}
 	
+	//Accessors
+	public void scanOnlyPromoters(boolean s){scanPromotersOnly=s;}
+	public void setRegionExt(int e){regionExtension=e;}
+
 	public void printError() {
 		System.err.println("RegionEnrichment: analyze ChIP-seq read counts over entire genes or regions.\n");
 		System.err.println("Usage:\n " +
@@ -146,6 +159,11 @@ public class RegionEnrichment extends SingleConditionFeatureFinder {
                 "Required:\n"+
                 "  --species <organism name;genome version>\n  OR\n"+
                 "  --geninfo <file with chr name/length pairs> \n" +
+                "Options:\n" +
+                "  --scanpromotersonly [scan RefGene promoters]\n" +
+                "  --scangenesonly [scan RefGene gene regions]\n" +
+                "  --scanregions <file of coordinates> NOT YET IMPLEMENTED!\n" +
+                "  --regionext <bp to extend BOTH sides>" +
                 "");
 	}
 	
