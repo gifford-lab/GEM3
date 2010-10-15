@@ -104,6 +104,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean sort_by_location=false;
     private boolean subtract_for_segmentation=false;
     private boolean exclude_unenriched = false;
+    private int KL_smooth_width = 10;
     private int max_hit_per_bp = -1;
     /** percentage of candidate (enriched) peaks to take into account
      *  during the evaluation of non-specific signal */
@@ -306,7 +307,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	isDNase = flags.contains("DNase");
     	testPValues = flags.contains("testP");
     	exclude_unenriched = flags.contains("ex_unenriched");
-    	
+   	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
     	use_betaEM = ! flags.contains("poolEM");
@@ -332,7 +333,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
     	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
-    	shapeDeviation =  use_KL_filtering? (TF_binding?0.5:-0.3) : 0.9;		// set default according to filter type    		
+    	shapeDeviation =  use_KL_filtering? (TF_binding?0.5:0.5) : 0.9;		// set default according to filter type    		
     	shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
      	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
@@ -345,6 +346,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
     	bmverbose = Args.parseInteger(args, "bmverbose", bmverbose);
     	smooth_step = Args.parseInteger(args, "smooth", smooth_step);
+    	KL_smooth_width = Args.parseInteger(args, "kl_s_w", KL_smooth_width);
     	
     	// These are options for EM performance tuning
     	// should NOT expose to user
@@ -3246,9 +3248,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				logKL_plus[c]  = logKL_profile(profile_plus, width);
 				logKL_minus[c] = logKL_profile(profile_minus, width);
 			}
-			if (use_KL_filtering)
-				shapeDeviation[c]  = calc2StrandSmoothKL(profile_plus,profile_minus);
-//			shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
+			if (use_KL_filtering){
+				if (KL_smooth_width!=0)
+					shapeDeviation[c]  = calc2StrandSmoothKL(profile_plus,profile_minus);
+				else
+					shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
+			}
 			else
 				shapeDeviation[c]  = (calcAbsDiff(profile_plus)+calcAbsDiff(profile_minus))/2;
 //			System.err.println(String.format("%.2f\t%.2f\t%.2f\t%s", 
@@ -3347,8 +3352,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		double asym_p = profile_p.length>2?0:0.2;	// penalty of having too few reads on one strand
 		double asym_m = profile_m.length>2?0:0.2;
 		
-		profile_p = StatUtil.gaussianSmoother(profile_p, 5);
-		profile_m = StatUtil.gaussianSmoother(profile_m, 5);
+		profile_p = StatUtil.gaussianSmoother(profile_p, KL_smooth_width);
+		profile_m = StatUtil.gaussianSmoother(profile_m, KL_smooth_width);
 		
 		double[] profile = new double[profile_p.length+profile_m.length];
 		System.arraycopy(profile_p, 0, profile, 0, profile_p.length); 
