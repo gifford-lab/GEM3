@@ -10,6 +10,7 @@ import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
+import net.sf.samtools.SAMFileReader.ValidationStringency;
 import net.sf.samtools.util.CloseableIterator;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
@@ -25,6 +26,7 @@ public class SAMReader extends AlignmentFileReader{
 	protected void estimateGenome() {
 		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
 		SAMFileReader reader = new SAMFileReader(inFile);
+		reader.setValidationStringency(ValidationStringency.SILENT);
 		SAMSequenceDictionary dictionary = reader.getFileHeader().getSequenceDictionary();
 		if(dictionary !=null){
 			for(SAMSequenceRecord record : dictionary.getSequences()){

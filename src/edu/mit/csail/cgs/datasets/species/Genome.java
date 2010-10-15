@@ -402,6 +402,12 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
         for(String n : chroms.keySet()) { chromLengths.put(n, chroms.get(n).getLength()); }
         return chromLengths;
     }
+    /** Returns the genome info string with chromosome name <tab> length format*/
+    public String getGenomeInfo(){
+    	StringBuilder sb = new StringBuilder();
+    	for(String n : chroms.keySet()) { sb.append(n).append("\t").append(chroms.get(n).getLength()).append("\n"); }
+        return sb.toString();
+    }
     /** Converts a goofy chromosome name (eg, chrIV) to a more sensible name (eg 4) */
     public String fixChromName(String chrom) {return fixChrom(chrom);}
     /** Maps a sensible chromosome name back to the roman numeral form */
