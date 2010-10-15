@@ -138,7 +138,7 @@ public class EnrichedNamedRegion extends Feature implements Comparable<EnrichedN
   
 		String gene = nearestGene == null ? "NONE" : nearestGene.getName();
 		
-	    return new String(name+"\t"+coords.getLocationString()+"\t"+coords.getWidth()+"\t"+String.format("%.5e", score)+"\t"+String.format("%.1f", signalTotalHits)+"\t"+String.format("%.1f", backTotalHits)+"\t"+String.format("%.5f", overrep)+"\t"+String.format("%.1f", signalFPKM)+"\t"+String.format("%.1f", backFPKM)+"\n");
+	    return new String(name+"\t"+coords.getLocationString()+"\t"+coords.getWidth()+"\t"+String.format("%.5e", score)+"\t"+String.format("%.1f", signalTotalHits)+"\t"+String.format("%.1f", backTotalHits)+"\t"+String.format("%.5f", overrep)+"\t"+String.format("%.3f", signalFPKM)+"\t"+String.format("%.3f", backFPKM)+"\n");
 		
 	}
 	//GFF3 (fill in later)
