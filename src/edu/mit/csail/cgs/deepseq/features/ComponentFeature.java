@@ -100,7 +100,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		this.logKL_minus = logKL_minus;
 	}
 
-	public void setCtrlProfileLogKL(int cond, double logKL_plus, double logKL_minus){
+	public void setIpCtrlLogKL(int cond, double logKL_plus, double logKL_minus){
 		logKL_ctrl_plus[cond] = logKL_plus;
 		logKL_ctrl_minus[cond] = logKL_minus;
 	}
@@ -268,13 +268,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
-        		double fold = 0;
-        		if (getScaledControlCounts(c)==0)
-        			fold = 9999.9;
-        		else
-        			fold = getEventReadCounts(c)/getScaledControlCounts(c);
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
-        			  .append(String.format("%7.1f\t", fold));
+        			  .append(String.format("%7.1f\t", getAverageCtrlLogKL()));
         	}
 //        	else
 //        		result.append("NaN\t").append("NaN\t");
@@ -307,7 +302,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		return result.toString();
 	}
 
-
 	//GFF3 (fill in later)
 	public String toGFF(){
 		return("");
@@ -327,7 +321,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IP\t");
         	}
         	header.append(name+"Control\t")
-        		  .append(name+"IP/Ctrl\t")
+        		  .append(name+"IP_C_KL\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
       		  	  .append(name+"Shape\t");
@@ -359,7 +353,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IP\t");
         	}
         	header.append(name+"Control\t")
-  		  		  .append(name+"IP/Ctrl\t")
+  		  		  .append(name+"IP_C_KL\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
   	      		  .append("  Shape");
@@ -384,13 +378,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
-        		double fold = 0;
-        		if (getScaledControlCounts(c)==0)
-        			fold = 9999.9;
-        		else
-        			fold = getEventReadCounts(c)/getScaledControlCounts(c);
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
-        			  .append(String.format("%7.1f\t", fold));
+        			  .append(String.format("%7.1f\t", getAverageCtrlLogKL()));
         	}
 //        	else
 //        		result.append("NaN\t").append("NaN\t");
