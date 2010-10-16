@@ -104,7 +104,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean sort_by_location=false;
     private boolean subtract_for_segmentation=false;
     private boolean exclude_unenriched = false;
-    private int KL_smooth_width = 10;
+    private int KL_smooth_width = 0;
     private int max_hit_per_bp = -1;
     /** percentage of candidate (enriched) peaks to take into account
      *  during the evaluation of non-specific signal */
@@ -122,7 +122,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double shapeDeviation = 0;
     private int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
     private int resolution_extend = 2;
-    private boolean use_KL_filtering = true;	// use KL to filter events
     private int first_lambda_region_width  =  1000;
     private int second_lambda_region_width =  5000;
     private int third_lambda_region_width  = 10000;
@@ -138,7 +137,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private int ML_ITER=10;
 	// the range to scan a peak if we know position from EM result
 	private int SCAN_RANGE = 20;
-	private int gentle_elimination_iterations = 10;
+	private int gentle_elimination_iterations = 5;
 	//Binding model representing the empirical distribution of a binding event
 	private BindingModel model;
 	private int modelRange;			// max length of one side
@@ -317,7 +316,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     		use_joint_event = true;
     		sort_by_location = true;
     	}
-    	use_KL_filtering = !flags.contains("1norm");  	// use 1-norm distance filtering
     	reportProgress =! flags.contains("no_report_progress");
     	use_scanPeak = ! flags.contains("no_scanPeak");
     	do_model_selection = !flags.contains("no_model_selection");
@@ -333,7 +331,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
     	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
-    	shapeDeviation =  use_KL_filtering? (TF_binding?0.5:0.5) : 0.9;		// set default according to filter type    		
+    	shapeDeviation =  TF_binding?-0.45:-0.3;		// set default according to filter type    		
     	shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
     	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
      	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
@@ -1779,7 +1777,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                 	}
                     if (gentleCounts>=gentle_elimination_iterations &&
                     		currAlpha<alpha )
-                    	currAlpha=Math.min(alpha, currAlpha);
+                    	currAlpha=Math.min(alpha, currAlpha*2);
             		
                     // find the worst components
                     Pair<Double, TreeSet<Integer>> worst=null;	// worst components
@@ -1787,8 +1785,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     	worst = findSmallestCases(r_sum, currAlpha);
                     else
                     	worst = StatUtil.findMin(r_sum);
-//                    System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+"\t"+currAlpha+"\t"+
-//                    		String.format("%.2f", worst.car())+"\t"+worst.cdr().size()+"\n");
+                    System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+
+                    		String.format("\t%.2f\t%.2f\t", currAlpha, worst.car())+worst.cdr().size()+"\n");
                     if (worst.car() > currAlpha){
                     	// no component to be eliminated, update pi(j)
                     	for(int jnz=0;jnz<r_sum.length;jnz++)
@@ -2485,7 +2483,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							break;
 						}
 						else{
-							if (cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond)>=fold){
+							if (cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond)>=fold
+									&& cf.getAverageCtrlLogKL()>0){
 								notFiltered = true;
 								break;
 							}
@@ -3173,44 +3172,35 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					int pos = comp.getPosition().getLocation();
 					// set control reads count and logKL
 					double total=0;
-//					double[] profile_plus = new double[modelWidth];
-//					double[] profile_minus = new double[modelWidth];
+					double[] profile_plus = new double[modelWidth];
+					double[] profile_minus = new double[modelWidth];
 					for(int i=0;i<bases.size();i++){
 						StrandedBase base = bases.get(i);
 						if (assignment[i][j]>0){
-//							if (base.getStrand()=='+'){
-//								if (base.getCoordinate()-pos-model.getMin()>modelWidth)
-//									System.err.println(pos+"\t+\t"+base.getCoordinate());
-//								profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
-//							}
-//							else{
-//								if (pos-base.getCoordinate()-model.getMin()>modelWidth)
-//									System.err.println(pos+"\t-\t"+base.getCoordinate());
-//								profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
-//							}
+							if (base.getStrand()=='+'){
+								if (base.getCoordinate()-pos-model.getMin()>modelWidth)
+									System.err.println(pos+"\t+\t"+base.getCoordinate());
+								profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
+							}
+							else{
+								if (pos-base.getCoordinate()-model.getMin()>modelWidth)
+									System.err.println(pos+"\t-\t"+base.getCoordinate());
+								profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
+							}
 							total += assignment[i][j]*base.getCount();
 						}
 					}
 					comp.setControlReadCounts(total, c);
-					
-//					double logKL_plus;
-//					double logKL_minus; 
-//					if (kl_count_adjusted){
-//						logKL_plus  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
-//						logKL_minus = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
-//					}
-//					else{
-//						double width;
-//						if (total>6){
-//							width = 50/Math.log(total);	// just some empirical formula, no special theory here
-//						}
-//						else{
-//							width=28;
-//						}
-//						logKL_plus  = logKL_profile(profile_plus, width);
-//						logKL_minus = logKL_profile(profile_minus, width);
-//					}
-//					comp.setCtrlProfileLogKL(c, logKL_plus, logKL_minus);
+					BindingComponent bb = null;
+					for (BindingComponent b:comps){
+						if (b.getLocation().getLocation()==pos)
+							bb = b;
+					}
+					double logKL_plus;
+					double logKL_minus; 
+					logKL_plus  = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_plus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
+					logKL_minus = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_minus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
+					comp.setIpCtrlLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
 		}
@@ -3248,14 +3238,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				logKL_plus[c]  = logKL_profile(profile_plus, width);
 				logKL_minus[c] = logKL_profile(profile_minus, width);
 			}
-			if (use_KL_filtering){
-				if (KL_smooth_width!=0)
-					shapeDeviation[c]  = calc2StrandSmoothKL(profile_plus,profile_minus);
-				else
-					shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
-			}
+
+			if (KL_smooth_width!=0)
+				shapeDeviation[c]  = calc2StrandSmoothKL(profile_plus,profile_minus);
 			else
-				shapeDeviation[c]  = (calcAbsDiff(profile_plus)+calcAbsDiff(profile_minus))/2;
+				shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
+
 //			System.err.println(String.format("%.2f\t%.2f\t%.2f\t%s", 
 //					shapeDeviation[c],
 //					calcAbsDiff(profile_plus), 
@@ -3279,7 +3267,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}
 	/*
 	 * Calculate logKL for read profile around an event
-	 * Dynamically determin Gaussian Width based on the event read counts
+	 * Gaussian Width is given
 	 */
 	private double logKL_profile(double[]profile, double width){
 		double[] gaus = new double[modelWidth];
