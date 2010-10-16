@@ -1785,8 +1785,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     	worst = findSmallestCases(r_sum, currAlpha);
                     else
                     	worst = StatUtil.findMin(r_sum);
-                    System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+
-                    		String.format("\t%.2f\t%.2f\t", currAlpha, worst.car())+worst.cdr().size()+"\n");
+//                    System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+
+//                    		String.format("\t%.2f\t%.2f\t", currAlpha, worst.car())+worst.cdr().size()+"\n");
                     if (worst.car() > currAlpha){
                     	// no component to be eliminated, update pi(j)
                     	for(int jnz=0;jnz<r_sum.length;jnz++)
