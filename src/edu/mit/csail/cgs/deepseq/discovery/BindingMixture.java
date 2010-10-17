@@ -81,6 +81,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	protected final double cpenalty = 1;
 	protected final double lambda = 0;
 
+	private boolean debug = false;
 	// Max number of reads to load from DB
 	private final static int MAXREAD = 1000000;
     // true:  eliminated component in batch, as long as matching criteria in EM derivation
@@ -112,6 +113,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double q_value_threshold = 2.0;
     private double joint_event_distance = 500;
     private double alpha_factor = 3.0;
+    private double kl_ic = 0;
     private int top_events = 2000;
     private int smooth_step = 30;
     private int window_size_factor = 3;	//number of model width per window
@@ -306,6 +308,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	isDNase = flags.contains("DNase");
     	testPValues = flags.contains("testP");
     	exclude_unenriched = flags.contains("ex_unenriched");
+    	debug = flags.contains("debug");
    	
     	// default as true, need the opposite flag to turn it off
       	use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -345,6 +348,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	bmverbose = Args.parseInteger(args, "bmverbose", bmverbose);
     	smooth_step = Args.parseInteger(args, "smooth", smooth_step);
     	KL_smooth_width = Args.parseInteger(args, "kl_s_w", KL_smooth_width);
+    	kl_ic = Args.parseDouble(args, "kl_ic", kl_ic);
     	
     	// These are options for EM performance tuning
     	// should NOT expose to user
@@ -1785,8 +1789,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     	worst = findSmallestCases(r_sum, currAlpha);
                     else
                     	worst = StatUtil.findMin(r_sum);
-//                    System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+
-//                    		String.format("\t%.2f\t%.2f\t", currAlpha, worst.car())+worst.cdr().size()+"\n");
+                    if (debug)
+	                    System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+
+	                    		String.format("\t%.2f\t%.2f\t", currAlpha, worst.car())+worst.cdr().size()+"\n");
                     if (worst.car() > currAlpha){
                     	// no component to be eliminated, update pi(j)
                     	for(int jnz=0;jnz<r_sum.length;jnz++)
@@ -2431,14 +2436,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				return o1.compareByTotalResponsibility(o2);
 			}
 		});
+		// get median event strength
+		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalSumResponsibility();
+		System.out.println("Median event strength = "+medianStrength);
+		
 		// Determine how many of the enriched regions will be included during the regression evaluation
 		int numIncludedCandRegs = (int)Math.round(pcr*compFeatures.size());	
-		ArrayList<Region> enrichedRegions = new ArrayList<Region>();
+		ArrayList<Region> exRegions = new ArrayList<Region>();
 		for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
-			enrichedRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
+			exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
 		}
+		exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
 		
-		calcIpCtrlRatio(enrichedRegions);
+		calcIpCtrlRatio(exRegions);
 		if(controlDataExist) {
 			for(int c = 0; c < numConditions; c++)
 				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
@@ -2473,7 +2483,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 
 			boolean notFiltered = false;
-			if (filterEvents){
+			// only filter high read count events (more likely to be artifacts) 
+			if (filterEvents && cf.getTotalSumResponsibility()>medianStrength){
 				for (int cond=0; cond<numConditions; cond++){
 					// if one condition is good event, this position is GOOD
 					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
@@ -2529,14 +2540,16 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	}//end of post EM Processing
 
 
-
-	private void calcIpCtrlRatio(ArrayList<Region> enrichedRegions) {
+	/* 
+	 * Calc the ratio of IP vs Control channel, exlcluding the specific regions
+	 */
+	private void calcIpCtrlRatio(ArrayList<Region> specificRegions) {
 		// linear regression to get the IP/control ratio
 		// now we do not require whole genome data, because partial data could be run on 1 chrom, still enough data to esitmates
 		if(controlDataExist) {
 			ratio_non_specific_total = new double[numConditions];
 			for(int t = 0; t < numConditions; t++){
-				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", enrichedRegions);
+				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", specificRegions);
 			}
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
 		}
@@ -3196,10 +3209,12 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						if (b.getLocation().getLocation()==pos)
 							bb = b;
 					}
-					double logKL_plus;
-					double logKL_minus; 
-					logKL_plus  = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_plus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
-					logKL_minus = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_minus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
+					double logKL_plus=99;		// default to a large value if no control data
+					double logKL_minus=99; 
+					if (total!=0){
+						logKL_plus  = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_plus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
+						logKL_minus = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_minus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
+					}
 					comp.setIpCtrlLogKL(c, logKL_plus, logKL_minus);
 				}
 			}
@@ -3612,10 +3627,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @param condX_idx index of condition (channel) where it will be used a dependent variable 
 	 * @param condY_idx index of condition (channel) where it will be used an independent variable
 	 * @param flag <tt>IP</tt> for pairs of IP conditions, <tt>CTRL</tt> for pairs of control conditions, <tt>IP/CTRL</tt> for ip/control pairs 
-	 * @param enrichedRegions regions to exclude for data for regression
+	 * @param specificRegions regions to exclude for data for regression
 	 * @return slope, as the ratio of ( 1st dataset / 2nd dataset )
 	 */
-	private double getSlope(int condX_idx, int condY_idx, String flag, ArrayList<Region> enrichedRegions) {
+	private double getSlope(int condX_idx, int condY_idx, String flag, ArrayList<Region> specificRegions) {
 		if(condX_idx < 0 || condX_idx >= numConditions)
 			throw new IllegalArgumentException(String.format("cond1_idx, cond2_idx have to be numbers between 0 and %d.", numConditions-1));
 		if(condY_idx < 0 || condY_idx >= numConditions)
@@ -3630,7 +3645,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		int non_specific_reg_len = 10000;	
 		Map<String, ArrayList<Region>> chrom_regions_map = new HashMap<String, ArrayList<Region>>();
 		// group regions by chrom
-		for(Region r:enrichedRegions) {
+		for(Region r:specificRegions) {
 			String chrom = r.getChrom();
 			if(!chrom_regions_map.containsKey(chrom))
 				chrom_regions_map.put(chrom, new ArrayList<Region>());
