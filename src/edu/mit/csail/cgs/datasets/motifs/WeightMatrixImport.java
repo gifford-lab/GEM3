@@ -13,9 +13,7 @@ import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.datasets.*;
 import edu.mit.csail.cgs.datasets.species.Organism;
 
-/** Imports a weight matrix from a TAMO formatted file.
- *  Only reads the first WM in the file. 
- *
+/** 
  * Usage:
  * java edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport --species "Saccharomyces cerevisiae" --wmname HSF1 --wmversion MacIsaac06 --wmtype TAMO --wmfile v1.HSF1.wm
 */
@@ -67,6 +65,7 @@ public class WeightMatrixImport {
         } 
         try {
             if(wmname==null) { 
+                System.err.println("Reading multiple motifs from file " + wmfile);
                 insertMultiWMFromFile(species,wmtype,wmfile, wmversion);
             } else { 
                 if (wmversion == null) {
@@ -331,12 +330,14 @@ public class WeightMatrixImport {
             matrices = PWMParser.readTRANSFACFreqMatrices(wmfile, wmversion);
         } else if (wmtype.matches(".*JASPAR.*")) {
             matrices = PWMParser.readJASPARFreqMatrices(wmfile, wmversion);
+        } else if (wmtype.toUpperCase().matches(".*GIMME.*")) {
+            matrices = PWMParser.readGimmeMotifsMatrices(wmfile,wmversion,wmtype);
         } else {
             throw new NotFoundException("Unknown weight matrix type " + wmtype);
         }
-            for(WeightMatrix matrix : matrices) { 
-                ids.add(insertMatrixIntoDB(matrix));                
-            }
+        for(WeightMatrix matrix : matrices) { 
+            ids.add(insertMatrixIntoDB(matrix));                
+        }
         return ids;
     }
 
