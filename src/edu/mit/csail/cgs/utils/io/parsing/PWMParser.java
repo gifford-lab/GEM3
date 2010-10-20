@@ -16,6 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -695,6 +696,56 @@ public class PWMParser {
     return results;
   }
 
+    public static List<WeightMatrix> readGimmeMotifsMatrices(String fname, String version, String type) throws FileNotFoundException, IOException {
+        File wmfile = new File(fname);
+        if (!wmfile.exists()) {
+            throw new FileNotFoundException("Can't find file " + fname);
+        }
+        BufferedReader reader = new BufferedReader(new FileReader(wmfile));
+        String line = null;
+        int lineno = 1;
+        List<WeightMatrix> output = new ArrayList<WeightMatrix>();
+        ArrayList<String> lines = new ArrayList<String>();
+        String name = null;
+        while ((line = reader.readLine()) != null) {
+            if (line.matches("^>.*")) {
+                if (lines.size() > 0 && name != null) {
+                    WeightMatrix m = parseGimmeMotifsFromLines(lines);
+                    System.err.println("Parsed " +name);
+                    m.name = name;
+                    m.version = version;
+                    m.type = type;
+                    output.add(m);
+                }
+
+                name = version + " " + line.replaceAll(">","");
+                lines.clear();                
+            } else {
+                lines.add(line);
+            }
+        }
+        if (lines.size() > 0 && name != null) {
+            WeightMatrix m = parseGimmeMotifsFromLines(lines);
+            m.name = name;
+            m.version = version;
+            m.type = type;
+            output.add(m);            
+        }
+
+        reader.close();
+        return output;
+    }
+    public static WeightMatrix parseGimmeMotifsFromLines(List<String> lines) {
+        WeightMatrix m = new WeightMatrix(lines.size());
+        for (int i = 0; i < lines.size(); i++) {
+            String line[] = lines.get(i).split("\\s+");
+            m.matrix[i]['A'] = Float.parseFloat(line[0]);
+            m.matrix[i]['C'] = Float.parseFloat(line[1]);
+            m.matrix[i]['G'] = Float.parseFloat(line[2]);
+            m.matrix[i]['T'] = Float.parseFloat(line[3]);
+        }
+        return m;
+    }
 
   public static void main(String[] args) {
 //    int length = 6;

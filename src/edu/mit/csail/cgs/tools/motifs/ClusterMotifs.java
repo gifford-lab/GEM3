@@ -14,52 +14,38 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.clustering.*;
 import edu.mit.csail.cgs.clustering.hierarchical.*;
+import edu.mit.csail.cgs.tools.utils.Args;
 
-public class ClusterMotifs {
-
-    
-
-    
+public class ClusterMotifs {    
     private WMComparator comparator;
     private ClusteringMethod<WeightMatrix> method;
     private ClusterRepresentative<WeightMatrix> rep;
 
     public static void main(String args[]) {
         try {
-            boolean normalize = false;
-            int compareLength = -1;
-            double maxDistance = 3;
-            String pictureDirectory = null;
-            for (int i = 0; i < args.length;i++) {
-                if (args[i].equals("--normalize")) {
-                    normalize = true;
-                }
-                if (args[i].equals("--maxDistance")) {
-                    maxDistance = Double.parseDouble(args[++i]);
-                }
-                if (args[i].equals("--compareLength")) {
-                    compareLength = Integer.parseInt(args[++i]);
-                }
-                if (args[i].equals("--pictures")) {
-                    pictureDirectory = args[++i];
-                }
+            boolean normalize = Args.parseFlags(args).contains("normalize");
+            int compareLength = Args.parseInteger(args,"compareLength",-1);
+            double maxDistance = Args.parseDouble(args,"maxDistance",3.0);
+            String pictureDirectory = Args.parseString(args,"pictures",null);
+            Collection<WeightMatrix> allmatrices = Args.parseWeightMatrices(args);
+
+            
+            MarkovBackgroundModel bgModel = null;
+            String bgmodelname = Args.parseString(args,"bgmodel","whole genome zero order");
+            BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModel(bgmodelname,
+                                                                                  1,
+                                                                                  "MARKOV",
+                                                                                  Args.parseGenome(args).cdr().getDBID());
+            if (md != null) {
+                bgModel = BackgroundModelLoader.getMarkovModel(md);
+            } else {
+                System.err.println("Couldn't get metadata for " + bgmodelname);
             }
 
-            String getmatrices = "select id from weightmatrix";   
-            java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");
-            PreparedStatement stmt = cxn.prepareStatement(getmatrices);            
-            ResultSet rs = stmt.executeQuery();
-            ArrayList<WeightMatrix> allmatrices = new ArrayList<WeightMatrix>();
-            while (rs.next()) {
-                int wmid = rs.getInt(1);
-                WeightMatrix m = WeightMatrix.getWeightMatrix(wmid);
-                m.toFrequency();
-                if (m.length() > 5) {
-                    allmatrices.add(m);
-                }
+
+            for (WeightMatrix m : allmatrices) {
+                m.toFrequency(bgModel);
             }
-            rs.close();
-            stmt.close();
 
             ClusterMotifs cm = new ClusterMotifs(maxDistance,compareLength,normalize);
             Collection<Cluster<WeightMatrix>> output = cm.cluster(allmatrices);
@@ -81,9 +67,10 @@ public class ClusterMotifs {
             ex.printStackTrace();
         } catch (NotFoundException ex) {
             ex.printStackTrace();
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+
     }
 
     public static boolean hasType(Cluster<WeightMatrix> cluster, String type) {

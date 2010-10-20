@@ -63,14 +63,16 @@ import edu.mit.csail.cgs.ewok.verbs.*;
 
 public class CompareEnrichment {
 
-    public static final double step = .05;
-    int randombgcount = 1000, randombgsize = 100, parsedregionexpand;
+    public static final double step = .05;  // when looking for most significant threshold, increment % identity by this much each try
+    int randombgcount = 1000,  // number of random background regions to pic
+        randombgsize = 100, // size of random background regions
+        parsedregionexpand; // expand input regions by this much on either side
     Genome genome;
     double cutoffpercent, minfrac, minfoldchange, filtersig, maxbackfrac;
-    Collection<WeightMatrix> matrices;
-    Map<String,char[]> foreground, background;
-    Map<WeightMatrix, Double> maskingMatrices;
-    ArrayList<String> fgkeys;
+    Collection<WeightMatrix> matrices;  // these are the matrices to scan for
+    Map<String,char[]> foreground, background;  // foreground and background sequences
+    Map<WeightMatrix, Double> maskingMatrices; // matrices to mask out of foreground and background
+    ArrayList<String> fgkeys; // order in which to scan; also used when saving region list to a matrix of motif-sequence presence
     Binomial binomial;
     PrintWriter savedata = null, outfg = null, outbg = null;
     boolean savedatahits = false, matchedbg = false;
@@ -97,6 +99,11 @@ public class CompareEnrichment {
         }
         return output;
     }
+    /** reads region strings, eg "3:100-5000" fromreader returns corresponding sequence as output.
+     * If matchedRegions is not null, then fills it in with the flanking regions
+     * for each output region.  You can use matchedRegion as background sequence since it came
+     * from the same approximate loci as the foreground that was read
+     */
     public static Map<String,char[]> readRegions(Genome g, BufferedReader reader, int parsedregionexpand, Map<String,char[]> matchedRegions) throws IOException, NotFoundException {
         String line = null;
         Map<String,char[]> output = new HashMap<String,char[]>();
@@ -125,6 +132,7 @@ public class CompareEnrichment {
         }
         return output;
     }
+    /** generate random genomic regions */
     public static Map<String,char[]> randomRegions(Genome genome, int count, int size) {
         Map<String,char[]> output = new HashMap<String,char[]>();
         SequenceGenerator seqgen = new SequenceGenerator();
@@ -161,7 +169,7 @@ public class CompareEnrichment {
         }
         return output;
     }
-
+    /** count the number of hits that meet the score threshold t */
     public static int countMeetsThreshold(Map<String,List<WMHit>> hits,
                                           double t) {
         int count = 0;
@@ -175,6 +183,29 @@ public class CompareEnrichment {
             }
         }
         return count;
+    }
+    /** mask the motifs in maskingMatrices out of both foreground and background */
+    public void maskSequence() {
+        for (WeightMatrix wm : maskingMatrices.keySet()) {
+            double threshold = maskingMatrices.get(wm);
+            for (String s : foreground.keySet()) {
+                maskSequence(wm, threshold,foreground.get(s));
+            }
+            for (String s : background.keySet()) {
+                maskSequence(wm, threshold,background.get(s));
+            }
+        }
+    }
+    /** convert all instances of wm with score > theshhold into XXXs in seq*/
+    public void maskSequence(WeightMatrix wm, double threshold, char[] seq) {
+        List<WMHit> hits = WeightMatrixScanner.scanSequence(wm,
+                                                            (float)threshold,
+                                                            seq);
+        for (WMHit hit : hits) {
+            for (int i = hit.start; i < hit.end; i++) {
+                seq[i] = 'X';
+            }
+        }
     }
 
     public   CEResult doScan(WeightMatrix matrix,
@@ -400,35 +431,6 @@ public class CompareEnrichment {
             outbg.close();
             outbg = null;
         }
-    }
-    public void maskSequence() {
-        for (WeightMatrix wm : maskingMatrices.keySet()) {
-            double threshold = maskingMatrices.get(wm);
-            for (String s : foreground.keySet()) {
-                char[] seq = foreground.get(s);
-                List<WMHit> hits = WeightMatrixScanner.scanSequence(wm,
-                                                                    (float)threshold,
-                                                                    seq);
-                for (WMHit hit : hits) {
-                    for (int i = hit.start; i < hit.end; i++) {
-                        seq[i] = 'X';
-                    }
-                }
-            }
-            for (String s : background.keySet()) {
-                char[] seq = background.get(s);
-                List<WMHit> hits = WeightMatrixScanner.scanSequence(wm,
-                                                                    (float)threshold,
-                                                                    seq);
-                for (WMHit hit : hits) {
-                    for (int i = hit.start; i < hit.end; i++) {
-                        seq[i] = 'X';
-                    }
-                }
-            }
-
-        }
-
     }
     public void doScan() {
         DecimalFormat nf = new DecimalFormat("0.000E000");
