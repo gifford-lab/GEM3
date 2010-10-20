@@ -455,6 +455,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 				if (subsetRegions.isEmpty()){		// if whole genome
 
 					for (String chrom: gen.getChromList()){
+						if (debug)
+							System.out.println("Loading chr " + chrom);
 						// load  data for this chromosome.
 						int length = gen.getChromLength(chrom);
 						Region wholeChrom = new Region(gen, chrom, 0, length-1);
