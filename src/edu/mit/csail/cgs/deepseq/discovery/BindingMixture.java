@@ -1502,30 +1502,32 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			if (componentSpacing==1 || no_data_bin)
 				bases = bases_old;
 			else{
-				char strand = '+';
-				int pos = bases_old.get(0).getCoordinate()+componentSpacing/2;
-				float count = 0;
-				for (StrandedBase bb:bases_old){
-					if (bb.getStrand()!=strand){
-						if (count!=0)
-							bases.add(new StrandedBase(strand, pos, count));
-						strand = '-';
-						pos = bb.getCoordinate()+componentSpacing/2;
-						count = 0;
+				if (!bases_old.isEmpty()){
+					char strand = '+';
+					int pos = bases_old.get(0).getCoordinate()+componentSpacing/2;
+					float count = 0;
+					for (StrandedBase bb:bases_old){
+						if (bb.getStrand()!=strand){
+							if (count!=0)
+								bases.add(new StrandedBase(strand, pos, count));
+							strand = '-';
+							pos = bb.getCoordinate()+componentSpacing/2;
+							count = 0;
+						}
+						if( bb.getCoordinate()>=pos-componentSpacing/2 &&
+							bb.getCoordinate()<=pos+componentSpacing-componentSpacing/2-1){
+							count += bb.getCount();
+						}
+						else{
+							if (count!=0)
+								bases.add(new StrandedBase(strand, pos, count));
+							count=bb.getCount();
+							pos = bb.getCoordinate()+componentSpacing/2;
+						}
 					}
-					if( bb.getCoordinate()>=pos-componentSpacing/2 &&
-						bb.getCoordinate()<=pos+componentSpacing-componentSpacing/2-1){
-						count += bb.getCount();
-					}
-					else{
-						if (count!=0)
-							bases.add(new StrandedBase(strand, pos, count));
-						count=bb.getCount();
-						pos = bb.getCoordinate()+componentSpacing/2;
-					}
+					if (count!=0)
+						bases.add(new StrandedBase(strand, pos, count));
 				}
-				if (count!=0)
-					bases.add(new StrandedBase(strand, pos, count));
 			}
 				
 			int numBases = bases.size();
