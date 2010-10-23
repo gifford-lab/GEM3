@@ -18,7 +18,8 @@ import edu.mit.csail.cgs.utils.RealValuedHistogram;
 public class SAMStats {
 
 	private int totalHits=0, LHits=0, RHits=0;
-	private int singleEnd=0, properPair=0, unMapped=0, properPairL=0, properPairR=0, pairMapped=0, notPrimary=0; 
+	private int singleEnd=0, properPair=0, unMapped=0, properPairL=0, properPairR=0, pairMapped=0, notPrimary=0;
+	private int uniquelyMapped=0;
 	private double weight = 0;
 	private int pairedEndSameChr=0, pairedEndDiffChr=0;
 	private RealValuedHistogram histo;
@@ -51,11 +52,15 @@ public class SAMStats {
     }
 	
 	public void processRecord(SAMRecord r){
-		if(r.getMateUnmappedFlag())
+		if(r.getReadUnmappedFlag())
 			unMapped++;
 		else{
 			totalHits++;
-			weight += 1/(float)r.getIntegerAttribute("NH");
+			int count = r.getIntegerAttribute("NH");
+			if(count==1)
+				uniquelyMapped++;
+			
+			weight += 1/(float)count;
 			
 			if(r.getReadPairedFlag()){
 				if(r.getMateUnmappedFlag())
@@ -99,7 +104,10 @@ public class SAMStats {
 
 	public void printStats(){
 		System.out.println("\nTotal Mappings:\t"+totalHits);
-		System.out.println("Total Weight:\t"+weight);
+		System.out.println("Total Weight:\t"+(int)weight);
+		System.out.println("Uniquely Mapped:\t"+uniquelyMapped);
+		int nonU = (int)weight - uniquelyMapped;
+		System.out.println("Non-uniquely Mapped:\t"+nonU);
 		System.out.println("Left Mappings\t"+LHits);
 		System.out.println("Right Mappings\t"+RHits);
 		System.out.println("Paired Hit Mappings\t"+pairMapped);
