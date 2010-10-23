@@ -63,12 +63,15 @@ public class SAMStats {
 			weight += 1/(float)count;
 			
 			if(r.getReadPairedFlag()){
-				if(r.getMateUnmappedFlag())
+				if(r.getMateUnmappedFlag()){
 					singleEnd++;
-				else if(r.getMateReferenceName().equals(r.getReferenceName()))
-					pairedEndSameChr++;
-				else
-					pairedEndDiffChr++;
+				}else{
+					pairMapped++;
+					if(r.getMateReferenceName().equals(r.getReferenceName()))
+						pairedEndSameChr++;
+					else
+						pairedEndDiffChr++;
+				}
 			}else{
 				singleEnd++;
 			}
@@ -78,6 +81,7 @@ public class SAMStats {
 					LHits++;
 					if(r.getProperPairFlag()){
 						properPairL++;
+						properPair++;
 						if(!r.getReadNegativeStrandFlag() && r.getMateNegativeStrandFlag()){
 							double dist = (r.getMateAlignmentStart()+r.getReadLength())-r.getAlignmentStart();
 							histo.addValue(dist);
@@ -85,10 +89,9 @@ public class SAMStats {
 					}
 				}else if(r.getSecondOfPairFlag()){
 					RHits++;
-					if(r.getProperPairFlag())
+					if(r.getProperPairFlag()){
 						properPairR++;
-					if(!r.getMateUnmappedFlag()){
-						pairMapped++;
+						properPair++;
 					}
 				}
 			}else{
@@ -110,13 +113,14 @@ public class SAMStats {
 		System.out.println("Non-uniquely Mapped:\t"+nonU);
 		System.out.println("Left Mappings\t"+LHits);
 		System.out.println("Right Mappings\t"+RHits);
-		System.out.println("Paired Hit Mappings\t"+pairMapped);
+		System.out.println("SingleEnd Mappings:\t"+singleEnd);
+		System.out.println("PairedEnd Mappings\t"+pairMapped);
+		System.out.println("Proper pairs:\t"+properPair);
 		System.out.println("Proper pairs (L):\t"+properPairL);
 		System.out.println("Proper pairs (R):\t"+properPairR);
-		System.out.println("UnMapped:\t"+unMapped);
-		System.out.println("NotPrimary:\t"+notPrimary);
-		System.out.println("SingleEnd Mappings:\t"+singleEnd);
 		System.out.println("PairedEnd Mappings (same chr):\t"+pairedEndSameChr);
 		System.out.println("PairedEnd Mappings (diff chr):\t"+pairedEndDiffChr);
+		System.out.println("UnMapped:\t"+unMapped);
+		System.out.println("NotPrimary:\t"+notPrimary);
 	}
 }
