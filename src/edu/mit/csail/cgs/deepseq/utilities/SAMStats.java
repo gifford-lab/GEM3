@@ -79,7 +79,7 @@ public class SAMStats {
 			if(!r.getNotPrimaryAlignmentFlag()){
 				if(!r.getReadPairedFlag() || r.getFirstOfPairFlag()){
 					LHits++;
-					if(r.getProperPairFlag()){
+					if(r.getReadPairedFlag() && r.getProperPairFlag()){
 						properPairL++;
 						properPair++;
 						if(!r.getReadNegativeStrandFlag() && r.getMateNegativeStrandFlag()){
