@@ -1,7 +1,9 @@
 package edu.mit.csail.cgs.projects.readdb;
 
 import java.io.IOException;
+import java.util.List;
 
+import net.sf.samtools.AlignmentBlock;
 import net.sf.samtools.SAMFileReader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMFileReader.ValidationStringency;
@@ -21,6 +23,7 @@ public class SAMStats {
 	private int singleEnd=0, properPair=0, unMapped=0, properPairL=0, properPairR=0, pairMapped=0, notPrimary=0;
 	private int singleEndBP=0, properPairBP=0, unMappedBP=0, properPairLBP=0, properPairRBP=0, pairMappedBP=0, notPrimaryBP=0;
 	private int uniquelyMapped=0, uniquelyMappedBP=0;
+	private int junctions=0, junctionsBP=0;
 	private double weight=0, weightBP=0;;
 	private int pairedEndSameChr=0, pairedEndDiffChr=0;
 	private int pairedEndSameChrBP=0, pairedEndDiffChrBP=0;
@@ -88,6 +91,12 @@ public class SAMStats {
 				singleEnd++;
 				singleEndBP+=len;
 			}
+			
+			List<AlignmentBlock> blocks = r.getAlignmentBlocks();
+    		if(blocks.size()==2){
+    			junctions++;
+    			junctionsBP+=len;
+    		}
 			
 			if(!r.getNotPrimaryAlignmentFlag()){
 				if(!r.getReadPairedFlag() || r.getFirstOfPairFlag()){

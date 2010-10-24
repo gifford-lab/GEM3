@@ -63,6 +63,7 @@ public class TophatSAMToReadDB {
     		 * It only accepts true pairs.
     		 * It also assumes that the left and right mates have the same length, 
     		 * and that there are no gaps in the second mate alignment (SAM doesn't store the paired read's end)
+    		 * Note: if you change this, you may have to change the SAMStats output also
     		 */
     		if(record.getFirstOfPairFlag() && record.getProperPairFlag()){
                 boolean neg = record.getReadNegativeStrandFlag();
@@ -86,6 +87,10 @@ public class TophatSAMToReadDB {
                         weight);
     		}
     	}else if(junctionOnly){
+    		/*
+    		 * Outputs as paired alignments those reads that are aligned in TWO blocks
+    		 * Note: if you change this, you may have to change the SAMStats output also
+    		 */
     		List<AlignmentBlock> blocks = record.getAlignmentBlocks();
     		if(blocks.size()==2){
     			AlignmentBlock lBlock = blocks.get(0);
