@@ -136,15 +136,16 @@ public class SAMStats {
 
 	public void printStats(){
 		System.out.println("\nTotalHits:\t"+totalHits+"\t"+totalHitBP+" bp");
-		System.out.println("LeftHits\t"+LHits+"\t"+LHitBP+" bp");
-		System.out.println("RightHits\t"+RHits+"\t"+RHitBP+" bp");
+		System.out.println("LeftHits:\t"+LHits+"\t"+LHitBP+" bp");
+		System.out.println("RightHits:\t"+RHits+"\t"+RHitBP+" bp");
 		System.out.println("MappedSeq:\t"+(int)weight+"\t"+weightBP+" bp");
 		System.out.println("UniquelyMapped:\t"+uniquelyMapped+"\t"+uniquelyMappedBP+" bp");
 		int nonU = (int)weight - uniquelyMapped;
 		int nonUBP = (int)weightBP - uniquelyMappedBP;
 		System.out.println("NonUniquelyMapped:\t"+nonU+"\t"+nonUBP+" bp");
 		System.out.println("SingleEndMapped:\t"+singleEnd+"\t"+singleEndBP+" bp");
-		System.out.println("PairedEndMapped\t"+pairMapped+"\t"+pairMappedBP+" bp");
+		System.out.println("Junctions:\t"+junctions+"\t"+junctionsBP+" bp");
+		System.out.println("PairedEndMapped:\t"+pairMapped+"\t"+pairMappedBP+" bp");
 		System.out.println("ProperPairs:\t"+properPair+"\t"+properPairBP+" bp");
 		System.out.println("ProperPairsL:\t"+properPairL+"\t"+properPairLBP+" bp");
 		System.out.println("ProperPairsR:\t"+properPairR+"\t"+properPairRBP+" bp");
