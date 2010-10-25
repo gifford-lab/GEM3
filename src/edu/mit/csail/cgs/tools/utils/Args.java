@@ -542,14 +542,30 @@ public class Args {
     public static Collection<WeightMatrix> parseWeightMatrices(String args[]) throws NotFoundException {
         ArrayList<WeightMatrix> matrices = new ArrayList<WeightMatrix>();
         matrices.addAll(WeightMatrix.getAllWeightMatrices());
-        return filterMatrices(parseStrings(args,"acceptwm"),
-                              parseStrings(args,"rejectwm"),
-                              parseStrings(args,"acceptwmver"),
-                              parseStrings(args,"rejectwmver"),
-                              parseStrings(args,"acceptwmtype"),
-                              parseStrings(args,"rejectwmtype"),
-                              matrices);
-
+        Collection<WeightMatrix> out = filterMatrices(parseStrings(args,"acceptwm"),
+                                                      parseStrings(args,"rejectwm"),
+                                                      parseStrings(args,"acceptwmver"),
+                                                      parseStrings(args,"rejectwmver"),
+                                                      parseStrings(args,"acceptwmtype"),
+                                                      parseStrings(args,"rejectwmtype"),
+                                                      matrices);
+        Collection<String> namevers = parseStrings(args,"wm");
+        if (namevers.size() > 0) {
+            if (matrices.size() == out.size()) {
+                out.clear();
+            }
+            WeightMatrixLoader loader = new WeightMatrixLoader();
+            for (String nv : namevers) {
+                String pieces[] = nv.split(";");                     
+                for (WeightMatrix m : matrices) {
+                    if (m.getName().equals(pieces[0]) && m.getVersion().equals(pieces[1])) {
+                        out.add(m);
+                    }
+                }                
+            }
+            loader.close();
+        }
+        return out;
     }
 
     /** regularization computes ratios as ratio = (ip + alpha)/(wce + alpha) <br>
