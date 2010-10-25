@@ -79,7 +79,7 @@ public class TophatSAMToReadDB {
                         
                         record.getMateReferenceName() + "\t" +
                         (mateneg ? 
-                         record.getMateAlignmentStart()+record.getReadLength() : 
+                         record.getMateAlignmentStart()+record.getReadLength()-1 : 
                          record.getMateAlignmentStart()) + "\t" +
                         (mateneg ? "-\t" : "+\t") +
                         len + 
