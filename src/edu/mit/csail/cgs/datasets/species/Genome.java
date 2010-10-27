@@ -372,9 +372,9 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
     /** Maps a chromosome database identifier to a name */        
     public String getChromName(int chromID) { return revchroms.get(chromID).getName(); }
     /** Returns true iff this Genome contains a chromosome with the supplied database identifier */
-    public boolean containsChromName(int chromID) { return revchroms.containsKey(chromID); }
+    public boolean containsChromID(int chromID) { return revchroms.containsKey(chromID); }
     /** Returns true iff this Genome contains a chromosome with the supplied name */
-    public boolean containsChromID(String chromName) { return chroms.containsKey(chromName); }
+    public boolean containsChromName(String chromName) { return chroms.containsKey(chromName); }
     /** Maps a chromosome name to its database identifier */
     public int getChromID(String chromName) { 
         if (chroms.get(chromName) == null) {

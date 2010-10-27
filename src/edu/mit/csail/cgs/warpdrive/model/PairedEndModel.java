@@ -63,6 +63,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                 try {
                     results = new ArrayList<PairedHit>();
                     double mindist = getProperties().MinimumDistance;
+                    boolean showself = getProperties().ShowSelfLigation;
                     if (mindist < 1) {
                         mindist = mindist * region.getWidth();
                     }
@@ -78,7 +79,8 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                             if (h.leftChrom == h.rightChrom && 
                                 h.rightPos >= region.getStart() &&
                                 h.rightPos <= region.getEnd() &&
-                                Math.abs(h.leftPos - h.rightPos) > mindist) {
+                                Math.abs(h.leftPos - h.rightPos) > mindist &&
+                                (showself || !isSelfLigation(h))) {
                                 results.add(h);
                             }
                         }
@@ -128,6 +130,14 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
         client.close();
     }                     
 
-
+    public boolean isSelfLigation(PairedHit p) {
+    	if (getProperties().RightFlipped) {
+    		return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= getProperties().SelfLigationCutoff) && (p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
+    		&& (p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
+    	} else {
+    		return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= getProperties().SelfLigationCutoff) && !(p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
+    		&& (p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
+    	}
+    }
 
 }

@@ -355,6 +355,7 @@ public class WarpOptions {
         WeightMatrixLoader wmloader = new WeightMatrixLoader();
         ChipSeqLoader chipseqloader = new ChipSeqLoader();
 
+
         try {        
             ResourceBundle res = ResourceBundle.getBundle("defaultgenome");
             opts.species = res.getString("species");

@@ -718,7 +718,7 @@ public class PWMParser {
                     output.add(m);
                 }
 
-                name = version + " " + line.replaceAll(">","");
+                name = line.replaceAll(">","");
                 lines.clear();                
             } else {
                 lines.add(line);
