@@ -60,8 +60,14 @@ public class Server {
         options.addOption("C","cachesize",true,"how many files to keep open (this value times three)");
         options.addOption("M","maxconn",true,"how many connections are allowed");
         options.addOption("S","sleepiness",true,"how sleepy the server should be while waiting for input.  1-100");
+        options.addOption("h","help",false,"print help message");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
+        if (line.hasOption("help")) {
+            printHelp();
+            System.exit(1);
+        }
+
         if (line.hasOption("port")) {
             port = Integer.parseInt(line.getOptionValue("port"));
         }
@@ -97,6 +103,16 @@ public class Server {
         logger.log(Level.INFO,String.format("Server parsed args: port %d, threads %d, directory %s",port,numThreads,topdir));
         pwfile = topdir + System.getProperty("file.separator") + "users.txt";
         groupfile = topdir + System.getProperty("file.separator") + "groups.txt";
+    }
+    public void printHelp() {
+        System.out.println("ReadDB server process");
+        System.out.println("usage: java edu.mit.csail.cgs.projects.readdb.Server --datadir /path/to/datadir --port 52000");
+        System.out.println(" [--threads 4]   use three worker threads to process requests.");
+        System.out.println(" [--cachesize 400]  number of datasets to keep open.  Actual number of open files will be");
+        System.out.println("                  three times this value");
+        System.out.println(" [--maxconn 250]   maximum number of open connections");
+        System.out.println(" [--debug]  print debugging output");
+        System.out.println(" [--sleepiness 4]  (1-100) higher values use less CPU when idle but may incur more delay in processing requests");
     }
     public static void main(String args[]) throws Exception {
         Server server = new Server();

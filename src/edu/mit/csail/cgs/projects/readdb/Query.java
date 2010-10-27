@@ -24,7 +24,7 @@ public class Query {
     private String hostname;
     private String username, password;
     private int portnum, histogram = -1;
-    private boolean quiet, weights, paired, isleft, noheader;
+    private boolean quiet, weights, paired, isleft, noheader, bed, wiggle;
     
 
     public static void main(String args[]) throws Exception {
@@ -35,19 +35,26 @@ public class Query {
 
     public void parseArgs(String args[]) throws IllegalArgumentException, ParseException {
         Options options = new Options();
-        options.addOption("h","hostname",true,"server to connect to");
+        options.addOption("H","hostname",true,"server to connect to");
         options.addOption("P","port",true,"port to connect to");
         options.addOption("a","align",true,"alignment name");
         options.addOption("u","user",true,"username");
         options.addOption("p","passwd",true,"password");
         options.addOption("q","quiet",false,"quiet: don't print output");
         options.addOption("w","weights",false,"get and print weights in addition to positions");
-        options.addOption("H","histogram",true,"produce a histogram with this binsize instead of printing all read positions");
+        options.addOption("g","histogram",true,"produce a histogram with this binsize instead of printing all read positions");
         options.addOption("d","paired",false,"work on paired alignment?");
         options.addOption("r","right",false,"query right side reads when querying paired alignments");
         options.addOption("N","noheader",false,"skip printing the query header");
+        options.addOption("W","wiggle",true,"output in wiggle format with the specified bin format");
+        options.addOption("B","bed",false,"output in BED format");
+        options.addOption("h","help",false,"print help message");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
+        if (line.hasOption("help")) {
+            printHelp();
+            System.exit(0);
+        }
         if (line.hasOption("port")) {
             portnum = Integer.parseInt(line.getOptionValue("port"));
         } else {
@@ -81,6 +88,33 @@ public class Query {
         paired = line.hasOption("paired");
         isleft = !line.hasOption("right");
         noheader = line.hasOption("noheader");
+        bed = line.hasOption("bed");
+        if (bed) {
+            histogram = 0;
+            noheader = true;
+            if (paired) {
+                System.err.println("Can't do BED formatted output in paired-end mode");
+            }
+        }
+        if (line.hasOption("wiggle")) {
+            wiggle = true;
+            histogram = Integer.parseInt(line.getOptionValue("wiggle"));
+        }
+    }
+    public void printHelp() {
+        System.out.println("Query ReadDB.  Regions are read on STDIN and output is printed on STDOUT.");
+        System.out.println("usage: java edu.mit.csail.cgs.projects.readdb.Query --align alignmentname < regions.txt");
+        System.out.println(" [--quiet]  don't print any output.  Useful for performance testing without worrying about output IO time");
+        System.out.println(" [--weights] include weights in output or use weights for histogram");
+        System.out.println(" [--paired] query paired reads");
+        System.out.println(" [--right] when querying paired reads for histograms, use right read rather than left");
+        System.out.println(" [--histogram 10] output a histogram of read counts or weights using a 10bp bin size");
+        System.out.println(" [--noheader] don't output query regions in the output");
+        System.out.println(" [--bed] output hit positions in BED format (doesn't work with paired reads)");
+        System.out.println(" [--wiggle 10] output a histogram in wiggle format with 10bp bin size");
+        System.out.println("");
+        System.out.println("Lines in the input should be of them form");
+        System.out.println("3:1000-2000");
     }
 
     public void run(InputStream instream) throws IOException, ClientException {
@@ -96,7 +130,7 @@ public class Query {
             client = new Client();
         }
 
-        while ((line = reader.readLine()) != null) {
+        while ((line = reader.readLine()) != null) {            
             try {
                 String pieces[] = line.split("[\\:]");
                 int chr = Integer.parseInt(pieces[0].replaceFirst("^chr",""));
@@ -104,6 +138,10 @@ public class Query {
                 pieces = pieces[1].split("\\-");
                 int start = Integer.parseInt(pieces[0]);
                 int stop = Integer.parseInt(pieces[1]);
+                if (wiggle) {
+                    System.out.println(String.format("variableStep chrom=chr%d span=%d",chr, histogram));
+                }
+
                 if (histogram > 0) {
                     TreeMap<Integer,Integer> hits = client.getHistogram(alignname,
                                                                         chr,
@@ -129,7 +167,11 @@ public class Query {
                     if (!quiet) {
                         for (int i : hits.keySet()) {
                             if (weights) {
-                                System.out.println(String.format("%d\t%d\t%f", i, hits.get(i), weightsmap.get(i)));  
+                                if (wiggle) {
+                                    System.out.println(String.format("%d\t%f", i,weightsmap.get(i)));  
+                                } else {
+                                    System.out.println(String.format("%d\t%d\t%f", i, hits.get(i), weightsmap.get(i)));  
+                                }
                             } else {
                                 System.out.println(String.format("%d\t%d", i, hits.get(i)));
                             }
@@ -148,7 +190,7 @@ public class Query {
                             if (!noheader) {
                                 System.out.println(line);
                             }
-                            for (PairedHit h : hits) {
+                            for (PairedHit h : hits) {                                
                                 System.out.println(h.toString());
                             }
                         }
@@ -164,7 +206,18 @@ public class Query {
                                 System.out.println(line);
                             }
                             for (SingleHit h : hits) {
-                                System.out.println(h.toString());
+                                if (bed) {
+                                    System.out.println(String.format("chr%d\t%d\t%d\thit\t%f\t%s\n",
+                                                                     h.chrom, 
+                                                                     h.strand ? h.pos : h.pos - h.length,
+                                                                     h.strand ? h.pos + h.length : h.pos,
+                                                                     h.weight,
+                                                                     h.strand ? "+" : "-"));
+                                                                     
+                                                                     
+                                } else {
+                                    System.out.println(h.toString());
+                                }
                             }
                         }
                     }
@@ -174,7 +227,6 @@ public class Query {
                 e.printStackTrace();
             }
         }
-
         client.close();
     }
 

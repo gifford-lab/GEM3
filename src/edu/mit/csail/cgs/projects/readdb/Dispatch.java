@@ -12,6 +12,7 @@ public class Dispatch implements Runnable {
 
     private Vector<WorkerThread> freePool, allThreads;
     private Vector<ServerTask> workQueue;
+    private Vector<Thread> threads;
     private Server server;
     private int maxConnections;
     private int warnedMaxConn = 0;
@@ -20,10 +21,12 @@ public class Dispatch implements Runnable {
         workQueue = new Vector<ServerTask>();
         freePool = new Vector<WorkerThread>();
         allThreads = new Vector<WorkerThread>();
+        threads = new Vector<Thread>();
         for (int i = 0; i < numThreads; i++) {
             WorkerThread servthread = new WorkerThread(this);
             Thread t = new Thread(servthread);
             t.start();
+            threads.add(t);
             freePool.add(servthread);
             allThreads.add(servthread);
         }
@@ -62,7 +65,6 @@ public class Dispatch implements Runnable {
     public void freeThread(WorkerThread t, ServerTask s) {
         if (s.shouldClose()) {
             s.close();
-            System.err.println("freeThread closing task " + s);
         } else {
             workQueue.add(s);
         }
@@ -78,13 +80,13 @@ public class Dispatch implements Runnable {
     public void run() {
         int noTasksWaiting = 0;
         int noInputAvailable = 0;
+        int threadCheck = 0;
         int sleep = server.getSleepiness();
         while (server.keepRunning()) {            
             if (workQueue.size() > 0) {
                 noTasksWaiting = 0;
                 ServerTask s = workQueue.remove(0);
                 if (s.shouldClose()) {
-                    System.err.println("run loop closing task " + s);
                     s.close();
                 } else if (s.inputAvailable()) {
                     while (freePool.size() == 0) {                        
@@ -117,6 +119,25 @@ public class Dispatch implements Runnable {
                     }
                 } catch (InterruptedException e) {}                
             } 
+            if (threadCheck++ > 1000) {
+                threadCheck = 0;
+                for (int i = 0; i < threads.size(); i++) {
+                    if (!threads.get(i).isAlive()) {
+                        server.getLogger().log(Level.INFO,"Dispatch","run: DEAD THREAD.  Adding a new one");
+                        WorkerThread servthread = new WorkerThread(this);
+                        Thread t = new Thread(servthread);
+                        t.start();
+                        threads.set(i,t);
+                        freePool.add(servthread);
+                        try {
+                            allThreads.get(i).stopRunning();
+                        } catch (Exception e) {
+                            server.getLogger().logp(Level.INFO,"Dispatch","run: trying to stop old thread",e.toString(),e);
+                        }
+                        allThreads.set(i,servthread);
+                    }
+                }
+            }
         }
         while (freePool.size() < allThreads.size()) {
             try {

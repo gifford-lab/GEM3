@@ -52,11 +52,14 @@ public class StrandedBase implements Comparable<StrandedBase>{
 	public float getCount() {
 		return count;
 	}
-	// sort according to coordinate, regardless of strand
+	// sort according to coordinate, considering strand
 	public int compareTo(StrandedBase b) {
-		double diff = getCoordinate()-b.getCoordinate();
-		return diff==0?0:(diff<0)?-1:1;
+		double diff = coordinate-b.coordinate;
+		return diff==0?
+				(strand==b.strand?0:strand=='+'?1:-1):	// same coord, compare strand
+					(diff<0?-1:1);						// diff coord
 	}
+	
 	public String toString(){
 		return coordinate+" "+strand+" "+count;
 	}

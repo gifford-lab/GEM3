@@ -63,26 +63,34 @@ public class TophatSAMToReadDB {
     		 * It only accepts true pairs.
     		 * It also assumes that the left and right mates have the same length, 
     		 * and that there are no gaps in the second mate alignment (SAM doesn't store the paired read's end)
+    		 * Note: if you change this, you may have to change the SAMStats output also
     		 */
     		if(record.getFirstOfPairFlag() && record.getProperPairFlag()){
-    			System.out.println(String.format("%s\t%d\t%s\t%d\t%s\t%d\t%s\t%d\t%f",
-                        record.getReferenceName(),
-                        record.getReadNegativeStrandFlag() ? 
-                        record.getAlignmentEnd() : 
-                        record.getAlignmentStart(),
-                        record.getReadNegativeStrandFlag() ? "-" : "+",
-                        record.getReadLength(),
+                boolean neg = record.getReadNegativeStrandFlag();
+                boolean mateneg = record.getMateNegativeStrandFlag();
+                String len = record.getReadLength() + "\t";
+                System.out.println(
+                        record.getReferenceName() + "\t" +
+                        (neg ? 
+                         record.getAlignmentEnd() : 
+                         record.getAlignmentStart()) + "\t" +
+                        (neg ? "-\t" : "+\t") + 
+                        len +
                         
-                        record.getMateReferenceName(),
-                        record.getMateNegativeStrandFlag() ? 
-                        record.getMateAlignmentStart()+record.getReadLength() : 
-                        record.getMateAlignmentStart(),
-                        record.getMateNegativeStrandFlag() ? "-" : "+",
-                        record.getReadLength(),
+                        record.getMateReferenceName() + "\t" +
+                        (mateneg ? 
+                         record.getMateAlignmentStart()+record.getReadLength()-1 : 
+                         record.getMateAlignmentStart()) + "\t" +
+                        (mateneg ? "-\t" : "+\t") +
+                        len + 
 
-                        weight));
+                        weight);
     		}
     	}else if(junctionOnly){
+    		/*
+    		 * Outputs as paired alignments those reads that are aligned in TWO blocks
+    		 * Note: if you change this, you may have to change the SAMStats output also
+    		 */
     		List<AlignmentBlock> blocks = record.getAlignmentBlocks();
     		if(blocks.size()==2){
     			AlignmentBlock lBlock = blocks.get(0);
@@ -93,20 +101,18 @@ public class TophatSAMToReadDB {
     		   	int rStart = rBlock.getReferenceStart();
     		   	int rEnd = rStart + rBlock.getLength()-1;
     		   	int rLen = rBlock.getLength();
-    		   	System.out.println(String.format("%s\t%d\t%s\t%d\t%s\t%d\t%s\t%d\t%f",
-                        record.getReferenceName(),
-                        record.getReadNegativeStrandFlag() ? 
-                        lEnd : 
-                        lStart,
-                        record.getReadNegativeStrandFlag() ? "-" : "+",
-                        lLen,
-                        record.getReferenceName(),
-                        record.getReadNegativeStrandFlag() ? 
-                        rEnd : 
-                        rStart,
-                        record.getReadNegativeStrandFlag() ? "-" : "+",
-                        rLen,
-                        weight));
+                boolean neg = record.getReadNegativeStrandFlag();
+                String refname = record.getReferenceName() + "\t";
+    		   	System.out.println(
+                                   refname +
+                                   (neg ? lEnd : lStart) + "\t" +
+                                   (neg ? "-\t" : "+\t") +
+                                   lLen + "\t" +
+                                   refname + 
+                                   (neg ? rEnd : rStart) + "\t" +
+                                   (neg ? "-\t" : "+\t") +
+                                   rLen + "\t" +
+                                   weight);
     		}
     	}else{ //Just output reads (or read parts)
     		List<AlignmentBlock> blocks = record.getAlignmentBlocks();
@@ -125,15 +131,13 @@ public class TophatSAMToReadDB {
 		    			nearbyBlocks=false;
 		    		}
 		    	}
-	   
-	    		System.out.println(String.format("%s\t%d\t%s\t%d\t%f",
-                        record.getReferenceName(),
-                        record.getReadNegativeStrandFlag() ? 
-                        aEnd : 
-                        aStart,
-                        record.getReadNegativeStrandFlag() ? "-" : "+",
-                        aLen,
-                        weight));	    		
+                boolean neg = record.getReadNegativeStrandFlag();
+	    		System.out.println(
+                        record.getReferenceName() + "\t" +
+                        (neg ? aEnd : aStart) + "\t" +
+                        (neg ? "-\t" : "+\t") + 
+                        aLen + "\t" + 
+                        weight);	    		
 	       }
 		}
                                           

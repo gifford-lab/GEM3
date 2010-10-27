@@ -371,6 +371,17 @@ public class WeightMatrix {
             }
         }
     }
+    public void toFrequency(MarkovBackgroundModel bgModel) {
+        setLogOdds();
+        if (!islogodds) {return;}
+        islogodds = false;
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < allLetters.length; j++) {
+                matrix[i][allLetters[j]] = (float)(Math.exp(matrix[i][allLetters[j]]) * bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+            }
+        }
+    }
+
     /**
      * Modifies this WeightMatrix by normalizing the entries.  The matrix
      * must be a frequency matrix.  The result is that the frequencies at each

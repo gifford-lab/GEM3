@@ -49,17 +49,22 @@ public class ReadDB {
 
     public void parseArgs(String args[]) throws IllegalArgumentException, ParseException, ClientException, IOException {
         Options options = new Options();
-        options.addOption("h","hostname",true,"server to connect to");
+        options.addOption("H","hostname",true,"server to connect to");
         options.addOption("P","port",true,"port to connect to");
         options.addOption("u","user",true,"username");
         options.addOption("p","passwd",true,"password");
         options.addOption("d","paired",false,"work on paired alignment?");
         options.addOption("r","right",false,"query right side reads when querying paired alignments");
         options.addOption("C","noclose",false,"don't close the connection.  For debugging only");
+        options.addOption("h","help",false,"print help");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
         String hostname = null, username = null, password = null;
         int portnum = -1;
+        if (line.hasOption("help")) {
+            printHelp();
+            System.exit(1);
+        }
         if (line.hasOption("port")) {
             portnum = Integer.parseInt(line.getOptionValue("port"));
         }
@@ -81,6 +86,17 @@ public class ReadDB {
         isleft = !line.hasOption("right");
         noclose = line.hasOption("noclose");
         otherargs = line.getArgs();
+    }
+    public void printHelp() {
+        System.out.println("Administrative client for ReadDB");
+        System.out.println("usage: java edu.mit.csail.cgs.projects.readdb.ReadDB command args...");
+        System.out.println("  exists alignname");
+        System.out.println("  getchroms alignname");
+        System.out.println("  getacl alignname");
+        System.out.println("  getcount alignname");
+        System.out.println("  getcount alignname chromnameStrand   (eg, 1+)");
+        System.out.println("  setacl alignname username|groupname add|delete write|read|admin ");
+        System.out.println("  addtogroup username groupname");
     }
 
     public void run() throws IOException, ClientException {

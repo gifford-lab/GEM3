@@ -16,22 +16,22 @@ import edu.mit.csail.cgs.viz.components.SelectionEvent;
 
 public class MotifSelectPanel extends GenericSelectPanel<WeightMatrix> {
 
-    private WeightMatrixLoader loader;
     private MotifTableModel filteredModel, selectedModel;
     private JComboBox nameBox, versionBox, typeBox;
     private JTextField regex;
     private TreeSet<String> names, versions, types;
     private DefaultComboBoxModel nameModel, versionModel, typeModel;
+    private Collection<WeightMatrix> allMatrices;
 
     public MotifSelectPanel() {
         super();
-        loader = new WeightMatrixLoader();
         filteredModel = new MotifTableModel();
         selectedModel = new MotifTableModel();
         init(filteredModel,selectedModel);
         names = new TreeSet<String>();
         versions = new TreeSet<String>();
         types = new TreeSet<String>();
+        allMatrices = new ArrayList<WeightMatrix>();
     }
     public JPanel getInputsPanel() {
         JPanel inputsPanel = new JPanel(); inputsPanel.setLayout(new BorderLayout());
@@ -87,21 +87,25 @@ public class MotifSelectPanel extends GenericSelectPanel<WeightMatrix> {
         if(reg != null && reg.length() > 0) {
             patt = Pattern.compile(reg);
         }
-        for (WeightMatrix wm : loader.query(n,v,t)) {
-            if (patt == null || patt.matcher(wm.toString()).find()) {
-                filteredModel.addObject(wm);
+        for (WeightMatrix m : allMatrices) {
+            if ((n == null || m.name.equals(m)) &&
+                (v == null || m.version.equals(v)) &&
+                (t == null || m.type.equals(t)) &&
+                (patt == null || patt.matcher(m.toString()).find())) {
+                filteredModel.addObject(m);
             }
         }
     }
-    public void close() {super.close(); loader.close();}
-    public boolean isClosed() {return super.isClosed() && loader.isClosed();}
     public void retrieveData() { 
+        allMatrices.addAll(WeightMatrix.getAllWeightMatrices());
         names.clear();
-        names.addAll(loader.getNames());
         versions.clear();
-        versions.addAll(loader.getVersions());
         types.clear();
-        types.addAll(loader.getTypes());
+        for (WeightMatrix m : allMatrices) {
+            names.add(m.name);
+            types.add(m.type);
+            versions.add(m.version);
+        }
     }
     public void updateComponents() { 
         nameModel.removeAllElements();

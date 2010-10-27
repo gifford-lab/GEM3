@@ -231,7 +231,7 @@ public class Client implements ReadOnlyClient {
                 Collections.sort(hits);
                 int chunk = step;
                 for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
-                    int count = startindex + chunk < hits.size() ? chunk : (hits.size() - startindex);
+                    int count = ((startindex + chunk) < hits.size()) ? chunk : (hits.size() - startindex);
                     request.clear();
                     request.type="storesingle";
                     request.alignid=alignid;
@@ -240,6 +240,8 @@ public class Client implements ReadOnlyClient {
                     sendString(request.toString());
                     String response = readLine();
                     if (!response.equals("OK")) {
+                        System.err.println("not-OK response to request: " + response);
+                        System.err.println("request was " + request);
                         throw new ClientException(response);
                     }
                     int[] ints = new int[count];
@@ -283,7 +285,7 @@ public class Client implements ReadOnlyClient {
             System.err.println("SENDING PAIRED HITS n="+hits.size() + " for chrom " + chromid);
             int chunk = 2000000;
             for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
-                int count = startindex + chunk < hits.size() ? chunk : (hits.size() - startindex);
+                int count = ((startindex + chunk) < hits.size()) ? chunk : (hits.size() - startindex);
 
                 request.clear();
                 request.type="storepaired";
@@ -294,34 +296,38 @@ public class Client implements ReadOnlyClient {
                 sendString(request.toString());
                 String response = readLine();
                 if (!response.equals("OK")) {
+                    System.err.println("not-OK response to request: " + response);
+                    System.err.println("request was " + request);
                     throw new ClientException(response);
                 }
                 int[] ints = new int[count];
                 for (int i = startindex; i < startindex + count; i++) {
-                    ints[i] = hits.get(i).leftPos;
+                    ints[i-startindex] = hits.get(i).leftPos;
                 }        
                 Bits.sendInts(ints, outstream,buffer);
                 float[] floats = new float[count];
                 for (int i = startindex; i < startindex + count; i++) {
-                    floats[i] = hits.get(i).weight;
-                    ints[i] = Hits.makeLAS(hits.get(i).leftLength, hits.get(i).leftStrand,
-                                           hits.get(i).rightLength, hits.get(i).rightStrand);
+                    floats[i-startindex] = hits.get(i).weight;
+                    ints[i-startindex] = Hits.makeLAS(hits.get(i).leftLength, hits.get(i).leftStrand,
+                                                      hits.get(i).rightLength, hits.get(i).rightStrand);
 
                 }
                 Bits.sendFloats(floats, outstream,buffer);
                 Bits.sendInts(ints, outstream,buffer);
-                for (int i = 0; i < hits.size(); i++) {
-                    ints[i] = hits.get(i).rightChrom;
+                for (int i = startindex; i < startindex + count; i++) {
+                    ints[i-startindex] = hits.get(i).rightChrom;
                 }        
                 Bits.sendInts(ints, outstream,buffer);
-                for (int i = 0; i < hits.size(); i++) {
-                    ints[i] = hits.get(i).rightPos;
+                for (int i = startindex; i < startindex + count; i++) {
+                    ints[i-startindex] = hits.get(i).rightPos;
                 }        
                 Bits.sendInts(ints, outstream,buffer);
                 System.err.println("Sent " + hits.size() + " hits to the server");
                 outstream.flush();        
                 response = readLine();
                 if (!response.equals("OK")) {
+                    System.err.println("not-OK response to request: " + response);
+                    System.err.println("request was " + request);
                     throw new ClientException(response);
                 }
             }
@@ -357,6 +363,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
     }
@@ -372,7 +380,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println(response);
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numchroms = Integer.parseInt(readLine());
@@ -420,6 +429,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
@@ -441,6 +452,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         return Double.parseDouble(readLine());
@@ -464,6 +477,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
@@ -484,6 +499,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numhits = Integer.parseInt(readLine());
@@ -505,6 +522,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         List<SingleHit> output = new ArrayList<SingleHit>();
@@ -551,6 +570,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(String.format("align %s chrom %d: %s", alignid, chromid, response));
         }
         List<PairedHit> output = new ArrayList<PairedHit>();
@@ -673,7 +694,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println("Asking for histogram said " + response);
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
@@ -708,7 +730,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println("Asking for histogram said " + response + " for align " + alignid + " and chrom " + chromid);
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         int numints = Integer.parseInt(readLine());
@@ -781,6 +804,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
         Map<String,Set<String>> output = new HashMap<String,Set<String>>();
@@ -814,6 +839,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }   
     }
@@ -825,6 +852,8 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());
         String response = readLine();
         if (!response.equals("OK")) {
+            System.err.println("not-OK response to request: " + response);
+            System.err.println("request was " + request);
             throw new ClientException(response);
         }
     }
