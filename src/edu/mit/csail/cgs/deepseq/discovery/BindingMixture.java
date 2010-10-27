@@ -2498,8 +2498,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							break;
 						}
 						else{
-							if (cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond)>=fold
-									&& cf.getAverageCtrlLogKL()>0){
+							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
+							if ((ratio>=fold && cf.getAverageIpCtrlLogKL()>0) || (cf.getAverageIpCtrlLogKL()<0 && ratio>=fold+1)){
 								notFiltered = true;
 								break;
 							}

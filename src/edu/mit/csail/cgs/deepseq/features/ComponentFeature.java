@@ -27,8 +27,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected double totalSumResponsibility=0;
 	protected double logKL_plus[];
 	protected double logKL_minus[];
-	protected double logKL_ctrl_plus[];
-	protected double logKL_ctrl_minus[];
+	protected double ipCtrl_logKL_plus[];
+	protected double ipCtrl_logKL_minus[];
 	protected double shapeDeviation[];
 	protected double unScaledControlCounts[];
 	protected double p_values[];
@@ -59,8 +59,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		q_value_log10 = new double[numConditions];
 		EM_position = b.getEMPosition();
 		alpha = b.getAlpha();
-		logKL_ctrl_plus = new double[numConditions];
-		logKL_ctrl_minus = new double[numConditions];
+		ipCtrl_logKL_plus = new double[numConditions];
+		ipCtrl_logKL_minus = new double[numConditions];
 	}
 	
 	//Accessors 
@@ -101,8 +101,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	}
 
 	public void setIpCtrlLogKL(int cond, double logKL_plus, double logKL_minus){
-		logKL_ctrl_plus[cond] = logKL_plus;
-		logKL_ctrl_minus[cond] = logKL_minus;
+		ipCtrl_logKL_plus[cond] = logKL_plus;
+		ipCtrl_logKL_minus[cond] = logKL_minus;
 	}
 	/*
 	 * Set control read count for the specified condition
@@ -126,10 +126,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		return sum/(2*numConditions);
 	}
 	// overall average logKL for control
-	public double getAverageCtrlLogKL(){
+	public double getAverageIpCtrlLogKL(){
 		double sum=0;
 		for(int c=0; c<numConditions; c++){
-			sum += logKL_ctrl_plus[c] + logKL_ctrl_minus[c];
+			sum += ipCtrl_logKL_plus[c] + ipCtrl_logKL_minus[c];
 		}
 		return sum/(2*numConditions);
 	}	
@@ -269,7 +269,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	}
         	if(unScaledControlCounts!=null){
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
-        			  .append(String.format("%7.1f\t", getAverageCtrlLogKL()));
+        			  .append(String.format("%7.1f\t", getAverageIpCtrlLogKL()));
         	}
 //        	else
 //        		result.append("NaN\t").append("NaN\t");
@@ -321,7 +321,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IP\t");
         	}
         	header.append(name+"Control\t")
-        		  .append(name+"IP_C_KL\t")
+        		  .append(name+"IP==Ctr\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
       		  	  .append(name+"Shape\t");
@@ -353,7 +353,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IP\t");
         	}
         	header.append(name+"Control\t")
-  		  		  .append(name+"IP_C_KL\t")
+  		  		  .append(name+"IP==Ctr\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
   	      		  .append("  Shape");
@@ -379,7 +379,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	}
         	if(unScaledControlCounts!=null){
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
-        			  .append(String.format("%7.1f\t", getAverageCtrlLogKL()));
+        			  .append(String.format("%7.1f\t", getAverageIpCtrlLogKL()));
         	}
 //        	else
 //        		result.append("NaN\t").append("NaN\t");
