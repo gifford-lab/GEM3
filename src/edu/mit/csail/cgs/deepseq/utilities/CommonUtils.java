@@ -71,7 +71,7 @@ public class CommonUtils {
 		try{
 			File rFile = new File(fname);
 			if(!rFile.isFile()){
-				System.err.println("Invalid file name for regions!");
+				System.err.println("\nThe region file is not found: "+fname+"!");
 				System.exit(1);
 			}
 	        BufferedReader reader = new BufferedReader(new FileReader(rFile));

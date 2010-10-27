@@ -537,8 +537,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 		
 		// exclude some regions
-     	String excludedName = Args.parseString(args, "ex", null);
-     	if (excludedName!=null){
+     	String excludedName = Args.parseString(args, "ex", "");
+     	if (excludedName!=""){
      		excludedRegions = mergeRegions(CommonUtils.loadRegionFile(excludedName, gen), false);
      		log(1, "Exclude " + excludedRegions.size() + " regions.");
 			for(int c = 0; c < numConditions; c++) {
