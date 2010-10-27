@@ -21,12 +21,12 @@ public class SAMStats {
 
 	private int totalHits=0, LHits=0, RHits=0, totalHitBP=0, LHitBP=0, RHitBP=0;
 	private int singleEnd=0, properPair=0, unMapped=0, properPairL=0, properPairR=0, pairMapped=0, notPrimary=0;
-	private int singleEndBP=0, properPairBP=0, unMappedBP=0, properPairLBP=0, properPairRBP=0, pairMappedBP=0, notPrimaryBP=0;
+	private double singleEndBP=0, properPairBP=0, unMappedBP=0, properPairLBP=0, properPairRBP=0, pairMappedBP=0, notPrimaryBP=0;
 	private int uniquelyMapped=0, uniquelyMappedBP=0;
 	private int junctions=0, junctionsBP=0;
 	private double weight=0, weightBP=0;;
 	private int pairedEndSameChr=0, pairedEndDiffChr=0;
-	private int pairedEndSameChrBP=0, pairedEndDiffChrBP=0;
+	private double pairedEndSameChrBP=0, pairedEndDiffChrBP=0;
 	private RealValuedHistogram histo;
 	
 	public static void main(String args[]) throws IOException, ParseException {
@@ -62,40 +62,41 @@ public class SAMStats {
 		else{
 			totalHits++;
 			int len = r.getReadLength();
-			totalHitBP+=len;
+			double dlen = (double)len;
+			totalHitBP+=dlen;
 			int count = r.getIntegerAttribute("NH");
 			if(count==1){
 				uniquelyMapped++;
-				uniquelyMappedBP+=len;
+				uniquelyMappedBP+=dlen;
 			}
 			
 			weight += 1/(float)count;
-			weightBP += (1/(float)count)*len;
+			weightBP += (1/(float)count)*dlen;
 			
 			if(r.getReadPairedFlag()){
 				if(r.getMateUnmappedFlag()){
 					singleEnd++;
-					singleEndBP+=len;
+					singleEndBP+=dlen;
 				}else{
 					pairMapped++;
-					pairMappedBP+=len;
+					pairMappedBP+=dlen;
 					if(r.getMateReferenceName().equals(r.getReferenceName())){
 						pairedEndSameChr++;
-						pairedEndSameChrBP+=len;
+						pairedEndSameChrBP+=dlen;
 					}else{
 						pairedEndDiffChr++;
-						pairedEndDiffChrBP+=len;
+						pairedEndDiffChrBP+=dlen;
 					}
 				}
 			}else{
 				singleEnd++;
-				singleEndBP+=len;
+				singleEndBP+=dlen;
 			}
 			
 			List<AlignmentBlock> blocks = r.getAlignmentBlocks();
     		if(blocks.size()==2){
     			junctions++;
-    			junctionsBP+=len;
+    			junctionsBP+=dlen;
     		}
 			
 			if(!r.getNotPrimaryAlignmentFlag()){
@@ -104,9 +105,9 @@ public class SAMStats {
 					LHitBP+=len;
 					if(r.getReadPairedFlag() && r.getProperPairFlag()){
 						properPairL++;
-						properPairLBP+=len;
+						properPairLBP+=dlen;
 						properPair++;
-						properPairBP+=len;
+						properPairBP+=dlen;
 						if(!r.getReadNegativeStrandFlag() && r.getMateNegativeStrandFlag()){
 							double dist = (r.getMateAlignmentStart()+r.getReadLength())-r.getAlignmentStart();
 							histo.addValue(dist);
@@ -114,17 +115,17 @@ public class SAMStats {
 					}
 				}else if(r.getSecondOfPairFlag()){
 					RHits++;
-					RHitBP+=len;
+					RHitBP+=dlen;
 					if(r.getProperPairFlag()){
 						properPairR++;
-						properPairRBP+=len;
+						properPairRBP+=dlen;
 						properPair++;
-						properPairBP+=len;
+						properPairBP+=dlen;
 					}
 				}
 			}else{
 				notPrimary++;
-				notPrimaryBP+=len;
+				notPrimaryBP+=dlen;
 			}
 		}
 	}
