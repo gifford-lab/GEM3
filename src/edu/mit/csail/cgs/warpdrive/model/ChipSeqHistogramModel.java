@@ -2,6 +2,7 @@ package edu.mit.csail.cgs.warpdrive.model;
 
 import java.io.IOException;
 import java.util.*;
+
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.projects.readdb.*;
@@ -85,7 +86,12 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     }
                     resultsPlus = null;
                     resultsMinus = null;
-                    if (props.UseWeights) {
+                    if (props.ShowSelfLigationOverlap) {
+                    	System.err.println("Computing Self Overlap");
+                    	resultsPlus = getSelfHistogram();
+                    	resultsMinus = new TreeMap<Integer,Float>();
+                    	System.err.println(resultsPlus.size()+" in model plus set");
+                    } else if (props.UseWeights) {
                         if (!props.ShowPairedReads || props.ShowSingleReads) {
                             resultsPlus = Aggregator.mergeHistogramsFF(resultsPlus,
                                                                        client.getWeightHistogram(ids,
@@ -208,5 +214,71 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
             }
         }
         client.close();
-    }                     
+    }
+    
+    public TreeMap<Integer,Float> getSelfHistogram() throws IOException, ClientException {
+    	int[] profile = new int[region.getWidth()];
+		Set<PairedHit> hitset = getHitSet(region);
+		for (PairedHit p : hitset) {
+			if (p==null) System.err.println("null PairedHit");
+			if (isSelfLigation(p)) {
+				int startpos = p.leftPos < p.rightPos ? p.leftPos : p.rightPos;
+				int endpos = p.leftPos < p.rightPos ? p.rightPos : p.leftPos;
+				startpos = Math.max(startpos-region.getStart(), 0);
+				endpos = Math.min(endpos-region.getStart(), region.getWidth());
+				for (int i=startpos; i<endpos; i++) {
+					profile[i]++;
+				}
+			}
+		}
+		TreeMap<Integer,Float> output = new TreeMap<Integer,Float>();
+		for (int i=0; i<profile.length; i++) {
+			output.put(i+region.getStart(), (float)profile[i]);
+		}
+		return output;
+    }
+    
+    public boolean isSelfLigation(PairedHit p) {
+    	if (props.RightFlipped) {
+    		return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= props.SelfLigationCutoff) && (p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
+    		&& (p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
+    	} else {
+    		return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= props.SelfLigationCutoff) && !(p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
+    		&& (p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
+    	}
+    }
+    
+    public Set<PairedHit> getHitSet(Region r) throws IOException, ClientException {
+		int chrom = r.getGenome().getChromID(r.getChrom());
+		Set<PairedHit> hitset = new HashSet<PairedHit>();
+		/*
+		if (chrom==9848 || chrom==9853 || chrom==9845) {
+			System.err.println(r.getChrom());
+			return hitset;
+		}
+		*/
+		for (String s : ids) {
+			List<PairedHit> hits = client.getPairedHits(s,
+					chrom,
+					true,
+					r.getStart()-props.SelfLigationCutoff,
+					r.getEnd(),
+					null,
+					null);
+			for (PairedHit p : hits) {
+				if (!(hitset.contains(p))) {
+					p.flipSides();
+					if (!hitset.contains(p)) {
+						p.flipSides();
+						hitset.add(p);
+						
+					}
+				}
+			}
+			
+		}
+		System.err.println(hitset.size()+" hits");
+		return hitset;
+	}
+    
  }

@@ -9,6 +9,9 @@ public class ChipSeqHistogramProperties extends ModelProperties {
     public Boolean ReadExtension = Boolean.TRUE;
     public Boolean ShowPairedReads = Boolean.FALSE;
     public Boolean ShowSingleReads = Boolean.TRUE;
+    public Boolean ShowSelfLigationOverlap = Boolean.FALSE;
+    public Integer SelfLigationCutoff = 10000;
+    public Boolean RightFlipped = Boolean.TRUE;
     
     private int totalReadCount = 0;
 
