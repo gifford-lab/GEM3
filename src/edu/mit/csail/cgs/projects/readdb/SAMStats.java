@@ -136,23 +136,23 @@ public class SAMStats {
 	}
 
 	public void printStats(){
-		System.out.println("\nTotalHits:\t"+totalHits+"\t"+totalHitBP+" bp");
-		System.out.println("LeftHits:\t"+LHits+"\t"+LHitBP+" bp");
-		System.out.println("RightHits:\t"+RHits+"\t"+RHitBP+" bp");
+		System.out.println("\nTotalHits:\t"+totalHits+"\t"+String.format("%.0f",totalHitBP)+" bp");
+		System.out.println("LeftHits:\t"+LHits+"\t"+String.format("%.0f",LHitBP)+" bp");
+		System.out.println("RightHits:\t"+RHits+"\t"+String.format("%.0f",RHitBP)+" bp");
 		System.out.println("MappedSeq:\t"+(int)weight+"\t"+weightBP+" bp");
-		System.out.println("UniquelyMapped:\t"+uniquelyMapped+"\t"+uniquelyMappedBP+" bp");
+		System.out.println("UniquelyMapped:\t"+uniquelyMapped+"\t"+String.format("%.0f",uniquelyMappedBP)+" bp");
 		int nonU = (int)weight - uniquelyMapped;
 		int nonUBP = (int)weightBP - uniquelyMappedBP;
-		System.out.println("NonUniquelyMapped:\t"+nonU+"\t"+nonUBP+" bp");
-		System.out.println("SingleEndMapped:\t"+singleEnd+"\t"+singleEndBP+" bp");
-		System.out.println("Junctions:\t"+junctions+"\t"+junctionsBP+" bp");
-		System.out.println("PairedEndMapped:\t"+pairMapped+"\t"+pairMappedBP+" bp");
-		System.out.println("ProperPairs:\t"+properPair+"\t"+properPairBP+" bp");
-		System.out.println("ProperPairsL:\t"+properPairL+"\t"+properPairLBP+" bp");
-		System.out.println("ProperPairsR:\t"+properPairR+"\t"+properPairRBP+" bp");
-		System.out.println("PairedEndMapped_SameChr:\t"+pairedEndSameChr+"\t"+pairedEndSameChrBP+" bp");
-		System.out.println("PairedEndMapped_DiffChr:\t"+pairedEndDiffChr+"\t"+pairedEndDiffChrBP+" bp");
-		System.out.println("UnMapped:\t"+unMapped+"\t"+unMappedBP+" bp");
-		System.out.println("NotPrimary:\t"+notPrimary+"\t"+notPrimaryBP+" bp");
+		System.out.println("NonUniquelyMapped:\t"+nonU+"\t"+String.format("%.0f",nonUBP)+" bp");
+		System.out.println("SingleEndMapped:\t"+singleEnd+"\t"+String.format("%.0f",singleEndBP)+" bp");
+		System.out.println("Junctions:\t"+junctions+"\t"+String.format("%.0f",junctionsBP)+" bp");
+		System.out.println("PairedEndMapped:\t"+pairMapped+"\t"+String.format("%.0f",pairMappedBP)+" bp");
+		System.out.println("ProperPairs:\t"+properPair+"\t"+String.format("%.0f",properPairBP)+" bp");
+		System.out.println("ProperPairsL:\t"+properPairL+"\t"+String.format("%.0f",properPairLBP)+" bp");
+		System.out.println("ProperPairsR:\t"+properPairR+"\t"+String.format("%.0f",properPairRBP)+" bp");
+		System.out.println("PairedEndMapped_SameChr:\t"+pairedEndSameChr+"\t"+String.format("%.0f",pairedEndSameChrBP)+" bp");
+		System.out.println("PairedEndMapped_DiffChr:\t"+pairedEndDiffChr+"\t"+String.format("%.0f",pairedEndDiffChrBP)+" bp");
+		System.out.println("UnMapped:\t"+unMapped+"\t"+String.format("%.0f",unMappedBP)+" bp");
+		System.out.println("NotPrimary:\t"+notPrimary+"\t"+String.format("%.0f",notPrimaryBP)+" bp");
 	}
 }
