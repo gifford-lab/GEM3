@@ -19,14 +19,14 @@ import edu.mit.csail.cgs.utils.RealValuedHistogram;
 
 public class SAMStats {
 
-	private int totalHits=0, LHits=0, RHits=0, totalHitBP=0, LHitBP=0, RHitBP=0;
-	private int singleEnd=0, properPair=0, unMapped=0, properPairL=0, properPairR=0, pairMapped=0, notPrimary=0;
-	private double singleEndBP=0, properPairBP=0, unMappedBP=0, properPairLBP=0, properPairRBP=0, pairMappedBP=0, notPrimaryBP=0;
-	private int uniquelyMapped=0, uniquelyMappedBP=0;
-	private int junctions=0, junctionsBP=0;
-	private double weight=0, weightBP=0;;
-	private int pairedEndSameChr=0, pairedEndDiffChr=0;
-	private double pairedEndSameChrBP=0, pairedEndDiffChrBP=0;
+	private Double totalHits=0.0, LHits=0.0, RHits=0.0, totalHitBP=0.0, LHitBP=0.0, RHitBP=0.0;
+	private Double singleEnd=0.0, properPair=0.0, unMapped=0.0, properPairL=0.0, properPairR=0.0, pairMapped=0.0, notPrimary=0.0;
+	private Double singleEndBP=0.0, properPairBP=0.0, unMappedBP=0.0, properPairLBP=0.0, properPairRBP=0.0, pairMappedBP=0.0, notPrimaryBP=0.0;
+	private Double uniquelyMapped=0.0, uniquelyMappedBP=0.0;
+	private Double junctions=0.0, junctionsBP=0.0;
+	private Double weight=0.0, weightBP=0.0;;
+	private Double pairedEndSameChr=0.0, pairedEndDiffChr=0.0;
+	private Double pairedEndSameChrBP=0.0, pairedEndDiffChrBP=0.0;
 	private RealValuedHistogram histo;
 	
 	public static void main(String args[]) throws IOException, ParseException {
@@ -136,23 +136,23 @@ public class SAMStats {
 	}
 
 	public void printStats(){
-		System.out.println("\nTotalHits:\t"+totalHits+"\t"+String.format("%.0f",totalHitBP)+" bp");
-		System.out.println("LeftHits:\t"+LHits+"\t"+String.format("%.0f",LHitBP)+" bp");
-		System.out.println("RightHits:\t"+RHits+"\t"+String.format("%.0f",RHitBP)+" bp");
-		System.out.println("MappedSeq:\t"+(int)weight+"\t"+weightBP+" bp");
-		System.out.println("UniquelyMapped:\t"+uniquelyMapped+"\t"+String.format("%.0f",uniquelyMappedBP)+" bp");
-		int nonU = (int)weight - uniquelyMapped;
-		int nonUBP = (int)weightBP - uniquelyMappedBP;
-		System.out.println("NonUniquelyMapped:\t"+nonU+"\t"+String.format("%.0f",nonUBP)+" bp");
-		System.out.println("SingleEndMapped:\t"+singleEnd+"\t"+String.format("%.0f",singleEndBP)+" bp");
-		System.out.println("Junctions:\t"+junctions+"\t"+String.format("%.0f",junctionsBP)+" bp");
-		System.out.println("PairedEndMapped:\t"+pairMapped+"\t"+String.format("%.0f",pairMappedBP)+" bp");
-		System.out.println("ProperPairs:\t"+properPair+"\t"+String.format("%.0f",properPairBP)+" bp");
-		System.out.println("ProperPairsL:\t"+properPairL+"\t"+String.format("%.0f",properPairLBP)+" bp");
-		System.out.println("ProperPairsR:\t"+properPairR+"\t"+String.format("%.0f",properPairRBP)+" bp");
-		System.out.println("PairedEndMapped_SameChr:\t"+pairedEndSameChr+"\t"+String.format("%.0f",pairedEndSameChrBP)+" bp");
-		System.out.println("PairedEndMapped_DiffChr:\t"+pairedEndDiffChr+"\t"+String.format("%.0f",pairedEndDiffChrBP)+" bp");
-		System.out.println("UnMapped:\t"+unMapped+"\t"+String.format("%.0f",unMappedBP)+" bp");
-		System.out.println("NotPrimary:\t"+notPrimary+"\t"+String.format("%.0f",notPrimaryBP)+" bp");
+		System.out.println("\nTotalHits:\t"+String.format("%.0f",+totalHits)+"\t"+String.format("%.0f",totalHitBP)+" bp");
+		System.out.println("LeftHits:\t"+String.format("%.0f",LHits)+"\t"+String.format("%.0f",LHitBP)+" bp");
+		System.out.println("RightHits:\t"+String.format("%.0f",RHits)+"\t"+String.format("%.0f",RHitBP)+" bp");
+		System.out.println("MappedSeq:\t"+String.format("%.0f",weight)+"\t"+String.format("%.0f",weightBP)+" bp");
+		System.out.println("UniquelyMapped:\t"+String.format("%.0f",uniquelyMapped)+"\t"+String.format("%.0f",uniquelyMappedBP)+" bp");
+		double nonU = weight - uniquelyMapped;
+		double nonUBP = weightBP - uniquelyMappedBP;
+		System.out.println("NonUniquelyMapped:\t"+String.format("%.0f",nonU)+"\t"+String.format("%.0f",nonUBP)+" bp");
+		System.out.println("SingleEndMapped:\t"+String.format("%.0f",singleEnd)+"\t"+String.format("%.0f",singleEndBP)+" bp");
+		System.out.println("Junctions:\t"+String.format("%.0f",junctions)+"\t"+String.format("%.0f",junctionsBP)+" bp");
+		System.out.println("PairedEndMapped:\t"+String.format("%.0f",pairMapped)+"\t"+String.format("%.0f",pairMappedBP)+" bp");
+		System.out.println("ProperPairs:\t"+String.format("%.0f",properPair)+"\t"+String.format("%.0f",properPairBP)+" bp");
+		System.out.println("ProperPairsL:\t"+String.format("%.0f",properPairL)+"\t"+String.format("%.0f",properPairLBP)+" bp");
+		System.out.println("ProperPairsR:\t"+String.format("%.0f",properPairR)+"\t"+String.format("%.0f",properPairRBP)+" bp");
+		System.out.println("PairedEndMapped_SameChr:\t"+String.format("%.0f",pairedEndSameChr)+"\t"+String.format("%.0f",pairedEndSameChrBP)+" bp");
+		System.out.println("PairedEndMapped_DiffChr:\t"+String.format("%.0f",pairedEndDiffChr)+"\t"+String.format("%.0f",pairedEndDiffChrBP)+" bp");
+		System.out.println("UnMapped:\t"+String.format("%.0f",unMapped)+"\t"+String.format("%.0f",unMappedBP)+" bp");
+		System.out.println("NotPrimary:\t"+String.format("%.0f",notPrimary)+"\t"+String.format("%.0f",notPrimaryBP)+" bp");
 	}
 }
