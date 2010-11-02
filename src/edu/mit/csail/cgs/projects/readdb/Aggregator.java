@@ -54,7 +54,7 @@ public class Aggregator implements ReadOnlyClient {
         if (a == null) {
             return b;
         } else if (b == null) {
-            return new TreeMap<Integer,Float>();
+            b = new TreeMap<Integer,Float>();
         }
         for (int k : a.keySet()) {
             if (b.containsKey(k)) {
