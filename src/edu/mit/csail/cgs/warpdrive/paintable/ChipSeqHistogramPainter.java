@@ -205,7 +205,6 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
         	g.setColor(Color.BLUE);
             for (int pos : plus.keySet()) {
                 double val = plus.get(pos);
-                System.err.println("Plus " + pos + " = " + val);
                 int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
                 if(!plotXVals.containsKey(xpix) || plotXVals.get(xpix)<val){
                 		plotXVals.put(xpix,val);
