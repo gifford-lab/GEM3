@@ -1,5 +1,7 @@
 ReadDB is client-server software for storing and accessing mapped short
-reads.
+reads.  Client.java contains the API docs for the java client;
+ImportHits.java, ReadDB.java, and Query.java are the command line
+clients. 
 
 Server Setup
 ============
@@ -25,6 +27,9 @@ Groups let you assign permissions to multiple users at once.  The
 special group "admin" is for users who can shut down the server, add
 users, and add users to groups.
 
+The groups file is read on startup, but there are API functions to add
+users to groups.
+
 defaultACL.txt
 --------------
 
@@ -34,9 +39,9 @@ read: groupone usertwo grouptwo
 write: grouptwo usertwo
 admin: usertwo
 
-
-admin is the set of users and groups who can change the ACL.
-
+This file is re-read whenever an alignment is created and is used to
+seed the ACL for the new alignment.  admin is the set of users and
+groups who can change the ACL for the alignment.
 
 
 Starting the Server
@@ -52,6 +57,8 @@ Once users.txt, groups.txt, and defaultACL.txt are in place (eg, in
 -M is the number of connections to allow
 -C is the number of files to cache
 -t is the number of threads to spawn
+-d is the directory with users.txt, groups.txt, and defaultACL.txt.  One
+   directory per alignment will be created here.
 
 The server will log on STDERR.
 
