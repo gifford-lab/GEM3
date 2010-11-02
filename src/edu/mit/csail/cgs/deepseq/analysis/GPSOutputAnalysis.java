@@ -107,7 +107,7 @@ public class GPSOutputAnalysis {
 	
     int type = Args.parseInteger(args, "type", 0);
     int win = Args.parseInteger(args, "win", 50);
-    int top = Args.parseInteger(args, "top", 100);
+    int top = Args.parseInteger(args, "top", -1);
 	switch(type){
 	case 0: analysis.jointBindingMotifAnalysis(true);break;
 	case 1: analysis.printSequences(win, top);break;
@@ -384,17 +384,23 @@ public class GPSOutputAnalysis {
    */
   public void printSequences(int win, int top){
 	StringBuilder sb = new StringBuilder();
+	StringBuilder sb2 = new StringBuilder();
 	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	Region peakWin=null;
-	top = Math.min(top, gpsPeaks.size());
+	top = top==-1? gpsPeaks.size(): Math.min(top, gpsPeaks.size());
 	for (int i=0;i<top;i++){
 		GPSPeak gpspeak = gpsPeaks.get(i);
         peakWin = gpspeak.expand(win/2);
 		sb.append(">"+peakWin.getLocationString()+"\t"+peakWin.getWidth() +"\t"+gpspeak.getStrength() +"\n");
 		sb.append(seqgen.execute(peakWin)+"\n");
+		peakWin = new Region(genome, peakWin.getChrom(), peakWin.getStart()+1000, peakWin.getEnd()+1000);
+		sb2.append(">"+peakWin.getLocationString()+"\t"+peakWin.getWidth() +"\t0\n");
+		sb2.append(seqgen.execute(peakWin)+"\n");
 	}
 	String filename = outputFileName+"_sequence.txt";
 	CommonUtils.writeFile(filename, sb.toString());  
+	filename = outputFileName+"_sequence_neg.txt";
+	CommonUtils.writeFile(filename, sb2.toString());  
   }
 
   public void buildEmpiricalDistribution(){
