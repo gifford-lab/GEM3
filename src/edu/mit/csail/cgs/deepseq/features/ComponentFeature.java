@@ -268,11 +268,16 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
+        		double fold = 0;
+        		if (getScaledControlCounts(c)==0)
+        			fold = 9999.9;
+        		else
+        			fold = getEventReadCounts(c)/getScaledControlCounts(c);
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
-        			  .append(String.format("%7.1f\t", getAverageIpCtrlLogKL()));
+        			  .append(String.format("%7.1f\t", fold));
         	}
-//        	else
-//        		result.append("NaN\t").append("NaN\t");
+        	else
+        		result.append("NaN\t").append("NaN\t");
         
         	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
@@ -280,7 +285,13 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
         	else
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
+        	
     		result.append(String.format("%7.3f\t", getShapeDeviation(c)));
+    		
+        	if(unScaledControlCounts!=null)
+        		result.append(String.format("%7.3f\t", getAverageIpCtrlLogKL()));
+        	else
+        		result.append("NaN\t");
         }
 
         result.append(isJointEvent?1:0).append("\t");
@@ -321,10 +332,11 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IP\t");
         	}
         	header.append(name+"Control\t")
-        		  .append(name+"IP==Ctr\t")
+        		  .append(name+"   Fold\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
-      		  	  .append(name+"Shape\t");
+  	      		  .append("IPvsEMP\t")
+  	      		  .append(name+"IPvsCTR\t");
         }
         
         header.append("Joint\t");
@@ -353,10 +365,11 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IP\t");
         	}
         	header.append(name+"Control\t")
-  		  		  .append(name+"IP==Ctr\t")
+  		  		  .append(name+"   Fold\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
-  	      		  .append("  Shape");
+  	      		  .append("IPvsEMP\t")
+  	      		  .append(name+"IPvsCTR\t");
         	if (c<numConditions-1)
         		header.append("\t");
         }
@@ -378,11 +391,16 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
+        		double fold = 0;
+        		if (getScaledControlCounts(c)==0)
+        			fold = 9999.9;
+        		else
+        			fold = getEventReadCounts(c)/getScaledControlCounts(c);
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
-        			  .append(String.format("%7.1f\t", getAverageIpCtrlLogKL()));
+        			  .append(String.format("%7.1f\t", fold));
         	}
-//        	else
-//        		result.append("NaN\t").append("NaN\t");
+        	else
+        		result.append("NaN\t").append("NaN\t");
         
         	result.append(String.format("%7.3f\t", getQValueLog10(c)));
         	
@@ -392,6 +410,12 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
 
     		result.append(String.format("%7.3f", getShapeDeviation(c)));
+    		
+        	if(unScaledControlCounts!=null)
+        		result.append(String.format("%7.3f\t", getAverageIpCtrlLogKL()));
+        	else
+        		result.append("NaN\t");
+        	
         	if (c<numConditions-1)
         		result.append("\t");
         }

@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class ChipSeqAnalyzer{
-	public final static String GPS_VERSION = "0.10.1";
+	public final static String GPS_VERSION = "1.0";
 	private boolean development_mode = false;
 
 	private String[] args;
@@ -29,7 +29,7 @@ public class ChipSeqAnalyzer{
 	ChipSeqAnalyzer(String[] args){
 		System.out.println("Welcome to GPS (version "+GPS_VERSION+")!");
 		if(args.length==0){ 
-			printError(); 
+			printHelp(); 
 			System.exit(1); 
 		}
 		this.args = args;
@@ -37,7 +37,7 @@ public class ChipSeqAnalyzer{
 		Set<String> flags = Args.parseFlags(args);
 		development_mode = flags.contains("dev");
 		if ( (ap.hasKey("help"))) {
-			printError();
+			printHelp();
 			System.exit(1);
 		}
 
@@ -60,8 +60,8 @@ public class ChipSeqAnalyzer{
 		
 		// checking all required parameters
 		if (! (ap.hasKey("d"))) {
-			System.err.println("The read distribution file is required.\n");
 			printError();
+			System.err.println("The read distribution file is required. Use --d option.\n");
 			System.exit(1);
 		}
 		if (! (ap.hasKey("s"))) {
@@ -221,8 +221,8 @@ public class ChipSeqAnalyzer{
 	/**
 	 * Command-line help
 	 */
-	public void printError() {
-		System.err.println("" +
+	public void printHelp() {
+		System.err.print("" +
                 "GPS Usage                      (more at http://cgs.csail.mit.edu/gps/)\n" +
 //                "   Using with Gifford Lab DB:\n" +
 //                "      --species <organism name;genome version>\n"+
@@ -243,10 +243,9 @@ public class ChipSeqAnalyzer{
                 "      --out <output file base name>\n" +
                 "   Optional flags: \n" +
                 "      --fa <use a fixed user-specified alpha value for all the regions>\n" +
-                "      --multi <run the multicondition mode of the method>\n" +
                 "      --help <print help information and exit>\n" +
                 "\n   Output format:\n" +
-                "      The output file contains seven fields in a tab-delimited file:\n" +
+                "      The output file contains eight fields in a tab-delimited file:\n" +
                 "        - Binding event coordinate\n" +
                 "        - IP read count\n" +
                 "        - Control read count\n" +
@@ -254,7 +253,21 @@ public class ChipSeqAnalyzer{
                 "        - P-value\n" +
                 "        - Q-value (multiple hypothesis corrected)\n"+
                 "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
-                "\n");		
+                "        - Shape deviation between IP vs Control (log10(KL))\n" +
+                "\n");	
+	}
+	public void printError() {
+		printHelp();
+		
+		StringBuffer sb = new StringBuffer();
+		sb.append("\nYour input options are:\n");
+		for (String arg:args){
+			if (arg.trim().indexOf(" ")!=-1)
+				sb.append("\"").append(arg).append("\" ");
+			else
+				sb.append(arg).append(" ");
+		}
+		System.err.println(sb.toString()+"\n");
 	}
 
 	//Cleanup the loaders
