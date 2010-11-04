@@ -113,14 +113,15 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private double q_value_threshold = 2.0;
     private double joint_event_distance = 500;
     private double alpha_factor = 3.0;
-    private double kl_ic = 0;
     private int top_events = 2000;
+    private int min_event_count = 500;	// minimum num of events to update read distribution
     private int smooth_step = 30;
     private int window_size_factor = 3;	//number of model width per window
     private int min_region_width = 50;	//minimum width for select enriched region
     private double mappable_genome_length = 2.08E9; // mouse genome
     private double sparseness=6.0;
     private double fold = 3.0;
+    private double kl_ic = -1.0;
     private double shapeDeviation = 0;
     private int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
     private int resolution_extend = 2;
@@ -343,6 +344,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	third_lambda_region_width = Args.parseInteger(args, "w3", 10000);
     	joint_event_distance = Args.parseInteger(args, "j", 10000);		// max distance of joint events
     	top_events = Args.parseInteger(args, "top", top_events);
+    	min_event_count = Args.parseInteger(args, "min", min_event_count);
     	base_reset_threshold = Args.parseInteger(args, "reset", base_reset_threshold);
     	min_region_width = Args.parseInteger(args, "min_region_width", 50);
     	bmverbose = Args.parseInteger(args, "bmverbose", bmverbose);
@@ -2499,7 +2501,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 						else{
 							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
-							if ((ratio>=fold && cf.getAverageIpCtrlLogKL()>0) || (cf.getAverageIpCtrlLogKL()<0 && ratio>=fold+1)){
+							if ((ratio>=fold && cf.getAverageIpCtrlLogKL()>kl_ic) || (cf.getAverageIpCtrlLogKL()<kl_ic && ratio>=fold*2)){
 								notFiltered = true;
 								break;
 							}
@@ -3189,20 +3191,20 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					int pos = comp.getPosition().getLocation();
 					// set control reads count and logKL
 					double total=0;
-					double[] profile_plus = new double[modelWidth];
-					double[] profile_minus = new double[modelWidth];
+					double[] ctrl_profile_plus = new double[modelWidth];
+					double[] ctrl_profile_minus = new double[modelWidth];
 					for(int i=0;i<bases.size();i++){
 						StrandedBase base = bases.get(i);
 						if (assignment[i][j]>0){
 							if (base.getStrand()=='+'){
 								if (base.getCoordinate()-pos-model.getMin()>modelWidth)
 									System.err.println(pos+"\t+\t"+base.getCoordinate());
-								profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
+								ctrl_profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
 							}
 							else{
 								if (pos-base.getCoordinate()-model.getMin()>modelWidth)
 									System.err.println(pos+"\t-\t"+base.getCoordinate());
-								profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
+								ctrl_profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
 							}
 							total += assignment[i][j]*base.getCount();
 						}
@@ -3216,8 +3218,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					double logKL_plus=99;		// default to a large value if no control data
 					double logKL_minus=99; 
 					if (total!=0){
-						logKL_plus  = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_plus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
-						logKL_minus = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_minus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
+						logKL_plus  = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_plus(c), gaussian), StatUtil.symmetricKernelSmoother(ctrl_profile_plus, gaussian));
+						logKL_minus = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_minus(c), gaussian), StatUtil.symmetricKernelSmoother(ctrl_profile_minus, gaussian));
 					}
 					comp.setIpCtrlLogKL(c, logKL_plus, logKL_minus);
 				}
@@ -3750,8 +3752,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	
 	public double updateBindingModel(int left, int right){
-		if (signalFeatures.size()<=500){
-			System.err.println("Warning: The read distribution is not updated because there are too few ("+signalFeatures.size()+") significant events.");
+		if (signalFeatures.size()<min_event_count){
+			System.err.println("Warning: The read distribution is not updated due to too few ("+signalFeatures.size()+"<"+min_event_count+") significant events.");
 			return -100;
 		}
 		int width = left+right+1;
@@ -3939,6 +3941,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                     double scaledControlCount = cf.getScaledControlCounts(cond);
 					double pValueControl = 1, pValueUniform = 1, pValueBalance = 1, pValuePoisson = 1;
                     int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
+                    if (ipCount==0){			// if one of the conditino does not have reads, set p-value=1
+                    	cf.setPValue(1, cond);
+                    	continue;
+                    }
                     try{
                         assert (totalIPCount[cond] > 0);
                         assert (ipCount <= totalIPCount[cond]);
