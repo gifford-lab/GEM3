@@ -409,7 +409,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	else
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
 
-    		result.append(String.format("%7.3f", getShapeDeviation(c)));
+    		result.append(String.format("%7.3f\t", getShapeDeviation(c)));
     		
         	if(unScaledControlCounts!=null)
         		result.append(String.format("%7.3f\t", getAverageIpCtrlLogKL()));

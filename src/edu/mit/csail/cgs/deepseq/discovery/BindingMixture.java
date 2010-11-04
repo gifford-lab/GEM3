@@ -3191,20 +3191,20 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					int pos = comp.getPosition().getLocation();
 					// set control reads count and logKL
 					double total=0;
-					double[] profile_plus = new double[modelWidth];
-					double[] profile_minus = new double[modelWidth];
+					double[] ctrl_profile_plus = new double[modelWidth];
+					double[] ctrl_profile_minus = new double[modelWidth];
 					for(int i=0;i<bases.size();i++){
 						StrandedBase base = bases.get(i);
 						if (assignment[i][j]>0){
 							if (base.getStrand()=='+'){
 								if (base.getCoordinate()-pos-model.getMin()>modelWidth)
 									System.err.println(pos+"\t+\t"+base.getCoordinate());
-								profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
+								ctrl_profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
 							}
 							else{
 								if (pos-base.getCoordinate()-model.getMin()>modelWidth)
 									System.err.println(pos+"\t-\t"+base.getCoordinate());
-								profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
+								ctrl_profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
 							}
 							total += assignment[i][j]*base.getCount();
 						}
@@ -3218,8 +3218,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					double logKL_plus=99;		// default to a large value if no control data
 					double logKL_minus=99; 
 					if (total!=0){
-						logKL_plus  = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_plus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_plus, gaussian));
-						logKL_minus = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_minus(c), gaussian), StatUtil.symmetricKernelSmoother(profile_minus, gaussian));
+						logKL_plus  = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_plus(c), gaussian), StatUtil.symmetricKernelSmoother(ctrl_profile_plus, gaussian));
+						logKL_minus = StatUtil.log_KL_Divergence(StatUtil.symmetricKernelSmoother(bb.getReadProfile_minus(c), gaussian), StatUtil.symmetricKernelSmoother(ctrl_profile_minus, gaussian));
 					}
 					comp.setIpCtrlLogKL(c, logKL_plus, logKL_minus);
 				}
