@@ -39,8 +39,8 @@ import edu.mit.csail.cgs.ewok.verbs.*;
  * --minfrac 0   minimum fraction of the sequences that must contain the motif (can be in either file)
  * --savedata motif_presence_file.txt
  * --savedatahits
- * --dumpfg output_fg.fasta
- * --dumpbg output_bg.fasta
+ * --outfg output_fg.fasta
+ * --outbg output_bg.fasta
  * --mask name;version;cutoff
  *
  * The comparison code will check all percent cutoffs between the value you specify as --cutoff and 1 (in increments of .05) 
@@ -82,6 +82,10 @@ public class CompareEnrichment {
             pw.println(">" + s);
             int i = 0;
             char[] chars = seqs.get(s);
+            String seq = new String(chars);
+            if (!seq.matches("[ACTGactgN]*")) {
+                throw new RuntimeException("Invalid sequence " + s + ": " + seq);
+            } 
             while (i < chars.length) {
                 int l = i + 60 < chars.length ? 60 : chars.length -i;
                 pw.write(chars,i,l);
@@ -156,6 +160,13 @@ public class CompareEnrichment {
                                           (int)target,
                                           (int)target+size);
                     String seq = seqgen.execute(r);
+                    if (!seq.matches("[ACTGactgN]*")) {
+                        throw new RuntimeException("Invalid sequence from " + r + ": " + seq);
+                    }
+                    if (seq.matches(".*NNNNNNNN.*")) {
+                        count++;
+                        break;
+                    }
                     output.put(r.toString(),seq.toCharArray() );
                     break;
                 } else {
@@ -196,14 +207,14 @@ public class CompareEnrichment {
             }
         }
     }
-    /** convert all instances of wm with score > theshhold into XXXs in seq*/
+    /** convert all instances of wm with score > theshhold into NNNs in seq*/
     public void maskSequence(WeightMatrix wm, double threshold, char[] seq) {
         List<WMHit> hits = WeightMatrixScanner.scanSequence(wm,
                                                             (float)threshold,
                                                             seq);
         for (WMHit hit : hits) {
             for (int i = hit.start; i < hit.end; i++) {
-                seq[i] = 'X';
+                seq[i] = 'N';
             }
         }
     }
@@ -421,16 +432,19 @@ public class CompareEnrichment {
                 }
             }
         }
+    }
+    public void saveSequences() throws IOException {
         if (outfg != null) {
             saveFasta(outfg, foreground);
             outfg.close();
             outfg = null;
         }
-        if (outbg != null) {
+        if (outbg != null) {            
             saveFasta(outbg, background);
             outbg.close();
             outbg = null;
         }
+ 
     }
     public void doScan() {
         DecimalFormat nf = new DecimalFormat("0.000E000");
@@ -482,6 +496,7 @@ public class CompareEnrichment {
         CompareEnrichment ce = new CompareEnrichment();
         ce.parseArgs(args);
         ce.maskSequence();
+        ce.saveSequences();
         ce.doScan();
     }
 
