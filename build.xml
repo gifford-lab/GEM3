@@ -181,9 +181,9 @@
   </target>
   <target name="makereaddbjar" depends="compilereaddb, unjarcli">
     <mkdir dir="${build.dir}/javadoc"/>
-    <!-- <javadoc destdir="${build.dir}/javadoc"> -->
-    <!--   <fileset dir="${src.dir}" includes="**readdb/*.java"/> -->
-    <!-- </javadoc> -->
+    <javadoc destdir="${build.dir}/javadoc">
+      <fileset dir="${src.dir}" includes="**/readdb/*.java"/>
+    </javadoc>
     <move file="${build.unjar.dir}/META-INF/LICENSE.txt"
 	    tofile="${build.unjar.dir}/Apache-Commons-Cli-LICENSE.txt"/>
     <move file="${build.unjar.dir}/META-INF/NOTICE.txt"

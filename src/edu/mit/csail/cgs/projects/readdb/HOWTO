@@ -113,6 +113,22 @@ edu.mit.csail.cgs.projects.readdb.SAMToReadDB will convert from SAM/BAM
 format to ReadDB, except that it does not convert string chromosome
 identifiers to the numeric identifiers needed by ReadDB.  Feel free to
 modify it to suit your local convention for non-numeric chromosomes.
+For a simple test, I used
+
+java -cp /tmp/readdb.jar edu.mit.csail.cgs.projects.readdb.SAMToReadDB < 1.bam | egrep \
+'^chr[[:digit:]]' | sed -e 's/^chr//' | java -cp /tmp/readdb.jar \
+edu.mit.csail.cgs.projects.readdb.ImportHits --align 1 --user test \
+--passwd test --hostname localhost --port 52000 
+
+And then some tests to make sure it loaded:
+
+java -cp /tmp/readdb.jar edu.mit.csail.cgs.projects.readdb.ReadDB \
+--user test --passwd test --hostname localhost --port 52000 getchroms 1
+
+java -cp /tmp/readdb.jar edu.mit.csail.cgs.projects.readdb.ReadDB \
+--user test --passwd test --hostname localhost --port 52000 getcount 1 3
+
+
 
 Command Line Queries
 ====================
@@ -145,4 +161,14 @@ args.  Commands are
 
 
 
+Java and Perl API
+=================
 
+Client.java and ReadDBClient.pm implement Java and Perl interfaces to
+ReadDB.  Client.java contains the documentation and is the "official"
+version.  ReadDBClient.pm mimics the Java version (and doesn't contain
+method documentation) and receives less use and testing.
+
+Contact the authors if you're interested in using ReadDB with GBrowse or
+the UCSC genome browser.  Some work has been done for the former and the
+latter would definitely be of interest.
