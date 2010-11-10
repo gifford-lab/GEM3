@@ -649,6 +649,7 @@ public class WeightMatrixScanner {
             }
         }
         SequenceUtils.reverseComplement(sequence); // put the sequence back the way we found it
+
         return results;
     }
 

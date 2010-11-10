@@ -209,7 +209,8 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
                 if(!plotXVals.containsKey(xpix) || plotXVals.get(xpix)<val){
                 		plotXVals.put(xpix,val);
                 }
-            }for(int xpix : plotXVals.keySet()){
+            }
+            for(int xpix : plotXVals.keySet()){
             	double val = plotXVals.get(xpix); 
             	int ypix = getYPos(val, 0, maxhits, y1, midpoint, logscale);
                 g.fillRect(xpix, ypix, binPixels, midpoint-ypix);

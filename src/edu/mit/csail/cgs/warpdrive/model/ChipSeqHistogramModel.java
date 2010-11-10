@@ -87,10 +87,8 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     resultsPlus = null;
                     resultsMinus = null;
                     if (props.ShowSelfLigationOverlap) {
-                    	System.err.println("Computing Self Overlap");
                     	resultsPlus = getSelfHistogram();
                     	resultsMinus = new TreeMap<Integer,Float>();
-                    	System.err.println(resultsPlus.size()+" in model plus set");
                     } else if (props.UseWeights) {
                         if (!props.ShowPairedReads || props.ShowSingleReads) {
                             resultsPlus = Aggregator.mergeHistogramsFF(resultsPlus,

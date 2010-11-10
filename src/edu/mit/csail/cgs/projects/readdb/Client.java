@@ -51,7 +51,11 @@ public class Client implements ReadOnlyClient {
     private static final int BUFFERLEN = 8192*20;
     private Request request;
 
-
+    /** Connects to a Readdb server on the specified host and port using the specified 
+     * username and password.
+     * @throws IOException on network errors
+     * @throws ClientException if the client cannot authenticate to the server
+     */
     public Client (String hostname,
                    int portnum,
                    String username,
@@ -59,11 +63,14 @@ public class Client implements ReadOnlyClient {
         init(hostname,portnum,username,passwd);
     }
     /**
-     * creates the default connection
+     * Creates the default connection
      * as specified by ~/.readdb_passwd or a readdb_passwd found in the classpath
      *
      * Must have keys hostname, port, username, and passwd in a format
      * that java.util.PropertyResourceBundle can read
+     *
+     * @throws IOException on network errors
+     * @throws ClientException if the client cannot authenticate to the server
      */
     public Client() throws IOException, ClientException {
         String homedir = (String)System.getProperties().get("user.home");
@@ -202,8 +209,9 @@ public class Client implements ReadOnlyClient {
         return out;
     }
     /**
-     * Closes the connection to the server.  You need to call this
-     * when you're done with the Client
+     * Tells the server to shut itself down.  Use this to stop the server process.
+     * @throws IOException on network errors
+     * @throws ClientException if the user isn't authorized to shut the server down.
      */
     public void shutdown() throws IOException, ClientException{
         request.clear();
@@ -213,7 +221,8 @@ public class Client implements ReadOnlyClient {
     /**
      * Stores a set of SingleHit objects (representing an un-paired or single-ended read
      * aligned to a genome) in the specified alignment.  The hits are appended
-     * to any hits that have already been stored in the alignment
+     * to any hits that have already been stored in the alignment.
+     
      */
     public void storeSingle(String alignid, List<SingleHit> allhits) throws IOException, ClientException {
         int step = 10000000;
@@ -484,6 +493,10 @@ public class Client implements ReadOnlyClient {
         int numhits = Integer.parseInt(readLine());
         return Bits.readInts(numhits, instream, buffer);        
     }
+    /** 
+     * returns the hit weights in the specified range of a chromosome,alignment pair.  The weights
+     * will be in the same order as the sorted positions returned by getPositions()
+     */ 
     public float[] getWeightsRange(String alignid, int chromid, boolean paired, Integer start, Integer stop, Float minWeight, Boolean isLeft, Boolean plusStrand) throws IOException, ClientException {
         request.clear();
         request.type="gethits";
@@ -795,7 +808,7 @@ public class Client implements ReadOnlyClient {
     }
 
     /**
-     * map from READ, WRITE, and ADMIN to lists of principals that have those privileges on the specified alignment
+     * Returns a Map from READ, WRITE, and ADMIN to lists of principals that have those privileges on the specified alignment.
      */
     public Map<String,Set<String>> getACL(String alignid) throws IOException, ClientException {
         request.clear();
@@ -844,6 +857,9 @@ public class Client implements ReadOnlyClient {
             throw new ClientException(response);
         }   
     }
+    /**
+     * Adds the specified user (princ) to a group.
+     */
     public void addToGroup(String princ, String group) throws IOException, ClientException {
         request.clear();
         request.type="addtogroup";
@@ -858,7 +874,7 @@ public class Client implements ReadOnlyClient {
         }
     }
     /**
-     * pack up and go home
+     * Closes this connection to the server.
      */
     public void close() {
         if (socket == null) {
