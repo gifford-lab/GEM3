@@ -238,6 +238,34 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 		return output;
     }
     
+    public TreeMap<Integer,Float> getOrientedHistogram(boolean left, boolean right) throws IOException, ClientException {
+    	int count = 0;
+    	int[] profile = new int[region.getWidth()];
+		Set<PairedHit> hitset = getHitSet(region);
+		for (PairedHit p : hitset) {
+			if (p==null) System.err.println("null PairedHit");
+			if ((left && right && isPlusPlus(p)) ||
+					(left && !right && isPlusMinus(p)) ||
+					(!left && right && isMinusPlus(p)) ||
+					(!left && !right && isMinusMinus(p))) {
+				int startpos = p.leftPos < p.rightPos ? p.leftPos : p.rightPos;
+				int endpos = p.leftPos < p.rightPos ? p.rightPos : p.leftPos;
+				startpos = Math.max(startpos-region.getStart(), 0);
+				endpos = Math.min(endpos-region.getStart(), region.getWidth());
+				for (int i=startpos; i<endpos; i++) {
+					profile[i]++;
+				}
+				count++;
+			}
+		}
+		TreeMap<Integer,Float> output = new TreeMap<Integer,Float>();
+		for (int i=0; i<profile.length; i++) {
+			output.put(i+region.getStart(), (float)profile[i]);
+		}
+		System.out.println(left+"\t"+right+"\t"+count);
+		return output;
+    }
+    
     public boolean isSelfLigation(PairedHit p) {
     	if (props.RightFlipped) {
     		return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= props.SelfLigationCutoff) && (p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
@@ -246,6 +274,26 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
     		return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= props.SelfLigationCutoff) && !(p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
     		&& (p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
     	}
+    }
+    
+    public boolean isPlusMinus(PairedHit p) {
+    	return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= props.SelfLigationCutoff) && (p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
+		&& !(p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
+    }
+    
+    public boolean isMinusPlus(PairedHit p) {
+    	return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= props.SelfLigationCutoff) && !(p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
+		&& (p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
+    }
+    
+    public boolean isPlusPlus(PairedHit p) {
+    	return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= props.SelfLigationCutoff) && (p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
+		&& (p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
+    }
+    
+    public boolean isMinusMinus(PairedHit p) {
+    	return (p.leftChrom == p.rightChrom) && (Math.abs(p.leftPos-p.rightPos) <= props.SelfLigationCutoff) && !(p.leftPos < p.rightPos ? p.leftStrand : p.rightStrand)
+		&& !(p.leftPos < p.rightPos ? p.rightStrand : p.leftStrand);
     }
     
     public Set<PairedHit> getHitSet(Region r) throws IOException, ClientException {
