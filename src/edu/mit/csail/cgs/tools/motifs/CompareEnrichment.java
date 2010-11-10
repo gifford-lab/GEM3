@@ -352,8 +352,6 @@ public class CompareEnrichment {
                                                                               "MARKOV",
                                                                               Args.parseGenome(args).cdr().getDBID());
 
-        System.err.println("Need to reimplement minfrac");
-
         if (md != null) {
             bgModel = BackgroundModelLoader.getMarkovModel(md);
         } else {

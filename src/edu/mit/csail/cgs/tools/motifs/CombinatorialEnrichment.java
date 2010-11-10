@@ -21,7 +21,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 
 public class CombinatorialEnrichment extends CompareEnrichment {
 
-    Map<String, List<List<WMHit>>> fghits, bghits;
+    Map<String, WMHit[]> fghits, bghits;
     List<CombResult> results;
     DescendingScoreComparator comparator;
     int fgsize, bgsize;
@@ -36,15 +36,20 @@ public class CombinatorialEnrichment extends CompareEnrichment {
         super.parseArgs(args);
     }
 
-    public Map<String,List<List<WMHit>>> doScan(Map<String,char[]> seqs) {
-        Map<String,List<List<WMHit>>> output = new HashMap<String,List<List<WMHit>>>();
+    public static Map<String,WMHit[]> doScan(int threads,
+                                             double cutoffpercent,
+                                             List<WeightMatrix> matrices,
+                                             Map<String,char[]> seqs) {
+        Map<String,WMHit[]> output = new HashMap<String,WMHit[]>();
         Vector<String> v = new Vector<String>();
         v.addAll(seqs.keySet());
         ArrayList<Thread> threadlist = new ArrayList<Thread>();
         for (int i = 0; i < threads; i++) {
             Thread t = new Thread(new Scanner(v,
                                               seqs,
-                                              output));
+                                              matrices,
+                                              output,
+                                              cutoffpercent));
             t.start();
             threadlist.add(t);
         }
@@ -66,43 +71,9 @@ public class CombinatorialEnrichment extends CompareEnrichment {
         return output;
     }
 
-    class Scanner implements Runnable {
-        private Vector<String> keys;
-        private Map<String,char[]> seqs;
-        private Map<String,List<List<WMHit>>> output;
-        public Scanner(Vector<String> k, Map<String,char[]> s,Map<String,List<List<WMHit>>> o) {
-            keys = k;
-            seqs = s;
-            output = o;
-        }
-        public void run() {
-            String s = null;
-            try {
-                while (true) {
-                    s = keys.remove(0);
-                    ArrayList<List<WMHit>> hitlists = new ArrayList<List<WMHit>>();
-                    for (WeightMatrix matrix : matrices) {
-                        double maxscore = matrix.getMaxScore();
-                        List<WMHit> hits = WeightMatrixScanner.scanSequence(matrix,
-                                                                            (float)(maxscore * cutoffpercent),
-                                                                            seqs.get(s));
-                        Collections.sort(hits, comparator);
-                        hitlists.add(hits);
-                    }
-                    synchronized (output) {
-                        output.put(s,hitlists);
-                    }                   
-                }
-
-            } catch (ArrayIndexOutOfBoundsException e) {
-                // nothing.  time to stop the loop
-            }
-        }
-    }
-
     public void doScans() {
-        fghits = doScan(foreground);
-        bghits = doScan(background);       
+        fghits = doScan(threads,cutoffpercent,matrices, foreground);
+        bghits = doScan(threads,cutoffpercent,matrices, background);       
     }
 
     class Counter implements Runnable {
@@ -115,16 +86,15 @@ public class CombinatorialEnrichment extends CompareEnrichment {
                          int matrixtwo,
                          double threshone,
                          double threshtwo,
-                         Map<String,List<List<WMHit>>> hits) {
+                         Map<String,WMHit[]> hits) {
             int count = 0;
             for (String s : hits.keySet()) {
-                List<List<WMHit>> hitlists = hits.get(s);
-                List<WMHit> l = hitlists.get(matrixone);
-                if (l.size() > 0 && l.get(0).getScore() >= threshone) {
-                    l = hitlists.get(matrixtwo);
-                    if (l.size() > 0 && l.get(0).getScore() >=threshtwo ) {
-                        count++;
-                    }
+                WMHit[] hitlist = hits.get(s);
+                if (hitlist[matrixone] != null &&
+                    hitlist[matrixtwo] != null &&
+                    hitlist[matrixone].getScore() >= threshone &&
+                    hitlist[matrixtwo].getScore() >= threshtwo) {
+                    count++;
                 }
             }
             return count;
@@ -293,4 +263,49 @@ class DescendingScoreComparator implements Comparator<WMHit> {
         return o instanceof DescendingScoreComparator;
     }
     
+}
+class Scanner implements Runnable {
+    private Vector<String> keys;
+    private List<WeightMatrix> matrices;
+    private Map<String,char[]> seqs;
+    private Map<String,WMHit[]> output;
+    private double cutoffpercent;
+    public Scanner(Vector<String> k, 
+                   Map<String,char[]> s,
+                   List<WeightMatrix> m,
+                   Map<String,WMHit[]> o,
+                   double c) {
+        if (k == null) {throw new NullPointerException("Null keys");}
+        if (s == null) {throw new NullPointerException("Null seqs");}
+        if (m == null) {throw new NullPointerException("Null matrices");}
+        if (o == null) {throw new NullPointerException("Null output");}
+
+        keys = k;
+        seqs = s;
+        output = o;
+        matrices = m;
+        cutoffpercent = c;
+    }
+    public void run() {
+        String s = null;
+        try {
+            while (true) {
+                s = keys.remove(0);
+                WMHit[] hitlist = new WMHit[matrices.size()];
+                for (int i = 0; i < hitlist.length; i++) {
+                    WeightMatrix matrix = matrices.get(i);
+                    double maxscore = matrix.getMaxScore();
+                    hitlist[i] = WeightMatrixScanner.scanSequenceBestHit(matrix,
+                                                                         (float)(maxscore * cutoffpercent),
+                                                                         seqs.get(s));
+                }
+                synchronized (output) {
+                    output.put(s,hitlist);
+                }                   
+            }
+
+        } catch (ArrayIndexOutOfBoundsException e) {
+            // nothing.  time to stop the loop
+        }
+    }
 }

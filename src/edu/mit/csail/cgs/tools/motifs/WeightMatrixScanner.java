@@ -558,8 +558,8 @@ public class WeightMatrixScanner {
 
     /* Scans a list of regions for a weight matrix and returns the best hit in each Region (no cutoff). */
     public static ArrayList<WMHit> scanRegionsReturnBest(Genome genome,
-            WeightMatrix matrix,
-            ArrayList<Region> regions) throws NotFoundException {
+                                                         WeightMatrix matrix,
+                                                         ArrayList<Region> regions) throws NotFoundException {
     	ArrayList<WMHit> results = new ArrayList<WMHit>();
         try {
             for (Region region : regions) {
@@ -595,6 +595,29 @@ public class WeightMatrixScanner {
         } catch (SQLException ex) {
             throw new DatabaseException(ex.toString(),ex);
         }return(results);
+    }
+    
+    /**
+     * Returns the best hit (by score) or null if no hits meet the scorecutoff
+     */
+    public static WMHit scanSequenceBestHit(WeightMatrix matrix,
+                                            float scorecutoff,
+                                            char[] sequence) {
+        List<WMHit> hits = scanSequence(matrix,
+                                        scorecutoff,
+                                        sequence);
+        if (hits.size() == 0) {
+            return null;
+        } else {
+            WMHit output = hits.get(0);
+            for (int i = 1; i < hits.size(); i++) {
+                WMHit o = hits.get(i);
+                if (o.getScore() > output.getScore()) {
+                    output = o;
+                }
+            }
+            return output;
+        }
     }
     
     /* returns a list of WMHits.  Since this doesn't know the chromosome or
