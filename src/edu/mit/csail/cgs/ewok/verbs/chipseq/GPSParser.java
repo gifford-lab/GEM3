@@ -113,9 +113,11 @@ public class GPSParser {
 	public static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-		if (t.length == 7) {
+		if (t.length <= 8) {
             // GPS output format 2010-07-31		
             // Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	  Shape	
+			// GPS output format 2010-11-10	
+			// Position	   IP	Control	   Fold	Q_-lg10	P_-lg10	IPvsEMP	IPvsCTR
             Region r = Region.fromString(g, t[0]);
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                                Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
