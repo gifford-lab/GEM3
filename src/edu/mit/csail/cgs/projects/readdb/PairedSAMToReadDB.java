@@ -9,7 +9,12 @@ import net.sf.samtools.util.CloseableIterator;
 
 /**
  * Reads two files of SAM or BAM data and produces output on stdout in the
- * format expected by ImportHits.  Both files must be sorted in the same order.
+ * format expected by ImportHits.  Both files must be sorted in the *same order*.
+ * Note that Bowtie (perhaps others) DOES NOT preserve input order perfectly if 
+ * it's using multiple processors, so you can only use one processor if you're
+ * going to use this program to pair the reads up (you can however split the 
+ * input file and run a separate bowtie on each part).
+ *
  * Only reads present in both files will be included in the output (on stdout).
  * 
  * The matching of reads between files is done by stripping "/\d" from the end of the 
@@ -49,7 +54,11 @@ public class PairedSAMToReadDB {
         if (filterSubOpt) {
             lefts = SAMToReadDB.filterSubOpt(SAMToReadDB.filterNoChrom(lefts));
             rights = SAMToReadDB.filterSubOpt(SAMToReadDB.filterNoChrom(rights));
+        } else {
+            lefts = SAMToReadDB.filterNoChrom(lefts);
+            rights = SAMToReadDB.filterNoChrom(rights);
         }
+
         int mapcount = lefts.size() * rights.size();
         if (mapcount == 0) {
             return;
