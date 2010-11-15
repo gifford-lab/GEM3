@@ -90,11 +90,17 @@ public class CombinatorialEnrichment extends CompareEnrichment {
             int count = 0;
             for (String s : hits.keySet()) {
                 WMHit[] hitlist = hits.get(s);
-                if (hitlist[matrixone] != null &&
-                    hitlist[matrixtwo] != null &&
-                    hitlist[matrixone].getScore() >= threshone &&
-                    hitlist[matrixtwo].getScore() >= threshtwo) {
-                    count++;
+                WMHit one = hitlist[matrixone];
+                WMHit two = hitlist[matrixtwo];
+                if (one != null &&
+                    two != null &&
+                    one.score >= threshone &&
+                    two.score >= threshtwo) {
+
+                    if (one.end < two.start ||
+                        one.start > two.end) {
+                        count++;
+                    }
                 }
             }
             return count;
@@ -104,7 +110,9 @@ public class CombinatorialEnrichment extends CompareEnrichment {
             for (int i = first; i < matrices.size(); i += skip) {
                 WeightMatrix mi = matrices.get(i);
                 double maxscorei = mi.getMaxScore();
+                System.err.println("matrix one " + i);
                 for (int j = i + 1; j < matrices.size(); j++) {
+
                     WeightMatrix mj = matrices.get(j);
                     double maxscorej = mj.getMaxScore();
                     double percenti = cutoffpercent - step;
