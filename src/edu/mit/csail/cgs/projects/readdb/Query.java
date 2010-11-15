@@ -9,7 +9,7 @@ import java.io.*;
  * stdin.  Repeats them on stdout along with the hit positions.
  *
  * Usage:
- * echo "1:100-6000" | java edu.mit.csail.cgs.projects.readdb.Query [--hostname nanog.csail.mit.edu --port 52000 --user foo --passwd bar] [--quiet]
+ * echo "1:100-6000" | java edu.mit.csail.cgs.projects.readdb.Query [--hostname nanog.csail.mit.edu --port 52000 --user foo --passwd bar] [--quiet] --align 100
  *
  * --quiet means don't print any output.  This is useful for testing the query performance
  * without worrying about the time it takes to print the output.
