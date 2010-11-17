@@ -33,15 +33,16 @@ import edu.mit.csail.cgs.ewok.verbs.*;
  *
  * Input files ending in .fasta or .fa are parsed as fasta.  Otherwise, they're parsed as a list of regions.
  *
- * --cutoff .7 minimum percent (specify between 0 and 1) match to maximum motif score that counts as a match.
+ * --cutoff .5 minimum percent (specify between 0 and 1) match to maximum motif score that counts as a match.
  * --filtersig .001 maximum pvalue for reporting an enrichment between the two files
  * --minfoldchange 1
  * --minfrac 0   minimum fraction of the sequences that must contain the motif (can be in either file)
  * --savedata motif_presence_file.txt
  * --savedatahits
- * --dumpfg output_fg.fasta
- * --dumpbg output_bg.fasta
+ * --outfg output_fg.fasta
+ * --outbg output_bg.fasta
  * --mask name;version;cutoff
+ * --threads 4  to control number of parallel threads
  *
  * The comparison code will check all percent cutoffs between the value you specify as --cutoff and 1 (in increments of .05) 
  * to find the most significant threshold that also meets the other criteria.
@@ -69,19 +70,24 @@ public class CompareEnrichment {
         parsedregionexpand; // expand input regions by this much on either side
     Genome genome;
     double cutoffpercent, minfrac, minfoldchange, filtersig, maxbackfrac;
-    Collection<WeightMatrix> matrices;  // these are the matrices to scan for
+    ArrayList<WeightMatrix> matrices;  // these are the matrices to scan for
     Map<String,char[]> foreground, background;  // foreground and background sequences
     Map<WeightMatrix, Double> maskingMatrices; // matrices to mask out of foreground and background
     ArrayList<String> fgkeys; // order in which to scan; also used when saving region list to a matrix of motif-sequence presence
     Binomial binomial;
     PrintWriter savedata = null, outfg = null, outbg = null;
     boolean savedatahits = false, matchedbg = false;
+    int threads = 1;
 
     public static void saveFasta(PrintWriter pw, Map<String, char[]> seqs) throws IOException {
         for (String s : seqs.keySet()) {
             pw.println(">" + s);
             int i = 0;
             char[] chars = seqs.get(s);
+            String seq = new String(chars);
+            if (!seq.matches("[ACTGactgN]*")) {
+                throw new RuntimeException("Invalid sequence " + s + ": " + seq);
+            } 
             while (i < chars.length) {
                 int l = i + 60 < chars.length ? 60 : chars.length -i;
                 pw.write(chars,i,l);
@@ -156,6 +162,13 @@ public class CompareEnrichment {
                                           (int)target,
                                           (int)target+size);
                     String seq = seqgen.execute(r);
+                    if (!seq.matches("[ACTGactgN]*")) {
+                        throw new RuntimeException("Invalid sequence from " + r + ": " + seq);
+                    }
+                    if (seq.matches(".*NNNNNNNN.*")) {
+                        count++;
+                        break;
+                    }
                     output.put(r.toString(),seq.toCharArray() );
                     break;
                 } else {
@@ -196,14 +209,14 @@ public class CompareEnrichment {
             }
         }
     }
-    /** convert all instances of wm with score > theshhold into XXXs in seq*/
+    /** convert all instances of wm with score > theshhold into NNNs in seq*/
     public void maskSequence(WeightMatrix wm, double threshold, char[] seq) {
         List<WMHit> hits = WeightMatrixScanner.scanSequence(wm,
                                                             (float)threshold,
                                                             seq);
         for (WMHit hit : hits) {
             for (int i = hit.start; i < hit.end; i++) {
-                seq[i] = 'X';
+                seq[i] = 'N';
             }
         }
     }
@@ -242,7 +255,7 @@ public class CompareEnrichment {
             int fgcount = countMeetsThreshold(fghits, t);
             int bgcount = countMeetsThreshold(bghits, t);
             if (bgcount == 0) {
-                continue;
+                bgcount = 1;
             }
 
             double thetaone = ((double)fgcount) / ((double)fgsize);
@@ -305,7 +318,7 @@ public class CompareEnrichment {
         Collection<String> accept, reject;
 
         genome = Args.parseGenome(args).cdr();
-        cutoffpercent = Args.parseDouble(args,"cutoff",.3);
+        cutoffpercent = Args.parseDouble(args,"cutoff",.5);
         filtersig = Args.parseDouble(args,"filtersig",.001);
         minfoldchange = Args.parseDouble(args,"minfoldchange",1);
         minfrac = Args.parseDouble(args,"minfrac",0);
@@ -320,6 +333,7 @@ public class CompareEnrichment {
         matchedbg = Args.parseFlags(args).contains("matchedbg");
         String outfgfile = Args.parseString(args,"outfg",null);
         String outbgfile = Args.parseString(args,"outbg",null);
+        threads = Args.parseInteger(args,"threads",threads);
         if (savefile != null) {
             savedata = new PrintWriter(savefile);
         }
@@ -338,15 +352,14 @@ public class CompareEnrichment {
                                                                               "MARKOV",
                                                                               Args.parseGenome(args).cdr().getDBID());
 
-        System.err.println("Need to reimplement minfrac");
-
         if (md != null) {
             bgModel = BackgroundModelLoader.getMarkovModel(md);
         } else {
             System.err.println("Couldn't get metadata for " + bgmodelname);
         }
                 
-        matrices = Args.parseWeightMatrices(args);
+        matrices = new ArrayList<WeightMatrix>();
+        matrices.addAll(Args.parseWeightMatrices(args));
         if (bgModel == null) {
             for (WeightMatrix m : matrices) {
                 m.toLogOdds();
@@ -421,16 +434,19 @@ public class CompareEnrichment {
                 }
             }
         }
+    }
+    public void saveSequences() throws IOException {
         if (outfg != null) {
             saveFasta(outfg, foreground);
             outfg.close();
             outfg = null;
         }
-        if (outbg != null) {
+        if (outbg != null) {            
             saveFasta(outbg, background);
             outbg.close();
             outbg = null;
         }
+ 
     }
     public void doScan() {
         DecimalFormat nf = new DecimalFormat("0.000E000");
@@ -482,6 +498,7 @@ public class CompareEnrichment {
         CompareEnrichment ce = new CompareEnrichment();
         ce.parseArgs(args);
         ce.maskSequence();
+        ce.saveSequences();
         ce.doScan();
     }
 

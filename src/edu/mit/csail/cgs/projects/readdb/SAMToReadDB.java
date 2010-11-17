@@ -51,6 +51,19 @@ public class SAMToReadDB {
         iter.close();
         reader.close();
     }       
+    public static Collection<SAMRecord> filterNoChrom(Collection<SAMRecord> input) {
+        if (input.size() == 0) {
+            return input;
+        }
+        Collection<SAMRecord> output = new ArrayList<SAMRecord>();
+        for (SAMRecord r : input) {
+            if (!r.getReferenceName().equals("*")) {
+                output.add(r);
+            }
+        }
+        return output;
+    }
+
     public static Collection<SAMRecord> filterSubOpt(Collection<SAMRecord> input) {
         if (input == null || input.size() < 2) {
             return input;

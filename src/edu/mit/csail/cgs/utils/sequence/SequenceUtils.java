@@ -57,10 +57,15 @@ public class SequenceUtils {
             trans['C'] = 'G';
             trans['T'] = 'A';
             trans['G'] = 'C';
-            trans['a'] = 'T';
-            trans['c'] = 'G';
-            trans['t'] = 'A';
-            trans['g'] = 'C';
+            trans['a'] = 't';
+            trans['c'] = 'g';
+            trans['t'] = 'a';
+            trans['g'] = 'c';
+            trans['N'] = 'N';
+            trans['n'] = 'n';
+            trans['X'] = 'X';
+            trans['x'] = 'x';
+
         }
         int i;
         int end = array.length - 1;        
