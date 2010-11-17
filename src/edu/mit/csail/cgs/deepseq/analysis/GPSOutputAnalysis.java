@@ -42,6 +42,7 @@ public class GPSOutputAnalysis {
   private String[] args;
   private WeightMatrix motif = null;
   private double motifThreshold;
+  private int extend;				// number of bases to extend from motif hit sequence
   
   private int[]motif_offsets;
   private double[]motif_scores;
@@ -86,6 +87,7 @@ public class GPSOutputAnalysis {
 		wm = CommonUtils.loadPWM(args, org.getDBID());
     }
     int motif_window = Args.parseInteger(args, "motif_window", 100);
+    int extend = Args.parseInteger(args, "extend", 0);
     
     // load GPS results
     String GPSfileName = Args.parseString(args, "GPS", null);
@@ -103,7 +105,7 @@ public class GPSOutputAnalysis {
 		
 		
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(genome, 
-    		wm.car(), wm.cdr().doubleValue(), gpsPeaks, GPSfileName, motif_window);
+    		wm.car(), wm.cdr().doubleValue(), gpsPeaks, GPSfileName, motif_window, extend);
 	
     int type = Args.parseInteger(args, "type", 0);
     int win = Args.parseInteger(args, "win", 100);
@@ -119,13 +121,14 @@ public class GPSOutputAnalysis {
   }
   
   public GPSOutputAnalysis(Genome g, WeightMatrix wm, double threshold, 
-		  List<GPSPeak> p, String outputFile, int motif_win) {
+		  List<GPSPeak> p, String outputFile, int motif_win, int extend) {
 	  genome = g;
 	  motif = wm;
 	  motifThreshold = threshold;
 	  gpsPeaks = p;
 	  outputFileName = outputFile;
 	  motif_window = motif_win;
+	  extend = extend;
   }
   
   
@@ -411,7 +414,7 @@ public class GPSOutputAnalysis {
     for (GPSPeak gps: gpsPeaks){
       if ((!gps.isJointEvent()) && gps.getShape()<-0.3){
           Region r= gps.expand(motif_window);
-          String hit = scorer.getMaxScoreSequence(r, motifThreshold);
+          String hit = scorer.getMaxScoreSequence(r, motifThreshold, extend);
           if (hit!=null)
         	  sb.append(hit).append("\n");
       }
