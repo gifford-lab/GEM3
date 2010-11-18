@@ -7,7 +7,7 @@ import java.io.*;
 /**
  * Imports hits to the db.
  * Usage:
- * cat hits.txt | ImportHits -h nanog.csail.mit.edu -P 5200 -a "Gcn4 ChipSeq" -u arolfe -p SECRET
+ * cat hits.txt | ImportHits -H nanog.csail.mit.edu -P 5200 -a "Gcn4 ChipSeq" -u arolfe -p SECRET
  *
  * Lines in the input must be of the form
  * chromosome\tstart\tstrand\tlength\tweight
