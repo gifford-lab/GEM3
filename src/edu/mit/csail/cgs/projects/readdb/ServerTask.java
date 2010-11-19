@@ -795,11 +795,10 @@ public class ServerTask {
                     return;
                 }
                 try {
-                    SingleHits.appendSingleHits(newhits,
-                                                server.getSingleHits(request.alignid,
-                                                                     request.chromid),
-                                                server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
-                                                request.chromid);
+                    server.getSingleHits(request.alignid,
+                                         request.chromid).appendSingleHits(newhits,
+                                                                           server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                                                           request.chromid);
                 } catch (Exception e) {
                     server.getLogger().logp(Level.INFO,"ServerTask","processSingleStore "+toString(),"error writing hits",e);
                     printInvalid(e.toString());

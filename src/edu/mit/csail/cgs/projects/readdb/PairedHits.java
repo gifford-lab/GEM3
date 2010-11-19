@@ -110,6 +110,73 @@ public class PairedHits extends Hits {
                                  String prefix, 
                                  int chrom,
                                  boolean isLeft) throws IOException {
+        if (hits.size() == 0) {
+            return;
+        }
+        int newsize = getPositionsBuffer().limit() + hits.size();
+        int s = getPositionsBuffer().limit() - 1;
+        PairedHit last = new PairedHit(isLeft ? chrom : chroms.get(s),
+                                       isLeft ? getPositionsBuffer().get(s) : otherPositions.get(s),
+                                       isLeft ? getStrandOne(getLASBuffer().get(s)) : getStrandTwo(getLASBuffer().get(s)),
+                                       isLeft ? getLengthOne(getLASBuffer().get(s)) : getLengthTwo(getLASBuffer().get(s)),
+
+                                       !isLeft ? chrom : chroms.get(s),
+                                       !isLeft ? getPositionsBuffer().get(s) : otherPositions.get(s),
+                                       !isLeft ? getStrandOne(getLASBuffer().get(s)) : getStrandTwo(getLASBuffer().get(s)),
+                                       !isLeft ? getLengthOne(getLASBuffer().get(s)) : getLengthTwo(getLASBuffer().get(s)),
+                                       
+                                       getWeightsBuffer().get(s));
+        Comparator<PairedHit> comparator = isLeft? new PairedHitLeftComparator() : new PairedHitRightComparator();
+        if (comparator.compare(hits.get(0), last) > 0) {
+            append(hits,prefix,chrom,isLeft);
+        } else {
+            merge(hits,prefix,chrom,isLeft);
+        }
+    }
+    private void append(List<PairedHit> hits,
+                                 String prefix, 
+                                 int chrom,
+                                 boolean isLeft) throws IOException {
+        RandomAccessFile positionsRAF = new RandomAccessFile(getPositionsFname(prefix,chrom,isLeft),"rw");
+        RandomAccessFile weightsRAF = new RandomAccessFile(getWeightsFname(prefix,chrom,isLeft),"rw");
+        RandomAccessFile lasRAF = new RandomAccessFile(getLaSFname(prefix,chrom,isLeft),"rw");
+        RandomAccessFile chromsRAF = new RandomAccessFile(getChromsFname(prefix,chrom,isLeft),"rw");
+        RandomAccessFile otherposRAF = new RandomAccessFile(getOtherPosFname(prefix,chrom,isLeft),"rw");
+        positionsRAF.seek(positionsRAF.length());
+        weightsRAF.seek(weightsRAF.length());
+        lasRAF.seek(lasRAF.length());
+        chromsRAF.seek(chromsRAF.length());
+        otherposRAF.seek(otherposRAF.length());
+        if (isLeft) {
+            for (int i = 0; i < hits.size(); i++) {
+                PairedHit h = hits.get(i);
+                positionsRAF.writeInt(h.leftPos);
+                weightsRAF.writeFloat(h.weight);
+                lasRAF.writeInt(makeLAS(h.leftLength, h.leftStrand, h.rightLength, h.rightStrand));
+                chromsRAF.writeInt(h.rightChrom);
+                otherposRAF.writeInt(h.rightPos);
+
+            }
+        } else {
+            for (int i = 0; i < hits.size(); i++) {
+                PairedHit h = hits.get(i);
+                positionsRAF.writeInt(h.leftPos);
+                weightsRAF.writeFloat(h.weight);
+                lasRAF.writeInt(makeLAS(h.leftLength, h.leftStrand, h.rightLength, h.rightStrand));
+                chromsRAF.writeInt(h.rightChrom);
+                otherposRAF.writeInt(h.rightPos);
+            }
+        }
+        positionsRAF.close();
+        weightsRAF.close();
+        lasRAF.close();
+        chromsRAF.close();
+        otherposRAF.close();
+    }
+    private void merge(List<PairedHit> hits,
+                        String prefix, 
+                        int chrom,
+                        boolean isLeft) throws IOException {
         String postmp = getPositionsFname(prefix,chrom,isLeft) + ".tmp";
         String weightstmp = getWeightsFname(prefix,chrom,isLeft) + ".tmp";
         String lastmp = getLaSFname(prefix,chrom,isLeft) + ".tmp";

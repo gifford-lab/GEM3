@@ -58,22 +58,67 @@ public class SingleHits extends Hits {
         }
         writeSingleHits(p,w,l,prefix,chrom);
     }
-    public static void appendSingleHits(SingleHit[] hits,
-                                        SingleHits oldhits,
-                                        String prefix,
-                                        int chrom) throws IOException {
+    /** literally appends a sorted list of hits to the existing list.
+     *  The first hit in the new list must come after the last hit
+     * in the old list
+     */
+    private static void stringAppendSingleHits(SingleHit[] hits,
+                                              SingleHits oldhits,
+                                              String prefix,
+                                              int chrom) throws IOException {
         IntBP oldpositions = oldhits.getPositionsBuffer();
         FloatBP oldweights = oldhits.getWeightsBuffer();
         IntBP oldlas = oldhits.getLASBuffer();
-
-        int newsize = oldpositions.limit() + hits.length;
         
+    }
+
+    /** appends a sorted list of hits to an existing set of hits. */
+    public void appendSingleHits(SingleHit[] hits,
+                                 String prefix,
+                                 int chrom) throws IOException {
+        if (hits.length == 0) {
+            return;
+        }
+        int s = getPositionsBuffer().limit() - 1;
+        SingleHit last = new SingleHit(chrom, getPositionsBuffer().get(s), getWeightsBuffer().get(s),
+                                       Hits.getStrandOne(getLASBuffer().get(s)),
+                                       Hits.getLengthOne(getLASBuffer().get(s)));
+        if (hits[0].compareTo(last) > 0 ) {
+            append(hits,prefix,chrom);
+        } else {
+            merge(hits,prefix,chrom);
+        }
+    }
+    private void merge(SingleHit[] hits,
+                       String prefix,
+                       int chrom) throws IOException {
+        /* all the new hits come after all the old hits.  easy to append */
+        RandomAccessFile  positionsRAF = new RandomAccessFile(getPositionsFname(prefix,chrom),"rw");
+        RandomAccessFile weightsRAF = new RandomAccessFile(getWeightsFname(prefix,chrom),"rw");
+        RandomAccessFile lasRAF = new RandomAccessFile(getLaSFname(prefix,chrom),"rw");
+        positionsRAF.seek(positionsRAF.length());
+        weightsRAF.seek(weightsRAF.length());
+        lasRAF.seek(lasRAF.length());
+        for (int i = 0; i < hits.length; i++) {
+            SingleHit h = hits[i];
+            positionsRAF.writeInt(h.pos);
+            weightsRAF.writeFloat(h.weight);
+            lasRAF.writeInt(makeLAS(h.length, h.strand));
+        }
+        positionsRAF.close();
+        weightsRAF.close();
+        lasRAF.close();        
+    }
+    private void append(SingleHit[] hits,
+                       String prefix,
+                       int chrom) throws IOException {
         String postmp = getPositionsFname(prefix,chrom) + ".tmp";
         String weightstmp = getWeightsFname(prefix,chrom) + ".tmp";
         String lastmp = getLaSFname(prefix,chrom) + ".tmp";
         RandomAccessFile positionsRAF = new RandomAccessFile(postmp,"rw");
         RandomAccessFile weightsRAF = new RandomAccessFile(weightstmp,"rw");
         RandomAccessFile lasRAF = new RandomAccessFile(lastmp,"rw");
+        int newsize = getPositionsBuffer().limit() + hits.length;
         IntBP posfile = new IntBP(positionsRAF.getChannel().map(FileChannel.MapMode.READ_WRITE,
                                                                 0,
                                                                 newsize * 4));
@@ -83,11 +128,14 @@ public class SingleHits extends Hits {
         IntBP lasfile = new IntBP(lasRAF.getChannel().map(FileChannel.MapMode.READ_WRITE,
                                                           0,
                                                           newsize * 4));
-        
+
+
         int oldp = 0;
         int newp = 0;
         int pos = 0;
-        //        System.err.println(String.format("APPENDING for %d : %d and %d",chrom, oldpositions.limit(), hits.length));
+        IntBP oldpositions = getPositionsBuffer();
+        FloatBP oldweights = getWeightsBuffer();
+        IntBP oldlas = getLASBuffer();
         while (oldp < oldpositions.limit() || newp < hits.length) {
             while (newp < hits.length && (oldp == oldpositions.limit() || hits[newp].pos <= oldpositions.get(oldp))) {
                 posfile.put(pos, hits[newp].pos);
@@ -105,12 +153,12 @@ public class SingleHits extends Hits {
             }          
             //            System.err.println(String.format("%d %d %d", pos, newp, oldp));
         }
+        posfile = null;
+        weightfile = null;
+        lasfile = null;        
         oldpositions = null;
         oldweights =null;
         oldlas = null;
-        posfile = null;
-        weightfile = null;
-        lasfile = null;
         positionsRAF.close();
         weightsRAF.close();
         lasRAF.close();
