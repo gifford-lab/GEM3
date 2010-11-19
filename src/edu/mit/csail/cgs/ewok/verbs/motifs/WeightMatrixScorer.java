@@ -66,4 +66,42 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
         return results;
     }
 
+    /**
+     * Return the highest scoring sequence in the region
+     */
+    public String getMaxScoreSequence(Region r, double threshold, int extend){
+        String seq = seqgen.execute(r);
+        seq = seq.toUpperCase();
+        String hit=null;
+
+        int length = matrix.length();
+        char[] sequence = seq.toCharArray();
+        for (int i = 0; i <= sequence.length - length; i++) {
+            float score = (float)0.0;
+            for (int j = 0; j < length; j++) {
+                score += matrix.matrix[j][sequence[i+j]];
+            }
+            if (score>threshold){
+            	threshold = score;
+            	int start = Math.max(0, i-extend);
+            	int end = Math.min(sequence.length - length, i+length+extend);
+            	hit = seq.substring(start, end);
+            }
+        }
+        seq = SequenceUtils.reverseComplement(seq);
+        sequence = seq.toCharArray();
+        for (int i = 0; i <= sequence.length - length; i++) {
+            float score = (float)0.0;
+            for (int j = 0; j < length; j++) {
+                score += matrix.matrix[j][sequence[i+j]];
+            }
+            if (score>threshold){
+            	int start = Math.max(0, i-extend);
+            	int end = Math.min(sequence.length - length, i+length+extend);
+            	hit = seq.substring(start, end);
+            }
+        }
+        
+        return hit;
+    }
 }

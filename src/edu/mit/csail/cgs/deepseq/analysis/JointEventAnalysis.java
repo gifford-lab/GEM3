@@ -43,6 +43,7 @@ public class JointEventAnalysis {
   private int topRank;
   
   ArrayList<Point> events;
+  HashMap<Point, Double> eventStrength;
   
   /**
    * @param args
@@ -89,9 +90,11 @@ public class JointEventAnalysis {
 	    if (topRank==-1)
 	    	topRank = gpsPeaks.size();
 	    events = new ArrayList<Point>();
+	    eventStrength = new HashMap<Point, Double>();
 	    int count=0;
 	    for (GPSPeak g: gpsPeaks){
 	    	events.add(g);
+	    	eventStrength.put(g, g.getStrength());
 			count++;
 			if (count>=topRank)
 				break;
@@ -151,21 +154,26 @@ public class JointEventAnalysis {
 	  }
 	  
 	  Collections.sort(events);
+	  
 	  Point previous = events.get(0);
 	  ArrayList<Point> cluster = null;
 	  ArrayList<ArrayList<Point>> clusters = new ArrayList<ArrayList<Point>>();
+	  ArrayList<Double> clusterStrength = new ArrayList<Double>();
 	  boolean isJoint = false; 	// Previous point is joint event?
 	  for (int i=1;i<events.size();i++){
 		  Point p = events.get(i);
 		  if (p.getChrom().equals(previous.getChrom()) && p.distance(previous)<=jointCutoff){
-			  if (isJoint){
+			  if (isJoint){				// if in the joint event state, keep adding event
 				  cluster.add(p);
+				  int clusterIdx = clusterStrength.size()-1;
+				  clusterStrength.set(clusterIdx, clusterStrength.get(clusterIdx)+eventStrength.get(p));
 			  }
-			  else{
+			  else{						// if it is a new joint event, initialized the cluster, add to cluster list
 				  cluster = new ArrayList<Point>();
 				  clusters.add(cluster);
 				  cluster.add(previous);
 				  cluster.add(p);
+				  clusterStrength.add(eventStrength.get(previous) + eventStrength.get(p));
 				  isJoint = true;
 			  }
 		  }
@@ -175,13 +183,29 @@ public class JointEventAnalysis {
 		  previous = p;
 	  }
 	  
+	  // sort by total read count in the cluster
+	  double[] readCounts = new double[clusters.size()];
+	  for (int i=0;i<clusterStrength.size();i++){
+		  readCounts[i]=clusterStrength.get(i);
+	  }
+	  int[] sorted = StatUtil.findSort(readCounts);	                                   
+	  
 	  StringBuilder sb = new StringBuilder();
 	  System.out.println("Total "+clusters.size()+" joint event clusters.");
-	  if (motif!=null)
-		  sb.append("      Region       \tEvents\tMotifs\tDistances\tMinDistance\n");
-	  else
-		  sb.append("      Region       \tEvents\tDistances\tMinDistance\n");
-	  for (ArrayList<Point> c:clusters){
+	  if (motif!=null){
+		  sb.append("      Region       \tEvents\tMotifs\tDistances\tMinDistance");
+		  if (eventStrength!=null)
+			  sb.append("\tTotalReadCount");
+		  sb.append("\n");
+	  }
+	  else{
+		  sb.append("      Region       \tEvents\tDistances\tMinDistance");
+		  if (eventStrength!=null)
+			  sb.append("\tTotalReadCount");
+		  sb.append("\n");
+	  }
+	  for (int i=sorted.length-1;i>=0;i--){
+		  ArrayList<Point> c = clusters.get(sorted[i]);
 		  if (c.size()==0)
 			  continue;
 		  Point p = c.get(0);
@@ -195,13 +219,16 @@ public class JointEventAnalysis {
 			  sb.append(motifs.car().size()).append("\t");
 		  }
 		  int min = Integer.MAX_VALUE;
-		  for (int i=0;i<c.size()-1;i++){
-			  int distance = c.get(i+1).distance(c.get(i));
+		  for (int j=0;j<c.size()-1;j++){
+			  int distance = c.get(j+1).distance(c.get(j));
 			  sb.append(distance).append(" ");
 			  if (distance < min)
 				  min = distance;
 		  }
-		  sb.append("\t").append(min).append("\n");
+		  sb.append("\t").append(min);
+		  if (eventStrength!=null)
+			  sb.append("\t"+clusterStrength.get(sorted[i]));
+		  sb.append("\n");
 	  }
 //	  System.out.println(sb.toString());
 	  String outName = Args.parseString(args, "out", "");

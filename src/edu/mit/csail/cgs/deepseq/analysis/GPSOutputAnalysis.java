@@ -42,6 +42,7 @@ public class GPSOutputAnalysis {
   private String[] args;
   private WeightMatrix motif = null;
   private double motifThreshold;
+  private int extend;				// number of bases to extend from motif hit sequence
   
   private int[]motif_offsets;
   private double[]motif_scores;
@@ -85,7 +86,8 @@ public class GPSOutputAnalysis {
     if (motifString!=null){
 		wm = CommonUtils.loadPWM(args, org.getDBID());
     }
-    int motif_window = Args.parseInteger(args, "windowSize", 100);
+    int motif_window = Args.parseInteger(args, "motif_window", 100);
+    int extend = Args.parseInteger(args, "extend", 0);
     
     // load GPS results
     String GPSfileName = Args.parseString(args, "GPS", null);
@@ -103,29 +105,30 @@ public class GPSOutputAnalysis {
 		
 		
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(genome, 
-    		wm.car(), wm.cdr().doubleValue(), gpsPeaks, GPSfileName, motif_window);
+    		wm.car(), wm.cdr().doubleValue(), gpsPeaks, GPSfileName, motif_window, extend);
 	
     int type = Args.parseInteger(args, "type", 0);
-    int win = Args.parseInteger(args, "win", 50);
+    int win = Args.parseInteger(args, "win", 100);
     int top = Args.parseInteger(args, "top", -1);
 	switch(type){
 	case 0: analysis.jointBindingMotifAnalysis(true);break;
 	case 1: analysis.printSequences(win, top);break;
 	case 2:	analysis.geneAnnotation();break;
 	case 3:	analysis.expressionIntegration();break;
-	case 4: analysis.buildEmpiricalDistribution();break;
+	case 4: analysis.printMotifHitSequence();break;
 	default: System.err.println("Unrecognize analysis type: "+type);
 	}
   }
   
   public GPSOutputAnalysis(Genome g, WeightMatrix wm, double threshold, 
-		  List<GPSPeak> p, String outputFile, int motif_win) {
+		  List<GPSPeak> p, String outputFile, int motif_win, int extend) {
 	  genome = g;
 	  motif = wm;
 	  motifThreshold = threshold;
 	  gpsPeaks = p;
 	  outputFileName = outputFile;
 	  motif_window = motif_win;
+	  extend = extend;
   }
   
   
@@ -259,6 +262,7 @@ public class GPSOutputAnalysis {
         }
       }
   }
+  
   public String printMotifHitList(){
 	StringBuilder statStr = new StringBuilder();
 	statStr.append(String.format("\n----------------------------------------------\n%s\nTotal Event #:\t%d", 
@@ -403,42 +407,19 @@ public class GPSOutputAnalysis {
 	CommonUtils.writeFile(filename, sb2.toString());  
   }
 
-  public void buildEmpiricalDistribution(){
-    WeightMatrixScorer scorer=null;
-    if (useMotif){
-      scorer = new WeightMatrixScorer(motif);
-    }
-    ArrayList<Point> points = new ArrayList<Point>();
+
+  public void printMotifHitSequence(){
+    WeightMatrixScorer scorer = new WeightMatrixScorer(motif);
+    StringBuilder sb = new StringBuilder();
     for (GPSPeak gps: gpsPeaks){
-      if ((!gps.isJointEvent()) && gps.getStrength()>40 && gps.getShape()<-1){
-        if (useMotif){
+      if ((!gps.isJointEvent()) && gps.getShape()<-0.3){
           Region r= gps.expand(motif_window);
-          WeightMatrixScoreProfile profiler = scorer.execute(r);
-          int halfWidth = profiler.getMatrix().length()/2;
-          //search from BS outwards, to find the nearest strong motif
-          for(int z=0; z<=r.getWidth()/2; z++){
-            double leftScore= profiler.getMaxScore(motif_window-z);
-            double rightScore= profiler.getMaxScore(motif_window+z);  
-            int position = -Integer.MAX_VALUE;  // middle of motif, relative to GPS peak
-            if(rightScore>=motifThreshold){
-              position = z+halfWidth;
-            }
-            if(leftScore>=motifThreshold){
-              position = -z+halfWidth;
-            }
-            if(position > -Integer.MAX_VALUE){
-              Point motifPos = new Point(genome, gps.getChrom(), gps.getLocation()+position);
-              points.add(motifPos);
-              break;  // break from the motif search of this peak
-            }
-          }
-        }
-        else
-          points.add((Point)gps);
+          String hit = scorer.getMaxScoreSequence(r, motifThreshold, extend);
+          if (hit!=null)
+        	  sb.append(hit).append("\n");
       }
     }
-    ChipSeqStats.printEmpiricalDistribution(points, chipSeqExpt, chipSeqVersion );
-    System.out.println(points.size()+" GPS peaks are used to build empricaldistribution.");
+    CommonUtils.writeFile(outputFileName+"_motifHit.txt", sb.toString());
   }
 
   public void expressionIntegration(){

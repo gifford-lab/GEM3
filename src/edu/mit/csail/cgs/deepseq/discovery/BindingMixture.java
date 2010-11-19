@@ -131,7 +131,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     private boolean use_dynamic_sparseness = true;
     private boolean use_betaEM  = true;
     private boolean use_scanPeak  = true;
-    private boolean base_filtering = false;
     private boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
     private int bmverbose=1;		// BindingMixture verbose mode
 	private int base_reset_threshold = 200;	// threshold to set a base read count to 1
@@ -296,7 +295,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	 ***********************************/
     	Set<String> flags = Args.parseFlags(args);
     	// default as false, need the flag to turn it on
-    	base_filtering = flags.contains("bf");	// base filtering (use max_HitCount_per_base)
      	sort_by_location = flags.contains("sl");
     	development_mode = flags.contains("dev");
      	print_mixing_probabilities = flags.contains("print_mixing_probabilities");
@@ -334,10 +332,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
     	q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
     	sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
     	alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
-    	fold = Args.parseDouble(args, "fold", 3.0); // minimum fold enrichment IP/Control for filtering
+    	fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
     	shapeDeviation =  TF_binding?-0.45:-0.3;		// set default according to filter type    		
     	shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
-    	max_hit_per_bp = Args.parseInteger(args, "mrc", -1); //max read count per bp, default -1, estimate from data
+    	max_hit_per_bp = Args.parseInteger(args, "mrc", 0); //max read count per bp, default -1, estimate from data
      	pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
      	window_size_factor = Args.parseInteger(args, "wsf", 3);
     	second_lambda_region_width = Args.parseInteger(args, "w2", 5000);
@@ -2175,7 +2173,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	private void doBaseFiltering(){
 		//  set max read count for bases to filter PCR artifacts (optional)
-		if (!base_filtering){
+		if (max_hit_per_bp==0){
 			// Mandatory base reset for extremely high read counts
 			for(int i=0; i<numConditions; i++){
 				Pair<ReadCache,ReadCache> e = caches.get(i);
@@ -4765,8 +4763,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		
 		// save the list of regions to file
 		try{
-			StringBuilder fileName = new StringBuilder(outName).append("_");
-			fileName.append("ExcludedRegions.txt");
+			StringBuilder fileName = new StringBuilder(outName).append("_ExcludedRegions.txt");
 			FileWriter fw = new FileWriter(fileName.toString());
 
 			StringBuilder txt = new StringBuilder();
