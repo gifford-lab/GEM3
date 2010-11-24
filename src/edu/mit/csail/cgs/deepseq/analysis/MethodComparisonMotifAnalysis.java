@@ -494,6 +494,7 @@ public class MethodComparisonMotifAnalysis {
 		int interDistance = 500;
 		StringBuilder sb = new StringBuilder();
 		StringBuilder sb2 = new StringBuilder();
+		StringBuilder sb3 = new StringBuilder();
 		for (String chrom: genome.getChromList()){
 			ArrayList<ArrayList<Point>> motifClusters = new ArrayList<ArrayList<Point>>();
 			
@@ -538,33 +539,46 @@ public class MethodComparisonMotifAnalysis {
 				r=r.expand(windowSize, windowSize);
 				sb.append(r.toString()).append("\t").append(tmpCluster.size());
 				sb2.append(r.toString()).append("\t").append(tmpCluster.size());
+				sb3.append(r.toString()).append("\t").append(tmpCluster.size());
 				for (int i=0;i<events.size();i++){
 					int count=0;
 					ArrayList<Point> ps = events.get(i);
-					ArrayList<Point> events = new ArrayList<Point>();
+					ArrayList<Point> events_local = new ArrayList<Point>();
 					for (int j=0;j<rank;j++){
 						if (r.contains(ps.get(j))){
-							events.add(ps.get(j));
+							events_local.add(ps.get(j));
 							count++;
 						}
 					}
 					sb.append("\t").append(count);
 					// more stringent criteria: the events should be less than 500bp apart
 					if (count>=2){
-						Collections.sort(events);
+						Collections.sort(events_local);
 						HashSet<Point> unique = new HashSet<Point>();
-						for (int k=1;k<events.size();k++){
-							if (events.get(k).distance(events.get(k-1))<=interDistance){
-								unique.add(events.get(k));
-								unique.add(events.get(k-1));
+						for (int k=1;k<events_local.size();k++){
+							if (events_local.get(k).distance(events_local.get(k-1))<=interDistance){
+								unique.add(events_local.get(k));
+								unique.add(events_local.get(k-1));
 							}
 						}
 						count = unique.size();
 					}
 					sb2.append("\t").append(count);
+					// more stringent criteria: the events should be within 50bp of motif
+					if (count>=2){
+						count = 0;
+						for (Point event: events_local){
+							for (Point motif: tmpCluster){
+								if (event.distance(motif)<=windowSize)
+									count++;
+							}
+						}
+					}
+					sb3.append("\t").append(count);
 				}
 				sb.append("\n");
 				sb2.append("\n");
+				sb3.append("\n");
 			}
 		}//each chrom
 		
@@ -574,6 +588,9 @@ public class MethodComparisonMotifAnalysis {
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents500bp_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb2.toString());
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents50bp_"
+				+String.format("%.2f_",motifThreshold)
+				+windowSize+".txt", sb3.toString());	
 	}
 	
 	private void printOverlapTable() throws IOException{
