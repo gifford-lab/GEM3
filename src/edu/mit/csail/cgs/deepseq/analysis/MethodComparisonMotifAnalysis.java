@@ -544,7 +544,7 @@ public class MethodComparisonMotifAnalysis {
 					int count=0;
 					ArrayList<Point> ps = events.get(i);
 					ArrayList<Point> events_local = new ArrayList<Point>();
-					for (int j=0;j<rank;j++){
+					for (int j=0;j<Math.min(rank, ps.size());j++){
 						if (r.contains(ps.get(j))){
 							events_local.add(ps.get(j));
 							count++;
