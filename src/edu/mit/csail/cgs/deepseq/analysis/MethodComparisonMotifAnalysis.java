@@ -567,15 +567,13 @@ public class MethodComparisonMotifAnalysis {
 					}
 					sb2.append("\t").append(count2);
 					
-					// more stringent criteria: the events should be within 50bp of motif
+					// more stringent criteria: the events should be within 10bp of motif
 					int count3=0;
-					if (count>=2){
-						for (Point event: events_local){
-							for (Point motif: tmpCluster){
-								if (event.distance(motif)<=windowSize){
-									count3++;
-									break; // count once
-								}
+					for (Point event: events_local){
+						for (Point motif: tmpCluster){
+							if (event.distance(motif)<=10){
+								count3++;
+								break; // count once
 							}
 						}
 					}
@@ -593,7 +591,7 @@ public class MethodComparisonMotifAnalysis {
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents500bp_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb2.toString());
-		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents50bp_"
+		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_clusteredMotifEvents10bp_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb3.toString());	
 	}
