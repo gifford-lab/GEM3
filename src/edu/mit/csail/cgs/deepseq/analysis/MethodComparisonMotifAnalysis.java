@@ -54,7 +54,7 @@ public class MethodComparisonMotifAnalysis {
 	
 	// each element in the list is for one ChIP-Seq method
 	private ArrayList<String> methodNames = new ArrayList<String>();
-	private ArrayList<ArrayList<Point>> peaks = new ArrayList<ArrayList<Point>>();
+	private ArrayList<ArrayList<Point>> events = new ArrayList<ArrayList<Point>>();
 	private ArrayList<HashMap<Point, MotifHit>> maps = new ArrayList<HashMap<Point, MotifHit>>();	
 	
 	private ArrayList<Point> peaks_gps = new ArrayList<Point>();
@@ -155,19 +155,19 @@ public class MethodComparisonMotifAnalysis {
 		int minCount = Integer.MAX_VALUE;
 		int maxCount = 0;
 		for (int i=0;i<methodNames.size();i++){
-			minCount = Math.min(minCount, peaks.get(i).size());
-			maxCount = Math.max(maxCount, peaks.get(i).size());
+			minCount = Math.min(minCount, events.get(i).size());
+			maxCount = Math.max(maxCount, events.get(i).size());
 		}
 		if (rank==0){
 			rank = minCount;
 		}
 		// print some information
-		String msg = String.format("Motif score cutoff=%.2f, window size=%d, top %d peaks.\n",
+		String msg = String.format("Motif score cutoff=%.2f, window size=%d, top %d events.\n",
 				motifThreshold, windowSize, rank);
 		System.out.print(msg);
-		System.out.println("\nNumber of peaks:");
+		System.out.println("\nNumber of events:");
 		for (int i=0;i<methodNames.size();i++){
-			System.out.println(methodNames.get(i)+"\t"+peaks.get(i).size());
+			System.out.println(methodNames.get(i)+"\t"+events.get(i).size());
 		}
 		
 		// get all regions that covered by any of the peak callers, 
@@ -176,7 +176,7 @@ public class MethodComparisonMotifAnalysis {
 		ArrayList<Region> allRegions = new ArrayList<Region>();
 		for (String chrom: genome.getChromList()){
 			ArrayList<Region> byChrom = new ArrayList<Region>();
-			for (ArrayList<Point> ps:peaks){
+			for (ArrayList<Point> ps:events){
 				for (Point p: ps){
 					if (p.getChrom().equalsIgnoreCase(chrom))
 						byChrom.add(p.expand(windowSize));
@@ -195,19 +195,19 @@ public class MethodComparisonMotifAnalysis {
 		System.out.printf("%n%d motifs (in %d regions).%n%n", allMotifs.size(), allRegions.size());
 
 		// Get the set of motif matches for all peak calls		
-		System.out.printf("Peaks within a %d bp window to a motif:%n", windowSize);
-		for (int i=0;i<peaks.size();i++){
-			System.out.printf("%s \t#peaks: ", methodNames.get(i));
-			HashMap<Point, MotifHit> motifs = getNearestMotif2(peaks.get(i), allMotifs, allMotifScores);
+		System.out.printf("Events within a %d bp window to a motif:%n", windowSize);
+		for (int i=0;i<events.size();i++){
+			System.out.printf("%s \t#events: ", methodNames.get(i));
+			HashMap<Point, MotifHit> motifs = getNearestMotif2(events.get(i), allMotifs, allMotifScores);
 			maps.add(motifs);
 			System.out.printf("\t#motifs: %d", motifs.keySet().size());
 			System.out.println();
 		}
 		System.out.println(CommonUtils.timeElapsed(tic));
 		
-		System.out.printf("%nMotifs covered by a peak:%n");
+		System.out.printf("\nMotifs covered by an event:\n");
 		for(int i = 0; i < methodNames.size(); i++)
-			System.out.printf("%s\t%d/%d (%.1f%%)%n", methodNames.get(i), maps.get(i).size(), allMotifs.size(), 100.0*((double)maps.get(i).size())/(double)allMotifs.size());
+			System.out.printf("%s\t%d/%d (%.1f%%)\n", methodNames.get(i), maps.get(i).size(), allMotifs.size(), 100.0*((double)maps.get(i).size())/(double)allMotifs.size());
 				
 		// get the intersection (motifs shared by all methods, upto top rank)
 		System.out.print("\nRunning Spatial Resolution analysis ...\n");
@@ -217,7 +217,7 @@ public class MethodComparisonMotifAnalysis {
 			Set<Point> motifs_new =  getHighRankSites(i);
 			motifs_shared = setTools.intersection(motifs_shared,motifs_new);
 		}
-		msg = String.format("Motif score cutoff=%.2f, window size=%d, %d shared motifs in top %d peaks.",
+		msg = String.format("Motif score cutoff=%.2f, window size=%d, %d shared motifs in top %d events.",
 				motifThreshold, windowSize, motifs_shared.size(), rank);
 		System.out.println(msg);
 		
@@ -307,7 +307,7 @@ public class MethodComparisonMotifAnalysis {
 		
 		ArrayList<HashMap<Point, Integer>> allPeakOffsets = new ArrayList<HashMap<Point, Integer>>();
 		for (int i=0; i<methodNames.size();i++){
-			allPeakOffsets.add(peak2MotifOffset(peaks.get(i), allMotifs));
+			allPeakOffsets.add(peak2MotifOffset(events.get(i), allMotifs));
 		}
 		
 		// output results
@@ -321,8 +321,8 @@ public class MethodComparisonMotifAnalysis {
 		for(int j=0;j<maxCount;j++){
 			sb.append(j+"\t");
 			for (int i=0;i<allPeakOffsets.size();i++){
-				if (j<peaks.get(i).size()){
-					Point peak = peaks.get(i).get(j);
+				if (j<events.get(i).size()){
+					Point peak = events.get(i).get(j);
 					sb.append(allPeakOffsets.get(i).containsKey(peak)?allPeakOffsets.get(i).get(peak):NOHIT_OFFSET);
 				}
 				else
@@ -411,7 +411,7 @@ public class MethodComparisonMotifAnalysis {
 				peakPoints = CommonUtils.loadCgsPointFile(filePath, genome);
         	}  
 
-        	peaks.add(peakPoints);
+        	events.add(peakPoints);
         }
 	}
 	
@@ -423,9 +423,9 @@ public class MethodComparisonMotifAnalysis {
 		
 		int minCount = Integer.MAX_VALUE;
 		int maxCount = 0;
-		for (int i=0;i<peaks.size();i++){
-			minCount = Math.min(minCount, peaks.get(i).size());
-			maxCount = Math.max(maxCount, peaks.get(i).size());
+		for (int i=0;i<events.size();i++){
+			minCount = Math.min(minCount, events.get(i).size());
+			maxCount = Math.max(maxCount, events.get(i).size());
 		}
 		if (rank==0){
 			rank = minCount;
@@ -435,7 +435,7 @@ public class MethodComparisonMotifAnalysis {
 				motifThreshold, windowSize, rank);
 		System.out.print(msg);
 		for (int i=0;i<methodNames.size();i++){
-			System.out.println(methodNames.get(i)+"\t"+peaks.get(i).size());
+			System.out.println(methodNames.get(i)+"\t"+events.get(i).size());
 		}
 		
 		// get all regions that covered by any of the peak callers, 
@@ -446,7 +446,7 @@ public class MethodComparisonMotifAnalysis {
 			for (String chrom: genome.getChromList()){
 				//divide by each chrom, merge regions, then add back to the list
 				ArrayList<Region> byChrom = new ArrayList<Region>();
-				for (ArrayList<Point> ps:peaks){
+				for (ArrayList<Point> ps:events){
 					for (Point p: ps){
 						if (p.getChrom().equalsIgnoreCase(chrom))
 							byChrom.add(p.expand(windowSize));
@@ -465,7 +465,7 @@ public class MethodComparisonMotifAnalysis {
 				if (!restrictChroms.contains(chrom))
 					continue;
 				ArrayList<Region> byChrom = new ArrayList<Region>();
-				for (ArrayList<Point> ps:peaks){
+				for (ArrayList<Point> ps:events){
 					for (Point p: ps){
 						boolean inRestrictRegion=false;
 						for (Region r: restrictRegions){
@@ -538,9 +538,9 @@ public class MethodComparisonMotifAnalysis {
 				r=r.expand(windowSize, windowSize);
 				sb.append(r.toString()).append("\t").append(tmpCluster.size());
 				sb2.append(r.toString()).append("\t").append(tmpCluster.size());
-				for (int i=0;i<peaks.size();i++){
+				for (int i=0;i<events.size();i++){
 					int count=0;
-					ArrayList<Point> ps = peaks.get(i);
+					ArrayList<Point> ps = events.get(i);
 					ArrayList<Point> events = new ArrayList<Point>();
 					for (int j=0;j<rank;j++){
 						if (r.contains(ps.get(j))){
@@ -581,15 +581,15 @@ public class MethodComparisonMotifAnalysis {
 		long tic = System.currentTimeMillis();
 		readPeakLists();
 		
-		int numMethods = peaks.size();
+		int numMethods = events.size();
 		double[][] overlaps = new double[numMethods][numMethods];	//percentage
 		for (int i=0;i<numMethods;i++){
 			for (int j=0;j<numMethods;j++){
 				if (i==j)
 					overlaps[i][j]=100;
 				else{
-					int count = countOverlaps(peaks.get(i), peaks.get(j), overlapWindowSize);
-					overlaps[i][j] = 100*count/(double)peaks.get(i).size();
+					int count = countOverlaps(events.get(i), events.get(j), overlapWindowSize);
+					overlaps[i][j] = 100*count/(double)events.get(i).size();
 				}
 			}
 		}
@@ -602,10 +602,10 @@ public class MethodComparisonMotifAnalysis {
 		sb.append(methodNames.get(methodNames.size()-1)).append("\n");
 		
 		sb.append("Total").append("\t");
-		for (int i=0;i<peaks.size()-1;i++){
-			sb.append(peaks.get(i).size()).append("\t");
+		for (int i=0;i<events.size()-1;i++){
+			sb.append(events.get(i).size()).append("\t");
 		}
-		sb.append(peaks.get(methodNames.size()-1).size()).append("\n");
+		sb.append(events.get(methodNames.size()-1).size()).append("\n");
 		
 		sb.append(CommonUtils.matrixToString(overlaps, 0, (String[])methodNames.toArray(new String[methodNames.size()])));
 		sb.append("\nOverlapping window size is "+overlapWindowSize+"\n\n");
@@ -659,9 +659,9 @@ public class MethodComparisonMotifAnalysis {
 		
 		int minCount = Integer.MAX_VALUE;
 		int maxCount = 0;
-		for (int i=0;i<peaks.size();i++){
-			minCount = Math.min(minCount, peaks.get(i).size());
-			maxCount = Math.max(maxCount, peaks.get(i).size());
+		for (int i=0;i<events.size();i++){
+			minCount = Math.min(minCount, events.get(i).size());
+			maxCount = Math.max(maxCount, events.get(i).size());
 		}
 		if (rank==0){
 			rank = minCount;
@@ -671,7 +671,7 @@ public class MethodComparisonMotifAnalysis {
 				motifThreshold, windowSize, rank);
 		System.out.print(msg);
 		for (int i=0;i<methodNames.size();i++){
-			System.out.println(methodNames.get(i)+"\t"+peaks.get(i).size());
+			System.out.println(methodNames.get(i)+"\t"+events.get(i).size());
 		}
 		
 		// get all regions that covered by any of the peak callers, 
@@ -682,7 +682,7 @@ public class MethodComparisonMotifAnalysis {
 			for (String chrom: genome.getChromList()){
 				//divide by each chrom, merge regions, then add back to the list
 				ArrayList<Region> byChrom = new ArrayList<Region>();
-				for (ArrayList<Point> ps:peaks){
+				for (ArrayList<Point> ps:events){
 					for (Point p: ps){
 						if (p.getChrom().equalsIgnoreCase(chrom))
 							byChrom.add(p.expand(windowSize));
@@ -701,7 +701,7 @@ public class MethodComparisonMotifAnalysis {
 				if (!restrictChroms.contains(chrom))
 					continue;
 				ArrayList<Region> byChrom = new ArrayList<Region>();
-				for (ArrayList<Point> ps:peaks){
+				for (ArrayList<Point> ps:events){
 					for (Point p: ps){
 						boolean inRestrictRegion=false;
 						for (Region r: restrictRegions){
@@ -759,9 +759,9 @@ public class MethodComparisonMotifAnalysis {
 				Region r = p.expand(windowSize);
 				sb.append(r.toString()).append("\t").append(0);
 				sb2.append(r.toString()).append("\t").append(0);
-				for (int i=0;i<peaks.size();i++){
+				for (int i=0;i<events.size();i++){
 					int count=0;
-					ArrayList<Point> ps = peaks.get(i);
+					ArrayList<Point> ps = events.get(i);
 					ArrayList<Point> events = new ArrayList<Point>();
 					for (int j=0;j<rank;j++){
 						if (r.contains(ps.get(j))){
@@ -801,10 +801,10 @@ public class MethodComparisonMotifAnalysis {
 		readPeakLists();
 		int minCount = Integer.MAX_VALUE;
 		int maxCount = 0;
-		for (int i=0;i<peaks.size();i++){
-			System.out.println(methodNames.get(i)+"\t"+peaks.get(i).size());
-			minCount = Math.min(minCount, peaks.get(i).size());
-			maxCount = Math.max(maxCount, peaks.get(i).size());
+		for (int i=0;i<events.size();i++){
+			System.out.println(methodNames.get(i)+"\t"+events.get(i).size());
+			minCount = Math.min(minCount, events.get(i).size());
+			maxCount = Math.max(maxCount, events.get(i).size());
 		}
 		if (rank==0){
 			rank = maxCount;		// take all possible overlaps, ranking is ignored
@@ -817,7 +817,7 @@ public class MethodComparisonMotifAnalysis {
 
 		for (String chrom: genome.getChromList()){
 			ArrayList<Region> byChrom = new ArrayList<Region>();
-			for (ArrayList<Point> ps:peaks){
+			for (ArrayList<Point> ps:events){
 				for (Point p: ps){
 					if (p.getChrom().equalsIgnoreCase(chrom))
 						byChrom.add(p.expand(windowSize));
@@ -834,8 +834,8 @@ public class MethodComparisonMotifAnalysis {
 		System.out.println(CommonUtils.timeElapsed(tic));
 		
 		// Get the set of motif matches for all peak calls
-		for (int i=0;i<peaks.size();i++){
-			ArrayList<Point> ps = peaks.get(i);
+		for (int i=0;i<events.size();i++){
+			ArrayList<Point> ps = events.get(i);
 			ArrayList<Point> toRemove = new ArrayList<Point>();
 			Collections.sort(ps);
 			// remove proximal events
