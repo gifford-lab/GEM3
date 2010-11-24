@@ -540,7 +540,7 @@ public class MethodComparisonMotifAnalysis {
 				sb.append(r.toString()).append("\t").append(tmpCluster.size());
 				sb2.append(r.toString()).append("\t").append(tmpCluster.size());
 				sb3.append(r.toString()).append("\t").append(tmpCluster.size());
-				for (int i=0;i<events.size();i++){
+				for (int i=0;i<events.size();i++){	// for each method
 					int count=0;
 					ArrayList<Point> ps = events.get(i);
 					ArrayList<Point> events_local = new ArrayList<Point>();
@@ -551,7 +551,9 @@ public class MethodComparisonMotifAnalysis {
 						}
 					}
 					sb.append("\t").append(count);
+					
 					// more stringent criteria: the events should be less than 500bp apart
+					int count2=0;
 					if (count>=2){
 						Collections.sort(events_local);
 						HashSet<Point> unique = new HashSet<Point>();
@@ -561,20 +563,21 @@ public class MethodComparisonMotifAnalysis {
 								unique.add(events_local.get(k-1));
 							}
 						}
-						count = unique.size();
+						count2 = unique.size();
 					}
-					sb2.append("\t").append(count);
+					sb2.append("\t").append(count2);
+					
 					// more stringent criteria: the events should be within 50bp of motif
+					int count3=0;
 					if (count>=2){
-						count = 0;
 						for (Point event: events_local){
 							for (Point motif: tmpCluster){
 								if (event.distance(motif)<=windowSize)
-									count++;
+									count3++;
 							}
 						}
 					}
-					sb3.append("\t").append(count);
+					sb3.append("\t").append(count3);
 				}
 				sb.append("\n");
 				sb2.append("\n");
