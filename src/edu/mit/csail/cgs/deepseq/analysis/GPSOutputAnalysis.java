@@ -115,7 +115,7 @@ public class GPSOutputAnalysis {
 	case 1: analysis.printSequences(win, top);break;
 	case 2:	analysis.geneAnnotation();break;
 	case 3:	analysis.expressionIntegration();break;
-	case 4: analysis.printMotifHitSequence();break;
+	case 4: analysis.printMotifHitSequence(top);break;
 	default: System.err.println("Unrecognize analysis type: "+type);
 	}
   }
@@ -128,7 +128,7 @@ public class GPSOutputAnalysis {
 	  gpsPeaks = p;
 	  outputFileName = outputFile;
 	  motif_window = motif_win;
-	  extend = extend;
+	  this.extend = extend;
   }
   
   
@@ -408,11 +408,13 @@ public class GPSOutputAnalysis {
   }
 
 
-  public void printMotifHitSequence(){
+  public void printMotifHitSequence(int top){
     WeightMatrixScorer scorer = new WeightMatrixScorer(motif);
     StringBuilder sb = new StringBuilder();
-    for (GPSPeak gps: gpsPeaks){
-      if ((!gps.isJointEvent()) && gps.getShape()<-0.3){
+    top = top==-1? gpsPeaks.size(): Math.min(top, gpsPeaks.size());
+    for (int i=0;i<top;i++){
+	  GPSPeak gps = gpsPeaks.get(i);
+      if ( gps.getShape()<-0.3){
           Region r= gps.expand(motif_window);
           String hit = scorer.getMaxScoreSequence(r, motifThreshold, extend);
           if (hit!=null)
