@@ -572,8 +572,10 @@ public class MethodComparisonMotifAnalysis {
 					if (count>=2){
 						for (Point event: events_local){
 							for (Point motif: tmpCluster){
-								if (event.distance(motif)<=windowSize)
+								if (event.distance(motif)<=windowSize){
 									count3++;
+									break; // count once
+								}
 							}
 						}
 					}
