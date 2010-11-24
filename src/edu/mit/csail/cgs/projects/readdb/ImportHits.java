@@ -7,7 +7,7 @@ import java.io.*;
 /**
  * Imports hits to the db.
  * Usage:
- * cat hits.txt | ImportHits -h nanog.csail.mit.edu -P 5200 -a "Gcn4 ChipSeq" -u arolfe -p SECRET
+ * cat hits.txt | ImportHits -H nanog.csail.mit.edu -P 5200 -a "Gcn4 ChipSeq" -u arolfe -p SECRET
  *
  * Lines in the input must be of the form
  * chromosome\tstart\tstrand\tlength\tweight
@@ -28,6 +28,7 @@ public class ImportHits {
     String username, password;
     int portnum;
     private Client client;
+    private int chunk = 10000000;
 
     public static void main(String args[])  {
         ImportHits importer = null;
@@ -70,6 +71,7 @@ public class ImportHits {
         options.addOption("u","user",true,"username");
         options.addOption("p","passwd",true,"password");
         options.addOption("h","help",false,"print help message");
+        options.addOption("c","chunk",true,"send this many hits to the server at once");
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse( options, args, false );            
         if (line.hasOption("help")) {
@@ -95,6 +97,10 @@ public class ImportHits {
         if (line.hasOption("passwd")) {
             password = line.getOptionValue("passwd");
         }
+        if (line.hasOption("chunk")) {
+            chunk = Integer.parseInt(line.getOptionValue("chunk"));
+        }
+
     }
     public void printHelp() {
         System.out.println("ImportHits to ReadDB");
@@ -149,7 +155,7 @@ public class ImportHits {
             if (lineno++ % 100000 == 0) {
                 System.err.println("Read through line " + lineno);
             }
-            if (lineno % 10000000 == 0) {
+            if (lineno % chunk == 0) {
                 if (hits.size() > 0) {
                     try {
                         client.storeSingle(alignname, hits);

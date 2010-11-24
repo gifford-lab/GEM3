@@ -336,9 +336,10 @@ public class RegionPanel extends JPanel
         if (opts.chipseqExpts.size() > 0) {
             try {
                 ChipSeqLoader loader = new ChipSeqLoader();
+
                 for(int i = 0; i < opts.chipseqExpts.size(); i++) { 
-                    
                     Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.chipseqExpts.get(i), genome);
+
                     RegionModel m;
                     RegionPaintable p;
                     if (opts.chipseqHistogramPainter) {
@@ -375,8 +376,6 @@ public class RegionPanel extends JPanel
                     Thread t = new Thread((Runnable)m); t.start();
                     p.setLabel("Paired " + opts.pairedChipseqExpts.get(i).toString());
                     
-                    System.err.println("Added paired painter " + alignments);
-
                     p.addEventListener(this);
                     addPainter(p);
                     addModelToPaintable(p,m);
@@ -1037,7 +1036,6 @@ public class RegionPanel extends JPanel
        and m */
     
     public void setRegion (Region newRegion) {
-        System.err.println("RegionPanel is setting regin to " + newRegion);
         if (newRegion.getChrom().matches("^chr.*")) {            
             newRegion = new Region(newRegion.getGenome(),
                                    newRegion.getChrom().replaceAll("^chr",""),

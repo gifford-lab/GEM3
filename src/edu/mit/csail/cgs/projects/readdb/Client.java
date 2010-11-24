@@ -292,7 +292,7 @@ public class Client implements ReadOnlyClient {
         for (int chromid : map.keySet()) {            
             List<PairedHit> hits = map.get(chromid);
             System.err.println("SENDING PAIRED HITS n="+hits.size() + " for chrom " + chromid);
-            int chunk = 2000000;
+            int chunk = 10000000;
             for (int startindex = 0; startindex < hits.size(); startindex += chunk) {
                 int count = ((startindex + chunk) < hits.size()) ? chunk : (hits.size() - startindex);
 
@@ -331,7 +331,7 @@ public class Client implements ReadOnlyClient {
                     ints[i-startindex] = hits.get(i).rightPos;
                 }        
                 Bits.sendInts(ints, outstream,buffer);
-                System.err.println("Sent " + hits.size() + " hits to the server");
+                System.err.println("Sent " + count + " hits to the server");
                 outstream.flush();        
                 response = readLine();
                 if (!response.equals("OK")) {

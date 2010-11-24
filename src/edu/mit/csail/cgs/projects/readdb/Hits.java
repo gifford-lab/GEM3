@@ -167,10 +167,6 @@ public abstract class Hits implements Closeable {
         return indices;
 
     }
-    /* don't actually use this version.  You might think that binary search is faster, but it turns
-       out not to be.  The linear search is over a limited number of elements, is very simple code,
-       and has a great data cache hit rate
-    */      
     public int[] getIndices(int firstindex, int lastindex, int startpos, int lastpos) {
         assert(startpos <= lastpos);
         assert(firstindex <= lastindex);
@@ -280,6 +276,11 @@ public abstract class Hits implements Closeable {
         if (p[0] >= p[1]) {
             return emptyIntBP;
         }
+        assert(p[0] >= 0);
+        if (p[1] > buffer.limit()) {
+            System.err.println("buffer limit is " + buffer.limit() + " but positions.size is " + positions.size());
+        }
+        assert(p[1] <= buffer.limit());
         if (minweight == null && isPlus == null) {
             return buffer.slice(p[0], p[1] - p[0]);
         } 
