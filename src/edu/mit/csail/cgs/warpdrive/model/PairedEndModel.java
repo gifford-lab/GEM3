@@ -18,7 +18,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
     private Set<String> ids;
     private Region region;
     private boolean newinput;
-    private List<PairedHit> results;
+    private List<PairedHit> results, otherchom;
     private Comparator<PairedHit> comparator;
     private PairedEndProperties props;
 
@@ -32,12 +32,14 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
             ids.add(Integer.toString(a.getDBID()));
         }
         results = null;
+        otherchrom = null;
         props = new PairedEndProperties();
     }
     public PairedEndProperties getProperties() {return props;}
 
     public void clearValues() {
         results = null;
+        otherchrom = null;
     }
     public Region getRegion() {return region;}
     public void setRegion(Region r) {
@@ -51,7 +53,23 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
         }
     }
     public List<PairedHit> getResults () {return results;}
+    public List<PairedHit> getOtherChrom() {return otherchrom;}
     public boolean isReady() {return !newinput;}
+    public List<PairedHit> dedup(List<PairedHit> hits) {
+        ArrayList<PairedHit> deduped = new ArrayList<PairedHit>();
+        deduped.add(hits.get(0));
+        for (int i = 1; i < hits.size(); i++) {
+            PairedHit a = hits.get(i);
+            PairedHit b = deduped.get(deduped.size() - 1);
+            if (a.leftPos != b.leftPos ||
+                a.rightPos != b.rightPos ||
+                a.leftStrand != b.leftStrand ||
+                a.rightStrand != b.rightStrand) {
+                deduped.add(a);
+                            }
+        }
+        return deduped;
+    }
     public synchronized void run() {
         while(keepRunning()) {
             try {
@@ -62,6 +80,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
             if (newinput) {
                 try {
                     results = new ArrayList<PairedHit>();
+                    otherchrom = new ArrayList<PairedHit>();
                     double mindist = getProperties().MinimumDistance;
                     boolean showself = getProperties().ShowSelfLigation;
                     if (mindist < 1) {
@@ -82,10 +101,13 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                                 Math.abs(h.leftPos - h.rightPos) > mindist &&
                                 (showself || !isSelfLigation(h))) {
                                 results.add(h);
+                            } else if (h.leftChrom != h.rightChrom) {
+                                otherchrom.add(h);
                             }
                         }
                     }
                     Collections.sort(results, comparator);
+                    Collections.sort(otherchrom, comparator);
                     if (getProperties().PrintData) {
                         for (PairedHit h : results) {
                             System.out.println(h.toString());
@@ -94,19 +116,8 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                     }
 
                     if (getProperties().DeDuplicateByPosition && results.size() > 0) {
-                        ArrayList<PairedHit> deduped = new ArrayList<PairedHit>();
-                        deduped.add(results.get(0));
-                        for (int i = 1; i < results.size(); i++) {
-                            PairedHit a = results.get(i);
-                            PairedHit b = deduped.get(deduped.size() - 1);
-                            if (a.leftPos != b.leftPos ||
-                                a.rightPos != b.rightPos ||
-                                a.leftStrand != b.leftStrand ||
-                                a.rightStrand != b.rightStrand) {
-                                deduped.add(a);
-                            }
-                        }
-                        results = deduped;
+                        results = dedup(results);
+                        otherchrom = dedup(otherchrom);
                     }
                     if (getProperties().LeftAlwaysLesser) {
                         for (PairedHit h : results) {

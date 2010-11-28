@@ -130,6 +130,28 @@ public class PairedEndPainter extends RegionPaintable {
                 h = height;
             }            
         }
+        if (getProperties().DrawOtherChromHits) {
+            List<PairedHit> otherc = model.getOtherChroms();
+            int thischrom = getGenome().getChromID(getRegion().getChrom());
+            g.setColor(Color.GREY);
+            for (int i = 0; i < otherc.size(); i++) {
+                PairedHit hit = otherc.get(i);
+                int x1, x2;
+                if (hit.leftChrom == thischrom) {
+                    x1 = getXPos(hit.leftPos, regionStart, regionEnd, x1,x2);
+                    x2 = getXPos(hit.leftPos + hit.leftLength, regionStart, regionEnd, x1,x2);
+                } else {
+                    x1 = getXPos(hit.rightPos, regionStart, regionEnd, x1,x2);
+                    x2 = getXPos(hit.rightPos + hit.rightLength, regionStart, regionEnd, x1,x2);
+                }
+                g.drawLine(x1,y1+h,x2,y1+h);
+                h -= (linewidth == 1 ? 2 : linewidth);
+                if (h < 0) {
+                    h = height;
+                }            
+            }
+        }
+
         g.setStroke(oldStroke);
     }
 
