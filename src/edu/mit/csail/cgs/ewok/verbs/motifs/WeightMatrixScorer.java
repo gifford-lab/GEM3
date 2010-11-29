@@ -70,11 +70,12 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
      * Return the highest scoring sequence in the region
      */
     public String getMaxScoreSequence(Region r, double threshold, int extend){
-        String seq = seqgen.execute(r);
+        int length = matrix.length();
+        String seq = seqgen.execute(r.expand(0, length));
         seq = seq.toUpperCase();
         String hit=null;
 
-        int length = matrix.length();
+
         char[] sequence = seq.toCharArray();
         for (int i = 0; i <= sequence.length - length; i++) {
             float score = (float)0.0;
@@ -82,10 +83,12 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
                 score += matrix.matrix[j][sequence[i+j]];
             }
             if (score>threshold){
-            	threshold = score;
-            	int start = Math.max(0, i-extend);
-            	int end = Math.min(sequence.length - length, i+length+extend);
+            	int start = i-extend;
+            	if (start<0) continue;
+            	int end = i+length-1+extend;
+            	if (end>sequence.length - length) continue;
             	hit = seq.substring(start, end);
+            	threshold = score;
             }
         }
         seq = SequenceUtils.reverseComplement(seq);
@@ -96,9 +99,12 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
                 score += matrix.matrix[j][sequence[i+j]];
             }
             if (score>threshold){
-            	int start = Math.max(0, i-extend);
-            	int end = Math.min(sequence.length - length, i+length+extend);
+            	int start = i-extend;
+            	if (start<0) continue;
+            	int end = i+length-1+extend;
+            	if (end>sequence.length - length) continue;
             	hit = seq.substring(start, end);
+            	threshold = score;
             }
         }
         
