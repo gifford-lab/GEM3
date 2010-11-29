@@ -82,12 +82,17 @@ public class RealValuedHistogram {
         return cdf;
     }
    
+    public void addValue(int v){addValue((double)v, 1.0);}
     public void addValue(double v){addValue(v, 1.0);}
     public void addValue(double v, double weight) { 
         if(v < start) { addToBin(0, weight); return; }
         if(v >= stop) { addToBin(getNumBins()-1, weight); return; }
         int bin = (int)Math.floor((v-start) / binWidth) + 1;
         addToBin(bin, weight);
+    }
+    public void addValues(ArrayList<Double> vals){
+    	for(Double d : vals)
+    		addValue(d);
     }
     public void addValueRange(double v1, double v2) {addValueRange(v1,v2,1.0);}
     public void addValueRange(double v1, double v2, double weight) { 
