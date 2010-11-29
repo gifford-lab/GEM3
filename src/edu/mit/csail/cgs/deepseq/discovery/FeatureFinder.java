@@ -40,6 +40,7 @@ public abstract class FeatureFinder {
 	protected ArrayList<AnnotationLoader> otherAnnotations = new ArrayList<AnnotationLoader>();
 	protected boolean dbconnected=false;
 	protected double readLength=32;
+    protected int maxThreads = 8;
 	
 	//Constructors
 	public FeatureFinder(Genome g){
@@ -72,7 +73,8 @@ public abstract class FeatureFinder {
 			}
 			mappableGenome = Args.parseDouble(args, "mappable", 0.8);
 			readLength = Args.parseDouble(args,"readlen",readLength);
-			
+            maxThreads = Args.parseInt(args,"threads",maxThreads);
+
 			setOutName(Args.parseString(args,"out",outName));
 			setSeqwin(Args.parseInteger(args,"seqwin",seqwin));
 			//Load annotations

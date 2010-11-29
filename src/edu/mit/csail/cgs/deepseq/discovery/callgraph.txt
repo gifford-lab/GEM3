@@ -1,0 +1,27 @@
+EMThread.run
+	BM.splitWindow
+	EMThread.analyzeWindow
+		BM.loadData_checkEnrichment
+			loadBasesInWindow
+		BM.estimateAlpha
+		BM.initializeComponents
+		BM.EMTrain
+			EM_MAP
+				findSmallestCases
+		BM.updateComponentResolution  need to pass in components
+		BM.setComponentResponsibilities
+		BM.initSpacing
+		BM.setMultiIndepMixtureParams
+		BM.determineNonZeroComps
+		BM.checkCompExactMatching
+	BM.mergeRegions
+
+	loadData_checkEnrichment
+	analyzeDNaseData
+
+	scanPeak
+
+	compFeatures.addAll()
+
+
+

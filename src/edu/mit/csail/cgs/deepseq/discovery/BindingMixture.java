@@ -89,7 +89,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private final static boolean BATCH_ELIMINATION = false;
     private final static boolean SMART_SPACING = true;		// dynamically determine init comopent spacing
     private final static boolean MAKE_HARD_ASSIGNMENT=false;
-	private StringBuilder pi_sb = new StringBuilder();
+
+    /***********************************
+     * Configuration.  No runtime changes
+     *****************************/
 
 	private boolean development_mode = false;
 	private boolean do_model_selection=false;
@@ -140,7 +143,10 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// the range to scan a peak if we know position from EM result
 	private int SCAN_RANGE = 20;
 	private int gentle_elimination_iterations = 5;
+
+
 	//Binding model representing the empirical distribution of a binding event
+    // set in commonInit and updateBindingModel
 	private BindingModel model;
 	private int modelRange;			// max length of one side
 	private int modelWidth; 		// width of empirical read distribution, 500bp
@@ -157,8 +163,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	protected double[] gaussian;
 
 	protected boolean doScanning=true;
-	//Spacing between the components
-	protected int componentSpacing=1;
 
 	/****************
 	 * Data
@@ -176,6 +180,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	/****************
 	 * Prediction
 	 ****************/
+
 	// List of all EM predictions
 	protected ArrayList<ComponentFeature> allFeatures;
 	protected ArrayList<Feature> insignificantFeatures;	// does not pass statistical significance
@@ -190,24 +195,11 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	// Regions that have towers (many reads stack on same base positions)
 	protected ArrayList<Region> towerRegions = new ArrayList<Region>();
 	protected ArrayList<Float> towerStrength = new ArrayList<Float>();
-	/**
-	 * <tt>HashMap</tt> containing the single event regions. <br>
-	 * Each <tt>key</tt> contains the (single event) region of interest and the corresponding <tt>value</tt>
-	 * the smaller sub-region (within the <tt>key</tt> region) containing the binding location
-	 * The purpose is that if we re-evaluate with new empirical distribution, we do not re-run EM for unary event.
-	 * The assumption is that changing empirical distribution will not have changed the existence of events,
-	 * it will only modify the position of the event slightly, so we can just do the scanning.
-	 */
-	protected HashMap<Region, Point> singleEventRegions=new HashMap<Region, Point>();
 
 	//Number of reads for a specified region of the IP experiment for each condition
 	protected double[] sigHitCounts;
 	//(Total) number of reads for a specified region of the IP experiment (across all conditions)
 	protected double totalSigCount=0;
-	//Components representing the binding events in the analyzed window
-	protected ArrayList<BindingComponent> components = new ArrayList<BindingComponent>();
-	//Number of non zero components of specified region
-	protected int nonZeroComponentNum=0;
 	// Maximum number of components determined by the data
 	protected int componentMax;
 
@@ -247,6 +239,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	private StringBuilder log_all_msg = new StringBuilder();
 	private FileWriter logFileWriter;
 	private boolean reportProgress = true;
+
+	private StringBuilder pi_sb = new StringBuilder();
 
 	/**
 	 * This constructor usually called from ChipSeqAnalyzer.
@@ -704,6 +698,1079 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			gaussian[i]=gaussianDist.calcProbability((double)i);
 	}
 
+    private class EMThread implements Runnable {
+        private int offset, skip, componentSpacing, lastResolution;
+        private ArrayList<Region> regions;
+        private BindingMixture mixture;
+        /**
+         * <tt>HashMap</tt> containing the single event regions. <br>
+         * Each <tt>key</tt> contains the (single event) region of interest and the corresponding <tt>value</tt>
+         * the smaller sub-region (within the <tt>key</tt> region) containing the binding location
+         * The purpose is that if we re-evaluate with new empirical distribution, we do not re-run EM for unary event.
+         * The assumption is that changing empirical distribution will not have changed the existence of events,
+         * it will only modify the position of the event slightly, so we can just do the scanning.
+         */
+        private HashMap<Region, Point> singleEventRegions;
+
+        public EMThread (BindingMixture m, int o, int s, ArrayList<Region> r) {
+            mixture = m;
+            offset = o;
+            skip = s;
+            regions = r;
+            singleEventRegions = new HashMap<Region, Point>();
+        }
+
+        /**
+         * EM training
+         *
+         * Returns the responsibility of EM training
+         *
+         * purely matrix/array operations
+         * After EM training, components list will only contains non-zero components
+         */
+        protected Pair<double[][][], int[][][]>  EMTrain(ArrayList<List<StrandedBase>> signals, 
+                                                         double alpha, 
+                                                         ArrayList<BindingComponent> components){
+            int numComp = components.size();
+
+            // H function and responsibility will be stored using an indirect indexing method
+            // Because only the components within modelRange matters, we only store those components around the reads
+            // and use a mapping array to keep track of the component index
+            // This will reduce the memory requirement from N*numComp, to NInRange*numComp
+            // and should save some running time because we only iterate the effective base-comps
+            double[][]   counts= new double[mixture.numConditions][];	// Hit Count
+            double[][][] h= new double[mixture.numConditions][][]; 		// H function
+            double[][][] r= new double[mixture.numConditions][][];		// Responsibility
+            int[][][] b2c= new int[mixture.numConditions][][]; 			// mapping from base to component
+            int[][][] c2b= new int[mixture.numConditions][][]; 			// mapping from component to base
+            double[][] b= new double[mixture.numConditions][];			// Beta
+            double[] pi = new double[numComp];					// Pi
+
+            // init pi
+            StringBuilder sb = new StringBuilder();
+            for(int j=0;j<numComp;j++){
+                BindingComponent comp = components.get(j);
+                pi[j]= comp.getMixProb();
+                if(mixture.print_mixing_probabilities)
+                    sb.append(comp.getLocation().getLocation()+"\t");
+            }
+            if(mixture.print_mixing_probabilities)
+                pi_sb.append(sb.toString().trim()+"\n");
+
+            boolean no_data_bin = false;
+            for(int c=0; c < mixture.numConditions; c++){
+                List<StrandedBase> bases_old = mixture.signals.get(c);
+                List<StrandedBase> bases = new ArrayList<StrandedBase>();
+                if (componentSpacing==1 || no_data_bin) {
+                    bases = bases_old;
+                } else {
+                    if (!bases_old.isEmpty()){
+                        char strand = '+';
+                        int pos = bases_old.get(0).getCoordinate()+componentSpacing/2;
+                        float count = 0;
+                        for (StrandedBase bb:bases_old){
+                            if (bb.getStrand()!=strand){
+                                if (count!=0)
+                                    bases.add(new StrandedBase(strand, pos, count));
+                                strand = '-';
+                                pos = bb.getCoordinate()+componentSpacing/2;
+                                count = 0;
+                            }
+                            if( bb.getCoordinate()>=pos-componentSpacing/2 &&
+                                bb.getCoordinate()<=pos+componentSpacing-componentSpacing/2-1){
+                                count += bb.getCount();
+                            } else {
+                                if (count!=0)
+                                    bases.add(new StrandedBase(strand, pos, count));
+                                count=bb.getCount();
+                                pos = bb.getCoordinate()+componentSpacing/2;
+                            }
+                        }
+                        if (count!=0)
+                            bases.add(new StrandedBase(strand, pos, count));
+                    }
+                }
+				
+                int numBases = bases.size();
+                //			System.out.println(StrandedBase.countBaseHits(bases));
+                //			System.out.println(StrandedBase.countBaseHits(bases_old));
+                double[] bc= new double[numComp];
+                for(int j=0;j<numComp;j++)
+                    bc[j]=1.0/mixture.numConditions;
+                b[c] = bc;
+
+                double[] countc= new double[numBases];
+                for(int i=0;i<numBases;i++)
+                    countc[i]=bases.get(i).getCount();
+                counts[c]=countc;
+			
+                int[][] c2b_c = new int[numComp][];
+                double[][] hc= new double[numComp][];
+                double [] prob_comp = new double[numBases];
+                for(int j=0;j<numComp;j++){
+                    BindingComponent comp = components.get(j);
+                    ArrayList<Integer> nzBases = new ArrayList<Integer>();
+                    for(int i=0;i<numBases;i++){
+                        StrandedBase base = bases.get(i);
+                        int dist = base.getStrand()=='+' ? base.getCoordinate()-comp.getLocation().getLocation(): comp.getLocation().getLocation()-base.getCoordinate();
+                        prob_comp[i] = mixture.model.probability(dist);
+                        if (prob_comp[i]>1e-10){
+                            nzBases.add(i);
+                        }
+                    }
+                    c2b_c[j] = new int[nzBases.size()];
+                    hc[j] = new double[nzBases.size()];				
+                    for(int i=0;i<nzBases.size();i++){
+                        c2b_c[j][i] = nzBases.get(i);
+                        hc[j][i] = prob_comp[nzBases.get(i)];
+                    }
+                }
+                h[c] = hc;
+                c2b[c]=c2b_c;
+
+                int[][] b2c_c = new int[numBases][];
+                for(int i=0;i<numBases;i++){
+                    ArrayList<Integer> nearComps = new ArrayList<Integer>();
+                    for(int j=0;j<numComp;j++){
+                        for( int ii: c2b_c[j])
+                            if (ii==i){
+                                nearComps.add(j);
+                                break;
+                            }
+                    }
+                    b2c_c[i] = new int[nearComps.size()];
+                    for (int j=0;j<nearComps.size();j++)
+                        b2c_c[i][j] = nearComps.get(j);
+                }
+                b2c[c] = b2c_c;
+			
+                //Initial Semi-E-step: initialize unnormalized responsibilities
+                double[][] rc= new double[numComp][];
+                for(int j=0;j<numComp;j++){
+                    int[] baseIdx = c2b_c[j];
+                    rc[j] = new double[baseIdx.length];
+                    for(int i=0;i<baseIdx.length;i++){
+                        rc[j][i] = hc[j][i]*pi[j]*bc[j];
+                    }
+                }
+                r[c] = rc;
+            }
+            mixture.log(5, "\n"+componentSpacing+" bp:\t");
+            //////////
+            // Run EM steps
+            //////////
+            Pair<double[][][], int[][][]> result = EM_MAP(counts, h, r, b, b2c, c2b, pi, alpha);
+            r = result.car();
+            c2b = result.cdr();
+		
+            //////////
+            // re-assign EM result back to the component objects
+            //////////
+            if (nonZeroComponentNum==0){
+                components.clear();
+                return new Pair<double[][][], int[][][]>(r, c2b);
+            }
+            ArrayList<BindingComponent> nonZeroComponents = new ArrayList<BindingComponent>();
+            for(int j=0;j<numComp;j++){
+                if (pi[j]>0){		// non-zero components
+                    BindingComponent comp = components.get(j);
+                    comp.setMixProb(pi[j]);
+                    comp.setAlpha(alpha);
+                    for(int c=0; c<numConditions; c++){
+                        double[] bc = b[c];
+                        comp.setConditionBeta(c, bc[j]);
+                        comp.setOld_index(j);
+                    }
+                    nonZeroComponents.add(comp);
+                }
+            }
+            components.clear();
+            components.addAll(nonZeroComponents);
+
+            if (componentSpacing==1){
+                for(int c=0; c<numConditions; c++){
+                    for(int j=0;j<components.size();j++){	
+                        double sum_resp = 0.0;	
+                        int oldIndex = components.get(j).getOld_index();
+                        int[] baseIdx = c2b[c][oldIndex];
+                        for(int i=0;i<baseIdx.length;i++){
+                            sum_resp += counts[c][baseIdx[i]]*r[c][oldIndex][i];
+                        }
+                        // Assign the summed responsibilities only to non-zero components
+                        components.get(j).setCondSumResponsibility(c, sum_resp);
+                    }
+                }
+            }
+	
+            return new Pair<double[][][], int[][][]>(r, c2b);
+        }//end of EMTrain method
+
+
+        /**
+         * core EM steps, sparse prior (component elimination), multi-condition
+         */
+        private Pair<double[][][], int[][][]> EM_MAP(  	double[][]   counts,
+                                                        double[][][] h,
+                                                        double[][][] r,
+                                                        double[][]   b,
+                                                        int[][][] b2c,
+                                                        int[][][] c2b,
+                                                        double[] pi,
+                                                        double alpha) {
+            int numComp = pi.length;
+
+            ArrayList<EM_State> models = new  ArrayList<EM_State> ();
+
+            // print initial PI values
+            if(print_mixing_probabilities){
+                StringBuilder sb = new StringBuilder();
+                for (int i=0; i<pi.length; i++){
+                    sb.append(pi[i]+"\t");
+                }
+                pi_sb.append(sb.toString().trim()+"\n");
+                appendEMMixProbFile(componentSpacing);
+            }
+
+            double lastLAP=0, LAP=0; // log posterior prob
+            int t=0;
+            double currAlpha = alpha/gentle_elimination_factor;
+            boolean minElimination = false;
+            int gentleCounts = 0; 	// count the iterations that we run on gentle mode after last elimination
+            // when reach the threshold, increase currAlpha value
+            // index of non-zero components, used to iterate components
+            ArrayList<Integer> nzComps = new ArrayList<Integer>();	
+            for (int j=0;j<pi.length;j++){
+                nzComps.add(j);
+            }
+            log(5, (int)nonZeroComponentNum+" ");
+            //Run EM while not converged
+            for(t=0; t<MAX_EM_ITER ; t++){
+
+                lastLAP=LAP;
+
+                //////////
+                //Semi-E-step (presumes unnormalized responsibilities have been calculated)
+                //Simply normalize responsibilities here
+                //////////
+                for(int c=0; c<numConditions; c++){
+                    double[][] rc = r[c];
+                    int numBases = counts[c].length;
+                    double totalResp[] = new double[numBases];
+                    // init
+                    for(int i=0;i<numBases;i++){
+                        totalResp[i] = 0;
+                    }
+                    // sum
+                    for(int j:nzComps){
+                        int[] baseIdx = c2b[c][j];
+                        for(int i=0;i<baseIdx.length;i++)
+                            totalResp[baseIdx[i]] += rc[j][i];
+                    }
+                    // normalize
+                    for(int j:nzComps){
+                        int[] baseIdx = c2b[c][j];
+                        for(int i=0;i<baseIdx.length;i++)
+                            if (totalResp[baseIdx[i]]>0)
+                                rc[j][i] = rc[j][i]/totalResp[baseIdx[i]];
+                    }
+                }
+
+
+                //////////
+                //M-step
+                //////////
+
+                //Pi
+                // ML: standard EM
+                if (t<=ML_ITER || currAlpha==0){
+                    for(int j:nzComps){
+                        double r_sum=0;
+                        for(int c=0; c<numConditions; c++){
+                            int[] baseIdx = c2b[c][j];
+                            for(int i=0;i<baseIdx.length;i++)
+                                r_sum += r[c][j][i]*counts[c][baseIdx[i]];
+                        }
+                        pi[j]=r_sum;    // standard EM ML
+                    }
+                }
+                // MAP: EM with sparce prior
+                else {
+                    if (BATCH_ELIMINATION){
+                        if (t >ML_ITER && t <= ANNEALING_ITER)
+                            currAlpha = alpha * (t-ML_ITER)/(ANNEALING_ITER-ML_ITER);
+                        else
+                            currAlpha = alpha;
+                        // adjust alpha for coarse resolution
+                        //                	if (currAlpha>1 && INITIAL_SPARCENESS)
+                        //                		currAlpha = Math.max(1, currAlpha/componentSpacing);
+
+                        // Batch elimination, all the component with support less than
+                        // currAlpha will be eliminated altogether
+                        // Risk: all the components might be eliminated pre-maturely
+                        // 		 at the initial EM runs (has not reached proper assignment)
+                        // 		 when pi[j] is too small (too many components)
+                        // 		 That is the reason of having the annealing cycles.
+                        for(int j:nzComps){
+                            double r_sum=0;
+                            for(int c=0; c<numConditions; c++){
+                                int[] baseIdx = c2b[c][j];
+                                for(int i=0;i<baseIdx.length;i++)
+                                    r_sum += r[c][j][i]*counts[c][baseIdx[i]];
+                            }
+
+                            // component elimination
+                            pi[j]=Math.max(0,r_sum-currAlpha);
+
+                            // if component prob becomes 0, clear responsibility
+                            if (pi[j]==0){
+                                for(int c=0; c<numConditions; c++){
+                                    for(int i=0;i<c2b[c][j].length;i++)
+                                        r[c][j][i] = 0;
+                                }
+                            }
+	                	
+                        }
+                    } else { 	//batch_elimination is false
+                        // eliminate only the worst cases
+                        // redistribute to boost neighbor component by next round of EM
+                        // in this case, we do not need annealing schedule for alpha
+            		
+                        double r_sum[]=new double[nzComps.size()];
+                        for(int jnz=0;jnz<r_sum.length;jnz++){
+                            for(int c=0; c<numConditions; c++){
+                                int[] baseIdx = c2b[c][nzComps.get(jnz)];
+                                for(int i=0;i<baseIdx.length;i++)
+                                    r_sum[jnz] += r[c][nzComps.get(jnz)][i]*counts[c][baseIdx[i]];
+                            }
+                        }
+                        if (gentleCounts>=gentle_elimination_iterations &&
+                    		currAlpha<alpha )
+                            currAlpha=Math.min(alpha, currAlpha*2);
+            		
+                        // find the worst components
+                        Pair<Double, TreeSet<Integer>> worst=null;	// worst components
+                        if ( (!minElimination) && (componentSpacing!=1))
+                            worst = findSmallestCases(r_sum, currAlpha);
+                        else
+                            worst = StatUtil.findMin(r_sum);
+                        if (debug)
+                            System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+
+                                             String.format("\t%.2f\t%.2f\t", currAlpha, worst.car())+worst.cdr().size()+"\n");
+                        if (worst.car() > currAlpha){
+                            // no component to be eliminated, update pi(j)
+                            for(int jnz=0;jnz<r_sum.length;jnz++)
+                                pi[nzComps.get(jnz)]=r_sum[jnz]-currAlpha;	// not normailzed yet
+                            // stop Smallest cases elimination, only eliminate min from now on
+                            minElimination = true;
+                            gentleCounts ++;
+                            //                     	System.out.println(t+":\t"+currAlpha+"\t iterating");
+                        }
+                        else{
+                            // eliminate worst case components, could be 1 or multiple components
+                            // redistribute responsibilities in next E step
+                            for (int jnz: worst.cdr()){
+                                pi[nzComps.get(jnz)]=0;                        	
+                                // clear responsibility
+                                for(int c=0; c<numConditions; c++){
+                                    for(int i=0; i<c2b[c][nzComps.get(jnz)].length;i++)
+                                        r[c][nzComps.get(jnz)][i] = 0;
+                                }
+                            }                    	
+                            // keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
+                            // give EM a time to stabilize before eliminating the next components
+                            //                    	System.out.println(t+":\t"+currAlpha+"\t elimination");
+                            currAlpha = Math.max(worst.car(), alpha/gentle_elimination_factor/2);
+                            gentleCounts = 0;
+                            //                    	currAlpha = 0;
+                        }
+                    }
+                }
+
+                // update component count, normalize pi
+                double totalPi=0;
+                nzComps.clear();
+                for(int j=0;j<pi.length;j++){
+                    if (pi[j]!=0){
+                        totalPi+=pi[j];
+                        nzComps.add(j);
+                    }
+                }
+                nonZeroComponentNum = nzComps.size();
+                if (nonZeroComponentNum==0)
+                    return new Pair<double[][][], int[][][]>(r, c2b);
+            	
+                if (totalPi!=0){
+                    for(int j:nzComps){
+                        pi[j]=pi[j]/totalPi;
+                    }
+                }
+                if(print_mixing_probabilities){
+                    StringBuilder sb = new StringBuilder();
+                    for (int i=0; i<pi.length; i++){
+                        sb.append(pi[i]+"\t");
+                    }
+                    pi_sb.append(sb.toString().trim()+"\n");
+                    appendEMMixProbFile(componentSpacing);
+                }
+
+                //Beta parameters
+                if(numConditions>1){
+                    for(int j:nzComps){
+                        double b_sum=0;
+                        for(int c=0; c<numConditions; c++){
+                            double sum_i=0;		// sum over i
+                            int[] baseIdx = c2b[c][j];
+                            for(int i=0;i<baseIdx.length;i++)
+                                sum_i += r[c][j][i]*counts[c][baseIdx[i]];	
+
+                            b[c][j]=sum_i;
+                            b_sum+=sum_i;
+                        }
+
+                        // normalize across conditions
+                        if (b_sum!=0){
+                            for(int c=0; c<numConditions; c++){
+                                b[c][j] /= b_sum;
+                            }
+                        }
+                    } // for
+                    // Beta clustering would go here.
+                }
+
+                //Semi-E-step:Calculate next un-normalized responsibilities
+                for(int j:nzComps){
+                    for(int c=0; c<numConditions; c++){
+                        int[] baseIdx = c2b[c][j];
+                        for(int i=0;i<baseIdx.length;i++)
+                            r[c][j][i] = pi[j]*b[c][j]*h[c][j][i];
+                    }
+                }
+
+                //Log-likelihood calculation
+                double LL =0;
+                // get the background probability if a read is out of range of the event
+                double bgProb = Math.min(model.probability(model.getMax()),model.probability(model.getMin()));
+                for(int c=0; c<numConditions; c++){
+                    for(int i=0;i<counts[c].length;i++){
+                        // for each read, each event will give a conditional prob or bg prob
+                        double j_sum=0;
+                        for(int j:nzComps){
+                            boolean found = false;
+                            for (int ii=0;ii<c2b[c][j].length;ii++)
+                                if (i==c2b[c][j][ii] ){
+                                    if (r[c][j][ii]!=0){
+                                        j_sum += r[c][j][ii];
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            if (!found)
+                                j_sum += pi[j]*b[c][j]*bgProb;
+                        }
+                        if (j_sum!=0)
+                            LL += Math.log(j_sum)*counts[c][i];
+                    }
+                }
+                // log prior
+                double LP=0;
+                for(int j:nzComps)
+                    if (pi[j]!=0)
+                        LP+=Math.log(pi[j]);
+
+                LP= -currAlpha*LP;
+                LAP = LL+LP;
+
+                //			System.out.println("EM: "+t+"\t"+currAlpha+"\t"+LAP+"\t"+lastLAP+"\t("+nzComps.size()+" non-zero components).");
+                if (t<2 || Math.abs(LAP-lastLAP)>EM_CONVERGENCE){
+                    continue;
+                }
+                else{
+                    //				System.out.println("Converged\t"+currAlpha);
+                    // if converge on smallest alpha, raise one level
+                    if (currAlpha<alpha/gentle_elimination_factor){
+                        currAlpha = alpha/gentle_elimination_factor;
+                        continue;
+                    }
+                    // if converge on a smaller alpha value
+                    if (currAlpha<alpha){
+                        currAlpha = alpha;		// raise alpha, it may come down again after eliminating the next comp
+                        //					System.out.println(t+"::\t"+currAlpha);
+                        continue;
+                    }
+                    // else: converge on full alpha value
+                    if (componentSpacing==1 && do_model_selection && (!BATCH_ELIMINATION)){
+                        // BIC model selection to decide which solution is better
+                        // 1. save the state
+                        EM_State state = new EM_State(this.numConditions);
+                        state.LL = LL;
+                        state.numComponent = nonZeroComponentNum;
+                        for (int c=0;c<numConditions;c++){
+                            double[][]rc = r[c];
+                            double[][]copy = new double[rc.length][];
+                            for (int j=0;j<rc.length;j++){
+                                copy[j] = rc[j].clone();
+                            }
+                            state.resp[c]= copy;
+                        }
+                        for (int c=0;c<numConditions;c++){
+                            state.beta[c]=b[c].clone();
+                        }
+                        state.pi = pi.clone();
+                        state.alpha = currAlpha;
+
+                        models.add(state);
+                        //2. more than one component left, raise alpha, continue EM
+                        if (nonZeroComponentNum>1){
+                            currAlpha *= 2;
+                            continue;
+                        }
+                        else	// single component left, done
+                            break;
+                    }
+
+                    else // if at 5bp resolution step, done with EM
+                        break;
+                }
+            } //LOOP: Run EM while not converged
+
+            //		System.out.println("numIters\t" + t + "\t MLIters\t" + ML_ITER + "\t annealIters\t" + ANNEALING_ITER + "\tmaxIters\t" + MAX_EM_ITER);
+
+            if (componentSpacing==1 && do_model_selection && models.size()>1 && (!BATCH_ELIMINATION)){
+                // BIC model selection to decide which solution is better
+                // 3. find best solution
+                double totalBaseCount = 0;
+                for(int c=0; c<numConditions; c++){
+                    totalBaseCount += counts[c].length;
+                }
+
+                int best = 0;
+                double bestBIC = models.get(0).BIC(totalBaseCount);
+                for (int i=1;i<models.size();i++){
+                    double bic = models.get(i).BIC(totalBaseCount);
+                    //				System.out.println(String.format("%.3f\t%.3f\t", bestBIC, bic)+models.get(i).toString());
+                    if (bestBIC <= bic){
+                        best = i;
+                        bestBIC = bic;
+                    }
+                }
+                // copy the best model state back to memory
+                //			System.out.println("************BEST MODEL***************");
+                EM_State bestModel = models.get(best);
+                //			for (int c:r.keySet()){
+                //				double[][] rc = r[c];
+                //				System.out.print(arrayToString(rc));
+                //			}
+                //			System.out.println("************copy-back best model***************");
+                r=new double[numConditions][][];
+                for (int c=0;c<numConditions; c++){
+                    r[c]=bestModel.resp[c];
+                }
+                //			for (int c:r.keySet()){
+                //				double[][] rc = r[c];
+                //				System.out.print(arrayToString(rc));
+                //			}
+                b=new double[numConditions][];
+                for (int c=0;c<numConditions; c++){
+                    b[c] = bestModel.beta[c];
+                }
+                nzComps.clear();
+                for (int j=0;j<pi.length;j++){
+                    pi[j] = bestModel.pi[j];
+                    if (pi[j]!=0)
+                        nzComps.add(j);
+                    //				System.out.print(String.format("%.2f ", pi[j]));
+                }
+                nonZeroComponentNum = nzComps.size();
+			
+			
+                //			System.out.println();
+            }
+            // normalize responsibilities here
+            for(int c=0; c<numConditions; c++){
+                double[][] rc = r[c];
+                int numBases = counts[c].length;
+                double totalResp[] = new double[numBases];
+                // init
+                for(int i=0;i<numBases;i++){
+                    totalResp[i] = 0;
+                }
+                // sum
+                for(int j:nzComps){
+                    int[] baseIdx = c2b[c][j];
+                    for(int i=0;i<baseIdx.length;i++)
+                        totalResp[baseIdx[i]] += rc[j][i];
+                }
+                // normalize
+                for(int j:nzComps){
+                    int[] baseIdx = c2b[c][j];
+                    for(int i=0;i<baseIdx.length;i++)
+                        if (totalResp[baseIdx[i]]>0)
+                            rc[j][i] = rc[j][i]/totalResp[baseIdx[i]];
+                }
+            }
+
+            // make hard assignment
+            //		if (componentSpacing==1 && MAKE_HARD_ASSIGNMENT){
+
+
+            log(4, "EM_MAP(): "+"\tt="+t+"\t"+
+				String.format("%.6f",LAP)+"\t("+(int)nonZeroComponentNum+" events)");
+            return new Pair<double[][][], int[][][]>(r, c2b);
+
+        }//end of EM_Map method
+
+        /*
+         * return the bottom elements of x 
+         * so that their sum is less than maxSum
+         * alpha is passed in as maxSum, this essentially ensure that 
+         * we do not eliminate too much, but as quick as possible to reduce run time
+         */
+        private Pair<Double, TreeSet<Integer>> findSmallestCases(double[] x, double maxSum){
+            TreeSet<Integer> cases = new TreeSet<Integer>();
+            double maxSmallest = 0; 
+            double sum = 0;
+            int[] oldIdx = StatUtil.findSort(x);
+            for (int i=0;i<x.length;i++){
+                sum += x[i];
+                if (sum < maxSum){
+                    cases.add(oldIdx[i]);
+                    maxSmallest = x[i];
+                }
+                else
+                    break;
+            }
+            if (cases.isEmpty())
+                maxSmallest = x[0];
+            Pair<Double, TreeSet<Integer>> result = new Pair<Double, TreeSet<Integer>>(maxSmallest, cases);
+            return result;
+        }
+
+
+        //Update the resolution of the components
+        //Add new components in around non-zero components
+        protected ArrayList<BindingComponent> updateComponentResolution(ArrayList<BindingComponent> components, Region currReg, int numCond, int lastResolution){
+            ArrayList<BindingComponent> newComponents = new ArrayList<BindingComponent>();
+
+            //First map the valid bases around non-zero components
+            int numValidBases=0;
+            int[] valid = new int[currReg.getWidth()];
+            //		for(int v=0; v<currReg.getWidth(); v++){valid[v]=0;}
+            for(BindingComponent b : components){
+                for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*resolution_extend)-currReg.getStart());
+                    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*resolution_extend)-currReg.getStart());
+                    v++){
+                    if(valid[v]==0){
+                        valid[v]=1;
+                        numValidBases++;
+                    }
+                }
+            }
+
+            //Reset the componentMax to reflect the number of reads in the valid areas
+            //Calc new resolution
+            componentSpacing = componentMax>=numValidBases ? 1 : Math.max(2, (numValidBases/componentMax)+1);
+            if(componentSpacing>=lastResolution)
+                componentSpacing = lastResolution -1;
+		
+            //Set up the components
+            double totalMP =0;
+            for(BindingComponent b: components){
+                for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*resolution_extend+1)-currReg.getStart());
+                    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*resolution_extend-1)-currReg.getStart());
+                    v+=componentSpacing){
+                    Point pos = new Point(gen, currReg.getChrom(), currReg.getStart()+v);
+                    //Reusing the valid array for the sake of it
+                    if(valid[v]!=-1){
+                        BindingComponent currComp = new BindingComponent(model, pos, numCond);
+                        currComp.setMixProb(1.0);
+                        totalMP+=currComp.getMixProb();
+                        newComponents.add(currComp);
+                        valid[v]=-1;
+                    }	}	}
+
+            //Normalize mixProbs
+            for(BindingComponent b : newComponents){
+                b.setMixProb(b.getMixProb()/totalMP);
+            }
+            return newComponents;
+        }//end of updateComponentResolution method
+
+
+        private ArrayList<BindingComponent> analyzeWindow(Region w){
+            ArrayList<List<StrandedBase>> signals = mixture.loadData_checkEnrichment(w);
+            if (signals==null)
+                return null;
+
+            componentSpacing = mixture.initSpacing(w);
+            ArrayList<BindingComponent> components = initializeComponents(w, numConditions, componentSpacing);
+
+            // We want to run EM only for potential overlapping regions
+            // If after first round, we are sure the region contains unary event, we will just scan for peak
+            if (!singleEventRegions.containsKey(w)) {
+                mixture.log(3, "\nWindow:\t"+w.getLocationString()+" ("+w.getWidth()+" bp, "+(int)totalSigCount+" reads)");
+
+                // dynamically determine an alpha value for this sliding window
+                double alpha = mixture.sparseness;
+                if (mixture.use_dynamic_sparseness)
+                    alpha = Math.max(mixture.estimateAlpha(w, signals), mixture.sparseness);
+
+                Pair<double[][][], int[][][]> result = null;
+
+                // Choose either Yuchun's beta EM or Giorgos's pool EM methods
+                if(mixture.use_betaEM) {
+                    //Run EM and increase resolution
+                    int nonZeroComponentNum=components.size();
+                    int lastResolution;
+
+                    int countIters = 0;
+                    while(nonZeroComponentNum>0){
+                        lastResolution = componentSpacing;
+                        //					int numAllComps = components.size();
+                        // EM learning, components list will only contains non-zero components
+                        result = EMTrain(signals, alpha, components);
+                        // log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
+
+                        countIters++;
+                        //					System.out.printf("%s\tupdateIter\t%d\tnumComps\t%d\tnumNonZeroComps\t%d%n", w.toString(), countIters, numAllComps, components.size());
+                        // increase resolution
+                        if (componentSpacing==1)
+                            break;
+                        components = updateComponentResolution(components, w, numConditions, lastResolution);
+                        nonZeroComponentNum = components.size();
+                        if(componentSpacing==lastResolution)
+                            break;
+                    } 	// end of while (resolution)
+                    if (nonZeroComponentNum==0)	return null;
+                    setComponentResponsibilities(signals, result.car(), result.cdr());
+                } else {
+                    // Run MultiIndependentMixture (Temporal Coupling)
+
+                    // Convert data in current region in primitive format
+                    int[][] pos     = new int[numConditions][];  // position is relative to region's start
+                    int[][] count   = new int[numConditions][];
+                    char[][] strand = new char[numConditions][];
+                    for(int t = 0; t < numConditions; t++) {
+                        pos[t]    = new int[signals.get(t).size()];
+                        count[t]  = new int[signals.get(t).size()];
+                        strand[t] = new char[signals.get(t).size()];
+
+                        for(int k = 0; k < signals.get(t).size(); k++) {
+                            pos[t][k]    = signals.get(t).get(k).getCoordinate() - w.getStart();  // position is relative to region's start
+                            count[t][k]  = (int) signals.get(t).get(k).getCount();
+                            strand[t][k] = signals.get(t).get(k).getStrand();
+                        }
+                    }
+
+                    // Create and just initialize the list to pass the while loop for the first time
+                    List<BindingComponent> nonZeroComponents = new ArrayList<BindingComponent>();
+                    nonZeroComponents.add(new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), -1), numConditions));
+                    List<BindingComponent> prevNonZeroComponents = new ArrayList<BindingComponent>(nonZeroComponents);
+                    int[] compPos = setComponentPositions(w.getWidth(), componentSpacing);
+                    int countUpdates = 0;
+                    boolean hasConverged = false;
+                    boolean compsAreTheSame = false;
+                    double prev_loglik = Double.NEGATIVE_INFINITY;
+                    MultiIndependentMixtureCounts prev_mim = new MultiIndependentMixtureCounts();
+                    MultiIndependentMixtureCounts mim = new MultiIndependentMixtureCounts();
+                    while( nonZeroComponents.size() > 0 && countUpdates < maxUpdateIters ) {
+                        // Set up params for TC to be consistent with those defined in BingingMixture
+                        mim = new MultiIndependentMixtureCounts();
+                        setMultiIndepMixtureParams(mim, alpha);
+                        mim.exec(pos, count, strand, compPos, model);
+
+                        nonZeroComponents.clear(); nonZeroComponents = null;
+                        nonZeroComponents = determineNonZeroComps(w, mim, compPos, alpha);
+
+                        if(nonZeroComponents.size() == prevNonZeroComponents.size()) {
+                            hasConverged = mim.convergence_check(mim.get_glob_loglik(), prev_loglik,  1e-5, true, -1e-6);
+                            compsAreTheSame = checkCompExactMatching(nonZeroComponents, prevNonZeroComponents);
+                        }
+
+                        if(hasConverged || compsAreTheSame)
+                            break;
+
+                        countUpdates++;
+                        prevNonZeroComponents = new ArrayList<BindingComponent>(nonZeroComponents);
+                        prev_loglik = mim.get_glob_loglik();
+                        prev_mim = mim;
+                        //					System.out.printf("%s\titer\t%d/%d\tnumComps\t%d\tnumNonZeroComps\t%d\tloglik\t%f%n", w.toString(), countUpdates, maxUpdateIters, compPos.length, prevNonZeroComponents.size(), prev_loglik);
+                        compPos = updateComps(w, nonZeroComponents);
+                    }
+
+                    HashMap<Integer, double[][]> responsibilities = (HashMap<Integer, double[][]>) prev_mim.get_resp();
+                    components.clear(); 
+                    components = null;
+                    components = (ArrayList<BindingComponent>) prevNonZeroComponents;
+                    nonZeroComponentNum  = components.size();
+                    if (nonZeroComponentNum==0)	return null;
+                    setComponentResponsibilities(signals, responsibilities);
+                }// end of else condition (running it with TC)
+
+            } 	// if not single event region
+		
+            else{// if single event region, just scan it
+                BindingComponent peak = scanPeak(singleEventRegions.get(w));
+                components = new ArrayList<BindingComponent>();
+                components.add(peak);
+            }
+		
+            return components;
+        }//end of analyzeWindow method
+
+
+
+        public void run() {
+            for (int regionnum = offset; regionnum < regions.size(); regionnum += skip) {
+                Region rr = regions.get(regionnum);
+                mixture.log(2, rr.toString());
+                try {
+                    ArrayList<BindingComponent> comps = new ArrayList<BindingComponent>();
+                    if (!isDNase){	// ChIP-Seq data
+                        // Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
+                        ArrayList<Region> windows = new ArrayList<Region>();
+                        if (rr.getWidth()<=windowSize) {
+                            windows.add(rr);
+                        } else{
+                            windows = mixture.splitWindows(rr, windowSize, modelWidth/2);
+                        }
+		 
+                        // run EM for each window 
+                        for (Region w : windows){
+                            ArrayList<BindingComponent> result = analyzeWindow(w);
+                            if (result!=null){
+                                comps.addAll(result);
+                            }
+                        }
+                        /* ****************************************************************
+                         * fix sliding window boundary effect (version 1)
+                         */
+                        if (windows.size()>1 && comps.size()>0){
+                            Collections.sort(comps);
+                            // The whole region can be divided into subRegions with gap >= modelWidth
+                            ArrayList<ArrayList<Region>> subRegions = new ArrayList<ArrayList<Region>>();
+                            ArrayList<Region> rs = new ArrayList<Region>();
+                            rs.add(comps.get(0).getLocation().expand(0));
+                            subRegions.add(rs);
+                            if (comps.size()>1){
+                                for (int i=1;i<comps.size();i++){
+                                    if (comps.get(i).getLocation().distance(comps.get(i-1).getLocation())>modelWidth){
+                                        rs = new ArrayList<Region>();
+                                        subRegions.add(rs);
+                                        rs.add(comps.get(i).getLocation().expand(0));
+                                    } else	// in same subregions
+                                        rs.add(comps.get(i).getLocation().expand(0));
+                                }
+                            }
+                            for (ArrayList<Region> subr : subRegions){
+                                // expand with modelRange padding, and merge overlapped regions
+                                // ==> Refined enriched regions
+                                rs=mixture.mergeRegions(subr, true);
+                                for (Region r:rs){
+                                    if (r.getWidth()==2*mixture.modelRange+1){	// for unary event, one of the windows should contain it in full, no need to evaluate again
+                                        if (subr.size()>1){	// if multiple windows predict the same unary event
+                                            Point p = r.getMidpoint();
+                                            ArrayList<BindingComponent> duplicates = new ArrayList<BindingComponent>(); 
+                                            for (BindingComponent b: comps){
+                                                if (b.getLocation().equals(p))
+                                                    duplicates.add(b);
+                                            }
+                                            if (duplicates.size()>1){
+                                                for (int i=1;i<duplicates.size();i++){
+                                                    comps.remove(duplicates.get(i));
+                                                }
+                                            }
+                                        }
+                                    } else { // for joint events 
+                                        // the regions in rs includes the influence paddings, remove it here
+                                        int start=r.getStart();
+                                        int end=r.getEnd();
+                                        if (start!=0)
+                                            start += mixture.modelRange;
+                                        if (end != mixture.gen.getChromID(r.getChrom()))
+                                            end -= mixture.modelRange;
+                                        if (start>end){
+                                            int tmp = start;
+                                            end = tmp;
+                                            start = end;
+                                        }
+                                        Region tightRegion = new Region(r.getGenome(), r.getChrom(), start, end);
+                                        for (int i=0;i<windows.size()-1;i++){
+                                            Region boundary = windows.get(i).getOverlap(windows.get(i+1));
+                                            // if the predicted component overlaps with boundary of sliding window
+                                            if (boundary.overlaps(tightRegion)){
+                                                // remove old
+                                                ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+                                                for (BindingComponent m:comps){
+                                                    if (tightRegion.overlaps(m.getLocation().expand(0)))
+                                                        toRemove.add(m);
+                                                }
+                                                comps.removeAll(toRemove);
+                                                // re-process the boundary region
+                                                int winSize = mixture.modelWidth*10;
+                                                if (r.getWidth()<winSize){ // if the region is small, directly process it
+                                                    ArrayList<BindingComponent> result = analyzeWindow(r);
+                                                    if (result!=null){
+                                                        comps.addAll(result);
+                                                    }
+                                                } else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
+                                                    ArrayList<Region> wins = mixture.splitWindows(r, winSize, mixture.modelWidth);
+                                                    ArrayList<ArrayList<BindingComponent>> comps_all_wins= new ArrayList<ArrayList<BindingComponent>>();
+                                                    for (Region w : wins){
+                                                        ArrayList<BindingComponent> comp_win = new ArrayList<BindingComponent>();
+                                                        ArrayList<BindingComponent> result = analyzeWindow(w);
+                                                        if (result!=null){
+                                                            comp_win.addAll(result);
+                                                        }
+                                                        comps_all_wins.add(comp_win);
+                                                    }
+                                                    /* ****************************************************************
+                                                     * fix sliding window boundary effect (version 2)
+                                                     * take the events in the left half of boundary from left window
+                                                     * take the events in the right half of boundary from right window
+                                                     * so that the events we reported have at least 500bp data as margin
+                                                     * Note: this may result in slight inaccuracy comparing to re-process whole region
+                                                     * 		 but it is the trade-off against running EM on a huge large region
+                                                     * 		 and running for whole region might lead to inaccuracy too, because of too many components
+                                                     */
+                                                    if (wins.size()>1){
+                                                        for (int ii=0;ii<wins.size()-1;ii++){
+                                                            int midCoor = wins.get(ii).getOverlap(wins.get(ii+1)).getMidpoint().getLocation();
+                                                            ArrayList<BindingComponent> leftComps = comps_all_wins.get(ii);
+                                                            toRemove = new ArrayList<BindingComponent>();//reset
+                                                            for (BindingComponent m:leftComps){
+                                                                if (m.getLocation().getLocation()>midCoor)
+                                                                    toRemove.add(m);
+                                                            }
+                                                            leftComps.removeAll(toRemove);
+                                                            ArrayList<BindingComponent> rightComps = comps_all_wins.get(ii+1);
+                                                            toRemove = new ArrayList<BindingComponent>();	//reset
+                                                            for (BindingComponent m:rightComps){
+                                                                if (m.getLocation().getLocation()<=midCoor)
+                                                                    toRemove.add(m);
+                                                            }
+                                                            rightComps.removeAll(toRemove);
+                                                        }
+                                                    }
+                                                    for (ArrayList<BindingComponent>comps_win:comps_all_wins){
+                                                        comps.addAll(comps_win);
+                                                    }
+                                                }
+                                                break;	// break from testing more boundary
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }// END: fix sliding window boundary effect
+                    } else { // DNase data
+                        ArrayList<List<StrandedBase>> signals = loadData_checkEnrichment(rr);
+                        comps = analyzeDNaseData(signals, rr);
+
+                        System.err.println("Don't know how to analyze DNAse data.  Exiting.");
+                        System.exit(0);
+                    }
+
+                    /* ****************************************************************
+                     * refine unary events and collect all the events as features
+                     * this is last step because fixing boundary may result in some new unary events
+                     */
+                    if (comps.size()>0){
+                        singleEventRegions.clear();
+                        Collections.sort(comps);
+                        // The whole region can be divided into subRegions with gap >= modelWidth
+                        ArrayList<ArrayList<Region>> subRegions = new ArrayList<ArrayList<Region>>();
+                        ArrayList<Region> rs = new ArrayList<Region>();
+                        rs.add(comps.get(0).getLocation().expand(0));
+                        subRegions.add(rs);
+                        if (comps.size()>1){
+                            for (int i=1;i<comps.size();i++){
+                                if (comps.get(i).getLocation().distance(comps.get(i-1).getLocation())>modelWidth){
+                                    rs = new ArrayList<Region>();
+                                    subRegions.add(rs);
+                                    rs.add(comps.get(i).getLocation().expand(0));
+                                }
+                                else	// in same subregions
+                                    rs.add(comps.get(i).getLocation().expand(0));
+                            }
+                        }
+                        for (ArrayList<Region> subr : subRegions){
+                            ArrayList<BindingComponent> bs = new ArrayList<BindingComponent>();
+                            if (subr.size()==1){
+                                BindingComponent b;
+                                // Scan Peak unary region
+                                if(use_scanPeak) {
+                                    Point p = subr.get(0).getMidpoint();
+                                    b = scanPeak(p);
+                                    if (b==null){
+                                        //						System.err.println("No read to scan! "+r.toString());
+                                        continue;
+                                    }
+                                    b.setEMPosition(p);
+                                    for (BindingComponent m:comps){
+                                        if (p.getLocation()==m.getLocation().getLocation()) {
+                                            b.setAlpha(m.getAlpha());	// inherit alpha value from previous EM component
+                                            if(!use_betaEM) {
+                                                for(int c = 0; c < numConditions; c++) { 
+                                                    b.setConditionBeta(c, m.getConditionBeta(c)); 
+                                                }
+                                            }
+                                            break;   // Once you found a previous component on the same location as b, there is no need to search all the others
+                                        }
+                                    }
+                                }
+                                // Do not want to scan peak
+                                //		Run EM again on the unary region and take the component with the maximum strength
+                                else {
+                                    ArrayList<BindingComponent> bl = analyzeWindow(subr.get(0).expand(modelRange, modelRange));
+                                    if(bl == null || bl.size() == 0)      { continue; }
+                                    else if(bl.size() == 1) { b = bl.get(0); }
+                                    else {
+                                        double[] compStrength = new double[bl.size()];
+                                        for(int k = 0; k < compStrength.length; k++) { compStrength[k] = bl.get(k).getMixProb(); }
+                                        Pair<Double, TreeSet<Integer>> max_maxCompIdx = StatUtil.findMax(compStrength);
+                                        b = bl.get(max_maxCompIdx.cdr().first());
+                                    }
+                                }
+                                bs.add(b);
+                                singleEventRegions.put(subr.get(0), b.getLocation());
+                            }
+                            else{	// for joint events
+                                rs=mergeRegions(subr, true);
+                                for (Region r:rs){
+                                    for (BindingComponent m:comps){
+                                        if (r.overlaps(m.getLocation().expand(0)))
+                                            bs.add(m);
+                                    }
+                                }
+                            }
+                            Collections.sort(bs);
+                            if (bs.size()>=2){
+                                ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+                                for (int i=1;i<bs.size();i++){
+                                    int distance = bs.get(i).getLocation().distance(bs.get(i-1).getLocation());
+                                    if (distance==0){
+                                        if (bs.get(i).getTotalSumResponsibility()>bs.get(i-1).getTotalSumResponsibility())
+                                            toRemove.add(bs.get(i-1));
+                                        else
+                                            toRemove.add(bs.get(i));
+                                    }
+                                    if (development_mode && distance<20)
+                                        System.err.println("Very close events: "+bs.get(i-1).getLocation().toString()+" "+bs.get(i).getLocation().toString());
+                                }
+                                bs.removeAll(toRemove);
+                            }
+                            compFeatures.addAll(callFeatures(bs));
+                        }
+                    }
+                } catch(Exception e){
+                    System.err.println("ERROR: Java Exception when analyzing region "+rr.toString());
+                    e.printStackTrace(System.err);
+                    System.exit(-1);
+                }
+            }
+        }
+    }
+
 	/**
 	 * Calls EM training on the Mixture Model.
 	 * In this implementation, we have chosen to run EM independently on each testRegion.
@@ -735,295 +1802,24 @@ public class BindingMixture extends MultiConditionFeatureFinder{
         signalFeatures.clear();
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 
-		System.out.println("\nRunning EM for each of "+totalRegionCount+" regions, please wait ...");
-		int displayStep = 100000;
-		if (totalRegionCount<100000)
-			displayStep = 10000;
-		if (totalRegionCount<10000)
-			displayStep = 1000;
-		if (totalRegionCount<1000)
-			displayStep = 100;
-		if (totalRegionCount<100)
-			displayStep = 10;
-		if (totalRegionCount<20)
-			displayStep = 2;
-//		System.out.println("(Progress will be reported in steps of "+displayStep+" regions).");
-
-		//for each test region
-		for (int j=0;j<restrictRegions.size();j++) {
-			Region rr = restrictRegions.get(j);
-			log(2, rr.toString());
-			try{
-	//			System.out.println(rr.toString()+" Running EM \t"+CommonUtils.timeElapsed(tic));
-				ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
-				
-				if (!isDNase){	// ChIP-Seq data
-					// Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
-					ArrayList<Region> windows = new ArrayList<Region>();
-					if (rr.getWidth()<=windowSize)
-						windows.add(rr);
-					else{
-						windows = splitWindows(rr, windowSize, modelWidth/2);
-					}
-		 
-					// run EM for each window 
-					for (Region w : windows){
-		//				System.out.println(" Running analyzeWindow() \t"+w.toString()+"\t"+CommonUtils.timeElapsed(tic));
-						ArrayList<BindingComponent> result = analyzeWindow(w);
-						if (result!=null){
-							comps.addAll(result);
-						}
-					}
-		//			System.out.println("Fix sliding window boundary effect \t"+CommonUtils.timeElapsed(tic));
-		
-					/* ****************************************************************
-					 * fix sliding window boundary effect (version 1)
-					 */
-					if (windows.size()>1 && comps.size()>0){
-						Collections.sort(comps);
-						// The whole region can be divided into subRegions with gap >= modelWidth
-						ArrayList<ArrayList<Region>> subRegions = new ArrayList<ArrayList<Region>>();
-						ArrayList<Region> rs = new ArrayList<Region>();
-						rs.add(comps.get(0).getLocation().expand(0));
-						subRegions.add(rs);
-						if (comps.size()>1){
-							for (int i=1;i<comps.size();i++){
-								if (comps.get(i).getLocation().distance(comps.get(i-1).getLocation())>modelWidth){
-									rs = new ArrayList<Region>();
-									subRegions.add(rs);
-									rs.add(comps.get(i).getLocation().expand(0));
-								}
-								else	// in same subregions
-									rs.add(comps.get(i).getLocation().expand(0));
-							}
-						}
-						for (ArrayList<Region> subr : subRegions){
-							// expand with modelRange padding, and merge overlapped regions
-							// ==> Refined enriched regions
-							rs=mergeRegions(subr, true);
-							for (Region r:rs){
-								if (r.getWidth()==2*modelRange+1){	// for unary event, one of the windows should contain it in full, no need to evaluate again
-									if (subr.size()>1){	// if multiple windows predict the same unary event
-										Point p = r.getMidpoint();
-										ArrayList<BindingComponent> duplicates = new ArrayList<BindingComponent>(); 
-										for (BindingComponent b: comps){
-											if (b.getLocation().equals(p))
-												duplicates.add(b);
-										}
-										if (duplicates.size()>1){
-											for (int i=1;i<duplicates.size();i++){
-												comps.remove(duplicates.get(i));
-											}
-										}
-									}
-								}
-								else { // for joint events 
-									// the regions in rs includes the influence paddings, remove it here
-									int start=r.getStart();
-									int end=r.getEnd();
-									if (start!=0)
-										start += modelRange;
-									if (end!=gen.getChromID(r.getChrom()))
-										end -= modelRange;
-									if (start>end){
-										int tmp = start;
-										end = tmp;
-										start = end;
-									}
-									Region tightRegion = new Region(r.getGenome(), r.getChrom(), start, end);
-									for (int i=0;i<windows.size()-1;i++){
-										Region boundary = windows.get(i).getOverlap(windows.get(i+1));
-										// if the predicted component overlaps with boundary of sliding window
-										if (boundary.overlaps(tightRegion)){
-											// remove old
-											ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
-											for (BindingComponent m:comps){
-												if (tightRegion.overlaps(m.getLocation().expand(0)))
-													toRemove.add(m);
-											}
-											comps.removeAll(toRemove);
-											// re-process the boundary region
-											int winSize = modelWidth*10;
-											if (r.getWidth()<winSize){ // if the region is small, directly process it
-												ArrayList<BindingComponent> result = analyzeWindow(r);
-												if (result!=null){
-													comps.addAll(result);
-												}
-											}
-											else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
-												if (development_mode)
-													System.err.println("Warning: very large contiguous region, "+ r.toString());
-												ArrayList<Region> wins = splitWindows(r, winSize, modelWidth);
-		//										ArrayList<Region> wins = new ArrayList<Region>();
-		//										int lastEnd = r.getStart()+winSize-1;
-		//										wins.add(new Region(r.getGenome(), r.getChrom(), r.getStart(), lastEnd));
-		//										while(lastEnd<r.getEnd()){
-		//											int newStart = lastEnd+1-modelWidth*2;	//overlap length = modelWidth*2
-		//											lastEnd = Math.min(newStart+winSize-1, r.getEnd());
-		//											wins.add(new Region(r.getGenome(), r.getChrom(), newStart, lastEnd));
-		//										}
-												// process each window, then fix boundary 
-												ArrayList<ArrayList<BindingComponent>> comps_all_wins= new ArrayList<ArrayList<BindingComponent>>();
-												for (Region w : wins){
-													ArrayList<BindingComponent> comp_win = new ArrayList<BindingComponent>();
-													ArrayList<BindingComponent> result = analyzeWindow(w);
-													if (result!=null){
-														comp_win.addAll(result);
-													}
-													comps_all_wins.add(comp_win);
-												}
-												/* ****************************************************************
-												 * fix sliding window boundary effect (version 2)
-												 * take the events in the left half of boundary from left window
-												 * take the events in the right half of boundary from right window
-												 * so that the events we reported have at least 500bp data as margin
-												 * Note: this may result in slight inaccuracy comparing to re-process whole region
-												 * 		 but it is the trade-off against running EM on a huge large region
-												 * 		 and running for whole region might lead to inaccuracy too, because of too many components
-												 */
-												if (wins.size()>1){
-													for (int ii=0;ii<wins.size()-1;ii++){
-														int midCoor = wins.get(ii).getOverlap(wins.get(ii+1)).getMidpoint().getLocation();
-														ArrayList<BindingComponent> leftComps = comps_all_wins.get(ii);
-														toRemove = new ArrayList<BindingComponent>();//reset
-														for (BindingComponent m:leftComps){
-															if (m.getLocation().getLocation()>midCoor)
-																toRemove.add(m);
-														}
-														leftComps.removeAll(toRemove);
-														ArrayList<BindingComponent> rightComps = comps_all_wins.get(ii+1);
-														toRemove = new ArrayList<BindingComponent>();	//reset
-														for (BindingComponent m:rightComps){
-															if (m.getLocation().getLocation()<=midCoor)
-																toRemove.add(m);
-														}
-														rightComps.removeAll(toRemove);
-													}
-												}
-												for (ArrayList<BindingComponent>comps_win:comps_all_wins){
-													comps.addAll(comps_win);
-												}
-											}
-											break;	// break from testing more boundary
-										}
-									}
-								}
-							}
-						}
-					}// END: fix sliding window boundary effect
-				}
-				else{	
-					// DNase data
-					ArrayList<List<StrandedBase>> signals = loadData_checkEnrichment(rr);
-					comps = analyzeDNaseData(signals, rr);
-
-					System.exit(0);
-				}
-
-				/* ****************************************************************
-				 * refine unary events and collect all the events as features
-				 * this is last step because fixing boundary may result in some new unary events
-				 */
-				if (comps.size()>0){
-					singleEventRegions.clear();
-					Collections.sort(comps);
-					// The whole region can be divided into subRegions with gap >= modelWidth
-					ArrayList<ArrayList<Region>> subRegions = new ArrayList<ArrayList<Region>>();
-					ArrayList<Region> rs = new ArrayList<Region>();
-					rs.add(comps.get(0).getLocation().expand(0));
-					subRegions.add(rs);
-					if (comps.size()>1){
-						for (int i=1;i<comps.size();i++){
-							if (comps.get(i).getLocation().distance(comps.get(i-1).getLocation())>modelWidth){
-								rs = new ArrayList<Region>();
-								subRegions.add(rs);
-								rs.add(comps.get(i).getLocation().expand(0));
-							}
-							else	// in same subregions
-								rs.add(comps.get(i).getLocation().expand(0));
-						}
-					}
-					for (ArrayList<Region> subr : subRegions){
-						ArrayList<BindingComponent> bs = new ArrayList<BindingComponent>();
-						if (subr.size()==1){
-							BindingComponent b;
-							// Scan Peak unary region
-							if(use_scanPeak) {
-								Point p = subr.get(0).getMidpoint();
-								b = scanPeak(p);
-								if (b==null){
-									//						System.err.println("No read to scan! "+r.toString());
-									continue;
-								}
-								b.setEMPosition(p);
-								for (BindingComponent m:comps){
-									if (p.getLocation()==m.getLocation().getLocation()) {
-										b.setAlpha(m.getAlpha());	// inherit alpha value from previous EM component
-										if(!use_betaEM) {
-											for(int c = 0; c < numConditions; c++) { 
-												b.setConditionBeta(c, m.getConditionBeta(c)); 
-											}
-										}
-										break;   // Once you found a previous component on the same location as b, there is no need to search all the others
-									}
-								}
-							}
-							// Do not want to scan peak
-							//		Run EM again on the unary region and take the component with the maximum strength
-							else {
-								ArrayList<BindingComponent> bl = analyzeWindow(subr.get(0).expand(modelRange, modelRange));
-								if(bl == null || bl.size() == 0)      { continue; }
-								else if(bl.size() == 1) { b = bl.get(0); }
-								else {
-									double[] compStrength = new double[bl.size()];
-									for(int k = 0; k < compStrength.length; k++) { compStrength[k] = bl.get(k).getMixProb(); }
-									Pair<Double, TreeSet<Integer>> max_maxCompIdx = StatUtil.findMax(compStrength);
-									b = bl.get(max_maxCompIdx.cdr().first());
-								}
-							}
-							bs.add(b);
-							singleEventRegions.put(subr.get(0), b.getLocation());
-						}
-						else{	// for joint events
-							rs=mergeRegions(subr, true);
-							for (Region r:rs){
-								for (BindingComponent m:comps){
-									if (r.overlaps(m.getLocation().expand(0)))
-										bs.add(m);
-								}
-							}
-						}
-						Collections.sort(bs);
-						if (bs.size()>=2){
-							ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
-							for (int i=1;i<bs.size();i++){
-								int distance = bs.get(i).getLocation().distance(bs.get(i-1).getLocation());
-								if (distance==0){
-									if (bs.get(i).getTotalSumResponsibility()>bs.get(i-1).getTotalSumResponsibility())
-										toRemove.add(bs.get(i-1));
-									else
-										toRemove.add(bs.get(i));
-								}
-								if (development_mode && distance<20)
-									System.err.println("Very close events: "+bs.get(i-1).getLocation().toString()+" "+bs.get(i).getLocation().toString());
-							}
-							bs.removeAll(toRemove);
-						}
-						compFeatures.addAll(callFeatures(bs));
-					}
-				}
-	
-				if (((j+1) % displayStep==0 || j+1==10 || j+1==100 || j+1==1000 || j+1==10000 ) && reportProgress)
-					System.out.println((j+1)+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
-			}
-			catch(Exception e){
-				System.err.println("ERROR: Java Exception when analyzing region "+rr.toString());
-				e.printStackTrace(System.err);
-				System.exit(-1);
-			}
-		}// end of for (Region rr : restrictRegions)
-		if (!(totalRegionCount % displayStep==0 && reportProgress))	//avoid repeating report
-			System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        Thread[] threads = new Thread[maxThreads];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(this, new EMThread(this, i, maxThreads, restrictRegions));
+            threads[i].start();
+        }
+        boolean anyRunning = true;
+        while (anyRunning) {
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) { }
+            anyRunning = false;
+            for (int i = 0; i < threads.length; i++) {
+                if (threads[i].isAlive()) {
+                    anyRunning = true;
+                    break;
+                }
+            }
+		}
 
 		/* ********************************************************
 		 * merge nearby tower regions, filter events in or at the edge of tower regions
@@ -1291,126 +2087,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		}
 	}
 
-	private ArrayList<BindingComponent> analyzeWindow(Region w){
-
-		ArrayList<List<StrandedBase>> signals = loadData_checkEnrichment(w);
-		if (signals==null)
-			return null;
-
-		// We want to run EM only for potential overlapping regions
-		// If after first round, we are sure the region contains unary event, we will just scan for peak
-		if (!singleEventRegions.containsKey(w)) {
-			log(3, "\nWindow:\t"+w.getLocationString()+" ("+w.getWidth()+" bp, "+(int)totalSigCount+" reads)");
-
-			// dynamically determine an alpha value for this sliding window
-			double alpha = sparseness;
-			if (use_dynamic_sparseness)
-				alpha = Math.max(estimateAlpha(w, signals), sparseness);
-
-			Pair<double[][][], int[][][]> result = null;
-
-//			System.out.print("\n\n\n" + w.toString() + "\t");
-
-			// Choose either Yuchun's beta EM or Giorgos's pool EM methods
-			if(use_betaEM) {
-				//Run EM and increase resolution
-				initializeComponents(w, numConditions);
-				int lastResolution;
-
-				int countIters = 0;
-				while(nonZeroComponentNum>0){
-					lastResolution = componentSpacing;
-//					int numAllComps = components.size();
-					// EM learning, components list will only contains non-zero components
-					result = EMTrain(signals, alpha);
-					// log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
-
-					countIters++;
-//					System.out.printf("%s\tupdateIter\t%d\tnumComps\t%d\tnumNonZeroComps\t%d%n", w.toString(), countIters, numAllComps, components.size());
-					// increase resolution
-					if (componentSpacing==1)
-						break;
-					updateComponentResolution(w, numConditions, lastResolution);
-					if(componentSpacing==lastResolution)
-						break;
-				} 	// end of while (resolution)
-				if (nonZeroComponentNum==0)	return null;
-				setComponentResponsibilities(signals, result.car(), result.cdr());
-			}
-			else {
-				// Run MultiIndependentMixture (Temporal Coupling)
-
-				// Convert data in current region in primitive format
-				int[][] pos     = new int[numConditions][];  // position is relative to region's start
-				int[][] count   = new int[numConditions][];
-				char[][] strand = new char[numConditions][];
-				for(int t = 0; t < numConditions; t++) {
-					pos[t]    = new int[signals.get(t).size()];
-					count[t]  = new int[signals.get(t).size()];
-					strand[t] = new char[signals.get(t).size()];
-
-					for(int k = 0; k < signals.get(t).size(); k++) {
-						pos[t][k]    = signals.get(t).get(k).getCoordinate() - w.getStart();  // position is relative to region's start
-						count[t][k]  = (int) signals.get(t).get(k).getCount();
-						strand[t][k] = signals.get(t).get(k).getStrand();
-					}
-				}
-
-				// Create and just initialize the list to pass the while loop for the first time
-				List<BindingComponent> nonZeroComponents = new ArrayList<BindingComponent>();
-				nonZeroComponents.add(new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), -1), numConditions));
-				List<BindingComponent> prevNonZeroComponents = new ArrayList<BindingComponent>(nonZeroComponents);
-				componentSpacing = initSpacing(w);
-				int[] compPos = setComponentPositions(w.getWidth(), componentSpacing);
-				int countUpdates = 0;
-				boolean hasConverged = false;
-				boolean compsAreTheSame = false;
-				double prev_loglik = Double.NEGATIVE_INFINITY;
-				MultiIndependentMixtureCounts prev_mim = new MultiIndependentMixtureCounts();
-				MultiIndependentMixtureCounts mim = new MultiIndependentMixtureCounts();
-				while( nonZeroComponents.size() > 0 && countUpdates < maxUpdateIters ) {
-					// Set up params for TC to be consistent with those defined in BingingMixture
-					mim = new MultiIndependentMixtureCounts();
-					setMultiIndepMixtureParams(mim, alpha);
-					mim.exec(pos, count, strand, compPos, model);
-
-					nonZeroComponents.clear(); nonZeroComponents = null;
-					nonZeroComponents = determineNonZeroComps(w, mim, compPos, alpha);
-
-					if(nonZeroComponents.size() == prevNonZeroComponents.size()) {
-						hasConverged = mim.convergence_check(mim.get_glob_loglik(), prev_loglik,  1e-5, true, -1e-6);
-						compsAreTheSame = checkCompExactMatching(nonZeroComponents, prevNonZeroComponents);
-					}
-
-					if(hasConverged || compsAreTheSame)
-						break;
-
-					countUpdates++;
-					prevNonZeroComponents = new ArrayList<BindingComponent>(nonZeroComponents);
-					prev_loglik = mim.get_glob_loglik();
-					prev_mim = mim;
-//					System.out.printf("%s\titer\t%d/%d\tnumComps\t%d\tnumNonZeroComps\t%d\tloglik\t%f%n", w.toString(), countUpdates, maxUpdateIters, compPos.length, prevNonZeroComponents.size(), prev_loglik);
-					compPos = updateComps(w, nonZeroComponents);
-				}
-
-				HashMap<Integer, double[][]> responsibilities = (HashMap<Integer, double[][]>) prev_mim.get_resp();
-				components.clear(); components = null;
-				components = (ArrayList<BindingComponent>) prevNonZeroComponents;
-				nonZeroComponentNum  = components.size();
-				if (nonZeroComponentNum==0)	return null;
-				setComponentResponsibilities(signals, responsibilities);
-			}// end of else condition (running it with TC)
-
-		} 	// if not single event region
-		
-		else{// if single event region, just scan it
-			BindingComponent peak = scanPeak(singleEventRegions.get(w));
-			components = new ArrayList<BindingComponent>();
-			components.add(peak);
-		}
-		
-		return components;
-	}//end of analyzeWindow method
 
 	private ArrayList<List<StrandedBase>> loadData_checkEnrichment(Region w){
 		ArrayList<List<StrandedBase>> signals = loadBasesInWindow(w, "IP");
@@ -1459,630 +2135,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		}
 		return signals;
-	}
-	/**
-	 * EM training
-	 *
-	 * Returns the responsibility of EM training
-	 *
-	 * purely matrix/array operations
-	 * After EM training, components list will only contains non-zero components
-	 */
-	protected Pair<double[][][], int[][][]>  EMTrain(ArrayList<List<StrandedBase>> signals, double alpha){
-		int numComp = components.size();
-
-		// H function and responsibility will be stored using an indirect indexing method
-		// Because only the components within modelRange matters, we only store those components around the reads
-		// and use a mapping array to keep track of the component index
-		// This will reduce the memory requirement from N*numComp, to NInRange*numComp
-		// and should save some running time because we only iterate the effective base-comps
-		double[][]   counts= new double[numConditions][];	// Hit Count
-		double[][][] h= new double[numConditions][][]; 		// H function
-		double[][][] r= new double[numConditions][][];		// Responsibility
-		int[][][] b2c= new int[numConditions][][]; 			// mapping from base to component
-		int[][][] c2b= new int[numConditions][][]; 			// mapping from component to base
-		double[][] b= new double[numConditions][];			// Beta
-		double[] pi = new double[numComp];					// Pi
-
-		// init pi
-		StringBuilder sb = new StringBuilder();
-		for(int j=0;j<numComp;j++){
-			BindingComponent comp = components.get(j);
-			pi[j]= comp.getMixProb();
-			if(print_mixing_probabilities)
-				sb.append(comp.getLocation().getLocation()+"\t");
-		}
-		if(print_mixing_probabilities)
-			pi_sb.append(sb.toString().trim()+"\n");
-
-		boolean no_data_bin = false;
-		for(int c=0; c<numConditions; c++){
-			List<StrandedBase> bases_old = signals.get(c);
-			List<StrandedBase> bases = new ArrayList<StrandedBase>();
-			if (componentSpacing==1 || no_data_bin)
-				bases = bases_old;
-			else{
-				if (!bases_old.isEmpty()){
-					char strand = '+';
-					int pos = bases_old.get(0).getCoordinate()+componentSpacing/2;
-					float count = 0;
-					for (StrandedBase bb:bases_old){
-						if (bb.getStrand()!=strand){
-							if (count!=0)
-								bases.add(new StrandedBase(strand, pos, count));
-							strand = '-';
-							pos = bb.getCoordinate()+componentSpacing/2;
-							count = 0;
-						}
-						if( bb.getCoordinate()>=pos-componentSpacing/2 &&
-							bb.getCoordinate()<=pos+componentSpacing-componentSpacing/2-1){
-							count += bb.getCount();
-						}
-						else{
-							if (count!=0)
-								bases.add(new StrandedBase(strand, pos, count));
-							count=bb.getCount();
-							pos = bb.getCoordinate()+componentSpacing/2;
-						}
-					}
-					if (count!=0)
-						bases.add(new StrandedBase(strand, pos, count));
-				}
-			}
-				
-			int numBases = bases.size();
-//			System.out.println(StrandedBase.countBaseHits(bases));
-//			System.out.println(StrandedBase.countBaseHits(bases_old));
-			double[] bc= new double[numComp];
-			for(int j=0;j<numComp;j++)
-				bc[j]=1.0/numConditions;
-			b[c] = bc;
-
-			double[] countc= new double[numBases];
-			for(int i=0;i<numBases;i++)
-				countc[i]=bases.get(i).getCount();
-			counts[c]=countc;
-			
-			int[][] c2b_c = new int[numComp][];
-			double[][] hc= new double[numComp][];
-			double [] prob_comp = new double[numBases];
-			for(int j=0;j<numComp;j++){
-				BindingComponent comp = components.get(j);
-				ArrayList<Integer> nzBases = new ArrayList<Integer>();
-				for(int i=0;i<numBases;i++){
-					StrandedBase base = bases.get(i);
-					int dist = base.getStrand()=='+' ? base.getCoordinate()-comp.getLocation().getLocation(): comp.getLocation().getLocation()-base.getCoordinate();
-					prob_comp[i] = model.probability(dist);
-					if (prob_comp[i]>1e-10){
-						nzBases.add(i);
-					}
-				}
-				c2b_c[j] = new int[nzBases.size()];
-				hc[j] = new double[nzBases.size()];				
-				for(int i=0;i<nzBases.size();i++){
-					c2b_c[j][i] = nzBases.get(i);
-					hc[j][i] = prob_comp[nzBases.get(i)];
-				}
-			}
-			h[c] = hc;
-			c2b[c]=c2b_c;
-
-			int[][] b2c_c = new int[numBases][];
-			for(int i=0;i<numBases;i++){
-				ArrayList<Integer> nearComps = new ArrayList<Integer>();
-				for(int j=0;j<numComp;j++){
-					for( int ii: c2b_c[j])
-						if (ii==i){
-							nearComps.add(j);
-							break;
-						}
-				}
-				b2c_c[i] = new int[nearComps.size()];
-				for (int j=0;j<nearComps.size();j++)
-					b2c_c[i][j] = nearComps.get(j);
-			}
-			b2c[c] = b2c_c;
-			
-			//Initial Semi-E-step: initialize unnormalized responsibilities
-			double[][] rc= new double[numComp][];
-			for(int j=0;j<numComp;j++){
-				int[] baseIdx = c2b_c[j];
-				rc[j] = new double[baseIdx.length];
-				for(int i=0;i<baseIdx.length;i++){
-					rc[j][i] = hc[j][i]*pi[j]*bc[j];
-				}
-			}
-			r[c] = rc;
-		}
-		log(5, "\n"+componentSpacing+" bp:\t");
-		//////////
-		// Run EM steps
-		//////////
-		Pair<double[][][], int[][][]> result = EM_MAP(counts, h, r, b, b2c, c2b, pi, alpha);
-		r = result.car();
-		c2b = result.cdr();
-		
-		//////////
-		// re-assign EM result back to the component objects
-		//////////
-		if (nonZeroComponentNum==0){
-			components.clear();
-			return new Pair<double[][][], int[][][]>(r, c2b);
-		}
-		ArrayList<BindingComponent> nonZeroComponents = new ArrayList<BindingComponent>();
-		for(int j=0;j<numComp;j++){
-			if (pi[j]>0){		// non-zero components
-				BindingComponent comp = components.get(j);
-				comp.setMixProb(pi[j]);
-				comp.setAlpha(alpha);
-				for(int c=0; c<numConditions; c++){
-					double[] bc = b[c];
-					comp.setConditionBeta(c, bc[j]);
-					comp.setOld_index(j);
-				}
-				nonZeroComponents.add(comp);
-			}
-		}
-		components = nonZeroComponents;
-
-		if (componentSpacing==1){
-			for(int c=0; c<numConditions; c++){
-				for(int j=0;j<components.size();j++){	
-					double sum_resp = 0.0;	
-					int oldIndex = components.get(j).getOld_index();
-					int[] baseIdx = c2b[c][oldIndex];
-					for(int i=0;i<baseIdx.length;i++){
-						sum_resp += counts[c][baseIdx[i]]*r[c][oldIndex][i];
-					}
-					// Assign the summed responsibilities only to non-zero components
-					components.get(j).setCondSumResponsibility(c, sum_resp);
-				}
-			}
-		}
-	
-		return new Pair<double[][][], int[][][]>(r, c2b);
-	}//end of EMTrain method
-
-
-	/**
-	 * core EM steps, sparse prior (component elimination), multi-condition
-	 */
-	private Pair<double[][][], int[][][]> EM_MAP(  	double[][]   counts,
-							double[][][] h,
-							double[][][] r,
-							double[][]   b,
-							int[][][] b2c,
-							int[][][] c2b,
-							double[] pi,
-							double alpha)
-	{
-		int numComp = pi.length;
-
-		ArrayList<EM_State> models = new  ArrayList<EM_State> ();
-
-		// print initial PI values
-		if(print_mixing_probabilities){
-			StringBuilder sb = new StringBuilder();
-			for (int i=0; i<pi.length; i++){
-				sb.append(pi[i]+"\t");
-			}
-			pi_sb.append(sb.toString().trim()+"\n");
-			appendEMMixProbFile(componentSpacing);
-		}
-
-		double lastLAP=0, LAP=0; // log posterior prob
-		int t=0;
-		double currAlpha = alpha/gentle_elimination_factor;
-		boolean minElimination = false;
-		int gentleCounts = 0; 	// count the iterations that we run on gentle mode after last elimination
-								// when reach the threshold, increase currAlpha value
-		// index of non-zero components, used to iterate components
-		ArrayList<Integer> nzComps = new ArrayList<Integer>();	
-		for (int j=0;j<pi.length;j++){
-			nzComps.add(j);
-		}
-		log(5, (int)nonZeroComponentNum+" ");
-		//Run EM while not converged
-		for(t=0; t<MAX_EM_ITER ; t++){
-
-			lastLAP=LAP;
-
-			//////////
-			//Semi-E-step (presumes unnormalized responsibilities have been calculated)
-			//Simply normalize responsibilities here
-			//////////
-			for(int c=0; c<numConditions; c++){
-				double[][] rc = r[c];
-				int numBases = counts[c].length;
-				double totalResp[] = new double[numBases];
-				// init
-				for(int i=0;i<numBases;i++){
-					totalResp[i] = 0;
-				}
-				// sum
-				for(int j:nzComps){
-					int[] baseIdx = c2b[c][j];
-					for(int i=0;i<baseIdx.length;i++)
-						totalResp[baseIdx[i]] += rc[j][i];
-				}
-				// normalize
-				for(int j:nzComps){
-					int[] baseIdx = c2b[c][j];
-					for(int i=0;i<baseIdx.length;i++)
-						if (totalResp[baseIdx[i]]>0)
-							rc[j][i] = rc[j][i]/totalResp[baseIdx[i]];
-				}
-			}
-
-
-			//////////
-			//M-step
-			//////////
-
-			//Pi
-			// ML: standard EM
-			if (t<=ML_ITER || currAlpha==0){
-				for(int j:nzComps){
-					double r_sum=0;
-                    for(int c=0; c<numConditions; c++){
-        				int[] baseIdx = c2b[c][j];
-        				for(int i=0;i<baseIdx.length;i++)
-                    		r_sum += r[c][j][i]*counts[c][baseIdx[i]];
-                    }
-                    pi[j]=r_sum;    // standard EM ML
-            	}
-            }
-			// MAP: EM with sparce prior
-            else {
-            	if (BATCH_ELIMINATION){
-                	if (t >ML_ITER && t <= ANNEALING_ITER)
-                		currAlpha = alpha * (t-ML_ITER)/(ANNEALING_ITER-ML_ITER);
-                    else
-                    	currAlpha = alpha;
-                	// adjust alpha for coarse resolution
-//                	if (currAlpha>1 && INITIAL_SPARCENESS)
-//                		currAlpha = Math.max(1, currAlpha/componentSpacing);
-
-            		// Batch elimination, all the component with support less than
-                	// currAlpha will be eliminated altogether
-                	// Risk: all the components might be eliminated pre-maturely
-                	// 		 at the initial EM runs (has not reached proper assignment)
-                	// 		 when pi[j] is too small (too many components)
-                	// 		 That is the reason of having the annealing cycles.
-                	for(int j:nzComps){
-	                	double r_sum=0;
-	                    for(int c=0; c<numConditions; c++){
-	        				int[] baseIdx = c2b[c][j];
-	        				for(int i=0;i<baseIdx.length;i++)
-	                    		r_sum += r[c][j][i]*counts[c][baseIdx[i]];
-	                    }
-
-	                    // component elimination
-	                    pi[j]=Math.max(0,r_sum-currAlpha);
-
-                		// if component prob becomes 0, clear responsibility
-	                    if (pi[j]==0){
-	                		for(int c=0; c<numConditions; c++){
-	            				for(int i=0;i<c2b[c][j].length;i++)
-	                        		r[c][j][i] = 0;
-	                        }
-	                	}
-	                	
-	                }
-            	}
-            	else{ 	//batch_elimination is false
-            		// eliminate only the worst cases
-            		// redistribute to boost neighbor component by next round of EM
-                   	// in this case, we do not need annealing schedule for alpha
-            		
-            		double r_sum[]=new double[nzComps.size()];
-                    for(int jnz=0;jnz<r_sum.length;jnz++){
-	                	for(int c=0; c<numConditions; c++){
-	        				int[] baseIdx = c2b[c][nzComps.get(jnz)];
-	        				for(int i=0;i<baseIdx.length;i++)
-	                    		r_sum[jnz] += r[c][nzComps.get(jnz)][i]*counts[c][baseIdx[i]];
-	                    }
-                	}
-                    if (gentleCounts>=gentle_elimination_iterations &&
-                    		currAlpha<alpha )
-                    	currAlpha=Math.min(alpha, currAlpha*2);
-            		
-                    // find the worst components
-                    Pair<Double, TreeSet<Integer>> worst=null;	// worst components
-                    if ( (!minElimination) && (componentSpacing!=1))
-                    	worst = findSmallestCases(r_sum, currAlpha);
-                    else
-                    	worst = StatUtil.findMin(r_sum);
-                    if (debug)
-	                    System.out.print(componentSpacing+"\t"+t+":\t"+nonZeroComponentNum+
-	                    		String.format("\t%.2f\t%.2f\t", currAlpha, worst.car())+worst.cdr().size()+"\n");
-                    if (worst.car() > currAlpha){
-                    	// no component to be eliminated, update pi(j)
-                    	for(int jnz=0;jnz<r_sum.length;jnz++)
-                    		pi[nzComps.get(jnz)]=r_sum[jnz]-currAlpha;	// not normailzed yet
-                    	// stop Smallest cases elimination, only eliminate min from now on
-                    	minElimination = true;
-                    	gentleCounts ++;
-//                     	System.out.println(t+":\t"+currAlpha+"\t iterating");
-                    }
-                    else{
-                    	// eliminate worst case components, could be 1 or multiple components
-                    	// redistribute responsibilities in next E step
-                    	for (int jnz: worst.cdr()){
-                        	pi[nzComps.get(jnz)]=0;                        	
-	                		// clear responsibility
-	                		for(int c=0; c<numConditions; c++){
-	        					for(int i=0; i<c2b[c][nzComps.get(jnz)].length;i++)
-	                        		r[c][nzComps.get(jnz)][i] = 0;
-	                        }
-                    	}                    	
-                    	// keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
-                    	// give EM a time to stabilize before eliminating the next components
-//                    	System.out.println(t+":\t"+currAlpha+"\t elimination");
-                    	currAlpha = Math.max(worst.car(), alpha/gentle_elimination_factor/2);
-                    	gentleCounts = 0;
-//                    	currAlpha = 0;
-                    }
-            	}
-            }
-
-            // update component count, normalize pi
-            double totalPi=0;
-            nzComps.clear();
-            for(int j=0;j<pi.length;j++){
-            	if (pi[j]!=0){
-            		totalPi+=pi[j];
-            		nzComps.add(j);
-            	}
-            }
-            nonZeroComponentNum = nzComps.size();
-            if (nonZeroComponentNum==0)
-            	return new Pair<double[][][], int[][][]>(r, c2b);
-            	
-            if (totalPi!=0){
-            	for(int j:nzComps){
-	            	pi[j]=pi[j]/totalPi;
-	            }
-            }
-			if(print_mixing_probabilities){
-				StringBuilder sb = new StringBuilder();
-				for (int i=0; i<pi.length; i++){
-					sb.append(pi[i]+"\t");
-				}
-				pi_sb.append(sb.toString().trim()+"\n");
-				appendEMMixProbFile(componentSpacing);
-			}
-
-			//Beta parameters
-			if(numConditions>1){
-				for(int j:nzComps){
-                    double b_sum=0;
-	                for(int c=0; c<numConditions; c++){
-        				double sum_i=0;		// sum over i
-        				int[] baseIdx = c2b[c][j];
-        				for(int i=0;i<baseIdx.length;i++)
-                    		sum_i += r[c][j][i]*counts[c][baseIdx[i]];	
-
-						b[c][j]=sum_i;
-                    	b_sum+=sum_i;
-                    }
-
-                    // normalize across conditions
-	                if (b_sum!=0){
-		                for(int c=0; c<numConditions; c++){
-		                	b[c][j] /= b_sum;
-		                }
-	                }
-				} // for
-				// Beta clustering would go here.
-			}
-
-			//Semi-E-step:Calculate next un-normalized responsibilities
-			for(int j:nzComps){
-				for(int c=0; c<numConditions; c++){
-					int[] baseIdx = c2b[c][j];
-					for(int i=0;i<baseIdx.length;i++)
-						r[c][j][i] = pi[j]*b[c][j]*h[c][j][i];
-				}
-			}
-
-			//Log-likelihood calculation
-			double LL =0;
-			// get the background probability if a read is out of range of the event
-			double bgProb = Math.min(model.probability(model.getMax()),model.probability(model.getMin()));
-			for(int c=0; c<numConditions; c++){
-				for(int i=0;i<counts[c].length;i++){
-					// for each read, each event will give a conditional prob or bg prob
-					double j_sum=0;
-					for(int j:nzComps){
-						boolean found = false;
-						for (int ii=0;ii<c2b[c][j].length;ii++)
-							if (i==c2b[c][j][ii] ){
-								if (r[c][j][ii]!=0){
-									j_sum += r[c][j][ii];
-									found = true;
-									break;
-								}
-							}
-						if (!found)
-							j_sum += pi[j]*b[c][j]*bgProb;
-					}
-					if (j_sum!=0)
-						LL += Math.log(j_sum)*counts[c][i];
-				}
-			}
-			// log prior
-			double LP=0;
-			for(int j:nzComps)
-				if (pi[j]!=0)
-					LP+=Math.log(pi[j]);
-
-			LP= -currAlpha*LP;
-			LAP = LL+LP;
-
-//			System.out.println("EM: "+t+"\t"+currAlpha+"\t"+LAP+"\t"+lastLAP+"\t("+nzComps.size()+" non-zero components).");
-			if (t<2 || Math.abs(LAP-lastLAP)>EM_CONVERGENCE){
-				continue;
-			}
-			else{
-//				System.out.println("Converged\t"+currAlpha);
-				// if converge on smallest alpha, raise one level
-				if (currAlpha<alpha/gentle_elimination_factor){
-					currAlpha = alpha/gentle_elimination_factor;
-					continue;
-				}
-				// if converge on a smaller alpha value
-				if (currAlpha<alpha){
-					currAlpha = alpha;		// raise alpha, it may come down again after eliminating the next comp
-//					System.out.println(t+"::\t"+currAlpha);
-					continue;
-				}
-				// else: converge on full alpha value
-				if (componentSpacing==1 && do_model_selection && (!BATCH_ELIMINATION)){
-				// BIC model selection to decide which solution is better
-				// 1. save the state
-					EM_State state = new EM_State(this.numConditions);
-					state.LL = LL;
-					state.numComponent = nonZeroComponentNum;
-					for (int c=0;c<numConditions;c++){
-						double[][]rc = r[c];
-						double[][]copy = new double[rc.length][];
-						for (int j=0;j<rc.length;j++){
-							copy[j] = rc[j].clone();
-						}
-						state.resp[c]= copy;
-					}
-					for (int c=0;c<numConditions;c++){
-						state.beta[c]=b[c].clone();
-					}
-					state.pi = pi.clone();
-					state.alpha = currAlpha;
-
-					models.add(state);
-				//2. more than one component left, raise alpha, continue EM
-					if (nonZeroComponentNum>1){
-						currAlpha *= 2;
-						continue;
-					}
-					else	// single component left, done
-						break;
-				}
-
-				else // if at 5bp resolution step, done with EM
-					break;
-			}
-		} //LOOP: Run EM while not converged
-
-//		System.out.println("numIters\t" + t + "\t MLIters\t" + ML_ITER + "\t annealIters\t" + ANNEALING_ITER + "\tmaxIters\t" + MAX_EM_ITER);
-
-		if (componentSpacing==1 && do_model_selection && models.size()>1 && (!BATCH_ELIMINATION)){
-			// BIC model selection to decide which solution is better
-			// 3. find best solution
-			double totalBaseCount = 0;
-			for(int c=0; c<numConditions; c++){
-				totalBaseCount += counts[c].length;
-			}
-
-			int best = 0;
-			double bestBIC = models.get(0).BIC(totalBaseCount);
-			for (int i=1;i<models.size();i++){
-				double bic = models.get(i).BIC(totalBaseCount);
-//				System.out.println(String.format("%.3f\t%.3f\t", bestBIC, bic)+models.get(i).toString());
-				if (bestBIC <= bic){
-					best = i;
-					bestBIC = bic;
-				}
-			}
-			// copy the best model state back to memory
-//			System.out.println("************BEST MODEL***************");
-			EM_State bestModel = models.get(best);
-//			for (int c:r.keySet()){
-//				double[][] rc = r[c];
-//				System.out.print(arrayToString(rc));
-//			}
-//			System.out.println("************copy-back best model***************");
-			r=new double[numConditions][][];
-			for (int c=0;c<numConditions; c++){
-				r[c]=bestModel.resp[c];
-			}
-//			for (int c:r.keySet()){
-//				double[][] rc = r[c];
-//				System.out.print(arrayToString(rc));
-//			}
-			b=new double[numConditions][];
-			for (int c=0;c<numConditions; c++){
-				b[c] = bestModel.beta[c];
-			}
-			nzComps.clear();
-			for (int j=0;j<pi.length;j++){
-				pi[j] = bestModel.pi[j];
-				if (pi[j]!=0)
-					nzComps.add(j);
-//				System.out.print(String.format("%.2f ", pi[j]));
-			}
-			nonZeroComponentNum = nzComps.size();
-			
-			
-//			System.out.println();
-		}
-		// normalize responsibilities here
-		for(int c=0; c<numConditions; c++){
-			double[][] rc = r[c];
-			int numBases = counts[c].length;
-			double totalResp[] = new double[numBases];
-			// init
-			for(int i=0;i<numBases;i++){
-				totalResp[i] = 0;
-			}
-			// sum
-			for(int j:nzComps){
-				int[] baseIdx = c2b[c][j];
-				for(int i=0;i<baseIdx.length;i++)
-					totalResp[baseIdx[i]] += rc[j][i];
-			}
-			// normalize
-			for(int j:nzComps){
-				int[] baseIdx = c2b[c][j];
-				for(int i=0;i<baseIdx.length;i++)
-					if (totalResp[baseIdx[i]]>0)
-						rc[j][i] = rc[j][i]/totalResp[baseIdx[i]];
-			}
-		}
-
-		// make hard assignment
-//		if (componentSpacing==1 && MAKE_HARD_ASSIGNMENT){
-
-
-		log(4, "EM_MAP(): "+"\tt="+t+"\t"+
-				String.format("%.6f",LAP)+"\t("+(int)nonZeroComponentNum+" events)");
-		return new Pair<double[][][], int[][][]>(r, c2b);
-
-	}//end of EM_Steps method
-
-	/*
-	 * return the bottom elements of x 
-	 * so that their sum is less than maxSum
-	 * alpha is passed in as maxSum, this essentially ensure that 
-	 * we do not eliminate too much, but as quick as possible to reduce run time
-	 */
-	private Pair<Double, TreeSet<Integer>> findSmallestCases(double[] x, double maxSum){
-		TreeSet<Integer> cases = new TreeSet<Integer>();
-		double maxSmallest = 0; 
-		double sum = 0;
-		int[] oldIdx = StatUtil.findSort(x);
-		for (int i=0;i<x.length;i++){
-			sum += x[i];
-			if (sum < maxSum){
-				cases.add(oldIdx[i]);
-				maxSmallest = x[i];
-			}
-			else
-				break;
-		}
-		if (cases.isEmpty())
-			maxSmallest = x[0];
-		Pair<Double, TreeSet<Integer>> result = new Pair<Double, TreeSet<Integer>>(maxSmallest, cases);
-		return result;
 	}
 	/*
 	 * return the bottom number of x that are less than max
@@ -2262,7 +2314,8 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 	// This is for beta EM method
 	private void setComponentResponsibilities(ArrayList<List<StrandedBase>> signals, 
-				double[][][] responsibilities, int[][][] c2b) {
+                                              double[][][] responsibilities, 
+                                              int[][][] c2b) {
 		// Set responsibility profile for each component (for kernel density and KL calculation)
 		for(int j=0;j<components.size();j++){
 			BindingComponent comp = components.get(j);
@@ -2380,7 +2433,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			initializeComponents(r, numConditions );
 			while(nonZeroComponentNum>0){
 				double alpha = Math.max(Math.sqrt(StrandedBase.countBaseHits(bases))/alpha_factor, sparseness);
-				result = EMTrain(signals, alpha);
+				result = EMTrain(signals, alpha, components);
 				if(componentSpacing==1)
 					break;
 				updateComponentResolution(r, 1, componentSpacing);
@@ -2738,7 +2791,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 	 * @param signals
 	 * @param weighted (uniform or weighted initialization?)
 	 */
-	protected void initializeComponents(Region currReg,int numCond){
+	protected ArrayList<BindingComponent> initializeComponents(Region currReg,int numCond, int componentSpacing){
 		components = new ArrayList<BindingComponent>();
 
 		//decide how many components
@@ -2768,7 +2821,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			for(BindingComponent b : components)
 				b.setMixProb(b.getMixProb()/totalMP);
 		}
-		nonZeroComponentNum=components.size();
+        return components;
 	}//end of initializeComponents method
 
 	private int initSpacing(Region w) {
@@ -2859,56 +2912,6 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 		return newComps;
 	}//end of updateComps method
 
-
-	//Update the resolution of the components
-	//Add new components in around non-zero components
-	protected void updateComponentResolution(Region currReg, int numCond, int lastResolution){
-		ArrayList<BindingComponent> newComponents = new ArrayList<BindingComponent>();
-
-		//First map the valid bases around non-zero components
-		int numValidBases=0;
-		int[] valid = new int[currReg.getWidth()];
-//		for(int v=0; v<currReg.getWidth(); v++){valid[v]=0;}
-		for(BindingComponent b : components){
-			for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*resolution_extend)-currReg.getStart());
-			    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*resolution_extend)-currReg.getStart());
-			    v++){
-				if(valid[v]==0){
-					valid[v]=1;
-					numValidBases++;
-				}
-			}
-		}
-
-		//Reset the componentMax to reflect the number of reads in the valid areas
-		//Calc new resolution
-		componentSpacing = componentMax>=numValidBases ? 1 : Math.max(2, (numValidBases/componentMax)+1);
-		if(componentSpacing>=lastResolution)
-			componentSpacing = lastResolution -1;
-		
-		//Set up the components
-		double totalMP =0;
-		for(BindingComponent b: components){
-			for(int v=(int)Math.max(0, (b.getLocation().getLocation()-lastResolution*resolution_extend+1)-currReg.getStart());
-			    v<=Math.min(currReg.getWidth()-1, (b.getLocation().getLocation()+lastResolution*resolution_extend-1)-currReg.getStart());
-			    v+=componentSpacing){
-				Point pos = new Point(gen, currReg.getChrom(), currReg.getStart()+v);
-				//Reusing the valid array for the sake of it
-				if(valid[v]!=-1){
-					BindingComponent currComp = new BindingComponent(model, pos, numCond);
-					currComp.setMixProb(1.0);
-					totalMP+=currComp.getMixProb();
-					newComponents.add(currComp);
-					valid[v]=-1;
-		}	}	}
-
-		//Normalize mixProbs
-		for(BindingComponent b : newComponents){
-			b.setMixProb(b.getMixProb()/totalMP);
-		}
-		components=newComponents;
-		nonZeroComponentNum = components.size();
-	}//end of updateComponentResolution method
 
 	/* Given the bases data, and the position of events
 	 * run standard EM (no component elimination) to assign bases to events
