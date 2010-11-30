@@ -18,7 +18,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
     private Set<String> ids;
     private Region region;
     private boolean newinput;
-    private List<PairedHit> results, otherchom;
+    private List<PairedHit> results, otherchrom;
     private Comparator<PairedHit> comparator;
     private PairedEndProperties props;
 
@@ -53,7 +53,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
         }
     }
     public List<PairedHit> getResults () {return results;}
-    public List<PairedHit> getOtherChrom() {return otherchrom;}
+    public List<PairedHit> getOtherChromResults() {return otherchrom;}
     public boolean isReady() {return !newinput;}
     public List<PairedHit> dedup(List<PairedHit> hits) {
         ArrayList<PairedHit> deduped = new ArrayList<PairedHit>();
@@ -95,13 +95,14 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                                                                  null,
                                                                  null);
                         for (PairedHit h : r) {
-                            if (h.leftChrom == h.rightChrom && 
-                                h.rightPos >= region.getStart() &&
-                                h.rightPos <= region.getEnd() &&
-                                Math.abs(h.leftPos - h.rightPos) > mindist &&
-                                (showself || !isSelfLigation(h))) {
-                                results.add(h);
-                            } else if (h.leftChrom != h.rightChrom) {
+                            if (h.leftChrom == h.rightChrom) { 
+                                if (h.rightPos >= region.getStart() &&
+                                    h.rightPos <= region.getEnd() && 
+                                    Math.abs(h.leftPos - h.rightPos) > mindist &&
+                                    (showself || !isSelfLigation(h))) {
+                                    results.add(h);
+                                }
+                            } else {
                                 otherchrom.add(h);
                             }
                         }

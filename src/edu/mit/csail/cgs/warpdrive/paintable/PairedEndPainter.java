@@ -75,7 +75,6 @@ public class PairedEndPainter extends RegionPaintable {
             g.setColor(Color.BLACK);
             g.drawString("Paired " +getLabel(),x1 + g.getFont().getSize()*2,y1 + g.getFont().getSize());
         }
-        if (hits.size() == 0) { return;}
         //        int alphastep = Math.min(255, Math.max(255 / (height / (hits.size() * linewidth)), 4));
         int alphastep = 255;
         int h = height;
@@ -131,20 +130,21 @@ public class PairedEndPainter extends RegionPaintable {
             }            
         }
         if (getProperties().DrawOtherChromHits) {
-            List<PairedHit> otherc = model.getOtherChroms();
-            int thischrom = getGenome().getChromID(getRegion().getChrom());
-            g.setColor(Color.GREY);
+            int onlyx1, onlyx2;
+            java.util.List<PairedHit> otherc = model.getOtherChromResults();
+            int thischrom = getRegion().getGenome().getChromID(getRegion().getChrom());
+            g.setColor(Color.GRAY);
             for (int i = 0; i < otherc.size(); i++) {
                 PairedHit hit = otherc.get(i);
-                int x1, x2;
                 if (hit.leftChrom == thischrom) {
-                    x1 = getXPos(hit.leftPos, regionStart, regionEnd, x1,x2);
-                    x2 = getXPos(hit.leftPos + hit.leftLength, regionStart, regionEnd, x1,x2);
+                    onlyx1 = getXPos(hit.leftPos, regionStart, regionEnd, x1,x2);
+                    onlyx2 = getXPos(hit.leftPos + hit.leftLength, regionStart, regionEnd, x1,x2);
                 } else {
-                    x1 = getXPos(hit.rightPos, regionStart, regionEnd, x1,x2);
-                    x2 = getXPos(hit.rightPos + hit.rightLength, regionStart, regionEnd, x1,x2);
+                    onlyx1 = getXPos(hit.rightPos, regionStart, regionEnd, x1,x2);
+                    onlyx2 = getXPos(hit.rightPos + hit.rightLength, regionStart, regionEnd, x1,x2);
                 }
-                g.drawLine(x1,y1+h,x2,y1+h);
+
+                g.drawLine(onlyx1,y1+h,onlyx2,y1+h);
                 h -= (linewidth == 1 ? 2 : linewidth);
                 if (h < 0) {
                     h = height;
