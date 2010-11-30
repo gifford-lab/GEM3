@@ -138,12 +138,19 @@ public class PairedEndPainter extends RegionPaintable {
                 PairedHit hit = otherc.get(i);
                 if (hit.leftChrom == thischrom) {
                     onlyx1 = getXPos(hit.leftPos, regionStart, regionEnd, x1,x2);
-                    onlyx2 = getXPos(hit.leftPos + hit.leftLength, regionStart, regionEnd, x1,x2);
+                    onlyx2 = getXPos(hit.leftStrand ? hit.leftPos + hit.leftLength :
+                                     hit.leftPos - hit.leftLength, 
+                                     regionStart, regionEnd, x1,x2);
                 } else {
                     onlyx1 = getXPos(hit.rightPos, regionStart, regionEnd, x1,x2);
-                    onlyx2 = getXPos(hit.rightPos + hit.rightLength, regionStart, regionEnd, x1,x2);
+                    onlyx2 = getXPos(hit.rightStrand ? hit.rightPos + hit.rightLength :
+                                     hit.rightPos - hit.rightLength, regionStart, regionEnd, x1,x2);
                 }
-
+                if (onlyx2 > onlyx1) {
+                    int t = onlyx2;
+                    onlyx2 = onlyx1;
+                    onlyx1 = t;
+                }
                 g.drawLine(onlyx1,y1+h,onlyx2,y1+h);
                 h -= (linewidth == 1 ? 2 : linewidth);
                 if (h < 0) {
