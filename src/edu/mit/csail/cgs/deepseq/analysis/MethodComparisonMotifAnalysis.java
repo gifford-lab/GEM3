@@ -23,6 +23,7 @@ import edu.mit.csail.cgs.deepseq.analysis.KnnAnalysis.KnnPoint;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils.SISSRS_Event;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
@@ -392,7 +393,10 @@ public class MethodComparisonMotifAnalysis {
         	}
         	else if (name.contains("SISSRS")){
         		// assume be sorted by pvalue if (!isPreSorted)
-				peakPoints = load_SISSRS_File(filePath);
+        		ArrayList<SISSRS_Event> SISSRs_events = CommonUtils.load_SISSRs_events(genome, filePath, isPreSorted);
+        		for (SISSRS_Event se: SISSRs_events){
+        			peakPoints.add(se.getPeak());
+        		}
         	}
         	else if (name.contains("MACS")){
     			List<MACSPeakRegion> macsPeaks = MACSParser.parseMACSOutput(filePath, genome);
@@ -1155,62 +1159,7 @@ public class MethodComparisonMotifAnalysis {
 
 
 
-	/** load text file in SISSRS output BED format, then sort by p-value
-	 * 	Chr		cStart	cEnd	NumTags	Fold	p-value
-		---		------	----	-------	----	-------
-		chr1	4132791	4132851	38		71.44	5.0e-006
-	 */
-	private ArrayList<Point> load_SISSRS_File(String filename) {
 
-		File file = new File(filename);
-		FileReader in = null;
-		BufferedReader bin = null;
-		ArrayList<Point> points = new ArrayList<Point>();
-		ArrayList<SISSRS_Peak> peaks = new ArrayList<SISSRS_Peak>();
-		try {
-			in = new FileReader(file);
-			bin = new BufferedReader(in);
-			// skip header, data starts at 58th line
-			for (int i=1;i<58;i++){
-				bin.readLine();
-			}
-			String line;
-			while((line = bin.readLine()) != null) { 
-				line = line.trim();
-				String[] t = line.split("\\t");
-				if (t.length==6){	// region format
-					peaks.add(new SISSRS_Peak(genome, t[0].replaceFirst("chr", ""), Integer.parseInt(t[1]), Integer.parseInt(t[2]),
-						Double.parseDouble(t[3]), Double.parseDouble(t[4]), Double.parseDouble(t[5])));
-				}
-				if (t.length==5){	// point format
-					peaks.add(new SISSRS_Peak(genome, t[0].replaceFirst("chr", ""), Integer.parseInt(t[1]), Integer.parseInt(t[1]),
-						Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[4])));
-				}
-			}
-		}
-		catch(IOException ioex) {
-			ioex.printStackTrace();
-		}
-		finally {
-			try {
-				if (bin != null) {
-					bin.close();
-				}
-			}
-			catch(IOException ioex2) {
-				//nothing left to do here, just log the error
-				//logger.error("Error closing buffered reader", ioex2);
-			}			
-		}
-		// sort by pvalue
-		if (!isPreSorted)
-			Collections.sort(peaks);
-		
-		for (SISSRS_Peak p:peaks){
-			points.add(p.getPeak());
-		}
-		return points;
-	}
 	///////////////////////////////////////////////////////////////
 	// old code
 	
@@ -1582,25 +1531,5 @@ public class MethodComparisonMotifAnalysis {
 		}
 		return motifs;
 	}
-	
-	class SISSRS_Peak implements Comparable<SISSRS_Peak>{
-		Region region;
-		double tags;
-		double fold;
-		double pvalue;
-		SISSRS_Peak(Genome g, String chrom, int start, int end, double tags, double fold, double pvalue){
-			this.region = new Region(g, chrom, start, end);
-			this.tags = tags;
-			this.fold = fold;
-			this.pvalue = pvalue;
-		}
-		Point getPeak(){
-			return region.getMidpoint();
-		}
-		//Comparable default method
-		public int compareTo(SISSRS_Peak p) {
-			double diff = pvalue-p.pvalue;
-			return diff==0?0:(diff<0)?-1:1;
-		}
-	}
+
 }

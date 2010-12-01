@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 
 import edu.mit.csail.cgs.datasets.general.Point;
@@ -91,6 +92,82 @@ public class CommonUtils {
 		}
 		return rset;
 	}
+	
+	/** load text file in SISSRS output BED format, then sort by p-value
+	 * 	Chr		cStart	cEnd	NumTags	Fold	p-value
+		---		------	----	-------	----	-------
+		chr1	4132791	4132851	38		71.44	5.0e-006
+	 */
+	static public ArrayList<SISSRS_Event> load_SISSRs_events(Genome genome, String filename, boolean isPreSorted) {
+
+		CommonUtils util = new CommonUtils();
+		File file = new File(filename);
+		FileReader in = null;
+		BufferedReader bin = null;
+		ArrayList<SISSRS_Event> events = new ArrayList<SISSRS_Event>();
+		try {
+			in = new FileReader(file);
+			bin = new BufferedReader(in);
+			// skip header, data starts at 58th line
+			for (int i=1;i<58;i++){
+				bin.readLine();
+			}
+			String line;
+			while((line = bin.readLine()) != null) { 
+				line = line.trim();
+				String[] t = line.split("\\t");
+				if (t.length==6){	// region format
+					events.add(util.new SISSRS_Event(genome, t[0].replaceFirst("chr", ""), Integer.parseInt(t[1]), Integer.parseInt(t[2]),
+						Double.parseDouble(t[3]), Double.parseDouble(t[4]), Double.parseDouble(t[5])));
+				}
+				if (t.length==5){	// point format
+					events.add(util.new SISSRS_Event(genome, t[0].replaceFirst("chr", ""), Integer.parseInt(t[1]), Integer.parseInt(t[1]),
+						Double.parseDouble(t[2]), Double.parseDouble(t[3]), Double.parseDouble(t[4])));
+				}
+			}
+		}
+		catch(IOException ioex) {
+			ioex.printStackTrace();
+		}
+		finally {
+			try {
+				if (bin != null) {
+					bin.close();
+				}
+			}
+			catch(IOException ioex2) {
+				//nothing left to do here, just log the error
+				//logger.error("Error closing buffered reader", ioex2);
+			}			
+		}
+		// sort by pvalue
+		if (!isPreSorted)
+			Collections.sort(events);
+		
+		return events;
+	}
+	
+	public class SISSRS_Event implements Comparable<SISSRS_Event>{
+		public Region region;
+		public double tags;
+		public double fold;
+		public double pvalue;
+		public SISSRS_Event(Genome g, String chrom, int start, int end, double tags, double fold, double pvalue){
+			this.region = new Region(g, chrom, start, end);
+			this.tags = tags;
+			this.fold = fold;
+			this.pvalue = pvalue;
+		}
+		public Point getPeak(){
+			return region.getMidpoint();
+		}
+		//Comparable default method
+		public int compareTo(SISSRS_Event p) {
+			double diff = pvalue-p.pvalue;
+			return diff==0?0:(diff<0)?-1:1;
+		}
+	}
+	
 	public static String timeElapsed(long tic){
 		return timeString(System.currentTimeMillis()-tic);
 	}

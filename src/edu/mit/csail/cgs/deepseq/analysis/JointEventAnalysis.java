@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import edu.mit.csail.cgs.datasets.general.Point;
@@ -20,6 +21,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
 import edu.mit.csail.cgs.deepseq.utilities.AnnotationLoader;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils.SISSRS_Event;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
@@ -31,7 +33,6 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class JointEventAnalysis {
-  static final int MOTIF_DISTANCE = 200;  
   static final int JOINT_DISTANCE = 500;
   static final int maxAnnotDistance=50000;
   
@@ -40,6 +41,7 @@ public class JointEventAnalysis {
   private String[] args;
   private WeightMatrix motif = null;
   private double motifThreshold;
+  private int motifWindowSize = 20;  
   private int topRank;
   
   ArrayList<Point> events;
@@ -74,8 +76,9 @@ public class JointEventAnalysis {
       e.printStackTrace();
     }
     
-    topRank = Args.parseInteger(args, "top", -1);
-    
+    motifWindowSize = Args.parseInteger(args, "windowSize", 50);
+	topRank = Args.parseInteger(args, "rank", 0);
+	
     // load motif
 	Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
 	if (wm!=null){
@@ -84,10 +87,11 @@ public class JointEventAnalysis {
 	}
     // load GPS results
     String GPSfileName = Args.parseString(args, "GPS", null);
+    String SISSRsFileName = Args.parseString(args, "SISSRs", null);
     if (GPSfileName!=null){
 	    File gpsFile = new File(GPSfileName);
 	    List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
-	    if (topRank==-1)
+	    if (topRank==0)
 	    	topRank = gpsPeaks.size();
 	    events = new ArrayList<Point>();
 	    eventStrength = new HashMap<Point, Double>();
@@ -100,52 +104,26 @@ public class JointEventAnalysis {
 				break;
 	    }
     }
+    else if (SISSRsFileName!=null){
+    	ArrayList<SISSRS_Event> SISSRs_events = CommonUtils.load_SISSRs_events(genome, SISSRsFileName, true);
+    	if (topRank==0)
+	    	topRank = SISSRs_events.size();
+	    events = new ArrayList<Point>();
+    	eventStrength = new HashMap<Point, Double>();
+	    int count=0;
+	    for (SISSRS_Event se: SISSRs_events){
+	    	events.add(se.getPeak());
+	    	eventStrength.put(se.getPeak(), se.tags);
+			count++;
+			if (count>=topRank)
+				break;
+	    }
+    }
     else{
-    	events = loadCgsPointFile(Args.parseString(args, "events", null));
+    	events = CommonUtils.loadCgsPointFile(Args.parseString(args, "events", null), genome);
     }
   }
   
-	/** 
-	 * load text file in CGS Point format
-	 * @param filename
-	 * chr:coord, e.g. 1:234234
-	 */
-	private ArrayList<Point> loadCgsPointFile(String filename) {
-
-		File file = new File(filename);
-		FileReader in = null;
-		BufferedReader bin = null;
-		ArrayList<Point> points = new ArrayList<Point>();
-		int count = 0;
-		try {
-			in = new FileReader(file);
-			bin = new BufferedReader(in);
-			String line;
-			while((line = bin.readLine()) != null) { 
-				line = line.trim();
-				Region point = Region.fromString(genome, line);
-				points.add(new Point(genome, point.getChrom(),point.getStart()));
-				count++;
-				if (count>=topRank)
-					break;
-			}
-		}
-		catch(IOException ioex) {
-			//logger.error("Error parsing file", ioex);
-		}
-		finally {
-			try {
-				if (bin != null) {
-					bin.close();
-				}
-			}
-			catch(IOException ioex2) {
-				//nothing left to do here, just log the error
-				//logger.error("Error closing buffered reader", ioex2);
-			}			
-		}
-		return points;
-	} 
 	
   private void jointEvents(int jointCutoff){
 	  if (events.size()==0){
@@ -191,32 +169,42 @@ public class JointEventAnalysis {
 	  int[] sorted = StatUtil.findSort(readCounts);	                                   
 	  
 	  StringBuilder sb = new StringBuilder();
-	  System.out.println("Total "+clusters.size()+" joint event clusters.");
+	  System.out.println(String.format("Total %d joint event clusters from top %d events.", clusters.size(), topRank));
 	  if (motif!=null){
-		  sb.append("      Region       \tEvents\tMotifs\tDistances\tMinDistance");
+		  sb.append("MidPoint\t      Region       \tEvents\tMotifs\tDistances\tMinDistance");
 		  if (eventStrength!=null)
 			  sb.append("\tTotalReadCount");
 		  sb.append("\n");
 	  }
 	  else{
-		  sb.append("      Region       \tEvents\tDistances\tMinDistance");
+		  sb.append("MidPoint\t      Region       \tEvents\tDistances\tMinDistance");
 		  if (eventStrength!=null)
 			  sb.append("\tTotalReadCount");
 		  sb.append("\n");
 	  }
+	  int eventTotal=0;
+	  int motifTotal=0;
 	  for (int i=sorted.length-1;i>=0;i--){
 		  ArrayList<Point> c = clusters.get(sorted[i]);
 		  if (c.size()==0)
 			  continue;
+		  eventTotal += c.size();
 		  Point p = c.get(0);
 		  int start = p.getLocation();
 		  int end = c.get(c.size()-1).getLocation();
 		  Region r = new Region(p.getGenome(), p.getChrom(), start, end);
-		  sb.append(r.toString()).append("\t")
+		  sb.append(r.getMidpoint().toString()).append("\t")
+		    .append(r.toString()).append("\t")
 		    .append(c.size()).append("\t");
 		  if (motif!=null){
-			  Pair<ArrayList<Point>, ArrayList<Double>> motifs = getAllMotifs(r.expand(MOTIF_DISTANCE, MOTIF_DISTANCE), motifThreshold);
-			  sb.append(motifs.car().size()).append("\t");
+			  // if given motif PWM, get motif matches within window size from each event position, keep unique motif only
+			  HashSet<Point> uniqueMotifs = new HashSet<Point>();
+			  for (Point pp: c){
+				  Pair<ArrayList<Point>, ArrayList<Double>> motifs = getAllMotifs(pp.expand(motifWindowSize), motifThreshold);
+				  uniqueMotifs.addAll(motifs.car());
+			  }
+			  sb.append(uniqueMotifs.size()).append("\t");
+			  motifTotal += uniqueMotifs.size();
 		  }
 		  int min = Integer.MAX_VALUE;
 		  for (int j=0;j<c.size()-1;j++){
@@ -230,9 +218,9 @@ public class JointEventAnalysis {
 			  sb.append("\t"+clusterStrength.get(sorted[i]));
 		  sb.append("\n");
 	  }
-//	  System.out.println(sb.toString());
-	  String outName = Args.parseString(args, "out", "");
-	  CommonUtils.writeFile(outName+"_jointEvents.txt", sb.toString());
+	  System.out.println(String.format("Motifs/Events=%d/%d=%.2f", motifTotal, eventTotal, ((double)motifTotal)/eventTotal));
+	  String outName = Args.parseString(args, "out", "NoName");
+	  CommonUtils.writeFile(String.format("%s_%.2f_%d_jointEvents.txt", outName, motifThreshold, motifWindowSize), sb.toString());
   }
   
 	// get the all motif hits in the region (windowSize) 
