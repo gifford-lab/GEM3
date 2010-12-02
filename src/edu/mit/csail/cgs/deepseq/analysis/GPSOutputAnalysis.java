@@ -121,7 +121,7 @@ public class GPSOutputAnalysis {
   }
   
   public GPSOutputAnalysis(Genome g, WeightMatrix wm, double threshold, 
-		  List<GPSPeak> p, String outputFile, int motif_win, int extend) {
+                           List<GPSPeak> p, String outputFile, int motif_win, int extend) {
 	  genome = g;
 	  motif = wm;
 	  motifThreshold = threshold;
