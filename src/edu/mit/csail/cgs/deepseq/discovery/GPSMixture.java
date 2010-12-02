@@ -148,6 +148,15 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		}
 
 		/* ***************************************************
+		 * Load Binding Model, empirical distribution
+		 * ***************************************************/
+		String modelFile = Args.parseString(args, "d", null);	// read distribution file
+
+		commonInit(modelFile);
+		model.printToFile(outName+"_0_Read_distribution.txt");
+		allModels.put(outName+"_0", model);
+
+		/* ***************************************************
 		 * Load parameters and properties
 		 * ***************************************************/
 		StringBuffer sb = new StringBuffer();
@@ -159,15 +168,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
 				sb.append(arg).append(" ");
 		}
 		log(1, sb.toString());
-
-		/* ***************************************************
-		 * Load Binding Model, empirical distribution
-		 * ***************************************************/
-		String modelFile = Args.parseString(args, "d", null);	// read distribution file
-
-		commonInit(modelFile);
-		model.printToFile(outName+"_0_Read_distribution.txt");
-		allModels.put(outName+"_0", model);
 		
     	/* *********************************
     	 * Flags
@@ -536,6 +536,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
         Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
 
         Thread[] threads = new Thread[config.maxThreads];
+        log(1,String.format("Creating %d threads", config.maxThreads));
         for (int i = 0 ; i < threads.length; i++) {
             ArrayList<Region> threadRegions = new ArrayList<Region>();
             for (int j = i; j < restrictRegions.size(); j += config.maxThreads) {
@@ -546,7 +547,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
                                                 this,
                                                 constants,
                                                 config));
-            t.run();
+            t.start();
             threads[i] = t;
         }
         boolean anyrunning = true;
@@ -559,6 +560,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
                 }
             }
         }
+        log(1,String.format("%d threads have finished running", config.maxThreads));
 
 		for (int j=0;j<restrictRegions.size();j++) {
 			Region rr = restrictRegions.get(j);
