@@ -535,8 +535,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
         signalFeatures.clear();
         Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
 
-        Thread[] threads = new Thread[config.maxThreads];
-        log(1,String.format("Creating %d threads", config.maxThreads));
+        Thread[] threads = new Thread[maxThreads];
+        log(1,String.format("Creating %d threads", maxThreads));
         for (int i = 0 ; i < threads.length; i++) {
             ArrayList<Region> threadRegions = new ArrayList<Region>();
             for (int j = i; j < restrictRegions.size(); j += config.maxThreads) {
@@ -3101,7 +3101,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
         // the range to scan a peak if we know position from EM result
         public int SCAN_RANGE = 20;
         public int gentle_elimination_iterations = 5;
-        public int maxThreads = 8;
 
         public void parseArgs(String args[]) {
             Set<String> flags = Args.parseFlags(args);
@@ -3148,7 +3147,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
             smooth_step = Args.parseInteger(args, "smooth", smooth_step);
             KL_smooth_width = Args.parseInteger(args, "kl_s_w", KL_smooth_width);
             kl_ic = Args.parseDouble(args, "kl_ic", kl_ic);
-            maxThreads = Args.parseInteger(args,"threads",maxThreads);
             resolution_extend = Args.parseInteger(args, "resolution_extend", resolution_extend);
             gentle_elimination_factor = Args.parseInteger(args, "gentle_elimination_factor", gentle_elimination_factor);
             // These are options for EM performance tuning
