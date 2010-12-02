@@ -277,12 +277,7 @@ public abstract class FeatureFinder {
     	for(AnnotationLoader loader : otherAnnotations){
     		for (Feature peak : enriched) {
 	            Region query;
-	            if (annotOverlapOnly) {
-	                query = peak.coords;
-	            } else {
-	                query = peak.coords.expand(maxAnnotDistance, maxAnnotDistance);
-	            }
-	            for(Region r : loader.getAnnotations(query)){
+	            for(Region r : loader.getAnnotations(peak.coords)){
 	                peak.addAnnotation(r);
 	            }
 	        }
@@ -292,6 +287,7 @@ public abstract class FeatureFinder {
 	protected void addClosestGenes(List<Feature> enriched){
 		for(AnnotationLoader loader : geneAnnotations){
 			for (Feature peak : enriched) {
+                System.err.println("Annotating " + peak);
                 if (annotOverlapOnly) {
                     for(Gene gene : loader.getGenes(peak.coords)){
                         int overlap = gene.getOverlapSize(peak.coords);
@@ -305,8 +301,7 @@ public abstract class FeatureFinder {
                     }
                 } else {
                 	peak.distToGene = maxAnnotDistance;
-                	Region query = peak.coords.expand(maxAnnotDistance, maxAnnotDistance);
-                	for(Gene gene : loader.getGenes(query)){
+                	for(Gene gene : loader.getGenes(peak.coords)){
                         int distance = peak.getPeak().getLocation() - gene.getFivePrime();
                         if (gene.getStrand()=='-')
                         	distance = -distance;
