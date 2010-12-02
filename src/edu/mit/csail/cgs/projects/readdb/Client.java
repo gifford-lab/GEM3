@@ -555,8 +555,10 @@ public class Client implements ReadOnlyClient {
         sendString(request.toString());        
         String response = readLine();
         if (!response.equals("OK")) {
-            System.err.println("not-OK response to request: " + response);
-            System.err.println("request was " + request);
+            if (printErrors) {
+                System.err.println("not-OK response to request: " + response);
+                System.err.println("request was " + request);
+            }
             throw new ClientException(response);
         }
         List<SingleHit> output = new ArrayList<SingleHit>();
