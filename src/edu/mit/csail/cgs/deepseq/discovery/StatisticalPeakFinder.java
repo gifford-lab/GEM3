@@ -7,6 +7,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Vector;
+import java.util.Collection;
 
 import cern.jet.random.Binomial;
 import cern.jet.random.engine.DRand;
@@ -58,8 +60,8 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	protected boolean peakLRBal=false, peakWithModel=false; //Place peaks at max count, bindingModels or LR balance point??? 
 	protected BindingModel bindingModel=null; //only used for placing peaks
 	protected boolean buildBindingModel=false;
-	protected ArrayList<EnrichedFeature> signalPeaks = new ArrayList<EnrichedFeature>();
-	protected ArrayList<EnrichedFeature> controlPeaks = new ArrayList<EnrichedFeature>();
+	protected List<EnrichedFeature> signalPeaks = new Vector<EnrichedFeature>();
+	protected List<EnrichedFeature> controlPeaks = new Vector<EnrichedFeature>();
 	protected int scalingWindow = 10000; 
 	protected boolean addAllToScaling=false;
 	protected boolean useBinomialTest=true;
@@ -68,9 +70,6 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	protected boolean showGeneAnnotations=true;
 	protected boolean showOtherAnnotations=true;
 	protected boolean countReads = true; //use this if you expect the per-base thresholds will make a significant difference
-	//These two structures are used by makeHitLandscape
-	private double[] landscape=null;
-	private double[] startcounts=null;
 	
 	//Constructors
 	public StatisticalPeakFinder(DeepSeqExpt signal){this(signal,null);}	
@@ -280,6 +279,214 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
         }
 	}
 	
+    class StatisticalThread implements Runnable {
+        private Collection<Region> regions;
+        //These two structures are used by makeHitLandscape
+        private double[] landscape=null;
+        private double[] startcounts=null;
+        private int numStrandIter;
+        private StatisticalPeakFinder parent;
+        private double ipTotHits, backTotHits;
+        private boolean recordForScaling, postProcess;
+        private List<PairedCountData> scalingPairs;
+
+        public StatisticalThread(Collection<Region> r, 
+                                 List<PairedCountData> scalingPairs,
+                                 int numStrandIter, 
+                                 double ipTotHits, 
+                                 double backTotHits, 
+                                 boolean recordForScaling,
+                                 boolean postProcess,
+                                 StatisticalPeakFinder parent) {
+            regions = r;
+            this.scalingPairs = scalingPairs;
+            this.numStrandIter = numStrandIter;
+            this.ipTotHits = ipTotHits;
+            this.backTotHits = backTotHits;
+            this.recordForScaling = recordForScaling;
+            this.postProcess = postProcess;
+            this.parent = parent;
+        }
+        //Makes integer arrays corresponding to the read landscape over the current region
+        protected void makeHitLandscape(ArrayList<ReadHit> hits, Region currReg, int perBaseMax, char strand){
+            int numBins = (int)(currReg.getWidth()/binStep);
+            int [] counts = new int[currReg.getWidth()+1];
+            landscape = new double[numBins+1];
+            startcounts = new double[numBins+1];
+            for(int i=0; i<=numBins; i++){landscape[i]=0; startcounts[i]=0;}
+            for(int i=0; i<=currReg.getWidth(); i++){counts[i]=0;}
+            for(ReadHit r : hits){
+                if(strand=='.' || r.getStrand()==strand){
+                    int offset=inBounds(r.getStart()-currReg.getStart(),0,currReg.getWidth());
+                    counts[offset]++;//small issue here... counts will not be corrected for scalingFactor in control
+                    if(!needlefiltering || (counts[offset] <= perBaseMax)){
+                        int binstart = inBounds((int)((double)offset/binStep), 0, numBins);
+                        int binend = inBounds((int)((double)(r.getEnd()-currReg.getStart())/binStep), 0, numBins);
+                        for(int i=binstart; i<=binend; i++){
+                            landscape[i]+=r.getWeight();
+                        }
+                        if(r.getStrand()=='+')
+                            startcounts[binstart]+=r.getWeight();
+                        else
+                            startcounts[binend]+=r.getWeight();
+                    }
+                }
+            }
+        }
+
+        public void run() {
+            double basesDone=0, printStep=10000000,  numPrint=0;	   
+            for (Region currentRegion : regions) {
+                double sigHitsScalingWindow=0, ctrlHitsScalingWindow=0;
+                boolean peakInScalingWindow=false;
+                EnrichedFeature lastSigPeak=null, lastCtrlPeak=null;
+                Region currScalingRegion=null;
+                //Split the job up into large chunks
+                for(int x=currentRegion.getStart(); x<=currentRegion.getEnd(); x+=MAXSECTION){
+                    int y = x+MAXSECTION; 
+                    if(y>currentRegion.getEnd()){y=currentRegion.getEnd();}
+                    Region currSubRegion = new Region(gen, currentRegion.getChrom(), x, y);
+				
+                    ArrayList<ReadHit> ipHits = new ArrayList<ReadHit>();
+                    ArrayList<ReadHit> backHits = new ArrayList<ReadHit>();
+				
+                    synchronized(signal) {
+                        ipHits.addAll(signal.loadExtHits(currSubRegion));
+                    }
+                    if (!noControl) {
+                        synchronized(control) {
+                            backHits.addAll(control.loadExtHits(currSubRegion));
+                        }
+                    }
+
+                    for(int stranditer=1; stranditer<=numStrandIter; stranditer++){
+                        ArrayList<EnrichedFeature> currSigRes = new ArrayList<EnrichedFeature>();
+                        ArrayList<EnrichedFeature> currCtrlRes = new ArrayList<EnrichedFeature>();
+                        lastSigPeak=null; lastCtrlPeak=null;
+                        //If stranded peak-finding, run over both strands separately
+                        char str = !stranded ? '.' : (stranditer==1 ? '+' : '-');
+					
+                        int signalPB = fixedPerBaseCutoff>0 ? fixedPerBaseCutoff : signalPerBaseBack.getMaxThreshold(str); 
+                        makeHitLandscape(ipHits, currSubRegion, signalPB, str);
+                        double ipStackedHitCounts[] = landscape.clone();
+                        double ipHitStartCounts[] = startcounts.clone();
+                        double backStackedHitCounts[] = null;
+                        double backHitStartCounts[] = null;
+                        if (!noControl) {
+                            makeHitLandscape(backHits, currSubRegion, ctrlPerBaseBack.getMaxThreshold(str), str);
+                            backStackedHitCounts = landscape.clone();
+                            backHitStartCounts = startcounts.clone();
+                        }
+					
+                        //initialize scaling stuff
+                        currScalingRegion = new Region(gen, currSubRegion.getChrom(), currSubRegion.getStart(), currSubRegion.getStart()+scalingWindow<=currSubRegion.getEnd() ? currSubRegion.getStart()+scalingWindow-1 : currSubRegion.getEnd());
+                        sigHitsScalingWindow=0; ctrlHitsScalingWindow=0;
+                        peakInScalingWindow=false;
+                        //Scan regions
+                        int currBin=0;
+                        for(int i=currSubRegion.getStart(); i<currSubRegion.getEnd()-(int)binWidth; i+=(int)binStep){
+                            double ipWinHits=ipStackedHitCounts[currBin];
+                            double backWinHits= noControl ? 0 : backStackedHitCounts[currBin];
+						
+                            //Signal vs Ctrl Enrichment 
+                            //First Test: is the read count above the genome-wide thresholds? 
+                            if(signalBacks.passesGenomicThreshold((int)ipWinHits, str) && (noControl || ctrlBacks.underGenomicThreshold((int)backWinHits, str))){
+                                //Second Test: refresh all thresholds & test again
+                                signalBacks.updateModels(currSubRegion, i-x, ipStackedHitCounts, backStackedHitCounts);
+                                if(!noControl)
+                                    ctrlBacks.updateModels(currSubRegion, i-x, backStackedHitCounts, ipStackedHitCounts);
+                                //System.out.println("UPDATED:"+i);
+                                //signalBacks.printThresholds();
+                                if(signalBacks.passesAllThresholds((int)ipWinHits, str) && (noControl || ctrlBacks.underAllThresholds((int)backWinHits, str))){
+                                    Region currWin = new Region(gen, currentRegion.getChrom(), i, (int)(i+binWidth-1));
+                                    //Add hit to signalPeaks
+                                    lastSigPeak=addEnrichedReg(currSigRes, lastSigPeak, currWin, ipWinHits, (noControl ? 0 : control.getScalingFactor()*backWinHits), ipTotHits, (noControl ? 0 : control.getScalingFactor()*backTotHits), str);
+                                    peakInScalingWindow=true;
+                                }else{sigHitsScalingWindow+=ipHitStartCounts[currBin];}
+                            }else{sigHitsScalingWindow+=ipHitStartCounts[currBin];}
+						
+                            //Ctrl vs Signal Enrichment 
+                            if(!noControl){
+                                //First Test: is the read count above the genome-wide thresholds? 
+                                if(ctrlBacks.passesGenomicThreshold((int)backWinHits, str) && (signalBacks.underGenomicThreshold((int)ipWinHits, str))){
+                                    //Second Test: refresh all thresholds & test again
+                                    signalBacks.updateModels(currSubRegion, i-x, ipStackedHitCounts, backStackedHitCounts);
+                                    ctrlBacks.updateModels(currSubRegion, i-x, backStackedHitCounts, ipStackedHitCounts);
+                                    if(ctrlBacks.passesAllThresholds((int)backWinHits, str) && (signalBacks.underAllThresholds((int)ipWinHits, str))){
+                                        Region currWin = new Region(gen, currentRegion.getChrom(), i, (int)(i+binWidth-1));
+                                        //Add hit to controlPeaks
+                                        lastCtrlPeak=addEnrichedReg(currCtrlRes, lastCtrlPeak, currWin, control.getScalingFactor()*backWinHits, ipWinHits, control.getScalingFactor()*backTotHits, ipTotHits, str);
+                                        peakInScalingWindow=true;
+                                    }else{ctrlHitsScalingWindow+=backHitStartCounts[currBin];}
+                                }else{ctrlHitsScalingWindow+=backHitStartCounts[currBin];}
+                            }
+								
+                            //WARNING: In this loop, the peak's total read counts and over-representation will not be accurate 
+
+                            //Scaling
+                            if(recordForScaling && !noControl){
+                                if(i>currScalingRegion.getEnd()){//Gone past end of scaling window... reset
+                                    if(currScalingRegion.getWidth()==scalingWindow){
+                                        if(addAllToScaling || !peakInScalingWindow)
+                                            scalingPairs.add(new PairedCountData(sigHitsScalingWindow, ctrlHitsScalingWindow));
+                                    }
+                                    peakInScalingWindow=false;
+                                    sigHitsScalingWindow=0;
+                                    ctrlHitsScalingWindow=0;
+                                    currScalingRegion = new Region(gen, currSubRegion.getChrom(), i, i+scalingWindow<=currSubRegion.getEnd() ? i+scalingWindow-1 : currSubRegion.getEnd());
+                                }
+                            }
+						
+                            //Print out progress
+                            if(stranditer==1 && printProgress){
+                                basesDone+=binStep;
+                                if(basesDone > numPrint*printStep){
+                                    if(numPrint%10==0){System.out.print(String.format("(%.0f)", (numPrint*printStep)));}
+                                    else{System.out.print(".");}
+                                    if(numPrint%50==0 && numPrint!=0){System.out.print("\n");}
+                                    numPrint++;
+                                }
+                            }
+                            currBin++;
+                        }
+                        //Now count the total reads for each peak
+                        countTotalReadsInPeaks(currSigRes, ipHits, backHits, true);
+                        countTotalReadsInPeaks(currCtrlRes, backHits, ipHits, false);
+					
+                        if(postProcess){
+                            //Trim
+                            trimPeaks(currSigRes, ipHits,str);
+                            trimPeaks(currCtrlRes, backHits,str);
+
+                            //filter towers?
+                            if(towerfiltering){
+                                ArrayList<EnrichedFeature> tmpSigRes = filterTowers(currSigRes, currCtrlRes);
+                                ArrayList<EnrichedFeature> tmpCtrlRes = filterTowers(currCtrlRes, currSigRes);
+                                currSigRes = tmpSigRes; currCtrlRes = tmpCtrlRes; 
+                            }
+						
+                            //Find the peaks
+                            for(EnrichedFeature h : currSigRes){
+                                if(peakLRBal)
+                                    h.peak = findPeakLRBalance(ipHits, h.coords);
+                                else if(peakWithModel && bindingModel!=null)
+                                    h.peak = findPeakWithBindingModel(ipHits, h.coords, bindingModel);
+                                else
+                                    h.peak = findPeakMaxHit(ipHits, h.coords,str);
+                            }
+                        }
+                        //Add to results
+                        signalPeaks.addAll(currSigRes);
+                        controlPeaks.addAll(currCtrlRes);
+					
+                    }// end of for(int stranditer=1; stranditer<=numStrandIter; stranditer++) loop
+				
+                }// end of for(int x=currentRegion.getStart(); x<=currentRegion.getEnd(); x+=MAXSECTION) loop
+            }
+        }
+    }
+
+
 	/**
 	 * The main functional implementation for the StatisticalPeakFinder
 	 * Returns a list of Peaks passing the threshold
@@ -287,8 +494,6 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	 * @return
 	 */
 	public void callEnrichedRegions(Iterator<Region> testRegions, boolean postProcess, boolean recordForScaling){
-		double basesDone=0, printStep=10000000,  numPrint=0;;
-		
 		//Peak placing info
 		if(peakLRBal)
 			System.out.println("Peaks will be placed by L-R balancing");
@@ -300,162 +505,47 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 		}else
 			System.out.println("Peaks will be placed by maximum overlap");
 		
-		signalPeaks = new ArrayList<EnrichedFeature>();
-		controlPeaks = new ArrayList<EnrichedFeature>();
-		EnrichedFeature lastSigPeak=null, lastCtrlPeak=null;
-		ArrayList<PairedCountData> scalingPairs=new ArrayList<PairedCountData>();
-		Region currScalingRegion=null;
-		boolean peakInScalingWindow=false;
-		double sigHitsScalingWindow=0, ctrlHitsScalingWindow=0;
+		signalPeaks = new Vector<EnrichedFeature>();
+		controlPeaks = new Vector<EnrichedFeature>();
+		List<PairedCountData> scalingPairs = new Vector<PairedCountData>();
+
 		double ipTotHits = countReads ? reCountReads(signal, signalPerBaseBack) : signal.getWeightTotal();
         double backTotHits = noControl ? 1 : control.getWeightTotal(); // set to 1 if no background so the binomial test doesn't return NaN        
 		int numStrandIter = stranded ? 2 : 1; 
-		if(printProgress){System.out.print("Progress (bp): ");}
-		
-		while (testRegions.hasNext()) {
-			Region currentRegion = testRegions.next();
-			
-			lastSigPeak=null; lastCtrlPeak=null;
-			//Split the job up into large chunks
-			for(int x=currentRegion.getStart(); x<=currentRegion.getEnd(); x+=MAXSECTION){
-				int y = x+MAXSECTION; 
-				if(y>currentRegion.getEnd()){y=currentRegion.getEnd();}
-				Region currSubRegion = new Region(gen, currentRegion.getChrom(), x, y);
-				
-				ArrayList<ReadHit> ipHits = new ArrayList<ReadHit>();
-				ArrayList<ReadHit> backHits = new ArrayList<ReadHit>();
-				
-				ipHits.addAll(signal.loadExtHits(currSubRegion));
-				if (!noControl)
-					backHits.addAll(control.loadExtHits(currSubRegion));
 
-				for(int stranditer=1; stranditer<=numStrandIter; stranditer++){
-					ArrayList<EnrichedFeature> currSigRes = new ArrayList<EnrichedFeature>();
-					ArrayList<EnrichedFeature> currCtrlRes = new ArrayList<EnrichedFeature>();
-					lastSigPeak=null; lastCtrlPeak=null;
-					//If stranded peak-finding, run over both strands separately
-					char str = !stranded ? '.' : (stranditer==1 ? '+' : '-');
-					
-					int signalPB = fixedPerBaseCutoff>0 ? fixedPerBaseCutoff : signalPerBaseBack.getMaxThreshold(str); 
-					makeHitLandscape(ipHits, currSubRegion, signalPB, str);
-					double ipStackedHitCounts[] = landscape.clone();
-					double ipHitStartCounts[] = startcounts.clone();
-					double backStackedHitCounts[] = null;
-					double backHitStartCounts[] = null;
-	                if (!noControl) {
-	                	makeHitLandscape(backHits, currSubRegion, ctrlPerBaseBack.getMaxThreshold(str), str);
-	                	backStackedHitCounts = landscape.clone();
-	            		backHitStartCounts = startcounts.clone();
-	                }
-					
-	                //initialize scaling stuff
-	                currScalingRegion = new Region(gen, currSubRegion.getChrom(), currSubRegion.getStart(), currSubRegion.getStart()+scalingWindow<=currSubRegion.getEnd() ? currSubRegion.getStart()+scalingWindow-1 : currSubRegion.getEnd());
-	                sigHitsScalingWindow=0; ctrlHitsScalingWindow=0;
-	                peakInScalingWindow=false;
-	                //Scan regions
-	                int currBin=0;
-					for(int i=currSubRegion.getStart(); i<currSubRegion.getEnd()-(int)binWidth; i+=(int)binStep){
-						double ipWinHits=ipStackedHitCounts[currBin];
-						double backWinHits= noControl ? 0 : backStackedHitCounts[currBin];
-						
-						//Signal vs Ctrl Enrichment 
-						//First Test: is the read count above the genome-wide thresholds? 
-						if(signalBacks.passesGenomicThreshold((int)ipWinHits, str) && (noControl || ctrlBacks.underGenomicThreshold((int)backWinHits, str))){
-							//Second Test: refresh all thresholds & test again
-							signalBacks.updateModels(currSubRegion, i-x, ipStackedHitCounts, backStackedHitCounts);
-							if(!noControl)
-								ctrlBacks.updateModels(currSubRegion, i-x, backStackedHitCounts, ipStackedHitCounts);
-							//System.out.println("UPDATED:"+i);
-							//signalBacks.printThresholds();
-							if(signalBacks.passesAllThresholds((int)ipWinHits, str) && (noControl || ctrlBacks.underAllThresholds((int)backWinHits, str))){
-								Region currWin = new Region(gen, currentRegion.getChrom(), i, (int)(i+binWidth-1));
-								//Add hit to signalPeaks
-								lastSigPeak=addEnrichedReg(currSigRes, lastSigPeak, currWin, ipWinHits, (noControl ? 0 : control.getScalingFactor()*backWinHits), ipTotHits, (noControl ? 0 : control.getScalingFactor()*backTotHits), str);
-								peakInScalingWindow=true;
-							}else{sigHitsScalingWindow+=ipHitStartCounts[currBin];}
-						}else{sigHitsScalingWindow+=ipHitStartCounts[currBin];}
-						
-						//Ctrl vs Signal Enrichment 
-						if(!noControl){
-						//First Test: is the read count above the genome-wide thresholds? 
-						if(ctrlBacks.passesGenomicThreshold((int)backWinHits, str) && (signalBacks.underGenomicThreshold((int)ipWinHits, str))){
-							//Second Test: refresh all thresholds & test again
-							signalBacks.updateModels(currSubRegion, i-x, ipStackedHitCounts, backStackedHitCounts);
-							ctrlBacks.updateModels(currSubRegion, i-x, backStackedHitCounts, ipStackedHitCounts);
-							if(ctrlBacks.passesAllThresholds((int)backWinHits, str) && (signalBacks.underAllThresholds((int)ipWinHits, str))){
-								Region currWin = new Region(gen, currentRegion.getChrom(), i, (int)(i+binWidth-1));
-								//Add hit to controlPeaks
-								lastCtrlPeak=addEnrichedReg(currCtrlRes, lastCtrlPeak, currWin, control.getScalingFactor()*backWinHits, ipWinHits, control.getScalingFactor()*backTotHits, ipTotHits, str);
-								peakInScalingWindow=true;
-							}else{ctrlHitsScalingWindow+=backHitStartCounts[currBin];}
-						}else{ctrlHitsScalingWindow+=backHitStartCounts[currBin];}
-						}
-								
-						//WARNING: In this loop, the peak's total read counts and over-representation will not be accurate 
+        Thread[] threads = new Thread[maxThreads];
+        ArrayList threadRegions[] = new ArrayList[maxThreads];
+        int i = 0;
+        for (i = 0 ; i < threads.length; i++) {
+            threadRegions[i] = new ArrayList<Region>();
+        }
+        while (testRegions.hasNext()) {
+            threadRegions[(i++) % maxThreads].add(testRegions.next());
+        }
 
-						//Scaling
-						if(recordForScaling && !noControl){
-							if(i>currScalingRegion.getEnd()){//Gone past end of scaling window... reset
-								if(currScalingRegion.getWidth()==scalingWindow){
-									if(addAllToScaling || !peakInScalingWindow)
-										scalingPairs.add(new PairedCountData(sigHitsScalingWindow, ctrlHitsScalingWindow));
-								}
-								peakInScalingWindow=false;
-								sigHitsScalingWindow=0;
-								ctrlHitsScalingWindow=0;
-								currScalingRegion = new Region(gen, currSubRegion.getChrom(), i, i+scalingWindow<=currSubRegion.getEnd() ? i+scalingWindow-1 : currSubRegion.getEnd());
-							}
-						}
-						
-						//Print out progress
-						if(stranditer==1 && printProgress){
-							basesDone+=binStep;
-							if(basesDone > numPrint*printStep){
-								if(numPrint%10==0){System.out.print(String.format("(%.0f)", (numPrint*printStep)));}
-								else{System.out.print(".");}
-								if(numPrint%50==0 && numPrint!=0){System.out.print("\n");}
-								numPrint++;
-							}
-						}
-						currBin++;
-					}
-					//Now count the total reads for each peak
-					countTotalReadsInPeaks(currSigRes, ipHits, backHits, true);
-					countTotalReadsInPeaks(currCtrlRes, backHits, ipHits, false);
-					
-					if(postProcess){
-						//Trim
-						trimPeaks(currSigRes, ipHits,str);
-						trimPeaks(currCtrlRes, backHits,str);
-
-						//filter towers?
-						if(towerfiltering){
-							ArrayList<EnrichedFeature> tmpSigRes = filterTowers(currSigRes, currCtrlRes);
-							ArrayList<EnrichedFeature> tmpCtrlRes = filterTowers(currCtrlRes, currSigRes);
-							currSigRes = tmpSigRes; currCtrlRes = tmpCtrlRes; 
-						}
-						
-						//Find the peaks
-						for(EnrichedFeature h : currSigRes){
-							if(peakLRBal)
-								h.peak = findPeakLRBalance(ipHits, h.coords);
-							else if(peakWithModel && bindingModel!=null)
-								h.peak = findPeakWithBindingModel(ipHits, h.coords, bindingModel);
-							else
-								h.peak = findPeakMaxHit(ipHits, h.coords,str);
-						}
-					}
-					//Add to results
-					signalPeaks.addAll(currSigRes);
-					controlPeaks.addAll(currCtrlRes);
-					
-				}// end of for(int stranditer=1; stranditer<=numStrandIter; stranditer++) loop
-				
-			}// end of for(int x=currentRegion.getStart(); x<=currentRegion.getEnd(); x+=MAXSECTION) loop
-			
-		}// end of while (testRegions.hasNext()) loop
-		
-		if(printProgress){System.out.println(String.format("(%.0f)", basesDone));}
+        for (i = 0 ; i < threads.length; i++) {
+            Thread t = new Thread(new StatisticalThread(threadRegions[i], 
+                                                        scalingPairs,
+                                                        numStrandIter, 
+                                                        ipTotHits,
+                                                        backTotHits,
+                                                        recordForScaling,
+                                                        postProcess,
+                                                        this));
+            t.start();
+            threads[i] = t;
+        }
+        boolean anyrunning = true;
+        while (anyrunning) {
+            anyrunning = false;
+            for (i = 0; i < threads.length; i++) {
+                if (threads[i].isAlive()) {
+                    anyrunning = true;
+                    break;
+                }
+            }
+        }
+        		
 		//Sort & correct for multiple hypotheses
 		Collections.sort(signalPeaks);
 		Collections.sort(controlPeaks);
@@ -542,34 +632,6 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 		System.err.println("Recounted experiment: total weight = "+count);
 		return(count);
 	}
-	//Makes integer arrays corresponding to the read landscape over the current region
-	protected void makeHitLandscape(ArrayList<ReadHit> hits, Region currReg, int perBaseMax, char strand){
-		int numBins = (int)(currReg.getWidth()/binStep);
-		int [] counts = new int[currReg.getWidth()+1];
-		//double [] land = new double[numBins+1];
-		landscape = new double[numBins+1];
-		startcounts = new double[numBins+1];
-		for(int i=0; i<=numBins; i++){landscape[i]=0; startcounts[i]=0;}
-		for(int i=0; i<=currReg.getWidth(); i++){counts[i]=0;}
-		for(ReadHit r : hits){
-			if(strand=='.' || r.getStrand()==strand){
-				int offset=inBounds(r.getStart()-currReg.getStart(),0,currReg.getWidth());
-				counts[offset]++;//small issue here... counts will not be corrected for scalingFactor in control
-				if(!needlefiltering || (counts[offset] <= perBaseMax)){
-					int binstart = inBounds((int)((double)offset/binStep), 0, numBins);
-					int binend = inBounds((int)((double)(r.getEnd()-currReg.getStart())/binStep), 0, numBins);
-					for(int i=binstart; i<=binend; i++){
-						landscape[i]+=r.getWeight();
-					}
-					if(r.getStrand()=='+')
-						startcounts[binstart]+=r.getWeight();
-					else
-						startcounts[binend]+=r.getWeight();
-				}
-			}
-		}
-		//return(land);
-	}
 	
 	//count the total reads within each peak 
 	protected void countTotalReadsInPeaks(ArrayList<EnrichedFeature> peaks, ArrayList<ReadHit> ipHits, ArrayList<ReadHit> backHits, boolean forIPPeaks){
@@ -630,7 +692,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 		return(pval);		
 	}
 	//Multiple hypothesis testing correction -- assumes peaks ordered according to p-value
-	protected ArrayList<EnrichedFeature> benjaminiHochbergCorrection(ArrayList<EnrichedFeature> peaks){
+	protected ArrayList<EnrichedFeature> benjaminiHochbergCorrection(List<EnrichedFeature> peaks){
 		double total = peaks.size();
 		ArrayList<EnrichedFeature> res = new ArrayList<EnrichedFeature>();
 		double rank =1;
@@ -682,7 +744,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	}	
 	
 	//Estimate the scaling factor 
-	protected double estimateScalingFactor(ArrayList<PairedCountData> scalingData){
+	protected double estimateScalingFactor(List<PairedCountData> scalingData){
 		double slope = 0;
 		if(scalingData==null || scalingData.size()==0)
 			return 1;
