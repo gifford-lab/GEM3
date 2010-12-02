@@ -70,6 +70,8 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	protected boolean showGeneAnnotations=true;
 	protected boolean showOtherAnnotations=true;
 	protected boolean countReads = true; //use this if you expect the per-base thresholds will make a significant difference
+
+    private int longestRead = 100;
 	
 	//Constructors
 	public StatisticalPeakFinder(DeepSeqExpt signal){this(signal,null);}	
@@ -106,6 +108,8 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
         MAXSECTION = Args.parseInteger(args,"maxloadlen",MAXSECTION);
        // metaPeak = Args.parseArgs(args).contains("printpeakdistrib");
         dbacks= (List<Integer>) Args.parseIntegers(args, "dynback");
+        showGeneAnnotations = !Args.parseFlags(args).contains("nogeneannots");
+        showOtherAnnotations = !Args.parseFlags(args).contains("nootherannots");
         if(!stranded){
         	setLRBalPeaks(Args.parseFlags(args).contains("balpeak"));
         	setModelPeaks(Args.parseArgs(args).contains("modelpeak"));
@@ -335,12 +339,13 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
         }
 
         public void run() {
-            double basesDone=0, printStep=10000000,  numPrint=0;	   
             for (Region currentRegion : regions) {
+                double printStep=50000000,  numPrint=1;	   
                 double sigHitsScalingWindow=0, ctrlHitsScalingWindow=0;
                 boolean peakInScalingWindow=false;
                 EnrichedFeature lastSigPeak=null, lastCtrlPeak=null;
                 Region currScalingRegion=null;
+                int basesDone = 0;
                 //Split the job up into large chunks
                 for(int x=currentRegion.getStart(); x<=currentRegion.getEnd(); x+=MAXSECTION){
                     int y = x+MAXSECTION; 
@@ -360,6 +365,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                     }
 
                     for(int stranditer=1; stranditer<=numStrandIter; stranditer++){
+                        System.err.println("Working on " + currSubRegion + ", " + stranditer);
                         ArrayList<EnrichedFeature> currSigRes = new ArrayList<EnrichedFeature>();
                         ArrayList<EnrichedFeature> currCtrlRes = new ArrayList<EnrichedFeature>();
                         lastSigPeak=null; lastCtrlPeak=null;
@@ -438,23 +444,37 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                             }
 						
                             //Print out progress
-                            if(stranditer==1 && printProgress){
+                            if(printProgress){
                                 basesDone+=binStep;
-                                if(basesDone > numPrint*printStep){
-                                    if(numPrint%10==0){System.out.print(String.format("(%.0f)", (numPrint*printStep)));}
-                                    else{System.out.print(".");}
-                                    if(numPrint%50==0 && numPrint!=0){System.out.print("\n");}
+                                if(basesDone >= numPrint*printStep){
+                                    System.out.println(String.format("%s, %d bases, strand %d", currentRegion.toString(), basesDone, stranditer));
+                                                                     
                                     numPrint++;
                                 }
                             }
                             currBin++;
                         }
                         //Now count the total reads for each peak
+                        for (ReadHit h : ipHits) {
+                            int w = h.getWidth();
+                            if (w > longestRead) {
+                                longestRead = w;
+                            }
+                        }
+                        Collections.sort(ipHits);
+                        for (ReadHit h : backHits) {
+                            int w = h.getWidth();
+                            if (w > longestRead) {
+                                longestRead = w;
+                            }
+                        }
+                        Collections.sort(backHits);
+
                         countTotalReadsInPeaks(currSigRes, ipHits, backHits, true);
                         countTotalReadsInPeaks(currCtrlRes, backHits, ipHits, false);
 					
                         if(postProcess){
-                            //Trim
+                            //Trim                            
                             trimPeaks(currSigRes, ipHits,str);
                             trimPeaks(currCtrlRes, backHits,str);
 
@@ -471,8 +491,11 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                                     h.peak = findPeakLRBalance(ipHits, h.coords);
                                 else if(peakWithModel && bindingModel!=null)
                                     h.peak = findPeakWithBindingModel(ipHits, h.coords, bindingModel);
-                                else
+                                else {
                                     h.peak = findPeakMaxHit(ipHits, h.coords,str);
+                                }
+                                
+
                             }
                         }
                         //Add to results
@@ -538,6 +561,9 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
         boolean anyrunning = true;
         while (anyrunning) {
             anyrunning = false;
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) { }
             for (i = 0; i < threads.length; i++) {
                 if (threads[i].isAlive()) {
                     anyrunning = true;
@@ -633,7 +659,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 		return(count);
 	}
 	
-	//count the total reads within each peak 
+	//count the total reads within each peak.  ipHits and backHits must be sorted first
 	protected void countTotalReadsInPeaks(ArrayList<EnrichedFeature> peaks, ArrayList<ReadHit> ipHits, ArrayList<ReadHit> backHits, boolean forIPPeaks){
 		for(EnrichedFeature peak : peaks){
 			peak.signalTotalHits= forIPPeaks ? overlappingHits(ipHits, peak.coords, peak.strand).size() : overlappingHits(ipHits, peak.coords, peak.strand).size()*control.getScalingFactor();
@@ -642,11 +668,29 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 		}
 	}
 	
+    /* hits must be sorted and longestRead must be set from it */
 	protected ArrayList<ReadHit> overlappingHits(ArrayList<ReadHit> hits, Region window, char str){
 		ArrayList<ReadHit> sub = new ArrayList<ReadHit>();
-		for(ReadHit r : hits){
-			if(window.overlaps(r) && (str=='.' || str==r.getStrand())){sub.add(r);}			
-		}
+        int l = 0;
+        int r = hits.size();
+        int windowStart = window.getStart();
+        int windowEnd = window.getEnd();
+        while (r - l > 10) {
+            int c = (l + r) / 2;
+            if (windowStart > hits.get(c).getStart()) {
+                l = c;
+            } else {
+                r = c;
+            }
+        }
+        while (l > 0 && (hits.get(l).getStart() + longestRead > windowStart)) {
+            l--;
+        }
+        while (l < hits.size() && hits.get(l).getStart() < windowEnd) {
+            ReadHit hit = hits.get(l);
+			if(window.overlaps(hit) && (str=='.' || str==hit.getStrand())){sub.add(hit);}			
+            l++;
+        }
 		return(sub);
 	}
 	
@@ -755,7 +799,9 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 		slope = map.get("y");
 		return(slope);
 	}
-	/* Trim the peaks back to the coordinates of the first & last read in the peak*/
+	/* Trim the peaks back to the coordinates of the first & last read in the peak. 
+       ipHits must be sorted
+     */
 	protected void trimPeaks(ArrayList<EnrichedFeature> curr, ArrayList<ReadHit> ipHits, char str){
 		for(EnrichedFeature peak : curr){
 			ArrayList<ReadHit> winHits = overlappingHits(ipHits, peak.coords,str);
@@ -771,20 +817,22 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 			peak.coords = peak.coords.expand(startOff, endOff);
 		}
 	}
-	/* Find the exact peak locations based on maximum overlapping read counts. Careful; make sure the reads are extended... */
+	/* Find the exact peak locations based on maximum overlapping read counts. 
+       Reads must be sorted and longestRead set *before* calling this method
+       Careful; make sure the reads are extended... */
 	protected Point findPeakMaxHit(ArrayList<ReadHit> hits, Region coords, char str){
 		ArrayList<ReadHit> winHits = overlappingHits(hits, coords,str);
 		int [] sum = new int [coords.getWidth()+1];
 		for(int s=0; s<sum.length; s++){sum[s]=0;}
 
 		for(ReadHit r : winHits){
-			int start = r.getStart()-coords.getStart(); 
-			int stop= r.getEnd()-coords.getStart();
-			for(int i=start; i<stop; i++){
-				if(i>=0 && i<sum.length){
-					sum[i]++;
-				}
-			}
+            int start = r.getStart()-coords.getStart(); 
+            int stop= r.getEnd()-coords.getStart();
+            for(int i=start; i<stop; i++){
+                if(i>=0 && i<sum.length){
+                    sum[i]++;
+                }
+            }
 		}
 		int max = 0, maxPos = -1;
 		for(int s=0; s<sum.length; s++){

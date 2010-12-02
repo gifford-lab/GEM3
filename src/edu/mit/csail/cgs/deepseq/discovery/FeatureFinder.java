@@ -287,7 +287,6 @@ public abstract class FeatureFinder {
 	protected void addClosestGenes(List<Feature> enriched){
 		for(AnnotationLoader loader : geneAnnotations){
 			for (Feature peak : enriched) {
-                System.err.println("Annotating " + peak);
                 if (annotOverlapOnly) {
                     for(Gene gene : loader.getGenes(peak.coords)){
                         int overlap = gene.getOverlapSize(peak.coords);
