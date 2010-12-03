@@ -38,8 +38,8 @@ public class StatisticalAnalysisImporter extends AnalysisImporter {
             return null;
         }
         String pieces[] = line.split("\t");
-        String pospieces = pieces[0].split("[\\:\\-]");
-        String peakpieces=  pieces[2].split(":");
+        String pospieces[] = pieces[0].split("[\\:\\-]");
+        String peakpieces[] = pieces[2].split(":");
 
         return new ChipSeqAnalysisResult(getGenome(),
                                          pospieces[0],
@@ -47,9 +47,9 @@ public class StatisticalAnalysisImporter extends AnalysisImporter {
                                          Integer.parseInt(pospieces[2]),
                                          Integer.parseInt(peakpieces[1]),
                                          Double.parseDouble(pieces[7]),
-                                         Double.parseDouble(pieces[8])
+                                         Double.parseDouble(pieces[8]),
                                          Double.parseDouble(pieces[9]),
-                                         0,
+                                         0.0,
                                          Double.parseDouble(pieces[6]),
                                          Double.parseDouble(pieces[9]));
     }
