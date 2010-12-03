@@ -71,6 +71,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	protected boolean showOtherAnnotations=true;
 	protected boolean countReads = true; //use this if you expect the per-base thresholds will make a significant difference
 
+    private Binomial binomial = new Binomial(10,.5, new DRand());
     private int longestRead = 100;
 	
 	//Constructors
@@ -586,8 +587,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 			double s = estimateScalingFactor(scalingPairs);
 			System.out.println(String.format("Scaling factor = %.3f",s));
 			control.setScalingFactor(s);
-		}
-		
+		}		
 	}
 
 	
@@ -686,7 +686,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
         while (l > 0 && (hits.get(l).getStart() + longestRead > windowStart)) {
             l--;
         }
-        while (l < hits.size() && hits.get(l).getStart() < windowEnd) {
+        while (l < hits.size() && hits.get(l).getStart() <= windowEnd) {
             ReadHit hit = hits.get(l);
 			if(window.overlaps(hit) && (str=='.' || str==hit.getStrand())){sub.add(hit);}			
             l++;
@@ -731,8 +731,10 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	// k=scaled control, n=scaled control+signal
 	protected double binomialPValue(double k, double n){
 		double pval=1;
-		Binomial b = new Binomial((int)Math.ceil(n), 0.5, new DRand());
-		pval = b.cdf((int) Math.ceil(k));
+        synchronized (binomial) {
+            binomial.setNandP((int)Math.ceil(n), 0.5);
+            pval = binomial.cdf((int) Math.ceil(k));
+        }
 		return(pval);		
 	}
 	//Multiple hypothesis testing correction -- assumes peaks ordered according to p-value
@@ -747,7 +749,8 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 			if(p.score<=significanceThres)
 				res.add(p);
 			rank++;
-		}return(res);
+		}
+        return(res);
 	}
 	// Binomial test for differences between two population proportions 
 	protected double binomialSampleEquality(double X1, double X2, double n1, double n2){
