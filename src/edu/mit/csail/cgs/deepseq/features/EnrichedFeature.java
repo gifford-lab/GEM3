@@ -376,8 +376,7 @@ public class EnrichedFeature extends Feature implements Comparable<EnrichedFeatu
 		if (peak != null) {
 		  int r2peak = peak.getLocation()-coords.getStart();
 	    return new String(coords.getLocationString()+"\t"+coords.getWidth()+"\t"+peak.getLocationString()+"\t"+r2peak+"\t"+String.format("%.1f", signalMaxHits)+"\t"+String.format("%.1f", backMaxHits)+"\t"+String.format("%.5e", score)+"\t"+String.format("%.1f", signalTotalHits)+"\t"+String.format("%.1f", backTotalHits)+"\t"+String.format("%.5f", overrep)+"\t"+gene+"\t"+distToGene+"\t" + annots.toString() + "\n");
-		}
-		else {
+		} else {
 		  return new String(coords.getLocationString()+"\t"+coords.getWidth()+"\t"+String.format("%.1f", signalMaxHits)+"\t"+String.format("%.1f", backMaxHits)+"\t"+String.format("%.5e", score)+"\t"+String.format("%.1f", signalTotalHits)+"\t"+String.format("%.1f", backTotalHits)+"\t"+String.format("%.5f", overrep)+"\t"+gene+"\t"+distToGene+"\t" + annots.toString() + "\n");
 		}
 		
