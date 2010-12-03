@@ -31,14 +31,14 @@ import edu.mit.csail.cgs.utils.Pair;
 public class BindingModelGenerator {
 	private BindingModel model;
 	private Genome gen =null;
-	private ArrayList<EnrichedFeature> peaks=null;
+	private List<EnrichedFeature> peaks=null;
 	private int window=1000;
 	private int min=-200, max=500;
 	private double overrepFilter=5;
 	private double pFilter=0.01;
 	private DeepSeqExpt IP=null;
 	private int readLength=32;
-	private ArrayList<EnrichedFeature> towers = new ArrayList<EnrichedFeature>();
+	private List<EnrichedFeature> towers = new ArrayList<EnrichedFeature>();
 	private boolean smooth=false; 
 	private int smoothWin=5;//10bp smoothing
 	private int binSize=5; //size of bin to take 
@@ -123,8 +123,8 @@ public class BindingModelGenerator {
 		peaks = loadPeaks(fname);
 		System.out.println("BindingModel generating from "+peaks.size()+" peaks.");
 	}
-	public BindingModelGenerator(Genome g, DeepSeqExpt sig, ArrayList<EnrichedFeature> p){this(g, sig, p, null);}
-	public BindingModelGenerator(Genome g, DeepSeqExpt sig, ArrayList<EnrichedFeature> p, ArrayList<EnrichedFeature> t){
+	public BindingModelGenerator(Genome g, DeepSeqExpt sig, List<EnrichedFeature> p){this(g, sig, p, null);}
+	public BindingModelGenerator(Genome g, DeepSeqExpt sig, List<EnrichedFeature> p, List<EnrichedFeature> t){
 		IP=sig;
 		gen=g;
 		peaks = p;

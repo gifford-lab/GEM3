@@ -403,6 +403,7 @@ public class RefGeneGenerator<X extends Region>
                                 try {
                                     exonicGene.addExon(start, end);
                                 } catch(IllegalArgumentException iae) {
+                                    System.err.println("Gene is " + exonicGene.toString());
                                     System.err.println("Start line: \"" + startline + "\", " + startArray[i]);
                                     System.err.println("End line: \"" + endline + "\", " + endArray[i]);
                                     iae.printStackTrace(System.err);

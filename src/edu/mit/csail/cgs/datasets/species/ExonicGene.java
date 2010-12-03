@@ -25,7 +25,8 @@ public class ExonicGene extends Gene {
     public void addExon(Region r) { 
         if(!contains(r)) { throw new IllegalArgumentException(); }
         if(exons == null) { exons = new TreeSet<Region>(); }
-        for(Region exon : exons) { if(exon.overlaps(r)) { throw new IllegalArgumentException(); } }
+        /* we probably want to allow overlapping exons... AR */
+        //        for(Region exon : exons) { if(exon.overlaps(r)) { throw new IllegalArgumentException(); } }
         exons.add(r);
     }
     

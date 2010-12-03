@@ -148,6 +148,15 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		}
 
 		/* ***************************************************
+		 * Load Binding Model, empirical distribution
+		 * ***************************************************/
+		String modelFile = Args.parseString(args, "d", null);	// read distribution file
+
+		commonInit(modelFile);
+		model.printToFile(outName+"_0_Read_distribution.txt");
+		allModels.put(outName+"_0", model);
+
+		/* ***************************************************
 		 * Load parameters and properties
 		 * ***************************************************/
 		StringBuffer sb = new StringBuffer();
@@ -159,15 +168,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
 				sb.append(arg).append(" ");
 		}
 		log(1, sb.toString());
-
-		/* ***************************************************
-		 * Load Binding Model, empirical distribution
-		 * ***************************************************/
-		String modelFile = Args.parseString(args, "d", null);	// read distribution file
-
-		commonInit(modelFile);
-		model.printToFile(outName+"_0_Read_distribution.txt");
-		allModels.put(outName+"_0", model);
 		
     	/* *********************************
     	 * Flags
@@ -535,10 +535,11 @@ class GPSMixture extends MultiConditionFeatureFinder {
         signalFeatures.clear();
         Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
 
-        Thread[] threads = new Thread[config.maxThreads];
+        Thread[] threads = new Thread[maxThreads];
+        log(1,String.format("Creating %d threads", maxThreads));
         for (int i = 0 ; i < threads.length; i++) {
             ArrayList<Region> threadRegions = new ArrayList<Region>();
-            for (int j = i; j < restrictRegions.size(); j += config.maxThreads) {
+            for (int j = i; j < restrictRegions.size(); j += maxThreads) {
                 threadRegions.add(restrictRegions.get(j));
             }
             Thread t = new Thread(new GPSThread(threadRegions,
@@ -546,19 +547,23 @@ class GPSMixture extends MultiConditionFeatureFinder {
                                                 this,
                                                 constants,
                                                 config));
-            t.run();
+            t.start();
             threads[i] = t;
         }
         boolean anyrunning = true;
         while (anyrunning) {
             anyrunning = false;
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) { }
             for (int i = 0; i < threads.length; i++) {
                 if (threads[i].isAlive()) {
                     anyrunning = true;
                     break;
                 }
-            }
+            }            
         }
+        log(1,String.format("%d threads have finished running", maxThreads));
 
 		for (int j=0;j<restrictRegions.size();j++) {
 			Region rr = restrictRegions.get(j);
@@ -3099,7 +3104,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
         // the range to scan a peak if we know position from EM result
         public int SCAN_RANGE = 20;
         public int gentle_elimination_iterations = 5;
-        public int maxThreads = 8;
 
         public void parseArgs(String args[]) {
             Set<String> flags = Args.parseFlags(args);
@@ -3146,7 +3150,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
             smooth_step = Args.parseInteger(args, "smooth", smooth_step);
             KL_smooth_width = Args.parseInteger(args, "kl_s_w", KL_smooth_width);
             kl_ic = Args.parseDouble(args, "kl_ic", kl_ic);
-            maxThreads = Args.parseInteger(args,"threads",maxThreads);
             resolution_extend = Args.parseInteger(args, "resolution_extend", resolution_extend);
             gentle_elimination_factor = Args.parseInteger(args, "gentle_elimination_factor", gentle_elimination_factor);
             // These are options for EM performance tuning
