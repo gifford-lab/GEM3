@@ -31,7 +31,7 @@ public class StatisticalAnalysisImporter extends AnalysisImporter {
         importer.close();
     }
     public ChipSeqAnalysisResult parseLine(String line) {
-        if (lineno == 0) {
+        if (lineno++ == 0) {
             if (!line.equals("Region\tWidth\tPeak\tPeakOffset\tMaxSigHits\tMaxBackHits\tScore\tTotalSigHits\tTotalBackHits\tOverRep\tClosestGene\tTSSDist\tOtherAnnotations")) {
                 throw new RuntimeException("Invalid header line: " + line);
             }
@@ -40,6 +40,10 @@ public class StatisticalAnalysisImporter extends AnalysisImporter {
         String pieces[] = line.split("\t");
         String pospieces[] = pieces[0].split("[\\:\\-]");
         String peakpieces[] = pieces[2].split(":");
+        double pval = Double.parseDouble(pieces[6]);
+        if (pval < minpval) {
+            pval = minpval;
+        }
 
         return new ChipSeqAnalysisResult(getGenome(),
                                          pospieces[0],
@@ -50,7 +54,7 @@ public class StatisticalAnalysisImporter extends AnalysisImporter {
                                          Double.parseDouble(pieces[8]),
                                          Double.parseDouble(pieces[9]),
                                          0.0,
-                                         Double.parseDouble(pieces[6]),
+                                         pval,
                                          Double.parseDouble(pieces[9]));
     }
 
