@@ -91,6 +91,16 @@ public class SequenceUtils {
 		}
 		return sb.toString();
 	}
+    
+    public static byte[] reverseComplement(byte[] bases) {
+		byte[] rc = new byte[bases.length];
+		int j=0;
+		for(int i = bases.length-1; i>= 0; i--) { 
+			rc[j]=(byte)complementChar((char)bases[i]);
+			j++;
+		}
+		return rc;
+	}
 
     /** converts from 2-bit representation to character representation
      */
