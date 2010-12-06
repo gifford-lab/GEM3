@@ -1036,7 +1036,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
 						}
 						else{
 							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
-							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
+//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
+								if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
 								notFiltered = true;
 								break;
 							}
