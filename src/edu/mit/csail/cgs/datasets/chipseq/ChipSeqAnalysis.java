@@ -283,10 +283,10 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
         }
         DatabaseFactory.freeConnection(cxn);
     }
-    public Collection<ChipSeqAnalysisResult> getResults(Genome g) throws SQLException {
+    public List<ChipSeqAnalysisResult> getResults(Genome g) throws SQLException {
         return getResults(g,null);
     }
-    public Collection<ChipSeqAnalysisResult> getResults(Region queryRegion) throws SQLException {
+    public List<ChipSeqAnalysisResult> getResults(Region queryRegion) throws SQLException {
         return getResults(queryRegion.getGenome(), queryRegion);
     }
     private Integer isnullint(ResultSet r, int index) throws SQLException {
@@ -305,7 +305,7 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
             return i;
         }
     }
-    public Collection<ChipSeqAnalysisResult> getResults(Genome genome, Region queryRegion) throws SQLException {
+    public List<ChipSeqAnalysisResult> getResults(Genome genome, Region queryRegion) throws SQLException {
         
         java.sql.Connection cxn = DatabaseFactory.getConnection(ChipSeqLoader.role);
         String query = "select chromosome, startpos, stoppos, position, fgcount, bgcount, strength, peak_shape, pvalue, fold_enrichment " +
@@ -321,7 +321,7 @@ public class ChipSeqAnalysis implements Comparable<ChipSeqAnalysis> {
             ps.setInt(4, queryRegion.getEnd());
         }
         ResultSet rs = ps.executeQuery();
-        Collection<ChipSeqAnalysisResult> result = new ArrayList<ChipSeqAnalysisResult>();
+        List<ChipSeqAnalysisResult> result = new ArrayList<ChipSeqAnalysisResult>();
         while (rs.next()) {
             ChipSeqAnalysisResult r = new ChipSeqAnalysisResult(genome,
                                                                 genome.getChromName(rs.getInt(1)),
