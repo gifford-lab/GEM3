@@ -26,6 +26,17 @@ import edu.mit.csail.cgs.datasets.species.Organism;
  * @author rca
  * Code for database interaction involving background models
  */
+
+/*
+~/psrg/software/meme-4.3.0/bin/fasta-get-markov -m 0 < hg19.fa | awk '{print $2 FS $1}' | grep -v order > hg19.zero
+
+java edu.mit.csail.cgs.datasets.motifs.BackgroundModelLoader --species "$HS;hg19" --bgname 'whole genome zero order' --bgtype FREQUENCY --bgfile hg19.zero
+where hg19.zero is 
+.2 A
+.3 C
+.2 T
+.3 G 
+*/
 public class BackgroundModelLoader {
 
   private static Logger logger = Logger.getLogger(BackgroundModelLoader.class);
