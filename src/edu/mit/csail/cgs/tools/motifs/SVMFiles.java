@@ -37,22 +37,29 @@ public class SVMFiles extends CombinatorialEnrichment {
     public void saveFiles() throws IOException {
         PrintWriter training = new PrintWriter(prefix + "_training.txt");
         PrintWriter test = new PrintWriter(prefix + "_test.txt");
+        PrintWriter trainingregions = new PrintWriter(prefix + "_training.regions");
+        PrintWriter testregions = new PrintWriter(prefix + "_test.regions");
         for (String s : fghits.keySet()) {
             if (Math.random() <= trainfrac) {
                 saveLine(training, 1, fghits.get(s));
+                trainingregions.println(s);
             } else {
-                saveLine(test, 1, fghits.get(s));
+                saveLine(test, 1,fghits.get(s));
+                testregions.println(s);
             }
         }
         for (String s : bghits.keySet()) {
             if (Math.random() <= trainfrac) {
                 saveLine(training, -1, bghits.get(s));
             } else {
-                saveLine(test, -1, bghits.get(s));
+                saveLine(test,-1, bghits.get(s));
+                testregions.println(s);
             }
         }
         training.close();
         test.close();
+        trainingregions.close();
+        testregions.close();
 
     }
 
