@@ -42,10 +42,9 @@ public class RefGeneGenerator<X extends Region>
     private Genome genome;
     private String tablename, symboltable, namecolumn, symbolcolumn;
     private int aliastype;
-    private boolean wantalias, flipstrand;
+    private boolean wantalias, flipstrand, wantCoding, wantsExons;
     private static final int YEAST = 1, MAMMAL = 2, FLY = 3, WORM = 4;    
     private static final int TOSTART = 1, TOEND = 2, TOWHOLE = 3;
-    private boolean wantsExons;
     private int upstream, downstream, closestN, toBoundary;
 
     /**
@@ -63,6 +62,7 @@ public class RefGeneGenerator<X extends Region>
         upstream = 0;
         downstream = 0;
         closestN = 0;
+        wantCoding = false;
         toBoundary = TOSTART;
         flipstrand = false;
     }
@@ -81,6 +81,7 @@ public class RefGeneGenerator<X extends Region>
         upstream = 0;
         downstream = 0;
         closestN = 0;
+        wantCoding = false;
         toBoundary = TOSTART;  
         flipstrand = false;
     }
@@ -98,6 +99,7 @@ public class RefGeneGenerator<X extends Region>
         upstream = 0;
         downstream = 0;
         closestN = 0;
+        wantCoding = false;
         toBoundary = TOSTART;        
         flipstrand = false;
     }
@@ -139,7 +141,18 @@ public class RefGeneGenerator<X extends Region>
     
     /* fill in exon fields of Genes */
     public boolean isRetrievingExons() { return wantsExons; }
-    public void retrieveExons(boolean b) {wantsExons = b;}
+    public void retrieveExons(boolean b) {
+        wantsExons = b;
+        prepare();
+    }
+    /** if retrieveCoding is true, then the start and 
+     *  stop will be of the coding region rather than the transcribed region
+     */
+    public boolean isRetrievingCodingRegion() {return wantCoding;}
+    public void retrieveCoding(boolean b) {
+        wantCoding = b;
+        prepare();
+    }
     public Genome getGenome() {return genome;}
     public String getTable() {return tablename;}
     /* retrieve aliases with Genes */
@@ -250,11 +263,14 @@ public class RefGeneGenerator<X extends Region>
         ps = null;
         nameps = null;
         if (genome == null) {
+            //            System.err.println("No genome.  returning from prepare()");
             return;
         }
         try {
             cxn = genome.getUcscConnection();
             StringBuffer query = new StringBuffer(getFields());
+            String startf = wantCoding ? "cdsStart" : "txStart";
+            String endf = wantCoding ? "cdsEnd" : "txEnd";
             query.append(" from ");
             query.append(tablename);
             query.append(" where chrom = ? ");
@@ -270,9 +286,10 @@ public class RefGeneGenerator<X extends Region>
                 query.append(getClosestOrder());
                 query.append(" limit ? ");
             } else {
-                query.append(" order by txStart ");
+                query.append(" order by " + startf +  " ");
             }
-            
+
+            //            System.err.println("query is " + query);
             ps = cxn.prepareStatement(query.toString());
             
             getallps = cxn.prepareStatement(getFields() + " from " + tablename);
@@ -466,7 +483,7 @@ public class RefGeneGenerator<X extends Region>
 
 
     private String getFields() {
-        String query = "select name, chrom, strand, txStart, txEnd"; 
+        String query = wantCoding ? "select name, chrom, strand, cdsStart, cdsEnd" : "select name, chrom, strand, txStart, txEnd"; 
         if(wantsExons) { query += ", exonCount, exonStarts, exonEnds"; }        
         return query;
     }
@@ -475,6 +492,8 @@ public class RefGeneGenerator<X extends Region>
        gene to the input region
     */
     private String getClosestOrder() {
+        String startf = wantCoding ? "cdsStart" : "txStart";
+        String endf = wantCoding ? "cdsEnd" : "txEnd";
         if (toBoundary == TOSTART) {
             return " order by least(abs(? - if(strand = '+', txStart, txEnd)),abs(? - if(strand = '+', txStart, txEnd))) ";
         } else if (toBoundary == TOEND) {
