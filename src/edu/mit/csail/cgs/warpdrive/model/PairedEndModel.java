@@ -118,7 +118,9 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
 
                     if (getProperties().DeDuplicateByPosition && results.size() > 0) {
                         results = dedup(results);
-                        otherchrom = dedup(otherchrom);
+                        if (otherchrom.size() > 0) {
+                        	otherchrom = dedup(otherchrom);
+                        }
                     }
                     if (getProperties().LeftAlwaysLesser) {
                         for (PairedHit h : results) {

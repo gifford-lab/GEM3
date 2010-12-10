@@ -361,6 +361,36 @@ public class Args {
         return output;
     }
 
+    public static Collection<ChipSeqAnalysis> parseChipSeqAnalyses(String args[], String argname) throws NotFoundException {
+        Collection<String> bases = parseStrings(args,argname);
+        Collection<ChipSeqAnalysis> out = new ArrayList<ChipSeqAnalysis>();
+        ChipSeqLoader loader = null;
+        try {
+            for (String base : bases) {
+                String pieces[] = base == null ? null : base.split(";");
+                if (pieces != null && pieces.length != 2 ) {
+                    throw new RuntimeException("Invalid string for ChipSeqAnalysis " + base);
+                }
+                ChipSeqAnalysis a = null;
+                loader = new ChipSeqLoader(false);
+                if (pieces != null) {
+                    a = ChipSeqAnalysis.get(loader,pieces[0],pieces[1]);
+                }
+                out.add(a);
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException(e.toString(),e);
+        } catch (Exception e) {
+            throw new RuntimeException(e.toString(),e);
+        } finally {
+            if (loader != null) {
+                loader.close();        
+            }
+            loader = null;
+        }
+        return out;
+    }
+
     public static ChipSeqAnalysis parseChipSeqAnalysis(String args[], String argname) {
         String base = parseString(args,argname,null);
         String aname = parseString(args,"analysisname",null);

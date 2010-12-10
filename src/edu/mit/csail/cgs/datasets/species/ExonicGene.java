@@ -23,7 +23,10 @@ public class ExonicGene extends Gene {
     }
     
     public void addExon(Region r) { 
-        if(!contains(r)) { throw new IllegalArgumentException(); }
+        // can't do this check because the exon may be outside the *coding* region of the
+        // gene, and sometimes we want the gene boundaries to be the coding region rather than
+        // transcribed region.
+        //        if(!contains(r)) { throw new IllegalArgumentException(); }
         if(exons == null) { exons = new TreeSet<Region>(); }
         /* we probably want to allow overlapping exons... AR */
         //        for(Region exon : exons) { if(exon.overlaps(r)) { throw new IllegalArgumentException(); } }

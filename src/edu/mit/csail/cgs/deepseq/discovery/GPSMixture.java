@@ -3135,6 +3135,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
             subtract_for_segmentation = flags.contains("subtract_ctrl_for_segmentation");
             outputBED = flags.contains("outBED");
             testPValues = flags.contains("testP");
+            System.err.println("testP is " + testPValues);
             exclude_unenriched = flags.contains("ex_unenriched");
             // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
