@@ -573,8 +573,11 @@ class GPSMixture extends MultiConditionFeatureFinder {
                 }
             }    
             int count = processRegionCount.size();
-            if (count>reportTriggers.first()){
-				System.out.println(reportTriggers.first()+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+            int trigger = totalRegionCount;
+            if (!reportTriggers.isEmpty())
+            	trigger = reportTriggers.first();
+            if (count>trigger){
+				System.out.println(trigger+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 				reportTriggers.remove(reportTriggers.first());
             }
         }
