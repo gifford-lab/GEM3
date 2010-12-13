@@ -2253,7 +2253,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
                         binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
                         pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
 
-                        poisson.setMean(minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
+                        poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
                         pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
                     } catch(Exception err){
                         err.printStackTrace();
