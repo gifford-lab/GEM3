@@ -2245,12 +2245,15 @@ class GPSMixture extends MultiConditionFeatureFinder {
                         } 
                         binomial.setNandP((int)totalIPCount[cond],p);
                         pValueControl = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+
                         p = modelWidth / config.mappable_genome_length;
                         binomial.setNandP((int)totalIPCount[cond],p);
                         pValueUniform = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+
                         binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
                         pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-                        poisson.setMean(Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
+
+                        poisson.setMean(minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
                         pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
                     } catch(Exception err){
                         err.printStackTrace();
@@ -3105,6 +3108,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
         // the range to scan a peak if we know position from EM result
         public int SCAN_RANGE = 20;
         public int gentle_elimination_iterations = 5;
+        public double minFoldChange = 1.5; // minimum fold change for a significant event.  applied after event discovery during the p-value filtering stage
 
         public void parseArgs(String args[]) {
             Set<String> flags = Args.parseFlags(args);
@@ -3154,6 +3158,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
             kl_ic = Args.parseDouble(args, "kl_ic", kl_ic);
             resolution_extend = Args.parseInteger(args, "resolution_extend", resolution_extend);
             gentle_elimination_factor = Args.parseInteger(args, "gentle_elimination_factor", gentle_elimination_factor);
+            minFoldChange = Args.parseDouble(args,"min_fold_change",minFoldChange);
             // These are options for EM performance tuning
             // should NOT expose to user
             // therefore, still use UPPER CASE to distinguish
