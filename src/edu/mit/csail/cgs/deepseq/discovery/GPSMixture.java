@@ -276,7 +276,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 						ArrayList<Region> chunks = new ArrayList<Region>();
 						// if there are too many reads in a chrom, read smaller chunks
 						if (count>constants.MAXREAD){
-							int chunkNum = count/constants.MAXREAD+1;
+							int chunkNum = count/constants.MAXREAD*2+1;
 							int chunkLength = length/chunkNum;
 							int start = 0;
 							while (start<=length){
@@ -534,7 +534,16 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		}
         signalFeatures.clear();
         Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
-
+        Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
+		int displayStep = (int) Math.pow(10, (int) (Math.log10(totalRegionCount)));
+		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
+		for (int i=1;i<=totalRegionCount/displayStep; i++){
+			reportTriggers.add(i*displayStep);
+		}
+		reportTriggers.add(100);
+		reportTriggers.add(1000);
+		reportTriggers.add(10000);
+		
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Creating %d threads", maxThreads));
         for (int i = 0 ; i < threads.length; i++) {
@@ -543,6 +552,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
                 threadRegions.add(restrictRegions.get(j));
             }
             Thread t = new Thread(new GPSThread(threadRegions,
+            									processRegionCount,
                                                 compFeatures,
                                                 this,
                                                 constants,
@@ -554,15 +564,26 @@ class GPSMixture extends MultiConditionFeatureFinder {
         while (anyrunning) {
             anyrunning = false;
             try {
-                Thread.sleep(5000);
+                Thread.sleep(1000);
             } catch (InterruptedException e) { }
             for (int i = 0; i < threads.length; i++) {
                 if (threads[i].isAlive()) {
                     anyrunning = true;
                     break;
                 }
-            }            
+            }    
+            int count = processRegionCount.size();
+            int trigger = totalRegionCount;
+            if (!reportTriggers.isEmpty())
+            	trigger = reportTriggers.first();
+            if (count>trigger){
+				System.out.println(trigger+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+				reportTriggers.remove(reportTriggers.first());
+            }
         }
+        System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        processRegionCount.clear();
+        
         log(1,String.format("%d threads have finished running", maxThreads));
 
 		for (int j=0;j<restrictRegions.size();j++) {
@@ -927,7 +948,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 	public ArrayList<ComponentFeature> simpleExecute(List<StrandedBase> bases, Region r) {
 		totalSigCount=StrandedBase.countBaseHits(bases);
         ArrayList<ComponentFeature> out = new ArrayList<ComponentFeature>();
-        GPSThread t = new GPSThread(null, out, this, constants,config);
+        GPSThread t = new GPSThread(null, null, out, this, constants,config);
         t.simpleRun(bases,r);
         return out;
 	}// end of simpleExecute method
@@ -3121,7 +3142,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
             subtract_for_segmentation = flags.contains("subtract_ctrl_for_segmentation");
             outputBED = flags.contains("outBED");
             testPValues = flags.contains("testP");
-            System.err.println("testP is " + testPValues);
+            if (testPValues)
+            	System.err.println("testP is " + testPValues);
             exclude_unenriched = flags.contains("ex_unenriched");
             // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -3136,6 +3158,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
             do_model_selection = !flags.contains("no_model_selection");
             mappable_genome_length = Args.parseDouble(args, "s", 2.08E9);	// size of mappable genome
             // Optional input parameter
+            maxThreads = Args.parseInteger(args,"threads",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
             alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
@@ -3174,6 +3197,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
         private GPSConstants constants;
         private GPSConfig config;
         private Collection<Region> regions;
+        private Collection<Integer> processedRegionCount;
         private Collection<ComponentFeature> compFeatures;
         /**
          * <tt>HashMap</tt> containing the single event regions. <br>
@@ -3194,11 +3218,13 @@ class GPSMixture extends MultiConditionFeatureFinder {
         private int componentMax;
 
         public GPSThread (Collection<Region> regions,
+        				  Collection<Integer> processedRegionCount,
                           Collection<ComponentFeature> compFeatures,
                           GPSMixture mixture,
                           GPSConstants constants,
                           GPSConfig config) {
             this.regions = regions;
+            this.processedRegionCount = processedRegionCount;
             this.mixture = mixture;
             this.constants = constants;
             this.config = config;
@@ -3461,6 +3487,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
                             compFeatures.addAll(mixture.callFeatures(bs));
                         }
                     }
+                    processedRegionCount.add(1); 
                 } catch(Exception e){
                     System.err.println("ERROR: Java Exception when analyzing region "+rr.toString());
                     e.printStackTrace(System.err);

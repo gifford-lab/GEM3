@@ -437,7 +437,37 @@ public class WeightMatrix {
         }
         return wmid;
     }
-
+    /* looks up the database id for the specified weight matrix */
+    public static int getWeightMatrixID(String wmname,
+                                        String wmversion) throws NotFoundException {
+        int wmid = -1;
+        try {
+            java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");
+            PreparedStatement ps = cxn.prepareStatement("select id from weightmatrix where name = ? and version = ?");
+            ps.setString(1,wmname);
+            ps.setString(2,wmversion);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                wmid = rs.getInt(1);
+                if (rs.next())
+                	System.err.println(String.format("getWeightMatrixID(%s, %s) returns more than 1 motif!", wmname, wmversion));
+            } else {
+                rs.close();
+                ps.close();
+                DatabaseFactory.freeConnection(cxn);     
+                throw new NotFoundException("Can't find WM " + wmname + ", " + wmversion);
+            }
+            rs.close();
+            ps.close();
+            DatabaseFactory.freeConnection(cxn);     
+        } catch (SQLException ex) {
+            throw new NotFoundException("Can't find WM " + wmname + ", " + wmversion,ex);
+        } catch (UnknownRoleException ex) {
+            throw new DatabaseException("Can't connect to annotations datasource",ex);
+        }
+        return wmid;
+    }
+    
     /* returns a string showing the full matrx in all its numeric glory */
     public static String printMatrix(WeightMatrix matrix) {
         int length = matrix.length();

@@ -248,11 +248,12 @@ public class CommonUtils {
       	      String motifVersion = Args.parseString(args, "version", null);
       	      double motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
       	      if (motifThreshold==-1){
-      	    	  System.err.println("No motif threshold was provided, default=10.0 is used.");
-      	    	  motifThreshold = 10.0;
+      	    	  System.err.println("No motif threshold was provided, default=9.99 is used.");
+      	    	  motifThreshold = 9.99;
       	      }
       		  int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
-      		  int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:orgId, motifString, motifVersion);
+//      		  int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:orgId, motifString, motifVersion);
+      		  int wmid = WeightMatrix.getWeightMatrixID(motifString, motifVersion);
       		  WeightMatrix motif = WeightMatrix.getWeightMatrix(wmid);
       		  pair = new Pair<WeightMatrix, Double>(motif, motifThreshold);
             }
