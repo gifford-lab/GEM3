@@ -449,7 +449,7 @@ public class WeightMatrix {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 wmid = rs.getInt(1);
-                if (!rs.isLast())
+                if (rs.next())
                 	System.err.println(String.format("getWeightMatrixID(%s, %s) returns more than 1 motif!", wmname, wmversion));
             } else {
                 rs.close();
