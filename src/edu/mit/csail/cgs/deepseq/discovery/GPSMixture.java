@@ -276,7 +276,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 						ArrayList<Region> chunks = new ArrayList<Region>();
 						// if there are too many reads in a chrom, read smaller chunks
 						if (count>constants.MAXREAD){
-							int chunkNum = count/constants.MAXREAD+1;
+							int chunkNum = count/constants.MAXREAD*2+1;
 							int chunkLength = length/chunkNum;
 							int start = 0;
 							while (start<=length){
