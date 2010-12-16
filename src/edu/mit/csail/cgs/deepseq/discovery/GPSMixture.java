@@ -998,7 +998,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
             });
 		// get median event strength
 		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalSumResponsibility();
-		System.out.println("Median event strength = "+medianStrength);
+		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
 		
 		// Determine how many of the enriched regions will be included during the regression evaluation
 		int numIncludedCandRegs = (int)Math.round(config.pcr*compFeatures.size());	
