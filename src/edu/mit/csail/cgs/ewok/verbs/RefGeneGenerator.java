@@ -157,7 +157,7 @@ public class RefGeneGenerator<X extends Region>
         return wantCoding ? "cdsStart" : "txStart";
     }
     public String getEndField() {
-        return wantCoding ? "cdsStart" : "txStart";
+        return wantCoding ? "cdsEnd" : "txEnd";
     }
     public Genome getGenome() {return genome;}
     public String getTable() {return tablename;}
@@ -320,8 +320,9 @@ public class RefGeneGenerator<X extends Region>
             if (wantalias && symboltable != null && symboltable.equals("kgXref")) {
                 try {
                     cxn = genome.getUcscConnection();
-                    getalias = cxn.prepareStatement("select distinct(alias) from kgAlias where kgID in (select kgID from kgXref where " + 
-                                                    namecolumn + " = ?");
+                    String aliassql = "select distinct(alias) from kgAlias where kgID in (select kgID from kgXref where " + 
+                        namecolumn + " = ?)";
+                    getalias = cxn.prepareStatement(aliassql);
                 } catch (SQLException ex) {
                 ex.printStackTrace();
                 wantalias = false;
