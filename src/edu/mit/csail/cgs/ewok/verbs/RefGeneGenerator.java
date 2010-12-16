@@ -153,6 +153,12 @@ public class RefGeneGenerator<X extends Region>
         wantCoding = b;
         prepare();
     }
+    public String getStartField() {
+        return wantCoding ? "cdsStart" : "txStart";
+    }
+    public String getEndField() {
+        return wantCoding ? "cdsEnd" : "txEnd";
+    }
     public Genome getGenome() {return genome;}
     public String getTable() {return tablename;}
     /* retrieve aliases with Genes */
@@ -269,8 +275,6 @@ public class RefGeneGenerator<X extends Region>
         try {
             cxn = genome.getUcscConnection();
             StringBuffer query = new StringBuffer(getFields());
-            String startf = wantCoding ? "cdsStart" : "txStart";
-            String endf = wantCoding ? "cdsEnd" : "txEnd";
             query.append(" from ");
             query.append(tablename);
             query.append(" where chrom = ? ");
@@ -286,7 +290,7 @@ public class RefGeneGenerator<X extends Region>
                 query.append(getClosestOrder());
                 query.append(" limit ? ");
             } else {
-                query.append(" order by " + startf +  " ");
+                query.append(" order by " + getStartField() +  " ");
             }
 
             //            System.err.println("query is " + query);
@@ -316,8 +320,9 @@ public class RefGeneGenerator<X extends Region>
             if (wantalias && symboltable != null && symboltable.equals("kgXref")) {
                 try {
                     cxn = genome.getUcscConnection();
-                    getalias = cxn.prepareStatement("select distinct(alias) from kgAlias where kgID in (select kgID from kgXref where " + 
-                                                    namecolumn + " = ?");
+                    String aliassql = "select distinct(alias) from kgAlias where kgID in (select kgID from kgXref where " + 
+                        namecolumn + " = ?)";
+                    getalias = cxn.prepareStatement(aliassql);
                 } catch (SQLException ex) {
                 ex.printStackTrace();
                 wantalias = false;
@@ -483,7 +488,8 @@ public class RefGeneGenerator<X extends Region>
 
 
     private String getFields() {
-        String query = wantCoding ? "select name, chrom, strand, cdsStart, cdsEnd" : "select name, chrom, strand, txStart, txEnd"; 
+        String query = String.format("select name, chrom, strand, %s, %s",
+                                     getStartField(), getEndField());
         if(wantsExons) { query += ", exonCount, exonStarts, exonEnds"; }        
         return query;
     }
@@ -492,14 +498,15 @@ public class RefGeneGenerator<X extends Region>
        gene to the input region
     */
     private String getClosestOrder() {
-        String startf = wantCoding ? "cdsStart" : "txStart";
-        String endf = wantCoding ? "cdsEnd" : "txEnd";
         if (toBoundary == TOSTART) {
-            return " order by least(abs(? - if(strand = '+', txStart, txEnd)),abs(? - if(strand = '+', txStart, txEnd))) ";
+            return String.format(" order by least(abs(? - if(strand = '+', %s, %s)),abs(? - if(strand = '+', %s, %s))) ",
+                                 getStartField(), getEndField(), getStartField(), getEndField());
         } else if (toBoundary == TOEND) {
-            return " order by least(abs(? - if(strand = '-', txStart, txEnd)),abs(? - if(strand = '-', txStart, txEnd))) ";
+            return String.format(" order by least(abs(? - if(strand = '-', %s, %s)),abs(? - if(strand = '-', %s, %s))) ",
+                                 getStartField(), getEndField(), getStartField(), getEndField());
         } else {
-            return " order by least(abs(txStart - ?), abs(? - txEnd),abs(txStart - ?), abs(? - txEnd)) ";
+            return String.format(" order by least(abs(%s - ?), abs(? - %s),abs(%s - ?), abs(? - %s)) ",
+                                 getStartField(), getEndField(), getStartField(), getEndField());
         }
     }
     private int bindClosestOrder(PreparedStatement ps, int offset, X region) throws SQLException {
@@ -518,8 +525,10 @@ public class RefGeneGenerator<X extends Region>
     }
 
     private String getUpstreamOverlap() {
-        String query = "((strand = '+' and ((txStart <= ? and txStart >= ?) or (txStart >= ? and txStart <= ?))) or " +
-            " (strand = '-' and ((txEnd <= ? and txEnd >= ?) or (txEnd >= ? and txEnd <= ?))))";
+        String query = String.format("((strand = '+' and ((%s <= ? and %s >= ?) or (%s >= ? and %s <= ?))) or " +
+                                     " (strand = '-' and ((%s <= ? and %s >= ?) or (%s >= ? and %s <= ?))))",
+                                     getStartField(), getStartField(), getStartField(), getStartField(),
+                                     getEndField(), getEndField(), getEndField(), getEndField());
         return query;
     }
     private int bindUpstreamOverlap(PreparedStatement ps, int offset, X region) throws SQLException {
@@ -535,7 +544,8 @@ public class RefGeneGenerator<X extends Region>
     }
 
     private String getOrfOverlap() {
-        return " ((txStart <= ? and txEnd >= ?) or (txStart >= ? and txStart <= ?))";
+        return String.format(" ((%s <= ? and %s >= ?) or (%s >= ? and %s <= ?))",
+                             getStartField(), getEndField(),getStartField(), getStartField());
     }
     private int bindOrfOverlap(PreparedStatement ps, int offset, X region) throws SQLException {
         ps.setInt(offset++,region.getStart());
