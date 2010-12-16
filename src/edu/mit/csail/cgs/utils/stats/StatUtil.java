@@ -1163,11 +1163,11 @@ public class StatUtil {
 		for (int i=0;i<length;i++){
 			double v=kernel[0]*Y[i] + 2.0E-300;		// init with very small number
             double weight=kernel[0];
-            for (int j = 0; j < kernel_length && i+j < length; j++) {
+            for (int j = 1; j < kernel_length && i+j < length; j++) {
                 v+=Y[i+j]*kernel[j];
                 weight += kernel[j];                
             }
-            for (int j = 0; j < kernel_length && i-j >= 0; j++) {
+            for (int j = 1; j < kernel_length && i-j >= 0; j++) {
                 v+=Y[i-j]*kernel[j];
                 weight += kernel[j];                
             }

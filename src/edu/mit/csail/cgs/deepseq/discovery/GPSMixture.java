@@ -392,8 +392,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 					System.out.println(String.format("\n%s\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", conditionNames.get(i), ipCount, ctrlCount, ratio_total[i]));
 				}
 	        }
-        }
-        else{	// want to analyze only specified regions, set default
+        } else{	// want to analyze only specified regions, set default
         	for(int i=0; i<numConditions; i++){
         		if (subsetRatio!=-1){
         			ratio_total[i]=subsetRatio;
@@ -425,8 +424,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 				setRegions(selectEnrichedRegions(subsetRegions, true));
 			else
 				setRegions(selectEnrichedRegions(subsetRegions, false));
-		}
-		else{
+		} else{
 			setRegions(subsetRegions);
 		}
 		
@@ -1189,7 +1187,11 @@ class GPSMixture extends MultiConditionFeatureFinder {
 				chr_focusReg_pair.get(chrom).add(wholeChrom);
 			}
 		}
-		
+        Poisson poisson = new Poisson(1, new DRand());
+        double totalIPCount[] = new double[caches.size()];
+        for (int i = 0; i < caches.size(); i++) {
+            totalIPCount[i] += caches.get(i).car().getHitCount();
+        }
 		for(String chrom:chr_focusReg_pair.keySet()) {
 			for(Region focusRegion:chr_focusReg_pair.get(chrom)) {
 				List<Region> rs = new ArrayList<Region>();
@@ -1239,28 +1241,49 @@ class GPSMixture extends MultiConditionFeatureFinder {
 					rs.add(r);
 				}
 
-				// check regions, exclude un-enriched regions based on control counts
+				// check regions, exclude un-enriched regions based on control counts.  If a region is too big (bigger
+                // than modelWidth), break it into smaller pieces and keep it if any of those pieces are enriched
 				ArrayList<Region> toRemove = new ArrayList<Region>();
+                List<Region> toTest = new ArrayList<Region>();
 				for (Region r: rs){
 					if (r.getWidth()<=config.min_region_width){
 						toRemove.add(r);
 						continue;
 					}
-					// for regions <= modelWidth, most likely single event, can be compared to control
-					if (this.controlDataExist)
-						if (r.getWidth()<=modelWidth){
-							boolean enriched = false;
-							for (int c=0;c<numConditions;c++){
-								if (countIpReads(r,c)/countCtrlReads(r,c)/this.ratio_total[c]>config.fold){
-									enriched = true;
-									break;
-								}
-							}
-							if (!enriched){	// remove this region if it is not enriched in any condition
-								toRemove.add(r);
-								continue;
-							}
-						}
+                    boolean enriched = false;
+                    toTest.clear();
+                    if (r.getWidth()<=modelWidth){
+                        toTest.add(r);
+                    } else {
+                        for (start = r.getStart(); start < r.getEnd(); start += modelWidth / 3) {
+                            Region testr = new Region(r.getGenome(), r.getChrom(), start, start + modelWidth);
+                            toTest.add(testr);
+                        }
+                    }
+                    for (Region testr : toTest) {
+                        for (int c=0;c<numConditions;c++){
+                            int ipreads = (int)countIpReads(testr,c);                            
+                            poisson.setMean(config.minFoldChange * totalIPCount[c] * testr.getWidth() / config.mappable_genome_length);
+                            double pval = 1 - poisson.cdf(ipreads) + poisson.pdf(ipreads);
+                            if (pval <= .01) {
+                                enriched = true;
+                                break;
+                            }
+                            if (this.controlDataExist) {
+                                double ctrlreads = countCtrlReads(testr,c);
+                                poisson.setMean(config.minFoldChange * ctrlreads * this.ratio_total[c]);
+                                pval = 1 - poisson.cdf(ipreads) + poisson.pdf(ipreads);
+                                if (pval <= .01) {
+                                    enriched = true;
+                                    break;
+                                }
+                            }                            
+                        }
+                        if (enriched) { break ;}
+                    }
+                    if (!enriched){	// remove this region if it is not enriched in any condition
+                        toRemove.add(r);
+                    } 
 				}
 				rs.removeAll(toRemove);
 				if (!rs.isEmpty())
@@ -2909,30 +2932,26 @@ class GPSMixture extends MultiConditionFeatureFinder {
 	private float countIpReads(Region r){
 		float count=0;
 		for(Pair<ReadCache,ReadCache> e : caches){
-			List<StrandedBase> bases_p= e.car().getStrandedBases(r, '+');  
-			List<StrandedBase> bases_m= e.car().getStrandedBases(r, '-'); 
-			count+=StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+            count += e.car().countStrandedBases(r,'+');
+            count += e.car().countStrandedBases(r,'-');
 		}
 		return count;
 	}
 	private float countIpReads(Region r, int cond){
-        List<StrandedBase> bases_p= caches.get(cond).car().getStrandedBases(r, '+');  
-        List<StrandedBase> bases_m= caches.get(cond).car().getStrandedBases(r, '-');  
-		return StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+        return caches.get(cond).car().countStrandedBases(r,'+') + 
+            caches.get(cond).car().countStrandedBases(r,'+');
 	}
 	private float countCtrlReads(Region r){
 		float count=0;
 		for(Pair<ReadCache,ReadCache> e : caches){
-			List<StrandedBase> bases_p= e.cdr().getStrandedBases(r, '+');  
-			List<StrandedBase> bases_m= e.cdr().getStrandedBases(r, '-');  
-			count+=StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+            count += e.cdr().countStrandedBases(r,'+');
+            count += e.cdr().countStrandedBases(r,'-');
 		}
 		return count;
 	}	
 	private float countCtrlReads(Region r, int cond){
-		List<StrandedBase> bases_p= caches.get(cond).cdr().getStrandedBases(r, '+');  
-		List<StrandedBase> bases_m= caches.get(cond).cdr().getStrandedBases(r, '-');  
-		return StrandedBase.countBaseHits(bases_p)+StrandedBase.countBaseHits(bases_m);
+        return caches.get(cond).cdr().countStrandedBases(r,'+') + 
+            caches.get(cond).cdr().countStrandedBases(r,'+');
 	}
 
 

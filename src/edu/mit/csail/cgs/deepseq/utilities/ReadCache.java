@@ -172,10 +172,13 @@ public class ReadCache {
 			if( start_ind < 0 ) { start_ind = -start_ind - 1; }
 			if( end_ind < 0 )   { end_ind   = -end_ind - 1; }
 			
-			start_ind = StatUtil.searchFrom(tempStarts, ">=", r.getStart(), start_ind);
-			end_ind   = StatUtil.searchFrom(tempStarts, "<=",   r.getEnd(), end_ind);
-			
-			for(int k = start_ind; k <= end_ind; k++) {
+            while (start_ind > 0 && tempStarts[start_ind - 1] >= r.getStart() ) {
+                start_ind--;
+            }
+            while (end_ind < tempStarts.length && tempStarts[end_ind] <= r.getEnd()) {
+                end_ind++;
+            }
+			for(int k = start_ind; k < end_ind; k++) {
 				bases.add(new StrandedBase(strand, tempStarts[k], hitCounts[chrID][j][k]));
 			}	
 		}	
@@ -185,6 +188,30 @@ public class ReadCache {
 	public float countHits(Region r) {
 		return StrandedBase.countBaseHits(getUnstrandedBases(r));
 	}
+    public float countStrandedBases(Region r, char strand) {
+		String chr = r.getChrom();
+		int chrID = chrom2ID.get(chr);
+		int j = (strand=='+') ? 0 : 1;
+		int[] tempStarts = fivePrimes[chrID][j];		
+        float count = 0;
+		if(tempStarts.length != 0) {
+			int start_ind = Arrays.binarySearch(tempStarts, r.getStart());
+			int end_ind   = Arrays.binarySearch(tempStarts, r.getEnd());
+			if( start_ind < 0 ) { start_ind = -start_ind - 1; }
+			if( end_ind < 0 )   { end_ind   = -end_ind - 1; }
+			
+            while (start_ind > 0 && tempStarts[start_ind - 1] >= r.getStart() ) {
+                start_ind--;
+            }
+            while (end_ind < tempStarts.length && tempStarts[end_ind] <= r.getEnd()) {
+                end_ind++;
+            }
+			for(int k = start_ind; k < end_ind; k++) {
+                count += hitCounts[chrID][j][k];
+            }
+        }
+        return count;
+    }
 
 	/**
 	 * Gets the stranded count of all hits (of all chromosomes) for the specified strand
