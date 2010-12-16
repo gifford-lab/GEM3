@@ -255,6 +255,7 @@ public class CommonUtils {
 //      		  int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:orgId, motifString, motifVersion);
       		  int wmid = WeightMatrix.getWeightMatrixID(motifString, motifVersion);
       		  WeightMatrix motif = WeightMatrix.getWeightMatrix(wmid);
+      		  System.out.println(motif.toString());
       		  pair = new Pair<WeightMatrix, Double>(motif, motifThreshold);
             }
           } 

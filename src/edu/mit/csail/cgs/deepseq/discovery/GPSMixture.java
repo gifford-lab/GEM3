@@ -3154,7 +3154,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
             do_model_selection = !flags.contains("no_model_selection");
             mappable_genome_length = Args.parseDouble(args, "s", 2.08E9);	// size of mappable genome
             // Optional input parameter
-            maxThreads = Args.parseInteger(args,"threads",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
+            maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
             alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
