@@ -3129,7 +3129,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
         public double mappable_genome_length = 2.08E9; // mouse genome
         public double sparseness=6.0;
         public double fold = 3.0;
-        public double kl_ic = -1.0;
+        public double kl_ic = 0.0;
         public double shapeDeviation = 0;
         public int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
         public int resolution_extend = 2;
