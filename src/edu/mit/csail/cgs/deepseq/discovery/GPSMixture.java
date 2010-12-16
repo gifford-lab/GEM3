@@ -15,20 +15,15 @@ import cern.jet.random.Poisson;
 import cern.jet.random.Binomial;
 import cern.jet.random.engine.DRand;
 
-import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSPeakRegion;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Utils;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.models.data.DataFrame;
@@ -72,7 +67,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 	// Ratio of each pair of IP/Ctrl for all conditions
 	private double[] ratio_total;
 	private double[] ratio_non_specific_total;
-	private double shift_size;
+	
 	/****************
 	 * Prediction
 	 ****************/
@@ -745,27 +740,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		Pair<Double, TreeSet<Integer>> result = new Pair<Double, TreeSet<Integer>>(maxSmallest, cases);
 		return result;
 	}
-	/*
-	 * return the bottom number of x that are less than max
-	 */
-	private Pair<Double, TreeSet<Integer>> findSmallestCases_old(double[] x, double number, double max){
-		TreeSet<Integer> cases = new TreeSet<Integer>();
-		double maxSmallest = 0; 
-		number = Math.min(number, x.length);
-		int[] oldIdx = StatUtil.findSort(x);
-		for (int i=0;i<number;i++){
-			if (x[i] < max){
-				cases.add(oldIdx[i]);
-				maxSmallest = x[i];
-			}
-			else
-				break;
-		}
-		if (cases.isEmpty())
-			maxSmallest = x[0];
-		Pair<Double, TreeSet<Integer>> result = new Pair<Double, TreeSet<Integer>>(maxSmallest, cases);
-		return result;
-	}
+
 	
 	private List<BindingComponent> determineNonZeroComps(Region w, MultiIndependentMixtureCounts mim, int[] compPos, double alpha) {
 		List<BindingComponent> nonZeroComponents = new ArrayList<BindingComponent>();
@@ -1449,44 +1424,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 
 	}//end of EM_ML method
 
-	/**
-	 * Returns the component positions based on the data (unique) positions, the window chosen,
-	 * and the spacing between the components.
-	 * @param width width of the region whose components will be determined
-	 * @param pos unique positions of the reads
-	 * @param window expansion window
-	 * @param spacing spacing between the components
-	 * @return
-	 */
-	private int[] setComponentPositions(int width, int[][] pos, int window, int spacing) {
-		int[] compPos;
-		Set<Integer> initialSet = new TreeSet<Integer>();
-		for(int t = 0; t < pos.length; t++) {
-			for(int k = 0; k < pos[t].length; k++) {
-				int start = Math.max(      0, pos[t][k] - window);
-				int   end = Math.min(width-1, pos[t][k] + window);
-				for(int i = start; i <= end; i+=spacing) { initialSet.add(i); }
-			}
-		}
 
-		int prev = -1;
-		Iterator<Integer> itr = initialSet.iterator();
-		Set<Integer> finalSet   = new TreeSet<Integer>();
-		while(itr.hasNext()) {
-			int curr = itr.next();
-			if(prev != -1 && 0 < curr - prev && curr - prev < spacing) {
-				finalSet.add(Math.min(width-1, prev+spacing));
-				prev += spacing;
-			}
-			else if(prev == -1 || curr - prev >= spacing) {
-				finalSet.add(curr);
-				prev = curr;
-			}
-		}
-
-		compPos = Utils.ref2prim(finalSet.toArray(new Integer[0]));
-		return compPos;
-	}//end of setComponentPositions method
 
 	private int[] setComponentPositions(int width, int spacing) {
 		int[] compPos;
@@ -1681,27 +1619,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		return StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(profile, gaus));
 	}
 
-	private double calcAbsDiff(double[]profile){
-		double absDiff = 0;
-		double[] m = model.getProbabilities();
-		double totalCount = 0;
-		double nzProbSum = 0;
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				totalCount+=profile[i];
-				nzProbSum += m[i];
-			}
-		}
-		if (totalCount==0)
-			return config.shapeDeviation*2*0.75;
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				double expected = totalCount*m[i]/nzProbSum;
-				absDiff += Math.abs(profile[i]-expected);
-			}
-		}
-		return absDiff/totalCount;
-	}
 
 	/*
 	 *   logKL of non-zero discrete profile, concat 2 strands
@@ -2164,7 +2081,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		StatUtil.mutate_normalize(model_minus);
 
 		//compare models from 2 strands, shift binding position if needed
-		int shift = BindingModel.minKL_Shift(model_plus, model_minus);
+		BindingModel.minKL_Shift(model_plus, model_minus);
 
 		//use single model for now
 		List<Pair<Integer, Double>> dist = new ArrayList<Pair<Integer, Double>>();
@@ -2315,7 +2232,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
             //			We won't need it cause in our data, we do not shift reads.
             //			Besides, we will consider a fixed region of modelRange bp as the peak region.
 			createChromStats(compFeatures);
-            //			shift_size = eval_avg_shift_size(compFeatures, constants.num_top_mfold_feats);
 			
 			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
 			for(int i = 0; i < compFeatures.size(); i++) {
@@ -2448,55 +2364,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		}//end of for(String chrom:gen.getChromList()) loop
 
 	}//end of createChromStats method
-
-
-	private double eval_shift_size(ComponentFeature cf) {
-		double shift_size = Double.NaN;
-		int plus_mode_pos, minus_mode_pos;
-
-		Map<String, StrandedBase> bases_p_map = new HashMap<String, StrandedBase>();
-		Map<String, StrandedBase> bases_m_map = new HashMap<String, StrandedBase>();
-		StrandedBase[] bases_p;
-		StrandedBase[] bases_m;
-
-		Region r = cf.getPosition().expand(modelRange);
-		ArrayList<List<StrandedBase>> ip_signals = loadBasesInWindow(r, "IP");
-
-		if(ip_signals != null) {
-			for(List<StrandedBase> cond_bases:ip_signals) {
-				for(StrandedBase base:cond_bases) {
-					String baseKey = String.format("%d\t%c", base.getCoordinate(), base.getStrand());
-					if(base.getStrand() == '+') {
-						if(!bases_p_map.containsKey(baseKey)) { bases_p_map.put(baseKey, new StrandedBase(base.getStrand(), base.getCoordinate(), 0)); }
-						float totalCount = base.getCount() + bases_p_map.get(baseKey).getCount();
-						bases_p_map.put(baseKey, new StrandedBase(base.getStrand(), base.getCoordinate(), totalCount));
-					}
-					else {
-						if(!bases_m_map.containsKey(baseKey)) { bases_m_map.put(baseKey, new StrandedBase(base.getStrand(), base.getCoordinate(), 0)); }
-						float totalCount = base.getCount() + bases_m_map.get(baseKey).getCount();
-						bases_m_map.put(baseKey, new StrandedBase(base.getStrand(), base.getCoordinate(), totalCount));
-					}
-				}
-			}
-
-			bases_p = bases_p_map.values().toArray(new StrandedBase[0]);
-			bases_m = bases_m_map.values().toArray(new StrandedBase[0]);
-
-			double[] counts_p = new double[bases_p.length];
-			for(int i = 0; i < counts_p.length; i++) { counts_p[i] = bases_p[i].getCount(); }
-
-			double[] counts_m = new double[bases_m.length];
-			for(int i = 0; i < counts_m.length; i++) { counts_m[i] = bases_m[i].getCount(); }
-
-			if(counts_p.length != 0 && counts_m.length != 0) {
-				plus_mode_pos  = StatUtil.findMax(counts_p).cdr().first();
-				minus_mode_pos = StatUtil.findMax(counts_m).cdr().first();
-				shift_size = Math.max(0, bases_m[minus_mode_pos].getCoordinate() - bases_p[plus_mode_pos].getCoordinate())/2.0;
-			}
-		}
-
-		return shift_size;
-	}//end eval_shift_size method
 
 	/*
 	 * evalute significance when there is no control.  Returns the estimate of the 
@@ -2993,8 +2860,11 @@ class GPSMixture extends MultiConditionFeatureFinder {
 	}
 
 	public void printError() {
-
 	}
+	
+	/**
+	 * Some old methods, not used any more
+	 */
 	private void printTowerRegions(){
 		// save the list of regions to file
 		try{
@@ -3062,16 +2932,56 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		return sqDiff/totalCount;
 	}
 
+	/**
+	 * Returns the component positions based on the data (unique) positions, the window chosen,
+	 * and the spacing between the components.
+	 * @param width width of the region whose components will be determined
+	 * @param pos unique positions of the reads
+	 * @param window expansion window
+	 * @param spacing spacing between the components
+	 * @return
+	 */
+	private int[] setComponentPositions(int width, int[][] pos, int window, int spacing) {
+		int[] compPos;
+		Set<Integer> initialSet = new TreeSet<Integer>();
+		for(int t = 0; t < pos.length; t++) {
+			for(int k = 0; k < pos[t].length; k++) {
+				int start = Math.max(      0, pos[t][k] - window);
+				int   end = Math.min(width-1, pos[t][k] + window);
+				for(int i = start; i <= end; i+=spacing) { initialSet.add(i); }
+			}
+		}
+
+		int prev = -1;
+		Iterator<Integer> itr = initialSet.iterator();
+		Set<Integer> finalSet   = new TreeSet<Integer>();
+		while(itr.hasNext()) {
+			int curr = itr.next();
+			if(prev != -1 && 0 < curr - prev && curr - prev < spacing) {
+				finalSet.add(Math.min(width-1, prev+spacing));
+				prev += spacing;
+			}
+			else if(prev == -1 || curr - prev >= spacing) {
+				finalSet.add(curr);
+				prev = curr;
+			}
+		}
+
+		compPos = Utils.ref2prim(finalSet.toArray(new Integer[0]));
+		return compPos;
+	}//end of setComponentPositions method
+	
+	
     class GPSConstants {
 
         /****************************
          * Constants
          ***************************/
 	
-        public final static boolean LOG_ALL=false;
+        public final boolean LOG_ALL=false;
 
         // width for smoothing a read (used as a stddev for creating the Gaussian kernel of probability)
-        public final static int READ_KERNEL_ESTIMATOR_WIDTH = 5;
+        public final int READ_KERNEL_ESTIMATOR_WIDTH = 5;
 
         //Maximum number of components that EM can handle efficiently
         public final int MAX_NUM_COMPONENTS=1000;
@@ -3093,12 +3003,12 @@ class GPSMixture extends MultiConditionFeatureFinder {
         //	public final double lambda = 0;
 
         // Max number of reads to load from DB
-        public final static int MAXREAD = 1000000;
+        public final int MAXREAD = 1000000;
         // true:  eliminated component in batch, as long as matching criteria in EM derivation
         // false: eliminate only the worse case components, re-distribute the reads of eliminated component
-        public final static boolean BATCH_ELIMINATION = false;
-        public final static boolean SMART_SPACING = true;		// dynamically determine init comopent spacing
-        public final static boolean MAKE_HARD_ASSIGNMENT=false;
+        public final boolean BATCH_ELIMINATION = false;
+        public final boolean SMART_SPACING = true;		// dynamically determine init comopent spacing
+        public final boolean MAKE_HARD_ASSIGNMENT=false;
     }
 
     class GPSConfig {
@@ -3864,7 +3774,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
                                                         int[][][] c2b,
                                                         double[] pi,
                                                         double alpha) {
-            int numComp = pi.length;
             ArrayList<EM_State> models = new  ArrayList<EM_State> ();
 
             double lastLAP=0, LAP=0; // log posterior prob
