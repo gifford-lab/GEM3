@@ -93,7 +93,6 @@ public class MetaProfileHandler<T extends Point, ProfileClass extends Profile> {
 		public void run() { 
 			while(running && points.hasNext()) { 
 				T pt = points.next();
-				System.err.println("Adding: " + pt);
 				profile.addProfile(threadSafe.execute(pt));
 			}
 			running=false;
