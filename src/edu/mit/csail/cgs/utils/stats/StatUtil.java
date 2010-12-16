@@ -1159,18 +1159,21 @@ public class StatUtil {
 		int length = Y.length;
 		int kernel_length = kernel.length;
 		double[] yy = new double[length];
-		double[] yy_weight = new double[length];
 		double total=0;
 		for (int i=0;i<length;i++){
-			yy[i]=2.0E-300;		// init with very small number
-			for (int j=0;j<length;j++){
-				if (Math.abs(j-i)<kernel_length){
-					yy[i]+=Y[j]*kernel[Math.abs(j-i)];
-					yy_weight[i] += kernel[Math.abs(j-i)];
-				}
-			}
-			yy[i] /= yy_weight[i];
-			total+=yy[i];
+			double v=kernel[0]*Y[i] + 2.0E-300;		// init with very small number
+            double weight=kernel[0];
+            for (int j = 0; j < kernel_length && i+j < length; j++) {
+                v+=Y[i+j]*kernel[j];
+                weight += kernel[j];                
+            }
+            for (int j = 0; j < kernel_length && i-j >= 0; j++) {
+                v+=Y[i-j]*kernel[j];
+                weight += kernel[j];                
+            }
+			v = v / weight;
+            yy[i] = v;
+			total+=v;
 		}
 		for (int i=0;i<length;i++){
 			yy[i]=yy[i]/total;
