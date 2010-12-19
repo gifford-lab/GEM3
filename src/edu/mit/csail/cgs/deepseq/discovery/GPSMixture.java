@@ -185,6 +185,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
     	ArrayList<Region> subsetRegions = getSubsetRegions(args);
      	
     	//load read data
+		this.conditionNames = conditionNames;
     	loadChIPSeqData(subsetRegions);
 		
 		// exclude some regions
@@ -698,7 +699,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
 	private void loadChIPSeqData(ArrayList<Region> subsetRegions){
 		this.caches = new ArrayList<Pair<ReadCache, ReadCache>>();
 		this.numConditions = experiments.size();
-		this.conditionNames = conditionNames;
 		boolean fromReadDB = experiments.get(0).car().isFromReadDB();
 		ComponentFeature.setConditionNames(conditionNames);
 		condSignalFeats = new ArrayList[numConditions];
