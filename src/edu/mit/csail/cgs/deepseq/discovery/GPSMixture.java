@@ -177,171 +177,15 @@ class GPSMixture extends MultiConditionFeatureFinder {
     		System.err.println("\nThe second control region width (w3) has to be more than " + config.second_lambda_region_width + " bp.");
     		System.exit(-1);
     	}
-   
-		/* **************************************************
-		 * Determine the subset of regions to run EM.
- 		 * It can be specified as a file from command line.
-		 * If no file pre-specified, estimate the enrichedRegions after loading the data.
-		 * We do not want to run EM on regions with little number of reads
-		 * **************************************************/
-    	String subset_str = Args.parseString(args, "subs", null);
-    	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
-     	String subsetFormat = Args.parseString(args, "subFormat", "");
-     	boolean toSegmentRegions = !subsetFormat.equals("Regions");
-    	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
-    	ArrayList<Region> subsetRegions = new ArrayList<Region>();
-     	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
-	    	if (subsetFormat.equals("Points")){	// To expand
-	    		subsetRegions = CommonUtils.loadRegionFile(subset_str, gen);
-	    		subsetRegions = mergeRegions(subsetRegions, true);
-	    	}
-	    	else {
-	    		subsetRegions = CommonUtils.loadRegionFile(subset_str, gen);
-	    		subsetRegions = mergeRegions(subsetRegions, false);
-	    	}
-        } else if (subset_str!=null && Args.parseString(args, "subs", null) != null) {
-     		String COMPLETE_REGION_REG_EX = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
-     		String CHROMOSOME_REG_EX = "^\\s*([\\w\\d]+)\\s*$";
-     		String[] reg_toks = subset_str.split("\\s");
-     		for(String regionStr:reg_toks) {
-     			
-     			// Region already presented in the form x:xxxx-xxxxx
-     			if(regionStr.matches(COMPLETE_REGION_REG_EX)) {
-     				subsetRegions.add(Region.fromString(gen, regionStr));
-     			}
-     			
-     			// Check if it is about a whole chromosome
-     			else if(regionStr.matches(CHROMOSOME_REG_EX)) {
-     				regionStr = regionStr.replaceFirst("^chromosome", "");
-     				regionStr = regionStr.replaceFirst("^chrom", "");
-     				regionStr = regionStr.replaceFirst("^chr", "");
-     					
-     	     		for(String chrom:gen.getChromList()) {
-     	     			String chromNumber = chrom;
-     	     			chromNumber = chromNumber.replaceFirst("^chromosome", "");
-     	     			chromNumber = chromNumber.replaceFirst("^chrom", "");
-     	     			chromNumber = chromNumber.replaceFirst("^chr", "");
-
-     	     			if(regionStr.equalsIgnoreCase(chromNumber)) {
-     	     				subsetRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
-     	     				break;
-     	     			}
-     	     		}
-     			}
-     		}//end of for(String regionStr:reg_toks) LOOP
-     		subsetRegions = mergeRegions(subsetRegions, false);
-     	}
+    	
+    	/* *********************************
+    	 * load ChIP-Seq read data
+    	 ***********************************/
+    	//Determine the subset of genome to run EM
+    	ArrayList<Region> subsetRegions = getSubsetRegions(args);
      	
-		/* ***************************************************
-		 * ChIP-Seq data
-		 * ***************************************************/
-		this.caches = new ArrayList<Pair<ReadCache, ReadCache>>();
-		this.numConditions = experiments.size();
-		this.conditionNames = conditionNames;
-		boolean fromReadDB = experiments.get(0).car().isFromReadDB();
-		ComponentFeature.setConditionNames(conditionNames);
-		condSignalFeats = new ArrayList[numConditions];
-		for(int c = 0; c < numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
-		long tic = System.currentTimeMillis();
-		System.out.println("\nGetting 5' positions of all reads...");
-
-		for (int i=0;i<numConditions;i++){
-			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
-			DeepSeqExpt ip = pair.car();
-			DeepSeqExpt ctrl = pair.cdr();
-			if(ctrl.getHitCount()>0){
-	    		controlDataExist = true;
-	    	}
-			ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
-			ReadCache ctrlCache = null;
-			if (controlDataExist)
-				ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
-			this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
-
-			// cache sorted start positions and counts of all positions
-			if (fromReadDB){		// load from read DB
-				System.out.println("\nLoading data from ReadDB ...");
-				if (subsetRegions.isEmpty()){		// if whole genome
-
-					for (String chrom: gen.getChromList()){
-						// load  data for this chromosome.
-						int length = gen.getChromLength(chrom);
-						Region wholeChrom = new Region(gen, chrom, 0, length-1);
-						int count = Math.max(ip.countHits(wholeChrom), ctrl.countHits(wholeChrom));
-						ArrayList<Region> chunks = new ArrayList<Region>();
-						// if there are too many reads in a chrom, read smaller chunks
-						if (count>constants.MAXREAD){
-							int chunkNum = count/constants.MAXREAD*2+1;
-							int chunkLength = length/chunkNum;
-							int start = 0;
-							while (start<=length){
-								int end = Math.min(length, start+chunkLength-1);
-								Region r = new Region(gen, chrom, start, end);
-								start = end+1;
-								chunks.add(r);
-							}
-						}else
-							chunks.add(wholeChrom);
-
-						for (Region chunk: chunks){
-							Pair<ArrayList<Integer>,ArrayList<Float>> hits = ip.loadStrandedBaseCounts(chunk, '+');
-							ipCache.addHits(chrom, '+', hits.car(), hits.cdr());
-							hits = ip.loadStrandedBaseCounts(chunk, '-');
-							ipCache.addHits(chrom, '-', hits.car(), hits.cdr());
-							
-							if (controlDataExist){
-								hits = ctrl.loadStrandedBaseCounts(chunk, '+');
-								ctrlCache.addHits(chrom, '+', hits.car(), hits.cdr());
-								hits = ctrl.loadStrandedBaseCounts(chunk, '-');
-								ctrlCache.addHits(chrom, '-', hits.car(), hits.cdr());
-								
-							}
-						}
-					} // for each chrom
-					wholeGenomeDataLoaded = true;
-				} //if (subsetRegions.isEmpty()){
-				else{	// if subsetRegions notEmpty, only load these regions
-					for (Region region: subsetRegions){
-						Pair<ArrayList<Integer>,ArrayList<Float>> hits = ip.loadStrandedBaseCounts(region, '+');
-						ipCache.addHits(region.getChrom(), '+', hits.car(), hits.cdr());
-						hits = ip.loadStrandedBaseCounts(region, '-');
-						ipCache.addHits(region.getChrom(), '-', hits.car(), hits.cdr());
-						if (controlDataExist){
-							hits = ctrl.loadStrandedBaseCounts(region, '+');
-							ctrlCache.addHits(region.getChrom(), '+', hits.car(), hits.cdr());
-							hits = ctrl.loadStrandedBaseCounts(region, '-');
-							ctrlCache.addHits(region.getChrom(), '-', hits.car(), hits.cdr());
-						}
-					}
-				}
-				ipCache.populateArrays();
-                //				ipCache.displayStats();
-				if (controlDataExist){
-					ctrlCache.populateArrays();
-                    //					ctrlCache.displayStats();
-				}
-			}
-			else if (!fromReadDB){		// load from File
-				ipCache.addAllFivePrimes(ip.getAllStarts());
-				ipCache.populateArrays();
-				if (controlDataExist){
-					ctrlCache.addAllFivePrimes(ctrl.getAllStarts());
-					ctrlCache.populateArrays();
-				}
-				wholeGenomeDataLoaded = true;
-			}
-			// cleanup			// clean up connection if it is readDB, cleanup data object if it is file
-			ip.closeLoaders();
-			ctrl.closeLoaders();
-			ip=null;
-			ctrl=null;
-			System.gc();
-		} // for each condition
-
-		if (fromReadDB){
-			System.out.println("Finish loading data from ReadDB, " + CommonUtils.timeElapsed(tic));
-			System.out.println();
-		}
+    	//load read data
+    	loadChIPSeqData(subsetRegions);
 		
 		// exclude some regions
      	String excludedName = Args.parseString(args, "ex", "yes");
@@ -375,6 +219,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
+    	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
+     	String subsetFormat = Args.parseString(args, "subFormat", "");
         if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
 	        // estimate IP/Ctrl ratio from all reads
         	for(int i=0; i<numConditions; i++){
@@ -404,8 +250,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
         	}
         }        	
         System.out.println("\nSorting reads and selecting enriched regions ...");
-    	// if no focus list, directly estimate candidate regions from data
-		if (wholeGenomeDataLoaded || toSegmentRegions){
+    	// if not provided region list, directly segment genome into enrichedRegions
+		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
      		// ip/ctrl ratio by regression on non-enriched regions
 			if (subsetRatio==-1){
      			setRegions(selectEnrichedRegions(subsetRegions, false));
@@ -527,6 +373,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		}
         signalFeatures.clear();
         Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
+        
+        // prepare for progress reporting
         Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
 		int displayStep = (int) Math.pow(10, (int) (Math.log10(totalRegionCount)));
 		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
@@ -537,6 +385,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		reportTriggers.add(1000);
 		reportTriggers.add(10000);
 		
+		// create threads and run EM algorithms
+		// the results are put into compFeatures
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Creating %d threads", maxThreads));
         for (int i = 0 ; i < threads.length; i++) {
@@ -579,10 +429,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
         
         log(1,String.format("%d threads have finished running", maxThreads));
 
-		for (int j=0;j<restrictRegions.size();j++) {
-			Region rr = restrictRegions.get(j);
-		}// end of for (Region rr : restrictRegions)
-		
 		/* ********************************************************
 		 * refine the specific regions that contain binding events
 		 * ********************************************************/
@@ -597,12 +443,11 @@ class GPSMixture extends MultiConditionFeatureFinder {
 
 		log(2, "Finish predicting events: "+CommonUtils.timeElapsed(tic)+"\n");
 
-		// post processing
+		/* ********************************************************
+		 * post EM processing
+		 * ********************************************************/
 		postEMProcessing(compFeatures);
 		
-		for(int c = 0; c < numConditions; c++)
-			condSignalFeats[c] = condPostFiltering(signalFeatures, c);
-
 		log(1, "Finish prediction: "+CommonUtils.timeElapsed(tic)+"\n");
 
 		return signalFeatures;
@@ -792,6 +637,173 @@ class GPSMixture extends MultiConditionFeatureFinder {
 			return false;
 	}//end of checkCompExactMatching method
 
+	private ArrayList<Region> getSubsetRegions(String[] args){
+		/* **************************************************
+		 * Determine the subset of regions to run EM.
+ 		 * It can be specified as a file from command line.
+		 * If no file pre-specified, estimate the enrichedRegions after loading the data.
+		 * We do not want to run EM on regions with little number of reads
+		 * **************************************************/
+    	String subset_str = Args.parseString(args, "subs", null);
+     	String subsetFormat = Args.parseString(args, "subFormat", "");
+    	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
+    	ArrayList<Region> subsetRegions = new ArrayList<Region>();
+     	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
+	    	if (subsetFormat.equals("Points")){	// To expand
+	    		subsetRegions = CommonUtils.loadRegionFile(subset_str, gen);
+	    		subsetRegions = mergeRegions(subsetRegions, true);
+	    	}
+	    	else {
+	    		subsetRegions = CommonUtils.loadRegionFile(subset_str, gen);
+	    		subsetRegions = mergeRegions(subsetRegions, false);
+	    	}
+        } else if (subset_str!=null && Args.parseString(args, "subs", null) != null) {
+     		String COMPLETE_REGION_REG_EX = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
+     		String CHROMOSOME_REG_EX = "^\\s*([\\w\\d]+)\\s*$";
+     		String[] reg_toks = subset_str.split("\\s");
+     		for(String regionStr:reg_toks) {
+     			
+     			// Region already presented in the form x:xxxx-xxxxx
+     			if(regionStr.matches(COMPLETE_REGION_REG_EX)) {
+     				subsetRegions.add(Region.fromString(gen, regionStr));
+     			}
+     			
+     			// Check if it is about a whole chromosome
+     			else if(regionStr.matches(CHROMOSOME_REG_EX)) {
+     				regionStr = regionStr.replaceFirst("^chromosome", "");
+     				regionStr = regionStr.replaceFirst("^chrom", "");
+     				regionStr = regionStr.replaceFirst("^chr", "");
+     					
+     	     		for(String chrom:gen.getChromList()) {
+     	     			String chromNumber = chrom;
+     	     			chromNumber = chromNumber.replaceFirst("^chromosome", "");
+     	     			chromNumber = chromNumber.replaceFirst("^chrom", "");
+     	     			chromNumber = chromNumber.replaceFirst("^chr", "");
+
+     	     			if(regionStr.equalsIgnoreCase(chromNumber)) {
+     	     				subsetRegions.add(new Region(gen, chrom, 0, gen.getChromLength(chrom)-1));
+     	     				break;
+     	     			}
+     	     		}
+     			}
+     		}//end of for(String regionStr:reg_toks) LOOP
+     		subsetRegions = mergeRegions(subsetRegions, false);
+     	}
+     	return subsetRegions;
+	}
+	
+	/* ***************************************************
+	 * Load ChIP-Seq data
+	 * ***************************************************/
+	private void loadChIPSeqData(ArrayList<Region> subsetRegions){
+		this.caches = new ArrayList<Pair<ReadCache, ReadCache>>();
+		this.numConditions = experiments.size();
+		this.conditionNames = conditionNames;
+		boolean fromReadDB = experiments.get(0).car().isFromReadDB();
+		ComponentFeature.setConditionNames(conditionNames);
+		condSignalFeats = new ArrayList[numConditions];
+		for(int c = 0; c < numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
+		long tic = System.currentTimeMillis();
+		System.out.println("\nGetting 5' positions of all reads...");
+
+		for (int i=0;i<numConditions;i++){
+			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
+			DeepSeqExpt ip = pair.car();
+			DeepSeqExpt ctrl = pair.cdr();
+			if(ctrl.getHitCount()>0){
+	    		controlDataExist = true;
+	    	}
+			ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
+			ReadCache ctrlCache = null;
+			if (controlDataExist)
+				ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
+			this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
+
+			// cache sorted start positions and counts of all positions
+			if (fromReadDB){		// load from read DB
+				System.out.println("\nLoading data from ReadDB ...");
+				if (subsetRegions.isEmpty()){		// if whole genome
+
+					for (String chrom: gen.getChromList()){
+						// load  data for this chromosome.
+						int length = gen.getChromLength(chrom);
+						Region wholeChrom = new Region(gen, chrom, 0, length-1);
+						int count = Math.max(ip.countHits(wholeChrom), ctrl.countHits(wholeChrom));
+						ArrayList<Region> chunks = new ArrayList<Region>();
+						// if there are too many reads in a chrom, read smaller chunks
+						if (count>constants.MAXREAD){
+							int chunkNum = count/constants.MAXREAD*2+1;
+							int chunkLength = length/chunkNum;
+							int start = 0;
+							while (start<=length){
+								int end = Math.min(length, start+chunkLength-1);
+								Region r = new Region(gen, chrom, start, end);
+								start = end+1;
+								chunks.add(r);
+							}
+						}else
+							chunks.add(wholeChrom);
+
+						for (Region chunk: chunks){
+							Pair<ArrayList<Integer>,ArrayList<Float>> hits = ip.loadStrandedBaseCounts(chunk, '+');
+							ipCache.addHits(chrom, '+', hits.car(), hits.cdr());
+							hits = ip.loadStrandedBaseCounts(chunk, '-');
+							ipCache.addHits(chrom, '-', hits.car(), hits.cdr());
+							
+							if (controlDataExist){
+								hits = ctrl.loadStrandedBaseCounts(chunk, '+');
+								ctrlCache.addHits(chrom, '+', hits.car(), hits.cdr());
+								hits = ctrl.loadStrandedBaseCounts(chunk, '-');
+								ctrlCache.addHits(chrom, '-', hits.car(), hits.cdr());
+								
+							}
+						}
+					} // for each chrom
+					wholeGenomeDataLoaded = true;
+				} //if (subsetRegions.isEmpty()){
+				else{	// if subsetRegions notEmpty, only load these regions
+					for (Region region: subsetRegions){
+						Pair<ArrayList<Integer>,ArrayList<Float>> hits = ip.loadStrandedBaseCounts(region, '+');
+						ipCache.addHits(region.getChrom(), '+', hits.car(), hits.cdr());
+						hits = ip.loadStrandedBaseCounts(region, '-');
+						ipCache.addHits(region.getChrom(), '-', hits.car(), hits.cdr());
+						if (controlDataExist){
+							hits = ctrl.loadStrandedBaseCounts(region, '+');
+							ctrlCache.addHits(region.getChrom(), '+', hits.car(), hits.cdr());
+							hits = ctrl.loadStrandedBaseCounts(region, '-');
+							ctrlCache.addHits(region.getChrom(), '-', hits.car(), hits.cdr());
+						}
+					}
+				}
+				ipCache.populateArrays();
+                //				ipCache.displayStats();
+				if (controlDataExist){
+					ctrlCache.populateArrays();
+                    //					ctrlCache.displayStats();
+				}
+			}
+			else if (!fromReadDB){		// load from File
+				ipCache.addAllFivePrimes(ip.getAllStarts());
+				ipCache.populateArrays();
+				if (controlDataExist){
+					ctrlCache.addAllFivePrimes(ctrl.getAllStarts());
+					ctrlCache.populateArrays();
+				}
+				wholeGenomeDataLoaded = true;
+			}
+			// cleanup			// clean up connection if it is readDB, cleanup data object if it is file
+			ip.closeLoaders();
+			ctrl.closeLoaders();
+			ip=null;
+			ctrl=null;
+			System.gc();
+		} // for each condition
+
+		if (fromReadDB){
+			System.out.println("Finish loading data from ReadDB, " + CommonUtils.timeElapsed(tic));
+			System.out.println();
+		}
+	}
 	private void doBaseFiltering(){
 		//  set max read count for bases to filter PCR artifacts (optional)
 		if (config.max_hit_per_bp==0){
@@ -942,7 +954,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
                    ((ComponentFeature)sf).getEventReadCounts(cond)>config.sparseness)
 					significant = true;
 			}
-
 			// if not TF binding, it is Chromatin data, keep all components
 			else { significant = true; }
 
@@ -1069,6 +1080,10 @@ class GPSMixture extends MultiConditionFeatureFinder {
 				}
 			}
 		}
+		
+		// post filtering for multi-conditions
+		for(int c = 0; c < numConditions; c++)
+			condSignalFeats[c] = condPostFiltering(signalFeatures, c);
 
 		log(1, "Events discovered \nSignificant:\t"+signalFeatures.size()+
             "\nInsignificant:\t"+insignificantFeatures.size()+
@@ -3159,6 +3174,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
             this.config = config;
             this.compFeatures = compFeatures;
         }
+        
         public void simpleRun(List<StrandedBase> bases, Region r) {
             components = new ArrayList<BindingComponent>();
             ArrayList<List<StrandedBase>> signals = new ArrayList<List<StrandedBase>>();
@@ -3182,6 +3198,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
             }
             compFeatures.addAll(mixture.callFeatures(components));
         }
+        
         public void run() {
             for (Region rr : regions) {
                 mixture.log(2, rr.toString());
@@ -3205,7 +3222,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		
                     /* ****************************************************************
                      * fix sliding window boundary effect (version 1)
-                     */
+                     * ****************************************************************/
                     if (windows.size()>1 && comps.size()>0){
                         Collections.sort(comps);
                         // The whole region can be divided into subRegions with gap >= modelWidth
@@ -3330,7 +3347,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
                     /* ****************************************************************
                      * refine unary events and collect all the events as features
                      * this is last step because fixing boundary may result in some new unary events
-                     */
+                     * ****************************************************************/
                     if (comps.size()>0){
                         singleEventRegions.clear();
                         Collections.sort(comps);
@@ -4130,14 +4147,10 @@ class GPSMixture extends MultiConditionFeatureFinder {
                 }
             }
 
-            // make hard assignment
-            //		if (componentSpacing==1 && constants.MAKE_HARD_ASSIGNMENT){
-
-
             mixture.log(4, "EM_MAP(): "+"\tt="+t+"\t"+
                         String.format("%.6f",LAP)+"\t("+(int)nonZeroComponentNum+" events)");
-            return new Pair<double[][][], int[][][]>(r, c2b);
 
+            return new Pair<double[][][], int[][][]>(r, c2b);
         }//end of EM_MAP method
 
         //Update the resolution of the components
