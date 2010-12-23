@@ -169,7 +169,7 @@ public class KmerEngine {
 	
 	// find all occurrences of kmer from a list of sequences
 	private void indexKmers(){
-		findSignificantKmers();
+		buildEngine(k);
 		
 		StringBuilder sb = new StringBuilder();
 		for (Kmer kmer:kmers){
@@ -204,8 +204,10 @@ public class KmerEngine {
 	
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value
+	 * and build the kmer AhoCorasick engine
 	 */
-	public void findSignificantKmers() {
+	public void buildEngine(int k) {
+		this.k = k;
 		HashMap<String, ArrayList<KmerHit>> map = new HashMap<String, ArrayList<KmerHit>>();
 
 		for (int seqId=0;seqId<seqs.length;seqId++){
@@ -300,8 +302,8 @@ public class KmerEngine {
 		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		 */		
 		AhoCorasick tree = new AhoCorasick();
-		for (Kmer k: kmers){
-	       tree.add(k.kmerString.getBytes(), k.kmerString);
+		for (Kmer km: kmers){
+	       tree.add(km.kmerString.getBytes(), km.kmerString);
 	    }
 	    tree.prepare();
 	}
@@ -311,8 +313,9 @@ public class KmerEngine {
 	ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 	from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 	 */	
-	public HashMap<Integer, Kmer> scan (String seq){
+	public HashMap<Integer, Kmer> query (String seq){
 		Iterator searcher = tree.search(seq.getBytes());
+		System.out.println(seq);
        while (searcher.hasNext()) {
            SearchResult result = (SearchResult) searcher.next();
            System.out.println(result.getOutputs()+"\tat index: " + result.getLastIndex());
