@@ -3000,7 +3000,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ComponentFeature cf = (ComponentFeature)f;
 			fs.add(cf);
 		}
-		kEngine = new KmerEngine(fs, config.kwin);
+		kEngine = new KmerEngine(gen, fs, config.kwin);
 		kEngine.buildEngine(config.k);
     }
 	

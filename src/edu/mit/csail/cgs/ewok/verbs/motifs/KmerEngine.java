@@ -16,7 +16,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
 
-import net.sf.samtools.util.SequenceUtil;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
+import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.*;
 
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -59,8 +60,10 @@ public class KmerEngine {
 	private String[] seqs;		// DNA sequences around binding sites
 	private double[] seqProbs;	// Relative strength of that binding site, i.e. ChIP-Seq read count
 	private Region[] seqCoors;
-	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 	private String[] seqsNeg;		// DNA sequences in negative sets
+	
+	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+	private HashMap<String, Kmer> kmerByStr = new HashMap<String, Kmer>();
 	
 	// AhoCorasick algorithm for multi-pattern search
 	// Pre-processing is to build the tree with all the patters (kmers)
@@ -142,9 +145,13 @@ public class KmerEngine {
 		
 	}
 	
-	public KmerEngine(ArrayList<ComponentFeature> events, int winSize){
+	public KmerEngine(Genome g, ArrayList<ComponentFeature> events, int winSize){
+		tic = System.currentTimeMillis();
+		genome = g;
+		seqLength = winSize+1;
 		Collections.sort(events);		// sort by location
 		seqs = new String[events.size()];
+		seqsNeg = new String[events.size()];
 		seqProbs = new double[events.size()];
 		seqCoors = new Region[events.size()];
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
@@ -155,15 +162,16 @@ public class KmerEngine {
 			seqProbs[i] = f.getTotalSumResponsibility();
 			Region posRegion = f.getPeak().expand(winSize/2);
 			seqCoors[i] = posRegion;
-			seqs[i] = seqgen.execute(seqCoors[i]);
+			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
 			Region negRegion = new Region(genome, posRegion.getChrom(), posRegion.getStart()+1000, posRegion.getEnd()+1000);
 			//TODO: exclude negative regions that overlap with positive regions
 			negRegions.add(negRegion);
 		}
 		
 		for (int i=0;i<events.size();i++){
-			seqsNeg[i] = seqgen.execute(negRegions.get(i));
+			seqsNeg[i] = seqgen.execute(negRegions.get(i)).toUpperCase();
 		}
+		
 	}
 
 	
@@ -208,6 +216,8 @@ public class KmerEngine {
 	 */
 	public void buildEngine(int k) {
 		this.k = k;
+		numPos = seqLength-k+1;
+		
 		HashMap<String, ArrayList<KmerHit>> map = new HashMap<String, ArrayList<KmerHit>>();
 
 		for (int seqId=0;seqId<seqs.length;seqId++){
@@ -265,6 +275,43 @@ public class KmerEngine {
 		System.gc();
 		System.out.println("\nKmers mapped "+timeElapsed(tic));
 		
+		/*
+		Aho-Corasick for searching Kmers in negative sequences
+		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+		 */		
+		AhoCorasick tmp = new AhoCorasick();
+		for (Kmer km: kmers){
+			tmp.add(km.kmerString.getBytes(), km.kmerString);
+	    }
+		tmp.prepare();
+		
+		// count hits in the negative sequences
+		HashMap<String, Integer> negHitCounts = new HashMap<String, Integer>();
+		for (String seq: seqsNeg){
+			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
+			Iterator searcher = tmp.search(seq.getBytes());
+//			System.out.println(seq);
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerHits.addAll(result.getOutputs());
+//				System.out.println(result.getOutputs()+"\tat index: " + result.getLastIndex());
+			}
+			String seq_rc = SequenceUtils.reverseComplement(seq);
+			searcher = tmp.search(seq_rc.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerHits.addAll(result.getOutputs());
+			}
+			for (Object o: kmerHits){
+				String kmer = (String) o;
+				if (negHitCounts.containsKey(kmer))
+					negHitCounts.put(kmer, negHitCounts.get(kmer)+1);
+				else
+					negHitCounts.put(kmer, 1);
+			}
+		}
+		
 		// score the kmers, hypergeometric p-value
 		int n=seqs.length;
 		int N=n+seqsNeg.length;
@@ -275,16 +322,20 @@ public class KmerEngine {
 				continue;
 			}
 			// count Kmers in negative sets
-			int count = 0;
-			String str_rc = SequenceUtil.reverseComplement(kmer.kmerString);
-			//TODO: index the negative set may be more efficient
-			for (String seq: seqsNeg){
-				if (seq.indexOf(kmer.kmerString)!=-1 || seq.indexOf(str_rc)!=-1)
-					count++;
-			}
-			kmer.negCount = count;
-			// add one pseudo-count to negative set, avoid that zero count in negative set leads to tiny p-value
-			double p = 1-StatUtil.hyperGeometricCDF(kmer.seqHitCount, N, kmer.seqHitCount+count+1, n);
+//			int count = 0;
+//			String str_rc = SequenceUtils.reverseComplement(kmer.kmerString);
+//			//TODO: index the negative set may be more efficient
+//			for (String seq: seqsNeg){
+//				if (seq.indexOf(kmer.kmerString)!=-1 || seq.indexOf(str_rc)!=-1)
+//					count++;
+//			}
+//			kmer.negCount = count;
+//			assert(kmer.negCount==negHitCounts.get(kmer.kmerString) );
+			// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
+			int kmerAllHitCount = kmer.seqHitCount+1;
+			if (negHitCounts.containsKey(kmer.kmerString))
+				kmerAllHitCount += negHitCounts.get(kmer.kmerString);
+			double p = 1-StatUtil.hyperGeometricCDF(kmer.seqHitCount, N, kmerAllHitCount, n);
 			kmer.hg = p;
 //			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));
 			if (kmer.hg>HyperGeomThreshold)
@@ -293,19 +344,20 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kmers.removeAll(toRemove);
 		
-		Collections.sort(kmers);
-		
+		Collections.sort(kmers);		
 		
 		/*
-		Aho-Corasick
+		Aho-Corasick for searching significant Kmers
 		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		 */		
-		AhoCorasick tree = new AhoCorasick();
+		tree = new AhoCorasick();
 		for (Kmer km: kmers){
-	       tree.add(km.kmerString.getBytes(), km.kmerString);
+			kmerByStr.put(km.kmerString, km);
+			tree.add(km.kmerString.getBytes(), km.kmerString);
 	    }
 	    tree.prepare();
+	    System.out.println("\nKmer Engine init done "+timeElapsed(tic));
 	}
 	
 	/*
@@ -314,19 +366,37 @@ public class KmerEngine {
 	from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 	 */	
 	public HashMap<Integer, Kmer> query (String seq){
+		seq = seq.toUpperCase();
+		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		Iterator searcher = tree.search(seq.getBytes());
-		System.out.println(seq);
-       while (searcher.hasNext()) {
-           SearchResult result = (SearchResult) searcher.next();
-           System.out.println(result.getOutputs()+"\tat index: " + result.getLastIndex());
-       }
-       // TODO: also the reverse compliment
-       
-		HashMap<Integer, Kmer> result = new HashMap<Integer, Kmer> ();
-		for (Kmer k: kmers){
-			// find all occurence of kmer k
-			
+//		System.out.println(seq);
+		while (searcher.hasNext()) {
+			SearchResult result = (SearchResult) searcher.next();
+			kmerFound.addAll(result.getOutputs());
+//			System.out.println(result.getOutputs()+"\tat index: " + result.getLastIndex());
 		}
+		// the reverse compliment
+		String seq_rc = SequenceUtils.reverseComplement(seq);
+		searcher = tree.search(seq_rc.getBytes());
+		while (searcher.hasNext()) {
+			SearchResult result = (SearchResult) searcher.next();
+			kmerFound.addAll(result.getOutputs());
+		}
+		
+		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
+		HashMap<Integer, Kmer> result = new HashMap<Integer, Kmer> ();
+		for (Object o: kmerFound){
+			String kmer = (String) o;
+			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmer);
+			for (int p: pos){
+				result.put(p, kmerByStr.get(kmer));
+			}
+			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmer));
+			for (int p: pos_rc){
+				result.put(p, kmerByStr.get(kmer));
+			}
+		}
+
 		return result;
 	}
 	// hard assignment by exclusion, 1 kmer will explain the whole sequence
@@ -692,7 +762,7 @@ class Kmer implements Comparable<Kmer>{
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?1:-1; // ascending
 	}
 	public String toString(){
-		return kmerString+"\t"+seqHitCount+"\t"+count+"\t"+String.format("%.1f", weight);
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log(hg));
 	}
 	public static String toHeader(){
 		return "kmer\tSeqHitCount\tKmerCt\tWeight";
