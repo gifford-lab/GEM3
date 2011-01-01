@@ -170,6 +170,7 @@ public class GPS2 {
          ** GPS2 event finding with kmer positional prior (KMM)
          **/        
         mixture.generateKmers();
+        mixture.execute();
         
         mixture.printFeatures();
         mixture.printInsignificantFeatures();
