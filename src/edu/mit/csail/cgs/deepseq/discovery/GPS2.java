@@ -163,13 +163,13 @@ public class GPS2 {
             else
                 kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
         }
-        round--;
+        //round--;
         mixture.setOutName(peakFileName+"_"+round);
         
         /**
          ** GPS2 event finding with kmer positional prior (KMM)
          **/        
-        mixture.generateKmers();
+        mixture.initKmerEngine();
         mixture.execute();
         
         mixture.printFeatures();

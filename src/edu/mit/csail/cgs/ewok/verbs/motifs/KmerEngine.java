@@ -273,7 +273,7 @@ public class KmerEngine {
 		}
 		map=null;
 		System.gc();
-		System.out.println("\nKmers mapped "+timeElapsed(tic));
+		System.out.println("Kmers mapped "+timeElapsed(tic));
 		
 		/*
 		Aho-Corasick for searching Kmers in negative sequences
@@ -345,7 +345,7 @@ public class KmerEngine {
 		kmers.removeAll(toRemove);
 		
 		Collections.sort(kmers);		
-		
+		System.out.println(kmers.size()+" "+k+"-mers found ");
 		/*
 		Aho-Corasick for searching significant Kmers
 		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
@@ -357,7 +357,7 @@ public class KmerEngine {
 			tree.add(km.kmerString.getBytes(), km.kmerString);
 	    }
 	    tree.prepare();
-	    System.out.println("\nKmer Engine init done "+timeElapsed(tic));
+	    System.out.println("Kmer Engine initialized "+timeElapsed(tic));
 	}
 	
 	/*

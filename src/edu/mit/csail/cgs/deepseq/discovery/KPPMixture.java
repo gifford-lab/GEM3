@@ -394,7 +394,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		reportTriggers.add(10000);
 		
 		if (config.k!=-1){
-			System.out.println("Running EM with Kmer positional prior ...\n");
+			System.out.println("\nRunning EM with Kmer positional prior ...\n");
 		}
 		
 		// create threads and run EM algorithms
@@ -2998,7 +2998,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}//end of setComponentPositions method
 
     
-    public void generateKmers(){
+    public void initKmerEngine(){
     	if (config.k==-1)
     		return;
 		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
@@ -3371,10 +3371,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     }// END: fix sliding window boundary effect
 
                     /* ****************************************************************
-                     * refine unary events and collect all the events as features
+                     * if we have positional prior, use the EM result directly
+                     * ****************************************************************/
+                    if (kEngine!=null){
+                    	compFeatures.addAll(mixture.callFeatures(comps));
+                    }
+                    /* ****************************************************************
+                     * if not positional prior, refine unary events by scanEvent()
+                     * and collect all the resulting events as features
                      * this is last step because fixing boundary may result in some new unary events
                      * ****************************************************************/
-                    if (comps.size()>0){
+                    else if (comps.size()>0){
                         singleEventRegions.clear();
                         Collections.sort(comps);
                         // The whole region can be divided into subRegions with gap >= mixture.modelWidth
@@ -3489,7 +3496,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
                 	//construct the positional prior for each position in this region
                 	double[] pp = new double[w.getWidth()];
-                	if (config.k!=-1){
+                	if (kEngine!=null){
 	                	String seq = seqgen.execute(w);
 	                	HashMap<Integer, Kmer> kmerHits = kEngine.query(seq);
 	                	double total = 0;
@@ -3510,7 +3517,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                         lastResolution = componentSpacing;
                         int numComp = components.size();
                         double[] p_alpha = new double[numComp];						// position alpha
-                        if (config.k!=-1){
+                        if (kEngine!=null){
 	                        for (int i=0;i<numComp;i++){
 	                        	BindingComponent b = components.get(i);
 	                        	int bIdx = b.getLocation().getLocation()-w.getStart();
