@@ -68,7 +68,7 @@ public class MotifOverlapPlot {
                 System.err.println("Can't parse line " + line);
                 continue;
             }
-            if (lineno >= smooth && lineno % smooth == 0) {
+            if (smooth != 0 && lineno >= smooth && lineno % smooth == 0) {
                 System.out.println(String.format("%d\t%.2f",
                                                  (lineno - smooth),
                                                  (numFound / (double)smooth)));
@@ -96,9 +96,14 @@ public class MotifOverlapPlot {
                     break;
                 }
             }
+            int newval = anyhits ? 1 : 0;
+            if (smooth == 0) {
+                System.out.println(newval);
+                continue;
+            }
 
             int oldval = found[lineno % smooth];
-            int newval = anyhits ? 1 : 0;
+ 
             if (oldval != 0 && lineno >= smooth) {
                 numFound--;
             }
