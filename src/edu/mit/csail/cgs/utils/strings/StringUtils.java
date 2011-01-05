@@ -1,5 +1,6 @@
 package edu.mit.csail.cgs.utils.strings;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 public class StringUtils {
@@ -70,4 +71,23 @@ public class StringUtils {
 		
 		return s;
 	}//end of padString method
+	
+	/**
+	 * Find all occurences of pattern in string
+	 * @param str
+	 * @param pattern
+	 * @return a list of all matched positions
+	 */
+	public static ArrayList<Integer> findAllOccurences (String str, String pattern){
+		ArrayList<Integer> pos = new ArrayList<Integer>();
+		int len = pattern.length();
+		if (len > 0) {  
+			int start = str.indexOf(pattern);
+			while (start != -1) {
+				pos.add(start);
+				start = str.indexOf(pattern, start+len);
+			}
+		}
+		return pos;
+  }
 }
