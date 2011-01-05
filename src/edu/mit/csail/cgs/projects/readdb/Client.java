@@ -9,31 +9,32 @@ import javax.security.sasl.*;
 import javax.security.auth.callback.*;
 
 /**
- * API for remote access to the readdb server.
+ * <p>API for remote access to the readdb server.
  *
- *  Calls throw IOException on network errors.
+ *  <p>Calls throw IOException on network errors.
  *  Calls throw ClientException on other errors (authentication, authorization, invalid request ,etc.
  *
- *  Client generally assumes that the hit positions are the 5' end of the
+ *  <p>Client generally assumes that the hit positions are the 5' end of the
  *  hit. 
  *
- * Client IS NOT REENTRANT.  Do not overlap calls to a single Client object.
+ * <p>Client IS NOT REENTRANT.  Do not overlap calls to a single Client object.
  *
- * Most method parameters that are object types (eg Integer, Boolean) are optional.  If a null value
+ * <p>Most method parameters that are object types (eg Integer, Boolean) are optional.  If a null value
  * is passed then no filtering is done based on that parameter.  
 
- * Standard parameters shared across methods:
- *
- * - alignid is the name of the alignment.
- * - isPaired specifies whether to work on single-ended reads (false) or paired-end reads (true)
- * - isLeft is isPaired is true, then isLeft specifies whether to work on the left read (true)(
+ * <p>Standard parameters shared across methods:
+ * <ul>
+ * <li> alignid is the name of the alignment.
+ * <li> isPaired specifies whether to work on single-ended reads (false) or paired-end reads (true)
+ * <li> isLeft is isPaired is true, then isLeft specifies whether to work on the left read (true)(
  *     or right read (false) of the pair
- * - plusStrand specifies whether to return only reads on the plus strand (true) or minus strand (false). null
+ * <li> plusStrand specifies whether to return only reads on the plus strand (true) or minus strand (false). null
  *     means that reads on both strands should be returned.
- * - minWeight specifies the minimum weight of reads (or read pairs) to be returned or included in 
+ * <li> minWeight specifies the minimum weight of reads (or read pairs) to be returned or included in 
  *     the histogram
- * - start, stop specify the lowest (inclusive) and highest (exclusive) coordinates of reads
+ * <li> start, stop specify the lowest (inclusive) and highest (exclusive) coordinates of reads
  *     that should be included in the results
+ * </ul>
  *
  * 
  */
@@ -66,7 +67,6 @@ public class Client implements ReadOnlyClient {
     /**
      * Creates the default connection
      * as specified by ~/.readdb_passwd or a readdb_passwd found in the classpath
-     *
      * Must have keys hostname, port, username, and passwd in a format
      * that java.util.PropertyResourceBundle can read
      *

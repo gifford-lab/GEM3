@@ -5,20 +5,21 @@ import java.util.*;
 import java.io.*;
 
 /** 
- * Query hits from the database.  Reads chrom:start-stop:strand values from
+ * <p>Query hits from the database.  Reads chrom:start-stop:strand values from
  * stdin.  Repeats them on stdout along with the hit positions.
  *
- * Usage:
- * echo "1:100-6000" | java edu.mit.csail.cgs.projects.readdb.Query [--hostname nanog.csail.mit.edu --port 52000 --user foo --passwd bar] [--quiet] --align 100
- *
- * --quiet means don't print any output.  This is useful for testing the query performance
+ * <p>Usage:
+ * <pre>
+ *  echo "1:100-6000" | java edu.mit.csail.cgs.projects.readdb.Query [--hostname nanog.csail.mit.edu --port 52000 --user foo --passwd bar] [--quiet] --align 100
+ *  </pre>
+ * <ul>
+ * <li>--quiet means don't print any output.  This is useful for testing the query performance
  * without worrying about the time it takes to print the output.
- * --wiggle means output in wiggle format
- * --bed means output in BED format
- * --noheader means to skip printing the input region in the outpu
- *
- * --paired means to query the paired reads.
- * --right means to query the right side reads rather than left.
+ * <li>--wiggle means output in wiggle format
+ * <li>--bed means output in BED format
+ * <li>--noheader means to skip printing the input region in the outpu
+ * <li>--paired means to query the paired reads.
+ * <li>--right means to query the right side reads rather than left.
  */
 
 public class Query {

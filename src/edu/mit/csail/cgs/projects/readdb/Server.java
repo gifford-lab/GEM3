@@ -7,8 +7,18 @@ import java.io.*;
 import org.apache.commons.cli.*;
 
 /**
- * ReadDB server class.  Provides configuration-type information, but
- * pushes all the request handling off onto ServerTask.
+ * <p>ReadDB server class.  Provides configuration-type information, but
+ * pushes all the request handling off onto ServerTask. Usage:
+ * <pre>java edu.mit.csail.cgs.projects.readdb.Server --datadir /path/to/data</pre>
+ *
+ * <p>Optional parameters
+ * <ul>
+ * <li>--port 52000     port to listen on
+ * <li>--threads 5      number of threads to start to handle client requests
+ * <li>--cachesize 100  number of chromosomes to keep files open for
+ * <li>--maxconn 200    maximum number of client connections
+ * <li>--sleepiness 2   how sleepy the server should be waiting for input.  Lower values use more CPU but improve responsiveness
+ * <li>--help           print the usage message and exit
  *
  */
 public class Server {

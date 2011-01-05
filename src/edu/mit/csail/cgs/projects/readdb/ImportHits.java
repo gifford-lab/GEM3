@@ -5,20 +5,22 @@ import java.util.*;
 import java.io.*;
 
 /**
- * Imports hits to the db.
+ * <p>Imports hits to the db.
  * Usage:
- * cat hits.txt | ImportHits -H nanog.csail.mit.edu -P 5200 -a "Gcn4 ChipSeq" -u arolfe -p SECRET
+ * <pre>cat hits.txt | ImportHits -H nanog.csail.mit.edu -P 5200 -a "Gcn4 ChipSeq" -u arolfe -p SECRET</code>
  *
- * Lines in the input must be of the form
- * chromosome\tstart\tstrand\tlength\tweight
+ * <p>Lines in the input must be of the form<br>
+ * <pre>chromosome\tstart\tstrand\tlength\tweight</pre><br>
  *  or
- * chromosomeone\tstartone\tstrandone\tlengthone\tchromosometwo\tstarttwo\tstrandtwo\tlengthtwo\tweight
+ * <pre>chromosomeone\tstartone\tstrandone\tlengthone\tchromosometwo\tstarttwo\tstrandtwo\tlengthtwo\tweight</pre>
  *
- * where start is the position of the 5' end of the read.
+ * <p>where start is the position of the 5' end of the read.
  *
- * For CSAIL use:
- * - The chromosome must be numeric and should be the chromosome id from core.  
- * - The alignment should be numeric and should the alignment identifier from the chipseq schema
+ * <p>For CSAIL use:
+ * <ul>
+ * <li> The chromosome must be numeric and should be the chromosome id from core.  
+ * <li> The alignment should be numeric and should the alignment identifier from the chipseq schema
+ * </ul>
  *
  */
 public class ImportHits {

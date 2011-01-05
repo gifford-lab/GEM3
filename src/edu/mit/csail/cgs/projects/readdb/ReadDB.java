@@ -5,21 +5,21 @@ import java.util.*;
 import java.io.*;
 
 /**
- * Generic command line client for the readdb
+ * <p>Generic command line client for the readdb
  * Usage:
- * ReadDB -h nanog.csail.mit.edu -P 5200 -u arolfe -p SECRET <command> .....
+ * <pre>ReadDB -h nanog.csail.mit.edu -P 5200 -u arolfe -p SECRET <command> .....</apre>
  *   omitting connection info uses default connection info in ~/.readdb_passwd
  *
- * command can be:
- *  exists alignname
- *  getchroms alignname
- *  getacl alignname
- *  setacl alignname arolfe add write (add or delete; read, write or admin)
- *  getcount alignname
- *  getcount alignname chromname (eg, chromname = 1+)
- *  addtogroup username groupname
+ * <p>command can be:
+ * <ul><li> exists alignname
+ *  <li>getchroms alignname
+ *  <li>getacl alignname
+ *  <li>setacl alignname arolfe add write (add or delete; read, write or admin)
+ *  <li>getcount alignname
+ *  <li>getcount alignname chromname (eg, chromname = 1+)
+ *  <li>addtogroup username groupname
  * 
- * The --paired flag can be provided to make getweight, getcount, and getchroms work on paire-end rather than
+ * <p>The --paired flag can be provided to make getweight, getcount, and getchroms work on paire-end rather than
  * single-end alignments
  *
  */
