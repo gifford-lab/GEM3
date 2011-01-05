@@ -320,8 +320,8 @@ public class RefGeneGenerator<X extends Region>
             if (wantalias && symboltable != null && symboltable.equals("kgXref")) {
                 try {
                     cxn = genome.getUcscConnection();
-                    String aliassql = "select distinct(alias) from kgAlias where kgID in (select kgID from kgXref where " + 
-                        namecolumn + " = ?)";
+                    String aliassql = "select distinct(kgAlias.alias) from kgAlias, kgXref where kgXref.kgID = kgAlias.kgID and kgXref." +
+                        namecolumn + " = ?";
                     getalias = cxn.prepareStatement(aliassql);
                 } catch (SQLException ex) {
                 ex.printStackTrace();
