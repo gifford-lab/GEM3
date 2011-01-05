@@ -255,8 +255,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
      		// ip/ctrl ratio by regression on non-enriched regions
 			if (subsetRatio==-1){
+    			calcIpCtrlRatio(new ArrayList<Region>());
      			setRegions(selectEnrichedRegions(subsetRegions, false));
-    			calcIpCtrlRatio(restrictRegions);
     			if(controlDataExist) {
     				for(int t = 0; t < numConditions; t++)
     					System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
@@ -988,13 +988,14 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		
 		// Determine how many of the enriched regions will be included during the regression evaluation
 		int numIncludedCandRegs = (int)Math.round(config.pcr*compFeatures.size());	
+
 		ArrayList<Region> exRegions = new ArrayList<Region>();
 		for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
 			exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
 		}
 		exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
 		
-		calcIpCtrlRatio(exRegions);
+		calcIpCtrlRatio(config.channelRatioAgainstWholeGenome ? new ArrayList<Region>() : exRegions);
 		if(controlDataExist) {
 			for(int c = 0; c < numConditions; c++)
 				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
@@ -1261,7 +1262,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
                             }
                             if (this.controlDataExist) {
                                 double ctrlreads = countCtrlReads(testr,c);
-                                poisson.setMean(config.minFoldChange * ctrlreads * this.ratio_total[c]);
+                                poisson.setMean(config.minFoldChange * ctrlreads * ratio_non_specific_total[c]);
                                 pval = 1 - poisson.cdf(ipreads) + poisson.pdf(ipreads);
                                 if (pval <= .01) {
                                     enriched = true;
@@ -1920,7 +1921,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 			throw new IllegalArgumentException("The valid arguments for the flag argument is: IP, CTRL, IP/CTRL.");
 		if(flag.equalsIgnoreCase("IP/CTRL") && (condX_idx != condY_idx))
 			throw new IllegalArgumentException("When you submit IP/CTRL pairs the condition has to be the same.");
-			
+
 		double slope;
 		List<PairedCountData> scalePairs = new ArrayList<PairedCountData>();
 		int non_specific_reg_len = 10000;	
@@ -1937,13 +1938,12 @@ class GPSMixture extends MultiConditionFeatureFinder {
 			List<Region> chrom_non_specific_regs = new ArrayList<Region>();
 			int chromLen = gen.getChromLength(chrom);
 			// Get the candidate (enriched) regions of this chrom sorted by location
-			List<Region> chr_enriched_regs = new ArrayList<Region>();
+			List<Region> chr_enriched_regs;
 			if(chrom_regions_map.containsKey(chrom)) {
 				chr_enriched_regs = chrom_regions_map.get(chrom);
 				Collections.sort(chr_enriched_regs);
-			}
-			else{	// We only estimate using the chrom that contains enriched data regions
-				continue;
+			} else {
+                chr_enriched_regs  = new ArrayList<Region>();
 			}
 				
 			// Construct the non-specific regions and check for overlapping with the candidate (enriched) regions
@@ -1994,8 +1994,9 @@ class GPSMixture extends MultiConditionFeatureFinder {
 				for(Region r:chrom_non_specific_regs) {
 					double ctrlCounts_X = countCtrlReads(r, condX_idx);
 					double ipCounts_Y   = countIpReads(r, condY_idx);
-					if (ctrlCounts_X!=0 && ipCounts_Y!=0)
+					if (ctrlCounts_X!=0 && ipCounts_Y!=0) {
 						scalePairs.add(new PairedCountData(ctrlCounts_X, ipCounts_Y));  // we want to see how many time ipCounts are larger from ctrlCounts
+                    }
 				}
 			}
 		}//end of for(String chrom:gen.getChromList()) LOOP
@@ -2801,7 +2802,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
 			e.printStackTrace();
 		}
 	}
-
 	private float countIpReads(Region r){
 		float count=0;
 		for(Pair<ReadCache,ReadCache> e : caches){
@@ -3065,6 +3065,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
         public int SCAN_RANGE = 20;
         public int gentle_elimination_iterations = 5;
         public double minFoldChange = 1.5; // minimum fold change for a significant event.  applied after event discovery during the p-value filtering stage
+        public boolean channelRatioAgainstWholeGenome = false;
 
         public void parseArgs(String args[]) {
             Set<String> flags = Args.parseFlags(args);
@@ -3077,6 +3078,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
             subtract_for_segmentation = flags.contains("subtract_ctrl_for_segmentation");
             outputBED = flags.contains("outBED");
             testPValues = flags.contains("testP");
+            channelRatioAgainstWholeGenome = flags.contains("channel_ratio_against_whole_genome");
             if (testPValues)
             	System.err.println("testP is " + testPValues);
             exclude_unenriched = flags.contains("ex_unenriched");
