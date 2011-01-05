@@ -2203,7 +2203,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 					// scale control read count by non-specific read count ratio
 					double controlCount = cf.getUnscaledControlCounts()[cond];
                     double scaledControlCount = cf.getScaledControlCounts(cond);
-					double pValueControl = 1, pValueUniform = 1, pValueBalance = 1, pValuePoisson = 1;
+					double pValueBalance = 1, pValuePoisson = 1;
                     int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
                     if (ipCount==0){			// if one of the conditino does not have reads, set p-value=1
                     	cf.setPValue(1, cond);
@@ -2212,32 +2212,23 @@ class GPSMixture extends MultiConditionFeatureFinder {
                     try{
                         assert (totalIPCount[cond] > 0);
                         assert (ipCount <= totalIPCount[cond]);
-                        double p = controlCount / totalControlCount[cond];
-                        if (p <= 0) {
-                            p = 1.0/totalControlCount[cond];
-                        } else if (p >= 1) {
-                            System.err.println(String.format("p>=1 at evaluateConfidence from %f/%f", controlCount, totalControlCount[cond]));
-                            p = 1.0 - 1.0/totalControlCount[cond];
-                        } 
-                        binomial.setNandP((int)totalIPCount[cond],p);
-                        pValueControl = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
 
-                        p = modelWidth / config.mappable_genome_length;
-                        binomial.setNandP((int)totalIPCount[cond],p);
-                        pValueUniform = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+                        binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), 1.0 / (config.minFoldChange + 1));
+                        pValueBalance = binomial.cdf((int)Math.ceil(scaledControlCount));
 
-                        binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
-                        pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-
-                        poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
+                        poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * (double)modelWidth / (double)config.mappable_genome_length  ));
                         pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
+                        
+                        cf.setOtherPValues(String.format("%.2e\t%.2e\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%d",
+                                                         pValueBalance, pValuePoisson,ipCount, controlCount, totalIPCount[cond], totalControlCount[cond],scaledControlCount,modelWidth),
+                                           cond);
                     } catch(Exception err){
                         err.printStackTrace();
                         System.err.println(cf.toString());
                         throw new RuntimeException(err.toString(), err);
                     }
                     if (config.testPValues)
-                    	cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+                    	cf.setPValue(Math.max(pValuePoisson,pValueBalance), cond);
                     else
                     	cf.setPValue(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
 				}
