@@ -989,13 +989,15 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		// Determine how many of the enriched regions will be included during the regression evaluation
 		int numIncludedCandRegs = (int)Math.round(config.pcr*compFeatures.size());	
 
-		ArrayList<Region> exRegions = new ArrayList<Region>();
-		for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
-			exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
-		}
-		exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
-		
-		calcIpCtrlRatio(config.channelRatioAgainstWholeGenome ? new ArrayList<Region>() : exRegions);
+        if (!config.channelRatioAgainstWholeGenome) {
+            ArrayList<Region> exRegions = new ArrayList<Region>();
+            for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
+                exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
+            }
+            exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)            
+            calcIpCtrlRatio(exRegions);
+        }
+
 		if(controlDataExist) {
 			for(int c = 0; c < numConditions; c++)
 				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
