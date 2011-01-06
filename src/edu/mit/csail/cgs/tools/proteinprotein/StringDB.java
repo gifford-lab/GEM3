@@ -25,29 +25,39 @@ public class StringDB {
             getGeneLinks(args[2]);
         } else if (cmd.equals("geneactions")) {
             getGeneActions(args[2]);
+        } else if (cmd.equals("geneslike")) {
+            getGenesLike(args[2]);
         }
+
     }
     private static void getGeneID(String name) throws SQLException, NotFoundException {
-        int id = db.getGeneID(name, species);
+        String id = db.getGeneID(species, name);
         System.out.println(name + " is " + id);
     }
+    private static void getGenesLike(String name)  throws SQLException, NotFoundException {
+        List<String> names = db.getGenesLike(species, name);
+        for (String n : names) {
+            System.out.println(n);
+        }
+
+    }
     private static void getGeneLinks(String name) throws SQLException, NotFoundException {
-        int id = db.getGeneID(name, species);
-        List<Link> links = db.getGeneLinks(id);
+        String id = db.getGeneID(species, name);
+        List<Link> links = db.getGeneLinks(species, id);
         for (Link l : links) {            
-            String other = db.getGeneName(l.geneB);
+            List<String> other = db.getGeneName(species,l.geneB);
             System.out.println(String.format("%s\t%s\t%f",
-                                             name, other, l.score));
+                                             name, other.toString(), l.score));
                                              
         }
     }
     private static void getGeneActions(String name) throws SQLException, NotFoundException {
-        int id = db.getGeneID(name, species);
-        List<Action> actions = db.getGeneActions(id);
+        String id = db.getGeneID(species, name);
+        List<Action> actions = db.getGeneActions(species,id);
         for (Action a : actions) {            
-            String other = db.getGeneName(a.geneB);
+            List<String> other = db.getGeneName(species,a.geneB);
             System.out.println(String.format("%s\t%s\t%f\t%s\t%s",
-                                             name, other, a.score,a.mode,a.action));
+                                             name, other.toString(), a.score,a.mode,a.action));
         }
     }
 }
