@@ -32,7 +32,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected double shapeDeviation[];
 	protected double unScaledControlCounts[];
 	protected double p_values[];
-    protected String other_p_values[];
 	protected double p_values_wo_ctrl[];
 	protected double q_value_log10[];
 	protected Point EM_position;		//  EM result
@@ -56,7 +55,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		
 		condSignificance = new boolean[numConditions];
 		p_values = new double[numConditions];
-        other_p_values = new String[numConditions];
 		p_values_wo_ctrl = new double[numConditions];
 		q_value_log10 = new double[numConditions];
 		EM_position = b.getEMPosition();
@@ -242,9 +240,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public double getPValue_wo_ctrl(int cond){
 		return p_values_wo_ctrl[cond];
 	}	
-    public String getOtherPValues(int cond) {
-        return other_p_values[cond];
-    }
 	public double getQValueLog10(int cond){
 		return q_value_log10[cond];
 	}
@@ -254,9 +249,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void setPValue_wo_ctrl(double pValue, int cond){
 		p_values_wo_ctrl[cond] = pValue;
 	}
-    public void setOtherPValues(String p, int cond) {
-        other_p_values[cond] = p;
-    }
 	//Corrected_Q_value
 	public void setQValueLog10(double qValue, int cond){
 		q_value_log10[cond] = qValue;
@@ -377,8 +369,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
   	      		  .append("IPvsEMP\t")
-  	      		  .append(name+"IPvsCTR\t")
-                .append("balancepval\tpoissonpval");
+  	      		  .append(name+"IPvsCTR\t");
         	if (c<numConditions-1)
         		header.append("\t");
         }
@@ -420,7 +411,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.3f\t", getAverageIpCtrlLogKL()));
         	else
         		result.append("NaN\t");
-        	result.append(getOtherPValues(c));
         	if (c<numConditions-1)
         		result.append("\t");
         }
