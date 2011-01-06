@@ -166,6 +166,11 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		else if(totalSumResponsibility<f.getTotalSumResponsibility()){return(1);}
 		else return(0);
 	}
+	public int compareByCondResponsibility(ComponentFeature f) {
+		if(condSumResponsibility[sortingCondition]>f.getCondSumResponsibility(sortingCondition)){return(-1);}
+		else if(condSumResponsibility[sortingCondition]<f.getCondSumResponsibility(sortingCondition)){return(1);}
+		else return(0);
+	}
 	public int compareBylogKL(ComponentFeature f) {
 		double diff = getAverageLogKL() - f.getAverageLogKL();
 		return diff==0?0:(diff<0)?-1:1; // smaller logKL, more similar distribution
@@ -176,17 +181,17 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public int compareByPValue(ComponentFeature f) {
 		if(p_values[sortingCondition]<f.getPValue(sortingCondition)){return(-1);}
 		else if(p_values[sortingCondition]>f.getPValue(sortingCondition)){return(1);}
-		else return(0);
+		else return(compareByCondResponsibility(f)); //P-values equal, compare by responsibility now
 	}
 	public int compareByPValue_wo_ctrl(ComponentFeature f) {
 		if(p_values_wo_ctrl[sortingCondition]<f.getPValue_wo_ctrl(sortingCondition)){return(-1);}
 		else if(p_values_wo_ctrl[sortingCondition]>f.getPValue_wo_ctrl(sortingCondition)){return(1);}
-		else return(0);
+		else return(compareByCondResponsibility(f)); //P-values equal, compare by responsibility now
 	}
 	public int compareByQValue(ComponentFeature f) {
 		if(q_value_log10[sortingCondition]<f.getQValueLog10(sortingCondition)){return(-1);}
 		else if(q_value_log10[sortingCondition]>f.getQValueLog10(sortingCondition)){return(1);}
-		else return(0);
+		else return(compareByCondResponsibility(f)); //Q-values equal, compare by responsibility now
 	}
 	public int compareByMfold(ComponentFeature f) {
 		if(mfold < f.get_mfold())      { return -1; }
