@@ -428,7 +428,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
         System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
         processRegionCount.clear();
         
-        log(1,String.format("%d threads have finished running", maxThreads));
+        log(1,String.format("%d threads have finished running at %s", maxThreads, CommonUtils.timeElapsed(tic)));
 
 		/* ********************************************************
 		 * refine the specific regions that contain binding events
@@ -974,7 +974,11 @@ class GPSMixture extends MultiConditionFeatureFinder {
 	 */
 	private void postEMProcessing(List<ComponentFeature> compFeatures) {
 		// use the refined regions to count non-specific reads
-		countNonSpecificReads(compFeatures);
+        /* don't do this any more.  all it does is set ratio_non_specific_total, which
+           we no longer want to update because we compute it at the beginning of the run
+           using the whole genome rather than just the unenriched regions
+        */
+        //		countNonSpecificReads(compFeatures);
 		
 		// collect enriched regions to exclude to define non-specific region
 		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
@@ -2222,9 +2226,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
                         poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * (double)modelWidth / (double)config.mappable_genome_length  ));
                         pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
                         
-                        cf.setOtherPValues(String.format("%.2e\t%.2e\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%d",
-                                                         pValueBalance, pValuePoisson,ipCount, controlCount, totalIPCount[cond], totalControlCount[cond],scaledControlCount,modelWidth),
-                                           cond);
                     } catch(Exception err){
                         err.printStackTrace();
                         System.err.println(cf.toString());
