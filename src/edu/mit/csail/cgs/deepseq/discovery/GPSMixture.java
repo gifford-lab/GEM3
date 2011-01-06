@@ -2565,7 +2565,9 @@ class GPSMixture extends MultiConditionFeatureFinder {
 			expt_non_specific_total[i]=(int)e.car().getHitCount()-expt_test_region_total[i];
 			if(controlDataExist) {
 				crtl_non_specific_total[i]=(int)e.cdr().getHitCount()-crtl_test_region_total[i];
-				ratio_non_specific_total[i] = (double)expt_non_specific_total[i]/crtl_non_specific_total[i];
+                //				ratio_non_specific_total[i] = (double)expt_non_specific_total[i]/crtl_non_specific_total[i];
+                System.err.println("countNonSpecificReads would have updated ratio_non_specific_total to " +
+                                   (double)expt_non_specific_total[i]/crtl_non_specific_total[i]);
 			}
 
 	    	double noiseReadNum_per_kbp = (double) expt_non_specific_total[i] * 1000
@@ -2579,7 +2581,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 	    	    sb.append("\n\tIP/Control  \t\t" +String.format("%.3f", e.car().getHitCount()/e.cdr().getHitCount() ));
 	    	    sb.append("\n\tIP non-specific\t\t" +expt_non_specific_total[i]);
 	    	    sb.append("\n\tControl non-specific\t" +crtl_non_specific_total[i]);
-                //	    	    sb.append("\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
+                sb.append("\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i]));
 	    	}
 	    	sb.append("\n\tNoise reads per 1000bp\t" +String.format("%.2f",noiseReadNum_per_kbp)+"\n");
 	    	log(1, sb.toString());
