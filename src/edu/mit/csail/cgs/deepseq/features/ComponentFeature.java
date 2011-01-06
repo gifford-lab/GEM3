@@ -403,24 +403,19 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         			fold = getEventReadCounts(c)/getScaledControlCounts(c);
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
         			  .append(String.format("%7.1f\t", fold));
-        	}
-        	else
-        		result.append("NaN\t").append("NaN\t");
-        
-        	result.append(String.format("%7.3f\t", getQValueLog10(c)));
-        	
+        	} else {
+        		result.append("NaN\t").append("NaN\t");                
+            }        
+        	result.append(String.format("%7.3f\t", getQValueLog10(c)));        	
         	if(unScaledControlCounts!=null)
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
         	else
         		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
-
-    		result.append(String.format("%7.3f\t", getShapeDeviation(c)));
-    		
+    		result.append(String.format("%7.3f\t", getShapeDeviation(c)));    		
         	if(unScaledControlCounts!=null)
         		result.append(String.format("%7.3f\t", getAverageIpCtrlLogKL()));
         	else
         		result.append("NaN\t");
-        	
         	if (c<numConditions-1)
         		result.append("\t");
         }

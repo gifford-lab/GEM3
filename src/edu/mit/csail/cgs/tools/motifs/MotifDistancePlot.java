@@ -69,7 +69,7 @@ public class MotifDistancePlot {
                 System.err.println("Can't parse line " + line);
                 continue;
             }
-            if (lineno >= smooth && lineno % smooth == 0) {
+            if (smooth != 0 && lineno >= smooth && lineno % smooth == 0) {
                 double sum = 0;
                 for (int j = 0; j < temp.length; j++) {
                     temp[j] = distances[j];
@@ -110,6 +110,11 @@ public class MotifDistancePlot {
                     }
                 }
             }
+            if (smooth == 0) {
+                System.out.println(mindistance);
+                continue;
+            }
+
             int oldval = distances[lineno % smooth];
             if (lineno >= smooth) {
                 sumdistances -= oldval;
