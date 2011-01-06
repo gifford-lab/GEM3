@@ -393,7 +393,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		reportTriggers.add(1000);
 		reportTriggers.add(10000);
 		
-		if (config.k!=-1){
+		if (kEngine!=null){
 			System.out.println("\nRunning EM with Kmer positional prior ...\n");
 		}
 		
@@ -3226,6 +3226,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         
         public void run() {
         	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+        	seqgen.useCache(true);
             for (Region rr : regions) {
                 mixture.log(2, rr.toString());
                 try{
