@@ -1544,13 +1544,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						StrandedBase base = bases.get(i);
 						if (assignment[i][j]>0){
 							if (base.getStrand()=='+'){
-								if (base.getCoordinate()-pos-model.getMin()>modelWidth)
-									System.err.println(pos+"\t+\t"+base.getCoordinate());
+								int idx = base.getCoordinate()-pos-model.getMin();
+								if (idx>=modelWidth||idx<0){
+									System.err.println("Invalid profile index "+pos+"\t\t"+base.getCoordinate()+ " in region"+r.toString());
+									continue;
+								}
 								ctrl_profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
 							}
 							else{
-								if (pos-base.getCoordinate()-model.getMin()>modelWidth)
-									System.err.println(pos+"\t-\t"+base.getCoordinate());
+								int idx = pos-base.getCoordinate()-model.getMin();
+								if (idx>=modelWidth||idx<0){
+									System.err.println("Invalid profile index "+pos+"\t\t"+base.getCoordinate()+ " in region"+r.toString());
+									continue;
+								}
 								ctrl_profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
 							}
 							total += assignment[i][j]*base.getCount();
