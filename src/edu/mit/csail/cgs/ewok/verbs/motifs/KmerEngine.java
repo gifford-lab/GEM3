@@ -284,7 +284,7 @@ public class KmerEngine {
 		
 		/*
 		Aho-Corasick for searching Kmers in negative sequences
-		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		 */		
 		AhoCorasick tmp = new AhoCorasick();

@@ -401,9 +401,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// the results are put into compFeatures
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Creating %d threads", maxThreads));
+        int regionsPerThread = restrictRegions.size()/threads.length;
         for (int i = 0 ; i < threads.length; i++) {
             ArrayList<Region> threadRegions = new ArrayList<Region>();
-            for (int j = i; j < restrictRegions.size(); j += maxThreads) {
+            int nextStartIndex = (i+1)*regionsPerThread;
+            if (i==threads.length-1)		// last thread
+            	nextStartIndex = restrictRegions.size();
+            // get the regions as same chrom as possible, to minimize chrom sequence that each thread need to cache
+            for (int j = i*regionsPerThread; j < nextStartIndex; j++) {
                 threadRegions.add(restrictRegions.get(j));
             }
             Thread t = new Thread(new GPS2Thread(threadRegions,
