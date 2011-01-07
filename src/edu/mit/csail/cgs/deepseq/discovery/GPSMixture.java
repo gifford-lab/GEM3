@@ -250,12 +250,12 @@ class GPSMixture extends MultiConditionFeatureFinder {
         		}
         	}
         }        	
+        calcIpCtrlRatio();
         System.out.println("\nSorting reads and selecting enriched regions ...");
     	// if not provided region list, directly segment genome into enrichedRegions
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
      		// ip/ctrl ratio by regression on non-enriched regions
 			if (subsetRatio==-1){
-    			calcIpCtrlRatio(new ArrayList<Region>());
      			setRegions(selectEnrichedRegions(subsetRegions, false));
     			if(controlDataExist) {
     				for(int t = 0; t < numConditions; t++)
@@ -271,8 +271,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		}
 		
 		log(1, "\nThe genome is segmented into "+restrictRegions.size()+" regions for analysis.");
-
-        
         
         // exclude regions?
         //        if (excludedRegions!=null){
@@ -390,6 +388,11 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		// the results are put into compFeatures
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Creating %d threads", maxThreads));
+		if(controlDataExist) {
+			for(int c = 0; c < numConditions; c++)
+				System.out.println(String.format("\nAbout to run EM scaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+			System.out.println();
+		}
         for (int i = 0 ; i < threads.length; i++) {
             ArrayList<Region> threadRegions = new ArrayList<Region>();
             for (int j = i; j < restrictRegions.size(); j += maxThreads) {
@@ -992,21 +995,6 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		
 		// Determine how many of the enriched regions will be included during the regression evaluation
 		int numIncludedCandRegs = (int)Math.round(config.pcr*compFeatures.size());	
-
-        if (!config.channelRatioAgainstWholeGenome) {
-            ArrayList<Region> exRegions = new ArrayList<Region>();
-            for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
-                exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
-            }
-            exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)            
-            calcIpCtrlRatio(exRegions);
-        }
-
-		if(controlDataExist) {
-			for(int c = 0; c < numConditions; c++)
-				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
-			System.out.println();
-		}
 		
 		// calculate p-values with or without control
 		evaluateSignificance(compFeatures);
@@ -1099,15 +1087,29 @@ class GPSMixture extends MultiConditionFeatureFinder {
 
 
 	/* 
-	 * Calc the ratio of IP vs Control channel, exlcluding the specific regions
+	 * Calc the ratio of IP vs Control channel
 	 */
-	private void calcIpCtrlRatio(ArrayList<Region> specificRegions) {
-		// linear regression to get the IP/control ratio
-		// now we do not require whole genome data, because partial data could be run on 1 chrom, still enough data to esitmates
+	private void calcIpCtrlRatio() {
+        int windowsize = 10000;
 		if(controlDataExist) {
+            ArrayList<Float> ratios = new ArrayList<Float>();
 			ratio_non_specific_total = new double[numConditions];
-			for(int t = 0; t < numConditions; t++){
-				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", specificRegions);
+			for(int condition = 0; condition < numConditions; condition++){
+                ratios.clear();
+                for(String chrom:gen.getChromList()) {
+                    int chrlen = gen.getChromLength(chrom);
+                    
+                    for (int start = 0; start  < chrlen - windowsize; start += windowsize) {
+                        Region r = new Region(gen, chrom, start, start + windowsize);
+                        double ip = countIpReads(r, condition);
+                        double ctrl = countCtrlReads(r, condition);
+                        ratios.add((float)(ip / ctrl));
+                    }
+                }
+                Collections.sort(ratios);
+				ratio_non_specific_total[condition] = ratios.get(ratios.size() / 2);
+                log(1, String.format("Setting ip/ctrl normalization constant to %.2e based on %d regions of size %d",
+                                     ratio_non_specific_total[condition], ratios.size(), windowsize));
 			}
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
 		}
@@ -1940,6 +1942,8 @@ class GPSMixture extends MultiConditionFeatureFinder {
 			chrom_regions_map.get(chrom).add(r);
 		}
 
+        System.out.println("Running getSlope:\nipCounts_Y\tctrlCounts_X");
+
 		for(String chrom:gen.getChromList()) {
 			List<Region> chrom_non_specific_regs = new ArrayList<Region>();
 			int chromLen = gen.getChromLength(chrom);
@@ -1985,8 +1989,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 					if (ipCounts_condX!=0 && ipCounts_condY!=0)	// only for non-zero counts, as PeakSeq Paper
 						scalePairs.add(new PairedCountData(ipCounts_condY, ipCounts_condX));  // we want to see how many time ipCounts_condY are larger from ipCounts_condX
 				}
-			}
-			else if(flag.equalsIgnoreCase("CTRL")) {
+			} else if(flag.equalsIgnoreCase("CTRL")) {
 				// Estimate the (ctrlCounts_cond1, ctrlCounts_cond2) pairs
 				for(Region r:chrom_non_specific_regs) {				
 					double ctrlCounts_condX = countCtrlReads(r, condX_idx);
@@ -1994,19 +1997,19 @@ class GPSMixture extends MultiConditionFeatureFinder {
 					if (ctrlCounts_condX!=0 && ctrlCounts_condY!=0)
 						scalePairs.add(new PairedCountData(ctrlCounts_condY, ctrlCounts_condX));  // we want to see how many time ctrlCounts_condY are larger from ctrlCounts_condX
 				}
-			}
-			else {
+			} else {
 				// Estimate the (ipCount, ctrlCount) pairs
 				for(Region r:chrom_non_specific_regs) {
 					double ctrlCounts_X = countCtrlReads(r, condX_idx);
 					double ipCounts_Y   = countIpReads(r, condY_idx);
 					if (ctrlCounts_X!=0 && ipCounts_Y!=0) {
+                        System.out.println(ipCounts_Y + " \t" + ctrlCounts_X);
 						scalePairs.add(new PairedCountData(ctrlCounts_X, ipCounts_Y));  // we want to see how many time ipCounts are larger from ctrlCounts
                     }
 				}
 			}
 		}//end of for(String chrom:gen.getChromList()) LOOP
-			
+        System.out.println("\n\n");
 		// Calculate the slope for this condition
 		slope = calcSlope(scalePairs);
 		scalePairs.clear();
