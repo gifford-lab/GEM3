@@ -27,7 +27,11 @@ public class StringDB {
             getGeneActions(args[2]);
         } else if (cmd.equals("geneslike")) {
             getGenesLike(args[2]);
+        } else {
+            System.err.println("Unknown command " + cmd);
+            System.exit(1);
         }
+
 
     }
     private static void getGeneID(String name) throws SQLException, NotFoundException {
@@ -45,7 +49,7 @@ public class StringDB {
         String id = db.getGeneID(species, name);
         List<Link> links = db.getGeneLinks(species, id);
         for (Link l : links) {            
-            List<String> other = db.getGeneName(species,l.geneB);
+            List<String> other = db.getGeneName(species,l.geneB,"Ensembl_EntrezGene");
             System.out.println(String.format("%s\t%s\t%f",
                                              name, other.toString(), l.score));
                                              
@@ -55,7 +59,7 @@ public class StringDB {
         String id = db.getGeneID(species, name);
         List<Action> actions = db.getGeneActions(species,id);
         for (Action a : actions) {            
-            List<String> other = db.getGeneName(species,a.geneB);
+            List<String> other = db.getGeneName(species,a.geneB,"Ensembl_EntrezGene");
             System.out.println(String.format("%s\t%s\t%f\t%s\t%s",
                                              name, other.toString(), a.score,a.mode,a.action));
         }

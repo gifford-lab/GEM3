@@ -18,7 +18,7 @@ import edu.mit.csail.cgs.utils.database.DatabaseException;
 public class StringDB implements edu.mit.csail.cgs.utils.Closeable {
 
     private java.sql.Connection cxn;
-    PreparedStatement getSpeciesID, getGeneID, getGeneLinks, getGeneActions, getGeneName, getGenesLike;
+    PreparedStatement getSpeciesID, getGeneID, getGeneLinks, getGeneActions, getGeneName, getGenesLike, getGeneNameType;
 
     public StringDB() throws SQLException {
         cxn = DatabaseFactory.getConnection("string");
@@ -27,7 +27,8 @@ public class StringDB implements edu.mit.csail.cgs.utils.Closeable {
         getGenesLike = cxn.prepareStatement("select alias from aliases where species = ? and alias like '%' || ? || '%'");
         getGeneName = cxn.prepareStatement("select alias from aliases where id = ? and species = ?");
         getGeneLinks = cxn.prepareStatement("select geneB, score from proteinlinks where speciesA = ? and geneA = ? and speciesB = ?");
-        getGeneActions = cxn.prepareStatement("select geneB, intmode, action, score from proteinactions where speciesA = ? and geneA = ? and speciesB = ?");       
+        getGeneActions = cxn.prepareStatement("select geneB, intmode, action, score from proteinactions where speciesA = ? and geneA = ? and speciesB = ?");
+        getGeneNameType = cxn.prepareStatement("select alias from aliases where id = ? and species = ? and source like '%' || ? || '%'");
     }
     public Integer getSpeciesID(Genome g) throws SQLException, NotFoundException {
         return getSpeciesID(g.getSpecies());
@@ -84,6 +85,18 @@ public class StringDB implements edu.mit.csail.cgs.utils.Closeable {
         rs.close();
         return output;
     }
+    public List<String> getGeneName(int speciesID, String geneID, String type) throws SQLException {
+        getGeneNameType.setString(1,geneID);
+        getGeneNameType.setInt(2,speciesID);
+        getGeneNameType.setString(3,type);
+        ResultSet rs = getGeneNameType.executeQuery();
+        List<String> output = new ArrayList<String>();
+        while (rs.next()) {
+            output.add(rs.getString(1));
+        }
+        rs.close();
+        return output;        
+    }
     public List<Link> getGeneLinks(int speciesID, String geneID) throws SQLException {
         ArrayList<Link> output = new ArrayList<Link>();
         getGeneLinks.setInt(1, speciesID);
@@ -117,6 +130,7 @@ public class StringDB implements edu.mit.csail.cgs.utils.Closeable {
                 getGeneID.close();
                 getGenesLike.close();
                 getGeneName.close();
+                getGeneNameType.close();
                 getGeneActions.close();
                 getGeneLinks.close();
                 cxn.close();
