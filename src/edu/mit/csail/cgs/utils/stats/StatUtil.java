@@ -517,6 +517,27 @@ public class StatUtil {
 	}//end of permute method
 	
 	/**
+	 * Permutes a float array  <br>
+	 * <u>Note</u>: Assumes that <tt>permInds</tt> are in a valid form. That is,
+	 * they are valued from 0 to a.length-1 (obviously, not necessarily in order). 
+	 * @param a float array to be permuted
+	 * @param permInds permutation indices
+	 * @return the permuted array
+	 */
+	public static float[] permute(float[] a, int[] permInds) {
+		
+		if(permInds.length != a.length)
+			throw new IllegalArgumentException("a and permInds must have the same length.");
+		
+		float[] temp = new float[a.length];
+		for(int i = 0; i < a.length; i++)
+			temp[i] = a[permInds[i]];
+		
+		return temp;
+	}//end of permute method
+	
+	
+	/**
 	 * Permutes a char array  <br>
 	 * <u>Note</u>: Assumes that <tt>permInds</tt> are in a valid form. That is,
 	 * they are valued from 0 to a.length-1 (obviously, not necessarily in order). 

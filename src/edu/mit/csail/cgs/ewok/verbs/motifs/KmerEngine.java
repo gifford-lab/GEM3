@@ -155,6 +155,7 @@ public class KmerEngine {
 		seqProbs = new double[events.size()];
 		seqCoors = new Region[events.size()];
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+		seqgen.useCache(true);
 
 		ArrayList<Region> negRegions = new ArrayList<Region>();
 		for(int i=0;i<events.size();i++){
