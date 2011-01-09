@@ -15,7 +15,7 @@ import edu.mit.csail.cgs.utils.database.*;
  */
 public class SequenceGenerator<X extends Region> implements Mapper<X,String>, SelfDescribingVerb {
 
-    private Map<Integer,String> cache;
+    private static Map<Integer,String> cache;
 
     // no longer used, but kept for compatibility 
     public SequenceGenerator (Genome g) {        
