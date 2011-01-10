@@ -835,6 +835,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						System.err.printf("%s CTRL=%.0f-->1 ",p.car().toString(), p.cdr());
 				}
 			}
+			System.err.println();
 			return;
 		}
 		

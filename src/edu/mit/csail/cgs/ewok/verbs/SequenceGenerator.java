@@ -38,8 +38,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
             int chromid = genome.getChromID(chromname);
             if (cache != null) {
                 if (!cache.containsKey(chromid)) {
-                    java.sql.Connection cxn =
-                DatabaseFactory.getConnection("core");
+                    java.sql.Connection cxn = DatabaseFactory.getConnection("core");
                     PreparedStatement ps = cxn.prepareStatement("select sequence from chromsequence where id = ?");
                     ps.setInt(1,chromid);
                     ResultSet rs = ps.executeQuery();
