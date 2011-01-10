@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.Vector;
 
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
@@ -148,17 +149,29 @@ public class KmerEngine {
 	public KmerEngine(Genome g, ArrayList<ComponentFeature> events, int winSize){
 		tic = System.currentTimeMillis();
 		genome = g;
+		int eventCount = events.size();
 		seqLength = winSize+1;
 		Collections.sort(events);		// sort by location
-		seqs = new String[events.size()];
-		seqsNeg = new String[events.size()];
-		seqProbs = new double[events.size()];
-		seqCoors = new Region[events.size()];
+		seqs = new String[eventCount];
+		seqsNeg = new String[eventCount];
+		seqProbs = new double[eventCount];
+		seqCoors = new Region[eventCount];
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(true);
 
 		ArrayList<Region> negRegions = new ArrayList<Region>();
-		for(int i=0;i<events.size();i++){
+		// prepare for progress reporting
+        Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
+		int displayStep = (int) Math.pow(10, (int) (Math.log10(eventCount)));
+		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
+		for (int i=1;i<=eventCount/displayStep; i++){
+			reportTriggers.add(i*displayStep);
+		}
+		reportTriggers.add(100);
+		reportTriggers.add(1000);
+		reportTriggers.add(10000);
+		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
+		for(int i=0;i<eventCount;i++){
 			ComponentFeature f = events.get(i);
 			seqProbs[i] = f.getTotalSumResponsibility();
 			Region posRegion = f.getPeak().expand(winSize/2);
@@ -173,13 +186,17 @@ public class KmerEngine {
 			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);
 			//TODO: exclude negative regions that overlap with positive regions
 			negRegions.add(negRegion);
+			int trigger = eventCount;
+            if (!reportTriggers.isEmpty())
+            	trigger = reportTriggers.first();
+            if (i>trigger){
+				System.out.println(trigger+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
+				reportTriggers.remove(reportTriggers.first());
+            }
+            seqsNeg[i] = seqgen.execute(negRegions.get(i)).toUpperCase();
 		}
-		
-		for (int i=0;i<events.size();i++){
-			seqsNeg[i] = seqgen.execute(negRegions.get(i)).toUpperCase();
-		}
-		seqgen = null;
-		
+		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
+	
 	}
 
 	
@@ -341,8 +358,11 @@ public class KmerEngine {
 //			assert(kmer.negCount==negHitCounts.get(kmer.kmerString) );
 			// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
 			int kmerAllHitCount = kmer.seqHitCount+1;
-			if (negHitCounts.containsKey(kmer.kmerString))
-				kmerAllHitCount += negHitCounts.get(kmer.kmerString);
+			if (negHitCounts.containsKey(kmer.kmerString)){
+				kmer.negCount = negHitCounts.get(kmer.kmerString);
+				kmerAllHitCount += kmer.negCount;
+				
+			}
 			double p = 1-StatUtil.hyperGeometricCDF(kmer.seqHitCount, N, kmerAllHitCount, n);
 			kmer.hg = p;
 //			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));
