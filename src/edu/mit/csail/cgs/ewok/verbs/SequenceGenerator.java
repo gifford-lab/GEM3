@@ -43,7 +43,9 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                     ps.setInt(1,chromid);
                     ResultSet rs = ps.executeQuery();
                     if (rs.next()) {
-                        cache.put(chromid,rs.getString(1));
+                    	synchronized(this){
+                    		cache.put(chromid,rs.getString(1));
+                    	}
                     }   
                     rs.close();
                     ps.close();
