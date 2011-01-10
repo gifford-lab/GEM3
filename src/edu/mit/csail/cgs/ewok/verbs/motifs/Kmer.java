@@ -40,7 +40,7 @@ public class Kmer implements Comparable<Kmer>{
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log(hg));
 	}
 	public static String toHeader(){
-		return "kmer\tSeqHitCount\tKmerCt\tWeight";
+		return "kmer\tSeqHitCount\tnegCt\tHG_pv";
 	}
 	public double bias(int pos){
 		double sum=0;

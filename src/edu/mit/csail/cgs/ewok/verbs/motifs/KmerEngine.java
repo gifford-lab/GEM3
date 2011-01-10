@@ -164,7 +164,13 @@ public class KmerEngine {
 			Region posRegion = f.getPeak().expand(winSize/2);
 			seqCoors[i] = posRegion;
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
-			Region negRegion = new Region(genome, posRegion.getChrom(), posRegion.getStart()+1000, posRegion.getEnd()+1000);
+			int start = posRegion.getStart()+winSize;
+			int end = posRegion.getEnd()+winSize;
+			if (end>genome.getChromLength(posRegion.getChrom())){
+				start = posRegion.getStart()-winSize;
+				end = posRegion.getEnd()-winSize;
+			}
+			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);
 			//TODO: exclude negative regions that overlap with positive regions
 			negRegions.add(negRegion);
 		}
@@ -172,6 +178,7 @@ public class KmerEngine {
 		for (int i=0;i<events.size();i++){
 			seqsNeg[i] = seqgen.execute(negRegions.get(i)).toUpperCase();
 		}
+		seqgen = null;
 		
 	}
 
@@ -278,7 +285,7 @@ public class KmerEngine {
 		
 		/*
 		Aho-Corasick for searching Kmers in negative sequences
-		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		 */		
 		AhoCorasick tmp = new AhoCorasick();
@@ -347,6 +354,7 @@ public class KmerEngine {
 		
 		Collections.sort(kmers);		
 		System.out.println(kmers.size()+" "+k+"-mers found ");
+		printKmers(kmers, 0);
 		/*
 		Aho-Corasick for searching significant Kmers
 		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
@@ -555,7 +563,7 @@ public class KmerEngine {
 			sb.append("\n");
 		}
 		writeFile(String.format("kmer_%d_%d.txt", k, r), sb.toString());
-		System.out.println(kmers.get(0).seqHitCount);
+//		System.out.println(kmers.get(0).seqHitCount);
 //		System.out.println("Kmers printed "+timeElapsed(tic));
 	}
 	

@@ -15,7 +15,7 @@ import edu.mit.csail.cgs.utils.database.*;
  */
 public class SequenceGenerator<X extends Region> implements Mapper<X,String>, SelfDescribingVerb {
 
-    private Map<Integer,String> cache;
+    private static Map<Integer,String> cache;
 
     // no longer used, but kept for compatibility 
     public SequenceGenerator (Genome g) {        
@@ -38,13 +38,14 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
             int chromid = genome.getChromID(chromname);
             if (cache != null) {
                 if (!cache.containsKey(chromid)) {
-                    java.sql.Connection cxn =
-                DatabaseFactory.getConnection("core");
+                    java.sql.Connection cxn = DatabaseFactory.getConnection("core");
                     PreparedStatement ps = cxn.prepareStatement("select sequence from chromsequence where id = ?");
                     ps.setInt(1,chromid);
                     ResultSet rs = ps.executeQuery();
                     if (rs.next()) {
-                        cache.put(chromid,rs.getString(1));
+                    	synchronized(this){
+                    		cache.put(chromid,rs.getString(1));
+                    	}
                     }   
                     rs.close();
                     ps.close();
