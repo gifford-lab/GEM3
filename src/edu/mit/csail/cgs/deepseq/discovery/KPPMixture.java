@@ -828,11 +828,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				Pair<ReadCache,ReadCache> e = caches.get(i);
 				ArrayList<Pair<Point, Float>> f = e.car().resetHugeBases(config.base_reset_threshold);
 				for (Pair<Point, Float> p:f)
-					System.err.printf("Warning: %s IP read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
+					System.err.printf("%s IP=%.0f-->1 ",p.car().toString(), p.cdr());
 				if (controlDataExist){
 					f = e.cdr().resetHugeBases(config.base_reset_threshold);
 					for (Pair<Point, Float> p:f)
-						System.err.printf("Warning: %s Ctrl read counts %.0f, reset to 1\n",p.car().toString(), p.cdr());
+						System.err.printf("%s CTRL=%.0f-->1 ",p.car().toString(), p.cdr());
 				}
 			}
 			return;
@@ -1551,7 +1551,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							if (base.getStrand()=='+'){
 								int idx = base.getCoordinate()-pos-model.getMin();
 								if (idx>=modelWidth||idx<0){
-									System.err.println("Invalid profile index "+pos+"\t\t"+base.getCoordinate()+ " in region"+r.toString());
+									System.err.println("Invalid profile index "+idx+",\tpos "+pos+"\tbase "+base.getCoordinate()+ " in region "+r.toString());
 									continue;
 								}
 								ctrl_profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
@@ -3528,14 +3528,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     while(nonZeroComponentNum>0){
                         lastResolution = componentSpacing;
                         int numComp = components.size();
-                        double[] p_alpha = new double[numComp];						// position alpha
+                        double[] p_alpha = new double[numComp];						// positional alpha
                         if (kEngine!=null){
 	                        for (int i=0;i<numComp;i++){
 	                        	BindingComponent b = components.get(i);
 	                        	int bIdx = b.getLocation().getLocation()-w.getStart();
 	                        	double maxPP = 0;
 	                        	for (int j=0;j<lastResolution;j++){
-	                        		maxPP = Math.max(maxPP,pp[bIdx+j]);
+	                        		int idx = bIdx+j;
+	                        		if (idx>=pp.length)
+	                        			idx = pp.length-1;
+	                        		maxPP = Math.max(maxPP,pp[idx]);
 	                        	}
 	                        	p_alpha[i]=maxPP;
 	                        }
