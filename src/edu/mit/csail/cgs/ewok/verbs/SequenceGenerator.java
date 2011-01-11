@@ -105,18 +105,10 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                 DatabaseFactory.getConnection("core");
                 PreparedStatement ps;
                 int start = Math.max(region.getStart() + 1,0);
-                if (DatabaseFactory.isOracle(cxn)) {
-                    ps = cxn.prepareStatement("select dbms_lob.substr(sequence,?,?) from chromsequence where id = ?");
-                    // length comes first, then offset when using dbms_lob.  This is the opposite of the regular SQL substr
-                    ps.setInt(2,start);
-                    ps.setInt(1,region.getEnd() - region.getStart() + 1);
-                    ps.setInt(3,chromid);                   
-                } else {
-                    ps = cxn.prepareStatement("select substr(sequence,?,?) from chromsequence where id = ?");
-                    ps.setInt(1,start);
-                    ps.setInt(2,region.getEnd() - region.getStart() + 1);
-                    ps.setInt(3,chromid);                   
-                }
+                ps = cxn.prepareStatement("select substr(sequence,?,?) from chromsequence where id = ?");
+                ps.setInt(1,start);
+                ps.setInt(2,region.getEnd() - region.getStart() + 1);
+                ps.setInt(3,chromid);                   
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
                     result = rs.getString(1);
@@ -134,6 +126,10 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         } catch (IOException ex) {
             ex.printStackTrace();
             throw new RuntimeException("Couldn't load file to cache " + ex.toString(), ex);
+        }
+
+        if (result == null) {
+            throw new DatabaseException("Couldn't get any sequence for " + region);
         }
 
         if (result.length() != region.getWidth()) {
