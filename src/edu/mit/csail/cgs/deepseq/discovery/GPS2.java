@@ -167,7 +167,7 @@ public class GPS2 {
         mixture.setOutName(peakFileName+"_"+round);
         
         /**
-         ** GPS2 event finding with kmer positional prior (KMM)
+         ** GPS2 event finding with kmer positional prior (KPP)
          **/        
         mixture.initKmerEngine();
         mixture.execute();
@@ -175,6 +175,7 @@ public class GPS2 {
         mixture.printFeatures();
         mixture.printInsignificantFeatures();
         mixture.printFilteredFeatures();
+        
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         System.out.println("Finished! Binding events are printed to: "+mixture.getOutName()+"_GPS_significant.txt");

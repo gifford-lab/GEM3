@@ -3524,10 +3524,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	
                     //Run EM and increase resolution
                     initializeComponents(w, mixture.numConditions);
-                    int lastResolution;
                     int countIters = 0;
-                    while(nonZeroComponentNum>0){
-                        lastResolution = componentSpacing;
+                    while(nonZeroComponentNum>0){                        
                         int numComp = components.size();
                         double[] p_alpha = new double[numComp];						// positional alpha
                         if (kEngine!=null){
@@ -3535,7 +3533,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                        	BindingComponent b = components.get(i);
 	                        	int bIdx = b.getLocation().getLocation()-w.getStart();
 	                        	double maxPP = 0;
-	                        	for (int j=0;j<lastResolution;j++){
+	                        	for (int j=0;j<componentSpacing;j++){
 	                        		int idx = bIdx+j;
 	                        		if (idx>=pp.length)
 	                        			idx = pp.length-1;
@@ -3553,7 +3551,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
                         // increase resolution
                         if (componentSpacing==1)
                             break;
-                        updateComponentResolution(w, mixture.numConditions, lastResolution);
+                        int lastResolution = componentSpacing;
+                        updateComponentResolution(w, mixture.numConditions, componentSpacing);
                         if(componentSpacing==lastResolution)
                             break;
                     } 	// end of while (resolution)
