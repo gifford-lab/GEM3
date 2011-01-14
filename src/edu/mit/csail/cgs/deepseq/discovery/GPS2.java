@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GPS2 {
-	public final static String GPS_VERSION = "1.0";
+	public final static String GPS_VERSION = "2.0";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
