@@ -73,10 +73,10 @@ public class StringUtils {
 	}//end of padString method
 	
 	/**
-	 * Find all occurences of pattern in string
+	 * Find all occurences (start positions) of pattern in string
 	 * @param str
 	 * @param pattern
-	 * @return a list of all matched positions
+	 * @return a list of all matched positions (starts)
 	 */
 	public static ArrayList<Integer> findAllOccurences (String str, String pattern){
 		ArrayList<Integer> pos = new ArrayList<Integer>();

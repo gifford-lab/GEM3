@@ -3010,7 +3010,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}//end of setComponentPositions method
 
     
-    public void initKmerEngine(){
+    public void initKmerEngine(String outPrefix){
     	if (config.k==-1)
     		return;
 		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
@@ -3019,7 +3019,27 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			fs.add(cf);
 		}
 		kEngine = new KmerEngine(gen, fs, config.kwin);
-		kEngine.buildEngine(config.k);
+		kEngine.buildEngine(config.k, outPrefix);
+    }
+    
+    // update kmerEngine with the predicted kmer-events
+    public void updateKmerEngine(String outPrefix){
+    	if (config.k==-1)
+    		return;
+		HashMap<Kmer, Integer> kmer2count = new HashMap<Kmer, Integer>();
+		for(Feature f : signalFeatures){
+			Kmer kmer = ((ComponentFeature)f).getKmer();
+			if (kmer2count.containsKey(kmer))
+				kmer2count.put(kmer, kmer2count.get(kmer)+1);
+			else
+				kmer2count.put(kmer, 1);
+		}
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		for (Kmer kmer:kmer2count.keySet()){
+			kmer.setSeqHitCount(kmer2count.get(kmer));
+			kmers.add(kmer);
+		}
+		kEngine.setKmers(kmers, outPrefix);
     }
 	
     class GPSConstants {
@@ -3509,16 +3529,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
                 	//construct the positional prior for each position in this region
                 	double[] pp = new double[w.getWidth()];
+                	Kmer[] pp_kmer = new Kmer[pp.length];
                 	if (kEngine!=null){
 	                	String seq = seqgen.execute(w);
 	                	HashMap<Integer, Kmer> kmerHits = kEngine.query(seq);
 	                	double total = 0;
 	                	for (int pos: kmerHits.keySet()){
-	                		pp[pos] = kmerHits.get(pos).getSeqHitCount();
-	                		total += pp[pos];
+	                		// the pos is the start position, hence +k/2
+	                		//if pos<0, then the reverse compliment of kmer is matched
+	                		int bindingPos = Math.abs(pos)+this.config.k/2;
+	                		pp[bindingPos] = kmerHits.get(pos).getSeqHitCount();
+	                		pp_kmer[bindingPos] = kmerHits.get(pos);
+	                		total += pp[bindingPos];
 	                	}
-	                	for (int pos: kmerHits.keySet()){
-	                		pp[pos] = pp[pos]/total*alpha;
+	                	// normalize so that total positional prior pseudo-count equal to alpha (sparse prior)
+	                	// alternatively, we can scale so that (largest position prior == sparse prior)
+	                	for (int i=0; i<pp.length; i++){
+	                		pp[i] = pp[i]/total*alpha;
 	                	}
                 	}
                 	
@@ -3558,9 +3585,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     } 	// end of while (resolution)
                     if (nonZeroComponentNum==0)	return null;
                     setComponentResponsibilities(signals, result.car(), result.cdr());
+                    setComponentKmers(pp_kmer, w.getStart());
                 } else {
-                    // Run MultiIndependentMixture (Temporal Coupling)
-
+                    // Run MultiIndependentMixture (Temporal Coupling) -- PoolEM
                     // Convert data in current region in primitive format
                     int[][] pos     = new int[mixture.numConditions][];  // position is relative to region's start
                     int[][] count   = new int[mixture.numConditions][];
@@ -3619,7 +3646,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     nonZeroComponentNum  = components.size();
                     if (nonZeroComponentNum==0)	return null;
                     setComponentResponsibilities(signals, responsibilities);
-                }// end of else condition (running it with TC)
+                }// end of else condition (running it with MultiIndependentMixture TC)
 
             } else{// if single event region, just scan it
                 BindingComponent peak = mixture.scanPeak(singleEventRegions.get(w));
@@ -4276,6 +4303,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
             nonZeroComponentNum = components.size();
         }//end of updateComponentResolution method
 
+        // matched EM resulted binding components with the kmer prior
+        // TODO: maybe we should search closest (<k/4) pp_kmer because some position may end up out-competed by nearby positions
+        private void setComponentKmers(Kmer[] pp_kmer, int startPos){
+        	for (BindingComponent b:components){
+        		b.setKmer(pp_kmer[b.getLocation().getLocation()-startPos]);
+        	}
+        }
+        
         // This is for beta EM method
         private void setComponentResponsibilities(ArrayList<List<StrandedBase>> signals, 
                                                   double[][][] responsibilities, int[][][] c2b) {
@@ -4344,6 +4379,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             }
         }//end of setComponentResponsibilities method
 
+        // this method is used in Giorgos's PoolEM method
         private int[] updateComps(Region w, List<BindingComponent> comps) {
             int[] newComps;
             int spacing;

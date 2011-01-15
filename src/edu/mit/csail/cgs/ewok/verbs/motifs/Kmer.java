@@ -5,6 +5,9 @@ import java.util.HashSet;
 
 public class Kmer implements Comparable<Kmer>{
 	String kmerString;
+	public String getKmerString() {
+		return kmerString;
+	}
 	int k;
 	int count;	//all hit count
 	int seqHitCount; //one hit at most for one sequence, to avoid simple repeat
@@ -70,5 +73,8 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public int getSeqHitCount() {
 		return seqHitCount;
+	}
+	public void setSeqHitCount(int count) {
+		seqHitCount=count;
 	}
 }
