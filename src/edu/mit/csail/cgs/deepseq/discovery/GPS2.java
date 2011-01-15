@@ -179,7 +179,7 @@ public class GPS2 {
         /**
          ** update kmers, GPS_KPP event finding 
          **/ 
-        mixture.setOutName(peakFileName+"_"+round+1);
+        mixture.setOutName(peakFileName+"_"+(round+1));
         mixture.updateKmerEngine(peakFileName+"_"+(round+1));
         mixture.execute();
         
