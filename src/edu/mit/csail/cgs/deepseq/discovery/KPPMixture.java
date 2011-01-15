@@ -3029,6 +3029,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		HashMap<Kmer, Integer> kmer2count = new HashMap<Kmer, Integer>();
 		for(Feature f : signalFeatures){
 			Kmer kmer = ((ComponentFeature)f).getKmer();
+			if (kmer==null)
+				continue;
 			if (kmer2count.containsKey(kmer))
 				kmer2count.put(kmer, kmer2count.get(kmer)+1);
 			else
