@@ -43,7 +43,7 @@ public class Kmer implements Comparable<Kmer>{
 	// default, sort kmer by seqHitCount
 	public int compareTo(Kmer o) {
 		double diff = o.seqHitCount-seqHitCount;
-		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?1:-1; // ascending
+		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
 	}
 	public String toString(){
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log(hg));
