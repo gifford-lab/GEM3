@@ -17,6 +17,12 @@ public class Kmer implements Comparable<Kmer>{
 	double hg;
 	int negCount;
 	
+	public int getNegCount() {
+		return negCount;
+	}
+	public void setNegCount(int negCount) {
+		this.negCount = negCount;
+	}
 	public Kmer(String kmerStr, ArrayList<KmerHit> hits){
 		this.kmerString = kmerStr;
 		this.hits = hits;
@@ -34,9 +40,9 @@ public class Kmer implements Comparable<Kmer>{
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1;  // descending
 	}
 	
-	// sort kmer by HG p-value
+	// default, sort kmer by seqHitCount
 	public int compareTo(Kmer o) {
-		double diff = o.hg-hg;
+		double diff = o.seqHitCount-seqHitCount;
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?1:-1; // ascending
 	}
 	public String toString(){

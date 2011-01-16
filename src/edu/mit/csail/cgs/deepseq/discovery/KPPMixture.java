@@ -3039,6 +3039,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (Kmer kmer:kmer2count.keySet()){
 			kmer.setSeqHitCount(kmer2count.get(kmer));
+			kmer.setNegCount(-1);
 			kmers.add(kmer);
 		}
 		kEngine.setKmers(kmers, outPrefix);
