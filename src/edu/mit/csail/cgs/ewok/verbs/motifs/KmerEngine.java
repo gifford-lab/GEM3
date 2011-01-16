@@ -594,9 +594,9 @@ public class KmerEngine {
 //			.append("\t").append(String.format("%.1f", kmer.bias((seqLength-k)/2)))
 //			.append("\t").append(String.format("%.1f", kmer.bias2((seqLength-k)/2)))
 //			.append("\t").append(String.format("%.1f", Math.max(score, score_rc)));
-			float[] posCounts = kmer.getPositionCounts(seqLength);
-			for (float c: posCounts)
-				sb.append("\t").append(String.format("%.0f", c));
+//			float[] posCounts = kmer.getPositionCounts(seqLength);
+//			for (float c: posCounts)
+//				sb.append("\t").append(String.format("%.0f", c));
 			sb.append("\n");
 		}
 		writeFile(String.format("%s_kmer_%d.txt",outPrefix, k), sb.toString());
