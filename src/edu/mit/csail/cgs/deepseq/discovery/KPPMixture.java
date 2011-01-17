@@ -3541,7 +3541,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
 	                		int bindingPos = Math.abs(pos)+this.config.k/2;
-	                		pp[bindingPos] = kmerHits.get(pos).getSeqHitCount();
+	                		int kmerCount = kmerHits.get(pos).getSeqHitCount();
+	                		pp[bindingPos] = kmerCount==0?0:Math.log(kmerCount);
 	                		pp_kmer[bindingPos] = kmerHits.get(pos);
 	                		total += pp[bindingPos];
 	                	}

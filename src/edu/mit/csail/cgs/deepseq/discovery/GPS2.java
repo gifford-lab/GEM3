@@ -196,9 +196,19 @@ public class GPS2 {
         mixture.printFilteredFeatures();
 
         /**
+         ** update kmers, GPS_KPP event finding 
+         **/ 
+        mixture.updateKmerEngine(peakFileName+"_"+(round+2));
+        mixture.setOutName(peakFileName+"_"+(round+3));
+        mixture.execute();        
+        mixture.printFeatures();
+        mixture.printInsignificantFeatures();
+        mixture.printFilteredFeatures();
+
+         /**
          ** update kmers for the last time 
          **/ 
-        mixture.updateKmerEngine(peakFileName+"_"+(round+2));        
+        mixture.updateKmerEngine(peakFileName+"_"+(round+3));        
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         System.out.println("Finished! Binding events are printed to: "+mixture.getOutName()+"_GPS_significant.txt");
