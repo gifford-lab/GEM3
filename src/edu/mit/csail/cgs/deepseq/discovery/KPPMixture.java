@@ -3100,6 +3100,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int max_hit_per_bp = -1;
         public int k = -1;
         public int kwin = 100;
+        public int kc2pp = 0;		// different mode to convert kmer count to positional prior alpha value
         /** percentage of candidate (enriched) peaks to take into account
          *  during the evaluation of non-specific signal */
         public double pcr = 0.0;
@@ -3164,6 +3165,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             // Optional input parameter
             k = Args.parseInteger(args, "k", -1);
             kwin = Args.parseInteger(args, "kwin", 100);
+            kc2pp = Args.parseInteger(args, "kc2pp", 0);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
@@ -3542,7 +3544,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		//if pos<0, then the reverse compliment of kmer is matched
 	                		int bindingPos = Math.abs(pos)+this.config.k/2;
 	                		int kmerCount = kmerHits.get(pos).getSeqHitCount();
-	                		pp[bindingPos] = kmerCount==0?0:Math.log(kmerCount);
+	                		// select the approach to generate pp from kmer count
+	                		if (config.kc2pp==0)
+	                			pp[bindingPos] = kmerCount;
+	                		else if (config.kc2pp==1)
+	                			pp[bindingPos] = kmerCount==0?0:Math.log(kmerCount);
+	                		else if (config.kc2pp==2)
+	                			pp[bindingPos] = kmerCount==0?0:Math.log2(kmerCount);
+	                		else if (config.kc2pp==10)
+	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
 	                		pp_kmer[bindingPos] = kmerHits.get(pos);
 	                		total += pp[bindingPos];
 	                	}
