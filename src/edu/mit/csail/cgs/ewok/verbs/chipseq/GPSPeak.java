@@ -28,6 +28,7 @@ public class GPSPeak extends Point{
 		this.jointEvent = joint==1;
 		this.nearestGene = nearestGene;
 		this.distance = distance;
+		this.EM_position = this;
 	}
 
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
@@ -43,6 +44,7 @@ public class GPSPeak extends Point{
 		this.jointEvent = joint==1;
 		this.nearestGene = nearestGene;
 		this.distance = distance;
+		this.EM_position = this;
 	}
 	
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
@@ -54,6 +56,7 @@ public class GPSPeak extends Point{
 		this.pvalue = pvalue;
 		this.IPvsEMP = IPvsEMP;
 		this.IPvsCTR = IPvsCTR;
+		this.EM_position = this;
 	}
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double ctrlStrength, double qvalue, double pvalue, double IPvsEMP){
@@ -64,6 +67,7 @@ public class GPSPeak extends Point{
 		this.pvalue = pvalue;
 		this.IPvsEMP = IPvsEMP;
 		this.IPvsCTR = 0;
+		this.EM_position = this;
 	}	
 	
 
