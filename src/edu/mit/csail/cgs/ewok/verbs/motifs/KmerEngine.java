@@ -582,8 +582,8 @@ public class KmerEngine {
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append(Kmer.toHeader());
-		for (int i=0; i<seqLength; i++)
-			sb.append("\t").append("pos_"+i);
+//		for (int i=0; i<seqLength; i++)
+//			sb.append("\t").append("pos_"+i);
 		sb.append("\n");
 		for (Kmer kmer:kmers){
 			if (kmer.seqHitCount<minHitCount)
