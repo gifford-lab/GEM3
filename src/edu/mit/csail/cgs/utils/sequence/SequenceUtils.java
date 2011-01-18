@@ -71,7 +71,7 @@ public class SequenceUtils {
         int end = array.length - 1;        
         for (i = 0; i <= array.length / 2 && i < array.length; i++) {
             try {
-                int first = array[i];
+                char first = array[i];
                 array[i] = trans[array[end - i]];
                 array[end-i] = trans[first];
             } catch (ArrayIndexOutOfBoundsException ex) {
