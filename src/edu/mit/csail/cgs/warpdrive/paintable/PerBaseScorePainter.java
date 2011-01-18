@@ -102,6 +102,11 @@ public class PerBaseScorePainter<X extends Number> extends RegionPaintable {
                 }
                 sum /= rend - rstart + 1;
             }            
+            if (sum > props.MaxScore) {
+                sum = props.MaxScore;
+            } else if (sum < props.MinScore) {
+                sum = props.MinScore;
+            }
             if (sum > props.MiddleScore) {
                 g.setColor(Color.BLACK);
                 sum = (sum - props.MiddleScore) / (props.MaxScore - props.MiddleScore);
