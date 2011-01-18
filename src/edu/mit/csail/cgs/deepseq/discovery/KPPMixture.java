@@ -3549,8 +3549,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                			pp[bindingPos] = kmerCount;
 	                		else if (config.kc2pp==1)
 	                			pp[bindingPos] = kmerCount==0?0:Math.log(kmerCount);
-	                		else if (config.kc2pp==2)
-	                			pp[bindingPos] = kmerCount==0?0:Math.log2(kmerCount);
 	                		else if (config.kc2pp==10)
 	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
 	                		pp_kmer[bindingPos] = kmerHits.get(pos);
