@@ -563,7 +563,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	public int countAllHits(ChipSeqAlignment align) throws IOException {
         try {
             return client.getCount(Integer.toString(align.getDBID()),
-                                   false,false,false);
+                                   false,false,null);
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
@@ -573,7 +573,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	public double weighAllHits(ChipSeqAlignment align) throws IOException {
         try {
             return client.getWeight(Integer.toString(align.getDBID()),
-                                    false,false,false);
+                                    false,false,null);
         } catch (ClientException e) {
             throw new IllegalArgumentException(e);
         }
