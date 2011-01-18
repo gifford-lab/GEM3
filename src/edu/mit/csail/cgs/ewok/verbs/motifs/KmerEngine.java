@@ -64,7 +64,7 @@ public class KmerEngine {
 	private String[] seqsNeg;		// DNA sequences in negative sets
 	
 	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-	private HashMap<String, Kmer> kmerByStr = new HashMap<String, Kmer>();
+	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 	
 	// AhoCorasick algorithm for multi-pattern search
 	// Pre-processing is to build the tree with all the patters (kmers)
@@ -202,7 +202,7 @@ public class KmerEngine {
 	
 	// find all occurrences of kmer from a list of sequences
 	private void indexKmers(){
-		buildEngine(k);
+		buildEngine(k, "0");
 		
 		StringBuilder sb = new StringBuilder();
 		for (Kmer kmer:kmers){
@@ -232,19 +232,19 @@ public class KmerEngine {
 		StatUtil.normalize(positionProbs);
 		positionProbs=StatUtil.gaussianSmoother(positionProbs, smooth);
 		printPositionProbabilities("kmer_"+k+"_0_p_pos.txt");
-		printKmers(kmers, 0);
+		printKmers(kmers, ""+0);
 	}
 	
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value
 	 * and build the kmer AhoCorasick engine
 	 */
-	public void buildEngine(int k) {
+	public void buildEngine(int k, String outPrefix) {
 		this.k = k;
 		numPos = seqLength-k+1;
 		
 		HashMap<String, ArrayList<KmerHit>> map = new HashMap<String, ArrayList<KmerHit>>();
-
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
 //			System.out.print(seqId+" ");
 			String seq = seqs[seqId];
@@ -372,31 +372,24 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kmers.removeAll(toRemove);
 		
-		Collections.sort(kmers);		
-		System.out.println(kmers.size()+" "+k+"-mers found ");
-		printKmers(kmers, 0);
-		/*
-		Aho-Corasick for searching significant Kmers
-		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
-		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-		 */		
-		tree = new AhoCorasick();
-		for (Kmer km: kmers){
-			kmerByStr.put(km.kmerString, km);
-			tree.add(km.kmerString.getBytes(), km.kmerString);
-	    }
-	    tree.prepare();
-	    System.out.println("Kmer Engine initialized "+timeElapsed(tic));
+		// set Kmers and prepare the search Engine
+		setKmers(kmers, outPrefix);
 	}
 	
-	/*
-	Aho-Corasick
-	ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
-	from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-	 */	
+	/** 
+	 * Search all kmers in the sequence
+	 * @param seq
+	 * @return a map (pos-->kmer)
+	 * if pos is negative, then the start position maches the reverse compliment of kmer string
+	 */
 	public HashMap<Integer, Kmer> query (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
+		/*
+		Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
+		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+		 */			
 		Iterator searcher = tree.search(seq.getBytes());
 //		System.out.println(seq);
 		while (searcher.hasNext()) {
@@ -413,22 +406,46 @@ public class KmerEngine {
 		}
 		
 		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
-		HashMap<Integer, Kmer> result = new HashMap<Integer, Kmer> ();
-		
+		// negative postion --> the start position matches the rc of kmer
+		HashMap<Integer, Kmer> result = new HashMap<Integer, Kmer> ();		
 		for (Object o: kmerFound){
-			String kmer = (String) o;
-			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmer);
+			String kmerStr = (String) o;
+			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
 			for (int p: pos){
-				result.put(p, kmerByStr.get(kmer));
+				result.put(p, str2kmer.get(kmerStr));
 			}
-			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmer));
+			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmerStr));
 			for (int p: pos_rc){
-				result.put(p, kmerByStr.get(kmer));
+				result.put(-p, str2kmer.get(kmerStr));
 			}
 		}
 
 		return result;
 	}
+	
+	/** set Kmers and prepare the search Engine
+	 * 
+	 * @param kmers List of kmers (with kmerString, sequence hit count)
+	 */
+	public void setKmers(ArrayList<Kmer> kmers, String outPrefix){
+		this.kmers = kmers;
+		Collections.sort(kmers);		
+		System.out.println(kmers.size()+" "+k+"-mers were updated.");
+		printKmers(kmers, outPrefix);
+		/*
+		Init Aho-Corasick alg. for searching multiple Kmers in sequences
+		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+		 */		
+		tree = new AhoCorasick();
+		for (Kmer km: kmers){
+			str2kmer.put(km.kmerString, km);
+			tree.add(km.kmerString.getBytes(), km.kmerString);
+	    }
+	    tree.prepare();
+	    System.out.println("Kmer Engine initialized "+timeElapsed(tic));
+	}
+	
 	// hard assignment by exclusion, 1 kmer will explain the whole sequence
 	private void hardExclusion(){
 		//sort kmers
@@ -548,7 +565,7 @@ public class KmerEngine {
 			positionProbs = StatUtil.gaussianSmoother(positionProbs, smooth);
 //			positionProbs=StatUtil.cubicSpline(positionProbs, 3, 3);
 			printPositionProbabilities(String.format("kmer_%d_%d_p_pos.txt", k, r+1));
-			printKmers(kmers, r+1);
+			printKmers(kmers, ""+r+1);
 			printSeqStats(r+1);
 		} // round
 	}
@@ -560,13 +577,13 @@ public class KmerEngine {
 		}
 		writeFile(name, sb.toString());
 	}
-	private void printKmers(ArrayList<Kmer> kmers, int r){
+	private void printKmers(ArrayList<Kmer> kmers, String outPrefix){
 		Collections.sort(kmers);
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append(Kmer.toHeader());
-		for (int i=0; i<seqLength; i++)
-			sb.append("\t").append("pos_"+i);
+//		for (int i=0; i<seqLength; i++)
+//			sb.append("\t").append("pos_"+i);
 		sb.append("\n");
 		for (Kmer kmer:kmers){
 			if (kmer.seqHitCount<minHitCount)
@@ -577,12 +594,12 @@ public class KmerEngine {
 //			.append("\t").append(String.format("%.1f", kmer.bias((seqLength-k)/2)))
 //			.append("\t").append(String.format("%.1f", kmer.bias2((seqLength-k)/2)))
 //			.append("\t").append(String.format("%.1f", Math.max(score, score_rc)));
-			float[] posCounts = kmer.getPositionCounts(seqLength);
-			for (float c: posCounts)
-				sb.append("\t").append(String.format("%.0f", c));
+//			float[] posCounts = kmer.getPositionCounts(seqLength);
+//			for (float c: posCounts)
+//				sb.append("\t").append(String.format("%.0f", c));
 			sb.append("\n");
 		}
-		writeFile(String.format("kmer_%d_%d.txt", k, r), sb.toString());
+		writeFile(String.format("%s_kmer_%d.txt",outPrefix, k), sb.toString());
 //		System.out.println(kmers.get(0).seqHitCount);
 //		System.out.println("Kmers printed "+timeElapsed(tic));
 	}

@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GPS2 {
-	public final static String GPS_VERSION = "1.0";
+	public final static String GPS_VERSION = "2.0";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -164,17 +164,51 @@ public class GPS2 {
                 kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
         }
         //round--;
-        mixture.setOutName(peakFileName+"_"+round);
         
         /**
-         ** GPS2 event finding with kmer positional prior (KMM)
+         ** GPS2 event finding with kmer positional prior (KPP)
          **/        
-        mixture.initKmerEngine();
-        mixture.execute();
-        
+        mixture.initKmerEngine(peakFileName+"_"+(round-1));
+        mixture.setOutName(peakFileName+"_"+round);
+        mixture.execute();        
         mixture.printFeatures();
         mixture.printInsignificantFeatures();
         mixture.printFilteredFeatures();
+
+        /**
+         ** update kmers, GPS_KPP event finding 
+         **/ 
+        mixture.updateKmerEngine(peakFileName+"_"+(round));
+        mixture.setOutName(peakFileName+"_"+(round+1));
+        mixture.execute();        
+        mixture.printFeatures();
+        mixture.printInsignificantFeatures();
+        mixture.printFilteredFeatures();
+
+        /**
+         ** update kmers, GPS_KPP event finding 
+         **/ 
+        mixture.updateKmerEngine(peakFileName+"_"+(round+1));
+        mixture.setOutName(peakFileName+"_"+(round+2));
+        mixture.execute();        
+        mixture.printFeatures();
+        mixture.printInsignificantFeatures();
+        mixture.printFilteredFeatures();
+
+        /**
+         ** update kmers, GPS_KPP event finding 
+         **/ 
+        mixture.updateKmerEngine(peakFileName+"_"+(round+2));
+        mixture.setOutName(peakFileName+"_"+(round+3));
+        mixture.execute();        
+        mixture.printFeatures();
+        mixture.printInsignificantFeatures();
+        mixture.printFilteredFeatures();
+
+         /**
+         ** update kmers for the last time 
+         **/ 
+        mixture.updateKmerEngine(peakFileName+"_"+(round+3));        
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         System.out.println("Finished! Binding events are printed to: "+mixture.getOutName()+"_GPS_significant.txt");

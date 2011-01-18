@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
+import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
@@ -37,6 +38,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected Point EM_position;		//  EM result
 	protected double alpha;
 	
+	protected Kmer kmer;
+	public Kmer getKmer() { return kmer; }
+	public void setKmer(Kmer kmer) { this.kmer = kmer;}
+	
 	public ComponentFeature(BindingComponent b){
 		super(null);
 		position = b.getLocation();
@@ -59,6 +64,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		q_value_log10 = new double[numConditions];
 		EM_position = b.getEMPosition();
 		alpha = b.getAlpha();
+		kmer = b.getKmer();
 		ipCtrl_logKL_plus = new double[numConditions];
 		ipCtrl_logKL_minus = new double[numConditions];
 	}
@@ -146,6 +152,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public static void setSortingCondition(int cond){
 		sortingCondition = cond;
 	}
+
 	public boolean onSameChrom(ComponentFeature f){
 		return position.getChrom().equalsIgnoreCase(f.getPosition().getChrom());
 	}
@@ -378,6 +385,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	if (c<numConditions-1)
         		header.append("\t");
         }
+        if (kmer!=null)
+        	header.append("Kmer\t").append("KmerCount\t"); 
         header.append("\n");
         return header.toString();
 	}
@@ -419,7 +428,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	if (c<numConditions-1)
         		result.append("\t");
         }
-
+        if (kmer!=null)
+        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount());
+        
         result.append("\n");
 		return result.toString();
 	}

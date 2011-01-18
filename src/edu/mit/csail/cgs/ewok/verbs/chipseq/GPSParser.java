@@ -101,7 +101,7 @@ public class GPSParser {
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                                Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
                                Math.pow(10,-1*Double.parseDouble(t[5])), Double.parseDouble(t[6]));
-	    } else if (t.length == 8) {
+	    } else if (t.length == 8 || t.length == 10  || t.length == 16) {
 			// GPS output format 2010-11-10	
 			// Position	   IP	Control	   Fold	Q_-lg10	P_-lg10	IPvsEMP	IPvsCTR
             Region r = Region.fromString(g, t[0]);

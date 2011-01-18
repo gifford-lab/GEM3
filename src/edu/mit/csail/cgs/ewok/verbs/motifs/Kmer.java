@@ -5,6 +5,9 @@ import java.util.HashSet;
 
 public class Kmer implements Comparable<Kmer>{
 	String kmerString;
+	public String getKmerString() {
+		return kmerString;
+	}
 	int k;
 	int count;	//all hit count
 	int seqHitCount; //one hit at most for one sequence, to avoid simple repeat
@@ -14,6 +17,12 @@ public class Kmer implements Comparable<Kmer>{
 	double hg;
 	int negCount;
 	
+	public int getNegCount() {
+		return negCount;
+	}
+	public void setNegCount(int negCount) {
+		this.negCount = negCount;
+	}
 	public Kmer(String kmerStr, ArrayList<KmerHit> hits){
 		this.kmerString = kmerStr;
 		this.hits = hits;
@@ -31,10 +40,10 @@ public class Kmer implements Comparable<Kmer>{
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1;  // descending
 	}
 	
-	// sort kmer by HG p-value
+	// default, sort kmer by seqHitCount
 	public int compareTo(Kmer o) {
-		double diff = o.hg-hg;
-		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?1:-1; // ascending
+		double diff = o.seqHitCount-seqHitCount;
+		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
 	}
 	public String toString(){
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log(hg));
@@ -70,5 +79,8 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public int getSeqHitCount() {
 		return seqHitCount;
+	}
+	public void setSeqHitCount(int count) {
+		seqHitCount=count;
 	}
 }

@@ -6,6 +6,7 @@ import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
+import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
 
 /**
  * BindingComponents are used in mixture models to represent potential binding events.
@@ -25,7 +26,10 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	private Point EM_position;		// EM result
 	private int old_index;
 	private double alpha;
-
+	private Kmer kmer;
+	public Kmer getKmer() { return kmer; }
+	public void setKmer(Kmer kmer) { this.kmer = kmer;}
+	
 	public int getOld_index() {
 		return old_index;
 	}
