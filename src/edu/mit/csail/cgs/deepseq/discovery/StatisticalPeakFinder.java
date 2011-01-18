@@ -46,6 +46,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	protected BackgroundCollection signalBacks=new BackgroundCollection(), ctrlBacks=new BackgroundCollection();
 	protected BackgroundCollection signalPerBaseBack=new BackgroundCollection(), ctrlPerBaseBack=new BackgroundCollection();
 	
+    protected double minFoldChange = 1;
 	protected double binWidth=100;
 	protected double binStep = 25;
 	protected double highLogConf=-9; 
@@ -95,6 +96,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 		readShift = Args.parseDouble(args,"readshift",readShift);
 				
 		//Load options for peak calling 
+        setMinFoldChange(Args.parseDouble(args,"min_fold_change",minFoldChange));
         setBinWidth(Args.parseDouble(args,"binwidth",binWidth));
         setBinStep(Args.parseDouble(args,"binstep",binStep));
         setHighLogConf(Args.parseDouble(args,"highlogconf",highLogConf));
@@ -409,8 +411,13 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                                     //Add hit to signalPeaks
                                     lastSigPeak=addEnrichedReg(currSigRes, lastSigPeak, currWin, ipWinHits, (noControl ? 0 : control.getScalingFactor()*backWinHits), ipTotHits, (noControl ? 0 : control.getScalingFactor()*backTotHits), str);
                                     peakInScalingWindow=true;
-                                }else{sigHitsScalingWindow+=ipHitStartCounts[currBin];}
-                            }else{sigHitsScalingWindow+=ipHitStartCounts[currBin];}
+                                } else{
+                                    sigHitsScalingWindow+=ipHitStartCounts[currBin];
+                                }
+                            } else {
+                                sigHitsScalingWindow+=ipHitStartCounts[currBin];
+                            }
+
 						
                             //Ctrl vs Signal Enrichment 
                             if(!noControl){
@@ -424,8 +431,12 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                                         //Add hit to controlPeaks
                                         lastCtrlPeak=addEnrichedReg(currCtrlRes, lastCtrlPeak, currWin, control.getScalingFactor()*backWinHits, ipWinHits, control.getScalingFactor()*backTotHits, ipTotHits, str);
                                         peakInScalingWindow=true;
-                                    }else{ctrlHitsScalingWindow+=backHitStartCounts[currBin];}
-                                }else{ctrlHitsScalingWindow+=backHitStartCounts[currBin];}
+                                    }else{
+                                        ctrlHitsScalingWindow+=backHitStartCounts[currBin];
+                                    }
+                                }else{
+                                    ctrlHitsScalingWindow+=backHitStartCounts[currBin];
+                                }
                             }
 								
                             //WARNING: In this loop, the peak's total read counts and over-representation will not be accurate 
@@ -592,6 +603,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 
 	
 	//Accessors
+    public void setMinFoldChange(double f) {minFoldChange = f;}
 	public void setBinWidth(double w){binWidth = w;}
 	public void setBinStep(double s){binStep = s;}
 	public void setReadLength(int l){readLength=l;}
@@ -732,7 +744,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	protected double binomialPValue(double k, double n){
 		double pval=1;
         synchronized (binomial) {
-            binomial.setNandP((int)Math.ceil(n), 0.5);
+            binomial.setNandP((int)Math.ceil(n), 1.0 / (minFoldChange + 1));
             pval = binomial.cdf((int) Math.ceil(k));
         }
 		return(pval);		
@@ -935,6 +947,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                 "  --binwidth <width of bins> \n"+
                 "  --binstep <offset of bins> \n"+
                 "  --sigthres <significance threshold \n"+
+                "  --minfold <minimumfoldchange> \n"+           
                 "  --highlogconf <log 10 Poisson threshold for signal channel> \n" +
                 "  --lowlogconf <log 10 Poisson threshold for control channel> \n" +
                 "  --pblogconf <log 10 Poisson threshold per base> \n" +
