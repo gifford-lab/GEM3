@@ -20,6 +20,7 @@ public class PerBaseMotifMatch implements Mapper<String,Double[]> {
     public Double[] execute(char[] sequence) {
         Double[] results = new Double[sequence.length];
         hitStrands = new char[sequence.length];
+
         /* scan through the sequence */
         int length = matrix.length();
         for (int i = 0; i < sequence.length - length; i++) {
@@ -33,7 +34,6 @@ public class PerBaseMotifMatch implements Mapper<String,Double[]> {
         for (int i = sequence.length - length; i < sequence.length; i++) {
             results[i] = 0.0;
         }
-
         /* now reverse complement the sequence and scan that.
            basically the same as before but with slightly different
            computation of the hit coordinates */
@@ -48,7 +48,8 @@ public class PerBaseMotifMatch implements Mapper<String,Double[]> {
                 results[realindex] = score;
                 hitStrands[realindex]='-';
             }
-        }
+        }        
+        SequenceUtils.reverseComplement(sequence);
         return results;
     }
     public char [] getHitStrands(){return hitStrands;}
