@@ -70,12 +70,12 @@ public class NodeView extends ObjectView {
 		
 		if(shape.equals(Shape.CIRCLE)) { 
 			g2.setColor(Color.white);
-			g2.fillOval(x-w/2, y-h/2, w, h);
+			//g2.fillOval(x-w/2, y-h/2, w, h);
 			g2.setColor(getColor());
 			g2.drawOval(x-w/2, y-h/2, w, h);
 		} else if (shape.equals(Shape.SQUARE)) { 
 			g2.setColor(Color.white);
-			g2.fillRect(x-w/2, y-h/2, w, h);
+			//g2.fillRect(x-w/2, y-h/2, w, h);
 			g2.setColor(getColor());
 			g2.drawRect(x-w/2, y-h/2, w, h);
 		} else if (shape.equals(Shape.HEXAGON)) { 
