@@ -48,7 +48,7 @@ public class KmerEngine {
 	private WeightMatrix motif = null;
 	private double motifThreshold;
 	
-	private double HyperGeomThreshold = 0.12;
+	private double HyperGeomThreshold;
 	private int max_kmer_per_seq = 5;
 	private int seqLength=-1;
 	private int k=10;
@@ -146,11 +146,12 @@ public class KmerEngine {
 		
 	}
 	
-	public KmerEngine(Genome g, ArrayList<ComponentFeature> events, int winSize){
+	public KmerEngine(Genome g, ArrayList<ComponentFeature> events, int winSize, double hgp){
 		tic = System.currentTimeMillis();
 		genome = g;
 		int eventCount = events.size();
 		seqLength = winSize+1;
+		HyperGeomThreshold = hgp;
 		Collections.sort(events);		// sort by location
 		seqs = new String[eventCount];
 		seqsNeg = new String[eventCount];
