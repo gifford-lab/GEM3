@@ -46,10 +46,10 @@ public class Kmer implements Comparable<Kmer>{
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
 	}
 	public String toString(){
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log(hg));
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log10(hg));
 	}
 	public static String toHeader(){
-		return "kmer\tSeqHitCount\tnegCt\tHG_pv";
+		return "Enriched Kmer\tPosCt\tNegCt\tHGP_10";
 	}
 	public double bias(int pos){
 		double sum=0;

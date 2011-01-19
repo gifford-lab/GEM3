@@ -72,7 +72,7 @@ public class TextView extends NodeView {
 			g2.setColor(Color.white);
 			g2.fillRect(sx, sy, totalWidth, totalHeight);
 			g2.setColor(Color.black);
-			g2.drawRect(sx, sy, totalWidth, totalHeight);
+			//g2.drawRect(sx, sy, totalWidth, totalHeight);
 			
 			int lx = sx, ly = sy + lineHeight;
 			for(int i = 0; i < lines.size(); i++) { 
