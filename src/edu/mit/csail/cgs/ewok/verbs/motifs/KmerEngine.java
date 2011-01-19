@@ -180,7 +180,7 @@ public class KmerEngine {
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
 			// getting negative sequences
 			// exclude negative regions that overlap with positive regions, or exceed start of chrom
-			// it is OK if we lose a few sequences here
+			// it is OK if we lose a few sequences here, so some entries of the seqsNeg will be null
 			int start = posRegion.getStart()-winSize;
 			int end = posRegion.getEnd()-winSize;
 			if (start < 0)
@@ -198,7 +198,7 @@ public class KmerEngine {
 				System.out.println(trigger+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 				reportTriggers.remove(reportTriggers.first());
             }
-            seqsNeg[i] = seqgen.execute(negRegions.get(i)).toUpperCase();
+            seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
 		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 	
@@ -318,7 +318,11 @@ public class KmerEngine {
 		
 		// count hits in the negative sequences
 		HashMap<String, Integer> negHitCounts = new HashMap<String, Integer>();
+		int negSeqCount = 0;
 		for (String seq: seqsNeg){
+			if (seq==null)			// some neg seq may be null, if overlap with positive sequences
+				continue;
+			negSeqCount++;
 			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
 			Iterator searcher = tmp.search(seq.getBytes());
 //			System.out.println(seq);
@@ -343,8 +347,8 @@ public class KmerEngine {
 		}
 		
 		// score the kmers, hypergeometric p-value
-		int n=seqs.length;
-		int N=n+seqsNeg.length;
+		int n = seqs.length;
+		int N = n + negSeqCount;
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		for (Kmer kmer:kmers){
 			if (kmer.seqHitCount<=1){
