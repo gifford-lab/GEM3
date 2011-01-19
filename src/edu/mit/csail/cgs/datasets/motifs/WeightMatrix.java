@@ -536,6 +536,20 @@ public class WeightMatrix {
         Arrays.sort(letters,cmp);
         return letters;
     }
+    public static WeightMatrix reverseComplement(WeightMatrix input) {
+        WeightMatrix output = new WeightMatrix(input.length());
+        for (int i = 0; i < input.length(); i++) {
+            output.matrix[input.length() - i - 1]['A'] = input.matrix[i]['T'];
+            output.matrix[input.length() - i - 1]['C'] = input.matrix[i]['G'];
+            output.matrix[input.length() - i - 1]['G'] = input.matrix[i]['C'];
+            output.matrix[input.length() - i - 1]['T'] = input.matrix[i]['A'];
+        }
+        output.name = input.name;
+        output.version = "revcomp " + input.version;
+        output.species = input.species;
+        output.type = input.type;
+        return output;
+    }
 }
 class WMLetterCmp implements Comparator<Character> {
     WeightMatrix matrix;
