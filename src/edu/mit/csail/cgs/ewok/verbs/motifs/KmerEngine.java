@@ -177,14 +177,18 @@ public class KmerEngine {
 			Region posRegion = f.getPeak().expand(winSize/2);
 			seqCoors[i] = posRegion;
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
-			int start = posRegion.getStart()+winSize;
-			int end = posRegion.getEnd()+winSize;
-			if (end>genome.getChromLength(posRegion.getChrom())){
-				start = posRegion.getStart()-winSize;
-				end = posRegion.getEnd()-winSize;
+			// getting negative sequences
+			// exclude negative regions that overlap with positive regions, or exceed start of chrom
+			// it is OK if we lose a few sequences here
+			int start = posRegion.getStart()-winSize;
+			int end = posRegion.getEnd()-winSize;
+			if (start < 0)
+				continue;
+			if (i>0){
+				if (seqCoors[i-1].overlaps( new Region(genome, posRegion.getChrom(), start, end)))
+					continue;
 			}
-			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);
-			//TODO: exclude negative regions that overlap with positive regions
+			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);			
 			negRegions.add(negRegion);
 			int trigger = eventCount;
             if (!reportTriggers.isEmpty())
