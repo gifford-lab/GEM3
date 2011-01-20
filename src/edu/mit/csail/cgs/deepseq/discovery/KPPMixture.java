@@ -3538,7 +3538,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	double[] pp = new double[w.getWidth()];
                 	Kmer[] pp_kmer = new Kmer[pp.length];
                 	if (kEngine!=null){
-	                	String seq = seqgen.execute(w);
+	                	String seq = seqgen.execute(w).toUpperCase();
 	                	HashMap<Integer, Kmer> kmerHits = kEngine.query(seq);
 	                	double total = 0;
 	                	for (int pos: kmerHits.keySet()){
