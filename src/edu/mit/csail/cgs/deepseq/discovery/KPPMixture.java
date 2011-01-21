@@ -1552,7 +1552,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							if (base.getStrand()=='+'){
 								int idx = base.getCoordinate()-pos-model.getMin();
 								if (idx>=modelWidth||idx<0){
-									System.err.println("Invalid profile index "+idx+",\tpos "+pos+"\tbase "+base.getCoordinate()+ " in region "+r.toString());
+									System.err.println("Invalid profile index "+idx+",\tpos "+pos+"\tbase +"+base.getCoordinate()+ " in region "+r.toString());
 									continue;
 								}
 								ctrl_profile_plus[base.getCoordinate()-pos-model.getMin()]=assignment[i][j]*base.getCount();
@@ -1560,7 +1560,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							else{
 								int idx = pos-base.getCoordinate()-model.getMin();
 								if (idx>=modelWidth||idx<0){
-									System.err.println("Invalid profile index "+idx+",\tpos "+pos+"\tbase "+base.getCoordinate()+ " in region "+r.toString());
+									System.err.println("Invalid profile index "+idx+",\tpos "+pos+"\tbase -"+base.getCoordinate()+ " in region "+r.toString());
 									continue;
 								}
 								ctrl_profile_minus[pos-base.getCoordinate()-model.getMin()]=assignment[i][j]*base.getCount();
@@ -3414,6 +3414,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                      * if we have positional prior, use the EM result directly
                      * ****************************************************************/
                     if (kEngine!=null){
+                    	Collections.sort(comps);
                     	compFeatures.addAll(mixture.callFeatures(comps));
                     }
                     /* ****************************************************************
