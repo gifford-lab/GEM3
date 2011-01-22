@@ -1479,6 +1479,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (comps.size()==0)
 			return features;
 
+		Collections.sort(comps);
+		
 		//Make feature calls (all non-zero components)
 		// remove events with IP < alpha (this happens because EM exit before convergence)
 		for(BindingComponent b : comps){
@@ -1491,7 +1493,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// if no control data, skip
 		if (controlDataExist){
 			// expand to the region covering all events
-			Collections.sort(comps);
 			Region r = comps.get(0).getLocation().expand(modelRange);
 			if (comps.size()>1){
 				r=new Region(r.getGenome(), r.getChrom(), r.getStart(),comps.get(comps.size()-1).getLocation().getLocation()+modelRange);
@@ -3414,7 +3415,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
                      * if we have positional prior, use the EM result directly
                      * ****************************************************************/
                     if (kEngine!=null){
-                    	Collections.sort(comps);
                     	compFeatures.addAll(mixture.callFeatures(comps));
                     }
                     /* ****************************************************************
@@ -3441,7 +3441,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                                     rs.add(comps.get(i).getLocation().expand(0));
                             }
                         }
-                        for (ArrayList<Region> subr : subRegions){
+                        for (ArrayList<Region> subr : subRegions){	// for each independent regions (may have multiple events)
                             ArrayList<BindingComponent> bs = new ArrayList<BindingComponent>();
                             if (subr.size()==1){
                                 BindingComponent b;
