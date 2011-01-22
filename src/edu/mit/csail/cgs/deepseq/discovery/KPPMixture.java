@@ -1482,9 +1482,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		Collections.sort(comps);
 		
 		//Make feature calls (all non-zero components)
-		// remove events with IP < alpha (this happens because EM exit before convergence)
+		// DO NOT remove events with IP < alpha (this happens because EM exit before convergence)
+		// because for KPP EM learning, some event may get pseudo-count from kpp
 		for(BindingComponent b : comps){
-			if(b.getMixProb()>0 && b.getTotalSumResponsibility()>=config.sparseness){
+			if(b.getMixProb()>0 ){
 				features.add(callFeature(b));
 			}
 		}
