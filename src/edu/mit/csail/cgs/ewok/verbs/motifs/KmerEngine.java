@@ -294,8 +294,8 @@ public class KmerEngine {
 				}
 			}
 			
-			if (hits_all.size()<= minHitCount)
-				continue;	// skip low count (<=2) kmers, 
+			if (hits_all.size()< minHitCount)
+				continue;	// skip low count (<2) kmers, 
 			
 			// create the kmer object
 			Kmer kmer = new Kmer(key, hits_all);
