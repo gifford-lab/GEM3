@@ -3054,7 +3054,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			kmer.setNegCount(-1);
 			kmers.add(kmer);
 		}
-		kEngine.setKmers(kmers, outPrefix);
+		kEngine.loadKmers(kmers, outPrefix);
     }
 	
     class GPSConstants {

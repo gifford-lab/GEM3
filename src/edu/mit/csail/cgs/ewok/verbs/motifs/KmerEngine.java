@@ -54,7 +54,7 @@ public class KmerEngine {
 	private int k=10;
 	private int round = 3;
 	private double smooth = 3;
-	private int minHitCount = 2;
+	private int minHitCount = 3;
 	private int numPos;
 	
 	// input data
@@ -85,13 +85,6 @@ public class KmerEngine {
 	private ArrayList<Kmer> explainedKmers = new ArrayList<Kmer>();
 	private long tic;
 	
-	public static void main(String[] args){
-		KmerEngine analysis = new KmerEngine(args);
-		analysis.indexKmers();
-		analysis.softWeighting();
-//		analysis.hardExclusion();
-//		analysis.print5Kmers();
-	}	
 	public KmerEngine(String[] args){
 		this.args = args;
 		tic = System.currentTimeMillis();
@@ -205,40 +198,7 @@ public class KmerEngine {
 	}
 
 	
-	// find all occurrences of kmer from a list of sequences
-	private void indexKmers(){
-		buildEngine(k, "0");
-		
-		StringBuilder sb = new StringBuilder();
-		for (Kmer kmer:kmers){
-			sb.append(String.format("%s\t%d\t%d\t%.4f\n", kmer.kmerString, kmer.seqHitCount, kmer.negCount, kmer.hg));
-		}
-		CommonUtils.writeFile("Kmer_p_values.txt", sb.toString());
-		System.out.println("Enriched Kmer count:\t" + kmers.size());
-		System.out.println("\nKmers scored "+timeElapsed(tic));
-		
-		// map the kmers to position
-		for (Kmer kmer:kmers){
-			for (KmerHit hit:kmer.hits){
-				seq_kmer_map[hit.seqId][hit.isMinus][hit.pos] = kmer;
-			}
-		}
-		
-		// build positional probabilities using the high count kmers
-		positionProbs = new double[seqLength-k+1];
-		for (Kmer m : kmers){
-			if (m.count>3){
-				float[] counts = m.getPositionCounts(seqLength);
-				for (int i=0;i<positionProbs.length;i++){
-					positionProbs[i] += counts[i];
-				}
-			}
-		}
-		StatUtil.normalize(positionProbs);
-		positionProbs=StatUtil.gaussianSmoother(positionProbs, smooth);
-		printPositionProbabilities("kmer_"+k+"_0_p_pos.txt");
-		printKmers(kmers, ""+0);
-	}
+
 	
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value
@@ -305,7 +265,7 @@ public class KmerEngine {
 		}
 		map=null;
 		System.gc();
-		System.out.println("Kmers mapped "+timeElapsed(tic));
+		System.out.println("Kmers("+kmers.size()+") mapped "+timeElapsed(tic));
 		
 		/*
 		Aho-Corasick for searching Kmers in negative sequences
@@ -385,8 +345,31 @@ public class KmerEngine {
 		System.out.println("\nKmers selected "+timeElapsed(tic));
 
 		// set Kmers and prepare the search Engine
-		setKmers(kmers, outPrefix);
+		loadKmers(kmers, outPrefix);
 	}
+	
+	/** load Kmers and prepare the search Engine
+	 * 
+	 * @param kmers List of kmers (with kmerString, sequence hit count)
+	 */
+	public void loadKmers(ArrayList<Kmer> kmers, String outPrefix){
+		tic = System.currentTimeMillis();
+		this.kmers = kmers;
+		Collections.sort(kmers);		
+		printKmers(kmers, outPrefix);
+		/*
+		Init Aho-Corasick alg. for searching multiple Kmers in sequences
+		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+		 */		
+		tree = new AhoCorasick();
+		for (Kmer km: kmers){
+			str2kmer.put(km.kmerString, km);
+			tree.add(km.kmerString.getBytes(), km.kmerString);
+	    }
+	    tree.prepare();
+	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine "+timeElapsed(tic));
+	}	
 	
 	/** 
 	 * Search all kmers in the sequence
@@ -435,29 +418,6 @@ public class KmerEngine {
 		return result;
 	}
 	
-	/** set Kmers and prepare the search Engine
-	 * 
-	 * @param kmers List of kmers (with kmerString, sequence hit count)
-	 */
-	public void setKmers(ArrayList<Kmer> kmers, String outPrefix){
-		tic = System.currentTimeMillis();
-		this.kmers = kmers;
-		Collections.sort(kmers);		
-		System.out.println(kmers.size()+" "+k+"-mers were updated.");
-		printKmers(kmers, outPrefix);
-		/*
-		Init Aho-Corasick alg. for searching multiple Kmers in sequences
-		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
-		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-		 */		
-		tree = new AhoCorasick();
-		for (Kmer km: kmers){
-			str2kmer.put(km.kmerString, km);
-			tree.add(km.kmerString.getBytes(), km.kmerString);
-	    }
-	    tree.prepare();
-	    System.out.println("Kmer Engine initialized "+timeElapsed(tic));
-	}
 	
 	// hard assignment by exclusion, 1 kmer will explain the whole sequence
 	private void hardExclusion(){
@@ -588,7 +548,7 @@ public class KmerEngine {
 		for (int i=0;i<positionProbs.length;i++){
 			sb.append(String.format("%d\t%.4f\n",i-seqLength/2, positionProbs[i]));
 		}
-		writeFile(name, sb.toString());
+		CommonUtils.writeFile(name, sb.toString());
 	}
 	private void printKmers(ArrayList<Kmer> kmers, String outPrefix){
 		Collections.sort(kmers);
@@ -612,9 +572,43 @@ public class KmerEngine {
 //				sb.append("\t").append(String.format("%.0f", c));
 			sb.append("\n");
 		}
-		writeFile(String.format("%s_kmer_%d.txt",outPrefix, k), sb.toString());
+		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",outPrefix, k), sb.toString());
 //		System.out.println(kmers.get(0).seqHitCount);
 //		System.out.println("Kmers printed "+timeElapsed(tic));
+	}
+	// find all occurrences of kmer from a list of sequences
+	private void indexKmers(){
+		buildEngine(k, "0");
+		
+		StringBuilder sb = new StringBuilder();
+		for (Kmer kmer:kmers){
+			sb.append(String.format("%s\t%d\t%d\t%.4f\n", kmer.kmerString, kmer.seqHitCount, kmer.negCount, kmer.hg));
+		}
+		CommonUtils.writeFile("Kmer_p_values.txt", sb.toString());
+		System.out.println("Enriched Kmer count:\t" + kmers.size());
+		System.out.println("\nKmers scored "+timeElapsed(tic));
+		
+		// map the kmers to position
+		for (Kmer kmer:kmers){
+			for (KmerHit hit:kmer.hits){
+				seq_kmer_map[hit.seqId][hit.isMinus][hit.pos] = kmer;
+			}
+		}
+		
+		// build positional probabilities using the high count kmers
+		positionProbs = new double[seqLength-k+1];
+		for (Kmer m : kmers){
+			if (m.count>3){
+				float[] counts = m.getPositionCounts(seqLength);
+				for (int i=0;i<positionProbs.length;i++){
+					positionProbs[i] += counts[i];
+				}
+			}
+		}
+		StatUtil.normalize(positionProbs);
+		positionProbs=StatUtil.gaussianSmoother(positionProbs, smooth);
+		printPositionProbabilities("kmer_"+k+"_0_p_pos.txt");
+		printKmers(kmers, ""+0);
 	}
 	
 	private void printSeqStats(int round){
@@ -663,8 +657,8 @@ public class KmerEngine {
 			
 			sb.append(letters).append("\n").append(symbols).append("\n").append("\n");
 		}
-		writeFile("kmer_"+k+"_"+round+"_seq.txt", sb.toString());
-		writeFile("kmer_"+k+"_"+round+"_coords.txt", sb2.toString());
+		CommonUtils.writeFile("kmer_"+k+"_"+round+"_seq.txt", sb.toString());
+		CommonUtils.writeFile("kmer_"+k+"_"+round+"_coords.txt", sb2.toString());
 		System.out.println("print seq stats " + timeElapsed(tic));
 	}
 	
@@ -689,23 +683,18 @@ public class KmerEngine {
 				  .append(hit.pos).append("\t")
 				  .append(hit.isMinus).append("\n");
 			}
-			writeFile("kmer_"+k+"_"+index+"_"+kmer.kmerString+".txt", sb.toString());
+			CommonUtils.writeFile("kmer_"+k+"_"+index+"_"+kmer.kmerString+".txt", sb.toString());
 		}
 	}
 	
-
+	public static void main(String[] args){
+		KmerEngine analysis = new KmerEngine(args);
+		analysis.indexKmers();
+		analysis.softWeighting();
+//		analysis.hardExclusion();
+//		analysis.print5Kmers();
+	}	
 	
-	public static void writeFile(String fileName, String text){
-		try{
-			FileWriter fw = new FileWriter(fileName, false); //new file
-			fw.write(text);
-			fw.close();
-		} 
-		catch (IOException e) {
-			e.printStackTrace();
-		}
-		System.out.println("File was written to "+fileName);
-	}
 	// load text file with sequences
 	private void loadSeqFile(String posFile, String negFile) {
 		BufferedReader bin=null;
