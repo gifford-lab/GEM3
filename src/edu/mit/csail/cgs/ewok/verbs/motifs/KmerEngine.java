@@ -382,7 +382,8 @@ public class KmerEngine {
 		}
 		// remove un-enriched kmers		
 		kmers.removeAll(toRemove);
-		
+		System.out.println("\nKmers selected "+timeElapsed(tic));
+
 		// set Kmers and prepare the search Engine
 		setKmers(kmers, outPrefix);
 	}
