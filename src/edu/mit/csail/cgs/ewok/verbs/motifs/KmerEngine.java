@@ -437,6 +437,7 @@ public class KmerEngine {
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
 	 */
 	public void setKmers(ArrayList<Kmer> kmers, String outPrefix){
+		tic = System.currentTimeMillis();
 		this.kmers = kmers;
 		Collections.sort(kmers);		
 		System.out.println(kmers.size()+" "+k+"-mers were updated.");

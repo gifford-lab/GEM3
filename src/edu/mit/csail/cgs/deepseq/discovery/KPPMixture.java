@@ -3020,14 +3020,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ComponentFeature cf = (ComponentFeature)f;
 			fs.add(cf);
 		}
-		for(Feature f : insignificantFeatures){
-			ComponentFeature cf = (ComponentFeature)f;
-			fs.add(cf);
-		}
-//		for(Feature f : filteredFeatures){
-//			ComponentFeature cf = (ComponentFeature)f;
-//			fs.add(cf);
-//		}
+		if (!config.kmer_not_use_insig)
+			for(Feature f : insignificantFeatures){
+				ComponentFeature cf = (ComponentFeature)f;
+				fs.add(cf);
+			}
+		if (config.kmer_use_filtered)			
+			for(Feature f : filteredFeatures){
+				ComponentFeature cf = (ComponentFeature)f;
+				fs.add(cf);
+			}
 		kEngine = new KmerEngine(gen, fs, config.kwin, config.hgp);
 		kEngine.buildEngine(config.k, outPrefix);
     }
@@ -3097,6 +3099,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     class GPSConfig {
         public boolean do_model_selection=false;
         public boolean use_joint_event = false;
+        public boolean kmer_not_use_insig = false;
+        public boolean kmer_use_filtered = false;
         public boolean TF_binding = true;
         public boolean outputBED = false;
         public boolean testPValues = false;
@@ -3152,6 +3156,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             // default as false, need the flag to turn it on
             sort_by_location = flags.contains("sl");
             use_joint_event = flags.contains("refine_using_joint_event");
+            kmer_not_use_insig = flags.contains("kmer_not_use_insig");
+            kmer_use_filtered = flags.contains("kmer_use_filtered");
             post_artifact_filter = flags.contains("post_artifact_filter");
             kl_count_adjusted = flags.contains("adjust_kl");
             refine_regions = flags.contains("refine_regions");
