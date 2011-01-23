@@ -254,6 +254,8 @@ public class KmerEngine {
 //			System.out.print(seqId+" ");
 			String seq = seqs[seqId];
 			for (int i=0;i<numPos;i++){
+				if ((i+k)>seq.length()) // endIndex of substring is exclusive
+					break;
 				String s = seq.substring(i, i+k);
 				if (map.containsKey(s)){
 					 ArrayList<KmerHit> hits = map.get(s);
