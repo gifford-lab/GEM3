@@ -263,7 +263,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
      		// ip/ctrl ratio by regression on non-enriched regions
 			if (subsetRatio==-1){
      			setRegions(selectEnrichedRegions(subsetRegions, false));
-    			calcIpCtrlRatio(restrictRegions);
+     			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
+     			temp.addAll(excludedRegions);
+    			calcIpCtrlRatio(temp);
     			if(controlDataExist) {
     				for(int t = 0; t < numConditions; t++)
     					System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
@@ -545,7 +547,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (totalSigCount<config.sparseness)
 			return null;
 		
-		// if IP/Control enrichment ratios are lower than cutoff for all 500bp sliding windows in all conditions, skip
+		// if IP/Control enrichment ratios are lower than cutoff for all 500bp sliding windows in all conditions, 
+		// skip this region, and record it in excludedRegions
 		if (controlDataExist && config.exclude_unenriched){
 			boolean enriched = false;
 			for (int s=w.getStart(); s<w.getEnd();s+=modelWidth/2){
@@ -571,6 +574,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					break;
 			}
 			if (!enriched){
+				excludedRegions.add(w);
 				return null;
 			}
 		}
