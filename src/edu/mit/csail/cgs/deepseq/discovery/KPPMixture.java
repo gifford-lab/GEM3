@@ -3157,7 +3157,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double q_value_threshold = 2.0;
         public double joint_event_distance = 500;
         public double alpha_factor = 3.0;
-        public double excluded_fraction = 0.1;
+        public double excluded_fraction = 0.05;
         public int top_events = 2000;
         public int min_event_count = 500;	// minimum num of events to update read distribution
         public int smooth_step = 30;
