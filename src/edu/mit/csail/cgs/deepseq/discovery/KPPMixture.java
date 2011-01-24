@@ -82,7 +82,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 	//Regions to be evaluated by EM, estimated whole genome, or specified by a file
 	private ArrayList<Region> restrictRegions = new ArrayList<Region>();
-	//Regions to be excluded, supplied by user
+	//Regions to be excluded, supplied by user, appended with un-enriched regions
 	private ArrayList<Region> excludedRegions = new ArrayList<Region>();
 
 	// Regions that have towers (many reads stack on same base positions)
@@ -265,7 +265,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      			setRegions(selectEnrichedRegions(subsetRegions, false));
      			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
      			temp.addAll(excludedRegions);
-    			calcIpCtrlRatio(temp);
+    			calcIpCtrlRatio(mergeRegions(temp, false));
     			if(controlDataExist) {
     				for(int t = 0; t < numConditions; t++)
     					System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
@@ -1015,7 +1015,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
 		
-		calcIpCtrlRatio(exRegions);
+		calcIpCtrlRatio(mergeRegions(exRegions, false));
 		if(controlDataExist) {
 			for(int c = 0; c < numConditions; c++)
 				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
@@ -2030,12 +2030,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}//end of for(String chrom:gen.getChromList()) LOOP
 			
 		// Calculate the slope for this condition
-		slope = calcSlope(scalePairs, config.excluded_fraction);
+		slope = calcSlope(scalePairs, config.excluded_fraction, config.dump_regression);
 		scalePairs.clear();
 		return slope;
 	}//end of getSlope method
 		
-	private static double calcSlope(List<PairedCountData> scalePairs, double excludedFraction) {
+	private static double calcSlope(List<PairedCountData> scalePairs, double excludedFraction, boolean dumpRegression) {
 		double slope;
         if(scalePairs==null || scalePairs.size()==0) { return 1.0; }
         List<PairedCountData> selectedPairs = new ArrayList<PairedCountData>();
@@ -2058,6 +2058,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		if (x[i]<=xHigh && x[i]>=xLow && y[i]<=yHigh && y[i]>=yLow)
         			selectedPairs.add(new PairedCountData(x[i],y[i]));
         	}
+        }
+        if (dumpRegression){
+        	for (PairedCountData p:selectedPairs)
+        		System.out.println(p.x+"\t"+p.y);
         }
         	
         DataFrame df = new DataFrame(edu.mit.csail.cgs.deepseq.PairedCountData.class, selectedPairs.iterator());
@@ -3136,6 +3140,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean sort_by_location=false;
         public boolean subtract_for_segmentation=false;
         public boolean exclude_unenriched = false;
+        public boolean dump_regression = false;
         public int KL_smooth_width = 0;
         public int max_hit_per_bp = -1;
         public int k = -1;
@@ -3194,6 +3199,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             if (testPValues)
             	System.err.println("testP is " + testPValues);
             exclude_unenriched = flags.contains("ex_unenriched");
+            dump_regression = flags.contains("dump_regression");
             // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
