@@ -1929,14 +1929,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 	/**
 	 * This method will run regression on two dataset (can be IP/IP, or IP/Ctrl, or Ctrl/Ctrl), 
-	 * using the non-specific region (all the genome regions, excluding the enriched (specific) regions.
+	 * using the non-specific region (all the genome regions, excluding the input regions.)
 	 * @param condX_idx index of condition (channel) where it will be used a dependent variable 
 	 * @param condY_idx index of condition (channel) where it will be used an independent variable
 	 * @param flag <tt>IP</tt> for pairs of IP conditions, <tt>CTRL</tt> for pairs of control conditions, <tt>IP/CTRL</tt> for ip/control pairs 
-	 * @param specificRegions regions to exclude for data for regression
+	 * @param excludedRegions regions to exclude for data for regression, this can be defined for different purposes
 	 * @return slope, as the ratio of ( 1st dataset / 2nd dataset )
 	 */
-	private double getSlope(int condX_idx, int condY_idx, String flag, ArrayList<Region> specificRegions) {
+	private double getSlope(int condX_idx, int condY_idx, String flag, ArrayList<Region> excludedRegions) {
 		if(condX_idx < 0 || condX_idx >= numConditions)
 			throw new IllegalArgumentException(String.format("cond1_idx, cond2_idx have to be numbers between 0 and %d.", numConditions-1));
 		if(condY_idx < 0 || condY_idx >= numConditions)
@@ -1951,17 +1951,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int non_specific_reg_len = 10000;	
 		Map<String, ArrayList<Region>> chrom_regions_map = new HashMap<String, ArrayList<Region>>();
 		// group regions by chrom
-		for(Region r:specificRegions) {
+		for(Region r:excludedRegions) {
 			String chrom = r.getChrom();
 			if(!chrom_regions_map.containsKey(chrom))
 				chrom_regions_map.put(chrom, new ArrayList<Region>());
 			chrom_regions_map.get(chrom).add(r);
 		}
-
+		// for each chrom, construct non-specific regions, get read count
 		for(String chrom:gen.getChromList()) {
 			List<Region> chrom_non_specific_regs = new ArrayList<Region>();
 			int chromLen = gen.getChromLength(chrom);
-			// Get the candidate (enriched) regions of this chrom sorted by location
+			// Get the excluded regions of this chrom sorted by location
 			List<Region> chr_enriched_regs = new ArrayList<Region>();
 			if(chrom_regions_map.containsKey(chrom)) {
 				chr_enriched_regs = chrom_regions_map.get(chrom);
@@ -1971,7 +1971,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				continue;
 			}
 				
-			// Construct the non-specific regions and check for overlapping with the candidate (enriched) regions
+			// Construct the non-excluded regions and check for overlapping with the excluded regions
 			int start = 0;
 			int prev_reg_idx = 0;
 			int curr_reg_idx = 0;
@@ -2026,15 +2026,37 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}//end of for(String chrom:gen.getChromList()) LOOP
 			
 		// Calculate the slope for this condition
-		slope = calcSlope(scalePairs);
+		slope = calcSlope(scalePairs, config.excluded_fraction);
 		scalePairs.clear();
 		return slope;
 	}//end of getSlope method
 		
-	private static double calcSlope(List<PairedCountData> scalePairs) {
+	private static double calcSlope(List<PairedCountData> scalePairs, double excludedFraction) {
 		double slope;
         if(scalePairs==null || scalePairs.size()==0) { return 1.0; }
-        DataFrame df = new DataFrame(edu.mit.csail.cgs.deepseq.PairedCountData.class, scalePairs.iterator());
+        List<PairedCountData> selectedPairs = new ArrayList<PairedCountData>();
+        // exclude the top and bottom fraction of each data series
+        if (excludedFraction!=0){
+        	double[]x = new double[scalePairs.size()];
+        	double[]y = new double[scalePairs.size()];
+        	for (int i=0;i<x.length;i++){
+        		PairedCountData p = scalePairs.get(i);
+        		x[i]=p.x;
+        		y[i]=p.y;
+        	}
+        	Arrays.sort(x);
+        	Arrays.sort(y);
+        	double xLow = x[(int)(x.length*excludedFraction)];
+        	double xHigh = x[(int)(x.length*(1-excludedFraction))];
+        	double yLow = y[(int)(y.length*excludedFraction)];
+        	double yHigh = y[(int)(y.length*(1-excludedFraction))];
+        	for (int i=0;i<x.length;i++){
+        		if (x[i]<=xHigh && x[i]>=xLow && y[i]<=yHigh && y[i]>=yLow)
+        			selectedPairs.add(new PairedCountData(x[i],y[i]));
+        	}
+        }
+        	
+        DataFrame df = new DataFrame(edu.mit.csail.cgs.deepseq.PairedCountData.class, selectedPairs.iterator());
         DataRegression r = new DataRegression(df, "y~x - 1");
         r.calculate();
         Map<String, Double> map = r.collectCoefficients();
@@ -3122,6 +3144,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double q_value_threshold = 2.0;
         public double joint_event_distance = 500;
         public double alpha_factor = 3.0;
+        public double excluded_fraction = 0.1;
         public int top_events = 2000;
         public int min_event_count = 500;	// minimum num of events to update read distribution
         public int smooth_step = 30;
@@ -3204,6 +3227,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             bmverbose = Args.parseInteger(args, "bmverbose", bmverbose);
             smooth_step = Args.parseInteger(args, "smooth", smooth_step);
             KL_smooth_width = Args.parseInteger(args, "kl_s_w", KL_smooth_width);
+            excluded_fraction = Args.parseDouble(args, "excluded_fraction", excluded_fraction);
             kl_ic = Args.parseDouble(args, "kl_ic", kl_ic);
             resolution_extend = Args.parseInteger(args, "resolution_extend", resolution_extend);
             gentle_elimination_factor = Args.parseInteger(args, "gentle_elimination_factor", gentle_elimination_factor);
