@@ -2051,9 +2051,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
         	Arrays.sort(x);
         	Arrays.sort(y);
         	double xLow = x[(int)(x.length*excludedFraction)];
-        	double xHigh = x[(int)(x.length*(1-excludedFraction))];
+        	double xHigh = x[(int)(x.length*(1-excludedFraction))-1];
         	double yLow = y[(int)(y.length*excludedFraction)];
-        	double yHigh = y[(int)(y.length*(1-excludedFraction))];
+        	double yHigh = y[(int)(y.length*(1-excludedFraction))-1];
         	for (int i=0;i<x.length;i++){
         		if (x[i]<=xHigh && x[i]>=xLow && y[i]<=yHigh && y[i]>=yLow)
         			selectedPairs.add(new PairedCountData(x[i],y[i]));
