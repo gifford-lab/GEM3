@@ -2019,7 +2019,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 			}
 			else {
-				// Estimate the (ipCount, ctrlCount) pairs
+				// Estimate the (ctrlCount, ipCount) pairs
 				for(Region r:chrom_non_specific_regs) {
 					double ctrlCounts_X = countCtrlReads(r, condX_idx);
 					double ipCounts_Y   = countIpReads(r, condY_idx);
@@ -2059,6 +2059,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
         			selectedPairs.add(new PairedCountData(x[i],y[i]));
         	}
         }
+        else{
+        	selectedPairs = scalePairs;
+        }
+        
         if (dumpRegression){
         	for (PairedCountData p:selectedPairs)
         		System.out.println(p.x+"\t"+p.y);
