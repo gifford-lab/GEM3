@@ -262,7 +262,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
      		// ip/ctrl ratio by regression on non-enriched regions
 			if (subsetRatio==-1){
-     			setRegions(selectEnrichedRegions(subsetRegions, false));
+     			setRegions(selectEnrichedRegions(subsetRegions));
      			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
      			temp.addAll(excludedRegions);
     			calcIpCtrlRatio(mergeRegions(temp, false));
@@ -271,10 +271,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     					System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
     			}
     		}
-			if (config.subtract_for_segmentation)
-				setRegions(selectEnrichedRegions(subsetRegions, true));
-			else
-				setRegions(selectEnrichedRegions(subsetRegions, false));
+			setRegions(selectEnrichedRegions(subsetRegions));
 		} else{
 			setRegions(subsetRegions);
 		}
@@ -472,6 +469,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return signalFeatures;
 	}// end of execute method
 
+	// run the same EM-KPP procedure on control data
+	void falseDiscoveryTest(){
+	}
+	
 	// split a region into smaller windows if the width is larger than windowSize
 	private ArrayList<Region> splitWindows(Region r, int windowSize, int overlapSize){
 		ArrayList<Region> windows=new ArrayList<Region>();
@@ -1179,7 +1180,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 * @param focusRegion
 	 * @return
 	 */
-	private ArrayList<Region> selectEnrichedRegions(List<Region> focusRegions, boolean useSubtractedData){
+	private ArrayList<Region> selectEnrichedRegions(List<Region> focusRegions){
 		long tic = System.currentTimeMillis();
 		ArrayList<Region> regions = new ArrayList<Region>();
 		Map<String, List<Region>> chr_focusReg_pair = new HashMap<String, List<Region>>();
@@ -1209,11 +1210,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				List<StrandedBase> allBases = new ArrayList<StrandedBase>();
 				for (int c=0; c<caches.size(); c++){
 					ReadCache ip = caches.get(c).car();
-					List<StrandedBase> bases = null;
-					if (this.controlDataExist && useSubtractedData)
-						bases = ip.getSubtractedBases(focusRegion, caches.get(c).cdr(), ratio_non_specific_total[c]);
-					else
-						bases = ip.getUnstrandedBases(focusRegion);
+					List<StrandedBase> bases = ip.getUnstrandedBases(focusRegion);
 					if (bases==null || bases.size()==0){
 						continue;
 					}
@@ -1296,7 +1293,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                         toRemove.add(r);
                     } 
 				}
-				rs.removeAll(toRemove);
+				rs.removeAll(toRemove);				
 				if (!rs.isEmpty())
 					regions.addAll(rs);
 			}
@@ -3142,7 +3139,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean filterEvents=false;
         public boolean kl_count_adjusted = false;
         public boolean sort_by_location=false;
-        public boolean subtract_for_segmentation=false;
         public boolean exclude_unenriched = false;
         public boolean dump_regression = false;
         public int KL_smooth_width = 0;
@@ -3197,7 +3193,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             post_artifact_filter = flags.contains("post_artifact_filter");
             kl_count_adjusted = flags.contains("adjust_kl");
             refine_regions = flags.contains("refine_regions");
-            subtract_for_segmentation = flags.contains("subtract_ctrl_for_segmentation");
             outputBED = flags.contains("outBED");
             testPValues = flags.contains("testP");
             if (testPValues)
