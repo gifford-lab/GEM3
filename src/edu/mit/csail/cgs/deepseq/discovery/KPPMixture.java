@@ -262,7 +262,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
      		// ip/ctrl ratio by regression on non-enriched regions
 			if (subsetRatio==-1){
-     			setRegions(selectEnrichedRegions(subsetRegions));
+     			setRegions(selectEnrichedRegions(subsetRegions, true));
      			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
      			temp.addAll(excludedRegions);
     			calcIpCtrlRatio(mergeRegions(temp, false));
@@ -271,7 +271,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     					System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
     			}
     		}
-			setRegions(selectEnrichedRegions(subsetRegions));
+			setRegions(selectEnrichedRegions(subsetRegions, true));
 		} else{
 			setRegions(subsetRegions);
 		}
@@ -1177,46 +1177,60 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	/**
 	 * Select the regions where the method will run on.    <br>
 	 * It will be either whole genome, chromosome(s) or extended region(s).
+	 * This method can be run on either IP or Ctrl reads
 	 * @param focusRegion
 	 * @return
 	 */
-	private ArrayList<Region> selectEnrichedRegions(List<Region> focusRegions){
+	private ArrayList<Region> selectEnrichedRegions(List<Region> focusRegions, boolean isIP){
 		long tic = System.currentTimeMillis();
 		ArrayList<Region> regions = new ArrayList<Region>();
-		Map<String, List<Region>> chr_focusReg_pair = new HashMap<String, List<Region>>();
+		Map<String, List<Region>> chr2regions = new HashMap<String, List<Region>>();
 		
+		// sort regions by chrom for efficiency
 		if(focusRegions.size() > 0) {
 			for(Region focusRegion:focusRegions) {
-				if(!chr_focusReg_pair.containsKey(focusRegion.getChrom()))
-					chr_focusReg_pair.put(focusRegion.getChrom(), new ArrayList<Region>());
-				chr_focusReg_pair.get(focusRegion.getChrom()).add(focusRegion);
+				if(!chr2regions.containsKey(focusRegion.getChrom()))
+					chr2regions.put(focusRegion.getChrom(), new ArrayList<Region>());
+				chr2regions.get(focusRegion.getChrom()).add(focusRegion);
 			}			
 		}
-		else {
+		else {		// if no given regions, add each chrom as a region
 			for (String chrom:gen.getChromList()){
 				Region wholeChrom = new Region(gen, chrom, 0, gen.getChromLength(chrom)-1);
-				chr_focusReg_pair.put(chrom, new ArrayList<Region>());
-				chr_focusReg_pair.get(chrom).add(wholeChrom);
+				chr2regions.put(chrom, new ArrayList<Region>());
+				chr2regions.get(chrom).add(wholeChrom);
 			}
 		}
+		
         Poisson poisson = new Poisson(1, new DRand());
-        double totalIPCount[] = new double[caches.size()];
+        double totalConditionCount[] = new double[caches.size()];
         for (int i = 0; i < caches.size(); i++) {
-            totalIPCount[i] += caches.get(i).car().getHitCount();
+        	if (isIP)
+        		totalConditionCount[i] = caches.get(i).car().getHitCount();
+        	else
+        		totalConditionCount[i] = caches.get(i).cdr().getHitCount();
         }
-		for(String chrom:chr_focusReg_pair.keySet()) {
-			for(Region focusRegion:chr_focusReg_pair.get(chrom)) {
+        
+		for(String chrom : chr2regions.keySet()) {
+			for(Region focusRegion : chr2regions.get(chrom)) {
 				List<Region> rs = new ArrayList<Region>();
 				List<StrandedBase> allBases = new ArrayList<StrandedBase>();
 				for (int c=0; c<caches.size(); c++){
-					ReadCache ip = caches.get(c).car();
-					List<StrandedBase> bases = ip.getUnstrandedBases(focusRegion);
+					List<StrandedBase> bases = null;
+					if (isIP)
+						bases = caches.get(c).car().getUnstrandedBases(focusRegion);
+					else
+						bases = caches.get(c).cdr().getUnstrandedBases(focusRegion);
+					
 					if (bases==null || bases.size()==0){
 						continue;
 					}
 					allBases.addAll(bases); // pool all conditions
 				}
-				Collections.sort(allBases);
+				
+				Collections.sort(allBases);	// sort by location
+				
+				// cut the pooled reads into independent regions
 				int start=0;
 				for (int i=2;i<allBases.size();i++){
 					int distance = allBases.get(i).getCoordinate()-allBases.get(i-2).getCoordinate();
@@ -1239,7 +1253,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						start = breakPoint+1;
 					}
 				}
-				// check last continuous region
+				// the last region
 				float count = 0;
 				for(int m=start;m<allBases.size();m++){
 					count += allBases.get(m).getCount();
@@ -1250,7 +1264,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 
 				// check regions, exclude un-enriched regions based on control counts.  If a region is too big (bigger
-                // than modelWidth), break it into smaller pieces and keep it if any of those pieces are enriched
+                // than modelWidth), break it into smaller pieces, keep the region if any of those pieces are enriched
 				ArrayList<Region> toRemove = new ArrayList<Region>();
                 List<Region> toTest = new ArrayList<Region>();
 				for (Region r: rs){
@@ -1270,22 +1284,28 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     }
                     for (Region testr : toTest) {
                         for (int c=0;c<numConditions;c++){
-                            int ipreads = (int)countIpReads(testr,c);                            
-                            poisson.setMean(config.minFoldChange * totalIPCount[c] * testr.getWidth() / config.mappable_genome_length);
-                            double pval = 1 - poisson.cdf(ipreads) + poisson.pdf(ipreads);
+                            int readCount = 0;
+                            if (isIP)
+                            	readCount = (int)countIpReads(testr,c); 
+                            else
+                            	readCount = (int)countCtrlReads(testr,c); 
+                            
+                            poisson.setMean(config.minFoldChange * totalConditionCount[c] * testr.getWidth() / config.mappable_genome_length);
+                            double pval = 1 - poisson.cdf(readCount) + poisson.pdf(readCount);
                             if (pval <= .01) {
                                 enriched = true;
                                 break;
                             }
-                            if (this.controlDataExist) {
-                                double ctrlreads = countCtrlReads(testr,c);
-                                poisson.setMean(config.minFoldChange * ctrlreads * this.ratio_total[c]);
-                                pval = 1 - poisson.cdf(ipreads) + poisson.pdf(ipreads);
-                                if (pval <= .01) {
-                                    enriched = true;
-                                    break;
-                                }
-                            }                            
+                            
+//                            if (this.controlDataExist) {		// comment out because we check this when loading read in analyzeWindow()
+//                                double ctrlreads = countCtrlReads(testr,c);
+//                                poisson.setMean(config.minFoldChange * ctrlreads * this.ratio_total[c]);
+//                                pval = 1 - poisson.cdf(ipreads) + poisson.pdf(ipreads);
+//                                if (pval <= .01) {
+//                                    enriched = true;
+//                                    break;
+//                                }
+//                            }                            
                         }
                         if (enriched) { break ;}
                     }
