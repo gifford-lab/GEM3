@@ -544,20 +544,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	
 	// split a region into smaller windows if the width is larger than windowSize
-	private ArrayList<Region> splitWindows(Region r, int windowSize, int overlapSize){
+	private ArrayList<Region> splitWindows(Region r, int windowSize, int overlapSize, boolean isIP){
 		ArrayList<Region> windows=new ArrayList<Region>();
 		if (r.getWidth()<=windowSize)
 			return windows;
 		List<StrandedBase> allBases = new ArrayList<StrandedBase>();
 		for (int c=0; c<caches.size(); c++){
-			ReadCache ip = caches.get(c).car();
-			List<StrandedBase> bases = ip.getUnstrandedBases(r);
+			ReadCache cache=null;
+			if (isIP)
+				cache = caches.get(c).car();
+			else
+				cache = caches.get(c).cdr();
+			List<StrandedBase> bases = cache.getUnstrandedBases(r);
 			if (bases==null || bases.size()==0)
 				continue;
 			allBases.addAll(bases); // pool all conditions
 		}
-		Collections.sort(allBases);
-		
+		Collections.sort(allBases);			
 		int[] distances = new int[allBases.size()-1];
 		int[]coords = new int[allBases.size()];
 		for (int i=0;i<distances.length;i++){
@@ -3419,7 +3422,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     if (rr.getWidth()<=config.windowSize)
                         windows.add(rr);
                     else{
-                        windows = mixture.splitWindows(rr, config.windowSize, mixture.modelWidth/2);
+                        windows = mixture.splitWindows(rr, config.windowSize, mixture.modelWidth/2, isIP);
                     }
 		 
                     // run EM for each window 
@@ -3503,7 +3506,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                                                     comps.addAll(result);
                                                 }
                                             } else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
-                                                ArrayList<Region> wins = mixture.splitWindows(r, winSize, mixture.modelWidth);
+                                                ArrayList<Region> wins = mixture.splitWindows(r, winSize, mixture.modelWidth, isIP);
                                                 // process each window, then fix boundary 
                                                 ArrayList<ArrayList<BindingComponent>> comps_all_wins= new ArrayList<ArrayList<BindingComponent>>();
                                                 for (Region w : wins){
