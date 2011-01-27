@@ -71,6 +71,11 @@ public class KmerEngine {
 	// Then each individual search can be done in scan()
 	private AhoCorasick tree;
 	
+	private int maxCount;		// max kmer hit count of whole dataset
+	public int getMaxCount() {return maxCount;}
+	private int minCount;		// min kmer hit count of whole dataset
+	public int getMinCount() {return minCount;}
+	
 	// The Kmers at the specific position: seq--strand--pos
 	// Mapping from sequence to kmer, index as seqId, strand, posId 
 	// it can contains null, because the match of kmer and kmer_RC only count once
@@ -355,7 +360,9 @@ public class KmerEngine {
 	public void loadKmers(ArrayList<Kmer> kmers, String outPrefix){
 		tic = System.currentTimeMillis();
 		this.kmers = kmers;
-		Collections.sort(kmers);		
+		Collections.sort(kmers);
+		this.maxCount = kmers.get(0).seqHitCount;
+		this.minCount = kmers.get(kmers.size()-1).seqHitCount;
 		printKmers(kmers, outPrefix);
 		/*
 		Init Aho-Corasick alg. for searching multiple Kmers in sequences
