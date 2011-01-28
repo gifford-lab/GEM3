@@ -415,7 +415,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
                                                 compFeatures,
                                                 this,
                                                 constants,
-                                                config));
+                                                config, 
+                                                true));
             t.start();
             threads[i] = t;
         }
@@ -471,23 +472,95 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 	// run the same EM-KPP procedure on control data
 	void falseDiscoveryTest(){
+		ArrayList<Region> regions = this.selectEnrichedRegions(new ArrayList<Region>(), false);
+        Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
+		long tic = System.currentTimeMillis();
+		int totalRegionCount = regions.size();
+		if (totalRegionCount==0)
+			return;
+       
+        // prepare for progress reporting
+        Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
+		int displayStep = (int) Math.pow(10, (int) (Math.log10(totalRegionCount)));
+		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
+		for (int i=1;i<=totalRegionCount/displayStep; i++){
+			reportTriggers.add(i*displayStep);
+		}
+		reportTriggers.add(100);
+		reportTriggers.add(1000);
+		reportTriggers.add(10000);
+
+		// create threads and run EM algorithms
+		// the results are put into compFeatures
+        Thread[] threads = new Thread[maxThreads];
+        log(1,String.format("Running EM on control data: creating %d threads", maxThreads));
+        int regionsPerThread = regions.size()/threads.length;
+        for (int i = 0 ; i < threads.length; i++) {
+            ArrayList<Region> threadRegions = new ArrayList<Region>();
+            int nextStartIndex = (i+1)*regionsPerThread;
+            if (i==threads.length-1)		// last thread
+            	nextStartIndex = regions.size();
+            // get the regions as same chrom as possible, to minimize chrom sequence that each thread need to cache
+            for (int j = i*regionsPerThread; j < nextStartIndex; j++) {
+                threadRegions.add(regions.get(j));
+            }
+            Thread t = new Thread(new GPS2Thread(threadRegions,
+            									processRegionCount,
+                                                compFeatures,
+                                                this,
+                                                constants,
+                                                config,
+                                                false));
+            t.start();
+            threads[i] = t;
+        }
+        boolean anyrunning = true;
+        while (anyrunning) {
+            anyrunning = false;
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) { }
+            for (int i = 0; i < threads.length; i++) {
+                if (threads[i].isAlive()) {
+                    anyrunning = true;
+                    break;
+                }
+            }    
+            int count = processRegionCount.size();
+            int trigger = totalRegionCount;
+            if (!reportTriggers.isEmpty())
+            	trigger = reportTriggers.first();
+            if (count>trigger){
+				System.out.println(trigger+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+				reportTriggers.remove(reportTriggers.first());
+            }
+        }
+        System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        processRegionCount.clear();
+        
+        System.out.println(compFeatures.size()+" features found in control data.");
+        
+        log(1,String.format("%d threads have finished running", maxThreads));
 	}
 	
 	// split a region into smaller windows if the width is larger than windowSize
-	private ArrayList<Region> splitWindows(Region r, int windowSize, int overlapSize){
+	private ArrayList<Region> splitWindows(Region r, int windowSize, int overlapSize, boolean isIP){
 		ArrayList<Region> windows=new ArrayList<Region>();
 		if (r.getWidth()<=windowSize)
 			return windows;
 		List<StrandedBase> allBases = new ArrayList<StrandedBase>();
 		for (int c=0; c<caches.size(); c++){
-			ReadCache ip = caches.get(c).car();
-			List<StrandedBase> bases = ip.getUnstrandedBases(r);
+			ReadCache cache=null;
+			if (isIP)
+				cache = caches.get(c).car();
+			else
+				cache = caches.get(c).cdr();
+			List<StrandedBase> bases = cache.getUnstrandedBases(r);
 			if (bases==null || bases.size()==0)
 				continue;
 			allBases.addAll(bases); // pool all conditions
 		}
-		Collections.sort(allBases);
-		
+		Collections.sort(allBases);			
 		int[] distances = new int[allBases.size()-1];
 		int[]coords = new int[allBases.size()];
 		for (int i=0;i<distances.length;i++){
@@ -955,7 +1028,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	public ArrayList<ComponentFeature> simpleExecute(List<StrandedBase> bases, Region r) {
 		totalSigCount=StrandedBase.countBaseHits(bases);
         ArrayList<ComponentFeature> out = new ArrayList<ComponentFeature>();
-        GPS2Thread t = new GPS2Thread(null, null, out, this, constants,config);
+        GPS2Thread t = new GPS2Thread(null, null, out, this, constants,config, true);
         t.simpleRun(bases,r);
         return out;
 	}// end of simpleExecute method
@@ -1008,10 +1081,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalSumResponsibility();
 		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
 		
-		// Determine how many of the enriched regions will be included during the regression evaluation
-		int numIncludedCandRegs = (int)Math.round(config.pcr*compFeatures.size());	
 		ArrayList<Region> exRegions = new ArrayList<Region>();
-		for(int i = 0; i < compFeatures.size()-numIncludedCandRegs; i++) {
+		for(int i = 0; i < compFeatures.size(); i++) {
 			exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
 		}
 		exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
@@ -1746,7 +1817,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 * @param region Regions to be scanned
 	 * @return the peak as a <tt>BindingComponent</tt>
 	 */
-	private BindingComponent scanPeak(Point p){
+	private BindingComponent scanPeak(Point p, boolean isIP){
 		Region scanRegion = p.expand(config.SCAN_RANGE);
 		Region plusRegion = scanRegion.expand(-model.getMin(), model.getMax());
 		Region minusRegion = scanRegion.expand(model.getMax(), -model.getMin());
@@ -1754,9 +1825,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		//Load each condition's read hits
 		int totalHitCounts = 0;
 		for(int c=0;c<numConditions;c++){
-			Pair<ReadCache,ReadCache> e = caches.get(c);
-			List<StrandedBase> bases_p= e.car().getStrandedBases(plusRegion, '+');  // reads of the current region - IP channel
-			List<StrandedBase> bases_m= e.car().getStrandedBases(minusRegion, '-');  // reads of the current region - IP channel
+			ReadCache cache = null;
+			if (isIP)
+				cache = caches.get(c).car();
+			else
+				cache = caches.get(c).cdr();
+			List<StrandedBase> bases_p= cache.getStrandedBases(plusRegion, '+');  // reads of the current region - IP channel
+			List<StrandedBase> bases_m= cache.getStrandedBases(minusRegion, '-');  // reads of the current region - IP channel
 
 			bases_p.addAll(bases_m);
 			totalHitCounts += StrandedBase.countBaseHits(bases_p);
@@ -3166,14 +3241,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k = -1;
         public int kwin = 100;
         public int kc2pp = 0;		// different mode to convert kmer count to positional prior alpha value
+        public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
+        public double kpp_min = 0.2;// min value
         public double hgp = 0.1; 	// p-value threshold of hyper-geometric test for enriched kmer 
-        /** percentage of candidate (enriched) peaks to take into account
-         *  during the evaluation of non-specific signal */
-        public double pcr = 0.0;
-        public double q_value_threshold = 2.0;
+        public double q_value_threshold = 2.0;	// -log10 value of q-value
         public double joint_event_distance = 500;
         public double alpha_factor = 3.0;
-        public double excluded_fraction = 0.05;
+        public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
         public int top_events = 2000;
         public int min_event_count = 500;	// minimum num of events to update read distribution
         public int smooth_step = 30;
@@ -3232,19 +3306,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
             do_model_selection = !flags.contains("no_model_selection");
             mappable_genome_length = Args.parseDouble(args, "s", 2.08E9);	// size of mappable genome
             // Optional input parameter
-            k = Args.parseInteger(args, "k", -1);
-            kwin = Args.parseInteger(args, "kwin", 100);
-            kc2pp = Args.parseInteger(args, "kc2pp", 0);
-            hgp = Args.parseDouble(args, "hgp", 0.1);
+            k = Args.parseInteger(args, "k", k);
+            kwin = Args.parseInteger(args, "kwin", kwin);
+            kc2pp = Args.parseInteger(args, "kc2pp", kc2pp);
+            kpp_max = Args.parseDouble(args, "kpp_max", kpp_max);
+            kpp_min = Args.parseDouble(args, "kpp_min", kpp_min);
+            hgp = Args.parseDouble(args, "hgp", hgp);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
-            q_value_threshold = Args.parseDouble(args, "q", 2.0);	// q-value
+            q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
             alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
             fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
             shapeDeviation =  TF_binding?-0.45:-0.3;		// set default according to filter type    		
             shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
             max_hit_per_bp = Args.parseInteger(args, "mrc", 0); //max read count per bp, default -1, estimate from data
-            pcr = Args.parseDouble(args, "pcr", 0.0); // percentage of candidate (enriched) peaks to be taken into account during the evaluation of the non-specific slope
             window_size_factor = Args.parseInteger(args, "wsf", 3);
             second_lambda_region_width = Args.parseInteger(args, "w2", 5000);
             third_lambda_region_width = Args.parseInteger(args, "w3", 10000);
@@ -3276,6 +3351,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         private Collection<Region> regions;
         private Collection<Integer> processedRegionCount;
         private Collection<ComponentFeature> compFeatures;
+        private boolean isIP;
         /**
          * <tt>HashMap</tt> containing the single event regions. <br>
          * Each <tt>key</tt> contains the (single event) region of interest and the corresponding <tt>value</tt>
@@ -3299,13 +3375,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
                           Collection<ComponentFeature> compFeatures,
                           KPPMixture mixture,
                           GPSConstants constants,
-                          GPSConfig config) {
+                          GPSConfig config,
+                          boolean isIP) {
             this.regions = regions;
             this.processedRegionCount = processedRegionCount;
             this.mixture = mixture;
             this.constants = constants;
             this.config = config;
             this.compFeatures = compFeatures;
+            this.isIP = isIP;
         }
         
         public void simpleRun(List<StrandedBase> bases, Region r) {
@@ -3344,7 +3422,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     if (rr.getWidth()<=config.windowSize)
                         windows.add(rr);
                     else{
-                        windows = mixture.splitWindows(rr, config.windowSize, mixture.modelWidth/2);
+                        windows = mixture.splitWindows(rr, config.windowSize, mixture.modelWidth/2, isIP);
                     }
 		 
                     // run EM for each window 
@@ -3428,7 +3506,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                                                     comps.addAll(result);
                                                 }
                                             } else {	// if the region is too long, split into windows (5kb size, 1kb overlap)
-                                                ArrayList<Region> wins = mixture.splitWindows(r, winSize, mixture.modelWidth);
+                                                ArrayList<Region> wins = mixture.splitWindows(r, winSize, mixture.modelWidth, isIP);
                                                 // process each window, then fix boundary 
                                                 ArrayList<ArrayList<BindingComponent>> comps_all_wins= new ArrayList<ArrayList<BindingComponent>>();
                                                 for (Region w : wins){
@@ -3516,7 +3594,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                                 // Scan Peak unary region
                                 if(config.use_scanPeak) {
                                     Point p = subr.get(0).getMidpoint();
-                                    b = mixture.scanPeak(p);
+                                    b = mixture.scanPeak(p, isIP);
                                     if (b==null){
                                         continue;
                                     }
@@ -3609,26 +3687,21 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	if (kEngine!=null){
 	                	String seq = seqgen.execute(w).toUpperCase();
 	                	HashMap<Integer, Kmer> kmerHits = kEngine.query(seq);
-	                	double total = 0;
+	                	double kmerCount_max = kEngine.getMaxCount();
+	                	double kmerCount_min = kEngine.getMinCount();
 	                	for (int pos: kmerHits.keySet()){
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
 	                		int bindingPos = Math.abs(pos)+this.config.k/2;
 	                		int kmerCount = kmerHits.get(pos).getSeqHitCount();
 	                		// select the approach to generate pp from kmer count
+		                	// scale positional prior pseudo-count to be in the range of [kpp_min, kpp_max]*sparseness
 	                		if (config.kc2pp==0)
-	                			pp[bindingPos] = kmerCount;
+	                			pp[bindingPos] = ((kmerCount-kmerCount_min)*(config.kpp_max-config.kpp_min)/(kmerCount_max-kmerCount_min)+config.kpp_min)*config.sparseness;
 	                		else if (config.kc2pp==1)
-	                			pp[bindingPos] = kmerCount==0?0:Math.log(kmerCount);
-	                		else if (config.kc2pp==10)
-	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
+	                			pp[bindingPos] = ((kmerCount==0?0:Math.log(kmerCount)-Math.log(kmerCount_min))*(config.kpp_max-config.kpp_min)/(Math.log(kmerCount_max)-Math.log(kmerCount_min))+config.kpp_min)*config.sparseness;
+	                		
 	                		pp_kmer[bindingPos] = kmerHits.get(pos);
-	                		total += pp[bindingPos];
-	                	}
-	                	// normalize so that total positional prior pseudo-count equal to alpha (sparse prior)
-	                	// alternatively, we can scale so that (largest position prior == sparse prior)
-	                	for (int i=0; i<pp.length; i++){
-	                		pp[i] = pp[i]/total*alpha;
 	                	}
                 	}
                 	
@@ -3732,7 +3805,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 }// end of else condition (running it with MultiIndependentMixture TC)
 
             } else{// if single event region, just scan it
-                BindingComponent peak = mixture.scanPeak(singleEventRegions.get(w));
+                BindingComponent peak = mixture.scanPeak(singleEventRegions.get(w), isIP);
                 components = new ArrayList<BindingComponent>();
                 components.add(peak);
             }		
