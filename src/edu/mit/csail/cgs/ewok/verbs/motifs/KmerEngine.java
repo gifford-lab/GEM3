@@ -299,7 +299,7 @@ public class KmerEngine {
 //				System.out.println(result.getOutputs()+"\tat index: " + result.getLastIndex());
 			}
 			String seq_rc = SequenceUtils.reverseComplement(seq);
-			searcher = tmp.search(seq_rc.getBytes());
+		searcher = tmp.search(seq_rc.getBytes());
 			while (searcher.hasNext()) {
 				SearchResult result = (SearchResult) searcher.next();
 				kmerHits.addAll(result.getOutputs());

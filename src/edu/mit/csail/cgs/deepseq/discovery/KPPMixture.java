@@ -3687,21 +3687,44 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	if (kEngine!=null){
 	                	String seq = seqgen.execute(w).toUpperCase();
 	                	HashMap<Integer, Kmer> kmerHits = kEngine.query(seq);
-	                	double kmerCount_max = kEngine.getMaxCount();
-	                	double kmerCount_min = kEngine.getMinCount();
+// TODO: allowing more motif in the region	                	
+//	                	double kmerCount_max = kEngine.getMaxCount();
+//	                	double kmerCount_min = kEngine.getMinCount();
+//	                	for (int pos: kmerHits.keySet()){
+//	                		// the pos is the start position, hence +k/2
+//	                		//if pos<0, then the reverse compliment of kmer is matched
+//	                		int bindingPos = Math.abs(pos)+this.config.k/2;
+//	                		int kmerCount = kmerHits.get(pos).getSeqHitCount();
+//	                		// select the approach to generate pp from kmer count
+//		                	// scale positional prior pseudo-count to be in the range of [kpp_min, kpp_max]*sparseness
+//	                		if (config.kc2pp==0)
+//	                			pp[bindingPos] = ((kmerCount-kmerCount_min)*(config.kpp_max-config.kpp_min)/(kmerCount_max-kmerCount_min)+config.kpp_min)*config.sparseness;
+//	                		else if (config.kc2pp==1)
+//	                			pp[bindingPos] = ((kmerCount==0?0:Math.log(kmerCount)-Math.log(kmerCount_min))*(config.kpp_max-config.kpp_min)/(Math.log(kmerCount_max)-Math.log(kmerCount_min))+config.kpp_min)*config.sparseness;
+//	                		
+//	                		pp_kmer[bindingPos] = kmerHits.get(pos);
+	                		
+	                	// Effectively, the top kmers will dominate, because we normalize the pp value
+                		double total = 0;
 	                	for (int pos: kmerHits.keySet()){
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
 	                		int bindingPos = Math.abs(pos)+this.config.k/2;
 	                		int kmerCount = kmerHits.get(pos).getSeqHitCount();
 	                		// select the approach to generate pp from kmer count
-		                	// scale positional prior pseudo-count to be in the range of [kpp_min, kpp_max]*sparseness
 	                		if (config.kc2pp==0)
-	                			pp[bindingPos] = ((kmerCount-kmerCount_min)*(config.kpp_max-config.kpp_min)/(kmerCount_max-kmerCount_min)+config.kpp_min)*config.sparseness;
+	                			pp[bindingPos] = kmerCount;
 	                		else if (config.kc2pp==1)
-	                			pp[bindingPos] = ((kmerCount==0?0:Math.log(kmerCount)-Math.log(kmerCount_min))*(config.kpp_max-config.kpp_min)/(Math.log(kmerCount_max)-Math.log(kmerCount_min))+config.kpp_min)*config.sparseness;
-	                		
+	                			pp[bindingPos] = kmerCount==0?0:Math.log(kmerCount);
+	                		else if (config.kc2pp==10)
+	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
 	                		pp_kmer[bindingPos] = kmerHits.get(pos);
+	                		total += pp[bindingPos];
+	                	}
+	                	// normalize so that total positional prior pseudo-count equal to alpha (sparse prior)
+	                	// alternatively, we can scale so that (largest position prior == sparse prior)
+	                	for (int i=0; i<pp.length; i++){
+	                		pp[i] = pp[i]/total*alpha;
 	                	}
                 	}
                 	
