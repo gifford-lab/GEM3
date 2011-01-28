@@ -194,7 +194,7 @@ public class KmerEngine {
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
 		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
-	
+		System.out.println("Positive sequence: "+seqs.length+" \t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 	}
 
 	
@@ -311,6 +311,8 @@ public class KmerEngine {
 		// score the kmers, hypergeometric p-value
 		int n = seqs.length;
 		int N = n + negSeqCount;
+		System.out.println("Positive sequences: "+n+" \t"+"Negative sequences: "+negSeqCount);
+		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		for (Kmer kmer:kmers){
 			if (kmer.seqHitCount<=1){
