@@ -1368,15 +1368,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
                                 break;
                             }
                             
-//                            if (this.controlDataExist) {		// comment out because we check this when loading read in analyzeWindow()
-//                                double ctrlreads = countCtrlReads(testr,c);
-//                                poisson.setMean(config.minFoldChange * ctrlreads * this.ratio_total[c]);
-//                                pval = 1 - poisson.cdf(ipreads) + poisson.pdf(ipreads);
-//                                if (pval <= .01) {
-//                                    enriched = true;
-//                                    break;
-//                                }
-//                            }                            
+                            if (isIP & controlDataExist) {		
+                                double ctrlreads = countCtrlReads(testr,c);
+                                poisson.setMean(config.minFoldChange * ctrlreads * this.ratio_total[c]);
+                                pval = 1 - poisson.cdf(readCount) + poisson.pdf(readCount);
+                                if (pval <= .01) {
+                                    enriched = true;
+                                    break;
+                                }
+                            }                            
                         }
                         if (enriched) { break ;}
                     }
