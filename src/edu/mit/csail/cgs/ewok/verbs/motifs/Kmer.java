@@ -49,7 +49,7 @@ public class Kmer implements Comparable<Kmer>{
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log10(hg));
 	}
 	public static String toHeader(){
-		return "Enriched Kmer\tPosCt\tNegCt\tHGP_10";
+		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10";
 	}
 	public double bias(int pos){
 		double sum=0;

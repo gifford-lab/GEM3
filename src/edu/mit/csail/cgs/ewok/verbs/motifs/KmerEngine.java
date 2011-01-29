@@ -13,7 +13,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.Vector;
 
@@ -28,14 +27,10 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
-import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
-import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.probability.NormalDistribution;
-import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KmerEngine {
@@ -199,7 +194,6 @@ public class KmerEngine {
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
 		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
-		System.out.println("Positive sequence: "+seqs.length+" \t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 	}
 
 	
@@ -564,27 +558,14 @@ public class KmerEngine {
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append(Kmer.toHeader());
-//		for (int i=0; i<seqLength; i++)
-//			sb.append("\t").append("pos_"+i);
 		sb.append("\n");
 		for (Kmer kmer:kmers){
-			if (kmer.seqHitCount<minHitCount)
-				continue;
-//			float score = scorePWM(kmer.kmer);
-//	        float score_rc = scorePWM(SequenceUtils.reverseComplement(kmer.kmer));
-			sb.append(kmer.toString());
-//			.append("\t").append(String.format("%.1f", kmer.bias((seqLength-k)/2)))
-//			.append("\t").append(String.format("%.1f", kmer.bias2((seqLength-k)/2)))
-//			.append("\t").append(String.format("%.1f", Math.max(score, score_rc)));
-//			float[] posCounts = kmer.getPositionCounts(seqLength);
-//			for (float c: posCounts)
-//				sb.append("\t").append(String.format("%.0f", c));
-			sb.append("\n");
+			sb.append(kmer.toString()).append("\n");
 		}
 		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",outPrefix, k), sb.toString());
-//		System.out.println(kmers.get(0).seqHitCount);
-//		System.out.println("Kmers printed "+timeElapsed(tic));
 	}
+	
+	
 	// find all occurrences of kmer from a list of sequences
 	private void indexKmers(){
 		buildEngine(k, "0");

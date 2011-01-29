@@ -380,7 +380,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
         signalFeatures.clear();
         Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
-        
+		Vector<KmerHit> allKmerHits = new Vector<KmerHit>();
+		
         // prepare for progress reporting
         Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
 		int displayStep = (int) Math.pow(10, (int) (Math.log10(totalRegionCount)));
@@ -413,6 +414,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             Thread t = new Thread(new GPS2Thread(threadRegions,
             									processRegionCount,
                                                 compFeatures,
+                                                allKmerHits,
                                                 this,
                                                 constants,
                                                 config, 
@@ -446,6 +448,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
         
         log(1,String.format("%d threads have finished running", maxThreads));
 
+        // print out kmer hit list
+        if (config.kmer_print_hits){
+	        Collections.sort(allKmerHits);
+	        StringBuilder sb = new StringBuilder();
+	        sb.append("Position\tKmer\tCount\tpp\n");
+	        for (KmerHit h:allKmerHits)
+	        	sb.append(h.toString()).append("\n");
+	        CommonUtils.writeFile(outName+"_Kmer_Hits.txt", sb.toString());
+        }
 		/* ********************************************************
 		 * refine the specific regions that contain binding events
 		 * ********************************************************/
@@ -492,6 +503,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 		// create threads and run EM algorithms
 		// the results are put into compFeatures
+		Collection<KmerHit> allKmerHits = new Vector<KmerHit>();
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Running EM on control data: creating %d threads", maxThreads));
         int regionsPerThread = regions.size()/threads.length;
@@ -507,6 +519,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             Thread t = new Thread(new GPS2Thread(threadRegions,
             									processRegionCount,
                                                 compFeatures,
+                                                allKmerHits,
                                                 this,
                                                 constants,
                                                 config,
@@ -1028,7 +1041,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	public ArrayList<ComponentFeature> simpleExecute(List<StrandedBase> bases, Region r) {
 		totalSigCount=StrandedBase.countBaseHits(bases);
         ArrayList<ComponentFeature> out = new ArrayList<ComponentFeature>();
-        GPS2Thread t = new GPS2Thread(null, null, out, this, constants,config, true);
+        GPS2Thread t = new GPS2Thread(null, null, out, null, this, constants,config, true);
         t.simpleRun(bases,r);
         return out;
 	}// end of simpleExecute method
@@ -3229,6 +3242,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean kmer_use_filtered = false;
         public boolean TF_binding = true;
         public boolean outputBED = false;
+        public boolean kmer_print_hits = false;
         public boolean testPValues = false;
         public boolean post_artifact_filter=false;
         public boolean filterEvents=false;
@@ -3288,6 +3302,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kl_count_adjusted = flags.contains("adjust_kl");
             refine_regions = flags.contains("refine_regions");
             outputBED = flags.contains("outBED");
+            kmer_print_hits = flags.contains("kmer_print_hits");
             testPValues = flags.contains("testP");
             if (testPValues)
             	System.err.println("testP is " + testPValues);
@@ -3351,6 +3366,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         private Collection<Region> regions;
         private Collection<Integer> processedRegionCount;
         private Collection<ComponentFeature> compFeatures;
+        private Collection<KmerHit> allKmerHits;
         private boolean isIP;
         /**
          * <tt>HashMap</tt> containing the single event regions. <br>
@@ -3373,6 +3389,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public GPS2Thread (Collection<Region> regions,
         				  Collection<Integer> processedRegionCount,
                           Collection<ComponentFeature> compFeatures,
+                          Collection<KmerHit> allKmerHits,
                           KPPMixture mixture,
                           GPSConstants constants,
                           GPSConfig config,
@@ -3383,6 +3400,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             this.constants = constants;
             this.config = config;
             this.compFeatures = compFeatures;
+            this.allKmerHits = allKmerHits;
             this.isIP = isIP;
         }
         
@@ -3706,6 +3724,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		
 	                	// Effectively, the top kmers will dominate, because we normalize the pp value
                 		double total = 0;
+                		Vector<KmerHit> hits = new Vector<KmerHit>();
 	                	for (int pos: kmerHits.keySet()){
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
@@ -3720,13 +3739,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
 	                		pp_kmer[bindingPos] = kmerHits.get(pos);
 	                		total += pp[bindingPos];
+	                		hits.add(new KmerHit(new Point(gen, w.getChrom(), w.getStart()+bindingPos), kmerHits.get(pos), pp[bindingPos]));
 	                	}
 	                	// normalize so that total positional prior pseudo-count equal to alpha (sparse prior)
 	                	// alternatively, we can scale so that (largest position prior == sparse prior)
 	                	for (int i=0; i<pp.length; i++){
-	                		pp[i] = pp[i]/total*alpha;
+	                		pp[i] /= total*alpha;
 	                	}
+	                	for (KmerHit hit: hits){
+	                		hit.pp /= total*alpha;
+	                	}
+	                	allKmerHits.addAll(hits);
                 	}
+                	
                 	
                     //Run EM and increase resolution
                     initializeComponents(w, mixture.numConditions);
@@ -4674,4 +4699,21 @@ class KPPMixture extends MultiConditionFeatureFinder {
             }
         }
     }
-}
+    
+    class KmerHit implements Comparable<KmerHit>{
+    	Point coor;
+    	Kmer kmer;
+    	double pp;
+    	public KmerHit(Point coor, Kmer kmer, double pp) {
+			this.coor = coor;
+			this.kmer = kmer;
+			this.pp = pp;
+		}
+		public String toString(){
+    		return String.format("%s\t%s\t%d\t%.3f", coor.getLocationString(), kmer.getKmerString(), kmer.getSeqHitCount(), pp);
+    	}
+		public int compareTo(KmerHit h) {
+			return coor.compareTo(h.coor);
+		}
+    }
+ }
