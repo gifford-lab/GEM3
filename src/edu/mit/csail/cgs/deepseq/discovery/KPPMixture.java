@@ -3744,10 +3744,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                	// normalize so that total positional prior pseudo-count equal to alpha (sparse prior)
 	                	// alternatively, we can scale so that (largest position prior == sparse prior)
 	                	for (int i=0; i<pp.length; i++){
-	                		pp[i] /= total*alpha;
+	                		pp[i] = pp[i]/total*alpha;
 	                	}
 	                	for (KmerHit hit: hits){
-	                		hit.pp /= total*alpha;
+	                		hit.pp = hit.pp/total*alpha;
 	                	}
 	                	allKmerHits.addAll(hits);
                 	}
