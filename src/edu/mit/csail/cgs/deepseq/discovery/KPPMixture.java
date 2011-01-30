@@ -3723,8 +3723,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	                		pp_kmer[bindingPos] = kmerHits.get(pos);
 	                		
 	                	// Effectively, the top kmers will dominate, because we normalize the pp value
-                		double total = 0;
-                		Vector<KmerHit> hits = new Vector<KmerHit>();
+                		HashMap<Integer, KmerHit> hits = new HashMap<Integer, KmerHit>();
 	                	for (int pos: kmerHits.keySet()){
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
@@ -3738,20 +3737,41 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		else if (config.kc2pp==10)
 	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
 	                		pp_kmer[bindingPos] = kmerHits.get(pos);
-	                		total += pp[bindingPos];
-	                		hits.add(new KmerHit(new Point(gen, w.getChrom(), w.getStart()+bindingPos), kmerHits.get(pos), pp[bindingPos]));
+	                		hits.put(bindingPos, new KmerHit(new Point(gen, w.getChrom(), w.getStart()+bindingPos), kmerHits.get(pos), pp[bindingPos]));
 	                	}
-	                	// normalize so that total positional prior pseudo-count equal to alpha (sparse prior)
+	                	
+	                	// if kmer hits are 100bp apart, consider them as independent motif hit
+	                	// therefore, the pp value are normalized to alpha in local region of 100bp apart
+	                	// find all the dividing boundaries
+	                	int GAP = 100;
+	                	int prevBoundary = 0;
+	                	ArrayList<Integer> boundaries=new ArrayList<Integer>() ;
+	                	boundaries.add(0);
+	                	for (int i=1;i<pp.length;i++){
+	                		if (pp[i]>0){					// for non-zero pp
+	                			if (i-prevBoundary>GAP){	// a new local
+	                				boundaries.add(i);		// this is right exclusive
+	                			}
+	                			prevBoundary = i;
+	                		}
+	                	}
+	                	if (prevBoundary!=pp.length-1)
+	                		boundaries.add(pp.length-1);
+	                	
+	                	// normalize the local region so that total positional prior pseudo-count equal to alpha (sparse prior)
 	                	// alternatively, we can scale so that (largest position prior == sparse prior)
-	                	for (int i=0; i<pp.length; i++){
-	                		pp[i] = pp[i]/total*alpha;
+	                	for (int i=0;i<boundaries.size()-1;i++){
+	                		int total = 0;
+	                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
+		                		total += pp[j];
+	                		}
+	                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
+	                			pp[j] = pp[j]/total*alpha;
+	                			hits.get(j).pp = pp[j];
+	                		}
 	                	}
-	                	for (KmerHit hit: hits){
-	                		hit.pp = hit.pp/total*alpha;
-	                	}
-	                	allKmerHits.addAll(hits);
+	                	allKmerHits.addAll(hits.values());
                 	}
-                	
                 	
                     //Run EM and increase resolution
                     initializeComponents(w, mixture.numConditions);
