@@ -14,6 +14,8 @@ public class GPSPeak extends Point{
 	String nearestGene;
 	int distance;
 	Point EM_position;
+	String kmer;
+	int kmerCount;
 
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double controlStrength, double qvalue, double pvalue, double IPvsEMP, 
@@ -57,6 +59,20 @@ public class GPSPeak extends Point{
 		this.IPvsEMP = IPvsEMP;
 		this.IPvsCTR = IPvsCTR;
 		this.EM_position = this;
+	}
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double ctrlStrength, 
+			double qvalue, double pvalue, double IPvsEMP, double IPvsCTR, 
+			String kmer, int kmerCount){
+		super(g, chr.replaceFirst("chr", ""), pos);
+		this.strength = ipStrength;
+		this.controlStrength = ctrlStrength;
+		this.qvalue = qvalue;
+		this.pvalue = pvalue;
+		this.IPvsEMP = IPvsEMP;
+		this.IPvsCTR = IPvsCTR;
+		this.EM_position = this;
+		this.kmer = kmer;
+		this.kmerCount = kmerCount;
 	}
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double ctrlStrength, double qvalue, double pvalue, double IPvsEMP){

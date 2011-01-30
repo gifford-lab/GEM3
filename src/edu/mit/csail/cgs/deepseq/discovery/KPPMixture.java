@@ -3767,7 +3767,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		}
 	                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
 		                		if (pp[j]>0){
-		                			pp[j] = pp[j]/total*alpha;
+		                			pp[j] = pp[j]/total*(alpha-1);
 		                			hits.get(j).pp = pp[j];
 	                			}
 	                		}
