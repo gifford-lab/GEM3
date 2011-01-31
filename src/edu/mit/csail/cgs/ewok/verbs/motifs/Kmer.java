@@ -3,6 +3,8 @@ package edu.mit.csail.cgs.ewok.verbs.motifs;
 import java.util.ArrayList;
 import java.util.HashSet;
 
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
+
 public class Kmer implements Comparable<Kmer>{
 	String kmerString;
 	public String getKmerString() {
@@ -16,12 +18,22 @@ public class Kmer implements Comparable<Kmer>{
 	double weight;
 	double hg;
 	int negCount;
-	
+	/** 
+	 * Use reverse compliment to represent the kmer
+	 */
+	public void RC(){
+		kmerString = getKmerRC();
+	}
 	public int getNegCount() {
 		return negCount;
 	}
 	public void setNegCount(int negCount) {
 		this.negCount = negCount;
+	}
+	public Kmer(String kmerStr, int hitCount){
+		this.kmerString = kmerStr;
+		this.k = kmerString.length();
+		this.seqHitCount = hitCount;
 	}
 	public Kmer(String kmerStr, ArrayList<KmerHit> hits){
 		this.kmerString = kmerStr;
@@ -82,5 +94,42 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public void setSeqHitCount(int count) {
 		seqHitCount=count;
+	}
+	/**
+	 * calculate the best shift for input kmer to align with this kmer
+	 * allow for 2 mismatches, or 1 shift + 1 mismatch, or 2 shift
+	 * @param kmer
+	 * @return best shift for input kmer
+	 */
+	public int shift(String kmer){
+		byte[] thisBytes = this.kmerString.getBytes();
+		byte[] kmerBytes = kmer.getBytes();
+		int maxScore = 0;
+		int maxScoreShift = -99;
+		for (int s=-2;s<=+2;s++){
+			int score = 0;
+			for (int i=-2;i<thisBytes.length+2;i++){
+				if (i<0 || i>thisBytes.length-1 ||i+s<0 || i+s>thisBytes.length-1 )
+					continue;
+				if (thisBytes[i]==kmerBytes[i+s]){
+					score ++;
+				}
+			}
+			if (score>k*0.8){
+				if (score>maxScore){
+					maxScore = score;
+					maxScoreShift = s;
+				}
+			}
+		}
+		return maxScoreShift;
+	}
+	public String getKmerRC(){
+		return SequenceUtils.reverseComplement(kmerString);
+	}
+	public static void main(String[] args){
+		Kmer k1 = new Kmer("CCAGAAGAGGGC", 32);
+		Kmer k2 = new Kmer("CCCTCTTCTGGC", 3);
+		System.out.println(k1.shift(k2.getKmerRC()));
 	}
 }

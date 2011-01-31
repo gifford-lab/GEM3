@@ -16,6 +16,9 @@ public class GPSPeak extends Point{
 	Point EM_position;
 	String kmer;
 	int kmerCount;
+	public String getKmer() {return kmer;}
+	public int getKmerCount() {	return kmerCount;}
+
 
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double controlStrength, double qvalue, double pvalue, double IPvsEMP, 
