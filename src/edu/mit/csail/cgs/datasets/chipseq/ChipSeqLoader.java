@@ -277,17 +277,26 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 
 	public Collection<ChipSeqAlignment> loadAlignments(ChipSeqLocator locator, Genome genome) throws SQLException, NotFoundException {
 		List<ChipSeqAlignment> output = new ArrayList<ChipSeqAlignment>();
-        for (String rep : locator.getReplicates()) {
-            try {
-                ChipSeqExpt expt = loadExperiment(locator.getExptName(), rep);
+        if (locator.getReplicates().size() == 0) {
+            for (ChipSeqExpt expt : loadExperiments(locator.getExptName())) {
                 ChipSeqAlignment align = loadAlignment(expt, locator.getAlignName(), genome);
                 if (align != null) {
                     output.add(align);
                 }
             }
-            catch (IllegalArgumentException e) {
-                throw new NotFoundException("Couldn't find experiment for " + locator);
+        } else {
+            for (String rep : locator.getReplicates()) {
+                try {
+                    ChipSeqExpt expt = loadExperiment(locator.getExptName(), rep);
+                    ChipSeqAlignment align = loadAlignment(expt, locator.getAlignName(), genome);
+                    if (align != null) {
+                        output.add(align);
+                    }
                 }
+                catch (IllegalArgumentException e) {
+                    throw new NotFoundException("Couldn't find experiment for " + locator);
+                }
+            }
         }
 		return output;
 	}
