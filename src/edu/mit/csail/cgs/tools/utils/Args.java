@@ -570,31 +570,39 @@ public class Args {
         return out;
     }
     public static Collection<WeightMatrix> parseWeightMatrices(String args[]) throws NotFoundException {
-        ArrayList<WeightMatrix> matrices = new ArrayList<WeightMatrix>();
-        matrices.addAll(WeightMatrix.getAllWeightMatrices());
-        Collection<WeightMatrix> out = filterMatrices(parseStrings(args,"acceptwm"),
-                                                      parseStrings(args,"rejectwm"),
-                                                      parseStrings(args,"acceptwmver"),
-                                                      parseStrings(args,"rejectwmver"),
-                                                      parseStrings(args,"acceptwmtype"),
-                                                      parseStrings(args,"rejectwmtype"),
-                                                      matrices);
+        Collection<String> awm = parseStrings(args,"acceptwm");
+        Collection<String> rwm = parseStrings(args,"rejectwm");
+
+        Collection<String> awmv = parseStrings(args,"acceptwmver");
+        Collection<String> rwmv = parseStrings(args,"rejectwmver");
+
+        Collection<String> awmt = parseStrings(args,"acceptwmtype");
+        Collection<String> rwmt = parseStrings(args,"rejectwmtype");
+
+        Collection<WeightMatrix> out = new ArrayList<WeightMatrix>();
+        if (awm.size() > 0 || rwm.size() > 0 || awmv.size() > 0 ||
+            rwmv.size() > 0 || awmt.size() > 0 || rwmt.size() > 0) {
+            ArrayList<WeightMatrix> matrices = new ArrayList<WeightMatrix>();
+            matrices.addAll(WeightMatrix.getAllWeightMatrices());
+            out.addAll(filterMatrices(awm, rwm, awmv, rwmv, awmt, rwmt, matrices));
+        }
+
         Collection<String> namevers = parseStrings(args,"wm");
         if (namevers.size() > 0) {
-            if (matrices.size() == out.size()) {
-                out.clear();
-            }
             WeightMatrixLoader loader = new WeightMatrixLoader();
             for (String nv : namevers) {
                 String pieces[] = nv.split(";");                     
-                for (WeightMatrix m : matrices) {
+                for (WeightMatrix m : loader.query(pieces[0], pieces[1], null)) {
                     if (m.getName().equals(pieces[0]) && m.getVersion().equals(pieces[1])) {
                         out.add(m);
                     }
                 }                
             }
             loader.close();
+        } else if (out.size() == 0) {
+            return WeightMatrix.getAllWeightMatrices();
         }
+
         return out;
     }
 
