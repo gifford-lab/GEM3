@@ -161,6 +161,7 @@ public class GPSOutputAnalysis {
 	Kmer firstSeed = kmers.get(0);		
 	while(!kmers.isEmpty()){
 		Kmer topKmer = kmers.get(0);
+		topKmer.setReference(firstSeed);
 		KmerGroup group = new KmerGroup(topKmer);
 		groups.add(group);
 		kmers.remove(topKmer);
@@ -175,7 +176,7 @@ public class GPSOutputAnalysis {
 		kmers.removeAll(selected);
 	}
 	
-	// generate motifs from groups
+	// print out kmer groups
 	StringBuilder sb = new StringBuilder();
 	for (KmerGroup g:groups){
 		sb.append(g.seed.getKmerString()).append("\t").append(g.seed.getSeqHitCount()).append("\n");
@@ -196,6 +197,9 @@ public class GPSOutputAnalysis {
 	}
 	sb.append("Total kmer groups: " + groups.size());
 	CommonUtils.writeFile("Aligned_Kmers.txt", sb.toString());
+	
+	// generate motifs from groups
+	
   }
   
   class KmerGroup{
