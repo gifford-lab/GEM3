@@ -35,6 +35,8 @@ public class GuessControlExpt {
         controlFactorNames.add("IgG");
         controlFactorNames.add("Input");
         controlFactorNames.add("GFP");        
+        controlFactorNames.add("null(V5)");        
+        controlFactorNames.add("Control");        
         controlFactorIDs = new ArrayList<Integer>();
 
         boolean strict = Args.parseFlags(args).contains("strict");
