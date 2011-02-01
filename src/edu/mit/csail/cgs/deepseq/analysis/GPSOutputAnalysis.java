@@ -10,7 +10,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -20,11 +23,14 @@ import edu.mit.csail.cgs.datasets.species.Gene;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
+import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
+import edu.mit.csail.cgs.deepseq.features.Feature;
 import edu.mit.csail.cgs.deepseq.utilities.AnnotationLoader;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
+import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -116,6 +122,7 @@ public class GPSOutputAnalysis {
 	case 2:	analysis.geneAnnotation();break;
 	case 3:	analysis.expressionIntegration();break;
 	case 4: analysis.printMotifHitSequence(top);break;
+	case 5: analysis.kmerGrouping();break;
 	default: System.err.println("Unrecognize analysis type: "+type);
 	}
   }
@@ -129,6 +136,81 @@ public class GPSOutputAnalysis {
 	  outputFileName = outputFile;
 	  motif_window = motif_win;
 	  this.extend = extend;
+  }
+  
+  public void kmerGrouping(){
+	  // get kmers and their counts
+	HashMap<String, Integer> kmer2count = new HashMap<String, Integer>();
+	for(GPSPeak p : gpsPeaks){
+		String kmer = p.getKmer();
+		if (kmer==null || kmer.equals(""))
+			continue;
+		if (kmer2count.containsKey(kmer))
+			kmer2count.put(kmer, kmer2count.get(kmer)+1);
+		else
+			kmer2count.put(kmer, 1);
+	}
+	ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+	for (String k : kmer2count.keySet()){
+		kmers.add(new Kmer(k, kmer2count.get(k)));
+	}
+	Collections.sort(kmers);
+	
+	// group kmers by greedy growing method
+	ArrayList<KmerGroup> groups = new ArrayList<KmerGroup>();
+	Kmer firstSeed = kmers.get(0);		
+	while(!kmers.isEmpty()){
+		Kmer topKmer = kmers.get(0);
+		topKmer.setReference(firstSeed);
+		KmerGroup group = new KmerGroup(topKmer);
+		groups.add(group);
+		kmers.remove(topKmer);
+		HashSet<Kmer> selected = new HashSet<Kmer>();
+		for(Kmer km: kmers){
+			km.setReference(topKmer);
+			if (km.getScore()>topKmer.getK()*0.8){
+				group.addMember(km);
+				selected.add(km);
+			}
+		}
+		kmers.removeAll(selected);
+	}
+	
+	// print out kmer groups
+	StringBuilder sb = new StringBuilder();
+	for (KmerGroup g:groups){
+		sb.append(g.seed.getKmerString()).append("\t").append(g.seed.getSeqHitCount()).append("\n");
+		for (Kmer km: g.members){
+			int shift = km.getShift();
+			String str = km.getKmerString();
+			if (shift==-99)
+				continue;
+			else if (shift>=0){
+				str = str.substring(shift);
+			}
+			else{
+				str = (shift==-1?" ":"  ")+str.substring(0, str.length()+shift);
+			}
+			sb.append(str).append("\t").append(km.getSeqHitCount()).append("\n");
+		}
+		sb.append("\n");
+	}
+	sb.append("Total kmer groups: " + groups.size());
+	CommonUtils.writeFile("Aligned_Kmers.txt", sb.toString());
+	
+	// generate motifs from groups
+	
+  }
+  
+  class KmerGroup{
+	  Kmer seed;
+	  TreeSet<Kmer> members = new TreeSet<Kmer>();
+	  KmerGroup(Kmer seed){
+		  this.seed = seed;
+	  }
+	  void addMember(Kmer member){
+		  members.add(member);
+	  }
   }
   
   
