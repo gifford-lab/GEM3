@@ -12,7 +12,9 @@ import edu.mit.csail.cgs.tools.utils.Args;
  * how many from the first file are present in the second
  * given some mismatch window.
  *
- * java RegionListOverlap --species "$MM;mm9" --one fileone.txt --two filetwo.txt --colone 0 --coltwo 3 --window 50
+ * java RegionListOverlap --species "$MM;mm9" --one fileone.txt --two filetwo.txt --colone 0 --coltwo 3 --window 50 [--stats]
+ *
+ * --stats says to use --one as a test set and --two as a gold standard set to report the TP and FP rates for one
  */
 
 public class RegionListOverlap {
@@ -26,9 +28,14 @@ public class RegionListOverlap {
         int coltwo = Args.parseInteger(args,"coltwo",0);
         int window = Args.parseInteger(args,"window",0);
         Genome genome = Args.parseGenome(args).cdr();
+        boolean stats = Args.parseFlags(args).contains("stats");
 
         readFile(genome, fone, colone, one);
         readFile(genome, ftwo, coltwo, two);
+
+        int overlap = 0;
+        int onecount = count(one);
+        int twocount = count(two);
 
         for (String chrom : one.keySet()) {
             if (!two.containsKey(chrom)) { continue;}
@@ -38,14 +45,41 @@ public class RegionListOverlap {
             Collections.sort(ltwo);
             for (Region orig : lone) {
                 Region r = orig.expand(window,window);
+                boolean found = false;
                 for (Region o : ltwo) {
                     if (r.overlaps(o)) {
-                        System.out.println(orig.toString());
+                        if (stats) {
+                            System.out.println("TP\t" + orig);
+                        } else {
+                            System.out.println(orig.toString());
+                        }
+                        overlap++;
+                        found = true;
                         break;
                     }
                 }
+                if (stats && !found) {
+                    System.out.println("FP\t" + orig);
+                }
+
             }
         }
+        if (stats) {
+            int tp = overlap;
+            int fp = onecount - overlap;
+            int fn = twocount - overlap;
+            double tprate = ((double)tp) / onecount;
+            double fnrate = ((double)overlap) / twocount;
+            System.out.println(String.format("n=%d  tp=%d  fp=%d  fn=%d   tpr=%.2f   fnr=%.2f",
+                                             onecount, tp,fp,fn,tprate,fnrate));
+        }
+    }
+    public static int count(Map<String,List<Region>> map) {
+        int count = 0;
+        for (String chrom : map.keySet()) {
+            count += map.get(chrom).size();
+        }
+        return count;
     }
     public static void readFile(Genome genome, String fname, int column, Map<String,List<Region>> map) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(fname));
