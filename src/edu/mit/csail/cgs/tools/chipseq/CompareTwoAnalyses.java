@@ -18,8 +18,11 @@ import edu.mit.csail.cgs.utils.*;
  * Subclasses must override getOutputEvents() to provide the
  * list of output events.
  *
- * parseArgs() here looks for --one 'analysisname;version',
- * --two 'analysisname;version' and --maxdist
+ * parseArgs() here looks for 
+ * --one 'analysisname;version'
+ * --two 'analysisname;version'
+ * [--maxdist 50]  maximum distance to consider events in one and two the same
+ * 
  */
 
 public abstract class CompareTwoAnalyses {
@@ -35,6 +38,7 @@ public abstract class CompareTwoAnalyses {
         one = Args.parseChipSeqAnalysis(args,"one");
         two = Args.parseChipSeqAnalysis(args,"two");
         maxDistance = Args.parseInteger(args,"maxdist",maxDistance);
+        firstCheck = Args.parseInteger(args,"firstcheck",firstCheck);x
         genome = Args.parseGenome(args).cdr();
         analysisRegions = Args.parseRegionsOrDefault(args);
     }

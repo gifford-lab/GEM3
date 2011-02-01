@@ -19,6 +19,11 @@ import edu.mit.csail.cgs.utils.*;
  * [--fctwo 1.0] minimum fold change for events from analysis two
  * [--pvalone .001] max pvalue for events from analysis one
  * [--pvaltwo .001] max pvalue for events from analysis two
+ * [--firstcheck 100]  accept this many events from two before performing
+ *   the first overlap check with one.  This is important in case, eg, 
+ *   the first event in two isn't in one; you don't want to stop there if
+ *   the next 99 are in one.
+
  */
 
 public class SortedAnalysisComparison extends CompareTwoAnalyses {
@@ -27,8 +32,7 @@ public class SortedAnalysisComparison extends CompareTwoAnalyses {
     private double minFoldChangeOne, minFoldChangeTwo;
     private double maxPvalueOne, maxPvalueTwo;
     private double overlapPercent = .9;
-
-    private int firstCheckSize = 100;
+    private int firstCheck = 100;
 
     public SortedAnalysisComparison() {
         super();
@@ -81,7 +85,7 @@ public class SortedAnalysisComparison extends CompareTwoAnalyses {
         double overlap = 0;
         int i = 0;
         while (i < listTwo.size() &&
-               (i < firstCheckSize || overlap/i > overlapPercent)) {
+               (i < firstCheck || overlap/i > overlapPercent)) {
             if (containsMatch(listOne,listTwo.get(i))) {
                 overlap++;
             }
