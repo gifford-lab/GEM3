@@ -21,6 +21,7 @@ public class GeneBasedReport {
     /**
      * java edu.mit.csail.cgs.tools.chipseq.GeneBasedReport --species "$MM;mm9" \
      * --genes refGene [--proxup 5000] [--proxdown200] [--up 10000] [--intronlen 10000]
+     * [--noalias]
      * --regions foo.txt
      *
      * --regions - to read from STDIN
@@ -36,7 +37,7 @@ public class GeneBasedReport {
     private List<Region> allRegions;
     private List<RefGeneGenerator> geneGenerators;
     private int proxup, proxdown, up, intronlen, analysisdbid;
-    private boolean firstIntron;
+    private boolean firstIntron, noAlias;
 
     public static void main(String args[]) throws Exception {
         GeneBasedReport report = new GeneBasedReport();
@@ -53,6 +54,7 @@ public class GeneBasedReport {
         intronlen = Args.parseInteger(args,"intronlen",10000);
         proxdown = Args.parseInteger(args,"proxdown",200);
         firstIntron = Args.parseFlags(args).contains("firstintron");
+        noAlias = Args.parseFlags(args).contains("noalias");
         if (intronlen < proxdown) {
             intronlen = proxdown + 1;
         }
@@ -76,6 +78,8 @@ public class GeneBasedReport {
             distalevents= new ArrayList<Region>() , intronevents = new ArrayList<Region>();
         for (RefGeneGenerator generator : geneGenerators) {
             generator.retrieveExons(firstIntron);
+            generator.setWantAlias(!noAlias);
+            generator.setWantSymbol(!noAlias);
             Iterator<Gene> all = generator.getAll();
             while (all.hasNext()) {
                 Gene g = all.next();
