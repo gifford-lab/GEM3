@@ -114,6 +114,8 @@ public class CompareEnrichment {
         String line = null;
         Map<String,char[]> output = new HashMap<String,char[]>();
         SequenceGenerator seqgen = new SequenceGenerator();
+        seqgen.useCache(true);
+        seqgen.useLocalFiles(true);
         while ((line = reader.readLine()) != null) {
             Region region = Region.fromString(g, line);
             if (parsedregionexpand > 0) {
@@ -163,7 +165,8 @@ public class CompareEnrichment {
                                           (int)target+size);
                     String seq = seqgen.execute(r);
                     if (!seq.matches("[ACTGactgN]*")) {
-                        throw new RuntimeException("Invalid sequence from " + r + ": " + seq);
+                        count++;
+                        break;
                     }
                     if (seq.matches(".*NNNNNNNN.*")) {
                         count++;
