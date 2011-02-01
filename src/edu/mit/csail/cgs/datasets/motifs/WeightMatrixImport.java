@@ -320,6 +320,7 @@ public class WeightMatrixImport {
 
         HashSet<Integer> ids = new HashSet<Integer>();
         List<WeightMatrix> matrices = null;
+        System.err.println("type is " + wmtype+ " and file is " + wmfile + " and version is " + wmversion);
         if(wmtype.matches(".*TAMO.*")) { 
             int speciesid = (new Organism(species)).getDBID();
             matrices = PWMParser.readTamoMatrices(wmfile);
@@ -351,6 +352,7 @@ public class WeightMatrixImport {
                                        String wmtype,
                                        String wmfile) throws SQLException, NotFoundException, UnknownRoleException, FileNotFoundException, ParseException, IOException {
         WeightMatrix matrix;
+        System.err.println("name " + wmname + " version " + wmversion + " type " + wmtype);
         if (wmtype.matches(".*TAMO.*")) {
             matrix = PWMParser.readTamoMatrix(wmfile);
         } else if (wmtype.matches(".*MEME.*")) {
@@ -364,6 +366,8 @@ public class WeightMatrixImport {
           matrix = PWMParser.parsePriorityBestOutput(wmfile);
         } else if (wmtype.matches(".*UniProbe.*")) {
             matrix = PWMParser.readUniProbeFile(wmfile);
+        } else if (wmtype.toUpperCase().matches(".*GIMME.*")) {
+            matrix = PWMParser.readGimmeMotifsMatrices(wmfile,wmversion,wmtype).get(0);
         } else {
             System.err.println("Didn't see a program I recognize in the type.  defaulting to reading TAMO format");
             matrix = PWMParser.readTamoMatrix(wmfile);
@@ -394,8 +398,9 @@ public class WeightMatrixImport {
       matrix = PWMParser.readTRANSFACFreqMatrices(wmfile, wmversion).get(0);
     } else if (wmtype.matches(".*PRIORITY.*")) {
       matrix = PWMParser.parsePriorityBestOutput(wmfile);
-    }
-    else {
+    } else if (wmtype.toUpperCase().matches(".*GIMME.*")) {
+        matrix = PWMParser.readGimmeMotifsMatrices(wmfile,wmversion,wmtype).get(0);
+    } else {
       System.err.println("Didn't see a program I recognize in the type.  defaulting to reading TAMO format");
       matrix = PWMParser.readTamoMatrix(wmfile);
     }
