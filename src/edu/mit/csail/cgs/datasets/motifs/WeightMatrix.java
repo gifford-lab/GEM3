@@ -105,7 +105,6 @@ public class WeightMatrix {
             ResultSet rs = ps.executeQuery();
 
             Collection<WeightMatrix> matrices = WeightMatrix.getWeightMatrices(rs);
-
             rs.close();
             ps.close();
             DatabaseFactory.freeConnection(cxn);
@@ -149,6 +148,15 @@ public class WeightMatrix {
             output.get(id).matrix[rs.getInt(7)][rs.getString(8).charAt(0)] = rs.getFloat(9);
         }
         System.err.println("Returning " + output.size() + " from WeightMatrix.getWeightMatrices(ResultSet)");
+        for (WeightMatrix matrix : output.values()) {
+            for(int i = 0; i < matrix.matrix.length; i++) { 
+                matrix.matrix[i]['a'] = matrix.matrix[i]['A'];
+                matrix.matrix[i]['c'] = matrix.matrix[i]['C'];
+                matrix.matrix[i]['g'] = matrix.matrix[i]['G'];
+                matrix.matrix[i]['t'] = matrix.matrix[i]['T'];
+            }
+        }
+            
         return output.values();
     }
 
@@ -543,6 +551,11 @@ public class WeightMatrix {
             output.matrix[input.length() - i - 1]['C'] = input.matrix[i]['G'];
             output.matrix[input.length() - i - 1]['G'] = input.matrix[i]['C'];
             output.matrix[input.length() - i - 1]['T'] = input.matrix[i]['A'];
+            output.matrix[input.length() - i - 1]['a'] = input.matrix[i]['t'];
+            output.matrix[input.length() - i - 1]['c'] = input.matrix[i]['g'];
+            output.matrix[input.length() - i - 1]['g'] = input.matrix[i]['c'];
+            output.matrix[input.length() - i - 1]['t'] = input.matrix[i]['a'];
+
         }
         output.name = input.name;
         output.version = "revcomp " + input.version;
