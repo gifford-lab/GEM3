@@ -398,6 +398,8 @@ public class AnalysisReport {
         }
         pw.println();
         SequenceGenerator seqgen = new SequenceGenerator();
+        seqgen.useCache(true);
+        seqgen.useLocalFiles(true);
         for (ChipSeqAnalysisResult a : events) {
             Region toScan = a.expand(100,100);
             char[] seq = seqgen.execute(toScan).toCharArray();
