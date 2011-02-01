@@ -26,5 +26,11 @@ public class ChipSeqAnalysisResult extends Region {
         this.pvalue = pvalue;
         this.foldEnrichment = foldEnrichment;
     }
-    
+    public Integer getPosition() {return position;}
+    public Double getFG() {return foregroundReadCount;}
+    public Double getBG() {return backgroundReadCount;}
+    public Double getStrength() {return strength;}
+    public Double getShape() {return shape;}
+    public Double getPValue() {return pvalue;}
+    public Double getFoldEnrichment() {return foldEnrichment;}
 }
