@@ -42,7 +42,7 @@ public class RefGeneGenerator<X extends Region>
     private Genome genome;
     private String tablename, symboltable, namecolumn, symbolcolumn;
     private int aliastype;
-    private boolean wantalias, flipstrand, wantCoding, wantsExons;
+    private boolean wantalias, wantsymbol, flipstrand, wantCoding, wantsExons;
     private static final int YEAST = 1, MAMMAL = 2, FLY = 3, WORM = 4;    
     private static final int TOSTART = 1, TOEND = 2, TOWHOLE = 3;
     private int upstream, downstream, closestN, toBoundary;
@@ -65,6 +65,7 @@ public class RefGeneGenerator<X extends Region>
         wantCoding = false;
         toBoundary = TOSTART;
         flipstrand = false;
+        wantsymbol = true;
     }
     
     /**
@@ -84,6 +85,7 @@ public class RefGeneGenerator<X extends Region>
         wantCoding = false;
         toBoundary = TOSTART;  
         flipstrand = false;
+        wantsymbol = true;
     }
     
     public RefGeneGenerator() { 
@@ -102,6 +104,7 @@ public class RefGeneGenerator<X extends Region>
         wantCoding = false;
         toBoundary = TOSTART;        
         flipstrand = false;
+        wantsymbol = true;
     }
     
     public void setGenome(Genome g, String t) { 
@@ -163,13 +166,12 @@ public class RefGeneGenerator<X extends Region>
     public String getTable() {return tablename;}
     /* retrieve aliases with Genes */
     public boolean getWantAlias() {return wantalias;}
-
-    /* 
-     * set the query parameters
-     */
     public void setWantAlias(boolean b) {
         wantalias = symboltable != null && b;        
     }
+    /* retrieve the gene symbol rather than, eg, NM_123456 */
+    public boolean getWantSymbol() {return wantsymbol;}
+    public void setWantSymbol(boolean b) {wantsymbol = b;}
     public void setFlipStrand(boolean b) {
         flipstrand = b;
     }
@@ -451,7 +453,7 @@ public class RefGeneGenerator<X extends Region>
                              strand,
                              "RefGene");
             }
-            if(getgenesym != null) { 
+            if(getgenesym != null && wantsymbol) { 
                 getgenesym.setString(1, g.getID());
                 ResultSet gsrs = getgenesym.executeQuery();
                 if(gsrs.next()) { 
