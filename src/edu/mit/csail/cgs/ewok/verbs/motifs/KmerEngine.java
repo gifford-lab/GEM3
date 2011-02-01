@@ -207,7 +207,7 @@ public class KmerEngine {
 		this.k = k;
 		numPos = seqLength-k+1;
 		
-		HashMap<String, ArrayList<KmerHit>> map = new HashMap<String, ArrayList<KmerHit>>();
+		HashMap<String, ArrayList<KmerMatch>> map = new HashMap<String, ArrayList<KmerMatch>>();
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
 //			System.out.print(seqId+" ");
@@ -217,12 +217,12 @@ public class KmerEngine {
 					break;
 				String s = seq.substring(i, i+k);
 				if (map.containsKey(s)){
-					 ArrayList<KmerHit> hits = map.get(s);
-					 hits.add(new KmerHit(seqId, i, 0));
+					 ArrayList<KmerMatch> hits = map.get(s);
+					 hits.add(new KmerMatch(seqId, i, 0));
 				}
 				else{
-					 ArrayList<KmerHit> hits = new ArrayList<KmerHit>();
-					 hits.add(new KmerHit(seqId, i, 0));
+					 ArrayList<KmerMatch> hits = new ArrayList<KmerMatch>();
+					 hits.add(new KmerMatch(seqId, i, 0));
 					 map.put(s, hits);
 				}
 			}
@@ -242,15 +242,15 @@ public class KmerEngine {
 				continue;
 
 			// consolidate kmer and its reverseComplment kmer
-			ArrayList<KmerHit> hits_all = new ArrayList<KmerHit>();
+			ArrayList<KmerMatch> hits_all = new ArrayList<KmerMatch>();
 			hits_all.addAll(map.get(key));
 			String key_rc = SequenceUtils.reverseComplement(key).toUpperCase();
-			ArrayList<KmerHit> hits_rc = map.get(key_rc);
+			ArrayList<KmerMatch> hits_rc = map.get(key_rc);
 			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
 				map.remove(key_rc);		// remove this kmer because it is represented by its RC
 				if (hits_rc!=null){
-					for (KmerHit hit: hits_rc){
-						hits_all.add(new KmerHit(hit.seqId, hit.pos, 1));
+					for (KmerMatch hit: hits_rc){
+						hits_all.add(new KmerMatch(hit.seqId, hit.pos, 1));
 					}
 				}
 			}
@@ -485,7 +485,7 @@ public class KmerEngine {
 				// i.e. The number of binding strength explained by this kmer over whole genome
 				for (Kmer kmer:kmers){
 					double kprob=0;
-					for (KmerHit h: kmer.hits){
+					for (KmerMatch h: kmer.hits){
 						kprob+=seqProbs[h.seqId]*probsOfKmerInSeq[h.seqId][h.isMinus][h.pos];
 					}
 //					kmer.weight = kprob;
@@ -580,7 +580,7 @@ public class KmerEngine {
 		
 		// map the kmers to position
 		for (Kmer kmer:kmers){
-			for (KmerHit hit:kmer.hits){
+			for (KmerMatch hit:kmer.hits){
 				seq_kmer_map[hit.seqId][hit.isMinus][hit.pos] = kmer;
 			}
 		}
@@ -624,7 +624,7 @@ public class KmerEngine {
 				symbols[s]='.';
 			}
 			for (Kmer kmer : kmers_seq){
-				for (KmerHit hit : kmer.hits){
+				for (KmerMatch hit : kmer.hits){
 					if (hit.seqId == i){
 						double resp = probsOfKmerInSeq[i][hit.isMinus][hit.pos]*seqProbs[i];
 						if (resp>6){	// display only if this kmer can support at least 6 read
@@ -667,8 +667,8 @@ public class KmerEngine {
 			StringBuilder sb = new StringBuilder();
 			int index=i*100;
 			Kmer kmer = kmers.get(index);
-			ArrayList<KmerHit> hits = kmer.hits;
-			for (KmerHit hit:hits){
+			ArrayList<KmerMatch> hits = kmer.hits;
+			for (KmerMatch hit:hits){
 				sb.append(hit.seqId).append("\t")
 				  .append(hit.pos).append("\t")
 				  .append(hit.isMinus).append("\n");
@@ -764,15 +764,20 @@ public class KmerEngine {
 			String.format("%.1f",sec)+" sec";
 	}
 
-}
-
-class KmerHit {
-	int seqId;
-	int pos;
-	int isMinus;
-	KmerHit(int seqId, int pos, int isMinus){
-		this.seqId = seqId;
-		this.pos = pos;
-		this.isMinus = isMinus;
+	/**
+	 * This KmerMatch class is used for recording kmer instances in sequences in the conventional motif finding setting
+	 * @author yuchun
+	 *
+	 */
+	class KmerMatch {
+		int seqId;			// sequence id in the dataset
+		int pos;			// position in the se
+		int isMinus;		// the kmer is on positive strand (0), or negative strand (1). use int (not boolean) for iteration.
+		KmerMatch(int seqId, int pos, int isMinus){
+			this.seqId = seqId;
+			this.pos = pos;
+			this.isMinus = isMinus;
+		}
 	}
 }
+

@@ -380,7 +380,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
         signalFeatures.clear();
         Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
-		Vector<KmerHit> allKmerHits = new Vector<KmerHit>();
+		Vector<KmerPP> allKmerHits = new Vector<KmerPP>();
 		
         // prepare for progress reporting
         Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
@@ -453,7 +453,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	        Collections.sort(allKmerHits);
 	        StringBuilder sb = new StringBuilder();
 	        sb.append("Position\tKmer\tCount\tpp\n");
-	        for (KmerHit h:allKmerHits)
+	        for (KmerPP h:allKmerHits)
 	        	sb.append(h.toString()).append("\n");
 	        CommonUtils.writeFile(outName+"_Kmer_Hits.txt", sb.toString());
         }
@@ -503,7 +503,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 		// create threads and run EM algorithms
 		// the results are put into compFeatures
-		Collection<KmerHit> allKmerHits = new Vector<KmerHit>();
+		Collection<KmerPP> allKmerHits = new Vector<KmerPP>();
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Running EM on control data: creating %d threads", maxThreads));
         int regionsPerThread = regions.size()/threads.length;
@@ -3366,7 +3366,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         private Collection<Region> regions;
         private Collection<Integer> processedRegionCount;
         private Collection<ComponentFeature> compFeatures;
-        private Collection<KmerHit> allKmerHits;
+        private Collection<KmerPP> allKmerHits;
         private boolean isIP;
         /**
          * <tt>HashMap</tt> containing the single event regions. <br>
@@ -3389,7 +3389,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public GPS2Thread (Collection<Region> regions,
         				  Collection<Integer> processedRegionCount,
                           Collection<ComponentFeature> compFeatures,
-                          Collection<KmerHit> allKmerHits,
+                          Collection<KmerPP> allKmerHits,
                           KPPMixture mixture,
                           GPSConstants constants,
                           GPSConfig config,
@@ -3723,7 +3723,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	                		pp_kmer[bindingPos] = kmerHits.get(pos);
 	                		
 	                	// Effectively, the top kmers will dominate, because we normalize the pp value
-                		HashMap<Integer, KmerHit> hits = new HashMap<Integer, KmerHit>();
+                		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
 	                	for (int pos: kmerHits.keySet()){
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
@@ -3737,7 +3737,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		else if (config.kc2pp==10)
 	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
 	                		pp_kmer[bindingPos] = kmerHits.get(pos);
-	                		hits.put(bindingPos, new KmerHit(new Point(gen, w.getChrom(), w.getStart()+bindingPos), kmerHits.get(pos), pp[bindingPos]));
+	                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), kmerHits.get(pos), pp[bindingPos]));
 	                	}
 	                	
 	                	// if kmer hits are 100bp apart, consider them as independent motif hit
@@ -4722,11 +4722,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
         }
     }
     
-    class KmerHit implements Comparable<KmerHit>{
+    class KmerPP implements Comparable<KmerPP>{
     	Point coor;
     	Kmer kmer;
     	double pp;
-    	public KmerHit(Point coor, Kmer kmer, double pp) {
+    	public KmerPP(Point coor, Kmer kmer, double pp) {
 			this.coor = coor;
 			this.kmer = kmer;
 			this.pp = pp;
@@ -4734,7 +4734,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		public String toString(){
     		return String.format("%s\t%s\t%d\t%.3f", coor.getLocationString(), kmer.getKmerString(), kmer.getSeqHitCount(), pp);
     	}
-		public int compareTo(KmerHit h) {
+		public int compareTo(KmerPP h) {
 			return coor.compareTo(h.coor);
 		}
     }

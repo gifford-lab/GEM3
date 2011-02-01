@@ -12,6 +12,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -156,24 +158,18 @@ public class GPSOutputAnalysis {
 	
 	// group kmers by greedy growing method
 	ArrayList<KmerGroup> groups = new ArrayList<KmerGroup>();
+	Kmer firstSeed = kmers.get(0);		
 	while(!kmers.isEmpty()){
 		Kmer topKmer = kmers.get(0);
 		KmerGroup group = new KmerGroup(topKmer);
+		groups.add(group);
 		kmers.remove(topKmer);
 		HashSet<Kmer> selected = new HashSet<Kmer>();
 		for(Kmer km: kmers){
-			int shift = topKmer.shift(km.getKmerString());
-			if (shift!=99){
-				group.addMember(km, shift);
+			km.setReference(topKmer);
+			if (km.getScore()>topKmer.getK()*0.8){
+				group.addMember(km);
 				selected.add(km);
-			}
-			else{
-				shift = topKmer.shift(km.getKmerRC());
-				if (shift!=99){
-					km.RC();
-					group.addMember(km, shift);
-					selected.add(km);
-				}
 			}
 		}
 		kmers.removeAll(selected);
@@ -183,14 +179,16 @@ public class GPSOutputAnalysis {
 	StringBuilder sb = new StringBuilder();
 	for (KmerGroup g:groups){
 		sb.append(g.seed.getKmerString()).append("\t").append(g.seed.getSeqHitCount()).append("\n");
-		for (Kmer km: g.members.keySet()){
-			int shift = g.members.get(km);
+		for (Kmer km: g.members){
+			int shift = km.getShift();
 			String str = km.getKmerString();
-			if (shift>=0){
+			if (shift==-99)
+				continue;
+			else if (shift>=0){
 				str = str.substring(shift);
 			}
 			else{
-				str = str.substring(0, str.length()+shift);
+				str = (shift==-1?" ":"  ")+str.substring(0, str.length()+shift);
 			}
 			sb.append(str).append("\t").append(km.getSeqHitCount()).append("\n");
 		}
@@ -202,14 +200,16 @@ public class GPSOutputAnalysis {
   
   class KmerGroup{
 	  Kmer seed;
-	  HashMap<Kmer, Integer> members = new HashMap<Kmer, Integer>();
+	  TreeSet<Kmer> members = new TreeSet<Kmer>();
 	  KmerGroup(Kmer seed){
 		  this.seed = seed;
 	  }
-	  void addMember(Kmer member, int shift){
-		  members.put(member, shift);
+	  void addMember(Kmer member){
+		  members.add(member);
 	  }
   }
+  
+  
   /**
    * For each peak find the occurrence of a motif match >= the specified 
    * threshold that is closest to the peak
