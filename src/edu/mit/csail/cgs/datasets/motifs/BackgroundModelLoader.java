@@ -2525,7 +2525,7 @@ public class BackgroundModelLoader {
    * @throws SQLException
    */
   private static void insertFrequencyModelColumns(FrequencyBackgroundModel model, int mapID, Connection cxn) throws SQLException {
-    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(map_id,kmer,probability) values(?,?,?)");
+    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,kmer,probability) values(?,?,?)");
     try {
       for (int i = 1; i <= model.getMaxKmerLen(); i++) {
         for (String kmer : model.getKmers(i)) {
@@ -2554,7 +2554,7 @@ public class BackgroundModelLoader {
    * @throws SQLException
    */
   private static void insertCountsModelColumns(CountsBackgroundModel model, int mapID, boolean insertAsMarkov, Connection cxn) throws SQLException {
-    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(map_id,kmer,probability,count) values(?,?,?,?)");
+    PreparedStatement insertCol = cxn.prepareStatement("insert into background_model_cols(bggm_id,kmer,probability,count) values(?,?,?,?)");
     try {
       for (int i = 1; i <= model.getMaxKmerLen(); i++) {
         for (String kmer : model.getKmers(i)) {
@@ -2675,6 +2675,7 @@ public class BackgroundModelLoader {
     }
     catch (SQLException sqlex) {
       logger.fatal(sqlex);
+      sqlex.printStackTrace();
       System.exit(1);
     }
     catch (CGSException cgsex) {
