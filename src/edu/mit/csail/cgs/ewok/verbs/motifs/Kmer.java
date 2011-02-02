@@ -115,6 +115,9 @@ public class Kmer implements Comparable<Kmer>{
 			RC();
 	}
 	
+	public void extendKmer(Kmer ref){
+		
+	}
 	/**
 	 * calculate the best shift for input kmer to align with this kmer
 	 * allow for 2 mismatches, or 1 shift + 1 mismatch, or 2 shift

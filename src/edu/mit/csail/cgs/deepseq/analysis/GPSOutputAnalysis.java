@@ -156,6 +156,35 @@ public class GPSOutputAnalysis {
 	}
 	Collections.sort(kmers);
 	
+	extendSeeds(kmers);
+	// generate motifs from groups
+	
+  }
+  private void extendSeeds(ArrayList<Kmer> kmers){
+	// group kmers by greedy extending method
+	Kmer firstSeed = kmers.get(0);		
+	ArrayList<TreeSet<Kmer>> alignedGroups = new ArrayList<TreeSet<Kmer>>();
+	
+	
+	while(!kmers.isEmpty()){
+		TreeSet<Kmer> alignedKmers = new TreeSet<Kmer>();
+		Kmer topKmer = kmers.get(0);
+		topKmer.setReference(firstSeed);
+		alignedKmers.add(topKmer);
+		kmers.remove(topKmer);
+		HashSet<Kmer> selected = new HashSet<Kmer>();
+		for(Kmer km: kmers){
+			km.setReference(topKmer);
+			if (km.getScore()>=topKmer.getK()-1){		// align only if 1 mismatch
+				group.addMember(km);
+				selected.add(km);
+			}
+		}
+		kmers.removeAll(selected);
+	}
+  }
+
+  private void matchSeeds(ArrayList<Kmer> kmers){
 	// group kmers by greedy growing method
 	ArrayList<KmerGroup> groups = new ArrayList<KmerGroup>();
 	Kmer firstSeed = kmers.get(0);		
@@ -197,11 +226,8 @@ public class GPSOutputAnalysis {
 	}
 	sb.append("Total kmer groups: " + groups.size());
 	CommonUtils.writeFile("Aligned_Kmers.txt", sb.toString());
-	
-	// generate motifs from groups
-	
+		
   }
-  
   class KmerGroup{
 	  Kmer seed;
 	  TreeSet<Kmer> members = new TreeSet<Kmer>();
