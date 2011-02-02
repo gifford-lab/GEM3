@@ -402,6 +402,14 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
         for(String n : chroms.keySet()) { chromLengths.put(n, chroms.get(n).getLength()); }
         return chromLengths;
     }
+    public long getGenomeSize() {
+        long size = 0;
+        Map<String,Integer> m = getChromLengthMap();
+        for (int i : m.values()) {
+            size += i;
+        }
+        return size;
+    }
     /** Returns the genome info string with chromosome name <tab> length format*/
     public String getGenomeInfo(){
     	StringBuilder sb = new StringBuilder();
