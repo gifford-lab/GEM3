@@ -3259,6 +3259,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean sort_by_location=false;
         public boolean exclude_unenriched = false;
         public boolean dump_regression = false;
+        public boolean use_weight = false;
         public int KL_smooth_width = 0;
         public int max_hit_per_bp = -1;
         public int k = -1;
@@ -3287,7 +3288,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int second_lambda_region_width =  5000;
         public int third_lambda_region_width  = 10000;
         public boolean use_dynamic_sparseness = true;
-        public boolean use_weight = true;
         public boolean use_betaEM = true;
         public boolean use_scanPeak  = true;
         public boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
@@ -3318,10 +3318,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
             	System.err.println("testP is " + testPValues);
             exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
-            // default as true, need the opposite flag to turn it off
+            use_weight = flags.contains("use_weight");
+                // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
-            use_weight = ! flags.contains("use_count");
             filterEvents = !flags.contains("nf");	// not filtering of predicted events
             TF_binding = ! flags.contains("br");	// broad region, not TF data, is histone or pol II
             if (!TF_binding){
