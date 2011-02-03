@@ -14,6 +14,8 @@ public class Kmer implements Comparable<Kmer>{
 	int count;	//all hit count
 	int seqHitCount; //one hit at most for one sequence, to avoid simple repeat
 	double weight;
+	public double getWeight(){return weight;}
+	public void setWeight(double weight){this.weight = weight;}
 	double hg;
 	int negCount;
 	
@@ -21,8 +23,7 @@ public class Kmer implements Comparable<Kmer>{
 	int shift;			// the shift to achieve best score
 	public int getShift(){return shift;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer
-	public int getScore(){return score;}
-	
+	public int getScore(){return score;}	
 	
 	public Kmer(String kmerStr, int hitCount){
 		this.kmerString = kmerStr;
@@ -55,10 +56,11 @@ public class Kmer implements Comparable<Kmer>{
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
 	}
 	public String toString(){
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log10(hg));
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+
+			   String.format("%.1f", Math.log10(hg))+"\t"+weight;
 	}
 	public static String toHeader(){
-		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10";
+		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tWeight";
 	}
 
 	public int getSeqHitCount() {

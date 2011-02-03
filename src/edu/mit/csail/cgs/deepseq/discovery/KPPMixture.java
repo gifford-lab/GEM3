@@ -452,7 +452,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         if (config.kmer_print_hits){
 	        Collections.sort(allKmerHits);
 	        StringBuilder sb = new StringBuilder();
-	        sb.append("Position\tKmer\tCount\tpp\n");
+	        sb.append("Position\tKmer\tCount\tWeight\tpp\n");
 	        for (KmerPP h:allKmerHits)
 	        	sb.append(h.toString()).append("\n");
 	        CommonUtils.writeFile(outName+"_Kmer_Hits.txt", sb.toString());
@@ -3178,11 +3178,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (config.k==-1)
     		return;
 		HashMap<Kmer, Integer> kmer2count = new HashMap<Kmer, Integer>();
+		HashMap<Kmer, Double> kmer2weight = new HashMap<Kmer, Double>();
 		for(Feature f : signalFeatures){
-			Kmer kmer = ((ComponentFeature)f).getKmer();
+			ComponentFeature cf = (ComponentFeature)f;
+			Kmer kmer = cf.getKmer();
 			if (kmer==null)
 				continue;
-			if (kmer2count.containsKey(kmer))
+			if (kmer2weight.containsKey(kmer))	
+				kmer2weight.put(kmer, kmer2weight.get(kmer)+cf.getTotalSumResponsibility());
+			else
+				kmer2weight.put(kmer, cf.getTotalSumResponsibility());
+
+			if (kmer2count.containsKey(kmer))				
 				kmer2count.put(kmer, kmer2count.get(kmer)+1);
 			else
 				kmer2count.put(kmer, 1);
@@ -3192,10 +3199,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			kmer.setSeqHitCount(kmer2count.get(kmer));
 			kmer.setNegCount(-1);
 			kmers.add(kmer);
+			kmer.setWeight(kmer2weight.get(kmer));
 		}
 		kEngine.loadKmers(kmers, outPrefix);
     }
 	
+    
     class GPSConstants {
 
         /****************************
@@ -3278,7 +3287,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int second_lambda_region_width =  5000;
         public int third_lambda_region_width  = 10000;
         public boolean use_dynamic_sparseness = true;
-        public boolean use_betaEM  = true;
+        public boolean use_weight = true;
+        public boolean use_betaEM = true;
         public boolean use_scanPeak  = true;
         public boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
         public int bmverbose=1;		// BindingMixture verbose mode
@@ -3311,6 +3321,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
+            use_weight = ! flags.contains("use_count");
             filterEvents = !flags.contains("nf");	// not filtering of predicted events
             TF_binding = ! flags.contains("br");	// broad region, not TF data, is histone or pol II
             if (!TF_binding){
@@ -3728,7 +3739,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
 	                		int bindingPos = Math.abs(pos)+this.config.k/2;
-	                		int kmerCount = kmerHits.get(pos).getSeqHitCount();
+	                		double kmerCount = 0;
+	                		if (config.use_weight)
+	                			kmerCount = kmerHits.get(pos).getWeight();
+	                		else
+	                			kmerCount = kmerHits.get(pos).getSeqHitCount();
 	                		// select the approach to generate pp from kmer count
 	                		if (config.kc2pp==0)
 	                			pp[bindingPos] = kmerCount;
@@ -4732,7 +4747,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			this.pp = pp;
 		}
 		public String toString(){
-    		return String.format("%s\t%s\t%d\t%.3f", coor.getLocationString(), kmer.getKmerString(), kmer.getSeqHitCount(), pp);
+    		return String.format("%s\t%s\t%d\t%.3f\t%.3f", coor.getLocationString(), kmer.getKmerString(), kmer.getSeqHitCount(),kmer.getWeight(), pp);
     	}
 		public int compareTo(KmerPP h) {
 			return coor.compareTo(h.coor);

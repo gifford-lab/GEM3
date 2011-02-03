@@ -176,7 +176,7 @@ public class GPSOutputAnalysis {
 		for(Kmer km: kmers){
 			km.setReference(topKmer);
 			if (km.getScore()>=topKmer.getK()-1){		// align only if 1 mismatch
-				group.addMember(km);
+//				group.addMember(km);
 				selected.add(km);
 			}
 		}
