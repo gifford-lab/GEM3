@@ -18,8 +18,12 @@ import edu.mit.csail.cgs.utils.*;
  * Subclasses must override getOutputEvents() to provide the
  * list of output events.
  *
- * parseArgs() here looks for --one 'analysisname;version',
- * --two 'analysisname;version' and --maxdist
+ * parseArgs() here looks for 
+ * --one 'analysisname;version'
+ * --two 'analysisname;version'
+ * [--maxdist 100] how far apart can events be to be considered the same by containsMatch
+ * [--topevents 1000] only include the top n events in analysis
+ * [--sortbypval] sort events by pvalue rather than fold enrichment
  */
 
 public abstract class CompareTwoAnalyses {
@@ -28,6 +32,8 @@ public abstract class CompareTwoAnalyses {
     private int maxDistance = 20;
     private Genome genome;
     private List<Region> analysisRegions;
+    private int topEvents = -1;
+    private boolean sortEventsByPval = false;
 
     public CompareTwoAnalyses() {}
 
@@ -35,25 +41,41 @@ public abstract class CompareTwoAnalyses {
         one = Args.parseChipSeqAnalysis(args,"one");
         two = Args.parseChipSeqAnalysis(args,"two");
         maxDistance = Args.parseInteger(args,"maxdist",maxDistance);
+        topEvents = Args.parseInteger(args,"topevents",-1);
+        sortEventsByPval = Args.parseFlags(args).contains("sortbypval");
         genome = Args.parseGenome(args).cdr();
         analysisRegions = Args.parseRegionsOrDefault(args);
     }
     public ChipSeqAnalysis getAnalysisOne() {return one;}
     public ChipSeqAnalysis getAnalysisTwo() {return two;}
+    public int getMaxDistance() { return maxDistance;}
     public Genome getGenome() {return genome;}
     public List<ChipSeqAnalysisResult> getResultsOne() throws SQLException {
         List<ChipSeqAnalysisResult> output = new ArrayList<ChipSeqAnalysisResult>();
         for (Region r : getAnalysisRegions()) {
             output.addAll(getResultsOne(r));
         }
-        return output;
+        return filterEvents(output);
+    }
+    public List<ChipSeqAnalysisResult> filterEvents(List<ChipSeqAnalysisResult> input) {
+        if (topEvents < 1) {
+            return input;
+        } else {
+            if (sortEventsByPval) {
+                Collections.sort(input,new ChipSeqAnalysisResultPvalueComparator());
+            } else {
+                Collections.sort(input,new ChipSeqAnalysisResultEnrichmentComparator());
+            }
+        }
+        return input.subList(0,Math.min(topEvents, input.size()));
+
     }
     public List<ChipSeqAnalysisResult> getResultsTwo() throws SQLException {
         List<ChipSeqAnalysisResult> output = new ArrayList<ChipSeqAnalysisResult>();
         for (Region r : getAnalysisRegions()) {
             output.addAll(getResultsTwo(r));
         }
-        return output;
+        return filterEvents(output);
     }
     public List<ChipSeqAnalysisResult> getResultsOne(Region region) throws SQLException {
         return one.getResults(region);
@@ -74,20 +96,21 @@ public abstract class CompareTwoAnalyses {
             return true;
         }
         int inspt = -1 - i;
-        System.err.println("Looking for " + r + " gave " + inspt);
         try {
-            System.err.println("  " + list.get(inspt));
-            System.err.println("  " + list.get(inspt-1));
-        } catch (Exception e) {        }
+            if (inspt < list.size() && list.get(inspt).distance(r) <= maxDistance) {
+                return true;
+            }
+        } catch (IllegalArgumentException e) {
+            // ignore it. happens if the events aren't on the same chromosome
+        }
+        try {
+            if (inspt > 0 && list.get(inspt-1).distance(r) <= maxDistance) {
+                return true;
+            }
+        } catch (IllegalArgumentException e) {
+            // ignore it.
+        }
 
-        if (inspt < list.size() && list.get(inspt).distance(r) <= maxDistance) {
-            System.err.println("*");
-            return true;
-        }
-        if (inspt > 0 && list.get(inspt-1).distance(r) <= maxDistance) {
-            System.err.println("*");
-            return true;
-        }
         return false;
     }
     public abstract List<ChipSeqAnalysisResult> getOutputEvents() throws SQLException ;
