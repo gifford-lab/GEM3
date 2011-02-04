@@ -13,9 +13,9 @@ public class Kmer implements Comparable<Kmer>{
 	public int getK(){return k;}
 	int count;	//all hit count
 	int seqHitCount; //one hit at most for one sequence, to avoid simple repeat
-	double weight;
-	public double getWeight(){return weight;}
-	public void setWeight(double weight){this.weight = weight;}
+	double strength;
+	public double getStrength(){return strength;}
+	public void setStrength(double strength){this.strength = strength;}
 	double hg;
 	int negCount;
 	
@@ -50,7 +50,7 @@ public class Kmer implements Comparable<Kmer>{
 
 	// sort kmer by weight
 	public int compareByWeight(Kmer o) {
-		double diff = o.weight-weight;
+		double diff = o.strength-strength;
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1;  // descending
 	}
 	
@@ -61,7 +61,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public String toString(){
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+
-			   String.format("%.1f", Math.log10(hg))+"\t"+weight;
+			   String.format("%.1f", Math.log10(hg))+"\t"+strength;
 	}
 	public static String toHeader(){
 		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tWeight";
@@ -244,11 +244,11 @@ public class Kmer implements Comparable<Kmer>{
 		return counts;
 	}
 	public void calcWeight(double[] seqProbs, double[] positionProbs){
-		weight = 0;
+		strength = 0;
 		for (KmerMatch hit:hits){
 			int id = hit.seqId;
 			if (seqHits.contains(id)||seqHits.contains(-id))
-				weight += seqProbs[id]*positionProbs[hit.pos];
+				strength += seqProbs[id]*positionProbs[hit.pos];
 		}
 	}
 }

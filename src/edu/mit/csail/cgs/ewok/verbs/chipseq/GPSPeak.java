@@ -16,8 +16,10 @@ public class GPSPeak extends Point{
 	Point EM_position;
 	String kmer;
 	int kmerCount;
+	double kmerStrength;
 	public String getKmer() {return kmer;}
 	public int getKmerCount() {	return kmerCount;}
+	public double getKmerStrength() {return kmerStrength;}
 
 
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
@@ -65,7 +67,7 @@ public class GPSPeak extends Point{
 	}
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double ctrlStrength, 
 			double qvalue, double pvalue, double IPvsEMP, double IPvsCTR, 
-			String kmer, int kmerCount){
+			String kmer, int kmerCount, double kmerStrength){
 		super(g, chr.replaceFirst("chr", ""), pos);
 		this.strength = ipStrength;
 		this.controlStrength = ctrlStrength;
@@ -76,7 +78,9 @@ public class GPSPeak extends Point{
 		this.EM_position = this;
 		this.kmer = kmer;
 		this.kmerCount = kmerCount;
+		this.kmerStrength = kmerStrength;
 	}
+	
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double ctrlStrength, double qvalue, double pvalue, double IPvsEMP){
 		super(g, chr.replaceFirst("chr", ""), pos);

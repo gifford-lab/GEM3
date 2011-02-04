@@ -3199,7 +3199,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			kmer.setSeqHitCount(kmer2count.get(kmer));
 			kmer.setNegCount(-1);
 			kmers.add(kmer);
-			kmer.setWeight(kmer2weight.get(kmer));
+			kmer.setStrength(kmer2weight.get(kmer));
 		}
 		kEngine.loadKmers(kmers, outPrefix);
     }
@@ -3741,7 +3741,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		int bindingPos = Math.abs(pos)+this.config.k/2;
 	                		double kmerCount = 0;
 	                		if (config.use_weight)
-	                			kmerCount = kmerHits.get(pos).getWeight();
+	                			kmerCount = kmerHits.get(pos).getStrength();
 	                		else
 	                			kmerCount = kmerHits.get(pos).getSeqHitCount();
 	                		// select the approach to generate pp from kmer count
@@ -4747,7 +4747,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			this.pp = pp;
 		}
 		public String toString(){
-    		return String.format("%s\t%s\t%d\t%.3f\t%.3f", coor.getLocationString(), kmer.getKmerString(), kmer.getSeqHitCount(),kmer.getWeight(), pp);
+    		return String.format("%s\t%s\t%d\t%.3f\t%.3f", coor.getLocationString(), kmer.getKmerString(), kmer.getSeqHitCount(),kmer.getStrength(), pp);
     	}
 		public int compareTo(KmerPP h) {
 			return coor.compareTo(h.coor);

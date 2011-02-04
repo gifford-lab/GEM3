@@ -386,7 +386,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append("\t");
         }
         if (kmer!=null)
-        	header.append("Kmer\t").append("KmerCount\t"); 
+        	header.append("Kmer\t").append("KmerCount\t").append("KmerStrength\t"); 
         header.append("\n");
         return header.toString();
 	}
@@ -429,7 +429,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append("\t");
         }
         if (kmer!=null)
-        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount());
+        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append(String.format("%.1f\t", kmer.getStrength()));
         
         result.append("\n");
 		return result.toString();

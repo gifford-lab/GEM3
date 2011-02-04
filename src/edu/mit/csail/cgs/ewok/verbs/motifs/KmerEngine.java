@@ -486,7 +486,7 @@ public class KmerEngine {
 						kprob+=seqProbs[h.seqId]*probsOfKmerInSeq[h.seqId][h.isMinus][h.pos];
 					}
 //					kmer.weight = kprob;
-					kmer.weight = kprob/kmer.count*kmer.seqHitCount;		// re-scale to disfavor simple repeat pattern
+					kmer.strength = kprob/kmer.count*kmer.seqHitCount;		// re-scale to disfavor simple repeat pattern
 				}
 				// re-calculate kmer's contribution inside each sequence
 				double[] kmerProbs = new double[numPos*2];
@@ -495,7 +495,7 @@ public class KmerEngine {
 					for (int j=0;j<=1;j++){
 						for(int p=0;p<numPos;p++){
 							if (probsOfKmerInSeq[i][j][p]!=0){
-								double weight=positionProbs[p]*seq_kmer_map[i][j][p].weight;		// influence of position
+								double weight=positionProbs[p]*seq_kmer_map[i][j][p].strength;		// influence of position
 								probsOfKmerInSeq[i][j][p] = weight;
 								sum += weight;
 							}
@@ -528,7 +528,7 @@ public class KmerEngine {
 			// re-estimate position probabilities
 			positionProbs = new double[seqLength-k+1];
 			for (Kmer m : kmers){
-				if (m.weight!=0){
+				if (m.strength!=0){
 					float[] counts = m.getPositionCounts(seqLength);
 					for (int i=0;i<positionProbs.length;i++){
 						positionProbs[i] += counts[i];
@@ -634,7 +634,7 @@ public class KmerEngine {
 									SequenceUtils.reverseComplement(kmer.kmerString),
 									probsOfKmerInSeq[i][hit.isMinus][hit.pos],
 									resp,
-									kmer.weight));
+									kmer.strength));
 							// print the start position of kmers, to be consistent with warp-drive motif track
 							sb2.append(seqCoors[i].getChrom()+":"+(seqCoors[i].getStart()+hit.pos)).append("\n"); 
 						}

@@ -170,7 +170,7 @@ public class GPSOutputAnalysis {
 	
   }
   private void extendSeeds(ArrayList<Kmer> kmers){
-	char[] letters = {'A','C','T','G'};
+	char[] letters = {'A','C','G','T'};
 	int MISS = 1;
 	// group kmers by greedy extending method
 	Kmer root = kmers.get(0);		
@@ -184,6 +184,10 @@ public class GPSOutputAnalysis {
 			
 			// select all kmers aligned to or extend from the prevSelected set	
 			for(Kmer km: kmers){
+				if (km.getSeqHitCount()<1){
+					kmers.remove(km);
+					break;						// do not want to count very low count kmers
+				}
 				for (Kmer sk: prevSelected){
 					km.setReference(sk);	
 					if (km.getScore()>=sk.getK()-MISS){		// select only if 1 mismatch or 1 extension
@@ -212,6 +216,8 @@ public class GPSOutputAnalysis {
 	int min = 0;
 	int max = 0;
 	for (TreeSet<Kmer> ks:alignedKmerSets){
+		if (ks.size()<=1)
+			continue;
 		for (Kmer k: ks){
 			Kmer thisKmer = k;
 			int offset = thisKmer.getShift();
@@ -231,31 +237,43 @@ public class GPSOutputAnalysis {
 	double[][][] pfms = new double[alignedKmerSets.size()][max-min+1][4];
 	int k = root.getK();
 	for (int i=0;i<alignedKmerSets.size();i++){		
-		double[][] pfm = new double[max-min+1][4];
+		double[][] pfm = new double[max-min+k+1][4];
 		TreeSet<Kmer> ks = alignedKmerSets.get(i);
 		pfms[i] = pfm;
 		for (Kmer km: ks){
 			int shift = km.getGlobalShift();
 			double factor = km.getSeqHitCount();
 			if (useWeight)
-				factor = km.getWeight();
+				factor = km.getStrength();
 			for (int p=0;p<max-shift;p++){
 				for (int b=0;b<letters.length;b++){
 					pfm[p][b] +=0.25*factor;
 				}
 			}
-			for (int p=max-shift;p<max-shift+k;p++){
-				char base = km.getKmerString().charAt(p);
-				for (int b=0;b<letters.length;b++){
-					if (base==letters[b])
-						pfm[p][b] +=1*factor;
+			if(max-shift>=max-min+1){
+				for (int p=max-shift;p<max-shift+k;p++){
+					char base = km.getKmerString().charAt(p-(max-shift));
+					for (int b=0;b<letters.length;b++){
+						if (base==letters[b])
+							pfm[p][b] +=1*factor;
+					}
 				}
 			}
-			for (int p=max-shift+k;p<max-min+1;p++){
-				for (int b=0;b<letters.length;b++){
-					pfm[p][b] +=0.25*factor;
+			else{
+				for (int p=max-shift;p<max-shift+k;p++){
+					char base = km.getKmerString().charAt(p-(max-shift));
+					for (int b=0;b<letters.length;b++){
+						if (base==letters[b])
+							pfm[p][b] +=1*factor;
+					}
+				}
+				for (int p=max-shift+k;p<max-min+k+1;p++){
+					for (int b=0;b<letters.length;b++){
+						pfm[p][b] +=0.25*factor;
+					}
 				}
 			}
+
 		}
 	}
 	// print out motif result
@@ -268,7 +286,7 @@ public class GPSOutputAnalysis {
 			int maxBase = 0;
 			double maxFreq=0;
 			for (int b=0;b<letters.length;b++){
-				msb.append(String.format("%.2f ", pfm[p][b]));
+				msb.append(String.format("%d ", (int)pfm[p][b]));
 				if (maxFreq<pfm[p][b]){
 					maxFreq=pfm[p][b];
 					maxBase = b;
@@ -276,18 +294,18 @@ public class GPSOutputAnalysis {
 			}
 			msb.append(letters[maxBase]).append("\n");
 		}
-		msb.append("XX\n");
+		msb.append("XX\n\n");
 	}
 	CommonUtils.writeFile("Kmer_PFM.txt", msb.toString());	
 	
-	//print out
+	//print out the kmers
 	StringBuilder sb = new StringBuilder();
-	sb.append("Kmer").append("\t").append("gShift").append("\t").append("refKmer").append("\t")
+	sb//.append("Kmer").append("\t").append("gShift").append("\t").append("refKmer").append("\t")
 	  .append("seqCt").append("\t").append("Alignment").append("\n");
 	for (TreeSet<Kmer> ks:alignedKmerSets){
 		for (Kmer km: ks){
 			String shiftedKmer = CommonUtils.padding(max-km.getGlobalShift(), ' ').concat(km.getKmerString());
-			sb.append(km.getKmerString()).append("\t").append(km.getGlobalShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
+			sb//.append(km.getKmerString()).append("\t").append(km.getGlobalShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
 			  .append(km.getSeqHitCount()).append("\t").append(shiftedKmer).append("\n");			
 		}
 		sb.append("\n");
