@@ -39,7 +39,8 @@ public class WeightMatrixScanner {
     static java.sql.Connection cxn;
     static java.sql.Connection core;
     static PreparedStatement getScan, insertScan, getscanid, insertScanned, getScanned, getScannedGenome, insertScannedGenome, getString, insertHit;
-
+    static int madeupChromosomeID = -1;
+    static Map<Integer,String> madeupChromMap = new HashMap<Integer,String>();
 
     public static void main(String args[]) {
         String wmspecies = null;
@@ -434,11 +435,11 @@ public class WeightMatrixScanner {
 
     /* scans a FASTA file for a weight matrix. */
     public static List<WMHit> scanFasta(Genome genome,
-            WeightMatrix matrix,
-            WMConsumer consumer,
-            float cutoffscore,
-            String fastafile,
-            List<Region> regions) {
+                                        WeightMatrix matrix,
+                                        WMConsumer consumer,
+                                        float cutoffscore,
+                                        String fastafile,
+                                        List<Region> regions) {
         try {
             File file = new File(fastafile);
             FASTAStream stream = new FASTAStream(file);
@@ -464,9 +465,10 @@ public class WeightMatrixScanner {
                         chromid = genome.getChromID(name);
                     }
                 } catch (NullPointerException e) {
-                    chromid = -1;
+                    chromid = madeupChromosomeID--;
+                    madeupChromMap.put(chromid, name);                    
                 }
-                if (chromid != -1) {
+                if (chromid >= 0) {
                     if (end == -1) {
                         regions.add(new Region(genome,
                                                name,
@@ -485,15 +487,20 @@ public class WeightMatrixScanner {
                     if (aschars[i] == 't') {aschars[i]='T';}
                 }
                 List<WMHit> hits = scanSequence(matrix,
-                        cutoffscore,
-                        aschars);
+                                                cutoffscore,
+                                                aschars);
 
                 if (chromid > 0) {
                     for (WMHit hit : hits) {
                         hit.start += offset;
                         hit.chromid = chromid;
                     }
+                } else {
+                    for (WMHit hit : hits) {
+                        hit.chromid = chromid;
+                    }                    
                 }
+
                 consumer.consume(hits);
             }            
             stream.close();
@@ -509,10 +516,10 @@ public class WeightMatrixScanner {
 
     /* Scans a list of regions for a weight matrix using the given cutoff. */
     public static void scanFromDB(Genome genome,
-            WeightMatrix matrix,
-            WMConsumer consumer,
-            float scorecutoff,
-            ArrayList<Region> regions) throws NotFoundException {
+                                  WeightMatrix matrix,
+                                  WMConsumer consumer,
+                                  float scorecutoff,
+                                  ArrayList<Region> regions) throws NotFoundException {
         try {
             for (Region region : regions) {
                 int rstart = region.getStart();
@@ -709,7 +716,11 @@ class PrintConsumer extends WMConsumer {
         try {
             chromname = genome.getChromName(hit.chromid);
         } catch (NullPointerException e) {
-            chromname = "unknown";
+            if (hit.chromid < 0) {
+                chromname = WeightMatrixScanner.madeupChromMap.get(hit.chromid);
+            } else {
+                chromname = "unknown";
+            }
         }
 
         System.out.println(chromname + "\t" +
