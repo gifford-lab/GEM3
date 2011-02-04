@@ -1,6 +1,7 @@
 package edu.mit.csail.cgs.tools.utils;
 
 import java.util.*;
+import java.util.regex.*;
 import java.io.*;
 import java.sql.SQLException;
 import edu.mit.csail.cgs.utils.Pair;
@@ -498,6 +499,22 @@ public class Args {
         }
         return out;
     }
+    private static List<Pattern> makePatterns(Collection<String> strings) {
+        List<Pattern> out = new ArrayList<Pattern>();
+        for (String s : strings) {
+            out.add(Pattern.compile(s));
+        }
+        return out;
+    }
+    private static boolean matchesAny(String s, List<Pattern> patterns) {
+        for (Pattern p : patterns) {
+            Matcher m = p.matcher(s);
+            if (m.find()) {
+                return true;
+            }
+        }
+        return false;
+    }
     public static Collection<WeightMatrix> filterMatrices(Collection<String> accepts,
                                                           Collection<String> rejects,
                                                           Collection<String> acceptvers,
@@ -506,66 +523,27 @@ public class Args {
                                                           Collection<String> rejecttypes,
                                                           Collection<WeightMatrix> matrices) {
         ArrayList<WeightMatrix> out = new ArrayList<WeightMatrix>();
+        List<Pattern> acceptp = makePatterns(accepts);
+        List<Pattern> rejectp = makePatterns(rejects);
+
+        List<Pattern> acceptversp = makePatterns(acceptvers);
+        List<Pattern> rejectversp = makePatterns(rejectvers);
+
+        List<Pattern> accepttypep = makePatterns(accepttypes);
+        List<Pattern> rejecttypep = makePatterns(rejecttypes);
+        
         for (WeightMatrix wm : matrices) {
-            boolean reject = false;
-            for (String s : rejects) {
-                if (wm.name.matches(s)) {
-                    reject = true;
-                    break;
-                }
-            }
-            for (String s : rejectvers) {
-                if (wm.version.matches(s)) {
-                    reject = true;
-                    break;
-                }
-            }
-            for (String s : rejecttypes) {
-                if (wm.type.matches(s)) {
-                    reject = true;
-                    break;
-                }
-            }
-            if (reject) {
+            if (matchesAny(wm.name, rejectp) ||
+                matchesAny(wm.version, rejectversp) ||
+                matchesAny(wm.type, rejecttypep)) {
                 continue;
             }
-            reject = false;
-            if (accepts.size() > 0) {
-                boolean any = false;
-                for (String s : accepts) {
-                    if (wm.name.matches(s)) {
-                        any = true;
-                        break;
-                    }
-                }
-                reject = !any;
+            if ((matchesAny(wm.name, acceptp) ||
+                 matchesAny(wm.version, acceptversp) ||
+                 matchesAny(wm.type, accepttypep)) ||
+                (accepts.size() == 0 && acceptvers.size() == 0 && accepttypes.size() == 0)) {
+                out.add(wm);
             }
-
-            if (acceptvers.size() > 0) {
-                boolean any = false;
-                for (String s : acceptvers) {
-                    if (wm.version.matches(s)) {
-                        any = true;
-                        break;
-                    }
-                }
-                reject = reject || !any;
-            }
-
-            if (accepttypes.size() > 0) {
-                boolean any = false;
-                for (String s : accepttypes) {
-                    if (wm.type.matches(s)) {
-                        any = true;
-                    }
-                }
-                reject = reject || !any;
-            }
-            
-            if (reject) {
-                continue;
-            }
-            out.add(wm);
         }
         return out;
     }
@@ -578,6 +556,14 @@ public class Args {
 
         Collection<String> awmt = parseStrings(args,"acceptwmtype");
         Collection<String> rwmt = parseStrings(args,"rejectwmtype");
+
+        if (awm.size() > 0 ) { System.err.println("Acceping wmnames " + awm);}
+        if (awmv.size() > 0 ) { System.err.println("Acceping wmvers " + awmv);}
+        if (awmt.size() > 0 ) { System.err.println("Acceping wmtypes " + awmt);}
+        if (rwm.size() > 0 ) { System.err.println("Rejecting wmnames " + rwm);}
+        if (rwmv.size() > 0 ) { System.err.println("Rejecting wmvers " + rwmv);}
+        if (rwmt.size() > 0 ) { System.err.println("Rejecting wmtypes " + rwmt);}
+
 
         Collection<WeightMatrix> out = new ArrayList<WeightMatrix>();
         if (awm.size() > 0 || rwm.size() > 0 || awmv.size() > 0 ||
@@ -599,9 +585,11 @@ public class Args {
                 }                
             }
             loader.close();
-        } else if (out.size() == 0) {
+        } else if (awm.size() == 0 && rwm.size() == 0 && awmv.size() == 0 &&
+                   rwmv.size() == 0 && awmt.size() == 0 && rwmt.size() == 0) {
             return WeightMatrix.getAllWeightMatrices();
         }
+        System.err.println("parseWeightMatrices returning " + out.size());
 
         return out;
     }

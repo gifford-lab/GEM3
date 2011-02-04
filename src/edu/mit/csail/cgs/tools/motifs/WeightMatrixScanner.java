@@ -28,6 +28,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
  * --species "$MM;mm9"
  * --scanname "90%"  [required only when storing to db]
  *
+ * --wm, --acceptwm, --rejectwm, --acceptwmver, --rejectwmver, --acceptwmtype, --rejectwmtype used to specify set of matrices
  * [--print]  print results rather than storing to db
  * [--loadfile foo.txt]  load results from file rather than doing a new scan
  * [--cutoff .9] as a fraction of maximum log-odds score
@@ -68,7 +69,9 @@ public class WeightMatrixScanner {
         getScanned.close();
         getScannedGenome.close();
         insertScannedGenome.close();
-        insertHit.close();
+        if (insertHit != null) {
+            insertHit.close();
+        }
         core.close();
         cxn.close();
     }
@@ -114,12 +117,7 @@ public class WeightMatrixScanner {
             for (WeightMatrix m : matrices) {
                 m.toLogOdds(bgModel);
             }            
-        }
-        
-        if (print) {
-            consumer = new PrintConsumer(genome);
-        } 
-
+        }        
     }
     public void run() throws Exception {
         /* load file thing here */
@@ -149,6 +147,7 @@ public class WeightMatrixScanner {
 
             if (print) {
                 scanid = -1;
+                consumer = new PrintConsumer(genome, matrix);
             } else {
                 scanid = getScanID(matrix.dbid,scanname,cutoffscore);
                 System.err.println("SCAN ID is " + scanid);
@@ -166,13 +165,11 @@ public class WeightMatrixScanner {
                     insertScannedGenome.execute();
                 }
                 rs.close();
-                getScannedGenome.close();
             }
         
             if (fastafiles.size() != 0) {
                 regions.clear();
                 for (String fastafile : fastafiles) {
-                    System.err.println("Scanning file " + fastafile);
                     scanFasta(genome,
                               matrix,
                               consumer,
@@ -228,7 +225,6 @@ public class WeightMatrixScanner {
             insertScan.setString(2,scanname);
             insertScan.setFloat(3,cutoffscore);
             insertScan.execute();
-            insertScan.close();
             rs = getscanid.executeQuery();
             if (rs.next()) {
                 scanid = rs.getInt(1);
@@ -578,9 +574,11 @@ abstract class WMConsumer implements Sink<WMHit> {
 class PrintConsumer extends WMConsumer {
     
     private Genome genome;
+    private WeightMatrix matrix;
     
-    public PrintConsumer(Genome g) {
+    public PrintConsumer(Genome g, WeightMatrix m) {
         this.genome = g;
+        this.matrix = m;
     }
     
     public void consume(WMHit hit) { 
@@ -595,7 +593,8 @@ class PrintConsumer extends WMConsumer {
             }
         }
 
-        System.out.println(chromname + "\t" +
+        System.out.println(matrix.toString() + "\t" + 
+                           chromname + "\t" +
                            hit.start + "\t" + 
                            hit.end + "\t" + 
                            hit.score + "\t" +
