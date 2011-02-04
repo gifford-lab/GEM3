@@ -195,9 +195,6 @@ public class KmerEngine {
 		}
 		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 	}
-
-	
-
 	
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value

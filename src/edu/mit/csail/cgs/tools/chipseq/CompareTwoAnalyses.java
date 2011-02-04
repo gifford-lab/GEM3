@@ -21,9 +21,14 @@ import edu.mit.csail.cgs.utils.*;
  * parseArgs() here looks for 
  * --one 'analysisname;version'
  * --two 'analysisname;version'
+<<<<<<< HEAD
  * [--maxdist 100] how far apart can events be to be considered the same by containsMatch
  * [--topevents 1000] only include the top n events in analysis
  * [--sortbypval] sort events by pvalue rather than fold enrichment
+=======
+ * [--maxdist 50]  maximum distance to consider events in one and two the same
+ * 
+>>>>>>> 9bab5e357267fff52fd7c2d9cd8512a94e3d6a2b
  */
 
 public abstract class CompareTwoAnalyses {
@@ -43,6 +48,7 @@ public abstract class CompareTwoAnalyses {
         maxDistance = Args.parseInteger(args,"maxdist",maxDistance);
         topEvents = Args.parseInteger(args,"topevents",-1);
         sortEventsByPval = Args.parseFlags(args).contains("sortbypval");
+        firstCheck = Args.parseInteger(args,"firstcheck",firstCheck);
         genome = Args.parseGenome(args).cdr();
         analysisRegions = Args.parseRegionsOrDefault(args);
     }

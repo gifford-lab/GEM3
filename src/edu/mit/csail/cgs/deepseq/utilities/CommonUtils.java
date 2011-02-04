@@ -237,6 +237,18 @@ public class CommonUtils {
 		}
 //		System.out.println("File was written to "+fileName);
 	}
+	
+	public static String padding(int repeat, char padChar) throws IndexOutOfBoundsException {
+	      if (repeat < 0) {
+	          throw new IndexOutOfBoundsException("Cannot pad a negative amount: " + repeat);
+	      }
+	      final char[] buf = new char[repeat];
+	      for (int i = 0; i < buf.length; i++) {
+	          buf[i] = padChar;
+	      }
+	      return new String(buf);
+	}
+
     /*
      * parse motif string, version, threshold, species_id from command line
      */

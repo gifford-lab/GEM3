@@ -14,15 +14,20 @@ public class Kmer implements Comparable<Kmer>{
 	int count;	//all hit count
 	int seqHitCount; //one hit at most for one sequence, to avoid simple repeat
 	double weight;
+	public double getWeight(){return weight;}
+	public void setWeight(double weight){this.weight = weight;}
 	double hg;
 	int negCount;
 	
 	Kmer reference;		//
+	public Kmer getRef(){return reference;}
 	int shift;			// the shift to achieve best score
 	public int getShift(){return shift;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer
-	public int getScore(){return score;}
-	
+	public int getScore(){return score;}	
+	int globalShift;			// the shift to the first seed
+	public int getGlobalShift(){return globalShift;}
+	public void setGlobalShift(int s){globalShift=s;}
 	
 	public Kmer(String kmerStr, int hitCount){
 		this.kmerString = kmerStr;
@@ -55,10 +60,11 @@ public class Kmer implements Comparable<Kmer>{
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
 	}
 	public String toString(){
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log10(hg));
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+
+			   String.format("%.1f", Math.log10(hg))+"\t"+weight;
 	}
 	public static String toHeader(){
-		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10";
+		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tWeight";
 	}
 
 	public int getSeqHitCount() {
@@ -113,6 +119,50 @@ public class Kmer implements Comparable<Kmer>{
 		}
 		if (useRC)
 			RC();
+	}
+	
+	/**
+	 * Extend this kmer from reference kmer, if they are only offset base off
+	 * @param ref
+	 */
+	public boolean extendKmer(Kmer ref, int offset){
+		reference = ref;
+		byte[] thisBytes = kmerString.getBytes();
+		byte[] refBytes = ref.kmerString.getBytes();
+		score = 0;
+		shift = -99;
+		for (int s=-offset;s<=offset;s++){
+			for (int i=-offset;i<refBytes.length+offset;i++){
+				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
+					continue;
+				if (refBytes[i]!=thisBytes[i+s])	// if mismatch
+					break;
+			}
+			score = refBytes.length-Math.abs(s);
+			shift = s;
+		}
+		// try RC
+		byte[] rcBytes = getKmerRC().getBytes();
+		boolean useRC=false;
+		for (int s=-offset;s<=offset;s++){
+			for (int i=-offset;i<refBytes.length+offset;i++){
+				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
+					continue;
+				if (refBytes[i]!=rcBytes[i+s])	// if mismatch
+					break;
+			}
+			int thisScore = refBytes.length-Math.abs(s);
+			if (thisScore>score){
+				score = thisScore;
+				useRC = true;
+			}
+			shift = s;
+		}
+		
+		if (useRC)
+			RC();
+		
+		return score>0;
 	}
 	
 	/**
