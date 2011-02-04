@@ -17,169 +17,144 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.ewok.verbs.Sink;
+import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.PerBaseMotifMatch;
+import edu.mit.csail.cgs.tools.utils.Args;
 
 /** Scans a genome for a previously loaded weight matrix.  Can read either from FASTA files or from the database.  Can put results
- *  into the database or print to the screen.  Can also load scan results from a file
+ * into the database or print to the screen.  Can also load scan results from a file.  All matrices are converted to log-odds
+ * before scanning.
  *
- * To load previously scanned results from a file:
- *   java edu.mit.csail.cgs.tools.motifs.WeightMatrixScanner --wmspecies 'Saccharomyces cerevisiae' --wmname HSF1 --wmversion MacIsaac06 --cutoff 60% --scanname 'for S288C comparison' --loadfile HSF1.txt
- * To perform the scan and save results to the DB:
- *   java edu.mit.csail.cgs.tools.motifs.WeightMatrixScanner --species 'Saccharomyces cerevisiae;sigma_broad_v1' --wmname HSF1 --wmversion MacIsaac06 --cutoff 60% --scanname 'for S288C comparison' 
- *   java edu.mit.csail.cgs.toos.motifs.WeightMatrixScanner --wmspecies 'Saccharomyces cerevisiae' --wmname HSF1 --wmversion MacIsaac06 --cutoff 60% --species "Homo sapiens;hg18" --scanname 'for S288C comparison' 
+ * --species "$MM;mm9"
+ * --scanname "90%"  [required only when storing to db]
  *
- * wmspecies is the species associated with the weight matrix
- * species is the species;genome that you want to scan
- *
- * ALEX TODO: is the score cutoff always relative to frequency or log-likelihood, or does it depend on how the WM is stored?
+ * --wm, --acceptwm, --rejectwm, --acceptwmver, --rejectwmver, --acceptwmtype, --rejectwmtype used to specify set of matrices
+ * [--print]  print results rather than storing to db
+ * [--loadfile foo.txt]  load results from file rather than doing a new scan
+ * [--cutoff .9] as a fraction of maximum log-odds score
  */
 
 public class WeightMatrixScanner {
-    static int inserted = 0;
-    static java.sql.Connection cxn;
-    static java.sql.Connection core;
-    static PreparedStatement getScan, insertScan, getscanid, insertScanned, getScanned, getScannedGenome, insertScannedGenome, getString, insertHit;
+    private int inserted = 0;
+    private java.sql.Connection cxn;
+    private java.sql.Connection core;
+    private PreparedStatement getScan, insertScan, getscanid, insertScanned, getScanned, getScannedGenome, insertScannedGenome, insertHit;
+    private int madeupChromosomeID = -1;
+    private Map<Integer,String> madeupChromMap = new HashMap<Integer,String>();
+    private Genome genome;
+    private List<String> fastafiles;
+    private List<Region> regions;
+    private List<WeightMatrix> matrices;
+    private double cutoff;
+    private String loadfile, scanname;
+    private boolean print;
+    private WMConsumer consumer;
 
-
-    public static void main(String args[]) {
-        String wmspecies = null;
-        String wmname = null, wmversion = null, scanname = null;
-        String species = null, genomeversion = null;
-        String cutoff = null;
-        float cutoffscore = 10000000;
+    public static void main(String args[]) throws Exception {
+        WeightMatrixScanner scanner = new WeightMatrixScanner();
+        scanner.parseArgs(args);
+        scanner.run();
+        scanner.close();
+    }
+    public WeightMatrixScanner() throws SQLException, UnknownRoleException {
+        cxn =DatabaseFactory.getConnection("annotations");
+        core =DatabaseFactory.getConnection("core");
+        setup();
+    }
+    public void close() throws SQLException {
+        getScan.close();
+        insertScan.close();
+        getscanid.close();
+        insertScanned.close();
+        getScanned.close();
+        getScannedGenome.close();
+        insertScannedGenome.close();
+        if (insertHit != null) {
+            insertHit.close();
+        }
+        core.close();
+        cxn.close();
+    }
+    public void parseArgs(String args[]) throws Exception {
         boolean scan = true;
-        String loadfile = null;
-        ArrayList<String> fastafiles = new ArrayList<String>();
-        ArrayList<Region> regions = new ArrayList<Region>();
-        boolean print = false;
-        WMConsumer consumer = null;
-        int scanid = -1;
+        print = false;
+        consumer = null;
+        loadfile = null;
+        genome = Args.parseGenome(args).cdr();
+        cutoff = Args.parseDouble(args,"cutoff",.8);
+        scanname = Args.parseString(args,"scanname",null);
+        loadfile = Args.parseString(args,"loadfile",null);
+        fastafiles = new ArrayList<String>();
+        fastafiles.addAll(Args.parseStrings(args,"fasta"));
+        print = Args.parseFlags(args).contains("print");
+        regions = Args.parseRegionsOrDefault(args);
 
-        try {
-            cxn =DatabaseFactory.getConnection("annotations");
-            core =DatabaseFactory.getConnection("core");
-            setup();
-        } catch (UnknownRoleException ex) {
-            ex.printStackTrace();
-            System.exit(1);
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            System.exit(1);
-        }
-
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("--species")) { 
-                species = args[++i];
-                if (species.indexOf(';') != -1) {
-                    String[] pieces = species.split(";");
-                    species = pieces[0];
-                    genomeversion = pieces[1];
-                }
-            }
-            if (args[i].equals("--genomeversion")) {
-                genomeversion = args[++i];
-            }
-            if (args[i].equals("--wmspecies")) {
-                wmspecies = args[++i];
-            }
-            if (args[i].equals("--wmname")) {
-                wmname = args[++i];
-                if (wmname.indexOf(';') != -1) {
-                    String[] pieces = wmname.split(";");
-                    wmname = pieces[0];
-                    wmversion = pieces[1];
-                }
-            }
-            if (args[i].equals("--wmversion")) {
-                wmversion = args[++i];
-            }
-            if (args[i].equals("--cutoff")) {
-                cutoff = args[++i];
-            }
-            if (args[i].equals("--scanname")) {
-                scanname = args[++i];
-            }
-            if (args[i].equals("--loadfile")) {
-                loadfile = args[++i];
-            }
-            if (args[i].equals("--fasta")) {
-                fastafiles.add(args[++i]);
-            }
-            if (args[i].equals("--print")) {
-                print = true;
-            }
-        }
-        if (species == null) {
-            System.err.println("Must supply a --species"); System.exit(1);
-        }
-        if (wmname == null) {
-            System.err.println("Must supply a --wmname"); System.exit(1);
-        }
-        if (wmversion == null) {
-            System.err.println("Must supply a --wmversion"); System.exit(1);
-        }
-        if (wmspecies ==null) {
-            System.err.println("Using " + species + " as --wmspecies");
-            wmspecies = species;
-        }        
         if (!print) {            
-            if (genomeversion == null) {
-                System.err.println("Must supply a --genomeversion"); System.exit(1);
-            }
             if (scanname == null) {
                 System.err.println("Must supply a --scanname"); System.exit(1);
             }
         }
-        Organism organism = null;
-        try {
-            organism = new Organism(wmspecies);
-        } catch (NotFoundException ex) {
-            System.err.println("Couldn't find species " + species);
-            System.exit(1);
-        }
-        Genome genome = null;
-        if (genomeversion != null) {
-            try {
-                genome = new Genome(species,genomeversion);
-            } catch (NotFoundException ex) {
-                System.err.println("Couldn't find genome " + species + ", " + genomeversion);
-                System.exit(1);
-            }
-        }
-        WeightMatrix matrix = null;
-        try {
 
-            int wmid = WeightMatrix.getWeightMatrixID(organism.getDBID(),
-                    wmname,
-                    wmversion);
-            matrix = WeightMatrix.getWeightMatrix(wmid);
-        } catch (NotFoundException ex) {
-            System.err.println("Can't find WM " + wmname + "," + wmversion);
-            System.exit(1);
-        }
-        float maxscore = (float)matrix.getMaxScore();
-        if (cutoff != null && cutoff.matches(".*%.*")) {  // handle percent rather than absolute cutoffs
-            String c = cutoff.replaceAll("\\s*%.*","");
-            System.err.println("Parsing " + c);
-            System.err.println("maxscore is " + maxscore);
-            cutoffscore = Float.parseFloat(c) / (float)100.0 * maxscore;
-        } else if (cutoff == null) {
-            cutoffscore = (float).9 * maxscore;
-        } else  {
-            cutoffscore = Float.parseFloat(cutoff);
-        }
+        MarkovBackgroundModel bgModel = null;
+        String bgmodelname = Args.parseString(args,"bgmodel","whole genome zero order");
+        BackgroundModelMetadata md = BackgroundModelLoader.getBackgroundModel(bgmodelname,
+                                                                              1,
+                                                                              "MARKOV",
+                                                                              Args.parseGenome(args).cdr().getDBID());
 
-        if (print) {
-            consumer = new PrintConsumer(genome);
-            scanid = -1;
+        if (md != null) {
+            bgModel = BackgroundModelLoader.getMarkovModel(md);
         } else {
-            try {
+            System.err.println("Couldn't get metadata for " + bgmodelname);
+        }                
+        matrices = new ArrayList<WeightMatrix>();
+        matrices.addAll(Args.parseWeightMatrices(args));
+        if (bgModel == null) {
+            for (WeightMatrix m : matrices) {
+                m.toLogOdds();
+            }            
+        } else {
+            for (WeightMatrix m : matrices) {
+                m.toLogOdds(bgModel);
+            }            
+        }        
+    }
+    public void run() throws Exception {
+        /* load file thing here */
+        if (loadfile != null) {
+            loadFile();
+        } else {
+            scanMatrices();
+        }
+        cxn.commit();
+    }
+    public void loadFile() {
+        try {
+            loadFile(genome,loadfile,(float)cutoff,consumer);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        try {
+            cxn.commit();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    } 
+    public void scanMatrices() throws SQLException {
+        for (WeightMatrix matrix : matrices) {
+            int scanid;
+            float cutoffscore =(float) (matrix.getMaxScore() * cutoff);
+
+            if (print) {
+                scanid = -1;
+                consumer = new PrintConsumer(genome, matrix);
+            } else {
                 scanid = getScanID(matrix.dbid,scanname,cutoffscore);
                 System.err.println("SCAN ID is " + scanid);
                 insertHit = cxn.prepareStatement("insert into wms_hits(scan,chromosome,startpos,stoppos,strand,score) " +
-                        " values (" + scanid + ",?,?,?,?,?)");
+                                                 " values (" + scanid + ",?,?,?,?,?)");
                 consumer = new StoreConsumer(cxn,
-                        insertHit);
+                                             insertHit);
                 getScannedGenome.setInt(1,scanid);
                 getScannedGenome.setInt(2,genome.getDBID());
                 ResultSet rs = getScannedGenome.executeQuery();
@@ -190,135 +165,54 @@ public class WeightMatrixScanner {
                     insertScannedGenome.execute();
                 }
                 rs.close();
-                getScannedGenome.close();
-
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-                System.exit(1);
             }
-        }
-
-        // look for chrom arguments
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("--chrom")) {
-                String c = args[++i].trim();
-                Region region = null;
-                String mp = "^\\s*([\\w\\d]+):\\s*([,\\d]+[mMkK]?)\\s*-\\s*([,\\d]+[mMkK]?)\\s*";
-                Pattern factorPattern = Pattern.compile(mp);
-                Matcher m = factorPattern.matcher(c);
-                if(m.find() && m.groupCount() == 3) {
-                    String chromStr = m.group(1);
-                    String startStr = m.group(2);
-                    String endStr = m.group(3);
-                    if(chromStr.startsWith("chr")) { chromStr = chromStr.substring(3, chromStr.length()); }
-                    startStr = startStr.replaceAll(",", "");
-                    endStr = endStr.replaceAll(",", "");
-                    region = new Region(genome,
-                            chromStr,
-                            Region.stringToNum(startStr),
-                            Region.stringToNum(endStr));
-                }
-                if (region != null) {
-                    regions.add(region);
-                } else {
-                    try {
-                        int start = 1;
-                        int end = genome.getChromLength(c);
-                        regions.add(new Region(genome,
-                                c,
-                                start,
-                                end));
-                    } catch (IllegalArgumentException ex) {
-                        // no such chrom
-                    } 
+        
+            if (fastafiles.size() != 0) {
+                regions.clear();
+                for (String fastafile : fastafiles) {
+                    scanFasta(genome,
+                              matrix,
+                              consumer,
+                              cutoffscore,
+                              fastafile,
+                              regions);
+                    
+                }                
+            } else {
+                try {
+                    scanFromDB(genome,
+                               matrix,
+                               consumer,
+                               (float)cutoff,
+                               regions);
+                } catch (NotFoundException ex) {
+                    ex.printStackTrace();
                 }
             }
-        }
-        // if no regions specified, then do whole genome
-        // don't do this if we're scanning a fasta file (output goes to stdout)
-        // or loading a file of previously scanned results
-        if (regions.size() == 0 && fastafiles.size() == 0) {
-            System.err.println("No --chrom specified.  Scanning the whole genome");
-            Map<String,Integer> cmap = genome.getChromLengthMap();
-            for (String c : cmap.keySet()) {
-                regions.add(new Region(genome,
-                        c,
-                        1,
-                        cmap.get(c)));
-            }
-        }
-
-        if (!print) {
-            storeRegionList(genome,scanid,regions);
-        }
-
-        /* load file thing here */
-        if (loadfile != null) {
-            try {
-                loadFile(genome,loadfile,cutoffscore,consumer);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-            try {
-                cxn.commit();
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
-            System.exit(0);
-        }
-
-        if (fastafiles.size() != 0) {
-            regions.clear();
-            for (String fastafile : fastafiles) {
-                System.err.println("Scanning file " + fastafile);
-                scanFasta(genome,
-                        matrix,
-                        consumer,
-                        cutoffscore,
-                        fastafile,
-                        regions);
-
-            }                
             if (!print) {
                 storeRegionList(genome,scanid,regions);
             }
-        } else {
-            try {
-                scanFromDB(genome,
-                        matrix,
-                        consumer,
-                        cutoffscore,
-                        regions);
-            } catch (NotFoundException ex) {
-                ex.printStackTrace();
-            }
-        }
-        try {
-            cxn.commit();
-        } catch (SQLException ex) {
-            ex.printStackTrace();
         }
     }
-
+    
     /* sets up SQL statements.  Must be called before anything else is done */
-    public static void setup() throws SQLException {
+    public void setup() throws SQLException {
         getScan = cxn.prepareStatement("select id from weightmatrixscan where weightmatrix = ? and name = ?");            
         insertScan = cxn.prepareStatement("insert into weightmatrixscan(id,weightmatrix,name,cutoff) values " +
-        "(weightmatrixscan_id.nextval,?,?,?)");
+                                          "(weightmatrixscan_id.nextval,?,?,?)");
         getscanid = cxn.prepareStatement("select weightmatrixscan_id.currval from dual");
 
         insertScanned = cxn.prepareStatement("insert into wms_scanned_regions(scan,chromosome,startpos,stoppos) values(?,?,?,?)");
         getScanned = cxn.prepareStatement("select count(*) from wms_scanned_regions where scan = ? and chromosome = ? and startpos = ? and stoppos = ?");
         getScannedGenome = cxn.prepareStatement("select count(*) from wms_scanned_genomes where scan = ? and genome = ?");
         insertScannedGenome = cxn.prepareStatement("insert into wms_scanned_genomes (scan,genome) values (?,?)");
-        getString = core.prepareStatement("select upper(substr(sequence,?,?)) from chromsequence where id = ?");
         cxn.setAutoCommit(false);
     }
 
     /* retrieves the DBID of the scan with the specified name and cutoff for a weight matrix */
-    public static int getScanID(int wmid,
-            String scanname,
-            float cutoffscore) throws SQLException {
+    public int getScanID(int wmid,
+                         String scanname,
+                         float cutoffscore) throws SQLException {
         int scanid;
         getScan.setInt(1,wmid);
         getScan.setString(2,scanname);
@@ -331,7 +225,6 @@ public class WeightMatrixScanner {
             insertScan.setString(2,scanname);
             insertScan.setFloat(3,cutoffscore);
             insertScan.execute();
-            insertScan.close();
             rs = getscanid.executeQuery();
             if (rs.next()) {
                 scanid = rs.getInt(1);
@@ -346,7 +239,7 @@ public class WeightMatrixScanner {
     /* adds a record to the wms_scanned_regions table.
        This needs to be done for all weight matrix scans that are storing 
        results in the database */
-    public static boolean addScannedRegion(int scanid, int chromid, int start, int stop) throws SQLException {
+    public boolean addScannedRegion(int scanid, int chromid, int start, int stop) throws SQLException {
         boolean newregion = false;
         getScanned.setInt(1,scanid);
         getScanned.setInt(2,chromid);
@@ -370,7 +263,7 @@ public class WeightMatrixScanner {
     }
 
     /* stores a WM hit to the database */
-    public static void addHit(WMHit hit) throws SQLException {
+    public void addHit(WMHit hit) throws SQLException {
         insertHit.setInt(1,hit.scanid);
         insertHit.setInt(2,hit.chromid);
         insertHit.setInt(3,hit.start);
@@ -386,9 +279,9 @@ public class WeightMatrixScanner {
         }
     }
 
-    public static void storeRegionList(Genome genome,
-            int scanid,
-            List<Region> regions) {
+    public void storeRegionList(Genome genome,
+                                int scanid,
+                                List<Region> regions) {
         for (Region r : regions) {                
             try {
                 addScannedRegion(scanid, genome.getChromID(r.getChrom()),r.getStart(),r.getEnd());
@@ -399,10 +292,10 @@ public class WeightMatrixScanner {
         }        
     }
 
-    public static void loadFile (Genome genome,
-            String fname,
-            float cutoffscore,
-            WMConsumer consumer) throws FileNotFoundException, IOException {
+    public void loadFile (Genome genome,
+                          String fname,
+                          float cutoffscore,
+                          WMConsumer consumer) throws FileNotFoundException, IOException {
         try {
             File resultsfile = new File(fname);
             if (!resultsfile.exists()) {
@@ -411,18 +304,18 @@ public class WeightMatrixScanner {
             }
             BufferedReader reader = new BufferedReader(new FileReader(resultsfile));
             String line;
-            ArrayList<WMHit> hits = new ArrayList<WMHit>();
+            List<WMHit> hits = new ArrayList<WMHit>();
             while ((line = reader.readLine()) != null) {
                 String pieces[] = line.split("\t");                
                 if (pieces.length >= 5) {
                     float score = Float.parseFloat(pieces[4]);
                     if (score >= cutoffscore) {
                         hits.add(new WMHit(-1,
-                                genome.getChromID(pieces[0]),
-                                Integer.parseInt(pieces[1]),
-                                Integer.parseInt(pieces[2]),
-                                pieces[3],
-                                score));
+                                           genome.getChromID(pieces[0]),
+                                           Integer.parseInt(pieces[1]),
+                                           Integer.parseInt(pieces[2]),
+                                           pieces[3],
+                                           score));
                     }
                 }
             }
@@ -433,12 +326,12 @@ public class WeightMatrixScanner {
     }
 
     /* scans a FASTA file for a weight matrix. */
-    public static List<WMHit> scanFasta(Genome genome,
-            WeightMatrix matrix,
-            WMConsumer consumer,
-            float cutoffscore,
-            String fastafile,
-            List<Region> regions) {
+    public List<WMHit> scanFasta(Genome genome,
+                                 WeightMatrix matrix,
+                                 WMConsumer consumer,
+                                 float cutoffscore,
+                                 String fastafile,
+                                 List<Region> regions) {
         try {
             File file = new File(fastafile);
             FASTAStream stream = new FASTAStream(file);
@@ -464,9 +357,10 @@ public class WeightMatrixScanner {
                         chromid = genome.getChromID(name);
                     }
                 } catch (NullPointerException e) {
-                    chromid = -1;
+                    chromid = madeupChromosomeID--;
+                    madeupChromMap.put(chromid, name);                    
                 }
-                if (chromid != -1) {
+                if (chromid >= 0) {
                     if (end == -1) {
                         regions.add(new Region(genome,
                                                name,
@@ -485,15 +379,20 @@ public class WeightMatrixScanner {
                     if (aschars[i] == 't') {aschars[i]='T';}
                 }
                 List<WMHit> hits = scanSequence(matrix,
-                        cutoffscore,
-                        aschars);
+                                                cutoffscore,
+                                                aschars);
 
                 if (chromid > 0) {
                     for (WMHit hit : hits) {
                         hit.start += offset;
                         hit.chromid = chromid;
                     }
+                } else {
+                    for (WMHit hit : hits) {
+                        hit.chromid = chromid;
+                    }                    
                 }
+
                 consumer.consume(hits);
             }            
             stream.close();
@@ -508,51 +407,39 @@ public class WeightMatrixScanner {
     }
 
     /* Scans a list of regions for a weight matrix using the given cutoff. */
-    public static void scanFromDB(Genome genome,
-            WeightMatrix matrix,
-            WMConsumer consumer,
-            float scorecutoff,
-            ArrayList<Region> regions) throws NotFoundException {
-        try {
-            for (Region region : regions) {
-                int rstart = region.getStart();
-                int chunksize = 8000000;
-                int chromid = region.getGenome().getChromID(region.getChrom());
-                int length = matrix.length();
+    public void scanFromDB(Genome genome,
+                           WeightMatrix matrix,
+                           WMConsumer consumer,
+                           float scorecutoff,
+                           List<Region> regions) throws NotFoundException {
+        SequenceGenerator seqgen = new SequenceGenerator();
+        for (Region region : regions) {
+            int rstart = region.getStart();
+            int chunksize = 8000000;
+            int chromid = region.getGenome().getChromID(region.getChrom());
+            int length = matrix.length();
 
-                ArrayList<WMHit> results = new ArrayList<WMHit>();
-                // work over the target region in pieces
-                while (rstart < region.getEnd()) {
-                    int rend = rstart + chunksize;
-                    if (rend > region.getEnd()) {
-                        rend = region.getEnd();
-                    }
-                    System.err.println("Working on " + rstart + " to " + rend);
-                    if (rend - rstart < length) {break;}
-                    getString.setInt(1,rstart);
-                    getString.setInt(2,rend - rstart + 1);
-                    getString.setInt(3,chromid);
-                    ResultSet rs = getString.executeQuery();            
-                    if (!rs.next()) {
-                        throw new DatabaseException("Couldn't get desired sequence for " + chromid + " starting at " +
-                                rstart + " of length " + (rend - rstart + 1));
-                    }
-                    char[] bytes = rs.getString(1).toCharArray();
-                    rs.close();
-                    for (WMHit hit : scanSequence(matrix,
-                            scorecutoff,
-                            bytes)) {
-                        hit.chromid = chromid;
-                        hit.start += rstart;
-                        hit.end += rstart;
-                        results.add(hit);
-                    }
-                    rstart = rend - length + 1;
+            ArrayList<WMHit> results = new ArrayList<WMHit>();
+            // work over the target region in pieces
+            while (rstart < region.getEnd()) {
+                int rend = rstart + chunksize;
+                if (rend > region.getEnd()) {
+                    rend = region.getEnd();
                 }
-                consumer.consume(results);
+                System.err.println("Working on " + rstart + " to " + rend);
+                if (rend - rstart < length) {break;}
+                char[] bytes = seqgen.execute(new Region(region.getGenome(), region.getChrom(), rstart,rend)).toCharArray();
+                for (WMHit hit : scanSequence(matrix,
+                                              scorecutoff,
+                                              bytes)) {
+                    hit.chromid = chromid;
+                    hit.start += rstart;
+                    hit.end += rstart;
+                    results.add(hit);
+                }
+                rstart = rend - length + 1;
             }
-        } catch (SQLException ex) {
-            throw new DatabaseException(ex.toString(),ex);
+            consumer.consume(results);
         }
     }
 
@@ -560,41 +447,30 @@ public class WeightMatrixScanner {
     public static ArrayList<WMHit> scanRegionsReturnBest(Genome genome,
                                                          WeightMatrix matrix,
                                                          ArrayList<Region> regions) throws NotFoundException {
+        SequenceGenerator seqgen = new SequenceGenerator();
     	ArrayList<WMHit> results = new ArrayList<WMHit>();
-        try {
-            for (Region region : regions) {
-                int rstart = region.getStart();
-                int rend = region.getEnd();
-                int chromid = region.getGenome().getChromID(region.getChrom());
-                int length = matrix.length();
+        for (Region region : regions) {
+            int rstart = region.getStart();
+            int rend = region.getEnd();
+            int chromid = region.getGenome().getChromID(region.getChrom());
+            int length = matrix.length();
                 
-                //This method is meant for getting the best hit in small regions; I am not working the region in chunks
-                if (rend - rstart < length) {break;}
-                getString.setInt(1,rstart);
-                getString.setInt(2,rend - rstart + 1);
-                getString.setInt(3,chromid);
-                ResultSet rs = getString.executeQuery();            
-                if (!rs.next()) {
-                    throw new DatabaseException("Couldn't get desired sequence for " + chromid + " starting at " +
-                            rstart + " of length " + (rend - rstart + 1));
-                }
-                char[] bytes = rs.getString(1).toCharArray();
-                rs.close();
-                PerBaseMotifMatch matcher = new PerBaseMotifMatch(matrix);
-                Double [] scoreScape =matcher.execute(bytes);
-                char [] hitStrands = matcher.getHitStrands();
-                int maxI=-1; Double maxScore=-10000000.0;
-                for(int i=0; i<scoreScape.length; i++){
-                	if(scoreScape[i]>maxScore){maxScore=scoreScape[i]; maxI=i;}
-                	//I'm introducing a slight bias towards the center of the sequence for my own selfish reasons
-                	if(scoreScape[i]==maxScore && Math.abs(i-(region.getWidth()/2))<Math.abs(maxI-(region.getWidth()/2))){maxScore=scoreScape[i]; maxI=i;}
-                }
-                WMHit hit =new WMHit(-1, chromid, maxI+rstart, maxI+rstart+matrix.length(), String.format("%c", hitStrands[maxI]), maxScore.floatValue());
-                results.add(hit);                
+            //This method is meant for getting the best hit in small regions; I am not working the region in chunks
+            if (rend - rstart < length) {break;}
+            char[] bytes = seqgen.execute(region).toCharArray();
+            PerBaseMotifMatch matcher = new PerBaseMotifMatch(matrix);
+            Double [] scoreScape =matcher.execute(bytes);
+            char [] hitStrands = matcher.getHitStrands();
+            int maxI=-1; Double maxScore=-10000000.0;
+            for(int i=0; i<scoreScape.length; i++){
+                if(scoreScape[i]>maxScore){maxScore=scoreScape[i]; maxI=i;}
+                //I'm introducing a slight bias towards the center of the sequence for my own selfish reasons
+                if(scoreScape[i]==maxScore && Math.abs(i-(region.getWidth()/2))<Math.abs(maxI-(region.getWidth()/2))){maxScore=scoreScape[i]; maxI=i;}
             }
-        } catch (SQLException ex) {
-            throw new DatabaseException(ex.toString(),ex);
-        }return(results);
+            WMHit hit =new WMHit(-1, chromid, maxI+rstart, maxI+rstart+matrix.length(), String.format("%c", hitStrands[maxI]), maxScore.floatValue());
+            results.add(hit);                
+        }
+        return results;
     }
     
     /**
@@ -622,7 +498,7 @@ public class WeightMatrixScanner {
     
     /* returns a list of WMHits.  Since this doesn't know the chromosome or
        scanid, it just fills those in with -1 for someone else to fix later.
-     */
+    */
     public static List<WMHit> scanSequence(WeightMatrix matrix,
                                            float scorecutoff,
                                            char[] sequence) {
@@ -682,11 +558,10 @@ public class WeightMatrixScanner {
        position.  This means that the last n entries are meaningless 
        (where n = matrix length) */
     public static Double[] scanSequence(WeightMatrix matrix,
-            char[] sequence) {
+                                        char[] sequence) {
         return (new PerBaseMotifMatch(matrix)).execute(sequence);
     }
 
-}
 
 abstract class WMConsumer implements Sink<WMHit> { 
     public void consume(Collection<WMHit> hits) { 
@@ -699,9 +574,11 @@ abstract class WMConsumer implements Sink<WMHit> {
 class PrintConsumer extends WMConsumer {
     
     private Genome genome;
+    private WeightMatrix matrix;
     
-    public PrintConsumer(Genome g) {
+    public PrintConsumer(Genome g, WeightMatrix m) {
         this.genome = g;
+        this.matrix = m;
     }
     
     public void consume(WMHit hit) { 
@@ -709,14 +586,19 @@ class PrintConsumer extends WMConsumer {
         try {
             chromname = genome.getChromName(hit.chromid);
         } catch (NullPointerException e) {
-            chromname = "unknown";
+            if (hit.chromid < 0) {
+                chromname = madeupChromMap.get(hit.chromid);
+            } else {
+                chromname = "unknown";
+            }
         }
 
-        System.out.println(chromname + "\t" +
-                hit.start + "\t" + 
-                hit.end + "\t" + 
-                hit.score + "\t" +
-                hit.strand);        
+        System.out.println(matrix.toString() + "\t" + 
+                           chromname + "\t" +
+                           hit.start + "\t" + 
+                           hit.end + "\t" + 
+                           hit.score + "\t" +
+                           hit.strand);        
     }
     
     public void consume(Iterator<WMHit> hits) { 
@@ -737,7 +619,7 @@ class StoreConsumer extends WMConsumer {
     private PreparedStatement insertHit;
 
     public StoreConsumer(java.sql.Connection c,
-            PreparedStatement i) {
+                         PreparedStatement i) {
         cxn = c;
         insertHit = i;
         done = 0;
@@ -779,3 +661,6 @@ class StoreConsumer extends WMConsumer {
         done = 0;
     }
 }
+
+}
+

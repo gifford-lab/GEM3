@@ -139,7 +139,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 
         return result;
     }
-    private static void clearCache() {
+    public static void clearCache() {
         synchronized(cache) {
             cache.clear();
         }
