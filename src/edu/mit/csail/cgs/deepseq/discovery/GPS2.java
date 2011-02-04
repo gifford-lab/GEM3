@@ -203,7 +203,7 @@ public class GPS2 {
         mixture.updateKmerEngine(peakFileName+"_"+(round+2));
         mixture.setOutName(peakFileName+"_"+(round+3));
         mixture.execute();    
-        mixture.falseDiscoveryTest();
+//        mixture.falseDiscoveryTest();
         mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
         mixture.printFeatures();
         mixture.printInsignificantFeatures();

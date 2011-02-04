@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -50,6 +51,8 @@ public class GPSOutputAnalysis {
   private double motifThreshold;
   private int extend;				// number of bases to extend from motif hit sequence
   
+  private boolean useWeight;
+  
   private int[]motif_offsets;
   private double[]motif_scores;
   
@@ -61,12 +64,13 @@ public class GPSOutputAnalysis {
   private String chipSeqVersion = null;
   private boolean useMotif = true;
   
+  
   /**
    * @param args
    */
   public static void main(String[] args) throws IOException {
     ArgParser ap = new ArgParser(args);
-    
+    Set<String> flags = Args.parseFlags(args);
     Organism org=null;
     Genome genome=null;
     
@@ -86,6 +90,9 @@ public class GPSOutputAnalysis {
     } catch (NotFoundException e) {
       e.printStackTrace();
     }
+    // kmer motif 
+    boolean useWeight = flags.contains("use_weight");
+    
 	// load motif
     String motifString = Args.parseString(args, "motif", null);
     Pair<WeightMatrix, Double> wm = null;
@@ -111,7 +118,7 @@ public class GPSOutputAnalysis {
 		
 		
     GPSOutputAnalysis analysis = new GPSOutputAnalysis(genome, 
-    		wm.car(), wm.cdr().doubleValue(), gpsPeaks, GPSfileName, motif_window, extend);
+    		wm.car(), wm.cdr().doubleValue(), gpsPeaks, GPSfileName, motif_window, extend, useWeight);
 	
     int type = Args.parseInteger(args, "type", 0);
     int win = Args.parseInteger(args, "win", 100);
@@ -128,7 +135,8 @@ public class GPSOutputAnalysis {
   }
   
   public GPSOutputAnalysis(Genome g, WeightMatrix wm, double threshold, 
-                           List<GPSPeak> p, String outputFile, int motif_win, int extend) {
+                           List<GPSPeak> p, String outputFile, int motif_win, 
+                           int extend, boolean useWeight) {
 	  genome = g;
 	  motif = wm;
 	  motifThreshold = threshold;
@@ -136,6 +144,7 @@ public class GPSOutputAnalysis {
 	  outputFileName = outputFile;
 	  motif_window = motif_win;
 	  this.extend = extend;
+	  this.useWeight = useWeight;
   }
   
   public void kmerGrouping(){
@@ -161,7 +170,8 @@ public class GPSOutputAnalysis {
 	
   }
   private void extendSeeds(ArrayList<Kmer> kmers){
-	  int MISS = 1;
+	char[] letters = {'A','C','T','G'};
+	int MISS = 1;
 	// group kmers by greedy extending method
 	Kmer root = kmers.get(0);		
 	ArrayList<TreeSet<Kmer>> alignedKmerSets = new ArrayList<TreeSet<Kmer>>();
@@ -218,7 +228,57 @@ public class GPSOutputAnalysis {
 	}
 	
 	// frequency matrix
-	double[][] freq = new double[max-min+1][4];
+	double[][][] pfms = new double[alignedKmerSets.size()][max-min+1][4];
+	int k = root.getK();
+	for (int i=0;i<alignedKmerSets.size();i++){		
+		double[][] pfm = new double[max-min+1][4];
+		TreeSet<Kmer> ks = alignedKmerSets.get(i);
+		pfms[i] = pfm;
+		for (Kmer km: ks){
+			int shift = km.getGlobalShift();
+			double factor = km.getSeqHitCount();
+			if (useWeight)
+				factor = km.getWeight();
+			for (int p=0;p<max-shift;p++){
+				for (int b=0;b<letters.length;b++){
+					pfm[p][b] +=0.25*factor;
+				}
+			}
+			for (int p=max-shift;p<max-shift+k;p++){
+				char base = km.getKmerString().charAt(p);
+				for (int b=0;b<letters.length;b++){
+					if (base==letters[b])
+						pfm[p][b] +=1*factor;
+				}
+			}
+			for (int p=max-shift+k;p<max-min+1;p++){
+				for (int b=0;b<letters.length;b++){
+					pfm[p][b] +=0.25*factor;
+				}
+			}
+		}
+	}
+	// print out motif result
+	StringBuilder msb = new StringBuilder();
+	for (int i=0;i<alignedKmerSets.size();i++){	
+		msb.append("DE "+motif.name+"_"+(i+1)).append("\n");
+		double[][] pfm = pfms[i] ;
+		for (int p=0;p<pfm.length;p++){
+			msb.append(p+1).append(" ");
+			int maxBase = 0;
+			double maxFreq=0;
+			for (int b=0;b<letters.length;b++){
+				msb.append(String.format("%.2f ", pfm[p][b]));
+				if (maxFreq<pfm[p][b]){
+					maxFreq=pfm[p][b];
+					maxBase = b;
+				}
+			}
+			msb.append(letters[maxBase]).append("\n");
+		}
+		msb.append("XX\n");
+	}
+	CommonUtils.writeFile("Kmer_PFM.txt", msb.toString());	
 	
 	//print out
 	StringBuilder sb = new StringBuilder();
