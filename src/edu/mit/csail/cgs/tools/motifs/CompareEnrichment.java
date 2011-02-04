@@ -318,7 +318,6 @@ public class CompareEnrichment {
     public void parseArgs(String args[]) throws Exception {
         binomial = new Binomial(100, .01, RandomEngine.makeDefault());
         String firstfname = null, secondfname = null;
-        Collection<String> accept, reject;
 
         genome = Args.parseGenome(args).cdr();
         cutoffpercent = Args.parseDouble(args,"cutoff",.5);
