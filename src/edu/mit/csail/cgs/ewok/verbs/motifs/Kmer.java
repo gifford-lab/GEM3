@@ -20,10 +20,14 @@ public class Kmer implements Comparable<Kmer>{
 	int negCount;
 	
 	Kmer reference;		//
+	public Kmer getRef(){return reference;}
 	int shift;			// the shift to achieve best score
 	public int getShift(){return shift;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer
 	public int getScore(){return score;}	
+	int globalShift;			// the shift to the first seed
+	public int getGlobalShift(){return globalShift;}
+	public void setGlobalShift(int s){globalShift=s;}
 	
 	public Kmer(String kmerStr, int hitCount){
 		this.kmerString = kmerStr;
@@ -117,9 +121,50 @@ public class Kmer implements Comparable<Kmer>{
 			RC();
 	}
 	
-	public void extendKmer(Kmer ref){
+	/**
+	 * Extend this kmer from reference kmer, if they are only offset base off
+	 * @param ref
+	 */
+	public boolean extendKmer(Kmer ref, int offset){
+		reference = ref;
+		byte[] thisBytes = kmerString.getBytes();
+		byte[] refBytes = ref.kmerString.getBytes();
+		score = 0;
+		shift = -99;
+		for (int s=-offset;s<=offset;s++){
+			for (int i=-offset;i<refBytes.length+offset;i++){
+				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
+					continue;
+				if (refBytes[i]!=thisBytes[i+s])	// if mismatch
+					break;
+			}
+			score = refBytes.length-Math.abs(s);
+			shift = s;
+		}
+		// try RC
+		byte[] rcBytes = getKmerRC().getBytes();
+		boolean useRC=false;
+		for (int s=-offset;s<=offset;s++){
+			for (int i=-offset;i<refBytes.length+offset;i++){
+				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
+					continue;
+				if (refBytes[i]!=rcBytes[i+s])	// if mismatch
+					break;
+			}
+			int thisScore = refBytes.length-Math.abs(s);
+			if (thisScore>score){
+				score = thisScore;
+				useRC = true;
+			}
+			shift = s;
+		}
 		
+		if (useRC)
+			RC();
+		
+		return score>0;
 	}
+	
 	/**
 	 * calculate the best shift for input kmer to align with this kmer
 	 * allow for 2 mismatches, or 1 shift + 1 mismatch, or 2 shift
