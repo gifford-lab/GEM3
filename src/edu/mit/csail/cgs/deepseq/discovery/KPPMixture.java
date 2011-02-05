@@ -3201,12 +3201,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			kmers.add(kmer);
 			kmer.setStrength(kmer2weight.get(kmer));
 		}
+		
 		if (makePFM)
 			extendSeeds(kmers, outPrefix);
+		
 		kEngine.loadKmers(kmers, outPrefix);
     }
 	
-    private void extendSeeds(ArrayList<Kmer> kmers, String outPrefix){
+    private void extendSeeds(ArrayList<Kmer> kmerList, String outPrefix){
+    	ArrayList<Kmer> kmers = (ArrayList<Kmer>)kmerList.clone();	// clone the list
     	char[] letters = {'A','C','G','T'};
     	int MISS = 1;
     	// group kmers by greedy extending method
@@ -3333,7 +3336,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		}
     		msb.append("XX\n\n");
     	}
-    	CommonUtils.writeFile("Kmer_PFM.txt", msb.toString());	
+    	CommonUtils.writeFile(outPrefix+"_PFM.txt", msb.toString());	
     	
     	//print out the kmers
     	StringBuilder sb = new StringBuilder();
@@ -3348,8 +3351,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		sb.append("\n");
     	}
     	sb.append("Total kmer extension set: " + alignedKmerSets.size());
-    	CommonUtils.writeFile("Extended_Kmers.txt", sb.toString());
+    	CommonUtils.writeFile(outPrefix+"_AlignedKmers.txt", sb.toString());
       }
+    
     class GPSConstants {
 
         /****************************

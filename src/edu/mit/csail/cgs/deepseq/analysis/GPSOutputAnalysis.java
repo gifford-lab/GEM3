@@ -284,7 +284,7 @@ public class GPSOutputAnalysis {
 	// print out motif result
 	StringBuilder msb = new StringBuilder();
 	for (int i=0;i<alignedKmerSets.size();i++){	
-		msb.append("DE "+motif.name+"_"+(i+1)).append("\n");
+		msb.append("DE "+motif.name+"_"+(i+1)+"_"+alignedKmerSets.get(i).size()).append("\n");
 		double[][] pfm = pfms[i] ;
 		for (int p=0;p<pfm.length;p++){
 			msb.append(p+1).append(" ");
