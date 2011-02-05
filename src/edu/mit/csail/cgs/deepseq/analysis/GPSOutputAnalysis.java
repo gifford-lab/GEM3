@@ -175,11 +175,11 @@ public class GPSOutputAnalysis {
 	// group kmers by greedy extending method
 	Kmer root = kmers.get(0);		
 	ArrayList<TreeSet<Kmer>> alignedKmerSets = new ArrayList<TreeSet<Kmer>>();
-	TreeSet<Kmer> prevSelected = new TreeSet<Kmer>();
-	prevSelected.add(root);
+	TreeSet<Kmer> prevExtended = new TreeSet<Kmer>();
+	prevExtended.add(root);
 	TreeSet<Kmer> alignedKmerSet = new TreeSet<Kmer>();	// all selected Kmers (aligned (1bp mismatch) or extended (1bp offset))	
 	while(!kmers.isEmpty()){
-		while (!prevSelected.isEmpty()){					
+		while (!prevExtended.isEmpty()){					
 			TreeSet<Kmer> selectedKmers = new TreeSet<Kmer>();
 			
 			// select all kmers aligned to or extend from the prevSelected set	
@@ -188,7 +188,7 @@ public class GPSOutputAnalysis {
 					kmers.remove(km);
 					break;						// do not want to count very low count kmers
 				}
-				for (Kmer sk: prevSelected){
+				for (Kmer sk: prevExtended){
 					km.setReference(sk);	
 					if (km.getScore()>=sk.getK()-MISS){		// select only if 1 mismatch or 1 extension
 						selectedKmers.add(km);
@@ -197,7 +197,12 @@ public class GPSOutputAnalysis {
 				}
 			}
 			kmers.removeAll(selectedKmers);
-			prevSelected = selectedKmers;
+			// use the extended kmers for next searches (i.e. do not use mismatch kmer further)
+			prevExtended.clear();
+			for (Kmer sk:selectedKmers){
+				if (sk.getShift()!=0)
+					prevExtended.add(sk);
+			}
 			alignedKmerSet.addAll(selectedKmers);
 		}
 		// no more extension, start a new kmer set
@@ -205,9 +210,9 @@ public class GPSOutputAnalysis {
 		if (!kmers.isEmpty()){
 			Kmer next = kmers.get(0);
 			next.setReference(root);					// adjust orientation of this kmer to better align with root
-			prevSelected.add(next);						// add the seed for next group of extension, start with the next largest count kmer
+			prevExtended.add(next);						// add the seed for next group of extension, start with the next largest count kmer
 			alignedKmerSet = new TreeSet<Kmer>();		// new set
-			alignedKmerSet.addAll(prevSelected);
+			alignedKmerSet.addAll(prevExtended);
 		}
 		
 	}

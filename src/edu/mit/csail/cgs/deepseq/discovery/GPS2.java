@@ -178,7 +178,7 @@ public class GPS2 {
         /**
          ** update kmers, GPS_KPP event finding 
          **/ 
-        mixture.updateKmerEngine(peakFileName+"_"+(round));
+        mixture.updateKmerEngine(peakFileName+"_"+(round), false);
         mixture.setOutName(peakFileName+"_"+(round+1));
         mixture.execute();     
         mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
@@ -189,7 +189,7 @@ public class GPS2 {
         /**
          ** update kmers, GPS_KPP event finding 
          **/ 
-        mixture.updateKmerEngine(peakFileName+"_"+(round+1));
+        mixture.updateKmerEngine(peakFileName+"_"+(round+1), false);
         mixture.setOutName(peakFileName+"_"+(round+2));
         mixture.execute();       
         mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
@@ -200,7 +200,7 @@ public class GPS2 {
         /**
          ** update kmers, GPS_KPP event finding 
          **/ 
-        mixture.updateKmerEngine(peakFileName+"_"+(round+2));
+        mixture.updateKmerEngine(peakFileName+"_"+(round+2), true);
         mixture.setOutName(peakFileName+"_"+(round+3));
         mixture.execute();    
 //        mixture.falseDiscoveryTest();
@@ -212,7 +212,7 @@ public class GPS2 {
          /**
          ** update kmers for the last time 
          **/ 
-        mixture.updateKmerEngine(peakFileName+"_"+(round+3));        
+        mixture.updateKmerEngine(peakFileName+"_"+(round+3), true);        
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         System.out.println("Finished! Binding events are printed to: "+mixture.getOutName()+"_GPS_significant.txt");

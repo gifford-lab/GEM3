@@ -3174,7 +3174,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
     
     // update kmerEngine with the predicted kmer-events
-    public void updateKmerEngine(String outPrefix){
+    public void updateKmerEngine(String outPrefix, boolean makePFM){
     	if (config.k==-1)
     		return;
 		HashMap<Kmer, Integer> kmer2count = new HashMap<Kmer, Integer>();
@@ -3201,10 +3201,155 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			kmers.add(kmer);
 			kmer.setStrength(kmer2weight.get(kmer));
 		}
+		if (makePFM)
+			extendSeeds(kmers, outPrefix);
 		kEngine.loadKmers(kmers, outPrefix);
     }
 	
-    
+    private void extendSeeds(ArrayList<Kmer> kmers, String outPrefix){
+    	char[] letters = {'A','C','G','T'};
+    	int MISS = 1;
+    	// group kmers by greedy extending method
+    	Kmer root = kmers.get(0);		
+    	ArrayList<TreeSet<Kmer>> alignedKmerSets = new ArrayList<TreeSet<Kmer>>();
+    	TreeSet<Kmer> prevSelected = new TreeSet<Kmer>();
+    	prevSelected.add(root);
+    	TreeSet<Kmer> alignedKmerSet = new TreeSet<Kmer>();	// all selected Kmers (aligned (1bp mismatch) or extended (1bp offset))	
+    	while(!kmers.isEmpty()){
+    		while (!prevSelected.isEmpty()){					
+    			TreeSet<Kmer> selectedKmers = new TreeSet<Kmer>();
+    			
+    			// select all kmers aligned to or extend from the prevSelected set	
+    			for(Kmer km: kmers){
+    				if (km.getSeqHitCount()<1){
+    					kmers.remove(km);
+    					break;						// do not want to count very low count kmers
+    				}
+    				for (Kmer sk: prevSelected){
+    					km.setReference(sk);	
+    					if (km.getScore()>=sk.getK()-MISS){		// select only if 1 mismatch or 1 extension
+    						selectedKmers.add(km);
+    						break;
+    					}
+    				}
+    			}
+    			kmers.removeAll(selectedKmers);
+    			prevSelected = selectedKmers;
+    			alignedKmerSet.addAll(selectedKmers);
+    		}
+    		// no more extension, start a new kmer set
+    		alignedKmerSets.add(alignedKmerSet);
+    		if (!kmers.isEmpty()){
+    			Kmer next = kmers.get(0);
+    			next.setReference(root);					// adjust orientation of this kmer to better align with root
+    			prevSelected.add(next);						// add the seed for next group of extension, start with the next largest count kmer
+    			alignedKmerSet = new TreeSet<Kmer>();		// new set
+    			alignedKmerSet.addAll(prevSelected);
+    		}
+    		
+    	}
+    	
+    	// trace back to set the offset wrt the firstSeed kmer, to aligned globally
+    	int min = 0;
+    	int max = 0;
+    	for (TreeSet<Kmer> ks:alignedKmerSets){
+    		if (ks.size()<=1)
+    			continue;
+    		for (Kmer k: ks){
+    			Kmer thisKmer = k;
+    			int offset = thisKmer.getShift();
+    			while(thisKmer.getRef()!=thisKmer){						// recursively trace back the reference kmer
+    				offset += thisKmer.getRef().getShift();	
+    				thisKmer = thisKmer.getRef();
+    			}
+    			if (min>offset)	
+    				min = offset;
+    			if (max<offset)
+    				max = offset;
+    			k.setGlobalShift(offset);
+    		}
+    	}
+    	
+    	// frequency matrix
+    	double[][][] pfms = new double[alignedKmerSets.size()][max-min+1][4];
+    	int k = root.getK();
+    	for (int i=0;i<alignedKmerSets.size();i++){		
+    		double[][] pfm = new double[max-min+k+1][4];
+    		TreeSet<Kmer> ks = alignedKmerSets.get(i);
+    		pfms[i] = pfm;
+    		for (Kmer km: ks){
+    			int shift = km.getGlobalShift();
+    			double factor = km.getSeqHitCount();
+    			if (config.use_weight)
+    				factor = km.getStrength();
+    			for (int p=0;p<max-shift;p++){
+    				for (int b=0;b<letters.length;b++){
+    					pfm[p][b] +=0.25*factor;
+    				}
+    			}
+    			if(max-shift>=max-min+1){
+    				for (int p=max-shift;p<max-shift+k;p++){
+    					char base = km.getKmerString().charAt(p-(max-shift));
+    					for (int b=0;b<letters.length;b++){
+    						if (base==letters[b])
+    							pfm[p][b] +=1*factor;
+    					}
+    				}
+    			}
+    			else{
+    				for (int p=max-shift;p<max-shift+k;p++){
+    					char base = km.getKmerString().charAt(p-(max-shift));
+    					for (int b=0;b<letters.length;b++){
+    						if (base==letters[b])
+    							pfm[p][b] +=1*factor;
+    					}
+    				}
+    				for (int p=max-shift+k;p<max-min+k+1;p++){
+    					for (int b=0;b<letters.length;b++){
+    						pfm[p][b] +=0.25*factor;
+    					}
+    				}
+    			}
+
+    		}
+    	}
+    	// print out motif result
+    	StringBuilder msb = new StringBuilder();
+    	for (int i=0;i<alignedKmerSets.size();i++){	
+    		msb.append("DE "+outPrefix+"_"+(i+1)).append("\n");
+    		double[][] pfm = pfms[i] ;
+    		for (int p=0;p<pfm.length;p++){
+    			msb.append(p+1).append(" ");
+    			int maxBase = 0;
+    			double maxFreq=0;
+    			for (int b=0;b<letters.length;b++){
+    				msb.append(String.format("%d ", (int)pfm[p][b]));
+    				if (maxFreq<pfm[p][b]){
+    					maxFreq=pfm[p][b];
+    					maxBase = b;
+    				}
+    			}
+    			msb.append(letters[maxBase]).append("\n");
+    		}
+    		msb.append("XX\n\n");
+    	}
+    	CommonUtils.writeFile("Kmer_PFM.txt", msb.toString());	
+    	
+    	//print out the kmers
+    	StringBuilder sb = new StringBuilder();
+    	sb//.append("Kmer").append("\t").append("gShift").append("\t").append("refKmer").append("\t")
+    	  .append("seqCt").append("\t").append("Alignment").append("\n");
+    	for (TreeSet<Kmer> ks:alignedKmerSets){
+    		for (Kmer km: ks){
+    			String shiftedKmer = CommonUtils.padding(max-km.getGlobalShift(), ' ').concat(km.getKmerString());
+    			sb//.append(km.getKmerString()).append("\t").append(km.getGlobalShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
+    			  .append(km.getSeqHitCount()).append("\t").append(shiftedKmer).append("\n");			
+    		}
+    		sb.append("\n");
+    	}
+    	sb.append("Total kmer extension set: " + alignedKmerSets.size());
+    	CommonUtils.writeFile("Extended_Kmers.txt", sb.toString());
+      }
     class GPSConstants {
 
         /****************************
