@@ -3905,7 +3905,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 if(config.use_betaEM) {
 
                 	//construct the positional prior for each position in this region
-                	double[] pp = new double[w.getWidth()];
+                	double[] pp = new double[w.getWidth()+1];
                 	Kmer[] pp_kmer = new Kmer[pp.length];
                 	if (kEngine!=null){
 	                	String seq = seqgen.execute(w).toUpperCase();
@@ -3933,6 +3933,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
 	                		int bindingPos = Math.abs(pos)+this.config.k/2;
+	                		if (bindingPos>=pp.length){
+	                			System.err.println("KPP: bindingPos " + bindingPos + " out of bound ("+pp.length+") at "+w.toString());
+	                			continue;
+	                		}
+	                			
 	                		double kmerCount = 0;
 	                		if (config.use_weight)
 	                			kmerCount = kmerHits.get(pos).getStrength();
