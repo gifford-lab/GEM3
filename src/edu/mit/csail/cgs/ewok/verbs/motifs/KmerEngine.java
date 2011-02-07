@@ -404,13 +404,14 @@ public class KmerEngine {
 		HashMap<Integer, Kmer> result = new HashMap<Integer, Kmer> ();		
 		for (Object o: kmerFound){
 			String kmerStr = (String) o;
+			Kmer kmer = str2kmer.get(kmerStr);
 			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
 			for (int p: pos){
-				result.put(p, str2kmer.get(kmerStr));
+				result.put(p-kmer.getGlobalShift(), kmer);
 			}
 			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmerStr));
 			for (int p: pos_rc){
-				result.put(-p, str2kmer.get(kmerStr));
+				result.put(-(p-kmer.getGlobalShift()), kmer);
 			}
 		}
 
