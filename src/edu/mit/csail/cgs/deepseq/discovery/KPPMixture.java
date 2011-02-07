@@ -3276,7 +3276,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// frequency matrix
     	double[][][] pfms = new double[alignedKmerSets.size()][max-min+1][4];
     	int k = root.getK();
-    	HashMap<Kmer, ArrayList<String>> kmer2extendedSeqs = new HashMap<Kmer, ArrayList<String>>();
+    	HashMap<Kmer, ArrayList<String>> kmer2flankingSeqs = new HashMap<Kmer, ArrayList<String>>();
     	
     	if (!config.pad_letters){ // prepare the sequences flanking kmers
 	    	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
@@ -3284,11 +3284,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for(Feature f : signalFeatures){
 				ComponentFeature cf = (ComponentFeature)f;
 				Kmer kmer = cf.getKmer();
+				if (kmer==null)
+					continue;
 				int shift  = kmer.getGlobalShift();
 				Region seqRegion = cf.getPeak().expand(0).expand(max-shift+k/2, shift-min+k/2);
-				if (!kmer2extendedSeqs.containsKey(kmer))
-					kmer2extendedSeqs.put(kmer, new ArrayList<String>());
-				kmer2extendedSeqs.get(kmer).add(seqgen.execute(seqRegion));					
+				if (!kmer2flankingSeqs.containsKey(kmer))
+					kmer2flankingSeqs.put(kmer, new ArrayList<String>());
+				kmer2flankingSeqs.get(kmer).add(seqgen.execute(seqRegion));					
 			}
     	}
     	
@@ -3332,8 +3334,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    				}
 	    			}
     			}
-    			else{		
-    				ArrayList<String> seqs = kmer2extendedSeqs.get(km);
+    			else{		// use real sequence flanking the kmer
+    				if (!kmer2flankingSeqs.containsKey(km))
+    					continue;
+    				ArrayList<String> seqs = kmer2flankingSeqs.get(km);
     				for (String seq: seqs){
 	    				for (int p=0;p<seq.length();p++){
 	    					char base = seq.charAt(p);
@@ -3371,12 +3375,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	//print out the kmers
     	StringBuilder sb = new StringBuilder();
     	sb//.append("Kmer").append("\t").append("gShift").append("\t").append("refKmer").append("\t")
-    	  .append("seqCt").append("\t").append("Alignment").append("\n");
+    	  .append("Alignment").append("\t").append("seqCt").append("\t").append("flanking_sequence").append("\n");
     	for (TreeSet<Kmer> ks:alignedKmerSets){
     		for (Kmer km: ks){
     			String shiftedKmer = CommonUtils.padding(max-km.getGlobalShift(), ' ').concat(km.getKmerString());
     			sb//.append(km.getKmerString()).append("\t").append(km.getGlobalShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
-    			  .append(km.getSeqHitCount()).append("\t").append(shiftedKmer).append("\n");			
+    			  .append(shiftedKmer).append("\t").append(km.getSeqHitCount()).append("\t").append(kmer2flankingSeqs.get(km)).append("\n");			
     		}
     		sb.append("\n");
     	}
