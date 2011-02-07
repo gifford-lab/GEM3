@@ -32,6 +32,7 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.models.data.DataFrame;
 import edu.mit.csail.cgs.utils.models.data.DataRegression;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 
@@ -3290,7 +3291,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				Region seqRegion = cf.getPeak().expand(0).expand(max-shift+k/2, shift-min+k/2);
 				if (!kmer2flankingSeqs.containsKey(kmer))
 					kmer2flankingSeqs.put(kmer, new ArrayList<String>());
-				kmer2flankingSeqs.get(kmer).add(seqgen.execute(seqRegion));					
+				String seq = seqgen.execute(seqRegion).toUpperCase();
+				if (seq.contains(kmer.getKmerString()))
+					seq = SequenceUtils.reverseComplement(seq);
+				kmer2flankingSeqs.get(kmer).add(seq);					
 			}
     	}
     	
