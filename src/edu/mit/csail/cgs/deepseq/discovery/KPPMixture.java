@@ -3357,7 +3357,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// print out motif result
     	StringBuilder msb = new StringBuilder();
     	for (int i=0;i<alignedKmerSets.size();i++){	
-    		msb.append("DE "+outPrefix+"_"+(i+1)).append("\n");
+    		msb.append("DE "+outPrefix+"_"+(i+1)+"("+alignedKmerSets.get(i).size()).append(")\n");
     		double[][] pfm = pfms[i] ;
     		for (int p=0;p<pfm.length;p++){
     			msb.append(p+1).append(" ");
