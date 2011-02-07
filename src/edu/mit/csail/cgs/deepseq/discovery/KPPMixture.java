@@ -3347,7 +3347,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    					char base = seq.charAt(p);
 	    					for (int b=0;b<letters.length;b++){
 	    						if (base==letters[b])
-	    							pfm[p][b] +=1*factor;
+	    							pfm[p][b] +=1;
 	    					}
 	    				}
     				}
