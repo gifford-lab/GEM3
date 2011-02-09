@@ -73,9 +73,9 @@ public class CompareEnrichment {
     ArrayList<WeightMatrix> matrices;  // these are the matrices to scan for
     Map<String,char[]> foreground, background;  // foreground and background sequences
     Map<WeightMatrix, Double> maskingMatrices; // matrices to mask out of foreground and background
-    ArrayList<String> fgkeys; // order in which to scan; also used when saving region list to a matrix of motif-sequence presence
+    ArrayList<String> fgkeys, bgkeys; // order in which to scan; also used when saving region list to a matrix of motif-sequence presence
     Binomial binomial;
-    PrintWriter savedata = null, outfg = null, outbg = null;
+    PrintWriter savedatafg = null, savedatabg = null, outfg = null, outbg = null;
     boolean savedatahits = false, matchedbg = false;
     int threads = 1;
 
@@ -287,7 +287,7 @@ public class CompareEnrichment {
                 result.freqtwo = thetatwo;
             } 
         }
-        if (savedata != null) {
+        if (savedatafg != null) {
             if (savedatahits) {
                 ArrayList<WMHit> toprint = new ArrayList<WMHit>();
                 for (String s : fgkeys) {
@@ -297,9 +297,17 @@ public class CompareEnrichment {
                             toprint.add(hit);
                         }
                     }
-                    savedata.print("\t" + toprint);
+                    savedatafg.print("\t" + toprint);
                 }
-
+                for (String s : bgkeys) {
+                    toprint.clear();
+                    for (WMHit hit : bghits.get(s)) {
+                        if (hit.getScore() >= bestthresh) {
+                            toprint.add(hit);
+                        }
+                    }
+                    savedatabg.print("\t" + toprint);
+                }
             } else {
                 for (String s : fgkeys) {
                     int count = 0;
@@ -308,8 +316,18 @@ public class CompareEnrichment {
                             count++;
                         }
                     }
-                    savedata.print("\t" + count);
+                    savedatafg.print("\t" + count);
                 }
+                for (String s : bgkeys) {
+                    int count = 0;
+                    for (WMHit hit : bghits.get(s)) {
+                        if (hit.getScore() >= bestthresh) {
+                            count++;
+                        }
+                    }
+                    savedatabg.print("\t" + count);
+                }
+
             }
         }  
         return result;
@@ -337,7 +355,8 @@ public class CompareEnrichment {
         String outbgfile = Args.parseString(args,"outbg",null);
         threads = Args.parseInteger(args,"threads",threads);
         if (savefile != null) {
-            savedata = new PrintWriter(savefile);
+            savedatafg = new PrintWriter(savefile + ".fg");
+            savedatabg = new PrintWriter(savefile + ".bg");
         }
         if (outfgfile != null) {
             outfg = new PrintWriter(outfgfile);
@@ -453,26 +472,36 @@ public class CompareEnrichment {
     public void doScan() {
         DecimalFormat nf = new DecimalFormat("0.000E000");
         fgkeys = new ArrayList<String>();
+        bgkeys = new ArrayList<String>();
         fgkeys.addAll(foreground.keySet());
+        bgkeys.addAll(background.keySet());
         Collections.sort(fgkeys);
-        if (savedata != null) {
-            savedata.print("Motif");
+        if (savedatafg != null) {
+            savedatafg.print("Motif");
+            savedatabg.print("Motif");
             for (String s : fgkeys) {
-                savedata.print("\t" + s);
+                savedatafg.print("\t" + s);
             }
-            savedata.println();
+            savedatafg.println();
+            for (String s : bgkeys) {
+                savedatabg.print("\t" + s);
+            }
+            savedatabg.println();
+
         }
 
         for (WeightMatrix matrix : matrices) {            
-            if (savedata != null) {
-                savedata.print(matrix.toString());
+            if (savedatafg != null) {
+                savedatafg.print(matrix.toString());
+                savedatabg.print(matrix.toString());
             }
 
             CEResult result = doScan(matrix,
                                      foreground, 
                                      background);
-            if (savedata != null) {
-                savedata.println();
+            if (savedatafg != null) {
+                savedatafg.println();
+                savedatabg.println();
             }
             if (result.pval <= filtersig && 
                 Math.abs(result.logfoldchange) >= Math.abs(Math.log(minfoldchange)) &&
@@ -490,8 +519,9 @@ public class CompareEnrichment {
                                    result.matrix.version + "\t" + result.percentString + "\t" + result.cutoffString);
             }
         }
-        if (savedata != null) {
-            savedata.close();
+        if (savedatafg != null) {
+            savedatafg.close();
+            savedatabg.close();
         }
 
     }
