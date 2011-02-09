@@ -1083,7 +1083,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 */
 	private void postEMProcessing(List<ComponentFeature> compFeatures) {
 		// use the refined regions to count non-specific reads
-		countNonSpecificReads(compFeatures);
+        /* don't do this any more.  all it does is set ratio_non_specific_total, which
+           we no longer want to update because we compute it at the beginning of the run
+           using the whole genome rather than just the unenriched regions
+        */
+		//countNonSpecificReads(compFeatures);
 		
 		// collect enriched regions to exclude to define non-specific region
 		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
@@ -1241,21 +1245,21 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		Region previous = regions.get(0);
 		if (toExpandRegion)
 			previous = previous.expand(modelRange, modelRange);
-		mergedRegions.add(previous);
 
-		for (Region region: regions){
+        for (int i = 1; i < regions.size(); i++) {
+            Region region = regions.get(i);
 			if (toExpandRegion)
 				region=region.expand(modelRange, modelRange);
+
 			// if overlaps with previous region, combine the regions
 			if (previous.overlaps(region)){
-				mergedRegions.remove(previous);
 				previous = previous.combine(region);
-			}
-			else{
+			} else{
+                mergedRegions.add(previous);
 				previous = region;
 			}
-			mergedRegions.add(previous);
 		}
+        mergedRegions.add(previous);
 		return mergedRegions;
 	}//end of mergeRegions method
 
