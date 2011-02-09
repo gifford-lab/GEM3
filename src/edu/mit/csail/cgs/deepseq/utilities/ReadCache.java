@@ -8,9 +8,13 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 
+import cern.jet.random.Poisson;
+import cern.jet.random.engine.DRand;
+
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
+import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.datasets.general.Point;
@@ -377,6 +381,56 @@ public class ReadCache {
 					if (hitCounts[i][j][k] > maxReadperBP)
 						hitCounts[i][j][k] = maxReadperBP;
 						
+		updateTotalHits();
+	}
+	/**
+	 * Reset duplicate reads that pass Poisson threshold. 
+	 * The Poisson lambda parameter is calculated by an Gaussian average
+	 * that puts more weight for nearby bases (same chrom, same strand)
+	 */
+	public void applyPoissonGaussianFilter(double threshold, int width){
+        //init the Guassian kernel prob. for smoothing the read profile of called events
+		double g[] = new double[width*4+1];
+		NormalDistribution gaussianDist = new NormalDistribution(0, width*width);
+		for (int i=0;i<g.length;i++)
+			g[i]=gaussianDist.calcProbability((double)i);
+		
+		DRand re = new DRand();
+		Poisson P = new Poisson(0, re);
+			
+		for(int i = 0; i < hitCounts.length; i++)
+			for(int j = 0; j < hitCounts[i].length; j++){
+				float counts[] = hitCounts[i][j];
+				int pos[] = fivePrimes[i][j];
+				for(int k = 0; k < counts.length; k++){
+					int posK = pos[k]; 
+					double sum = 0;
+					for (int x=1;x<=width*4;x++){		// at most extend out 250 idx
+						if (k+x>=counts.length|| pos[k+x]-posK>width*4)
+							break;
+						sum += counts[k+x]*g[pos[k+x]-posK];
+					}
+					for (int x=1;x<=width*4;x++){		// at most extend out 250 idx
+						if (k-x<0 || posK-pos[k-x]>width*4)
+							break;
+						sum += counts[k-x]*g[posK-pos[k-x]];
+					}
+					sum = sum/(1-g[0]);				// exclude this position for evaluation
+					
+					double countThres=0;
+					P.setMean(sum);
+					double pvalue=1;
+					for(int b=1; pvalue>threshold; b++){
+						pvalue=1-P.cdf(b);	//p-value as the tail of Poisson
+						countThres=b;
+					}
+										
+//					System.out.println(String.format("%s%d\t%.1f\t%.1f\t%.3f", (j==0?"+":"-"), posK, counts[k], countThres, sum));
+					if (counts[k] > Math.max(1,countThres))
+						counts[k] = (float) Math.max(1,countThres);					
+				}
+			}
+		
 		updateTotalHits();
 	}
 	/*

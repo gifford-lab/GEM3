@@ -220,7 +220,7 @@ public class GPS2 {
 	
     public static void main(String[] args) throws Exception {
         long tic = System.currentTimeMillis();
-        System.out.println("Welcome to GPS (version "+GPS_VERSION+")!");
+        System.out.println("\nWelcome to GPS (version "+GPS_VERSION+")!");
         GPS2 gps = new GPS2(args);
         gps.runMixtureModel();
         gps.close();
