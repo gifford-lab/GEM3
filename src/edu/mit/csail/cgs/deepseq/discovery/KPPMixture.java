@@ -207,9 +207,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 			}     	
      	}
-
-		// Filtering/reset bases 
-		doBaseFiltering();			 		
+		// print initial dataset counts
+		for(int c = 0; c < numConditions; c++) {
+			caches.get(c).car().displayStats();
+			if(controlDataExist) {
+				caches.get(c).cdr().displayStats();
+			}
+		}
+		
+		// Filtering/reset bases
+		System.out.println("\nApply Poisson filter for duplicate reads.");
+		for(int c = 0; c < numConditions; c++) {
+			caches.get(c).car().applyPoissonGaussianFilter(10e-3, 20);
+			if(controlDataExist) {
+				caches.get(c).cdr().applyPoissonGaussianFilter(10e-3, 20);
+			}
+		}
+//		doBaseFiltering();			 		
 		
 		// print resulting dataset counts
 		for(int c = 0; c < numConditions; c++) {
