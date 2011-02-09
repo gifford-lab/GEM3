@@ -32,6 +32,7 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.models.data.DataFrame;
 import edu.mit.csail.cgs.utils.models.data.DataRegression;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 
@@ -3183,7 +3184,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				ComponentFeature cf = (ComponentFeature)f;
 				fs.add(cf);
 			}
-		kEngine = new KmerEngine(gen, fs, config.kwin, config.hgp);
+		kEngine = new KmerEngine(gen, fs, config.kwin, config.kwin_shift, config.hgp);
 		kEngine.buildEngine(config.k, outPrefix);
     }
     
@@ -3266,7 +3267,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		
     	}
     	
-    	// trace back to set the offset wrt the firstSeed kmer, to aligned globally
+    	// trace back to set the offset wrt the firstSeed kmer, to align kmers globally
     	int min = 0;
     	int max = 0;
     	for (TreeSet<Kmer> ks:alignedKmerSets){
@@ -3290,50 +3291,87 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// frequency matrix
     	double[][][] pfms = new double[alignedKmerSets.size()][max-min+1][4];
     	int k = root.getK();
+    	HashMap<Kmer, ArrayList<String>> kmer2flankingSeqs = new HashMap<Kmer, ArrayList<String>>();
+    	
+    	if (!config.pad_letters){ // prepare the sequences flanking kmers
+	    	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+	    	seqgen.useCache(true);
+			for(Feature f : signalFeatures){
+				ComponentFeature cf = (ComponentFeature)f;
+				Kmer kmer = cf.getKmer();
+				if (kmer==null)
+					continue;
+				int shift  = kmer.getGlobalShift();
+				Region seqRegion = cf.getPeak().expand(0).expand(max-shift+k/2, shift-min+k/2);
+				if (!kmer2flankingSeqs.containsKey(kmer))
+					kmer2flankingSeqs.put(kmer, new ArrayList<String>());
+				String seq = seqgen.execute(seqRegion).toUpperCase();
+				if (seq.contains(kmer.getKmerString()))
+					seq = SequenceUtils.reverseComplement(seq);
+				kmer2flankingSeqs.get(kmer).add(seq);					
+			}
+    	}
+    	
     	for (int i=0;i<alignedKmerSets.size();i++){		
     		double[][] pfm = new double[max-min+k+1][4];
     		TreeSet<Kmer> ks = alignedKmerSets.get(i);
     		pfms[i] = pfm;
     		for (Kmer km: ks){
-    			int shift = km.getGlobalShift();
     			double factor = km.getSeqHitCount();
     			if (config.use_weight)
     				factor = km.getStrength();
-    			for (int p=0;p<max-shift;p++){
-    				for (int b=0;b<letters.length;b++){
-    					pfm[p][b] +=0.25*factor;
+    			
+    			if (config.pad_letters){
+    				int shift = km.getGlobalShift();
+	    			for (int p=0;p<max-shift;p++){
+	    				for (int b=0;b<letters.length;b++){
+	    					pfm[p][b] +=0.25*factor;
+	    				}
+	    			}
+	    			if(max-shift>=max-min+1){
+	    				for (int p=max-shift;p<max-shift+k;p++){
+	    					char base = km.getKmerString().charAt(p-(max-shift));
+	    					for (int b=0;b<letters.length;b++){
+	    						if (base==letters[b])
+	    							pfm[p][b] +=1*factor;
+	    					}
+	    				}
+	    			}
+	    			else{
+	    				for (int p=max-shift;p<max-shift+k;p++){
+	    					char base = km.getKmerString().charAt(p-(max-shift));
+	    					for (int b=0;b<letters.length;b++){
+	    						if (base==letters[b])
+	    							pfm[p][b] +=1*factor;
+	    					}
+	    				}
+	    				for (int p=max-shift+k;p<max-min+k+1;p++){
+	    					for (int b=0;b<letters.length;b++){
+	    						pfm[p][b] +=0.25*factor;
+	    					}
+	    				}
+	    			}
+    			}
+    			else{		// use real sequence flanking the kmer
+    				if (!kmer2flankingSeqs.containsKey(km))
+    					continue;
+    				ArrayList<String> seqs = kmer2flankingSeqs.get(km);
+    				for (String seq: seqs){
+	    				for (int p=0;p<seq.length();p++){
+	    					char base = seq.charAt(p);
+	    					for (int b=0;b<letters.length;b++){
+	    						if (base==letters[b])
+	    							pfm[p][b] +=1;
+	    					}
+	    				}
     				}
     			}
-    			if(max-shift>=max-min+1){
-    				for (int p=max-shift;p<max-shift+k;p++){
-    					char base = km.getKmerString().charAt(p-(max-shift));
-    					for (int b=0;b<letters.length;b++){
-    						if (base==letters[b])
-    							pfm[p][b] +=1*factor;
-    					}
-    				}
-    			}
-    			else{
-    				for (int p=max-shift;p<max-shift+k;p++){
-    					char base = km.getKmerString().charAt(p-(max-shift));
-    					for (int b=0;b<letters.length;b++){
-    						if (base==letters[b])
-    							pfm[p][b] +=1*factor;
-    					}
-    				}
-    				for (int p=max-shift+k;p<max-min+k+1;p++){
-    					for (int b=0;b<letters.length;b++){
-    						pfm[p][b] +=0.25*factor;
-    					}
-    				}
-    			}
-
     		}
     	}
     	// print out motif result
     	StringBuilder msb = new StringBuilder();
     	for (int i=0;i<alignedKmerSets.size();i++){	
-    		msb.append("DE "+outPrefix+"_"+(i+1)).append("\n");
+    		msb.append("DE "+outPrefix+"_"+(i+1)+"("+alignedKmerSets.get(i).size()).append(")\n");
     		double[][] pfm = pfms[i] ;
     		for (int p=0;p<pfm.length;p++){
     			msb.append(p+1).append(" ");
@@ -3355,12 +3393,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	//print out the kmers
     	StringBuilder sb = new StringBuilder();
     	sb//.append("Kmer").append("\t").append("gShift").append("\t").append("refKmer").append("\t")
-    	  .append("seqCt").append("\t").append("Alignment").append("\n");
+    	  .append("Alignment").append("\t").append("seqCt").append("\t").append("flanking_sequence").append("\n");
     	for (TreeSet<Kmer> ks:alignedKmerSets){
     		for (Kmer km: ks){
     			String shiftedKmer = CommonUtils.padding(max-km.getGlobalShift(), ' ').concat(km.getKmerString());
     			sb//.append(km.getKmerString()).append("\t").append(km.getGlobalShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
-    			  .append(km.getSeqHitCount()).append("\t").append(shiftedKmer).append("\n");			
+    			  .append(shiftedKmer).append("\t").append(km.getSeqHitCount()).append("\t").append(kmer2flankingSeqs.get(km)).append("\n");			
     		}
     		sb.append("\n");
     	}
@@ -3425,12 +3463,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean use_weight = false;
         public int KL_smooth_width = 0;
         public int max_hit_per_bp = -1;
-        public int k = -1;
-        public int kwin = 100;
+        
+        public int k = -1;			// the width of kmer
+        public int kwin = 100;		// the window around binding event to search for kmers
+        public int kwin_shift = 100;// the shift from binding event for negative sequence set    
         public int kc2pp = 0;		// different mode to convert kmer count to positional prior alpha value
         public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
         public double kpp_min = 0.2;// min value
         public double hgp = 0.1; 	// p-value threshold of hyper-geometric test for enriched kmer 
+        public boolean pad_letters = false; //adding backgroup fraction to pad kmers
+        
         public double q_value_threshold = 2.0;	// -log10 value of q-value
         public double joint_event_distance = 500;
         public double alpha_factor = 3.0;
@@ -3482,6 +3524,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
             use_weight = flags.contains("use_weight");
+            pad_letters = flags.contains("pad_letters");
+            
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
@@ -3497,6 +3541,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             // Optional input parameter
             k = Args.parseInteger(args, "k", k);
             kwin = Args.parseInteger(args, "kwin", kwin);
+            kwin_shift = Args.parseInteger(args, "kwin_shift", kwin_shift);
             kc2pp = Args.parseInteger(args, "kc2pp", kc2pp);
             kpp_max = Args.parseDouble(args, "kpp_max", kpp_max);
             kpp_min = Args.parseDouble(args, "kpp_min", kpp_min);
@@ -3874,7 +3919,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 if(config.use_betaEM) {
 
                 	//construct the positional prior for each position in this region
-                	double[] pp = new double[w.getWidth()];
+                	double[] pp = new double[w.getWidth()+1];
                 	Kmer[] pp_kmer = new Kmer[pp.length];
                 	if (kEngine!=null){
 	                	String seq = seqgen.execute(w).toUpperCase();
@@ -3902,6 +3947,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		// the pos is the start position, hence +k/2
 	                		//if pos<0, then the reverse compliment of kmer is matched
 	                		int bindingPos = Math.abs(pos)+this.config.k/2;
+	                		if (bindingPos>=pp.length){
+	                			System.err.println("KPP: bindingPos " + bindingPos + " out of bound ("+pp.length+") at "+w.toString());
+	                			continue;
+	                		}
+	                			
 	                		double kmerCount = 0;
 	                		if (config.use_weight)
 	                			kmerCount = kmerHits.get(pos).getStrength();

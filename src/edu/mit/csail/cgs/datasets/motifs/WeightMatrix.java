@@ -3,8 +3,6 @@ package edu.mit.csail.cgs.datasets.motifs;
 import java.util.*;
 import java.sql.*;
 import java.text.DecimalFormat;
-import java.text.FieldPosition;
-import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;

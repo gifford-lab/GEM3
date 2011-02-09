@@ -136,10 +136,9 @@ public class KmerEngine {
 
 		loadSeqFile(filePos, fileNeg);
 		numPos = seqLength-k+1;
-		
 	}
 	
-	public KmerEngine(Genome g, ArrayList<ComponentFeature> events, int winSize, double hgp){
+	public KmerEngine(Genome g, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp){
 		tic = System.currentTimeMillis();
 		genome = g;
 		int eventCount = events.size();
@@ -174,8 +173,8 @@ public class KmerEngine {
 			// getting negative sequences
 			// exclude negative regions that overlap with positive regions, or exceed start of chrom
 			// it is OK if we lose a few sequences here, so some entries of the seqsNeg will be null
-			int start = posRegion.getStart()-winSize;
-			int end = posRegion.getEnd()-winSize;
+			int start = posRegion.getStart()-winShift;
+			int end = posRegion.getEnd()-winShift;
 			if (start < 0)
 				continue;
 			if (i>0){
@@ -405,13 +404,14 @@ public class KmerEngine {
 		HashMap<Integer, Kmer> result = new HashMap<Integer, Kmer> ();		
 		for (Object o: kmerFound){
 			String kmerStr = (String) o;
+			Kmer kmer = str2kmer.get(kmerStr);
 			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
 			for (int p: pos){
-				result.put(p, str2kmer.get(kmerStr));
+				result.put(p-kmer.getGlobalShift(), kmer);
 			}
 			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmerStr));
 			for (int p: pos_rc){
-				result.put(-p, str2kmer.get(kmerStr));
+				result.put(-(p-kmer.getGlobalShift()), kmer);
 			}
 		}
 
