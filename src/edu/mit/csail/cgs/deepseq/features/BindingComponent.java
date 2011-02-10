@@ -29,6 +29,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	private Kmer kmer;
 	public Kmer getKmer() { return kmer; }
 	public void setKmer(Kmer kmer) { this.kmer = kmer;}
+	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
+	public String getBoundSequence(){return boundSequence;}
+	public void setBoundSequence(String boundSequence){this.boundSequence = boundSequence;}
 	
 	public int getOld_index() {
 		return old_index;

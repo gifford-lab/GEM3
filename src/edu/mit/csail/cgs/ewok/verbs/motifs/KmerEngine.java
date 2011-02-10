@@ -71,18 +71,16 @@ public class KmerEngine {
 	private int minCount;		// min kmer hit count of whole dataset
 	public int getMinCount() {return minCount;}
 	
-	// The Kmers at the specific position: seq--strand--pos
-	// Mapping from sequence to kmer, index as seqId, strand, posId 
-	// it can contains null, because the match of kmer and kmer_RC only count once
-	private Kmer[][][] seq_kmer_map; 
-	
-	// Corresponding to seq_kmer_map; The probability of this kmer in the sequence
-	private double[][][] probsOfKmerInSeq;	// seq_id, pos_id;
+	private int maxShift;		// max kmer flanking Shift of whole dataset
+	public int getMaxShift() {return maxShift;}
+	public void setMaxShift(int maxShift) {this.maxShift = maxShift;}
+	private int minShift;		// min kmer flanking Shift of whole dataset
+	public int getMinShift() {return minShift;}
+	public void setMinShift(int minShift) {this.minShift = minShift;}
 	
 	// The average profile/density of kmers along the sequence positions
 	private double[] positionProbs;
 	
-	private ArrayList<Kmer> explainedKmers = new ArrayList<Kmer>();
 	private long tic;
 	
 	public KmerEngine(String[] args){
@@ -223,8 +221,6 @@ public class KmerEngine {
 			}
 		}
 		System.out.println("\nKmers indexed "+timeElapsed(tic));
-		
-		seq_kmer_map = new Kmer[seqs.length][2][numPos];
 	
 		// sort the kmer strings
 		//so that we can only use one kmer to represent its reverse compliment (RC)

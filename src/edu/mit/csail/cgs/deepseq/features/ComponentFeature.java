@@ -41,6 +41,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected Kmer kmer;
 	public Kmer getKmer() { return kmer; }
 	public void setKmer(Kmer kmer) { this.kmer = kmer;}
+	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
+	public String getBoundSequence(){return boundSequence;}
+	public void setBoundSequence(String boundSequence){this.boundSequence = boundSequence;}
 	
 	public ComponentFeature(BindingComponent b){
 		super(null);
@@ -67,6 +70,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		kmer = b.getKmer();
 		ipCtrl_logKL_plus = new double[numConditions];
 		ipCtrl_logKL_minus = new double[numConditions];
+		boundSequence = b.getBoundSequence();
 	}
 	
 	//Accessors 
@@ -386,7 +390,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append("\t");
         }
         if (kmer!=null)
-        	header.append("Kmer\t").append("KmerCount\t").append("KmerStrength\t"); 
+        	header.append("Kmer\t").append("KmerCount\t").append("KmerStrength\t").append("BoundSequence\t"); 
         header.append("\n");
         return header.toString();
 	}
@@ -429,7 +433,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append("\t");
         }
         if (kmer!=null)
-        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append("\t").append(String.format("%.1f\t", kmer.getStrength()));
+        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append("\t").append(String.format("%.1f\t", kmer.getStrength())).append("\t").append(boundSequence);
         
         result.append("\n");
 		return result.toString();
