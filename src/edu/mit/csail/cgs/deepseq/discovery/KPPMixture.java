@@ -4076,7 +4076,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     } 	// end of while (resolution)
                     if (nonZeroComponentNum==0)	return null;
                     setComponentResponsibilities(signals, result.car(), result.cdr());
-                    setComponentKmers(pp_kmer, w.getStart(), seq);
+                    if (kEngine!=null)
+                    	setComponentKmers(pp_kmer, w.getStart(), seq);
                 } else {
                     // Run MultiIndependentMixture (Temporal Coupling) -- PoolEM
                     // Convert data in current region in primitive format
@@ -4801,8 +4802,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		int kIdx = b.getLocation().getLocation()-startPos;
         		Kmer kmer = pp_kmer[kIdx];
         		b.setKmer(kmer);
-        		int left = kIdx+kEngine.getMaxCount()-kmer.getGlobalShift()+kmer.getK()/2;
-        		int right = kIdx-kEngine.getMinCount()+kmer.getGlobalShift()+kmer.getK()/2;
+        		int left = kIdx + kEngine.getMaxCount()-kmer.getGlobalShift()+kmer.getK()/2;
+        		int right = kIdx - kEngine.getMinCount()+kmer.getGlobalShift()+kmer.getK()/2;
         		if (left<0)
         			left = 0;
         		if (right>=seq.length())
