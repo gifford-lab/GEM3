@@ -18,6 +18,21 @@ import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 
+/** 
+ * Scans for significant pairs of motifs.
+ * Specify the genome and set of motifs in the same way as for CompareEnrichment.
+ *
+ * Output fields are
+ * 1) logfoldchange
+ * 2) count in set one (fg)
+ * 3) size of set one
+ * 4) freq in set one
+ * 5) count in set two (bg)
+ * 6) size of set two
+ * 7) frequency in set two
+ * 8) pvalue
+ * Then for each matrix, the name, version, cutoff percent, cutoff value
+ */
 
 public class CombinatorialEnrichment extends CompareEnrichment {
 
@@ -116,23 +131,16 @@ public class CombinatorialEnrichment extends CompareEnrichment {
                     WeightMatrix mj = matrices.get(j);
                     double maxscorej = mj.getMaxScore();
                     double percenti = cutoffpercent - step;
-                    CombResult result = new CombResult();
-                    result.matrices.add(mi);
-                    result.matrices.add(mj);
-                    result.sizeone = fgsize;
-                    result.sizetwo = bgsize;
-                    boolean quit = false;
-                    while (percenti <= 1 && !quit) {
+                    while (percenti <= 1) {
                         percenti += step;
                         double ti = percenti * maxscorei;
                         double percentj = cutoffpercent - step;
-                        while (percentj <= 1 && !quit) {
+                        while (percentj <= 1) {
                             percentj += step;
                             double tj = percentj * maxscorej;
                             int fgcount = count(i,j,ti,tj,fghits);
                             double thetaone = ((double)fgcount) / ((double)fgsize);
                             if (fgsize <= 0 || thetaone < minfrac) {
-                                quit = true;
                                 continue;
 
                             }
@@ -140,22 +148,24 @@ public class CombinatorialEnrichment extends CompareEnrichment {
                             double thetatwo = ((double)bgcount) / ((double)bgsize);
                             if (thetatwo < minfrac ||
                                 thetatwo <= 0) {
-                                quit = true;
                                 continue;
                             }
                             if (thetatwo > maxbackfrac) {
                                 continue;
                             }
                             double fc = Math.log(thetaone / thetatwo);
-                            if (Math.abs(fc) < Math.abs(result.logfoldchange) ||
-                                Math.abs(fc) < Math.abs(Math.log(minfoldchange))) {
+                            if (Math.abs(fc) < Math.abs(Math.log(minfoldchange))) {
                                 continue;
                             }
 
                             binomial.setNandP(fgsize, thetatwo);
                             double pval = 1 - binomial.cdf(fgcount);
-                            if (pval <= filtersig && 
-                                pval <= result.pval) {
+                            if (pval <= filtersig) {
+                                CombResult result = new CombResult();
+                                result.matrices.add(mi);
+                                result.matrices.add(mj);
+                                result.sizeone = fgsize;
+                                result.sizetwo = bgsize;
                                 result.pval = pval;
                                 result.percents.add(percenti);
                                 result.percents.add(percentj);
@@ -166,14 +176,14 @@ public class CombinatorialEnrichment extends CompareEnrichment {
                                 result.logfoldchange = fc;
                                 result.freqone = thetaone;
                                 result.freqtwo = thetatwo;
-                            } 
+                                if (result.pval <= filtersig && 
+                                    Math.abs(result.logfoldchange) >= Math.abs(Math.log(minfoldchange)) &&
+                                    (result.freqtwo <= maxbackfrac) && 
+                                    (result.freqone >= minfrac || result.freqtwo >= minfrac)) {
+                                    results.add(result);
+                                }
+                            }
                         }
-                    }
-                    if (result.pval <= filtersig && 
-                        Math.abs(result.logfoldchange) >= Math.abs(Math.log(minfoldchange)) &&
-                        (result.freqtwo <= maxbackfrac) && 
-                        (result.freqone >= minfrac || result.freqtwo >= minfrac)) {
-                        results.add(result);
                     }
                 }
             }

@@ -82,11 +82,18 @@ public class RegionListOverlap {
         return count;
     }
     public static void readFile(Genome genome, String fname, int column, Map<String,List<Region>> map) throws IOException {
+        if (map == null) {
+            throw new NullPointerException("Can't give me a null map");
+        }
         BufferedReader reader = new BufferedReader(new FileReader(fname));
         String line = null;
         while ((line = reader.readLine()) != null) {
             String pieces[] = line.split("\\t");
             Region r = Region.fromString(genome, pieces[column]);
+            if (r == null) {
+                System.err.println("Couldn't parse " + pieces[column] + " in " + fname);
+                continue;
+            }
             if (!map.containsKey(r.getChrom())) {
                 map.put(r.getChrom(), new ArrayList<Region>());
             }
