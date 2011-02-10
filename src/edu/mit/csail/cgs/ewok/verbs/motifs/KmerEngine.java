@@ -238,9 +238,12 @@ public class KmerEngine {
 
 			// consolidate kmer and its reverseComplment kmer
 			String key_rc = SequenceUtils.reverseComplement(key);
+				
 			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
-				map.put(key, (map.get(key)+map.get(key_rc)));
-				map.remove(key_rc);		// remove this kmer because it is represented by its RC
+				if (map.containsKey(key_rc)){
+					map.put(key, (map.get(key)+map.get(key_rc)));
+					map.remove(key_rc);		// remove this kmer because it is represented by its RC
+				}
 			}
 			
 			if (map.get(key)< minHitCount)
