@@ -3393,6 +3393,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
     					continue;
     				ArrayList<String> seqs = kmer2flankingSeqs.get(km);
     				for (String seq: seqs){
+    					if (seq.length()!=pfm.length){
+    						System.err.println("Err: extendSeed(), real sequence, length "+seq.length()+" != PFM length "+pfm.length);
+    						 continue;
+    					}
 	    				for (int p=0;p<seq.length();p++){
 	    					char base = seq.charAt(p);
 	    					for (int b=0;b<letters.length;b++){
@@ -4810,7 +4814,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         			left = 0;
         		if (right>=seq.length())
         			right = seq.length()-1;
-        		b.setBoundSequence(seq.substring(left,right));
+        		b.setBoundSequence(seq.substring(left,right+1));
         	}
         }
         
