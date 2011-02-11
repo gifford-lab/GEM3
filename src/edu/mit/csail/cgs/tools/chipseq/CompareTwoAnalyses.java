@@ -37,7 +37,7 @@ public abstract class CompareTwoAnalyses {
     private int maxDistance = 20;
     private Genome genome;
     private List<Region> analysisRegions;
-    private int topEvents = -1;
+    private int topEvents = -1, firstCheck = 100;
     private boolean sortEventsByPval = false;
 
     public CompareTwoAnalyses() {}
