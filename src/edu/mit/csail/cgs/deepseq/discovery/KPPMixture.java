@@ -221,6 +221,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	 ***********************************/
     	//Determine the subset of genome to run EM
     	ArrayList<Region> subsetRegions = getSubsetRegions(args);
+    	if (!subsetRegions.isEmpty())
+    		config.cache_genome = false;
      	
     	//load read data
 		this.conditionNames = conditionNames;
@@ -3234,8 +3236,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				ComponentFeature cf = (ComponentFeature)f;
 				fs.add(cf);
 			}
-		kEngine = new KmerEngine(gen, fs, config.kwin, config.kwin_shift, config.hgp);
-		kEngine.buildEngine(config.k, outPrefix);
+		kEngine = new KmerEngine(gen, config.cache_genome);
+		kEngine.buildEngine(config.k, fs, config.kwin, config.kwin_shift, config.hgp, outPrefix);
     }
     
     // update kmerEngine with the predicted kmer-events
@@ -3270,10 +3272,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (makePFM)
 			extendSeeds(kmers, outPrefix);
 		
-		kEngine.loadKmers(kmers, outPrefix);
+		kEngine.updateEngine(kmers, outPrefix);
     }
 	
     private void extendSeeds(ArrayList<Kmer> kmerList, String outPrefix){
+    	if (kmerList.isEmpty())
+    		return;
+    	
     	ArrayList<Kmer> kmers = (ArrayList<Kmer>)kmerList.clone();	// clone the list
     	char[] letters = {'A','C','G','T'};
     	int MISS = 1;
@@ -3566,6 +3571,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean use_betaEM = true;
         public boolean use_scanPeak  = true;
         public boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
+        public boolean cache_genome = true;			// cache the genome sequence
         public int bmverbose=1;		// BindingMixture verbose mode
         public int base_reset_threshold = 200;	// threshold to set a base read count to 1
         public int windowSize;			// size for EM sliding window for splitting long regions
@@ -3719,7 +3725,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         
         public void run() {
         	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
-        	seqgen.useCache(true);
+        	if (config.cache_genome)
+        		seqgen.useCache(true);
             for (Region rr : regions) {
                 mixture.log(2, rr.toString());
                 try{
@@ -3992,7 +3999,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	double[] pp = new double[w.getWidth()+1];
                 	Kmer[] pp_kmer = new Kmer[pp.length];
                 	String seq = null;
-                	if (kEngine!=null){
+                	if (kEngine!=null && kEngine.isInitialized()){
 	                	seq = seqgen.execute(w).toUpperCase();
 	                	HashMap<Integer, Kmer> kmerHits = kEngine.query(seq);
 // TODO: allowing more motif in the region	                	
@@ -4838,13 +4845,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		if (kmer==null)
         			continue;
         		b.setKmer(kmer);
-        		int left = kIdx - kEngine.getMaxCount()+kmer.getGlobalShift()-kmer.getK()/2;
-        		int right = kIdx - kEngine.getMinCount()+kmer.getGlobalShift()+kmer.getK()/2+1;
+        		int left = kIdx - kEngine.getMaxShift()+kmer.getGlobalShift()-kmer.getK()/2;
+        		int right = kIdx - kEngine.getMinShift()+kmer.getGlobalShift()+(kmer.getK()-kmer.getK()/2);
         		if (left<0)
         			left = 0;
         		if (right>seq.length())
         			right = seq.length();
-        		b.setBoundSequence(seq.substring(left,right));
+        		String bs = seq.substring(left,right);
+        		if (!bs.contains(kmer.getKmerString())){			// the match is on reverse strand
+        			left = seq.length()-1-kIdx + kEngine.getMinShift()-kmer.getGlobalShift()-(kmer.getK()-kmer.getK()/2) +1;	//substring() is right end exlusive, so add 1
+            		right = seq.length()-1-kIdx + kEngine.getMaxShift()-kmer.getGlobalShift()+kmer.getK()/2 +1;
+            		if (left<0)
+            			left = 0;
+            		if (right>seq.length())
+            			right = seq.length();
+            		bs = SequenceUtils.reverseComplement(seq).substring(left,right);		
+        		}
+        		b.setBoundSequence(bs);
         	}
         }
         

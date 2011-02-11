@@ -35,19 +35,11 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KmerEngine {
 	private Genome genome;
-	
-	private double HyperGeomThreshold;
-	private int max_kmer_per_seq = 5;
+	private boolean engineInitialized;
 	private int seqLength=-1;
 	private int k=10;
 	private int minHitCount = 3;
 	private int numPos;
-	
-	// input data
-	private String[] seqs;		// DNA sequences around binding sites
-	private double[] seqProbs;	// Relative strength of that binding site, i.e. ChIP-Seq read count
-	private Region[] seqCoors;
-	private String[] seqsNeg;		// DNA sequences in negative sets
 	
 	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
@@ -69,28 +61,49 @@ public class KmerEngine {
 	public int getMinShift() {return minShift;}
 	public void setMinShift(int minShift) {this.minShift = minShift;}
 	
+	public boolean isInitialized(){ return this.engineInitialized;}
+	
 	// The average profile/density of kmers along the sequence positions
 	private double[] positionProbs;
-	
+	private SequenceGenerator<Region> seqgen;
 	private long tic;
 		
-	public KmerEngine(Genome g, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp){
-		tic = System.currentTimeMillis();
+	public KmerEngine(Genome g, boolean useCache){
 		genome = g;
+		seqgen = new SequenceGenerator<Region>();
+		if (useCache)
+			seqgen.useCache(true);		
+	}
+	/* 
+	 * Contruct a Kmer Engine from a list of Kmers
+	 */
+	public KmerEngine(ArrayList<Kmer> kmers, String outPrefix){
+		if (!kmers.isEmpty()){
+			updateEngine(kmers, outPrefix);
+			k=kmers.get(0).k;
+		}
+	}
+	
+	/*
+	 * Find significant Kmers that have high HyperGeometric p-value
+	 * in sequence around the binding events 
+	 * and build the kmer AhoCorasick engine
+	 */
+	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp, String outPrefix){
+		this.k = k;
+		numPos = seqLength-k+1;
+		tic = System.currentTimeMillis();
 		int eventCount = events.size();
 		seqLength = winSize+1;
-		HyperGeomThreshold = hgp;
 		Collections.sort(events);		// sort by location
-		seqs = new String[eventCount];
-		seqsNeg = new String[eventCount];
-		seqProbs = new double[eventCount];
-		seqCoors = new Region[eventCount];
-		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
-		seqgen.useCache(true);
+		// input data
+		String[]  seqs = new String[eventCount];	// DNA sequences around binding sites
+		String[]  seqsNeg = new String[eventCount];	// DNA sequences in negative sets
+//		double[] seqProbs = new double[eventCount];	// Relative strength of that binding site, i.e. ChIP-Seq read count
+		Region[] seqCoors = new Region[eventCount];
 
 		ArrayList<Region> negRegions = new ArrayList<Region>();
 		// prepare for progress reporting
-        Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
 		int displayStep = (int) Math.pow(10, (int) (Math.log10(eventCount)));
 		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
 		for (int i=1;i<=eventCount/displayStep; i++){
@@ -102,7 +115,7 @@ public class KmerEngine {
 		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
 		for(int i=0;i<eventCount;i++){
 			ComponentFeature f = events.get(i);
-			seqProbs[i] = f.getTotalSumResponsibility();
+//			seqProbs[i] = f.getTotalSumResponsibility();
 			Region posRegion = f.getPeak().expand(winSize/2);
 			seqCoors[i] = posRegion;
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
@@ -129,21 +142,6 @@ public class KmerEngine {
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
 		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
-	}
-	public KmerEngine(ArrayList<Kmer> kmers, String outPrefix){
-		if (!kmers.isEmpty()){
-			loadKmers(kmers, outPrefix);
-			k=kmers.get(0).k;
-		}
-	}
-	
-	/*
-	 * Find significant Kmers that have high HyperGeometric p-value
-	 * and build the kmer AhoCorasick engine
-	 */
-	public void buildEngine(int k, String outPrefix) {
-		this.k = k;
-		numPos = seqLength-k+1;
 		
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
@@ -164,7 +162,7 @@ public class KmerEngine {
 				}
 			}
 		}
-		System.out.println("\nKmers indexed "+timeElapsed(tic));
+		System.out.println("\nKmers indexed "+CommonUtils.timeElapsed(tic));
 	
 		// sort the kmer strings
 		//so that we can only use one kmer to represent its reverse compliment (RC)
@@ -195,7 +193,7 @@ public class KmerEngine {
 		}
 		map=null;
 		System.gc();
-		System.out.println("Kmers("+kmers.size()+") mapped "+timeElapsed(tic));
+		System.out.println("Kmers("+kmers.size()+") mapped "+CommonUtils.timeElapsed(tic));
 		
 		/*
 		Aho-Corasick for searching Kmers in negative sequences
@@ -259,22 +257,26 @@ public class KmerEngine {
 			double p = 1-StatUtil.hyperGeometricCDF(kmer.seqHitCount, N, kmerAllHitCount, n);
 			kmer.hg = p;
 //			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));
-			if (kmer.hg>HyperGeomThreshold)
+			if (kmer.hg>hgp)
 				toRemove.add(kmer);		
 		}
 		// remove un-enriched kmers		
 		kmers.removeAll(toRemove);
-		System.out.println("\nKmers selected "+timeElapsed(tic));
+		System.out.println("\nKmers selected "+CommonUtils.timeElapsed(tic));
 
 		// set Kmers and prepare the search Engine
-		loadKmers(kmers, outPrefix);
+		updateEngine(kmers, outPrefix);
 	}
 	
 	/** load Kmers and prepare the search Engine
 	 * 
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
 	 */
-	public void loadKmers(ArrayList<Kmer> kmers, String outPrefix){
+	public void updateEngine(ArrayList<Kmer> kmers, String outPrefix){
+		if (kmers.isEmpty()){
+			engineInitialized = false;
+			return;
+		}
 		tic = System.currentTimeMillis();
 		this.kmers = kmers;
 		Collections.sort(kmers);
@@ -292,7 +294,8 @@ public class KmerEngine {
 			tree.add(km.kmerString.getBytes(), km.kmerString);
 	    }
 	    tree.prepare();
-	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine "+timeElapsed(tic));
+	    engineInitialized = true;
+	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine "+CommonUtils.timeElapsed(tic));
 	}	
 	
 	/** 
@@ -373,84 +376,6 @@ public class KmerEngine {
         return score;
 	}
 	
-	// load text file with sequences
-	private void loadSeqFile(String posFile, String negFile) {
-		BufferedReader bin=null;
-		try {
-			ArrayList<Region> regions = new ArrayList<Region>();
-			ArrayList<Double> probs = new ArrayList<Double>();
-			ArrayList<String> ss = new ArrayList<String>();
-			bin = new BufferedReader(new FileReader(new File(posFile)));
-			String line;
-			while((line = bin.readLine()) != null) { 
-				if (line.charAt(0)=='>'){
-					String[] items = line.split("\t");
-					if (seqLength==-1)
-						seqLength = Integer.parseInt(items[1]);
-					regions.add(Region.fromString(genome, items[0].substring(1)));
-					probs.add(Double.parseDouble(items[2]));
-				}
-				else{
-					ss.add(line.trim().toUpperCase());
-				}
-			}
-			
-			if (ss.size()!=probs.size()){
-				System.err.println("The header line count does not match sequence count!");
-				System.exit(0);
-			}
-				
-			seqs = new String[ss.size()];
-			seqProbs = new double[ss.size()];
-			seqCoors = new Region[ss.size()];
-			ss.toArray(seqs);
-			for (int i=0;i<ss.size();i++){
-				seqProbs[i]=probs.get(i);
-				seqCoors[i]=regions.get(i);
-			}
-
-			// load negative sets
-			bin = new BufferedReader(new FileReader(new File(negFile)));
-			ss.clear();
-			while((line = bin.readLine()) != null) { 
-				line=line.trim();
-				if (line.length()==0) continue;
-				if (line.charAt(0)=='>'){
-					String[] items = line.split("\t");
-					regions.add(Region.fromString(genome, items[0].substring(1)));
-					probs.add(Double.parseDouble(items[2]));
-				}
-				else{
-					ss.add(line.toUpperCase());
-				}
-			}
-			seqsNeg = new String[ss.size()];
-			ss.toArray(seqsNeg);
-		}
-		catch(IOException ioex) {
-			ioex.printStackTrace();
-		}
-		finally {
-			try {
-				if (bin != null) {
-					bin.close();
-				}
-			}
-			catch(IOException ioex2) {
-				System.err.println("Error closing buffered reader");
-				ioex2.printStackTrace(System.err);
-			}			
-		}
-	}
-	private static String timeElapsed(long tic){
-		return timeString(System.currentTimeMillis()-tic);
-	}
-	private static String timeString(long length){
-		float sec = length/1000F;
-		return sec>60?
-			String.format("%.1f",sec/60)+" min":
-			String.format("%.1f",sec)+" sec";
-	}
 
 	/**
 	 * This KmerMatch class is used for recording kmer instances in sequences in the conventional motif finding setting
