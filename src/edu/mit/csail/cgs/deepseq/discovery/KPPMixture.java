@@ -159,6 +159,36 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 
+    	/* *********************************
+    	 * Load Kmer list
+    	 ***********************************/
+    	String kmerFile = Args.parseString(args, "kf", null);
+		File pFile = new File(kmerFile);
+		if(pFile.isFile()){
+			try {
+				ArrayList<Kmer> kmers = new ArrayList<Kmer>(); 
+				BufferedReader reader = new BufferedReader(new FileReader(pFile.getName()));
+		        String line;
+		        while ((line = reader.readLine()) != null) {
+		            line = line.trim();
+		            String[] words = line.split("\\s+");
+		            try {
+			            Kmer kmer = new Kmer(words[0], Integer.parseInt(words[1]));
+			            kmers.add(kmer);
+	            	}
+	            	catch (NumberFormatException nfe) {	// ignore if not a number, such as header
+	            		continue;
+	            	}
+		        }
+		        if (!kmers.isEmpty()){
+		        	kEngine = new KmerEngine(kmers, outName);
+		        }
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 		/* ***************************************************
 		 * Load parameters and properties
 		 * ***************************************************/
@@ -4809,12 +4839,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
         			continue;
         		b.setKmer(kmer);
         		int left = kIdx - kEngine.getMaxCount()+kmer.getGlobalShift()-kmer.getK()/2;
-        		int right = kIdx - kEngine.getMinCount()+kmer.getGlobalShift()+kmer.getK()/2;
+        		int right = kIdx - kEngine.getMinCount()+kmer.getGlobalShift()+kmer.getK()/2+1;
         		if (left<0)
         			left = 0;
-        		if (right>=seq.length())
-        			right = seq.length()-1;
-        		b.setBoundSequence(seq.substring(left,right+1));
+        		if (right>seq.length())
+        			right = seq.length();
+        		b.setBoundSequence(seq.substring(left,right));
         	}
         }
         

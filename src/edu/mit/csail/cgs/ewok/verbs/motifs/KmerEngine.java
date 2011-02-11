@@ -34,21 +34,12 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KmerEngine {
-	private static int ITER_INIT=10;
-	private static int ITER_END=20;
 	private Genome genome;
-	private Organism org;
-	private String[] args;
-	private String motifString;
-	private WeightMatrix motif = null;
-	private double motifThreshold;
 	
 	private double HyperGeomThreshold;
 	private int max_kmer_per_seq = 5;
 	private int seqLength=-1;
 	private int k=10;
-	private int round = 3;
-	private double smooth = 3;
 	private int minHitCount = 3;
 	private int numPos;
 	
@@ -82,60 +73,7 @@ public class KmerEngine {
 	private double[] positionProbs;
 	
 	private long tic;
-	
-	public KmerEngine(String[] args){
-		this.args = args;
-		tic = System.currentTimeMillis();
 		
-	    ArgParser ap = new ArgParser(args);
-	    try {
-	      Pair<Organism, Genome> pair = Args.parseGenome(args);
-	      if(pair==null){
-	        //Make fake genome... chr lengths provided???
-	        if(ap.hasKey("geninfo")){
-	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-	            }else{
-	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-	            }
-	      }else{
-	        genome = pair.cdr();
-	        org = pair.car();
-	      }
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }
-//	    
-//	    // load motif
-//	    try {
-//	      String motifString = Args.parseString(args, "motif", null);
-//	      if (motifString!=null){
-//		      String motifVersion = Args.parseString(args, "version", null);
-//		      motifThreshold = Args.parseDouble(args, "motifThreshold", 10.0);
-//		      if (motifThreshold==10.0)
-//		    	  System.err.println("No motif threshold was provided, default=10.0 is used.");
-//			  int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
-//			  int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:org.getDBID(), motifString, motifVersion);
-//			  motif = WeightMatrix.getWeightMatrix(wmid);
-//	      }
-//	    } 
-//	    catch (NotFoundException e) {
-//	      e.printStackTrace();
-//	    }   
-
-	    k = Args.parseInteger(args, "k", k);
-	    round = Args.parseInteger(args, "round", round);
-	    smooth = Args.parseDouble(args, "smooth", smooth);
-	    String filePos = Args.parseString(args, "seqFile", null);
-	    String fileNeg = Args.parseString(args, "negSeqFile", null);
-	    
-	    max_kmer_per_seq = Args.parseInteger(args, "max_kmer", max_kmer_per_seq);
-		if (filePos==null||fileNeg==null)
-			System.exit(0);
-
-		loadSeqFile(filePos, fileNeg);
-		numPos = seqLength-k+1;
-	}
-	
 	public KmerEngine(Genome g, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp){
 		tic = System.currentTimeMillis();
 		genome = g;
@@ -191,6 +129,12 @@ public class KmerEngine {
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
 		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
+	}
+	public KmerEngine(ArrayList<Kmer> kmers, String outPrefix){
+		if (!kmers.isEmpty()){
+			loadKmers(kmers, outPrefix);
+			k=kmers.get(0).k;
+		}
 	}
 	
 	/*
