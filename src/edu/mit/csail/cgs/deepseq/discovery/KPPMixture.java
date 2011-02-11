@@ -163,32 +163,34 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	 * Load Kmer list
     	 ***********************************/
     	String kmerFile = Args.parseString(args, "kf", null);
-		File pFile = new File(kmerFile);
-		if(pFile.isFile()){
-			try {
-				ArrayList<Kmer> kmers = new ArrayList<Kmer>(); 
-				BufferedReader reader = new BufferedReader(new FileReader(pFile.getName()));
-		        String line;
-		        while ((line = reader.readLine()) != null) {
-		            line = line.trim();
-		            String[] words = line.split("\\s+");
-		            try {
-			            Kmer kmer = new Kmer(words[0], Integer.parseInt(words[1]));
-			            kmers.add(kmer);
-	            	}
-	            	catch (NumberFormatException nfe) {	// ignore if not a number, such as header
-	            		continue;
-	            	}
-		        }
-		        if (!kmers.isEmpty()){
-		        	kEngine = new KmerEngine(kmers, outName);
-		        }
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
+    	if (kmerFile!=null){
+			File kFile = new File(kmerFile);
+			if(kFile.isFile()){
+				try {
+					ArrayList<Kmer> kmers = new ArrayList<Kmer>(); 
+					BufferedReader reader = new BufferedReader(new FileReader(kFile.getName()));
+			        String line;
+			        while ((line = reader.readLine()) != null) {
+			            line = line.trim();
+			            String[] words = line.split("\\s+");
+			            try {
+				            Kmer kmer = new Kmer(words[0], Integer.parseInt(words[1]));
+				            kmers.add(kmer);
+		            	}
+		            	catch (NumberFormatException nfe) {	// ignore if not a number, such as header
+		            		continue;
+		            	}
+			        }
+			        if (!kmers.isEmpty()){
+			        	kEngine = new KmerEngine(kmers, outName);
+			        }
+				} catch (FileNotFoundException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
-		}
+    	}
 		/* ***************************************************
 		 * Load parameters and properties
 		 * ***************************************************/
