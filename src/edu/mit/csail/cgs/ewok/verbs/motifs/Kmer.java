@@ -1,9 +1,5 @@
 package edu.mit.csail.cgs.ewok.verbs.motifs;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-
-import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerMatch;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class Kmer implements Comparable<Kmer>{
@@ -11,9 +7,8 @@ public class Kmer implements Comparable<Kmer>{
 	public String getKmerString() {	return kmerString;}
 	int k;
 	public int getK(){return k;}
-	int count;	//all hit count
 	int seqHitCount; //one hit at most for one sequence, to avoid simple repeat
-	double strength;
+	double strength;	// the total read counts from all events support this kmer
 	public double getStrength(){return strength;}
 	public void setStrength(double strength){this.strength = strength;}
 	double hg;
@@ -206,49 +201,4 @@ public class Kmer implements Comparable<Kmer>{
 //		System.out.println(k2.getShift());
 //	}
 	
-	
-	
-	
-	/** 
-	 ***************************** Some old code *****************************
-	 */
-	ArrayList<KmerMatch> hits;
-	HashSet<Integer> seqHits;
-	public Kmer(String kmerStr, ArrayList<KmerMatch> hits){
-		this.kmerString = kmerStr;
-		this.hits = hits;
-		count = hits.size();
-		k = kmerStr.length();
-		seqHits = new HashSet<Integer>();
-		for (KmerMatch hit:hits){
-			seqHits.add(hit.seqId);
-		}
-		seqHitCount = seqHits.size();
-	}	
-	public double bias(int pos){
-		double sum=0;
-		for (KmerMatch hit:hits)
-			sum+=Math.abs(hit.pos-pos);
-		return sum/hits.size();
-	}
-	public double bias2(int pos){
-		double sum=0;
-		for (KmerMatch hit:hits)
-			sum+=(hit.pos-pos)*(hit.pos-pos);
-		return Math.sqrt(sum/hits.size());
-	}
-	public float[] getPositionCounts(int seqLength){
-		float counts[] = new float[seqLength];
-		for (KmerMatch hit:hits)
-			counts[hit.pos]++;
-		return counts;
-	}
-	public void calcWeight(double[] seqProbs, double[] positionProbs){
-		strength = 0;
-		for (KmerMatch hit:hits){
-			int id = hit.seqId;
-			if (seqHits.contains(id)||seqHits.contains(-id))
-				strength += seqProbs[id]*positionProbs[hit.pos];
-		}
-	}
 }

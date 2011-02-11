@@ -71,18 +71,16 @@ public class KmerEngine {
 	private int minCount;		// min kmer hit count of whole dataset
 	public int getMinCount() {return minCount;}
 	
-	// The Kmers at the specific position: seq--strand--pos
-	// Mapping from sequence to kmer, index as seqId, strand, posId 
-	// it can contains null, because the match of kmer and kmer_RC only count once
-	private Kmer[][][] seq_kmer_map; 
-	
-	// Corresponding to seq_kmer_map; The probability of this kmer in the sequence
-	private double[][][] probsOfKmerInSeq;	// seq_id, pos_id;
+	private int maxShift;		// max kmer flanking Shift of whole dataset
+	public int getMaxShift() {return maxShift;}
+	public void setMaxShift(int maxShift) {this.maxShift = maxShift;}
+	private int minShift;		// min kmer flanking Shift of whole dataset
+	public int getMinShift() {return minShift;}
+	public void setMinShift(int minShift) {this.minShift = minShift;}
 	
 	// The average profile/density of kmers along the sequence positions
 	private double[] positionProbs;
 	
-	private ArrayList<Kmer> explainedKmers = new ArrayList<Kmer>();
 	private long tic;
 	
 	public KmerEngine(String[] args){
@@ -203,29 +201,26 @@ public class KmerEngine {
 		this.k = k;
 		numPos = seqLength-k+1;
 		
-		HashMap<String, ArrayList<KmerMatch>> map = new HashMap<String, ArrayList<KmerMatch>>();
+		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
-//			System.out.print(seqId+" ");
 			String seq = seqs[seqId];
+			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
 			for (int i=0;i<numPos;i++){
 				if ((i+k)>seq.length()) // endIndex of substring is exclusive
 					break;
-				String s = seq.substring(i, i+k);
+				uniqueKmers.add(seq.substring(i, i+k));
+			}
+			for (String s: uniqueKmers){
 				if (map.containsKey(s)){
-					 ArrayList<KmerMatch> hits = map.get(s);
-					 hits.add(new KmerMatch(seqId, i, 0));
+					 map.put(s, (map.get(s)+1));
 				}
 				else{
-					 ArrayList<KmerMatch> hits = new ArrayList<KmerMatch>();
-					 hits.add(new KmerMatch(seqId, i, 0));
-					 map.put(s, hits);
+					 map.put(s, 1);
 				}
 			}
 		}
 		System.out.println("\nKmers indexed "+timeElapsed(tic));
-		
-		seq_kmer_map = new Kmer[seqs.length][2][numPos];
 	
 		// sort the kmer strings
 		//so that we can only use one kmer to represent its reverse compliment (RC)
@@ -238,24 +233,20 @@ public class KmerEngine {
 				continue;
 
 			// consolidate kmer and its reverseComplment kmer
-			ArrayList<KmerMatch> hits_all = new ArrayList<KmerMatch>();
-			hits_all.addAll(map.get(key));
-			String key_rc = SequenceUtils.reverseComplement(key).toUpperCase();
-			ArrayList<KmerMatch> hits_rc = map.get(key_rc);
+			String key_rc = SequenceUtils.reverseComplement(key);
+				
 			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
-				map.remove(key_rc);		// remove this kmer because it is represented by its RC
-				if (hits_rc!=null){
-					for (KmerMatch hit: hits_rc){
-						hits_all.add(new KmerMatch(hit.seqId, hit.pos, 1));
-					}
+				if (map.containsKey(key_rc)){
+					map.put(key, (map.get(key)+map.get(key_rc)));
+					map.remove(key_rc);		// remove this kmer because it is represented by its RC
 				}
 			}
 			
-			if (hits_all.size()< minHitCount)
+			if (map.get(key)< minHitCount)
 				continue;	// skip low count (<2) kmers, 
 			
 			// create the kmer object
-			Kmer kmer = new Kmer(key, hits_all);
+			Kmer kmer = new Kmer(key, map.get(key));
 			kmers.add(kmer);
 		}
 		map=null;
@@ -289,7 +280,7 @@ public class KmerEngine {
 //				System.out.println(result.getOutputs()+"\tat index: " + result.getLastIndex());
 			}
 			String seq_rc = SequenceUtils.reverseComplement(seq);
-		searcher = tmp.search(seq_rc.getBytes());
+			searcher = tmp.search(seq_rc.getBytes());
 			while (searcher.hasNext()) {
 				SearchResult result = (SearchResult) searcher.next();
 				kmerHits.addAll(result.getOutputs());
@@ -314,16 +305,6 @@ public class KmerEngine {
 				toRemove.add(kmer);	
 				continue;
 			}
-			// count Kmers in negative sets
-//			int count = 0;
-//			String str_rc = SequenceUtils.reverseComplement(kmer.kmerString);
-//			//TODO: index the negative set may be more efficient
-//			for (String seq: seqsNeg){
-//				if (seq.indexOf(kmer.kmerString)!=-1 || seq.indexOf(str_rc)!=-1)
-//					count++;
-//			}
-//			kmer.negCount = count;
-//			assert(kmer.negCount==negHitCounts.get(kmer.kmerString) );
 			// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
 			int kmerAllHitCount = kmer.seqHitCount+1;
 			if (negHitCounts.containsKey(kmer.kmerString)){
@@ -419,130 +400,6 @@ public class KmerEngine {
 	}
 	
 	
-	// hard assignment by exclusion, 1 kmer will explain the whole sequence
-	private void hardExclusion(){
-		//sort kmers
-		Collections.sort(kmers);
-		System.out.println("\nKmers sorted "+timeElapsed(tic));
-		
-		HashSet<Integer> unexplainedSeq = new HashSet<Integer>();
-		for (int i=0;i<seqs.length;i++){
-			unexplainedSeq.add(i);
-		}
-		
-		ArrayList<Kmer> temp = new ArrayList<Kmer>();
-		for(Kmer kmer:kmers){
-			kmer.calcWeight(seqProbs, positionProbs);
-			if (kmer.seqHitCount>=minHitCount)
-				temp.add(kmer);
-		}
-		
-		while(!unexplainedSeq.isEmpty() && !temp.isEmpty()){
-			Kmer top = temp.get(0);
-			explainedKmers.add(top);
-			temp.remove(0);
-			for (Kmer kmer:temp){
-				kmer.seqHits.removeAll(top.seqHits);
-				kmer.calcWeight(seqProbs, positionProbs);
-			}
-			unexplainedSeq.removeAll(top.seqHits);
-			Collections.sort(temp);
-		}
-		System.out.println("\nSequences explained "+timeElapsed(tic));
-	}
-	
-	private void softWeighting(){
-		for (int r=0;r<round;r++){
-			
-			//init			
-			probsOfKmerInSeq = new double[seq_kmer_map.length][2][numPos];
-			
-			for (int i=0;i<seq_kmer_map.length;i++){
-				double sum=0;
-				for (int j=0;j<=1;j++){
-					for(int p=0;p<numPos;p++){
-						if (seq_kmer_map[i][j][p]!=null){
-							probsOfKmerInSeq[i][j][p] = positionProbs[p];
-							sum += positionProbs[p];
-						}
-						else
-							probsOfKmerInSeq[i][j][p]=0;
-					}
-				}
-				// normalize kmer prob for each sequece i
-				if (sum!=0)
-					for (int j=0;j<=1;j++)
-						for(int p=0;p<numPos;p++)
-							probsOfKmerInSeq[i][j][p]/=sum ;
-			}
-			
-			//iterate
-			for (int iter=0;iter<ITER_INIT+numPos-5+ITER_END;iter++){
-				// Kmer probs is the sum of the kmer's weight from each sequence
-				// i.e. The number of binding strength explained by this kmer over whole genome
-				for (Kmer kmer:kmers){
-					double kprob=0;
-					for (KmerMatch h: kmer.hits){
-						kprob+=seqProbs[h.seqId]*probsOfKmerInSeq[h.seqId][h.isMinus][h.pos];
-					}
-//					kmer.weight = kprob;
-					kmer.strength = kprob/kmer.count*kmer.seqHitCount;		// re-scale to disfavor simple repeat pattern
-				}
-				// re-calculate kmer's contribution inside each sequence
-				double[] kmerProbs = new double[numPos*2];
-				for (int i=0;i<seq_kmer_map.length;i++){
-					double sum = 0;
-					for (int j=0;j<=1;j++){
-						for(int p=0;p<numPos;p++){
-							if (probsOfKmerInSeq[i][j][p]!=0){
-								double weight=positionProbs[p]*seq_kmer_map[i][j][p].strength;		// influence of position
-								probsOfKmerInSeq[i][j][p] = weight;
-								sum += weight;
-							}
-						}
-					}
-					// after burn-in period, before Iter_end, eliminate low prob position
-					if (iter>ITER_INIT && iter<=ITER_INIT+numPos-5){
-						for (int j=0;j<=1;j++)
-							for(int p=0;p<numPos;p++)
-								kmerProbs[j*numPos+p]=probsOfKmerInSeq[i][j][p];
-						Arrays.sort(kmerProbs);
-						double cutoff = kmerProbs[numPos*2-max_kmer_per_seq];	// keep 5 kmer per sequence
-						for (int j=0;j<=1;j++)
-							for(int p=0;p<numPos;p++)
-								if (probsOfKmerInSeq[i][j][p]<cutoff){	// if less than at least 5th min
-									sum-=probsOfKmerInSeq[i][j][p];
-									probsOfKmerInSeq[i][j][p]=0;
-								}
-					}
-					// normalize
-					if (sum!=0)
-						for (int j=0;j<=1;j++)
-							for(int p=0;p<numPos;p++)
-								if (probsOfKmerInSeq[i][j][p]!=0)
-									probsOfKmerInSeq[i][j][p]/=sum ;
-				}
-	//			System.out.print(iter+" ");
-			}// iterate
-			
-			// re-estimate position probabilities
-			positionProbs = new double[seqLength-k+1];
-			for (Kmer m : kmers){
-				if (m.strength!=0){
-					float[] counts = m.getPositionCounts(seqLength);
-					for (int i=0;i<positionProbs.length;i++){
-						positionProbs[i] += counts[i];
-					}
-				}
-			}
-			positionProbs = StatUtil.gaussianSmoother(positionProbs, smooth);
-//			positionProbs=StatUtil.cubicSpline(positionProbs, 3, 3);
-			printPositionProbabilities(String.format("kmer_%d_%d_p_pos.txt", k, r+1));
-			printKmers(kmers, ""+r+1);
-			printSeqStats(r+1);
-		} // round
-	}
-	
 	private void printPositionProbabilities(String name){
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<positionProbs.length;i++){
@@ -563,92 +420,6 @@ public class KmerEngine {
 	}
 	
 	
-	// find all occurrences of kmer from a list of sequences
-	private void indexKmers(){
-		buildEngine(k, "0");
-		
-		StringBuilder sb = new StringBuilder();
-		for (Kmer kmer:kmers){
-			sb.append(String.format("%s\t%d\t%d\t%.4f\n", kmer.kmerString, kmer.seqHitCount, kmer.negCount, kmer.hg));
-		}
-		CommonUtils.writeFile("Kmer_p_values.txt", sb.toString());
-		System.out.println("Enriched Kmer count:\t" + kmers.size());
-		System.out.println("\nKmers scored "+timeElapsed(tic));
-		
-		// map the kmers to position
-		for (Kmer kmer:kmers){
-			for (KmerMatch hit:kmer.hits){
-				seq_kmer_map[hit.seqId][hit.isMinus][hit.pos] = kmer;
-			}
-		}
-		
-		// build positional probabilities using the high count kmers
-		positionProbs = new double[seqLength-k+1];
-		for (Kmer m : kmers){
-			if (m.count>3){
-				float[] counts = m.getPositionCounts(seqLength);
-				for (int i=0;i<positionProbs.length;i++){
-					positionProbs[i] += counts[i];
-				}
-			}
-		}
-		StatUtil.normalize(positionProbs);
-		positionProbs=StatUtil.gaussianSmoother(positionProbs, smooth);
-		printPositionProbabilities("kmer_"+k+"_0_p_pos.txt");
-		printKmers(kmers, ""+0);
-	}
-	
-	private void printSeqStats(int round){
-		StringBuilder sb = new StringBuilder();
-		StringBuilder sb2 = new StringBuilder();
-		for (int i=0; i<seqs.length; i++){
-			sb.append(i).append(" ").append(seqProbs[i]).append("\t\t").append(seqCoors[i].getChrom()+":"+seqCoors[i].getStart()).append("\n");
-			ArrayList<Kmer> kmers_seq = new ArrayList<Kmer>();
-			Kmer[][] temp = seq_kmer_map[i];
-			for (int s=0;s<2;s++)
-				for (int p=0;p<temp[0].length;p++)
-					if (temp[s][p]!=null)
-						kmers_seq.add(seq_kmer_map[i][s][p]);
-			Collections.sort(kmers_seq);
-			Collections.sort(kmers_seq, new Comparator<Kmer>(){
-			    public int compare(Kmer o1, Kmer o2) {
-			    		return o1.compareByWeight(o2);
-			    }
-			});
-			char[] letters = seqs[i].toLowerCase().toCharArray();
-			char[] symbols = new char[letters.length];
-			for (int s=0;s<symbols.length;s++){
-				symbols[s]='.';
-			}
-			for (Kmer kmer : kmers_seq){
-				for (KmerMatch hit : kmer.hits){
-					if (hit.seqId == i){
-						double resp = probsOfKmerInSeq[i][hit.isMinus][hit.pos]*seqProbs[i];
-						if (resp>6){	// display only if this kmer can support at least 6 read
-							String match = hit.isMinus==0?kmer.kmerString:SequenceUtils.reverseComplement(kmer.kmerString);
-							for (int p=0;p<kmer.k;p++){
-								letters[hit.pos+p]=match.charAt(p);
-								symbols[hit.pos+p]= hit.isMinus==0? '+':'-';
-							}
-							sb.append(String.format("%s/%s %.2f\t%.1f\t/%.2f\n", kmer.kmerString, 
-									SequenceUtils.reverseComplement(kmer.kmerString),
-									probsOfKmerInSeq[i][hit.isMinus][hit.pos],
-									resp,
-									kmer.strength));
-							// print the start position of kmers, to be consistent with warp-drive motif track
-							sb2.append(seqCoors[i].getChrom()+":"+(seqCoors[i].getStart()+hit.pos)).append("\n"); 
-						}
-					}
-				}
-			}
-			
-			sb.append(letters).append("\n").append(symbols).append("\n").append("\n");
-		}
-		CommonUtils.writeFile("kmer_"+k+"_"+round+"_seq.txt", sb.toString());
-		CommonUtils.writeFile("kmer_"+k+"_"+round+"_coords.txt", sb2.toString());
-		System.out.println("print seq stats " + timeElapsed(tic));
-	}
-	
 	private float scorePWM(String seq){
 		float score = 0;
 //		char[] chars = seq.toCharArray();
@@ -657,30 +428,6 @@ public class KmerEngine {
 //        }
         return score;
 	}
-	
-	// print top 5 kmers with seq:pos distribution
-	public void print5Kmers(){
-		for (int i=0;i<5;i++){
-			StringBuilder sb = new StringBuilder();
-			int index=i*100;
-			Kmer kmer = kmers.get(index);
-			ArrayList<KmerMatch> hits = kmer.hits;
-			for (KmerMatch hit:hits){
-				sb.append(hit.seqId).append("\t")
-				  .append(hit.pos).append("\t")
-				  .append(hit.isMinus).append("\n");
-			}
-			CommonUtils.writeFile("kmer_"+k+"_"+index+"_"+kmer.kmerString+".txt", sb.toString());
-		}
-	}
-	
-	public static void main(String[] args){
-		KmerEngine analysis = new KmerEngine(args);
-		analysis.indexKmers();
-		analysis.softWeighting();
-//		analysis.hardExclusion();
-//		analysis.print5Kmers();
-	}	
 	
 	// load text file with sequences
 	private void loadSeqFile(String posFile, String negFile) {
