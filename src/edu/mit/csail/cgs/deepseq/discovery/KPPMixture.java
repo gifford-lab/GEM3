@@ -4804,7 +4804,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		if (kmer==null)
         			continue;
         		b.setKmer(kmer);
-        		int left = kIdx + kEngine.getMaxCount()-kmer.getGlobalShift()+kmer.getK()/2;
+        		int left = kIdx - kEngine.getMaxCount()+kmer.getGlobalShift()-kmer.getK()/2;
         		int right = kIdx - kEngine.getMinCount()+kmer.getGlobalShift()+kmer.getK()/2;
         		if (left<0)
         			left = 0;
