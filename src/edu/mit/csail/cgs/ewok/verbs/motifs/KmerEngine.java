@@ -36,7 +36,6 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 public class KmerEngine {
 	private Genome genome;
 	private boolean engineInitialized;
-	private int seqLength=-1;
 	private int k=10;
 	private int minHitCount = 3;
 	private int numPos;
@@ -91,10 +90,9 @@ public class KmerEngine {
 	 */
 	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp, String outPrefix){
 		this.k = k;
-		numPos = seqLength-k+1;
+		numPos = (winSize+1)-k+1;
 		tic = System.currentTimeMillis();
 		int eventCount = events.size();
-		seqLength = winSize+1;
 		Collections.sort(events);		// sort by location
 		// input data
 		String[]  seqs = new String[eventCount];	// DNA sequences around binding sites
@@ -254,8 +252,7 @@ public class KmerEngine {
 				kmerAllHitCount += kmer.negCount;
 				
 			}
-			double p = 1-StatUtil.hyperGeometricCDF(kmer.seqHitCount, N, kmerAllHitCount, n);
-			kmer.hg = p;
+			kmer.hg = 1-StatUtil.hyperGeometricCDF(kmer.seqHitCount, N, kmerAllHitCount, n);
 //			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));
 			if (kmer.hg>hgp)
 				toRemove.add(kmer);		
@@ -345,15 +342,7 @@ public class KmerEngine {
 
 		return result;
 	}
-	
-	
-	private void printPositionProbabilities(String name){
-		StringBuilder sb = new StringBuilder();
-		for (int i=0;i<positionProbs.length;i++){
-			sb.append(String.format("%d\t%.4f\n",i-seqLength/2, positionProbs[i]));
-		}
-		CommonUtils.writeFile(name, sb.toString());
-	}
+
 	private void printKmers(ArrayList<Kmer> kmers, String outPrefix){
 		Collections.sort(kmers);
 		
