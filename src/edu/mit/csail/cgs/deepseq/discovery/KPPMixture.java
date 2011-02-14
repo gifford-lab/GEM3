@@ -3248,16 +3248,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (config.k==-1)
     		return;
 		HashMap<Kmer, Integer> kmer2count = new HashMap<Kmer, Integer>();
-		HashMap<Kmer, Double> kmer2weight = new HashMap<Kmer, Double>();
+		HashMap<Kmer, Double> kmer2strength = new HashMap<Kmer, Double>();
 		for(Feature f : signalFeatures){
 			ComponentFeature cf = (ComponentFeature)f;
 			Kmer kmer = cf.getKmer();
 			if (kmer==null)
 				continue;
-			if (kmer2weight.containsKey(kmer))	
-				kmer2weight.put(kmer, kmer2weight.get(kmer)+cf.getTotalSumResponsibility());
+			if (kmer2strength.containsKey(kmer))	
+				kmer2strength.put(kmer, kmer2strength.get(kmer)+cf.getTotalSumResponsibility());
 			else
-				kmer2weight.put(kmer, cf.getTotalSumResponsibility());
+				kmer2strength.put(kmer, cf.getTotalSumResponsibility());
 
 			if (kmer2count.containsKey(kmer))				
 				kmer2count.put(kmer, kmer2count.get(kmer)+1);
@@ -3269,7 +3269,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			kmer.setSeqHitCount(kmer2count.get(kmer));
 			kmer.setNegCount(-1);
 			kmers.add(kmer);
-			kmer.setStrength(kmer2weight.get(kmer));
+			kmer.setStrength(kmer2strength.get(kmer));
 		}
 		
 		if (makePFM)
