@@ -11,24 +11,24 @@ import edu.mit.csail.cgs.ewok.verbs.ChromosomeGenerator;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 
-public class RNASeqDifferentialFinder extends DifferentialEnrichmentFinder{
+public class SeqDifferentialFinder extends DifferentialEnrichmentFinder{
 
-	public RNASeqDifferentialFinder(DeepSeqExpt signal) {
+	public SeqDifferentialFinder(DeepSeqExpt signal) {
 		super(signal, null);
 	}
-	public RNASeqDifferentialFinder(DeepSeqExpt signal, DeepSeqExpt ctrl) {
+	public SeqDifferentialFinder(DeepSeqExpt signal, DeepSeqExpt ctrl) {
 		super(signal, ctrl);
 	}
-	public RNASeqDifferentialFinder(String[] args){
+	public SeqDifferentialFinder(String[] args){
 		super(args);
 	}
 	
 	public static void main(String[] args) throws SQLException, NotFoundException {
 		
-		System.out.println("Welcome to the RNASeqDifferentialFinder!!\n\n");
+		System.out.println("Welcome to the SeqDifferentialFinder!!\n\n");
 		
 		long start = System.currentTimeMillis();
-		RNASeqDifferentialFinder finder = new RNASeqDifferentialFinder(args);
+		SeqDifferentialFinder finder = new SeqDifferentialFinder(args);
 		finder.setStrandedFinding(false);
 		System.out.println("Finding enriched regions");
 		List<Feature> peaks = finder.execute(); 
@@ -115,7 +115,7 @@ public class RNASeqDifferentialFinder extends DifferentialEnrichmentFinder{
 	}
 	
 	public void printError(){
-		System.err.println("ChipSeqPeakFinder \n");
+		System.err.println("SeqDifferentialFinder \n");
 		this.printArgs();
 	}
 }
