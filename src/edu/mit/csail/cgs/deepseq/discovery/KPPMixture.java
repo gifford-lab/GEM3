@@ -3284,6 +3284,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			return;
 		
 		ArrayList<TreeSet<Kmer>> alignedKmerSets = extendSeeds(kmerList);
+		
 		int k = kmerList.get(0).getK();
 		int max = kEngine.getMaxShift();
 		int min = kEngine.getMinShift();

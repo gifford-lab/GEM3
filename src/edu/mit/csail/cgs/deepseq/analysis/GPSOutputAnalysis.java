@@ -169,6 +169,22 @@ public class GPSOutputAnalysis {
 	// generate motifs from groups
 	
   }
+  
+  public void learnPFM(){
+	  // align bound sequences underlying the binding events
+	HashMap<String, Integer> kmer2count = new HashMap<String, Integer>();
+	for(GPSPeak p : gpsPeaks){	// 
+		String seq = p.getBoundSequence();
+	}
+	ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+	for (String k : kmer2count.keySet()){
+		kmers.add(new Kmer(k, kmer2count.get(k)));
+	}
+
+	// build PFM from each aligned group of sequences
+
+	
+  }
   private void extendSeeds(ArrayList<Kmer> kmers){
 	char[] letters = {'A','C','G','T'};
 	int MISS = 1;
