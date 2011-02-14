@@ -137,10 +137,14 @@ public class GPS2 {
         String peakFileName = mixture.getOutName();
         mixture.setOutName(peakFileName+"_"+round);
 		
+        int update_model_round = 3;
+        if (Args.parseInteger(args,"k", -1)!=-1)
+        	update_model_round = 1;
+        update_model_round = Args.parseInteger(args,"r", update_model_round);
+                
         /**
          ** Simple GPS1 event finding without sequence information
          **/
-        int update_model_round = Args.parseInteger(args,"r", 3);
         while (kl>-5 && round<=update_model_round){
             System.out.println("\n============================ Round "+round+" ============================");
             mixture.execute();
@@ -148,7 +152,6 @@ public class GPS2 {
             mixture.printFilteredFeatures();
             mixture.printInsignificantFeatures();
 			
-            mixture.initKmerEngine(peakFileName+"_"+round);
             round++;
             mixture.setOutName(peakFileName+"_"+round);
 
@@ -181,16 +184,18 @@ public class GPS2 {
             mixture.setOutName(peakFileName+"_"+round);
 
             mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+            
             if (round < update_model_round+3)
-            	mixture.updateKmerEngine(peakFileName+"_"+round, false);
+            	mixture.updateKmerEngine(false);
             else
-            	mixture.updateKmerEngine(peakFileName+"_"+round, true);
+            	mixture.updateKmerEngine(true);
         }
         //round--;
      
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
-        System.out.println("Finished! Binding events are printed to: "+mixture.getOutName()+"_GPS_significant.txt");
+        
+        System.out.println("Finished! Binding events are printed to: "+peakFileName+"_"+(round-1)+"_GPS_significant.txt");
     }
 	
     public static void main(String[] args) throws Exception {

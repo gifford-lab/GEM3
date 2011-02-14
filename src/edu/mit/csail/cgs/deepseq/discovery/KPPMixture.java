@@ -3244,7 +3244,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
     
     // update kmerEngine with the predicted kmer-events
-    public void updateKmerEngine(String outPrefix, boolean makePFM){
+    public void updateKmerEngine(boolean makePFM){
     	if (config.k==-1)
     		return;
 		HashMap<Kmer, Integer> kmer2count = new HashMap<Kmer, Integer>();
@@ -3273,17 +3273,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		
 		if (makePFM)
-			makePFM(kmers, outPrefix);
+			makePFM(kmers);
 		
-		kEngine.updateEngine(kmers, outPrefix);
+		kEngine.updateEngine(kmers, outName);
     }
 	
     // make position frequency matrix
-	private void makePFM(ArrayList<Kmer> kmerList, String outPrefix){
+	private void makePFM(ArrayList<Kmer> kmerList){
 		if (kmerList.isEmpty())
 			return;
 		
-		ArrayList<TreeSet<Kmer>> alignedKmerSets = extendSeeds(kmerList, outPrefix);
+		ArrayList<TreeSet<Kmer>> alignedKmerSets = extendSeeds(kmerList);
 		int k = kmerList.get(0).getK();
 		int max = kEngine.getMaxShift();
 		int min = kEngine.getMinShift();
@@ -3297,7 +3297,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// print out motif result
 		StringBuilder msb = new StringBuilder();
 		for (int i=0;i<alignedKmerSets.size();i++){	
-			msb.append("DE "+outPrefix+"_"+(i+1)+"("+alignedKmerSets.get(i).size()).append(")\n");
+			msb.append("DE "+outName+"_"+(i+1)+"("+alignedKmerSets.get(i).size()).append(")\n");
 			double[][] pfm = pfms[i] ;
 			for (int p=0;p<pfm.length;p++){
 				msb.append(p+1).append(" ");
@@ -3314,7 +3314,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			msb.append("XX\n\n");
 		}
-		CommonUtils.writeFile(outPrefix+"_PFM.txt", msb.toString());	
+		CommonUtils.writeFile(outName+"_PFM.txt", msb.toString());	
 		
 		//print out the kmers
 		StringBuilder sb = new StringBuilder();
@@ -3331,7 +3331,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			sb.append("\n");
 		}
 		sb.append("Total kmer groups: " + alignedKmerSets.size());
-		CommonUtils.writeFile(outPrefix+"_AlignedKmers.txt", sb.toString());
+		CommonUtils.writeFile(outName+"_AlignedKmers.txt", sb.toString());
 		
 		//print out the kmer strings in fasta format
 		sb = new StringBuilder();
@@ -3339,16 +3339,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (TreeSet<Kmer> ks:alignedKmerSets){
 			int kk=0;
 			for (Kmer km: ks){
-				sb.append(">"+outPrefix+"_"+g+"_"+kk).append("\n");
+				sb.append(">"+outName+"_"+g+"_"+kk).append("\n");
 				sb.append(km.getKmerString()).append("\n");		
 	    		kk++;
 			}
 			g++;
 		}
-		CommonUtils.writeFile(outPrefix+"_Kmers.fa", sb.toString());
+		CommonUtils.writeFile(outName+"_Kmers.fa", sb.toString());
 	  }
 
-	private ArrayList<TreeSet<Kmer>> extendSeeds(ArrayList<Kmer> kmerList, String outPrefix){
+	private ArrayList<TreeSet<Kmer>> extendSeeds(ArrayList<Kmer> kmerList){
     	if (kmerList.isEmpty())
     		return null;
     	
