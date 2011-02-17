@@ -506,7 +506,6 @@ public class ServerTask {
             printString("Must supply princ and group :" + princ + "," + group + "\n");
             return;
         }
-        Lock.writeLock("group.txt");
         server.addToGroup(this,group,princ);
         printOK();
     }
