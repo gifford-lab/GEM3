@@ -108,7 +108,7 @@ public class WeightMatrix {
             ps.close();
             DatabaseFactory.freeConnection(cxn);
             long end = System.currentTimeMillis();
-            System.err.println(String.format("getAllWeightMatrices took %d and %d",mid-start,end-mid));
+            System.err.println(String.format("getAllWeightMatrices took %d and %d",middle-start,end-middle));
             return matrices;
         } catch (SQLException ex){ 
             throw new DatabaseException(ex.toString(),ex);
