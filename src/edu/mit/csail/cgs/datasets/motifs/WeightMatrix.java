@@ -96,16 +96,19 @@ public class WeightMatrix {
 
     public static Collection<WeightMatrix> getAllWeightMatrices() {
         try {
+            long start = System.currentTimeMillis();
             java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");
             PreparedStatement ps = cxn.prepareStatement("select m.id, m.species, m.name, m.version, m.type, m.bg_model_map_id, c.position, c.letter, c.weight from "
                                                         + "weightmatrix m, weightmatrixcols c where "
                                                         + " m.id = c.weightmatrix order by c.weightmatrix, c.position desc");
             ResultSet rs = ps.executeQuery();
-
+            long middle = System.currentTimeMillis();
             Collection<WeightMatrix> matrices = WeightMatrix.getWeightMatrices(rs);
             rs.close();
             ps.close();
             DatabaseFactory.freeConnection(cxn);
+            long end = System.currentTimeMillis();
+            System.err.println(String.format("getAllWeightMatrices took %d and %d",mid-start,end-mid));
             return matrices;
         } catch (SQLException ex){ 
             throw new DatabaseException(ex.toString(),ex);
