@@ -19,9 +19,11 @@ public class GPSPeak extends Point{
 	double kmerStrength;
 	String boundSequence;
 	public String getKmer() {return kmer;}
+	public void setKmer(String km) {kmer=km;}
 	public int getKmerCount() {	return kmerCount;}
 	public double getKmerStrength() {return kmerStrength;}
 	public String getBoundSequence() {return boundSequence;}
+	public void setBoundSequence(String bs) {boundSequence=bs;}
 
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double controlStrength, double qvalue, double pvalue, double IPvsEMP, 

@@ -92,7 +92,17 @@ public class WeightMatrix {
         hasspeciesid = false;
         matrix = new float[length][MAXLETTERVAL];                
     }
-
+    
+    /** 
+     ** the input matrix must follow the definition of WeightMatrix (see comments at the beginning of the java class)
+     **/
+    public WeightMatrix (float[][] pwm) {
+        dbid = -1;
+        hasdbid = false;
+        hasspeciesid = false;
+        matrix = pwm; 
+        islogodds = true;
+    }
 
     public static Collection<WeightMatrix> getAllWeightMatrices() {
         try {

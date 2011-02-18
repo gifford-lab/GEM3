@@ -38,11 +38,13 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class GPSOutputAnalysis {
   static final int NOHIT_OFFSET = 999;
   static final int maxAnnotDistance=50000;
+  private final char[] LETTERS = {'A','C','G','T'};
   
   private int motif_window = 100;  
   private Genome genome;
@@ -129,7 +131,7 @@ public class GPSOutputAnalysis {
 	case 2:	analysis.geneAnnotation();break;
 	case 3:	analysis.expressionIntegration();break;
 	case 4: analysis.printMotifHitSequence(top);break;
-	case 5: analysis.kmerGrouping();break;
+	case 5: analysis.clusterSequences();break;
 	default: System.err.println("Unrecognize analysis type: "+type);
 	}
   }
@@ -170,21 +172,459 @@ public class GPSOutputAnalysis {
 	
   }
   
-  public void learnPFM(){
-	  // align bound sequences underlying the binding events
+  public void clusterSequences(){
+	ArrayList<GPSPeak> unalignedPeaks = new ArrayList<GPSPeak>();
+	for(GPSPeak p : gpsPeaks){
+		String kmer = p.getKmer();
+		if (kmer!=null && !kmer.equals(""))
+			unalignedPeaks.add(p);
+	}
+	
+	// get kmers and their counts
 	HashMap<String, Integer> kmer2count = new HashMap<String, Integer>();
-	for(GPSPeak p : gpsPeaks){	// 
-		String seq = p.getBoundSequence();
+	for(GPSPeak p : gpsPeaks){
+		String kmer = p.getKmer();
+		if (kmer==null || kmer.equals(""))
+			continue;
+		if (kmer2count.containsKey(kmer))
+			kmer2count.put(kmer, kmer2count.get(kmer)+1);
+		else
+			kmer2count.put(kmer, 1);
 	}
 	ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 	for (String k : kmer2count.keySet()){
 		kmers.add(new Kmer(k, kmer2count.get(k)));
 	}
-
-	// build PFM from each aligned group of sequences
-
+	if (kmers.isEmpty())
+		return;
 	
+	Collections.sort(kmers);
+	
+	// calc background frequencies of bases in all bound sequence
+	double gc = 0.21;
+	double[] bg = {0.5-gc,gc,gc,0.5-gc};
+//	double[] bg = new double[LETTERS.length];
+//	for(GPSPeak p : gpsPeaks){	
+//		String seq = p.getBoundSequence();
+//		if (seq==null || seq.equals(""))
+//			continue;
+//		for (int i=0;i<seq.length();i++){
+//			for (int b=0;b<LETTERS.length;b++){
+//				if (seq.charAt(i)==LETTERS[b])
+//					bg[b]++;
+//			}
+//		}
+//	}
+//	// normalize
+//	double sum=0;
+//	for (int b=0;b<LETTERS.length;b++){
+//		sum += bg[b];
+//	}
+//	for (int b=0;b<LETTERS.length;b++){
+//		bg[b] /=sum;
+//	}
+//	// consider 2 strands
+//	bg[0]=(bg[0]+bg[3])/2;
+//	bg[3]=bg[0];
+//	bg[1]=(bg[1]+bg[2])/2;
+//	bg[2]=bg[1];
+	
+	ArrayList<Pair<ArrayList<GPSPeak>, ArrayList<Integer>>> clusters = new ArrayList<Pair<ArrayList<GPSPeak>, ArrayList<Integer>>>();
+	while(!unalignedPeaks.isEmpty()){
+		Pair<ArrayList<GPSPeak>, ArrayList<Integer>> cluster = growSeqCluster(unalignedPeaks, kmers, bg);
+		if (cluster!=null)
+			clusters.add(cluster);
+		else
+			break;
+	}
+	
+	// build WeightMatrix from each aligned group of sequences
+	System.out.println("Total clusters of motifs: "+clusters.size());
+	int count = 0;
+	StringBuilder sb = new StringBuilder();
+	for (Pair<ArrayList<GPSPeak>, ArrayList<Integer>> cluster : clusters){
+		if (cluster.car().size()<=5)
+			continue;
+		else
+			System.out.println("This cluster of motifs is learned from "+cluster.car().size()+" binding events.");
+		WeightMatrix wm = makePWM( cluster.car(), cluster.cdr(), bg, false);
+//		System.out.println(WeightMatrix.printMatrix(wm));
+		System.out.println(WeightMatrix.printMatrixLetters(wm));
+		
+		sb.append(getPFMString(cluster.car(), cluster.cdr(), wm.length(), count++));
+	}
+	CommonUtils.writeFile("Ctcf_PFM.txt", sb.toString());
   }
+  
+  // make PFM from aligned sequences
+  private String getPFMString(ArrayList<GPSPeak> alignedPeaks, ArrayList<Integer> peakShifts, int length, int num){
+    int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
+            Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
+	boolean useStrength = true;
+
+    String outName = "Ctcf";
+	double[][] pfm = new double[length][MAXLETTERVAL];
+	for (int i=0;i<alignedPeaks.size();i++){
+		GPSPeak peak = alignedPeaks.get(i);
+		int shift = peakShifts.get(i);	
+		String seq = peak.getBoundSequence().substring(shift, shift+length);		
+		for (int p=0;p<length;p++){
+			char base = seq.charAt(p);
+			double strength = useStrength?alignedPeaks.get(i).getStrength():1;
+			pfm[p][base] +=strength;
+		}
+	}
+	
+	// make string in TRANSFAC format
+	StringBuilder msb = new StringBuilder();
+	msb.append(String.format("DE %s_%d_c%d\n", outName, num, alignedPeaks.size()));
+	for (int p=0;p<pfm.length;p++){
+		msb.append(p+1).append(" ");
+		int maxBase = 0;
+		double maxCount=0;
+		for (int b=0;b<LETTERS.length;b++){
+			msb.append(String.format("%d ", (int)pfm[p][LETTERS[b]]));
+			if (maxCount<pfm[p][LETTERS[b]]){
+				maxCount=pfm[p][LETTERS[b]];
+				maxBase = b;
+			}
+		}
+		msb.append(LETTERS[maxBase]).append("\n");
+	}
+	msb.append("XX\n\n");
+	return msb.toString();
+  }
+  
+  // greedily grow a cluster from the top count kmer
+  private Pair<ArrayList<GPSPeak>, ArrayList<Integer>> growSeqCluster(ArrayList<GPSPeak> unalignedPeaks, ArrayList<Kmer> kmers, double[] bg){
+	ArrayList<GPSPeak> alignedPeaks = new ArrayList<GPSPeak>();
+	ArrayList<Integer> peakShifts = new ArrayList<Integer>();
+	growByKmers(alignedPeaks,peakShifts, kmers, unalignedPeaks);
+	if (alignedPeaks.isEmpty())
+		return null;
+	WeightMatrix wm = makePWM( alignedPeaks, peakShifts, bg, true);
+
+	boolean noMore=false;
+	while(!noMore){
+		noMore = growByPWM(alignedPeaks, peakShifts, kmers,  unalignedPeaks, wm, bg);
+	}
+	
+	return new Pair<ArrayList<GPSPeak>, ArrayList<Integer>>(alignedPeaks, peakShifts);
+  }
+	
+  //continue to greedily grow a cluster from kmer-aligned peaks by building a PWM
+  private boolean growByPWM(ArrayList<GPSPeak> alignedPeaks, ArrayList<Integer> peakShifts, ArrayList<Kmer> kmers, ArrayList<GPSPeak> unalignedPeaks, WeightMatrix wm, double[] bg){
+	double wm_factor = 0.3;
+	
+	// build PWM from Kmer cores
+	boolean noMore = true;
+	ArrayList<GPSPeak> temp = new ArrayList<GPSPeak>();
+	HashSet<String> alignedKmers = new HashSet<String>();
+	if (alignedPeaks.size()<=5)
+		return true;
+	
+	double maxWMScore = wm.getMaxScore();	
+    WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+
+	// update the peakShifts for previously identified sequences, w.r.t. PWM
+    for (int p=0;p<alignedPeaks.size();p++){
+    	GPSPeak peak = alignedPeaks.get(p);
+    	String seq = peak.getBoundSequence();
+  	  if (seq==null||seq.length()<wm.length()-1){
+		  continue;
+	  }
+        WeightMatrixScoreProfile profiler = scorer.execute(seq);
+        double maxSeqScore = Double.NEGATIVE_INFINITY;
+        int maxScoringShift = 0;
+        char maxScoringStrand = '+';
+        for (int i=0;i<profiler.length();i++){
+      	  double score = profiler.getMaxScore(i);
+      	  if (maxSeqScore<score){
+      		  maxSeqScore = score;
+      		  maxScoringShift = i;
+      		  maxScoringStrand = profiler.getMaxStrand(i);
+      	  }
+        }
+        
+  	  	if (maxScoringStrand =='-'){
+  		  peak.setBoundSequence(SequenceUtils.reverseComplement(seq));
+  		  maxScoringShift = seq.length()-(wm.length())-maxScoringShift;		// WM has a extra column
+  	  	}
+		peakShifts.set(p, maxScoringShift);		// update
+    }
+
+    for (GPSPeak peak: unalignedPeaks){
+	  String seq = peak.getBoundSequence();
+	  if (seq==null||seq.length()<wm.length()-1){
+		  temp.add(peak);
+		  continue;
+	  }
+      WeightMatrixScoreProfile profiler = scorer.execute(seq);
+      double maxSeqScore = Double.NEGATIVE_INFINITY;
+      int maxScoringShift = 0;
+      char maxScoringStrand = '+';
+      for (int i=0;i<profiler.length();i++){
+    	  double score = profiler.getMaxScore(i);
+    	  if (maxSeqScore<score){
+    		  maxSeqScore = score;
+    		  maxScoringShift = i;
+    		  maxScoringStrand = profiler.getMaxStrand(i);
+    	  }
+      }
+      if (maxSeqScore >= maxWMScore * wm_factor){
+    	  	if (maxScoringStrand =='-'){
+    		  peak.setBoundSequence(SequenceUtils.reverseComplement(seq));
+    		  maxScoringShift = seq.length()-wm.length()-maxScoringShift;
+    	  	}
+			alignedPeaks.add(peak);
+			peakShifts.add(maxScoringShift);
+			temp.add(peak);
+			alignedKmers.add(peak.getKmer());
+			noMore = false;
+      }
+    }
+
+	// sync aligned kmers
+	unalignedPeaks.removeAll(temp);
+	temp.clear();	
+	ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+	for (Kmer kmer: kmers){
+		if (alignedKmers.contains(kmer.getKmerString())){
+			toRemove.add(kmer);
+		}
+	}
+	kmers.removeAll(toRemove);
+	return noMore;
+  }
+  
+  private WeightMatrix makePWM(ArrayList<GPSPeak> alignedPeaks, ArrayList<Integer> peakShifts, double[] bg, boolean isFromKmers){
+	double ic_trim = 0.4;
+	boolean useStrength = true;
+	
+	int seqLen = alignedPeaks.get(0).getBoundSequence().length();
+	
+	// count
+	int leftMost = seqLen;
+	int shortest = seqLen;	// the shortest length starting from the shift position
+	for (int i=0;i<alignedPeaks.size();i++){
+		GPSPeak peak = alignedPeaks.get(i);
+		String seq = peak.getBoundSequence();
+		int shift = peakShifts.get(i);			
+		if (isFromKmers){
+			int start = seq.indexOf(peak.getKmer());		// start position of kmer in the sequence
+			shift += start;
+			peakShifts.set(i, shift);
+		}
+		if (leftMost>shift)
+			leftMost = shift;
+		if (shortest>seq.length()-shift)
+			shortest=seq.length()-shift;
+	}
+
+	int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
+            Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
+	double[][] pwm = new double[leftMost+shortest][MAXLETTERVAL];
+	for (int i=0;i<alignedPeaks.size();i++){
+		int shift = peakShifts.get(i);	
+		String seq  = alignedPeaks.get(i).getBoundSequence().substring(shift-leftMost, shift+shortest);
+		for (int p=0;p<leftMost+shortest;p++){
+			char base = seq.charAt(p);
+			double strength = useStrength?alignedPeaks.get(i).getStrength():1;
+			pwm[p][base] +=strength;
+		}
+	}
+	
+	// normalize and log2
+	double[] ic = new double[pwm.length];						// information content
+	for (int p=0;p<pwm.length;p++){
+		int sum=0;
+		for (int b=0;b<LETTERS.length;b++){
+			sum += pwm[p][LETTERS[b]];
+		}
+		for (int b=0;b<LETTERS.length;b++){
+			char base = LETTERS[b];
+			if (pwm[p][base]==0)
+				pwm[p][base]=1;
+			double f = pwm[p][base]/sum;						// normalize freq
+			pwm[p][base] = Math.log(f/bg[b])/Math.log(2.0);		//log base 2
+			ic[p] += f*pwm[p][base];
+		}
+	}
+	// TODO: trim low ic ends
+	int leftIdx=0;
+	for (int p=0;p<ic.length;p++){
+		if (ic[p]>ic_trim){
+			leftIdx=p;
+			break;
+		}
+	}
+	int rightIdx=ic.length-1;
+	for (int p=ic.length-1;p>=0;p--){
+		if (ic[p]>ic_trim){
+			rightIdx=p;
+			break;
+		}
+	}
+	
+	// make a WeightMatrix object
+	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
+	for(int p=leftIdx;p<=rightIdx;p++){
+		for (int b=0;b<LETTERS.length;b++){
+			matrix[p-leftIdx][LETTERS[b]]=(float) pwm[p][LETTERS[b]];
+		}
+	}
+	WeightMatrix wm = new WeightMatrix(matrix);
+//	System.out.println(WeightMatrix.printMatrixLetters(wm));
+	return wm;
+  }
+
+  //greedily grow a cluster from the top count kmer only by matching kmers
+  private void growByKmers(ArrayList<GPSPeak> alignedPeaks, ArrayList<Integer> peakShifts, ArrayList<Kmer> kmers, ArrayList<GPSPeak> unalignedPeaks){
+	ArrayList<GPSPeak> temp = new ArrayList<GPSPeak>();
+	HashSet<String> alignedKmers = new HashSet<String>();
+	String seedKmerStr = kmers.get(0).getKmerString();
+	String seedKmerRC = kmers.get(0).getKmerRC();
+
+	// align bound sequences underlying the binding events
+	// 1. find perfect kmer matches
+	for(GPSPeak p : unalignedPeaks){	
+		String kmer = p.getKmer();
+		if (kmer==null)
+			continue;
+		if (kmer.equals(seedKmerStr)){
+			alignedPeaks.add(p);
+			peakShifts.add(0);
+			alignedKmers.add(kmer);
+			continue;
+		}
+		if (kmer.equals(seedKmerRC)){
+			alignedPeaks.add(p);
+			peakShifts.add(0);
+			alignedKmers.add(kmer);
+		}
+	}
+	unalignedPeaks.removeAll(alignedPeaks);
+	// 2. with 1 mismatch
+	for(GPSPeak p : unalignedPeaks){	
+		String kmer = p.getKmer();
+		if (kmer==null)
+			continue;
+		if (mismatch(seedKmerStr, kmer)<=1){
+			alignedPeaks.add(p);
+			peakShifts.add(0);
+			temp.add(p);
+			alignedKmers.add(kmer);
+		}
+		else if(mismatch(seedKmerRC, kmer)<=1){	// if match RC, reset kmer and seq
+			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
+			p.setKmer(SequenceUtils.reverseComplement(p.getKmer()));
+			alignedPeaks.add(p);
+			peakShifts.add(0);
+			temp.add(p);
+			alignedKmers.add(kmer);
+		}
+	}
+	unalignedPeaks.removeAll(temp);
+	temp.clear();
+	// 3. with 1 shift, 0 or 1 mismatch
+	for(GPSPeak p : unalignedPeaks){	
+		if (p.getKmer()==null)
+			continue;
+		String kmer = p.getKmer().substring(1);
+		String ref = seedKmerStr.substring(0, seedKmerStr.length()-1);
+		String refRC = seedKmerRC.substring(1);
+		if (mismatch(ref, kmer)<=1){
+			alignedPeaks.add(p);
+			peakShifts.add(1);
+			temp.add(p);
+			alignedKmers.add(p.getKmer());
+		}
+		else if(mismatch(refRC, kmer)<=1){	// if match RC, reset kmer and seq
+			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
+			p.setKmer(SequenceUtils.reverseComplement(p.getKmer()));
+			alignedPeaks.add(p);
+			peakShifts.add(1);
+			temp.add(p);
+			alignedKmers.add(p.getKmer());
+		}
+	}
+	unalignedPeaks.removeAll(temp);
+	temp.clear();	
+	for(GPSPeak p : unalignedPeaks){	
+		if (p.getKmer()==null)
+			continue;
+		String kmer = p.getKmer().substring(0, seedKmerStr.length()-1);
+		String ref = seedKmerStr.substring(1);
+		String refRC = seedKmerRC.substring(0, seedKmerStr.length()-1);
+		if (mismatch(ref, kmer)<=1){
+			alignedPeaks.add(p);
+			peakShifts.add(-1);
+			temp.add(p);
+			alignedKmers.add(p.getKmer());
+		}
+		else if(mismatch(refRC, kmer)<=1){	// if match RC, reset kmer and seq
+			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
+			p.setKmer(SequenceUtils.reverseComplement(p.getKmer()));
+			alignedPeaks.add(p);
+			peakShifts.add(-1);
+			temp.add(p);
+			alignedKmers.add(p.getKmer());
+		}
+	}
+	unalignedPeaks.removeAll(temp);
+	temp.clear();	
+	ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+	for (Kmer kmer: kmers){
+		if (alignedKmers.contains(kmer.getKmerString())){
+			toRemove.add(kmer);
+		}
+	}
+	kmers.removeAll(toRemove);
+  }
+
+private int mismatch(String ref, String seq){
+	  if (ref.length()!=seq.length())
+		  return -1;
+	  int mismatch = 0;
+	  for (int i=0;i<ref.length();i++){
+		  if (ref.charAt(i)!=seq.charAt(i))
+			  mismatch ++;
+	  }
+	  return mismatch;
+  }
+  
+  private Pair<Integer, Integer> scoreSequence(String ref, String seq){
+	int refLen = ref.length();
+	int maxScore=0;
+	int maxShift=0;
+	//try all possible shifts to get the largest score
+	byte[] thisBytes = seq.getBytes();
+	byte[] refBytes = ref.getBytes();
+	for (int s=-refLen;s<=+refLen;s++){
+		int largestCount = 0;
+		int count = 0;
+		for (int i=-refLen;i<refLen+refLen;i++){
+			if (i<0 || i>refLen-1 ||i+s<0 || i+s>refLen-1 )
+				continue;
+			if (refBytes[i]==thisBytes[i+s]){
+				count ++;			// increment for match
+				if (count>largestCount){
+					largestCount = count;
+				}
+			}else{
+				if (count!=0)		// restart when score drops below zero
+					count--;		// decrement for mismatch
+			}
+		}
+		
+		if (largestCount>maxScore){
+			maxScore = largestCount;
+			maxShift = s;
+		}
+	}
+	return new Pair<Integer, Integer>(maxScore, maxShift);
+  }
+  
   private void extendSeeds(ArrayList<Kmer> kmers){
 	char[] letters = {'A','C','G','T'};
 	int MISS = 1;

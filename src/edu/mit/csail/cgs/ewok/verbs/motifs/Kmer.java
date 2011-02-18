@@ -14,6 +14,9 @@ public class Kmer implements Comparable<Kmer>{
 	double hg;
 	int negCount;
 	
+	int cluster=-1;			// non-negative integer, type of clustered motif 
+	public void setCluster(int c){cluster=c;}
+	public int getCluster(){return cluster;}
 	Kmer reference;		//
 	public Kmer getRef(){return reference;}
 	int shift;			// the shift to achieve best score
