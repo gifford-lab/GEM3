@@ -101,6 +101,7 @@ public class WeightMatrix {
             PreparedStatement ps = cxn.prepareStatement("select m.id, m.species, m.name, m.version, m.type, m.bg_model_map_id, c.position, c.letter, c.weight from "
                                                         + "weightmatrix m, weightmatrixcols c where "
                                                         + " m.id = c.weightmatrix order by c.weightmatrix, c.position desc");
+            ps.setFetchSize(100000);
             ResultSet rs = ps.executeQuery();
             long middle = System.currentTimeMillis();
             Collection<WeightMatrix> matrices = WeightMatrix.getWeightMatrices(rs);
