@@ -17,6 +17,7 @@ import cern.jet.random.engine.DRand;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.features.*;
@@ -26,6 +27,8 @@ import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
 import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine;
+import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
+import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.Utils;
 import edu.mit.csail.cgs.utils.Pair;
@@ -38,6 +41,8 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 class KPPMixture extends MultiConditionFeatureFinder {
 	private final char[] LETTERS = {'A','C','G','T'};
+	private final int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
+            Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
 	
     private GPSConfig config;
     private GPSConstants constants;
@@ -3278,6 +3283,401 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		kEngine.updateEngine(kmers, outName);
     }
 	
+    /*
+     * Cluster the bound sequences at binding events based on Kmer and PWM learning
+     */
+    public void clusterEventSequences(){
+    	ArrayList<ComponentFeature> unalignedFeatures = new ArrayList<ComponentFeature>();
+    	for(Feature f : signalFeatures){
+			ComponentFeature cf = (ComponentFeature)f;
+    		String kmer = cf.getKmer().getKmerString();
+    		if (kmer!=null && !kmer.equals(""))
+    			unalignedFeatures.add(cf);
+    	}
+    	
+    	// get kmers and their counts
+    	HashMap<String, Integer> kmer2count = new HashMap<String, Integer>();
+    	for(ComponentFeature cf : unalignedFeatures){
+    		String kmer = cf.getKmer().getKmerString();
+    		if (kmer==null || kmer.equals(""))
+    			continue;
+    		if (kmer2count.containsKey(kmer))
+    			kmer2count.put(kmer, kmer2count.get(kmer)+1);
+    		else
+    			kmer2count.put(kmer, 1);
+    	}
+    	ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+    	for (String k : kmer2count.keySet()){
+    		kmers.add(new Kmer(k, kmer2count.get(k)));
+    	}
+    	if (kmers.isEmpty())
+    		return;
+    	
+    	Collections.sort(kmers);
+    	
+    	double[] bg = {0.5-config.gc/2,config.gc/2,config.gc/2,0.5-config.gc/2};
+    	
+    	ArrayList<Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>> clusters = new ArrayList<Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>>();
+    	while(!unalignedFeatures.isEmpty()){
+    		Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> cluster = growSeqCluster(unalignedFeatures, kmers, bg);
+    		if (cluster!=null)
+    			clusters.add(cluster);
+    		else
+    			break;
+    	}
+    	
+    	// build WeightMatrix from each aligned group of sequences
+    	System.out.println("Total clusters of motifs: "+clusters.size());
+    	int count = 0;
+    	StringBuilder sb = new StringBuilder();
+    	for (Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> cluster : clusters){
+    		if (cluster.car().size()<=5)
+    			continue;
+    		else
+    			System.out.println("Motif cluster "+count+", from "+cluster.car().size()+" binding events.");
+    		WeightMatrix wm = makePWM( cluster.car(), cluster.cdr(), bg, false);
+//    		System.out.println(WeightMatrix.printMatrix(wm));
+    		System.out.println(WeightMatrix.printMatrixLetters(wm));    		
+    		sb.append(getPFMString(cluster.car(), cluster.cdr(), wm.length(), count++));
+    	}
+    	CommonUtils.writeFile(outName+"_PFM.txt", sb.toString());
+      }
+      
+      // make PFM from aligned sequences
+      private String getPFMString(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> peakShifts, int length, int num){
+        int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
+                Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
+    	boolean useStrength = true;
+
+        String outName = "Ctcf";
+    	double[][] pfm = new double[length][MAXLETTERVAL];
+    	for (int i=0;i<alignedFeatures.size();i++){
+    		ComponentFeature cf = alignedFeatures.get(i);
+    		int shift = peakShifts.get(i);	
+    		String seq = cf.getBoundSequence().substring(shift, shift+length);		
+    		for (int p=0;p<length;p++){
+    			char base = seq.charAt(p);
+    			double strength = useStrength?alignedFeatures.get(i).getTotalSumResponsibility():1;
+    			pfm[p][base] +=strength;
+    		}
+    	}
+    	
+    	// make string in TRANSFAC format
+    	StringBuilder msb = new StringBuilder();
+    	msb.append(String.format("DE %s_%d_c%d\n", outName, num, alignedFeatures.size()));
+    	for (int p=0;p<pfm.length;p++){
+    		msb.append(p+1).append(" ");
+    		int maxBase = 0;
+    		double maxCount=0;
+    		for (int b=0;b<LETTERS.length;b++){
+    			msb.append(String.format("%d ", (int)pfm[p][LETTERS[b]]));
+    			if (maxCount<pfm[p][LETTERS[b]]){
+    				maxCount=pfm[p][LETTERS[b]];
+    				maxBase = b;
+    			}
+    		}
+    		msb.append(LETTERS[maxBase]).append("\n");
+    	}
+    	msb.append("XX\n\n");
+    	return msb.toString();
+      }
+      
+      // greedily grow a cluster from the top count kmer
+      private Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> growSeqCluster(ArrayList<ComponentFeature> unalignedFeatures, ArrayList<Kmer> kmers, double[] bg){
+    	  ArrayList<ComponentFeature> alignedFeatures = new ArrayList<ComponentFeature>();
+    	ArrayList<Integer> peakShifts = new ArrayList<Integer>();
+    	growByKmers(alignedFeatures,peakShifts, kmers, unalignedFeatures);
+    	if (alignedFeatures.isEmpty())
+    		return null;
+    	WeightMatrix wm = makePWM( alignedFeatures, peakShifts, bg, true);
+
+    	boolean noMore=false;
+    	while(!noMore){
+    		noMore = growByPWM(alignedFeatures, peakShifts, kmers,  unalignedFeatures, wm, bg);
+    	}
+    	
+    	return new Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>(alignedFeatures, peakShifts);
+      }
+    	
+      //continue to greedily grow a cluster from kmer-aligned peaks by building a PWM
+      private boolean growByPWM(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> peakShifts, ArrayList<Kmer> kmers, ArrayList<ComponentFeature> unalignedFeatures, WeightMatrix wm, double[] bg){
+    	double wm_factor = 0.3;
+    	
+    	// build PWM from Kmer cores
+    	boolean noMore = true;
+    	ArrayList<ComponentFeature> temp = new ArrayList<ComponentFeature>();
+    	HashSet<String> alignedKmers = new HashSet<String>();
+    	if (alignedFeatures.size()<=5)
+    		return true;
+    	
+    	double maxWMScore = wm.getMaxScore();	
+        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+
+    	// update the peakShifts for previously identified sequences, w.r.t. PWM
+        for (int p=0;p<alignedFeatures.size();p++){
+        	ComponentFeature cf = alignedFeatures.get(p);
+        	String seq = cf.getBoundSequence();
+      	  if (seq==null||seq.length()<wm.length()-1){
+    		  continue;
+    	  }
+            WeightMatrixScoreProfile profiler = scorer.execute(seq);
+            double maxSeqScore = Double.NEGATIVE_INFINITY;
+            int maxScoringShift = 0;
+            char maxScoringStrand = '+';
+            for (int i=0;i<profiler.length();i++){
+          	  double score = profiler.getMaxScore(i);
+          	  if (maxSeqScore<score){
+          		  maxSeqScore = score;
+          		  maxScoringShift = i;
+          		  maxScoringStrand = profiler.getMaxStrand(i);
+          	  }
+            }
+            
+      	  	if (maxScoringStrand =='-'){
+      		  cf.setBoundSequence(SequenceUtils.reverseComplement(seq));
+      		  maxScoringShift = seq.length()-(wm.length())-maxScoringShift;		// WM has a extra column
+      	  	}
+    		peakShifts.set(p, maxScoringShift);		// update
+        }
+
+        for (ComponentFeature cf: unalignedFeatures){
+    	  String seq = cf.getBoundSequence();
+    	  if (seq==null||seq.length()<wm.length()-1){
+    		  temp.add(cf);
+    		  continue;
+    	  }
+          WeightMatrixScoreProfile profiler = scorer.execute(seq);
+          double maxSeqScore = Double.NEGATIVE_INFINITY;
+          int maxScoringShift = 0;
+          char maxScoringStrand = '+';
+          for (int i=0;i<profiler.length();i++){
+        	  double score = profiler.getMaxScore(i);
+        	  if (maxSeqScore<score){
+        		  maxSeqScore = score;
+        		  maxScoringShift = i;
+        		  maxScoringStrand = profiler.getMaxStrand(i);
+        	  }
+          }
+          if (maxSeqScore >= maxWMScore * wm_factor){
+        	  	if (maxScoringStrand =='-'){
+        		  cf.setBoundSequence(SequenceUtils.reverseComplement(seq));
+        		  maxScoringShift = seq.length()-wm.length()-maxScoringShift;
+        	  	}
+        	  	alignedFeatures.add(cf);
+    			peakShifts.add(maxScoringShift);
+    			temp.add(cf);
+    			alignedKmers.add(cf.getKmer().getKmerString());
+    			noMore = false;
+          }
+        }
+
+    	// sync aligned kmers
+        unalignedFeatures.removeAll(temp);
+    	temp.clear();	
+    	ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+    	for (Kmer kmer: kmers){
+    		if (alignedKmers.contains(kmer.getKmerString())){
+    			toRemove.add(kmer);
+    		}
+    	}
+    	kmers.removeAll(toRemove);
+    	return noMore;
+      }
+      
+      private WeightMatrix makePWM(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> peakShifts, double[] bg, boolean isFromKmers){
+    	double ic_trim = 0.4;
+    	boolean useStrength = true;
+    	
+    	int seqLen = alignedFeatures.get(0).getBoundSequence().length();
+    	
+    	// count
+    	int leftMost = seqLen;
+    	int shortest = seqLen;	// the shortest length starting from the shift position
+    	for (int i=0;i<alignedFeatures.size();i++){
+    		ComponentFeature cf = alignedFeatures.get(i);
+    		String seq = cf.getBoundSequence();
+    		int shift = peakShifts.get(i);			
+    		if (isFromKmers){
+    			int start = seq.indexOf(cf.getKmer().getKmerString());		// start position of kmer in the sequence
+    			shift += start;
+    			peakShifts.set(i, shift);
+    		}
+    		if (leftMost>shift)
+    			leftMost = shift;
+    		if (shortest>seq.length()-shift)
+    			shortest=seq.length()-shift;
+    	}
+
+    	double[][] pwm = new double[leftMost+shortest][MAXLETTERVAL];
+    	for (int i=0;i<alignedFeatures.size();i++){
+    		int shift = peakShifts.get(i);	
+    		String seq  = alignedFeatures.get(i).getBoundSequence().substring(shift-leftMost, shift+shortest);
+    		for (int p=0;p<leftMost+shortest;p++){
+    			char base = seq.charAt(p);
+    			double strength = useStrength?alignedFeatures.get(i).getTotalSumResponsibility():1;
+    			pwm[p][base] +=strength;
+    		}
+    	}
+    	
+    	// normalize and log2
+    	double[] ic = new double[pwm.length];						// information content
+    	for (int p=0;p<pwm.length;p++){
+    		int sum=0;
+    		for (int b=0;b<LETTERS.length;b++){
+    			sum += pwm[p][LETTERS[b]];
+    		}
+    		for (int b=0;b<LETTERS.length;b++){
+    			char base = LETTERS[b];
+    			if (pwm[p][base]==0)
+    				pwm[p][base]=1;
+    			double f = pwm[p][base]/sum;						// normalize freq
+    			pwm[p][base] = Math.log(f/bg[b])/Math.log(2.0);		//log base 2
+    			ic[p] += f*pwm[p][base];
+    		}
+    	}
+    	// TODO: trim low ic ends
+    	int leftIdx=0;
+    	for (int p=0;p<ic.length;p++){
+    		if (ic[p]>ic_trim){
+    			leftIdx=p;
+    			break;
+    		}
+    	}
+    	int rightIdx=ic.length-1;
+    	for (int p=ic.length-1;p>=0;p--){
+    		if (ic[p]>ic_trim){
+    			rightIdx=p;
+    			break;
+    		}
+    	}
+    	
+    	// make a WeightMatrix object
+    	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
+    	for(int p=leftIdx;p<=rightIdx;p++){
+    		for (int b=0;b<LETTERS.length;b++){
+    			matrix[p-leftIdx][LETTERS[b]]=(float) pwm[p][LETTERS[b]];
+    		}
+    	}
+    	WeightMatrix wm = new WeightMatrix(matrix);
+//    	System.out.println(WeightMatrix.printMatrixLetters(wm));
+    	return wm;
+      }
+
+      //greedily grow a cluster from the top count kmer only by matching kmers
+      private void growByKmers(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> peakShifts, ArrayList<Kmer> kmers, ArrayList<ComponentFeature> unalignedFeatures){
+    	ArrayList<ComponentFeature> temp = new ArrayList<ComponentFeature>();
+    	HashSet<String> alignedKmers = new HashSet<String>();
+    	String seedKmerStr = kmers.get(0).getKmerString();
+    	String seedKmerRC = kmers.get(0).getKmerRC();
+
+    	// align bound sequences underlying the binding events
+    	// 1. find perfect kmer matches
+    	for(ComponentFeature p : unalignedFeatures){	
+    		String kmer = p.getKmer().getKmerString();
+    		if (kmer==null)
+    			continue;
+    		if (kmer.equals(seedKmerStr)){
+    			alignedFeatures.add(p);
+    			peakShifts.add(0);
+    			alignedKmers.add(kmer);
+    			continue;
+    		}
+    		if (kmer.equals(seedKmerRC)){
+    			alignedFeatures.add(p);
+    			peakShifts.add(0);
+    			alignedKmers.add(kmer);
+    		}
+    	}
+    	unalignedFeatures.removeAll(alignedFeatures);
+    	// 2. with 1 mismatch
+    	for(ComponentFeature p : unalignedFeatures){	
+    		String kmer = p.getKmer().getKmerString();
+    		if (kmer==null)
+    			continue;
+    		if (mismatch(seedKmerStr, kmer)<=1){
+    			alignedFeatures.add(p);
+    			peakShifts.add(0);
+    			temp.add(p);
+    			alignedKmers.add(kmer);
+    		}
+    		else if(mismatch(seedKmerRC, kmer)<=1){	// if match RC, reset kmer and seq
+    			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
+    			p.getKmer().RC();
+    			alignedFeatures.add(p);
+    			peakShifts.add(0);
+    			temp.add(p);
+    			alignedKmers.add(kmer);
+    		}
+    	}
+    	unalignedFeatures.removeAll(temp);
+    	temp.clear();
+    	// 3. with 1 shift, 0 or 1 mismatch
+    	for(ComponentFeature p : unalignedFeatures){	
+    		if (p.getKmer()==null)
+    			continue;
+    		String kmer = p.getKmer().getKmerString().substring(1);
+    		String ref = seedKmerStr.substring(0, seedKmerStr.length()-1);
+    		String refRC = seedKmerRC.substring(1);
+    		if (mismatch(ref, kmer)<=1){
+    			alignedFeatures.add(p);
+    			peakShifts.add(1);
+    			temp.add(p);
+    			alignedKmers.add(p.getKmer().getKmerString());
+    		}
+    		else if(mismatch(refRC, kmer)<=1){	// if match RC, reset kmer and seq
+    			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
+    			p.getKmer().RC();
+    			alignedFeatures.add(p);
+    			peakShifts.add(1);
+    			temp.add(p);
+    			alignedKmers.add(p.getKmer().getKmerString());
+    		}
+    	}
+    	unalignedFeatures.removeAll(temp);
+    	temp.clear();	
+    	for(ComponentFeature p : unalignedFeatures){	
+    		if (p.getKmer()==null)
+    			continue;
+    		String kmer = p.getKmer().getKmerString().substring(0, seedKmerStr.length()-1);
+    		String ref = seedKmerStr.substring(1);
+    		String refRC = seedKmerRC.substring(0, seedKmerStr.length()-1);
+    		if (mismatch(ref, kmer)<=1){
+    			alignedFeatures.add(p);
+    			peakShifts.add(-1);
+    			temp.add(p);
+    			alignedKmers.add(p.getKmer().getKmerString());
+    		}
+    		else if(mismatch(refRC, kmer)<=1){	// if match RC, reset kmer and seq
+    			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
+    			p.getKmer().RC();
+    			alignedFeatures.add(p);
+    			peakShifts.add(-1);
+    			temp.add(p);
+    			alignedKmers.add(p.getKmer().getKmerString());
+    		}
+    	}
+    	unalignedFeatures.removeAll(temp);
+    	temp.clear();	
+    	ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+    	for (Kmer kmer: kmers){
+    		if (alignedKmers.contains(kmer.getKmerString())){
+    			toRemove.add(kmer);
+    		}
+    	}
+    	kmers.removeAll(toRemove);
+      }
+
+    private int mismatch(String ref, String seq){
+	  if (ref.length()!=seq.length())
+		  return -1;
+	  int mismatch = 0;
+	  for (int i=0;i<ref.length();i++){
+		  if (ref.charAt(i)!=seq.charAt(i))
+			  mismatch ++;
+	  }
+	  return mismatch;
+    }
+    
     // make position frequency matrix
 	private void makePFM(ArrayList<Kmer> kmerList){
 		if (kmerList.isEmpty())
@@ -3594,6 +3994,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int kc2pp = 0;		// different mode to convert kmer count to positional prior alpha value
         public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
         public double kpp_min = 0.2;// min value
+        public double gc = 0.42;	// GC content in the genome
         public double hgp = 0.1; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public boolean pad_letters = false; //adding backgroup fraction to pad kmers
         
@@ -3670,6 +4071,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kc2pp = Args.parseInteger(args, "kc2pp", kc2pp);
             kpp_max = Args.parseDouble(args, "kpp_max", kpp_max);
             kpp_min = Args.parseDouble(args, "kpp_min", kpp_min);
+            gc = Args.parseDouble(args, "gc", gc);
             hgp = Args.parseDouble(args, "hgp", hgp);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
