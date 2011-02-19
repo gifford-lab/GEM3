@@ -106,16 +106,20 @@ public class WeightMatrix {
 
     public static Collection<WeightMatrix> getAllWeightMatrices() {
         try {
+            long start = System.currentTimeMillis();
             java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");
             PreparedStatement ps = cxn.prepareStatement("select m.id, m.species, m.name, m.version, m.type, m.bg_model_map_id, c.position, c.letter, c.weight from "
                                                         + "weightmatrix m, weightmatrixcols c where "
                                                         + " m.id = c.weightmatrix order by c.weightmatrix, c.position desc");
+            ps.setFetchSize(100000);
             ResultSet rs = ps.executeQuery();
-
+            long middle = System.currentTimeMillis();
             Collection<WeightMatrix> matrices = WeightMatrix.getWeightMatrices(rs);
             rs.close();
             ps.close();
             DatabaseFactory.freeConnection(cxn);
+            long end = System.currentTimeMillis();
+            System.err.println(String.format("getAllWeightMatrices took %d and %d",middle-start,end-middle));
             return matrices;
         } catch (SQLException ex){ 
             throw new DatabaseException(ex.toString(),ex);
@@ -134,6 +138,7 @@ public class WeightMatrix {
      */
     public static Collection<WeightMatrix> getWeightMatrices(ResultSet rs) throws SQLException {
         Map<Integer,WeightMatrix> output = new HashMap<Integer,WeightMatrix>();
+        long start = System.currentTimeMillis();
         while (rs.next()) {
             int id = rs.getInt(1);
             if (!output.containsKey(id)) {
@@ -155,7 +160,8 @@ public class WeightMatrix {
             }
             output.get(id).matrix[rs.getInt(7)][rs.getString(8).charAt(0)] = rs.getFloat(9);
         }
-        System.err.println("Returning " + output.size() + " from WeightMatrix.getWeightMatrices(ResultSet)");
+        long end = System.currentTimeMillis();
+        System.err.println("Returning " + output.size() + " from WeightMatrix.getWeightMatrices(ResultSet).  Took " + (end - start));
         for (WeightMatrix matrix : output.values()) {
             for(int i = 0; i < matrix.matrix.length; i++) { 
                 matrix.matrix[i]['a'] = matrix.matrix[i]['A'];
@@ -173,32 +179,24 @@ public class WeightMatrix {
         WeightMatrix matrix = null;
         try {
             java.sql.Connection cxn =DatabaseFactory.getConnection("annotations");
-            PreparedStatement ps = cxn.prepareStatement("select max(position) from weightmatrixcols where weightmatrix = ?");
+
+            PreparedStatement ps = cxn.prepareStatement("select position, letter, weight from weightmatrixcols where weightmatrix = ? order by position desc");
             ps.setInt(1,dbid);
-            int length;
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                length = rs.getInt(1) + 1;
-            } else {
-                rs.close();
-                ps.close();
-                DatabaseFactory.freeConnection(cxn);
-                throw new NotFoundException("Can't find WMID " + dbid);
-            }
-            rs.close();
-            ps.close();
-            matrix = new WeightMatrix(length);
-            matrix.dbid = dbid;
-            matrix.hasdbid = true;
-            for (int i = 0; i < length; i++) {
-                for (int j = 0; j < MAXLETTERVAL; j++) {
-                    matrix.matrix[i][j] = Float.NaN;
-                }
-            }
-            ps = cxn.prepareStatement("select position, letter, weight from weightmatrixcols where weightmatrix = ? order by position");
-            ps.setInt(1,dbid);
-            rs=ps.executeQuery();
+            ResultSet rs=ps.executeQuery();
+            matrix = null;
             while (rs.next()) {
+                if (matrix == null) {
+                    int length = rs.getInt(1) + 1;
+                    matrix = new WeightMatrix(length);
+                    matrix.dbid = dbid;
+                    matrix.hasdbid = true;
+                    for (int i = 0; i < length; i++) {
+                        for (int j = 0; j < MAXLETTERVAL; j++) {
+                            matrix.matrix[i][j] = Float.NaN;
+                        }
+                    }
+                }
+
               float weight = rs.getFloat(3);
               matrix.matrix[rs.getInt(1)][rs.getString(2).charAt(0)] = weight;
               matrix.matrix[rs.getInt(1)][Character.toLowerCase(rs.getString(2).charAt(0))] = weight;

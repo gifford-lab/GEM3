@@ -33,8 +33,8 @@ create table weightmatrixcols (
 	weightmatrix constraint fk_wmc_id references weightmatrix(id) not null,
 	position number(10) not null,
 	letter char(1),
-	weight binary_double);
-create index ix_wmc_id on weightmatrixcols(weightmatrix,position);
+	weight binary_double,
+	constraint wmcols_pk(weightmatrix,position,letter)) organization index compress 1;
 
 create sequence weightmatrixscan_id;
 create table weightmatrixscan (
