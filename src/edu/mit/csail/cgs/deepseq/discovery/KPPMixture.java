@@ -3273,12 +3273,80 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (Kmer kmer:kmer2count.keySet()){
 			kmer.setSeqHitCount(kmer2count.get(kmer));
 			kmer.setNegCount(-1);
-			kmers.add(kmer);
 			kmer.setStrength(kmer2strength.get(kmer));
-		}
-		
-		if (makePFM)
-			makePFM(kmers);
+			kmers.add(kmer);
+		}		
+
+    	Collections.sort(kmers);
+    	
+    	if (makePFM){
+    		long tic = System.currentTimeMillis();
+	    	ArrayList<Kmer> kmers_copy = new ArrayList<Kmer>(kmers);
+	    	
+	    	// cluster binding sequences
+	    	ArrayList<ComponentFeature> unalignedFeatures = new ArrayList<ComponentFeature>();
+	    	ArrayList<ComponentFeature> nullKmerFeatures = new ArrayList<ComponentFeature>();
+	    	for(Feature f : signalFeatures){
+				ComponentFeature cf = (ComponentFeature)f;
+	    		if (cf.getKmer()!=null )
+	    			unalignedFeatures.add(cf);
+	    		else
+	    			nullKmerFeatures.add(cf);
+	    	}
+	    	ArrayList<Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>> clusters = 
+	    		clusterEventSequences(unalignedFeatures, kmers_copy );
+	    	
+	    	// build WeightMatrix from each aligned group of sequences
+	    	System.out.println("Total clusters of motifs: "+clusters.size());
+	    	int groupIndex = 0;
+	    	StringBuilder sb = new StringBuilder();
+	    	for (Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> cluster : clusters){
+	    		ArrayList<ComponentFeature> alignedFeatures = cluster.car();
+	    		ArrayList<Integer> shifts = cluster.cdr();
+	    		if (alignedFeatures.size()<=5)
+	    			continue;
+	    		else
+	    			System.out.println("Motif cluster "+groupIndex+", from "+alignedFeatures+" binding events.");
+	    		WeightMatrix wm = makePWM( alignedFeatures, shifts, false);
+	//    		System.out.println(WeightMatrix.printMatrix(wm));
+	    		System.out.println(WeightMatrix.printMatrixLetters(wm));    
+	    		
+	    		// use PWM to scan null-kmer events, to discover kmers that do not make it to the inital set
+	    		// TODO: maybe should favor PWM hit that is close to the event location
+	    		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+	        	ArrayList<ComponentFeature> temp = new ArrayList<ComponentFeature>();
+	    		for (ComponentFeature nf : nullKmerFeatures){
+	    			int shift = scanPWM(nf, wm, scorer);		// start position of PWM hit in the bound sequence
+	    			// offset between PWM hit and Kmer, this should work no matter which one is wider
+	    			int offset = (wm.length()-config.k)/2;		
+	    			if (shift!=-1){
+	    				String kmerStr = nf.getBoundSequence().substring(shift+offset, shift+offset+config.k);
+	    				nf.setKmer(new Kmer(kmerStr, 1));
+	    				alignedFeatures.add(nf);
+	    				shifts.add(shift);
+	    				temp.add(nf);
+	    			}
+	    		}
+	    		System.out.println("Rescue kmers count: "+temp.size());  
+	    		nullKmerFeatures.removeAll(temp);
+	    		
+	    		// make PFM
+	    		sb.append(getPFMString(alignedFeatures, shifts, wm.length(), groupIndex++));
+	    		
+	            for (int f=0;f<alignedFeatures.size();f++){
+	            	ComponentFeature cf = alignedFeatures.get(f);
+	            	Kmer kmer = cf.getKmer();
+	            	if (kmer.getGroup()==-1){
+		            	int start = cf.getBoundSequence().indexOf(kmer.getKmerString());
+		            	// kmer start relative from the middle of PWM = kmerStart - pwmStart + halfWidth of PWM
+		            	kmer.setKmerShift(start - shifts.get(f) + wm.length()/2);
+		            	kmer.setGroup(groupIndex);
+	            	}
+	    		}
+	            System.out.println("Make PWM: "+CommonUtils.timeElapsed(tic));
+	    	}
+	    	CommonUtils.writeFile(outName+"_PFM.txt", sb.toString());
+    	}
 		
 		kEngine.updateEngine(kmers, outName);
     }
@@ -3286,78 +3354,32 @@ class KPPMixture extends MultiConditionFeatureFinder {
     /*
      * Cluster the bound sequences at binding events based on Kmer and PWM learning
      */
-    public void clusterEventSequences(){
-    	ArrayList<ComponentFeature> unalignedFeatures = new ArrayList<ComponentFeature>();
-    	for(Feature f : signalFeatures){
-			ComponentFeature cf = (ComponentFeature)f;
-    		String kmer = cf.getKmer().getKmerString();
-    		if (kmer!=null && !kmer.equals(""))
-    			unalignedFeatures.add(cf);
-    	}
+    private ArrayList<Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>> 
+    	   clusterEventSequences(ArrayList<ComponentFeature> unalignedFeatures, ArrayList<Kmer> kmers ){
     	
-    	// get kmers and their counts
-    	HashMap<String, Integer> kmer2count = new HashMap<String, Integer>();
-    	for(ComponentFeature cf : unalignedFeatures){
-    		String kmer = cf.getKmer().getKmerString();
-    		if (kmer==null || kmer.equals(""))
-    			continue;
-    		if (kmer2count.containsKey(kmer))
-    			kmer2count.put(kmer, kmer2count.get(kmer)+1);
-    		else
-    			kmer2count.put(kmer, 1);
-    	}
-    	ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-    	for (String k : kmer2count.keySet()){
-    		kmers.add(new Kmer(k, kmer2count.get(k)));
-    	}
-    	if (kmers.isEmpty())
-    		return;
-    	
-    	Collections.sort(kmers);
-    	
-    	double[] bg = {0.5-config.gc/2,config.gc/2,config.gc/2,0.5-config.gc/2};
-    	
+    	// greedy grouping of bound sequences until all are grouped
     	ArrayList<Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>> clusters = new ArrayList<Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>>();
     	while(!unalignedFeatures.isEmpty()){
-    		Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> cluster = growSeqCluster(unalignedFeatures, kmers, bg);
+    		Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> cluster = growSeqCluster(unalignedFeatures, kmers);
     		if (cluster!=null)
     			clusters.add(cluster);
     		else
     			break;
     	}
-    	
-    	// build WeightMatrix from each aligned group of sequences
-    	System.out.println("Total clusters of motifs: "+clusters.size());
-    	int count = 0;
-    	StringBuilder sb = new StringBuilder();
-    	for (Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> cluster : clusters){
-    		if (cluster.car().size()<=5)
-    			continue;
-    		else
-    			System.out.println("Motif cluster "+count+", from "+cluster.car().size()+" binding events.");
-    		WeightMatrix wm = makePWM( cluster.car(), cluster.cdr(), bg, false);
-//    		System.out.println(WeightMatrix.printMatrix(wm));
-    		System.out.println(WeightMatrix.printMatrixLetters(wm));    		
-    		sb.append(getPFMString(cluster.car(), cluster.cdr(), wm.length(), count++));
-    	}
-    	CommonUtils.writeFile(outName+"_PFM.txt", sb.toString());
+    	return clusters;
       }
       
       // make PFM from aligned sequences
-      private String getPFMString(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> peakShifts, int length, int num){
-        int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
-                Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
-    	boolean useStrength = true;
+      private String getPFMString(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> motifStartInSeq, int length, int num){
 
-        String outName = "Ctcf";
     	double[][] pfm = new double[length][MAXLETTERVAL];
     	for (int i=0;i<alignedFeatures.size();i++){
     		ComponentFeature cf = alignedFeatures.get(i);
-    		int shift = peakShifts.get(i);	
+    		int shift = motifStartInSeq.get(i);	
     		String seq = cf.getBoundSequence().substring(shift, shift+length);		
     		for (int p=0;p<length;p++){
     			char base = seq.charAt(p);
-    			double strength = useStrength?alignedFeatures.get(i).getTotalSumResponsibility():1;
+    			double strength = config.use_strength?alignedFeatures.get(i).getTotalSumResponsibility():1;
     			pfm[p][base] +=strength;
     		}
     	}
@@ -3383,27 +3405,28 @@ class KPPMixture extends MultiConditionFeatureFinder {
       }
       
       // greedily grow a cluster from the top count kmer
-      private Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> growSeqCluster(ArrayList<ComponentFeature> unalignedFeatures, ArrayList<Kmer> kmers, double[] bg){
-    	  ArrayList<ComponentFeature> alignedFeatures = new ArrayList<ComponentFeature>();
-    	ArrayList<Integer> peakShifts = new ArrayList<Integer>();
-    	growByKmers(alignedFeatures,peakShifts, kmers, unalignedFeatures);
+      private Pair<ArrayList<ComponentFeature>, ArrayList<Integer>> 
+      	growSeqCluster(ArrayList<ComponentFeature> unalignedFeatures, ArrayList<Kmer> kmers){
+    	
+    	ArrayList<ComponentFeature> alignedFeatures = new ArrayList<ComponentFeature>();
+    	// PWM hit start position in the bound sequence
+    	ArrayList<Integer> motifStartInSeq = new ArrayList<Integer>();		
+    	growByKmers(alignedFeatures, motifStartInSeq, kmers, unalignedFeatures);
     	if (alignedFeatures.isEmpty())
     		return null;
-    	WeightMatrix wm = makePWM( alignedFeatures, peakShifts, bg, true);
+    	WeightMatrix wm = makePWM( alignedFeatures, motifStartInSeq, true);
 
     	boolean noMore=false;
     	while(!noMore){
-    		noMore = growByPWM(alignedFeatures, peakShifts, kmers,  unalignedFeatures, wm, bg);
+    		noMore = growByPWM(alignedFeatures, motifStartInSeq, kmers,  unalignedFeatures, wm, config.bg);
     	}
     	
-    	return new Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>(alignedFeatures, peakShifts);
+    	return new Pair<ArrayList<ComponentFeature>, ArrayList<Integer>>(alignedFeatures, motifStartInSeq);
       }
     	
-      //continue to greedily grow a cluster from kmer-aligned peaks by building a PWM
-      private boolean growByPWM(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> peakShifts, ArrayList<Kmer> kmers, ArrayList<ComponentFeature> unalignedFeatures, WeightMatrix wm, double[] bg){
-    	double wm_factor = 0.3;
-    	
-    	// build PWM from Kmer cores
+      //continue to greedily grow the sequence cluster by building a PWM
+      private boolean growByPWM(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> motifStartInSeq, ArrayList<Kmer> kmers, ArrayList<ComponentFeature> unalignedFeatures, WeightMatrix wm, double[] bg){
+  	   	// build PWM from Kmer cores
     	boolean noMore = true;
     	ArrayList<ComponentFeature> temp = new ArrayList<ComponentFeature>();
     	HashSet<String> alignedKmers = new HashSet<String>();
@@ -3413,31 +3436,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	double maxWMScore = wm.getMaxScore();	
         WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 
-    	// update the peakShifts for previously identified sequences, w.r.t. PWM
+    	// update the motifStartInSeq for previously identified sequences, w.r.t. PWM
         for (int p=0;p<alignedFeatures.size();p++){
         	ComponentFeature cf = alignedFeatures.get(p);
-        	String seq = cf.getBoundSequence();
-      	  if (seq==null||seq.length()<wm.length()-1){
-    		  continue;
-    	  }
-            WeightMatrixScoreProfile profiler = scorer.execute(seq);
-            double maxSeqScore = Double.NEGATIVE_INFINITY;
-            int maxScoringShift = 0;
-            char maxScoringStrand = '+';
-            for (int i=0;i<profiler.length();i++){
-          	  double score = profiler.getMaxScore(i);
-          	  if (maxSeqScore<score){
-          		  maxSeqScore = score;
-          		  maxScoringShift = i;
-          		  maxScoringStrand = profiler.getMaxStrand(i);
-          	  }
-            }
-            
-      	  	if (maxScoringStrand =='-'){
-      		  cf.setBoundSequence(SequenceUtils.reverseComplement(seq));
-      		  maxScoringShift = seq.length()-(wm.length())-maxScoringShift;		// WM has a extra column
-      	  	}
-    		peakShifts.set(p, maxScoringShift);		// update
+        	int shift = scanPWM(cf, wm, scorer);
+    		motifStartInSeq.set(p, shift);		// update
         }
 
         for (ComponentFeature cf: unalignedFeatures){
@@ -3458,13 +3461,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		  maxScoringStrand = profiler.getMaxStrand(i);
         	  }
           }
-          if (maxSeqScore >= maxWMScore * wm_factor){
+          if (maxSeqScore >= maxWMScore * config.wm_factor){
         	  	if (maxScoringStrand =='-'){
         		  cf.setBoundSequence(SequenceUtils.reverseComplement(seq));
         		  maxScoringShift = seq.length()-wm.length()-maxScoringShift;
         	  	}
         	  	alignedFeatures.add(cf);
-    			peakShifts.add(maxScoringShift);
+    			motifStartInSeq.add(maxScoringShift);
     			temp.add(cf);
     			alignedKmers.add(cf.getKmer().getKmerString());
     			noMore = false;
@@ -3483,10 +3486,38 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	kmers.removeAll(toRemove);
     	return noMore;
       }
-      
-      private WeightMatrix makePWM(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> peakShifts, double[] bg, boolean isFromKmers){
+    
+    /**
+     *  Scan the bound sequence of componentFeature using weight matrix
+     *  @return  the start position of highest scoring PWM hit
+     */
+    private int scanPWM(ComponentFeature cf, WeightMatrix wm, WeightMatrixScorer scorer){
+		String seq = cf.getBoundSequence();
+		if (seq==null||seq.length()<wm.length()-1){
+			return -1;
+		}
+		WeightMatrixScoreProfile profiler = scorer.execute(seq);
+		double maxSeqScore = Double.NEGATIVE_INFINITY;
+		int maxScoringShift = 0;
+		char maxScoringStrand = '+';
+		for (int i=0;i<profiler.length();i++){
+			double score = profiler.getMaxScore(i);
+			if (maxSeqScore<score){
+				maxSeqScore = score;
+				maxScoringShift = i;
+				maxScoringStrand = profiler.getMaxStrand(i);
+			}
+		}
+  
+		if (maxScoringStrand =='-'){
+			cf.setBoundSequence(SequenceUtils.reverseComplement(seq));
+			maxScoringShift = seq.length()-(wm.length())-maxScoringShift;		// WM has a extra column
+		}
+		return maxScoringShift;
+    }
+    
+    private WeightMatrix makePWM(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> motifStartInSeq, boolean isFromKmers){
     	double ic_trim = 0.4;
-    	boolean useStrength = true;
     	
     	int seqLen = alignedFeatures.get(0).getBoundSequence().length();
     	
@@ -3496,11 +3527,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	for (int i=0;i<alignedFeatures.size();i++){
     		ComponentFeature cf = alignedFeatures.get(i);
     		String seq = cf.getBoundSequence();
-    		int shift = peakShifts.get(i);			
+    		int shift = motifStartInSeq.get(i);	
+    		// if the feature are aligned using kmer, reset the shift according the sequence
     		if (isFromKmers){
     			int start = seq.indexOf(cf.getKmer().getKmerString());		// start position of kmer in the sequence
     			shift += start;
-    			peakShifts.set(i, shift);
+    			motifStartInSeq.set(i, shift);
     		}
     		if (leftMost>shift)
     			leftMost = shift;
@@ -3510,16 +3542,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
     	double[][] pwm = new double[leftMost+shortest][MAXLETTERVAL];
     	for (int i=0;i<alignedFeatures.size();i++){
-    		int shift = peakShifts.get(i);	
+    		int shift = motifStartInSeq.get(i);	
     		String seq  = alignedFeatures.get(i).getBoundSequence().substring(shift-leftMost, shift+shortest);
     		for (int p=0;p<leftMost+shortest;p++){
     			char base = seq.charAt(p);
-    			double strength = useStrength?alignedFeatures.get(i).getTotalSumResponsibility():1;
+    			double strength = config.use_strength?alignedFeatures.get(i).getTotalSumResponsibility():1;
     			pwm[p][base] +=strength;
     		}
     	}
     	
-    	// normalize and log2
+    	// normalize, compare to background, and log2
     	double[] ic = new double[pwm.length];						// information content
     	for (int p=0;p<pwm.length;p++){
     		int sum=0;
@@ -3531,27 +3563,26 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			if (pwm[p][base]==0)
     				pwm[p][base]=1;
     			double f = pwm[p][base]/sum;						// normalize freq
-    			pwm[p][base] = Math.log(f/bg[b])/Math.log(2.0);		//log base 2
+    			pwm[p][base] = Math.log(f/config.bg[b])/Math.log(2.0);		//log base 2
     			ic[p] += f*pwm[p][base];
     		}
     	}
-    	// TODO: trim low ic ends
+
+    	// make a WeightMatrix object, trim low ic ends
     	int leftIdx=0;
     	for (int p=0;p<ic.length;p++){
-    		if (ic[p]>ic_trim){
+    		if (ic[p]>config.ic_trim){
     			leftIdx=p;
     			break;
     		}
     	}
     	int rightIdx=ic.length-1;
     	for (int p=ic.length-1;p>=0;p--){
-    		if (ic[p]>ic_trim){
+    		if (ic[p]>config.ic_trim){
     			rightIdx=p;
     			break;
     		}
     	}
-    	
-    	// make a WeightMatrix object
     	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
     	for(int p=leftIdx;p<=rightIdx;p++){
     		for (int b=0;b<LETTERS.length;b++){
@@ -3561,10 +3592,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	WeightMatrix wm = new WeightMatrix(matrix);
 //    	System.out.println(WeightMatrix.printMatrixLetters(wm));
     	return wm;
-      }
+    }
 
-      //greedily grow a cluster from the top count kmer only by matching kmers
-      private void growByKmers(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> peakShifts, ArrayList<Kmer> kmers, ArrayList<ComponentFeature> unalignedFeatures){
+    //greedily grow a cluster from the top count kmer only by matching kmers
+    private void growByKmers(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> motifStartInSeq, ArrayList<Kmer> kmers, ArrayList<ComponentFeature> unalignedFeatures){
     	ArrayList<ComponentFeature> temp = new ArrayList<ComponentFeature>();
     	HashSet<String> alignedKmers = new HashSet<String>();
     	String seedKmerStr = kmers.get(0).getKmerString();
@@ -3578,13 +3609,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			continue;
     		if (kmer.equals(seedKmerStr)){
     			alignedFeatures.add(p);
-    			peakShifts.add(0);
+    			motifStartInSeq.add(0);
     			alignedKmers.add(kmer);
     			continue;
     		}
     		if (kmer.equals(seedKmerRC)){
     			alignedFeatures.add(p);
-    			peakShifts.add(0);
+    			motifStartInSeq.add(0);
     			alignedKmers.add(kmer);
     		}
     	}
@@ -3596,7 +3627,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			continue;
     		if (mismatch(seedKmerStr, kmer)<=1){
     			alignedFeatures.add(p);
-    			peakShifts.add(0);
+    			motifStartInSeq.add(0);
     			temp.add(p);
     			alignedKmers.add(kmer);
     		}
@@ -3604,7 +3635,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
     			p.getKmer().RC();
     			alignedFeatures.add(p);
-    			peakShifts.add(0);
+    			motifStartInSeq.add(0);
     			temp.add(p);
     			alignedKmers.add(kmer);
     		}
@@ -3620,7 +3651,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		String refRC = seedKmerRC.substring(1);
     		if (mismatch(ref, kmer)<=1){
     			alignedFeatures.add(p);
-    			peakShifts.add(1);
+    			motifStartInSeq.add(1);
     			temp.add(p);
     			alignedKmers.add(p.getKmer().getKmerString());
     		}
@@ -3628,7 +3659,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
     			p.getKmer().RC();
     			alignedFeatures.add(p);
-    			peakShifts.add(1);
+    			motifStartInSeq.add(1);
     			temp.add(p);
     			alignedKmers.add(p.getKmer().getKmerString());
     		}
@@ -3643,7 +3674,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		String refRC = seedKmerRC.substring(0, seedKmerStr.length()-1);
     		if (mismatch(ref, kmer)<=1){
     			alignedFeatures.add(p);
-    			peakShifts.add(-1);
+    			motifStartInSeq.add(-1);
     			temp.add(p);
     			alignedKmers.add(p.getKmer().getKmerString());
     		}
@@ -3651,7 +3682,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			p.setBoundSequence(SequenceUtils.reverseComplement(p.getBoundSequence()));
     			p.getKmer().RC();
     			alignedFeatures.add(p);
-    			peakShifts.add(-1);
+    			motifStartInSeq.add(-1);
     			temp.add(p);
     			alignedKmers.add(p.getKmer().getKmerString());
     		}
@@ -3679,256 +3710,257 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
     
     // make position frequency matrix
-	private void makePFM(ArrayList<Kmer> kmerList){
-		if (kmerList.isEmpty())
-			return;
-		
-		ArrayList<TreeSet<Kmer>> alignedKmerSets = extendSeeds(kmerList);
-		
-		int k = kmerList.get(0).getK();
-		int max = kEngine.getMaxShift();
-		int min = kEngine.getMinShift();
-		
-		double[][][] pfms = null;
-		if (config.pad_letters)
-			pfms = makePFMfromKmers(alignedKmerSets, k, max, min);
-		else
-			pfms = makePFMfromSequences(alignedKmerSets, max-min+k, k);
-		
-		// print out motif result
-		StringBuilder msb = new StringBuilder();
-		for (int i=0;i<alignedKmerSets.size();i++){	
-			msb.append("DE "+outName+"_"+(i+1)+"("+alignedKmerSets.get(i).size()).append(")\n");
-			double[][] pfm = pfms[i] ;
-			for (int p=0;p<pfm.length;p++){
-				msb.append(p+1).append(" ");
-				int maxBase = 0;
-				double maxFreq=0;
-				for (int b=0;b<LETTERS.length;b++){
-					msb.append(String.format("%d ", (int)pfm[p][b]));
-					if (maxFreq<pfm[p][b]){
-						maxFreq=pfm[p][b];
-						maxBase = b;
-					}
-				}
-				msb.append(LETTERS[maxBase]).append("\n");
-			}
-			msb.append("XX\n\n");
-		}
-		CommonUtils.writeFile(outName+"_PFM.txt", msb.toString());	
-		
-		//print out the kmers
-		StringBuilder sb = new StringBuilder();
-		sb.append("Kmer").append("\t").append("seqCt").append("\t")
-		  .append("gShift").append("\t").append("refKmer").append("\t")
-		  .append("Alignment").append("\n");
-		for (TreeSet<Kmer> ks:alignedKmerSets){
-			for (Kmer km: ks){
-				String shiftedKmer = CommonUtils.padding(max-km.getGlobalShift(), ' ').concat(km.getKmerString());
-				sb.append(km.getKmerString()).append("\t").append(km.getSeqHitCount()).append("\t")
-				  .append(km.getGlobalShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
-				  .append(shiftedKmer).append("\n");			
-			}
-			sb.append("\n");
-		}
-		sb.append("Total kmer groups: " + alignedKmerSets.size());
-		CommonUtils.writeFile(outName+"_AlignedKmers.txt", sb.toString());
-		
-		//print out the kmer strings in fasta format
-		sb = new StringBuilder();
-		int g=0;
-		for (TreeSet<Kmer> ks:alignedKmerSets){
-			int kk=0;
-			for (Kmer km: ks){
-				sb.append(">"+outName+"_"+g+"_"+kk).append("\n");
-				sb.append(km.getKmerString()).append("\n");		
-	    		kk++;
-			}
-			g++;
-		}
-		CommonUtils.writeFile(outName+"_Kmers.fa", sb.toString());
-	  }
-
-	private ArrayList<TreeSet<Kmer>> extendSeeds(ArrayList<Kmer> kmerList){
-    	if (kmerList.isEmpty())
-    		return null;
-    	
-    	ArrayList<Kmer> kmers = (ArrayList<Kmer>)kmerList.clone();	// clone the list
-
-    	// group kmers by greedy extending method
-
-    	final int MISS = 1;
-    	Kmer root = kmers.get(0);		
-    	ArrayList<TreeSet<Kmer>> alignedKmerSets = new ArrayList<TreeSet<Kmer>>();
-    	TreeSet<Kmer> prevSelected = new TreeSet<Kmer>();
-    	prevSelected.add(root);
-    	TreeSet<Kmer> alignedKmerSet = new TreeSet<Kmer>();	// all selected Kmers (aligned (1bp mismatch) or extended (1bp offset))	
-    	while(!kmers.isEmpty()){
-    		while (!prevSelected.isEmpty()){					
-    			TreeSet<Kmer> selectedKmers = new TreeSet<Kmer>();
-    			
-    			// select all kmers aligned to or extend from the prevSelected set	
-    			for(Kmer km: kmers){
-    				if (km.getSeqHitCount()<1){
-    					kmers.remove(km);
-    					break;						// do not want to count very low count kmers
-    				}
-    				for (Kmer sk: prevSelected){
-    					km.setReference(sk);	
-    					if (km.getScore()>=sk.getK()-MISS){		// select only if 1 mismatch or 1 extension
-    						selectedKmers.add(km);
-    						break;
-    					}
-    				}
-    			}
-    			kmers.removeAll(selectedKmers);
-    			prevSelected = selectedKmers;
-    			alignedKmerSet.addAll(selectedKmers);
-    		}
-    		// no more extension, start a new kmer set
-    		alignedKmerSets.add(alignedKmerSet);
-    		if (!kmers.isEmpty()){
-    			Kmer next = kmers.get(0);
-    			next.setReference(root);					// adjust orientation of this kmer to better align with root
-    			prevSelected.add(next);						// add the seed for next group of extension, start with the next largest count kmer
-    			alignedKmerSet = new TreeSet<Kmer>();		// new set
-    			alignedKmerSet.addAll(prevSelected);
-    		}
-    	}
-    	
-    	// trace back to set the offset wrt the firstSeed kmer, to align kmers globally
-    	int min = 0;
-    	int max = 0;
-    	for (TreeSet<Kmer> ks:alignedKmerSets){
-    		if (ks.size()<=1)
-    			continue;
-    		for (Kmer thisKmer: ks){
-    			int offset = thisKmer.getShift();
-    			while(thisKmer.getRef()!=thisKmer){						// recursively trace back the reference kmer
-    				offset += thisKmer.getRef().getShift();	
-    				thisKmer = thisKmer.getRef();
-    			}
-    			if (min>offset)	
-    				min = offset;
-    			if (max<offset)
-    				max = offset;
-    			thisKmer.setGlobalShift(offset);
-    		}
-    	}
-    	kEngine.setMaxShift(max);
-    	kEngine.setMinShift(min);
-    	
-    	return alignedKmerSets;
-    }
-    
-	// make PFM from kmers, padding flanking bases by 1/4 freq
-    private double[][][] makePFMfromKmers(ArrayList<TreeSet<Kmer>> alignedKmerSets, int k, int max, int min){
-    	double[][][] pfms = new double[alignedKmerSets.size()][kEngine.getMaxShift()-kEngine.getMinShift()+1][4];
-    	for (int i=0;i<alignedKmerSets.size();i++){		
-    		double[][] pfm = new double[max-min+k][4];
-    		TreeSet<Kmer> ks = alignedKmerSets.get(i);
-    		pfms[i] = pfm;
-    		for (Kmer km: ks){
-    			double factor = km.getSeqHitCount();
-    			if (config.use_weight)
-    				factor = km.getStrength();
-    			
-				int shift = km.getGlobalShift();
-    			for (int p=0;p<max-shift;p++){
-    				for (int b=0;b<LETTERS.length;b++){
-    					pfm[p][b] +=0.25*factor;
-    				}
-    			}
-    			if(max-shift>=max-min+1){
-    				for (int p=max-shift;p<max-shift+k;p++){
-    					char base = km.getKmerString().charAt(p-(max-shift));
-    					for (int b=0;b<LETTERS.length;b++){
-    						if (base==LETTERS[b])
-    							pfm[p][b] +=1*factor;
-    					}
-    				}
-    			}
-    			else{
-    				for (int p=max-shift;p<max-shift+k;p++){
-    					char base = km.getKmerString().charAt(p-(max-shift));
-    					for (int b=0;b<LETTERS.length;b++){
-    						if (base==LETTERS[b])
-    							pfm[p][b] +=1*factor;
-    					}
-    				}
-    				for (int p=max-shift+k;p<max-min+k+1;p++){
-    					for (int b=0;b<LETTERS.length;b++){
-    						pfm[p][b] +=0.25*factor;
-    					}
-    				}
-    			}
-    		}
-    	}
-    	return pfms;
-    }
-    
-    // make PFM from real sequences that store in componentFeatures
-    private double[][][] makePFMfromSequences(ArrayList<TreeSet<Kmer>> alignedKmerSets, int length, int k){
-    	double[][][] pfms = new double[alignedKmerSets.size()][kEngine.getMaxShift()-kEngine.getMinShift()+1][4];
-
-//    	if (!config.pad_letters){ // prepare the sequences flanking kmers
-//	    	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
-//	    	seqgen.useCache(true);
-//			for(Feature f : signalFeatures){
-//				ComponentFeature cf = (ComponentFeature)f;
-//				Kmer kmer = cf.getKmer();
-//				if (kmer==null)
-//					continue;
-//				int shift  = kmer.getGlobalShift();
-//				Region seqRegion = cf.getPeak().expand(0).expand(max-shift+k/2, shift-min+k/2);
-//				if (!kmer2flankingSeqs.containsKey(kmer))
-//					kmer2flankingSeqs.put(kmer, new ArrayList<String>());
-//				String seq = seqgen.execute(seqRegion).toUpperCase();
-//				if (seq.contains(kmer.getKmerString()))
-//					seq = SequenceUtils.reverseComplement(seq);
-//				kmer2flankingSeqs.get(kmer).add(seq);					
+//	private void makePFM(ArrayList<Kmer> kmerList){
+//		if (kmerList.isEmpty())
+//			return;
+//		
+//		ArrayList<TreeSet<Kmer>> alignedKmerSets = extendSeeds(kmerList);
+//		
+//		int k = kmerList.get(0).getK();
+//		int max = kEngine.getMaxShift();
+//		int min = kEngine.getMinShift();
+//		
+//		double[][][] pfms = null;
+//		if (config.pad_letters)
+//			pfms = makePFMfromKmers(alignedKmerSets, k, max, min);
+//		else
+//			pfms = makePFMfromSequences(alignedKmerSets, max-min+k, k);
+//		
+//		// print out motif result
+//		StringBuilder msb = new StringBuilder();
+//		for (int i=0;i<alignedKmerSets.size();i++){	
+//			msb.append("DE "+outName+"_"+(i+1)+"("+alignedKmerSets.get(i).size()).append(")\n");
+//			double[][] pfm = pfms[i] ;
+//			for (int p=0;p<pfm.length;p++){
+//				msb.append(p+1).append(" ");
+//				int maxBase = 0;
+//				double maxFreq=0;
+//				for (int b=0;b<LETTERS.length;b++){
+//					msb.append(String.format("%d ", (int)pfm[p][b]));
+//					if (maxFreq<pfm[p][b]){
+//						maxFreq=pfm[p][b];
+//						maxBase = b;
+//					}
+//				}
+//				msb.append(LETTERS[maxBase]).append("\n");
 //			}
+//			msb.append("XX\n\n");
+//		}
+//		CommonUtils.writeFile(outName+"_PFM.txt", msb.toString());	
+//		
+//		//print out the kmers
+//		StringBuilder sb = new StringBuilder();
+//		sb.append("Kmer").append("\t").append("seqCt").append("\t")
+//		  .append("gShift").append("\t").append("refKmer").append("\t")
+//		  .append("Alignment").append("\n");
+//		for (TreeSet<Kmer> ks:alignedKmerSets){
+//			for (Kmer km: ks){
+//				String shiftedKmer = CommonUtils.padding(max-km.getKmerShift(), ' ').concat(km.getKmerString());
+//				sb.append(km.getKmerString()).append("\t").append(km.getSeqHitCount()).append("\t")
+//				  .append(km.getKmerShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
+//				  .append(shiftedKmer).append("\n");			
+//			}
+//			sb.append("\n");
+//		}
+//		sb.append("Total kmer groups: " + alignedKmerSets.size());
+//		CommonUtils.writeFile(outName+"_AlignedKmers.txt", sb.toString());
+//		
+//		//print out the kmer strings in fasta format
+//		sb = new StringBuilder();
+//		int g=0;
+//		for (TreeSet<Kmer> ks:alignedKmerSets){
+//			int kk=0;
+//			for (Kmer km: ks){
+//				sb.append(">"+outName+"_"+g+"_"+kk).append("\n");
+//				sb.append(km.getKmerString()).append("\n");		
+//	    		kk++;
+//			}
+//			g++;
+//		}
+//		CommonUtils.writeFile(outName+"_Kmers.fa", sb.toString());
+//	  }
+//
+//	private ArrayList<TreeSet<Kmer>> extendSeeds(ArrayList<Kmer> kmerList){
+//    	if (kmerList.isEmpty())
+//    		return null;
+//    	
+//    	ArrayList<Kmer> kmers = (ArrayList<Kmer>)kmerList.clone();	// clone the list
+//
+//    	// group kmers by greedy extending method
+//
+//    	final int MISS = 1;
+//    	Kmer root = kmers.get(0);		
+//    	ArrayList<TreeSet<Kmer>> alignedKmerSets = new ArrayList<TreeSet<Kmer>>();
+//    	TreeSet<Kmer> prevSelected = new TreeSet<Kmer>();
+//    	prevSelected.add(root);
+//    	TreeSet<Kmer> alignedKmerSet = new TreeSet<Kmer>();	// all selected Kmers (aligned (1bp mismatch) or extended (1bp offset))	
+//    	while(!kmers.isEmpty()){
+//    		while (!prevSelected.isEmpty()){					
+//    			TreeSet<Kmer> selectedKmers = new TreeSet<Kmer>();
+//    			
+//    			// select all kmers aligned to or extend from the prevSelected set	
+//    			for(Kmer km: kmers){
+//    				if (km.getSeqHitCount()<1){
+//    					kmers.remove(km);
+//    					break;						// do not want to count very low count kmers
+//    				}
+//    				for (Kmer sk: prevSelected){
+//    					km.setReference(sk);	
+//    					if (km.getScore()>=sk.getK()-MISS){		// select only if 1 mismatch or 1 extension
+//    						selectedKmers.add(km);
+//    						break;
+//    					}
+//    				}
+//    			}
+//    			kmers.removeAll(selectedKmers);
+//    			prevSelected = selectedKmers;
+//    			alignedKmerSet.addAll(selectedKmers);
+//    		}
+//    		// no more extension, start a new kmer set
+//    		alignedKmerSets.add(alignedKmerSet);
+//    		if (!kmers.isEmpty()){
+//    			Kmer next = kmers.get(0);
+//    			next.setReference(root);					// adjust orientation of this kmer to better align with root
+//    			prevSelected.add(next);						// add the seed for next group of extension, start with the next largest count kmer
+//    			alignedKmerSet = new TreeSet<Kmer>();		// new set
+//    			alignedKmerSet.addAll(prevSelected);
+//    		}
 //    	}
-    	
-    	HashMap<Kmer, ArrayList<String>> kmer2flankingSeqs = new HashMap<Kmer, ArrayList<String>>();
-		for(Feature f : signalFeatures){
-			ComponentFeature cf = (ComponentFeature)f;
-			Kmer kmer = cf.getKmer();
-			if (kmer==null)
-				continue;
-			if (!kmer2flankingSeqs.containsKey(kmer))
-				kmer2flankingSeqs.put(kmer, new ArrayList<String>());
-			String seq = cf.getBoundSequence();
-			if (seq.contains(kmer.getKmerString()))
-				seq = SequenceUtils.reverseComplement(seq);
-			kmer2flankingSeqs.get(kmer).add(seq);					
-		}
-		
-		for (int i=0;i<alignedKmerSets.size();i++){		
-    		double[][] pfm = new double[length][4];
-    		TreeSet<Kmer> ks = alignedKmerSets.get(i);
-    		pfms[i] = pfm;
-    		for (Kmer km: ks){	
-    			if (!kmer2flankingSeqs.containsKey(km))
-					continue;
-				ArrayList<String> seqs = kmer2flankingSeqs.get(km);
-				for (String seq: seqs){
-					if (seq.length()!=pfm.length){
-						System.err.println("Err: extendSeed(), real sequence, length "+seq.length()+" != PFM length "+pfm.length);
-						 continue;
-					}
-					for (int p=0;p<seq.length();p++){
-						char base = seq.charAt(p);
-						for (int b=0;b<LETTERS.length;b++){
-							if (base==LETTERS[b])
-								pfm[p][b] +=1;
-						}
-					}
-				}
-    		}
-    	}
-    	return pfms;
-    }
+//    	
+//    	// trace back to set the offset wrt the firstSeed kmer, to align kmers globally
+//    	int min = 0;
+//    	int max = 0;
+//    	for (TreeSet<Kmer> ks:alignedKmerSets){
+//    		if (ks.size()<=1)
+//    			continue;
+//    		for (Kmer thisKmer: ks){
+//    			int offset = thisKmer.getShift();
+//    			while(thisKmer.getRef()!=thisKmer){						// recursively trace back the reference kmer
+//    				offset += thisKmer.getRef().getShift();	
+//    				thisKmer = thisKmer.getRef();
+//    			}
+//    			if (min>offset)	
+//    				min = offset;
+//    			if (max<offset)
+//    				max = offset;
+//    			//TODO: the definition of KmerShfit changes, if we use this method, need to update
+//    			thisKmer.setKmerShift(offset);
+//    		}
+//    	}
+//    	kEngine.setMaxShift(max);
+//    	kEngine.setMinShift(min);
+//    	
+//    	return alignedKmerSets;
+//    }
+//    
+//	// make PFM from kmers, padding flanking bases by 1/4 freq
+//    private double[][][] makePFMfromKmers(ArrayList<TreeSet<Kmer>> alignedKmerSets, int k, int max, int min){
+//    	double[][][] pfms = new double[alignedKmerSets.size()][kEngine.getMaxShift()-kEngine.getMinShift()+1][4];
+//    	for (int i=0;i<alignedKmerSets.size();i++){		
+//    		double[][] pfm = new double[max-min+k][4];
+//    		TreeSet<Kmer> ks = alignedKmerSets.get(i);
+//    		pfms[i] = pfm;
+//    		for (Kmer km: ks){
+//    			double factor = km.getSeqHitCount();
+//    			if (config.use_strength)
+//    				factor = km.getStrength();
+//    			
+//				int shift = km.getKmerShift();
+//    			for (int p=0;p<max-shift;p++){
+//    				for (int b=0;b<LETTERS.length;b++){
+//    					pfm[p][b] +=0.25*factor;
+//    				}
+//    			}
+//    			if(max-shift>=max-min+1){
+//    				for (int p=max-shift;p<max-shift+k;p++){
+//    					char base = km.getKmerString().charAt(p-(max-shift));
+//    					for (int b=0;b<LETTERS.length;b++){
+//    						if (base==LETTERS[b])
+//    							pfm[p][b] +=1*factor;
+//    					}
+//    				}
+//    			}
+//    			else{
+//    				for (int p=max-shift;p<max-shift+k;p++){
+//    					char base = km.getKmerString().charAt(p-(max-shift));
+//    					for (int b=0;b<LETTERS.length;b++){
+//    						if (base==LETTERS[b])
+//    							pfm[p][b] +=1*factor;
+//    					}
+//    				}
+//    				for (int p=max-shift+k;p<max-min+k+1;p++){
+//    					for (int b=0;b<LETTERS.length;b++){
+//    						pfm[p][b] +=0.25*factor;
+//    					}
+//    				}
+//    			}
+//    		}
+//    	}
+//    	return pfms;
+//    }
+//    
+//    // make PFM from real sequences that store in componentFeatures
+//    private double[][][] makePFMfromSequences(ArrayList<TreeSet<Kmer>> alignedKmerSets, int length, int k){
+//    	double[][][] pfms = new double[alignedKmerSets.size()][kEngine.getMaxShift()-kEngine.getMinShift()+1][4];
+//
+////    	if (!config.pad_letters){ // prepare the sequences flanking kmers
+////	    	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+////	    	seqgen.useCache(true);
+////			for(Feature f : signalFeatures){
+////				ComponentFeature cf = (ComponentFeature)f;
+////				Kmer kmer = cf.getKmer();
+////				if (kmer==null)
+////					continue;
+////				int shift  = kmer.getGlobalShift();
+////				Region seqRegion = cf.getPeak().expand(0).expand(max-shift+k/2, shift-min+k/2);
+////				if (!kmer2flankingSeqs.containsKey(kmer))
+////					kmer2flankingSeqs.put(kmer, new ArrayList<String>());
+////				String seq = seqgen.execute(seqRegion).toUpperCase();
+////				if (seq.contains(kmer.getKmerString()))
+////					seq = SequenceUtils.reverseComplement(seq);
+////				kmer2flankingSeqs.get(kmer).add(seq);					
+////			}
+////    	}
+//    	
+//    	HashMap<Kmer, ArrayList<String>> kmer2flankingSeqs = new HashMap<Kmer, ArrayList<String>>();
+//		for(Feature f : signalFeatures){
+//			ComponentFeature cf = (ComponentFeature)f;
+//			Kmer kmer = cf.getKmer();
+//			if (kmer==null)
+//				continue;
+//			if (!kmer2flankingSeqs.containsKey(kmer))
+//				kmer2flankingSeqs.put(kmer, new ArrayList<String>());
+//			String seq = cf.getBoundSequence();
+//			if (seq.contains(kmer.getKmerString()))
+//				seq = SequenceUtils.reverseComplement(seq);
+//			kmer2flankingSeqs.get(kmer).add(seq);					
+//		}
+//		
+//		for (int i=0;i<alignedKmerSets.size();i++){		
+//    		double[][] pfm = new double[length][4];
+//    		TreeSet<Kmer> ks = alignedKmerSets.get(i);
+//    		pfms[i] = pfm;
+//    		for (Kmer km: ks){	
+//    			if (!kmer2flankingSeqs.containsKey(km))
+//					continue;
+//				ArrayList<String> seqs = kmer2flankingSeqs.get(km);
+//				for (String seq: seqs){
+//					if (seq.length()!=pfm.length){
+//						System.err.println("Err: extendSeed(), real sequence, length "+seq.length()+" != PFM length "+pfm.length);
+//						 continue;
+//					}
+//					for (int p=0;p<seq.length();p++){
+//						char base = seq.charAt(p);
+//						for (int b=0;b<LETTERS.length;b++){
+//							if (base==LETTERS[b])
+//								pfm[p][b] +=1;
+//						}
+//					}
+//				}
+//    		}
+//    	}
+//    	return pfms;
+//    }
     
     class GPSConstants {
 
@@ -3984,7 +4016,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean sort_by_location=false;
         public boolean exclude_unenriched = false;
         public boolean dump_regression = false;
-        public boolean use_weight = false;
+        public boolean use_strength = false;
         public int KL_smooth_width = 0;
         public int max_hit_per_bp = -1;
         
@@ -3994,8 +4026,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int kc2pp = 0;		// different mode to convert kmer count to positional prior alpha value
         public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
         public double kpp_min = 0.2;// min value
-        public double gc = 0.42;	// GC content in the genome
         public double hgp = 0.1; 	// p-value threshold of hyper-geometric test for enriched kmer 
+        public double gc = 0.42;	// GC content in the genome
+        public double[] bg;
+        public double wm_factor = 0.3;	// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
+        public double ic_trim = 0.4;	// The information content threshold to trim the ends of PWM
         public boolean pad_letters = false; //adding backgroup fraction to pad kmers
         
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -4049,7 +4084,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             	System.err.println("testP is " + testPValues);
             exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
-            use_weight = flags.contains("use_weight");
+            use_strength = flags.contains("use_weight");
             pad_letters = flags.contains("pad_letters");
             
                 // default as true, need the opposite flag to turn it off
@@ -4072,6 +4107,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kpp_max = Args.parseDouble(args, "kpp_max", kpp_max);
             kpp_min = Args.parseDouble(args, "kpp_min", kpp_min);
             gc = Args.parseDouble(args, "gc", gc);
+        	bg = new double[4]; bg[0]=0.5-gc/2; bg[1]=gc/2; bg[2]=bg[1]; bg[3]=bg[0];
+            wm_factor = Args.parseDouble(args, "wm_factor", wm_factor);
+            ic_trim = Args.parseDouble(args, "ic_trim", ic_trim);
             hgp = Args.parseDouble(args, "hgp", hgp);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
@@ -4473,16 +4511,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                	// Effectively, the top kmers will dominate, because we normalize the pp value
                 		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
 	                	for (int pos: kmerHits.keySet()){
-	                		// the pos is the start position, hence +k/2
+	                		// the pos is the motif middle position
 	                		//if pos<0, then the reverse compliment of kmer is matched
-	                		int bindingPos = Math.abs(pos)+this.config.k/2;
+	                		int bindingPos = Math.abs(pos);
 	                		if (bindingPos>=pp.length){
 	                			System.err.println("KPP: bindingPos " + bindingPos + " out of bound ("+pp.length+") at "+w.toString());
 	                			continue;
 	                		}
 	                			
 	                		double kmerCount = 0;
-	                		if (config.use_weight)
+	                		if (config.use_strength)
 	                			kmerCount = kmerHits.get(pos).getStrength();
 	                		else
 	                			kmerCount = kmerHits.get(pos).getSeqHitCount();
@@ -5293,23 +5331,44 @@ class KPPMixture extends MultiConditionFeatureFinder {
         	for (BindingComponent b:components){
         		int kIdx = b.getLocation().getLocation()-startPos;
         		Kmer kmer = pp_kmer[kIdx];
-        		if (kmer==null)
-        			continue;
-        		b.setKmer(kmer);
-        		int left = kIdx - kEngine.getMaxShift()+kmer.getGlobalShift()-kmer.getK()/2;
-        		int right = kIdx - kEngine.getMinShift()+kmer.getGlobalShift()+(kmer.getK()-kmer.getK()/2);
-        		if (left<0)
-        			left = 0;
-        		if (right>seq.length())
-        			right = seq.length();
-        		String bs = seq.substring(left,right);
-        		if (!bs.contains(kmer.getKmerString())){			// the match is on reverse strand
-        			left = seq.length()-1-kIdx + kEngine.getMinShift()-kmer.getGlobalShift()-(kmer.getK()-kmer.getK()/2) +1;	//substring() is right end exlusive, so add 1
-            		right = seq.length()-1-kIdx + kEngine.getMaxShift()-kmer.getGlobalShift()+kmer.getK()/2 +1;
-            		if (left<0)
+        		if (kmer==null){
+        			int left = kIdx - kEngine.getMaxShift()-config.k/2;
+            		int right = kIdx - kEngine.getMinShift()+(config.k-config.k/2);
+            		if (left<0){
             			left = 0;
-            		if (right>seq.length())
+            			right = config.k - kEngine.getMinShift()+ kEngine.getMaxShift();
+            		}
+            		if (right>seq.length()){
             			right = seq.length();
+            			left = seq.length()-(config.k - kEngine.getMinShift()+ kEngine.getMaxShift());
+            		}
+        			b.setBoundSequence(seq.substring(left,right));
+        			continue;
+        		}
+        		
+        		b.setKmer(kmer);
+        		int left = kIdx - kEngine.getMaxShift()+kmer.getKmerShift()-config.k/2;
+        		int right = kIdx - kEngine.getMinShift()+kmer.getKmerShift()+(config.k-config.k/2);
+        		if (left<0){
+        			left = 0;
+        			right = config.k - kEngine.getMinShift()+ kEngine.getMaxShift();
+        		}
+        		if (right>seq.length()){
+        			right = seq.length();
+        			left = seq.length()-(config.k - kEngine.getMinShift()+ kEngine.getMaxShift());
+        		}
+            		String bs = seq.substring(left,right);
+        		if (!bs.contains(kmer.getKmerString())){			// the match is on reverse strand
+        			left = seq.length()-1-kIdx + kEngine.getMinShift()-kmer.getKmerShift()-(config.k-config.k/2) +1;	//substring() is right end exlusive, so add 1
+            		right = seq.length()-1-kIdx + kEngine.getMaxShift()-kmer.getKmerShift()+config.k/2 +1;
+            		if (left<0){
+            			left = 0;
+            			right = kEngine.getMaxShift() + config.k - kEngine.getMinShift();
+            		}
+            		if (right>seq.length()){
+            			right = seq.length();
+            			left = seq.length()-(kEngine.getMaxShift() + config.k - kEngine.getMinShift());
+            		}
             		bs = SequenceUtils.reverseComplement(seq).substring(left,right);		
         		}
         		b.setBoundSequence(bs);

@@ -40,7 +40,8 @@ public class KmerEngine {
 	private int minHitCount = 3;
 	private int numPos;
 	
-	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();		// current set of kmers
+	private ArrayList<Kmer> allKmers = new ArrayList<Kmer>();	// all the kmers in the sequences
 	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 	
 	// AhoCorasick algorithm for multi-pattern search
@@ -142,7 +143,6 @@ public class KmerEngine {
 		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 		
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
-		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
 			String seq = seqs[seqId];
 			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
@@ -162,19 +162,18 @@ public class KmerEngine {
 		}
 		System.out.println("\nKmers indexed "+CommonUtils.timeElapsed(tic));
 	
-		// sort the kmer strings
-		//so that we can only use one kmer to represent its reverse compliment (RC)
+		// sort the kmer strings, to make a kmer to also represent its reverse compliment (RC)
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		ArrayList<String> sortedKeys = new ArrayList<String>();
 		sortedKeys.addAll(map.keySet());
-		Collections.sort(sortedKeys);
-		
+		Collections.sort(sortedKeys);	
+		// create kmers from its and RC's counts
 		for (String key:sortedKeys){
 			if (!map.containsKey(key))		// this kmer has been removed, represented by RC
 				continue;
 
 			// consolidate kmer and its reverseComplment kmer
-			String key_rc = SequenceUtils.reverseComplement(key);
-				
+			String key_rc = SequenceUtils.reverseComplement(key);				
 			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
 				if (map.containsKey(key_rc)){
 					map.put(key, (map.get(key)+map.get(key_rc)));
@@ -189,6 +188,7 @@ public class KmerEngine {
 			Kmer kmer = new Kmer(key, map.get(key));
 			kmers.add(kmer);
 		}
+		allKmers = new ArrayList<Kmer>(kmers);		//TODO: make sure it does not take too much memory
 		map=null;
 		System.gc();
 		System.out.println("Kmers("+kmers.size()+") mapped "+CommonUtils.timeElapsed(tic));
@@ -332,11 +332,11 @@ public class KmerEngine {
 			Kmer kmer = str2kmer.get(kmerStr);
 			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
 			for (int p: pos){
-				result.put(p-kmer.getGlobalShift(), kmer);
+				result.put(p-kmer.getKmerShift(), kmer);	// minus kmerShift to get the motif position
 			}
 			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmerStr));
 			for (int p: pos_rc){
-				result.put(-(p-kmer.getGlobalShift()), kmer);
+				result.put(-(p-kmer.getKmerShift()), kmer);
 			}
 		}
 

@@ -23,14 +23,18 @@ public class Kmer implements Comparable<Kmer>{
 	public int getShift(){return shift;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer
 	public int getScore(){return score;}	
-	int globalShift;			// the shift to the first seed
-	public int getGlobalShift(){return globalShift;}
-	public void setGlobalShift(int s){globalShift=s;}
+	int kmerShift;			// the shift of kmer start from the middle of motif(PWM)
+	public int getKmerShift(){return kmerShift;}
+	public void setKmerShift(int s){kmerShift=s;}
+	int group=-1;			// the group of motif
+	public int getGroup(){return group;}
+	public void setGroup(int g){group=g;}
 	
 	public Kmer(String kmerStr, int hitCount){
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
 		this.seqHitCount = hitCount;
+		this.kmerShift = this.k/2;
 	}
 	
 	/** 

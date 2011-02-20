@@ -690,7 +690,7 @@ private int mismatch(String ref, String seq){
 				min = offset;
 			if (max<offset)
 				max = offset;
-			k.setGlobalShift(offset);
+			k.setKmerShift(offset);
 		}
 	}
 	
@@ -702,7 +702,7 @@ private int mismatch(String ref, String seq){
 		TreeSet<Kmer> ks = alignedKmerSets.get(i);
 		pfms[i] = pfm;
 		for (Kmer km: ks){
-			int shift = km.getGlobalShift();
+			int shift = km.getKmerShift();
 			double factor = km.getSeqHitCount();
 			if (useWeight)
 				factor = km.getStrength();
@@ -765,7 +765,7 @@ private int mismatch(String ref, String seq){
 	  .append("seqCt").append("\t").append("Alignment").append("\n");
 	for (TreeSet<Kmer> ks:alignedKmerSets){
 		for (Kmer km: ks){
-			String shiftedKmer = CommonUtils.padding(max-km.getGlobalShift(), ' ').concat(km.getKmerString());
+			String shiftedKmer = CommonUtils.padding(max-km.getKmerShift(), ' ').concat(km.getKmerString());
 			sb//.append(km.getKmerString()).append("\t").append(km.getGlobalShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
 			  .append(km.getSeqHitCount()).append("\t").append(shiftedKmer).append("\n");			
 		}
