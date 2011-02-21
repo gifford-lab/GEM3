@@ -61,6 +61,9 @@ public class Kmer implements Comparable<Kmer>{
 		double diff = o.seqHitCount-seqHitCount;
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
 	}
+	public boolean hasString(String kmerString){
+		return this.kmerString.equals(kmerString);
+	}
 	public String toString(){
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+
 			   String.format("%.1f", Math.log10(hg))+"\t"+String.format("%.1f", strength);

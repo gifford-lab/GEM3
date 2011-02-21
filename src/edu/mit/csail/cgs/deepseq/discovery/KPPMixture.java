@@ -3530,7 +3530,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
           }
           if (maxSeqScore >= maxWMScore * config.wm_factor){
         	  	if (maxScoringStrand =='-'){
-        		  cf.setBoundSequence(SequenceUtils.reverseComplement(seq));
+        		  cf.flipBoundSequence();
         		  maxScoringShift = seq.length()-wm.length()-maxScoringShift;
         	  	}
         	  	alignedFeatures.add(cf);
@@ -3663,6 +3663,102 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
     //greedily grow a cluster from the top count kmer only by matching kmers
     private void growByKmers(MotifCluster motifCluster, ArrayList<Kmer> kmers, ArrayList<ComponentFeature> unalignedFeatures){
+    	ArrayList<ComponentFeature> alignedFeatures = motifCluster.alignedFeatures;
+    	ArrayList<Integer> motifStartInSeq = motifCluster.motifStartInSeq;
+    	
+    	ArrayList<ComponentFeature> temp = new ArrayList<ComponentFeature>();
+    	ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
+    	String seedKmerStr = kmers.get(0).getKmerString();
+    	String seedKmerRC = kmers.get(0).getKmerRC();
+    	
+    	// map kmers to the events
+    	HashMap<Kmer, ArrayList<ComponentFeature>> kmer2cf = new HashMap<Kmer, ArrayList<ComponentFeature>>();
+    	for(ComponentFeature cf : unalignedFeatures){
+    		Kmer kmer = cf.getKmer();
+    		assert(kmer!=null);
+    		if (!kmer2cf.containsKey(kmer))
+    			kmer2cf.put(kmer, new ArrayList<ComponentFeature>());
+    		kmer2cf.get(kmer).add(cf);
+    	}
+    	
+    	for (Kmer kmer:kmer2cf.keySet()){
+    		// perfect match or 1 mismatch, no shift
+    		if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=1){
+    			for (ComponentFeature cf:kmer2cf.get(kmer)){
+    				alignedFeatures.add(cf);
+	    			motifStartInSeq.add(0);
+	    			alignedKmers.add(kmer);
+    			}
+    		}
+    		else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=1){
+    			for (ComponentFeature cf:kmer2cf.get(kmer)){
+    				cf.flipBoundSequence();
+    				alignedFeatures.add(cf);
+	    			motifStartInSeq.add(0);
+	    			alignedKmers.add(kmer);
+    			}
+    			kmer.RC();
+    		}
+    		else{
+    		// match or 1 mismatch after 1 shift
+	    		String kmerStr = kmer.getKmerString().substring(1);
+	    		String ref = seedKmerStr.substring(0, seedKmerStr.length()-1);
+	    		String refRC = seedKmerRC.substring(1);
+	    		if (mismatch(ref, kmerStr)<=1){
+	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
+	    				alignedFeatures.add(cf);
+		    			motifStartInSeq.add(1);
+		    			alignedKmers.add(kmer);
+	    			}
+	    			continue;
+	    		}
+	    		else if(mismatch(refRC, kmerStr)<=1){	// if match RC, reset kmer and seq
+	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
+	    				cf.flipBoundSequence();
+	    				alignedFeatures.add(cf);
+		    			motifStartInSeq.add(1);
+		    			alignedKmers.add(kmer);
+	    			}
+	    			kmer.RC();
+	    			continue;
+	    		}
+	    		// shift to the other direction
+	    		kmerStr = kmer.getKmerString().substring(0, seedKmerStr.length()-1);
+	    		ref = seedKmerStr.substring(1);
+	    		refRC = seedKmerRC.substring(0, seedKmerStr.length()-1);
+	    		if (mismatch(ref, kmerStr)<=1){
+	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
+	    				alignedFeatures.add(cf);
+		    			motifStartInSeq.add(-1);
+		    			alignedKmers.add(kmer);
+	    			}
+	    			continue;
+	    		}
+	    		else if(mismatch(refRC, kmerStr)<=1){	// if match RC, reset kmer and seq
+	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
+	    				cf.flipBoundSequence();
+	    				alignedFeatures.add(cf);
+		    			motifStartInSeq.add(-1);
+		    			alignedKmers.add(kmer);
+	    			}
+	    			kmer.RC();
+	    			continue;
+	    		}
+    		}
+    	} // for each kmer
+    	
+    	// update sequences
+    	unalignedFeatures.removeAll(alignedFeatures);
+    	// update kmers
+    	kmers.removeAll(alignedKmers);
+    	// update motifCluster
+    	if (motifCluster.alignedKmers==null)
+    		motifCluster.alignedKmers = new ArrayList<Kmer>();    	
+    	motifCluster.alignedKmers.addAll(alignedKmers);
+    }
+    
+    //greedily grow a cluster from the top count kmer only by matching kmers
+    private void growByKmers2(MotifCluster motifCluster, ArrayList<Kmer> kmers, ArrayList<ComponentFeature> unalignedFeatures){
     	ArrayList<ComponentFeature> alignedFeatures = motifCluster.alignedFeatures;
     	ArrayList<Integer> motifStartInSeq = motifCluster.motifStartInSeq;
     	
@@ -5423,7 +5519,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
         			right = seq.length();
         			left = seq.length()-config.k*3;
         		}
-    			b.setBoundSequence(seq.substring(left,right));
+        		String bs = seq.substring(left,right);
+        		if (!bs.contains(b.getKmer().getKmerString()))
+        			bs = SequenceUtils.reverseComplement(bs);
+    			b.setBoundSequence(bs);
         		
 //        		if (kmer==null){
 //        			int left = kIdx - kEngine.getMaxShift()-config.k/2;
