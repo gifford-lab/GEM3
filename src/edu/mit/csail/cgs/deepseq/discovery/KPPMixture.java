@@ -3350,7 +3350,37 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		kEngine.updateEngine(kmers, outName);
     }
-	
+
+//	//print out the kmers
+//	StringBuilder sb = new StringBuilder();
+//	sb.append("Kmer").append("\t").append("seqCt").append("\t")
+//	  .append("gShift").append("\t").append("refKmer").append("\t")
+//	  .append("Alignment").append("\n");
+//	for (TreeSet<Kmer> ks:alignedKmerSets){
+//		for (Kmer km: ks){
+//			String shiftedKmer = CommonUtils.padding(max-km.getKmerShift(), ' ').concat(km.getKmerString());
+//			sb.append(km.getKmerString()).append("\t").append(km.getSeqHitCount()).append("\t")
+//			  .append(km.getKmerShift()).append("\t").append(km.getRef().getKmerString()).append("\t")
+//			  .append(shiftedKmer).append("\n");			
+//		}
+//		sb.append("\n");
+//	}
+//	sb.append("Total kmer groups: " + alignedKmerSets.size());
+//	CommonUtils.writeFile(outName+"_AlignedKmers.txt", sb.toString());
+//	
+//	//print out the kmer strings in fasta format
+//	sb = new StringBuilder();
+//	int g=0;
+//	for (TreeSet<Kmer> ks:alignedKmerSets){
+//		int kk=0;
+//		for (Kmer km: ks){
+//			sb.append(">"+outName+"_"+g+"_"+kk).append("\n");
+//			sb.append(km.getKmerString()).append("\n");		
+//    		kk++;
+//		}
+//		g++;
+//	}
+//	CommonUtils.writeFile(outName+"_Kmers.fa", sb.toString());
     /*
      * Cluster the bound sequences at binding events based on Kmer and PWM learning
      */
