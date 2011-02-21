@@ -3309,12 +3309,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	
 	    	for (MotifCluster cluster : clusters){
 	    		ArrayList<ComponentFeature> alignedFeatures = cluster.alignedFeatures;
-	    		ArrayList<Integer> shifts = cluster.motifStartInSeq;
+	    		ArrayList<Integer> motifPos = cluster.motifStartInSeq;
 	    		if (alignedFeatures.size()<=5)
 	    			continue;
 	    		else
 	    			System.out.println("Motif cluster "+groupIndex+", from "+alignedFeatures.size()+" binding events.");
-	    		WeightMatrix wm = makePWM( alignedFeatures, shifts, false);
+	    		WeightMatrix wm = makePWM( alignedFeatures, motifPos, false);
 	    		double maxScore = wm.getMaxScore();
 	//    		System.out.println(WeightMatrix.printMatrix(wm));
 	    		System.out.println(WeightMatrix.printMatrixLetters(wm));    
@@ -3330,29 +3330,29 @@ class KPPMixture extends MultiConditionFeatureFinder {
     				if (seq.length()<config.k)
     					continue;
     				
-	    			Pair<Integer, Double> hit = scanPWM(nf, wm, scorer);		// start position of PWM hit in the bound sequence
-	    			int shift = hit.car();
+	    			Pair<Integer, Double> hit = scanPWM(nf, wm, scorer);	// PWM hit in the bound sequence
+	    			int hitPos = hit.car();									// motif hit start pos
 	    			double score = hit.cdr();
 	    			if (score<maxScore*config.wm_factor)
 	    				continue;
 	    			
-	    			if (shift!=-1){
+	    			if (hitPos!=-1){
 	    				if (seq.length()==config.k){
 	    					Kmer kmer = new Kmer(seq, 1);
 		    				newKmers.put(seq, kmer);
 		    				nf.setKmer(kmer);
 		    				alignedFeatures.add(nf);
-		    				shifts.add(shift);
+		    				motifPos.add(hitPos);
 		    				temp.add(nf);
 	    				}		    			
 	    				else{
 	    					// offset between PWM hit and Kmer, this should work no matter which one is wider
 			    			
 	    					int offset = (wm.length()-config.k)/2;	
-			    			int left = shift+offset;
-			    			int right = shift+offset+config.k;
+			    			int left = hitPos+offset;
+			    			int right = hitPos+offset+config.k;
 			    			if (right>seq.length() || left<0){
-			    				System.err.println("Warning: Get Kmer for nullKmerFeatures:<"+left+", "+right+">");
+			    				System.err.println("Warning: Get Kmer for nullKmerFeatures: seqLen="+seq.length()+" <"+left+", "+right+">");
 			    				continue;
 			    			}
 		    				String kmerStr = seq.substring(left, right);
@@ -3360,7 +3360,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    				newKmers.put(kmerStr, kmer);
 		    				nf.setKmer(kmer);
 		    				alignedFeatures.add(nf);
-		    				shifts.add(shift);
+		    				motifPos.add(hitPos);
 		    				temp.add(nf);
 		    			}
 	    			}
@@ -3370,15 +3370,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		kmers.addAll(newKmers.values());
 	    		
 	    		// make PFM
-	    		sb_pfm.append(getPFMString(alignedFeatures, shifts, wm.length(), groupIndex));
+	    		sb_pfm.append(getPFMString(alignedFeatures, motifPos, wm.length(), groupIndex));
 	    		
 	            for (int f=0;f<alignedFeatures.size();f++){
 	            	ComponentFeature cf = alignedFeatures.get(f);
 	            	Kmer kmer = cf.getKmer();
 	            	if (kmer.getGroup()==-1){
 		            	int start = cf.getBoundSequence().indexOf(kmer.getKmerString());
-		            	// kmer start relative from the middle of PWM = kmerStart - pwmStart + halfWidth of PWM
-		            	kmer.setKmerShift(start - shifts.get(f) + wm.length()/2);
+		            	// kmer start relative from the middle of PWM = kmerStart - pwmStart - halfWidth of PWM
+		            	kmer.setKmerShift(start - motifPos.get(f) - wm.length()/2);
 		            	kmer.setGroup(groupIndex);
 	            	}
 	    		}

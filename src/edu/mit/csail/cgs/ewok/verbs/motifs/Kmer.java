@@ -66,7 +66,7 @@ public class Kmer implements Comparable<Kmer>{
 			   String.format("%.1f", Math.log10(hg))+"\t"+String.format("%.1f", strength);
 	}
 	public static String toHeader(){
-		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tWeight";
+		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tStrength";
 	}
 
 	public int getSeqHitCount() {
