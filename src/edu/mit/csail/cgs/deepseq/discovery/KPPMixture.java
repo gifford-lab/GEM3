@@ -4201,7 +4201,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int max_hit_per_bp = -1;
         
         public int k = -1;			// the width of kmer
-        public int kwin = 100;		// the window around binding event to search for kmers
+        public int kwin = 60;		// the window around binding event to search for kmers
         public int kwin_shift = 100;// the shift from binding event for negative sequence set    
         public int kc2pp = 0;		// different mode to convert kmer count to positional prior alpha value
         public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
@@ -4209,7 +4209,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double hgp = 0.1; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double gc = 0.42;	// GC content in the genome
         public double[] bg;
-        public double wm_factor = 0.3;	// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
+        public double wm_factor = 0.5;	// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;	// The information content threshold to trim the ends of PWM
         public boolean pad_letters = false; //adding backgroup fraction to pad kmers
         
