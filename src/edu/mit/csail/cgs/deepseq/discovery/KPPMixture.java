@@ -3326,8 +3326,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	        	// use hashMap so that the kmer String is unique
 	        	HashMap<String, Kmer> newKmers = new HashMap<String, Kmer>();
 	    		for (ComponentFeature nf : nullKmerFeatures){
-    				String seq = nf.getBoundSequence();
-    				if (seq.length()<config.k)
+    				if (nf.getBoundSequence().length()<config.k)
     					continue;
     				
 	    			Pair<Integer, Double> hit = scanPWM(nf, wm, scorer);	// PWM hit in the bound sequence
@@ -3336,7 +3335,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			if (score<maxScore*config.wm_factor)
 	    				continue;
 	    			
-	    			if (hitPos!=-1){
+	    			String seq = nf.getBoundSequence();
+    				if (hitPos!=-1){
 	    				if (seq.length()==config.k){
 	    					Kmer kmer = new Kmer(seq, 1);
 		    				newKmers.put(seq, kmer);
@@ -3433,8 +3433,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	double[][] pfm = new double[length][MAXLETTERVAL];
     	for (int i=0;i<alignedFeatures.size();i++){
     		ComponentFeature cf = alignedFeatures.get(i);
-    		int shift = motifStartInSeq.get(i);	
-    		String seq = cf.getBoundSequence().substring(shift, shift+length);		
+    		int pos_motif = motifStartInSeq.get(i);	
+    		if (pos_motif+length>cf.getBoundSequence().length())
+    			continue;
+    		String seq = cf.getBoundSequence().substring(pos_motif, pos_motif+length);		
     		for (int p=0;p<length;p++){
     			char base = seq.charAt(p);
     			double strength = config.use_strength?alignedFeatures.get(i).getTotalSumResponsibility():1;
@@ -3558,6 +3560,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     
     /**
      *  Scan the bound sequence of componentFeature using weight matrix
+     *  The bound sequence will be flipped if the match is on '-' strand
      *  @return  the start position of highest scoring PWM hit
      */
     private Pair<Integer, Double> scanPWM(ComponentFeature cf, WeightMatrix wm, WeightMatrixScorer scorer){
@@ -3579,7 +3582,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
   
 		if (maxScoringStrand =='-'){
-			cf.setBoundSequence(SequenceUtils.reverseComplement(seq));
+			cf.flipBoundSequence();
 			maxScoringShift = seq.length()-(wm.length())-maxScoringShift;		// WM has a extra column
 		}
 		return new Pair<Integer, Double>(maxScoringShift, maxSeqScore);
