@@ -464,7 +464,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		reportTriggers.add(1000);
 		reportTriggers.add(10000);
 		
-		if (kEngine!=null){
+		if (kEngine!=null && kEngine.isInitialized()){
 			System.out.println("\nRunning EM with Kmer positional prior ...\n");
 		}
 		
@@ -3230,22 +3230,31 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (config.k==-1)
     		return;
 		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
+		int count = 1;
 		for(Feature f : signalFeatures){
+			if(count++>config.k_seqs)
+				break;
 			ComponentFeature cf = (ComponentFeature)f;
 			fs.add(cf);
 		}
-		if (!config.kmer_not_use_insig)
+		if (!config.kmer_not_use_insig){
 			for(Feature f : insignificantFeatures){
+				if(count++>config.k_seqs)
+					break;
 				ComponentFeature cf = (ComponentFeature)f;
 				fs.add(cf);
 			}
-		if (config.kmer_use_filtered)			
+		}
+		if (config.kmer_use_filtered){			
 			for(Feature f : filteredFeatures){
+				if(count++>config.k_seqs)
+					break;
 				ComponentFeature cf = (ComponentFeature)f;
 				fs.add(cf);
 			}
+		}
 		kEngine = new KmerEngine(gen, config.cache_genome);
-		kEngine.buildEngine(config.k, fs, config.kwin, config.kwin_shift, config.hgp, outPrefix);
+		kEngine.buildEngine(config.k, fs, config.k_win, config.k_shift, config.hgp, outPrefix);
     }
     
     // update kmerEngine with the predicted kmer-events
@@ -4207,9 +4216,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int max_hit_per_bp = -1;
         
         public int k = -1;			// the width of kmer
-        public int kwin = 60;		// the window around binding event to search for kmers
-        public int kwin_shift = 100;// the shift from binding event for negative sequence set    
-        public int kc2pp = 0;		// different mode to convert kmer count to positional prior alpha value
+        public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
+        public int k_win = 60;		// the window around binding event to search for kmers
+        public int k_shift = 100;// the shift from binding event for negative sequence set    
+        public int kpp_mode = 0;		// different mode to convert kmer count to positional prior alpha value
         public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
         public double kpp_min = 0.2;// min value
         public double hgp = 0.1; 	// p-value threshold of hyper-geometric test for enriched kmer 
@@ -4287,9 +4297,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
             mappable_genome_length = Args.parseDouble(args, "s", 2.08E9);	// size of mappable genome
             // Optional input parameter
             k = Args.parseInteger(args, "k", k);
-            kwin = Args.parseInteger(args, "kwin", kwin);
-            kwin_shift = Args.parseInteger(args, "kwin_shift", kwin_shift);
-            kc2pp = Args.parseInteger(args, "kc2pp", kc2pp);
+            k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
+            k_win = Args.parseInteger(args, "k_win", k_win);
+            k_shift = Args.parseInteger(args, "k_shift", k_shift);
+            kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
             kpp_max = Args.parseDouble(args, "kpp_max", kpp_max);
             kpp_min = Args.parseDouble(args, "kpp_min", kpp_min);
             gc = Args.parseDouble(args, "gc", gc);
@@ -4721,11 +4732,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		                		}		                			
 	                		}
 	                		// select the approach to generate pp from kmer count
-	                		if (config.kc2pp==0)
+	                		if (config.kpp_mode==0)
 	                			pp[bindingPos] = kmerCount;
-	                		else if (config.kc2pp==1)
+	                		else if (config.kpp_mode==1)
 	                			pp[bindingPos] = kmerCount==0?0:Math.log(kmerCount);
-	                		else if (config.kc2pp==10)
+	                		else if (config.kpp_mode==10)
 	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
 	                		pp_kmer[bindingPos] = maxKmer;
 	                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), maxKmer, pp[bindingPos]));
@@ -5527,21 +5538,22 @@ class KPPMixture extends MultiConditionFeatureFinder {
         	for (BindingComponent b:components){
         		int kIdx = b.getLocation().getLocation()-startPos;
         		b.setKmer(pp_kmer[kIdx]);
-        		int left = kIdx - config.k*3/2;
-        		int right = kIdx +(config.k*3-config.k*3/2);
-        		if (left<0){
-        			left = 0;
-        			right = config.k*3;
+        		if (seq!=null){
+	        		int left = kIdx - config.k*3/2;
+	        		int right = kIdx +(config.k*3-config.k*3/2);
+	        		if (left<0){
+	        			left = 0;
+	        			right = config.k*3;
+	        		}
+	        		if (right>seq.length()){
+	        			right = seq.length();
+	        			left = seq.length()-config.k*3;
+	        		}
+	        		String bs = seq.substring(left,right);
+	        		if (b.getKmer()!=null && !bs.contains(b.getKmer().getKmerString()))
+	        			bs = SequenceUtils.reverseComplement(bs);
+	    			b.setBoundSequence(bs);
         		}
-        		if (right>seq.length()){
-        			right = seq.length();
-        			left = seq.length()-config.k*3;
-        		}
-        		String bs = seq.substring(left,right);
-        		if (b.getKmer()!=null && !bs.contains(b.getKmer().getKmerString()))
-        			bs = SequenceUtils.reverseComplement(bs);
-    			b.setBoundSequence(bs);
-        		
 //        		if (kmer==null){
 //        			int left = kIdx - kEngine.getMaxShift()-config.k/2;
 //            		int right = kIdx - kEngine.getMinShift()+(config.k-config.k/2);

@@ -34,7 +34,7 @@ public class Kmer implements Comparable<Kmer>{
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
 		this.seqHitCount = hitCount;
-		this.kmerShift = this.k/2;
+		this.kmerShift = -this.k/2;
 	}
 	
 	/** 

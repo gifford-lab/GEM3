@@ -35,7 +35,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KmerEngine {
 	private Genome genome;
-	private boolean engineInitialized;
+	private boolean engineInitialized =false;
 	private int k=10;
 	private int minHitCount = 3;
 	private int numPos;
@@ -61,7 +61,7 @@ public class KmerEngine {
 	public int getMinShift() {return minShift;}
 	public void setMinShift(int minShift) {this.minShift = minShift;}
 	
-	public boolean isInitialized(){ return this.engineInitialized;}
+	public boolean isInitialized(){ return engineInitialized;}
 	
 	// The average profile/density of kmers along the sequence positions
 	private double[] positionProbs;
@@ -160,7 +160,7 @@ public class KmerEngine {
 				}
 			}
 		}
-		System.out.println("\nKmers indexed "+CommonUtils.timeElapsed(tic));
+//		System.out.println("\nKmers indexed "+CommonUtils.timeElapsed(tic));
 	
 		// sort the kmer strings, to make a kmer to also represent its reverse compliment (RC)
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
@@ -191,7 +191,7 @@ public class KmerEngine {
 		allKmers = new ArrayList<Kmer>(kmers);		//TODO: make sure it does not take too much memory
 		map=null;
 		System.gc();
-		System.out.println("Kmers("+kmers.size()+") mapped "+CommonUtils.timeElapsed(tic));
+		System.out.println("Kmers("+kmers.size()+") mapped, "+CommonUtils.timeElapsed(tic));
 		
 		/*
 		Aho-Corasick for searching Kmers in negative sequences
@@ -237,7 +237,6 @@ public class KmerEngine {
 		// score the kmers, hypergeometric p-value
 		int n = seqs.length;
 		int N = n + negSeqCount;
-		System.out.println("Positive sequences: "+n+" \t"+"Negative sequences: "+negSeqCount);
 		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		for (Kmer kmer:kmers){
@@ -259,7 +258,7 @@ public class KmerEngine {
 		}
 		// remove un-enriched kmers		
 		kmers.removeAll(toRemove);
-		System.out.println("\nKmers selected "+CommonUtils.timeElapsed(tic));
+		System.out.println(String.format("Kmers(%d) selected from %d positive out of %d egative sequences, %s", kmers.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
 
 		// set Kmers and prepare the search Engine
 		updateEngine(kmers, outPrefix);
@@ -292,7 +291,7 @@ public class KmerEngine {
 	    }
 	    tree.prepare();
 	    engineInitialized = true;
-	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine "+CommonUtils.timeElapsed(tic));
+	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine, "+CommonUtils.timeElapsed(tic));
 	}	
 	
 	/** 
