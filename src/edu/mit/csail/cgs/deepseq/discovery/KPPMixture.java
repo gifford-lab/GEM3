@@ -3378,6 +3378,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	            	Kmer kmer = cf.getKmer();
 	            	if (kmer.getGroup()==-1){
 		            	int start = cf.getBoundSequence().indexOf(kmer.getKmerString());
+		            	assert (start!=-1);
 		            	// kmer start relative from the middle of PWM = kmerStart - pwmStart - halfWidth of PWM
 		            	kmer.setKmerShift(start - motifPos.get(f) - wm.length()/2);
 		            	kmer.setGroup(groupIndex);
@@ -4675,7 +4676,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	String seq = null;
                 	if (kEngine!=null && kEngine.isInitialized()){
 	                	seq = seqgen.execute(w).toUpperCase();
-	                	HashMap<Integer, Kmer> kmerHits = kEngine.query(seq);
+	                	HashMap<Integer, ArrayList<Kmer>> kmerHits = kEngine.query(seq);
 // TODO: allowing more motif in the region	                	
 //	                	double kmerCount_max = kEngine.getMaxCount();
 //	                	double kmerCount_min = kEngine.getMinCount();
@@ -4703,12 +4704,22 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                			System.err.println("KPP: bindingPos " + bindingPos + " out of bound ("+pp.length+") at "+w.toString());
 	                			continue;
 	                		}
-	                			
+	                		// stronger kmer will take count from all others (on the same position)	
 	                		double kmerCount = 0;
-	                		if (config.use_strength)
-	                			kmerCount = kmerHits.get(pos).getStrength();
-	                		else
-	                			kmerCount = kmerHits.get(pos).getSeqHitCount();
+	                		Kmer maxKmer = null;
+	                		double maxCount = 0;
+	                		for (Kmer kmer:kmerHits.get(pos)){		
+	                			double count=0;
+		                		if (config.use_strength)
+		                			count = kmer.getStrength();
+		                		else
+		                			count = kmer.getSeqHitCount();
+		                		kmerCount+=count;
+		                		if (maxCount<count){
+		                			maxCount = count;
+		                			maxKmer = kmer;
+		                		}		                			
+	                		}
 	                		// select the approach to generate pp from kmer count
 	                		if (config.kc2pp==0)
 	                			pp[bindingPos] = kmerCount;
@@ -4716,8 +4727,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                			pp[bindingPos] = kmerCount==0?0:Math.log(kmerCount);
 	                		else if (config.kc2pp==10)
 	                			pp[bindingPos] = kmerCount==0?0:Math.log10(kmerCount);
-	                		pp_kmer[bindingPos] = kmerHits.get(pos);
-	                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), kmerHits.get(pos), pp[bindingPos]));
+	                		pp_kmer[bindingPos] = maxKmer;
+	                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), maxKmer, pp[bindingPos]));
 	                	}
 	                	
 	                	// if kmer hits are 100bp apart, consider them as independent motif hit
