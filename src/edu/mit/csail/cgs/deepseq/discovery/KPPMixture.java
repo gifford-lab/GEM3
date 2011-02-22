@@ -3368,6 +3368,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		System.out.println("Rescue "+newKmers.size()+" kmers from "+temp.size()+" sequences.");  
 	    		nullKmerFeatures.removeAll(temp);
 	    		kmers.addAll(newKmers.values());
+	    		cluster.alignedKmers.addAll(newKmers.values());
 	    		
 	    		// make PFM
 	    		sb_pfm.append(getPFMString(alignedFeatures, motifPos, wm.length(), groupIndex));
@@ -3383,6 +3384,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	            	}
 	    		}
 	            ArrayList<Kmer> akmers = cluster.alignedKmers;
+	            Collections.sort(akmers);
 				int kk=0;
 	    		for (Kmer km: akmers){
 					String shiftedKmer = CommonUtils.padding(Math.max(0, km.getKmerShift()), ' ').concat(km.getKmerString());
@@ -3692,16 +3694,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			for (ComponentFeature cf:kmer2cf.get(kmer)){
     				alignedFeatures.add(cf);
 	    			motifStartInSeq.add(0);
-	    			alignedKmers.add(kmer);
     			}
+	    		alignedKmers.add(kmer);
     		}
     		else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=1+config.k*0.1){
     			for (ComponentFeature cf:kmer2cf.get(kmer)){
     				cf.flipBoundSequence();
     				alignedFeatures.add(cf);
 	    			motifStartInSeq.add(0);
-	    			alignedKmers.add(kmer);
     			}
+    			alignedKmers.add(kmer);
     			kmer.RC();
     		}
     		else{
@@ -3713,8 +3715,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
 	    				alignedFeatures.add(cf);
 		    			motifStartInSeq.add(-1);
-		    			alignedKmers.add(kmer);
 	    			}
+	    			alignedKmers.add(kmer);
 	    			continue;
 	    		}
 	    		else if(mismatch(ref, kmerRC)<=1){	// if match RC, reset kmer and seq
@@ -3722,8 +3724,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    				cf.flipBoundSequence();
 	    				alignedFeatures.add(cf);
 		    			motifStartInSeq.add(-1);
-		    			alignedKmers.add(kmer);
 	    			}
+	    			alignedKmers.add(kmer);
 	    			kmer.RC();
 	    			continue;
 	    		}
@@ -3735,8 +3737,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
 	    				alignedFeatures.add(cf);
 		    			motifStartInSeq.add(1);
-		    			alignedKmers.add(kmer);
 	    			}
+	    			alignedKmers.add(kmer);
 	    			continue;
 	    		}
 	    		else if(mismatch(ref, kmerRC)<=1){	// if match RC, reset kmer and seq
@@ -3744,8 +3746,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    				cf.flipBoundSequence();
 	    				alignedFeatures.add(cf);
 		    			motifStartInSeq.add(1);
-		    			alignedKmers.add(kmer);
 	    			}
+	    			alignedKmers.add(kmer);
 	    			kmer.RC();
 	    			continue;
 	    		}
