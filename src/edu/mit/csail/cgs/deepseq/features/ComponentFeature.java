@@ -7,6 +7,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class ComponentFeature extends Feature  implements Comparable<ComponentFeature>{
@@ -44,6 +45,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
 	public String getBoundSequence(){return boundSequence;}
 	public void setBoundSequence(String boundSequence){this.boundSequence = boundSequence;}
+	public void flipBoundSequence(){boundSequence = SequenceUtils.reverseComplement(boundSequence);}
 	
 	public ComponentFeature(BindingComponent b){
 		super(null);
@@ -433,7 +435,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append("\t");
         }
         if (kmer!=null)
-        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append("\t").append(String.format("%.1f\t", kmer.getStrength())).append("\t").append(boundSequence);
+        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append("\t").append(String.format("%.1f\t", kmer.getStrength())).append(boundSequence);
         
         result.append("\n");
 		return result.toString();

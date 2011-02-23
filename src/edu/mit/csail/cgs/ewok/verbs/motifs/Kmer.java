@@ -14,20 +14,27 @@ public class Kmer implements Comparable<Kmer>{
 	double hg;
 	int negCount;
 	
+	int cluster=-1;			// non-negative integer, type of clustered motif 
+	public void setCluster(int c){cluster=c;}
+	public int getCluster(){return cluster;}
 	Kmer reference;		//
 	public Kmer getRef(){return reference;}
 	int shift;			// the shift to achieve best score
 	public int getShift(){return shift;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer
 	public int getScore(){return score;}	
-	int globalShift;			// the shift to the first seed
-	public int getGlobalShift(){return globalShift;}
-	public void setGlobalShift(int s){globalShift=s;}
+	int kmerShift;			// the shift of kmer start from the middle of motif(PWM)
+	public int getKmerShift(){return kmerShift;}
+	public void setKmerShift(int s){kmerShift=s;}
+	int group=-1;			// the group of motif
+	public int getGroup(){return group;}
+	public void setGroup(int g){group=g;}
 	
 	public Kmer(String kmerStr, int hitCount){
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
 		this.seqHitCount = hitCount;
+		this.kmerShift = -this.k/2;
 	}
 	
 	/** 
@@ -54,12 +61,15 @@ public class Kmer implements Comparable<Kmer>{
 		double diff = o.seqHitCount-seqHitCount;
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
 	}
+	public boolean hasString(String kmerString){
+		return this.kmerString.equals(kmerString);
+	}
 	public String toString(){
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+
-			   String.format("%.1f", Math.log10(hg))+"\t"+String.format("%.1f", strength);
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log10(hg))+
+			   "\t"+String.format("%.1f", strength)+"\t"+kmerShift;
 	}
 	public static String toHeader(){
-		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tWeight";
+		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tStrength\tkmer-wm";
 	}
 
 	public int getSeqHitCount() {

@@ -137,15 +137,16 @@ public class GPS2 {
         String peakFileName = mixture.getOutName();
         mixture.setOutName(peakFileName+"_"+round);
 		
-        int update_model_round = 3;
+        int GPS_round = 3;
         if (Args.parseInteger(args,"k", -1)!=-1)
-        	update_model_round = 1;
-        update_model_round = Args.parseInteger(args,"r", update_model_round);
-                
+        	GPS_round = 1;
+        GPS_round = Args.parseInteger(args,"r", GPS_round);
+        int GEM_round = Args.parseInteger(args,"r_k", 3);
+        int GEM_WM_round = Args.parseInteger(args,"r_wm", 2);
         /**
          ** Simple GPS1 event finding without sequence information
          **/
-        while (kl>-5 && round<=update_model_round){
+        while (kl>-5 && round<=GPS_round){
             System.out.println("\n============================ Round "+round+" ============================");
             mixture.execute();
             mixture.printFeatures();
@@ -173,7 +174,7 @@ public class GPS2 {
          **/             
         mixture.initKmerEngine(peakFileName+"_"+(round-1));
         
-        while (round<=update_model_round+4){
+        while (round<=GPS_round+GEM_round+GEM_WM_round){
             System.out.println("\n============================ Round "+round+" ============================");
             mixture.execute();
             mixture.printFeatures();
@@ -185,7 +186,7 @@ public class GPS2 {
 
             mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
             
-            if (round < update_model_round+3)
+            if (round <= GPS_round+GEM_round)
             	mixture.updateKmerEngine(false);
             else
             	mixture.updateKmerEngine(true);

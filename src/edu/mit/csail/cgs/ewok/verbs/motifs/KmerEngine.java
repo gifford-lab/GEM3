@@ -35,12 +35,13 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KmerEngine {
 	private Genome genome;
-	private boolean engineInitialized;
+	private boolean engineInitialized =false;
 	private int k=10;
 	private int minHitCount = 3;
 	private int numPos;
 	
-	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();		// current set of kmers
+	private ArrayList<Kmer> allKmers = new ArrayList<Kmer>();	// all the kmers in the sequences
 	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 	
 	// AhoCorasick algorithm for multi-pattern search
@@ -60,7 +61,7 @@ public class KmerEngine {
 	public int getMinShift() {return minShift;}
 	public void setMinShift(int minShift) {this.minShift = minShift;}
 	
-	public boolean isInitialized(){ return this.engineInitialized;}
+	public boolean isInitialized(){ return engineInitialized;}
 	
 	// The average profile/density of kmers along the sequence positions
 	private double[] positionProbs;
@@ -142,7 +143,6 @@ public class KmerEngine {
 		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 		
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
-		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
 			String seq = seqs[seqId];
 			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
@@ -160,21 +160,20 @@ public class KmerEngine {
 				}
 			}
 		}
-		System.out.println("\nKmers indexed "+CommonUtils.timeElapsed(tic));
+//		System.out.println("\nKmers indexed "+CommonUtils.timeElapsed(tic));
 	
-		// sort the kmer strings
-		//so that we can only use one kmer to represent its reverse compliment (RC)
+		// sort the kmer strings, to make a kmer to also represent its reverse compliment (RC)
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		ArrayList<String> sortedKeys = new ArrayList<String>();
 		sortedKeys.addAll(map.keySet());
-		Collections.sort(sortedKeys);
-		
+		Collections.sort(sortedKeys);	
+		// create kmers from its and RC's counts
 		for (String key:sortedKeys){
 			if (!map.containsKey(key))		// this kmer has been removed, represented by RC
 				continue;
 
 			// consolidate kmer and its reverseComplment kmer
-			String key_rc = SequenceUtils.reverseComplement(key);
-				
+			String key_rc = SequenceUtils.reverseComplement(key);				
 			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
 				if (map.containsKey(key_rc)){
 					map.put(key, (map.get(key)+map.get(key_rc)));
@@ -189,9 +188,10 @@ public class KmerEngine {
 			Kmer kmer = new Kmer(key, map.get(key));
 			kmers.add(kmer);
 		}
+		allKmers = new ArrayList<Kmer>(kmers);		//TODO: make sure it does not take too much memory
 		map=null;
 		System.gc();
-		System.out.println("Kmers("+kmers.size()+") mapped "+CommonUtils.timeElapsed(tic));
+		System.out.println("Kmers("+kmers.size()+") mapped, "+CommonUtils.timeElapsed(tic));
 		
 		/*
 		Aho-Corasick for searching Kmers in negative sequences
@@ -237,7 +237,6 @@ public class KmerEngine {
 		// score the kmers, hypergeometric p-value
 		int n = seqs.length;
 		int N = n + negSeqCount;
-		System.out.println("Positive sequences: "+n+" \t"+"Negative sequences: "+negSeqCount);
 		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		for (Kmer kmer:kmers){
@@ -259,7 +258,7 @@ public class KmerEngine {
 		}
 		// remove un-enriched kmers		
 		kmers.removeAll(toRemove);
-		System.out.println("\nKmers selected "+CommonUtils.timeElapsed(tic));
+		System.out.println(String.format("Kmers(%d) selected from %d positive out of %d egative sequences, %s", kmers.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
 
 		// set Kmers and prepare the search Engine
 		updateEngine(kmers, outPrefix);
@@ -292,7 +291,7 @@ public class KmerEngine {
 	    }
 	    tree.prepare();
 	    engineInitialized = true;
-	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine "+CommonUtils.timeElapsed(tic));
+	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine, "+CommonUtils.timeElapsed(tic));
 	}	
 	
 	/** 
@@ -301,7 +300,7 @@ public class KmerEngine {
 	 * @return a map (pos-->kmer)
 	 * if pos is negative, then the start position maches the reverse compliment of kmer string
 	 */
-	public HashMap<Integer, Kmer> query (String seq){
+	public HashMap<Integer, ArrayList<Kmer>> query (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		/*
@@ -326,17 +325,23 @@ public class KmerEngine {
 		
 		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
 		// negative postion --> the start position matches the rc of kmer
-		HashMap<Integer, Kmer> result = new HashMap<Integer, Kmer> ();		
+		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();		
 		for (Object o: kmerFound){
 			String kmerStr = (String) o;
 			Kmer kmer = str2kmer.get(kmerStr);
 			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
 			for (int p: pos){
-				result.put(p-kmer.getGlobalShift(), kmer);
+				int x = p-kmer.getKmerShift();	// minus kmerShift to get the motif position
+				if (!result.containsKey(x))
+					result.put(x, new ArrayList<Kmer>());
+				result.get(x).add(kmer);	
 			}
 			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmerStr));
 			for (int p: pos_rc){
-				result.put(-(p-kmer.getGlobalShift()), kmer);
+				int x = -(p-kmer.getKmerShift());	// negative if on '-' strand
+				if (!result.containsKey(x))
+					result.put(x, new ArrayList<Kmer>());
+				result.get(x).add(kmer);	
 			}
 		}
 
