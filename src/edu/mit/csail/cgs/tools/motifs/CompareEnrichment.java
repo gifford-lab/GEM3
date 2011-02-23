@@ -74,7 +74,7 @@ public class CompareEnrichment {
     Map<String,char[]> foreground, background;  // foreground and background sequences
     Map<WeightMatrix, Double> maskingMatrices; // matrices to mask out of foreground and background
     ArrayList<String> fgkeys, bgkeys; // order in which to scan; also used when saving region list to a matrix of motif-sequence presence
-    Binomial binomial;
+
     PrintWriter savedatafg = null, savedatabg = null, outfg = null, outbg = null;
     boolean savedatahits = false, matchedbg = false;
     int threads = 1;
@@ -118,6 +118,11 @@ public class CompareEnrichment {
         seqgen.useLocalFiles(true);
         while ((line = reader.readLine()) != null) {
             Region region = Region.fromString(g, line);
+            if (region == null) {
+                System.err.println("Couldn't parse a region from " + line);
+                continue;
+            }
+
             if (parsedregionexpand > 0) {
                 region = region.expand(parsedregionexpand,parsedregionexpand);
             }
@@ -224,9 +229,30 @@ public class CompareEnrichment {
         }
     }
 
-    public   CEResult doScan(WeightMatrix matrix,
-                             Map<String,char[]> fg, 
-                             Map<String,char[]> bg) {
+    public static  CEResult doScan(WeightMatrix matrix,
+                                   Map<String,char[]> fg, 
+                                   Map<String,char[]> bg,
+                                   List<String> fgkeys,
+                                   List<String> bgkeys,
+                                   double cutoffpercent,
+                                   double filtersig,
+                                   double minfoldchange,
+                                   double minfrac,
+                                   double maxbackfrac,
+                                   PrintWriter savedatafg,
+                                   PrintWriter savedatabg,
+                                   boolean savedatahits) {
+        Binomial binomial = new Binomial(100, .01, RandomEngine.makeDefault());
+        if (fgkeys == null) {
+            fgkeys = new ArrayList<String>();
+            fgkeys.addAll(fg.keySet());
+            Collections.sort(fgkeys);
+        }
+        if (bgkeys == null) {
+            bgkeys = new ArrayList<String>();
+            bgkeys.addAll(bg.keySet());
+            Collections.sort(bgkeys);
+        }
         Map<String,List<WMHit>> fghits = new HashMap<String,List<WMHit>>();
         Map<String,List<WMHit>> bghits = new HashMap<String,List<WMHit>>();
         double maxscore = matrix.getMaxScore();
@@ -236,7 +262,7 @@ public class CompareEnrichment {
                                                                 fg.get(s));            
             fghits.put(s, hits);
         }
-        for (String s : bg.keySet()) {
+        for (String s : bgkeys) {
             List<WMHit> hits = WeightMatrixScanner.scanSequence(matrix,
                                                                 (float)(maxscore * cutoffpercent),
                                                                 bg.get(s));
@@ -271,7 +297,7 @@ public class CompareEnrichment {
             double pval = 1 - binomial.cdf(fgcount);
             double fc = Math.log(thetaone / thetatwo);
             if (pval <= filtersig && 
-                pval <= result.pval && 
+                //                pval <= result.pval && 
                 Math.abs(fc) >= Math.abs(result.logfoldchange) &&
                 Math.abs(fc) >= Math.abs(Math.log(minfoldchange)) &&
                 (thetatwo < maxbackfrac) && 
@@ -334,7 +360,6 @@ public class CompareEnrichment {
     }
 
     public void parseArgs(String args[]) throws Exception {
-        binomial = new Binomial(100, .01, RandomEngine.makeDefault());
         String firstfname = null, secondfname = null;
 
         genome = Args.parseGenome(args).cdr();
@@ -498,7 +523,17 @@ public class CompareEnrichment {
 
             CEResult result = doScan(matrix,
                                      foreground, 
-                                     background);
+                                     background,
+                                     fgkeys,
+                                     bgkeys,
+                                     cutoffpercent,
+                                     filtersig,
+                                     minfoldchange,
+                                     minfrac,
+                                     maxbackfrac,
+                                     savedatafg,
+                                     savedatabg,
+                                     savedatahits);
             if (savedatafg != null) {
                 savedatafg.println();
                 savedatabg.println();
@@ -507,16 +542,7 @@ public class CompareEnrichment {
                 Math.abs(result.logfoldchange) >= Math.abs(Math.log(minfoldchange)) &&
                 (result.freqtwo <= maxbackfrac) && 
                 (result.freqone >= minfrac || result.freqtwo >= minfrac)) {
-                System.out.println(String.format("%2.1f",result.logfoldchange) + "\t" + 
-                                   result.countone + "\t" + 
-                                   foreground.size() + "\t" + 
-                                   nf.format(result.freqone) + "\t" + 
-                                   result.counttwo + "\t" + 
-                                   background.size() + "\t" + 
-                                   nf.format(result.freqtwo) + "\t" +
-                                   nf.format(result.pval) + "\t" + 
-                                   result.matrix.name + "\t" + 
-                                   result.matrix.version + "\t" + result.percentString + "\t" + result.cutoffString);
+                System.out.println(result.toString());
             }
         }
         if (savedatafg != null) {
@@ -536,11 +562,3 @@ public class CompareEnrichment {
 
 }
 
-class CEResult {
-
-    public double pval, logfoldchange, freqone, freqtwo;
-    public WeightMatrix matrix;
-    public int sizeone, sizetwo, countone, counttwo;
-    public String percentString, cutoffString;
-    
-}
