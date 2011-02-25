@@ -14,16 +14,16 @@ public class Kmer implements Comparable<Kmer>{
 	double hg;
 	int negCount;
 	
-	int cluster=-1;			// non-negative integer, type of clustered motif 
-	public void setCluster(int c){cluster=c;}
-	public int getCluster(){return cluster;}
 	Kmer reference;		//
 	public Kmer getRef(){return reference;}
 	int shift;			// the shift to achieve best score
 	public int getShift(){return shift;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer
 	public int getScore(){return score;}	
-	int kmerShift;			// the shift of kmer start from the middle of motif(PWM)
+	/**
+	 *  The shift of kmer start from the middle of motif(PWM) (Pos_kmer-Pos_wm)
+	 */
+	int kmerShift;			
 	public int getKmerShift(){return kmerShift;}
 	public void setKmerShift(int s){kmerShift=s;}
 	int group=-1;			// the group of motif
