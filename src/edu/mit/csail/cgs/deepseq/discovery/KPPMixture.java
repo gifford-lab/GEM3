@@ -3392,8 +3392,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		            	// kmer start relative from the middle of PWM = kmerStart - pwmStart - halfWidth of PWM
 		            	kmer.setKmerShift(start - motifPos.get(f) - wm.length()/2);
 		            	kmer.setGroup(groupIndex);
-		            	if (kmer.getKmerString().equals("CCACCAGAGGGC") || kmer.getKmerString().equals("CCAGCAGAGGGC"))
-		            		f=f+1-1;
+//		            	if (kmer.getKmerString().equals("CCACCAGAGGGC") || kmer.getKmerString().equals("CCAGCAGAGGGC"))
+//		            		f=f+1-1;
 	            	}
 	    		}	
 	            
@@ -3642,6 +3642,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			shortest=seq.length()-pos_motif;
     	}
 
+    	if (leftMost+shortest<0){
+    		System.err.println("Err: makePWM(), leftMost="+leftMost+" shortest="+shortest);
+    	}
     	double[][] pwm = new double[leftMost+shortest][MAXLETTERVAL];
     	for (int i=0;i<alignedFeatures.size();i++){
     		int pos_motif = motifStartInSeq.get(i);	
