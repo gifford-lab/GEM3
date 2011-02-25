@@ -3641,15 +3641,22 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (shortest>seq.length()-pos_motif)
     			shortest=seq.length()-pos_motif;
     	}
-
-    	if (leftMost+shortest<0){
-    		System.err.println("Err: makePWM(), leftMost="+leftMost+" shortest="+shortest);
+    	int length = leftMost+shortest;
+    	boolean fixedLength = false;
+    	if (length<config.k){
+    		System.err.println("Warning: makePWM(), leftMost="+leftMost+" shortest="+shortest);
+    		length = 3*config.k;
+    		fixedLength = true;
     	}
-    	double[][] pwm = new double[leftMost+shortest][MAXLETTERVAL];
+    	double[][] pwm = new double[length][MAXLETTERVAL];
     	for (int i=0;i<alignedFeatures.size();i++){
     		int pos_motif = motifStartInSeq.get(i);	
-    		String seq  = alignedFeatures.get(i).getBoundSequence().substring(pos_motif-leftMost, pos_motif+shortest);
-    		for (int p=0;p<leftMost+shortest;p++){
+    		String seq = null;
+    		if (fixedLength)
+    			seq = alignedFeatures.get(i).getBoundSequence().substring(pos_motif-config.k*2, pos_motif+config.k);
+    		else
+    			seq = alignedFeatures.get(i).getBoundSequence().substring(pos_motif-leftMost, pos_motif+shortest);
+    		for (int p=0;p<length;p++){
     			char base = seq.charAt(p);
     			double strength = config.use_strength?alignedFeatures.get(i).getTotalSumResponsibility():1;
     			pwm[p][base] +=strength;
@@ -5571,15 +5578,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		int kIdx = b.getLocation().getLocation()-startPos;
         		b.setKmer(pp_kmer[kIdx]);
         		if (seq!=null){
-	        		int left = kIdx - config.k*3/2;
-	        		int right = kIdx +(config.k*3-config.k*3/2);
+	        		int left = kIdx - config.k*2;
+	        		int right = kIdx +config.k*2;
 	        		if (left<0){
 	        			left = 0;
-	        			right = config.k*3;
+	        			right = config.k*4;
 	        		}
 	        		if (right>seq.length()){
 	        			right = seq.length();
-	        			left = seq.length()-config.k*3;
+	        			left = seq.length()-config.k*4;
 	        		}
 	        		String bs = seq.substring(left,right);
 	        		if (b.getKmer()!=null && !bs.contains(b.getKmer().getKmerString()))
