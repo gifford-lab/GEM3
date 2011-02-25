@@ -3651,11 +3651,22 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	double[][] pwm = new double[length][MAXLETTERVAL];
     	for (int i=0;i<alignedFeatures.size();i++){
     		int pos_motif = motifStartInSeq.get(i);	
-    		String seq = null;
-    		if (fixedLength)
-    			seq = alignedFeatures.get(i).getBoundSequence().substring(pos_motif-config.k*2, pos_motif+config.k);
+    		String seq = alignedFeatures.get(i).getBoundSequence();
+    		if (fixedLength){
+    			int left = pos_motif-config.k*2;
+        		int right = pos_motif+config.k;
+        		if (left<0){
+        			left = 0;
+        			right = config.k*3;
+        		}
+        		if (right>seq.length()){
+        			right = seq.length();
+        			left = seq.length()-config.k*3;
+        		}
+    			seq = seq.substring(left, right);
+    		}
     		else
-    			seq = alignedFeatures.get(i).getBoundSequence().substring(pos_motif-leftMost, pos_motif+shortest);
+    			seq = seq.substring(pos_motif-leftMost, pos_motif+shortest);
     		for (int p=0;p<length;p++){
     			char base = seq.charAt(p);
     			double strength = config.use_strength?alignedFeatures.get(i).getTotalSumResponsibility():1;
