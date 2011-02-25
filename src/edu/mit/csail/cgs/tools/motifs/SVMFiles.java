@@ -19,6 +19,9 @@ import edu.mit.csail.cgs.tools.utils.Args;
 public class SVMFiles extends CombinatorialEnrichment {
     double trainfrac = .3;
     private String prefix;
+    private double motifWidth = 12; // width of the motif on which regions are centered
+    private int kmerLength, maxOffset;
+    private List<KmerFeature> features;
     public SVMFiles() {
         super();
     }
@@ -26,13 +29,50 @@ public class SVMFiles extends CombinatorialEnrichment {
         super.parseArgs(args);
         trainfrac = Args.parseDouble(args,"trainfrac",trainfrac);
         prefix = Args.parseString(args,"prefix","svm");
+        kmerLength = Args.parseInt(args,"k",4);
+        maxOffset = Args.parseInt(args,"maxoffset",4);
+
+        features = new ArrayList<KmerFeature>();
+        for (int i = 0; i < Math.pow(4,k); i++) {
+            KmerFeature f = new KmerFeature();
+            f.kmer = 
+            
+            f.offset = 0;
+        }
+        for (int pos = 0; pos < k; pos++) {
+            int chunksize = Math.pow(4, (k - pos));
+
+        }
+
+        for (int o = 0; o < maxOffset; o++) {
+
+        }
+
     }
-    private void saveLine(PrintWriter file, double val, WMHit[] hits) throws IOException {
+    private void saveLine(PrintWriter file, double val, WMHit[] hits, double kmerFeatures[]) throws IOException {
         StringBuffer line = new StringBuffer(Double.toString(val));
         for (int i = 0; i < hits.length; i++) {
             line.append(String.format(" %d:%.4f",i+1, hits[i] == null ? 0 : hits[i].getScore()));
         }
+        for (int i = 0; i < kmerFeatures.length; i++) {
+            line.append(String.format(" %d:%.4f",i+hits.length+1, kmerFeatures[i]));
+        }
         file.println(line.toString());
+    }
+    private double[] kmerFeatures(char[] sequence) {
+        double output[] = new double[features.size()];
+        for (int i = 0; i < features.size(); i++) {
+            boolean match = true;
+            KmerFeature feature = features.get(i);
+            for (int j = 0; j < feature.kmer.length; j++) {
+                if (sequence[feature.offset + j] != feature.kmer[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            output[i] = match ? 1 : 0;
+        }
+        return output;
     }
     public void saveFiles() throws IOException {
         PrintWriter training = new PrintWriter(prefix + "_training.txt");
@@ -42,18 +82,18 @@ public class SVMFiles extends CombinatorialEnrichment {
         PrintWriter featurenames = new PrintWriter(prefix + "_featurenames.txt");
         for (String s : fghits.keySet()) {
             if (Math.random() <= trainfrac) {
-                saveLine(training, 1, fghits.get(s));
+                saveLine(training, 1, fghits.get(s), kmerFeatures(foreground.get(s)));
                 trainingregions.println(s);
             } else {
-                saveLine(test, 1,fghits.get(s));
+                saveLine(test, 1,fghits.get(s), kmerFeatures(foreground.get(s)));
                 testregions.println(s);
             }
         }
         for (String s : bghits.keySet()) {
             if (Math.random() <= trainfrac) {
-                saveLine(training, -1, bghits.get(s));
+                saveLine(training, -1, bghits.get(s), kmerFeatures(background.get(s)));
             } else {
-                saveLine(test,-1, bghits.get(s));
+                saveLine(test,-1, bghits.get(s), kmerFeatures(background.get(s)));
                 testregions.println(s);
             }
         }
@@ -80,6 +120,9 @@ public class SVMFiles extends CombinatorialEnrichment {
         System.err.println("Saving files");
         ce.saveFiles();
     }
-        
+}
+class KmerFeature {
+    public int offset;
+    public char[] kmer;
 
 }
