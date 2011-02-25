@@ -69,7 +69,7 @@ public class RegionListOverlap {
             int fp = onecount - overlap;
             int fn = twocount - overlap;
             double tprate = ((double)tp) / onecount;
-            double fnrate = ((double)overlap) / twocount;
+            double fnrate = 1 - ((double)overlap) / twocount;
             System.out.println(String.format("n=%d  tp=%d  fp=%d  fn=%d   tpr=%.2f   fnr=%.2f",
                                              onecount, tp,fp,fn,tprate,fnrate));
         }

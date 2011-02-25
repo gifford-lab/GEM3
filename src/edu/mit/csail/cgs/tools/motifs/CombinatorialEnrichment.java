@@ -122,6 +122,7 @@ public class CombinatorialEnrichment extends CompareEnrichment {
         }
 
         public void run() {
+            Binomial binomial = new Binomial(100, .01, RandomEngine.makeDefault());
             for (int i = first; i < matrices.size(); i += skip) {
                 WeightMatrix mi = matrices.get(i);
                 double maxscorei = mi.getMaxScore();

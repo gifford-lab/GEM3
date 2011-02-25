@@ -26,6 +26,7 @@ public class RegionsToFasta {
             Genome genome = pair.cdr();
             FastaWriter writer = new FastaWriter(System.out);
             writer.useCache(Args.parseFlags(args).contains("cache"));
+            int expand = Args.parseInteger(args,"expand",0);
             String line;
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             while ((line = reader.readLine()) != null) {
@@ -36,10 +37,10 @@ public class RegionsToFasta {
                     if (pieces.length > 1) {
                         sr = new NamedStrandedRegion(sr, pieces[1], sr.getStrand());
                     }
-                    writer.consume(sr);
+                    writer.consume(sr.expand(expand,expand));
                 } else {
                     Region r = Region.fromString(genome,line);
-                    writer.consume(r);   
+                    writer.consume(r.expand(expand,expand));   
                 }
             }
 

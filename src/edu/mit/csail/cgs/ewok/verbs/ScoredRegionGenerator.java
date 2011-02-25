@@ -8,6 +8,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.general.ScoredRegion;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.database.*;
+import edu.mit.csail.cgs.utils.UCSCBins;
 
 /**
  * ScoreDRegionGenerator parses rows from MySQL UCSC style annotation tables
@@ -18,27 +19,32 @@ public class ScoredRegionGenerator<X extends Region> implements Expander<X,Score
 
     private Genome genome;
     private String tablename;    
+    private boolean useBins;
     
     public ScoredRegionGenerator(Genome g, String tablename) {
         genome = g;
         this.tablename = tablename;
+        useBins = true;
     }
 
     public void setTablename(String t) {tablename = t;}
     public Genome getGenome() {return genome;}
     public String getTablename() {return tablename;}
-
-    public String getSQL() {
-        return "select chromStart, chromEnd, score from " + getTablename() + " where chrom = ? and " +
-            "chromStart <= ? and chromEnd >= ? UNION " +
-            "select chromStart, chromEnd, score from " + getTablename() + " where chrom = ? and " +
-            "chromStart <= ? and  chromStart >= ?";
+    public boolean useBins() {return useBins;}
+    public String getColumnsSQL() { return "chromStart, chromEnd, score";}
+    public String getSQL(int start, int end) {
+        return "select " + getColumnsSQL() + " from " + getTablename() + " where chrom = ? and " +
+            (useBins ? " bin in (" + UCSCBins.commaJoin(UCSCBins.rangeToBins(start, end)) + ") and " : "") +
+            " chromStart <= ? and (chromEnd >= ? or chromStart >= ?)";
     }
     public Iterator<ScoredRegion> execute(X region) {
         try {
             java.sql.Connection cxn =
                 getGenome().getUcscConnection();
-            PreparedStatement ps = cxn.prepareStatement(getSQL());
+
+            String sql = getSQL(region.getStart(), region.getEnd());
+
+            PreparedStatement ps = cxn.prepareStatement(sql);
             ps.setFetchSize(1000);
             String chr = region.getChrom();
             if (!chr.matches("^(chr|scaffold).*")) {
@@ -47,9 +53,7 @@ public class ScoredRegionGenerator<X extends Region> implements Expander<X,Score
             ps.setString(1,chr);
             ps.setInt(2,region.getEnd());
             ps.setInt(3,region.getStart());
-            ps.setString(4,chr);
-            ps.setInt(5,region.getEnd());
-            ps.setInt(6,region.getStart());
+            ps.setInt(4,region.getStart());
             ResultSet rs = ps.executeQuery();
             ArrayList<ScoredRegion> results = new ArrayList<ScoredRegion>();
             while (rs.next()) {
@@ -65,7 +69,12 @@ public class ScoredRegionGenerator<X extends Region> implements Expander<X,Score
             DatabaseFactory.freeConnection(cxn);
             return results.iterator();
         } catch (SQLException ex) {
-            throw new DatabaseException("Couldn't get UCSC MultiZ for " + tablename,ex);
+            if (useBins) {
+                useBins = false;
+                return execute(region);
+            } else {
+                throw new DatabaseException("Couldn't get UCSC MultiZ for " + tablename,ex);
+            }
         }
     }
 }

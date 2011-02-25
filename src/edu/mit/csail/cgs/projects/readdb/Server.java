@@ -373,6 +373,7 @@ public class Server {
     }
     public void addToGroup(ServerTask t, String group, String princ) throws IOException {
         System.err.println("Adding " + princ + " to " + group);
+        Lock.readLock("group.txt");
         Map<String,Set<String>> rawgroups = readGroupsFile();
         if (!rawgroups.containsKey(group)) {
             Set<String> s = new HashSet<String>();
@@ -394,6 +395,7 @@ public class Server {
         }
         System.err.println("Done.  rereading");
         pw.close();
+        Lock.writeLock("group.txt");
         gfile.renameTo(new File(groupfile));
         readAndProcessGroupsFile();
     }

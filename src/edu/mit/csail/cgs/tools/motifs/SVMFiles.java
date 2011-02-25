@@ -30,7 +30,7 @@ public class SVMFiles extends CombinatorialEnrichment {
     private void saveLine(PrintWriter file, double val, WMHit[] hits) throws IOException {
         StringBuffer line = new StringBuffer(Double.toString(val));
         for (int i = 0; i < hits.length; i++) {
-            line.append(String.format(" %d:%.4f",i, hits[i] == null ? 0 : hits[i].getScore()));
+            line.append(String.format(" %d:%.4f",i+1, hits[i] == null ? 0 : hits[i].getScore()));
         }
         file.println(line.toString());
     }
@@ -39,6 +39,7 @@ public class SVMFiles extends CombinatorialEnrichment {
         PrintWriter test = new PrintWriter(prefix + "_test.txt");
         PrintWriter trainingregions = new PrintWriter(prefix + "_training.regions");
         PrintWriter testregions = new PrintWriter(prefix + "_test.regions");
+        PrintWriter featurenames = new PrintWriter(prefix + "_featurenames.txt");
         for (String s : fghits.keySet()) {
             if (Math.random() <= trainfrac) {
                 saveLine(training, 1, fghits.get(s));
@@ -56,10 +57,15 @@ public class SVMFiles extends CombinatorialEnrichment {
                 testregions.println(s);
             }
         }
+        for (WeightMatrix m : matrices) {
+            featurenames.println(m.toString());
+        }
+
         training.close();
         test.close();
         trainingregions.close();
         testregions.close();
+        featurenames.close();
 
     }
 
