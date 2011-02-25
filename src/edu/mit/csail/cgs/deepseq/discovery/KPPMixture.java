@@ -3455,7 +3455,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	for (int i=0;i<alignedFeatures.size();i++){
     		ComponentFeature cf = alignedFeatures.get(i);
     		int pos_motif = motifStartInSeq.get(i);	
-    		if (pos_motif+length>cf.getBoundSequence().length())
+    		if (pos_motif<0||pos_motif+length>cf.getBoundSequence().length())
     			continue;
     		String seq = cf.getBoundSequence().substring(pos_motif, pos_motif+length);		
     		for (int p=0;p<length;p++){
