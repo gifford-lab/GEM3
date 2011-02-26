@@ -16,11 +16,28 @@ import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.*;
 import edu.mit.csail.cgs.tools.utils.Args;
 
+/** Generate input files for libsvm or liblinear classification.
+ * Uses both motifs (see parameters for CompareEnrichment) and short kmers. 
+ * The short kmers assume the regions are centered around a motif of size --motifwidth
+ * 
+ * Specify the kmers with
+ * --k 4
+ * --maxoffset 3 
+ *
+ * java SVMFiles --species "$MM;mm9" --first foo.txt --second bar.txt --k 4 --maxoffset 2 --motifwidth 12 --expand 6
+ *
+ * Where foo.fasta and bar.txt are files of genomic points (single base positions).  Or
+ * you could use width 0 where the files are genomic regions of width 12.
+ *
+ * TODO:
+ * - right now the kmer stuff doesn't look for reverse complements
+ *
+ */
+
 public class SVMFiles extends CombinatorialEnrichment {
     double trainfrac = .3;
     private String prefix;
-    private double motifWidth = 12; // width of the motif on which regions are centered
-    private int kmerLength, maxOffset;
+    private int kmerLength, maxOffset, motifWidth, basicKmers;
     private List<KmerFeature> features;
     public SVMFiles() {
         super();
@@ -29,25 +46,37 @@ public class SVMFiles extends CombinatorialEnrichment {
         super.parseArgs(args);
         trainfrac = Args.parseDouble(args,"trainfrac",trainfrac);
         prefix = Args.parseString(args,"prefix","svm");
-        kmerLength = Args.parseInt(args,"k",4);
-        maxOffset = Args.parseInt(args,"maxoffset",4);
+        kmerLength = Args.parseInteger(args,"k",4);
+        maxOffset = Args.parseInteger(args,"maxoffset",4);
+        motifWidth = Args.parseInteger(args,"motifwidth",12);
 
         features = new ArrayList<KmerFeature>();
-        for (int i = 0; i < Math.pow(4,k); i++) {
+        basicKmers = (int)(Math.pow(4,kmerLength));
+        List<KmerFeature> basicFeatures = new ArrayList<KmerFeature>();
+        for (int i = 0; i < basicKmers; i++) {
             KmerFeature f = new KmerFeature();
-            f.kmer = 
-            
+            f.kmer = DiscriminativeKmers.longToChars(i,kmerLength);
             f.offset = 0;
+            basicFeatures.add(f);
         }
-        for (int pos = 0; pos < k; pos++) {
-            int chunksize = Math.pow(4, (k - pos));
-
+        for (int o = 1; o < maxOffset; o++) {
+            for (int i = 0; i < basicKmers; i++) {
+                KmerFeature basic = basicFeatures.get(i);                
+                KmerFeature f = new KmerFeature();
+                f.kmer = basic.kmer;
+                f.offset = o;
+                features.add(f);
+            }
         }
-
-        for (int o = 0; o < maxOffset; o++) {
-
+        for (int o = 1; o < maxOffset; o++) {
+            for (int i = 0; i < basicKmers; i++) {
+                KmerFeature basic = basicFeatures.get(i);                
+                KmerFeature f = new KmerFeature();
+                f.kmer = basic.kmer;
+                f.offset = -1 * o;
+                features.add(f);
+            }
         }
-
     }
     private void saveLine(PrintWriter file, double val, WMHit[] hits, double kmerFeatures[]) throws IOException {
         StringBuffer line = new StringBuffer(Double.toString(val));
@@ -60,17 +89,26 @@ public class SVMFiles extends CombinatorialEnrichment {
         file.println(line.toString());
     }
     private double[] kmerFeatures(char[] sequence) {
+        int sideSize = (sequence.length - motifWidth) / 2;
         double output[] = new double[features.size()];
-        for (int i = 0; i < features.size(); i++) {
-            boolean match = true;
-            KmerFeature feature = features.get(i);
-            for (int j = 0; j < feature.kmer.length; j++) {
-                if (sequence[feature.offset + j] != feature.kmer[j]) {
-                    match = false;
-                    break;
-                }
+        char[] tmp = new char[kmerLength];
+        int offset = sideSize + motifWidth;
+        for (int o = 1; o <= maxOffset; o++) {
+            for (int j = 0; j < kmerLength; j++) {
+                tmp[j] = sequence[offset+o+j];
             }
-            output[i] = match ? 1 : 0;
+            long bk = DiscriminativeKmers.charsToLong(tmp);
+            long ak = basicKmers * (o -1) + bk;
+            output[(int)ak] = 1;
+        }
+        offset = sideSize - maxOffset - kmerLength;
+        for (int o = 1; o <= maxOffset; o++) {
+            for (int j = 0; j < kmerLength; j++) {
+                tmp[j] = sequence[offset+o+j];
+            }
+            long bk = DiscriminativeKmers.charsToLong(tmp);
+            long ak = basicKmers * (maxOffset + o) + bk;
+            output[(int)ak] = 1;
         }
         return output;
     }
@@ -91,15 +129,19 @@ public class SVMFiles extends CombinatorialEnrichment {
         }
         for (String s : bghits.keySet()) {
             if (Math.random() <= trainfrac) {
-                saveLine(training, -1, bghits.get(s), kmerFeatures(background.get(s)));
+                saveLine(training, 2, bghits.get(s), kmerFeatures(background.get(s)));
             } else {
-                saveLine(test,-1, bghits.get(s), kmerFeatures(background.get(s)));
+                saveLine(test,2, bghits.get(s), kmerFeatures(background.get(s)));
                 testregions.println(s);
             }
         }
         for (WeightMatrix m : matrices) {
             featurenames.println(m.toString());
         }
+        for (KmerFeature f : features) {
+            featurenames.println(f.toString());
+        }
+
 
         training.close();
         test.close();
@@ -124,5 +166,5 @@ public class SVMFiles extends CombinatorialEnrichment {
 class KmerFeature {
     public int offset;
     public char[] kmer;
-
+    public String toString() {return String.format("%s at %d",new String(kmer), offset);}
 }
