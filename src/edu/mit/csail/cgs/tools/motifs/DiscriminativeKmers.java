@@ -41,6 +41,35 @@ public class DiscriminativeKmers {
     private final static int maxshift = 3;
     private final static char[] toChar = {'A','C','G','T'};
 
+    public static long charsToLong(char[] chars) {
+        long out = 0;
+        for (int i = 0; i < chars.length; i++) {
+            out <<= 2;
+            char newchar = chars[i];
+            switch (newchar) {
+            case 'A':
+            case 'a':
+                out += 0;
+            break;
+            case 'C':
+            case 'c':
+                out += 1;
+            break;
+            case 'G':
+            case 'g':
+                out += 2;
+            break;
+            case 'T':
+            case 't':
+                out += 3;
+            break;
+
+            default:
+                break;
+            }
+        }
+        return out;
+    }
     /** adds another character to the end (right side) of the long representation
      * of a kmer.  mask is the bitmask of usable bits in the long rep.
      */
