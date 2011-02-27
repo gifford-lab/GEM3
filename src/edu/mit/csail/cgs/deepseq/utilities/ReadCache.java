@@ -530,8 +530,6 @@ public class ReadCache {
 	}
 	
 	public void deleteUnenrichedReadData(ArrayList<Region> enrichedRegions){
-		fivePrimes    = new int[numChroms][2][];
-		hitCounts = new float[numChroms][2][];		
 		fivePrimesList    = new ArrayList[numChroms][2];
 		for(int i = 0; i < fivePrimesList.length; i++) { for(int j = 0; j < fivePrimesList[i].length; j++) { fivePrimesList[i][j] = new ArrayList<Integer>(); } }
 		hitCountsList = new ArrayList[numChroms][2];
@@ -547,6 +545,8 @@ public class ReadCache {
 				}
 			}
 		}
+		fivePrimes    = new int[numChroms][2][];
+		hitCounts = new float[numChroms][2][];		
 		
 		populateArrays(false);
 	}
