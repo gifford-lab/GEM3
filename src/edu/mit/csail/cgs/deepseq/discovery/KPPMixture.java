@@ -3396,20 +3396,37 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		cluster.alignedKmers.addAll(newKmers.values());
 	    		
 	    		// update the kmer shift information (kmer start relative from the middle of PWM)
-	            for (int f=0;f<alignedFeatures.size();f++){
+	            TreeMap<Kmer, ArrayList<Integer>> kmerOffsets = new TreeMap<Kmer, ArrayList<Integer>> ();
+	    		for (int f=0;f<alignedFeatures.size();f++){
 	            	ComponentFeature cf = alignedFeatures.get(f);
 	            	Kmer kmer = cf.getKmer();
-	            	if (kmer.getGroup()==-1){							// each kmer will only be set once
+//	            	if (kmer.getGroup()==-1){							// each kmer will only be set once
 	            		String seq = cf.getBoundSequence();
 		            	int start = seq.indexOf(kmer.getKmerString());
 		            	assert (start>=0);
 		            	// kmer start relative from the middle of PWM = kmerStart - pwmStart - halfWidth of PWM
-		            	kmer.setKmerShift(start - motifPos.get(f) - wm.length()/2);
-		            	kmer.setGroup(groupIndex);
+//		            	kmer.setKmerShift(start - motifPos.get(f) - wm.length()/2);
+//		            	kmer.setGroup(groupIndex);
 //		            	if (kmer.getKmerString().equals("CCACCAGAGGGC") || kmer.getKmerString().equals("CCAGCAGAGGGC"))
 //		            		f=f+1-1;
-	            	}
+		            	if (!kmerOffsets.containsKey(kmer)){
+		            		kmerOffsets.put(kmer, new ArrayList<Integer>());
+		            	}
+		            	kmerOffsets.get(kmer).add(start - motifPos.get(f) - wm.length()/2);
+//	            	}
 	    		}	
+	    		for (Kmer kmer:kmerOffsets.keySet()){
+	    			System.out.println(kmer.toString());
+	    			int sum = 0;
+	    			for (int i:kmerOffsets.get(kmer)){
+	    				System.out.print(i+" ");
+	    				sum += i;
+	    			}
+	    			int avg = sum/kmerOffsets.get(kmer).size();
+	    			System.out.println("\nAverage: "+avg);
+	    			kmer.setKmerShift(avg);
+	    			kmer.setGroup(groupIndex);
+	    		}
 	            
 	            // make PFM
 	    		sb_pfm.append(getPFMString(alignedFeatures, motifPos, wm.length(), groupIndex));
@@ -3420,7 +3437,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	            Collections.sort(akmers);
 				int kk=0;
 	    		for (Kmer km: akmers){
-					String shiftedKmer = CommonUtils.padding(Math.max(0, km.getKmerShift()+config.k), ' ').concat(km.getKmerString());
+					String shiftedKmer = CommonUtils.padding(Math.max(0, km.getKmerShift()+config.k), '-').concat(km.getKmerString());
 					sb_kmer.append(km.getKmerString()).append("\t").append(km.getSeqHitCount()).append("\t")
 					  .append(km.getKmerShift()).append("\t").append(shiftedKmer).append("\n");		
 					// fasta
@@ -3720,6 +3737,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			break;
     		}
     	}
+    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
+    	for (int p=0;p<ic.length;p++){
+    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
+    	}
+    	System.out.print(sb.toString());
+    	
     	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
     	for(int p=leftIdx;p<=rightIdx;p++){
     		for (int b=0;b<LETTERS.length;b++){

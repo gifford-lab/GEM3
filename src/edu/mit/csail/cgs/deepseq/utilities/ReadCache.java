@@ -15,7 +15,6 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
-import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.datasets.general.Point;
 /**
