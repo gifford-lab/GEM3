@@ -72,29 +72,16 @@ public class DiscriminativeKmers {
     /** converts a long representation of a kmer back to a string. 
      */
     public static String longToString(long l, int k) {
-        StringBuilder builder = new StringBuilder();
+        return new String(longToChars(l,k));
+    }
+    public static  char[] longToChars(long l, int k) {
+        char[] chars = new char[k];
         while (k-- > 0) {
             int b = (int)(l & 3);
             l >>= 2;
-            switch (b) {
-            case 0:
-                builder.append("A");
-                break;
-            case 1:
-                builder.append("C");
-                break;
-            case 2:
-                builder.append("G");
-                break;
-            case 3:
-                builder.append("T");
-                break;
-            default:
-                break;
-            }
+            chars[k] = toChar[b];
         }
-        builder.reverse();
-        return builder.toString();
+        return chars;
     }
     public static long reverseComplement(long kmer,
                                          int k) {
