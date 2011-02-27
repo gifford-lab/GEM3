@@ -507,19 +507,19 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 					}
 				}
-				ipCache.populateArrays();
+				ipCache.populateArrays(true);
 //				ipCache.displayStats();
 				if (controlDataExist){
-					ctrlCache.populateArrays();
+					ctrlCache.populateArrays(true);
 //					ctrlCache.displayStats();
 				}
 			}
 			else if (!fromReadDB){		// load from File
 				ipCache.addAllFivePrimes(ip.getAllStarts());
-				ipCache.populateArrays();
+				ipCache.populateArrays(true);
 				if (controlDataExist){
 					ctrlCache.addAllFivePrimes(ctrl.getAllStarts());
-					ctrlCache.populateArrays();
+					ctrlCache.populateArrays(true);
 				}
 				wholeGenomeDataLoaded = true;
 			}

@@ -73,8 +73,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	private ArrayList<Pair<ReadCache, ReadCache>> caches;
 	private ArrayList<String> conditionNames = new ArrayList<String>();
 	// Do we have matched control data?
-	private boolean controlDataExist=false;
+	private boolean controlDataExist = false;
 	// Ratio of each pair of IP/Ctrl for all conditions
+	private boolean hasIpCtrlRatio = false;
 	private double[] ratio_total;
 	private double[] ratio_non_specific_total;
 	
@@ -953,19 +954,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 					}
 				}
-				ipCache.populateArrays();
+				ipCache.populateArrays(true);
                 //				ipCache.displayStats();
 				if (controlDataExist){
-					ctrlCache.populateArrays();
+					ctrlCache.populateArrays(true);
                     //					ctrlCache.displayStats();
 				}
 			}
 			else if (!fromReadDB){		// load from File
 				ipCache.addAllFivePrimes(ip.getAllStarts());
-				ipCache.populateArrays();
+				ipCache.populateArrays(true);
 				if (controlDataExist){
 					ctrlCache.addAllFivePrimes(ctrl.getAllStarts());
-					ctrlCache.populateArrays();
+					ctrlCache.populateArrays(true);
 				}
 				wholeGenomeDataLoaded = true;
 			}
@@ -1169,17 +1170,30 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalSumResponsibility();
 		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
 		
-		ArrayList<Region> exRegions = new ArrayList<Region>();
-		for(int i = 0; i < compFeatures.size(); i++) {
-			exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
-		}
-		exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
-		
-		calcIpCtrlRatio(mergeRegions(exRegions, false));
-		if(controlDataExist) {
-			for(int c = 0; c < numConditions; c++)
-				System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
-			System.out.println();
+		// only do this calculation at the first round, then throw out read data in non-specific regions
+		if (!hasIpCtrlRatio){		
+			ArrayList<Region> exRegions = new ArrayList<Region>();
+			for(int i = 0; i < compFeatures.size(); i++) {
+				exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
+			}
+			exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
+			
+			calcIpCtrlRatio(mergeRegions(exRegions, false));
+			if(controlDataExist) {
+				for(int c = 0; c < numConditions; c++)
+					System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+				System.out.println();
+			}
+			hasIpCtrlRatio = true;
+			
+			// delete read data in un-enriched region, we don't need them any more
+			// print initial dataset counts
+			for(int c = 0; c < numConditions; c++) {
+				caches.get(c).car().deleteUnenrichedReadData(restrictRegions);
+				if(controlDataExist) {
+					caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
+				}
+			}
 		}
 		
 		// calculate p-values with or without control

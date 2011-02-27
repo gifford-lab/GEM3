@@ -319,7 +319,7 @@ public class ReadCache {
 	 * Converts lists of Integers to integer arrays, deletes the lists for saving memory
 	 * all array elements are ordered in terms of the array <tt>starts</tt>.
 	 */
-	public void populateArrays() {
+	public void populateArrays(boolean generateStats) {
 		for(int i = 0; i < fivePrimesList.length; i++)
 			for(int j = 0; j < fivePrimesList[i].length; j++)
 				fivePrimes[i][j] = list2int(fivePrimesList[i][j]);
@@ -329,7 +329,8 @@ public class ReadCache {
 				hitCounts[i][j] = list2float(hitCountsList[i][j]);
 		hitCountsList = null;
 		System.gc();
-		generateStats();
+		if (generateStats)
+			generateStats();
 	}//end of populateArrays method
 	
 	public void generateStats() {
@@ -526,6 +527,28 @@ public class ReadCache {
 	
 	public void displayStats(){
 		System.out.println(name+"\tBases: "+totalBases+"\tHitCounts: "+totalHits);
+	}
+	
+	public void deleteUnenrichedReadData(ArrayList<Region> enrichedRegions){
+		fivePrimes    = new int[numChroms][2][];
+		hitCounts = new float[numChroms][2][];		
+		fivePrimesList    = new ArrayList[numChroms][2];
+		for(int i = 0; i < fivePrimesList.length; i++) { for(int j = 0; j < fivePrimesList[i].length; j++) { fivePrimesList[i][j] = new ArrayList<Integer>(); } }
+		hitCountsList = new ArrayList[numChroms][2];
+		for(int i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
+
+		for(Region r:enrichedRegions){
+			int chrID   = chrom2ID.get(r.getChrom());
+			for (int strandInd=0; strandInd<=1;strandInd++){
+				List<StrandedBase> bases = getStrandedBases(r, strandInd==0?'+':'-');
+				for (StrandedBase b:bases){
+					fivePrimesList[chrID][strandInd].add(b.getCoordinate());
+					hitCountsList[chrID][strandInd].add(b.getCount());
+				}
+			}
+		}
+		
+		populateArrays(false);
 	}
 	
 	public void printBinCounts(String prefix){
