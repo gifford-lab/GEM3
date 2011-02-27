@@ -4266,8 +4266,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int max_hit_per_bp = -1;
         
         public int k = -1;			// the width of kmer
-        public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
-        public int k_win = 60;		// the window around binding event to search for kmers
+        public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
+        public int k_win = 40;		// the window around binding event to search for kmers
         public int k_shift = 100;// the shift from binding event for negative sequence set    
         public int kpp_mode = 0;		// different mode to convert kmer count to positional prior alpha value
         public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
