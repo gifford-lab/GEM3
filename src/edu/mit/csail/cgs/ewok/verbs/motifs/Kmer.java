@@ -65,11 +65,14 @@ public class Kmer implements Comparable<Kmer>{
 		return this.kmerString.equals(kmerString);
 	}
 	public String toString(){
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", Math.log10(hg))+
+		double hg_lg = Math.log10(hg);
+		if (hg_lg==Double.NEGATIVE_INFINITY)
+			hg_lg=-100;
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg)+
 			   "\t"+String.format("%.1f", strength)+"\t"+kmerShift;
 	}
 	public static String toHeader(){
-		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tStrength\tkmer-wm";
+		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tStrengt\tOffset";
 	}
 
 	public int getSeqHitCount() {
