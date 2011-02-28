@@ -3530,7 +3530,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	motifCluster.motifStartInSeq = motifStartInSeq;
     	
     	growByKmers(motifCluster, kmers, unalignedFeatures);
-    	if (alignedFeatures.isEmpty())
+    	if (alignedFeatures.size()<2)
     		return null;
     	WeightMatrix wm = makePWM( alignedFeatures, motifStartInSeq, true);
 
@@ -3672,7 +3672,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (shortest>seq.length()-pos_motif)
     			shortest=seq.length()-pos_motif;
     	}
-    	int length = leftMost+shortest;
+    	int length = shortest;
     	boolean fixedLength = false;
     	if (length<config.k){
     		System.err.println("Warning: makePWM(), leftMost="+leftMost+" shortest="+shortest);
@@ -3697,7 +3697,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			seq = seq.substring(left, right);
     		}
     		else
-    			seq = seq.substring(pos_motif-leftMost, pos_motif+shortest);
+    			seq = seq.substring(pos_motif-leftMost, pos_motif-leftMost+shortest);
     		for (int p=0;p<length;p++){
     			char base = seq.charAt(p);
     			double strength = config.use_strength?alignedFeatures.get(i).getTotalSumResponsibility():1;
@@ -3710,38 +3710,59 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	for (int p=0;p<pwm.length;p++){
     		int sum=0;
     		for (int b=0;b<LETTERS.length;b++){
-    			sum += pwm[p][LETTERS[b]];
+    			char base = LETTERS[b];
+    			if (pwm[p][base]==0)
+    				pwm[p][base]=0.001; 
+    			sum += pwm[p][base];
     		}
     		for (int b=0;b<LETTERS.length;b++){
     			char base = LETTERS[b];
-    			if (pwm[p][base]==0)
-    				pwm[p][base]=1;
     			double f = pwm[p][base]/sum;						// normalize freq
     			pwm[p][base] = Math.log(f/config.bg[b])/Math.log(2.0);		//log base 2
     			ic[p] += f*pwm[p][base];
+//        		if (b==3&& ic[p]>7)
+//        			f += 0;				// NOOP for debugging
     		}
     	}
 
     	// make a WeightMatrix object, trim low ic ends
-    	int leftIdx=0;
+    	int leftIdx=-1;
+    	double score = 0;
     	for (int p=0;p<ic.length;p++){
     		if (ic[p]>config.ic_trim){
+    			score ++;
+    		}
+    		else{
+    			score -= 0.3;
+    		}
+    		if (score<0 && p-leftIdx<config.k/2){
+    			score=0;
     			leftIdx=p;
-    			break;
     		}
     	}
-    	int rightIdx=ic.length-1;
+    	leftIdx++;
+    	
+    	int rightIdx=ic.length;
+    	score = 0;
     	for (int p=ic.length-1;p>=0;p--){
     		if (ic[p]>config.ic_trim){
+    			score ++;
+    		}
+    		else{
+    			score -= 0.3;
+    		}
+    		if (score<0 && rightIdx-p<config.k/2){
+    			score=0;
     			rightIdx=p;
-    			break;
     		}
     	}
-    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
-    	for (int p=0;p<ic.length;p++){
-    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
-    	}
-    	System.out.print(sb.toString());
+    	rightIdx--;
+    	
+//    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
+//    	for (int p=0;p<ic.length;p++){
+//    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
+//    	}
+//    	System.out.print(sb.toString());
     	
     	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
     	for(int p=leftIdx;p<=rightIdx;p++){
