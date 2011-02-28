@@ -3416,14 +3416,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	            	}
 	    		}	
 	    		for (Kmer kmer:kmerOffsets.keySet()){
-	    			System.out.println(kmer.toString());
+//	    			System.out.println(kmer.toString());
 	    			int sum = 0;
 	    			for (int i:kmerOffsets.get(kmer)){
-	    				System.out.print(i+" ");
+//	    				System.out.print(i+" ");
 	    				sum += i;
 	    			}
 	    			int avg = sum/kmerOffsets.get(kmer).size();
-	    			System.out.println("\nAverage: "+avg);
+//	    			System.out.println("\nAverage: "+avg);
 	    			kmer.setKmerShift(avg);
 	    			kmer.setGroup(groupIndex);
 	    		}
