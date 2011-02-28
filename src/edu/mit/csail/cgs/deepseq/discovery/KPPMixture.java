@@ -5658,53 +5658,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	        			left = seq.length()-config.k*4;
 	        		}
 	        		String bs = seq.substring(left,right);
-	        		if (b.getKmer()!=null && !bs.contains(b.getKmer().getKmerString()))
-	        			bs = SequenceUtils.reverseComplement(bs);
+	        		if (b.getKmer()!=null){
+	        			if (!bs.contains(b.getKmer().getKmerString()))
+	        				bs = SequenceUtils.reverseComplement(bs);
+	        			if (!bs.contains(b.getKmer().getKmerString()))
+	        				b.setKmer(null);
+	        		}
 	    			b.setBoundSequence(bs);
         		}
-//        		if (kmer==null){
-//        			int left = kIdx - kEngine.getMaxShift()-config.k/2;
-//            		int right = kIdx - kEngine.getMinShift()+(config.k-config.k/2);
-//            		if (left<0){
-//            			left = 0;
-//            			right = config.k - kEngine.getMinShift()+ kEngine.getMaxShift();
-//            		}
-//            		if (right>seq.length()){
-//            			right = seq.length();
-//            			left = seq.length()-(config.k - kEngine.getMinShift()+ kEngine.getMaxShift());
-//            		}
-//        			b.setBoundSequence(seq.substring(left,right));
-//        		}
-//        		else{
-//	        		b.setKmer(kmer);
-//	        		int left = kIdx - kEngine.getMaxShift()+kmer.getKmerShift()-config.k/2;
-//	        		int right = kIdx - kEngine.getMinShift()+kmer.getKmerShift()+(config.k-config.k/2);
-//	        		if (left<0){
-//	        			left = 0;
-//	        			right = config.k - kEngine.getMinShift()+ kEngine.getMaxShift();
-//	        		}
-//	        		if (right>seq.length()){
-//	        			right = seq.length();
-//	        			left = seq.length()-(config.k - kEngine.getMinShift()+ kEngine.getMaxShift());
-//	        		}
-//	            	String bs = seq.substring(left,right);
-//	            	
-//	            	// if the match is on reverse strand
-//	        		if (!bs.contains(kmer.getKmerString())){			
-//	        			left = seq.length()-1-kIdx + kEngine.getMinShift()-kmer.getKmerShift()-(config.k-config.k/2) +1;	//substring() is right end exlusive, so add 1
-//	            		right = seq.length()-1-kIdx + kEngine.getMaxShift()-kmer.getKmerShift()+config.k/2 +1;
-//	            		if (left<0){
-//	            			left = 0;
-//	            			right = kEngine.getMaxShift() + config.k - kEngine.getMinShift();
-//	            		}
-//	            		if (right>seq.length()){
-//	            			right = seq.length();
-//	            			left = seq.length()-(kEngine.getMaxShift() + config.k - kEngine.getMinShift());
-//	            		}
-//	            		bs = SequenceUtils.reverseComplement(seq).substring(left,right);		
-//	        		}
-//	        		b.setBoundSequence(bs);
-//        		}
         	}
         }
         

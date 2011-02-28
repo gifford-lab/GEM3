@@ -258,7 +258,7 @@ public class KmerEngine {
 		}
 		// remove un-enriched kmers		
 		kmers.removeAll(toRemove);
-		System.out.println(String.format("Kmers(%d) selected from %d positive out of %d negative sequences, %s", kmers.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("Kmers(%d) selected from %d positive vs %d negative sequences, %s", kmers.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
 
 		// set Kmers and prepare the search Engine
 		updateEngine(kmers, outPrefix);
