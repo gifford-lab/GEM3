@@ -3667,6 +3667,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			pos_motif = pos_kmer - pos_motif;
     			motifStartInSeq.set(i, pos_motif);
     		}
+    		if (pos_motif<0)
+    			continue;
     		if (leftMost>pos_motif)
     			leftMost = pos_motif;
     		if (shortest>seq.length()-pos_motif)
@@ -3682,6 +3684,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	double[][] pwm = new double[length][MAXLETTERVAL];
     	for (int i=0;i<alignedFeatures.size();i++){
     		int pos_motif = motifStartInSeq.get(i);	
+    		if (pos_motif<0)
+    			continue;
     		String seq = alignedFeatures.get(i).getBoundSequence();
     		if (fixedLength){
     			int left = pos_motif-config.k*2;
