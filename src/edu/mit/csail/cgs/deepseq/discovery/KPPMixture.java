@@ -3661,14 +3661,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		ComponentFeature cf = alignedFeatures.get(i);
     		String seq = cf.getBoundSequence();
     		int pos_motif = motifStartInSeq.get(i);			// relative shift of kmer from seed kmer
-    		// if the feature are aligned using kmer, reset the shift according the sequence
-    		if (isFromKmers){
-    			int pos_kmer = seq.indexOf(cf.getKmer().getKmerString());		// start position of kmer in the sequence
-    			pos_motif = pos_kmer - pos_motif;
-    			motifStartInSeq.set(i, pos_motif);
-    		}
-    		if (pos_motif<0)
+
+    		if (pos_motif<0){
+    			System.err.println("Warning: makePWM(), pos_motif<0,"+cf.toString_v1());
     			continue;
+    		}
     		if (leftMost>pos_motif)
     			leftMost = pos_motif;
     		if (shortest>seq.length()-pos_motif)
@@ -3814,16 +3811,26 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		// perfect match or 1 mismatch (2 mismatch if k>10), no shift
     		if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=1+config.k*0.1){
     			for (ComponentFeature cf:kmer2cf.get(kmer)){
-    				alignedFeatures.add(cf);
-	    			motifStartInSeq.add(0);
+    				int idx = cf.getBoundSequence().indexOf(kmer.getKmerString());
+    				if (idx==-1)
+    					System.err.println("growByKmer: kmer is not in seq");
+    				else{
+    					alignedFeatures.add(cf);
+		    			motifStartInSeq.add(idx);
+	    			}
     			}
 	    		alignedKmers.add(kmer);
     		}
     		else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=1+config.k*0.1){
     			for (ComponentFeature cf:kmer2cf.get(kmer)){
     				cf.flipBoundSequence();
-    				alignedFeatures.add(cf);
-	    			motifStartInSeq.add(0);
+    				int idx = cf.getBoundSequence().indexOf(kmer.getKmerRC());
+    				if (idx==-1)
+    					System.err.println("growByKmer: kmer is not in seq");
+    				else{
+    					alignedFeatures.add(cf);
+		    			motifStartInSeq.add(idx);
+	    			}
     			}
     			alignedKmers.add(kmer);
     			kmer.RC();
@@ -3835,8 +3842,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		String ref = seedKmerStr.substring(0, seedKmerStr.length()-1);
 	    		if (mismatch(ref, kmerStr)<=1){
 	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
-	    				alignedFeatures.add(cf);
-		    			motifStartInSeq.add(-1);
+	    				int idx = cf.getBoundSequence().indexOf(kmer.getKmerString());
+	    				if (idx==-1)
+	    					System.err.println("growByKmer: kmer is not in seq");
+	    				else{
+	    					alignedFeatures.add(cf);
+			    			motifStartInSeq.add(idx-1);
+		    			}
 	    			}
 	    			alignedKmers.add(kmer);
 	    			continue;
@@ -3844,8 +3856,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		else if(mismatch(ref, kmerRC)<=1){	// if match RC, flip kmer and seq
 	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
 	    				cf.flipBoundSequence();
-	    				alignedFeatures.add(cf);
-		    			motifStartInSeq.add(-1);
+	    				int idx = cf.getBoundSequence().indexOf(kmer.getKmerRC());
+	    				if (idx==-1)
+	    					System.err.println("growByKmer: kmer is not in seq");
+	    				else{
+	    					alignedFeatures.add(cf);
+			    			motifStartInSeq.add(idx-1);
+		    			}
 	    			}
 	    			alignedKmers.add(kmer);
 	    			kmer.RC();
@@ -3857,8 +3874,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		ref = seedKmerStr.substring(1);
 	    		if (mismatch(ref, kmerStr)<=1){
 	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
-	    				alignedFeatures.add(cf);
-		    			motifStartInSeq.add(1);
+	    				int idx = cf.getBoundSequence().indexOf(kmer.getKmerString());
+	    				if (idx==-1)
+	    					System.err.println("growByKmer: kmer is not in seq");
+	    				else{
+	    					alignedFeatures.add(cf);
+			    			motifStartInSeq.add(idx+1);
+		    			}
 	    			}
 	    			alignedKmers.add(kmer);
 	    			continue;
@@ -3866,8 +3888,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		else if(mismatch(ref, kmerRC)<=1){	// if match RC, flip kmer and seq
 	    			for (ComponentFeature cf:kmer2cf.get(kmer)){
 	    				cf.flipBoundSequence();
-	    				alignedFeatures.add(cf);
-		    			motifStartInSeq.add(1);
+	    				int idx = cf.getBoundSequence().indexOf(kmer.getKmerRC());
+	    				if (idx==-1)
+	    					System.err.println("growByKmer: kmer is not in seq");
+	    				else{
+	    					alignedFeatures.add(cf);
+			    			motifStartInSeq.add(idx+1);
+		    			}
 	    			}
 	    			alignedKmers.add(kmer);
 	    			kmer.RC();
