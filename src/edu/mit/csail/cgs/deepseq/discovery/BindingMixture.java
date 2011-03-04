@@ -2441,7 +2441,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 			}
 		});
 		// get median event strength
-		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalSumResponsibility();
+		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalEventStrength();
 		System.out.println("Median event strength = "+medianStrength);
 		
 		// Determine how many of the enriched regions will be included during the regression evaluation
@@ -2488,7 +2488,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 
 			boolean notFiltered = false;
 			// only filter high read count events (more likely to be artifacts) 
-			if (filterEvents && cf.getTotalSumResponsibility()>medianStrength){
+			if (filterEvents && cf.getTotalEventStrength()>medianStrength){
 				for (int cond=0; cond<numConditions; cond++){
 					// if one condition is good event, this position is GOOD
 					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
@@ -3794,14 +3794,14 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					}
 					eventCounter++;
 					if (eventCounter>top_events-1){	// reach the top counts
-						strengthThreshold = cf.getTotalSumResponsibility();
+						strengthThreshold = cf.getTotalEventStrength();
 						break;
 					}
 				}
 			}
 		}
 		if (strengthThreshold==-1)		// if not set, then we are using all events
-			strengthThreshold=cfs.get(cfs.size()-1).getTotalSumResponsibility();
+			strengthThreshold=cfs.get(cfs.size()-1).getTotalEventStrength();
 
 		// we have collected data for both strands, all conditions
 		// but here we only use single model for all conditions

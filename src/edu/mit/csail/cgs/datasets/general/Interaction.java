@@ -23,9 +23,25 @@ public class Interaction {
 	public Region getLeft() {
 		return left;
 	}
+	
+	public void setLeft(Region left) {
+		this.left = left;
+	}
+	
+	public void setRight(Region right) {
+		this.right = right;
+	}
 
 	public Region getRight() {
 		return right;
+	}
+	
+	public int getCount() {
+		return count;
+	}
+	
+	public double getPval() {
+		return pval;
 	}
 	
 	public boolean similarTo(Interaction other, int distance) {

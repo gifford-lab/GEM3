@@ -114,7 +114,6 @@ public class KmerEngine {
 		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
 		for(int i=0;i<eventCount;i++){
 			ComponentFeature f = events.get(i);
-//			seqProbs[i] = f.getTotalSumResponsibility();
 			Region posRegion = f.getPeak().expand(winSize/2);
 			seqCoors[i] = posRegion;
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
@@ -161,8 +160,9 @@ public class KmerEngine {
 			}
 		}
 //		System.out.println("\nKmers indexed "+CommonUtils.timeElapsed(tic));
-	
-		// sort the kmer strings, to make a kmer to also represent its reverse compliment (RC)
+//		tic = System.currentTimeMillis();
+		
+		// sort the kmer strings, to make a kmer to also represent its reverse compliment (RC)	
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		ArrayList<String> sortedKeys = new ArrayList<String>();
 		sortedKeys.addAll(map.keySet());
@@ -193,6 +193,10 @@ public class KmerEngine {
 		System.gc();
 		System.out.println("Kmers("+kmers.size()+") mapped, "+CommonUtils.timeElapsed(tic));
 		
+		/**
+		 * Select significantly over-representative kmers 
+		 */
+		tic = System.currentTimeMillis();
 		/*
 		Aho-Corasick for searching Kmers in negative sequences
 		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
@@ -213,11 +217,9 @@ public class KmerEngine {
 			negSeqCount++;
 			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
 			Iterator searcher = tmp.search(seq.getBytes());
-//			System.out.println(seq);
 			while (searcher.hasNext()) {
 				SearchResult result = (SearchResult) searcher.next();
 				kmerHits.addAll(result.getOutputs());
-//				System.out.println(result.getOutputs()+"\tat index: " + result.getLastIndex());
 			}
 			String seq_rc = SequenceUtils.reverseComplement(seq);
 			searcher = tmp.search(seq_rc.getBytes());
@@ -265,6 +267,7 @@ public class KmerEngine {
 	}
 	
 	/** load Kmers and prepare the search Engine
+	 *  assuming the kmers are unique
 	 * 
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
 	 */
@@ -291,14 +294,16 @@ public class KmerEngine {
 	    }
 	    tree.prepare();
 	    engineInitialized = true;
-	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine, "+CommonUtils.timeElapsed(tic));
+//	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine, "+CommonUtils.timeElapsed(tic));
 	}	
 	
 	/** 
 	 * Search all kmers in the sequence
 	 * @param seq
-	 * @return a map (pos-->kmer)
-	 * if pos is negative, then the start position maches the reverse compliment of kmer string
+	 * @return a map (pos-->kmers)
+	 * pos is the binding site position in the sequence
+	 * kmers are the kmers that map to this position
+	 * if pos is negative, then the kmer match is on the reverse compliment seq string
 	 */
 	public HashMap<Integer, ArrayList<Kmer>> query (String seq){
 		seq = seq.toUpperCase();

@@ -87,7 +87,7 @@ public class CompareEnrichment {
             int i = 0;
             char[] chars = seqs.get(s);
             String seq = new String(chars);
-            if (!seq.matches("[ACTGactgN]*")) {
+            if (!seq.matches("[ACTGactgNn]*")) {
                 throw new RuntimeException("Invalid sequence " + s + ": " + seq);
             } 
             while (i < chars.length) {
