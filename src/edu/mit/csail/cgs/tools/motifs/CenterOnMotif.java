@@ -63,6 +63,7 @@ public class CenterOnMotif {
             char[] seq = seqgen.execute(region).toCharArray();
             int bestpos = -1;
             double bestscore = 0;
+            String beststrand = "";
             for (WeightMatrix m : matrices) {
                 float cut = (float)(cutoffpercent * m.getMaxScore());
                 List<WMHit> hits = WeightMatrixScanner.scanSequence(m,
@@ -72,12 +73,13 @@ public class CenterOnMotif {
                     if (h.getScore() > bestscore) {
                         bestscore = h.getScore();
                         bestpos = (h.getStart() + h.getEnd()) / 2;
+                        beststrand = h.getStrand();
                     }
                 }
             }
             if (bestscore > 0) {
                 int p = region.getStart() + bestpos;
-                System.out.println(region.getChrom() + ":" + p + "-" + p);
+                System.out.println(region.getChrom() + ":" + p + "-" + p + ":" + beststrand);
             } 
         }
     }
