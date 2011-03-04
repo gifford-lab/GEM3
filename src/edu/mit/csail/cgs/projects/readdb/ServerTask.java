@@ -391,6 +391,12 @@ public class ServerTask {
         } catch (Exception e) {
             server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Error in request " + request.toString());
             server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Exception " + e.toString(),e);
+            StackTraceElement[] elts = e.getStackTrace();
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < elts.length; i++) {
+                sb.append(elts[i].toString());
+            }
+            server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Trace " + sb.toString());   
         } finally {
             Lock.releaseLocks();
         }
@@ -506,7 +512,6 @@ public class ServerTask {
             printString("Must supply princ and group :" + princ + "," + group + "\n");
             return;
         }
-        Lock.writeLock(request.alignid);
         server.addToGroup(this,group,princ);
         printOK();
     }

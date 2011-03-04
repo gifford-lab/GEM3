@@ -297,17 +297,21 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	else
         		result.append("NaN\t").append("NaN\t");
         
-        	result.append(String.format("%7.3f\t", getQValueLog10(c)));
+        	double q_lg = getQValueLog10(c);
+    		if (q_lg==Double.POSITIVE_INFINITY)
+    			q_lg= 999;
+        	result.append(String.format("%7.2f\t", q_lg));    
+        	double p_lg = -Math.log10(getPValue(c));
+        	if(unScaledControlCounts==null)
+        		p_lg = -Math.log10(getPValue(c));
+        	if (p_lg==Double.POSITIVE_INFINITY)
+    			p_lg= 999;
+        	result.append(String.format("%7.2f\t", p_lg));
         	
-        	if(unScaledControlCounts!=null)
-        		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
-        	else
-        		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
-        	
-    		result.append(String.format("%7.3f\t", getShapeDeviation(c)));
+    		result.append(String.format("%7.2f\t", getShapeDeviation(c)));
     		
         	if(unScaledControlCounts!=null)
-        		result.append(String.format("%7.3f\t", getAverageIpCtrlLogKL()));
+        		result.append(String.format("%7.2f\t", getAverageIpCtrlLogKL()));
         	else
         		result.append("NaN\t");
         }
@@ -421,14 +425,19 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	} else {
         		result.append("NaN\t").append("NaN\t");                
             }        
-        	result.append(String.format("%7.3f\t", getQValueLog10(c)));        	
+        	double q_lg = getQValueLog10(c);
+    		if (q_lg==Double.POSITIVE_INFINITY)
+    			q_lg= 999;
+        	result.append(String.format("%7.2f\t", q_lg));    
+        	double p_lg = -Math.log10(getPValue(c));
+        	if(unScaledControlCounts==null)
+        		p_lg = -Math.log10(getPValue(c));
+        	if (p_lg==Double.POSITIVE_INFINITY)
+    			p_lg= 999;
+        	result.append(String.format("%7.2f\t", p_lg));
+    		result.append(String.format("%7.2f\t", getShapeDeviation(c)));    		
         	if(unScaledControlCounts!=null)
-        		result.append(String.format("%7.3f\t", -Math.log10(getPValue(c))));
-        	else
-        		result.append(String.format("%7.3f\t", -Math.log10(getPValue_wo_ctrl(c))));
-    		result.append(String.format("%7.3f\t", getShapeDeviation(c)));    		
-        	if(unScaledControlCounts!=null)
-        		result.append(String.format("%7.3f\t", getAverageIpCtrlLogKL()));
+        		result.append(String.format("%7.2f\t", getAverageIpCtrlLogKL()));
         	else
         		result.append("NaN\t");
         	if (c<numConditions-1)
