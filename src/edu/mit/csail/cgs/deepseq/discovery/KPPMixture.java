@@ -3886,11 +3886,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	  motifCluster.alignedFeatures.add(cf);
       	  if (centerHit<0){
       		  cf.flipBoundSequence();
-      		  centerHit=cf.getBoundSequence().indexOf(selected.getKmerString());
+      		  centerHit=cf.getBoundSequence().indexOf(selected.getKmerString())-selected.getKmerShift();
       	  }
-      	  assert(centerHit-motifCluster.bindingPosition>=0);
-      	  motifCluster.motifStartInSeq.add(centerHit-motifCluster.bindingPosition);
-      	  System.out.println(cf.getBoundSequence().substring(centerHit-motifCluster.bindingPosition));
+      	  int motifStartPos = centerHit-motifCluster.bindingPosition;
+      	  if (motifStartPos<0){
+      		  System.err.println("clusterByNewKmers: motifStartInSeq<0, "+motifStartPos);
+      		  continue;
+      	  }
+      	  motifCluster.motifStartInSeq.add(motifStartPos);
+      	  System.out.println(cf.getBoundSequence().substring(motifStartPos));
       	  cf.setKmer(selected);
       	  selected.incrSeqHitCount();
       	  selected.incrStrength(cf.getTotalEventStrength());
