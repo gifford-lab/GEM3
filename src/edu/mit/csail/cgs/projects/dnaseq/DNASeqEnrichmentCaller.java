@@ -139,7 +139,7 @@ public class DNASeqEnrichmentCaller {
             double bgcdf = poisson.cdf(fgcount - 1);
             poisson.setMean(minFoldChange * totalFgReads * sensitiveRegionWindowSize / 2080000000.0);
             double unicdf = poisson.cdf(fgcount - 1);
-            double cdf = Math.max(unicdf, bgcdf);
+            double cdf = Math.min(unicdf, bgcdf);
             if (cdf >= .99) {
                 if (lastGoodStart == -1) {
                     lastGoodStart = start;
