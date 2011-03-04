@@ -83,7 +83,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void setJointEvent(boolean isJointEvent) {this.isJointEvent = isJointEvent;}
 	public double[] getCondBetas() { return conditionBeta; }
 	public boolean[] getCondSignificance() { return condSignificance; }
-	public double getTotalSumResponsibility(){return(totalSumResponsibility);}
+	public double getTotalEventStrength(){return(totalSumResponsibility);}
 	public double getCondSumResponsibility(int cond){return condSumResponsibility[cond];}
 	public double[] getUnscaledControlCounts(){return(unScaledControlCounts);}
 	public double getScaledControlCounts(int cond){
@@ -175,8 +175,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	 * sort componentFeatures in decreasing binding strength
 	 */
 	public int compareByTotalResponsibility(ComponentFeature f) {
-		if(totalSumResponsibility>f.getTotalSumResponsibility()){return(-1);}
-		else if(totalSumResponsibility<f.getTotalSumResponsibility()){return(1);}
+		if(totalSumResponsibility>f.getTotalEventStrength()){return(-1);}
+		else if(totalSumResponsibility<f.getTotalEventStrength()){return(1);}
 		else return(0);
 	}
 	public int compareByCondResponsibility(ComponentFeature f) {
@@ -241,7 +241,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public double getExptCtrlRatio(int condition){
 		double ratio = 200;
 		if (unScaledControlCounts[condition]!=0)
-			ratio = getTotalSumResponsibility()*conditionBeta[condition]/unScaledControlCounts[condition];
+			ratio = getTotalEventStrength()*conditionBeta[condition]/unScaledControlCounts[condition];
 		return ratio;
 	}
 	

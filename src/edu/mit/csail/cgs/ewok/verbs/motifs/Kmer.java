@@ -1,5 +1,9 @@
 package edu.mit.csail.cgs.ewok.verbs.motifs;
 
+import java.util.ArrayList;
+import java.util.Collections;
+
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class Kmer implements Comparable<Kmer>{
@@ -11,6 +15,7 @@ public class Kmer implements Comparable<Kmer>{
 	double strength;	// the total read counts from all events support this kmer
 	public double getStrength(){return strength;}
 	public void setStrength(double strength){this.strength = strength;}
+	public void incrStrength(double strength){this.strength += strength;}
 	double hg;
 	int negCount;
 	
@@ -24,7 +29,10 @@ public class Kmer implements Comparable<Kmer>{
 	 *  The shift of kmer start from the middle of motif(PWM) (Pos_kmer-Pos_wm)
 	 */
 	int kmerShift;			
-	public int getKmerShift(){return kmerShift;}
+	/**
+	 *  Get the shift of kmer start from the middle of motif(PWM) (Pos_kmer-Pos_wm)
+	 */
+	 public int getKmerShift(){return kmerShift;}
 	public void setKmerShift(int s){kmerShift=s;}
 	int group=-1;			// the group of motif
 	public int getGroup(){return group;}
@@ -80,6 +88,9 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public void setSeqHitCount(int count) {
 		seqHitCount=count;
+	}
+	public void incrSeqHitCount() {
+		seqHitCount++;
 	}
 	
 	/** 
@@ -205,6 +216,18 @@ public class Kmer implements Comparable<Kmer>{
 	
 	public String getKmerRC(){
 		return SequenceUtils.reverseComplement(kmerString);
+	}
+	
+	public static void printKmers(ArrayList<Kmer> kmers, String filePrefix){
+		Collections.sort(kmers);
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append(Kmer.toHeader());
+		sb.append("\n");
+		for (Kmer kmer:kmers){
+			sb.append(kmer.toString()).append("\n");
+		}
+		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
 	}
 	
 //	public static void main(String[] args){
