@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
 import edu.mit.csail.cgs.utils.Pair;
@@ -395,8 +396,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	if (c<numConditions-1)
         		header.append("\t");
         }
-        if (kmer!=null)
-        	header.append("Kmer\t").append("KmerCount\t").append("KmerStrength\t").append("BoundSequence\t"); 
+        header.append("Kmer       \t").append("Count\t").append("Strength\t").append("BoundSequence"); 
         header.append("\n");
         return header.toString();
 	}
@@ -445,6 +445,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         }
         if (kmer!=null)
         	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append("\t").append(String.format("%.1f\t", kmer.getStrength())).append(boundSequence);
+        else
+        	result.append(CommonUtils.padding(8, ' ')).append("\t").append(0).append("\t").append(String.format("%.1f\t", 0.0)).append(boundSequence);
         
         result.append("\n");
 		return result.toString();

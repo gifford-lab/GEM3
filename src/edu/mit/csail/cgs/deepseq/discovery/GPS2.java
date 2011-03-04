@@ -193,10 +193,14 @@ public class GPS2 {
         }
         //round--;
      
+        // print the binding event results with updated kmer information
+        mixture.printFeatures();
+        mixture.printFilteredFeatures();
+        mixture.printInsignificantFeatures();
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         
-        System.out.println("Finished! Binding events are printed to: "+peakFileName+"_"+(round-1)+"_GPS_significant.txt");
+        System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
     }
 	
     public static void main(String[] args) throws Exception {
