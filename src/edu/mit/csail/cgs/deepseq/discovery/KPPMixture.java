@@ -3392,6 +3392,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		goodClusterCount++;
 	    		System.out.println(String.format("-------------------------------\nMotif cluster #%d, from %d binding events.", goodClusterCount, alignedFeatures.size()));
 	    		WeightMatrix wm = cluster.matrix;
+	    		if (wm==null)
+	    			continue;
 	    		double maxScore = wm.getMaxScore();
 	    		System.out.println(CommonUtils.padding(cluster.bindingPosition, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));  
 	    		
