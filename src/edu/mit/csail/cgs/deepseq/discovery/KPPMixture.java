@@ -3461,7 +3461,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	for (MotifCluster cluster : clusters){
 	    		ArrayList<ComponentFeature> alignedFeatures = cluster.alignedFeatures;
 	    		ArrayList<Integer> motifPos = cluster.motifStartInSeq;
-	    		if (alignedFeatures.size()<=config.cluster_size)
+	    		if ((!cluster.isGood) || alignedFeatures.size()<=config.cluster_size)
 	    			continue;
 	    		else
 	    			sb_kmer.append("Motif cluster "+cluster.clusterId+", from "+alignedFeatures.size()+" binding events.\n");
@@ -3501,6 +3501,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		}
 	            
 	            // make PFM
+	    		if (cluster.matrix==null)
+	    			continue;
 	    		sb_pfm.append(getPFMString(alignedFeatures, motifPos, cluster.matrix.length(), cluster.clusterId));
 	    		
 	    		// print aligned kmers with their shift information
