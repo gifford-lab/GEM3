@@ -3574,6 +3574,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	boolean noMore=false;
     	WeightMatrix wm = makePWM( motifCluster, true);
+    	if (wm==null){
+    		return motifCluster;
+    	}
 //    	System.err.println("After growByKmer()\n" +
 //    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
 //    			WeightMatrix.printMatrixLetters(wm));
@@ -3601,7 +3604,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
       }
     	
       //greedily grow a cluster from the top count kmer only by matching kmers
-	    private void clusterBySeedKmer(MotifCluster motifCluster, ArrayList<ComponentFeature> unalignedFeatures){
+	    private void clusterBySeedKmer(MotifCluster motifCluster, 
+	    		ArrayList<ComponentFeature> unalignedFeatures){
 	    	ArrayList<ComponentFeature> alignedFeatures = motifCluster.alignedFeatures;
 	    	// initially motifStartInSeq is used to store the position of kmer relative to
 	    	// the seed kmer of this cluster, so that we can align the sequences to learn initial PWM
@@ -3609,6 +3613,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	ArrayList<Integer> motifStartInSeq = motifCluster.motifStartInSeq;
 	    	
 	    	ArrayList<Kmer> kmers = countKmers(unalignedFeatures);
+	    	if (kmers.size()<1)
+	    		return;
 	    	Collections.sort(kmers);
 	    	
 	    	ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
@@ -4089,8 +4095,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	// if the pwm is not good, return null. The operations in this method so far 
     	// does not change the state of componentFeatures or motifCluster, so we can discard this pwm and take previous result
-    	if (rightIdx-leftIdx+1<=config.k/2)
+    	if (rightIdx-leftIdx+1<=config.k/2){
+    		motifCluster.isGood = false;
     		return null;
+    	}
     	
     	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
     	for(int p=leftIdx;p<=rightIdx;p++){
@@ -4118,6 +4126,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         }
         motifCluster.matrix = wm;
         motifCluster.bindingPosition = bPos;
+        motifCluster.isGood = true;
         
     	return wm;
     }
@@ -4176,7 +4185,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Integer> motifStartInSeq = new ArrayList<Integer>();	
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();;	
 		WeightMatrix matrix;
-		int bindingPosition;		
+		int bindingPosition;
+		boolean isGood=false;
 		
 		MotifCluster(){}	// empty constructor;
 
