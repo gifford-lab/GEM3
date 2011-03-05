@@ -3374,7 +3374,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	ArrayList<MotifCluster> clusters = clusterEventSequences(unalignedFeatures);
 	    	
 	    	// build WeightMatrix from each aligned group of sequences
-	    	int groupIndex = 0;
 	    	StringBuilder sb_pfm = new StringBuilder();
 	    	//print out the kmers
 	    	StringBuilder sb_kmer = new StringBuilder();
@@ -3386,10 +3385,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	for (MotifCluster cluster : clusters){
 	    		ArrayList<ComponentFeature> alignedFeatures = cluster.alignedFeatures;
 	    		ArrayList<Integer> motifPos = cluster.motifStartInSeq;
-	    		if (alignedFeatures.size()<=config.cluster_size)
+	    		if ((!cluster.isGood) || alignedFeatures.size()<=config.cluster_size)
 	    			continue;
 	    		
 	    		goodClusterCount++;
+	    		cluster.clusterId = goodClusterCount;
 	    		System.out.println(String.format("-------------------------------\nMotif cluster #%d, from %d binding events.", goodClusterCount, alignedFeatures.size()));
 	    		WeightMatrix wm = cluster.matrix;
 	    		if (wm==null)
@@ -3457,13 +3457,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
 	    	System.out.println("-------------------------------\nTotal clusters of motifs: " + goodClusterCount);
 	    	
+	    	goodClusterCount=0;
 	    	for (MotifCluster cluster : clusters){
 	    		ArrayList<ComponentFeature> alignedFeatures = cluster.alignedFeatures;
 	    		ArrayList<Integer> motifPos = cluster.motifStartInSeq;
 	    		if (alignedFeatures.size()<=config.cluster_size)
 	    			continue;
 	    		else
-	    			sb_kmer.append("Motif cluster "+groupIndex+", from "+alignedFeatures.size()+" binding events.\n");
+	    			sb_kmer.append("Motif cluster "+cluster.clusterId+", from "+alignedFeatures.size()+" binding events.\n");
 	    		
 	    		// update the kmer shift information (kmer start relative from the middle of PWM)
 	            TreeMap<Kmer, ArrayList<Integer>> kmerOffsets = new TreeMap<Kmer, ArrayList<Integer>> ();
@@ -3496,11 +3497,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			int avg = sum/kmerOffsets.get(kmer).size();
 //	    			System.out.println("\nAverage: "+avg);
 	    			kmer.setKmerShift(avg);
-	    			kmer.setGroup(groupIndex);
+	    			kmer.setGroup(cluster.clusterId);
 	    		}
 	            
 	            // make PFM
-	    		sb_pfm.append(getPFMString(alignedFeatures, motifPos, cluster.matrix.length(), groupIndex));
+	    		sb_pfm.append(getPFMString(alignedFeatures, motifPos, cluster.matrix.length(), cluster.clusterId));
 	    		
 	    		// print aligned kmers with their shift information
 	    		// print fasta file with kmer string (maybe useful to do multiple alignment)
@@ -3512,13 +3513,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					sb_kmer.append(km.getKmerString()).append("\t").append(km.getSeqHitCount()).append("\t")
 					  .append(km.getKmerShift()).append("\t").append(shiftedKmer).append("\n");		
 					// fasta
-					sb_fa.append(">"+outName+"_"+groupIndex+"_"+kk).append("\n");
+					sb_fa.append(">"+outName+"_"+cluster.clusterId+"_"+kk).append("\n");
 					sb_fa.append(km.getKmerString()).append("\n");		
 		    		kk++;				
 		    	}
 				sb_kmer.append("\n");
-
-	            groupIndex++;
 	    	}
 //	    	System.out.println("Make PFM: "+CommonUtils.timeElapsed(tic));
 	    	CommonUtils.writeFile(outName+"_PFM.txt", sb_pfm.toString());
@@ -4182,6 +4181,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 
 	private class MotifCluster{
+		int clusterId;
 		ArrayList<ComponentFeature> alignedFeatures=new ArrayList<ComponentFeature>();
 		// PWM hit start position in the bound sequence
 		ArrayList<Integer> motifStartInSeq = new ArrayList<Integer>();	
