@@ -3982,9 +3982,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			System.err.println("Warning: makePWM(), pos_motif "+pos_motif+"<0,"+cf.toString_v1());
     			continue;
     		}
-    		if (seq.length()-pos_motif<config.k){			// the length of overlapped sequence should be at least k long
-    			System.err.println("Warning: makePWM(), pos_motif="+pos_motif+", shortest<k,"+cf.toString_v1());
-    			continue;
+    		// the length of overlapped sequence should be at least k long
+    		// if too short, extend the right side of string to 3*k
+    		if (seq.length()-pos_motif<config.k){			
+    			Region r = cf.getPeak().expand(0).expand(2*config.k, 3*config.k);
+    			seq = kEngine.getSequence(r);
+    			cf.setBoundSequence(seq); 			// this is aligned cf, it is OK to update here
+    			if (seq.length()-pos_motif<config.k){	
+	    			System.err.println("Warning: makePWM(), pos_motif="+pos_motif+", shortest<k,"+cf.toString_v1());
+	    			continue;
+    			}
     		}
     		if (leftMost>pos_motif)
     			leftMost = pos_motif;
@@ -4018,12 +4025,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
         			left = seq.length()-config.k*3;
         		}
         		subSeq = seq.substring(left, right);
-        		bsInPwmSeq.add(seq.length()/2-left);
+        		bsInPwmSeq.add(config.k*2-left);
     		}
     		else{
     			int start =pos_motif-leftMost;
     			subSeq = seq.substring(start, start+shortest);
-    			bsInPwmSeq.add(seq.length()/2-start);
+    			bsInPwmSeq.add(config.k*2-start);
     		}
     		for (int p=0;p<length;p++){
     			char base = subSeq.charAt(p);
@@ -4031,7 +4038,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			pwm[p][base] +=strength;
     		}
     	}
-    	// average all the GPS binding positions to decide the binding position in the PWM 
+    	// average all the GPS binding positions to decide the binding position in the PWM
+    	//TODO: weighted by strength?
     	int bPos=0;
     	for (int pos:bsInPwmSeq){
     		bPos += pos;
@@ -4850,8 +4858,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	Kmer[] pp_kmer = new Kmer[pp.length];
                 	String seq = null;
                 	if (kEngine!=null && kEngine.isInitialized()){
-	                	seq = seqgen.execute(w).toUpperCase();
-	                	HashMap<Integer, ArrayList<Kmer>> kmerHits = kEngine.query(seq);
+//	                	seq = seqgen.execute(w).toUpperCase();
+	                	seq = kEngine.getSequence(w);
+	            	    HashMap<Integer, ArrayList<Kmer>> kmerHits = kEngine.query(seq);
 // TODO: allowing more motif in the region	                	
 //	                	double kmerCount_max = kEngine.getMaxCount();
 //	                	double kmerCount_min = kEngine.getMinCount();
@@ -5704,7 +5713,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		b.setKmer(pp_kmer[kIdx]);
         		if (seq!=null){
 	        		int left = kIdx - config.k*2;
-	        		int right = kIdx +config.k*2;
+	        		int right = kIdx + config.k*2;
 	        		if (left<0){
 	        			left = 0;
 	        			right = config.k*4;

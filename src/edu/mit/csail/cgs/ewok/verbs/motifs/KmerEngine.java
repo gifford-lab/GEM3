@@ -353,6 +353,9 @@ public class KmerEngine {
 		return result;
 	}
 
+	public String getSequence(Region r){
+		return seqgen.execute(r).toUpperCase();
+	}
 	private void printKmers(ArrayList<Kmer> kmers, String outPrefix){
 		Collections.sort(kmers);
 		
