@@ -3826,9 +3826,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (newKmers.isEmpty())
     		return true;
     	
-    	for (Kmer kmer:newKmers)
-    		System.out.println(kmer.getKmerString());
-    	
+//    	for (Kmer kmer:newKmers)
+//    		System.out.println(kmer.getKmerString());
+	
     	boolean noMore = true;
     	ArrayList<Kmer> kmers = new ArrayList<Kmer>();
     	kmers.addAll(newKmers);
@@ -3881,7 +3881,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	  }
       	  motifCluster.alignedFeatures.add(cf);
       	  motifCluster.motifStartInSeq.add(motifStartPos);
-      	  System.out.println(cf.getBoundSequence().substring(motifStartPos));
+//      	  System.out.println(cf.getBoundSequence().substring(motifStartPos));
       	  cf.setKmer(selected);
       	  selected.incrSeqHitCount();
       	  selected.incrStrength(cf.getTotalEventStrength());
