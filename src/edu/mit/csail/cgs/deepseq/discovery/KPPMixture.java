@@ -3433,7 +3433,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    			int left = hitPos+offset;
 		    			int right = hitPos+offset+config.k;
 		    			if (right>seq.length() || left<0){
-		    				System.out.println("Warning: Get Kmer for nullKmerFeatures: seqLen="+seq.length()+" <"+left+", "+right+">");
+		    				// this sometimes happens when the PWM is shorter than kmer, just ignore it
+//		    				System.out.println("Warning: Get Kmer for nullKmerFeatures: seqLen="+seq.length()+" <"+left+", "+right+">");
 		    				continue;
 		    			}
 	    				String kmerStr = seq.substring(left, right);
@@ -3875,8 +3876,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	  int motifStartPos = centerHit-motifCluster.bindingPosition;
       	  if (motifStartPos<0){
       		  System.err.println("clusterByNewKmers: motifStartInSeq<0, centerHit="+centerHit+
-      				  ", motifCluster.bindingPosition="+motifCluster.bindingPosition+", kmer="+selected.getKmerString()+
-      				  cf.toString_v1());
+      				  ", motifCluster.bindingPosition="+motifCluster.bindingPosition+", kmer="+
+      				  selected.getKmerString()+ "\t" + cf.toString_v1());
       		  continue;
       	  }
       	  motifCluster.alignedFeatures.add(cf);
@@ -4885,13 +4886,29 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		//if pos<0, then the reverse compliment of kmer is matched
 	                		int bindingPos = Math.abs(pos);
 	                		if (bindingPos>=pp.length){
-	                			System.err.println("KPP: bindingPos " + bindingPos + " out of bound ("+pp.length+") at "+w.toString());
+//	                			System.err.println("KPP: bindingPos " + bindingPos + " out of bound ("+pp.length+") at "+w.toString());
 	                			continue;
 	                		}
+//	                		// The nearest kmer will take counts from all others (on the same position)	
+//	                		double kmerCountSum = 0;
+//	                		Kmer nearestKmer = null;
+//	                		int distance = 1000;
+//	                		for (Kmer kmer:kmerHits.get(pos)){		
+//	                			double count=0;
+//		                		if (config.use_strength)
+//		                			count = kmer.getStrength();
+//		                		else
+//		                			count = kmer.getSeqHitCount();
+//		                		kmerCountSum+=count;
+//		                		if (distance>Math.abs(kmer.getKmerShift()+config.k/2)){
+//		                			distance = Math.abs(kmer.getKmerShift()+config.k/2);
+//		                			nearestKmer = kmer;
+//		                		}		                			
+//	                		}
 	                		// The nearest kmer will take counts from all others (on the same position)	
 	                		double kmerCountSum = 0;
-	                		Kmer nearestKmer = null;
-	                		int distance = 1000;
+	                		Kmer largetKmer = null;
+	                		double largetstCount = 0;
 	                		for (Kmer kmer:kmerHits.get(pos)){		
 	                			double count=0;
 		                		if (config.use_strength)
@@ -4899,9 +4916,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		                		else
 		                			count = kmer.getSeqHitCount();
 		                		kmerCountSum+=count;
-		                		if (distance>Math.abs(kmer.getKmerShift()+config.k/2)){
-		                			distance = Math.abs(kmer.getKmerShift()+config.k/2);
-		                			nearestKmer = kmer;
+		                		if (largetstCount<count){
+		                			largetstCount = count;
+		                			largetKmer = kmer;
 		                		}		                			
 	                		}
 	                		// select the approach to generate pp from kmer count
@@ -4911,8 +4928,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                			pp[bindingPos] = kmerCountSum==0?0:Math.log(kmerCountSum);
 	                		else if (config.kpp_mode==10)
 	                			pp[bindingPos] = kmerCountSum==0?0:Math.log10(kmerCountSum);
-	                		pp_kmer[bindingPos] = nearestKmer;
-	                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), nearestKmer, pp[bindingPos]));
+	                		pp_kmer[bindingPos] = largetKmer;
+	                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), largetKmer, pp[bindingPos]));
 	                	}
 	                	
 	                	// if kmer hits are 100bp apart, consider them as independent motif hit
