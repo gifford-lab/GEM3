@@ -3987,10 +3987,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (seq.length()-pos_motif<config.k){			
     			Region r = cf.getPeak().expand(0).expand(2*config.k, 3*config.k);
     			seq = kEngine.getSequence(r);
-    			cf.setBoundSequence(seq); 			// this is aligned cf, it is OK to update here
     			if (seq.length()-pos_motif<config.k){	
 	    			System.err.println("Warning: makePWM(), pos_motif="+pos_motif+", shortest<k,"+cf.toString_v1());
 	    			continue;
+    			}
+    			else{
+        			cf.setBoundSequence(seq); 			// this is aligned cf, it is OK to update here   				
     			}
     		}
     		if (leftMost>pos_motif)
