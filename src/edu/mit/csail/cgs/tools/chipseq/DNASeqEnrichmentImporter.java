@@ -24,7 +24,7 @@ public class DNASeqEnrichmentImporter extends AnalysisImporter {
     private int lineno = 0;
 
     public static void main(String args[]) throws NotFoundException, SQLException, DatabaseException, IOException {
-        StatisticalAnalysisImporter importer = new StatisticalAnalysisImporter();
+        DNASeqEnrichmentImporter importer = new DNASeqEnrichmentImporter();
         importer.parseArgs(args);
         importer.run(System.in);
         importer.close();

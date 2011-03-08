@@ -26,6 +26,7 @@ import cern.jet.random.engine.DRand;
  * --combinegap 40
  * --minwidth 60
  * --minfold 1.5
+ * --subsample .2
  *
  * Output columns are
  * 0) chrom
@@ -50,7 +51,7 @@ public class DNASeqEnrichmentCaller {
     private int combineRegionsGap = 40;
     private int minimumRegionWidth = 60;
     private int totalFgReads, totalBgReads;
-    private double channelScalingFactor, minFoldChange;
+    private double channelScalingFactor, minFoldChange, subsample;
     private List<ChipSeqAlignment> alignments, bgAlignments;
 
     private List<Region> regionsToCall;
@@ -78,6 +79,11 @@ public class DNASeqEnrichmentCaller {
                 e.printStackTrace();
             }
         }
+        subsample = Args.parseDouble(args,"subsample",2);
+        if (subsample < 1) {
+            reads.subSample(subsample);
+        }
+
         List<ChipSeqLocator> fg = Args.parseChipSeq(args,"dnaseqfg");
         List<ChipSeqLocator> bg = Args.parseChipSeq(args,"dnaseqbg");
         for (ChipSeqLocator locator : fg) {
@@ -139,7 +145,7 @@ public class DNASeqEnrichmentCaller {
             double bgcdf = poisson.cdf(fgcount - 1);
             poisson.setMean(minFoldChange * totalFgReads * sensitiveRegionWindowSize / 2080000000.0);
             double unicdf = poisson.cdf(fgcount - 1);
-            double cdf = Math.max(unicdf, bgcdf);
+            double cdf = Math.min(unicdf, bgcdf);
             if (cdf >= .99) {
                 if (lastGoodStart == -1) {
                     lastGoodStart = start;

@@ -39,6 +39,7 @@ public class SVMFiles extends CombinatorialEnrichment {
     private String prefix;
     private int kmerLength, maxOffset, motifWidth, basicKmers;
     private List<KmerFeature> features;
+    private boolean stranded;
     public SVMFiles() {
         super();
     }
@@ -49,6 +50,7 @@ public class SVMFiles extends CombinatorialEnrichment {
         kmerLength = Args.parseInteger(args,"k",4);
         maxOffset = Args.parseInteger(args,"maxoffset",4);
         motifWidth = Args.parseInteger(args,"motifwidth",12);
+        stranded = Args.parseFlags(args).contains("stranded");
 
         features = new ArrayList<KmerFeature>();
         basicKmers = (int)(Math.pow(4,kmerLength));
@@ -59,7 +61,8 @@ public class SVMFiles extends CombinatorialEnrichment {
             f.offset = 0;
             basicFeatures.add(f);
         }
-        for (int o = 1; o < maxOffset; o++) {
+        System.err.println("There are " + basicKmers + " basic kmers");
+        for (int o = 1; o <= maxOffset; o++) {
             for (int i = 0; i < basicKmers; i++) {
                 KmerFeature basic = basicFeatures.get(i);                
                 KmerFeature f = new KmerFeature();
@@ -68,15 +71,18 @@ public class SVMFiles extends CombinatorialEnrichment {
                 features.add(f);
             }
         }
-        for (int o = 1; o < maxOffset; o++) {
-            for (int i = 0; i < basicKmers; i++) {
-                KmerFeature basic = basicFeatures.get(i);                
-                KmerFeature f = new KmerFeature();
-                f.kmer = basic.kmer;
-                f.offset = -1 * o;
+        if (stranded) {
+            for (int o = 1; o <= maxOffset; o++) {
+                for (int i = 0; i < basicKmers; i++) {
+                    KmerFeature basic = basicFeatures.get(i);                
+                    KmerFeature f = new KmerFeature();
+                    f.kmer = basic.kmer;
+                    f.offset = -1 * o;
                 features.add(f);
+                }
             }
         }
+        System.err.println("There are " + features.size() + " kmer features");
     }
     private void saveLine(PrintWriter file, double val, WMHit[] hits, double kmerFeatures[]) throws IOException {
         StringBuffer line = new StringBuffer(Double.toString(val));
@@ -84,7 +90,9 @@ public class SVMFiles extends CombinatorialEnrichment {
             line.append(String.format(" %d:%.4f",i+1, hits[i] == null ? 0 : hits[i].getScore()));
         }
         for (int i = 0; i < kmerFeatures.length; i++) {
-            line.append(String.format(" %d:%.4f",i+hits.length+1, kmerFeatures[i]));
+            if (kmerFeatures[i] > 0) {
+                line.append(String.format(" %d:%.4f",i+hits.length+1, kmerFeatures[i]));
+            }
         }
         file.println(line.toString());
     }
@@ -107,7 +115,7 @@ public class SVMFiles extends CombinatorialEnrichment {
                 tmp[j] = sequence[offset+o+j];
             }
             long bk = DiscriminativeKmers.charsToLong(tmp);
-            long ak = basicKmers * (maxOffset + o) + bk;
+            long ak = basicKmers * ((stranded ? maxOffset : 0 ) + o - 1) + bk ;
             output[(int)ak] = 1;
         }
         return output;
@@ -136,7 +144,7 @@ public class SVMFiles extends CombinatorialEnrichment {
             }
         }
         for (WeightMatrix m : matrices) {
-            featurenames.println(m.toString());
+            featurenames.println(m.getName() + "\t" + m.getVersion());
         }
         for (KmerFeature f : features) {
             featurenames.println(f.toString());

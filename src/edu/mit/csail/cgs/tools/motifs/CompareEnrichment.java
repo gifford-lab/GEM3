@@ -15,6 +15,8 @@ import edu.mit.csail.cgs.utils.*;
 //import edu.mit.csail.cgs.utils.probability.Binomial;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedRegion;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.tools.motifs.*;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -110,14 +112,24 @@ public class CompareEnrichment {
      * for each output region.  You can use matchedRegion as background sequence since it came
      * from the same approximate loci as the foreground that was read
      */
-    public static Map<String,char[]> readRegions(Genome g, BufferedReader reader, int parsedregionexpand, Map<String,char[]> matchedRegions) throws IOException, NotFoundException {
+    public static Map<String,char[]> readRegions(Genome g, 
+                                                 BufferedReader reader, 
+                                                 int parsedregionexpand, 
+                                                 Map<String,char[]> matchedRegions) throws IOException, NotFoundException {
         String line = null;
         Map<String,char[]> output = new HashMap<String,char[]>();
         SequenceGenerator seqgen = new SequenceGenerator();
         seqgen.useCache(true);
         seqgen.useLocalFiles(true);
         while ((line = reader.readLine()) != null) {
-            Region region = Region.fromString(g, line);
+            StrandedRegion region = null;
+            region = StrandedRegion.fromString(g, line);
+            if (region == null) {
+                Region r= Region.fromString(g,line);
+                if (r != null) {
+                    region = new StrandedRegion(r ,'+');
+                }
+            }
             if (region == null) {
                 System.err.println("Couldn't parse a region from " + line);
                 continue;
@@ -126,8 +138,12 @@ public class CompareEnrichment {
             if (parsedregionexpand > 0) {
                 region = region.expand(parsedregionexpand,parsedregionexpand);
             }
-            output.put(line,
-                       seqgen.execute(region).toCharArray());
+            char[] chars = seqgen.execute(region).toCharArray();
+            if (region.getStrand() == '-' ) {
+                SequenceUtils.reverseComplement(chars);
+            }
+
+            output.put(line,chars);
             if (matchedRegions != null) {
                 Region before = new Region(region.getGenome(),
                                            region.getChrom(),
@@ -137,11 +153,16 @@ public class CompareEnrichment {
                                           region.getChrom(),
                                           region.getEnd(),
                                           region.getEnd() + region.getWidth());
+                if (region.getStrand() == '-') {
+                    Region t = before;
+                    before = after;
+                    after = t;
+                }
                 matchedRegions.put(before.toString(),
                                    seqgen.execute(before).toCharArray());
                 matchedRegions.put(after.toString(),
                                    seqgen.execute(after).toCharArray());
-            }                      
+            }
         }
         return output;
     }
