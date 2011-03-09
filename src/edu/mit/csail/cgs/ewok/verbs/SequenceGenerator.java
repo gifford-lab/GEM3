@@ -177,6 +177,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     			synchronized(cache) {
     				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
     			}
+    	    	System.gc();
     			chrom = r.getChrom();
     		}
     	}
