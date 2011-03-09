@@ -173,6 +173,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     		point2region.put(p, r);
     		points.add(p);
     		if (!r.getChrom().equals(chrom)){	// new Chrom
+    			System.out.println("Compact sequence cache: finish Chrom " + chrom);
     			synchronized(cache) {
     				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
     			}
