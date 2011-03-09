@@ -3272,7 +3272,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				fs.add(cf);
 			}
 		}
+		
 		kEngine = new KmerEngine(gen, config.cache_genome);
+		ArrayList<Region> expandedRegions = new ArrayList<Region>();
+		for (Region r: restrictRegions){
+			expandedRegions.add(r.expand(config.k_shift, config.k_shift));
+		}
+		expandedRegions = this.mergeRegions(expandedRegions, false);
+		if (!kmerPredifined)
+			kEngine.compactRegionCache(expandedRegions);
+		
 		kEngine.buildEngine(config.k, fs, config.k_win, config.k_shift, config.hgp, outPrefix);
     }
     /**

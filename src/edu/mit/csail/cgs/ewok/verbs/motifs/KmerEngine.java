@@ -83,7 +83,9 @@ public class KmerEngine {
 			k=kmers.get(0).k;
 		}
 	}
-	
+	public void compactRegionCache(ArrayList<Region> regions){
+		seqgen.compactRegionCache(regions);
+	}
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value
 	 * in sequence around the binding events 

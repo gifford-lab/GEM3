@@ -7,6 +7,7 @@ import java.sql.*;
 import edu.mit.csail.cgs.ewok.nouns.*;
 import edu.mit.csail.cgs.ewok.types.*;
 import edu.mit.csail.cgs.utils.*;
+import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.database.*;
@@ -22,6 +23,11 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     private boolean useCache = false;
     private boolean useLocalFiles = true;
 
+    private static Map<Region, String> regionCache;
+    private static Map<Point, Region> point2region;
+    private Point[] pointIndex;
+    private static boolean regionIsCached = false;
+    
     // no longer used, but kept for compatibility 
     public SequenceGenerator (Genome g) {        
     }
@@ -90,6 +96,9 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
             Genome genome = region.getGenome();
             int chromid = genome.getChromID(chromname);
             if (useCache) {
+            	if (regionIsCached)
+            		return getRegionCacheSequence(region);
+            	
                 cache(region);
                 String chromString = null;
                 synchronized(cache) {
@@ -139,6 +148,64 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 
         return result;
     }
+    /**
+     * Compact the cache of genome sequences to cover only the specified regions
+     * @param regions sorted, non-overlapping regions
+     */
+    public void compactRegionCache(ArrayList<Region> regions){
+    	if (regions==null||regions.isEmpty())
+    		return;
+    	
+    	useCache(true);
+    	ArrayList<Point> points = new ArrayList<Point>();
+    	regionCache = new HashMap<Region, String>();
+    	point2region = new HashMap<Point, Region>();
+    	Genome g = regions.get(0).getGenome();
+    	List<String> chromList = g.getChromList();
+    	Region lastRegion = regions.get(regions.size()-1);
+    	
+    	String chrom = chromList.get(0);
+    	for (Region r:regions){
+    		synchronized(regionCache) {
+        		regionCache.put(r, execute((X)r));    			
+    		}
+    		Point p = new Point(r.getGenome(), r.getChrom(), r.getStart());
+    		point2region.put(p, r);
+    		points.add(p);
+    		if (!r.getChrom().equals(chrom)){	// new Chrom
+    			synchronized(cache) {
+    				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
+    			}
+    			chrom = r.getChrom();
+    		}
+    	}
+    	synchronized(cache) {
+    		cache.remove(g.getChromID(lastRegion.getChrom()));
+    	}
+    	cache=null;
+    	System.gc();
+    	
+    	Collections.sort(points);
+    	pointIndex = new Point[points.size()+1];
+    	for (int i=0;i<points.size();i++){
+    		pointIndex[i]=points.get(i);
+    	}
+    	pointIndex[points.size()] = new Point(lastRegion.getGenome(), lastRegion.getChrom(), lastRegion.getEnd());
+    	regionIsCached = true;
+    }
+    
+    private String getRegionCacheSequence(Region r){
+    	Point start = new Point(r.getGenome(), r.getChrom(), r.getStart());
+    	int idx = Arrays.binarySearch(pointIndex, start);
+    	if( idx < 0 ) { idx = -idx - 1; }
+    	Region rKey = point2region.get(pointIndex[idx]);
+    	if (!rKey.contains(r))
+    		return null;
+	    synchronized(regionCache) {
+	    	return regionCache.get(rKey).substring(r.getStart()-rKey.getStart(), r.getEnd()-rKey.getStart());
+    	}
+    }
+    
     public static void clearCache() {
         synchronized(cache) {
             cache.clear();
