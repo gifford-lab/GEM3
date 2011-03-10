@@ -207,7 +207,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     private String getRegionCacheSequence(Region r){
     	int[] starts = regionStarts.get(r.getChrom());
     	int idx = Arrays.binarySearch(starts, r.getStart());
-    	if( idx < 0 ) { idx = -idx - 1; }
+    	if( idx < 0 ) { idx = -idx - 2; }
     	if (!regionCache.containsKey(r.getChrom()))
     		return null;
 	    synchronized(regionCache) {
