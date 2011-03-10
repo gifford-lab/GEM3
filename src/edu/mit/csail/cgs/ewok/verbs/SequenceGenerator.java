@@ -7,6 +7,7 @@ import java.sql.*;
 import edu.mit.csail.cgs.ewok.nouns.*;
 import edu.mit.csail.cgs.ewok.types.*;
 import edu.mit.csail.cgs.utils.*;
+import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.utils.database.*;
@@ -22,6 +23,10 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     private boolean useCache = false;
     private boolean useLocalFiles = true;
 
+    private static Map<String, String[]> regionCache;
+    private static Map<String, int[]> regionStarts;
+    private static boolean regionIsCached = false;
+    
     // no longer used, but kept for compatibility 
     public SequenceGenerator (Genome g) {        
     }
@@ -83,7 +88,10 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         }
     }
     public String execute(X region) {
-        String result = null;
+    	if (regionIsCached)
+    		return getRegionCacheSequence(region);  
+    	
+    	String result = null;
         String chromname = region.getChrom();
         
         try {
@@ -139,6 +147,86 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 
         return result;
     }
+    /**
+     * Compact the cache of genome sequences to cover only the specified regions
+     * @param regions sorted, non-overlapping regions
+     */
+    public void compactRegionCache(ArrayList<Region> regions){
+    	if (regions==null||regions.isEmpty())
+    		return;
+    	
+    	useCache(true);
+    	regionCache = new HashMap<String, String[]>();
+    	regionStarts = new HashMap<String, int[]>();
+    	Genome g = regions.get(0).getGenome();
+    	Region lastRegion = regions.get(regions.size()-1);
+    	// setup the space
+    	String chrom = regions.get(0).getChrom();
+    	int count = 0;
+    	for(Region r: regions){
+    		if (!r.getChrom().equals(chrom)){		// new chrom
+    			regionCache.put(chrom, new String[count]);
+    			regionStarts.put(chrom, new int[count]);
+    			chrom = r.getChrom();
+    			count = 1;
+    		}
+    		else		// same chrom
+        		count ++;
+    	}
+		regionCache.put(chrom, new String[count]);
+		regionStarts.put(chrom, new int[count]);
+    	
+		chrom = regions.get(0).getChrom();
+    	count = 0;
+    	for (Region r:regions){
+    		if (!r.getChrom().equals(chrom)){	// new Chrom
+//    			System.out.println("Compact sequence cache: finish Chrom " + chrom);
+    			if (cache!=null){
+	    			synchronized(cache) {
+	    				cache.put(g.getChromID(chrom), null);
+	    				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
+	    			}
+	    	    	System.gc();
+    			}
+    			chrom = r.getChrom();
+    			count = 0;
+    		}		
+    		synchronized(regionCache) {
+    			regionStarts.get(chrom)[count]=r.getStart(); 
+        		regionCache.get(chrom)[count]=execute((X)r);    			
+    		}
+    		count ++;
+    	}
+    	if (cache!=null){
+	    	synchronized(cache) {
+	    		cache.put(g.getChromID(lastRegion.getChrom()), null);
+	    		cache.remove(g.getChromID(lastRegion.getChrom()));
+	    	}
+	    	cache=null;
+	    	System.gc();
+    	}
+    	
+    	regionIsCached = true;
+    }
+    
+    private String getRegionCacheSequence(Region r){
+    	int[] starts = regionStarts.get(r.getChrom());
+    	int idx = Arrays.binarySearch(starts, r.getStart());
+    	if( idx < 0 ) { idx = -idx - 2; }
+    	if (!regionCache.containsKey(r.getChrom()))
+    		return null;
+	    synchronized(regionCache) {
+	    	try{
+	    		return regionCache.get(r.getChrom())[idx].substring(r.getStart()-starts[idx], r.getEnd()-starts[idx]+1);
+	    	}
+	    	catch(Exception e){
+	    		e.printStackTrace(System.out);
+	    		System.out.println(r.toString()+" idx="+idx+" starts[idx]="+starts[idx]);
+	    	    return null;
+	    	}
+    	}
+    }
+    
     public static void clearCache() {
         synchronized(cache) {
             cache.clear();
