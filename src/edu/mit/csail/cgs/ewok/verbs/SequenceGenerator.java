@@ -23,9 +23,8 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     private boolean useCache = false;
     private boolean useLocalFiles = true;
 
-    private static Map<Region, String> regionCache;
-    private static Map<Point, Region> point2region;
-    private Point[] pointIndex;
+    private static Map<String, String[]> regionCache;
+    private static Map<String, int[]> regionStarts;
     private static boolean regionIsCached = false;
     
     // no longer used, but kept for compatibility 
@@ -157,56 +156,62 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     		return;
     	
     	useCache(true);
-    	ArrayList<Point> points = new ArrayList<Point>();
-    	regionCache = new HashMap<Region, String>();
-    	point2region = new HashMap<Point, Region>();
+    	regionCache = new HashMap<String, String[]>();
+    	regionStarts = new HashMap<String, int[]>();
     	Genome g = regions.get(0).getGenome();
-    	List<String> chromList = g.getChromList();
     	Region lastRegion = regions.get(regions.size()-1);
-    	
-    	String chrom = chromList.get(0);
-    	for (Region r:regions){
-    		synchronized(regionCache) {
-        		regionCache.put(r, execute((X)r));    			
+    	// setup the space
+    	String chrom = regions.get(0).getChrom();
+    	int count = 0;
+    	for(Region r: regions){
+    		count ++;
+    		if (!r.getChrom().equals(chrom)){	
+    			regionCache.put(chrom, new String[count]);
+    			regionStarts.put(chrom, new int[count]);
+    			chrom = r.getChrom();
+    			count = 1;
     		}
-    		Point p = new Point(r.getGenome(), r.getChrom(), r.getStart());
-    		point2region.put(p, r);
-    		points.add(p);
+    	}
+		regionCache.put(chrom, new String[count]);
+		regionStarts.put(chrom, new int[count]);
+    	
+		chrom = regions.get(0).getChrom();
+    	count = 0;
+    	for (Region r:regions){
+    		count ++;
+    		synchronized(regionCache) {
+    			regionStarts.get(chrom)[count]=r.getStart(); 
+        		regionCache.get(chrom)[count]=execute((X)r);    			
+    		}
     		if (!r.getChrom().equals(chrom)){	// new Chrom
     			System.out.println("Compact sequence cache: finish Chrom " + chrom);
     			synchronized(cache) {
-    				cache.clear();
-//    				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
+    				cache.put(g.getChromID(chrom), null);
+    				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
     			}
     	    	System.gc();
     			chrom = r.getChrom();
+    			count = 1;
     		}
     	}
     	synchronized(cache) {
-    		cache.clear();
-//    		cache.remove(g.getChromID(lastRegion.getChrom()));
+    		cache.put(g.getChromID(lastRegion.getChrom()), null);
+    		cache.remove(g.getChromID(lastRegion.getChrom()));
     	}
     	cache=null;
     	System.gc();
     	
-    	Collections.sort(points);
-    	pointIndex = new Point[points.size()+1];
-    	for (int i=0;i<points.size();i++){
-    		pointIndex[i]=points.get(i);
-    	}
-    	pointIndex[points.size()] = new Point(lastRegion.getGenome(), lastRegion.getChrom(), lastRegion.getEnd());
     	regionIsCached = true;
     }
     
     private String getRegionCacheSequence(Region r){
-    	Point start = new Point(r.getGenome(), r.getChrom(), r.getStart());
-    	int idx = Arrays.binarySearch(pointIndex, start);
+    	int[] starts = regionStarts.get(r.getChrom());
+    	int idx = Arrays.binarySearch(starts, r.getStart());
     	if( idx < 0 ) { idx = -idx - 1; }
-    	Region rKey = point2region.get(pointIndex[idx]);
-    	if (!rKey.contains(r))
+    	if (!regionCache.containsKey(r.getChrom()))
     		return null;
 	    synchronized(regionCache) {
-	    	return regionCache.get(rKey).substring(r.getStart()-rKey.getStart(), r.getEnd()-rKey.getStart());
+	    	return regionCache.get(r.getChrom())[idx].substring(r.getStart()-starts[idx], r.getEnd()-starts[idx]+1);
     	}
     }
     

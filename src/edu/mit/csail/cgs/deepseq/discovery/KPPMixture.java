@@ -3279,7 +3279,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			expandedRegions.add(r.expand(config.k_shift, config.k_shift));
 		}
 		expandedRegions = this.mergeRegions(expandedRegions, false);
-//		if (!kmerPredifined)
+		int totalLength=0;
+		for (Region r: expandedRegions){
+			totalLength+=r.getWidth();
+		}
+		System.out.println("Compact cache genome sequence length to " + totalLength);
+		if (!kmerPredifined)
 			kEngine.compactRegionCache(expandedRegions);
 		
 		kEngine.buildEngine(config.k, fs, config.k_win, config.k_shift, config.hgp, outPrefix);
@@ -4048,13 +4053,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
         			left = seq.length()-config.k*3;
         		}
         		subSeq = seq.substring(left, right);
-        		sum_offsetXstrength += strength*(config.k*2-left);
+        		sum_offsetXstrength += strength*(config.k*2+1-left);
         		sum_strength += strength;
     		}
     		else{
     			int start =pos_motif-leftMost;
     			subSeq = seq.substring(start, start+shortest);
-    			sum_offsetXstrength += strength*(config.k*2-start);
+    			sum_offsetXstrength += strength*(config.k*2+1-start);
         		sum_strength += strength;
     		}
     		for (int p=0;p<length;p++){
