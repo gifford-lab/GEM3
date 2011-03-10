@@ -3567,6 +3567,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (unalignedFeatures.isEmpty())
     		return clusters;
     	
+    	// error checking
     	for (ComponentFeature cf:unalignedFeatures){
     		int idx = cf.getBoundSequence().indexOf(cf.getKmer().getKmerString());
 			if (idx==-1)
@@ -3625,6 +3626,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			// if the pwm is not good, return the previous result			
     			unalignedFeatures.clear();
     			unalignedFeatures.addAll(unaligned_old);
+    	    	for (ComponentFeature cf:unalignedFeatures){
+    	    		// reverse some kmer-seq mismatch effect from those unsuccessful clustering manipulations
+    				if (cf.getBoundSequence().indexOf(cf.getKmer().getKmerString())==-1)		
+    					cf.flipBoundSequence();
+    	    	}
     			return old;
     		}
         	if (wm.length()<=config.k*3/4)		// PWM is too short for further analysis
@@ -4016,16 +4022,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		}
     		// the length of overlapped sequence should be at least k long
     		// if too short, extend the right side of string to 3*k
-    		if (seq.length()-pos_motif<config.k){			
-    			Region r = cf.getPeak().expand(0).expand(2*config.k, 3*config.k);
-    			seq = kEngine.getSequence(r);
-    			if (seq.length()-pos_motif<config.k){	// if still not work, ignore
-	    			// System.err.println("Warning: makePWM(), pos_motif="+pos_motif+", shortest<k,"+cf.toString_v1());
-	    			continue;
-    			}
-    			else{
-        			cf.setBoundSequence(seq); 			// this is aligned cf, it is OK to update here   				
-    			}
+    		if (seq.length()-pos_motif<config.k){	
+    			continue;
+//    			Region r = cf.getPeak().expand(0).expand(2*config.k, 3*config.k);
+//    			seq = kEngine.getSequence(r);
+//    			if (seq.length()-pos_motif<config.k){	// if still not work, ignore
+//	    			// System.err.println("Warning: makePWM(), pos_motif="+pos_motif+", shortest<k,"+cf.toString_v1());
+//	    			continue;
+//    			}
+//    			else{
+//        			cf.setBoundSequence(seq); 			// this is aligned cf, it is OK to update here   				
+//    			}
     		}
     		if (leftMost>pos_motif)
     			leftMost = pos_motif;
