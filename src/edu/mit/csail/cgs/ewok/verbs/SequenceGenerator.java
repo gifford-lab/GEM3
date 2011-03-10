@@ -88,16 +88,16 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         }
     }
     public String execute(X region) {
-        String result = null;
+    	if (regionIsCached)
+    		return getRegionCacheSequence(region);  
+    	
+    	String result = null;
         String chromname = region.getChrom();
         
         try {
             Genome genome = region.getGenome();
             int chromid = genome.getChromID(chromname);
             if (useCache) {
-            	if (regionIsCached)
-            		return getRegionCacheSequence(region);
-            	
                 cache(region);
                 String chromString = null;
                 synchronized(cache) {
@@ -164,13 +164,14 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     	String chrom = regions.get(0).getChrom();
     	int count = 0;
     	for(Region r: regions){
-    		count ++;
-    		if (!r.getChrom().equals(chrom)){	
+    		if (!r.getChrom().equals(chrom)){		// new chrom
     			regionCache.put(chrom, new String[count]);
     			regionStarts.put(chrom, new int[count]);
     			chrom = r.getChrom();
     			count = 1;
     		}
+    		else		// same chrom
+        		count ++;
     	}
 		regionCache.put(chrom, new String[count]);
 		regionStarts.put(chrom, new int[count]);
@@ -180,26 +181,30 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     	for (Region r:regions){
     		if (!r.getChrom().equals(chrom)){	// new Chrom
     			System.out.println("Compact sequence cache: finish Chrom " + chrom);
-    			synchronized(cache) {
-    				cache.put(g.getChromID(chrom), null);
-    				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
+    			if (cache!=null){
+	    			synchronized(cache) {
+	    				cache.put(g.getChromID(chrom), null);
+	    				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
+	    			}
+	    	    	System.gc();
     			}
-    	    	System.gc();
     			chrom = r.getChrom();
     			count = 0;
-    		}
+    		}		
     		synchronized(regionCache) {
     			regionStarts.get(chrom)[count]=r.getStart(); 
         		regionCache.get(chrom)[count]=execute((X)r);    			
     		}
     		count ++;
     	}
-    	synchronized(cache) {
-    		cache.put(g.getChromID(lastRegion.getChrom()), null);
-    		cache.remove(g.getChromID(lastRegion.getChrom()));
+    	if (cache!=null){
+	    	synchronized(cache) {
+	    		cache.put(g.getChromID(lastRegion.getChrom()), null);
+	    		cache.remove(g.getChromID(lastRegion.getChrom()));
+	    	}
+	    	cache=null;
+	    	System.gc();
     	}
-    	cache=null;
-    	System.gc();
     	
     	regionIsCached = true;
     }
