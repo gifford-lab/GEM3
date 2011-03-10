@@ -178,11 +178,6 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 		chrom = regions.get(0).getChrom();
     	count = 0;
     	for (Region r:regions){
-    		count ++;
-    		synchronized(regionCache) {
-    			regionStarts.get(chrom)[count]=r.getStart(); 
-        		regionCache.get(chrom)[count]=execute((X)r);    			
-    		}
     		if (!r.getChrom().equals(chrom)){	// new Chrom
     			System.out.println("Compact sequence cache: finish Chrom " + chrom);
     			synchronized(cache) {
@@ -191,8 +186,13 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     			}
     	    	System.gc();
     			chrom = r.getChrom();
-    			count = 1;
+    			count = 0;
     		}
+    		synchronized(regionCache) {
+    			regionStarts.get(chrom)[count]=r.getStart(); 
+        		regionCache.get(chrom)[count]=execute((X)r);    			
+    		}
+    		count ++;
     	}
     	synchronized(cache) {
     		cache.put(g.getChromID(lastRegion.getChrom()), null);
