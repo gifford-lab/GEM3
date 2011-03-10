@@ -211,7 +211,14 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     	if (!regionCache.containsKey(r.getChrom()))
     		return null;
 	    synchronized(regionCache) {
-	    	return regionCache.get(r.getChrom())[idx].substring(r.getStart()-starts[idx], r.getEnd()-starts[idx]+1);
+	    	try{
+	    		return regionCache.get(r.getChrom())[idx].substring(r.getStart()-starts[idx], r.getEnd()-starts[idx]+1);
+	    	}
+	    	catch(Exception e){
+	    		e.printStackTrace(System.out);
+	    		System.out.println(r.toString()+" idx="+idx+" starts[idx]="+starts[idx]);
+	    	    return null;
+	    	}
     	}
     }
     
