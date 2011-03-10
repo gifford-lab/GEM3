@@ -180,7 +180,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     	count = 0;
     	for (Region r:regions){
     		if (!r.getChrom().equals(chrom)){	// new Chrom
-    			System.out.println("Compact sequence cache: finish Chrom " + chrom);
+//    			System.out.println("Compact sequence cache: finish Chrom " + chrom);
     			if (cache!=null){
 	    			synchronized(cache) {
 	    				cache.put(g.getChromID(chrom), null);
