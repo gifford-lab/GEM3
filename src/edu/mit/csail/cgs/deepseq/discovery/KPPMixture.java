@@ -3274,6 +3274,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		
 		kEngine = new KmerEngine(gen, config.cache_genome);
+		long tic = System.currentTimeMillis();
 		ArrayList<Region> expandedRegions = new ArrayList<Region>();
 		for (Region r: restrictRegions){
 			expandedRegions.add(r.expand(config.k_shift+config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
@@ -3283,9 +3284,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (Region r: expandedRegions){
 			totalLength+=r.getWidth();
 		}
-		System.out.println("Compact cache genome sequence length to " + totalLength);
-		if (!kmerPredifined)
+		if (!kmerPredifined){
 			kEngine.compactRegionCache(expandedRegions);
+			System.out.println("Compact cache genome sequence length to " + totalLength + ", "+
+				CommonUtils.timeElapsed(tic));
+		}
 		
 		kEngine.buildEngine(config.k, fs, config.k_win, config.k_shift, config.hgp, outPrefix);
     }
@@ -3666,7 +3669,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		
 	    		Kmer kmer = cf.getKmer();
 	    		assert(kmer!=null);
-	    		if (cf.getBoundSequence().contains(kmer.getKmerString())||
+	    		if (!cf.getBoundSequence().contains(kmer.getKmerString())||
 	    				cf.getBoundSequence().contains(kmer.getKmerRC()) ){
 	    			wrongKmerCount++;
 	    			continue;
