@@ -3661,14 +3661,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	
 	    	// map kmers to the events
 	    	HashMap<Kmer, ArrayList<ComponentFeature>> kmer2cf = new HashMap<Kmer, ArrayList<ComponentFeature>>();
+	    	int wrongKmerCount = 0;
 	    	for(ComponentFeature cf : unalignedFeatures){
+	    		
 	    		Kmer kmer = cf.getKmer();
 	    		assert(kmer!=null);
+	    		if (cf.getBoundSequence().contains(kmer.getKmerString())||
+	    				cf.getBoundSequence().contains(kmer.getKmerRC()) ){
+	    			wrongKmerCount++;
+	    			continue;
+	    		}
 	    		if (!kmer2cf.containsKey(kmer))
 	    			kmer2cf.put(kmer, new ArrayList<ComponentFeature>());
 	    		kmer2cf.get(kmer).add(cf);
 	    	}
-	    	
+	    	if (wrongKmerCount>0){
+	    		System.out.println(wrongKmerCount+" out of "+unalignedFeatures.size()+" kmers can not match boundSequence.");
+	    	}
 	    	for (Kmer kmer:kmer2cf.keySet()){
 	    		// perfect match or 1 mismatch (2 mismatch if k>10), no shift
 	    		if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=1+config.k*0.1){
