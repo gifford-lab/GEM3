@@ -4062,6 +4062,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		String seq = cf.getBoundSequence();
     		int pos_motif = motifStartInSeq.get(i);			
     		if (pos_motif<0){
+    			//TODO: still a few miss here
     			System.err.println("Warning: makePWM(), pos_motif "+pos_motif+"<0,"+cf.toString_v1());
     			continue;
     		}
@@ -4491,7 +4492,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double wm_factor = 0.5;	// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;	// The information content threshold to trim the ends of PWM
         public boolean pad_letters = false; //adding backgroup fraction to pad kmers
-        public int kmer_cluster_size = 5;	// minimum number of sequences to be reported as a cluster
+        public int kmer_cluster_size = 10;	// minimum number of sequences to be reported as a cluster
         
         public double q_value_threshold = 2.0;	// -log10 value of q-value
         public double joint_event_distance = 500;

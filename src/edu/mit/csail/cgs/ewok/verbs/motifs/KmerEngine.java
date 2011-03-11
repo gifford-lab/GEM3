@@ -136,7 +136,7 @@ public class KmerEngine {
             if (!reportTriggers.isEmpty())
             	trigger = reportTriggers.first();
             if (i>trigger){
-				System.out.println(trigger+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
+//				System.out.println(trigger+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 				reportTriggers.remove(reportTriggers.first());
             }
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
