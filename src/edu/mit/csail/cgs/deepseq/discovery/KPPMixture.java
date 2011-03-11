@@ -4020,10 +4020,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			System.err.println("Warning: makePWM(), pos_motif "+pos_motif+"<0,"+cf.toString_v1());
     			continue;
     		}
-    		// the length of overlapped sequence should be at least k long
-    		// if too short, extend the right side of string to 3*k
+
     		if (seq.length()-pos_motif<config.k){	
     			continue;
+    		// the length of overlapped sequence should be at least k long
+    		// if too short, extend the right side of string to 3*k, but this may complicated the calculation
+    		// of binding positions as the sequence may be flipped
 //    			Region r = cf.getPeak().expand(0).expand(2*config.k, 3*config.k);
 //    			seq = kEngine.getSequence(r);
 //    			if (seq.length()-pos_motif<config.k){	// if still not work, ignore
@@ -4043,7 +4045,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	boolean fixedLength = false;
     	if (length<config.k){
     		System.err.println("Warning: makePWM(), leftMost="+leftMost+" shortest="+shortest);
-    		length = 3*config.k;
+    		length = (int)(0.8*config.k_win);
     		fixedLength = true;
     	}
     	double sum_offsetXstrength = 0;
@@ -4057,24 +4059,24 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			continue;
     		String subSeq=null;
     		if (fixedLength){
-    			int left = pos_motif-config.k*2;
-        		int right = pos_motif+config.k;
+    			int left = pos_motif+config.k/2-(int)(0.4*config.k_win);
+        		int right = pos_motif+config.k/2+(int)(0.4*config.k_win);
         		if (left<0){
         			left = 0;
-        			right = config.k*3;
+        			right = length;
         		}
         		if (right>seq.length()){
         			right = seq.length();
-        			left = seq.length()-config.k*3;
+        			left = seq.length()-length;
         		}
         		subSeq = seq.substring(left, right);
-        		sum_offsetXstrength += strength*(config.k*2+1-left);
+        		sum_offsetXstrength += strength*(config.k_win/2+1-left);
         		sum_strength += strength;
     		}
     		else{
     			int start =pos_motif-leftMost;
     			subSeq = seq.substring(start, start+shortest);
-    			sum_offsetXstrength += strength*(config.k*2+1-start);
+    			sum_offsetXstrength += strength*(config.k_win/2+1-start);
         		sum_strength += strength;
     		}
     		for (int p=0;p<length;p++){
@@ -4428,12 +4430,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
         
         public int k = -1;			// the width of kmer
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
-        public int k_win = 40;		// the window around binding event to search for kmers
+        public int k_win = 60;		// the window around binding event to search for kmers
         public int k_shift = 100;// the shift from binding event for negative sequence set    
         public int kpp_mode = 0;		// different mode to convert kmer count to positional prior alpha value
         public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
         public double kpp_min = 0.2;// min value
-        public double hgp = 0.1; 	// p-value threshold of hyper-geometric test for enriched kmer 
+        public double hgp = 0.05; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double gc = 0.42;	// GC content in the genome
         public double[] bg;
         public double wm_factor = 0.5;	// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
@@ -5772,17 +5774,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		int kIdx = b.getLocation().getLocation()-startPos;
         		b.setKmer(pp_kmer[kIdx]);
         		if (seq!=null){
-	        		int left = kIdx - config.k*2;
-	        		int right = kIdx + config.k*2;
+	        		int left = kIdx - config.k_win/2;
+	        		int right = kIdx + config.k_win/2;
 	        		if (left<0){
 	        			left = 0;
-	        			right = config.k*4;
+	        			right = config.k_win;
 	        		}
 	        		if (right>seq.length()){
 	        			right = seq.length();
-	        			left = seq.length()-config.k*4;
+	        			left = seq.length()-config.k_win;
 	        		}
-	        		String bs = seq.substring(left,right);
+	        		String bs = seq.substring(left,right+1);
 	        		if (b.getKmer()!=null){
 	        			if (!bs.contains(b.getKmer().getKmerString()))
 	        				bs = SequenceUtils.reverseComplement(bs);
