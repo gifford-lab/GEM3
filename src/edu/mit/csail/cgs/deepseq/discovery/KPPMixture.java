@@ -4009,7 +4009,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	ArrayList<ComponentFeature> alignedFeatures = motifCluster.alignedFeatures;
     	ArrayList<Integer> motifStartInSeq = motifCluster.motifStartInSeq;
     	// count
-    	int seqLen = alignedFeatures.get(0).getBoundSequence().length();
+    	int seqLen = config.k_win+1;
     	int leftMost = seqLen;
     	int shortest = seqLen;	// the shortest length starting from the shift position
     	for (int i=0;i<alignedFeatures.size();i++){
@@ -4070,14 +4070,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
         			left = seq.length()-length;
         		}
         		subSeq = seq.substring(left, right);
-        		sum_offsetXstrength += strength*(config.k_win/2+1-left);
-        		sum_strength += strength;
+        		if (seqLen!=seq.length()){		// if length is not k_win+1, binding position may not be in middle
+	        		sum_offsetXstrength += strength*(config.k_win/2+1-left);
+	        		sum_strength += strength;
+        		}
     		}
     		else{
     			int start =pos_motif-leftMost;
     			subSeq = seq.substring(start, start+shortest);
-    			sum_offsetXstrength += strength*(config.k_win/2+1-start);
-        		sum_strength += strength;
+    			if (seqLen!=seq.length()){		// if length is not k_win+1, binding position may not be in middle
+	    			sum_offsetXstrength += strength*(config.k_win/2+1-start);
+	        		sum_strength += strength;
+    			}
     		}
     		for (int p=0;p<length;p++){
     			char base = subSeq.charAt(p);
@@ -4086,7 +4090,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	}
     	// average all the GPS binding positions to decide the binding position in the PWM
     	// weighted by strength if "use_strength" is true
-    	int bPos=(int)(sum_offsetXstrength/sum_strength+0.5);
+    	int bPos=(int)(sum_offsetXstrength/sum_strength+0.5);		// plus 0.5 to round to nearest int
     	
     	// normalize, compare to background, and log2
     	double[] ic = new double[pwm.length];						// information content
@@ -5778,12 +5782,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	        		int right = kIdx + config.k_win/2;
 	        		if (left<0){
 	        			left = 0;
-	        			right = config.k_win;
 	        		}
-	        		if (right>seq.length()){
-	        			right = seq.length();
-	        			left = seq.length()-config.k_win;
+	        		if (right+1>seq.length()){
+	        			right = seq.length()-1;
 	        		}
+	        		// if left and right are adjusted, the seq length is not config.k_win+1 anymore
+	        		// Then we can not assume the middle is binding position
 	        		String bs = seq.substring(left,right+1);
 	        		if (b.getKmer()!=null){
 	        			if (!bs.contains(b.getKmer().getKmerString()))
