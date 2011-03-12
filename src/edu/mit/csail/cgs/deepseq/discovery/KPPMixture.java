@@ -4482,14 +4482,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k = -1;			// the width of kmer
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
-        public int k_shift = 100;// the shift from binding event for negative sequence set    
-        public int kpp_mode = 0;		// different mode to convert kmer count to positional prior alpha value
+        public int k_shift = 100;	// the shift from binding event for negative sequence set    
+        public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
         public double hgp = 0.05; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double gc = 0.42;	// GC content in the genome
-        public double[] bg;
-        public double wm_factor = 0.5;	// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
-        public double ic_trim = 0.4;	// The information content threshold to trim the ends of PWM
-        public boolean pad_letters = false; //adding backgroup fraction to pad kmers
+        public double[] bg;			// background frequency based on GC content
+        public double wm_factor = 0.4;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
+        public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public int kmer_cluster_size = 10;	// minimum number of sequences to be reported as a cluster
         
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -4544,7 +4543,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
             use_strength = flags.contains("use_strength");
-            pad_letters = flags.contains("pad_letters");
             
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
