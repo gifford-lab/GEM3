@@ -4484,8 +4484,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_shift = 100;// the shift from binding event for negative sequence set    
         public int kpp_mode = 0;		// different mode to convert kmer count to positional prior alpha value
-        public double kpp_max = 0.8;// max value of kpp in terms of fraction of sparse prior 
-        public double kpp_min = 0.2;// min value
         public double hgp = 0.05; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double gc = 0.42;	// GC content in the genome
         public double[] bg;
@@ -4567,14 +4565,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_win = Args.parseInteger(args, "k_win", k_win);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
-            kpp_max = Args.parseDouble(args, "kpp_max", kpp_max);
-            kpp_min = Args.parseDouble(args, "kpp_min", kpp_min);
             gc = Args.parseDouble(args, "gc", gc);
         	bg = new double[4]; bg[0]=0.5-gc/2; bg[1]=gc/2; bg[2]=bg[1]; bg[3]=bg[0];
-            wm_factor = Args.parseDouble(args, "wm_factor", wm_factor);
-            ic_trim = Args.parseDouble(args, "ic_trim", ic_trim);
+            wm_factor = Args.parseDouble(args, "wmf", wm_factor);
+            ic_trim = Args.parseDouble(args, "ic", ic_trim);
             hgp = Args.parseDouble(args, "hgp", hgp);
-            kmer_cluster_size = Args.parseInteger(args, "kmer_cluster_size", kmer_cluster_size);
+            kmer_cluster_size = Args.parseInteger(args, "cluster_size", kmer_cluster_size);
 
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
