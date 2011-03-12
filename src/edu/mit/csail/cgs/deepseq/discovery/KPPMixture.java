@@ -5004,8 +5004,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		double largetstCount = 0;
 	                		for (Kmer kmer:kmerHits.get(pos)){		
 	                			double count=0;
-		                		if (config.use_strength)
+		                		if (config.use_strength){
 		                			count = kmer.getStrength();
+		                			if (count<1)				// on first kpp round, kmers do not have strength value, use count here
+		                				count = kmer.getSeqHitCount();
+		                		}
 		                		else
 		                			count = kmer.getSeqHitCount();
 		                		kmerCountSum+=count;
