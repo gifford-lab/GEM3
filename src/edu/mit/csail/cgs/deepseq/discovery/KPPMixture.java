@@ -5062,7 +5062,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                			}
 	                		}
 	                	}
-	                	allKmerHits.addAll(hits.values());
+	                	if (config.kmer_print_hits)
+	                		allKmerHits.addAll(hits.values());
                 	}
                 	
                     //Run EM and increase resolution
