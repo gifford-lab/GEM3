@@ -172,7 +172,7 @@ public class GPS2 {
         /**
          ** GPS2 event finding with kmer positional prior (KPP)
          **/             
-        mixture.initKmerEngine(peakFileName+"_"+(round-1));
+        mixture.initKmerEngine(peakFileName+"_"+round);
         
         while (round<=GPS_round+GEM_round+GEM_WM_round){
             System.out.println("\n============================ Round "+round+" ============================");

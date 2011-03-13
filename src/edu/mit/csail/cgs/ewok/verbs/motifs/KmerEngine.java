@@ -91,7 +91,7 @@ public class KmerEngine {
 	 * in sequence around the binding events 
 	 * and build the kmer AhoCorasick engine
 	 */
-	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp, String outPrefix){
+	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
 		this.k = k;
 		numPos = (winSize+1)-k+1;
 		tic = System.currentTimeMillis();
@@ -103,6 +103,8 @@ public class KmerEngine {
 //		double[] seqProbs = new double[eventCount];	// Relative strength of that binding site, i.e. ChIP-Seq read count
 		Region[] seqCoors = new Region[eventCount];
 
+		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
+		int expectedCount = (int) (eventCount / Math.pow(4, k) + 0.5);
 		ArrayList<Region> negRegions = new ArrayList<Region>();
 		// prepare for progress reporting
 		int displayStep = (int) Math.pow(10, (int) (Math.log10(eventCount)));
@@ -183,8 +185,8 @@ public class KmerEngine {
 				}
 			}
 			
-			if (map.get(key)< minHitCount)
-				continue;	// skip low count (<2) kmers, 
+			if (map.get(key)< Math.max(expectedCount, minHitCount))
+				continue;	// skip low count kmers, 
 			
 			// create the kmer object
 			Kmer kmer = new Kmer(key, map.get(key));
@@ -253,7 +255,10 @@ public class KmerEngine {
 			if (negHitCounts.containsKey(kmer.kmerString)){
 				kmer.negCount = negHitCounts.get(kmer.kmerString);
 				kmerAllHitCount += kmer.negCount;
-				
+			}
+			if (kmer.seqHitCount < kmer.negCount * k_fold){
+				toRemove.add(kmer);	
+				continue;
 			}
 			kmer.hg = 1-StatUtil.hyperGeometricCDF(kmer.seqHitCount, N, kmerAllHitCount, n);
 //			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));

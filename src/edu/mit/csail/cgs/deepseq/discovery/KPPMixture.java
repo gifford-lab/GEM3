@@ -3256,7 +3256,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ComponentFeature cf = (ComponentFeature)f;
 			fs.add(cf);
 		}
-		if (!config.kmer_not_use_insig){
+		if (config.kmer_use_insig){
 			for(Feature f : insignificantFeatures){
 				if(count++>config.k_seqs)
 					break;
@@ -3290,7 +3290,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				CommonUtils.timeElapsed(tic));
 		}
 		
-		kEngine.buildEngine(config.k, fs, config.k_win, config.k_shift, config.hgp, outPrefix);
+		kEngine.buildEngine(config.k, fs, config.k_win, config.k_shift, config.hgp, config.k_fold, outPrefix);
     }
     /**
      * Count kmers in all binding events
@@ -4463,7 +4463,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     class GPSConfig {
         public boolean do_model_selection=false;
         public boolean use_joint_event = false;
-        public boolean kmer_not_use_insig = false;
+        public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
         public boolean TF_binding = true;
         public boolean outputBED = false;
@@ -4485,6 +4485,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_shift = 100;	// the shift from binding event for negative sequence set    
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
         public double hgp = 0.05; 	// p-value threshold of hyper-geometric test for enriched kmer 
+        public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
         public double gc = 0.42;	// GC content in the genome
         public double[] bg;			// background frequency based on GC content
         public double wm_factor = 0.4;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
@@ -4530,7 +4531,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             // default as false, need the flag to turn it on
             sort_by_location = flags.contains("sl");
             use_joint_event = flags.contains("refine_using_joint_event");
-            kmer_not_use_insig = flags.contains("kmer_not_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
             post_artifact_filter = flags.contains("post_artifact_filter");
             kl_count_adjusted = flags.contains("adjust_kl");
@@ -4543,6 +4543,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
             use_strength = flags.contains("use_strength");
+            kmer_use_insig = flags.contains("kmer_use_insig");
             
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -4563,6 +4564,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_win = Args.parseInteger(args, "k_win", k_win);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
+            k_fold = Args.parseDouble(args, "k_fold", k_fold);
             gc = Args.parseDouble(args, "gc", gc);
         	bg = new double[4]; bg[0]=0.5-gc/2; bg[1]=gc/2; bg[2]=bg[1]; bg[3]=bg[0];
             wm_factor = Args.parseDouble(args, "wmf", wm_factor);
