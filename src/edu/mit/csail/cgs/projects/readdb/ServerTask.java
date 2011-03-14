@@ -400,6 +400,17 @@ public class ServerTask {
                 sb.append(elts[i].toString());
             }
             server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Trace " + sb.toString());   
+        } catch (AssertionError e) {
+            server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Error in request " + request.toString());
+            server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Exception " + e.toString(),e);
+            e.printStackTrace();
+            StackTraceElement[] elts = e.getStackTrace();
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < elts.length; i++) {
+                sb.append(elts[i].toString());
+            }
+            server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Trace " + sb.toString());   
+
         } finally {
             Lock.releaseLocks();
         }
@@ -474,6 +485,8 @@ public class ServerTask {
             processWeightHistogram(header,hits);
         } else if (request.type.equals("gethits")) {
             processGetHits(header,hits);
+        } else if (request.type.equals("checksort")) {
+            processCheckSort(header,hits);
         } else {
             printInvalid("request type");
         }
@@ -1015,6 +1028,7 @@ public class ServerTask {
                                                                  request.chromid));
             server.removeSingleHeader(request.alignid, request.chromid);       
         }
+        printOK();
     }
 
     public void processCount(Header header, Hits hits) throws IOException {
@@ -1203,6 +1217,17 @@ public class ServerTask {
         printString(Integer.toString(parray.length) + "\n");
         Bits.sendInts(parray, outstream, buffer);        
         Bits.sendFloats(farray, outstream, buffer);
+    }
+    public void processCheckSort(Header header, Hits hits) throws IOException {
+        IntBP ints = hits.getPositionsBuffer();
+        for (int i = 1; i < ints.limit(); i++) {
+            if (ints.get(i) < ints.get(i-1)) {
+                printString(String.format("Bad sort at %d : %d < %d.\n",
+                                          i,ints.get(i),ints.get(i-1)));
+                return;
+            }
+        }
+        printOK();
     }
     public String toString() {
         return String.format("thread %s, user %s, remote %s:%d",

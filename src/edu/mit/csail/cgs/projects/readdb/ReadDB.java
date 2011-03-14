@@ -127,7 +127,8 @@ public class ReadDB {
                     }
                 } else if (cmd.equals("reindex")) {
                     client.reIndex(otherargs[1], Integer.parseInt(otherargs[2]), false);
-
+                } else if (cmd.equals("checksort")) {
+                    client.checksort(otherargs[1], Integer.parseInt(otherargs[2]));
                 } else if (cmd.equals("getacl")) {
                     Map<String,Set<String>> acls = client.getACL(align);
                     for (String acl : acls.keySet()) {

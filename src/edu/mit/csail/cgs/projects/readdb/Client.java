@@ -236,7 +236,18 @@ public class Client implements ReadOnlyClient {
         if (!response.equals("OK")) {
             System.out.println(response);
         }
-
+    }
+    public void checksort(String align, int chrom) throws IOException, ClientException {
+        request.clear();
+        request.type = "checksort";
+        request.alignid = align;
+        request.chromid = chrom;
+        sendString(request.toString());
+        outstream.flush();
+        String response = readLine();
+        if (!response.equals("OK")) {
+            System.out.println(response);
+        }
     }
     /**
      * Stores a set of SingleHit objects (representing an un-paired or single-ended read
