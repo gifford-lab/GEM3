@@ -784,12 +784,10 @@ public class ServerTask {
                                        Hits.getStrandOne(las.get(i)),
                                        Hits.getLengthOne(las.get(i)));
         }
-        if (server.debug()) {
-            for (int i = 1; i < newhits.length; i++) {
-                if (newhits[i-1].compareTo(newhits[i]) > 0) {
-                    throw new RuntimeException(String.format("at %d : %d vs %d",
-                                                             i, newhits[i-1].pos, newhits[i].pos));
-                }
+        for (int i = 1; i < newhits.length; i++) {
+            if (newhits[i-1].compareTo(newhits[i]) > 0) {
+                throw new RuntimeException(String.format("at %d : %d vs %d",
+                                                         i, newhits[i-1].pos, newhits[i].pos));
             }
         }
 
@@ -1220,13 +1218,34 @@ public class ServerTask {
     }
     public void processCheckSort(Header header, Hits hits) throws IOException {
         IntBP ints = hits.getPositionsBuffer();
+        boolean needsort = false;
         for (int i = 1; i < ints.limit(); i++) {
-            if (ints.get(i) < ints.get(i-1)) {
-                printString(String.format("Bad sort at %d : %d < %d.\n",
-                                          i,ints.get(i),ints.get(i-1)));
+            if (ints.get(i-1) > ints.get(i)) {
+                //                printString(String.format("Bad sort at %d : %d > %d.\n",
+                //                                          i,ints.get(i-1),ints.get(i)));
+                needsort = true;
+            }
+        }
+        if (needsort) {
+            if (hits instanceof SingleHits) {
+                server.getLogger().logp(Level.INFO,"ServerTask","processCheckSort",String.format("Resorting %s %d",request.alignid, request.chromid));
+                ((SingleHits)hits).resort(server.getAlignmentDir(request.alignid) + System.getProperty("file.separator"),
+                                          request.chromid);
+                
+                server.removeSingleHits(request.alignid, request.chromid);
+                server.removeSingleHeader(request.alignid, request.chromid);       
+                hits = server.getSingleHits(request.alignid, request.chromid);
+                
+                header = new Header(hits.getPositionsBuffer().ib);
+                header.writeIndexFile(server.getSingleHeaderFileName(request.alignid,
+                                                                     request.chromid));
+
+            } else {
+                printString("Can't resort paired hits");
                 return;
             }
         }
+
         printOK();
     }
     public String toString() {
