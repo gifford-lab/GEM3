@@ -224,6 +224,20 @@ public class Client implements ReadOnlyClient {
         request.type = "shutdown";
         sendString(request.toString());
     }
+    public void reIndex(String align, int chrom, boolean paired) throws IOException, ClientException {
+        request.clear();
+        request.type = "reindex";
+        request.alignid = align;
+        request.chromid = chrom;
+        request.isPaired = paired;
+        sendString(request.toString());
+        outstream.flush();
+        String response = readLine();
+        if (!response.equals("OK")) {
+            System.out.println(response);
+        }
+
+    }
     /**
      * Stores a set of SingleHit objects (representing an un-paired or single-ended read
      * aligned to a genome) in the specified alignment.  The hits are appended

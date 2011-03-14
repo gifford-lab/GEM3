@@ -407,7 +407,7 @@ public abstract class Hits implements Closeable {
                 if ((minweight == null || weights.get(i) > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                     lastpos = pos;
-                    output[(positions.get(i) - start) / stepsize]++;            
+                    output[(pos - start) / stepsize]++;            
                 }
             }
         } else {

@@ -364,6 +364,8 @@ public class ServerTask {
                 processSingleStore();
             } else if (request.type.equals("storepaired")) {
                 processPairedStore();
+            } else if (request.type.equals("reindex")) {
+                processReindex();
             } else if (request.type.equals("bye")) {
                 shouldClose = true;
             } else if (request.type.equals("getchroms")) {
@@ -983,6 +985,35 @@ public class ServerTask {
                                                                  isLeft));
             server.removePairedHits(request.alignid, chromid, isLeft);
             server.removePairedHeader(request.alignid, chromid, isLeft);
+        }
+    }
+
+    public void processReindex() throws IOException {
+        assert(request != null);
+        assert(request.alignid != null);
+        assert(request.chromid != null);        
+        Lock.writeLock(request.alignid);
+        if (request.isPaired) {
+            PairedHits hits = server.getPairedHits(request.alignid, request.chromid, true);
+            Header header = new Header(hits.getPositionsBuffer().ib);
+            header.writeIndexFile(server.getPairedHeaderFileName(request.alignid,
+                                                                 request.chromid,
+                                                                 true));            
+            server.removePairedHeader(request.alignid, request.chromid,true);
+
+            hits = server.getPairedHits(request.alignid, request.chromid, false);
+            header = new Header(hits.getPositionsBuffer().ib);
+            header.writeIndexFile(server.getPairedHeaderFileName(request.alignid,
+                                                                 request.chromid,
+                                                                 false));            
+            server.removePairedHeader(request.alignid, request.chromid,false);
+
+        } else {
+            SingleHits hits = server.getSingleHits(request.alignid, request.chromid);
+            Header header = new Header(hits.getPositionsBuffer().ib);
+            header.writeIndexFile(server.getSingleHeaderFileName(request.alignid,
+                                                                 request.chromid));
+            server.removeSingleHeader(request.alignid, request.chromid);       
         }
     }
 
