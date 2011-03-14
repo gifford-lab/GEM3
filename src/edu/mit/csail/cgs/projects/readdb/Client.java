@@ -256,7 +256,7 @@ public class Client implements ReadOnlyClient {
      
      */
     public void storeSingle(String alignid, List<SingleHit> allhits) throws IOException, ClientException {
-        int step = 10000000;
+        int step = 20000000;
         for (int pos = 0; pos < allhits.size(); pos += step) {
             Map<Integer, List<SingleHit>> map = new HashMap<Integer,List<SingleHit>>();
             for (int i = pos; i < pos + step && i < allhits.size(); i++) {
