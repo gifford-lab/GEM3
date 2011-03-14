@@ -89,10 +89,9 @@ public class SingleHits extends Hits {
             merge(hits,prefix,chrom);
         }
     }
-    private void merge(SingleHit[] hits,
+    private void append(SingleHit[] hits,
                        String prefix,
                        int chrom) throws IOException {
-        /* all the new hits come after all the old hits.  easy to append */
         RandomAccessFile  positionsRAF = new RandomAccessFile(getPositionsFname(prefix,chrom),"rw");
         RandomAccessFile weightsRAF = new RandomAccessFile(getWeightsFname(prefix,chrom),"rw");
         RandomAccessFile lasRAF = new RandomAccessFile(getLaSFname(prefix,chrom),"rw");
@@ -109,7 +108,7 @@ public class SingleHits extends Hits {
         weightsRAF.close();
         lasRAF.close();        
     }
-    private void append(SingleHit[] hits,
+    private void merge(SingleHit[] hits,
                        String prefix,
                        int chrom) throws IOException {
         String postmp = getPositionsFname(prefix,chrom) + ".tmp";
