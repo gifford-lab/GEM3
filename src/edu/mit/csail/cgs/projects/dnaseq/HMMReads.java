@@ -50,7 +50,14 @@ public class HMMReads implements Closeable {
             Binomial binomial = new Binomial(5, .5, new DRand());
             int newout[] = new int[output.length];
             for (int i = 0; i < newout.length; i++) {
-                newout[i] = binomial.nextInt(output[i], subsample);
+                if (output[i] > 0) {
+                    newout[i] = binomial.nextInt(output[i], subsample);
+                } else {
+                    newout[i] = 0;
+                }
+
+
+
             }
             output = newout;
         }
