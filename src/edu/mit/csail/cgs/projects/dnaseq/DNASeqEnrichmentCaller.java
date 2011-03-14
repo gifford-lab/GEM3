@@ -112,13 +112,17 @@ public class DNASeqEnrichmentCaller {
             totalFgReads += loader.countAllHits(a);
             System.err.println(a.getDBID() + " -> " + totalFgReads);
         }
+        if (subsample < 1) {
+            totalFgReads = (int)(subsample * ((double)totalFgReads));
+        }
+
         totalBgReads = 0;
         for (ChipSeqAlignment a : bgAlignments) {
             totalBgReads += loader.countAllHits(a);
             System.err.println(a.getDBID() + " -> " + totalBgReads);
         }
         channelScalingFactor = ((double)totalFgReads) / ((double)totalBgReads);
-        System.err.println("Channel scaling factor is " + channelScalingFactor);
+        System.err.println(String.format("Channel scaling factor is %d/%d=%.2f", totalFgReads,totalBgReads,channelScalingFactor));
         regionsToCall = Args.parseRegionsOrDefault(args);
     }
     public List<ChipSeqAnalysisResult> getHyperSensitiveRegions(Region queryRegion) throws ClientException, IOException {
@@ -126,8 +130,11 @@ public class DNASeqEnrichmentCaller {
                                         reads.getReadCounts(queryRegion, alignments));
     }
     public List<ChipSeqAnalysisResult> getHyperSensitiveRegions(Region queryRegion, ReadCounts fgReadCounts) throws ClientException, IOException {
+
+        reads.subSample(2);
         ReadCounts bgReadCounts = reads.getReadCounts(queryRegion,
                                                       bgAlignments);
+        reads.subSample(subsample);
 
         List<Region> enriched = new ArrayList<Region>();
         int start = queryRegion.getStart();
@@ -221,14 +228,14 @@ public class DNASeqEnrichmentCaller {
         for (Region region : caller.getRegionsToCall()) {
             try {
                 for (ChipSeqAnalysisResult call : caller.getHyperSensitiveRegions(region)) {
-                    System.out.println(String.format("%s\t%d\t%d\t%d\t%.2f\t%.2f\t0\t0\t0\t%f\t%f",
+                    System.out.println(String.format("%s\t%d\t%d\t%d\t%.2f\t%.2f\t%f\t%f",
                                                      call.getChrom(),
                                                      call.getStart(),
                                                      call.getEnd(),
                                                      (call.getStart() + call.getEnd())/2,
                                                      call.getFG(),
                                                      call.getBG(),
-                                                     call.getFG() / call.getBG(),
+                                                     (call.getFG() + 1) / (call.getBG() + 1),
                                                      call.getPValue()));
                 }
             } catch (Exception e) {
