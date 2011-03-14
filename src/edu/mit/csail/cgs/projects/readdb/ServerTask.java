@@ -391,6 +391,7 @@ public class ServerTask {
         } catch (Exception e) {
             server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Error in request " + request.toString());
             server.getLogger().logp(Level.INFO,"ServerTask","processRequest " + toString(),"Exception " + e.toString(),e);
+            e.printStackTrace();
             StackTraceElement[] elts = e.getStackTrace();
             StringBuffer sb = new StringBuffer();
             for (int i = 0; i < elts.length; i++) {
