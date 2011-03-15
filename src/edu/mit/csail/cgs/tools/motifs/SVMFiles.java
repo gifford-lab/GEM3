@@ -87,11 +87,11 @@ public class SVMFiles extends CombinatorialEnrichment {
     private void saveLine(PrintWriter file, double val, WMHit[] hits, double kmerFeatures[]) throws IOException {
         StringBuffer line = new StringBuffer(Double.toString(val));
         for (int i = 0; i < hits.length; i++) {
-            line.append(String.format(" %d:%.4f",i+1, hits[i] == null ? 0 : hits[i].getScore()));
+            line.append(String.format(" %d:%.2f",i+1, hits[i] == null ? 0 : hits[i].getScore()));
         }
         for (int i = 0; i < kmerFeatures.length; i++) {
             if (kmerFeatures[i] > 0) {
-                line.append(String.format(" %d:%.4f",i+hits.length+1, kmerFeatures[i]));
+                line.append(String.format(" %d:%.2f",i+hits.length+1, kmerFeatures[i]));
             }
         }
         file.println(line.toString());
