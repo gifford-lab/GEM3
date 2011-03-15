@@ -141,7 +141,7 @@ public class GPS2 {
         if (Args.parseInteger(args,"k", -1)!=-1)
         	GPS_round = 1;
         GPS_round = Args.parseInteger(args,"r", GPS_round);
-        int GEM_round = Args.parseInteger(args,"r_k", 3);
+        int GEM_round = Args.parseInteger(args,"r_pp", 1);
         int GEM_WM_round = Args.parseInteger(args,"r_wm", 2);
         /**
          ** Simple GPS1 event finding without sequence information
@@ -172,7 +172,7 @@ public class GPS2 {
         /**
          ** GPS2 event finding with kmer positional prior (KPP)
          **/             
-        mixture.initKmerEngine(peakFileName+"_"+(round-1));
+        mixture.initKmerEngine(peakFileName+"_"+round);
         
         while (round<=GPS_round+GEM_round+GEM_WM_round){
             System.out.println("\n============================ Round "+round+" ============================");

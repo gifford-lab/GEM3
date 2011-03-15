@@ -219,6 +219,9 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	public static void printKmers(ArrayList<Kmer> kmers, String filePrefix){
+		if (kmers==null || kmers.isEmpty())
+			return;
+		
 		Collections.sort(kmers);
 		
 		StringBuilder sb = new StringBuilder();
