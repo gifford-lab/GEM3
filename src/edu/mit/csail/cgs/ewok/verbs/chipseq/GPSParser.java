@@ -70,11 +70,16 @@ public class GPSParser {
             if (f[0].equals("Position")||f[0].equals("chr")){
                 continue;
             }
-            GPSPeak hit = GPSParser.parseLine(g, line, 0);
-            if (hit!=null) {
-                results.add(hit);
-            }
-				
+            try {
+                GPSPeak hit = GPSParser.parseLine(g, line, 0);
+                if (hit!=null) {
+                    results.add(hit);
+                }
+            } catch (RuntimeException e) {
+                System.err.println("Parsing line " + line);
+                System.err.println(e.toString());
+                throw(e);
+            }				
             count++;
         }			
         if (bin != null) {
@@ -115,7 +120,7 @@ public class GPSParser {
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                                Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
                                Math.pow(10,-1*Double.parseDouble(t[5])), Double.parseDouble(t[6]), Double.parseDouble(t[7]),
-                               t[8], Integer.parseInt(t[9]), Double.parseDouble(t[10]), t[11]);
+                               t[8], Integer.parseInt(t[9]), Double.parseDouble(t[10]), t.length >= 12 ? t[11] : "");
 //	    } else if (t.length == 12) {
 	    	// Position	   IP	Control	IP/Ctrl	Q_-lg10	P_-lg10	Shape	Joint	NearestGene	Distance	Alpha	EM_Position
 
