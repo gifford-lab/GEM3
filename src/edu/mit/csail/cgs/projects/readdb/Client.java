@@ -224,6 +224,9 @@ public class Client implements ReadOnlyClient {
         request.type = "shutdown";
         sendString(request.toString());
     }
+    /** this was to fix a bug in the server.  You shouldn't need it for general use.
+     * Regenerate the index for this alignment and chromosome
+     */
     public void reIndex(String align, int chrom, boolean paired) throws IOException, ClientException {
         request.clear();
         request.type = "reindex";
@@ -237,6 +240,9 @@ public class Client implements ReadOnlyClient {
             System.out.println(response);
         }
     }
+    /** This was to fix a bug in the server.  You shouldn't need it for general use.
+     * Resort the hits for a single-ended alignment and regenerate the index.
+     */
     public void checksort(String align, int chrom) throws IOException, ClientException {
         request.clear();
         request.type = "checksort";
