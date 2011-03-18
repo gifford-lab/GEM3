@@ -3353,12 +3353,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		int count=0;
     		double strength = 0;
     		int shift = 0;
+    		ArrayList<Integer> allShifts = new ArrayList<Integer>();
     		for (Kmer kmer:kmers){
     			count += kmer.getSeqHitCount();
     			strength += kmer.getStrength();
-    			shift += kmer.getKmerShift(); 
+    			allShifts.add(kmer.getKmerShift());
+//    			shift += kmer.getKmerShift(); 
     		}
-    		shift /= kmers.size();
+//    		shift /= kmers.size();								// mean shift
+    		Collections.sort(allShifts);
+    		shift = allShifts.get(allShifts.size()/2);			// median shift
     		Kmer cKmer = new Kmer(ks, count);
     		cKmer.incrStrength(strength);
     		cKmer.setKmerShift(shift);
@@ -3423,7 +3427,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		
     		goodClusterCount++;
     		cluster.clusterId = goodClusterCount;
-    		System.out.println(String.format("-------------------------------\nMotif cluster #%d, from %d binding events.", goodClusterCount, alignedFeatures.size()));
+    		System.out.println(String.format("-------------------------------\n%s motif cluster #%d, from %d binding events.", outName, goodClusterCount, alignedFeatures.size()));
     		WeightMatrix wm = cluster.matrix;
     		if (wm==null)
     			continue;
@@ -4097,6 +4101,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	double sum_offsetXstrength = 0;
     	double sum_strength = 0;
     	double[][] pwm = new double[length][MAXLETTERVAL];
+    	ArrayList<Integer> allOffsets = new ArrayList<Integer>();
     	for (int i=0;i<alignedFeatures.size();i++){
  			double strength = config.use_strength?alignedFeatures.get(i).getTotalEventStrength():1;
  	 		String seq = alignedFeatures.get(i).getBoundSequence();
@@ -4117,16 +4122,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		}
         		subSeq = seq.substring(left, right);
         		if (seqLen==seq.length()){		// if length is not k_win+1, binding position may not be in middle
-	        		sum_offsetXstrength += strength*(config.k_win/2+1-left);
-	        		sum_strength += strength;
+//	        		sum_offsetXstrength += strength*(config.k_win/2+1-left);
+//	        		sum_strength += strength;
+	        		allOffsets.add(config.k_win/2+1-left);
         		}
     		}
     		else{
     			int start =pos_motif-leftMost;
     			subSeq = seq.substring(start, start+shortest);
     			if (seqLen==seq.length()){		// if length is not k_win+1, binding position may not be in middle
-	    			sum_offsetXstrength += strength*(config.k_win/2+1-start);
-	        		sum_strength += strength;
+//	    			sum_offsetXstrength += strength*(config.k_win/2+1-start);
+//	        		sum_strength += strength;
+	        		allOffsets.add(config.k_win/2+1-start);
     			}
     		}
     		for (int p=0;p<length;p++){
@@ -4136,8 +4143,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	}
     	// average all the GPS binding positions to decide the binding position in the PWM
     	// weighted by strength if "use_strength" is true
-    	int bPos=(int)(sum_offsetXstrength/sum_strength+0.5);		// plus 0.5 to round to nearest int
-    	
+//    	int bPos=(int)(sum_offsetXstrength/sum_strength+0.5);		// mean, plus 0.5 to round to nearest int
+    	Collections.sort(allOffsets);
+    	int bPos=allOffsets.get(allOffsets.size()/2);				// median
     	// normalize, compare to background, and log2
     	double[] ic = new double[pwm.length];						// information content
     	for (int p=0;p<pwm.length;p++){
