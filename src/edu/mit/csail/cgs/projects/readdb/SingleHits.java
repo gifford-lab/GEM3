@@ -58,20 +58,6 @@ public class SingleHits extends Hits {
         }
         writeSingleHits(p,w,l,prefix,chrom);
     }
-    /** literally appends a sorted list of hits to the existing list.
-     *  The first hit in the new list must come after the last hit
-     * in the old list
-     */
-    private static void stringAppendSingleHits(SingleHit[] hits,
-                                              SingleHits oldhits,
-                                              String prefix,
-                                              int chrom) throws IOException {
-        IntBP oldpositions = oldhits.getPositionsBuffer();
-        FloatBP oldweights = oldhits.getWeightsBuffer();
-        IntBP oldlas = oldhits.getLASBuffer();
-        
-    }
-
     /** appends a sorted list of hits to an existing set of hits. */
     public void appendSingleHits(SingleHit[] hits,
                                  String prefix,
@@ -89,10 +75,9 @@ public class SingleHits extends Hits {
             merge(hits,prefix,chrom);
         }
     }
-    private void merge(SingleHit[] hits,
+    private void append(SingleHit[] hits,
                        String prefix,
                        int chrom) throws IOException {
-        /* all the new hits come after all the old hits.  easy to append */
         RandomAccessFile  positionsRAF = new RandomAccessFile(getPositionsFname(prefix,chrom),"rw");
         RandomAccessFile weightsRAF = new RandomAccessFile(getWeightsFname(prefix,chrom),"rw");
         RandomAccessFile lasRAF = new RandomAccessFile(getLaSFname(prefix,chrom),"rw");
@@ -109,7 +94,7 @@ public class SingleHits extends Hits {
         weightsRAF.close();
         lasRAF.close();        
     }
-    private void append(SingleHit[] hits,
+    private void merge(SingleHit[] hits,
                        String prefix,
                        int chrom) throws IOException {
         String postmp = getPositionsFname(prefix,chrom) + ".tmp";
@@ -166,6 +151,55 @@ public class SingleHits extends Hits {
         (new File(postmp)).renameTo(new File(getPositionsFname(prefix,chrom)));
         (new File(weightstmp)).renameTo(new File(getWeightsFname(prefix,chrom)));
         (new File(lastmp)).renameTo(new File(getLaSFname(prefix,chrom)));
+    }
+    public void resort(String prefix, int chrom) throws IOException {
+        IntBP positions = getPositionsBuffer();
+        FloatBP weights = getWeightsBuffer();
+        IntBP las = getLASBuffer();
+        long indices[] = new long[positions.limit()];
+        for (int i = 0; i < indices.length; i++) {
+            long v = positions.get(i);
+            v <<= 32;
+            v |= i;
+            indices[i] = v;
+        }
+        Arrays.sort(indices);
+
+        String postmp = getPositionsFname(prefix,chrom) + ".tmp";
+        String weightstmp = getWeightsFname(prefix,chrom) + ".tmp";
+        String lastmp = getLaSFname(prefix,chrom) + ".tmp";
+        RandomAccessFile positionsRAF = new RandomAccessFile(postmp,"rw");
+        RandomAccessFile weightsRAF = new RandomAccessFile(weightstmp,"rw");
+        RandomAccessFile lasRAF = new RandomAccessFile(lastmp,"rw");
+        int newsize = getPositionsBuffer().limit();
+        IntBP posfile = new IntBP(positionsRAF.getChannel().map(FileChannel.MapMode.READ_WRITE,
+                                                                0,
+                                                                newsize * 4));
+        FloatBP weightfile = new FloatBP(weightsRAF.getChannel().map(FileChannel.MapMode.READ_WRITE,
+                                                                     0,
+                                                                     newsize * 4));
+        IntBP lasfile = new IntBP(lasRAF.getChannel().map(FileChannel.MapMode.READ_WRITE,
+                                                          0,
+                                                          newsize * 4));
+
+        for (int i = 0; i < indices.length; i++) {
+            int index = (int)(indices[i] & 0xffffffffL);
+            int pos = (int)(indices[i] >> 32);
+            posfile.put(i, pos);
+            weightfile.put(i, weights.get(index));
+            lasfile.put(i, las.get(index));
+        }
+        posfile = null;
+        weightfile = null;
+        lasfile = null;        
+        positionsRAF.close();
+        weightsRAF.close();
+        lasRAF.close();
+        /* ideally this part with the renames would atomic... */
+        (new File(postmp)).renameTo(new File(getPositionsFname(prefix,chrom)));
+        (new File(weightstmp)).renameTo(new File(getWeightsFname(prefix,chrom)));
+        (new File(lastmp)).renameTo(new File(getLaSFname(prefix,chrom)));
+
     }
     private static String getPositionsFname(String prefix, int chrom) {
         return prefix + chrom + ".spositions";

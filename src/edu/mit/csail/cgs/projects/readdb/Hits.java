@@ -218,6 +218,10 @@ public abstract class Hits implements Closeable {
         assert(indices[0] <= indices[1]);
         assert(indices[0] >= 0);
         assert(indices[1] <= positions.size());
+        assert(positions.ib.get(indices[0]) >= startpos);
+        assert(indices[0] == 0 || positions.ib.get(indices[0] - 1) < startpos);
+        assert(indices[1] == positions.ib.limit() || positions.ib.get(indices[1]) > lastpos);
+        assert(positions.ib.get(indices[1] - 1) <= lastpos);
         return indices;
     }
     /**
@@ -393,6 +397,15 @@ public abstract class Hits implements Closeable {
         if (!extension) {
             for (int i = p[0]; i < p[1]; i++) {
                 int pos = positions.get(i);
+                if (pos < start || pos > stop) {
+                    System.err.println(String.format("firstindex %d lastindex %d start %d stop %d p[0] %d p[1] %d positions[p[0]] %d i %d pos %d",
+                                                     firstindex,lastindex,start,stop,p[0],p[1],positions.get(p[0]),i,pos));
+
+                    for (int j = p[0]; j < p[1]; j++) {
+                        System.err.println(String.format("%d = %d",j,positions.get(j)));
+                    }
+                }
+
                 assert(pos >= start);
                 assert(pos <= stop);
                 if (dedup != 0) {
@@ -407,7 +420,7 @@ public abstract class Hits implements Closeable {
                 if ((minweight == null || weights.get(i) > minweight) &&
                     (isPlus == null || getStrandOne(lenAndStrand.get(i)) == isPlus)) {
                     lastpos = pos;
-                    output[(positions.get(i) - start) / stepsize]++;            
+                    output[(pos - start) / stepsize]++;            
                 }
             }
         } else {

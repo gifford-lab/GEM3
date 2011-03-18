@@ -18,6 +18,7 @@ import java.io.*;
  *  <li>getcount alignname
  *  <li>getcount alignname chromname (eg, chromname = 1+)
  *  <li>addtogroup username groupname
+ *  <li>reindex alignname chromname
  * 
  * <p>The --paired flag can be provided to make getweight, getcount, and getchroms work on paire-end rather than
  * single-end alignments
@@ -124,6 +125,10 @@ public class ReadDB {
                     for (Integer i : client.getChroms(align,paired,isleft)) {
                         System.out.println(i);
                     }
+                } else if (cmd.equals("reindex")) {
+                    client.reIndex(otherargs[1], Integer.parseInt(otherargs[2]), false);
+                } else if (cmd.equals("checksort")) {
+                    client.checksort(otherargs[1], Integer.parseInt(otherargs[2]));
                 } else if (cmd.equals("getacl")) {
                     Map<String,Set<String>> acls = client.getACL(align);
                     for (String acl : acls.keySet()) {

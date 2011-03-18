@@ -224,6 +224,37 @@ public class Client implements ReadOnlyClient {
         request.type = "shutdown";
         sendString(request.toString());
     }
+    /** this was to fix a bug in the server.  You shouldn't need it for general use.
+     * Regenerate the index for this alignment and chromosome
+     */
+    public void reIndex(String align, int chrom, boolean paired) throws IOException, ClientException {
+        request.clear();
+        request.type = "reindex";
+        request.alignid = align;
+        request.chromid = chrom;
+        request.isPaired = paired;
+        sendString(request.toString());
+        outstream.flush();
+        String response = readLine();
+        if (!response.equals("OK")) {
+            System.out.println(response);
+        }
+    }
+    /** This was to fix a bug in the server.  You shouldn't need it for general use.
+     * Resort the hits for a single-ended alignment and regenerate the index.
+     */
+    public void checksort(String align, int chrom) throws IOException, ClientException {
+        request.clear();
+        request.type = "checksort";
+        request.alignid = align;
+        request.chromid = chrom;
+        sendString(request.toString());
+        outstream.flush();
+        String response = readLine();
+        if (!response.equals("OK")) {
+            System.out.println(response);
+        }
+    }
     /**
      * Stores a set of SingleHit objects (representing an un-paired or single-ended read
      * aligned to a genome) in the specified alignment.  The hits are appended
@@ -231,7 +262,7 @@ public class Client implements ReadOnlyClient {
      
      */
     public void storeSingle(String alignid, List<SingleHit> allhits) throws IOException, ClientException {
-        int step = 10000000;
+        int step = 20000000;
         for (int pos = 0; pos < allhits.size(); pos += step) {
             Map<Integer, List<SingleHit>> map = new HashMap<Integer,List<SingleHit>>();
             for (int i = pos; i < pos + step && i < allhits.size(); i++) {

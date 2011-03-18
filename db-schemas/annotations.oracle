@@ -34,7 +34,7 @@ create table weightmatrixcols (
 	position number(10) not null,
 	letter char(1),
 	weight binary_double,
-	constraint wmcols_pk(weightmatrix,position,letter)) organization index compress 1;
+	constraint wmcols_pk primary key (weightmatrix,position desc,letter)) organization index compress 1;
 
 create sequence weightmatrixscan_id;
 create table weightmatrixscan (
