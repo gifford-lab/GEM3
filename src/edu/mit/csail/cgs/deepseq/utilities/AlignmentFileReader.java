@@ -233,6 +233,8 @@ public abstract class AlignmentFileReader {
 	protected void addHits(Read r){
 		int numHits = r.getHits().size();
 		for(ReadHit h : r.getHits()){
+			if (!chrom2ID.containsKey(h.getChrom()))
+				continue;
 			int chrID   = chrom2ID.get(h.getChrom());
 			char strand = h.getStrand();
 			int strandInd = strand == '+' ? 0 : 1;
