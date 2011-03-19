@@ -143,7 +143,7 @@ public class KmerEngine {
             }
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
-		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
+//		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 		
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){

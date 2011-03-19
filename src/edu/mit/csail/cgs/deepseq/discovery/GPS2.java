@@ -169,35 +169,40 @@ public class GPS2 {
                 kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
         }
         
-        /**
-         ** GPS2 event finding with kmer positional prior (KPP)
-         **/             
-        mixture.initKmerEngine(peakFileName+"_"+round);
-        
-        while (round<=GPS_round+GEM_round+GEM_WM_round){
-            System.out.println("\n============================ Round "+round+" ============================");
-            mixture.execute();
-            mixture.printFeatures();
-            mixture.printFilteredFeatures();
-            mixture.printInsignificantFeatures();
-			round++;
-			
-            mixture.setOutName(peakFileName+"_"+round);
-
-            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-            
-            if (round <= GPS_round+GEM_round)
-            	mixture.updateKmerEngine(false);
-            else
-            	mixture.updateKmerEngine(true);
+        if (Args.parseInteger(args,"k", -1)!=-1){	        
+	        /**
+	         ** GPS2 event finding with kmer positional prior (KPP)
+	         **/             
+	        mixture.initKmerEngine();
+	        
+	        while (round<=GPS_round+GEM_round+GEM_WM_round){
+	            System.out.println("\n============================ Round "+round+" ============================");
+	            mixture.execute();
+	            mixture.printFeatures();
+	            mixture.printFilteredFeatures();
+	            mixture.printInsignificantFeatures();
+				round++;
+				
+	            mixture.setOutName(peakFileName+"_"+round);
+	
+	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+	            
+	            if (round <= GPS_round+GEM_round)
+	            	mixture.updateKmerEngine(false);
+	            else
+	            	mixture.updateKmerEngine(true);
+	        }
+	        //round--;
+	     
+	        // print the binding event results with updated kmer information
+	        mixture.printFeatures();
+	        mixture.printFilteredFeatures();
+	        mixture.printInsignificantFeatures();
+	        mixture.plotAllReadDistributions();
+	        
+	        mixture.printOverlappingKmers();
         }
-        //round--;
-     
-        // print the binding event results with updated kmer information
-        mixture.printFeatures();
-        mixture.printFilteredFeatures();
-        mixture.printInsignificantFeatures();
-        mixture.plotAllReadDistributions();
+        
         mixture.closeLogFile();
         
         System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
