@@ -20,6 +20,7 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.*;
 
+import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
@@ -91,7 +92,7 @@ public class KmerEngine {
 	 * in sequence around the binding events 
 	 * and build the kmer AhoCorasick engine
 	 */
-	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
+	public void buildEngine(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
 		this.k = k;
 		numPos = (winSize+1)-k+1;
 		tic = System.currentTimeMillis();
@@ -117,8 +118,7 @@ public class KmerEngine {
 		reportTriggers.add(10000);
 		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
 		for(int i=0;i<eventCount;i++){
-			ComponentFeature f = events.get(i);
-			Region posRegion = f.getPeak().expand(winSize/2);
+			Region posRegion = events.get(i).expand(winSize/2);
 			seqCoors[i] = posRegion;
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
 			// getting negative sequences
@@ -288,7 +288,8 @@ public class KmerEngine {
 		Collections.sort(kmers);
 		this.maxCount = kmers.get(0).seqHitCount;
 		this.minCount = kmers.get(kmers.size()-1).seqHitCount;
-		printKmers(kmers, outPrefix);
+		Kmer.printKmers(kmers, outPrefix);
+		
 		/*
 		Init Aho-Corasick alg. for searching multiple Kmers in sequences
 		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
@@ -363,18 +364,7 @@ public class KmerEngine {
 	public String getSequence(Region r){
 		return seqgen.execute(r).toUpperCase();
 	}
-	private void printKmers(ArrayList<Kmer> kmers, String outPrefix){
-		Collections.sort(kmers);
-		
-		StringBuilder sb = new StringBuilder();
-		sb.append(Kmer.toHeader());
-		sb.append("\n");
-		for (Kmer kmer:kmers){
-			sb.append(kmer.toString()).append("\n");
-		}
-		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",outPrefix, k), sb.toString());
-	}
-	
+
 	
 	private float scorePWM(String seq){
 		float score = 0;

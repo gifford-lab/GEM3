@@ -3274,20 +3274,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
     
     private void buildEngine(int k, int k_win_size, String outPrefix){
-		ArrayList<ComponentFeature> fs = new ArrayList<ComponentFeature>();
+		ArrayList<Point> peaks = new ArrayList<Point>();
 		int count = 1;
 		for(Feature f : signalFeatures){
 			if(count++>config.k_seqs)
 				break;
 			ComponentFeature cf = (ComponentFeature)f;
-			fs.add(cf);
+			peaks.add(cf.getPeak());
 		}
 		if (config.kmer_use_insig){
 			for(Feature f : insignificantFeatures){
 				if(count++>config.k_seqs)
 					break;
 				ComponentFeature cf = (ComponentFeature)f;
-				fs.add(cf);
+				peaks.add(cf.getPeak());
 			}
 		}
 		if (config.kmer_use_filtered){			
@@ -3295,10 +3295,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				if(count++>config.k_seqs)
 					break;
 				ComponentFeature cf = (ComponentFeature)f;
-				fs.add(cf);
+				peaks.add(cf.getPeak());
 			}
 		}
-		kEngine.buildEngine(k, fs, k_win_size, config.k_shift, config.hgp, config.k_fold, outPrefix);
+		kEngine.buildEngine(k, peaks, k_win_size, config.k_shift, config.hgp, config.k_fold, outPrefix);
     }
 
     // update kmerEngine with the predicted kmer-events
@@ -3316,9 +3316,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		consolidateKmers(compFeatures);
 		
 		ArrayList<Kmer> kmers = countKmers(compFeatures);	
-		Collections.sort(kmers);
-	
-		Kmer.printKmers(kmers, outName);
+//		Collections.sort(kmers);
+//		Kmer.printKmers(kmers, outName);
 		
 		log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
 		kEngine.updateEngine(kmers, outName);
@@ -3498,7 +3497,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 * in a specified window around the binding events
 	 */
 	public void printOverlappingKmers(){
-		for (int k=config.k;k<config.k+3;k++){
+		for (int k=config.k;k<config.k+5;k++){
 			String name = outName+"_overlapping_win"+ (config.k*2);
 			buildEngine(k, config.k*2, name);
 		}
