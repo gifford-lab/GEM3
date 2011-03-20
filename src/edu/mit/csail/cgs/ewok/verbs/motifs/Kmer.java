@@ -7,6 +7,8 @@ import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class Kmer implements Comparable<Kmer>{
+	static cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
+	
 	String kmerString;
 	public String getKmerString() {	return kmerString;}
 	int k;
@@ -42,7 +44,10 @@ public class Kmer implements Comparable<Kmer>{
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
 		this.seqHitCount = hitCount;
-		this.kmerShift = -this.k/2;
+		if (randomEngine.nextDouble()>0.5)
+			this.kmerShift = -(this.k-1-(this.k-1)/2);
+		else
+			this.kmerShift = -(this.k-1)/2;
 	}
 	
 	/** 

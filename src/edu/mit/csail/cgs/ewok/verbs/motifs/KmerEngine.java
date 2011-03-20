@@ -93,6 +93,7 @@ public class KmerEngine {
 	 * and build the kmer AhoCorasick engine
 	 */
 	public void buildEngine(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
+		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 		this.k = k;
 		numPos = (winSize+1)-k+1;
 		tic = System.currentTimeMillis();
@@ -116,23 +117,31 @@ public class KmerEngine {
 		reportTriggers.add(100);
 		reportTriggers.add(1000);
 		reportTriggers.add(10000);
-		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
+//		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
 		for(int i=0;i<eventCount;i++){
 			Region posRegion = events.get(i).expand(winSize/2);
 			seqCoors[i] = posRegion;
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
+		}
+		for(int i=0;i<eventCount;i++){
 			// getting negative sequences
 			// exclude negative regions that overlap with positive regions, or exceed start of chrom
 			// it is OK if we lose a few sequences here, so some entries of the seqsNeg will be null
-			int start = posRegion.getStart()-winShift;
-			int end = posRegion.getEnd()-winShift;
-			if (start < 0)
+			Region posRegion = seqCoors[i];
+			int start = 0;
+			double rand = randomEngine.nextDouble();
+			if (rand>0.5)
+				start = (int) (posRegion.getEnd()+1 + (winShift-posRegion.getWidth())*rand);
+			else
+				start =(int) (posRegion.getStart()-1 - (winShift- posRegion.getWidth())*(1-rand));
+			int end = start + posRegion.getWidth()-1;			// end inclusive
+			if (start < 0 || end >= genome.getChromLength(posRegion.getChrom()))
 				continue;
-			if (i>0){
-				if (seqCoors[i-1].overlaps( new Region(genome, posRegion.getChrom(), start, end)))
-					continue;
-			}
 			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);			
+			if (i>0 && seqCoors[i-1].overlaps(negRegion))
+				continue;
+			if (i<(eventCount-2) && seqCoors[i+1].overlaps(negRegion))
+				continue;
 			negRegions.add(negRegion);
 			int trigger = eventCount;
             if (!reportTriggers.isEmpty())
