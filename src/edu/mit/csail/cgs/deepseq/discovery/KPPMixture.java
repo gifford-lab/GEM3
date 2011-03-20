@@ -3358,7 +3358,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		if (wm==null)
 	    			continue;
 	    		double maxScore = wm.getMaxScore();
-	    		System.out.println(CommonUtils.padding(cluster.bindingPosition, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));  
+	    		int pos = cluster.bindingPosition;
+	    		if (pos>0)
+	    			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
+	    		else
+	    			System.out.println(WeightMatrix.printMatrixLetters(wm));
 	    		
 	    		// use PWM to scan null-kmer events, to discover kmers that was not included in the inital set
 	    		// TODO: maybe should favor PWM hit that is close to the event location
