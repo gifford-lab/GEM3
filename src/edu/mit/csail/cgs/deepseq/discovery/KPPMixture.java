@@ -3340,7 +3340,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	StringBuilder sb_pfm = new StringBuilder();
 	    	//print out the kmers
 	    	StringBuilder sb_kmer = new StringBuilder();
-	    	sb_kmer.append("Kmer").append("\t").append("seqCt").append("\t")
+	    	sb_kmer.append("Kmer").append("\t").append("KmerRC").append("\t").append("seqCt").append("\t")
 	    	  .append("gShift").append("\t").append("Alignment").append("\n");
 	    	//print out the kmer strings in fasta format
 	    	StringBuilder sb_fa = new StringBuilder();
@@ -3476,7 +3476,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				int kk=0;
 	    		for (Kmer km: akmers){
 					String shiftedKmer = CommonUtils.padding(Math.max(0, km.getKmerShift()+config.k), '-').concat(km.getKmerString());
-					sb_kmer.append(km.getKmerString()).append("\t").append(km.getSeqHitCount()).append("\t")
+					sb_kmer.append(km.getKmerString()).append("\t").append(km.getKmerRC()).append("\t").append(km.getSeqHitCount()).append("\t")
 					  .append(km.getKmerShift()).append("\t").append(shiftedKmer).append("\n");		
 					// fasta
 					sb_fa.append(">"+outName+"_"+cluster.clusterId+"_"+kk).append("\n");

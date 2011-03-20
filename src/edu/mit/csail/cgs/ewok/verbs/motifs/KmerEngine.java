@@ -338,7 +338,8 @@ public class KmerEngine {
 		
 		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
 		// negative postion --> the start position matches the rc of kmer
-		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();		
+		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();
+		String seqRC = SequenceUtils.reverseComplement(seq);
 		for (Object o: kmerFound){
 			String kmerStr = (String) o;
 			Kmer kmer = str2kmer.get(kmerStr);
@@ -349,9 +350,11 @@ public class KmerEngine {
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
 			}
-			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmerStr));
+			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
 			for (int p: pos_rc){
-				int x = -(p-kmer.getKmerShift());	// negative if on '-' strand
+				int x = p-kmer.getKmerShift();	// motif position in seqRC
+				x = -(seq.length()-1-x);		// convert to position in Seq, "-" for reverse strand
+				// negative if on '-' strand
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
