@@ -354,7 +354,6 @@ public class KmerEngine {
 			for (int p: pos_rc){
 				int x = p-kmer.getKmerShift();	// motif position in seqRC
 				x = -(seq.length()-1-x);		// convert to position in Seq, "-" for reverse strand
-				// negative if on '-' strand
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	

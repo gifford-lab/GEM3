@@ -4142,18 +4142,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
         		}
         		subSeq = seq.substring(left, right);
         		if (seqLen==seq.length()){		// if length is not k_win+1, binding position may not be in middle
-	        		sum_offsetXstrength += strength*(config.k_win/2+1-left);
+	        		sum_offsetXstrength += strength*(config.k_win/2-left);
 	        		sum_strength += strength;
-	        		allOffsets.add(config.k_win/2+1-left);
+	        		allOffsets.add(config.k_win/2-left);
         		}
     		}
     		else{
     			int start =pos_motif-leftMost;
     			subSeq = seq.substring(start, start+shortest);
     			if (seqLen==seq.length()){		// if length is not k_win+1, binding position may not be in middle
-	    			sum_offsetXstrength += strength*(config.k_win/2+1-start);
+	    			sum_offsetXstrength += strength*(config.k_win/2-start);
 	        		sum_strength += strength;
-	        		allOffsets.add(config.k_win/2+1-start);
+	        		allOffsets.add(config.k_win/2-start);
     			}
     		}
     		for (int p=0;p<length;p++){
