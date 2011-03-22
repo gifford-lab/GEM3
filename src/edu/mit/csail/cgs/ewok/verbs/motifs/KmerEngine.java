@@ -20,6 +20,7 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.*;
 
+import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
@@ -91,7 +92,8 @@ public class KmerEngine {
 	 * in sequence around the binding events 
 	 * and build the kmer AhoCorasick engine
 	 */
-	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
+	public void buildEngine(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
+		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 		this.k = k;
 		numPos = (winSize+1)-k+1;
 		tic = System.currentTimeMillis();
@@ -115,24 +117,31 @@ public class KmerEngine {
 		reportTriggers.add(100);
 		reportTriggers.add(1000);
 		reportTriggers.add(10000);
-		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
+//		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
 		for(int i=0;i<eventCount;i++){
-			ComponentFeature f = events.get(i);
-			Region posRegion = f.getPeak().expand(winSize/2);
+			Region posRegion = events.get(i).expand(winSize/2);
 			seqCoors[i] = posRegion;
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
+		}
+		for(int i=0;i<eventCount;i++){
 			// getting negative sequences
 			// exclude negative regions that overlap with positive regions, or exceed start of chrom
 			// it is OK if we lose a few sequences here, so some entries of the seqsNeg will be null
-			int start = posRegion.getStart()-winShift;
-			int end = posRegion.getEnd()-winShift;
-			if (start < 0)
+			Region posRegion = seqCoors[i];
+			int start = 0;
+			double rand = randomEngine.nextDouble();
+			if (rand>0.5)
+				start = (int) (posRegion.getEnd()+1 + (winShift-posRegion.getWidth())*rand);
+			else
+				start =(int) (posRegion.getStart()-1 - (winShift- posRegion.getWidth())*(1-rand));
+			int end = start + posRegion.getWidth()-1;			// end inclusive
+			if (start < 0 || end >= genome.getChromLength(posRegion.getChrom()))
 				continue;
-			if (i>0){
-				if (seqCoors[i-1].overlaps( new Region(genome, posRegion.getChrom(), start, end)))
-					continue;
-			}
 			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);			
+			if (i>0 && seqCoors[i-1].overlaps(negRegion))
+				continue;
+			if (i<(eventCount-2) && seqCoors[i+1].overlaps(negRegion))
+				continue;
 			negRegions.add(negRegion);
 			int trigger = eventCount;
             if (!reportTriggers.isEmpty())
@@ -143,7 +152,7 @@ public class KmerEngine {
             }
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
-		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
+//		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 		
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
@@ -288,7 +297,8 @@ public class KmerEngine {
 		Collections.sort(kmers);
 		this.maxCount = kmers.get(0).seqHitCount;
 		this.minCount = kmers.get(kmers.size()-1).seqHitCount;
-		printKmers(kmers, outPrefix);
+		Kmer.printKmers(kmers, outPrefix);
+		
 		/*
 		Init Aho-Corasick alg. for searching multiple Kmers in sequences
 		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
@@ -337,7 +347,8 @@ public class KmerEngine {
 		
 		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
 		// negative postion --> the start position matches the rc of kmer
-		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();		
+		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();
+		String seqRC = SequenceUtils.reverseComplement(seq);
 		for (Object o: kmerFound){
 			String kmerStr = (String) o;
 			Kmer kmer = str2kmer.get(kmerStr);
@@ -348,9 +359,10 @@ public class KmerEngine {
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
 			}
-			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq, SequenceUtils.reverseComplement(kmerStr));
+			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
 			for (int p: pos_rc){
-				int x = -(p-kmer.getKmerShift());	// negative if on '-' strand
+				int x = p-kmer.getKmerShift();	// motif position in seqRC
+				x = -(seq.length()-1-x);		// convert to position in Seq, "-" for reverse strand
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
@@ -363,18 +375,7 @@ public class KmerEngine {
 	public String getSequence(Region r){
 		return seqgen.execute(r).toUpperCase();
 	}
-	private void printKmers(ArrayList<Kmer> kmers, String outPrefix){
-		Collections.sort(kmers);
-		
-		StringBuilder sb = new StringBuilder();
-		sb.append(Kmer.toHeader());
-		sb.append("\n");
-		for (Kmer kmer:kmers){
-			sb.append(kmer.toString()).append("\n");
-		}
-		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",outPrefix, k), sb.toString());
-	}
-	
+
 	
 	private float scorePWM(String seq){
 		float score = 0;

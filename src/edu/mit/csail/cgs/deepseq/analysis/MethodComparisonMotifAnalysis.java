@@ -368,7 +368,7 @@ public class MethodComparisonMotifAnalysis {
         	String name = methodNames.get(i);
         	String filePath = peakFiles.get(i).getAbsolutePath();
 			ArrayList<Point> peakPoints = new ArrayList<Point>(); 
-        	if (name.contains("GPS")){
+        	if (name.contains("GPS")||name.contains("GEM")){
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				// sort by descending pValue (-log P-value)
 				if (!isPreSorted){

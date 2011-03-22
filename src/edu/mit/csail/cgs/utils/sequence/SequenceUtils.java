@@ -39,6 +39,8 @@ public class SequenceUtils {
             trans['c'] = 'G';
             trans['t'] = 'A';
             trans['g'] = 'C';
+            trans['n'] = 'N';
+            trans['N'] = 'N';
         }
         return trans[c];
     }
