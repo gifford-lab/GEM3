@@ -536,14 +536,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		/* ********************************************************
 		 * refine the specific regions that contain binding events
 		 * ********************************************************/
-		Collections.sort(compFeatures);
-		ArrayList<Region> refinedRegions = new ArrayList<Region>();
-		for (ComponentFeature cf:compFeatures){
-			refinedRegions.add(cf.getPosition().expand(0));
-		}
-		// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
-		if (config.refine_regions)
+		if (config.refine_regions){
+			Collections.sort(compFeatures);
+			ArrayList<Region> refinedRegions = new ArrayList<Region>();
+			for (ComponentFeature cf:compFeatures){
+				refinedRegions.add(cf.getPosition().expand(0));
+			}
+			// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
 			this.restrictRegions=mergeRegions(refinedRegions, true);
+		}
 
 		log(2, "Finish predicting events: "+CommonUtils.timeElapsed(tic)+"\n");
 
@@ -3255,6 +3256,27 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		kEngine = new KmerEngine(gen, config.cache_genome);
 		long tic = System.currentTimeMillis();
+		
+		// refine restrictRegions, to reduce memory and run time
+		ArrayList<Feature> events = new ArrayList<Feature>();
+		events.addAll(signalFeatures);
+		events.addAll(insignificantFeatures);
+		events.addAll(filteredFeatures);
+		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
+		for (Feature f : events){
+			ComponentFeature cf = (ComponentFeature) f;
+			for (int c=0;c<this.numConditions;c++){
+				if (cf.getQValueLog10(c)> config.q_refine)
+					compFeatures.add(cf);
+			}
+		}
+		Collections.sort(compFeatures);
+		ArrayList<Region> refinedRegions = new ArrayList<Region>();
+		for (ComponentFeature cf:compFeatures){
+			refinedRegions.add(cf.getPosition().expand(0));
+		}
+		this.restrictRegions=mergeRegions(refinedRegions, true);
+		// compact genome cache
 		ArrayList<Region> expandedRegions = new ArrayList<Region>();
 		for (Region r: restrictRegions){
 			expandedRegions.add(r.expand(config.k_shift+config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
@@ -3432,7 +3454,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		if ((!cluster.isGood) || alignedFeatures.size()<=config.kmer_cluster_size)
 	    			continue;
 	    		else
-	    			sb_kmer.append("Motif cluster "+cluster.clusterId+", from "+alignedFeatures.size()+" binding events.\n");
+	    			sb_kmer.append(outName+"_motif cluster "+cluster.clusterId+", from "+alignedFeatures.size()+" binding events.\n");
 	    		
 	    		// update the kmer shift information (kmer start relative from the middle of PWM)
 	            TreeMap<Kmer, ArrayList<Integer>> kmerOffsets = new TreeMap<Kmer, ArrayList<Integer>> ();
@@ -4503,7 +4525,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
 
     class GPSConfig {
-        public boolean do_model_selection=false;
+		public boolean do_model_selection=false;
         public boolean use_joint_event = false;
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
@@ -4536,6 +4558,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int kmer_cluster_size = 10;	// minimum number of sequences to be reported as a cluster
         
         public double q_value_threshold = 2.0;	// -log10 value of q-value
+        public double q_refine = 1.5;
         public double joint_event_distance = 500;
         public double alpha_factor = 3.0;
         public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
@@ -4617,6 +4640,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
+            q_refine = Args.parseDouble(args, "q2", q_refine);	// q-value for refine regions
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
             alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
             fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
