@@ -131,9 +131,9 @@ public class KmerEngine {
 			int start = 0;
 			double rand = randomEngine.nextDouble();
 			if (rand>0.5)
-				start = (int) (posRegion.getEnd()+1 + (winShift-posRegion.getWidth())*rand);
+				start = (int) (posRegion.getEnd()+1 + winShift*rand);
 			else
-				start =(int) (posRegion.getStart()-1 - (winShift- posRegion.getWidth())*(1-rand));
+				start =(int) (posRegion.getStart()-1 - winShift*(1-rand));
 			int end = start + posRegion.getWidth()-1;			// end inclusive
 			if (start < 0 || end >= genome.getChromLength(posRegion.getChrom()))
 				continue;
