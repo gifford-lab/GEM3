@@ -4553,9 +4553,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
         public double gc = 0.42;	// GC content in the genome
         public double[] bg;			// background frequency based on GC content
-        public double wm_factor = 0.4;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
-        public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
-        public int kmer_cluster_size = 10;	// minimum number of sequences to be reported as a cluster
+        public double wm_factor = 0.5;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
+        public double ic_trim = 0.3;		// The information content threshold to trim the ends of PWM
+        public int kmer_cluster_size = 50;	// minimum number of sequences to be reported as a cluster
         
         public double q_value_threshold = 2.0;	// -log10 value of q-value
         public double q_refine = 1.5;
