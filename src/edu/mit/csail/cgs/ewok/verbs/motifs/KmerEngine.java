@@ -266,8 +266,8 @@ public class KmerEngine {
 				kmerAllHitCount += kmer.negCount;
 			}
 			if (kmer.seqHitCount < kmer.negCount * k_fold){
-				if (kmer.seqHitCount>10)
-					System.out.println(String.format("%s count %d vs %d in negative sequence set, ignored.", kmer.getKmerString(), kmer.seqHitCount, kmer.negCount));
+//				if (kmer.seqHitCount>10)
+//					System.out.println(String.format("%s count %d (positive) vs %d (negative), ignored.", kmer.getKmerString(), kmer.seqHitCount, kmer.negCount));
 				toRemove.add(kmer);	
 				continue;
 			}

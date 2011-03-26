@@ -3886,7 +3886,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	// extend to overlapped kmers from all aligned kmers, iteratively
 	    	long tic = System.currentTimeMillis();
 	    	clusterByOverlapKmer(motifCluster, unalignedFeatures, kmer2cf);
-	    	System.out.println("ClusterByOverlapKmer, "+CommonUtils.timeElapsed(tic));
+//	    	System.out.println("ClusterByOverlapKmer, "+CommonUtils.timeElapsed(tic));
 	    }
 
 	//greedily extend aligned kmers to overlapped kmers
@@ -3965,7 +3965,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	for (Kmer km: motifCluster.alignedKmers){
     		String kmStr = km.getKmerString();
     		if (alignedKmers.containsKey(kmStr)){
-    			System.err.println("clusterByPWM: "+kmStr+" duplicated!");
+    			System.err.println("ClusterByPWM: "+kmStr+" duplicated!");
+    			System.err.println(km.toString());
+    			System.err.println(alignedKmers.get(kmStr).toString());
     		}
     		else
     			alignedKmers.put(kmStr, km);
@@ -4037,8 +4039,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	clusterByNewKmers(motifCluster, unalignedFeatures, newAlignedKmers);
     	
-    	for (Kmer kmer:newAlignedKmers)
-    		motifCluster.alignedKmers.add(kmer);
+    	motifCluster.alignedKmers.addAll(newAlignedKmers);
     	
 //    	System.err.println("Grow by PWM is done!");
     	return noMore;
@@ -4209,7 +4210,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		int pos_motif = motifStartInSeq.get(i);			
     		if (pos_motif<0){
     			//TODO: still a few miss here
-    			System.err.println("Warning: makePWM(), pos_motif "+pos_motif+"<0,"+cf.toString_v1());
+//    			System.err.println("Warning: makePWM(), pos_motif "+pos_motif+"<0,"+cf.toString_v1());
     			continue;
     		}
 
