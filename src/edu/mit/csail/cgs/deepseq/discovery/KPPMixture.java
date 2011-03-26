@@ -3363,7 +3363,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	//print out the kmers
 	    	StringBuilder sb_kmer = new StringBuilder();
 	    	sb_kmer.append("Kmer").append("\t").append("KmerRC").append("\t").append("seqCt").append("\t")
-	    	  .append("gShift").append("\t").append("Alignment").append("\n");
+	    	  .append("gShift").append("\t").append("Alignment").append("\t").append("Reference").append("\n");
 	    	//print out the kmer strings in fasta format
 	    	StringBuilder sb_fa = new StringBuilder();
 	    	int goodClusterCount = 0;
@@ -3391,6 +3391,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 	        	ArrayList<ComponentFeature> temp = new ArrayList<ComponentFeature>();
 	        	ArrayList<Kmer> newKmers = new ArrayList<Kmer>();
+	        	
+	        	HashMap<String, Kmer> alignedKmerMap = new HashMap<String, Kmer> ();
+	        	for (Kmer km : cluster.alignedKmers){
+	        		String kmStr = km.getKmerString();
+	        		if (alignedKmerMap.containsKey(kmStr)){
+	        			System.err.println("ClusterByPWM: "+kmStr+" duplicated!");
+	        			Kmer oldKmer = alignedKmerMap.get(kmStr);
+	        			oldKmer.setSeqHitCount(oldKmer.getSeqHitCount()+km.getSeqHitCount());
+	        			oldKmer.incrStrength(km.getStrength());
+	        		}
+	        		else
+	        			alignedKmerMap.put(kmStr, km);
+	        	}
+	        	
 	    		for (ComponentFeature nf : nullKmerFeatures){
 					if (nf.getBoundSequence().length()<config.k)
 						continue;
@@ -3409,6 +3423,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					if (seq.length()==config.k){
 						Kmer kmer = new Kmer(seq, 1);
 						kmer.incrStrength(nf.getTotalEventStrength());
+	    				kmer.setAlignString("nullPWM:"+WeightMatrix.printMatrixLetters(wm).replaceAll("\\n", "*"));
 	    				newKmers.add(kmer);
 	    				nf.setKmer(kmer);
 	    				alignedFeatures.add(nf);
@@ -3430,6 +3445,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    				Kmer kmer = new Kmer(kmerStr, 1);
 	    				kmer.setKmerShift(-config.k/2);
 	    				kmer.incrStrength(nf.getTotalEventStrength());
+	    				kmer.setAlignString("nullPWM:"+WeightMatrix.printMatrixLetters(wm).replaceAll("\\n", "*"));
 	    				newKmers.add(kmer);
 	    				nf.setKmer(kmer);
 	    				alignedFeatures.add(nf);
@@ -3439,7 +3455,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		}
 	    		if (!temp.isEmpty()){
 		    		nullKmerFeatures.removeAll(temp);
-		    		cluster.alignedKmers.addAll(newKmers);
+		    		for (Kmer kmer: newKmers){
+		    			String kmStr = kmer.getKmerString();
+		    			if (alignedKmerMap.containsKey(kmStr)){
+		    				Kmer old = alignedKmerMap.get(kmStr);
+		    				old.incrSeqHitCount();
+		    				old.incrStrength(kmer.getStrength());
+		    			}
+		    			else{
+		    				cluster.alignedKmers.add(kmer);
+		    				alignedKmerMap.put(kmStr, kmer);
+		    			}
+		    		}
 		    		
 		    		clusterByNewKmers(cluster, nullKmerFeatures, newKmers);
 		    		System.out.println("Rescued kmers, now cluster contains "+cluster.alignedFeatures.size()+" sequences.");  		    		
@@ -3503,7 +3530,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		for (Kmer km: akmers){
 					String shiftedKmer = CommonUtils.padding(Math.max(0, km.getKmerShift()+config.k), '-').concat(km.getKmerString());
 					sb_kmer.append(km.getKmerString()).append("\t").append(km.getKmerRC()).append("\t").append(km.getSeqHitCount()).append("\t")
-					  .append(km.getKmerShift()).append("\t").append(shiftedKmer).append("\n");		
+					  .append(km.getKmerShift()).append("\t").append(shiftedKmer).append("\t").append(km.getAlignString()).append("\n");		
 					// fasta
 					sb_fa.append(">"+outName+"_"+cluster.clusterId+"_"+kk).append("\n");
 					sb_fa.append(km.getKmerString()).append("\n");		
@@ -3738,6 +3765,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	if (kmers.size()<1)
 	    		return;
 	    	Collections.sort(kmers);
+	    	for (Kmer kmer:kmers)
+	    		kmer.setAlignString(null);
 	    	
 	    	motifCluster.seedKmer = kmers.get(0);
 	    	ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
@@ -3880,8 +3909,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		motifCluster.alignedKmers = new ArrayList<Kmer>();    	
 	    	motifCluster.alignedKmers.addAll(alignedKmers);
 	    	
-	    	for (Kmer kmer:alignedKmers)
+	    	for (Kmer kmer:alignedKmers){
 	    		kmer2cf.remove(kmer);
+	    		kmer.setAlignString("Seed:"+seedKmerStr);
+	    	}
 	    	
 	    	// extend to overlapped kmers from all aligned kmers, iteratively
 	    	long tic = System.currentTimeMillis();
@@ -3917,6 +3948,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					    			}
 				    			}
 		    					newAlignedKmers.add(kmer);
+		    		    		kmer.setAlignString("Overlap:"+kmStr);
 		    				}
 		    				else{
 			    				int idx2 = kmer.getKmerRC().indexOf(overlap);
@@ -3936,6 +3968,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						    			}
 					    			}
 			    					newAlignedKmers.add(kmer);
+			    		    		kmer.setAlignString("Overlap:"+kmStr);
 			    				}
 		    				}
 		    			}
@@ -3966,8 +3999,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		String kmStr = km.getKmerString();
     		if (alignedKmers.containsKey(kmStr)){
     			System.err.println("ClusterByPWM: "+kmStr+" duplicated!");
-    			System.err.println(km.toString());
-    			System.err.println(alignedKmers.get(kmStr).toString());
+//    			System.err.println(km.toString());
+//    			System.err.println(alignedKmers.get(kmStr).toString());
+    			Kmer oldKmer = alignedKmers.get(kmStr);
+    			oldKmer.setSeqHitCount(oldKmer.getSeqHitCount()+km.getSeqHitCount());
+    			oldKmer.incrStrength(km.getStrength());
     		}
     		else
     			alignedKmers.put(kmStr, km);
@@ -4028,6 +4064,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				kmer.incrStrength(cf.getTotalEventStrength());
 				alignedKmers.put(kmerStr, kmer);
 				newAlignedKmers.add(kmer);
+				kmer.setAlignString("PWM:"+WeightMatrix.printMatrixLetters(wm).replaceAll("\\n", "*"));
 				cf.setKmer(kmer);
 			}
 			noMore = false;

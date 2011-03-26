@@ -28,6 +28,10 @@ public class Kmer implements Comparable<Kmer>{
 	public void setShift(int s){shift=s;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer
 	public int getScore(){return score;}	
+	String alignString;
+	public void setAlignString(String str){alignString=str;}
+	public String getAlignString(){return alignString;}
+	
 	/**
 	 *  The shift of kmer start from the middle of motif(PWM) (Pos_kmer-Pos_wm)
 	 */
