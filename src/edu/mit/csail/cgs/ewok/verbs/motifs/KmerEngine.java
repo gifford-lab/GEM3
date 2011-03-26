@@ -356,14 +356,14 @@ public class KmerEngine {
 			Kmer kmer = str2kmer.get(kmerStr);
 			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
 			for (int p: pos){
-				int x = p-kmer.getKmerShift();	// minus kmerShift to get the motif position
+				int x = p-kmer.getKmerStartOffset();	// minus kmerShift to get the motif position
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
 			}
 			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
 			for (int p: pos_rc){
-				int x = p-kmer.getKmerShift();	// motif position in seqRC
+				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
 				x = -(seq.length()-1-x);		// convert to position in Seq, "-" for reverse strand
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());

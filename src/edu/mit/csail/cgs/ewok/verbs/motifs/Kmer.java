@@ -33,14 +33,17 @@ public class Kmer implements Comparable<Kmer>{
 	public String getAlignString(){return alignString;}
 	
 	/**
-	 *  The shift of kmer start from the middle of motif(PWM) (Pos_kmer-Pos_wm)
+	 *  The offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)
 	 */
-	int kmerShift;			
+	int kmerStartOffset;			
 	/**
-	 *  Get the shift of kmer start from the middle of motif(PWM) (Pos_kmer-Pos_wm)
+	 *  Get the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)
 	 */
-	 public int getKmerShift(){return kmerShift;}
-	public void setKmerShift(int s){kmerShift=s;}
+	public int getKmerStartOffset(){return kmerStartOffset;}
+	/**
+	 *  Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)
+	 */
+	public void setKmerStartOffset(int s){kmerStartOffset=s;}
 	int group=-1;			// the group of motif
 	public int getGroup(){return group;}
 	public void setGroup(int g){group=g;}
@@ -50,9 +53,9 @@ public class Kmer implements Comparable<Kmer>{
 		this.k = kmerString.length();
 		this.seqHitCount = hitCount;
 		if (randomEngine.nextDouble()>0.5)
-			this.kmerShift = -(this.k-1-(this.k-1)/2);
+			this.kmerStartOffset = -(this.k-1-(this.k-1)/2);
 		else
-			this.kmerShift = -(this.k-1)/2;
+			this.kmerStartOffset = -(this.k-1)/2;
 	}
 	
 	/** 
@@ -87,7 +90,7 @@ public class Kmer implements Comparable<Kmer>{
 		if (hg_lg==Double.NEGATIVE_INFINITY)
 			hg_lg=-100;
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg)+
-			   "\t"+String.format("%.1f", strength)+"\t"+kmerShift;
+			   "\t"+String.format("%.1f", strength)+"\t"+kmerStartOffset;
 	}
 	public static String toHeader(){
 		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tStrengt\tOffset";
