@@ -3596,7 +3596,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			allShifts.add(kmer.getKmerStartOffset());
     			shift += kmer.getKmerStartOffset(); 
     		}
-    		shift /= kmers.size();								// mean shift
+    		shift = StatUtil.round(shift/kmers.size());			// mean shift
 //    		Collections.sort(allShifts);
 //    		shift = allShifts.get(allShifts.size()/2);			// median shift
     		Kmer cKmer = new Kmer(ks, count);
@@ -4319,7 +4319,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	}
     	// average all the GPS binding positions to decide the binding position in the PWM
     	// weighted by strength if "use_strength" is true
-    	int bPos=(int)(sum_offsetXstrength/sum_strength+0.5);		// mean, plus 0.5 to round to nearest int
+    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean
     	Collections.sort(allOffsets);
     	if (config.print_kmer_shifts){
 	    	StringBuilder sb = new StringBuilder();

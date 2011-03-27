@@ -33,8 +33,7 @@ public class StatUtil {
 	public static double beta_rnd(double a, double b) {
 		return Beta.staticNextDouble(a,b);
 	}
-	
-	
+		
 	public static void dirichlet_rnd(double[] x, double[] alpha, int vSize) {
 		double sum = 0.0;
 		double xt = 0.0;
@@ -101,7 +100,14 @@ public class StatUtil {
 		}
 		return cc;
 	}
-	
+	/**
+	 * Round to the nearest integer.
+	 * This is different from Math.round() for negative number.
+	 * i.e., 2.5->3, 2.499->2, -1.499->-1, -1.5-->-2
+	 */
+	public static int round(double n){
+		return (int)((n>0?0.5:-0.5)+n);
+	}
 	
 	/**
 	 * Returns the position of the integer number <tt>f</tt> in the list. <br>
