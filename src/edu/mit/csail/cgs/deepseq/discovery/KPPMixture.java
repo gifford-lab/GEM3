@@ -3488,37 +3488,26 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		else
 	    			sb_kmer.append(outName+"_motif cluster "+cluster.clusterId+", from "+alignedFeatures.size()+" binding events.\n");
 	    		
-	    		// update the kmer shift information (kmer start relative from the middle of PWM)
+	    		// update the kmer offset information (kmer start relative from the binding position of PWM)
 	            TreeMap<Kmer, ArrayList<Integer>> kmerOffsets = new TreeMap<Kmer, ArrayList<Integer>> ();
 	    		for (int f=0;f<alignedFeatures.size();f++){
 	            	ComponentFeature cf = alignedFeatures.get(f);
 	            	Kmer kmer = cf.getKmer();
-	//            	if (kmer.getGroup()==-1){							// each kmer will only be set once
 	            		String seq = cf.getBoundSequence();
 		            	int start = seq.indexOf(kmer.getKmerString());
 		            	if (start==-1)
 		            		continue;
-		            	// kmer start relative from the middle of PWM = kmerStart - pwmStart - halfWidth of PWM
-	//	            	kmer.setKmerShift(start - motifPos.get(f) - wm.length()/2);
-	//	            	kmer.setGroup(groupIndex);
-	//	            	if (kmer.getKmerString().equals("CCACCAGAGGGC") || kmer.getKmerString().equals("CCAGCAGAGGGC"))
-	//	            		f=f+1-1;
 		            	if (!kmerOffsets.containsKey(kmer)){
 		            		kmerOffsets.put(kmer, new ArrayList<Integer>());
 		            	}
 		            	kmerOffsets.get(kmer).add(start - motifPos.get(f) - cluster.bindingPosition);
-	//            	}
 	    		}	
 	    		for (Kmer kmer:kmerOffsets.keySet()){
-	//    			System.out.println(kmer.toString());
-	    			int sum = 0;
+	    			double sum = 0;
 	    			for (int i:kmerOffsets.get(kmer)){
-	//    				System.out.print(i+" ");
 	    				sum += i;
 	    			}
-	    			int avg = sum/kmerOffsets.get(kmer).size();
-	//    			System.out.println("\nAverage: "+avg);
-	    			kmer.setKmerStartOffset(avg);
+	    			kmer.setKmerStartOffset(StatUtil.round(sum/kmerOffsets.get(kmer).size()));
 	    			kmer.setGroup(cluster.clusterId);
 	    		}
 	            
@@ -3543,7 +3532,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    	}
 				sb_kmer.append("\n");
 	    	}
-	//    	System.out.println("Make PFM: "+CommonUtils.timeElapsed(tic));
 	    	CommonUtils.writeFile(outName+"_PFM.txt", sb_pfm.toString());
 	    	sb_kmer.append("Total kmer groups: " + clusters.size());
 	    	CommonUtils.writeFile(outName+"_AlignedKmers.txt", sb_kmer.toString());
@@ -4764,7 +4752,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
             k_win = Args.parseInteger(args, "k_win", k_win);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
-            k_overlap = Args.parseInteger(args, "k_overlap", Math.max(k_overlap, k*4/5));
+            k_overlap = Args.parseInteger(args, "k_overlap", Math.max(k_overlap, StatUtil.round(k*0.75)));
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
             k_fold = Args.parseDouble(args, "k_fold", k_fold);
             gc = Args.parseDouble(args, "gc", gc);
