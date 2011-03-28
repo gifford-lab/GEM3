@@ -3946,6 +3946,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			}
 		    					newAlignedKmers.add(kmer);
 		    		    		kmer.setAlignString("Overlap:"+kmStr);
+		    		    		continue;
 		    				}
 		    				else{
 			    				int idx2 = kmer.getKmerRC().indexOf(overlap);
@@ -3966,6 +3967,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					    			}
 			    					newAlignedKmers.add(kmer);
 			    		    		kmer.setAlignString("OverlapRC:"+kmStr);
+			    		    		continue;
 			    				}
 		    				}
 		    			}
