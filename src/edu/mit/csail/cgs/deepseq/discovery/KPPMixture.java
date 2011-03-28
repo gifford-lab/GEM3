@@ -3426,7 +3426,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						//pos_kmer - pos_motif_binding
 						kmer.setKmerStartOffset(0-(hitPos+cluster.bindingPosition));
 						kmer.incrStrength(nf.getTotalEventStrength());
-	    				kmer.setAlignString("nullPWM:"+WeightMatrix.printMatrixLetters(wm).replaceAll("\\n", "*"));
+						String pwmStr = WeightMatrix.printMatrixLetters(wm);
+						kmer.setAlignString("nullPWM:"+pwmStr.substring(0,wm.length()));
 	    				newKmers.add(kmer);
 	    				nf.setKmer(kmer);
 	    				alignedFeatures.add(nf);
@@ -3450,7 +3451,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    				kmer.setKmerStartOffset(left-(hitPos+cluster.bindingPosition));
 	    				kmer.setKmerStartOffset(-config.k/2);
 	    				kmer.incrStrength(nf.getTotalEventStrength());
-	    				kmer.setAlignString("nullPWM:"+WeightMatrix.printMatrixLetters(wm).replaceAll("\\n", "*"));
+						String pwmStr = WeightMatrix.printMatrixLetters(wm);
+						kmer.setAlignString("nullPWM:"+pwmStr.substring(0,wm.length()));
 	    				newKmers.add(kmer);
 	    				nf.setKmer(kmer);
 	    				alignedFeatures.add(nf);
@@ -3926,6 +3928,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    			String overlap = kmStr.substring(i, i+config.k_overlap);
 		    			ArrayList<Kmer> overlapped = new ArrayList<Kmer>();
 		    			for (Kmer kmer:kmer2cf.keySet()){
+		    				if (km.getSeqHitCount() < kmer.getSeqHitCount())				// only extend overlap from more confident kmers
+		    					continue;
 		    				int idx = kmer.getKmerString().indexOf(overlap);
 		    				if (idx!=-1){	// the kmer overlaps
 		    					kmer.setShift(km.getShift()+i-idx);
@@ -3942,6 +3946,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			}
 		    					newAlignedKmers.add(kmer);
 		    		    		kmer.setAlignString("Overlap:"+kmStr);
+		    		    		continue;
 		    				}
 		    				else{
 			    				int idx2 = kmer.getKmerRC().indexOf(overlap);
@@ -3961,7 +3966,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						    			}
 					    			}
 			    					newAlignedKmers.add(kmer);
-			    		    		kmer.setAlignString("Overlap:"+kmStr);
+			    		    		kmer.setAlignString("OverlapRC:"+kmStr);
+			    		    		continue;
 			    				}
 		    				}
 		    			}
@@ -4058,7 +4064,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				kmer.incrStrength(cf.getTotalEventStrength());
 				alignedKmers.put(kmerStr, kmer);
 				newAlignedKmers.add(kmer);
-				kmer.setAlignString("PWM:"+WeightMatrix.printMatrixLetters(wm).replaceAll("\\n", "*"));
+				String pwmStr = WeightMatrix.printMatrixLetters(wm);
+				kmer.setAlignString("PWM:"+pwmStr.substring(0,wm.length()));
 				cf.setKmer(kmer);
 			}
 			noMore = false;
