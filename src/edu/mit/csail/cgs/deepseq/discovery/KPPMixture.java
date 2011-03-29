@@ -3715,9 +3715,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (wm==null){
     		return motifCluster;
     	}
-//    	System.err.println("After growByKmer()\n" +
-//    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
-//    			WeightMatrix.printMatrixLetters(wm));
+    	System.out.println("After clusterByKmer()\n" +
+    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
+    			WeightMatrix.printMatrixLetters(wm));
     	while(!noMore){
     		// Save the current state
     		MotifCluster old = motifCluster.clone();
@@ -3727,9 +3727,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		
     		noMore = clusterByPWM(motifCluster, unalignedFeatures, config.bg);
     		wm = makePWM( motifCluster, true);
-//        	System.err.println("After growByPWM()\n" +
-//    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
-//    			WeightMatrix.printMatrixLetters(wm));
+        	System.out.println("After clusterByPWM()\n" +
+    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
+    			WeightMatrix.printMatrixLetters(wm));
     		if (wm==null){		
     			// if the pwm is not good, return the previous result			
     			unalignedFeatures.clear();
@@ -4345,39 +4345,58 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		}
     	}
 
-    	// make a WeightMatrix object, trim low ic ends
+    	// make a WeightMatrix object, trim low ic ends (simple method)
     	int leftIdx=-1;
-    	double score = 0;
     	for (int p=0;p<ic.length;p++){
-    		if (ic[p]>config.ic_trim){
-    			score ++;
-    		}
-    		else{
-    			score -= 0.3;
-    		}
-    		if (score<0 && p-leftIdx<config.k/2){
-    			score=0;
-    			leftIdx=p;
+    		if (ic[p]>=config.ic_trim){
+    			leftIdx = p;
+    			break;
     		}
     	}
-    	leftIdx++;
     	bPos -= leftIdx;			// adjust PWM binding positin with the left_end trim
-    	
     	int rightIdx=ic.length;
-    	score = 0;
     	for (int p=ic.length-1;p>=0;p--){
-    		if (ic[p]>config.ic_trim){
-    			score ++;
-    		}
-    		else{
-    			score -= 0.3;
-    		}
-    		if (score<0 && rightIdx-p<config.k/2){
-    			score=0;
+    		if (ic[p]>=config.ic_trim){    			
     			rightIdx=p;
+    			break;
     		}
     	}
-    	rightIdx--;
+    	
+//    	
+//    	// make a WeightMatrix object, trim low ic ends (more sophisticated method)
+    	// To avoid situations where a remote position happens to pass the ic threshold
+//    	int leftIdx=-1;
+//    	double score = 0;
+//    	for (int p=0;p<ic.length;p++){
+//    		if (ic[p]>config.ic_trim){
+//    			score ++;
+//    		}
+//    		else{
+//    			score -= 0.3;
+//    		}
+//    		if (score<0 && p-leftIdx<config.k/2){
+//    			score=0;
+//    			leftIdx=p;
+//    		}
+//    	}
+//    	leftIdx++;
+//    	bPos -= leftIdx;			// adjust PWM binding positin with the left_end trim
+//    	
+//    	int rightIdx=ic.length;
+//    	score = 0;
+//    	for (int p=ic.length-1;p>=0;p--){
+//    		if (ic[p]>config.ic_trim){
+//    			score ++;
+//    		}
+//    		else{
+//    			score -= 0.3;
+//    		}
+//    		if (score<0 && rightIdx-p<config.k/2){
+//    			score=0;
+//    			rightIdx=p;
+//    		}
+//    	}
+//    	rightIdx--;
     	
 //    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
 //    	for (int p=0;p<ic.length;p++){
