@@ -3681,7 +3681,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	// greedy grouping of bound sequences until all are grouped
     	while(!unalignedFeatures.isEmpty()){
+    		
     		MotifCluster cluster = growSeqCluster(unalignedFeatures);
+    		
     		if (cluster!=null){
     			if (cluster.alignedFeatures.size()<config.kmer_cluster_size)	{	// if the cluster is too small, set as nullKmer to process later
     				for (ComponentFeature cf : cluster.alignedFeatures){
@@ -4438,10 +4440,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
 	    	rightIdx--;
 	    }
-//    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
-//    	for (int p=0;p<ic.length;p++){
-//    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
-//    	}
+    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
+    	for (int p=0;p<ic.length;p++){
+    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
+    	}
 //    	System.out.print(sb.toString());
     	
     	// if the pwm is not good, return null. The operations in this method so far 
@@ -4449,6 +4451,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (rightIdx-leftIdx+1<=config.k/2){
     		motifCluster.isGood = false;
     		System.out.println("makePWM: available aligned sequences are too short, stop here.");
+    		CommonUtils.writeFile(outName+"_badPWM_"+motifCluster.seedKmer.getKmerString()+".txt", sb.append("\n").append(pwm_seqs).toString());
     		return null;
     	}
     	
