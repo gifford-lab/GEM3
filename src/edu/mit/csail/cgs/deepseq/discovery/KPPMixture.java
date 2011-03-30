@@ -4379,59 +4379,60 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		}
     	}
 
-    	// make a WeightMatrix object, trim low ic ends (simple method)
-    	int leftIdx=ic.length-1;
-    	for (int p=0;p<ic.length;p++){
-    		if (ic[p]>=config.ic_trim){
-    			leftIdx = p;
-    			break;
-    		}
+    	// make a WeightMatrix object
+    	int leftIdx, rightIdx;
+    	if (config.trim_simple){	// trim low ic ends (simple method)
+	    	leftIdx=ic.length-1;
+	    	for (int p=0;p<ic.length;p++){
+	    		if (ic[p]>=config.ic_trim){
+	    			leftIdx = p;
+	    			break;
+	    		}
+	    	}
+	    	bPos -= leftIdx;		// adjust PWM binding positin with the left_end trim
+	    	rightIdx=0;
+	    	for (int p=ic.length-1;p>=0;p--){
+	    		if (ic[p]>=config.ic_trim){    			
+	    			rightIdx=p;
+	    			break;
+	    		}
+	    	}
     	}
-    	bPos -= leftIdx;			// adjust PWM binding positin with the left_end trim
-    	int rightIdx=0;
-    	for (int p=ic.length-1;p>=0;p--){
-    		if (ic[p]>=config.ic_trim){    			
-    			rightIdx=p;
-    			break;
-    		}
-    	}
-    	
-//    	
-//    	// make a WeightMatrix object, trim low ic ends (more sophisticated method)
-    	// To avoid situations where a remote position happens to pass the ic threshold
-//    	int leftIdx=-1;
-//    	double score = 0;
-//    	for (int p=0;p<ic.length;p++){
-//    		if (ic[p]>config.ic_trim){
-//    			score ++;
-//    		}
-//    		else{
-//    			score -= 0.3;
-//    		}
-//    		if (score<0 && p-leftIdx<config.k/2){
-//    			score=0;
-//    			leftIdx=p;
-//    		}
-//    	}
-//    	leftIdx++;
-//    	bPos -= leftIdx;			// adjust PWM binding positin with the left_end trim
-//    	
-//    	int rightIdx=ic.length;
-//    	score = 0;
-//    	for (int p=ic.length-1;p>=0;p--){
-//    		if (ic[p]>config.ic_trim){
-//    			score ++;
-//    		}
-//    		else{
-//    			score -= 0.3;
-//    		}
-//    		if (score<0 && rightIdx-p<config.k/2){
-//    			score=0;
-//    			rightIdx=p;
-//    		}
-//    	}
-//    	rightIdx--;
-    	
+	    else{	// trim low ic ends (more sophisticated method)
+	    	// To avoid situations where a remote position happens to pass the ic threshold
+	    	leftIdx=-1;
+	    	double score = 0;
+	    	for (int p=0;p<ic.length;p++){
+	    		if (ic[p]>config.ic_trim){
+	    			score ++;
+	    		}
+	    		else{
+	    			score -= 0.3;
+	    		}
+	    		if (score<0 && p-leftIdx<config.k/2){
+	    			score=0;
+	    			leftIdx=p;
+	    		}
+	    	}
+	    	leftIdx++;
+	    	bPos -= leftIdx;		// adjust PWM binding positin with the left_end trim
+	    	
+	    	rightIdx=ic.length;
+	    	score = 0;
+	    	for (int p=ic.length-1;p>=0;p--){
+	    		if (ic[p]>config.ic_trim){
+	    			score ++;
+	    		}
+	    		else{
+	    			score -= 0.3;
+	    		}
+	    		if (score<0 && rightIdx-p<config.k/2){
+	    			score=0;
+	    			rightIdx=p;
+	    		}
+	    	}
+	    	rightIdx--;
+	    }
 //    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
 //    	for (int p=0;p<ic.length;p++){
 //    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
@@ -4741,6 +4742,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
 
     class GPSConfig {
+		public boolean trim_simple=false;
 		public boolean do_model_selection=false;
         public boolean use_joint_event = false;
         public boolean kmer_use_insig = false;
