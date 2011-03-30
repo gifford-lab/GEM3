@@ -3512,6 +3512,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		seedOffset = StatUtil.round(seedOffset/seedOffsets.size());
 	    		// then update the Kmer aligned by SeedKmer or Overlap using seed offset
 	    		for (Kmer kmer:cluster.alignedKmers){
+	    			if (kmer.getAlignString()==null)
+	    				continue;
 	    			if (!kmer.getAlignString().contains("PWM")){
 	    				kmer.setKmerStartOffset(kmer.getShift()+seedOffset);
 	    			}
@@ -3747,9 +3749,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (wm==null){
     		return motifCluster;
     	}
-//    	System.out.println("After clusterByKmer()\n" +
-//    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
-//    			WeightMatrix.printMatrixLetters(wm));
+    	System.out.println("After clusterByKmer()\n" +
+    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
+    			WeightMatrix.printMatrixLetters(wm));
     	while(!noMore){
     		// Save the current state
     		MotifCluster old = motifCluster.clone();
@@ -3760,8 +3762,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		noMore = clusterByPWM(motifCluster, unalignedFeatures, config.bg);
     		wm = makePWM( motifCluster, true);
     		if (wm==null){		
-    			// if the pwm is not good, return the previous result			
-    			unalignedFeatures.clear();
+    			// if the pwm is not good, return the previous result		
+    			System.out.println("growSeqCluster: pwm is not good, take previous one.");
+            	System.out.println(CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
+            			WeightMatrix.printMatrixLetters(old.matrix));
+            	unalignedFeatures.clear();
     			unalignedFeatures.addAll(unaligned_old);
     	    	for (ComponentFeature cf:unalignedFeatures){
     	    		// reverse some kmer-seq mismatch effect from those unsuccessful clustering manipulations
@@ -3771,9 +3776,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			return old;
     		}
     		else{
-//            	System.out.println("After clusterByPWM()\n" +
-//            			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
-//            			WeightMatrix.printMatrixLetters(wm));    			
+            	System.out.println("After clusterByPWM()\n" +
+            			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
+            			WeightMatrix.printMatrixLetters(wm));    			
     		}
         	if (wm.length()<=config.k*3/4)		// PWM is too short for further analysis
         		return motifCluster;
@@ -4231,7 +4236,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      */
     private Pair<Integer, Double> scanPWMoutwards(String sequence, WeightMatrix wm, WeightMatrixScorer scorer, int middle, double scoreTarget){
 		if (sequence==null||sequence.length()<wm.length()-1){
-			return new Pair<Integer, Double>(-1,-1.0);
+			return new Pair<Integer, Double>(-999,-1.0);
 		}
 		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
 		double goodScore = 0;
@@ -4443,6 +4448,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// does not change the state of componentFeatures or motifCluster, so we can discard this pwm and take previous result
     	if (rightIdx-leftIdx+1<=config.k/2){
     		motifCluster.isGood = false;
+    		System.out.println("makePWM: available aligned sequences are too short, stop here.");
     		return null;
     	}
     	
@@ -4476,8 +4482,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
             	seedOffsets.add(pos_kmer-Math.abs(pos_pwm));
         	}
 		}
-		if (seedOffsets.isEmpty())
+		if (seedOffsets.isEmpty()){
+    		System.out.println("makePWM: seed kmer do not pass PWM threshold, stop here.");
 			return null;
+		}
 		
 		int seedOffset = 0;
 		for (int offset: seedOffsets)
