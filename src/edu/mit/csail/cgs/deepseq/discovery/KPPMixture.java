@@ -4282,7 +4282,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// count
     	int seqLen = config.k_win+1;
     	int leftMost = seqLen;
-    	int shortest = seqLen;	// the shortest length starting from the shift position
+    	int length = seqLen;	// the shortest length starting from the shift position
+    	ArrayList<Integer> starts = new ArrayList<Integer>();
+    	ArrayList<Integer> lengths = new ArrayList<Integer>();
     	for (int i=0;i<alignedFeatures.size();i++){
     		ComponentFeature cf = alignedFeatures.get(i);
     		String seq = cf.getBoundSequence();
@@ -4296,18 +4298,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (seq.length()-pos_motif<config.k){	
     			continue;
     		}
-    		if (leftMost>pos_motif)
-    			leftMost = pos_motif;
-    		if (shortest>seq.length()-pos_motif)
-    			shortest=seq.length()-pos_motif;
+    		starts.add(pos_motif);
+    		lengths.add(seq.length()-pos_motif);
     	}
-    	int length = shortest;
-    	boolean fixedLength = false;
-    	if (length<config.k){
-    		System.err.println("Warning: makePWM(), leftMost="+leftMost+" shortest="+shortest);
-    		length = (int)(0.8*config.k_win);
-    		fixedLength = true;
-    	}
+    	Collections.sort(starts);
+    	leftMost = starts.get(starts.size()/100);
+    	Collections.sort(lengths);
+    	length = lengths.get(lengths.size()/10);
+    	
     	double sum_offsetXstrength = 0;
     	double sum_strength = 0;
     	double[][] pwm = new double[length][MAXLETTERVAL];
@@ -4319,40 +4317,22 @@ class KPPMixture extends MultiConditionFeatureFinder {
      		int pos_motif = motifStartInSeq.get(i);	
     		if (pos_motif<0 ||seq.length()-pos_motif<config.k)
     			continue;
-    		String subSeq=null;
-    		if (fixedLength){
-    			int left = pos_motif+config.k/2-(int)(0.4*config.k_win);
-        		int right = pos_motif+config.k/2+(int)(0.4*config.k_win);
-        		if (left<0){
-        			left = 0;
-        			right = length;
-        		}
-        		if (right>seq.length()){
-        			right = seq.length();
-        			left = seq.length()-length;
-        		}
-        		subSeq = seq.substring(left, right);
-        		if (seqLen==seq.length()){		// if length is not k_win+1, binding position may not be in middle
-	        		sum_offsetXstrength += strength*(config.k_win/2-left);
-	        		sum_strength += strength;
-	        		allOffsets.add(config.k_win/2-left);
-        		}
-    		}
-    		else{
-    			int start =pos_motif-leftMost;
-    			subSeq = seq.substring(start, start+shortest);
-    			if (seqLen==seq.length()){		// if length is not k_win+1, binding position may not be in middle
-	    			sum_offsetXstrength += strength*(config.k_win/2-start);
-	        		sum_strength += strength;
-	        		allOffsets.add(config.k_win/2-start);
-    			}
-    		}
+			int start =pos_motif-leftMost;
+    		if(start<0 || start+length>seq.length())
+    			continue;
+			String subSeq = seq.substring(start, start+length);
+			if (seqLen==seq.length()){		// if length is not k_win+1, binding position may not be in middle
+    			sum_offsetXstrength += strength*(config.k_win/2-start);
+        		sum_strength += strength;
+        		allOffsets.add(config.k_win/2-start);
+			}
     		for (int p=0;p<length;p++){
     			char base = subSeq.charAt(p);
     			pwm[p][base] +=strength;
     		}
     		pwm_seqs.append(subSeq).append("\n");
     	}
+    	
     	// average all the GPS binding positions to decide the binding position in the PWM
     	// weighted by strength if "use_strength" is true
     	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean
