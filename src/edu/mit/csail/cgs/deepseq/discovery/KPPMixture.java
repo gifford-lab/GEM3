@@ -3567,7 +3567,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
 	    	CommonUtils.writeFile(outName+"_PFM.txt", sb_pfm.toString());
 	    	sb_kmer.append("Total kmer groups: " + clusters.size());
-	    	CommonUtils.writeFile(outName+"_AlignedKmers.txt", sb_kmer.toString());
+	    	CommonUtils.writeFile(outName+"_Kmers_Aligned.txt", sb_kmer.toString());
 	    	CommonUtils.writeFile(outName+"_Kmers.fa", sb_fa.toString());
 		}
 
@@ -3751,9 +3751,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (wm==null){
     		return motifCluster;
     	}
-    	System.out.println("After clusterByKmer()\n" +
-    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
-    			WeightMatrix.printMatrixLetters(wm));
+//    	System.out.println("After clusterByKmer()\n" +
+//    			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
+//    			WeightMatrix.printMatrixLetters(wm));
     	while(!noMore){
     		// Save the current state
     		MotifCluster old = motifCluster.clone();
@@ -3778,9 +3778,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			return old;
     		}
     		else{
-            	System.out.println("After clusterByPWM()\n" +
-            			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
-            			WeightMatrix.printMatrixLetters(wm));    			
+//            	System.out.println("After clusterByPWM()\n" +
+//            			CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
+//            			WeightMatrix.printMatrixLetters(wm));    			
     		}
         	if (wm.length()<=config.k*3/4)		// PWM is too short for further analysis
         		return motifCluster;
@@ -4039,7 +4039,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	for (Kmer km: motifCluster.alignedKmers){
     		String kmStr = km.getKmerString();
     		if (alignedKmers.containsKey(kmStr)){
-    			System.err.println("ClusterByPWM: "+kmStr+" duplicated!");
+//    			System.err.println("ClusterByPWM: "+kmStr+" duplicated!");
     			Kmer oldKmer = alignedKmers.get(kmStr);
     			oldKmer.setSeqHitCount(oldKmer.getSeqHitCount()+km.getSeqHitCount());
     			oldKmer.incrStrength(km.getStrength());
