@@ -23,19 +23,27 @@ public class Kmer implements Comparable<Kmer>{
 	
 	Kmer reference;		//
 	public Kmer getRef(){return reference;}
-	int shift;			// the shift to achieve best score
+	int shift;			// the position relative to seedKmer, after aligning this kmer to seedKmer
 	public int getShift(){return shift;}
+	public void setShift(int s){shift=s;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer
 	public int getScore(){return score;}	
+	String alignString;
+	public void setAlignString(String str){alignString=str;}
+	public String getAlignString(){return alignString;}
+	
 	/**
-	 *  The shift of kmer start from the middle of motif(PWM) (Pos_kmer-Pos_wm)
+	 *  The offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)
 	 */
-	int kmerShift;			
+	int kmerStartOffset;			
 	/**
-	 *  Get the shift of kmer start from the middle of motif(PWM) (Pos_kmer-Pos_wm)
+	 *  Get the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)
 	 */
-	 public int getKmerShift(){return kmerShift;}
-	public void setKmerShift(int s){kmerShift=s;}
+	public int getKmerStartOffset(){return kmerStartOffset;}
+	/**
+	 *  Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)
+	 */
+	public void setKmerStartOffset(int s){kmerStartOffset=s;}
 	int group=-1;			// the group of motif
 	public int getGroup(){return group;}
 	public void setGroup(int g){group=g;}
@@ -45,9 +53,9 @@ public class Kmer implements Comparable<Kmer>{
 		this.k = kmerString.length();
 		this.seqHitCount = hitCount;
 		if (randomEngine.nextDouble()>0.5)
-			this.kmerShift = -(this.k-1-(this.k-1)/2);
+			this.kmerStartOffset = -(this.k-1-(this.k-1)/2);
 		else
-			this.kmerShift = -(this.k-1)/2;
+			this.kmerStartOffset = -(this.k-1)/2;
 	}
 	
 	/** 
@@ -82,7 +90,7 @@ public class Kmer implements Comparable<Kmer>{
 		if (hg_lg==Double.NEGATIVE_INFINITY)
 			hg_lg=-100;
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg)+
-			   "\t"+String.format("%.1f", strength)+"\t"+kmerShift;
+			   "\t"+String.format("%.1f", strength)+"\t"+kmerStartOffset;
 	}
 	public static String toHeader(){
 		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tStrengt\tOffset";
@@ -97,98 +105,98 @@ public class Kmer implements Comparable<Kmer>{
 	public void incrSeqHitCount() {
 		seqHitCount++;
 	}
-	
-	/** 
-	 * Set the reference Kmer
-	 * Find the best score, strand(RC), shift for this Kmer to align with reference Kmer 
-	 * @param ref
-	 */
-	public void setReference(Kmer ref){
-		reference = ref;
-		byte[] thisBytes = kmerString.getBytes();
-		byte[] refBytes = ref.kmerString.getBytes();
-		score = 0;
-		shift = -99;
-		for (int s=-2;s<=+2;s++){
-			int count = 0;
-			for (int i=-2;i<refBytes.length+2;i++){
-				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
-					continue;
-				if (refBytes[i]==thisBytes[i+s]){
-					count ++;
-				}
-			}
-			if (count>score){
-				score = count;
-				shift = s;
-			}
-		}
-		// try RC
-		byte[] rcBytes = getKmerRC().getBytes();
-		boolean useRC=false;
-		for (int s=-2;s<=+2;s++){
-			int count = 0;
-			for (int i=-2;i<refBytes.length+2;i++){
-				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
-					continue;
-				if (refBytes[i]==rcBytes[i+s]){
-					count ++;
-				}
-			}
-			if (count>score){
-				score = count;
-				shift = s;
-				useRC = true;
-			}
-		}
-		if (useRC)
-			RC();
-	}
-	
-	/**
-	 * Extend this kmer from reference kmer, if they are only offset base off
-	 * @param ref
-	 */
-	public boolean extendKmer(Kmer ref, int offset){
-		reference = ref;
-		byte[] thisBytes = kmerString.getBytes();
-		byte[] refBytes = ref.kmerString.getBytes();
-		score = 0;
-		shift = -99;
-		for (int s=-offset;s<=offset;s++){
-			for (int i=-offset;i<refBytes.length+offset;i++){
-				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
-					continue;
-				if (refBytes[i]!=thisBytes[i+s])	// if mismatch
-					break;
-			}
-			score = refBytes.length-Math.abs(s);
-			shift = s;
-		}
-		// try RC
-		byte[] rcBytes = getKmerRC().getBytes();
-		boolean useRC=false;
-		for (int s=-offset;s<=offset;s++){
-			for (int i=-offset;i<refBytes.length+offset;i++){
-				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
-					continue;
-				if (refBytes[i]!=rcBytes[i+s])	// if mismatch
-					break;
-			}
-			int thisScore = refBytes.length-Math.abs(s);
-			if (thisScore>score){
-				score = thisScore;
-				useRC = true;
-			}
-			shift = s;
-		}
-		
-		if (useRC)
-			RC();
-		
-		return score>0;
-	}
-	
+//	
+//	/** 
+//	 * Set the reference Kmer
+//	 * Find the best score, strand(RC), shift for this Kmer to align with reference Kmer 
+//	 * @param ref
+//	 */
+//	public void setReference(Kmer ref){
+//		reference = ref;
+//		byte[] thisBytes = kmerString.getBytes();
+//		byte[] refBytes = ref.kmerString.getBytes();
+//		score = 0;
+//		shift = -99;
+//		for (int s=-2;s<=+2;s++){
+//			int count = 0;
+//			for (int i=-2;i<refBytes.length+2;i++){
+//				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
+//					continue;
+//				if (refBytes[i]==thisBytes[i+s]){
+//					count ++;
+//				}
+//			}
+//			if (count>score){
+//				score = count;
+//				shift = s;
+//			}
+//		}
+//		// try RC
+//		byte[] rcBytes = getKmerRC().getBytes();
+//		boolean useRC=false;
+//		for (int s=-2;s<=+2;s++){
+//			int count = 0;
+//			for (int i=-2;i<refBytes.length+2;i++){
+//				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
+//					continue;
+//				if (refBytes[i]==rcBytes[i+s]){
+//					count ++;
+//				}
+//			}
+//			if (count>score){
+//				score = count;
+//				shift = s;
+//				useRC = true;
+//			}
+//		}
+//		if (useRC)
+//			RC();
+//	}
+//	
+//	/**
+//	 * Extend this kmer from reference kmer, if they are only offset base off
+//	 * @param ref
+//	 */
+//	public boolean extendKmer(Kmer ref, int offset){
+//		reference = ref;
+//		byte[] thisBytes = kmerString.getBytes();
+//		byte[] refBytes = ref.kmerString.getBytes();
+//		score = 0;
+//		shift = -99;
+//		for (int s=-offset;s<=offset;s++){
+//			for (int i=-offset;i<refBytes.length+offset;i++){
+//				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
+//					continue;
+//				if (refBytes[i]!=thisBytes[i+s])	// if mismatch
+//					break;
+//			}
+//			score = refBytes.length-Math.abs(s);
+//			shift = s;
+//		}
+//		// try RC
+//		byte[] rcBytes = getKmerRC().getBytes();
+//		boolean useRC=false;
+//		for (int s=-offset;s<=offset;s++){
+//			for (int i=-offset;i<refBytes.length+offset;i++){
+//				if (i<0 || i>refBytes.length-1 ||i+s<0 || i+s>refBytes.length-1 )
+//					continue;
+//				if (refBytes[i]!=rcBytes[i+s])	// if mismatch
+//					break;
+//			}
+//			int thisScore = refBytes.length-Math.abs(s);
+//			if (thisScore>score){
+//				score = thisScore;
+//				useRC = true;
+//			}
+//			shift = s;
+//		}
+//		
+//		if (useRC)
+//			RC();
+//		
+//		return score>0;
+//	}
+//	
 	/**
 	 * calculate the best shift for input kmer to align with this kmer
 	 * allow for 2 mismatches, or 1 shift + 1 mismatch, or 2 shift
@@ -238,11 +246,6 @@ public class Kmer implements Comparable<Kmer>{
 		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
 	}
 	
-//	public static void main(String[] args){
-//		Kmer k1 = new Kmer("CCAGAAGAGGGC", 32);
-//		Kmer k2 = new Kmer("CCCTCTTCTGGC", 3);
-//		k2.setReference(k1);
-//		System.out.println(k2.getShift());
-//	}
+
 	
 }

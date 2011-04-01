@@ -131,9 +131,9 @@ public class KmerEngine {
 			int start = 0;
 			double rand = randomEngine.nextDouble();
 			if (rand>0.5)
-				start = (int) (posRegion.getEnd()+1 + (winShift-posRegion.getWidth())*rand);
+				start = (int) (posRegion.getEnd()+1 + winShift*rand);
 			else
-				start =(int) (posRegion.getStart()-1 - (winShift- posRegion.getWidth())*(1-rand));
+				start =(int) (posRegion.getStart()-1 - winShift*(1-rand));
 			int end = start + posRegion.getWidth()-1;			// end inclusive
 			if (start < 0 || end >= genome.getChromLength(posRegion.getChrom()))
 				continue;
@@ -266,6 +266,8 @@ public class KmerEngine {
 				kmerAllHitCount += kmer.negCount;
 			}
 			if (kmer.seqHitCount < kmer.negCount * k_fold){
+//				if (kmer.seqHitCount>10)
+//					System.out.println(String.format("%s count %d (positive) vs %d (negative), ignored.", kmer.getKmerString(), kmer.seqHitCount, kmer.negCount));
 				toRemove.add(kmer);	
 				continue;
 			}
@@ -354,14 +356,14 @@ public class KmerEngine {
 			Kmer kmer = str2kmer.get(kmerStr);
 			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
 			for (int p: pos){
-				int x = p-kmer.getKmerShift();	// minus kmerShift to get the motif position
+				int x = p-kmer.getKmerStartOffset();	// minus kmerShift to get the motif position
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
 			}
 			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
 			for (int p: pos_rc){
-				int x = p-kmer.getKmerShift();	// motif position in seqRC
+				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
 				x = -(seq.length()-1-x);		// convert to position in Seq, "-" for reverse strand
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());

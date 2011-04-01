@@ -27,6 +27,7 @@ public class WeightMatrix {
     public static char[] revCompLetters = {'T','G','A','C'};
 
     public float[][] matrix;
+    public String consensus;
     public String name, version, type, species;
     public int dbid, speciesid;
     public boolean hasdbid, hasspeciesid; // set to true iff dbid is valid
