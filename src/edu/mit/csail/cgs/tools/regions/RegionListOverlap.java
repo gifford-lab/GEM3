@@ -37,6 +37,13 @@ public class RegionListOverlap {
         int onecount = count(one);
         int twocount = count(two);
 
+        Map<Region, Boolean> foundTwo = new HashMap<Region,Boolean>();
+        for (String chrom : two.keySet()) {
+            for (Region r : two.get(chrom)) {
+                foundTwo.put(r,Boolean.FALSE);
+            }
+        }
+
         for (String chrom : one.keySet()) {
             if (!two.containsKey(chrom)) { continue;}
             List<Region> lone = one.get(chrom);
@@ -48,6 +55,7 @@ public class RegionListOverlap {
                 boolean found = false;
                 for (Region o : ltwo) {
                     if (r.overlaps(o)) {
+                        foundTwo.put(o, Boolean.TRUE);
                         if (stats) {
                             System.out.println("TP\t" + orig);
                         } else {
@@ -64,10 +72,18 @@ public class RegionListOverlap {
 
             }
         }
+        int fn = 0;
+        for (Region r : foundTwo.keySet()) {
+            if (!foundTwo.get(r)) {
+                System.out.println("FN\t" + r);
+                fn++;
+            }
+
+        }
+
         if (stats) {
             int tp = overlap;
             int fp = onecount - overlap;
-            int fn = twocount - overlap;
             double tprate = ((double)tp) / onecount;
             double fnrate = 1 - ((double)overlap) / twocount;
             System.out.println(String.format("n=%d  tp=%d  fp=%d  fn=%d   tpr=%.2f   fnr=%.2f",
