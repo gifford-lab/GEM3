@@ -216,18 +216,28 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
     
     public TreeMap<Integer,Float> getSelfHistogram() throws IOException, ClientException {
     	int[] profile = new int[region.getWidth()];
-		Set<PairedHit> hitset = getHitSet(region);
+		int shift = props.SelfLigationCutoff+props.SmoothingWindowWidth;
+		int halfWindow = props.SmoothingWindowWidth/2;
+		Region expanded = region.expand(shift, shift);
+		int[] eprofile = new int[expanded.getWidth()];
+		Set<PairedHit> hitset = getHitSet(expanded);
 		for (PairedHit p : hitset) {
-			if (p==null) System.err.println("null PairedHit");
 			if (isSelfLigation(p)) {
 				int startpos = p.leftPos < p.rightPos ? p.leftPos : p.rightPos;
 				int endpos = p.leftPos < p.rightPos ? p.rightPos : p.leftPos;
-				startpos = Math.max(startpos-region.getStart(), 0);
-				endpos = Math.min(endpos-region.getStart(), region.getWidth());
+				startpos = Math.max(startpos-expanded.getStart(), 0);
+				endpos = Math.min(endpos-expanded.getStart(), expanded.getWidth());
 				for (int i=startpos; i<endpos; i++) {
-					profile[i]++;
+					eprofile[i]++;
 				}
 			}
+		}
+		for (int i=0; i<profile.length; i++) {
+			int sum = 0;
+			for (int j=shift+i-halfWindow; j<shift+i+1+halfWindow; j++) {
+				sum += eprofile[j];
+			}
+			profile[i] = sum / (1 + 2*halfWindow);
 		}
 		TreeMap<Integer,Float> output = new TreeMap<Integer,Float>();
 		for (int i=0; i<profile.length; i++) {
