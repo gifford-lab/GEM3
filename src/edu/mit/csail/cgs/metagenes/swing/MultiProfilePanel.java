@@ -144,10 +144,14 @@ public class MultiProfilePanel extends JPanel implements PaintableChangedListene
 		metrics = g2.getFontMetrics();
 		
 		//Legend
+		int maxLegendWidth =0;
 		for(int p=0; p<profiles.size(); p++){
+			String counter=String.format("%s: %d datapoints", profiles.get(p).getName(), profiles.get(p).getNumProfiles());
+			maxLegendWidth = Math.max(maxLegendWidth, metrics.stringWidth(counter));
+		}for(int p=0; p<profiles.size(); p++){
 			g2.setColor(peakColors[p%peakColors.length]);
 			String counter=String.format("%s: %d datapoints", profiles.get(p).getName(), profiles.get(p).getNumProfiles());
-			g2.drawString(counter, w-border-metrics.stringWidth(counter), fontSize+(fontSize*p));
+			g2.drawString(counter, w-border-maxLegendWidth, fontSize+(fontSize*p));
 		}
 		
 		//Paint labels & Y-axis stuff 
