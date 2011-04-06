@@ -65,8 +65,8 @@ public class ProfilePaintable extends AbstractPaintable implements ProfileListen
 				xs[i] = x; ys[i] = y;
 			}
 		
-			g2.setColor(Color.white);
-			g2.fillRect(x1, y1, w, h);
+			//g2.setColor(Color.white);
+			//g2.fillRect(x1, y1, w, h);
 			g2.setColor(col);
 			
 			if(style.equals("Histo")){
