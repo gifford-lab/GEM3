@@ -55,32 +55,35 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		int end = Math.min(a.getLocation()+right, a.getGenome().getChromLength(a.getChrom())-1);
 		
 		Region query = new Region(a.getGenome(), a.getChrom(), start, end);
+		Region extQuery = new Region(a.getGenome(), a.getChrom(), start-extension>0 ? start-extension : 1, end+extension < a.getGenome().getChromLength(a.getChrom()) ? end+extension : a.getGenome().getChromLength(a.getChrom()) );
 		
 		double[] array = new double[params.getNumBins()];
 		for(int i = 0; i < array.length; i++) { array[i] = 0; }
 		
 		for(ChipSeqExpander expander : expanders){
-			Iterator<ChipSeqHit> hits = expander.execute(query);
+			Iterator<ChipSeqHit> hits = expander.execute(extQuery);
 			while(hits.hasNext()) {
 				ChipSeqHit hit=null;
 				if(useFivePrime)
 					hit = hits.next().fivePrime();
 				else
 					hit = hits.next().extendHit(extension);
-				int startOffset = Math.max(0, hit.getStart()-query.getStart());
-				int endOffset = Math.max(0, Math.min(query.getEnd(), hit.getEnd()-query.getStart()));
+				if(hit.overlaps(query)){
+					int startOffset = Math.max(0, hit.getStart()-start);
+					int endOffset = Math.max(0, Math.min(end, hit.getEnd()-start));
 				
-				if(!strand) { 
-					int tmpEnd = window-startOffset;
-					int tmpStart = window-endOffset;
-					startOffset = tmpStart;
-					endOffset = tmpEnd;
+					if(!strand) { 
+						int tmpEnd = window-startOffset;
+						int tmpStart = window-endOffset;
+						startOffset = tmpStart;
+						endOffset = tmpEnd;
+					}
+					
+					int startbin = params.findBin(startOffset);
+					int endbin = params.findBin(endOffset);
+					
+					addToArray(startbin, endbin, array, 1.0);
 				}
-				
-				int startbin = params.findBin(startOffset);
-				int endbin = params.findBin(endOffset);
-				
-				addToArray(startbin, endbin, array, 1.0);				
 			}
 		}		
 		return new PointProfile(a, params, array, (a instanceof StrandedPoint));

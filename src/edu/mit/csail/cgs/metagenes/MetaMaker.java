@@ -43,7 +43,7 @@ public class MetaMaker {
 			String profilerType = Args.parseString(args, "profiler", "simplechipseq");	
 			List<String> expts = (List<String>) Args.parseStrings(args,"expt");
 			List<String> backs = (List<String>) Args.parseStrings(args,"back");
-			String peakFile = Args.parseString(args, "peaks", null);
+			List<String> peakFiles = (List<String>)Args.parseStrings(args, "peaks");
 			String outName = Args.parseString(args, "out", "meta");
 			if(Args.parseFlags(args).contains("batch")){batchRun=true;}
 			if(Args.parseFlags(args).contains("cluster")){cluster=true;}
@@ -109,25 +109,43 @@ public class MetaMaker {
 			
 			if(batchRun){
 				System.out.println("Batch running...");
-				MetaNonFrame nonframe = new MetaNonFrame(gen, params, profiler, normalizeProfile);
-				nonframe.setColor(c);
-				MetaProfileHandler handler = nonframe.getHandler();
-				if(peakFile != null){
-					Vector<Point> points = nonframe.getUtils().loadPoints(new File(peakFile));
-					handler.addPoints(points);
-				}else{
-					Iterator<Point> points = nonframe.getUtils().loadTSSs();
-					handler.addPoints(points);
+				
+				if(peakFiles.size()==1 || peakFiles.size()==0){
+					MetaNonFrame nonframe = new MetaNonFrame(gen, params, profiler, normalizeProfile);
+					nonframe.setColor(c);
+					MetaProfileHandler handler = nonframe.getHandler();
+					if(peakFiles.size()==1){
+						System.out.println("Single set mode...");
+						String peakFile = peakFiles.get(0);
+						Vector<Point> points = nonframe.getUtils().loadPoints(new File(peakFile));
+						handler.addPoints(points);
+					}else{
+						System.out.println("All TSS mode...");
+						Iterator<Point> points = nonframe.getUtils().loadTSSs();
+						handler.addPoints(points);
+					}
+					while(handler.addingPoints()){}
+					if(cluster)
+						nonframe.clusterLinePanel();
+					//Set the panel sizes here...
+					nonframe.setLineMin(lineMin);
+					nonframe.setLineMax(lineMax);
+					nonframe.setLineThick(lineThick);
+					nonframe.saveImages(outName);
+					nonframe.savePointsToFile(outName);					
+				}else if(peakFiles.size()>1){
+					System.out.println("Multiple set mode...");
+					MetaNonFrameMultiSet multinonframe = new MetaNonFrameMultiSet(peakFiles.size(),gen, params, profiler, normalizeProfile);
+					for(int x=0; x<peakFiles.size(); x++){
+						String pf = peakFiles.get(x);
+						Vector<Point> points = multinonframe.getUtils().loadPoints(new File(pf));
+						List<MetaProfileHandler> handlers = multinonframe.getHandlers();
+						handlers.get(x).addPoints(points);
+						while(handlers.get(x).addingPoints()){}
+					}
+					multinonframe.saveImage(outName);
+					multinonframe.savePointsToFile(outName);
 				}
-				while(handler.addingPoints()){}
-				if(cluster)
-					nonframe.clusterLinePanel();
-				//Set the panel sizes here...
-				nonframe.setLineMin(lineMin);
-				nonframe.setLineMax(lineMax);
-				nonframe.setLineThick(lineThick);
-				nonframe.saveImages(outName);
-				nonframe.savePointsToFile(outName);
 				System.out.println("Finished");
 				if(profiler!=null)
 					profiler.cleanup();
@@ -139,10 +157,12 @@ public class MetaMaker {
 				frame.setLineMin(lineMin);
 				frame.setLineThick(lineThick);
 				frame.startup();
-				if(peakFile != null){
+				if(peakFiles.size() > 0){
 					MetaProfileHandler handler = frame.getHandler();
-					Vector<Point> points = frame.getUtils().loadPoints(new File(peakFile));
-					handler.addPoints(points);					
+					for(String pf : peakFiles){
+						Vector<Point> points = frame.getUtils().loadPoints(new File(pf));
+						handler.addPoints(points);
+					}
 				}
 				frame.setLineMax(lineMax);
 				frame.setLineMin(lineMin);
