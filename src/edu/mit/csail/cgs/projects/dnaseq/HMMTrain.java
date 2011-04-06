@@ -99,8 +99,9 @@ public abstract class HMMTrain extends DNASeqEnrichmentCaller {
         int trainedon = 0;
         for (Region region : getTrainingRegions()) {
             newTrainingRegion(region);
-            System.err.println("Trainig on " + region);
-            ReadCounts readcounts = reads.getReadCounts(region, getAlignments());
+            System.err.println("Training on " + region);
+            ReadCounts readcounts = reads.getReadCounts(region, getFGAlignments(), getBGAlignments());
+
             List<? extends Region> dnaseqevents = getHyperSensitiveRegions(region, readcounts);
             int start = region.getStart();
             for (Region sensitiveRegion : dnaseqevents) {

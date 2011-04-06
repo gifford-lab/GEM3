@@ -58,13 +58,14 @@ public class MultiMotifHMMTest {
     private String stateNames[];
 
     public MultiMotifHMMTest() throws IOException, ClientException, SQLException {
-        reads = new HMMReads();
         loader = new ChipSeqLoader();
+        reads = new HMMReads();
     }
     public void parseArgs(String args[]) throws NotFoundException, SQLException, IOException {
         modelFname = Args.parseString(args,"modelfile","hmm.model");
         genome = Args.parseGenome(args).cdr();
         testRegions = Args.parseRegions(args);
+        reads.smooth(Args.parseInteger(args,"smooth",0));
         ChipSeqAnalysis dnaseq = Args.parseChipSeqAnalysis(args,"dnaseq");
         alignments = new ArrayList<ChipSeqAlignment>();
         alignments.addAll(dnaseq.getForeground());

@@ -20,7 +20,7 @@ import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 public class PrintBindingCalls {
     private WeightMatrix motif;
     private ChipSeqLoader loader;
-    private ChipSeqAnalysis binding;
+    private ChipSeqAnalysis binding, dnaseq;
     private Genome genome;
     private SequenceGenerator seqgen;
     private float motifCutoff;
@@ -34,6 +34,12 @@ public class PrintBindingCalls {
     public void parseArgs(String args[]) throws SQLException, NotFoundException {
         binding = Args.parseChipSeqAnalysis(args,"chipseq");
         bindingDistance = Args.parseInteger(args,"distance",10);
+        dnaseq = null;
+        try {
+            dnaseq = Args.parseChipSeqAnalysis(args,"dnaseq");
+        } catch (RuntimeException e) {
+            // don't worry, this just means none was specified
+        }
         genome = Args.parseGenome(args).cdr();
         Collection<WeightMatrix> matrices = Args.parseWeightMatrices(args);
         Iterator<WeightMatrix> iter = matrices.iterator();
@@ -62,10 +68,32 @@ public class PrintBindingCalls {
         regions = Args.parseRegionsOrDefault(args);
     }
     public void run() throws SQLException {
+
         for (Region region : regions) {
+            List<ChipSeqAnalysisResult> dnaseqResults = null;
+            if (dnaseq != null) {
+                dnaseqResults = new ArrayList<ChipSeqAnalysisResult>();
+                for (ChipSeqAnalysisResult r : dnaseq.getResults(genome, region)) {
+                    dnaseqResults.add(r);
+                }
+            }
+            
+
             if (motif == null) {
                 for (ChipSeqAnalysisResult result : binding.getResults(genome, region)) {
-                    System.out.println(result.toString());
+                    boolean print = true;
+                    if (dnaseq != null) {
+                        print = false;
+                        for (ChipSeqAnalysisResult d : dnaseqResults) {
+                            if (d.overlaps(result)) {
+                                print = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (print) {
+                        System.out.println(result.toString());
+                    }
                 }
             } else {
                 char[] sequence = seqgen.execute(region).toCharArray();
@@ -83,8 +111,20 @@ public class PrintBindingCalls {
                     int pos = motifHitStarts[i] + motif.length();
                     for (Region b : bindingEvents) {
                         if (pos >= b.getStart() && pos <= b.getEnd()) {
-                            System.out.println(region.getChrom() + ":" + motifHitStarts[i] + "-" + (motifHitStarts[i] + motif.length()));
-                            break;
+                            boolean print = true;
+                            if (dnaseq != null) {
+                                print = false;
+                                for (ChipSeqAnalysisResult d : dnaseqResults) {
+                                    if (d.overlaps(b)) {
+                                        print = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (print) {                            
+                                System.out.println(region.getChrom() + ":" + motifHitStarts[i] + "-" + (motifHitStarts[i] + motif.length()));
+                                break;
+                            }
                         }
                     }
                 }

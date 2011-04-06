@@ -220,7 +220,6 @@ public class DNASeqEnrichmentCaller {
 
         double fold = Math.min(fc / (bc * channelScalingFactor),
                                fc / (totalFgReads * sensitiveRegionWindowSize / 2080000000.0));
-        System.err.println("FG is " + fc + " and bg is " + bc + " and fold is " + fold);
 
         return new ChipSeqAnalysisResult(r.getGenome(), r.getChrom(), r.getStart(), r.getEnd(), 
                                          (r.getStart() + r.getEnd()) / 2,                                         
