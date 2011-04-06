@@ -118,12 +118,8 @@ public class MultiProfilePanel extends JPanel implements PaintableChangedListene
 		boolean isStranded=false;
 		FontMetrics metrics;
 		
-		//Profiles
+		//Params
 		for(int p=0; p<profiles.size(); p++){
-			profilePainters.get(p).setColor(peakColors[p%peakColors.length]);
-			profilePainters.get(p).setStyle(style);
-			profilePainters.get(p).paintItem(g, border, 0, w, h-border);
-			
 			if(binPix < w / (profiles.get(p).length()+1))
 				binPix = w / (profiles.get(p).length()+1);
 			if(profileLength < profiles.get(p).length())
@@ -133,6 +129,15 @@ public class MultiProfilePanel extends JPanel implements PaintableChangedListene
 			if(profileMin > profiles.get(p).min())
 				profileMin = profiles.get(p).min();
 			isStranded = isStranded || profiles.get(p).isStranded();
+			
+			scale.setScale(profileMin, profileMax);
+		}
+	
+		//Profiles
+		for(int p=0; p<profiles.size(); p++){
+			profilePainters.get(p).setColor(peakColors[p%peakColors.length]);
+			profilePainters.get(p).setStyle(style);
+			profilePainters.get(p).paintItem(g, border, 0, w, h-border);
 		}
 		
 		g2.setFont(new Font("Arial", Font.PLAIN, fontSize));

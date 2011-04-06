@@ -57,7 +57,11 @@ public class ProfilePaintable extends AbstractPaintable implements ProfileListen
 		
 		// Make sure that the profile doesn't change out from underneath us... 
 		synchronized(profile) { 
-			scale.setScale(profile.min(), profile.max());
+			if(profile.min()<scale.getMin())
+				scale.setScale(profile.min(), scale.getMax());
+			if(profile.max()>scale.getMax())
+				scale.setScale(scale.getMin(), profile.max());
+			
 			for(int i = 0; i < params.getNumBins(); i++) { 
 				int x = x1 + (i+1)*binPix;
 				double yf= scale.fractionalOffset(profile.value(i));
