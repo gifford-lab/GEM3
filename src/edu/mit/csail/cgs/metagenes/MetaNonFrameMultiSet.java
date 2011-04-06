@@ -56,13 +56,13 @@ public class MetaNonFrameMultiSet{
 			for(Profile q : profiles)
 				fout.write("\t"+q.getName());
 			fout.write("\n");
-			int i=0;
-			for(int  k= start; k<params.getWindowSize(); k+=step){
+			int k= start;
+			for(int i=0; i<params.getNumBins(); i++){
 				fout.write(k);
 				for(Profile q : profiles)
 					fout.write("\t"+q.value(i));
 				fout.write("\n");
-				i++;
+				k+=step;
 			}			
 			fout.close();
 		} catch (IOException e) {
