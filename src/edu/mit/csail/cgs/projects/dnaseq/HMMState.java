@@ -39,7 +39,7 @@ class HMMState {
     }
     public int[] getCounts() {return readCounts;}
     public double getProb(char letter,
-                        int reads) {
+                          int reads) {
 
         double lcount, rcount;
         if (letter == 'A' || letter == 'a') {

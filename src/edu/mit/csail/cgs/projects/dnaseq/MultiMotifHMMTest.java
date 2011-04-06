@@ -40,7 +40,7 @@ public class MultiMotifHMMTest {
     private Genome genome;
     private SequenceGenerator seqgen;
     private List<Region> testRegions;
-    private List<ChipSeqAlignment> alignments;
+    private List<ChipSeqAlignment> alignments, bgAlignments;
     private String modelFname;
     private List<WeightMatrix> matrices;
     private List<HMM> trainedSingleMotifHMMs;
@@ -58,16 +58,23 @@ public class MultiMotifHMMTest {
     private String stateNames[];
 
     public MultiMotifHMMTest() throws IOException, ClientException, SQLException {
-        reads = new HMMReads();
         loader = new ChipSeqLoader();
+        reads = new HMMReads();
     }
     public void parseArgs(String args[]) throws NotFoundException, SQLException, IOException {
         modelFname = Args.parseString(args,"modelfile","hmm.model");
         genome = Args.parseGenome(args).cdr();
         testRegions = Args.parseRegions(args);
+        reads.smooth(Args.parseInteger(args,"smooth",0));
         ChipSeqAnalysis dnaseq = Args.parseChipSeqAnalysis(args,"dnaseq");
         alignments = new ArrayList<ChipSeqAlignment>();
         alignments.addAll(dnaseq.getForeground());
+        bgAlignments = new ArrayList<ChipSeqAlignment>();
+        bgAlignments.addAll(dnaseq.getBackground());
+        List<ChipSeqLocator> bg = Args.parseChipSeq(args,"dnaseqbg");
+        for (ChipSeqLocator locator : bg) {
+            bgAlignments.addAll(loader.loadAlignments(locator,genome));
+        }
         seqgen = new SequenceGenerator(genome);
         seqgen.useLocalFiles(true);
         seqgen.useCache(true);
@@ -142,26 +149,34 @@ public class MultiMotifHMMTest {
         possiblePreviousStates[0] = new short[2];
         possiblePreviousStates[0][0] = 0;
         possiblePreviousStates[0][1] = 1;
-        transitions[0][0] = .99999;
-        transitions[0][1] = .00001;
+        transitions[0][0] = baseModel.transitions[0][0];
+        transitions[0][1] = baseModel.transitions[0][1];
         stateNames[0] = "unenriched";
 
         possiblePreviousStates[1] = new short[2 + matrices.size() + 2*trainedSingleMotifHMMs.size()];
         possiblePreviousStates[1][0] = 0;
         possiblePreviousStates[1][1] = 1;
-        transitions[1][0] = .005;
-        transitions[1][1] = .990;
+        transitions[1][0] = baseModel.transitions[1][0];
+        double oneOneSelf = baseModel.transitions[1][1];
+        double avgTrainedTransition = 0;
+        for (int i = 0; i < trainedSingleMotifHMMs.size(); i++) {
+            avgTrainedTransition += trainedSingleMotifHMMs.get(i).transitions[1][2];
+        }
+        avgTrainedTransition /= trainedSingleMotifHMMs.size();
         for (int i = 0; i < matrices.size(); i++) {
             possiblePreviousStates[1][2+i] = (short)(firstMotifState[i] + matrices.get(i).length() - 1);
-            transitions[1][firstMotifState[i]] = .005 / (double)(numStates - 2);
+            transitions[1][firstMotifState[i]] = avgTrainedTransition;
+            oneOneSelf -= avgTrainedTransition;
         }
         for (int i = 0; i < trainedSingleMotifHMMs.size(); i++) {
             possiblePreviousStates[1][2+matrices.size()+i*2] = (short)(firstModelState[i*2] + (trainedSingleMotifHMMs.get(i).numStates-2)/2 - 1);
             possiblePreviousStates[1][2+matrices.size()+i*2+1] = (short)(firstModelState[i*2+1] + (trainedSingleMotifHMMs.get(i).numStates-2)/2 - 1);
-            transitions[1][firstModelState[i*2]] = .005 / (double)(numStates - 2);
-            transitions[1][firstModelState[i*2+1]] = .005 / (double)(numStates - 2);
-        }
+            transitions[1][firstModelState[i*2]] = trainedSingleMotifHMMs.get(i).transitions[1][2];
+            transitions[1][firstModelState[i*2+1]] = trainedSingleMotifHMMs.get(i).transitions[1][2];
 
+            oneOneSelf -= 2* trainedSingleMotifHMMs.get(i).transitions[1][2];
+        }
+        transitions[1][1] = oneOneSelf;
         stateNames[1] = "enriched";
 
         int[] sensReadCounts = sensitive.getCounts();
@@ -253,8 +268,14 @@ public class MultiMotifHMMTest {
     public void test() throws IOException, ClientException, SQLException {
         for (Region region : getTestRegions()) {
             char[] sequence = seqgen.execute(region).toCharArray();
+            for (int i = 0; i < sequence.length; i++) {
+                if (sequence[i] == 'N') {
+                    sequence[i] = 'A';
+                }
+            }
             ReadCounts counts = reads.getReadCounts(region,
-                                                    alignments);
+                                                    alignments,
+                                                    bgAlignments);
             int readCounts[] = counts.getCounts();
 
             System.err.println("Running Forward-Backward on " + region);
@@ -273,7 +294,7 @@ public class MultiMotifHMMTest {
                     System.err.println(String.format("%d  %c  %d: ",t + region.getStart(), sequence[t],readCounts[t]));
                 }
                 for (short s = 0; s < states.length; s++) {
-                    double dataprob = Math.log(states[s].getProb(sequence[t], readCounts[t]) + .01);
+                    double dataprob = Math.log(states[s].getProb(sequence[t], readCounts[t]) + .000001);
                     if (Double.isNaN(dataprob)) {
                         throw new RuntimeException(String.format("dp is nan in %d from %c, %d",
                                                                  s, sequence[t], readCounts[t]));

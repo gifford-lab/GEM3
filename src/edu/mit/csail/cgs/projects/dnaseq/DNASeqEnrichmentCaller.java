@@ -50,22 +50,24 @@ public class DNASeqEnrichmentCaller {
     private int sensitiveRegionWindowStep = 10;
     private int combineRegionsGap = 40;
     private int minimumRegionWidth = 60;
-    private int totalFgReads, totalBgReads;
+    private double totalFgReads, totalBgReads;
     private double channelScalingFactor, minFoldChange, subsample;
     private List<ChipSeqAlignment> alignments, bgAlignments;
 
     private List<Region> regionsToCall;
 
     public DNASeqEnrichmentCaller() throws IOException, ClientException, SQLException {
-        reads = new HMMReads();
         loader = new ChipSeqLoader();
         DRand re = new DRand();
 		poisson = new Poisson(0, re);
+        reads = new HMMReads();
     }
     public Genome getGenome() {return genome;}
     public HMMReads getReads() {return reads;}
     public List<Region> getRegionsToCall() {return regionsToCall;}
     public List<ChipSeqAlignment> getAlignments() {return alignments;}
+    public List<ChipSeqAlignment> getBGAlignments() {return bgAlignments;}
+    public List<ChipSeqAlignment> getFGAlignments() {return alignments;}
     public void parseArgs(String args[]) throws NotFoundException, SQLException, IOException {
         genome = Args.parseGenome(args).cdr();
         alignments = new ArrayList<ChipSeqAlignment>();
@@ -79,6 +81,7 @@ public class DNASeqEnrichmentCaller {
                 e.printStackTrace();
             }
         }
+        reads.smooth(Args.parseInteger(args,"smooth",0));
         subsample = Args.parseDouble(args,"subsample",2);
         if (subsample < 1) {
             reads.subSample(subsample);
@@ -113,7 +116,7 @@ public class DNASeqEnrichmentCaller {
             System.err.println(a.getDBID() + " -> " + totalFgReads);
         }
         if (subsample < 1) {
-            totalFgReads = (int)(subsample * ((double)totalFgReads));
+            totalFgReads = (int)(subsample * totalFgReads);
         }
 
         totalBgReads = 0;
@@ -121,8 +124,8 @@ public class DNASeqEnrichmentCaller {
             totalBgReads += loader.countAllHits(a);
             System.err.println(a.getDBID() + " -> " + totalBgReads);
         }
-        channelScalingFactor = ((double)totalFgReads) / ((double)totalBgReads);
-        System.err.println(String.format("Channel scaling factor is %d/%d=%.2f", totalFgReads,totalBgReads,channelScalingFactor));
+        channelScalingFactor = totalFgReads / totalBgReads;
+        System.err.println(String.format("Channel scaling factor is %.0f/%.0f=%.2f", totalFgReads,totalBgReads,channelScalingFactor));
         regionsToCall = Args.parseRegionsOrDefault(args);
     }
     public List<ChipSeqAnalysisResult> getHyperSensitiveRegions(Region queryRegion) throws ClientException, IOException {
@@ -142,24 +145,26 @@ public class DNASeqEnrichmentCaller {
 
         while (start + sensitiveRegionWindowSize < queryRegion.getEnd()) {
             int end = start + sensitiveRegionWindowSize;
-            int fgcount = 1;
-            int bgcount = 1;
+            int fgcount = 0;
+            int bgcount = 0;
             for (int i = start; i < end; i++) {
                 fgcount += fgReadCounts.getCount(i);
                 bgcount += bgReadCounts.getCount(i);
             }
-            poisson.setMean(bgcount * channelScalingFactor * minFoldChange);
+            poisson.setMean(bgcount * channelScalingFactor * minFoldChange + 1);
             double bgcdf = poisson.cdf(fgcount - 1);
-            poisson.setMean(minFoldChange * totalFgReads * sensitiveRegionWindowSize / 2080000000.0);
+            poisson.setMean(1 + minFoldChange * totalFgReads * sensitiveRegionWindowSize / 2080000000.0);
             double unicdf = poisson.cdf(fgcount - 1);
             double cdf = Math.min(unicdf, bgcdf);
+            //            System.err.println(String.format("\t %d to +%d :: %d / %d -> %.2f %.2f", start, sensitiveRegionWindowSize, fgcount, bgcount, bgcdf, unicdf));
+            //            double cdf = bgcdf;
             if (cdf >= .99) {
                 if (lastGoodStart == -1) {
                     lastGoodStart = start;
                 }
             } else {
                 if (lastGoodStart > 0) {
-                    enriched.add(new Region(queryRegion.getGenome(), queryRegion.getChrom(), lastGoodStart, start));
+                    enriched.add(new Region(queryRegion.getGenome(), queryRegion.getChrom(), lastGoodStart, start - sensitiveRegionWindowStep + sensitiveRegionWindowSize));
                 }
                 lastGoodStart = -1;
             }
@@ -212,14 +217,17 @@ public class DNASeqEnrichmentCaller {
         poisson.setMean(minFoldChange * totalFgReads * sensitiveRegionWindowSize / 2080000000.0);
         double unicdf = poisson.cdf((int)(fc - 1));
         double cdf = Math.min(unicdf, bgcdf);
-        
+
+        double fold = Math.min(fc / (bc * channelScalingFactor),
+                               fc / (totalFgReads * sensitiveRegionWindowSize / 2080000000.0));
+
         return new ChipSeqAnalysisResult(r.getGenome(), r.getChrom(), r.getStart(), r.getEnd(), 
                                          (r.getStart() + r.getEnd()) / 2,                                         
                                          fc, bc,
                                          0.0, //strength
                                          0.0, // shape
                                          1 - cdf, // pvalue
-                                         fc/bc); //foldchange
+                                         fold); //foldchange
     }
     public static void main(String args[]) throws Exception {
         DNASeqEnrichmentCaller caller = new DNASeqEnrichmentCaller();
@@ -228,14 +236,14 @@ public class DNASeqEnrichmentCaller {
         for (Region region : caller.getRegionsToCall()) {
             try {
                 for (ChipSeqAnalysisResult call : caller.getHyperSensitiveRegions(region)) {
-                    System.out.println(String.format("%s\t%d\t%d\t%d\t%.2f\t%.2f\t%f\t%f",
+                    System.out.println(String.format("%s\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%f",
                                                      call.getChrom(),
                                                      call.getStart(),
                                                      call.getEnd(),
                                                      (call.getStart() + call.getEnd())/2,
                                                      call.getFG(),
                                                      call.getBG(),
-                                                     (call.getFG() + 1) / (call.getBG() + 1),
+                                                     call.getFoldEnrichment(),
                                                      call.getPValue()));
                 }
             } catch (Exception e) {

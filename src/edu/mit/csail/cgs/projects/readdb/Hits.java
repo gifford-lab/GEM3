@@ -218,10 +218,10 @@ public abstract class Hits implements Closeable {
         assert(indices[0] <= indices[1]);
         assert(indices[0] >= 0);
         assert(indices[1] <= positions.size());
-        assert(positions.ib.get(indices[0]) >= startpos);
-        assert(indices[0] == 0 || positions.ib.get(indices[0] - 1) < startpos);
+        assert(indices[0] >= indices[1] || positions.ib.get(indices[0]) >= startpos);
+        assert(indices[0] == 0 || indices[0] >= indices[1] || positions.ib.get(indices[0] - 1) < startpos);
         assert(indices[1] == positions.ib.limit() || positions.ib.get(indices[1]) > lastpos);
-        assert(positions.ib.get(indices[1] - 1) <= lastpos);
+        assert(indices[0] >= indices[1] || positions.ib.get(indices[1] - 1) <= lastpos);
         return indices;
     }
     /**

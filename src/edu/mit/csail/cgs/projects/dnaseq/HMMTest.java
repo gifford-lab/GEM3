@@ -32,7 +32,7 @@ public class HMMTest {
     private Genome genome;
     private SequenceGenerator seqgen;
     private List<Region> testRegions;
-    private List<ChipSeqAlignment> alignments;
+    private List<ChipSeqAlignment> alignments, bgAlignments;
     private String modelFname;
 
     private HMM hmm;
@@ -48,11 +48,18 @@ public class HMMTest {
         ChipSeqAnalysis dnaseq = Args.parseChipSeqAnalysis(args,"dnaseq");
         alignments = new ArrayList<ChipSeqAlignment>();
         alignments.addAll(dnaseq.getForeground());
+        bgAlignments = new ArrayList<ChipSeqAlignment>();
+        bgAlignments.addAll(dnaseq.getBackground());
+        List<ChipSeqLocator> bg = Args.parseChipSeq(args,"dnaseqbg");
+        for (ChipSeqLocator locator : bg) {
+            bgAlignments.addAll(loader.loadAlignments(locator,genome));
+        }
         seqgen = new SequenceGenerator(genome);
         seqgen.useLocalFiles(true);
         seqgen.useCache(true);
         hmm = new HMM(modelFname);
         hmm.toLogProbabilities();
+
     }
     private Collection<Region> getTestRegions() throws SQLException {
         return testRegions;
@@ -62,8 +69,14 @@ public class HMMTest {
         int motiflength = (hmm.numStates - 2) / 2;
         for (Region region : getTestRegions()) {
             char[] sequence = seqgen.execute(region).toCharArray();
+            for (int i = 0; i < sequence.length; i++) {
+                if (sequence[i] == 'N') {
+                    sequence[i] = 'A';
+                }
+            }
             ReadCounts counts = reads.getReadCounts(region,
-                                                    alignments);
+                                                    alignments,
+                                                    bgAlignments);
             int readCounts[] = counts.getCounts();
 
             System.err.println("Running Forward-Backward on " + region);

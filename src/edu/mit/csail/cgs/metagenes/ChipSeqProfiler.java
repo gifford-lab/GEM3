@@ -98,11 +98,12 @@ public class ChipSeqProfiler implements PointProfiler<Point, Profile>{
 		int start = Math.max(0, a.getLocation()-left);
 		int end = Math.min(a.getLocation()+right, a.getGenome().getChromLength(a.getChrom())-1);
 		Region query = new Region(gen, a.getChrom(), start, end);
+		Region extQuery = new Region(a.getGenome(), a.getChrom(), start-(readLen+readExt)>0 ? start-(readLen+readExt) : 1, end+(readLen+readExt) < a.getGenome().getChromLength(a.getChrom()) ? end+(readLen+readExt) : a.getGenome().getChromLength(a.getChrom()) );
 		
 		LinkedList<StrandedRegion> hits = new LinkedList<StrandedRegion>();
 		LinkedList<StrandedRegion> backhits = new LinkedList<StrandedRegion>();
 		for(ChipSeqExptHandler e: handles){
-			hits.addAll(e.loadExtendedHits(query));
+			hits.addAll(e.loadExtendedHits(extQuery));
 		}
 		if(backTotalHits>0){
 			for(ChipSeqExptHandler e: ctrl_handles){
@@ -144,24 +145,7 @@ public class ChipSeqProfiler implements PointProfiler<Point, Profile>{
 		}else{
 			//Experiment hits
 			for(StrandedRegion r : hits){
-				int startOffset = Math.max(0, r.getStart()-query.getStart());
-				int endOffset = Math.max(0, Math.min(query.getEnd(), r.getEnd()-query.getStart()));
-				
-				if(!strand) { 
-					int tmpEnd = window-startOffset;
-					int tmpStart = window-endOffset;
-					startOffset = tmpStart;
-					endOffset = tmpEnd;
-				}
-				
-				int startbin = params.findBin(startOffset);
-				int endbin = params.findBin(endOffset);
-				
-				addToArray(startbin, endbin, array, 1/totalHits);
-			}
-			//Control hits
-			if(backTotalHits>0){
-				for(StrandedRegion r : backhits){
+				if(r.overlaps(query)){
 					int startOffset = Math.max(0, r.getStart()-query.getStart());
 					int endOffset = Math.max(0, Math.min(query.getEnd(), r.getEnd()-query.getStart()));
 					
@@ -175,7 +159,28 @@ public class ChipSeqProfiler implements PointProfiler<Point, Profile>{
 					int startbin = params.findBin(startOffset);
 					int endbin = params.findBin(endOffset);
 					
-					addToArray(startbin, endbin, array, -1*(1/backTotalHits));
+					addToArray(startbin, endbin, array, 1/totalHits);
+				}
+			}
+			//Control hits
+			if(backTotalHits>0){
+				for(StrandedRegion r : backhits){
+					if(r.overlaps(query)){
+						int startOffset = Math.max(0, r.getStart()-query.getStart());
+						int endOffset = Math.max(0, Math.min(query.getEnd(), r.getEnd()-query.getStart()));
+						
+						if(!strand) { 
+							int tmpEnd = window-startOffset;
+							int tmpStart = window-endOffset;
+							startOffset = tmpStart;
+							endOffset = tmpEnd;
+						}
+						
+						int startbin = params.findBin(startOffset);
+						int endbin = params.findBin(endOffset);
+						
+						addToArray(startbin, endbin, array, -1*(1/backTotalHits));
+					}
 				}
 			}
 		}
@@ -202,10 +207,12 @@ public class ChipSeqProfiler implements PointProfiler<Point, Profile>{
 		int [] land = new int[numBins+1];
 		for(int i=0; i<=numBins; i++){land[i]=0;}
 		for(StrandedRegion r : hits){
-			int binstart = (int)Math.max(0, ((double)((r.getStart()-currReg.getStart())/winWidth)-(Math.floor(winWidth/winWidth)-1)));
-			int binend = (int)(Math.min((double)(r.getEnd()-currReg.getStart()), (double)currReg.getWidth())/winWidth);
-			for(int i=binstart; i<=binend; i++){
-				land[i]++; 
+			if(r.overlaps(currReg)){
+				int binstart = (int)Math.max(0, ((double)((r.getStart()-currReg.getStart())/winWidth)-(Math.floor(winWidth/winWidth)-1)));
+				int binend = (int)(Math.min((double)(r.getEnd()-currReg.getStart()), (double)currReg.getWidth())/winWidth);
+				for(int i=binstart; i<=binend; i++){
+					land[i]++; 
+				}
 			}
 		}
 		return(land);
