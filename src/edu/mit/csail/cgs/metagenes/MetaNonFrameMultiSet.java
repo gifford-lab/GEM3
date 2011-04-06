@@ -57,7 +57,7 @@ public class MetaNonFrameMultiSet{
 				fout.write("\t"+q.getName());
 			fout.write("\n");
 			int i=0;
-			for(int  k= start; k<=params.getWindowSize(); k+=step){
+			for(int  k= start; k<params.getWindowSize(); k+=step){
 				fout.write(k);
 				for(Profile q : profiles)
 					fout.write("\t"+q.value(i));
