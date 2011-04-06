@@ -37,8 +37,6 @@ import edu.mit.csail.cgs.utils.models.data.DataRegression;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
-import edu.mit.csail.cgs.utils.strings.multipattern.AhoCorasick;
-import edu.mit.csail.cgs.utils.strings.multipattern.SearchResult;
 
 
 class KPPMixture extends MultiConditionFeatureFinder {
@@ -558,14 +556,290 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return signalFeatures;
 	}// end of execute method
 
+	/**
+		 * It performs statistical tests for determining significant peaks         <br>
+		 * If a control is used, the current method is used. Otherwise, MACS proposed method is used.
+		 * @param compFeatures
+		 */
+		private void postEMProcessing(List<ComponentFeature> compFeatures) {
+			// use the refined regions to count non-specific reads
+	        /* don't do this any more.  all it does is set ratio_non_specific_total, which
+	           we no longer want to update because we compute it at the beginning of the run
+	           using the whole genome rather than just the unenriched regions
+	        */
+			//countNonSpecificReads(compFeatures);
+			
+			// collect enriched regions to exclude to define non-specific region
+			Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
+	                public int compare(ComponentFeature o1, ComponentFeature o2) {
+	                    return o1.compareByTotalResponsibility(o2);
+	                }
+	            });
+			// get median event strength
+			double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalEventStrength();
+	//		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
+			
+			// only do this calculation at the first round, then throw out read data in non-specific regions
+			if (!hasIpCtrlRatio){		
+				ArrayList<Region> exRegions = new ArrayList<Region>();
+				for(int i = 0; i < compFeatures.size(); i++) {
+					exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
+				}
+				exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
+				
+				calcIpCtrlRatio(mergeRegions(exRegions, false));
+				if(controlDataExist) {
+					for(int c = 0; c < numConditions; c++)
+						System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+					System.out.println();
+				}
+				hasIpCtrlRatio = true;
+				
+				// delete read data in un-enriched region, we don't need them any more
+				// print initial dataset counts
+				for(int c = 0; c < numConditions; c++) {
+					caches.get(c).car().deleteUnenrichedReadData(restrictRegions);
+					if(controlDataExist) {
+						caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
+					}
+				}
+			}
+			
+			/**
+			 * Classify the events into IP-like and control-like groups
+			 */
+			if (config.classify_events)
+				falseDiscoveryTest(compFeatures);
+			
+			/**
+			 *  calculate p-values with or without control
+			 */
+			evaluateSignificance(compFeatures);
+	
+			// sort features for final output, by location
+			Collections.sort(compFeatures);
+			allFeatures = compFeatures;
+	
+			insignificantFeatures = new ArrayList<Feature>();
+			filteredFeatures = new ArrayList<Feature>();
+			for (ComponentFeature cf:compFeatures){
+				boolean significant = false;
+				// for multi-condition, at least be significant in one condition
+				// The read count test is for each condition
+			
+				for (int cond=0; cond<numConditions; cond++){
+					if(cf.getEventReadCounts(cond)>config.sparseness){	// first pass read count test
+						if (config.TF_binding){	// single event IP/ctrf only applies to TF
+							if (cf.getQValueLog10(cond)>config.q_value_threshold){
+								significant = true;
+								break;
+							}
+						}
+						else		//TODO: if histone data, need to test as a set of events
+							significant = true;
+					}
+				}
+	
+				boolean notFiltered = false;
+				// only filter high read count events (more likely to be artifacts) 
+				if (config.filterEvents && cf.getTotalEventStrength()>medianStrength){
+					for (int cond=0; cond<numConditions; cond++){
+						// if one condition is good event, this position is GOOD
+						// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
+						if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
+							if (!controlDataExist){
+								notFiltered = true;
+								break;
+							}
+							else{
+								double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
+	//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
+									if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
+									notFiltered = true;
+									break;
+								}
+							}						
+						}
+					}
+				}
+				else
+					notFiltered = true;
+	
+				if (significant){
+					if (notFiltered)
+						signalFeatures.add(cf);
+					else
+						filteredFeatures.add(cf);
+				}
+				else
+					insignificantFeatures.add(cf);
+			}
+			
+			// set joint event flag in the events
+			if (signalFeatures.size()>=2){
+				for (int i=0;i<signalFeatures.size();i++){
+					ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+					cf.setJointEvent(false);		// clean the mark first
+				}
+				for (int i=0;i<signalFeatures.size()-1;i++){
+					ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+					ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
+					if (cf.onSameChrom(cf2)){
+						if (cf.getPosition().distance(cf2.getPosition())<=config.joint_event_distance){
+							cf.setJointEvent(true);
+							cf2.setJointEvent(true);
+						}
+					}
+				}
+			}
+			
+			// post filtering for multi-conditions
+			for(int c = 0; c < numConditions; c++)
+				condSignalFeats[c] = condPostFiltering(signalFeatures, c);
+	
+			log(1, "---------------------------\n"+
+				"Events discovered \nSignificant:\t"+signalFeatures.size()+
+	            "\nInsignificant:\t"+insignificantFeatures.size()+
+	            "\nFiltered:\t"+filteredFeatures.size()+"\n");
+		}//end of post EM Processing
+
+	/**
+	 *  evaluate significance of each called events, calculate p-value from binomial distribution
+	 */
+	private void evaluateSignificance(List<ComponentFeature> compFeatures) {
+	    Binomial binomial = new Binomial(100, .5, new DRand());
+		Poisson poisson = new Poisson(1, new DRand());
+	    double totalIPCount[] = new double[caches.size()];
+	    double totalControlCount[] = new double[caches.size()];
+	    for (int i = 0; i < caches.size(); i++) {
+	        totalIPCount[i] += caches.get(i).car().getHitCount();
+	    }
+		if(controlDataExist) {
+	        for (int i = 0; i < caches.size(); i++) {
+	            totalControlCount[i] += caches.get(i).cdr().getHitCount();
+	        }
+			for (ComponentFeature cf: compFeatures){
+				for(int cond=0; cond<caches.size(); cond++){
+					// scale control read count by non-specific read count ratio
+					double controlCount = cf.getUnscaledControlCounts()[cond];
+	                double scaledControlCount = cf.getScaledControlCounts(cond);
+					double pValueControl = 1, pValueUniform = 1, pValueBalance = 1, pValuePoisson = 1;
+	                int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
+	                if (ipCount==0){			// if one of the condition does not have reads, set p-value=1
+	                	cf.setPValue(1, cond);
+	                	continue;
+	                }
+	                try{
+	                    assert (totalIPCount[cond] > 0);
+	                    assert (ipCount <= totalIPCount[cond]);
+	                    double p = controlCount / totalControlCount[cond];
+	                    if (p <= 0) {
+	                        p = 1.0/totalControlCount[cond];
+	                    } else if (p >= 1) {
+	                        System.err.println(String.format("p>=1 at evaluateConfidence from %f/%f", controlCount, totalControlCount[cond]));
+	                        p = 1.0 - 1.0/totalControlCount[cond];
+	                    } 
+	                    binomial.setNandP((int)totalIPCount[cond],p);
+	                    pValueControl = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+	
+	                    p = modelWidth / config.mappable_genome_length;
+	                    binomial.setNandP((int)totalIPCount[cond],p);
+	                    pValueUniform = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+	
+	                    binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
+	                    pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+	
+	                    poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
+	                    pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
+	                } catch(Exception err){
+	                    err.printStackTrace();
+	                    System.err.println(cf.toString());
+	                    throw new RuntimeException(err.toString(), err);
+	                }
+	                if (config.testPValues)
+	                	cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+	                else
+	                	cf.setPValue(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
+				}
+			}
+		} else {
+	        //			I commented the evaluation of the average shift size
+	        //			We won't need it cause in our data, we do not shift reads.
+	        //			Besides, we will consider a fixed region of modelRange bp as the peak region.
+			createChromStats(compFeatures);
+			
+			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
+			for(int i = 0; i < compFeatures.size(); i++) {
+				String chrom = compFeatures.get(i).getPosition().getChrom();
+				if(!chrom_comp_pair.containsKey(chrom))
+					chrom_comp_pair.put(chrom, new ArrayList<Integer>());
+				
+				chrom_comp_pair.get(chrom).add(i);
+			}
+			
+			ipStrandFivePrimes   = new ArrayList[2];
+			Arrays.fill(ipStrandFivePrimes, new ArrayList<StrandedBase>());
+			ctrlStrandFivePrimes = new ArrayList[2];
+			Arrays.fill(ctrlStrandFivePrimes, new ArrayList<StrandedBase>());
+			ipStrandFivePrimePos   = new int[2][];
+			ctrlStrandFivePrimePos = new int[2][];
+			
+			for(String chrom:chrom_comp_pair.keySet()) {
+				int chromLen = gen.getChromLength(chrom);
+				for(int c = 0; c < numConditions; c++) {
+					
+					for(int i:chrom_comp_pair.get(chrom)) {
+						ComponentFeature cf = compFeatures.get(i);
+						Region expandedRegion = new Region(gen, chrom, Math.max(0, cf.getPosition().getLocation()-config.third_lambda_region_width), Math.min(chromLen-1, cf.getPosition().getLocation()+config.third_lambda_region_width));
+						ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
+						ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
+						
+	                    ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
+						
+						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
+							ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
+							ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
+							for(int v = 0; v < ipStrandFivePrimePos[k].length; v++)
+								ipStrandFivePrimePos[k][v] = ipStrandFivePrimes[k].get(v).getCoordinate();
+							for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
+								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
+						}
+	
+						double local_lambda = estimateLocalLambda(cf, c);
+						cf.setControlReadCounts(local_lambda, c);                        
+						if (config.testPValues)
+							poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / config.mappable_genome_length));
+						else
+							poisson.setMean(local_lambda);
+	
+	                    int count = (int)Math.ceil(cf.getEventReadCounts(c));
+	                    double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
+						cf.setPValue_wo_ctrl(pValue, c);						
+						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
+							ipStrandFivePrimes[k].clear();
+							ctrlStrandFivePrimes[k].clear();
+						}
+					}//end of for(int i:chrom_comp_pair.get(chrom)) LOOP	
+				}				
+			}			
+		}
+		// calculate q-values, correction for multiple testing
+		benjaminiHochbergCorrection(compFeatures);
+	}//end of evaluateConfidence method
+
+	private void falseDiscoveryTest(List<ComponentFeature> ipFeatures){
+		Vector<ComponentFeature> ctrlFeatures = predictEventsInControlData();
+		
+		
+	}
 	// run the same EM-KPP procedure on control data
-	void falseDiscoveryTest(){
+	private Vector<ComponentFeature> predictEventsInControlData(){
 		ArrayList<Region> regions = this.selectEnrichedRegions(new ArrayList<Region>(), false);
-        Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
+        Vector<ComponentFeature> ctrlFeatures = new Vector<ComponentFeature>();
 		long tic = System.currentTimeMillis();
 		int totalRegionCount = regions.size();
 		if (totalRegionCount==0)
-			return;
+			return null;
        
         // prepare for progress reporting
         Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
@@ -595,7 +869,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             }
             Thread t = new Thread(new GPS2Thread(threadRegions,
             									processRegionCount,
-                                                compFeatures,
+                                                ctrlFeatures,
                                                 allKmerHits,
                                                 this,
                                                 constants,
@@ -628,9 +902,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
         System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
         processRegionCount.clear();
         
-        System.out.println(compFeatures.size()+" features found in control data.");
+        System.out.println(ctrlFeatures.size()+" features found in control data.");
         
         log(1,String.format("%d threads have finished running", maxThreads));
+        
+        return ctrlFeatures;
 	}
 	
 	// split a region into smaller windows if the width is larger than windowSize
@@ -1151,146 +1427,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 		return condFeats;
 	}//end of condPostFiltering method
-
-	/**
-	 * It performs statistical tests for determining significant peaks         <br>
-	 * If a control is used, the current method is used. Otherwise, MACS proposed method is used.
-	 * @param compFeatures
-	 */
-	private void postEMProcessing(List<ComponentFeature> compFeatures) {
-		// use the refined regions to count non-specific reads
-        /* don't do this any more.  all it does is set ratio_non_specific_total, which
-           we no longer want to update because we compute it at the beginning of the run
-           using the whole genome rather than just the unenriched regions
-        */
-		//countNonSpecificReads(compFeatures);
-		
-		// collect enriched regions to exclude to define non-specific region
-		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
-                public int compare(ComponentFeature o1, ComponentFeature o2) {
-                    return o1.compareByTotalResponsibility(o2);
-                }
-            });
-		// get median event strength
-		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalEventStrength();
-//		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
-		
-		// only do this calculation at the first round, then throw out read data in non-specific regions
-		if (!hasIpCtrlRatio){		
-			ArrayList<Region> exRegions = new ArrayList<Region>();
-			for(int i = 0; i < compFeatures.size(); i++) {
-				exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
-			}
-			exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
-			
-			calcIpCtrlRatio(mergeRegions(exRegions, false));
-			if(controlDataExist) {
-				for(int c = 0; c < numConditions; c++)
-					System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
-				System.out.println();
-			}
-			hasIpCtrlRatio = true;
-			
-			// delete read data in un-enriched region, we don't need them any more
-			// print initial dataset counts
-			for(int c = 0; c < numConditions; c++) {
-				caches.get(c).car().deleteUnenrichedReadData(restrictRegions);
-				if(controlDataExist) {
-					caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
-				}
-			}
-		}
-		
-		// calculate p-values with or without control
-		evaluateSignificance(compFeatures);
-
-		// sort features for final output, by location
-		Collections.sort(compFeatures);
-		allFeatures = compFeatures;
-
-		insignificantFeatures = new ArrayList<Feature>();
-		filteredFeatures = new ArrayList<Feature>();
-		for (ComponentFeature cf:compFeatures){
-			boolean significant = false;
-			// for multi-condition, at least be significant in one condition
-			// The read count test is for each condition
-		
-			for (int cond=0; cond<numConditions; cond++){
-				if(cf.getEventReadCounts(cond)>config.sparseness){	// first pass read count test
-					if (config.TF_binding){	// single event IP/ctrf only applies to TF
-						if (cf.getQValueLog10(cond)>config.q_value_threshold){
-							significant = true;
-							break;
-						}
-					}
-					else		//TODO: if histone data, need to test as a set of events
-						significant = true;
-				}
-			}
-
-			boolean notFiltered = false;
-			// only filter high read count events (more likely to be artifacts) 
-			if (config.filterEvents && cf.getTotalEventStrength()>medianStrength){
-				for (int cond=0; cond<numConditions; cond++){
-					// if one condition is good event, this position is GOOD
-					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
-					if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
-						if (!controlDataExist){
-							notFiltered = true;
-							break;
-						}
-						else{
-							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
-//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-								if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
-								notFiltered = true;
-								break;
-							}
-						}						
-					}
-				}
-			}
-			else
-				notFiltered = true;
-
-			if (significant){
-				if (notFiltered)
-					signalFeatures.add(cf);
-				else
-					filteredFeatures.add(cf);
-			}
-			else
-				insignificantFeatures.add(cf);
-		}
-		
-		// set joint event flag in the events
-		if (signalFeatures.size()>=2){
-			for (int i=0;i<signalFeatures.size();i++){
-				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
-				cf.setJointEvent(false);		// clean the mark first
-			}
-			for (int i=0;i<signalFeatures.size()-1;i++){
-				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
-				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
-				if (cf.onSameChrom(cf2)){
-					if (cf.getPosition().distance(cf2.getPosition())<=config.joint_event_distance){
-						cf.setJointEvent(true);
-						cf2.setJointEvent(true);
-					}
-				}
-			}
-		}
-		
-		// post filtering for multi-conditions
-		for(int c = 0; c < numConditions; c++)
-			condSignalFeats[c] = condPostFiltering(signalFeatures, c);
-
-		log(1, "---------------------------\n"+
-			"Events discovered \nSignificant:\t"+signalFeatures.size()+
-            "\nInsignificant:\t"+insignificantFeatures.size()+
-            "\nFiltered:\t"+filteredFeatures.size()+"\n");
-	}//end of post EM Processing
-
 
 	/* 
 	 * Calc the ratio of IP vs Control channel, exlcluding the specific regions
@@ -2442,129 +2578,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    }
 	}
 
-
-	// evaluate significance of each called events
-	// calculate p-value from binomial distribution, and peak shape parameter
-	private void evaluateSignificance(List<ComponentFeature> compFeatures) {
-        Binomial binomial = new Binomial(100, .5, new DRand());
-		Poisson poisson = new Poisson(1, new DRand());
-        double totalIPCount[] = new double[caches.size()];
-        double totalControlCount[] = new double[caches.size()];
-        for (int i = 0; i < caches.size(); i++) {
-            totalIPCount[i] += caches.get(i).car().getHitCount();
-        }
-		if(controlDataExist) {
-            for (int i = 0; i < caches.size(); i++) {
-                totalControlCount[i] += caches.get(i).cdr().getHitCount();
-            }
-			for (ComponentFeature cf: compFeatures){
-				for(int cond=0; cond<caches.size(); cond++){
-					// scale control read count by non-specific read count ratio
-					double controlCount = cf.getUnscaledControlCounts()[cond];
-                    double scaledControlCount = cf.getScaledControlCounts(cond);
-					double pValueControl = 1, pValueUniform = 1, pValueBalance = 1, pValuePoisson = 1;
-                    int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
-                    if (ipCount==0){			// if one of the conditino does not have reads, set p-value=1
-                    	cf.setPValue(1, cond);
-                    	continue;
-                    }
-                    try{
-                        assert (totalIPCount[cond] > 0);
-                        assert (ipCount <= totalIPCount[cond]);
-                        double p = controlCount / totalControlCount[cond];
-                        if (p <= 0) {
-                            p = 1.0/totalControlCount[cond];
-                        } else if (p >= 1) {
-                            System.err.println(String.format("p>=1 at evaluateConfidence from %f/%f", controlCount, totalControlCount[cond]));
-                            p = 1.0 - 1.0/totalControlCount[cond];
-                        } 
-                        binomial.setNandP((int)totalIPCount[cond],p);
-                        pValueControl = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-
-                        p = modelWidth / config.mappable_genome_length;
-                        binomial.setNandP((int)totalIPCount[cond],p);
-                        pValueUniform = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-
-                        binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
-                        pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-
-                        poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
-                        pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
-                    } catch(Exception err){
-                        err.printStackTrace();
-                        System.err.println(cf.toString());
-                        throw new RuntimeException(err.toString(), err);
-                    }
-                    if (config.testPValues)
-                    	cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
-                    else
-                    	cf.setPValue(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
-				}
-			}
-		} else {
-            //			I commented the evaluation of the average shift size
-            //			We won't need it cause in our data, we do not shift reads.
-            //			Besides, we will consider a fixed region of modelRange bp as the peak region.
-			createChromStats(compFeatures);
-			
-			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
-			for(int i = 0; i < compFeatures.size(); i++) {
-				String chrom = compFeatures.get(i).getPosition().getChrom();
-				if(!chrom_comp_pair.containsKey(chrom))
-					chrom_comp_pair.put(chrom, new ArrayList<Integer>());
-				
-				chrom_comp_pair.get(chrom).add(i);
-			}
-			
-			ipStrandFivePrimes   = new ArrayList[2];
-			Arrays.fill(ipStrandFivePrimes, new ArrayList<StrandedBase>());
-			ctrlStrandFivePrimes = new ArrayList[2];
-			Arrays.fill(ctrlStrandFivePrimes, new ArrayList<StrandedBase>());
-			ipStrandFivePrimePos   = new int[2][];
-			ctrlStrandFivePrimePos = new int[2][];
-			
-			for(String chrom:chrom_comp_pair.keySet()) {
-				int chromLen = gen.getChromLength(chrom);
-				for(int c = 0; c < numConditions; c++) {
-					
-					for(int i:chrom_comp_pair.get(chrom)) {
-						ComponentFeature cf = compFeatures.get(i);
-						Region expandedRegion = new Region(gen, chrom, Math.max(0, cf.getPosition().getLocation()-config.third_lambda_region_width), Math.min(chromLen-1, cf.getPosition().getLocation()+config.third_lambda_region_width));
-						ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
-						ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
-						
-                        ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
-						
-						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
-							ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
-							ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
-							for(int v = 0; v < ipStrandFivePrimePos[k].length; v++)
-								ipStrandFivePrimePos[k][v] = ipStrandFivePrimes[k].get(v).getCoordinate();
-							for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
-								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
-						}
-
-						double local_lambda = estimateLocalLambda(cf, c);
-						cf.setControlReadCounts(local_lambda, c);                        
-						if (config.testPValues)
-							poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / config.mappable_genome_length));
-						else
-							poisson.setMean(local_lambda);
-
-                        int count = (int)Math.ceil(cf.getEventReadCounts(c));
-                        double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
-						cf.setPValue_wo_ctrl(pValue, c);						
-						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
-							ipStrandFivePrimes[k].clear();
-							ctrlStrandFivePrimes[k].clear();
-						}
-					}//end of for(int i:chrom_comp_pair.get(chrom)) LOOP	
-				}				
-			}			
-		}
-		// calculate q-values, correction for multiple testing
-		benjaminiHochbergCorrection(compFeatures);
-	}//end of evaluateConfidence method
 
 	//Multiple hypothesis testing correction
 	// sort peaks by p-value
@@ -4735,6 +4748,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     class GPSConfig {
 		public boolean trim_simple=false;
 		public boolean do_model_selection=false;
+		public boolean classify_events = false;
         public boolean use_joint_event = false;
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
@@ -4805,6 +4819,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public void parseArgs(String args[]) {
             Set<String> flags = Args.parseFlags(args);
             // default as false, need the flag to turn it on
+            classify_events = flags.contains("classify");
             sort_by_location = flags.contains("sl");
             use_joint_event = flags.contains("refine_using_joint_event");
             kmer_use_filtered = flags.contains("kmer_use_filtered");

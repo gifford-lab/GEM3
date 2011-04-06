@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
@@ -72,6 +73,11 @@ public class GPS_ReadDistribution {
 		} catch (NotFoundException e) {
 			e.printStackTrace();
 		}
+		
+//		Map<String, Integer> map = genome.getChromLengthMap();
+//		for (String chr:map.keySet()){
+//			System.out.println(chr+"\t"+map.get(chr));
+//		}
 		
 		// parameter for building empirical distribution
 		String chipSeqFile = Args.parseString(args, "chipseq", null);
@@ -179,10 +185,13 @@ public class GPS_ReadDistribution {
 	}	
 	
 	private BindingModel getStrandedDistribution (ArrayList<Point> points, char strand){
+		Map<String,Integer> chromLengthMap = genome.getChromLengthMap();
 		float[] sum = new float[2*range+1];
 		Pair<ArrayList<Integer>,ArrayList<Float>> pair = null;
 		for (Point p:points){
 			int pos = p.getLocation();
+			if (!chromLengthMap.containsKey(p.getChrom()) || pos>chromLengthMap.get(p.getChrom()))
+				continue;
 			pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), strand);
 			for (int i=0;i<pair.car().size();i++){
 				sum[pair.car().get(i)-pos+range] += Math.min(pair.cdr().get(i), mrc);
