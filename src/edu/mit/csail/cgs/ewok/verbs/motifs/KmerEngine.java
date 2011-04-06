@@ -1,20 +1,12 @@
 package edu.mit.csail.cgs.ewok.verbs.motifs;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.TreeSet;
-import java.util.Vector;
 
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
@@ -22,16 +14,9 @@ import edu.mit.csail.cgs.utils.strings.multipattern.*;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
-import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.ArgParser;
-import edu.mit.csail.cgs.utils.NotFoundException;
-import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KmerEngine {
