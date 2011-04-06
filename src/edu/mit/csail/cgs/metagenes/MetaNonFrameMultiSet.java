@@ -10,8 +10,6 @@ import java.util.List;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.metagenes.swing.MultiProfilePanel;
-import edu.mit.csail.cgs.metagenes.swing.ProfileLinePanel;
-import edu.mit.csail.cgs.metagenes.swing.ProfilePanel;
 import edu.mit.csail.cgs.viz.paintable.PaintableScale;
 
 public class MetaNonFrameMultiSet{
@@ -23,13 +21,13 @@ public class MetaNonFrameMultiSet{
 	private PaintableScale peakScale;
 	private MultiProfilePanel panel;
 	
-	public MetaNonFrameMultiSet(int numSets, Genome g, BinningParameters bps, PointProfiler pp, boolean normalizedMeta) {
+	public MetaNonFrameMultiSet(List<String> setNames, Genome g, BinningParameters bps, PointProfiler pp, boolean normalizedMeta) {
 		peakScale = new PaintableScale(0.0, 1.0);
 		
 		genome = g;
 		params = bps;
-		for(int i=0; i<numSets; i++){
-			MetaProfileHandler handler = new MetaProfileHandler("MetaProfile", params, pp, normalizedMeta);
+		for(int i=0; i<setNames.size(); i++){
+			MetaProfileHandler handler = new MetaProfileHandler(setNames.get(i), params, pp, normalizedMeta);
 			handlers.add(handler);
 			profiles.add(handler.getProfile());
 		}
@@ -37,9 +35,7 @@ public class MetaNonFrameMultiSet{
 		
 		panel = new MultiProfilePanel(profiles, peakScale);
 	}
-	public void setColor(Color c){
-		panel.updateColor(c);		
-	}	
+		
 	public void saveImage(String root){
 		try {
 			System.out.println("Saving images with root name: "+root);

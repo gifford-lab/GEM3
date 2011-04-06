@@ -12,6 +12,7 @@ import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -30,13 +31,13 @@ import edu.mit.csail.cgs.viz.paintable.PaintableScale;
 public class MultiProfilePanel extends JPanel implements PaintableChangedListener {
 	
 	private List<Profile> profiles;
-	private List<ProfilePaintable> profilePainters;
+	private List<ProfilePaintable> profilePainters = new ArrayList<ProfilePaintable>();
 	private PaintableScale scale;
 	private int fontSize=12;
 	private int border=20;
 	private int lineHeight=20, lineWidth=4;
 	private Color fontColor=Color.black;
-	private Color peakColor=Color.blue;
+	private Color[] peakColors={Color.blue, Color.red, Color.gray, Color.green, Color.cyan, Color.orange, Color.magenta};
 	private String style = "Line";
 	
 	public MultiProfilePanel(List<Profile> p, PaintableScale sc) { 
@@ -53,11 +54,6 @@ public class MultiProfilePanel extends JPanel implements PaintableChangedListene
 	
 	public void updateFontSize(int size) {
 		fontSize = size;
-		repaint();
-	}
-
-	public void updateColor(Color c) {
-		peakColor=c;
 		repaint();
 	}
 
@@ -110,8 +106,6 @@ public class MultiProfilePanel extends JPanel implements PaintableChangedListene
         ImageIO.write(im, "png", f);
 	}
 	
-	public Color getPeakColor(){return peakColor;}
-	
 	protected void paintComponent(Graphics g) {
 		int w = getWidth(), h = getHeight();
 		super.paintComponent(g);
@@ -122,9 +116,11 @@ public class MultiProfilePanel extends JPanel implements PaintableChangedListene
 		int binPix=0, profileLength=0;
 		BinningParameters bps = profiles.get(0).getBinningParameters();
 		boolean isStranded=false;
+		FontMetrics metrics;
 		
+		//Profiles
 		for(int p=0; p<profiles.size(); p++){
-			profilePainters.get(p).setColor(peakColor);
+			profilePainters.get(p).setColor(peakColors[p%peakColors.length]);
 			profilePainters.get(p).setStyle(style);
 			profilePainters.get(p).paintItem(g, border, 0, w, h-border);
 			
@@ -138,8 +134,18 @@ public class MultiProfilePanel extends JPanel implements PaintableChangedListene
 				profileMin = profiles.get(p).min();
 			isStranded = isStranded || profiles.get(p).isStranded();
 		}
+		
+		g2.setFont(new Font("Arial", Font.PLAIN, fontSize));
+		metrics = g2.getFontMetrics();
+		
+		//Legend
+		for(int p=0; p<profiles.size(); p++){
+			g2.setColor(peakColors[p%peakColors.length]);
+			String counter=String.format("%s: %d datapoints", profiles.get(p).getName(), profiles.get(p).getNumProfiles());
+			g2.drawString(counter, w-border-metrics.stringWidth(counter), fontSize);
+		}
+		
 		//Paint labels & Y-axis stuff 
-		FontMetrics metrics;
 		g2.setFont(new Font("Arial", Font.PLAIN, fontSize));
 		metrics = g2.getFontMetrics();
 		g2.setColor(Color.black);
