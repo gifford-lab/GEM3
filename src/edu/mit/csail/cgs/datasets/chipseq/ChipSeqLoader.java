@@ -236,7 +236,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	}
 
 
-	public ChipSeqAlignment loadAlignment(ChipSeqExpt expt, String n, Genome g) throws NotFoundException, SQLException {
+	public ChipSeqAlignment loadAlignment(ChipSeqExpt expt, String n, Genome g) throws SQLException {
 		ChipSeqAlignment align = null;
 		PreparedStatement ps = ChipSeqAlignment.createLoadByNameAndExptStatement(getConnection());
 		ps.setString(1, n);
@@ -252,7 +252,8 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		rs.close();
 		ps.close();
         if (align == null) {
-            throw new NotFoundException("Couldn't find alignment " + n + " for " + expt + " in genome " + g);
+        	//Don't throw exception because sometimes we have replicates that don't match all alignment names
+            //throw new NotFoundException("Couldn't find alignment " + n + " for " + expt + " in genome " + g);
         }
         return align;
 

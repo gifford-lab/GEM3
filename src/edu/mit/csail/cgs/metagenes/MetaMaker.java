@@ -135,7 +135,7 @@ public class MetaMaker {
 					nonframe.savePointsToFile(outName);					
 				}else if(peakFiles.size()>1){
 					System.out.println("Multiple set mode...");
-					MetaNonFrameMultiSet multinonframe = new MetaNonFrameMultiSet(peakFiles.size(),gen, params, profiler, normalizeProfile);
+					MetaNonFrameMultiSet multinonframe = new MetaNonFrameMultiSet(peakFiles, gen, params, profiler, true);
 					for(int x=0; x<peakFiles.size(); x++){
 						String pf = peakFiles.get(x);
 						Vector<Point> points = multinonframe.getUtils().loadPoints(new File(pf));
