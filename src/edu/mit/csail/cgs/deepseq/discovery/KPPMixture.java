@@ -567,7 +567,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	           we no longer want to update because we compute it at the beginning of the run
 	           using the whole genome rather than just the unenriched regions
 	        */
-			//countNonSpecificReads(compFeatures);
+//			countNonSpecificReads(compFeatures);
 			
 			// collect enriched regions to exclude to define non-specific region
 			Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
@@ -579,7 +579,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalEventStrength();
 	//		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
 			
-			// only do this calculation at the first round, then throw out read data in non-specific regions
+			// only do this calculation at the first round, then throw out read data in non-specific regions (when we have control data for stat test)
 			if (!hasIpCtrlRatio){		
 				ArrayList<Region> exRegions = new ArrayList<Region>();
 				for(int i = 0; i < compFeatures.size(); i++) {
@@ -595,11 +595,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				hasIpCtrlRatio = true;
 				
-				// delete read data in un-enriched region, we don't need them any more
-				// print initial dataset counts
-				for(int c = 0; c < numConditions; c++) {
-					caches.get(c).car().deleteUnenrichedReadData(restrictRegions);
-					if(controlDataExist) {
+				// delete read data in un-enriched region, we don't need them for binomial test
+				// but if no control data, we need whole genome data to estimate lambda for Poisson test
+				if(controlDataExist) {
+					for(int c = 0; c < numConditions; c++) {
+						caches.get(c).car().deleteUnenrichedReadData(restrictRegions);				
 						caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
 					}
 				}

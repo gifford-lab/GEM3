@@ -502,6 +502,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public static void setConditionNames(ArrayList<String> conditionNames) {
 		ComponentFeature.conditionNames = conditionNames;
 		numConditions = conditionNames.size();
+		non_specific_ratio = new double[numConditions];
+		for (int i=0;i<numConditions;i++)
+			non_specific_ratio[i] = 1.0;
 	}
 	
 
