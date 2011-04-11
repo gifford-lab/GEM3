@@ -373,7 +373,7 @@ public class BindingModel {
 		return max;
 	}
 
-	public Pair<Integer, Integer> getNewEnds(){
+	public Pair<Integer, Integer> getNewEnds(int maxLeft, int maxRight){
 		double halfHeight = probability(summit)*0.5;
 		int leftHalfHeightEnd = 0;
 		int rightHalfHeightEnd = 0;
@@ -389,8 +389,8 @@ public class BindingModel {
 				break;
 			}
 		}
-		int left=Math.max(300, Math.abs(summit-(summit-leftHalfHeightEnd)*4));
-		int right=Math.max(200,Math.abs(summit+(rightHalfHeightEnd-summit)*3));
+		int left=Math.max(maxLeft, Math.abs(summit-(summit-leftHalfHeightEnd)*4));
+		int right=Math.max(maxRight, Math.abs(summit+(rightHalfHeightEnd-summit)*3));
 
 		return new Pair<Integer, Integer>(left, right);
 	}

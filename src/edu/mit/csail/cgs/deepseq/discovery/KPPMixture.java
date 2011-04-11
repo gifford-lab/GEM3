@@ -829,8 +829,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 	private void falseDiscoveryTest(List<ComponentFeature> ipFeatures){
 		Vector<ComponentFeature> ctrlFeatures = predictEventsInControlData();
-		
-		
+		StringBuilder sb = new StringBuilder();
+		for (ComponentFeature cf:ipFeatures){
+			sb.append(1+"\t").append("1:"+cf.getTotalEventStrength()).append("\t2:"+cf.getAverageLogKL());
+		}
+		for (ComponentFeature cf:ipFeatures){
+			sb.append(-1+"\t").append("1:"+cf.getTotalEventStrength()).append("\t2:"+cf.getAverageLogKL());
+		}
+		CommonUtils.writeFile(outName+"_svmTrain.txt", sb.toString());
 	}
 	// run the same EM-KPP procedure on control data
 	private Vector<ComponentFeature> predictEventsInControlData(){

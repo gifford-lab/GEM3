@@ -143,6 +143,9 @@ public class GPS2 {
         GPS_round = Args.parseInteger(args,"r", GPS_round);
         int GEM_round = Args.parseInteger(args,"r_pp", 1);
         int GEM_WM_round = Args.parseInteger(args,"r_wm", 2);
+
+        int maxLeft = Args.parseInteger(args,"max_l", 300);
+        int maxRight = Args.parseInteger(args,"max_r", 200);
         /**
          ** Simple GPS1 event finding without sequence information
          **/
@@ -159,7 +162,7 @@ public class GPS2 {
             if (round==1){
                 boolean fixModelRange = Args.parseFlags(args).contains("fix_model_range");
                 if (!fixModelRange){
-                    Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds();
+                    Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(maxLeft, maxRight);
                     kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
                 }
                 else
