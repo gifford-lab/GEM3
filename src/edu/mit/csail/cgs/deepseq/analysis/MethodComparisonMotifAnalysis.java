@@ -1122,6 +1122,7 @@ public class MethodComparisonMotifAnalysis {
 		ArrayList<Point> allMotifs = new ArrayList<Point>();
 		ArrayList<Double> scores = new ArrayList<Double>();
 		WeightMatrixScorer scorer = new WeightMatrixScorer(motif);
+		int length = motif.length();
 		int count = regions.size();
 		System.out.print("\nGetting motifs from "+count+" regions ...\n");
 		for(int i=0; i<count; i++){
@@ -1132,10 +1133,12 @@ public class MethodComparisonMotifAnalysis {
 			//search for whole region
 			for(int z=0; z<r.getWidth(); z++){		
 				double score = profiler.getMaxScore(z);
+				int strand = profiler.getMaxStrand(z)=='+'?1:-1;
 				if(score >= threshold){
-					Point motifPos = new Point(genome, r.getChrom(), r.getStart()+z+profiler.getMatrix().length()/2);
+					// get the strand-specific middle position of motif
+					Point motifPos = new Point(genome, r.getChrom(), r.getStart()+z+(strand==1?length/2:length-1-length/2));
 					allMotifs.add(motifPos);
-					scores.add(score * (profiler.getMaxStrand(z)=='+'?1:-1)); // positive score if motif match on '+' strand
+					scores.add(score * strand); // positive score if motif match on '+' strand
 				}
 			}
 		}
