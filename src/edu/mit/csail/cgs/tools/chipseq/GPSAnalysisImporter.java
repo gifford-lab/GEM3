@@ -2,6 +2,7 @@ package edu.mit.csail.cgs.tools.chipseq;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.*;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -20,6 +21,7 @@ public class GPSAnalysisImporter extends AnalysisImporter {
        it down more closely since I don't think the difference really matters
     */
     public final static double minpval = Math.pow(10,-100);
+    private Set<String> seenPositions = new HashSet<String>();
 
     private int lineno = 0;
 
@@ -37,6 +39,12 @@ public class GPSAnalysisImporter extends AnalysisImporter {
         GPSPeak p = GPSParser.parseLine(getGenome(),
                                         line,
                                         ++lineno);
+
+        String k = p.getChrom() + p.getLocation();
+        if (seenPositions.contains(k)) {
+            return null;
+        }
+        seenPositions.add(k);
 
         return new ChipSeqAnalysisResult(getGenome(),
                                          p.getChrom(),

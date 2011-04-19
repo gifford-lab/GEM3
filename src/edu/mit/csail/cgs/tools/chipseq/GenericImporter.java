@@ -129,12 +129,7 @@ public class GenericImporter {
         
         
         alignment = null;
-        try {
-            alignment = chipseq.loadAlignment(experiment, alignmentname, genome);
-        } catch (NotFoundException e) {
-			// TODO Auto-generated catch block
-            //			e.printStackTrace();
-		}
+        alignment = chipseq.loadAlignment(experiment, alignmentname, genome);
 
         if (alignment == null) {
             try {
@@ -155,9 +150,6 @@ public class GenericImporter {
                     chipseq.addAlignmentParameters(alignment, f);
 
                 }
-            } catch (NotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			} catch (IOException e) {
                 System.err.println("Couldn't add alignment parameters");
                 e.printStackTrace();

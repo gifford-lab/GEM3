@@ -58,12 +58,7 @@ public class CreateAlignment {
                 throw new DatabaseException("Couldn't create " + alignpieces[0] + "," + alignpieces[1]);
             }
         }
-        try {
-            alignment = loader.loadAlignment(expt, alignpieces[2], genome);
-        } catch (NotFoundException e) {
-			// TODO Auto-generated catch block
-            //			e.printStackTrace();
-		}
+        alignment = loader.loadAlignment(expt, alignpieces[2], genome);
 
         if (alignment == null) {
             try {
@@ -85,10 +80,6 @@ public class CreateAlignment {
                     loader.addAlignmentParameters(alignment, f);
 
                 }
-            } catch (NotFoundException e) {
-                cxn.rollback();
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			} catch (IOException e) {
                 cxn.rollback();
                 System.err.println("Couldn't add alignment parameters");

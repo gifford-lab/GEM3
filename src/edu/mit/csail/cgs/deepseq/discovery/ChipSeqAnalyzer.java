@@ -179,7 +179,7 @@ public class ChipSeqAnalyzer{
 			if (round==1){
 				boolean fixModelRange = Args.parseFlags(args).contains("fix_model_range");
 				if (!fixModelRange){
-					Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds();
+					Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(10000,10000);
 					kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
 				}
 				else
