@@ -70,28 +70,22 @@ public class CpGPainter extends RegionPaintable {
             return;
         }
         char[] chars = wholestring.toUpperCase().toCharArray();
-        //        System.err.println("chars.length = " + chars.length + "  regionwidth=" + regionwidth);
         g.setColor(Color.BLUE);
-        for (int i = x1; i < x2; i += pixwidth) {
-            int rstart = (int)Math.round((i - x1) * regionwidth / ((double)w));
-            int rend = (int)Math.round((i - x1 + pixwidth) * regionwidth / ((double)w));
-            if (rend >= chars.length) {
-                rend = chars.length - 1 ;
+        int pixHeights[] = new int[w / pixwidth];
+        double f = ((double)w ) / ((double)(regionwidth*pixwidth));
+        for (int i = 0; i < chars.length - 1; i++) {
+            int pix = (int)(i * f);
+            if (pix >= 0 && pix < pixHeights.length && chars[i] == 'C' && chars[i+1] == 'G') {
+                pixHeights[pix]++;
             }
-            int found = 0;
-            for (int j = rstart; j < rend; j++) {
-                if ((chars[j] == 'C' && chars[j+1] == 'G')) {
-                    found++;
-                }
-            }
-            float frac = 2 * ((float)found) / (rend - rstart);
+        }
+        for (int i = 0; i < pixHeights.length; i++) {
+            double frac = ((double)pixHeights[i]) * f;
             if (frac > 1) {
                 frac = 1;
             }
-
             int fill = (int) (h * frac);
-            //            System.err.println(rstart  + " - " + rend + "  : " + found + ", " + frac + ", " + fill);
-            g.fillRect(i,y1,pixwidth,fill);
+            g.fillRect(i*pixwidth,y1,pixwidth,fill);
         }
         if (props.DrawTrackLabel) {
             g.setColor(Color.BLACK);
