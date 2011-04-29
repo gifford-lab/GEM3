@@ -102,15 +102,18 @@ public class PrintBindingCalls {
                 int[] motifHitStarts = new int[hits.size()];
                 for (int i = 0; i < hits.size(); i++) {
                     motifHitStarts[i] = hits.get(i).getStart() + region.getStart();
+                    System.err.println("Motif at " + motifHitStarts[i]);
                 }
                 List<Region> bindingEvents = new ArrayList<Region>();
                 for (ChipSeqAnalysisResult result : binding.getResults(genome, region)) {
                     bindingEvents.add(result.expand(bindingDistance, bindingDistance));
                 }
+                System.err.println("Binding " + bindingEvents);
+                System.err.println("Dnaseq is " + dnaseq);
                 for (int i = 0; i < motifHitStarts.length; i++) {
-                    int pos = motifHitStarts[i] + motif.length();
+                    Region motifRegion = new Region(region.getGenome(), region.getChrom(), motifHitStarts[i], motifHitStarts[i] + motif.length());
                     for (Region b : bindingEvents) {
-                        if (pos >= b.getStart() && pos <= b.getEnd()) {
+                        if (b.overlaps(motifRegion)) {
                             boolean print = true;
                             if (dnaseq != null) {
                                 print = false;
