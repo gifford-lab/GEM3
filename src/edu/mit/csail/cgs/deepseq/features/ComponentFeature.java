@@ -40,6 +40,13 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected Point EM_position;		//  EM result
 	protected double alpha;
 	
+	protected double enrichedKmerHGPLog10=-2;
+	public double getEnrichedKmerHGPLog10() {
+		return enrichedKmerHGPLog10;
+	}
+	public void setEnrichedKmerHGPLog10(double enrichedKmerHGP) {
+		this.enrichedKmerHGPLog10 = enrichedKmerHGP;
+	}
 	protected Kmer kmer;
 	public Kmer getKmer() { return kmer; }
 	public void setKmer(Kmer kmer) { this.kmer = kmer;}
@@ -397,6 +404,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append("\t");
         }
         header.append("Kmer       \t").append("Count\t").append("Strength\t").append("BoundSequence"); 
+        if (getEnrichedKmerHGPLog10()>=0)
+        	header.append("EnrichedHGP\t");
         header.append("\n");
         return header.toString();
 	}
@@ -447,7 +456,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append("\t").append(String.format("%.1f\t", kmer.getStrength())).append(boundSequence);
         else
         	result.append(CommonUtils.padding(8, ' ')).append("\t").append(0).append("\t").append(String.format("%.1f\t", 0.0)).append(boundSequence);
-        
+        if (getEnrichedKmerHGPLog10()>=0)
+        	result.append(String.format("%7.2f\t", getEnrichedKmerHGPLog10()));
         result.append("\n");
 		return result.toString();
 	}

@@ -825,7 +825,26 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		// calculate q-values, correction for multiple testing
 		benjaminiHochbergCorrection(compFeatures);
+		
+		// find q-value cutoff by k-mer occurence
+		setQValueCutoff(compFeatures);
 	}//end of evaluateConfidence method
+
+	private void setQValueCutoff(List<ComponentFeature>compFeatures) {
+		int N = compFeatures.size();
+		int kmerHitCount[] = new int[N];		// the number of kmerHits up to event #i
+		for (int i=0;i<N;i++){
+			ComponentFeature cf = compFeatures.get(i);
+			int inc = cf.getKmer()==null?0:1;
+			if (i==0)
+				kmerHitCount[0] = inc;
+			else
+				kmerHitCount[i] = inc + kmerHitCount[i-1];
+		}
+		for (int i=0;i<N;i++){
+			compFeatures.get(i).setEnrichedKmerHGP(1-StatUtil.hyperGeometricCDF(kmerHitCount[i], N, kmerHitCount[N-1], i+1));
+		}		
+	}
 
 	private void falseDiscoveryTest(List<ComponentFeature> ipFeatures){
 		Vector<ComponentFeature> ctrlFeatures = predictEventsInControlData();
