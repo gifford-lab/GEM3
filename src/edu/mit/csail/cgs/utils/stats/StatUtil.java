@@ -24,6 +24,7 @@ import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 
 public class StatUtil {
 	static cern.jet.random.engine.RandomEngine engine = new cern.jet.random.engine.MersenneTwister();
+	static double[] logFactorials;
 	
 	public static double uniform_rnd() {
 		return Uniform.staticNextDouble();
@@ -1037,6 +1038,8 @@ public class StatUtil {
 	 * Returns the hypergeometric cumulative probability of number <tt>x</tt> 
 	 * when the sample size is <tt>n</tt>, the size of the positive set <tt>s</tt>
 	 * and the population size <tt>N</tt>.
+	 * This method use cern.jet.stat.Gamma.logGamma to compute factorial values. 
+	 * It is more appropriate for one time on-the-fly calculation.
 	 * @param x # observed successes in the sample
 	 * @param N population size
 	 * @param s # of successes in population (e.g., size of positive set in the population)
@@ -1044,11 +1047,9 @@ public class StatUtil {
 	 * @return
 	 */
 	public static double hyperGeometricCDF(int x, int N, int s, int n) {
-		//	HyperGeometric h = new HyperGeometric(N,s,n,engine);
 		double v = 0.0;
 		int k = 0;
 		for (k=0;k<=x;k++) {
-		//	v += h.pdf(k);
 			v += hyperGeometricPDF(k,N,s,n);
 		}
 		
@@ -1081,6 +1082,56 @@ public class StatUtil {
 		return Math.exp(kx + mknx - mn);
 	}
 	
+	/**
+	 * Returns the hypergeometric cumulative probability of number <tt>x</tt> 
+	 * when the sample size is <tt>n</tt>, the size of the positive set <tt>s</tt>
+	 * and the population size <tt>N</tt>.
+	 * This method use a cache to store the factorial values. 
+	 * So it is more suitable to compute many hgp values with a fix population.
+	 * @param x # observed successes in the sample
+	 * @param N population size
+	 * @param s # of successes in population (e.g., size of positive set in the population)
+	 * @param n sample size
+	 * @return
+	 */
+	public static double hyperGeometricCDF_cache(int x, int N, int s, int n) {
+		double v = 0.0;
+		int k = 0;
+		for (k=0;k<=x;k++) {
+			v += hyperGeometricPDF_cache(k,N,s,n);
+		}
+		
+		if (v > 1.0)
+			v = 1.0;
+		return v;	
+	}
+	/**
+	 * Returns the hypergeometric density probability of number <tt>x</tt> 
+	 * when the sample size is <tt>n</tt>, the size of the positive set <tt>s</tt>
+	 * and the population size <tt>N</tt>.  <br>
+	 * This method use a cache to store the factorial values. 
+	 * So it is more suitable to compute many hgp values with a fix population.
+	 * @param x # observed successes in the sample
+	 * @param N population size
+	 * @param s # of successes in population (e.g., size of positive set in the population)
+	 * @param n sample size
+	 * @return
+	 */
+	public static double hyperGeometricPDF_cache(int x, int N, int s, int n) {
+		if (x+N-s-n<0)
+			return 0;
+		if (logFactorials==null || logFactorials.length < N+1){
+			logFactorials = new double[N+1];
+			logFactorials[0]=0;
+			for (int i=1;i<=N;i++)
+				logFactorials[i] = logFactorials[i-1]+Math.log(i);
+		}
+		double kx = logFactorials[s]-logFactorials[x]-logFactorials[s-x];
+		double mknx = logFactorials[N-s]-logFactorials[n-x]-logFactorials[N-s-(n-x)];
+		double mn = logFactorials[N]-logFactorials[n]-logFactorials[N-n];
+		double result = Math.exp(kx + mknx - mn);
+		return result;
+	}
 	
 	/**
 	 * 
@@ -1421,4 +1472,7 @@ public class StatUtil {
 		return sum;		
 	}// end of normalize method
 
+	 public static void main(String[] args){
+		hyperGeometricPDF_cache(0,5,3,1);
+	}
 }//end of StatUtil class
