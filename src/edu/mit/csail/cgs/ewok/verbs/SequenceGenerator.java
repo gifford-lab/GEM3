@@ -146,7 +146,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
             		region.getWidth() + ") but only got " + result.length());
         }
 
-        return result;
+        return result.toLowerCase();
     }
     /**
      * Compact the cache of genome sequences to cover only the specified regions
