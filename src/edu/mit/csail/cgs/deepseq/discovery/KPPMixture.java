@@ -3405,7 +3405,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	sb_kmer.append("Kmer").append("\t").append("KmerRC").append("\t").append("seqCt").append("\t")
 	    	  .append("gShift").append("\t").append("Alignment").append("\t").append("Reference").append("\n");
 	    	//print out the kmer strings in fasta format
-	    	StringBuilder sb_fa = new StringBuilder();
+//	    	StringBuilder sb_fa = new StringBuilder();
 	    	int goodClusterCount = 0;
 	    	for (MotifCluster cluster : clusters){
 	    		ArrayList<ComponentFeature> alignedFeatures = cluster.alignedFeatures;
@@ -3601,8 +3601,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					sb_kmer.append(km.getKmerString()).append("\t").append(km.getKmerRC()).append("\t").append(km.getSeqHitCount()).append("\t")
 					  .append(km.getKmerStartOffset()).append("\t").append(shiftedKmer).append("\t").append(km.getAlignString()).append("\n");		
 					// fasta
-					sb_fa.append(">"+outName+"_"+cluster.clusterId+"_"+kk).append("\n");
-					sb_fa.append(km.getKmerString()).append("\n");		
+//					sb_fa.append(">"+outName+"_"+cluster.clusterId+"_"+kk).append("\n");
+//					sb_fa.append(km.getKmerString()).append("\n");		
 		    		kk++;				
 		    	}
 				sb_kmer.append("\n");
@@ -3610,7 +3610,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	CommonUtils.writeFile(outName+"_PFM.txt", sb_pfm.toString());
 	    	sb_kmer.append("Total kmer groups: " + clusters.size());
 	    	CommonUtils.writeFile(outName+"_Kmers_Aligned.txt", sb_kmer.toString());
-	    	CommonUtils.writeFile(outName+"_Kmers.fa", sb_fa.toString());
+//	    	CommonUtils.writeFile(outName+"_Kmers.fa", sb_fa.toString());
 		}
 
 	/**

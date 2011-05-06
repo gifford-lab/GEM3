@@ -42,7 +42,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	
 	protected double enrichedKmerHGPLog10=-2;
 	public double getEnrichedKmerHGPLog10() {
-		return enrichedKmerHGPLog10;
+		return Math.min(15, enrichedKmerHGPLog10);
 	}
 	public void setEnrichedKmerHGPLog10(double enrichedKmerHGP) {
 		this.enrichedKmerHGPLog10 = enrichedKmerHGP;
@@ -457,7 +457,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         else
         	result.append(CommonUtils.padding(8, ' ')).append("\t").append(0).append("\t").append(String.format("%.1f\t", 0.0)).append(boundSequence);
         if (getEnrichedKmerHGPLog10()>=0)
-        	result.append(String.format("%7.2f\t", getEnrichedKmerHGPLog10()));
+        	result.append(String.format("\t%7.2f", getEnrichedKmerHGPLog10()));
         result.append("\n");
 		return result.toString();
 	}
