@@ -267,9 +267,9 @@ public class KmerEngine {
 				toRemove.add(kmer);	
 				continue;
 			}
-			kmer.hg = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
+			kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
 //			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));
-			if (kmer.hg>hgp)
+			if (kmer.hgp>hgp)
 				toRemove.add(kmer);		
 		}
 		// remove un-enriched kmers		

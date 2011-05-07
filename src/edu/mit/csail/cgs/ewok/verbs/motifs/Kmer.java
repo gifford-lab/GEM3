@@ -18,7 +18,13 @@ public class Kmer implements Comparable<Kmer>{
 	public double getStrength(){return strength;}
 	public void setStrength(double strength){this.strength = strength;}
 	public void incrStrength(double strength){this.strength += strength;}
-	double hg;
+	double hgp;
+	/** 
+	 * get hyper-geometric p-value of the kmer
+	 */
+	public double getHgp() {
+		return hgp;
+	}
 	int negCount;
 	
 	Kmer reference;		//
@@ -86,7 +92,7 @@ public class Kmer implements Comparable<Kmer>{
 		return this.kmerString.equals(kmerString);
 	}
 	public String toString(){
-		double hg_lg = Math.log10(hg);
+		double hg_lg = Math.log10(hgp);
 		if (hg_lg==Double.NEGATIVE_INFINITY)
 			hg_lg=-100;
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg)+
