@@ -1129,7 +1129,7 @@ public class StatUtil {
 				System.arraycopy(old, 0, logFactorials, 0, len);
 			else
 				logFactorials[0]=0;
-			for (int i=len+1;i<=N;i++)
+			for (int i=len;i<=N;i++)
 				logFactorials[i] = logFactorials[i-1]+Math.log(i);
 		}
 		// compute
