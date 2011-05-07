@@ -141,7 +141,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	/** Kmer motif engine
 	 **/
 	private KmerEngine kEngine;
-	private boolean kmerPredifined = false;
+	private boolean kmerPreDefined = false;
 	
 	public KPPMixture(Genome g, 
                       ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
@@ -172,7 +172,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	 ***********************************/
     	String kmerFile = Args.parseString(args, "kf", null);
     	if (kmerFile!=null){
-    		kmerPredifined = true;
+    		kmerPreDefined = true;
 			File kFile = new File(kmerFile);
 			if(kFile.isFile()){
 				try {
@@ -3318,7 +3318,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			refinedRegions.add(cf.getPosition().expand(0));
 		}
 		this.restrictRegions=mergeRegions(refinedRegions, true);
-		// compact genome cache
+		// setup lightweight genome cache
 		ArrayList<Region> expandedRegions = new ArrayList<Region>();
 		for (Region r: restrictRegions){
 			expandedRegions.add(r.expand(config.k_shift+config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
@@ -3328,8 +3328,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (Region r: expandedRegions){
 			totalLength+=r.getWidth();
 		}
-		if (!kmerPredifined){
-			kEngine.compactRegionCache(expandedRegions);
+		if (!kmerPreDefined){
+			kEngine.setLightweightCache(expandedRegions);
 			System.out.println("Compact cache genome sequence length to " + totalLength + ", "+
 				CommonUtils.timeElapsed(tic));
 		}
@@ -5273,7 +5273,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	Kmer[] pp_kmer = new Kmer[pp.length];
                 	String seq = null;
                 	if (kEngine!=null && kEngine.isInitialized()){
-                		if (kmerPredifined)
+                		if (kmerPreDefined)
                 			seq = seqgen.execute(w).toUpperCase();
                 		else
                 			seq = kEngine.getSequence(w);

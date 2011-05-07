@@ -69,8 +69,13 @@ public class KmerEngine {
 			k=kmers.get(0).k;
 		}
 	}
-	public void compactRegionCache(ArrayList<Region> regions){
-		seqgen.compactRegionCache(regions);
+	/**
+	 * Set up the light weight genome cache. 
+	 * Only load the sequences for the specified regions.
+	 * @param regions
+	 */
+	public void setLightweightCache(ArrayList<Region> regions){
+		seqgen.setLightweightCache(regions);
 	}
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value
@@ -78,6 +83,11 @@ public class KmerEngine {
 	 * and build the kmer AhoCorasick engine
 	 */
 	public void buildEngine(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
+		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, winShift, hgp, k_fold);
+		updateEngine(kms, outPrefix);		
+	}
+	
+	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold){
 		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 		this.k = k;
 		numPos = (winSize+1)-k+1;
@@ -85,23 +95,22 @@ public class KmerEngine {
 		int eventCount = events.size();
 		Collections.sort(events);		// sort by location
 		// input data
-		String[]  seqs = new String[eventCount];	// DNA sequences around binding sites
-		String[]  seqsNeg = new String[eventCount];	// DNA sequences in negative sets
-//		double[] seqProbs = new double[eventCount];	// Relative strength of that binding site, i.e. ChIP-Seq read count
+		String[] seqs = new String[eventCount];	// DNA sequences around binding sites
+		String[] seqsNeg = new String[eventCount];	// DNA sequences in negative sets
 		Region[] seqCoors = new Region[eventCount];
 
 		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
 		int expectedCount = (int) (eventCount / Math.pow(4, k) + 0.5);
 		ArrayList<Region> negRegions = new ArrayList<Region>();
 		// prepare for progress reporting
-		int displayStep = (int) Math.pow(10, (int) (Math.log10(eventCount)));
-		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
-		for (int i=1;i<=eventCount/displayStep; i++){
-			reportTriggers.add(i*displayStep);
-		}
-		reportTriggers.add(100);
-		reportTriggers.add(1000);
-		reportTriggers.add(10000);
+//		int displayStep = (int) Math.pow(10, (int) (Math.log10(eventCount)));
+//		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
+//		for (int i=1;i<=eventCount/displayStep; i++){
+//			reportTriggers.add(i*displayStep);
+//		}
+//		reportTriggers.add(100);
+//		reportTriggers.add(1000);
+//		reportTriggers.add(10000);
 //		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
 		for(int i=0;i<eventCount;i++){
 			Region posRegion = events.get(i).expand(winSize/2);
@@ -128,13 +137,13 @@ public class KmerEngine {
 			if (i<(eventCount-2) && seqCoors[i+1].overlaps(negRegion))
 				continue;
 			negRegions.add(negRegion);
-			int trigger = eventCount;
-            if (!reportTriggers.isEmpty())
-            	trigger = reportTriggers.first();
-            if (i>trigger){
-//				System.out.println(trigger+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
-				reportTriggers.remove(reportTriggers.first());
-            }
+//			int trigger = eventCount;
+//            if (!reportTriggers.isEmpty())
+//            	trigger = reportTriggers.first();
+//            if (i>trigger){
+////				System.out.println(trigger+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
+//				reportTriggers.remove(reportTriggers.first());
+//            }
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
 //		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
@@ -161,10 +170,11 @@ public class KmerEngine {
 //		tic = System.currentTimeMillis();
 		
 		// sort the kmer strings, to make a kmer to also represent its reverse compliment (RC)	
-		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		ArrayList<Kmer> kms = new ArrayList<Kmer>();
 		ArrayList<String> sortedKeys = new ArrayList<String>();
 		sortedKeys.addAll(map.keySet());
 		Collections.sort(sortedKeys);	
+		
 		// create kmers from its and RC's counts
 		for (String key:sortedKeys){
 			if (!map.containsKey(key))		// this kmer has been removed, represented by RC
@@ -184,15 +194,16 @@ public class KmerEngine {
 			
 			// create the kmer object
 			Kmer kmer = new Kmer(key, map.get(key));
-			kmers.add(kmer);
+			kms.add(kmer);
 		}
-		allKmers = new ArrayList<Kmer>(kmers);		//TODO: make sure it does not take too much memory
+		allKmers = new ArrayList<Kmer>(kms);		//TODO: make sure it does not take too much memory
 		map=null;
 		System.gc();
-		System.out.println("Kmers("+kmers.size()+") mapped, "+CommonUtils.timeElapsed(tic));
+		System.out.println("Kmers("+kms.size()+") mapped, "+CommonUtils.timeElapsed(tic));
 		
 		/**
 		 * Select significantly over-representative kmers 
+		 * Search the kmer counts in the negative sequences, then compare to positive counts
 		 */
 		tic = System.currentTimeMillis();
 		/*
@@ -201,7 +212,7 @@ public class KmerEngine {
 		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		 */		
 		AhoCorasick tmp = new AhoCorasick();
-		for (Kmer km: kmers){
+		for (Kmer km: kms){
 			tmp.add(km.kmerString.getBytes(), km.kmerString);
 	    }
 		tmp.prepare();
@@ -239,7 +250,7 @@ public class KmerEngine {
 		int N = n + negSeqCount;
 		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
-		for (Kmer kmer:kmers){
+		for (Kmer kmer:kms){
 			if (kmer.seqHitCount<=1){
 				toRemove.add(kmer);	
 				continue;
@@ -256,17 +267,16 @@ public class KmerEngine {
 				toRemove.add(kmer);	
 				continue;
 			}
-			kmer.hg = 1-StatUtil.hyperGeometricCDF(kmer.seqHitCount, N, kmerAllHitCount, n);
+			kmer.hg = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
 //			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));
 			if (kmer.hg>hgp)
 				toRemove.add(kmer);		
 		}
 		// remove un-enriched kmers		
-		kmers.removeAll(toRemove);
-		System.out.println(String.format("Kmers(%d) selected from %d positive vs %d negative sequences, %s", kmers.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
-
-		// set Kmers and prepare the search Engine
-		updateEngine(kmers, outPrefix);
+		kms.removeAll(toRemove);
+		System.out.println(String.format("Kmers(%d) selected from %d positive vs %d negative sequences, %s", kms.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
+		
+		return kms;
 	}
 	
 	/** load Kmers and prepare the search Engine

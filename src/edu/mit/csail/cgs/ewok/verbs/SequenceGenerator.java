@@ -149,10 +149,10 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         return result.toLowerCase();
     }
     /**
-     * Compact the cache of genome sequences to cover only the specified regions
+     * Setup light-weight cache of genome sequences, cover only the specified regions
      * @param regions sorted, non-overlapping regions
      */
-    public void compactRegionCache(ArrayList<Region> regions){
+    public void setLightweightCache(ArrayList<Region> regions){
     	if (regions==null||regions.isEmpty())
     		return;
     	
