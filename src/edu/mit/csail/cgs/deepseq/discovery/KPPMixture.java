@@ -141,7 +141,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	/** Kmer motif engine
 	 **/
 	private KmerEngine kEngine;
-	private boolean kmerPredifined = false;
+	private boolean kmerPreDefined = false;
 	
 	public KPPMixture(Genome g, 
                       ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
@@ -172,7 +172,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	 ***********************************/
     	String kmerFile = Args.parseString(args, "kf", null);
     	if (kmerFile!=null){
-    		kmerPredifined = true;
+    		kmerPreDefined = true;
 			File kFile = new File(kmerFile);
 			if(kFile.isFile()){
 				try {
@@ -3318,7 +3318,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			refinedRegions.add(cf.getPosition().expand(0));
 		}
 		this.restrictRegions=mergeRegions(refinedRegions, true);
-		// compact genome cache
+		// setup lightweight genome cache
 		ArrayList<Region> expandedRegions = new ArrayList<Region>();
 		for (Region r: restrictRegions){
 			expandedRegions.add(r.expand(config.k_shift+config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
@@ -3328,30 +3328,29 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (Region r: expandedRegions){
 			totalLength+=r.getWidth();
 		}
-		if (!kmerPredifined){
-			kEngine.compactRegionCache(expandedRegions);
+		if (!kmerPreDefined){
+			kEngine.setLightweightCache(expandedRegions);
 			System.out.println("Compact cache genome sequence length to " + totalLength + ", "+
 				CommonUtils.timeElapsed(tic));
 		}
 		
-		buildEngine(config.k, config.k_win, outName);
+		buildEngine();
     }
-    
-    private void buildEngine(int k, int k_win_size, String outPrefix){
-		ArrayList<Point> peaks = new ArrayList<Point>();
+    private ArrayList<Point> getEvents(){
+		ArrayList<Point> events = new ArrayList<Point>();
 		int count = 1;
 		for(Feature f : signalFeatures){
 			if(count++>config.k_seqs)
 				break;
 			ComponentFeature cf = (ComponentFeature)f;
-			peaks.add(cf.getPeak());
+			events.add(cf.getPeak());
 		}
 		if (config.kmer_use_insig){
 			for(Feature f : insignificantFeatures){
 				if(count++>config.k_seqs)
 					break;
 				ComponentFeature cf = (ComponentFeature)f;
-				peaks.add(cf.getPeak());
+				events.add(cf.getPeak());
 			}
 		}
 		if (config.kmer_use_filtered){			
@@ -3359,10 +3358,40 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				if(count++>config.k_seqs)
 					break;
 				ComponentFeature cf = (ComponentFeature)f;
-				peaks.add(cf.getPeak());
+				events.add(cf.getPeak());
 			}
 		}
-		kEngine.buildEngine(k, peaks, k_win_size, config.k_shift, config.hgp, config.k_fold, outPrefix);
+		return events;
+    }
+    private void buildEngine(){
+    	ArrayList<Point> events = getEvents();
+		// compare different values of k to select most enriched k value
+		int k=0;
+		int top = 10;
+		double max_value=0;
+		if (config.k_min!=-1){
+			for (int i=config.k_min;i<=config.k_max;i++){
+				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i, events, config.k_win, config.k_shift, config.hgp, config.k_fold);
+				double selectRatio = kms.size()/(double)kEngine.getAllKmers().size();
+				if (selectRatio>max_value){
+					k=i;
+					max_value = selectRatio;
+				}
+				System.out.println(String.format("k=%d, selected ratio=%.2f%%", i, selectRatio*100));				
+//				Collections.sort(kms);
+//				double sum = 0;
+//				for (int t=0;t<top;t++){
+//					sum += -Math.log(kms.get(i).getHgp());
+//				}
+//				if (sum>max_sum){
+//					k=i;
+//					max_sum = sum;
+//				}
+//				System.out.println(String.format("k=%d, hgp_sum=%.2f", i, sum));
+			}
+			System.out.println(String.format("selected k=%d, max ratio=%.2f%%", k, max_value*100));
+		}
+		kEngine.buildEngine(k, events, config.k_win, config.k_shift, config.hgp, config.k_fold, outName);
     }
 
     // update kmerEngine with the predicted kmer-events
@@ -3620,7 +3649,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	public void printOverlappingKmers(){
 		for (int k=config.k;k<config.k+5;k++){
 			String name = outName+"_overlapping_win"+ (config.k*2);
-			buildEngine(k, config.k*2, name);
+	    	ArrayList<Point> events = getEvents();
+			kEngine.buildEngine(k, events, config.k*2, config.k_shift, config.hgp, config.k_fold, name);
 		}
 	}
 	
@@ -4797,6 +4827,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int max_hit_per_bp = -1;
         
         public int k = -1;			// the width of kmer
+        public int k_min = -1;		// the minimum value of k
+        public int k_max= -1;		// the maximum value of k        
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_shift = 100;	// the shift from binding event for negative sequence set    
@@ -4880,6 +4912,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
            
             // Optional input parameter
             k = Args.parseInteger(args, "k", k);
+            k_min = Args.parseInteger(args, "k_min", k_min);
+            k_max = Args.parseInteger(args, "k_max", k_max);
             k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
             k_win = Args.parseInteger(args, "k_win", k_win);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
@@ -5273,7 +5307,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	Kmer[] pp_kmer = new Kmer[pp.length];
                 	String seq = null;
                 	if (kEngine!=null && kEngine.isInitialized()){
-                		if (kmerPredifined)
+                		if (kmerPreDefined)
                 			seq = seqgen.execute(w).toUpperCase();
                 		else
                 			seq = kEngine.getSequence(w);

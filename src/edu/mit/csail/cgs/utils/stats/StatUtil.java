@@ -1120,12 +1120,21 @@ public class StatUtil {
 	public static double hyperGeometricPDF_cache(int x, int N, int s, int n) {
 		if (x+N-s-n<0)
 			return 0;
+		// extend the cache if N is large than existing cache
+		int len = (logFactorials==null)?0:logFactorials.length;
 		if (logFactorials==null || logFactorials.length < N+1){
+			double[] old = logFactorials;
 			logFactorials = new double[N+1];
-			logFactorials[0]=0;
-			for (int i=1;i<=N;i++)
+			if (len!=0)
+				System.arraycopy(old, 0, logFactorials, 0, len);
+			else{
+				logFactorials[0]=0;
+				len++;
+			}
+			for (int i=len;i<=N;i++)
 				logFactorials[i] = logFactorials[i-1]+Math.log(i);
 		}
+		// compute
 		double kx = logFactorials[s]-logFactorials[x]-logFactorials[s-x];
 		double mknx = logFactorials[N-s]-logFactorials[n-x]-logFactorials[N-s-(n-x)];
 		double mn = logFactorials[N]-logFactorials[n]-logFactorials[N-n];
@@ -1473,6 +1482,6 @@ public class StatUtil {
 	}// end of normalize method
 
 	 public static void main(String[] args){
-		hyperGeometricPDF_cache(0,5,3,1);
+		System.out.println(hyperGeometricPDF_cache(0,5,3,1));
 	}
 }//end of StatUtil class
