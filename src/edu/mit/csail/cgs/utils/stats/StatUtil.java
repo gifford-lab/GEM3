@@ -1127,8 +1127,10 @@ public class StatUtil {
 			logFactorials = new double[N+1];
 			if (len!=0)
 				System.arraycopy(old, 0, logFactorials, 0, len);
-			else
+			else{
 				logFactorials[0]=0;
+				len++;
+			}
 			for (int i=len;i<=N;i++)
 				logFactorials[i] = logFactorials[i-1]+Math.log(i);
 		}
@@ -1480,6 +1482,6 @@ public class StatUtil {
 	}// end of normalize method
 
 	 public static void main(String[] args){
-		hyperGeometricPDF_cache(0,5,3,1);
+		System.out.println(hyperGeometricPDF_cache(0,5,3,1));
 	}
 }//end of StatUtil class

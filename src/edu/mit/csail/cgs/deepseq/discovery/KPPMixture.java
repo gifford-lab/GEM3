@@ -3367,23 +3367,29 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	ArrayList<Point> events = getEvents();
 		// compare different values of k to select most enriched k value
 		int k=0;
-		int top = 1;
-		int max_sum=0;
+		int top = 10;
+		double max_value=0;
 		if (config.k_min!=-1){
 			for (int i=config.k_min;i<=config.k_max;i++){
 				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i, events, config.k_win, config.k_shift, config.hgp, config.k_fold);
-				Collections.sort(kms);
-				int sum = 0;
-				for (int t=0;t<top;t++){
-					sum += -Math.log(kms.get(i).getHgp());
-				}
-				if (sum>max_sum){
+				double selectRatio = kms.size()/(double)kEngine.getAllKmers().size();
+				if (selectRatio>max_value){
 					k=i;
-					max_sum = sum;
+					max_value = selectRatio;
 				}
-				System.out.println(String.format("k=%d, hgp_sum=%.2f", i, sum));
+				System.out.println(String.format("k=%d, selected ratio=%.2f%%", i, selectRatio*100));				
+//				Collections.sort(kms);
+//				double sum = 0;
+//				for (int t=0;t<top;t++){
+//					sum += -Math.log(kms.get(i).getHgp());
+//				}
+//				if (sum>max_sum){
+//					k=i;
+//					max_sum = sum;
+//				}
+//				System.out.println(String.format("k=%d, hgp_sum=%.2f", i, sum));
 			}
-			System.out.println(String.format("selected k=%d, hgp_sum=%.2f", k, max_sum));
+			System.out.println(String.format("selected k=%d, max ratio=%.2f%%", k, max_value*100));
 		}
 		kEngine.buildEngine(k, events, config.k_win, config.k_shift, config.hgp, config.k_fold, outName);
     }

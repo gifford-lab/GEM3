@@ -28,6 +28,9 @@ public class KmerEngine {
 	
 	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();		// current set of kmers
 	private ArrayList<Kmer> allKmers = new ArrayList<Kmer>();	// all the kmers in the sequences
+	public ArrayList<Kmer> getAllKmers() {
+		return allKmers;
+	}
 	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 	
 	// AhoCorasick algorithm for multi-pattern search
