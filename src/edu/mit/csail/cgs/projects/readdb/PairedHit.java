@@ -1,6 +1,6 @@
 package edu.mit.csail.cgs.projects.readdb;
 
-public class PairedHit {
+public class PairedHit implements Comparable<PairedHit> {
 
     public int leftChrom, rightChrom;
     public int leftPos, rightPos;
@@ -49,6 +49,14 @@ public class PairedHit {
 		result = prime * result + (rightStrand ? 1231 : 1237);
 		return result;
 	}
+    //Sort using left only
+    public int compareTo(PairedHit o) {
+        if (leftChrom == o.leftChrom) {
+            return leftPos - o.leftPos;
+        } else {
+            return leftChrom - o.leftChrom;
+        }
+    }
 
 	public void flipSides() {
         int x = leftChrom;
