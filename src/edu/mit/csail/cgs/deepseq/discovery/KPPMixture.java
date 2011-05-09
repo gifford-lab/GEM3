@@ -3293,7 +3293,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      * It compact the cached sequence data and build the kmerEngine
      */
     public void initKmerEngine(){
-    	if (config.k==-1)
+    	if (config.k==-1 && config.k_min==-1)
     		return;
 		
 		kEngine = new KmerEngine(gen, config.cache_genome);
@@ -3370,26 +3370,31 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int top = 10;
 		double max_value=0;
 		if (config.k_min!=-1){
-			for (int i=config.k_min;i<=config.k_max;i++){
-				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i, events, config.k_win, config.k_shift, config.hgp, config.k_fold);
-				double selectRatio = kms.size()/(double)kEngine.getAllKmers().size();
-				if (selectRatio>max_value){
-					k=i;
-					max_value = selectRatio;
-				}
-				System.out.println(String.format("k=%d, selected ratio=%.2f%%", i, selectRatio*100));				
-//				Collections.sort(kms);
-//				double sum = 0;
-//				for (int t=0;t<top;t++){
-//					sum += -Math.log(kms.get(i).getHgp());
-//				}
-//				if (sum>max_sum){
+			int eventCounts[] = new int[config.k_max-config.k_min+1];
+			for (int i=0;i<eventCounts.length;i++){
+				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, events, config.k_win, config.k_shift, config.hgp, config.k_fold);
+//				double selectRatio = kms.size()/(double)kEngine.getAllKmers().size();
+//				if (selectRatio>max_value){
 //					k=i;
-//					max_sum = sum;
+//					max_value = selectRatio;
 //				}
-//				System.out.println(String.format("k=%d, hgp_sum=%.2f", i, sum));
+//				System.out.println(String.format("k=%d, selected ratio=%.2f%%", i, selectRatio*100));				
+				Collections.sort(kms);
+				eventCounts[i] = kms.get(0).getSeqHitCount();
 			}
-			System.out.println(String.format("selected k=%d, max ratio=%.2f%%", k, max_value*100));
+			for (int i=0;i<eventCounts.length-1;i++){
+				if (eventCounts[0]/eventCounts[i]>=2)
+					break;
+				
+				double percent = (eventCounts[i]-eventCounts[i+1])*100.0/(double)eventCounts[i];
+				if (percent>max_value){
+					k=i+config.k_min;
+					max_value = percent;
+				}
+				System.out.println(String.format("k=%d, decrease=%.2f%%\teventCount=%d", i+config.k_min, percent, eventCounts[i]));
+			}
+			System.out.println(String.format("selected k=%d, max decrease=%.2f%%", k, max_value));
+			config.k = k;
 		}
 		kEngine.buildEngine(k, events, config.k_win, config.k_shift, config.hgp, config.k_fold, outName);
     }

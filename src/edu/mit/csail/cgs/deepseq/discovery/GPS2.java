@@ -132,13 +132,16 @@ public class GPS2 {
     } //end of GPS constructor
 	
     public void runMixtureModel() {		
+    	boolean run_gem = false;
+    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1)
+    		run_gem = true;
         double kl=10;
         int round = 0;
         String peakFileName = mixture.getOutName();
         mixture.setOutName(peakFileName+"_"+round);
 		
         int GPS_round = 3;
-        if (Args.parseInteger(args,"k", -1)!=-1)
+        if (run_gem)
         	GPS_round = 1;
         GPS_round = Args.parseInteger(args,"r", GPS_round);
         int GEM_round = Args.parseInteger(args,"r_pp", 1);
@@ -172,7 +175,7 @@ public class GPS2 {
                 kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
         }
         
-        if (Args.parseInteger(args,"k", -1)!=-1){	        
+        if (run_gem){	        
 	        /**
 	         ** GPS2 event finding with kmer positional prior (KPP)
 	         **/             
