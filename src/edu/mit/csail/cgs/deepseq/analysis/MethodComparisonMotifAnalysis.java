@@ -49,7 +49,6 @@ public class MethodComparisonMotifAnalysis {
 	private Genome genome;
 	private Organism org;
 	private String[] args;
-	private String motifString;
 	private WeightMatrix motif = null;
 	private String outName="out";
 	
@@ -131,7 +130,6 @@ public class MethodComparisonMotifAnalysis {
 		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
 		motif = wm.car();
 		motifThreshold = wm.cdr();
-		motifString = Args.parseString(args, "motif", null);
 	}
 	
 	// This method print three text files
@@ -231,9 +229,9 @@ public class MethodComparisonMotifAnalysis {
 		// output results, the spatial resolution (offset) 
 		StringBuilder sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
-		sb.append("MotifHit\tChrom\t");
+		sb.append("MotifHit\tChrom");
 		for (int i=0;i<methodNames.size();i++){
-			sb.append(methodNames.get(i)+"\t");
+			sb.append("\t"+methodNames.get(i));
 		}
 		sb.append("\n");
 		for(Point motif:motifs_shared){
