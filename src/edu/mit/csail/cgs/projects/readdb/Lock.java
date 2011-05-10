@@ -22,40 +22,42 @@ public class Lock {
      * you provide, so make sure you always generate the filename in the same way.
      */
     protected static  java.util.concurrent.locks.Lock readLock(String fname) {
-        synchronized(locks) {
-            if (!locks.containsKey(fname)) {
-                locks.put(fname, new ReentrantReadWriteLock());
-            }
-        }
         Thread t = Thread.currentThread();
         synchronized(threadlocks) {
             if (!threadlocks.containsKey(t)) {
                 threadlocks.put(t, new HashSet<java.util.concurrent.locks.Lock>());
             }
         }
-        java.util.concurrent.locks.Lock lock = locks.get(fname).readLock();
-        lock.lock();
+        java.util.concurrent.locks.Lock lock = null;
+        synchronized(locks) {
+            if (!locks.containsKey(fname)) {
+                locks.put(fname, new ReentrantReadWriteLock());
+            }
+            lock = locks.get(fname).readLock();
+            lock.lock();
+        }
         threadlocks.get(t).add(lock);
         //        System.err.println("READLOCK by " + t + " of " + fname + " as " + lock);
         return lock;
     }
     protected static java.util.concurrent.locks.Lock writeLock(String fname) {
-        synchronized(locks) {
-            if (!locks.containsKey(fname)) {
-                locks.put(fname, new ReentrantReadWriteLock());
-            }
-        }
         Thread t = Thread.currentThread();
         synchronized(threadlocks) {
             if (!threadlocks.containsKey(t)) {
                 threadlocks.put(t, new HashSet<java.util.concurrent.locks.Lock>());
             }
         }
-        java.util.concurrent.locks.Lock rl = locks.get(fname).readLock();
-        rl.unlock();
-        threadlocks.get(t).remove(rl);
-        java.util.concurrent.locks.Lock lock = locks.get(fname).writeLock();
-        lock.lock();
+        java.util.concurrent.locks.Lock rl = null, lock = null;
+        synchronized(locks) {
+            if (!locks.containsKey(fname)) {
+                locks.put(fname, new ReentrantReadWriteLock());
+            }
+            rl = locks.get(fname).readLock();
+            rl.unlock();
+            threadlocks.get(t).remove(rl);
+            lock = locks.get(fname).writeLock();
+            lock.lock();
+        }
         threadlocks.get(t).add(lock);
         //        System.err.println("WRITELOCK by " + t + " of " + fname + " as " + lock);
         return lock;
@@ -70,27 +72,23 @@ public class Lock {
             }
             threadlocks.get(t).clear();
         }
-        if (rlcount++ > 100) {
+        if (rlcount++ > 1000) {
             rlcount = 0;
-            if (locks.size() > 1000) {
-                /* cleanup loop so that we don't have an ever-expanding data structure */
-                Collection<String> keys = locks.keySet();
-                for (String k : keys) {
-                    ReentrantReadWriteLock l = locks.get(k);
-                    /* if there are no outstanding locks, acquire a write lock to make sure that
-                       nobody else can get it, remove the ReentrantRWLock, then release
-                    */
-                    if (l.getReadLockCount() == 0 && l.isWriteLocked()) {
-                        java.util.concurrent.locks.Lock lock = l.writeLock();
-                        locks.remove(k);
-                        lock.unlock();
-                        lock = null;
+            if (locks.size() > 10000) {
+                synchronized(locks) {
+                    /* cleanup loop so that we don't have an ever-expanding data structure */
+                    Collection<String> keys = locks.keySet();
+                    for (String k : keys) {
+                        ReentrantReadWriteLock l = locks.get(k);
+                        if (l.getReadLockCount() == 0 && !l.isWriteLocked()) {
+                            locks.remove(k);
+                        }
                     }
                 }
             }
         }
     }
-
+    
 
 
 }
