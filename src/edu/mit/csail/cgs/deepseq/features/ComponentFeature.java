@@ -40,6 +40,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected Point EM_position;		//  EM result
 	protected double alpha;
 	
+	protected Kmer kmer;
+	public Kmer getKmer() { return kmer; }
 	protected double enrichedKmerHGPLog10=-2;
 	public double getEnrichedKmerHGPLog10() {
 		return Math.min(15, enrichedKmerHGPLog10);
@@ -47,8 +49,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void setEnrichedKmerHGPLog10(double enrichedKmerHGP) {
 		this.enrichedKmerHGPLog10 = enrichedKmerHGP;
 	}
-	protected Kmer kmer;
-	public Kmer getKmer() { return kmer; }
 	public void setKmer(Kmer kmer) { this.kmer = kmer;}
 	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
 	public String getBoundSequence(){return boundSequence;}

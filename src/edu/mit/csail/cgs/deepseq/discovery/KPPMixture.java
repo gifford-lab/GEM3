@@ -260,37 +260,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		
 		// Filtering/reset bases
-		System.out.println("\nApply Poisson filter for duplicate reads.");
-		for(int c = 0; c < numConditions; c++) {
-			caches.get(c).car().applyPoissonGaussianFilter(10e-3, 20);
-			if(controlDataExist) {
-				caches.get(c).cdr().applyPoissonGaussianFilter(10e-3, 20);
-			}
-		}
-		// print initial dataset counts
-		for(int c = 0; c < numConditions; c++) {
-			caches.get(c).car().displayStats();
-			if(controlDataExist) {
-				caches.get(c).cdr().displayStats();
-			}
-		}
-		
-		// Filtering/reset bases
-		System.out.println("\nApply Poisson filter for duplicate reads.");
-		for(int c = 0; c < numConditions; c++) {
-			caches.get(c).car().applyPoissonGaussianFilter(10e-3, 20);
-			if(controlDataExist) {
-				caches.get(c).cdr().applyPoissonGaussianFilter(10e-3, 20);
-			}
-		}
-		//		doBaseFiltering();			 		
-		
-		// print resulting dataset counts
-		for(int c = 0; c < numConditions; c++) {
-			caches.get(c).car().displayStats();
-			if(controlDataExist) {
-				caches.get(c).cdr().displayStats();
-			}
+		if(config.filterDupReads){
+			applyPoissonFilter();
+			applyPoissonFilter();
 		}
 		
 		// Normalize conditions
@@ -2210,7 +2182,27 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		return likelihoods;
 	}
-	
+	/**
+	 * Apply a Possion filter for duplicate reads
+	 */
+	private void applyPoissonFilter(){
+		// Filtering/reset bases
+		System.out.println("\nApply Poisson filter for duplicate reads.");
+		for(int c = 0; c < numConditions; c++) {
+			caches.get(c).car().applyPoissonGaussianFilter(10e-3, 20);
+			if(controlDataExist) {
+				caches.get(c).cdr().applyPoissonGaussianFilter(10e-3, 20);
+			}
+		}	 		
+		
+		// print resulting dataset counts
+		for(int c = 0; c < numConditions; c++) {
+			caches.get(c).car().displayStats();
+			if(controlDataExist) {
+				caches.get(c).cdr().displayStats();
+			}
+		}
+	}
 	/**
 	 * This method normalizes conditions as follows:							<br>
 	 * It evaluates the slope between each pair of an IP condition and a reference one.
@@ -4821,7 +4813,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean kmer_print_hits = false;
         public boolean testPValues = false;
         public boolean post_artifact_filter=false;
-        public boolean filterEvents=false;
+        public boolean filterEvents=true;
+        public boolean filterDupReads=true;
         public boolean kl_count_adjusted = false;
         public boolean sort_by_location=false;
         public boolean exclude_unenriched = false;
@@ -4906,6 +4899,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
             filterEvents = !flags.contains("nf");	// not filtering of predicted events
+            filterDupReads = !flags.contains("nrf");	// no read filtering of duplicate reads
             TF_binding = ! flags.contains("br");	// broad region, not TF data, is histone or pol II
             if (!TF_binding){
                 use_joint_event = true;

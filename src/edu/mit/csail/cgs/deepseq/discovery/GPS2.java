@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GPS2 {
-	public final static String GPS_VERSION = "2.0";
+	public final static String GPS_VERSION = "1.1";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -198,17 +198,16 @@ public class GPS2 {
 	            else
 	            	mixture.updateKmerEngine(true);
 	        }
-	        //round--;
 	     
 	        // print the binding event results with updated kmer information
 	        mixture.printFeatures();
 	        mixture.printFilteredFeatures();
 	        mixture.printInsignificantFeatures();
-	        mixture.plotAllReadDistributions();
 	        
 	        mixture.printOverlappingKmers();
         }
         
+        mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         
         System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
@@ -217,6 +216,7 @@ public class GPS2 {
     public static void main(String[] args) throws Exception {
         long tic = System.currentTimeMillis();
         System.out.println("\nWelcome to GPS (version "+GPS_VERSION+")!");
+        System.out.println("Developed by Lab of Computational Genomics at MIT (http://cgs.csail.mit.edu/gps/).\n");
         GPS2 gps = new GPS2(args);
         gps.runMixtureModel();
         gps.close();
