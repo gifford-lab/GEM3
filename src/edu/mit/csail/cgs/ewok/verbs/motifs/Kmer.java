@@ -30,6 +30,7 @@ public class Kmer implements Comparable<Kmer>{
 	Kmer reference;		//
 	public Kmer getRef(){return reference;}
 	int shift;			// the position relative to seedKmer, after aligning this kmer to seedKmer
+	/** get the position relative to seedKmer, after aligning this kmer to seedKmer */
 	public int getShift(){return shift;}
 	public void setShift(int s){shift=s;}
 	int score;			// best possible number of matches (with or w/o shift) wrt reference Kmer

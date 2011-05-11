@@ -37,6 +37,7 @@ public class KmerEngine {
 	// Pre-processing is to build the tree with all the patters (kmers)
 	// Then each individual search can be done in scan()
 	private AhoCorasick tree;
+	private AhoCorasick tree_negatives;
 	
 	private int maxCount;		// max kmer hit count of whole dataset
 	public int getMaxCount() {return maxCount;}
@@ -253,6 +254,7 @@ public class KmerEngine {
 		int N = n + negSeqCount;
 		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
 		for (Kmer kmer:kms){
 			if (kmer.seqHitCount<=1){
 				toRemove.add(kmer);	
@@ -273,13 +275,37 @@ public class KmerEngine {
 			kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
 //			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));
 			if (kmer.hgp>hgp)
-				toRemove.add(kmer);		
+				highHgpKmers.add(kmer);		
 		}
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
+		kms.removeAll(highHgpKmers);
 		System.out.println(String.format("Kmers(%d) selected from %d positive vs %d negative sequences, %s", kms.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
+		// setup high HGP kmers for later query, e.g. in isNegativeKmer(String kmerStr)
+		tree_negatives = new AhoCorasick();
+		for (Kmer km: highHgpKmers){
+			if (km.getNegCount()<=1)
+				continue;
+			str2kmer.put(km.kmerString, km);
+			tree_negatives.add(km.kmerString.getBytes(), km.kmerString);
+	    }
+		tree_negatives.prepare();
 		return kms;
+	}
+	/**
+	 * Check if a k-mer is a k-mer that was not enriched in positive sets
+	 */
+	public boolean isNegativeKmer(String kmerStr){
+		// is kmer in the negative k-mer set
+		Iterator found = tree_negatives.search(kmerStr.getBytes());
+		if (found.hasNext())
+			return true;
+		// try reverse compliment
+		found = tree_negatives.search(SequenceUtils.reverseComplement(kmerStr).getBytes());
+		if (found.hasNext())
+			return true;
+		return false;
 	}
 	
 	/** load Kmers and prepare the search Engine
