@@ -91,7 +91,7 @@ public class GPS2 {
         	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
         	List<File> expts = Args.parseFileHandles(args, "expt"+name);
         	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
-        	boolean nonUnique = flags.contains("nonunique") ? true : false;
+        	boolean nonUnique = flags.contains("nonunique");
             String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
 
             if(expts.size()>0 && rdbexpts.size()==0){
