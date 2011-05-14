@@ -52,7 +52,6 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 		
 		String seq = seqgen.execute(query);
 		WeightMatrixScoreProfile profiler = scorer.execute(seq);
-		
 		for(int i=query.getStart(); i<query.getEnd(); i+=params.getBinSize()){
 			double maxScore=Double.MIN_VALUE;
 			int maxPos=0;
@@ -65,18 +64,17 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 				}
 			}
 			if(maxScore>=minThreshold){
-				if(!strand) { 
-					int tmp = window-maxPos;
-					maxPos = tmp;
-				}
 				int startbin, stopbin;
-				if(profiler.getMaxStrand(maxPos)=='+'){
-					startbin = params.findBin(maxPos);
-					stopbin = params.findBin(maxPos+motif.length());
-				}else{
-					startbin = params.findBin(maxPos-motif.length());
-					stopbin = params.findBin(maxPos);
+
+				startbin = params.findBin(maxPos);
+				stopbin = params.findBin(maxPos+motif.length()-1);
+				
+				if(!strand) { 
+					int tmp = (params.getNumBins()-stopbin)-1;
+					stopbin = (params.getNumBins()-startbin)-1;
+					startbin = tmp;
 				}
+	
 				//addToArray(startbin, stopbin, array, maxScore);
 				maxToArray(startbin, stopbin, array, maxScore);
 			}

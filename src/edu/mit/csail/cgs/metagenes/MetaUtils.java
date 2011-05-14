@@ -55,8 +55,10 @@ public class MetaUtils {
 		BufferedReader br = new BufferedReader(new FileReader(f));
 		String line;
 		while((line = br.readLine()) != null) {
-			String [] curr = line.split("\t");
-			String coord = 	curr[0];
+			String [] curr = line.split("\\s+");
+			String coord = curr[0];
+			if(curr.length>=3 && curr[2].contains(":")){coord = curr[2];}
+			
 			if(coord.contains(":")) {
 				String [] currB = coord.split(":");
 				String chrom = currB[0];
