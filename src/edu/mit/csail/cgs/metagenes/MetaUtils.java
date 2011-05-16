@@ -53,28 +53,31 @@ public class MetaUtils {
 		System.out.println("Loading points");
 		Vector<Point> pts = new Vector<Point>();
 		BufferedReader br = new BufferedReader(new FileReader(f));
-		Pattern ptpatt = Pattern.compile("([^:\\s]+):(\\d+)");
-		Pattern strptpatt = Pattern.compile("([^:\\s]+):(\\d+):([^:\\s]+)");
 		String line;
 		while((line = br.readLine()) != null) {
-			Matcher m = ptpatt.matcher(line);
-			if(m.find()) { 
-				String chrom = m.group(1);
-				int location = Integer.parseInt(m.group(2));
+			String [] curr = line.split("\\s+");
+			String coord = curr[0];
+			if(curr.length>=3 && curr[2].contains(":")){coord = curr[2];}
+			
+			if(coord.contains(":")) {
+				String [] currB = coord.split(":");
+				String chrom = currB[0];
 				char strand = '?';
-				Matcher sm = strptpatt.matcher(line);
-				if(sm.find()){
-					String strandstr = sm.group(3);
-					if(strandstr.length() > 0) { strand = strandstr.charAt(0); }
-				}
+				if(currB.length==3)
+					strand = currB[2].charAt(0);
 				Point pt = null;
-				if(strand == '+') { 
-					pt = new StrandedPoint(genome, chrom, location, strand);
-				} else if (strand == '-') { 
-					pt = new StrandedPoint(genome, chrom, location, strand);					
-				} else { 
-					pt = new Point(genome, chrom, location);
+				int location=-1;
+				if(currB[1].contains("-")){
+					String [] currC = currB[1].split("-");
+					location = (new Integer(currC[0])+new Integer(currC[1]))/2; 
+				}else{
+					location = new Integer(currB[1]);
 				}
+				if(strand!='?')
+					pt = new StrandedPoint(genome, chrom, location, strand);
+				else
+					pt = new Point(genome, chrom, location);
+			
 				pts.add(pt);
 			} else { 
 				System.err.println(String.format("Couldn't find point in line \"%s\"", line));
