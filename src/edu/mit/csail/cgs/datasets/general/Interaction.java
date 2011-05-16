@@ -5,7 +5,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 public class Interaction {
 
 	private Region left, right;
-	private int count;
+	private double count;
 	private double pval;
 	
 	public Interaction(Region left, Region right) {
@@ -13,11 +13,15 @@ public class Interaction {
 		this.right = right;
 	}
 	
-	public Interaction(Region left, Region right, int count, double pval) {
+	public Interaction(Region left, Region right, double count, double pval) {
 		this.left = left;
 		this.right = right;
 		this.count = count;
 		this.pval = pval;
+	}
+	
+	public Interaction(Region left, Region right, double count) {
+		this(left,right,count,0);
 	}
 
 	public Region getLeft() {
@@ -36,7 +40,7 @@ public class Interaction {
 		return right;
 	}
 	
-	public int getCount() {
+	public double getCount() {
 		return count;
 	}
 	
