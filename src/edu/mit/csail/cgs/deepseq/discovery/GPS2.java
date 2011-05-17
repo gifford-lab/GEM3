@@ -164,7 +164,7 @@ public class GPS2 {
 
             if (round==1){
                 boolean fixModelRange = Args.parseFlags(args).contains("fix_model_range");
-                if (!fixModelRange){
+                if (fixModelRange){
                     Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(maxLeft, maxRight);
                     kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
                 }
