@@ -240,7 +240,7 @@ public class EnhancerChromatinAnalysis {
 
 			// cache sorted start positions and counts of all positions
 			long tic = System.currentTimeMillis();
-			System.out.println("\nLoading  "+ipCache.getName()+" data from ReadDB ... \t");
+			System.out.print("\nLoading  "+ipCache.getName()+" data from ReadDB ... \t");
 			for (String chrom: genome.getChromList()){
 				// load  data for this chromosome.
 				int length = genome.getChromLength(chrom);
@@ -313,7 +313,7 @@ public class EnhancerChromatinAnalysis {
 			BindingModel.minKL_Shift(profile_plus[c], profile_minus[c] );
 		}
 		
-		// output
+		// output the read density
 		profiles=new double[numMarks][width];
 		double[] scaleFactors = new double[numMarks];
 		for (int c=0;c<numMarks;c++){
@@ -325,7 +325,7 @@ public class EnhancerChromatinAnalysis {
 		for (int i=0;i<width;i++){
 			sb.append(i-left).append("\t");
 			for (int c=0;c<numMarks;c++){
-				double sum = (profile_plus[c][i]+profile_minus[c][i])*4/scaleFactors[c];
+				double sum = (profile_plus[c][i]+profile_minus[c][i])/4.0/scaleFactors[c];
 				sum = sum>=0?sum:2.0E-300;
 				profiles[c][i] = sum;
 				sb.append(sum).append("\t");
