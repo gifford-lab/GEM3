@@ -2434,7 +2434,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }//end of calcSlope method
 
 	
-	public double updateBindingModel(int left, int right){
+	double updateBindingModel(int left, int right){
 		if (signalFeatures.size()<config.min_event_count){
 			System.err.println("Warning: The read distribution is not updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
 			return -100;
