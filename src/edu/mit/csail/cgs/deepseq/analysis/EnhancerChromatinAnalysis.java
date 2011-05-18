@@ -148,7 +148,8 @@ public class EnhancerChromatinAnalysis {
 			Region r = p.expand(windowSize);
 			if (isEnriched(r, "H3K4me1", "input", 10) && isEnriched(r, "H3K27ac", "input", 10) && (!isEnriched(r, "H3K4me3", "input", 30)))
 				classI.add(p);
-			if (isEnriched(r, "H3K4me1", "input", 10) && isEnriched(r, "H3K27me3", "input", 8) && (!isEnriched(r, "H3K27ac", "input", 10)) && (!isEnriched(r, "H3K4me3", "input", 30)))
+			if (isEnriched(r, "H3K27me3", "input", 8) && (!isEnriched(r, "H3K27ac", "input", 10)) && (!isEnriched(r, "H3K4me3", "input", 30)))
+//				if (isEnriched(r, "H3K4me1", "input", 10) && isEnriched(r, "H3K27me3", "input", 8) && (!isEnriched(r, "H3K27ac", "input", 10)) && (!isEnriched(r, "H3K4me3", "input", 30)))
 				classII.add(p);
 		}
 		System.out.println(outName+"_enhancer_I:\t"+classI.size());
