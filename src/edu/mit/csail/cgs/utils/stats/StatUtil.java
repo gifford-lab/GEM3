@@ -1272,7 +1272,7 @@ public class StatUtil {
 	//	http://en.wikipedia.org/wiki/Kullback-Leibler_divergence
 	public static double KL_Divergence( double[]P, double[]Q){
 		double d=0;
-		double[] p=P.clone();
+		double[] p=P.clone();	// clone so that the input array is not changed
 		double[] q=Q.clone();
 		// Make sure that p and q are all proper probability values
 		mutate_normalize(p);
