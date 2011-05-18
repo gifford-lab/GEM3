@@ -153,7 +153,7 @@ public class EnhancerChromatinAnalysis {
 		StringBuilder sb = new StringBuilder();
 		for (Point p:classI)
 			sb.append(p.toString()).append("\n");
-		CommonUtils.writeFile(outName+"_enhancer_I.txt", sb.toString());
+		CommonUtils.writeFile(outName+"_enhancer_I_coords.txt", sb.toString());
 		
 		generateProfiles("I", classI, profiles_I, windowSize, windowSize);
 		
@@ -161,7 +161,7 @@ public class EnhancerChromatinAnalysis {
 		sb = new StringBuilder();
 		for (Point p:classII)
 			sb.append(p.toString()).append("\n");
-		CommonUtils.writeFile(outName+"_enhancer_II.txt", sb.toString());
+		CommonUtils.writeFile(outName+"_enhancer_II_coords.txt", sb.toString());
 		
 		generateProfiles("II", classII, profiles_II, windowSize, windowSize);
 
@@ -169,12 +169,12 @@ public class EnhancerChromatinAnalysis {
 	}
 
 	
-	private boolean isEnriched(Region region, String ip, String ctrl, double threshold){
+	private boolean isEnriched(Region region, String ip, String ctrl, double ip_min){
 		float ip_count = caches.get(markIDs.get(ip)).countHits(region);
 		float ctrl_count = caches.get(markIDs.get(ctrl)).countHits(region);
 		if (ctrl_count==0)
 			ctrl_count = 1;
-		return ip_count>threshold && ip_count/ctrl_count>2.5;
+		return ip_count>ip_min && ip_count/ctrl_count>2.5;
 	}
 
 	private ArrayList<Point> readPeakLists() throws IOException {
@@ -277,6 +277,7 @@ public class EnhancerChromatinAnalysis {
 			} // for each chrom
 
 			ipCache.populateArrays(true);
+			ipCache.displayStats();
 			ip.closeLoaders();
 			ip=null;
 			System.gc();
