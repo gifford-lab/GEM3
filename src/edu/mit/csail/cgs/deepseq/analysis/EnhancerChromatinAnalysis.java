@@ -247,7 +247,7 @@ public class EnhancerChromatinAnalysis {
 
 			// cache sorted start positions and counts of all positions
 			long tic = System.currentTimeMillis();
-			System.out.print("\nLoading  "+ipCache.getName()+" data from ReadDB ... \t");
+			System.out.print("Loading "+ipCache.getName()+" data from ReadDB ... \t");
 			for (String chrom: genome.getChromList()){
 				// load  data for this chromosome.
 				int length = genome.getChromLength(chrom);
@@ -277,7 +277,6 @@ public class EnhancerChromatinAnalysis {
 			} // for each chrom
 
 			ipCache.populateArrays(true);
-			ipCache.displayStats();
 			ip.closeLoaders();
 			ip=null;
 			System.gc();
@@ -285,6 +284,7 @@ public class EnhancerChromatinAnalysis {
 			if (fromReadDB){
 				System.out.println(CommonUtils.timeElapsed(tic));
 			}
+			ipCache.displayStats();
 		}
 	}
 
