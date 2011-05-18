@@ -1,5 +1,9 @@
 package edu.mit.csail.cgs.projects.readdb;
 
+import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedRegion;
+import edu.mit.csail.cgs.datasets.species.Genome;
+
 public class PairedHit implements Comparable<PairedHit> {
 
     public int leftChrom, rightChrom;
@@ -56,6 +60,22 @@ public class PairedHit implements Comparable<PairedHit> {
         } else {
             return leftChrom - o.leftChrom;
         }
+    }
+    
+    public StrandedRegion leftRegion(Genome genome) {
+    	return new StrandedRegion(genome, genome.getChromName(leftChrom), leftPos, leftPos+(leftStrand ? leftLength : -leftLength), leftStrand ? '+' : '-');
+    }
+    
+    public StrandedRegion leftPointRegion(Genome genome) {
+    	return new StrandedRegion(genome, genome.getChromName(leftChrom), leftPos, leftPos+1, leftStrand ? '+' : '-');
+    }
+    
+    public StrandedRegion rightRegion(Genome genome) {
+    	return new StrandedRegion(genome, genome.getChromName(rightChrom), rightPos, rightPos+(rightStrand ? rightLength : -rightLength), rightStrand ? '+' : '-');
+    }
+    
+    public StrandedRegion rightPointRegion(Genome genome) {
+    	return new StrandedRegion(genome, genome.getChromName(rightChrom), rightPos, rightPos+1, rightStrand ? '+' : '-');
     }
 
 	public void flipSides() {
