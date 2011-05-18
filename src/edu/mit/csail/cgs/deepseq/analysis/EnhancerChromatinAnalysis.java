@@ -122,6 +122,13 @@ public class EnhancerChromatinAnalysis {
 		for (int i=0;i<markNames.size();i++){
 			markIDs.put(markNames.get(i), i);
 		}
+		try{
+			readPeakLists();
+		}
+		catch (IOException e){
+			e.printStackTrace(System.err);
+			System.exit(-1);
+		}
 
 		loadChIPSeqData();
 	}
@@ -132,7 +139,6 @@ public class EnhancerChromatinAnalysis {
 	// This method print 2 text files: class I and II enhancer coordinates
 	private void findEnhancers() throws IOException {
 		long tic = System.currentTimeMillis();
-		readPeakLists();
 		
 		ArrayList<Point> classI = new ArrayList<Point>();
 		ArrayList<Point> classII = new ArrayList<Point>();
@@ -143,19 +149,19 @@ public class EnhancerChromatinAnalysis {
 			if (isEnriched(r, "H3K4me1", "input", 10) && isEnriched(r, "H3K27me3", "input", 8) && (!isEnriched(r, "H3K27ac", "input", 10)) && (!isEnriched(r, "H3K4me3", "input", 30)))
 				classII.add(p);
 		}
-		System.out.println("classI:\t"+classI.size());
+		System.out.println(outName+"_enhancer_I:\t"+classI.size());
 		StringBuilder sb = new StringBuilder();
 		for (Point p:classI)
 			sb.append(p.toString()).append("\n");
-		CommonUtils.writeFile("esc_classI.txt", sb.toString());
+		CommonUtils.writeFile(outName+"_enhancer_I.txt", sb.toString());
 		
 		generateProfiles("I", classI, profiles_I, windowSize, windowSize);
 		
-		System.out.println("classII:\t"+classII.size());
+		System.out.println(outName+"_enhancer_II:\t"+classII.size());
 		sb = new StringBuilder();
 		for (Point p:classII)
 			sb.append(p.toString()).append("\n");
-		CommonUtils.writeFile("esc_classII.txt", sb.toString());
+		CommonUtils.writeFile(outName+"_enhancer_II.txt", sb.toString());
 		
 		generateProfiles("II", classII, profiles_II, windowSize, windowSize);
 
@@ -217,6 +223,7 @@ public class EnhancerChromatinAnalysis {
     	else{
 			peakPoints = CommonUtils.loadCgsPointFile(filePath, genome);
     	}  
+    	System.out.println(peakPoints.size()+" p300 events are loaded.");
     	return peakPoints;
 	}
 	
