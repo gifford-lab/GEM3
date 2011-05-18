@@ -52,6 +52,7 @@ public class EnhancerChromatinAnalysis {
 	
 	private final int NOHIT_OFFSET = 999;
 	
+	private boolean dev = false;
 	private boolean isPreSorted = false;	
 	private int windowSize = 1000;	
 	private int rank = 1000;
@@ -113,17 +114,18 @@ public class EnhancerChromatinAnalysis {
 		outName = Args.parseString(args,"out",outName);
 		sortByStrength = flags.contains("ss");	// only for GPS
 		isPreSorted = flags.contains("sorted");
+		dev = flags.contains("dev");
 		
 		markNames.add("H3K4me1");
-		markNames.add("H3K4me3");
-		markNames.add("H3K27me3");
 		markNames.add("H3K27ac");
+		markNames.add("H3K27me3");
+		markNames.add("H3K4me3");
 		markNames.add("input");
 		for (int i=0;i<markNames.size();i++){
 			markIDs.put(markNames.get(i), i);
 		}
 		try{
-			readPeakLists();
+			events = readPeakLists();
 		}
 		catch (IOException e){
 			e.printStackTrace(System.err);
@@ -248,7 +250,12 @@ public class EnhancerChromatinAnalysis {
 			// cache sorted start positions and counts of all positions
 			long tic = System.currentTimeMillis();
 			System.out.print("Loading "+ipCache.getName()+" data from ReadDB ... \t");
-			for (String chrom: genome.getChromList()){
+			List<String> chroms = genome.getChromList();
+			if (dev){
+				chroms = new ArrayList<String>();
+				chroms.add("22");
+			}
+			for (String chrom: chroms ){
 				// load  data for this chromosome.
 				int length = genome.getChromLength(chrom);
 				Region wholeChrom = new Region(genome, chrom, 0, length-1);
@@ -336,7 +343,7 @@ public class EnhancerChromatinAnalysis {
 				double sum = (profile_plus[c][i]+profile_minus[c][i])/4.0/scaleFactors[c];
 				sum = sum>=0?sum:2.0E-300;
 				profiles[c][i] = sum;
-				sb.append(sum).append("\t");
+				sb.append(String.format("%.2f\t",sum));
 			}
 			sb.append("\n");
 		}
