@@ -129,16 +129,18 @@ public class EnhancerChromatinAnalysis {
 		StringBuilder sb = new StringBuilder();
 		for (Point p:classI)
 			sb.append(p.toString()).append("\n");
-		CommonUtils.writeFile(outName+"_enhancer_I_coords.txt", sb.toString());
+		CommonUtils.writeFile(outName+"_I_coords.txt", sb.toString());
 		
+		profiles_I=new double[4][modelRange*2+1];
 		generateProfiles("I", classI, profiles_I, modelRange, modelRange);
 		
 		System.out.println(outName+"_enhancer_II:\t"+classII.size());
 		sb = new StringBuilder();
 		for (Point p:classII)
 			sb.append(p.toString()).append("\n");
-		CommonUtils.writeFile(outName+"_enhancer_II_coords.txt", sb.toString());
+		CommonUtils.writeFile(outName+"_II_coords.txt", sb.toString());
 		
+		profiles_II=new double[4][modelRange*2+1];
 		generateProfiles("II", classII, profiles_II, modelRange, modelRange);
 
 		computeLikelihoodRatio("I", classI);
@@ -273,11 +275,10 @@ public class EnhancerChromatinAnalysis {
 
 	private void generateProfiles(String classType, ArrayList<Point> coords, double[][] profiles, int left, int right){
 		int width = left+right+1;
-        // data for all conditions
-		int numMarks = 4;
+		int numMarks = profiles.length;
         double[][] profile_plus=new double[numMarks][width];
         double[][] profile_minus=new double[numMarks][width];
-		// sum the read profiles from all qualified binding events for updating model
+		// sum the read profiles
 		for (int c=0;c<numMarks;c++){
 			ReadCache ip = caches.get(c);
 			for (int i=0;i<Math.min(rank, coords.size());i++){
@@ -294,18 +295,17 @@ public class EnhancerChromatinAnalysis {
 				}
 			}
 
-			// smooth the model profile
+			// smooth the read profile
 			if (smooth_step>0){
 				profile_plus[c] = StatUtil.cubicSpline(profile_plus[c], smooth_step, smooth_step);
 				profile_minus[c] = StatUtil.cubicSpline(profile_minus[c], smooth_step, smooth_step);
 			}
 
-			//compare models from 2 strands, shift binding position if needed
+			//compare profiles from 2 strands, shift binding position if needed
 			BindingModel.minKL_Shift(profile_plus[c], profile_minus[c] );
 		}
 		
 		// output the read density
-		profiles=new double[numMarks][width];
 		double[] scaleFactors = new double[numMarks];
 		for (int c=0;c<numMarks;c++){
 			scaleFactors[c] = caches.get(c).getHitCount();
@@ -343,8 +343,6 @@ public class EnhancerChromatinAnalysis {
 	
 	// Compute the likelihood ratio of a p300 event region fitting to class I and II enhancer profiles
 	private void computeLikelihoodRatio(String classType, ArrayList<Point> coords) throws IOException {
-		long tic = System.currentTimeMillis();
-
 		StringBuilder sb = new StringBuilder();
 		sb.append("Event\t\tll_I\tll_II\tllr\n");
 		for (Point p: coords){
@@ -366,7 +364,5 @@ public class EnhancerChromatinAnalysis {
 			sb.append(String.format("%.1f\t%.1f\t%.1f\n", ll_I, ll_II, llr));
 		}
 		CommonUtils.writeFile(outName+"_"+classType+"_likelihood_ratio.txt", sb.toString());
-		
-		System.out.println("Done! " + CommonUtils.timeElapsed(tic));
 	}
 }
