@@ -356,7 +356,11 @@ public class EnhancerChromatinAnalysis {
 	// Compute the likelihood ratio of a p300 event region fitting to class I and II enhancer profiles
 	private void computeLikelihoodRatio(String classType, ArrayList<Point> coords) throws IOException {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Event\t\tll_I\tll_II\tllr\n");
+		sb.append("Event   \t");
+		for (int c=0;c<markNames.size();c++){
+			sb.append(markNames.get(c)+"\t");
+		}
+		sb.append("ll_I\tll_II\tllr\n");
 		for (Point p: coords){
 			sb.append(p.toString()+"\t");
 			int pos = p.getLocation();
@@ -371,7 +375,11 @@ public class EnhancerChromatinAnalysis {
 					ll_I += Math.log(profiles_I[c][idx])*b.getCount();
 					ll_II += Math.log(profiles_II[c][idx])*b.getCount();
 				}
+				// output the strength of each mark in range of +-1kb
+				sb.append(String.format("%.0f\t", caches.get(c).countHits(p.expand(windowSize))));
 			}
+			// and input
+			sb.append(String.format("%.0f\t", caches.get(markNames.size()-1).countHits(p.expand(windowSize))));
 			double llr = ll_I - ll_II;
 			sb.append(String.format("%.1f\t%.1f\t%.1f\n", ll_I, ll_II, llr));
 		}
