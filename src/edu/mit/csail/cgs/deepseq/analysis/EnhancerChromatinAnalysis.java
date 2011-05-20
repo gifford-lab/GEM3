@@ -134,11 +134,11 @@ public class EnhancerChromatinAnalysis {
 			sb.append(p.toString()).append("\n");
 		CommonUtils.writeFile(outName+"_I_coords.txt", sb.toString());
 		
-		ArrayList<Integer> marksToProfile = new ArrayList<Integer>();
-		marksToProfile.add(1); 	//H3K27ac
-		marksToProfile.add(2); 	//H3K27me3
-		profiles_I=new double[marksToProfile.size()][modelRange*2+1];
-		generateProfiles("I", classI, profiles_I, marksToProfile, modelRange, modelRange);
+		ArrayList<Integer> marksToClassify = new ArrayList<Integer>();
+		marksToClassify.add(1); 	//H3K27ac
+		marksToClassify.add(2); 	//H3K27me3
+		profiles_I=new double[marksToClassify.size()][modelRange*2+1];
+		generateProfiles("I", classI, profiles_I, marksToClassify, modelRange, modelRange);
 		
 		System.out.println(outName+"_enhancer_II:\t"+classII.size());
 		sb = new StringBuilder();
@@ -146,11 +146,11 @@ public class EnhancerChromatinAnalysis {
 			sb.append(p.toString()).append("\n");
 		CommonUtils.writeFile(outName+"_II_coords.txt", sb.toString());
 		
-		profiles_II=new double[marksToProfile.size()][modelRange*2+1];
-		generateProfiles("II", classII, profiles_II, marksToProfile, modelRange, modelRange);
+		profiles_II=new double[marksToClassify.size()][modelRange*2+1];
+		generateProfiles("II", classII, profiles_II, marksToClassify, modelRange, modelRange);
 
-		computeLikelihoodRatio("I", classI);
-		computeLikelihoodRatio("II", classII);
+		computeLikelihoodRatio("I", classI, marksToClassify);
+		computeLikelihoodRatio("II", classII, marksToClassify);
 		
 		System.out.println("Done! " + CommonUtils.timeElapsed(tic));
 	}
@@ -288,14 +288,14 @@ public class EnhancerChromatinAnalysis {
 		}
 	}
 
-	private void generateProfiles(String classType, ArrayList<Point> coords, double[][] profiles, ArrayList<Integer> marksToProfile, int left, int right){
+	private void generateProfiles(String classType, ArrayList<Point> coords, double[][] profiles, ArrayList<Integer> marksToClassify, int left, int right){
 		int width = left+right+1;
-		int numMarks = marksToProfile.size();
+		int numMarks = marksToClassify.size();
         double[][] profile_plus=new double[numMarks][width];
         double[][] profile_minus=new double[numMarks][width];
 		// sum the read profiles
 		for (int c=0;c<numMarks;c++){
-			ReadCache ip = caches.get(marksToProfile.get(c));
+			ReadCache ip = caches.get(marksToClassify.get(c));
 			for (int i=0;i<Math.min(rank, coords.size());i++){
 				Point p = coords.get(i);
 				Region region = p.expand(0).expand(left, right);
@@ -323,7 +323,7 @@ public class EnhancerChromatinAnalysis {
 		// output the read density
 		double[] scaleFactors = new double[numMarks];
 		for (int c=0;c<numMarks;c++){
-			scaleFactors[c] = caches.get(marksToProfile.get(c)).getHitCount();
+			scaleFactors[c] = caches.get(marksToClassify.get(c)).getHitCount();
 		}
 		StatUtil.mutate_normalize(scaleFactors);
 		
@@ -357,7 +357,7 @@ public class EnhancerChromatinAnalysis {
 	}
 	
 	// Compute the likelihood ratio of a p300 event region fitting to class I and II enhancer profiles
-	private void computeLikelihoodRatio(String classType, ArrayList<Point> coords) throws IOException {
+	private void computeLikelihoodRatio(String classType, ArrayList<Point> coords, ArrayList<Integer> marksToClassify) throws IOException {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Event   \t");
 		for (int c=0;c<markNames.size();c++){
@@ -369,9 +369,9 @@ public class EnhancerChromatinAnalysis {
 			int pos = p.getLocation();
 			double ll_I = 0;
 			double ll_II = 0;
-			for (int c=0;c<profiles_I.length;c++){
-				List<StrandedBase> bases = caches.get(c).getStrandedBases(p.expand(modelRange), '+');
-				bases.addAll(caches.get(c).getStrandedBases(p.expand(modelRange), '-'));
+			for (int c=0;c<marksToClassify.size();c++){
+				List<StrandedBase> bases = caches.get(marksToClassify.get(c)).getStrandedBases(p.expand(modelRange), '+');
+				bases.addAll(caches.get(marksToClassify.get(c)).getStrandedBases(p.expand(modelRange), '-'));
 				for(StrandedBase b : bases){
 					int dist = b.getStrand()=='+' ? b.getCoordinate()-pos:pos-b.getCoordinate();
 					int idx = dist + modelRange;
