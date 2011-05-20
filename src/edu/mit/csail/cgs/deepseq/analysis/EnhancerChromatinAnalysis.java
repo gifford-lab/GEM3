@@ -33,6 +33,8 @@ public class EnhancerChromatinAnalysis {
 	
 	private boolean dev = false;
 	private boolean isPreSorted = false;	
+	private boolean fromFile = false;
+	
 	private int windowSize = 1000;	
 	private int modelRange = 1500;	
 	private int rank = 1000;
@@ -91,6 +93,7 @@ public class EnhancerChromatinAnalysis {
 		sortByStrength = flags.contains("ss");	// only for GPS
 		isPreSorted = flags.contains("sorted");
 		dev = flags.contains("dev");
+		fromFile = flags.contains("from_file");
 		
 		markNames.add("H3K4me1");
 		markNames.add("H3K27ac");
@@ -209,65 +212,74 @@ public class EnhancerChromatinAnalysis {
 	 * Load ChIP-Seq data (adapted from KPPMixture.java)
 	 * ***************************************************/
 	private void loadChIPSeqData(){
-		boolean fromReadDB = true;
 		final int MAXREAD = 1000000;
 		String cellStr = "hESC";
 		
 		this.caches = new ArrayList<ReadCache>();
 		for (int i=0;i<markNames.size();i++){
-			String expt = "Wysocka "+cellStr+" "+markNames.get(i)+" H9";
-			String align = "prealigned_unique";
-			List<ChipSeqLocator> locators = new ArrayList<ChipSeqLocator>();
-			locators.add(new ChipSeqLocator(expt, align));
-			DeepSeqExpt ip = new DeepSeqExpt(genome, locators, "readdb", -1);
 			ReadCache ipCache = new ReadCache(genome, markNames.get(i));
 			caches.add(ipCache);
-
-			// cache sorted start positions and counts of all positions
-			long tic = System.currentTimeMillis();
-			System.out.print("Loading "+ipCache.getName()+" data from ReadDB ... \t");
-			List<String> chroms = genome.getChromList();
-			if (dev){
-				chroms = new ArrayList<String>();
-				chroms.add("22");
-			}
-			for (String chrom: chroms ){
-				// load  data for this chromosome.
-				int length = genome.getChromLength(chrom);
-				Region wholeChrom = new Region(genome, chrom, 0, length-1);
-				int count = ip.countHits(wholeChrom);
-				ArrayList<Region> chunks = new ArrayList<Region>();
-				// if there are too many reads in a chrom, read smaller chunks
-				if (count>MAXREAD){
-					int chunkNum = count/MAXREAD*2+1;
-					int chunkLength = length/chunkNum;
-					int start = 0;
-					while (start<=length){
-						int end = Math.min(length, start+chunkLength-1);
-						Region r = new Region(genome, chrom, start, end);
-						start = end+1;
-						chunks.add(r);
-					}
-				}else
-					chunks.add(wholeChrom);
-
-				for (Region chunk: chunks){
-					Pair<ArrayList<Integer>,ArrayList<Float>> hits = ip.loadStrandedBaseCounts(chunk, '+');
-					ipCache.addHits(chrom, '+', hits.car(), hits.cdr());
-					hits = ip.loadStrandedBaseCounts(chunk, '-');
-					ipCache.addHits(chrom, '-', hits.car(), hits.cdr());
+			
+			if (!fromFile){
+				String expt = "Wysocka "+cellStr+" "+markNames.get(i)+" H9";
+				String align = "prealigned_unique";
+				List<ChipSeqLocator> locators = new ArrayList<ChipSeqLocator>();
+				locators.add(new ChipSeqLocator(expt, align));
+				DeepSeqExpt ip = new DeepSeqExpt(genome, locators, "readdb", -1);
+	
+				// cache sorted start positions and counts of all positions
+				long tic = System.currentTimeMillis();
+				System.out.print("Loading "+ipCache.getName()+" data from ReadDB ... \t");
+				List<String> chroms = genome.getChromList();
+				if (dev){
+					chroms = new ArrayList<String>();
+					chroms.add("22");
 				}
-			} // for each chrom
-
-			ipCache.populateArrays(true);
-			ip.closeLoaders();
-			ip=null;
-			System.gc();
-
-			if (fromReadDB){
+				for (String chrom: chroms ){
+					// load  data for this chromosome.
+					int length = genome.getChromLength(chrom);
+					Region wholeChrom = new Region(genome, chrom, 0, length-1);
+					int count = ip.countHits(wholeChrom);
+					ArrayList<Region> chunks = new ArrayList<Region>();
+					// if there are too many reads in a chrom, read smaller chunks
+					if (count>MAXREAD){
+						int chunkNum = count/MAXREAD*2+1;
+						int chunkLength = length/chunkNum;
+						int start = 0;
+						while (start<=length){
+							int end = Math.min(length, start+chunkLength-1);
+							Region r = new Region(genome, chrom, start, end);
+							start = end+1;
+							chunks.add(r);
+						}
+					}else
+						chunks.add(wholeChrom);
+	
+					for (Region chunk: chunks){
+						Pair<ArrayList<Integer>,ArrayList<Float>> hits = ip.loadStrandedBaseCounts(chunk, '+');
+						ipCache.addHits(chrom, '+', hits.car(), hits.cdr());
+						hits = ip.loadStrandedBaseCounts(chunk, '-');
+						ipCache.addHits(chrom, '-', hits.car(), hits.cdr());
+					}
+				} // for each chrom
+	
+				ipCache.populateArrays(true);
+				ip.closeLoaders();
+				ip=null;
+				System.gc();
+				ipCache.displayStats();
+				ipCache.writeRCF();
 				System.out.println(CommonUtils.timeElapsed(tic));
 			}
-			ipCache.displayStats();
+			else{
+				try{
+					ipCache.readRCF(ipCache.getName()+".rsc");
+				}
+				catch(IOException e){
+					e.printStackTrace(System.err);
+				}
+				ipCache.displayStats();
+			}
 		}
 	}
 

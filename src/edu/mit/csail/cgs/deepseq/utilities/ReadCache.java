@@ -1,7 +1,10 @@
 package edu.mit.csail.cgs.deepseq.utilities;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -17,6 +20,8 @@ import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.datasets.general.Point;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 /**
  * Modify from AlignmentFileReader.java
  * 
@@ -315,8 +320,9 @@ public class ReadCache {
 	}//end of mergeOrderedList method
 	
 	/**
-	 * Converts lists of Integers to integer arrays, deletes the lists for saving memory
-	 * all array elements are ordered in terms of the array <tt>starts</tt>.
+	 * Converts lists of Integers to integer arrays, deletes the lists for saving memory. <br>
+	 * This is usually called after addHits() or addAllFivePrimes().
+	 * All array elements are ordered in terms of the <tt>five primes of reads</tt>.
 	 */
 	public void populateArrays(boolean generateStats) {
 		for(int i = 0; i < fivePrimesList.length; i++)
@@ -555,14 +561,14 @@ public class ReadCache {
 		for (int i=0;i<binCounts.length;i++){
 			sb.append(i+"\t"+binCounts[i]+"\n");
 		}
-		writeFile(prefix+"_"+name.trim()+"_1bpCount.txt", sb.toString());
+		CommonUtils.writeFile(prefix+"_"+name.trim()+"_1bpCount.txt", sb.toString());
 	}
 	public void printBin500Counts(String prefix){
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<bin500Counts.length;i++){
 			sb.append(i+"\t"+bin500Counts[i]+"\n");
 		}
-		writeFile(prefix+"_"+name.trim()+"_500bpCount.txt", sb.toString());
+		CommonUtils.writeFile(prefix+"_"+name.trim()+"_500bpCount.txt", sb.toString());
 	}
 	
 	public int getMaxHitPerBP(double fraction){
@@ -575,16 +581,76 @@ public class ReadCache {
 		}
 		return binCounts.length;
 	}
-	
-	private void writeFile(String fileName, String text){
-		try{
-			FileWriter fw = new FileWriter(fileName, false); //new file
-			fw.write(text);
-			fw.close();
-		} 
-		catch (IOException e) {
-			e.printStackTrace();
+	/** 
+	 * Write Read Start Count (RSC) file
+	 */
+	public void writeRCF(){
+		StringBuilder sb = new StringBuilder();
+		ArrayList<Pair<Point, Float>> bases = new ArrayList<Pair<Point, Float>>();
+		for(int i = 0; i < hitCounts.length; i++){
+			String chrom = id2Chrom.get(i);
+			for(int j = 0; j < hitCounts[i].length; j++){
+				StringBuilder sb_sub = new StringBuilder();
+				char strand = j==0?'+':'-';
+				int subCount = hitCounts[i][j].length;
+				if (subCount>0){
+					for(int k = 0; k < subCount; k++){
+						sb_sub.append(String.format("%d\t%.2f\n",  fivePrimes[i][j][k], hitCounts[i][j][k]));
+					}
+					sb.append(String.format("%s\t%c\t%d\n",  chrom, strand, subCount));
+					sb.append(sb_sub).append("\n");
+				}
+			}
 		}
+		CommonUtils.writeFile(name+".rsc", sb.toString());
 	}
-	
+	/** 
+	 * Read Read Start Count (RSC) file
+	 */
+	public void readRCF(String filename) throws IOException{
+		BufferedReader bin = null;
+        bin = new BufferedReader(new InputStreamReader(new FileInputStream(filename)));
+		
+		for(int i = 0; i < fivePrimes.length; i++){
+			for(int j = 0; j < fivePrimes[i].length; j++){
+				fivePrimes[i][j] = new int[0];
+				hitCounts[i][j] = new float[0];
+			}
+		}
+
+        int[] currentCoords = null;
+        float[] currentCounts = null;
+        int idx = -1;
+        totalHits = 0;
+        totalBases = 0;
+        String line;
+        while((line = bin.readLine()) != null) { 
+            line = line.trim();
+            if (line.equals(""))
+            	continue;
+            String[] f=line.split("\t");
+            if (f.length==3){
+            	int i = chrom2ID.get(f[0]);
+            	int j = f[1].charAt(0)=='+'?0:1;
+            	int num = Integer.parseInt(f[2]);
+            	totalBases += num;
+            	currentCoords = new int[num];
+            	currentCounts = new float[num];
+            	fivePrimes[i][j] = currentCoords;
+            	hitCounts[i][j] = currentCounts;
+            	idx = 0;
+	            continue;
+            }
+            if (f.length==2){
+            	currentCoords[idx] = Integer.parseInt(f[0]);
+            	float count = Float.parseFloat(f[1]);
+            	currentCounts[idx] = count;
+            	totalHits += count;
+            	idx++;
+            }
+        }			
+        if (bin != null) {
+            bin.close();
+        }
+	}
 }//end of ReadCache class
