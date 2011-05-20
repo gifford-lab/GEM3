@@ -134,8 +134,11 @@ public class EnhancerChromatinAnalysis {
 			sb.append(p.toString()).append("\n");
 		CommonUtils.writeFile(outName+"_I_coords.txt", sb.toString());
 		
-		profiles_I=new double[4][modelRange*2+1];
-		generateProfiles("I", classI, profiles_I, modelRange, modelRange);
+		ArrayList<Integer> marksToProfile = new ArrayList<Integer>();
+		marksToProfile.add(1); 	//H3K27ac
+		marksToProfile.add(2); 	//H3K27me3
+		profiles_I=new double[marksToProfile.size()][modelRange*2+1];
+		generateProfiles("I", classI, profiles_I, marksToProfile, modelRange, modelRange);
 		
 		System.out.println(outName+"_enhancer_II:\t"+classII.size());
 		sb = new StringBuilder();
@@ -143,8 +146,8 @@ public class EnhancerChromatinAnalysis {
 			sb.append(p.toString()).append("\n");
 		CommonUtils.writeFile(outName+"_II_coords.txt", sb.toString());
 		
-		profiles_II=new double[4][modelRange*2+1];
-		generateProfiles("II", classII, profiles_II, modelRange, modelRange);
+		profiles_II=new double[marksToProfile.size()][modelRange*2+1];
+		generateProfiles("II", classII, profiles_II, marksToProfile, modelRange, modelRange);
 
 		computeLikelihoodRatio("I", classI);
 		computeLikelihoodRatio("II", classII);
@@ -285,14 +288,14 @@ public class EnhancerChromatinAnalysis {
 		}
 	}
 
-	private void generateProfiles(String classType, ArrayList<Point> coords, double[][] profiles, int left, int right){
+	private void generateProfiles(String classType, ArrayList<Point> coords, double[][] profiles, ArrayList<Integer> marksToProfile, int left, int right){
 		int width = left+right+1;
-		int numMarks = profiles.length;
+		int numMarks = marksToProfile.size();
         double[][] profile_plus=new double[numMarks][width];
         double[][] profile_minus=new double[numMarks][width];
 		// sum the read profiles
 		for (int c=0;c<numMarks;c++){
-			ReadCache ip = caches.get(c);
+			ReadCache ip = caches.get(marksToProfile.get(c));
 			for (int i=0;i<Math.min(rank, coords.size());i++){
 				Point p = coords.get(i);
 				Region region = p.expand(0).expand(left, right);
@@ -320,7 +323,7 @@ public class EnhancerChromatinAnalysis {
 		// output the read density
 		double[] scaleFactors = new double[numMarks];
 		for (int c=0;c<numMarks;c++){
-			scaleFactors[c] = caches.get(c).getHitCount();
+			scaleFactors[c] = caches.get(marksToProfile.get(c)).getHitCount();
 		}
 		StatUtil.mutate_normalize(scaleFactors);
 		
@@ -375,11 +378,12 @@ public class EnhancerChromatinAnalysis {
 					ll_I += Math.log(profiles_I[c][idx])*b.getCount();
 					ll_II += Math.log(profiles_II[c][idx])*b.getCount();
 				}
-				// output the strength of each mark in range of +-1kb
+			}
+			// output the strength of each mark and input in range of +-1kb
+			for (int c=0;c<markNames.size();c++){
 				sb.append(String.format("%.0f\t", caches.get(c).countHits(p.expand(windowSize))));
 			}
-			// and input
-			sb.append(String.format("%.0f\t", caches.get(markNames.size()-1).countHits(p.expand(windowSize))));
+			// output log likelihood, ratio
 			double llr = ll_I - ll_II;
 			sb.append(String.format("%.1f\t%.1f\t%.1f\n", ll_I, ll_II, llr));
 		}
