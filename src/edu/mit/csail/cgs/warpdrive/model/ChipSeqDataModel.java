@@ -8,6 +8,7 @@
  */
 package edu.mit.csail.cgs.warpdrive.model;
 
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.ArrayList;
@@ -128,6 +129,7 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
                                                                      false, // paired
                                                                      extension != 0,
                                                                      1, // binsize
+                                                                     props.DeDuplicate,
                                                                      region.getStart(),
                                                                      region.getEnd(),
                                                                      null,
@@ -137,6 +139,7 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
                                                                       false, // paired
                                                                       extension != 0,
                                                                       1, // binsize
+                                                                      props.DeDuplicate,
                                                                       region.getStart(),
                                                                       region.getEnd(),
                                                                       null,
@@ -146,6 +149,7 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
                                                                       false, // paired
                                                                       extension != 0,
                                                                       1, // binsize
+                                                                      props.DeDuplicate,
                                                                       region.getStart(),
                                                                       region.getEnd(),
                                                                       null,
@@ -163,6 +167,8 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
                                 results.add(convert(hit));                                
                             }
                         }
+                        if(props.DeDuplicate>0)
+                        	results = deDuplicateSingleHits(results, props.DeDuplicate);
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -172,7 +178,8 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
             }
         }
     }
-    public void setDoSums(boolean b) {doSums = b;}
+    
+	public void setDoSums(boolean b) {doSums = b;}
     public void setDoHits(boolean b) {doHits = b;}
     public Iterator<ChipSeqHit> getResults() {
         return results.iterator();
@@ -195,6 +202,24 @@ public class ChipSeqDataModel extends WarpModel implements RegionModel, Runnable
                                         hit.weight);
         return out;
     }
+    //Hack to allow de-duplication of reads when drawing all reads
+    private ArrayList<ChipSeqHit> deDuplicateSingleHits(ArrayList<ChipSeqHit> res, int deDup) {
+		ArrayList<ChipSeqHit> out = new ArrayList<ChipSeqHit>();
+		HashMap<String, Integer> hitCounts = new HashMap<String, Integer>();
+		for(ChipSeqHit h : res){
+			if(hitCounts.containsKey(h.getLocationString())){
+				int c = hitCounts.get(h.getLocationString());
+				hitCounts.put(h.getLocationString(), c+1);
+				if(c <= deDup){
+					out.add(h);
+				}
+			}else{
+				hitCounts.put(h.getLocationString(), 1);
+				out.add(h);
+			}
+		}
+		return out;
+	}
     protected void doReload() {
     	synchronized(this) {
     		reloadInput = true;
