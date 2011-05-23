@@ -1,6 +1,7 @@
 package edu.mit.csail.cgs.ewok.verbs.motifs;
 
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -8,6 +9,10 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.TreeSet;
 
+import edu.mit.csail.cgs.tools.utils.Args;
+import edu.mit.csail.cgs.utils.ArgParser;
+import edu.mit.csail.cgs.utils.NotFoundException;
+import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.*;
@@ -15,6 +20,7 @@ import edu.mit.csail.cgs.utils.strings.multipattern.*;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
@@ -412,6 +418,31 @@ public class KmerEngine {
         return score;
 	}
 	
+	public void indexAllKmers(int k){
+		this.k = k;
+		HashMap<String, Integer> map = new HashMap<String, Integer>();
+		for (String chr : genome.getChromList()){
+			System.out.println(chr);
+			String seq = seqgen.execute(new Region(genome, chr, 0, genome.getChromLengthMap().get(chr))).toUpperCase();
+			for (int i=0;i<seq.length()-k;i++){
+				String s = seq.substring(i, i+k);
+				if (map.containsKey(s)){
+					 map.put(s, (map.get(s)+1));
+				}
+				else{
+					 map.put(s, 1);
+				}
+			}
+		}
+		StringBuilder sb = new StringBuilder();
+		ArrayList<String> kmers = new ArrayList<String>();
+		kmers.addAll(map.keySet());
+		Collections.sort(kmers);
+		for (String km:kmers){
+			sb.append(km).append("\t").append(map.get(km)).append("\n");
+		}
+		CommonUtils.writeFile(genome.getName()+"_kmer_"+k+".txt", sb.toString());
+	}
 
 	/**
 	 * This KmerMatch class is used for recording kmer instances in sequences in the conventional motif finding setting
@@ -427,6 +458,27 @@ public class KmerEngine {
 			this.pos = pos;
 			this.isMinus = isMinus;
 		}
+	}
+	
+	public static void main(String[] args){
+		Genome g = null;
+		ArgParser ap = new ArgParser(args);
+	    try {
+		      Pair<Organism, Genome> pair = Args.parseGenome(args);
+		      if(pair==null){
+		        if(ap.hasKey("geninfo")){
+		          g = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+		        }else{
+	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
+	            }
+		      }else{
+		        g = pair.cdr();
+		      }
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+	    KmerEngine kEngine = new KmerEngine(g, false);
+	    kEngine.indexAllKmers(Args.parseInteger(args, "k", 13));
 	}
 }
 
