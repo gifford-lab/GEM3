@@ -147,8 +147,8 @@ public class GPS2 {
         int GEM_round = Args.parseInteger(args,"r_pp", 1);
         int GEM_WM_round = Args.parseInteger(args,"r_wm", 2);
 
-        int maxLeft = Args.parseInteger(args,"max_l", 300);
-        int maxRight = Args.parseInteger(args,"max_r", 200);
+        int minLeft = Args.parseInteger(args,"min_l", 300);
+        int minRight = Args.parseInteger(args,"min_r", 200);
         /**
          ** Simple GPS1 event finding without sequence information
          **/
@@ -163,9 +163,9 @@ public class GPS2 {
             mixture.setOutName(peakFileName+"_"+round);
 
             if (round==1){
-                boolean fixModelRange = Args.parseFlags(args).contains("fix_model_range");
-                if (fixModelRange){
-                    Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(maxLeft, maxRight);
+                boolean noChange = Args.parseFlags(args).contains("constant_model_range");
+                if (!noChange){
+                    Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
                     kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
                 }
                 else

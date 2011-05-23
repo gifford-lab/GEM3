@@ -373,7 +373,13 @@ public class BindingModel {
 		return max;
 	}
 
-	public Pair<Integer, Integer> getNewEnds(int maxLeft, int maxRight){
+	/**
+	 * Estimate a better read profile ranges
+	 * @param minLeft minimum range on the left side
+	 * @param minRight	minimum range on the right side
+	 * @return The estimated profile ranges <left, right>
+	 */
+	public Pair<Integer, Integer> getNewEnds(int minLeft, int minRight){
 		double halfHeight = probability(summit)*0.5;
 		int leftHalfHeightEnd = 0;
 		int rightHalfHeightEnd = 0;
@@ -389,8 +395,8 @@ public class BindingModel {
 				break;
 			}
 		}
-		int left=Math.max(maxLeft, Math.abs(summit-(summit-leftHalfHeightEnd)*4));
-		int right=Math.max(maxRight, Math.abs(summit+(rightHalfHeightEnd-summit)*3));
+		int left=Math.max(minLeft, Math.abs(summit-(summit-leftHalfHeightEnd)*4));
+		int right=Math.max(minRight, Math.abs(summit+(rightHalfHeightEnd-summit)*3));
 
 		return new Pair<Integer, Integer>(left, right);
 	}

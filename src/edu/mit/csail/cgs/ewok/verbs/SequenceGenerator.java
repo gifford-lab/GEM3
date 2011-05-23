@@ -160,14 +160,6 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     	long tic = System.currentTimeMillis();
     	int regionCount = regions.size();
 		int displayStep = (int) Math.pow(10, (int) (Math.log10(regionCount)));
-		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
-		for (int i=1;i<=regionCount/displayStep; i++){
-			reportTriggers.add(i*displayStep);
-		}
-		reportTriggers.add(100);
-		reportTriggers.add(1000);
-		reportTriggers.add(10000);
-		System.out.println("Retrieving sequences from "+regionCount+" binding event regions ... ");
 
     	useCache(true);
     	regionCache = new HashMap<String, String[]>();
@@ -195,7 +187,6 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     	for (int i=0;i<regionCount;i++){
     		Region r = regions.get(i);
     		if (!r.getChrom().equals(chrom)){	// new Chrom
-//    			System.out.println("Compact sequence cache: finish Chrom " + chrom);
     			if (cache!=null){
 	    			synchronized(cache) {
 	    				cache.put(g.getChromID(chrom), null);
@@ -211,13 +202,6 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         		regionCache.get(chrom)[count]=execute((X)r);    			
     		}
     		count ++;
-			int trigger = regionCount;
-            if (!reportTriggers.isEmpty())
-            	trigger = reportTriggers.first();
-            if (i>trigger){
-				System.out.println(trigger+"\t/"+regionCount+"\t"+CommonUtils.timeElapsed(tic));
-				reportTriggers.remove(reportTriggers.first());
-            }
     	}
     	if (cache!=null){
 	    	synchronized(cache) {
@@ -227,7 +211,6 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 	    	cache=null;
 	    	System.gc();
     	}
-    	System.out.println(regionCount+"\t/"+regionCount+"\t"+CommonUtils.timeElapsed(tic));
     	
     	regionIsCached = true;
     }

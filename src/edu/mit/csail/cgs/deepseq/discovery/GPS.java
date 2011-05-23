@@ -173,9 +173,9 @@ public class GPS {
             mixture.setOutName(peakFileName+"_"+round);
 
             if (round==1){
-                boolean fixModelRange = Args.parseFlags(args).contains("fix_model_range");
-                if (fixModelRange){
-                    Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(10000,10000);
+            	boolean noChange = Args.parseFlags(args).contains("constant_model_range");
+                if (!noChange){
+                    Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(300,200);
                     kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
                 }
                 else
