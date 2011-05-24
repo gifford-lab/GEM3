@@ -88,6 +88,9 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
             }
         }
     }
+    /**
+     * get sequence of specified region (including start and end) in lower case
+     */
     public String execute(X region) {
     	if (regionIsCached)
     		return getRegionCacheSequence(region);  
