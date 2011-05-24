@@ -425,8 +425,9 @@ public class KmerEngine {
 		for (String chr : genome.getChromList()){
 			System.out.println(chr);
 			int chrLen = genome.getChromLengthMap().get(chr);
-			for (int l=1;l<chrLen;l+=step-k+2){		// the step size is set so that the overlap is k-1
-				String seq = seqgen.execute(new Region(genome, chr, l, Math.min(chrLen-l,l+step-1))).toUpperCase();
+			for (int l=0;l<chrLen;l+=step-k+2){		// the step size is set so that the overlap is k-1
+				int end = Math.min(l+step-1, chrLen-1);
+				String seq = seqgen.execute(new Region(genome, chr, l, end)).toUpperCase();
 				for (int i=0;i<seq.length()-k;i++){
 					String s = seq.substring(i, i+k);
 					if (map.containsKey(s)){
