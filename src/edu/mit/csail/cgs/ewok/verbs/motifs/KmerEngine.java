@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.TreeSet;
 
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -418,10 +419,16 @@ public class KmerEngine {
         return score;
 	}
 	
-	public void indexAllKmers(int k){
+	public void indexKmers(List<File> files){
+		ArrayList<Kmer> kmers = Kmer.loadKmers(files);
+		if (kmers.isEmpty())
+			return;
 		int step = 100000000;
-		this.k = k;
+		this.k = kmers.get(0).getK();
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
+		for (Kmer kmer:kmers){
+			map.put(kmer.kmerString, 0);
+		}
 		for (String chr : genome.getChromList()){
 			System.out.println(chr);
 			int chrLen = genome.getChromLengthMap().get(chr);
@@ -430,21 +437,16 @@ public class KmerEngine {
 				String seq = seqgen.execute(new Region(genome, chr, l, end)).toUpperCase();
 				for (int i=0;i<seq.length()-k;i++){
 					String s = seq.substring(i, i+k);
-					if (map.containsKey(s)){
+					if (map.containsKey(s)){			// only count known kmers, save memory space
 						 map.put(s, (map.get(s)+1));
-					}
-					else{
-						 map.put(s, 1);
 					}
 				}
 			}
 		}
-		StringBuilder sb = new StringBuilder();
-		ArrayList<String> kmers = new ArrayList<String>();
-		kmers.addAll(map.keySet());
 		Collections.sort(kmers);
-		for (String km:kmers){
-			sb.append(km).append("\t").append(map.get(km)).append("\n");
+		StringBuilder sb = new StringBuilder();
+		for (Kmer km:kmers){
+			sb.append(km.kmerString).append("\t").append(map.get(km)).append("\n");
 		}
 		CommonUtils.writeFile(genome.getName()+"_kmer_"+k+".txt", sb.toString());
 	}
@@ -483,7 +485,8 @@ public class KmerEngine {
 	      e.printStackTrace();
 	    }
 	    KmerEngine kEngine = new KmerEngine(g, false);
-	    kEngine.indexAllKmers(Args.parseInteger(args, "k", 13));
+	    List<File> files = Args.parseFileHandles(args, "kmers_file");
+	    kEngine.indexKmers(files);
 	}
 }
 

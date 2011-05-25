@@ -1,9 +1,17 @@
 package edu.mit.csail.cgs.ewok.verbs.motifs;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class Kmer implements Comparable<Kmer>{
@@ -101,6 +109,15 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public static String toHeader(){
 		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tStrengt\tOffset";
+	}
+	public static Kmer fromString(String str){
+		String[] f = str.split("\t");
+		Kmer kmer = new Kmer(f[0], Integer.parseInt(f[1]));
+		kmer.negCount = Integer.parseInt(f[2]);
+		kmer.hgp = Double.parseDouble(f[3]);
+		kmer.strength = Double.parseDouble(f[4]);
+		kmer.kmerStartOffset = Integer.parseInt(f[5]);
+		return kmer;
 	}
 
 	public int getSeqHitCount() {
@@ -253,6 +270,28 @@ public class Kmer implements Comparable<Kmer>{
 		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
 	}
 	
-
+	public static ArrayList<Kmer> loadKmers(List<File> files){
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		for (File file: files){
+			try {	
+				BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+				
+		        String line;
+		        bin.readLine();	// skip header
+		        while((line = bin.readLine()) != null) { 
+		            line = line.trim();
+		            Kmer kmer = Kmer.fromString(line);
+		            kmers.add(kmer);
+		        }			
+		        if (bin != null) {
+		            bin.close();
+		        }
+	        } catch (IOException e) {
+	        	System.err.println("Error when processing "+file.getName());
+	            e.printStackTrace(System.err);
+	        }
+		}
+		return kmers;
+	}
 	
 }

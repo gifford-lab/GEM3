@@ -9,7 +9,6 @@ import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
-import edu.mit.csail.cgs.deepseq.discovery.ChipSeqAnalysisProperties;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadSimulator;
