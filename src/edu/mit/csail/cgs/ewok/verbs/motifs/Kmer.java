@@ -114,7 +114,7 @@ public class Kmer implements Comparable<Kmer>{
 		String[] f = str.split("\t");
 		Kmer kmer = new Kmer(f[0], Integer.parseInt(f[1]));
 		kmer.negCount = Integer.parseInt(f[2]);
-		kmer.hgp = Double.parseDouble(f[3]);
+		kmer.hgp = Math.pow(10, Double.parseDouble(f[3]));
 		kmer.strength = Double.parseDouble(f[4]);
 		kmer.kmerStartOffset = Integer.parseInt(f[5]);
 		return kmer;
