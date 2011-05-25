@@ -10,6 +10,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.TreeSet;
 
+import net.sf.samtools.util.SequenceUtil;
+
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -440,6 +442,12 @@ public class KmerEngine {
 					if (map.containsKey(s)){			// only count known kmers, save memory space
 						 map.put(s, (map.get(s)+1));
 					}
+					else {		// try the other strand
+						String rc = SequenceUtil.reverseComplement(s);
+						if (map.containsKey(rc)){			
+							 map.put(rc, (map.get(rc)+1));
+						}
+					}						
 				}
 			}
 		}
