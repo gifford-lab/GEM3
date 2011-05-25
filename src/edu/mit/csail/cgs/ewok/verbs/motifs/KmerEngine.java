@@ -420,6 +420,7 @@ public class KmerEngine {
 	}
 	
 	public void indexKmers(List<File> files){
+		long tic = System.currentTimeMillis();
 		ArrayList<Kmer> kmers = Kmer.loadKmers(files);
 		if (kmers.isEmpty())
 			return;
@@ -446,9 +447,10 @@ public class KmerEngine {
 		Collections.sort(kmers);
 		StringBuilder sb = new StringBuilder();
 		for (Kmer km:kmers){
-			sb.append(km.kmerString).append("\t").append(map.get(km)).append("\n");
+			sb.append(km.kmerString).append("\t").append(map.get(km.kmerString)).append("\n");
 		}
-		CommonUtils.writeFile(genome.getName()+"_kmer_"+k+".txt", sb.toString());
+		CommonUtils.writeFile(genome.getVersion()+"_kmers_"+k+".txt", sb.toString());
+		System.out.println(CommonUtils.timeElapsed(tic));
 	}
 
 	/**
