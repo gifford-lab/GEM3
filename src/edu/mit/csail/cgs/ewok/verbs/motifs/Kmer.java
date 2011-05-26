@@ -104,19 +104,30 @@ public class Kmer implements Comparable<Kmer>{
 		double hg_lg = Math.log10(hgp);
 		if (hg_lg==Double.NEGATIVE_INFINITY)
 			hg_lg=-100;
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg)+
-			   "\t"+String.format("%.1f", strength)+"\t"+kmerStartOffset;
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg)+"\t"+String.format("%.1f", strength)+"\t"+kmerStartOffset;
+	}
+	public String toNonOverlapString(){
+		return kmerString+"\t"+seqHitCount+"\t"+String.format("%.1f", strength)+"\t"+kmerStartOffset;
 	}
 	public static String toHeader(){
-		return "EnrichedKmer\tPosCt\tNegCt\tHGP_10\tStrengt\tOffset";
+		return "EnrichedKmer\tEventCt\tStrengt\tOffset";
+	}
+	public String toOverlapString(){
+		double hg_lg = Math.log10(hgp);
+		if (hg_lg==Double.NEGATIVE_INFINITY)
+			hg_lg=-100;
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg);
+	}
+	public static String toOverlapHeader(){
+		return "OverlappedKmer\tPosCt\tNegCt\tHGP_10";
 	}
 	public static Kmer fromString(String str){
 		String[] f = str.split("\t");
 		Kmer kmer = new Kmer(f[0], Integer.parseInt(f[1]));
-		kmer.negCount = Integer.parseInt(f[2]);
-		kmer.hgp = Math.pow(10, Double.parseDouble(f[3]));
-		kmer.strength = Double.parseDouble(f[4]);
-		kmer.kmerStartOffset = Integer.parseInt(f[5]);
+//		kmer.negCount = Integer.parseInt(f[2]);
+//		kmer.hgp = Math.pow(10, Double.parseDouble(f[3]));
+//		kmer.strength = Double.parseDouble(f[4]);
+//		kmer.kmerStartOffset = Integer.parseInt(f[5]);
 		return kmer;
 	}
 
@@ -255,17 +266,23 @@ public class Kmer implements Comparable<Kmer>{
 		return SequenceUtils.reverseComplement(kmerString);
 	}
 	
-	public static void printKmers(ArrayList<Kmer> kmers, String filePrefix){
+	public static void printKmers(ArrayList<Kmer> kmers, String filePrefix, boolean isOverlappedKmer){
 		if (kmers==null || kmers.isEmpty())
 			return;
 		
 		Collections.sort(kmers);
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append(Kmer.toHeader());
+		if (isOverlappedKmer)
+			sb.append(Kmer.toOverlapHeader());
+		else
+			sb.append(Kmer.toHeader());
 		sb.append("\n");
 		for (Kmer kmer:kmers){
-			sb.append(kmer.toString()).append("\n");
+			if (isOverlappedKmer)
+				sb.append(kmer.toOverlapString()).append("\n");
+			else
+				sb.append(kmer.toNonOverlapString()).append("\n");
 		}
 		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
 	}

@@ -3388,7 +3388,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println(String.format("selected k=%d, max decrease=%.2f%%", k, max_value));
 			config.k = k;
 		}
-		kEngine.buildEngine(k, events, config.k_win, config.k_shift, config.hgp, config.k_fold, outName);
+		kEngine.buildEngine(k, events, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
     }
 
     // update kmerEngine with the predicted kmer-events
@@ -3408,7 +3408,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Kmer> kmers = countKmers(compFeatures);	
 		
 		log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
-		kEngine.updateEngine(kmers, outName);
+		kEngine.updateEngine(kmers, outName, false);
 	}
 
 	private void updateKmersWithPWM(ArrayList<ComponentFeature> compFeatures){

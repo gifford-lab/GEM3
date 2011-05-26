@@ -48,11 +48,6 @@ public class KmerEngine {
 	private AhoCorasick tree;
 	private AhoCorasick tree_negatives;
 	
-	private int maxCount;		// max kmer hit count of whole dataset
-	public int getMaxCount() {return maxCount;}
-	private int minCount;		// min kmer hit count of whole dataset
-	public int getMinCount() {return minCount;}
-	
 	private int maxShift;		// max kmer flanking Shift of whole dataset
 	public int getMaxShift() {return maxShift;}
 	public void setMaxShift(int maxShift) {this.maxShift = maxShift;}
@@ -78,7 +73,10 @@ public class KmerEngine {
 	 */
 	public KmerEngine(ArrayList<Kmer> kmers, String outPrefix){
 		if (!kmers.isEmpty()){
-			updateEngine(kmers, outPrefix);
+			if (outPrefix!=null)
+				updateEngine(kmers, outPrefix, false);
+			else
+				updateEngine(kmers);
 			k=kmers.get(0).k;
 		}
 	}
@@ -97,7 +95,7 @@ public class KmerEngine {
 	 */
 	public void buildEngine(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
 		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, winShift, hgp, k_fold);
-		updateEngine(kms, outPrefix);		
+		updateEngine(kms, outPrefix, true);		
 	}
 	
 	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold){
@@ -275,14 +273,11 @@ public class KmerEngine {
 				kmer.negCount = negHitCounts.get(kmer.kmerString);
 				kmerAllHitCount += kmer.negCount;
 			}
-			if (kmer.seqHitCount < kmer.negCount * k_fold){
-//				if (kmer.seqHitCount>10)
-//					System.out.println(String.format("%s count %d (positive) vs %d (negative), ignored.", kmer.getKmerString(), kmer.seqHitCount, kmer.negCount));
-				toRemove.add(kmer);	
-				continue;
-			}
+//			if (kmer.seqHitCount < kmer.negCount * k_fold){
+//				toRemove.add(kmer);	
+//				continue;
+//			}
 			kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
-//			System.out.println(String.format("%s\t%d\t%.4f", kmer.kmerString, kmer.seqHitCount, kmer.hg));
 			if (kmer.hgp>hgp)
 				highHgpKmers.add(kmer);		
 		}
@@ -317,22 +312,19 @@ public class KmerEngine {
 		return false;
 	}
 	
-	/** load Kmers and prepare the search Engine
+	/** load Kmers and prepare the search Engine, print k-mer list<br>
 	 *  assuming the kmers are unique
 	 * 
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
 	 */
-	public void updateEngine(ArrayList<Kmer> kmers, String outPrefix){
+	public void updateEngine(ArrayList<Kmer> kmers, String outPrefix, boolean isOverlappedKmer){
 		if (kmers.isEmpty()){
 			engineInitialized = false;
 			return;
 		}
-		tic = System.currentTimeMillis();
 		this.kmers = kmers;
 		Collections.sort(kmers);
-		this.maxCount = kmers.get(0).seqHitCount;
-		this.minCount = kmers.get(kmers.size()-1).seqHitCount;
-		Kmer.printKmers(kmers, outPrefix);
+		Kmer.printKmers(kmers, outPrefix, isOverlappedKmer);
 		
 		/*
 		Init Aho-Corasick alg. for searching multiple Kmers in sequences
@@ -346,15 +338,38 @@ public class KmerEngine {
 	    }
 	    tree.prepare();
 	    engineInitialized = true;
-//	    System.out.println("Kmers("+kmers.size()+") loaded to the Kmer Engine, "+CommonUtils.timeElapsed(tic));
 	}	
-	
+	/** load Kmers and prepare the search Engine, do not print k-mer list<br>
+	 *  assuming the kmers are unique
+	 * 
+	 * @param kmers List of kmers (with kmerString, sequence hit count)
+	 */
+	public void updateEngine(ArrayList<Kmer> kmers){
+		if (kmers.isEmpty()){
+			engineInitialized = false;
+			return;
+		}
+		this.kmers = kmers;
+		
+		/*
+		Init Aho-Corasick alg. for searching multiple Kmers in sequences
+		ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+		 */		
+		tree = new AhoCorasick();
+		for (Kmer km: kmers){
+			str2kmer.put(km.kmerString, km);
+			tree.add(km.kmerString.getBytes(), km.kmerString);
+	    }
+	    tree.prepare();
+	    engineInitialized = true;
+	}		
 	/** 
-	 * Search all kmers in the sequence
-	 * @param seq
-	 * @return a map (pos-->kmers)
-	 * pos is the binding site position in the sequence
-	 * kmers are the kmers that map to this position
+	 * Search all k-mers in the sequence
+	 * @param seq sequence string to search k-mers
+	 * @return a map (pos-->kmers)<br>
+	 * pos is the binding site position in the sequence<br>
+	 * kmers are the kmers that map to this position<br>
 	 * if pos is negative, then the kmer match is on the reverse compliment seq string
 	 */
 	public HashMap<Integer, ArrayList<Kmer>> query (String seq){
