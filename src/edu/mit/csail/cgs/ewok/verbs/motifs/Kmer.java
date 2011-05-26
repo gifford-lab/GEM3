@@ -129,6 +129,12 @@ public class Kmer implements Comparable<Kmer>{
 	public void incrSeqHitCount() {
 		seqHitCount++;
 	}
+	public void mergeKmer(Kmer newKmer){
+		if (kmerString.equals(newKmer.kmerString)){
+			seqHitCount += newKmer.seqHitCount;
+			strength += newKmer.strength;
+		}
+	}
 //	
 //	/** 
 //	 * Set the reference Kmer

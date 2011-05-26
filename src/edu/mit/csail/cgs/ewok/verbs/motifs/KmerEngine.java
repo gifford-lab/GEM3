@@ -115,16 +115,6 @@ public class KmerEngine {
 		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
 		int expectedCount = (int) (eventCount / Math.pow(4, k) + 0.5);
 		ArrayList<Region> negRegions = new ArrayList<Region>();
-		// prepare for progress reporting
-//		int displayStep = (int) Math.pow(10, (int) (Math.log10(eventCount)));
-//		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
-//		for (int i=1;i<=eventCount/displayStep; i++){
-//			reportTriggers.add(i*displayStep);
-//		}
-//		reportTriggers.add(100);
-//		reportTriggers.add(1000);
-//		reportTriggers.add(10000);
-//		System.out.println("Retrieving sequences from "+eventCount+" binding event regions ... ");
 		for(int i=0;i<eventCount;i++){
 			Region posRegion = events.get(i).expand(winSize/2);
 			seqCoors[i] = posRegion;
@@ -150,16 +140,8 @@ public class KmerEngine {
 			if (i<(eventCount-2) && seqCoors[i+1].overlaps(negRegion))
 				continue;
 			negRegions.add(negRegion);
-//			int trigger = eventCount;
-//            if (!reportTriggers.isEmpty())
-//            	trigger = reportTriggers.first();
-//            if (i>trigger){
-////				System.out.println(trigger+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
-//				reportTriggers.remove(reportTriggers.first());
-//            }
             seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
 		}
-//		System.out.println(eventCount+"\t/"+eventCount+"\t"+CommonUtils.timeElapsed(tic));
 		
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
@@ -179,8 +161,6 @@ public class KmerEngine {
 				}
 			}
 		}
-//		System.out.println("\nKmers indexed "+CommonUtils.timeElapsed(tic));
-//		tic = System.currentTimeMillis();
 		
 		// sort the kmer strings, to make a kmer to also represent its reverse compliment (RC)	
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
@@ -291,7 +271,7 @@ public class KmerEngine {
 		kms.removeAll(highHgpKmers);
 		System.out.println(String.format("Kmers(%d) selected from %d positive vs %d negative sequences, %s", kms.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
-		// setup high HGP kmers for later query, e.g. in isNegativeKmer(String kmerStr)
+		// setup an AhoCorasick tree of high HGP kmers for later query, e.g. in isNegativeKmer(String kmerStr)
 		tree_negatives = new AhoCorasick();
 		for (Kmer km: highHgpKmers){
 			if (km.getNegCount()<=1)
