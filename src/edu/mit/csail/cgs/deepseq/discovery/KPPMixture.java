@@ -3371,7 +3371,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //					max_value = selectRatio;
 //				}
 //				System.out.println(String.format("k=%d, selected ratio=%.2f%%", i, selectRatio*100));				
-				Collections.sort(kms);
+//				Collections.sort(kms);
+				Collections.sort(kms, new Comparator<Kmer>(){
+				    public int compare(Kmer o1, Kmer o2) {
+				    		return o1.compareByHGP(o2);
+				    }
+				});
 				eventCounts[i] = kms.get(0).getSeqHitCount();
 			}
 			for (int i=0;i<eventCounts.length-1;i++){
@@ -3489,8 +3494,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			String seq = nf.getBoundSequence();
 					if (seq.length()==config.k){
 						// check if the k-mer is from negative set
-						if (kEngine.isNegativeKmer(seq))
-							continue;
+//						if (kEngine.isNegativeKmer(seq))
+//							continue;
 						Kmer kmer = new Kmer(seq, 1);
 						//pos_kmer - pos_motif_binding
 						kmer.setKmerStartOffset(0-(hitPos+cluster.bindingPosition));
@@ -3516,8 +3521,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    			}
 	    				String kmerStr = seq.substring(left, right);
 	    				// check if the k-mer is from negative set
-	    				if (kEngine.isNegativeKmer(kmerStr))
-	    					continue;
+//	    				if (kEngine.isNegativeKmer(kmerStr))
+//	    					continue;
 	    				Kmer kmer = new Kmer(kmerStr, 1);
 						//pos_kmer - pos_motif_binding
 //	    				kmer.setKmerStartOffset(left-(hitPos+cluster.bindingPosition));
@@ -3623,6 +3628,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		// print fasta file with kmer string (maybe useful to do multiple alignment)
 	            ArrayList<Kmer> akmers = cluster.alignedKmers;
 	            Collections.sort(akmers);
+
 				int kk=0;
 	    		for (Kmer km: akmers){
 					String shiftedKmer = CommonUtils.padding(Math.max(0, km.getKmerStartOffset()+config.k), '-').concat(km.getKmerString());
@@ -3655,6 +3661,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	
 	/** Consolidate kmers that have same String, sum the count and strength, average the shift
      * There are maybe kmers created as different object at different time, but they have same String
+     * Test kmers against negative kmer set
      * This method will modify compFeatures to update the kmer information
      */
     private void consolidateKmers(ArrayList<ComponentFeature> compFeatures){
@@ -3691,17 +3698,28 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			allOffsets.add(kmer.getKmerStartOffset());
     			offset += kmer.getKmerStartOffset(); 
     		}
-    		offset = StatUtil.round(offset/allOffsets.size());			// mean shift
-//    		Collections.sort(allOffsets);
-//    		shift = allOffsets.get(allOffsets.size()/2);			// median shift
-    		Kmer cKmer = new Kmer(ks, count);
-    		cKmer.incrStrength(strength);
-    		cKmer.setKmerStartOffset(offset);
-    		// update the Kmer reference in the binding event object
-    		for (Kmer kmer:kmers){
-    			for (ComponentFeature cf : kmer2cfs.get(kmer))
-    				cf.setKmer(cKmer);
+    		double hgp = kEngine.computeHGP(ks, count, compFeatures.size());
+    		if (hgp<config.hgp){
+	    		offset = StatUtil.round(offset/allOffsets.size());			// mean shift
+	//    		Collections.sort(allOffsets);
+	//    		shift = allOffsets.get(allOffsets.size()/2);			// median shift
+	    		Kmer cKmer = new Kmer(ks, count);
+	    		cKmer.incrStrength(strength);
+	    		cKmer.setKmerStartOffset(offset);
+	    		// update the Kmer reference in the binding event object
+	    		for (Kmer kmer:kmers){
+	    			for (ComponentFeature cf : kmer2cfs.get(kmer))
+	    				cf.setKmer(cKmer);
+	    		}
     		}
+    		else{	// this kmer can not pass hgp test
+    			System.out.println(ks+" does not pass negative kmer test");
+	    		for (Kmer kmer:kmers){
+	    			for (ComponentFeature cf : kmer2cfs.get(kmer))
+	    				cf.setKmer(null);
+	    		}
+    		}
+    			
     	}
     }
     
@@ -3871,7 +3889,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	ArrayList<Kmer> kmers = countKmers(unalignedFeatures);
 	    	if (kmers.size()<1)
 	    		return;
-	    	Collections.sort(kmers);
+//	    	Collections.sort(kmers);
+			Collections.sort(kmers, new Comparator<Kmer>(){
+			    public int compare(Kmer o1, Kmer o2) {
+			    		return o1.compareByHGP(o2);
+			    }
+			});
 	    	for (Kmer kmer:kmers)
 	    		kmer.setAlignString(null);
 	    	
@@ -4164,8 +4187,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			String kmerStr = cf.getBoundSequence().substring(left, right);
 			
 			// check if the k-mer is from negative set
-			if (kEngine.isNegativeKmer(kmerStr))
-				continue;
+//			if (kEngine.isNegativeKmer(kmerStr))
+//				continue;
 			
 			alignedFeatures.add(cf);
 			motifStartInSeq.add(maxScoringShift);
@@ -4421,7 +4444,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		sb.append(offset).append("\n");
 	    	}
 	    	ArrayList<Kmer> kmers = motifCluster.alignedKmers;
-	    	Collections.sort(kmers);
+//	    	Collections.sort(kmers);
+			Collections.sort(kmers, new Comparator<Kmer>(){
+			    public int compare(Kmer o1, Kmer o2) {
+			    		return o1.compareByHGP(o2);
+			    }
+			});
 	    	String name = outName+"_PWM_"+kmers.get(0).getKmerString()+"_kmerShifts.txt";
 	    	CommonUtils.writeFile(name, sb.toString());
     	}
@@ -4728,7 +4756,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_shift = 100;	// the shift from binding event for negative sequence set    
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
-        public double hgp = 0.05; 	// p-value threshold of hyper-geometric test for enriched kmer 
+        public double hgp = 10e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
         public double gc = 0.42;	// GC content in the genome
         public double[] bg;			// background frequency based on GC content

@@ -22,11 +22,11 @@ public class Kmer implements Comparable<Kmer>{
 	int k;
 	public int getK(){return k;}
 	int seqHitCount; //one hit at most for one sequence, to avoid simple repeat
-	double strength;	// the total read counts from all events support this kmer
+	double strength;	// the total read counts from all events explained by this kmer
 	public double getStrength(){return strength;}
 	public void setStrength(double strength){this.strength = strength;}
 	public void incrStrength(double strength){this.strength += strength;}
-	double hgp;
+	double hgp = 1;
 	/** 
 	 * get hyper-geometric p-value of the kmer
 	 */
@@ -86,12 +86,16 @@ public class Kmer implements Comparable<Kmer>{
 		this.negCount = negCount;
 	}
 
-	// sort kmer by weight
-	public int compareByWeight(Kmer o) {
+	// sort kmer by strength
+	public int compareByStrength(Kmer o) {
 		double diff = o.strength-strength;
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1;  // descending
 	}
-	
+	// sort kmer by hgp
+	public int compareByHGP(Kmer o) {
+		double diff = o.hgp-hgp;
+		return diff==0?this.compareTo(o):(diff<0)?1:-1;  // ascending HGP, descending seqHitCount
+	}	
 	// default, sort kmer by seqHitCount
 	public int compareTo(Kmer o) {
 		double diff = o.seqHitCount-seqHitCount;
