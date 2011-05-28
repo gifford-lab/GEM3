@@ -250,10 +250,10 @@ public class KmerEngine {
 				kmer.negCount = negHitCounts.get(kmer.kmerString);
 				kmerAllHitCount += kmer.negCount;
 			}
-//			if (kmer.seqHitCount < kmer.negCount * k_fold){
-//				toRemove.add(kmer);	
-//				continue;
-//			}
+			if (kmer.seqHitCount < kmer.negCount * k_fold){
+				highHgpKmers.add(kmer);	
+				continue;
+			}
 			kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
 			if (kmer.hgp>hgp)
 				highHgpKmers.add(kmer);		

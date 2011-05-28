@@ -4756,7 +4756,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_shift = 100;	// the shift from binding event for negative sequence set    
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
-        public double hgp = 10e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
+        public double hgp = 1e-4; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
         public double gc = 0.42;	// GC content in the genome
         public double[] bg;			// background frequency based on GC content
