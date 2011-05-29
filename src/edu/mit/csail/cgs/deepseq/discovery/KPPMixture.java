@@ -3376,6 +3376,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 			}
 			for (int i=0;i<eventCounts.length-1;i++){
+				if (eventCounts[i]==0)
+					continue;
 				if (eventCounts[0]/eventCounts[i]>=2)
 					break;
 				
