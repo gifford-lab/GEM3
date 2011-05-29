@@ -3359,25 +3359,21 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	ArrayList<Point> events = getEvents();
 		// compare different values of k to select most enriched k value
 		int k=0;
-		int top = 10;
 		double max_value=0;
 		if (config.k_min!=-1){
 			int eventCounts[] = new int[config.k_max-config.k_min+1];
 			for (int i=0;i<eventCounts.length;i++){
 				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, events, config.k_win, config.k_shift, config.hgp, config.k_fold);
-//				double selectRatio = kms.size()/(double)kEngine.getAllKmers().size();
-//				if (selectRatio>max_value){
-//					k=i;
-//					max_value = selectRatio;
-//				}
-//				System.out.println(String.format("k=%d, selected ratio=%.2f%%", i, selectRatio*100));				
-//				Collections.sort(kms);
-				Collections.sort(kms, new Comparator<Kmer>(){
-				    public int compare(Kmer o1, Kmer o2) {
-				    		return o1.compareByHGP(o2);
-				    }
-				});
-				eventCounts[i] = kms.get(0).getSeqHitCount();
+				if (kms.isEmpty())
+					eventCounts[i] = 0;
+				else{
+					Collections.sort(kms, new Comparator<Kmer>(){
+					    public int compare(Kmer o1, Kmer o2) {
+					    		return o1.compareByHGP(o2);
+					    }
+					});
+					eventCounts[i] = kms.get(0).getSeqHitCount();
+				}
 			}
 			for (int i=0;i<eventCounts.length-1;i++){
 				if (eventCounts[0]/eventCounts[i]>=2)
