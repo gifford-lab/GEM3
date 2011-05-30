@@ -30,6 +30,7 @@ public class PointParser implements Mapper<String,Point> {
     public Point execute(String input) {
         String[] array = input.split("\\s+");
         String chrom = array[chromIndex];
+        chrom = chrom.replaceFirst("chr", "");
         
         Matcher m = pPatt.matcher(chrom);
         if(m.matches()) { 
