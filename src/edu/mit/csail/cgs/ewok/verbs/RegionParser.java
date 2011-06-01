@@ -39,6 +39,7 @@ public class RegionParser implements Mapper<String,Region> {
     public Region execute(String input) {
         String[] array = input.split("\\s+");
         String chrom = array[chromIndex];
+        chrom = chrom.replaceFirst("chr", "");
         
         Matcher m = regPatt.matcher(chrom);
         if(m.matches()) { 
