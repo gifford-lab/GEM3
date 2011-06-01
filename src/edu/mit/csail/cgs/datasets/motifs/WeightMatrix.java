@@ -516,7 +516,7 @@ public class WeightMatrix {
         return out.toString();
     }
 
-    /* returns a string showing a text representation of the motif */
+    /** returns a string showing a text representation of the motif */
     public static String printMatrixLetters(WeightMatrix matrix) {
         char[][] out = new char[4][matrix.length()];
         for (int i = 0; i < out.length; i++) {
@@ -542,6 +542,31 @@ public class WeightMatrix {
             new String(out[1]) + "\n" +
             new String(out[2]) + "\n" +
             new String(out[3]);
+    }
+    /** returns a string that gives the maxScore <br>
+     * i.e. the first line of printMatrixLetters()*/
+    public static String getMaxLetters(WeightMatrix matrix) {
+        char[][] out = new char[4][matrix.length()];
+        for (int i = 0; i < out.length; i++) {
+            for (int j = 0; j < out[0].length; j++) {
+                out[i][j] = ' ';
+            }
+        }
+        Character letters[] = {'A','C','G','T'};
+        WMLetterCmp cmp = new WMLetterCmp(matrix);
+        double minval = matrix.setLogOdds() ? 0 : .25;
+        for (int i = 0; i < matrix.length(); i++) {
+            cmp.setIndex(i);
+            Arrays.sort(letters,cmp);
+            for (int j = 0; j < 4; j++) {
+                if (matrix.matrix[i][letters[j]] > minval) {
+                    out[j][i] = letters[j];
+                } else {
+                    break;
+                }
+            }
+        }
+        return new String(out[0]);
     }
     /* returns the four letters ordered by their LL at the specified index */
     public static Character[] getLetterOrder(WeightMatrix wm, int index) {

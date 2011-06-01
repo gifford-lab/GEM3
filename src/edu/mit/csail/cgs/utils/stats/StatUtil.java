@@ -102,7 +102,7 @@ public class StatUtil {
 		return cc;
 	}
 	/**
-	 * Round to the nearest integer.
+	 * Round to the nearest integer.<br>
 	 * This is different from Math.round() for negative number.
 	 * i.e., 2.5->3, 2.499->2, -1.499->-1, -1.5-->-2
 	 */

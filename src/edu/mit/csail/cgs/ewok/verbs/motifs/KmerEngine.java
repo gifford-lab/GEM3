@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 
 import net.sf.samtools.util.SequenceUtil;
@@ -317,11 +318,50 @@ public class KmerEngine {
 		return hgp;
 	}
 	
+	/**
+	 * Compute hyper-geometric p-values for the kmer strings<br>
+	 */
+	public double[] computeHGPs(ArrayList<String> kmerStrings){
+		AhoCorasick tree = new AhoCorasick();
+		for (int i=0;i<kmerStrings.size();i++){
+			tree.add(kmerStrings.get(i).getBytes(), i);
+			tree.add(SequenceUtils.reverseComplement(kmerStrings.get(i)).getBytes(), i);
+	    }
+	    tree.prepare();
+	    int[] posHitCount = new int[kmerStrings.size()];
+	    int[] negHitCount = new int[kmerStrings.size()];
+	    for (String seq: seqs){
+			Iterator searcher = tree.search(seq.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				Set<Integer> idxs = result.getOutputs();
+				for (int idx:idxs)
+					posHitCount[idx]++;
+			}
+	    }
+	    for (String seq: seqsNeg){
+			Iterator searcher = tree.search(seq.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				Set<Integer> idxs = result.getOutputs();
+				for (int idx:idxs)
+					negHitCount[idx]++;
+			}
+	    }
+	    int posSeqCount = seqs.length;
+	    int totalSeqCount = seqs.length+seqsNeg.length;
+	    double hgps[] = new double[kmerStrings.size()];
+	    for (int i=0;i<kmerStrings.size();i++){
+	    	hgps[i] = 1-StatUtil.hyperGeometricCDF_cache(posHitCount[i], totalSeqCount, posHitCount[i]+negHitCount[i], posSeqCount);
+	    }
+	    return hgps;
+	}
+	
 	
 	/**
 	 * Compute hgp of a PWM using the positive/negative sequences<br>
 	 */
-	public double computePwmThreshold(WeightMatrix wm, double wm_factor){
+	public double computePwmThreshold(WeightMatrix wm, double wm_factor, String outName){
 		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 		double[] posSeqScores = new double[seqs.length];
 		double[] negSeqScores = new double[seqsNeg.length];
@@ -337,17 +377,18 @@ public class KmerEngine {
 		// find the threshold motif score
 		double[] hgps = new double[seqs.length];
 		double threshold=wm.getMaxScore()+1;
+		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<seqs.length;i++){
 			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
 			if( index < 0 ) { index = -index - 1; }
 			hgps[i]=1-StatUtil.hyperGeometricCDF_cache(posSeqScores.length-i, seqs.length+seqsNeg.length, posSeqScores.length-i+negSeqScores.length-index, seqs.length);
 			double fdr = (double)(posSeqScores.length-i)/(negSeqScores.length-index);
-			System.out.println(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f", i, posSeqScores[i], posSeqScores.length-i, negSeqScores.length-index, fdr, hgps[i]));
-			if (fdr>100){
-				threshold = Math.max(wm.getMaxScore()*wm_factor, posSeqScores[i]);
-				break;
+			sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], posSeqScores.length-i, negSeqScores.length-index, fdr, hgps[i]));
+			if (fdr>20 && threshold==(wm.getMaxScore()+1) ){
+				threshold = posSeqScores[i];
 			}
-		}		
+		}	
+		CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
 		return threshold;
 	}
 	

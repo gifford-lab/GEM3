@@ -27,11 +27,13 @@ public class Kmer implements Comparable<Kmer>{
 	public void setStrength(double strength){this.strength = strength;}
 	public void incrStrength(double strength){this.strength += strength;}
 	double hgp = 1;
-	/** 
-	 * get hyper-geometric p-value of the kmer
-	 */
+	/**  get hyper-geometric p-value of the kmer */
 	public double getHgp() {
 		return hgp;
+	}
+	/**  set hyper-geometric p-value of the kmer */
+	public void setHgp(double hgp) {
+		this.hgp = hgp;
 	}
 	int negCount;
 	
