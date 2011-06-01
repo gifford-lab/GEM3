@@ -3391,7 +3391,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println(String.format("selected k=%d, max decrease=%.2f%%", k, max_value));
 			config.k = k;
 		}
-		kEngine.buildEngine(k, events, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
+		kEngine.buildEngine(config.k, events, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
     }
 
     // update kmerEngine with the predicted kmer-events
@@ -4524,21 +4524,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
 	    	rightIdx--;
 	    }
-    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
-    	for (int p=0;p<ic.length;p++){
-    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
-    	}
-//    	System.out.print(sb.toString());
-    	
-    	// if the pwm is not good, return null. The operations in this method so far 
-    	// does not change the state of componentFeatures or motifCluster, so we can discard this pwm and take previous result
-    	if (rightIdx-leftIdx+1<=config.k/2){
-    		motifCluster.isGood = false;
-    		System.out.println("makePWM: available aligned sequences are too short, stop here.");
-    		CommonUtils.writeFile(outName+"_badPWM_"+motifCluster.seedKmer.getKmerString()+".txt", sb.append("\n").append(pwm_seqs).toString());
-    		return null;
-    	}
-    	
+
+    	// make the PWM
     	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
     	for(int p=leftIdx;p<=rightIdx;p++){
     		for (int b=0;b<LETTERS.length;b++){
@@ -4549,8 +4536,25 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (bPos>0)
 			wm.consensus = CommonUtils.padding(bPos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm);
 		else
-			wm.consensus = WeightMatrix.printMatrixLetters(wm);
+			wm.consensus = WeightMatrix.printMatrixLetters(wm);    	
+		
+		// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
+    	double threshold = kEngine.computePwmThreshold(wm, config.wm_factor);
     	
+    	// if the pwm is not good, return null. The operations in this method so far 
+    	// does not change the state of componentFeatures or motifCluster, so we can discard this pwm and take previous result
+    	if (rightIdx-leftIdx+1<=config.k/2 || threshold>wm.getMaxScore()){
+    		motifCluster.isGood = false;
+    		System.out.println("makePWM: PWM is too short or non-specific, stop here.");
+	    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
+	    	for (int p=0;p<ic.length;p++){
+	    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
+	    	}
+	//    	System.out.print(sb.toString());
+	    	CommonUtils.writeFile(outName+"_badPWM_"+motifCluster.seedKmer.getKmerString()+".txt", sb.append("\n").append(pwm_seqs).toString());
+    		return null;
+    	}
+  
     	/************************************************************************ 
     	 * update the motifStartInSeq for aligned sequences, w.r.t. PWM
     	 ************************************************************************/

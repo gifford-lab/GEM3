@@ -3,6 +3,7 @@ package edu.mit.csail.cgs.ewok.verbs.motifs;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,6 +15,7 @@ import net.sf.samtools.util.SequenceUtil;
 
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
+import edu.mit.csail.cgs.utils.ArrayUtils;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
@@ -22,6 +24,7 @@ import edu.mit.csail.cgs.utils.strings.multipattern.*;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
@@ -34,8 +37,9 @@ public class KmerEngine {
 	private int k=10;
 	private int minHitCount = 3;
 	private int numPos;
-	private int negSeqCount = 0;
 	private HashMap<String, Integer> negKmerHitCounts;
+	String[] seqs;		// DNA sequences around binding sites
+	String[] seqsNeg;	// DNA sequences in negative sets
 	
 	private ArrayList<Kmer> allKmers = new ArrayList<Kmer>();	// all the kmers in the sequences
 	public ArrayList<Kmer> getAllKmers() {
@@ -104,41 +108,11 @@ public class KmerEngine {
 		tic = System.currentTimeMillis();
 		int eventCount = events.size();
 		Collections.sort(events);		// sort by location
-		// input data
-		String[] seqs = new String[eventCount];	// DNA sequences around binding sites
-		String[] seqsNeg = new String[eventCount];	// DNA sequences in negative sets
-		Region[] seqCoors = new Region[eventCount];
-
 		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
 		int expectedCount = (int) (eventCount / Math.pow(4, k) + 0.5);
-		ArrayList<Region> negRegions = new ArrayList<Region>();
-		for(int i=0;i<eventCount;i++){
-			Region posRegion = events.get(i).expand(winSize/2);
-			seqCoors[i] = posRegion;
-			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
-		}
-		for(int i=0;i<eventCount;i++){
-			// getting negative sequences
-			// exclude negative regions that overlap with positive regions, or exceed start of chrom
-			// it is OK if we lose a few sequences here, so some entries of the seqsNeg will be null
-			Region posRegion = seqCoors[i];
-			int start = 0;
-			double rand = randomEngine.nextDouble();
-			if (rand>0.5)
-				start = (int) (posRegion.getEnd()+1 + winShift*rand);
-			else
-				start =(int) (posRegion.getStart()-1 - winShift*(1-rand));
-			int end = start + posRegion.getWidth()-1;			// end inclusive
-			if (start < 0 || end >= genome.getChromLength(posRegion.getChrom()))
-				continue;
-			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);			
-			if (i>0 && seqCoors[i-1].overlaps(negRegion))
-				continue;
-			if (i<(eventCount-2) && seqCoors[i+1].overlaps(negRegion))
-				continue;
-			negRegions.add(negRegion);
-            seqsNeg[i] = seqgen.execute(negRegion).toUpperCase();
-		}
+
+		// collect pos/neg test sequences based on event positions
+		loadTestSequences(events, winSize, winShift);
 		
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
@@ -207,11 +181,7 @@ public class KmerEngine {
 		
 		// count hits in the negative sequences
 		HashMap<String, Integer> negHitCounts = new HashMap<String, Integer>();
-		negSeqCount = 0;
 		for (String seq: seqsNeg){
-			if (seq==null)			// some neg seq may be null, if overlap with positive sequences
-				continue;
-			negSeqCount++;
 			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
 			Iterator searcher = tmp.search(seq.getBytes());
 			while (searcher.hasNext()) {
@@ -235,7 +205,7 @@ public class KmerEngine {
 		
 		// score the kmers, hypergeometric p-value
 		int n = seqs.length;
-		int N = n + negSeqCount;
+		int N = n + seqsNeg.length;
 		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
@@ -261,7 +231,7 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
 		kms.removeAll(highHgpKmers);
-		System.out.println(String.format("Kmers(%d) selected from %d positive vs %d negative sequences, %s", kms.size(), n, negSeqCount, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("Kmers(%d) selected from %d positive vs %d negative sequences, %s", kms.size(), n, seqsNeg.length, CommonUtils.timeElapsed(tic)));
 		
 		negKmerHitCounts = new HashMap<String, Integer>();
 		for (Kmer km: highHgpKmers){
@@ -280,6 +250,54 @@ public class KmerEngine {
 	}
 	
 	/**
+	 * Load pos/neg test sequences based on event positions
+	 * @param events
+	 * @param winSize
+	 * @param winShift
+	 */
+	public void loadTestSequences(ArrayList<Point> events, int winSize, int winShift){
+		long tic = System.currentTimeMillis();
+		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
+		int eventCount = events.size();
+		seqs = new String[eventCount];	// DNA sequences around binding sites
+		ArrayList<String> negSeqList = new ArrayList<String>();
+		Region[] seqCoors = new Region[eventCount];
+
+		for(int i=0;i<eventCount;i++){
+			Region posRegion = events.get(i).expand(winSize/2);
+			seqCoors[i] = posRegion;
+			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
+		}
+		
+		for(int i=0;i<eventCount;i++){
+			// getting negative sequences
+			// exclude negative regions that overlap with positive regions, or exceed start of chrom
+			// it is OK if we lose a few sequences here, so some entries of the seqsNeg will be null
+			Region posRegion = seqCoors[i];
+			int start = 0;
+			double rand = randomEngine.nextDouble();
+			if (rand>0.5)
+				start = (int) (posRegion.getEnd()+1 + winShift*rand);
+			else
+				start =(int) (posRegion.getStart()-1 - winShift*(1-rand));
+			int end = start + posRegion.getWidth()-1;			// end inclusive
+			if (start < 0 || end >= genome.getChromLength(posRegion.getChrom()))
+				continue;
+			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);			
+			if (i>0 && seqCoors[i-1].overlaps(negRegion))
+				continue;
+			if (i<(eventCount-2) && seqCoors[i+1].overlaps(negRegion))
+				continue;
+			negSeqList.add(seqgen.execute(negRegion).toUpperCase());
+		}
+		seqsNeg = new String[negSeqList.size()];	// DNA sequences in negative sets
+		for (int i=0; i<seqsNeg.length;i++){
+			seqsNeg[i] = negSeqList.get(i);
+		}
+//		System.out.println("loadTestSequences: "+CommonUtils.timeElapsed(tic));
+	}
+	
+	/**
 	 * Compute hgp using the negative sequences<br>
 	 * It returns hgp=0 if the kmer was not in the negative kmer set
 	 */
@@ -295,8 +313,42 @@ public class KmerEngine {
 			return 0;		
 		
 		int negKmerHitCount = negKmerHitCounts.get(kmerString);
-		double hgp = 1-StatUtil.hyperGeometricCDF_cache(kmerSeqCount, posPopulation+negSeqCount, kmerSeqCount, kmerSeqCount+negKmerHitCount);
+		double hgp = 1-StatUtil.hyperGeometricCDF_cache(kmerSeqCount, posPopulation+seqsNeg.length, kmerSeqCount+negKmerHitCount, posPopulation);
 		return hgp;
+	}
+	
+	
+	/**
+	 * Compute hgp of a PWM using the positive/negative sequences<br>
+	 */
+	public double computePwmThreshold(WeightMatrix wm, double wm_factor){
+		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+		double[] posSeqScores = new double[seqs.length];
+		double[] negSeqScores = new double[seqsNeg.length];
+		for (int i=0;i<seqs.length;i++){
+			posSeqScores[i]=scorer.getMaxSeqScore(wm, seqs[i].toCharArray());
+		}
+		Arrays.sort(posSeqScores);
+		for (int i=0;i<seqsNeg.length;i++){
+			negSeqScores[i]=scorer.getMaxSeqScore(wm, seqsNeg[i].toCharArray());
+		}
+		Arrays.sort(negSeqScores);
+		
+		// find the threshold motif score
+		double[] hgps = new double[seqs.length];
+		double threshold=wm.getMaxScore()+1;
+		for (int i=0;i<seqs.length;i++){
+			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
+			if( index < 0 ) { index = -index - 1; }
+			hgps[i]=1-StatUtil.hyperGeometricCDF_cache(posSeqScores.length-i, seqs.length+seqsNeg.length, posSeqScores.length-i+negSeqScores.length-index, seqs.length);
+			double fdr = (double)(posSeqScores.length-i)/(negSeqScores.length-index);
+			System.out.println(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f", i, posSeqScores[i], posSeqScores.length-i, negSeqScores.length-index, fdr, hgps[i]));
+			if (fdr>100){
+				threshold = Math.max(wm.getMaxScore()*wm_factor, posSeqScores[i]);
+				break;
+			}
+		}		
+		return threshold;
 	}
 	
 	/**

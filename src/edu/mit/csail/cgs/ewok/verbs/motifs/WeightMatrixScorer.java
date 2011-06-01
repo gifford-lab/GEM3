@@ -6,7 +6,9 @@ import edu.mit.csail.cgs.ewok.verbs.Expander;
 import edu.mit.csail.cgs.ewok.verbs.Mapper;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.datasets.motifs.*;
+import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfile> {
 
@@ -66,6 +68,22 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
         return results;
     }
 
+    /**
+     * Return the maximum motif score of the input sequence (both direction)
+     * @param matrix
+     * @param sequence
+     * @return
+     */
+    public  double getMaxSeqScore(WeightMatrix matrix, char[] sequence){
+    	double[] scores = score(matrix, sequence, '+');
+    	Pair<Double, TreeSet<Integer>> max = StatUtil.findMax(scores);
+    	double maxScore = max.car();
+    	scores = score(matrix, sequence, '-');
+    	max = StatUtil.findMax(scores);
+    	maxScore = Math.max(maxScore, max.car());
+    	return maxScore;
+    }
+    
     /**
      * Return the highest scoring sequence in the region
      */
