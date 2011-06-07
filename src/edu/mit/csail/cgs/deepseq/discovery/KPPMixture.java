@@ -201,7 +201,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
     	}
 		/* ***************************************************
-		 * Load parameters and properties
+		 * Print out command line options
 		 * ***************************************************/
 		StringBuffer sb = new StringBuffer();
 		sb.append("\nOptions:\n");
@@ -214,10 +214,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		log(1, sb.toString());
 		
     	/* *********************************
-    	 * Flags
-    	 ***********************************/
+    	 * Load options
+    	 ***********************************/        
+        config.parseArgs(args);    
+     // if mappable_genome_length is not provided, compute as 0.8 of total genome size
+        if (config.mappable_genome_length<0){		
+	        config.mappable_genome_length = 0.8 * gen.getGenomeSize();
+	        System.out.println("Mappable Genome Length is "+config.mappable_genome_length);
+        }
         
-        config.parseArgs(args);             	
     	if(config.second_lambda_region_width < config.first_lambda_region_width) {
     		System.err.println("\nThe first control region width (w2) has to be more than " + config.first_lambda_region_width + " bp.");
     		System.exit(-1);
@@ -4823,7 +4828,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int smooth_step = 30;
         public int window_size_factor = 3;	//number of model width per window
         public int min_region_width = 50;	//minimum width for select enriched region
-        public double mappable_genome_length = 2.08E9; // mouse genome
+        public double mappable_genome_length = -1; // defalut is to compute
         public double sparseness=6.0;
         public double fold = 3.0;
         public double kl_ic = 0.0;
@@ -4880,7 +4885,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             }
             use_scanPeak = ! flags.contains("no_scanPeak");
             do_model_selection = !flags.contains("no_model_selection");
-            mappable_genome_length = Args.parseDouble(args, "s", 2.08E9);	// size of mappable genome
+            mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
            
             // Optional input parameter
             k = Args.parseInteger(args, "k", k);
