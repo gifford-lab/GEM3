@@ -273,38 +273,40 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-//    	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
-     	String subsetFormat = Args.parseString(args, "subFormat", "");
-        if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
-	        // estimate IP/Ctrl ratio from all reads
-        	for(int i=0; i<numConditions; i++){
-				Pair<ReadCache,ReadCache> e = caches.get(i);
-				double ipCount = e.car().getHitCount();				
-				double ctrlCount = 0;
-				if (e.cdr()!=null){
-					ctrlCount = e.cdr().getHitCount();
-					ratio_total[i]=ipCount/ctrlCount;
-					System.out.println(String.format("\n%s\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", conditionNames.get(i), ipCount, ctrlCount, ratio_total[i]));
-				}
-	        }
-        } else{	// want to analyze only specified regions, set default
-        	for(int i=0; i<numConditions; i++){
-        		if (config.ip_ctrl_ratio>0){
-        			ratio_total[i]=config.ip_ctrl_ratio;
-        			ratio_non_specific_total[i]=config.ip_ctrl_ratio;
-        		}
-        		else {
+     	
+		if (config.ip_ctrl_ratio>0){		// if ratio is provided
+			for(int i=0; i<numConditions; i++){
+				ratio_total[i]=config.ip_ctrl_ratio;
+				ratio_non_specific_total[i]=config.ip_ctrl_ratio;
+			}
+		}
+		else{
+			if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
+		        // estimate IP/Ctrl ratio from all reads
+	        	for(int i=0; i<numConditions; i++){
+					Pair<ReadCache,ReadCache> e = caches.get(i);
+					double ipCount = e.car().getHitCount();				
+					double ctrlCount = 0;
+					if (e.cdr()!=null){
+						ctrlCount = e.cdr().getHitCount();
+						ratio_total[i]=ipCount/ctrlCount;
+						System.out.println(String.format("\n%s\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", conditionNames.get(i), ipCount, ctrlCount, ratio_total[i]));
+					}
+		        }
+	        } else{	// want to analyze only specified regions, set default
+	        	for(int i=0; i<numConditions; i++){
 	        		Pair<ReadCache,ReadCache> e = caches.get(i);
 	        		if (e.cdr()!=null)
 						ratio_total[i]=e.car().getHitCount()/e.cdr().getHitCount();
 	        		else
 	        			ratio_total[i]=1;
 	        		ratio_non_specific_total[i]=1;
-        		}
-        	}
-        }        	
+	        	}
+	        }       
+		}
         System.out.println("\nSorting reads and selecting enriched regions ...");
         
+     	String subsetFormat = Args.parseString(args, "subFormat", "");
     	// if not provided region list, directly segment genome into enrichedRegions
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
      		// ip/ctrl ratio by regression on non-enriched regions
