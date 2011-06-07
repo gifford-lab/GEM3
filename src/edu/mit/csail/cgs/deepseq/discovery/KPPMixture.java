@@ -629,7 +629,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							else{
 								double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
 	//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-									if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
+								if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
 									notFiltered = true;
 									break;
 								}
@@ -1977,7 +1977,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			// sum the read profiles (optional)
 			// at this point, we do not have p-value, etc, this is our best guess
 			if (config.use_joint_event && 
-                shapeDeviation[c]<config.shapeDeviation &&
+                shapeDeviation[c]<=config.shapeDeviation &&
                 (logKL_plus[c]<0 || logKL_minus[c]<0)){
 				for (int i=0;i<profile_plus.length;i++){
 					profile_plus_sum[i] += profile_plus[i];
@@ -4906,7 +4906,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
             alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
             fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
-            shapeDeviation =  TF_binding?-0.45:-0.3;		// set default according to filter type    		
+            shapeDeviation =  TF_binding?-0.4:-0.3;		// set default according to filter type    		
             shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
             max_hit_per_bp = Args.parseInteger(args, "mrc", 0); //max read count per bp, default -1, estimate from data
             window_size_factor = Args.parseInteger(args, "wsf", 3);
