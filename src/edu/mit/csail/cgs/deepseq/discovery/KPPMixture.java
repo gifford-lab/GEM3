@@ -273,7 +273,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-    	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
+//    	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
      	String subsetFormat = Args.parseString(args, "subFormat", "");
         if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
 	        // estimate IP/Ctrl ratio from all reads
@@ -289,9 +289,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	        }
         } else{	// want to analyze only specified regions, set default
         	for(int i=0; i<numConditions; i++){
-        		if (subsetRatio!=-1){
-        			ratio_total[i]=subsetRatio;
-        			ratio_non_specific_total[i]=subsetRatio;
+        		if (config.ip_ctrl_ratio>0){
+        			ratio_total[i]=config.ip_ctrl_ratio;
+        			ratio_non_specific_total[i]=config.ip_ctrl_ratio;
         		}
         		else {
 	        		Pair<ReadCache,ReadCache> e = caches.get(i);
@@ -304,10 +304,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
         	}
         }        	
         System.out.println("\nSorting reads and selecting enriched regions ...");
+        
     	// if not provided region list, directly segment genome into enrichedRegions
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
      		// ip/ctrl ratio by regression on non-enriched regions
-			if (subsetRatio==-1){
+			if (config.ip_ctrl_ratio==-1){
      			setRegions(selectEnrichedRegions(subsetRegions, true));
      			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
      			temp.addAll(excludedRegions);
@@ -1436,9 +1437,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// linear regression to get the IP/control ratio
 		// now we do not require whole genome data, because partial data could be run on 1 chrom, still enough data to esitmates
 		if(controlDataExist) {
-			ratio_non_specific_total = new double[numConditions];
-			for(int t = 0; t < numConditions; t++){
-				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", specificRegions);
+			if (config.ip_ctrl_ratio==-1){		// regression using non-specific regions
+				ratio_non_specific_total = new double[numConditions];
+				for(int t = 0; t < numConditions; t++){
+					ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", specificRegions);
+				}
 			}
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
 		}
@@ -2826,7 +2829,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 * the non-specific regions are a fair estimate for noise.
 	 * We assume the noise in expt and control should be comparable, can be used to scale reads.
 	 */
-	public void countNonSpecificReads(List<ComponentFeature> compFeatures){
+	private void countNonSpecificReads(List<ComponentFeature> compFeatures){
 		if (!wholeGenomeDataLoaded){	
 			ratio_non_specific_total=ratio_total;
 			ComponentFeature.setNon_specific_ratio(ratio_total);
@@ -4807,6 +4810,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public int kmer_cluster_size = 50;	// minimum number of sequences to be reported as a cluster
         
+        public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
         public double q_refine = 1.5;
         public double joint_event_distance = 500;
@@ -4893,6 +4897,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             hgp = Args.parseDouble(args, "hgp", hgp);
             kmer_cluster_size = Args.parseInteger(args, "cluster_size", kmer_cluster_size);
 
+            ip_ctrl_ratio = Args.parseDouble(args, "r", ip_ctrl_ratio);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
             q_refine = Args.parseDouble(args, "q2", q_refine);	// q-value for refine regions
