@@ -241,12 +241,12 @@ public class GPS2 {
                          //                "      --readlen <read length>\n" +
                          "   Required parameters:\n" +
                          "      --d <read distribution file>\n" +
-                         "      --s <size of mappable genome in bp>\n" +
                          "      --exptX <aligned reads file for expt (X is condition name)>\n" +
                          "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
                          "   Optional parameters:\n" +
                          "      --f <read file format, BED/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --g <genome info file with chr name/length pairs>\n" +
+                         "      --s <size of mappable genome in bp> (default is estimated from genome info)\n" +
                          "      --r <max rounds to refine read distribution (default=3)>\n" +
                          "      --a <minimum alpha value for sparse prior (default=6)>\n" +
                          "      --q <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)>\n" +
