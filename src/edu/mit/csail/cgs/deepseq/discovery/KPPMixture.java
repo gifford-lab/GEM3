@@ -3328,6 +3328,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		buildEngine();
     }
+    
     private ArrayList<Point> getEvents(){
 		ArrayList<Point> events = new ArrayList<Point>();
 		int count = 1;

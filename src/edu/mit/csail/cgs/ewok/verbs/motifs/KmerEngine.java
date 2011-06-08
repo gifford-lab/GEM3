@@ -5,6 +5,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -238,6 +239,9 @@ public class KmerEngine {
 		for (Kmer km: highHgpKmers){
 			negKmerHitCounts.put(km.kmerString, km.negCount);
 		}
+		
+//		alignOverlappedKmers(kms, events);
+		
 		// setup an AhoCorasick tree of high HGP kmers for later query, e.g. in isNegativeKmer(String kmerStr)
 //		tree_negatives = new AhoCorasick();
 //		for (Kmer km: highHgpKmers){
@@ -250,6 +254,98 @@ public class KmerEngine {
 		return kms;
 	}
 	
+	private ArrayList<Kmer> alignOverlappedKmers(ArrayList<Kmer> kmers, ArrayList<Point> events){
+		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
+		// build the kmer search tree
+		AhoCorasick oks = new AhoCorasick();
+		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
+		for (Kmer km: kmers){
+			if (km.getNegCount()<=1)
+				continue;
+			str2kmer.put(km.kmerString, km);
+			oks.add(km.kmerString.getBytes(), km);
+	    }
+		oks.prepare();
+		
+		// 
+		ArrayList<HashSet<Kmer>> seq2kmer = new ArrayList<HashSet<Kmer>>();
+		HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
+		for (int i=0;i<seqs.length;i++){
+			String seq = seqs[i];
+			HashSet<Kmer> results = queryTree (seq, oks);
+			if (results.isEmpty()){
+				seq2kmer.add(null);
+			}
+			else{
+				for (Kmer km: results){		
+					if (!kmer2seq.containsKey(km)){
+						kmer2seq.put(km, new HashSet<Integer>());
+					}
+					kmer2seq.get(km).add(i);
+				}
+				seq2kmer.add(results);
+			}
+		}
+		
+		Collections.sort(kmers, new Comparator<Kmer>(){
+		    public int compare(Kmer o1, Kmer o2) {
+		    		return o1.compareByHGP(o2);
+		    }
+		});
+		int aligned[] = new int[seqs.length]; 
+		for (int i=0;i<aligned.length;i++){
+			aligned[i] = -1;
+		}
+		int UNDEFNINED = 999;
+		int refPos[] = new int[seqs.length]; 		// the position that seed kmer start would match
+		for (int i=0;i<refPos.length;i++){
+			refPos[i] = UNDEFNINED;
+		}		
+		int clusterID = 0;
+		while(!kmers.isEmpty()){
+			int seedShift = 0;
+			Kmer km = kmers.get(0);
+			HashSet<Integer> hits = kmer2seq.get(km);
+			ArrayList<Integer> kmerPos = new ArrayList<Integer>();
+			
+			// use k-mers already aligned, find the consensus k-mer position
+			for (int sid:hits){
+				if (aligned[sid] == clusterID){		// already aligned
+					int pos = seqs[sid].indexOf(km.kmerString);
+					if (pos==-1){
+						seqs[sid] = SequenceUtils.reverseComplement(seqs[sid]);
+						pos = seqs[sid].indexOf(km.kmerString);
+						if (pos!=-1){
+							kmerPos.add(-pos);		// negative pos --> match on '-' strand
+						}
+					}
+					else{
+						kmerPos.add(pos);
+					}
+				}
+			}
+			// find the most frequent kmerPos
+			
+			
+			for (int sid:hits){
+				if (aligned[sid] != clusterID){		// not aligned yet
+					// align using kmer positions
+					int pos = seqs[sid].indexOf(km.kmerString);
+					if (pos<0){
+						seqs[sid] = SequenceUtils.reverseComplement(seqs[sid]);
+						pos = seqs[sid].indexOf(km.kmerString);
+					}
+					refPos[sid] = pos + seedShift;
+					aligned[sid] = clusterID;
+				}
+			}
+			
+			alignedKmers.add(km);
+			kmers.remove(km);
+		}
+		
+		return alignedKmers;
+	}
 	/**
 	 * Load pos/neg test sequences based on event positions
 	 * @param events
@@ -453,6 +549,7 @@ public class KmerEngine {
 	    tree.prepare();
 	    engineInitialized = true;
 	}		
+	
 	/** 
 	 * Search all k-mers in the sequence
 	 * @param seq sequence string to search k-mers
@@ -505,6 +602,40 @@ public class KmerEngine {
 			}
 		}
 
+		return result;
+	}
+	
+	/** 
+	 * Search all k-mers in the sequence
+	 * @param seq sequence string to search k-mers
+	 * @return a kmers list<br>
+	 * pos is the binding site position in the sequence<br>
+	 * kmers are the kmers that map to this position<br>
+	 * if pos is negative, then the kmer match is on the reverse compliment seq string
+	 */
+	private HashSet<Kmer> queryTree (String seq, AhoCorasick tree){
+		seq = seq.toUpperCase();
+		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
+		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
+		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+
+		Iterator searcher = tree.search(seq.getBytes());
+		while (searcher.hasNext()) {
+			SearchResult result = (SearchResult) searcher.next();
+			kmerFound.addAll(result.getOutputs());
+		}
+		// the reverse compliment
+		String seq_rc = SequenceUtils.reverseComplement(seq);
+		searcher = tree.search(seq_rc.getBytes());
+		while (searcher.hasNext()) {
+			SearchResult result = (SearchResult) searcher.next();
+			kmerFound.addAll(result.getOutputs());
+		}
+		
+		HashSet<Kmer> result = new HashSet<Kmer>();
+		for (Object km: kmerFound)
+			result.add((Kmer)km);
 		return result;
 	}
 
