@@ -201,7 +201,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
     	}
 		/* ***************************************************
-		 * Load parameters and properties
+		 * Print out command line options
 		 * ***************************************************/
 		StringBuffer sb = new StringBuffer();
 		sb.append("\nOptions:\n");
@@ -214,10 +214,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		log(1, sb.toString());
 		
     	/* *********************************
-    	 * Flags
-    	 ***********************************/
+    	 * Load options
+    	 ***********************************/        
+        config.parseArgs(args);    
+     // if mappable_genome_length is not provided, compute as 0.8 of total genome size
+        if (config.mappable_genome_length<0){		
+	        config.mappable_genome_length = 0.8 * gen.getGenomeSize();
+	        System.out.println("Mappable Genome Length is "+config.mappable_genome_length);
+        }
         
-        config.parseArgs(args);             	
     	if(config.second_lambda_region_width < config.first_lambda_region_width) {
     		System.err.println("\nThe first control region width (w2) has to be more than " + config.first_lambda_region_width + " bp.");
     		System.exit(-1);
@@ -273,41 +278,44 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
-    	double subsetRatio = Args.parseDouble(args, "subr", -1);		// user input ratio for IP/control, because if the region is too small, the non-specific definition is not applied
-     	String subsetFormat = Args.parseString(args, "subFormat", "");
-        if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
-	        // estimate IP/Ctrl ratio from all reads
-        	for(int i=0; i<numConditions; i++){
-				Pair<ReadCache,ReadCache> e = caches.get(i);
-				double ipCount = e.car().getHitCount();				
-				double ctrlCount = 0;
-				if (e.cdr()!=null){
-					ctrlCount = e.cdr().getHitCount();
-					ratio_total[i]=ipCount/ctrlCount;
-					System.out.println(String.format("\n%s\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", conditionNames.get(i), ipCount, ctrlCount, ratio_total[i]));
-				}
-	        }
-        } else{	// want to analyze only specified regions, set default
-        	for(int i=0; i<numConditions; i++){
-        		if (subsetRatio!=-1){
-        			ratio_total[i]=subsetRatio;
-        			ratio_non_specific_total[i]=subsetRatio;
-        		}
-        		else {
+     	
+		if (config.ip_ctrl_ratio>0){		// if ratio is provided
+			for(int i=0; i<numConditions; i++){
+				ratio_total[i]=config.ip_ctrl_ratio;
+				ratio_non_specific_total[i]=config.ip_ctrl_ratio;
+			}
+		}
+		else{
+			if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
+		        // estimate IP/Ctrl ratio from all reads
+	        	for(int i=0; i<numConditions; i++){
+					Pair<ReadCache,ReadCache> e = caches.get(i);
+					double ipCount = e.car().getHitCount();				
+					double ctrlCount = 0;
+					if (e.cdr()!=null){
+						ctrlCount = e.cdr().getHitCount();
+						ratio_total[i]=ipCount/ctrlCount;
+						System.out.println(String.format("\n%s\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", conditionNames.get(i), ipCount, ctrlCount, ratio_total[i]));
+					}
+		        }
+	        } else{	// want to analyze only specified regions, set default
+	        	for(int i=0; i<numConditions; i++){
 	        		Pair<ReadCache,ReadCache> e = caches.get(i);
 	        		if (e.cdr()!=null)
 						ratio_total[i]=e.car().getHitCount()/e.cdr().getHitCount();
 	        		else
 	        			ratio_total[i]=1;
 	        		ratio_non_specific_total[i]=1;
-        		}
-        	}
-        }        	
+	        	}
+	        }       
+		}
         System.out.println("\nSorting reads and selecting enriched regions ...");
+        
+     	String subsetFormat = Args.parseString(args, "subFormat", "");
     	// if not provided region list, directly segment genome into enrichedRegions
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
      		// ip/ctrl ratio by regression on non-enriched regions
-			if (subsetRatio==-1){
+			if (config.ip_ctrl_ratio==-1){
      			setRegions(selectEnrichedRegions(subsetRegions, true));
      			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
      			temp.addAll(excludedRegions);
@@ -626,7 +634,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							else{
 								double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
 	//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-									if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
+								if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
 									notFiltered = true;
 									break;
 								}
@@ -1436,9 +1444,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// linear regression to get the IP/control ratio
 		// now we do not require whole genome data, because partial data could be run on 1 chrom, still enough data to esitmates
 		if(controlDataExist) {
-			ratio_non_specific_total = new double[numConditions];
-			for(int t = 0; t < numConditions; t++){
-				ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", specificRegions);
+			if (config.ip_ctrl_ratio==-1){		// regression using non-specific regions
+				ratio_non_specific_total = new double[numConditions];
+				for(int t = 0; t < numConditions; t++){
+					ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", specificRegions);
+				}
 			}
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
 		}
@@ -1972,7 +1982,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			// sum the read profiles (optional)
 			// at this point, we do not have p-value, etc, this is our best guess
 			if (config.use_joint_event && 
-                shapeDeviation[c]<config.shapeDeviation &&
+                shapeDeviation[c]<=config.shapeDeviation &&
                 (logKL_plus[c]<0 || logKL_minus[c]<0)){
 				for (int i=0;i<profile_plus.length;i++){
 					profile_plus_sum[i] += profile_plus[i];
@@ -2826,7 +2836,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 * the non-specific regions are a fair estimate for noise.
 	 * We assume the noise in expt and control should be comparable, can be used to scale reads.
 	 */
-	public void countNonSpecificReads(List<ComponentFeature> compFeatures){
+	private void countNonSpecificReads(List<ComponentFeature> compFeatures){
 		if (!wholeGenomeDataLoaded){	
 			ratio_non_specific_total=ratio_total;
 			ComponentFeature.setNon_specific_ratio(ratio_total);
@@ -4808,6 +4818,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public int kmer_cluster_size = 50;	// minimum number of sequences to be reported as a cluster
         
+        public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
         public double q_refine = 1.5;
         public double joint_event_distance = 500;
@@ -4818,7 +4829,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int smooth_step = 30;
         public int window_size_factor = 3;	//number of model width per window
         public int min_region_width = 50;	//minimum width for select enriched region
-        public double mappable_genome_length = 2.08E9; // mouse genome
+        public double mappable_genome_length = -1; // defalut is to compute
         public double sparseness=6.0;
         public double fold = 3.0;
         public double kl_ic = 0.0;
@@ -4875,7 +4886,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             }
             use_scanPeak = ! flags.contains("no_scanPeak");
             do_model_selection = !flags.contains("no_model_selection");
-            mappable_genome_length = Args.parseDouble(args, "s", 2.08E9);	// size of mappable genome
+            mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
            
             // Optional input parameter
             k = Args.parseInteger(args, "k", k);
@@ -4894,13 +4905,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
             hgp = Args.parseDouble(args, "hgp", hgp);
             kmer_cluster_size = Args.parseInteger(args, "cluster_size", kmer_cluster_size);
 
+            ip_ctrl_ratio = Args.parseDouble(args, "r", ip_ctrl_ratio);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
             q_refine = Args.parseDouble(args, "q2", q_refine);	// q-value for refine regions
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
             alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
             fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
-            shapeDeviation =  TF_binding?-0.45:-0.3;		// set default according to filter type    		
+            shapeDeviation =  TF_binding?-0.4:-0.3;		// set default according to filter type    		
             shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
             max_hit_per_bp = Args.parseInteger(args, "mrc", 0); //max read count per bp, default -1, estimate from data
             window_size_factor = Args.parseInteger(args, "wsf", 3);
