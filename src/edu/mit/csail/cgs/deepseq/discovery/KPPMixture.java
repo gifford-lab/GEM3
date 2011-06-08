@@ -4908,7 +4908,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             hgp = Args.parseDouble(args, "hgp", hgp);
             kmer_cluster_size = Args.parseInteger(args, "cluster_size", kmer_cluster_size);
 
-            ip_ctrl_ratio = Args.parseDouble(args, "r", ip_ctrl_ratio);
+            ip_ctrl_ratio = Args.parseDouble(args, "icr", ip_ctrl_ratio);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
             q_refine = Args.parseDouble(args, "q2", q_refine);	// q-value for refine regions
