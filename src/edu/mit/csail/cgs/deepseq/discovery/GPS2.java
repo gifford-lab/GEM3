@@ -246,15 +246,15 @@ public class GPS2 {
                          "   Optional parameters:\n" +
                          "      --f <read file format, BED/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --g <genome info file with chr name/length pairs>\n" +
-                         "      --s <size of mappable genome in bp> (default is estimated from genome info)\n" +
+                         "      --s <size of mappable genome in bp (default is estimated from genome info)>\n" +
                          "      --r <max rounds to refine read distribution (default=3)>\n" +
                          "      --a <minimum alpha value for sparse prior (default=6)>\n" +
                          "      --q <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)>\n" +
                          "      --t <maximum number of threads to run GPS in paralell, (default=#CPU)>\n" +
                          "      --out <output file base name>\n" +
                          "   Optional flags: \n" +
-                         "      --fa <use a fixed user-specified alpha value for all the regions>\n" +
-                         "      --help <print help information and exit>\n" +
+                         "      --fa use a fixed user-specified alpha value for all the regions\n" +
+                         "      --help print help information and exit\n" +
                          "\n   Output format:\n" +
                          "      The output file contains eight fields in a tab-delimited file:\n" +
                          "        - Binding event coordinate\n" +
