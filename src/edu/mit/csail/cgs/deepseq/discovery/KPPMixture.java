@@ -220,7 +220,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      // if mappable_genome_length is not provided, compute as 0.8 of total genome size
         if (config.mappable_genome_length<0){		
 	        config.mappable_genome_length = 0.8 * gen.getGenomeSize();
-	        System.out.println("Mappable Genome Length is "+config.mappable_genome_length);
+	        System.out.println(String.format("\nMappable Genome Length is %,d.", (long)config.mappable_genome_length));
         }
         
     	if(config.second_lambda_region_width < config.first_lambda_region_width) {
@@ -266,8 +266,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// Filtering/reset bases
 		if(config.filterDupReads){
-			applyPoissonFilter();
-			applyPoissonFilter();
+			applyPoissonFilter(false);
+			applyPoissonFilter(true);
 		}
 		
 		// Normalize conditions
@@ -2195,9 +2195,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	/**
 	 * Apply a Possion filter for duplicate reads
 	 */
-	private void applyPoissonFilter(){
+	private void applyPoissonFilter(boolean printFilterMsg){
 		// Filtering/reset bases
-		System.out.println("\nApply Poisson filter for duplicate reads.");
+		if (printFilterMsg)
+			System.out.println("\nApply Poisson filter for duplicate reads.");
 		for(int c = 0; c < numConditions; c++) {
 			caches.get(c).car().applyPoissonGaussianFilter(10e-3, 20);
 			if(controlDataExist) {
@@ -2206,10 +2207,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}	 		
 		
 		// print resulting dataset counts
-		for(int c = 0; c < numConditions; c++) {
-			caches.get(c).car().displayStats();
-			if(controlDataExist) {
-				caches.get(c).cdr().displayStats();
+		if (printFilterMsg){
+			for(int c = 0; c < numConditions; c++) {
+				caches.get(c).car().displayStats();
+				if(controlDataExist) {
+					caches.get(c).cdr().displayStats();
+				}
 			}
 		}
 	}

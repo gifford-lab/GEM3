@@ -140,6 +140,8 @@ public class GPS2 {
         String peakFileName = mixture.getOutName();
         mixture.setOutName(peakFileName+"_"+round);
 		
+        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
+        
         int GPS_round = 3;
         if (run_gem)
         	GPS_round = 1;
@@ -210,13 +212,16 @@ public class GPS2 {
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         
+        if (!run_gem)
+        	round --;
+
         System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
     }
 	
     public static void main(String[] args) throws Exception {
         long tic = System.currentTimeMillis();
         System.out.println("\nWelcome to GPS (version "+GPS_VERSION+")!");
-        System.out.println("Developed by Lab of Computational Genomics at MIT (http://cgs.csail.mit.edu/gps/).\n");
+        System.out.println("Developed by Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gps/).\n");
         GPS2 gps = new GPS2(args);
         gps.runMixtureModel();
         gps.close();
