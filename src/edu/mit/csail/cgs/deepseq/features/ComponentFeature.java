@@ -403,9 +403,11 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	if (c<numConditions-1)
         		header.append("\t");
         }
-        header.append("Kmer       \t").append("Count\t").append("Strength\t").append("BoundSequence"); 
-        if (getEnrichedKmerHGPLog10()>=0)
-        	header.append("\tEnrichedHGP");
+        if (boundSequence!=null){
+	        header.append("Kmer       \t").append("Count\t").append("Strength\t").append("BoundSequence"); 
+	        if (getEnrichedKmerHGPLog10()>=0)
+	        	header.append("\tEnrichedHGP");
+        }
         header.append("\n");
         return header.toString();
 	}
@@ -452,12 +454,14 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	if (c<numConditions-1)
         		result.append("\t");
         }
-        if (kmer!=null)
-        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append("\t").append(String.format("%.1f\t", kmer.getStrength())).append(boundSequence);
-        else
-        	result.append(CommonUtils.padding(8, ' ')).append("\t").append(0).append("\t").append(String.format("%.1f\t", 0.0)).append(boundSequence);
-        if (getEnrichedKmerHGPLog10()>=0)
-        	result.append(String.format("\t%7.2f", getEnrichedKmerHGPLog10()));
+        if (boundSequence!=null){
+	        if (kmer!=null)
+	        	result.append(kmer.getKmerString()).append("\t").append(kmer.getSeqHitCount()).append("\t").append(String.format("%.1f\t", kmer.getStrength())).append(boundSequence);
+	        else
+	        	result.append(CommonUtils.padding(8, ' ')).append("\t").append(0).append("\t").append(String.format("%.1f\t", 0.0)).append(boundSequence);
+	        if (getEnrichedKmerHGPLog10()>=0)
+	        	result.append(String.format("\t%7.2f", getEnrichedKmerHGPLog10()));
+        }
         result.append("\n");
 		return result.toString();
 	}
