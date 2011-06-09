@@ -356,11 +356,11 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
    * @param regionList
    * @return
    */
-  public static CountsBackgroundModel modelFromRegionList(Genome gen, List<Region> regionList) {
+  public static CountsBackgroundModel modelFromRegionList(Genome gen, List<Region> regionList, int k){
     SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
     seqgen.useCache(false);
 
-    CountsBackgroundModel cbg = new CountsBackgroundModel(null, gen);
+    CountsBackgroundModel cbg = new CountsBackgroundModel(null, gen, k);
     cbg.gen = gen;
 
     for (Region currR : regionList) {
@@ -371,15 +371,33 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
     }
     return cbg;
   }
+  public static CountsBackgroundModel modelFromRegionList(Genome gen, List<Region> regionList) { return modelFromRegionList(gen, regionList, DEFAULT_MAX_KMER_LEN);}
+  
 
+  /**
+   * Create a model from a list of sequences
+   * @param gen
+   * @param regionList
+   * @return
+   */
+  public static CountsBackgroundModel modelFromSeqList(Genome gen, List<String> seqList, int k) {
+    CountsBackgroundModel cbg = new CountsBackgroundModel(null, gen, k);
+
+    for (String curr : seqList) {
+      String regionSeq = curr.toUpperCase();
+      cbg.addKmerCountsFromSequence(regionSeq);
+    }
+    return cbg;
+  }
+  public static CountsBackgroundModel modelFromSeqList(Genome gen, List<String> seqList) {return modelFromSeqList(gen, seqList,DEFAULT_MAX_KMER_LEN);}
   
   /**
    * Create a model from a FASTAStream object
    * @param stream
    * @return
    */
-  public static CountsBackgroundModel modelFromFASTAStream(FASTAStream stream) {
-    CountsBackgroundModel cbg = new CountsBackgroundModel(null, null);
+  public static CountsBackgroundModel modelFromFASTAStream(FASTAStream stream, int k) {
+    CountsBackgroundModel cbg = new CountsBackgroundModel(null, null, k);
     while (stream.hasNext()) {
       Pair<String, String> currSeq = stream.next();
 
@@ -390,5 +408,6 @@ public class CountsBackgroundModel extends BackgroundModel implements Background
     }
     stream.close();
     return cbg;
-  }
+  }public static CountsBackgroundModel modelFromFASTAStream(FASTAStream stream) { return modelFromFASTAStream(stream, DEFAULT_MAX_KMER_LEN);}
+  
 }
