@@ -3377,7 +3377,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (config.k_min!=-1){
 			int eventCounts[] = new int[config.k_max-config.k_min+1];
 			for (int i=0;i<eventCounts.length;i++){
-				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, events, config.k_win, config.k_shift, config.hgp, config.k_fold);
+				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, events, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
 				if (kms.isEmpty())
 					eventCounts[i] = 0;
 				else{
@@ -3899,8 +3899,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (wm==null){		
     			// if the pwm is not good, return the previous result		
     			System.out.println("growSeqCluster: pwm is not good, take previous one.");
-            	System.out.println(CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"+
-            			WeightMatrix.printMatrixLetters(old.matrix));
+    			String bp = (motifCluster.bindingPosition>=0)? 
+    					(CommonUtils.padding(motifCluster.bindingPosition, ' ')+"|\n"):"";
+            	System.out.println( bp + WeightMatrix.printMatrixLetters(old.matrix));
             	unalignedFeatures.clear();
     			unalignedFeatures.addAll(unaligned_old);
     	    	for (ComponentFeature cf:unalignedFeatures){
@@ -4813,7 +4814,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_shift = 100;	// the shift from binding event for negative sequence set    
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
-        public double hgp = 1e-4; 	// p-value threshold of hyper-geometric test for enriched kmer 
+        public double hgp = 1e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
         public double gc = 0.42;	// GC content in the genome
         public double[] bg;			// background frequency based on GC content

@@ -99,11 +99,11 @@ public class KmerEngine {
 	 * and build the kmer AhoCorasick engine
 	 */
 	public void buildEngine(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
-		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, winShift, hgp, k_fold);
+		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, winShift, hgp, k_fold, outPrefix);
 		updateEngine(kms, outPrefix, true);		
 	}
 	
-	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold){
+	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
 		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 		this.k = k;
 		numPos = (winSize+1)-k+1;
@@ -111,7 +111,7 @@ public class KmerEngine {
 		int eventCount = events.size();
 		Collections.sort(events);		// sort by location
 		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
-		int expectedCount = (int) (eventCount / Math.pow(4, k) + 0.5);
+		int expectedCount = (int) Math.round(eventCount / Math.pow(4, k));
 
 		// collect pos/neg test sequences based on event positions
 		loadTestSequences(events, winSize, winShift);
@@ -240,6 +240,8 @@ public class KmerEngine {
 			negKmerHitCounts.put(km.kmerString, km.negCount);
 		}
 		
+		Collections.sort(highHgpKmers);
+		Kmer.printKmers(highHgpKmers, outPrefix+"_highHGP", true);
 //		alignOverlappedKmers(kms, events);
 		
 		// setup an AhoCorasick tree of high HGP kmers for later query, e.g. in isNegativeKmer(String kmerStr)
