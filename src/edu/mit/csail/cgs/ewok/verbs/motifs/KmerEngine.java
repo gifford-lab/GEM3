@@ -456,6 +456,8 @@ public class KmerEngine {
 	
 	/**
 	 * Compute hgp of a PWM using the positive/negative sequences<br>
+	 * If a PWM is good PWM, the curve of the difference between the number of positive and negative sequences match vs score <br>
+	 * should have a peak value, then we set PWM threshold = the largest score corresponding to 0.9*peak_value
 	 */
 	public double computePwmThreshold(WeightMatrix wm, double wm_factor, String outName){
 		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
@@ -471,19 +473,35 @@ public class KmerEngine {
 		Arrays.sort(negSeqScores);
 		
 		// find the threshold motif score
-		double[] hgps = new double[seqs.length];
+//		double[] hgps = new double[seqs.length];
+		double diffs[] = new double[seqs.length];
+		double fdrs[] = new double[seqs.length];
 		double threshold=wm.getMaxScore()+1;
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<seqs.length;i++){
 			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
 			if( index < 0 ) { index = -index - 1; }
-			hgps[i]=1-StatUtil.hyperGeometricCDF_cache(posSeqScores.length-i, seqs.length+seqsNeg.length, posSeqScores.length-i+negSeqScores.length-index, seqs.length);
-			double fdr = (double)(posSeqScores.length-i)/(negSeqScores.length-index);
-			sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], posSeqScores.length-i, negSeqScores.length-index, fdr, hgps[i]));
-			if (fdr>20 && threshold==(wm.getMaxScore()+1) ){
-				threshold = posSeqScores[i];
-			}
+//			hgps[i]=1-StatUtil.hyperGeometricCDF_cache(posSeqScores.length-i, seqs.length+seqsNeg.length, posSeqScores.length-i+negSeqScores.length-index, seqs.length);
+			fdrs[i] = (double)(posSeqScores.length-i)/(negSeqScores.length-index);
+			if (negSeqScores.length-index==0)
+				fdrs[i] = 999;
+			diffs[i] = (posSeqScores.length-i)-(negSeqScores.length-index);
+			sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], posSeqScores.length-i, negSeqScores.length-index, fdrs[i], diffs[i]));
+//			if (fdr>20 && threshold==(wm.getMaxScore()+1) ){
+//				threshold = posSeqScores[i];
+//			}
 		}	
+		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMax(diffs);
+		double max = maxDiff.car();
+		int maxIdx = maxDiff.cdr().last();
+		for (int i=maxIdx; i<diffs.length;i++){
+			if (diffs[i]<max*0.9){
+				threshold = posSeqScores[i];
+				System.out.println(String.format("PWM %s: maxDiff=%.0f, select score=%.2f (diff=%.0f, fdr=%.1f)", 
+						WeightMatrix.getMaxLetters(wm), max, threshold, diffs[i], fdrs[i]));
+				break;
+			}
+		}
 		CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
 		return threshold;
 	}
