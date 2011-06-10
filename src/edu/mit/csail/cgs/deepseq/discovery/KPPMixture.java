@@ -3703,7 +3703,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	double[] hgps = kEngine.computeHGPs(kmerStrings);
     	for (int i=0;i<hgps.length;i++){
     		for (Kmer kmer:str2kmers.get(kmerStrings.get(i))){
-    			kmer.setHgp(hgps[i]);
+//    			kmer.setHgp(hgps[i]);			//TODO: verify if it is good to update hgp here
     			if (hgps[i]>config.hgp){
     			// update the Kmer reference in the binding event object
         			for (ComponentFeature cf : kmer2cfs.get(kmer))

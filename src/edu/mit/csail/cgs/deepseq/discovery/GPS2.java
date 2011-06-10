@@ -140,7 +140,7 @@ public class GPS2 {
         String peakFileName = mixture.getOutName();
         mixture.setOutName(peakFileName+"_"+round);
 		
-        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
+//        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
         
         int GPS_round = 3;
         if (run_gem)
