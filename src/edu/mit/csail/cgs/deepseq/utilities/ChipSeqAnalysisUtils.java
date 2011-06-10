@@ -24,7 +24,6 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
 import edu.mit.csail.cgs.deepseq.ReadHit;
-import edu.mit.csail.cgs.deepseq.discovery.ChipSeqAnalysisProperties;
 import edu.mit.csail.cgs.ewok.verbs.RegionParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSPeakRegion;
 import edu.mit.csail.cgs.utils.Pair;
