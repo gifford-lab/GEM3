@@ -111,28 +111,6 @@ public class StatUtil {
 	}
 	
 	/**
-	 * Returns the position of the integer number <tt>f</tt> in the list. <br>
-	 * If it is not there, <tt>-1</tt> is returned.
-	 * @param x List of integers
-	 * @param f number to be sought
-	 * @return
-	 */
-	public static int find(ArrayList<Integer> x, int f) {
-		int found = -1;
-		int i = 0;
-		
-		while((i < x.size()) & (found == -1)) {
-			if (x.get(i) == f) {
-				found = i;
-			}
-			i++;
-		}
-		
-		return found;
-	}
-	
-	
-	/**
 	 * Returns the median of this array
 	 * @param x array of type <tt>double</tt>
 	 * @return
@@ -155,12 +133,48 @@ public class StatUtil {
 			return y[n];
 		}
 	}
+	
+	/** 
+	 * Count occurences of the elements
+	 */
+	public static HashMap<Integer, Integer> countOccurences (ArrayList<Integer> nums){
+		HashMap<Integer, Integer> map = new HashMap<Integer, Integer>();
+		for (int i:nums){
+			if (!map.containsKey(i)){
+				map.put(i, 0);
+			}
+			else{
+				map.put(i, map.get(i)+1);
+			}
+		}
+		return map;
+	}	
+	/** 
+	 * Sort the elements by their occurences
+	 */
+	public static Pair<int[], int[]> sortByOccurences (ArrayList<Integer> nums){
+		HashMap<Integer, Integer> map = countOccurences(nums);
+		int[] elements = new int[map.keySet().size()];
+		int[] counts = new int[elements.length];
+		int i=0;
+		for (int e:map.keySet()){
+			elements[i]=e;
+			counts[i]=map.get(e);
+			i++;
+		}
+		int[] idx = findSort(counts);
+		int[] sortedElements = new int[elements.length];
+		for (int j=0;j<idx.length;j++)
+			sortedElements[j] = elements[idx[j]];
+		return new Pair<int[],int[]>(sortedElements, counts);
+	}
 
 	/**
 	 * Sorts the array and returns the positions of the original array corresponding
-	 * to the ordered elements
+	 * to the ordered elements <br>
+	 * Accepts only primitive integers
 	 * @param a integer array to be sorted
-	 * @return
+	 * @return positions of the original array corresponding to the ordered elements
 	 */
 	public static int[] findSort(int[] a) {
 		int[] sortedInds = new int[a.length];
@@ -185,7 +199,7 @@ public class StatUtil {
 				sortedInds[count++] = curr_idx;
 		}
 		return sortedInds;	
-	}//end of findSort method - accepts only primitive integers
+	}//end of findSort method 
 	
 	/**
 	 * Sorts the double array and returns the positions of the original array corresponding
@@ -403,6 +417,28 @@ public class StatUtil {
 		return new Pair<Double, TreeSet<Integer>>(minimum, min_index);
 	}//end of findMin method 
 	
+	/**
+	 * Returns the position of the integer number <tt>f</tt> in the list. <br>
+	 * If it is not there, <tt>-1</tt> is returned.
+	 * @param x List of integers
+	 * @param f number to be sought
+	 * @return
+	 */
+	public static int find(ArrayList<Integer> x, int f) {
+		int found = -1;
+		int i = 0;
+		
+		while((i < x.size()) & (found == -1)) {
+			if (x.get(i) == f) {
+				found = i;
+			}
+			i++;
+		}
+		
+		return found;
+	}
+
+
 	/**
 	 * Returns all the positions (as a list) of the array that hold the satisfying
 	 * relation with the element <tt>el</tt>.
