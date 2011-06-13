@@ -3416,7 +3416,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			config.k = k;
 		}
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
-		if (config.aok)
+		if (config.align_overlap_kmer)
 			kmers = alignOverlappedKmers(kmers, getEvents());
 		kEngine.updateEngine(kmers, outName+"_overlapping_win"+ (config.k_win), false);		
     }
@@ -3467,7 +3467,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		final int UNALIGNED = 999;
 		int posSeqs[] = new int[seqs.length]; 		// the position of sequences
 		int clusterID = 0;
-		
+		StringBuilder alignedKmer_sb = new StringBuilder();
 		while(!kmers.isEmpty()){
 			// reset posSeqs, so each new kmer cluter align with all the sequences 
 			for (int i=0;i<posSeqs.length;i++){
@@ -3624,14 +3624,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
 	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean
 	    	
-//	    	System.out.println("\naligned");
+	    	alignedKmer_sb.append("Cluster #"+clusterID+"\n");
 			for (Kmer km: alignedKmers){
 				km.setKmerStartOffset(km.getShift()-bPos);
-//				System.out.println(CommonUtils.padding(60+km.getKmerStartOffset(), '-')+km.getKmerString());
+				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(60+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\n");
 			}
 			allAlignedKmers.addAll(alignedKmers);
 			clusterID++;
 		}
+		CommonUtils.writeFile(outName+"_overlapping_aligned.txt", alignedKmer_sb.toString());
 		return allAlignedKmers;
 	}
 
