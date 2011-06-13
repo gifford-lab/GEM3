@@ -3416,7 +3416,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			config.k = k;
 		}
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
-		kmers = alignOverlappedKmers(kmers, getEvents());
+		if (config.aok)
+			kmers = alignOverlappedKmers(kmers, getEvents());
 		kEngine.updateEngine(kmers, outName+"_overlapping_win"+ (config.k_win), false);		
     }
     
@@ -5040,6 +5041,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
 
     class GPSConfig {
+    	public boolean align_overlap_kmer=false;
 		public boolean trim_simple=false;
 		public boolean do_model_selection=false;
 		public boolean classify_events = false;
@@ -5117,6 +5119,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public void parseArgs(String args[]) {
             Set<String> flags = Args.parseFlags(args);
             // default as false, need the flag to turn it on
+            align_overlap_kmer = flags.contains("aok");
             classify_events = flags.contains("classify");
             sort_by_location = flags.contains("sl");
             use_joint_event = flags.contains("refine_using_joint_event");
