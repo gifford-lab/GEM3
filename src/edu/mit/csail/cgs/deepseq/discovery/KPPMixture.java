@@ -3417,7 +3417,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
 		kmers = alignOverlappedKmers(kmers, getEvents());
-		kEngine.updateEngine(kmers, outName+"_overlapping_win"+ (config.k_win), true);		
+		kEngine.updateEngine(kmers, outName+"_overlapping_win"+ (config.k_win), false);		
     }
     
 	private ArrayList<Kmer> alignOverlappedKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
@@ -3429,8 +3429,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		AhoCorasick oks = new AhoCorasick();
 		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 		for (Kmer km: kmers){
-			if (km.getNegCount()<=1)
-				continue;
 			str2kmer.put(km.getKmerString(), km);
 			oks.add(km.getKmerString().getBytes(), km);
 	    }
@@ -3478,114 +3476,144 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			/** get seed kmer and its mismatch k-mers, align sequences */
 			Kmer seed = kmers.get(0);
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
+//			for (Kmer km:seedFamily){
+//				System.out.println(km.getKmerString());
+//			}
 			for (Kmer km:seedFamily){
 				HashSet<Integer> hits = kmer2seq.get(km);
 				// use seed kmer to align the containing sequences
-				for (int sid:hits){
-					if (posSeqs[sid] == UNALIGNED){		// not aligned yet
+				for (int seqId:hits){
+					if (posSeqs[seqId] == UNALIGNED){		// not aligned yet
 						// align using kmer positions
-						int pos = seqs[sid].indexOf(km.getKmerString());
-						if (pos<0){
-							seqs[sid] = SequenceUtils.reverseComplement(seqs[sid]);
-							pos = seqs[sid].indexOf(km.getKmerString());
+						int pos = seqs[seqId].indexOf(km.getKmerString());
+						if (pos==-1){
+							seqs[seqId] = SequenceUtils.reverseComplement(seqs[seqId]);
+							pos = seqs[seqId].indexOf(km.getKmerString());
+							if (pos==-1){
+								System.out.println(km.getKmerString()+" is not found in "+seqs[seqId]);
+							}
 						}
-						posSeqs[sid] = -pos;
+						posSeqs[seqId] = -pos;
+//						System.out.println(CommonUtils.padding(60-pos, '-')+seqs[seqId]);
 					}
 				}	
 			}
 			alignedKmers.addAll(seedFamily);
 			kmers.removeAll(seedFamily);
 			
-			for (Kmer km:kmers){
-				int shift = 0;			// the shift of this kmer w.r.t. seed kmer
-				HashSet<Integer> hits = kmer2seq.get(km);
-				
-				/** use k-mers already in the aligned sequences, find the consensus k-mer position */
-				ArrayList<Integer> posKmer = new ArrayList<Integer>(); // the occurences of this kmer w.r.t. seed kmer
-				for (int sid:hits){
-					if (posSeqs[sid] != UNALIGNED){		// aligned seqs
-						int pos = seqs[sid].indexOf(km.getKmerString());
-						if (pos==-1){
-							pos = seqs[sid].indexOf(km.getKmerRC());
-							if (pos!=-1){
-								posKmer.add(pos+STRAND);		// STRAND --> match of KmerRC
+			/** greedly align kmers until no kmer can be aligned */
+			while(!kmers.isEmpty()){
+				ArrayList<Kmer> aligned = new ArrayList<Kmer>();
+				for (Kmer km:kmers){
+					int shift = 0;			// the shift of this kmer w.r.t. seed kmer
+					HashSet<Integer> hits = kmer2seq.get(km);
+					
+					/** use k-mers already in the aligned sequences, find the consensus k-mer position */
+					ArrayList<Integer> posKmer = new ArrayList<Integer>(); // the occurences of this kmer w.r.t. seed kmer
+					for (int seqId:hits){
+						if (posSeqs[seqId] != UNALIGNED){		// aligned seqs
+							int pos = seqs[seqId].indexOf(km.getKmerString());
+							if (pos==-1){
+								pos = seqs[seqId].indexOf(km.getKmerRC());
+								if (pos!=-1){
+									posKmer.add(posSeqs[seqId]+pos+STRAND);		// STRAND --> match of KmerRC
+								}
 							}
+							else{
+								posKmer.add(posSeqs[seqId]+pos);
+							}
+						}
+					}
+					
+					// find the most frequent kmerPos
+					if (posKmer.size()>1){
+						Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
+						int counts[] = sorted.cdr();
+						int posSorted[] = sorted.car();
+						int maxCount = counts[counts.length-1];
+						ArrayList<Integer> maxPos = new ArrayList<Integer>();
+						ArrayList<Boolean> isPositive = new ArrayList<Boolean>();
+						for (int i=counts.length-1;i>=0;i--){
+							if (counts[i]==maxCount){
+								int p = posSorted[i];
+								if (p>STRAND/2){			// if match of KmerRC
+									maxPos.add(p-STRAND);
+									isPositive.add(false);
+								}
+								else{
+									maxPos.add(p);
+									isPositive.add(true);
+								}
+							}	
+							else		// do not need to count for non-max elements
+								break;
+						}
+						if (maxPos.size()>1){		// if tie with 1+ positions, get the one closest to seed kmer
+							int min = Integer.MAX_VALUE;
+							int minIdx = 0;
+							for (int i=0;i<maxPos.size();i++){
+								int distance = Math.abs(maxPos.get(i));
+								if (distance<min){
+									minIdx = i;
+									min = distance;
+								}
+							}
+							if (!isPositive.get(minIdx)){	// if match of KmerRC
+								km.RC();
+							}
+							shift = maxPos.get(minIdx);
 						}
 						else{
-							posKmer.add(pos);
+							if (!isPositive.get(0))	// if match of KmerRC
+								km.RC();
+							shift = maxPos.get(0);
 						}
-					}
-				}
-				
-				// find the most frequent kmerPos
-				if (posKmer.size()>1){
-					Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
-					int counts[] = sorted.cdr();
-					int posSorted[] = sorted.car();
-					int maxCount = counts[counts.length-1];
-					ArrayList<Integer> maxPos = new ArrayList<Integer>();
-					ArrayList<Boolean> isPositive = new ArrayList<Boolean>();
-					for (int i=0;i<counts.length;i++){
-						if (counts[i]==maxCount){
-							int p = posSorted[i];
-							if (p>STRAND/2){			// if match of KmerRC
-								maxPos.add(p-STRAND);
-								isPositive.add(false);
-							}
-							
-						}	
-						else
-							break;
-					}
-					if (maxPos.size()>1){		// if tie with 1+ positions, get the one closest to seed kmer
-						int min = Integer.MAX_VALUE;
-						int minIdx = 0;
-						for (int i=0;i<maxPos.size();i++){
-							int distance = Math.abs(maxPos.get(i));
-							if (distance<min){
-								minIdx = i;
-								min = distance;
-							}
-						}
-						if (!isPositive.get(minIdx)){	// if match of KmerRC
+					} else if (posKmer.size()==1){
+						int p = posKmer.get(0);
+						if (p>STRAND/2){
 							km.RC();
+							shift = p-STRAND;
 						}
-						shift = maxPos.get(minIdx);
-					}
-					else{
-						shift = maxPos.get(0);
-					}
-				} else if (posKmer.size()==1){
-					int p = posKmer.get(0);
-					shift = p>STRAND/2?p-STRAND:p;
-				}else if (posKmer.size()==0){
-					continue;
-				}
-				km.setShift(shift);
-				
-				/** use kmer shift to align the containing sequences */
-				for (int sid:hits){
-					if (posSeqs[sid] == UNALIGNED){		// not aligned yet
-						// align using kmer positions
-						int pos = seqs[sid].indexOf(km.getKmerString());
-						if (pos<0){
-							seqs[sid] = SequenceUtils.reverseComplement(seqs[sid]);
-							pos = seqs[sid].indexOf(km.getKmerString());
+						else{
+							shift = p;
 						}
-						posSeqs[sid] = -pos + shift;
+					}else if (posKmer.size()==0){
+						continue;	// continue for next kmer
 					}
+					km.setShift(shift);
+					aligned.add(km);
+					/** use kmer shift to align the containing sequences */
+					for (int seqId:hits){
+						if (posSeqs[seqId] == UNALIGNED){		// not aligned yet
+							// align using kmer positions
+							int pos = seqs[seqId].indexOf(km.getKmerString());
+							if (pos<0){
+								seqs[seqId] = SequenceUtils.reverseComplement(seqs[seqId]);
+								pos = seqs[seqId].indexOf(km.getKmerString());
+							}
+							posSeqs[seqId] = -pos + shift;
+						}
+					}
+				} //for (Kmer km:kmers)
+				if (aligned.isEmpty()){
+//					System.out.println("no match");
+//					for (Kmer km:kmers){						
+//						System.out.println(km.getKmerString());
+//					}
+					break;			// stop this cluster, start a new one
 				}
-				
-				alignedKmers.add(km);
-				kmers.remove(km);
-			}
+				else{
+					kmers.removeAll(aligned);
+					alignedKmers.addAll(aligned);
+				}
+			} // growing cluster
 			
 			/** use all aligned sequences to find expected binding sites */
 	    	// average all the binding positions to decide the expected binding position
 	    	// weighted by strength if "use_strength" is true
 			double sum_offsetXstrength = 0;
 	    	double sum_strength = 0;
-			for (int i : kmer2seq.get(seed)){
+			for (int i=0;i<posSeqs.length;i++){
 				int pos = posSeqs[i];
 				if (pos == UNALIGNED)
 					continue;
@@ -3595,8 +3623,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
 	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean
 	    	
+//	    	System.out.println("\naligned");
 			for (Kmer km: alignedKmers){
 				km.setKmerStartOffset(km.getShift()-bPos);
+//				System.out.println(CommonUtils.padding(60+km.getKmerStartOffset(), '-')+km.getKmerString());
 			}
 			allAlignedKmers.addAll(alignedKmers);
 			clusterID++;

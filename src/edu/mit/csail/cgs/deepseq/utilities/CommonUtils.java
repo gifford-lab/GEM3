@@ -239,11 +239,11 @@ public class CommonUtils {
 //		System.out.println("File was written to "+fileName);
 	}
 	
-	public static String padding(int repeat, char padChar) throws IndexOutOfBoundsException {
-	      if (repeat < 0) {
-	          throw new IndexOutOfBoundsException("Cannot pad a negative amount: " + repeat);
+	public static String padding(int repeatNum, char padChar) throws IndexOutOfBoundsException {
+	      if (repeatNum < 0) {
+	          throw new IndexOutOfBoundsException("Cannot pad a negative amount: " + repeatNum);
 	      }
-	      final char[] buf = new char[repeat];
+	      final char[] buf = new char[repeatNum];
 	      for (int i = 0; i < buf.length; i++) {
 	          buf[i] = padChar;
 	      }

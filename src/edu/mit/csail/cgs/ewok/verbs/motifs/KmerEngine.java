@@ -167,7 +167,7 @@ public class KmerEngine {
 		allKmers = new ArrayList<Kmer>(kms);		//TODO: make sure it does not take too much memory
 		map=null;
 		System.gc();
-		System.out.println("Kmers("+kms.size()+") mapped, "+CommonUtils.timeElapsed(tic));
+		System.out.println("Kmers("+k+") "+kms.size()+ " mapped, "+CommonUtils.timeElapsed(tic));
 		
 		/**
 		 * Select significantly over-representative kmers 
@@ -235,7 +235,7 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
 		kms.removeAll(highHgpKmers);
-		System.out.println(String.format("Kmers(%d) selected from %d positive vs %d negative sequences, %s", kms.size(), n, seqsNeg.length, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("Kmers(%d) %d selected from %d / %d sequences, %s", k, kms.size(), n, seqsNeg.length, CommonUtils.timeElapsed(tic)));
 		
 		negKmerHitCounts = new HashMap<String, Integer>();
 		for (Kmer km: highHgpKmers){
@@ -410,8 +410,8 @@ public class KmerEngine {
 		for (int i=maxIdx; i<diffs.length;i++){
 			if (diffs[i]<max*0.9){
 				threshold = posSeqScores[i];
-				System.out.println(String.format("PWM %s: maxDiff=%.0f, select score=%.2f (diff=%.0f, fdr=%.1f)", 
-						WeightMatrix.getMaxLetters(wm), max, threshold, diffs[i], fdrs[i]));
+				System.out.println(String.format("PWM %s: maxDiff=%.0f (%.1f), select score=%.2f (diff=%.0f, fdr=%.1f)", 
+						WeightMatrix.getMaxLetters(wm), max, posSeqScores[maxIdx], threshold, diffs[i], fdrs[i]));
 				break;
 			}
 		}
