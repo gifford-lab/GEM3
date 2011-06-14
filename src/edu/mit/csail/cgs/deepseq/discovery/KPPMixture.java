@@ -3325,16 +3325,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		this.restrictRegions=mergeRegions(refinedRegions, true);
 		// setup lightweight genome cache
-		ArrayList<Region> expandedRegions = new ArrayList<Region>();
-		for (Region r: restrictRegions){
-			expandedRegions.add(r.expand(config.k_shift+config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
-		}
-		expandedRegions = this.mergeRegions(expandedRegions, false);
-		int totalLength=0;
-		for (Region r: expandedRegions){
-			totalLength+=r.getWidth();
-		}
 		if (!kmerPreDefined){
+			ArrayList<Region> expandedRegions = new ArrayList<Region>();
+			for (Region r: restrictRegions){
+				expandedRegions.add(r.expand(config.k_shift+config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
+			}
+			expandedRegions = this.mergeRegions(expandedRegions, false);
+			int totalLength=0;
+			for (Region r: expandedRegions){
+				totalLength+=r.getWidth();
+			}
 			kEngine.setLightweightCache(expandedRegions);
 			System.out.println("Compact cache genome sequence length to " + totalLength + ", "+
 				CommonUtils.timeElapsed(tic));
@@ -3466,6 +3466,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		final int STRAND = 1000;		// extra bp add to indicate negative strand match of kmer
 		final int UNALIGNED = 999;
 		int posSeqs[] = new int[seqs.length]; 		// the position of sequences
+		String kmerRefs[] = new String[seqs.length];
 		int clusterID = 0;
 		StringBuilder alignedKmer_sb = new StringBuilder();
 		while(!kmers.isEmpty()){
@@ -3477,9 +3478,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			/** get seed kmer and its mismatch k-mers, align sequences */
 			Kmer seed = kmers.get(0);
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
-//			for (Kmer km:seedFamily){
-//				System.out.println(km.getKmerString());
-//			}
 			for (Kmer km:seedFamily){
 				HashSet<Integer> hits = kmer2seq.get(km);
 				// use seed kmer to align the containing sequences
@@ -3495,7 +3493,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							}
 						}
 						posSeqs[seqId] = -pos;
-//						System.out.println(CommonUtils.padding(60-pos, '-')+seqs[seqId]);
+						kmerRefs[seqId] = km.getKmerString();
 					}
 				}	
 			}
@@ -3527,11 +3525,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					}
 					
 					// find the most frequent kmerPos
-					if (posKmer.size()>1){
+					if (posKmer.size()>km.getSeqHitCount()/2){		// the kmer positions aligned must be at least half of total kmer count
 						Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
 						int counts[] = sorted.cdr();
 						int posSorted[] = sorted.car();
 						int maxCount = counts[counts.length-1];
+						if (maxCount<Math.round(posKmer.size()/3.0))// the most freq position count must be at least 1/3 of all aligned position
+							continue;
 						ArrayList<Integer> maxPos = new ArrayList<Integer>();
 						ArrayList<Boolean> isPositive = new ArrayList<Boolean>();
 						for (int i=counts.length-1;i>=0;i--){
@@ -3569,16 +3569,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 								km.RC();
 							shift = maxPos.get(0);
 						}
-					} else if (posKmer.size()==1){
-						int p = posKmer.get(0);
-						if (p>STRAND/2){
-							km.RC();
-							shift = p-STRAND;
-						}
-						else{
-							shift = p;
-						}
-					}else if (posKmer.size()==0){
+						km.setAlignString(maxCount+"/"+posKmer.size());
+					}
+//					} else if (posKmer.size()==1){
+//						int p = posKmer.get(0);
+//						if (p>STRAND/2){
+//							km.RC();
+//							shift = p-STRAND;
+//						}
+//						else{
+//							shift = p;
+//						}
+//						km.setAlignString("1/1");
+//					}else if (posKmer.size()==0){
+					else {
 						continue;	// continue for next kmer
 					}
 					km.setShift(shift);
@@ -3593,6 +3597,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 								pos = seqs[seqId].indexOf(km.getKmerString());
 							}
 							posSeqs[seqId] = -pos + shift;
+							kmerRefs[seqId] = km.getKmerString();
 						}
 					}
 				} //for (Kmer km:kmers)
@@ -3612,22 +3617,25 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			/** use all aligned sequences to find expected binding sites */
 	    	// average all the binding positions to decide the expected binding position
 	    	// weighted by strength if "use_strength" is true
+			StringBuilder sb = new StringBuilder();
 			double sum_offsetXstrength = 0;
 	    	double sum_strength = 0;
 			for (int i=0;i<posSeqs.length;i++){
 				int pos = posSeqs[i];
 				if (pos == UNALIGNED)
 					continue;
+				sb.append(kmerRefs[i]+"\t"+CommonUtils.padding(100+pos, '-')+seqs[i]+"\n");
 	 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
     			sum_offsetXstrength += strength*(config.k_win/2+pos);
         		sum_strength += strength;
 	    	}
+			CommonUtils.writeFile(outName+"_seqs_aligned_"+seed.getKmerString()+".txt", sb.toString());
 	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean
 	    	
 	    	alignedKmer_sb.append("Cluster #"+clusterID+"\n");
 			for (Kmer km: alignedKmers){
 				km.setKmerStartOffset(km.getShift()-bPos);
-				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(60+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\n");
+				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(60+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
 			}
 			allAlignedKmers.addAll(alignedKmers);
 			clusterID++;
@@ -3644,11 +3652,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=1+config.k*0.1){
 	    		kmer.setShift(0);
 	    		family.add(kmer);
+	    		kmer.setAlignString(seedKmerStr);
 	    	}
 	    	else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=1+config.k*0.1){
 	    		kmer.setShift(0);
 	    		kmer.RC();
 	    		family.add(kmer);
+	    		kmer.setAlignString(seedKmerRC);
 	    	}
     	}
 		return family;

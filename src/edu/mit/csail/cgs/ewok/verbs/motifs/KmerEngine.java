@@ -282,7 +282,7 @@ public class KmerEngine {
 		for(int i=0;i<eventCount;i++){
 			// getting negative sequences
 			// exclude negative regions that overlap with positive regions, or exceed start of chrom
-			// it is OK if we lose a few sequences here, so some entries of the seqsNeg will be null
+			// it is OK if we lose a few sequences here
 			Region posRegion = seqCoors[i];
 			int start = 0;
 			double rand = randomEngine.nextDouble();
