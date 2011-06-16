@@ -4979,7 +4979,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
     	double threshold = kEngine.computePwmThreshold(wm, config.wm_factor, outName);
-    	threshold = Math.max(threshold, wm.getMaxScore()/2);
+    	threshold = Math.max(threshold, wm.getMaxScore());
     	// if the pwm is not good, return null. The operations in this method so far 
     	// does not change the state of componentFeatures or motifCluster, so we can discard this pwm and take previous result
 //    	if (threshold<0){
