@@ -389,7 +389,7 @@ public class KmerEngine {
 //		double[] hgps = new double[seqs.length];
 		double diffs[] = new double[seqs.length];
 		double fdrs[] = new double[seqs.length];
-		double threshold=wm.getMaxScore()+1;
+		double threshold=Double.NEGATIVE_INFINITY;
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<seqs.length;i++){
 			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
