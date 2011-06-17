@@ -538,151 +538,151 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}// end of execute method
 
 	/**
-		 * It performs statistical tests for determining significant peaks         <br>
-		 * If a control is used, the current method is used. Otherwise, MACS proposed method is used.
-		 * @param compFeatures
-		 */
-		private void postEMProcessing(List<ComponentFeature> compFeatures) {
-			// use the refined regions to count non-specific reads
-	        /* don't do this any more.  all it does is set ratio_non_specific_total, which
-	           we no longer want to update because we compute it at the beginning of the run
-	           using the whole genome rather than just the unenriched regions
-	        */
+	 * It performs statistical tests for determining significant peaks         <br>
+	 * If a control is used, the current method is used. Otherwise, MACS proposed method is used.
+	 * @param compFeatures
+	 */
+	private void postEMProcessing(List<ComponentFeature> compFeatures) {
+		// use the refined regions to count non-specific reads
+        /* don't do this any more.  all it does is set ratio_non_specific_total, which
+           we no longer want to update because we compute it at the beginning of the run
+           using the whole genome rather than just the unenriched regions
+        */
 //			countNonSpecificReads(compFeatures);
+		
+		// collect enriched regions to exclude to define non-specific region
+		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
+                public int compare(ComponentFeature o1, ComponentFeature o2) {
+                    return o1.compareByTotalResponsibility(o2);
+                }
+            });
+		// get median event strength
+		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalEventStrength();
+//		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
+		
+		// only do this calculation at the first round, then throw out read data in non-specific regions (when we have control data for stat test)
+		if (!hasIpCtrlRatio){		
+			ArrayList<Region> exRegions = new ArrayList<Region>();
+			for(int i = 0; i < compFeatures.size(); i++) {
+				exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
+			}
+			exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
 			
-			// collect enriched regions to exclude to define non-specific region
-			Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
-	                public int compare(ComponentFeature o1, ComponentFeature o2) {
-	                    return o1.compareByTotalResponsibility(o2);
-	                }
-	            });
-			// get median event strength
-			double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalEventStrength();
-	//		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
+			calcIpCtrlRatio(mergeRegions(exRegions, false));
+			if(controlDataExist) {
+				for(int c = 0; c < numConditions; c++)
+					System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
+				System.out.println();
+			}
+			hasIpCtrlRatio = true;
 			
-			// only do this calculation at the first round, then throw out read data in non-specific regions (when we have control data for stat test)
-			if (!hasIpCtrlRatio){		
-				ArrayList<Region> exRegions = new ArrayList<Region>();
-				for(int i = 0; i < compFeatures.size(); i++) {
-					exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
-				}
-				exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
-				
-				calcIpCtrlRatio(mergeRegions(exRegions, false));
-				if(controlDataExist) {
-					for(int c = 0; c < numConditions; c++)
-						System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
-					System.out.println();
-				}
-				hasIpCtrlRatio = true;
-				
-				// delete read data in un-enriched region, we don't need them for binomial test
-				// but if no control data, we need whole genome data to estimate lambda for Poisson test
-				if(controlDataExist) {
-					for(int c = 0; c < numConditions; c++) {
-						caches.get(c).car().deleteUnenrichedReadData(restrictRegions);				
-						caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
-					}
+			// delete read data in un-enriched region, we don't need them for binomial test
+			// but if no control data, we need whole genome data to estimate lambda for Poisson test
+			if(controlDataExist) {
+				for(int c = 0; c < numConditions; c++) {
+					caches.get(c).car().deleteUnenrichedReadData(restrictRegions);				
+					caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
 				}
 			}
-			
-			/**
-			 * Classify the events into IP-like and control-like groups
-			 */
-			if (config.classify_events)
-				falseDiscoveryTest(compFeatures);
-			
-			/**
-			 *  calculate p-values with or without control
-			 */
-			evaluateSignificance(compFeatures);
-	
-			// sort features for final output, by location
-			Collections.sort(compFeatures);
-			allFeatures = compFeatures;
-	
-			insignificantFeatures = new ArrayList<Feature>();
-			filteredFeatures = new ArrayList<Feature>();
-			for (ComponentFeature cf:compFeatures){
-				boolean significant = false;
-				// for multi-condition, at least be significant in one condition
-				// The read count test is for each condition
-			
-				for (int cond=0; cond<numConditions; cond++){
-					if(cf.getEventReadCounts(cond)>config.sparseness){	// first pass read count test
-						if (config.TF_binding){	// single event IP/ctrf only applies to TF
-							if (cf.getQValueLog10(cond)>config.q_value_threshold){
-								significant = true;
-								break;
-							}
-						}
-						else		//TODO: if histone data, need to test as a set of events
+		}
+		
+		/**
+		 * Classify the events into IP-like and control-like groups
+		 */
+		if (config.classify_events)
+			falseDiscoveryTest(compFeatures);
+		
+		/**
+		 *  calculate p-values with or without control
+		 */
+		evaluateSignificance(compFeatures);
+
+		// sort features for final output, by location
+		Collections.sort(compFeatures);
+		allFeatures = compFeatures;
+
+		insignificantFeatures = new ArrayList<Feature>();
+		filteredFeatures = new ArrayList<Feature>();
+		for (ComponentFeature cf:compFeatures){
+			boolean significant = false;
+			// for multi-condition, at least be significant in one condition
+			// The read count test is for each condition
+		
+			for (int cond=0; cond<numConditions; cond++){
+				if(cf.getEventReadCounts(cond)>config.sparseness){	// first pass read count test
+					if (config.TF_binding){	// single event IP/ctrf only applies to TF
+						if (cf.getQValueLog10(cond)>config.q_value_threshold){
 							significant = true;
+							break;
+						}
 					}
+					else		//TODO: if histone data, need to test as a set of events
+						significant = true;
 				}
-	
-				boolean notFiltered = false;
-				// only filter high read count events (more likely to be artifacts) 
-				if (config.filterEvents && cf.getTotalEventStrength()>medianStrength){
-					for (int cond=0; cond<numConditions; cond++){
-						// if one condition is good event, this position is GOOD
-						// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
-						if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
-							if (!controlDataExist){
+			}
+
+			boolean notFiltered = false;
+			// only filter high read count events (more likely to be artifacts) 
+			if (config.filterEvents && cf.getTotalEventStrength()>medianStrength){
+				for (int cond=0; cond<numConditions; cond++){
+					// if one condition is good event, this position is GOOD
+					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
+					if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
+						if (!controlDataExist){
+							notFiltered = true;
+							break;
+						}
+						else{
+							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
+//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
+							if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
 								notFiltered = true;
 								break;
 							}
-							else{
-								double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
-	//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-								if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
-									notFiltered = true;
-									break;
-								}
-							}						
-						}
-					}
-				}
-				else
-					notFiltered = true;
-	
-				if (significant){
-					if (notFiltered)
-						signalFeatures.add(cf);
-					else
-						filteredFeatures.add(cf);
-				}
-				else
-					insignificantFeatures.add(cf);
-			}
-			
-			// set joint event flag in the events
-			if (signalFeatures.size()>=2){
-				for (int i=0;i<signalFeatures.size();i++){
-					ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
-					cf.setJointEvent(false);		// clean the mark first
-				}
-				for (int i=0;i<signalFeatures.size()-1;i++){
-					ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
-					ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
-					if (cf.onSameChrom(cf2)){
-						if (cf.getPosition().distance(cf2.getPosition())<=config.joint_event_distance){
-							cf.setJointEvent(true);
-							cf2.setJointEvent(true);
-						}
+						}						
 					}
 				}
 			}
-			
-			// post filtering for multi-conditions
-			for(int c = 0; c < numConditions; c++)
-				condSignalFeats[c] = condPostFiltering(signalFeatures, c);
-	
-			log(1, "---------------------------\n"+
-				"Events discovered \nSignificant:\t"+signalFeatures.size()+
-	            "\nInsignificant:\t"+insignificantFeatures.size()+
-	            "\nFiltered:\t"+filteredFeatures.size()+"\n");
-		}//end of post EM Processing
+			else
+				notFiltered = true;
+
+			if (significant){
+				if (notFiltered)
+					signalFeatures.add(cf);
+				else
+					filteredFeatures.add(cf);
+			}
+			else
+				insignificantFeatures.add(cf);
+		}
+		
+		// set joint event flag in the events
+		if (signalFeatures.size()>=2){
+			for (int i=0;i<signalFeatures.size();i++){
+				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+				cf.setJointEvent(false);		// clean the mark first
+			}
+			for (int i=0;i<signalFeatures.size()-1;i++){
+				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
+				if (cf.onSameChrom(cf2)){
+					if (cf.getPosition().distance(cf2.getPosition())<=config.joint_event_distance){
+						cf.setJointEvent(true);
+						cf2.setJointEvent(true);
+					}
+				}
+			}
+		}
+		
+		// post filtering for multi-conditions
+		for(int c = 0; c < numConditions; c++)
+			condSignalFeats[c] = condPostFiltering(signalFeatures, c);
+
+		log(1, "---------------------------\n"+
+			"Events discovered \nSignificant:\t"+signalFeatures.size()+
+            "\nInsignificant:\t"+insignificantFeatures.size()+
+            "\nFiltered:\t"+filteredFeatures.size()+"\n");
+	}//end of post EM Processing
 
 	/**
 	 *  evaluate significance of each called events, calculate p-value from binomial distribution
@@ -3421,6 +3421,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		kEngine.updateEngine(kmers, outName+"_overlapping_win"+ (config.k_win), false);		
     }
     
+    /** 
+     * Align overlapped k-mers using the positive sequences containing these k-mers<br>
+     * Use the seed kmer position as ancher, specify the position of kmers and seqs as the position relative to the seed kmer start<br>
+     * seq_seed = - seed_seq = - (index of start of seed kmer in seq)<br>
+     * kmer_seed is kmer position relative to seed k-mer, also defined as k-mer shift . For the seed kmer or its mismatch, kmer_seed = 0<br>
+     * kmer_seed = kmer_seq + seq_seed<br>
+     * seq_seed = kmer_seed - kmer_seq<br>
+     * Thus, we get a consensus (most frequent) of kmer_seed using its occurrences in aligned sequences<br>
+     * Then, we align the unaligned sequences (also containing this k-mer) using the consensus value of kmer_seed.
+     * Aligning k-mers is done through such alternating aligning kmer and aligning sequences.
+     * @param kmers
+     * @param events
+     * @return
+     */
 	private ArrayList<Kmer> alignOverlappedKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
 		if (kmers.size()==0)
 			return kmers;
@@ -3481,34 +3495,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			/** get seed kmer and its mismatch k-mers, align sequences */
 			Kmer seed = kmers.get(0);
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
+			// align the containing sequences
 			for (Kmer km:seedFamily){
-				HashSet<Integer> hits = kmer2seq.get(km);
-				// use seed kmer to align the containing sequences
-				for (int seqId:hits){
-					if (posSeqs[seqId] == UNALIGNED){		// not aligned yet
-						// align using kmer positions
-						int pos = seqs[seqId].indexOf(km.getKmerString());
-						if (pos==-1){
-							seqs[seqId] = SequenceUtils.reverseComplement(seqs[seqId]);
-							isPlusStrands[seqId] = false;
-							pos = seqs[seqId].indexOf(km.getKmerString());
-							if (pos==-1){
-								System.out.println(km.getKmerString()+" is not found in "+seqs[seqId]);
-							}
-						}
-						posSeqs[seqId] = -pos;
-						seqAlignRefs[seqId] = km.getKmerString();
-					}
-				}	
+				alignSequences(km, kmer2seq.get(km), seqs, posSeqs, isPlusStrands, seqAlignRefs);
 			}
 			alignedKmers.addAll(seedFamily);
 			kmers.removeAll(seedFamily);
+			boolean seedFamilyMismatchUsed = false;
 			
 			/** greedly align kmers until no kmer can be aligned */
 			while(!kmers.isEmpty()){
 				ArrayList<Kmer> aligned = new ArrayList<Kmer>();
 				for (Kmer km:kmers){
-					int shift = 0;			// the shift of this kmer w.r.t. seed kmer
+					int kmer_seed = 0;			// the shift of this kmer w.r.t. seed kmer
 					HashSet<Integer> hits = kmer2seq.get(km);
 					
 					/** use k-mers already in the aligned sequences, find the consensus k-mer position */
@@ -3566,12 +3565,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							if (!isPositive.get(minIdx)){	// if match of KmerRC
 								km.RC();
 							}
-							shift = maxPos.get(minIdx);
+							kmer_seed = maxPos.get(minIdx);
 						}
 						else{
 							if (!isPositive.get(0))	// if match of KmerRC
 								km.RC();
-							shift = maxPos.get(0);
+							kmer_seed = maxPos.get(0);
 						}
 						km.setAlignString(maxCount+"/"+posKmer.size());
 					}
@@ -3589,24 +3588,52 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					else {
 						continue;	// continue for next kmer
 					}
-					km.setShift(shift);
+					km.setShift(kmer_seed);
 					aligned.add(km);
 					
 					/** use kmer shift to align the containing sequences */
-					for (int seqId:hits){
-						if (posSeqs[seqId] == UNALIGNED){		// not aligned yet
-							// align using kmer positions
-							int pos = seqs[seqId].indexOf(km.getKmerString());
-							if (pos<0){
-								seqs[seqId] = SequenceUtils.reverseComplement(seqs[seqId]);
-								isPlusStrands[seqId] = false;
-								pos = seqs[seqId].indexOf(km.getKmerString());
-							}
-							posSeqs[seqId] = -pos + shift;
-							seqAlignRefs[seqId] = km.getKmerString();
+					alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
+					
+				} //for (Kmer km:kmers)
+				
+				kmers.removeAll(aligned);
+				alignedKmers.addAll(aligned);
+				Collections.sort(aligned);
+				
+				/** use aligned k-mer to align mismatch k-mers */
+				// add seed family kmers only once
+				if (!seedFamilyMismatchUsed){
+					aligned.addAll(seedFamily);
+					seedFamilyMismatchUsed = true;
+				}
+				ArrayList<Kmer> mmaligned = new ArrayList<Kmer>();			// kmers aligned by using mismatch
+				for (Kmer km: kmers){
+					String seq = km.getKmerString();
+					for (Kmer akm: aligned){
+						if (this.mismatch(akm.getKmerString(), seq)==1){
+							km.setShift(akm.getShift());
+							km.setKmerStartOffset(akm.getKmerStartOffset());
+							km.setAlignString("MM:"+akm.getKmerString());
+							mmaligned.add(km);
+							break;
+						}
+						if (this.mismatch(akm.getKmerRC(), seq)==1){
+							km.RC();
+							km.setShift(akm.getShift());
+							km.setKmerStartOffset(akm.getKmerStartOffset());
+							km.setAlignString("MM:"+akm.getKmerString());
+							mmaligned.add(km);
+							break;
 						}
 					}
-				} //for (Kmer km:kmers)
+				}
+				// use kmer shift to align the containing sequences 
+				for (Kmer km: mmaligned){
+					alignSequences(km, kmer2seq.get(km), seqs, posSeqs, isPlusStrands, seqAlignRefs);
+				}
+				kmers.removeAll(mmaligned);
+				aligned.addAll(mmaligned);
+				alignedKmers.addAll(mmaligned);
 				
 				/** build PWM to continue grow cluster */
 				int alignedSeqCount=0;
@@ -3653,20 +3680,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			matrix[p-leftIdx][LETTERS[b]]=(float) pwm[p][LETTERS[b]];
 				    		}
 				    	}
-				    	float[][] short_pfm = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
+				    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 				    	for(int p=leftIdx;p<=rightIdx;p++){
 				    		for (int b=0;b<LETTERS.length;b++){
-				    			short_pfm[p-leftIdx][LETTERS[b]]=(float) pfm[p][LETTERS[b]];
+				    			pfm_trim[p-leftIdx][LETTERS[b]]=(float) pfm[p][LETTERS[b]];
 				    		}
 				    	}
-				    	String pfmStr = makeTRANSFAC (short_pfm, String.format("DE %s_%d_c%d\n", outName, clusterID, alignedSeqCount));
+				    	String pfmStr = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, clusterID, alignedSeqCount));
 				    	CommonUtils.writeFile(outName+"_OK_"+clusterID+"_PFM.txt", pfmStr);
 				    	
 				    	WeightMatrix wm = new WeightMatrix(matrix);
 				    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
 				    	double threshold = kEngine.computePwmThreshold(wm, config.wm_factor, outName);	
 				    	if (threshold<0){
-				    		System.out.println("alignOverlapKmer:makePWM: PWM is non-specific, stop here.");
+				    		System.out.println("alignOverlapKmers: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
 				    	}	
 	//			    	else{
 	//				        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
@@ -3715,10 +3742,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //						System.out.println(km.getKmerString());
 //					}
 					break;			// stop this cluster, start a new one
-				}
-				else{
-					kmers.removeAll(aligned);
-					alignedKmers.addAll(aligned);
 				}
 			} // growing cluster
 	        
@@ -3771,6 +3794,24 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
     	}
 		return family;
+	}
+    
+	/** use kmer shift to align the containing sequences */
+    private void alignSequences(Kmer km, HashSet<Integer> seqIds, String[]seqs, int[] posSeqs, boolean[] isPlusStrands, String[] seqAlignRefs){
+		final int UNALIGNED = 999;
+    	for (int seqId:seqIds){
+			if (posSeqs[seqId] == UNALIGNED){		// not aligned yet
+				// align using kmer positions
+				int kmer_seq = seqs[seqId].indexOf(km.getKmerString());
+				if (kmer_seq<0){
+					seqs[seqId] = SequenceUtils.reverseComplement(seqs[seqId]);
+					isPlusStrands[seqId] = false;
+					kmer_seq = seqs[seqId].indexOf(km.getKmerString());
+				}
+				posSeqs[seqId] = -kmer_seq + km.getShift();
+				seqAlignRefs[seqId] = km.getKmerString();
+			}
+		}
 	}
 
     private Pair<Integer, Integer> constructPWM(double[][] pwm){

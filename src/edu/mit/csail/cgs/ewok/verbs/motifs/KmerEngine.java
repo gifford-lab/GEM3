@@ -369,7 +369,7 @@ public class KmerEngine {
 	
 	/**
 	 * Compute hgp of a PWM using the positive/negative sequences<br>
-	 * If a PWM is good PWM, the curve of the difference between the number of positive and negative sequences match vs score <br>
+	 * If a PWM is good PWM, the curve of the difference between the number of positive and negative sequences match vs score
 	 * should have a peak value, then we set PWM threshold = the largest score corresponding to 0.9*peak_value
 	 */
 	public double computePwmThreshold(WeightMatrix wm, double wm_factor, String outName){
