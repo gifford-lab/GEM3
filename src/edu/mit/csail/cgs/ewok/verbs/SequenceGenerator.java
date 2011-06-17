@@ -249,7 +249,10 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     	}
     	
     	regionIsCached = true;
-    	return (String[])seqs.toArray();
+    	String[] result = new String[seqs.size()];
+    	for (int i=0;i<result.length;i++)
+    		result[i]=seqs.get(i);
+    	return result;
     }
     
     private String getRegionCacheSequence(Region r){

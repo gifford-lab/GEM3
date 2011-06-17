@@ -870,8 +870,8 @@ public class Region implements Comparable<Region>, Saveable {
 					continue;
 				}
 				else{ 
-					results.add(r);
 					if(r.before(ref)){
+						results.add(r);
 						rId++;
 						continue;
 					}

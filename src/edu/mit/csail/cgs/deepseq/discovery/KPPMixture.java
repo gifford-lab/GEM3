@@ -3336,7 +3336,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 			kEngine.setupRegionCache(expandedRegions, negativeRegions);
 			
-			
 			System.out.println("Compact cache genome sequence length to " + totalLength + ", "+
 				CommonUtils.timeElapsed(tic));
 		}

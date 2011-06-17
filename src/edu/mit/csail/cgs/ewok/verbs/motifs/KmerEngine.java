@@ -220,8 +220,7 @@ public class KmerEngine {
 				toRemove.add(kmer);	
 				continue;
 			}
-			// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
-			int kmerAllHitCount = kmer.seqHitCount+1;
+			int kmerAllHitCount = kmer.seqHitCount;
 			if (negHitCounts.containsKey(kmer.kmerString)){
 				kmer.negCount = negHitCounts.get(kmer.kmerString);
 				kmerAllHitCount += kmer.negCount;
@@ -230,7 +229,11 @@ public class KmerEngine {
 				highHgpKmers.add(kmer);	
 				continue;
 			}
-			kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
+			// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
+			if (kmer.negCount==0)
+				kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount+2, N, kmerAllHitCount+2+1, n);
+			else
+				kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
 			if (kmer.hgp>hgp)
 				highHgpKmers.add(kmer);		
 		}
@@ -629,7 +632,7 @@ public class KmerEngine {
 		}
 	}
 	
-	public static void main(String[] args){
+	public static void main0(String[] args){
 		Genome g = null;
 		ArgParser ap = new ArgParser(args);
 	    try {
