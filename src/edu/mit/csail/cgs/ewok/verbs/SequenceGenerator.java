@@ -41,6 +41,8 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     public void useLocalFiles(boolean b) {
         useLocalFiles = b;
     }
+    
+    /** cache the whole chromosome of this region */
     private void cache(X region) throws SQLException, IOException {
         int chromid = region.getGenome().getChromID(region.getChrom());
         synchronized(cache) {
@@ -151,25 +153,35 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 
         return result.toLowerCase();
     }
+    
     /**
-     * Setup light-weight cache of genome sequences, cover only the specified regions
-     * @param regions sorted, non-overlapping regions
+     * Setup light-weight region cache of genome sequences, cover only the specified regions<br>
+     * So that it does not cache the whole chromosome, save memory space. <br>
+     * At the same time, retrieve some one-time sequences in rs.
+     * @param regions sorted, non-overlapping regions for cache
+     * @param rs regions for one-time sequence retrieval
      */
-    public void setLightweightCache(ArrayList<Region> regions){
+    public String[] setupRegionCache(ArrayList<Region> regions, ArrayList<Region> rs){
+    	ArrayList<String> seqs = new ArrayList<String>();
     	if (regions==null||regions.isEmpty())
-    		return;
+    		return null;    	
+    	Collections.sort(regions);
     	
-		// prepare for progress reporting
-    	long tic = System.currentTimeMillis();
-    	int regionCount = regions.size();
-		int displayStep = (int) Math.pow(10, (int) (Math.log10(regionCount)));
-
+		// group one-time regions by chrom
+		Map<String, ArrayList<Region>> chr2rs = new HashMap<String, ArrayList<Region>>();
+		for(Region r:rs) {
+			String chrom = r.getChrom();
+			if(!chr2rs.containsKey(chrom))
+				chr2rs.put(chrom, new ArrayList<Region>());
+			chr2rs.get(chrom).add(r);
+		}
+    	
     	useCache(true);
     	regionCache = new HashMap<String, String[]>();
     	regionStarts = new HashMap<String, int[]>();
     	Genome g = regions.get(0).getGenome();
     	Region lastRegion = regions.get(regions.size()-1);
-    	// setup the space
+    	// setup the region space
     	String chrom = regions.get(0).getChrom();
     	int count = 0;
     	for(Region r: regions){
@@ -187,19 +199,24 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     	
 		chrom = regions.get(0).getChrom();
     	count = 0;
-    	for (int i=0;i<regionCount;i++){
+    	for (int i=0;i<regions.size();i++){
     		Region r = regions.get(i);
     		if (!r.getChrom().equals(chrom)){	// new Chrom
-    			if (cache!=null){
+    			if (cache!=null){							// for previous chrom
+    				if (chr2rs.containsKey(chrom)){			// piggy-back to retrieve one-time sequences
+    					for (Region r1:chr2rs.get(chrom))
+    						seqs.add(execute((X)r1));
+    				}
 	    			synchronized(cache) {
 	    				cache.put(g.getChromID(chrom), null);
-	    				cache.remove(g.getChromID(chrom));	// clean cach for last chrom
+	    				cache.remove(g.getChromID(chrom));	// clean cache
 	    			}
 	    	    	System.gc();
     			}
     			chrom = r.getChrom();
     			count = 0;
     		}		
+    		// cache region using the current cache
     		synchronized(regionCache) {
     			regionStarts.get(chrom)[count]=r.getStart(); 
         		regionCache.get(chrom)[count]=execute((X)r);    			
@@ -207,15 +224,32 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     		count ++;
     	}
     	if (cache!=null){
+			if (chr2rs.containsKey(lastRegion.getChrom())){			// piggy-back to retrieve one-time sequences
+				for (Region r1:chr2rs.get(lastRegion.getChrom()))
+					seqs.add(execute((X)r1));
+			}
 	    	synchronized(cache) {
 	    		cache.put(g.getChromID(lastRegion.getChrom()), null);
 	    		cache.remove(g.getChromID(lastRegion.getChrom()));
+	    	}
+	    	// retrieve those regions that are not in the chromosomes of cache regions
+	    	for(String chr:chr2rs.keySet()){
+	    		if (!regionCache.containsKey(chr)){
+	    			for (Region r1:chr2rs.get(chr))
+						seqs.add(execute((X)r1));
+	    			synchronized(cache) {
+	    				cache.put(g.getChromID(chrom), null);
+	    				cache.remove(g.getChromID(chrom));	// clean cache for this chrom
+	    			}
+	    			System.gc();
+	    		}
 	    	}
 	    	cache=null;
 	    	System.gc();
     	}
     	
     	regionIsCached = true;
+    	return (String[])seqs.toArray();
     }
     
     private String getRegionCacheSequence(Region r){

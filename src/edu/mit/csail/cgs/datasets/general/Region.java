@@ -3,10 +3,14 @@ package edu.mit.csail.cgs.datasets.general;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -820,4 +824,95 @@ public class Region implements Comparable<Region>, Saveable {
     }
     return 0;
   }
+  
+  /**
+   * Given a list of regions, filter out all the regions that overlaps with any reference regions, return the non-overlap regions
+   * @param rs
+   * @param refs
+   * @return
+   */
+  public static ArrayList<Region> filterOverlapRegions(ArrayList<Region> rs, ArrayList<Region> refs){
+	    ArrayList<Region> results = new ArrayList<Region>();
+		Map<String, ArrayList<Region>> chr2rs = new HashMap<String, ArrayList<Region>>();
+		// group regions by chrom
+		for(Region r:rs) {
+			String chrom = r.getChrom();
+			if(!chr2rs.containsKey(chrom))
+				chr2rs.put(chrom, new ArrayList<Region>());
+			chr2rs.get(chrom).add(r);
+		}
+		Map<String, ArrayList<Region>> chr2refs = new HashMap<String, ArrayList<Region>>();
+		for(Region r:refs) {
+			String chrom = r.getChrom();
+			if(!chr2rs.containsKey(chrom))
+				continue;
+			if(!chr2refs.containsKey(chrom))
+				chr2refs.put(chrom, new ArrayList<Region>());
+			chr2refs.get(chrom).add(r);
+		}	
+		// for each chrom
+		for (String chr : chr2rs.keySet()){
+			ArrayList<Region> rsc = chr2rs.get(chr);
+			if (!chr2refs.containsKey(chr)){
+				results.addAll(rsc);
+				continue;
+			}
+			ArrayList<Region> refsc = chr2refs.get(chr);
+			Collections.sort(rsc);
+			Collections.sort(refsc);
+			int rId=0;
+			int refId=0;
+			while(rId<rsc.size()){
+				Region r = rsc.get(rId);
+				Region ref = refsc.get(refId);
+				if (r.overlaps(ref)){
+					rId++;
+					continue;
+				}
+				else{ 
+					results.add(r);
+					if(r.before(ref)){
+						rId++;
+						continue;
+					}
+					else if(r.after(ref)){
+						refId++;
+						if (refId==refsc.size()){		// end of ref regions
+							for (int i=rId+1;i<rsc.size();i++)
+								results.add(rsc.get(i));
+							break;
+						}
+					}
+				}
+			}
+		}
+		
+	    return results;
+  }
+	/**
+	 * Merge the overlapped regions
+	 * @param regions
+	 * @return
+	 */
+	public static ArrayList<Region> mergeRegions(ArrayList<Region> regions){
+		if (regions.isEmpty())
+			return regions;
+		ArrayList<Region> mergedRegions = new ArrayList<Region>();
+		Collections.sort(regions);
+		Region previous = regions.get(0);
+
+		for (int i = 1; i < regions.size(); i++) {
+          Region region = regions.get(i);
+			// if overlaps with previous region, combine the regions
+			if (previous.overlaps(region)){
+				previous = previous.combine(region);
+			} else{
+				mergedRegions.add(previous);
+				previous = region;
+			}
+		}
+		mergedRegions.add(previous);
+		return mergedRegions;
+	}//end of mergeRegions method
+
 }

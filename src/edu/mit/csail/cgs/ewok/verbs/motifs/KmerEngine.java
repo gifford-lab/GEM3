@@ -28,6 +28,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.features.Feature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
@@ -88,12 +89,12 @@ public class KmerEngine {
 		}
 	}
 	/**
-	 * Set up the light weight genome cache. 
-	 * Only load the sequences for the specified regions.
+	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
+	 * At the same time, retrieve negative sequences (for only once)
 	 * @param regions
 	 */
-	public void setLightweightCache(ArrayList<Region> regions){
-		seqgen.setLightweightCache(regions);
+	public void setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions){
+		seqsNeg = seqgen.setupRegionCache(cacheRegions, negativeRegions);
 	}
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value
@@ -210,6 +211,7 @@ public class KmerEngine {
 		// score the kmers, hypergeometric p-value
 		int n = seqs.length;
 		int N = n + seqsNeg.length;
+		double negRatio = (double)seqsNeg.length/seqs.length;
 		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
@@ -224,7 +226,7 @@ public class KmerEngine {
 				kmer.negCount = negHitCounts.get(kmer.kmerString);
 				kmerAllHitCount += kmer.negCount;
 			}
-			if (kmer.seqHitCount < kmer.negCount * k_fold){
+			if (kmer.seqHitCount < kmer.negCount/negRatio * k_fold ){
 				highHgpKmers.add(kmer);	
 				continue;
 			}
@@ -266,11 +268,8 @@ public class KmerEngine {
 	 * @param winShift
 	 */
 	public void loadTestSequences(ArrayList<Point> events, int winSize, int winShift){
-		long tic = System.currentTimeMillis();
-		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 		int eventCount = events.size();
 		seqs = new String[eventCount];	// DNA sequences around binding sites
-		ArrayList<String> negSeqList = new ArrayList<String>();
 		Region[] seqCoors = new Region[eventCount];
 
 		for(int i=0;i<eventCount;i++){
@@ -278,33 +277,34 @@ public class KmerEngine {
 			seqCoors[i] = posRegion;
 			seqs[i] = seqgen.execute(seqCoors[i]).toUpperCase();
 		}
-		
-		for(int i=0;i<eventCount;i++){
-			// getting negative sequences
-			// exclude negative regions that overlap with positive regions, or exceed start of chrom
-			// it is OK if we lose a few sequences here
-			Region posRegion = seqCoors[i];
-			int start = 0;
-			double rand = randomEngine.nextDouble();
-			if (rand>0.5)
-				start = (int) (posRegion.getEnd()+1 + winShift*rand);
-			else
-				start =(int) (posRegion.getStart()-1 - winShift*(1-rand));
-			int end = start + posRegion.getWidth()-1;			// end inclusive
-			if (start < 0 || end >= genome.getChromLength(posRegion.getChrom()))
-				continue;
-			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);			
-			if (i>0 && seqCoors[i-1].overlaps(negRegion))
-				continue;
-			if (i<(eventCount-2) && seqCoors[i+1].overlaps(negRegion))
-				continue;
-			negSeqList.add(seqgen.execute(negRegion).toUpperCase());
-		}
-		seqsNeg = new String[negSeqList.size()];	// DNA sequences in negative sets
-		for (int i=0; i<seqsNeg.length;i++){
-			seqsNeg[i] = negSeqList.get(i);
-		}
-//		System.out.println("loadTestSequences: "+CommonUtils.timeElapsed(tic));
+		/** Negative sequences has been retrieved when setting up region caches */
+//		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
+//		ArrayList<String> negSeqList = new ArrayList<String>();
+//		for(int i=0;i<eventCount;i++){
+//			// getting negative sequences
+//			// exclude negative regions that overlap with positive regions, or exceed start of chrom
+//			// it is OK if we lose a few sequences here
+//			Region posRegion = seqCoors[i];
+//			int start = 0;
+//			double rand = randomEngine.nextDouble();
+//			if (rand>0.5)
+//				start = (int) (posRegion.getEnd()+1 + winShift*rand);
+//			else
+//				start =(int) (posRegion.getStart()-1 - winShift*(1-rand));
+//			int end = start + posRegion.getWidth()-1;			// end inclusive
+//			if (start < 0 || end >= genome.getChromLength(posRegion.getChrom()))
+//				continue;
+//			Region negRegion = new Region(genome, posRegion.getChrom(), start, end);			
+//			if (i>0 && seqCoors[i-1].overlaps(negRegion))
+//				continue;
+//			if (i<(eventCount-2) && seqCoors[i+1].overlaps(negRegion))
+//				continue;
+//			negSeqList.add(seqgen.execute(negRegion).toUpperCase());
+//		}
+//		seqsNeg = new String[negSeqList.size()];	// DNA sequences in negative sets
+//		for (int i=0; i<seqsNeg.length;i++){
+//			seqsNeg[i] = negSeqList.get(i);
+//		}
 	}
 	
 	/**
@@ -394,15 +394,14 @@ public class KmerEngine {
 		for (int i=0;i<seqs.length;i++){
 			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
 			if( index < 0 ) { index = -index - 1; }
+			int positiveCount = posSeqScores.length-i;
+			long negativeCount = Math.round((double)(negSeqScores.length-index)*seqs.length/seqsNeg.length);		// scale the count
 //			hgps[i]=1-StatUtil.hyperGeometricCDF_cache(posSeqScores.length-i, seqs.length+seqsNeg.length, posSeqScores.length-i+negSeqScores.length-index, seqs.length);
-			fdrs[i] = (double)(posSeqScores.length-i)/(negSeqScores.length-index);
-			if (negSeqScores.length-index==0)
+			fdrs[i] = (double)(positiveCount)/(negativeCount);
+			if (negativeCount==0)
 				fdrs[i] = 999;
-			diffs[i] = (posSeqScores.length-i)-(negSeqScores.length-index);
-			sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], posSeqScores.length-i, negSeqScores.length-index, fdrs[i], diffs[i]));
-//			if (fdr>20 && threshold==(wm.getMaxScore()+1) ){
-//				threshold = posSeqScores[i];
-//			}
+			diffs[i] = positiveCount-negativeCount;
+			sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], positiveCount, negativeCount, fdrs[i], diffs[i]));
 		}	
 		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMax(diffs);
 		double max = maxDiff.car();

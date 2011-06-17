@@ -1476,29 +1476,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	// to include every potential reads, then merge
 	private ArrayList<Region> mergeRegions(ArrayList<Region> regions, 
                                              boolean toExpandRegion){
-		ArrayList<Region> mergedRegions = new ArrayList<Region>();
-		if (regions.isEmpty())
-			return mergedRegions;
-		Collections.sort(regions);
-		Region previous = regions.get(0);
-		if (toExpandRegion)
-			previous = previous.expand(modelRange, modelRange);
-
-        for (int i = 1; i < regions.size(); i++) {
-            Region region = regions.get(i);
-			if (toExpandRegion)
-				region=region.expand(modelRange, modelRange);
-
-			// if overlaps with previous region, combine the regions
-			if (previous.overlaps(region)){
-				previous = previous.combine(region);
-			} else{
-                mergedRegions.add(previous);
-				previous = region;
+		if (toExpandRegion){
+			for (int i=0;i<regions.size();i++){
+				regions.set(i, regions.get(i).expand(modelRange, modelRange));
 			}
 		}
-        mergedRegions.add(previous);
-		return mergedRegions;
+		return Region.mergeRegions(regions);
 	}//end of mergeRegions method
 
 	/**
@@ -3314,7 +3297,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (Feature f : events){
 			ComponentFeature cf = (ComponentFeature) f;
 			for (int c=0;c<this.numConditions;c++){
-				if (cf.getQValueLog10(c)> config.q_refine)
+				if (cf.getQValueLog10(c)> config.q_refine)		// relax to include more potential regions
 					compFeatures.add(cf);
 			}
 		}
@@ -3328,14 +3311,32 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (!kmerPreDefined){
 			ArrayList<Region> expandedRegions = new ArrayList<Region>();
 			for (Region r: restrictRegions){
-				expandedRegions.add(r.expand(config.k_shift+config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
+				expandedRegions.add(r.expand(config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
 			}
 			expandedRegions = this.mergeRegions(expandedRegions, false);
 			int totalLength=0;
 			for (Region r: expandedRegions){
 				totalLength+=r.getWidth();
 			}
-			kEngine.setLightweightCache(expandedRegions);
+			// get negative regions
+			ArrayList<Region> negativeRegions = new ArrayList<Region>();
+			cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
+			for (Feature f:signalFeatures){
+				String chr = f.getPeak().getChrom();
+				int length = gen.getChromLength(chr)-config.k_win-1;
+				// for each event, get random negative regions from the same chromosome
+				for (int i=0;i<config.negative_ratio;i++){
+					double rand = randomEngine.nextDouble();
+					int start = (int)(rand*length);
+					Region r = new Region(gen, chr, start, start+config.k_win);
+					negativeRegions.add(r);
+				}
+			}
+			negativeRegions = Region.filterOverlapRegions(negativeRegions, expandedRegions);
+
+			kEngine.setupRegionCache(expandedRegions, negativeRegions);
+			
+			
 			System.out.println("Compact cache genome sequence length to " + totalLength + ", "+
 				CommonUtils.timeElapsed(tic));
 		}
@@ -5234,6 +5235,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int KL_smooth_width = 0;
         public int max_hit_per_bp = -1;
         
+        // k-mer related
         public int k = -1;			// the width of kmer
         public int k_min = -1;		// the minimum value of k
         public int k_max= -1;		// the maximum value of k        
@@ -5249,6 +5251,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double wm_factor = 0.5;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public int kmer_cluster_seq_count = 50;	// minimum number of sequences to be reported as a cluster, to build a PWM (for overlapping kmer)
+        public int negative_ratio = 1; 		// The ratio of negative sequences to positive sequences
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
