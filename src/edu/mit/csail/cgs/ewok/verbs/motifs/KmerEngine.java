@@ -234,6 +234,8 @@ public class KmerEngine {
 				kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount+2, N, kmerAllHitCount+2+1, n);
 			else
 				kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
+			if (kmer.hgp<1E-8)				// the precision of hyperGeometricCDF_cache() is 1E-8
+				kmer.hgp = 1E-8;
 			if (kmer.hgp>hgp)
 				highHgpKmers.add(kmer);		
 		}
