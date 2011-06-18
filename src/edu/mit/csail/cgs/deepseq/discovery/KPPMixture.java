@@ -3592,7 +3592,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					aligned.add(km);
 					
 					/** use kmer shift to align the containing sequences */
-					if (Math.abs(kmer_seed)<=config.k)		//TODO: if the kmer is too far away
+					if (Math.abs(kmer_seed)<=config.k || config.use_far_kmer)		//TODO: if the kmer is too far away
 						alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
 					
 				} //for (Kmer km:kmers)
@@ -5217,8 +5217,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		public boolean do_model_selection=false;
 		public boolean classify_events = false;
         public boolean use_joint_event = false;
-        public boolean kmer_use_insig = false;
-        public boolean kmer_use_filtered = false;
         public boolean TF_binding = true;
         public boolean outputBED = false;
         public boolean kmer_print_hits = false;
@@ -5252,6 +5250,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public int kmer_cluster_seq_count = 50;	// minimum number of sequences to be reported as a cluster, to build a PWM (for overlapping kmer)
         public int negative_ratio = 1; 		// The ratio of negative sequences to positive sequences
+        public boolean kmer_use_insig = false;
+        public boolean kmer_use_filtered = false;
+        public boolean use_far_kmer = false;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5296,20 +5297,21 @@ class KPPMixture extends MultiConditionFeatureFinder {
             classify_events = flags.contains("classify");
             sort_by_location = flags.contains("sl");
             use_joint_event = flags.contains("refine_using_joint_event");
-            kmer_use_filtered = flags.contains("kmer_use_filtered");
             post_artifact_filter = flags.contains("post_artifact_filter");
             kl_count_adjusted = flags.contains("adjust_kl");
             refine_regions = flags.contains("refine_regions");
             outputBED = flags.contains("outBED");
-            kmer_print_hits = flags.contains("kmer_print_hits");
             testPValues = flags.contains("testP");
             if (testPValues)
             	System.err.println("testP is " + testPValues);
             exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
             use_strength = flags.contains("use_strength");
+            kmer_print_hits = flags.contains("kmer_print_hits");
             kmer_use_insig = flags.contains("kmer_use_insig");
-            
+            kmer_use_filtered = flags.contains("kmer_use_filtered");
+            use_far_kmer = flags.contains("use_far_kmer");
+          
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
