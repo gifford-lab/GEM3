@@ -94,7 +94,8 @@ public class KmerEngine {
 	 * @param regions
 	 */
 	public void setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions){
-		seqsNeg = seqgen.setupRegionCache(cacheRegions, negativeRegions);
+		if (!seqgen.isRegionCached())
+			seqsNeg = seqgen.setupRegionCache(cacheRegions, negativeRegions);
 	}
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value

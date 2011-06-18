@@ -3379,7 +3379,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return points;
     }
     
-    private void buildEngine(){
+    /**
+     * Build k-mer engine.<br>
+     * Select enriched k-mers, align k-mers, setup k-mer engine
+     */
+    public void buildEngine(){
     	ArrayList<Point> points = getEventPoints();
 		// compare different values of k to select most enriched k value
 		int k=0;

@@ -27,6 +27,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     private static Map<String, String[]> regionCache;
     private static Map<String, int[]> regionStarts;
     private static boolean regionIsCached = false;
+    public boolean isRegionCached(){return regionIsCached;}
     
     // no longer used, but kept for compatibility 
     public SequenceGenerator (Genome g) {        
