@@ -3572,8 +3572,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 								km.RC();
 							kmer_seed = maxPos.get(0);
 						}
-						if (Math.abs(kmer_seed)>config.k)		//TODO: if the kmer is too far away
-							continue;
 						km.setAlignString(maxCount+"/"+posKmer.size());
 					}
 //					} else if (posKmer.size()==1){
@@ -3594,7 +3592,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					aligned.add(km);
 					
 					/** use kmer shift to align the containing sequences */
-					alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
+					if (Math.abs(kmer_seed)<=config.k)		//TODO: if the kmer is too far away
+						alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
 					
 				} //for (Kmer km:kmers)
 				
