@@ -3596,39 +3596,41 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				Collections.sort(aligned);
 				
 				/** use aligned k-mer to align mismatch k-mers */
-				// add seed family kmers only once
-				if (!seedFamilyMismatchUsed){
-					aligned.addAll(seedFamily);
-					seedFamilyMismatchUsed = true;
-				}
-				ArrayList<Kmer> mmaligned = new ArrayList<Kmer>();			// kmers aligned by using mismatch
-				for (Kmer km: kmers){
-					String seq = km.getKmerString();
-					for (Kmer akm: aligned){
-						if (this.mismatch(akm.getKmerString(), seq)==1){
-							km.setShift(akm.getShift());
-							km.setKmerStartOffset(akm.getKmerStartOffset());
-							km.setAlignString("MM:"+akm.getKmerString());
-							mmaligned.add(km);
-							break;
-						}
-						if (this.mismatch(akm.getKmerRC(), seq)==1){
-							km.RC();
-							km.setShift(akm.getShift());
-							km.setKmerStartOffset(akm.getKmerStartOffset());
-							km.setAlignString("MM:"+akm.getKmerString());
-							mmaligned.add(km);
-							break;
+				if (config.use_kmer_mismatch){
+					// add seed family kmers only once
+					if (!seedFamilyMismatchUsed){
+						aligned.addAll(seedFamily);
+						seedFamilyMismatchUsed = true;
+					}
+					ArrayList<Kmer> mmaligned = new ArrayList<Kmer>();			// kmers aligned by using mismatch
+					for (Kmer km: kmers){
+						String seq = km.getKmerString();
+						for (Kmer akm: aligned){
+							if (this.mismatch(akm.getKmerString(), seq)==1){
+								km.setShift(akm.getShift());
+								km.setKmerStartOffset(akm.getKmerStartOffset());
+								km.setAlignString("MM:"+akm.getKmerString());
+								mmaligned.add(km);
+								break;
+							}
+							if (this.mismatch(akm.getKmerRC(), seq)==1){
+								km.RC();
+								km.setShift(akm.getShift());
+								km.setKmerStartOffset(akm.getKmerStartOffset());
+								km.setAlignString("MM:"+akm.getKmerString());
+								mmaligned.add(km);
+								break;
+							}
 						}
 					}
+					// use kmer shift to align the containing sequences 
+					for (Kmer km: mmaligned){
+						alignSequences(km, kmer2seq.get(km), seqs, posSeqs, isPlusStrands, seqAlignRefs);
+					}
+					kmers.removeAll(mmaligned);
+					aligned.addAll(mmaligned);
+					alignedKmers.addAll(mmaligned);
 				}
-				// use kmer shift to align the containing sequences 
-				for (Kmer km: mmaligned){
-					alignSequences(km, kmer2seq.get(km), seqs, posSeqs, isPlusStrands, seqAlignRefs);
-				}
-				kmers.removeAll(mmaligned);
-				aligned.addAll(mmaligned);
-				alignedKmers.addAll(mmaligned);
 				
 				/** build PWM to continue grow cluster */
 				int alignedSeqCount=0;
@@ -3686,14 +3688,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    	
 				    	wm = new WeightMatrix(matrix);
 				    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-				    	double threshold = kEngine.computePwmThreshold(wm, config.wm_factor, outName);	
+				    	double threshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);	
 				    	if (threshold<0){
 				    		System.out.println("alignOverlapKmers: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
 				    	}	
 				    	else{
 				    		int count_pwm_aligned = 0;
-					    	if (threshold<wm.getMaxScore()/2)
-					    		threshold = wm.getMaxScore()/2;
+					    	if (threshold<wm.getMaxScore()*config.wm_factor)
+					    		threshold = wm.getMaxScore()*config.wm_factor;
 					        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 					    	HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();
 					    	int pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);
@@ -3808,7 +3810,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		kmer.setShift(0);
 	    		kmer.RC();
 	    		family.add(kmer);
-	    		kmer.setAlignString(seedKmerRC);
+	    		kmer.setAlignString(seedKmerStr);
 	    	}
     	}
 		return family;
@@ -5037,8 +5039,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			wm.consensus = WeightMatrix.printMatrixLetters(wm);    	
 		
 		// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-    	double threshold = kEngine.computePwmThreshold(wm, config.wm_factor, outName);
-    	threshold = Math.max(threshold, wm.getMaxScore()/2);
+    	double threshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);
+    	threshold = Math.max(threshold, wm.getMaxScore()*config.wm_factor);
     	// if the pwm is not good, return null. The operations in this method so far 
     	// does not change the state of componentFeatures or motifCluster, so we can discard this pwm and take previous result
 //    	if (threshold<0){
@@ -5269,6 +5271,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int negative_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
+        public boolean use_kmer_mismatch = false;
         public boolean use_far_kmer = false;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
@@ -5327,6 +5330,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_print_hits = flags.contains("kmer_print_hits");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
+            use_kmer_mismatch = flags.contains("kmm");
             use_far_kmer = flags.contains("use_far_kmer");
           
                 // default as true, need the opposite flag to turn it off

@@ -121,7 +121,7 @@ public class Kmer implements Comparable<Kmer>{
 	public String toOverlapString(){
 		double hg_lg = Math.log10(hgp);
 		if (hg_lg==Double.NEGATIVE_INFINITY)
-			hg_lg=-100;
+			hg_lg=-400;
 		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg);
 	}
 	public static String toOverlapHeader(){

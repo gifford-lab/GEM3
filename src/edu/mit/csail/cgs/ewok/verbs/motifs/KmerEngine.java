@@ -382,11 +382,11 @@ public class KmerEngine {
 	
 	
 	/**
-	 * Compute hgp of a PWM using the positive/negative sequences<br>
+	 * Estimate threshold of a PWM using the positive/negative sequences<br>
 	 * If a PWM is good PWM, the curve of the difference between the number of positive and negative sequences match vs score
 	 * should have a peak value, then we set PWM threshold = the largest score corresponding to 0.9*peak_value
 	 */
-	public double computePwmThreshold(WeightMatrix wm, double wm_factor, String outName){
+	public double estimatePwmThreshold(WeightMatrix wm, double wm_factor, String outName){
 		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 		double[] posSeqScores = new double[seqs.length];
 		double[] negSeqScores = new double[seqsNeg.length];
@@ -415,7 +415,7 @@ public class KmerEngine {
 			if (negativeCount==0)
 				fdrs[i] = 999;
 			diffs[i] = positiveCount-negativeCount;
-			sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], positiveCount, negativeCount, fdrs[i], diffs[i]));
+//			sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], positiveCount, negativeCount, fdrs[i], diffs[i]));
 		}	
 		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMax(diffs);
 		double max = maxDiff.car();
@@ -423,12 +423,12 @@ public class KmerEngine {
 		for (int i=maxIdx; i<diffs.length;i++){
 			if (diffs[i]<max*0.9){
 				threshold = posSeqScores[i];
-				System.out.println(String.format("PWM %s: maxDiff=%.0f (%.1f), select score=%.2f (diff=%.0f, fdr=%.1f)", 
-						WeightMatrix.getMaxLetters(wm), max, posSeqScores[maxIdx], threshold, diffs[i], fdrs[i]));
+//				System.out.println(String.format("PWM %s: maxDiff=%.0f (%.1f), select score=%.2f (diff=%.0f, fdr=%.1f)", 
+//						WeightMatrix.getMaxLetters(wm), max, posSeqScores[maxIdx], threshold, diffs[i], fdrs[i]));
 				break;
 			}
 		}
-		CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
+//		CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
 		return threshold;
 	}
 	
