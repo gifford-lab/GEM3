@@ -1122,8 +1122,8 @@ public class StatUtil {
 	/**
 	 * Returns the hypergeometric cumulative probability of number <tt>x</tt> 
 	 * when the sample size is <tt>n</tt>, the size of the positive set <tt>s</tt>
-	 * and the population size <tt>N</tt>.
-	 * The precision of the method is up to 1E-8, determined empirically
+	 * and the population size <tt>N</tt>.<br>
+	 * If the CDF is close to 1, the precision of the method is up to 1E-8, determined empirically
 	 * This method use a cache to store the factorial values. 
 	 * So it is more suitable to compute many hgp values with a fix population.
 	 * @param x # observed successes in the sample
@@ -1529,7 +1529,7 @@ public class StatUtil {
 //		System.out.println(hyperGeometricCDF_cache(3,8+7,8,3+2));
 //		System.out.println(hyperGeometricCDF_cache(2,8+7,7,3+2));
 		for (int i=5000;i>0;i=i-100){
-			System.out.println(1-hyperGeometricCDF_cache(i,41690+40506,41690,i+100));
+			System.out.println(hyperGeometricCDF_cache(99,41690+40506,40506,i+100));
 		}
 	}
 }//end of StatUtil class 41690 / 40506

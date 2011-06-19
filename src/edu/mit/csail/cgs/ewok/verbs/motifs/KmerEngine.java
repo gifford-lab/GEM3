@@ -231,12 +231,20 @@ public class KmerEngine {
 				continue;
 			}
 			// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
+			double hgcdf = 0;
 			if (kmer.negCount==0)
-				kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount+2, N, kmerAllHitCount+2+1, n);
+				hgcdf = StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount+2, N, kmerAllHitCount+2+1, n);
 			else
-				kmer.hgp = 1-StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
-			if (kmer.hgp<1E-8)				// the precision of hyperGeometricCDF_cache() is 1E-8
-				kmer.hgp = 1E-8;
+				hgcdf = StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
+			if (hgcdf<0.9)		// the precision of hyperGeometricCDF_cache() is 1E-8 if cdf is close to 1
+				kmer.hgp = 1-hgcdf;
+			else{				// flip the problem, compute cdf of negative count
+				if (kmer.negCount==0)
+					hgcdf = StatUtil.hyperGeometricCDF_cache(0, N, kmerAllHitCount+2+1, N-n);
+				else
+					hgcdf = StatUtil.hyperGeometricCDF_cache(kmer.negCount-1, N, kmerAllHitCount, N-n);
+				kmer.hgp = hgcdf;
+			}
 			if (kmer.hgp>hgp)
 				highHgpKmers.add(kmer);		
 		}

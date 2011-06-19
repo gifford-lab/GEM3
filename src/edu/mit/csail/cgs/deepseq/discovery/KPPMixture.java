@@ -3508,6 +3508,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			boolean seedFamilyMismatchUsed = false;
 			
 			/** greedly align kmers until no kmer can be aligned */
+			WeightMatrix wm = null;
 			while(!kmers.isEmpty()){
 				ArrayList<Kmer> aligned = new ArrayList<Kmer>();
 				for (Kmer km:kmers){
@@ -3578,17 +3579,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 						km.setAlignString(maxCount+"/"+posKmer.size());
 					}
-//					} else if (posKmer.size()==1){
-//						int p = posKmer.get(0);
-//						if (p>STRAND/2){
-//							km.RC();
-//							shift = p-STRAND;
-//						}
-//						else{
-//							shift = p;
-//						}
-//						km.setAlignString("1/1");
-//					}else if (posKmer.size()==0){
 					else {
 						continue;	// continue for next kmer
 					}
@@ -3694,50 +3684,73 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    	String pfmStr = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, clusterID, alignedSeqCount));
 				    	CommonUtils.writeFile(outName+"_OK_"+clusterID+"_PFM.txt", pfmStr);
 				    	
-				    	WeightMatrix wm = new WeightMatrix(matrix);
+				    	wm = new WeightMatrix(matrix);
 				    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
 				    	double threshold = kEngine.computePwmThreshold(wm, config.wm_factor, outName);	
 				    	if (threshold<0){
 				    		System.out.println("alignOverlapKmers: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
 				    	}	
-	//			    	else{
-	//				        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
-	//				    	ArrayList<Kmer> newAlignedKmers = new ArrayList<Kmer>();
-	//				    	int pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);
-	//				    	for (int i=0;i<posSeqs.length;i++){
-	//						  int pos = posSeqs[i];
-	//						  if (pos != UNALIGNED)					// align the unaligned seqs with pwm
-	//							continue;
-	//				    	  String seq = seqs[i];
-	//				    	  if (seq.length()<wm.length()-1)
-	//				    		  continue;
-	//				    	      	  
-	//				          WeightMatrixScoreProfile profiler = scorer.execute(seq);
-	//				          double maxSeqScore = Double.NEGATIVE_INFINITY;
-	//				          int maxScoringShift = 0;
-	//				          char maxScoringStrand = '+';
-	//				          for (int j=0;j<profiler.length();j++){
-	//				        	  double score = profiler.getMaxScore(j);
-	//				        	  if (maxSeqScore<score){
-	//				        		  maxSeqScore = score;
-	//				        		  maxScoringShift = j;
-	//				        		  maxScoringStrand = profiler.getMaxStrand(j);
-	//				        	  }
-	//				          }
-	//				          // if a sequence pass the motif score, reset the kmer to the binding site
-	//				          if (maxSeqScore >= threshold){
-	//							if (maxScoringStrand =='-'){
-	//								seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
-	//								isPlusStrands[i] = false;
-	//								maxScoringShift = seqs[i].length()-maxScoringShift-profiler.length();
-	//								// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
-	//							}
-	//							posSeqs[i] = pos_pwm_seed-maxScoringShift;
-	//							seqAlignRefs[i] = "PWM:"+WeightMatrix.getMaxLetters(wm);
-	//							pwm_aligned = true;
-	//				          }
-	//				        }
-	//			    	}
+				    	else{
+				    		int count_pwm_aligned = 0;
+					    	if (threshold<wm.getMaxScore()/2)
+					    		threshold = wm.getMaxScore()/2;
+					        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+					    	HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();
+					    	int pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);
+					    	for (int i=0;i<posSeqs.length;i++){
+							  int pos = posSeqs[i];
+							  if (pos != UNALIGNED)					// align the unaligned seqs with pwm
+								continue;
+					    	  String seq = seqs[i];
+					    	  if (seq.length()<wm.length()-1)
+					    		  continue;
+					    	      	  
+					          WeightMatrixScoreProfile profiler = scorer.execute(seq);
+					          double maxSeqScore = Double.NEGATIVE_INFINITY;
+					          int maxScoringShift = 0;
+					          char maxScoringStrand = '+';
+					          for (int j=0;j<profiler.length();j++){
+					        	  double score = profiler.getMaxScore(j);
+					        	  if (maxSeqScore<score){
+					        		  maxSeqScore = score;
+					        		  maxScoringShift = j;
+					        		  maxScoringStrand = profiler.getMaxStrand(j);
+					        	  }
+					          }
+					          // if a sequence pass the motif score, reset the kmer to the binding site
+					          if (maxSeqScore >= threshold){
+								if (maxScoringStrand =='-'){
+									seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
+									isPlusStrands[i] = false;
+									maxScoringShift = seqs[i].length()-maxScoringShift-wm.length();
+									// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
+								}
+								posSeqs[i] = pos_pwm_seed-maxScoringShift;
+								String kmerStr = seqs[i].substring(-posSeqs[i], -posSeqs[i]+config.k);
+								if (pwmAlignedKmerStr.containsKey(kmerStr))
+									pwmAlignedKmerStr.put(kmerStr, pwmAlignedKmerStr.get(kmerStr)+1);
+								else
+									pwmAlignedKmerStr.put(kmerStr, 1);
+								seqAlignRefs[i] = "PWM:"+WeightMatrix.getMaxLetters(wm);
+								count_pwm_aligned ++;
+					          }
+					        }
+					    	for (String kmStr: pwmAlignedKmerStr.keySet()){
+					    		Kmer km = null;
+					    		if (str2kmer.containsKey(kmStr)){			// if existing k-mers
+					    			km = str2kmer.get(kmStr);
+					    			kmers.remove(km);
+					    		}
+					    		else{										// new found k-mers
+					    			km = new Kmer(kmStr, pwmAlignedKmerStr.get(kmStr));
+					    		}
+				    			km.setShift(0);
+				    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
+				    			aligned.add(km);
+				    			alignedKmers.add(km);
+					    	}
+					    	System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers.");
+				    	}
 					}
 				}
 		    	
