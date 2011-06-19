@@ -11,6 +11,8 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
+import net.sf.samtools.util.SequenceUtil;
+
 import cern.jet.random.Poisson;
 import cern.jet.random.Binomial;
 import cern.jet.random.engine.DRand;
@@ -3739,11 +3741,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					        }
 					    	for (String kmStr: pwmAlignedKmerStr.keySet()){
 					    		Kmer km = null;
-					    		if (str2kmer.containsKey(kmStr)){			// if existing k-mers
+					    		String kmCR = SequenceUtil.reverseComplement(kmStr);
+					    		if (str2kmer.containsKey(kmStr)){	// if existing k-mers
 					    			km = str2kmer.get(kmStr);
 					    			kmers.remove(km);
 					    		}
-					    		else{										// new found k-mers
+					    		else if (str2kmer.containsKey(kmCR)){	
+					    			km = str2kmer.get(kmCR);
+					    			km.RC();
+					    			kmers.remove(km);
+					    		}
+					    		else {								// new found k-mers
 					    			km = new Kmer(kmStr, pwmAlignedKmerStr.get(kmStr));
 					    		}
 				    			km.setShift(0);
