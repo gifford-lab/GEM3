@@ -3287,7 +3287,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (config.k==-1 && config.k_min==-1)
     		return;
 		
-    	System.out.println("Selecting enriched k-mer ...");
+    	System.out.println("Loadning genome sequences ...");
 		kEngine = new KmerEngine(gen, config.cache_genome);
 		long tic = System.currentTimeMillis();
 		
@@ -3733,8 +3733,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 									maxScoringShift = seqs[i].length()-maxScoringShift-wm.length();
 									// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
 								}
+								int end = -(pos_pwm_seed-maxScoringShift)+config.k;
+								if (end > seqs[i].length()){		// if the seed kmer alignment exceed the sequence, skip
+									if (maxScoringStrand =='-'){	// reverse the change
+										seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
+										isPlusStrands[i] = true;
+									}
+									continue;
+								}
 								posSeqs[i] = pos_pwm_seed-maxScoringShift;
-								String kmerStr = seqs[i].substring(-posSeqs[i], -posSeqs[i]+config.k);
+								String kmerStr = seqs[i].substring(-posSeqs[i], end);
 								if (pwmAlignedKmerStr.containsKey(kmerStr))
 									pwmAlignedKmerStr.put(kmerStr, pwmAlignedKmerStr.get(kmerStr)+1);
 								else
@@ -3742,7 +3750,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 								seqAlignRefs[i] = "PWM:"+WeightMatrix.getMaxLetters(wm);
 								count_pwm_aligned ++;
 					          }
-					        }
+					        }	// each unaligned sequence
 					    	for (String kmStr: pwmAlignedKmerStr.keySet()){
 					    		Kmer km = null;
 					    		String kmCR = SequenceUtil.reverseComplement(kmStr);
