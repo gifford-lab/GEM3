@@ -3549,7 +3549,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						int counts[] = sorted.cdr();
 						int posSorted[] = sorted.car();
 						int maxCount = counts[counts.length-1];
-						if (maxCount<Math.round(posKmer.size()/3.0))// the most freq position count must be at least 1/3 of all aligned position
+						if (maxCount<Math.round(posKmer.size()*config.kmer_freq_pos_ratio))// the most freq position count must be at least 1/3 of all aligned position
 							continue;
 						ArrayList<Integer> maxPos = new ArrayList<Integer>();
 						ArrayList<Boolean> isPositive = new ArrayList<Boolean>();
@@ -3846,10 +3846,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// output cluster information, PFM, and PWM
 		StringBuilder pfm_sb = new StringBuilder();		
 		for (KmerCluster c:clusters){
-    		System.out.println(String.format("-------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.sequenceCount));
     		WeightMatrix wm = c.wm;
-    		if (wm==null)
+    		if (wm==null || c.sequenceCount<config.kmer_cluster_seq_count)
     			continue;
+    		System.out.println(String.format("-------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.sequenceCount));
     		int pos = c.bindingPosition;
     		if (pos>0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
@@ -5362,7 +5362,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double[] bg;			// background frequency based on GC content
         public double wm_factor = 0.5;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
-        public int kmer_cluster_seq_count = 50;	// minimum number of sequences to be reported as a cluster, to build a PWM (for overlapping kmer)
+        public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
+        public int kmer_cluster_seq_count = 100;	// minimum number of sequences to be reported as a cluster, to build a PWM (for overlapping kmer)
         public int negative_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
@@ -5457,6 +5458,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             wm_factor = Args.parseDouble(args, "wmf", wm_factor);
             ic_trim = Args.parseDouble(args, "ic", ic_trim);
             hgp = Args.parseDouble(args, "hgp", hgp);
+            kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
             kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
 
             ip_ctrl_ratio = Args.parseDouble(args, "icr", ip_ctrl_ratio);
