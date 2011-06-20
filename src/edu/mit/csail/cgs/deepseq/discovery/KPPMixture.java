@@ -3733,8 +3733,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 									maxScoringShift = seqs[i].length()-maxScoringShift-wm.length();
 									// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
 								}
-								int end = -(pos_pwm_seed-maxScoringShift)+config.k;
-								if (end > seqs[i].length()){		// if the seed kmer alignment exceed the sequence, skip
+								int start = -(pos_pwm_seed-maxScoringShift);
+								int end = start+config.k;
+								if (start<0 || end > seqs[i].length()){		// if the seed kmer alignment exceed the sequence, skip
 									if (maxScoringStrand =='-'){	// reverse the change
 										seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
 										isPlusStrands[i] = true;
