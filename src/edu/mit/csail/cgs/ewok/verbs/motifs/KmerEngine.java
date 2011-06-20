@@ -169,7 +169,7 @@ public class KmerEngine {
 		allKmers = new ArrayList<Kmer>(kms);		//TODO: make sure it does not take too much memory
 		map=null;
 		System.gc();
-		System.out.println("Mapped "+kms.size()+ " k-mers_"+k+", "+CommonUtils.timeElapsed(tic));
+		System.out.println("k="+k+", mapped "+kms.size()+" k-mers, "+CommonUtils.timeElapsed(tic));
 		
 		/**
 		 * Select significantly over-representative kmers 
@@ -251,7 +251,7 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
 		kms.removeAll(highHgpKmers);
-		System.out.println(String.format("Selected %d k-mers_%d from %d+/%d- sequences, %s", kms.size(), k, n, seqsNeg.length, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), n, seqsNeg.length, CommonUtils.timeElapsed(tic)));
 		
 		negKmerHitCounts = new HashMap<String, Integer>();
 		for (Kmer km: highHgpKmers){

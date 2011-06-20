@@ -3487,7 +3487,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		final int UNALIGNED = 999;
 		int clusterID = 0;
 		StringBuilder alignedKmer_sb = new StringBuilder();
+		ArrayList<KmerCluster> clusters = new ArrayList<KmerCluster>();
+		
 		while(!kmers.isEmpty()){
+			KmerCluster cluster = new KmerCluster();
+			cluster.clusterId = clusterID;
+			clusters.add(cluster);
+			
 			String[] seqs = seqs_old.clone();
 			int posSeqs[] = new int[seqs.length]; 		// the position of sequences
 			String seqAlignRefs[] = new String[seqs.length];
@@ -3498,8 +3504,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				isPlusStrands[i] = true;
 			}		
 			ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
+			
 			/** get seed kmer and its mismatch k-mers, align sequences */
 			Kmer seed = kmers.get(0);
+			cluster.seedKmer = seed;
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
 			// align the containing sequences
 			for (Kmer km:seedFamily){
@@ -3511,6 +3519,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			/** greedly align kmers until no kmer can be aligned */
 			WeightMatrix wm = null;
+			String pfmStr = "";
 			while(!kmers.isEmpty()){
 				ArrayList<Kmer> aligned = new ArrayList<Kmer>();
 				for (Kmer km:kmers){
@@ -3689,22 +3698,25 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			pfm_trim[p-leftIdx][LETTERS[b]]=(float) pfm[p][LETTERS[b]];
 				    		}
 				    	}
-				    	String pfmStr = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, clusterID, alignedSeqCount));
-				    	CommonUtils.writeFile(outName+"_OK_"+clusterID+"_PFM.txt", pfmStr);
+				    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, clusterID, alignedSeqCount));
+				    	cluster.sequenceCount = alignedSeqCount;
+//				    	CommonUtils.writeFile(outName+"_OK_"+clusterID+"_PFM.txt", pfmStr);
 				    	
 				    	wm = new WeightMatrix(matrix);
+				    	cluster.wm = wm;
 				    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-				    	double threshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);	
-				    	if (threshold<0){
+				    	cluster.pwmThreshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);	
+				    	if (cluster.pwmThreshold<0){
 				    		System.out.println("alignOverlapKmers: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
 				    	}	
 				    	else{
 				    		int count_pwm_aligned = 0;
-					    	if (threshold<wm.getMaxScore()*config.wm_factor)
-					    		threshold = wm.getMaxScore()*config.wm_factor;
+					    	if (cluster.pwmThreshold<wm.getMaxScore()*config.wm_factor)
+					    		cluster.pwmThreshold = wm.getMaxScore()*config.wm_factor;
 					        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 					    	HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();
 					    	int pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);
+					    	cluster.pos_pwm_seed = pos_pwm_seed;
 					    	for (int i=0;i<posSeqs.length;i++){
 							  int pos = posSeqs[i];
 							  if (pos != UNALIGNED)					// align the unaligned seqs with pwm
@@ -3726,7 +3738,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					        	  }
 					          }
 					          // if a sequence pass the motif score, reset the kmer to the binding site
-					          if (maxSeqScore >= threshold){
+					          if (maxSeqScore >= cluster.pwmThreshold){
 								if (maxScoringStrand =='-'){
 									seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
 									isPlusStrands[i] = false;
@@ -3785,7 +3797,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //					}
 					break;			// stop this cluster, start a new one
 				}
-			} // growing cluster
+			} // greedily growing cluster
 	        
 			/** use all aligned sequences to find expected binding sites */
 	    	// average all the binding positions to decide the expected binding position
@@ -3803,29 +3815,51 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				int pos = posSeqs[i];
 				if (pos == UNALIGNED)
 					continue;
-//				sb.append(seqAlignRefs[i]+"\t"+CommonUtils.padding(100+pos, '-')+seqs[i]+"\n");
-				sb.append(CommonUtils.padding(-leftmost+pos, '-')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
+				if (config.bmverbose>1)
+					sb.append(CommonUtils.padding(-leftmost+pos, '-')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
 	 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
     			sum_offsetXstrength += strength*(config.k_win/2+pos);
         		sum_strength += strength;
 	    	}
-			CommonUtils.writeFile(outName+"_seqs_aligned_"+seed.getKmerString()+".txt", sb.toString());
-	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean
+			if (config.bmverbose>1)
+				CommonUtils.writeFile(outName+"_seqs_aligned_"+seed.getKmerString()+".txt", sb.toString());
+	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean BS position relative to seed k-mer start
+	    	cluster.bindingPosition = bPos - cluster.pos_pwm_seed;
 	    	
 	    	alignedKmer_sb.append("Cluster #"+clusterID+"\n");
-	    	leftmost = Integer.MAX_VALUE;
+	    	int leftmost_km = Integer.MAX_VALUE;
 			for (Kmer km: alignedKmers){
 				km.setKmerStartOffset(km.getShift()-bPos);
-				if (km.getKmerStartOffset()<leftmost)
-					leftmost = km.getKmerStartOffset();
+				if (km.getKmerStartOffset()<leftmost_km)
+					leftmost_km = km.getKmerStartOffset();
 			}	    	
 			for (Kmer km: alignedKmers){
-				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
+				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
 			}
+			cluster.kmerCount = alignedKmers.size();
 			allAlignedKmers.addAll(alignedKmers);
 			clusterID++;
+		} // each cluster
+		
+		CommonUtils.writeFile(outName+"_OK_aligned.txt", alignedKmer_sb.toString());
+		
+		// output cluster information, PFM, and PWM
+		StringBuilder pfm_sb = new StringBuilder();		
+		for (KmerCluster c:clusters){
+    		System.out.println(String.format("-------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.sequenceCount));
+    		WeightMatrix wm = c.wm;
+    		if (wm==null)
+    			continue;
+    		int pos = c.bindingPosition;
+    		if (pos>0)
+    			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
+    		else
+    			System.out.println(WeightMatrix.printMatrixLetters(wm));
+    		System.out.println(String.format("PWM threshold: %.2f", c.pwmThreshold));
+			pfm_sb.append(c.pfmString);
 		}
-		CommonUtils.writeFile(outName+"_overlapping_aligned.txt", alignedKmer_sb.toString());
+		CommonUtils.writeFile(outName+"_OK_PFM.txt", pfm_sb.toString());
+		
 		return allAlignedKmers;
 	}
 
@@ -5224,6 +5258,34 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 	}
 
+	private class KmerCluster{
+		int clusterId;
+		Kmer seedKmer;
+		String pfmString;
+		WeightMatrix wm;
+		double pwmThreshold;
+		int pos_pwm_seed;
+		int bindingPosition;
+		int sequenceCount;
+		int kmerCount;
+		
+		KmerCluster(){}	// empty constructor;
+
+		protected KmerCluster clone(){
+			KmerCluster cluster = new KmerCluster();
+			cluster.clusterId = this.clusterId;
+			cluster.seedKmer = this.seedKmer;
+			cluster.pfmString = this.pfmString;
+			cluster.wm = this.wm;
+			cluster.pwmThreshold = this.pwmThreshold;
+			cluster.pos_pwm_seed = this.pos_pwm_seed;
+			cluster.bindingPosition = this.bindingPosition;
+			cluster.sequenceCount = this.sequenceCount;
+			cluster.kmerCount = this.kmerCount;
+			
+			return cluster;
+		}
+	}
     class GPSConstants {
 
         /****************************
