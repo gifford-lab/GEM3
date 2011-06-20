@@ -451,7 +451,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		reportTriggers.add(10000);
 		
 		if (kEngine!=null && kEngine.isInitialized()){
-			System.out.println("\nRunning EM with Kmer positional prior ...\n");
+			System.out.println("\nRunning EM with k-mer positional prior ...\n");
 		}
 		
 		// create threads and run EM algorithms
@@ -3287,6 +3287,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (config.k==-1 && config.k_min==-1)
     		return;
 		
+    	System.out.println("Selecting enriched k-mer ...");
 		kEngine = new KmerEngine(gen, config.cache_genome);
 		long tic = System.currentTimeMillis();
 		
@@ -3337,9 +3338,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			negativeRegions = Region.filterOverlapRegions(negativeRegions, expandedRegions);
 
 			kEngine.setupRegionCache(expandedRegions, negativeRegions);
-			
-			System.out.println("Compact cache genome sequence length to " + totalLength + ", "+
-				CommonUtils.timeElapsed(tic));
+			if (config.bmverbose>1)
+				System.out.println("Compact genome sequence cache to " + totalLength + " bps, "+CommonUtils.timeElapsed(tic));
 		}
 		
 		buildEngine();
@@ -3569,15 +3569,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
 									min = distance;
 								}
 							}
+							kmer_seed = maxPos.get(minIdx);
+							if (Math.abs(kmer_seed)>config.k && !config.use_far_kmer)		// if the kmer is too far away
+								continue;
 							if (!isPositive.get(minIdx)){	// if match of KmerRC
 								km.RC();
 							}
-							kmer_seed = maxPos.get(minIdx);
 						}
 						else{
+							kmer_seed = maxPos.get(0);
+							if (Math.abs(kmer_seed)>config.k && !config.use_far_kmer)		// if the kmer is too far away
+								continue;
 							if (!isPositive.get(0))	// if match of KmerRC
 								km.RC();
-							kmer_seed = maxPos.get(0);
 						}
 						km.setAlignString(maxCount+"/"+posKmer.size());
 					}
@@ -3632,7 +3636,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					kmers.removeAll(mmaligned);
 					aligned.addAll(mmaligned);
 					alignedKmers.addAll(mmaligned);
-				}
+				} //if (config.use_kmer_mismatch)
 				
 				/** build PWM to continue grow cluster */
 				int alignedSeqCount=0;
@@ -3759,7 +3763,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			aligned.add(km);
 				    			alignedKmers.add(km);
 					    	}
-					    	System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers.");
+					    	if (config.bmverbose>1)
+					    		System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers.");
 				    	}
 					}
 				}
@@ -3779,12 +3784,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			StringBuilder sb = new StringBuilder();
 			double sum_offsetXstrength = 0;
 	    	double sum_strength = 0;
+	    	int leftmost = Integer.MAX_VALUE;
+			for (int i=0;i<posSeqs.length;i++){
+				int pos = posSeqs[i];
+				if (pos < leftmost )
+					leftmost = pos;					
+			}
 			for (int i=0;i<posSeqs.length;i++){
 				int pos = posSeqs[i];
 				if (pos == UNALIGNED)
 					continue;
 //				sb.append(seqAlignRefs[i]+"\t"+CommonUtils.padding(100+pos, '-')+seqs[i]+"\n");
-				sb.append(CommonUtils.padding(100+pos, '-')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
+				sb.append(CommonUtils.padding(-leftmost+pos, '-')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
 	 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
     			sum_offsetXstrength += strength*(config.k_win/2+pos);
         		sum_strength += strength;
@@ -3793,9 +3804,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean
 	    	
 	    	alignedKmer_sb.append("Cluster #"+clusterID+"\n");
+	    	leftmost = Integer.MAX_VALUE;
 			for (Kmer km: alignedKmers){
 				km.setKmerStartOffset(km.getShift()-bPos);
-				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(60+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
+				if (km.getKmerStartOffset()<leftmost)
+					leftmost = km.getKmerStartOffset();
+			}	    	
+			for (Kmer km: alignedKmers){
+				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
 			}
 			allAlignedKmers.addAll(alignedKmers);
 			clusterID++;
@@ -4087,7 +4103,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    		}
 		    		
 		    		clusterByNewKmers(cluster, nullKmerFeatures, realNewKmers);
-		    		System.out.println("Rescued kmers, now cluster contains "+cluster.alignedFeatures.size()+" sequences.");  		    		
+		    		System.out.println("Rescued kmers, now cluster contains "+cluster.alignedFeatures.size()+" events.");  		    		
 	    		}
 	    	}
 	    	System.out.println("-------------------------------\nTotal clusters of motifs: " + goodClusterCount);
