@@ -3393,7 +3393,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (config.k_min!=-1){
 			int eventCounts[] = new int[config.k_max-config.k_min+1];
 			for (int i=0;i<eventCounts.length;i++){
-				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, points, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
+				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, points, config.k_win, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
 				if (kms.isEmpty())
 					eventCounts[i] = 0;
 				else{
@@ -3421,7 +3421,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println(String.format("selected k=%d, max decrease=%.2f%%", k, max_value));
 			config.k = k;
 		}
-		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.k_shift, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
+		if (config.k_shift==-1)				// default k_shift value to be k
+			config.k_shift = config.k;
+		
+		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName+"_OK_win"+ (config.k_win));
 		if (config.align_overlap_kmer)
 			kmers = alignOverlappedKmers(kmers, getEvents());
 		kEngine.updateEngine(kmers, outName+"_overlapping_win"+ (config.k_win), false);		
@@ -3549,7 +3552,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						int counts[] = sorted.cdr();
 						int posSorted[] = sorted.car();
 						int maxCount = counts[counts.length-1];
-						if (maxCount<Math.round(posKmer.size()*config.kmer_freq_pos_ratio))// the most freq position count must be at least 1/3 of all aligned position
+						if (maxCount<Math.round(posKmer.size()*config.kmer_freq_pos_ratio))// the most freq position count must be large enough
 							continue;
 						ArrayList<Integer> maxPos = new ArrayList<Integer>();
 						ArrayList<Boolean> isPositive = new ArrayList<Boolean>();
@@ -3579,7 +3582,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 								}
 							}
 							kmer_seed = maxPos.get(minIdx);
-							if (Math.abs(kmer_seed)>config.k && !config.use_far_kmer)		// if the kmer is too far away
+							if (Math.abs(kmer_seed)>config.k_shift)		// if the kmer is too far away
 								continue;
 							if (!isPositive.get(minIdx)){	// if match of KmerRC
 								km.RC();
@@ -3587,7 +3590,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 						else{
 							kmer_seed = maxPos.get(0);
-							if (Math.abs(kmer_seed)>config.k && !config.use_far_kmer)		// if the kmer is too far away
+							if (Math.abs(kmer_seed)>config.k_shift)		// if the kmer is too far away
 								continue;
 							if (!isPositive.get(0))	// if match of KmerRC
 								km.RC();
@@ -3601,8 +3604,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					aligned.add(km);
 					
 					/** use kmer shift to align the containing sequences */
-					if (Math.abs(kmer_seed)<=config.k || config.use_far_kmer)		//TODO: if the kmer is too far away
-						alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
+					alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
 					
 				} //for (Kmer km:kmers)
 				
@@ -3994,7 +3996,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// reload the test sequences, and purify kmers
 		ArrayList<Point> events = getEventPoints();
-		kEngine.loadTestSequences(events, config.k_win, config.k_shift);
+		kEngine.loadTestSequences(events, config.k_win);
 		purifyKmers(compFeatures);
 		
 		if (makePFM){
@@ -4248,7 +4250,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (int k=config.k;k<config.k+5;k++){
 			String name = outName+"_overlapping_win"+ (config.k*2);
 	    	ArrayList<Point> events = getEventPoints();
-			kEngine.buildEngine(k, events, config.k*2, config.k_shift, config.hgp, config.k_fold, name);
+			kEngine.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name);
 		}
 	}
 	
@@ -5353,7 +5355,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_max= -1;		// the maximum value of k        
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
-        public int k_shift = 100;	// the shift from binding event for negative sequence set    
+        public int k_shift = -1;	// the shift from seed kmer when aligning the kmers     
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
         public double hgp = 1e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 

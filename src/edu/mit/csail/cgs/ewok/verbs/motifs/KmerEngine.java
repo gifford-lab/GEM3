@@ -102,12 +102,12 @@ public class KmerEngine {
 	 * in sequence around the binding events 
 	 * and build the kmer AhoCorasick engine
 	 */
-	public void buildEngine(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
-		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, winShift, hgp, k_fold, outPrefix);
+	public void buildEngine(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix){
+		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, hgp, k_fold, outPrefix);
 		updateEngine(kms, outPrefix, true);		
 	}
 	
-	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, int winShift, double hgp, double k_fold, String outPrefix){
+	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix){
 		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 		this.k = k;
 		numPos = (winSize+1)-k+1;
@@ -118,7 +118,7 @@ public class KmerEngine {
 		int expectedCount = (int) Math.round(eventCount / Math.pow(4, k));
 
 		// collect pos/neg test sequences based on event positions
-		loadTestSequences(events, winSize, winShift);
+		loadTestSequences(events, winSize);
 		
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
@@ -281,7 +281,7 @@ public class KmerEngine {
 	 * @param winSize
 	 * @param winShift
 	 */
-	public void loadTestSequences(ArrayList<Point> events, int winSize, int winShift){
+	public void loadTestSequences(ArrayList<Point> events, int winSize){
 		int eventCount = events.size();
 		seqs = new String[eventCount];	// DNA sequences around binding sites
 		Region[] seqCoors = new Region[eventCount];
