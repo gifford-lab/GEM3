@@ -3393,7 +3393,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (config.k_min!=-1){
 			int eventCounts[] = new int[config.k_max-config.k_min+1];
 			for (int i=0;i<eventCounts.length;i++){
-				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, points, config.k_win, config.hgp, config.k_fold, outName+"_overlapping_win"+ (config.k_win));
+				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, points, config.k_win, config.hgp, config.k_fold, outName+"_OK_win"+ (config.k_win));
 				if (kms.isEmpty())
 					eventCounts[i] = 0;
 				else{
@@ -3427,7 +3427,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName+"_OK_win"+ (config.k_win));
 		if (config.align_overlap_kmer)
 			kmers = alignOverlappedKmers(kmers, getEvents());
-		kEngine.updateEngine(kmers, outName+"_overlapping_win"+ (config.k_win), false);		
+		kEngine.updateEngine(kmers, outName+"_OK_win"+ (config.k_win), false);		
     }
     
     /** 
@@ -3716,9 +3716,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					    	if (cluster.pwmThreshold<wm.getMaxScore()*config.wm_factor)
 					    		cluster.pwmThreshold = wm.getMaxScore()*config.wm_factor;
 					        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
-					    	HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();
+					    	HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();	// kmerString -> count
 					    	int pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);
 					    	cluster.pos_pwm_seed = pos_pwm_seed;
+					    	HashMap<String, ArrayList<Integer>> pwmKmerStr2seq = new HashMap<String, ArrayList<Integer>>();	// kmerString -> list of sequence ids
 					    	for (int i=0;i<posSeqs.length;i++){
 							  int pos = posSeqs[i];
 							  if (pos != UNALIGNED)					// align the unaligned seqs with pwm
@@ -3762,6 +3763,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 									pwmAlignedKmerStr.put(kmerStr, pwmAlignedKmerStr.get(kmerStr)+1);
 								else
 									pwmAlignedKmerStr.put(kmerStr, 1);
+								if (pwmKmerStr2seq.containsKey(kmerStr))
+									pwmKmerStr2seq.get(kmerStr).add(i);
+								else{
+									ArrayList<Integer> list = new ArrayList<Integer>();
+									list.add(i);
+									pwmKmerStr2seq.put(kmerStr, list);
+								}
 								seqAlignRefs[i] = "PWM:"+WeightMatrix.getMaxLetters(wm);
 								count_pwm_aligned ++;
 					          }
@@ -3785,6 +3793,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
 				    			aligned.add(km);
 				    			alignedKmers.add(km);
+				    			// connect kmer back to the sequence
+				    			for (int i:pwmKmerStr2seq.get(kmStr)){
+				    				if (seq2kmer.get(i)==null)
+				    					seq2kmer.set(i, new HashSet<Kmer>());
+				    				seq2kmer.get(i).clear();
+									seq2kmer.get(i).add(km);
+				    			}
 					    	}
 					    	if (config.bmverbose>1)
 					    		System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers.");
@@ -3845,6 +3860,27 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		CommonUtils.writeFile(outName+"_OK_aligned.txt", alignedKmer_sb.toString());
 		
+		// take the best kmer from each sequence
+		TreeSet<Kmer> bestKmers = new TreeSet<Kmer>();
+		StringBuilder best_sb = new StringBuilder();
+		int leftmost_km = Integer.MAX_VALUE;
+		for (int i=0;i<seq2kmer.size();i++){
+			ArrayList<Kmer> kms = new ArrayList<Kmer>();
+			if (seq2kmer.get(i)==null)
+				continue;
+			kms.addAll(seq2kmer.get(i));
+			// specify the position of kmers and seqs as the position relative to the seed kmer start
+			Collections.sort(kms);
+			Kmer km = kms.get(0);
+			bestKmers.add(km);
+			if (km.getKmerStartOffset()<leftmost_km)
+				leftmost_km = km.getKmerStartOffset();
+		}
+		for (Kmer km:bestKmers){
+			best_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
+		}
+		CommonUtils.writeFile(outName+"_OK_best_aligned.txt", best_sb.toString());
+		
 		// output cluster information, PFM, and PWM
 		StringBuilder pfm_sb = new StringBuilder();		
 		for (KmerCluster c:clusters){
@@ -3861,8 +3897,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			pfm_sb.append(c.pfmString);
 		}
 		CommonUtils.writeFile(outName+"_OK_PFM.txt", pfm_sb.toString());
-		
-		return allAlignedKmers;
+//		return allAlignedKmers;
+		ArrayList<Kmer> result = new ArrayList<Kmer>();
+		result.addAll(bestKmers);
+		return result;
 	}
 
     private ArrayList<Kmer> getSeedKmerFamily(ArrayList<Kmer> kmers, Kmer seed) {
@@ -4248,7 +4286,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 */
 	public void printOverlappingKmers(){
 		for (int k=config.k;k<config.k+5;k++){
-			String name = outName+"_overlapping_win"+ (config.k*2);
+			String name = outName+"_OK_win"+ (config.k*2);
 	    	ArrayList<Point> events = getEventPoints();
 			kEngine.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name);
 		}
