@@ -183,15 +183,15 @@ public class GPS2 {
 	         **/             
 	        mixture.initKmerEngine();
 	        
-//            System.out.println("\n============================ Round "+round+" ============================");
-//            mixture.execute();
-//            mixture.printFeatures();
-//            mixture.printFilteredFeatures();
-//            mixture.printInsignificantFeatures();
-//			round++;			
-//            mixture.setOutName(peakFileName+"_"+round);
-//            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-//            mixture.buildEngine();
+            System.out.println("\n============================ Round "+round+" ============================");
+            mixture.execute();
+            mixture.printFeatures();
+            mixture.printFilteredFeatures();
+            mixture.printInsignificantFeatures();
+			round++;			
+            mixture.setOutName(peakFileName+"_"+round);
+            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+            mixture.buildEngine();
 
 	        while (round<=GPS_round+GEM_round+GEM_WM_round){
 	            System.out.println("\n============================ Round "+round+" ============================");
