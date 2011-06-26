@@ -3421,8 +3421,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println(String.format("selected k=%d, max decrease=%.2f%%", k, max_value));
 			config.k = k;
 		}
-		if (config.k_shift==-1)				// default k_shift value to be k
-			config.k_shift = config.k;
+//		if (config.k_shift==-1)				// default k_shift value to be k
+//			config.k_shift = config.k;
 		
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName+"_OK_win"+ (config.k_win));
 		if (config.align_overlap_kmer)
@@ -5102,7 +5102,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// weighted by strength if "use_strength" is true
     	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean
     	Collections.sort(allOffsets);
-    	if (config.print_kmer_shifts){
+    	if (config.print_kmer_bPos){
 	    	StringBuilder sb = new StringBuilder();
 	    	for (int offset:allOffsets){
 	    		sb.append(offset).append("\n");
@@ -5366,7 +5366,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
 
     class GPSConfig {
-    	public boolean align_overlap_kmer=false;
 		public boolean trim_simple=false;
 		public boolean do_model_selection=false;
 		public boolean classify_events = false;
@@ -5383,8 +5382,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean exclude_unenriched = false;
         public boolean dump_regression = false;
         public boolean use_strength = false;
-        public boolean print_kmer_shifts = true;
-        public int KL_smooth_width = 0;
+        public boolean print_kmer_bPos = false;
+      	public int KL_smooth_width = 0;
         public int max_hit_per_bp = -1;
         
         // k-mer related
@@ -5393,7 +5392,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_max= -1;		// the maximum value of k        
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
-        public int k_shift = -1;	// the shift from seed kmer when aligning the kmers     
+        public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
         public double hgp = 1e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
@@ -5407,8 +5406,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int negative_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
-        public boolean use_kmer_mismatch = false;
-        public boolean use_far_kmer = false;
+        public boolean use_kmer_mismatch = true;
+      	public boolean align_overlap_kmer=true;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5449,7 +5448,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public void parseArgs(String args[]) {
             Set<String> flags = Args.parseFlags(args);
             // default as false, need the flag to turn it on
-            align_overlap_kmer = flags.contains("aok");
             classify_events = flags.contains("classify");
             sort_by_location = flags.contains("sl");
             use_joint_event = flags.contains("refine_using_joint_event");
@@ -5466,8 +5464,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_print_hits = flags.contains("kmer_print_hits");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
-            use_kmer_mismatch = flags.contains("kmm");
-            use_far_kmer = flags.contains("use_far_kmer");
           
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -5481,6 +5477,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
             }
             use_scanPeak = ! flags.contains("no_scanPeak");
             do_model_selection = !flags.contains("no_model_selection");
+            use_kmer_mismatch = !flags.contains("no_kmm");
+            align_overlap_kmer = !flags.contains("no_aok");
+
             mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
            
             // Optional input parameter

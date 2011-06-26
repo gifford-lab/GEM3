@@ -250,6 +250,9 @@ public class KmerEngine {
 		}
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
+		Collections.sort(kms);
+		Kmer.printKmers(kms, outPrefix+"_all", true);
+		
 		kms.removeAll(highHgpKmers);
 		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), n, seqsNeg.length, CommonUtils.timeElapsed(tic)));
 		
@@ -257,20 +260,6 @@ public class KmerEngine {
 		for (Kmer km: highHgpKmers){
 			negKmerHitCounts.put(km.kmerString, km.negCount);
 		}
-		
-		Collections.sort(highHgpKmers);
-		Kmer.printKmers(highHgpKmers, outPrefix+"_highHGP", true);
-//		alignOverlappedKmers(kms, events);
-		
-		// setup an AhoCorasick tree of high HGP kmers for later query, e.g. in isNegativeKmer(String kmerStr)
-//		tree_negatives = new AhoCorasick();
-//		for (Kmer km: highHgpKmers){
-//			if (km.getNegCount()<=1)
-//				continue;
-//			str2kmer.put(km.kmerString, km);
-//			tree_negatives.add(km.kmerString.getBytes(), km.kmerString);
-//	    }
-//		tree_negatives.prepare();
 		return kms;
 	}
 	
