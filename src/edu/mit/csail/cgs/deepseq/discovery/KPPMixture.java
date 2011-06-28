@@ -3323,20 +3323,41 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			// get negative regions
 			ArrayList<Region> negativeRegions = new ArrayList<Region>();
-			cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
+// Random genome-wide
+//			cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
+//			for (Feature f:signalFeatures){
+//				String chr = f.getPeak().getChrom();
+//				int length = gen.getChromLength(chr)-config.k_win-1;
+//				// for each event, get random negative regions from the same chromosome
+//				for (int i=0;i<config.negative_ratio;i++){
+//					double rand = randomEngine.nextDouble();
+//					int start = (int)(rand*length);
+//					Region r = new Region(gen, chr, start, start+config.k_win);
+//					negativeRegions.add(r);
+//				}
+//			}
+//			negativeRegions = Region.filterOverlapRegions(negativeRegions, expandedRegions);
+			// In proximal regions, but excluding binding regions
 			for (Feature f:signalFeatures){
 				String chr = f.getPeak().getChrom();
 				int length = gen.getChromLength(chr)-config.k_win-1;
 				// for each event, get random negative regions from the same chromosome
-				for (int i=0;i<config.negative_ratio;i++){
-					double rand = randomEngine.nextDouble();
-					int start = (int)(rand*length);
+				for (int i=1;i<=config.negative_ratio;i++){
+					int start = f.getPeak().getLocation()+config.k_neg_dist*i;
+					if ( start+config.k_win>=length)
+						continue;
 					Region r = new Region(gen, chr, start, start+config.k_win);
 					negativeRegions.add(r);
 				}
 			}
-			negativeRegions = Region.filterOverlapRegions(negativeRegions, expandedRegions);
-
+			Collections.sort(negativeRegions);
+			ArrayList<Region> toRemove = new ArrayList<Region>();
+			for (int i=1;i<negativeRegions.size();i++){
+				if (negativeRegions.get(i).overlaps(negativeRegions.get(i-1)))
+					toRemove.add(negativeRegions.get(i));
+			}
+			negativeRegions.removeAll(toRemove);
+			
 			kEngine.setupRegionCache(expandedRegions, negativeRegions);
 			if (config.bmverbose>1)
 				System.out.println("Compact genome sequence cache to " + totalLength + " bps, "+CommonUtils.timeElapsed(tic));
@@ -3437,7 +3458,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      * kmer_seed is kmer position relative to seed k-mer, also defined as k-mer shift . For the seed kmer or its mismatch, kmer_seed = 0<br>
      * kmer_seed = kmer_seq + seq_seed<br>
      * seq_seed = kmer_seed - kmer_seq<br>
-     * Thus, we get a consensus (most frequent) of kmer_seed using its occurrences in aligned sequences<br>
+     * Thus, we get a consensus (most frequent) of "kmer_seed" using the kmer's occurrences in aligned sequences<br>
      * Then, we align the unaligned sequences (also containing this k-mer) using the consensus value of kmer_seed.
      * Aligning k-mers is done through such alternating aligning kmer and aligning sequences.
      * @param kmers
@@ -3667,11 +3688,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							continue;
 						int kmMid_seq = -pos+config.k/2;
 						if (!isPlusStrands[i])			// minus strand
-							kmMid_seq = config.k_win - kmMid_seq;
+							kmMid_seq = config.k_win - kmMid_seq;// - (1-config.k%2);				// adjust for odd/even value of k
 						Point center = new Point(gen, events.get(i).getPeak().getChrom(), 
 								events.get(i).getPeak().getLocation()-(config.k_win/2)+kmMid_seq);
 						String seq = kEngine.getSequence(center.expand(config.k_win/2));
-	//					alignedSeqs.add(isPlusStrands[i]?seq:SequenceUtils.reverseComplement(seq));		// for debugging
+						if (!isPlusStrands[i])
+							seq=SequenceUtils.reverseComplement(seq);
+						alignedSeqs.add(seq);		// for debugging
 						// count base frequencies
 			 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
 			    		for (int p=0;p<config.k_win+1;p++){
@@ -3679,6 +3702,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			    			pfm[p][base] +=strength;
 			    		}	    	
 			    	}
+					for (String s:alignedSeqs)
+						System.out.println(s);
+					
 					double[][] pwm = pfm.clone();
 					for (int i=0;i<pfm.length;i++)
 						pwm[i]=pfm[i].clone();
@@ -5392,6 +5418,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_max= -1;		// the maximum value of k        
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
+        public int k_neg_dist = 200;// the distance of the window for negative sequences from binding sites 
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
@@ -5488,6 +5515,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_max = Args.parseInteger(args, "k_max", k_max);
             k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
             k_win = Args.parseInteger(args, "k_win", k_win);
+            k_neg_dist = Args.parseInteger(args, "k_neg_dist", k_neg_dist);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
             k_overlap = Args.parseInteger(args, "k_overlap", Math.max(k_overlap, StatUtil.round(k*0.75)));
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
