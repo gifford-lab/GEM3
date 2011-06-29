@@ -3544,8 +3544,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			/** greedly align kmers until no kmer can be aligned */
 			WeightMatrix wm = null;
 			String pfmStr = "";
+
+			// newly aligned kmers
+			ArrayList<Kmer> aligned_new = new ArrayList<Kmer>();
+			aligned_new.addAll(seedFamily);
+			
 			while(!kmers.isEmpty()){
-				ArrayList<Kmer> aligned = new ArrayList<Kmer>();
 				for (Kmer km:kmers){
 					int kmer_seed = 0;			// the shift of this kmer w.r.t. seed kmer
 					HashSet<Integer> hits = kmer2seq.get(km);
@@ -3622,28 +3626,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						continue;	// continue for next kmer
 					}
 					km.setShift(kmer_seed);
-					aligned.add(km);
+					aligned_new.add(km);
 					
 					/** use kmer shift to align the containing sequences */
 					alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
 					
 				} //for (Kmer km:kmers)
 				
-				kmers.removeAll(aligned);
-				alignedKmers.addAll(aligned);
-				Collections.sort(aligned);
+				kmers.removeAll(aligned_new);
+				alignedKmers.addAll(aligned_new);
+				Collections.sort(aligned_new);
 				
 				/** use aligned k-mer to align mismatch k-mers */
 				if (config.use_kmer_mismatch){
-					// add seed family kmers only once
-					if (!seedFamilyMismatchUsed){
-						aligned.addAll(seedFamily);
-						seedFamilyMismatchUsed = true;
-					}
 					ArrayList<Kmer> mmaligned = new ArrayList<Kmer>();			// kmers aligned by using mismatch
 					for (Kmer km: kmers){
 						String seq = km.getKmerString();
-						for (Kmer akm: aligned){
+						for (Kmer akm: aligned_new){
 							if (this.mismatch(akm.getKmerString(), seq)==1){
 								km.setShift(akm.getShift());
 								km.setKmerStartOffset(akm.getKmerStartOffset());
@@ -3666,7 +3665,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						alignSequences(km, kmer2seq.get(km), seqs, posSeqs, isPlusStrands, seqAlignRefs);
 					}
 					kmers.removeAll(mmaligned);
-					aligned.addAll(mmaligned);
+					aligned_new.clear();				// clear aligned kmers that are used for mismatch search
+					aligned_new.addAll(mmaligned);
 					alignedKmers.addAll(mmaligned);
 				} //if (config.use_kmer_mismatch)
 				
@@ -3817,7 +3817,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					    		}
 				    			km.setShift(0);
 				    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
-				    			aligned.add(km);
+				    			aligned_new.add(km);
 				    			alignedKmers.add(km);
 				    			// connect kmer back to the sequence
 				    			for (int i:pwmKmerStr2seq.get(kmStr)){
@@ -3833,11 +3833,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					}
 				}
 		    	
-				if (aligned.isEmpty()){
-//					System.out.println("no match");
-//					for (Kmer km:kmers){						
-//						System.out.println(km.getKmerString());
-//					}
+				if (aligned_new.isEmpty()){		// if no new mismatch or pwm aligned kmer, then no new aligned sequence
 					break;			// stop this cluster, start a new one
 				}
 			} // greedily growing cluster
@@ -4040,11 +4036,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	if (rightIdx-leftIdx+1<=config.k/2){
     		System.out.println("makePWM: PWM is too short, stop here.");
-	    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
-	    	for (int p=0;p<ic.length;p++){
-	    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
-	    	}
-	    	System.out.println(sb.toString());
+    		if (config.bmverbose>1){
+		    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
+		    	for (int p=0;p<ic.length;p++){
+		    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
+		    	}
+		    	System.out.println(sb.toString());
+    		}
     	}
     	return new Pair<Integer, Integer>(leftIdx, rightIdx);
     }
