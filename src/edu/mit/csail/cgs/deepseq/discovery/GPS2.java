@@ -191,7 +191,8 @@ public class GPS2 {
 			round++;			
             mixture.setOutName(peakFileName+"_"+round);
             mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-            mixture.buildEngine();
+//            mixture.buildEngine();
+            mixture.updateKmerEngine(false);
 
 	        while (round<=GPS_round+GEM_round+GEM_WM_round){
 	            System.out.println("\n============================ Round "+round+" ============================");
