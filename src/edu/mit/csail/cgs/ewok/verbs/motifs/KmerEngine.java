@@ -219,8 +219,8 @@ public class KmerEngine {
 		}
 		
 		// score the kmers, hypergeometric p-value
-		int n = seqs.length;
-		int N = n + seqsNegList.size();
+		int posSeq = seqs.length;
+		int negSeq = seqsNegList.size();
 		double negRatio = (double)seqsNegList.size()/seqs.length;
 		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
@@ -230,30 +230,14 @@ public class KmerEngine {
 				toRemove.add(kmer);	
 				continue;
 			}
-			int kmerAllHitCount = kmer.seqHitCount;
 			if (negHitCounts.containsKey(kmer.kmerString)){
 				kmer.negCount = negHitCounts.get(kmer.kmerString);
-				kmerAllHitCount += kmer.negCount;
 			}
 			if (kmer.seqHitCount < kmer.negCount/negRatio * k_fold ){
 				highHgpKmers.add(kmer);	
 				continue;
 			}
-			// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
-			double hgcdf = 0;
-			if (kmer.negCount==0)
-				hgcdf = StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount+2, N, kmerAllHitCount+2+1, n);
-			else
-				hgcdf = StatUtil.hyperGeometricCDF_cache(kmer.seqHitCount, N, kmerAllHitCount, n);
-			if (hgcdf<0.9)		// the precision of hyperGeometricCDF_cache() is 1E-8 if cdf is close to 1
-				kmer.hgp = 1-hgcdf;
-			else{				// flip the problem, compute cdf of negative count
-				if (kmer.negCount==0)
-					hgcdf = StatUtil.hyperGeometricCDF_cache(0, N, kmerAllHitCount+2+1, N-n);
-				else
-					hgcdf = StatUtil.hyperGeometricCDF_cache(kmer.negCount-1, N, kmerAllHitCount, N-n);
-				kmer.hgp = hgcdf;
-			}
+			kmer.hgp = computeHGP(posSeq, negSeq, kmer.seqHitCount, kmer.negCount);
 			if (kmer.hgp>hgp)
 				highHgpKmers.add(kmer);		
 		}
@@ -263,7 +247,7 @@ public class KmerEngine {
 		Kmer.printKmers(kms, outPrefix+"_all", true);
 		
 		kms.removeAll(highHgpKmers);
-		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), n, seqsNegList.size(), CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeq, negSeq, CommonUtils.timeElapsed(tic)));
 		
 		negKmerHitCounts = new HashMap<String, Integer>();
 		for (Kmer km: highHgpKmers){
@@ -328,23 +312,26 @@ public class KmerEngine {
 	}
 	
 	/**
-	 * Compute hgp using the negative sequences<br>
-	 * It returns hgp=0 if the kmer was not in the negative kmer set
+	 * Compute hgp using the positive/negative sequences
 	 */
-	public double computeHGP(String kmerString, int kmerSeqCount, int posPopulation){
-		boolean notFound = true;
-		if (negKmerHitCounts.containsKey(kmerString))
-			notFound = false;
-		if (negKmerHitCounts.containsKey(SequenceUtils.reverseComplement(kmerString))){
-			notFound = false;
-			kmerString=SequenceUtils.reverseComplement(kmerString);
+	private double computeHGP(int posSeq, int negSeq, int posHit, int negHit){
+		int allHit = posHit + negHit;
+		int allSeq = posSeq + negSeq;
+		// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
+		double hgcdf = 0;
+		if (negHit==0)
+			hgcdf = StatUtil.hyperGeometricCDF_cache(posHit+2, allSeq, allHit+2+1, posSeq);
+		else
+			hgcdf = StatUtil.hyperGeometricCDF_cache(posHit, allSeq, allHit, posSeq);
+		if (hgcdf<0.9)		// the precision of hyperGeometricCDF_cache() is 1E-8 if cdf is close to 1
+			return 1-hgcdf;
+		else{				// flip the problem, compute cdf of negative count
+			if (negHit==0)
+				hgcdf = StatUtil.hyperGeometricCDF_cache(0, allSeq, allHit+2+1, negSeq);
+			else
+				hgcdf = StatUtil.hyperGeometricCDF_cache(negHit-1, allSeq, allHit, negSeq);
+			return hgcdf;
 		}
-		if (notFound)
-			return 0;		
-		
-		int negKmerHitCount = negKmerHitCounts.get(kmerString);
-		double hgp = 1-StatUtil.hyperGeometricCDF_cache(kmerSeqCount, posPopulation+seqsNegList.size(), kmerSeqCount+negKmerHitCount, posPopulation);
-		return hgp;
 	}
 	
 	/**
@@ -378,10 +365,11 @@ public class KmerEngine {
 			}
 	    }
 	    int posSeqCount = seqs.length;
-	    int totalSeqCount = seqs.length+seqsNegList.size();
+	    int negSeqCount = seqsNegList.size();
 	    double hgps[] = new double[kmerStrings.size()];
 	    for (int i=0;i<kmerStrings.size();i++){
-	    	hgps[i] = 1-StatUtil.hyperGeometricCDF_cache(posHitCount[i], totalSeqCount, posHitCount[i]+negHitCount[i], posSeqCount);
+			hgps[i] = computeHGP(posSeqCount, negSeqCount, posHitCount[i], negHitCount[i]);
+//	    	hgps[i] = 1-StatUtil.hyperGeometricCDF_cache(posHitCount[i], totalSeqCount, posHitCount[i]+negHitCount[i], posSeqCount);
 	    }
 	    return hgps;
 	}
