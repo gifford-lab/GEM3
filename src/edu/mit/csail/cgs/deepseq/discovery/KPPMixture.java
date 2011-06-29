@@ -3694,7 +3694,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						String seq = kEngine.getSequence(center.expand(config.k_win/2));
 						if (!isPlusStrands[i])
 							seq=SequenceUtils.reverseComplement(seq);
-						alignedSeqs.add(seq);		// for debugging
+//						alignedSeqs.add(seq);		// for debugging
 						// count base frequencies
 			 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
 			    		for (int p=0;p<config.k_win+1;p++){
@@ -3702,8 +3702,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			    			pfm[p][base] +=strength;
 			    		}	    	
 			    	}
-					for (String s:alignedSeqs)
-						System.out.println(s);
+//					for (String s:alignedSeqs)
+//						System.out.println(s);
 					
 					double[][] pwm = pfm.clone();
 					for (int i=0;i<pfm.length;i++)
@@ -3919,7 +3919,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
-    		System.out.println(String.format("PWM threshold: %.2f", c.pwmThreshold));
+    		System.out.println(String.format("PWM threshold: %.2f/%.2f", c.pwmThreshold, c.wm.getMaxScore()));
 			pfm_sb.append(c.pfmString);
 		}
 		CommonUtils.writeFile(outName+"_OK_PFM.txt", pfm_sb.toString());
