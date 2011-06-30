@@ -191,26 +191,27 @@ public class GPS2 {
 			round++;			
             mixture.setOutName(peakFileName+"_"+round);
             mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-//            mixture.buildEngine();
-            mixture.updateKmerEngine(false);
-
-	        while (round<=GPS_round+GEM_round+GEM_WM_round){
-	            System.out.println("\n============================ Round "+round+" ============================");
-	            mixture.execute();
-	            mixture.printFeatures();
-	            mixture.printFilteredFeatures();
-	            mixture.printInsignificantFeatures();
-				round++;
-				
-	            mixture.setOutName(peakFileName+"_"+round);
-	
-	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-	            
-	            if (round <= GPS_round+GEM_round)
-	            	mixture.updateKmerEngine(false);
-	            else
-	            	mixture.updateKmerEngine(true);
-	        }
+            mixture.buildEngine(-1);	            
+            System.out.println("\n============================ Round "+round+" ============================");
+            mixture.execute();
+//
+//	        while (round<=GPS_round+GEM_round+GEM_WM_round){
+//	            System.out.println("\n============================ Round "+round+" ============================");
+//	            mixture.execute();
+//	            mixture.printFeatures();
+//	            mixture.printFilteredFeatures();
+//	            mixture.printInsignificantFeatures();
+//				round++;
+//				
+//	            mixture.setOutName(peakFileName+"_"+round);
+//	
+//	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+//	            
+//	            if (round <= GPS_round+GEM_round)
+//	            	mixture.updateKmerEngine(false);
+//	            else
+//	            	mixture.updateKmerEngine(true);
+//	        }
 	     
 	        // print the binding event results with updated kmer information
 	        mixture.printFeatures();

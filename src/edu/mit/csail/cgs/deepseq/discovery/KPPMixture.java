@@ -3363,7 +3363,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				System.out.println("Compact genome sequence cache to " + totalLength + " bps, "+CommonUtils.timeElapsed(tic));
 		}
 		
-		buildEngine();
+		buildEngine(config.k_win);
     }
     private ArrayList<ComponentFeature> getEvents(){
 		ArrayList<ComponentFeature> events = new ArrayList<ComponentFeature>();
@@ -3406,7 +3406,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      * Build k-mer engine.<br>
      * Select enriched k-mers, align k-mers, setup k-mer engine
      */
-    public void buildEngine(){
+    public void buildEngine( int winSize){
     	ArrayList<Point> points = getEventPoints();
 		// compare different values of k to select most enriched k value
 		int k=0;
@@ -3442,13 +3442,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println(String.format("selected k=%d, max decrease=%.2f%%", k, max_value));
 			config.k = k;
 		}
-//		if (config.k_shift==-1)				// default k_shift value to be k
-//			config.k_shift = config.k;
+		if (winSize==-1)
+			winSize = config.k_win;
+//			winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
 		
-		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName+"_OK_win"+ (config.k_win));
+		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName+"_OK_win"+winSize);
 		if (config.align_overlap_kmer)
 			kmers = alignOverlappedKmers(kmers, getEvents());
-		kEngine.updateEngine(kmers, outName+"_OK_win"+ (config.k_win), false);		
+		kEngine.updateEngine(kmers, outName+"_OK_win"+ winSize, false);		
     }
     
     /** 
@@ -3537,18 +3538,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (Kmer km:seedFamily){
 				alignSequences(km, kmer2seq.get(km), seqs, posSeqs, isPlusStrands, seqAlignRefs);
 			}
-			alignedKmers.addAll(seedFamily);
-			kmers.removeAll(seedFamily);
-			boolean seedFamilyMismatchUsed = false;
-			
-			/** greedly align kmers until no kmer can be aligned */
-			WeightMatrix wm = null;
-			String pfmStr = "";
-
 			// newly aligned kmers
 			ArrayList<Kmer> aligned_new = new ArrayList<Kmer>();
 			aligned_new.addAll(seedFamily);
+			kmers.removeAll(seedFamily);
 			
+			/** greedly align kmers until no kmer can be aligned */
 			while(!kmers.isEmpty()){
 				for (Kmer km:kmers){
 					int kmer_seed = 0;			// the shift of this kmer w.r.t. seed kmer
@@ -3694,7 +3689,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						String seq = kEngine.getSequence(center.expand(config.k_win/2));
 						if (!isPlusStrands[i])
 							seq=SequenceUtils.reverseComplement(seq);
-//						alignedSeqs.add(seq);		// for debugging
+						alignedSeqs.add(seq);		// for debugging
 						// count base frequencies
 			 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
 			    		for (int p=0;p<config.k_win+1;p++){
@@ -3702,8 +3697,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			    			pfm[p][base] +=strength;
 			    		}	    	
 			    	}
-//					for (String s:alignedSeqs)
-//						System.out.println(s);
 					
 					double[][] pwm = pfm.clone();
 					for (int i=0;i<pfm.length;i++)
@@ -3730,7 +3723,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    	cluster.sequenceCount = alignedSeqCount;
 //				    	CommonUtils.writeFile(outName+"_OK_"+clusterID+"_PFM.txt", pfmStr);
 				    	
-				    	wm = new WeightMatrix(matrix);
+				    	WeightMatrix wm = new WeightMatrix(matrix);
 				    	cluster.wm = wm;
 				    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
 				    	cluster.pwmThreshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);	
@@ -3742,6 +3735,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					    	if (cluster.pwmThreshold<wm.getMaxScore()*config.wm_factor)
 					    		cluster.pwmThreshold = wm.getMaxScore()*config.wm_factor;
 					        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+					        // scan pwm on the original sequences
+//					        System.out.println(WeightMatrix.printMatrixLetters(wm));
+					        StringBuilder sb= new StringBuilder();
+							for (String s:alignedSeqs){
+								Pair<Integer, Double> hit = scanPWM(s, wm, scorer);
+								sb.append(String.format("%s\t%d\t%.2f\n", s, hit.car(), hit.cdr()));
+							}
+							CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_wmScan.txt", sb.toString());
 					    	HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();	// kmerString -> count
 					    	int pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);
 					    	cluster.pos_pwm_seed = pos_pwm_seed;
@@ -5416,6 +5417,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_max= -1;		// the maximum value of k        
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
+        public int k_win_f = 4;		// k_win = k_win_f * k
         public int k_neg_dist = 200;// the distance of the window for negative sequences from binding sites 
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
@@ -5513,6 +5515,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_max = Args.parseInteger(args, "k_max", k_max);
             k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
             k_win = Args.parseInteger(args, "k_win", k_win);
+            k_win_f = Args.parseInteger(args, "k_win_f", k_win_f);
             k_neg_dist = Args.parseInteger(args, "k_neg_dist", k_neg_dist);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
             k_overlap = Args.parseInteger(args, "k_overlap", Math.max(k_overlap, StatUtil.round(k*0.75)));

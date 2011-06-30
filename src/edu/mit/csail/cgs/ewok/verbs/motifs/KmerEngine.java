@@ -280,7 +280,7 @@ public class KmerEngine {
 		Region.filterOverlapRegions(negRegions, seqCoors);
 		seqsNegList.clear();
 		for (Region r:negRegions){
-			seqsNegList.add(seqsNeg[neg_region_map.get(r)]);
+			seqsNegList.add(seqsNeg[neg_region_map.get(r)].substring(0, winSize+1));
 		}
 //		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 //		ArrayList<String> negSeqList = new ArrayList<String>();
