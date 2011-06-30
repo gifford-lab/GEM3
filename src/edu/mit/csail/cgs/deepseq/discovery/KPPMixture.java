@@ -3673,164 +3673,126 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				if (alignedSeqCount>=config.kmer_cluster_seq_count){
 					
-	//				boolean pwm_aligned=false;
-					double[][] pfm = new double[config.k_win+1][MAXLETTERVAL];
 					ArrayList<String> alignedSeqs = new ArrayList<String>();
-					for (int i=0;i<posSeqs.length;i++){
-						// get aligned sequences
-						int pos = posSeqs[i];
-						if (pos == UNALIGNED)
-							continue;
-						int kmMid_seq = -pos+config.k/2;
-						if (!isPlusStrands[i])			// minus strand
-							kmMid_seq = config.k_win - kmMid_seq;// - (1-config.k%2);				// adjust for odd/even value of k
-						Point center = new Point(gen, events.get(i).getPeak().getChrom(), 
-								events.get(i).getPeak().getLocation()-(config.k_win/2)+kmMid_seq);
-						String seq = kEngine.getSequence(center.expand(config.k_win/2));
-						if (!isPlusStrands[i])
-							seq=SequenceUtils.reverseComplement(seq);
-						alignedSeqs.add(seq);		// for debugging
-						// count base frequencies
-			 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
-			    		for (int p=0;p<config.k_win+1;p++){
-			    			char base = seq.charAt(p);
-			    			pfm[p][base] +=strength;
-			    		}	    	
-			    	}
+					ArrayList<Integer> alignedSeqIdx = new ArrayList<Integer>();
 					
-					double[][] pwm = pfm.clone();
-					for (int i=0;i<pfm.length;i++)
-						pwm[i]=pfm[i].clone();
+					int leftIdx = buildPWM(posSeqs, isPlusStrands, events, alignedSeqs, alignedSeqIdx, cluster);
 					
-			    	// make the PWM
-					Pair<Integer, Integer> ends = constructPWM(pwm);
-					int leftIdx = ends.car();
-					int rightIdx = ends.cdr();
-					if (rightIdx-leftIdx+1>config.k/2){		// pwm is long enough
-				    	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
-				    	for(int p=leftIdx;p<=rightIdx;p++){
-				    		for (int b=0;b<LETTERS.length;b++){
-				    			matrix[p-leftIdx][LETTERS[b]]=(float) pwm[p][LETTERS[b]];
-				    		}
-				    	}
-				    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
-				    	for(int p=leftIdx;p<=rightIdx;p++){
-				    		for (int b=0;b<LETTERS.length;b++){
-				    			pfm_trim[p-leftIdx][LETTERS[b]]=(float) pfm[p][LETTERS[b]];
-				    		}
-				    	}
-				    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, clusterID, alignedSeqCount));
-				    	cluster.sequenceCount = alignedSeqCount;
-//				    	CommonUtils.writeFile(outName+"_OK_"+clusterID+"_PFM.txt", pfmStr);
-				    	
-				    	WeightMatrix wm = new WeightMatrix(matrix);
-				    	cluster.wm = wm;
-				    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-				    	cluster.pwmThreshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);	
-				    	if (cluster.pwmThreshold<0){
-				    		System.out.println("alignOverlapKmers: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
-				    	}	
-				    	else{
-				    		int count_pwm_aligned = 0;
-					    	if (cluster.pwmThreshold<wm.getMaxScore()*config.wm_factor)
-					    		cluster.pwmThreshold = wm.getMaxScore()*config.wm_factor;
-					        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
-					        // scan pwm on the original sequences
-//					        System.out.println(WeightMatrix.printMatrixLetters(wm));
-					        StringBuilder sb= new StringBuilder();
-							for (String s:alignedSeqs){
-								Pair<Integer, Double> hit = scanPWM(s, wm, scorer);
-								sb.append(String.format("%s\t%d\t%.2f\n", s, hit.car(), hit.cdr()));
+					if (leftIdx != -1){
+				        // scan pwm on the original sequences, rebuild if necessary
+				        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
+				        StringBuilder sb= new StringBuilder();
+				        boolean rebuild = false;
+						for (int i=0;i<alignedSeqs.size();i++){
+							String s = alignedSeqs.get(i);
+							Pair<Integer, Double> hit = scanPWM(s, cluster.wm, scorer);
+							sb.append(String.format("%s\t%d\t%.2f\t%s\n", s, hit.car(), hit.cdr(), seqAlignRefs[alignedSeqIdx.get(i)]));
+							if (hit.car()!=leftIdx){			// reset the sequences not aligning with PWM
+								posSeqs[alignedSeqIdx.get(i)]=UNALIGNED;
+								rebuild = true;
 							}
-							CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_wmScan.txt", sb.toString());
-					    	HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();	// kmerString -> count
-					    	int pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);
-					    	cluster.pos_pwm_seed = pos_pwm_seed;
-					    	HashMap<String, ArrayList<Integer>> pwmKmerStr2seq = new HashMap<String, ArrayList<Integer>>();	// kmerString -> list of sequence ids
-					    	for (int i=0;i<posSeqs.length;i++){
-							  int pos = posSeqs[i];
-							  if (pos != UNALIGNED)					// align the unaligned seqs with pwm
-								continue;
-					    	  String seq = seqs[i];
-					    	  if (seq.length()<wm.length()-1)
-					    		  continue;
-					    	      	  
-					          WeightMatrixScoreProfile profiler = scorer.execute(seq);
-					          double maxSeqScore = Double.NEGATIVE_INFINITY;
-					          int maxScoringShift = 0;
-					          char maxScoringStrand = '+';
-					          for (int j=0;j<profiler.length();j++){
-					        	  double score = profiler.getMaxScore(j);
-					        	  if (maxSeqScore<score){
-					        		  maxSeqScore = score;
-					        		  maxScoringShift = j;
-					        		  maxScoringStrand = profiler.getMaxStrand(j);
-					        	  }
-					          }
-					          // if a sequence pass the motif score, reset the kmer to the binding site
-					          if (maxSeqScore >= cluster.pwmThreshold){
-								if (maxScoringStrand =='-'){
-									seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
-									isPlusStrands[i] = false;
-									maxScoringShift = seqs[i].length()-maxScoringShift-wm.length();
-									// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
-								}
-								int start = -(pos_pwm_seed-maxScoringShift);
-								int end = start+config.k;
-								if (start<0 || end > seqs[i].length()){		// if the seed kmer alignment exceed the sequence, skip
-									if (maxScoringStrand =='-'){	// reverse the change
-										seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
-										isPlusStrands[i] = true;
-									}
-									continue;
-								}
-								posSeqs[i] = pos_pwm_seed-maxScoringShift;
-								String kmerStr = seqs[i].substring(-posSeqs[i], end);
-								if (pwmAlignedKmerStr.containsKey(kmerStr))
-									pwmAlignedKmerStr.put(kmerStr, pwmAlignedKmerStr.get(kmerStr)+1);
-								else
-									pwmAlignedKmerStr.put(kmerStr, 1);
-								if (pwmKmerStr2seq.containsKey(kmerStr))
-									pwmKmerStr2seq.get(kmerStr).add(i);
-								else{
-									ArrayList<Integer> list = new ArrayList<Integer>();
-									list.add(i);
-									pwmKmerStr2seq.put(kmerStr, list);
-								}
-								seqAlignRefs[i] = "PWM:"+WeightMatrix.getMaxLetters(wm);
-								count_pwm_aligned ++;
-					          }
-					        }	// each unaligned sequence
-					    	for (String kmStr: pwmAlignedKmerStr.keySet()){
-					    		Kmer km = null;
-					    		String kmCR = SequenceUtil.reverseComplement(kmStr);
-					    		if (str2kmer.containsKey(kmStr)){	// if existing k-mers
-					    			km = str2kmer.get(kmStr);
-					    			kmers.remove(km);
-					    		}
-					    		else if (str2kmer.containsKey(kmCR)){	
-					    			km = str2kmer.get(kmCR);
-					    			km.RC();
-					    			kmers.remove(km);
-					    		}
-					    		else {								// new found k-mers
-					    			km = new Kmer(kmStr, pwmAlignedKmerStr.get(kmStr));
-					    		}
-				    			km.setShift(0);
-				    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
-				    			aligned_new.add(km);
-				    			alignedKmers.add(km);
-				    			// connect kmer back to the sequence
-				    			for (int i:pwmKmerStr2seq.get(kmStr)){
-				    				if (seq2kmer.get(i)==null)
-				    					seq2kmer.set(i, new HashSet<Kmer>());
-				    				seq2kmer.get(i).clear();
-									seq2kmer.get(i).add(km);
-				    			}
-					    	}
-					    	if (config.bmverbose>1)
-					    		System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers.");
+						}
+						CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(cluster.wm)+"_wmScan.txt", sb.toString());
+				    	if (rebuild){
+				    		alignedSeqs.clear();
+				    		alignedSeqIdx.clear();
+				    		leftIdx = buildPWM(posSeqs, isPlusStrands, events, alignedSeqs, alignedSeqIdx, cluster);
 				    	}
+				    	
+						// align the unaligned seqs with pwm
+			    		WeightMatrix wm = cluster.wm;
+				    	if (cluster.pwmThreshold<wm.getMaxScore()*config.wm_factor)
+				    		cluster.pwmThreshold = wm.getMaxScore()*config.wm_factor;
+				        scorer = new WeightMatrixScorer(wm);				        
+			    		int count_pwm_aligned = 0;
+						HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();	// kmerString -> count
+				    	int pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);
+				    	cluster.pos_pwm_seed = pos_pwm_seed;
+				    	HashMap<String, ArrayList<Integer>> pwmKmerStr2seq = new HashMap<String, ArrayList<Integer>>();	// kmerString -> list of sequence ids
+				    	for (int i=0;i<posSeqs.length;i++){
+						  int pos = posSeqs[i];
+						  if (pos != UNALIGNED)					
+							continue;
+				    	  String seq = seqs[i];
+				    	  if (seq.length()<wm.length()-1)
+				    		  continue;
+				    	      	  
+				          WeightMatrixScoreProfile profiler = scorer.execute(seq);
+				          double maxSeqScore = Double.NEGATIVE_INFINITY;
+				          int maxScoringShift = 0;
+				          char maxScoringStrand = '+';
+				          for (int j=0;j<profiler.length();j++){
+				        	  double score = profiler.getMaxScore(j);
+				        	  if (maxSeqScore<score){
+				        		  maxSeqScore = score;
+				        		  maxScoringShift = j;
+				        		  maxScoringStrand = profiler.getMaxStrand(j);
+				        	  }
+				          }
+				          // if a sequence pass the motif score, reset the kmer to the binding site
+				          if (maxSeqScore >= cluster.pwmThreshold){
+							if (maxScoringStrand =='-'){
+								seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
+								isPlusStrands[i] = false;
+								maxScoringShift = seqs[i].length()-maxScoringShift-wm.length();
+								// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
+							}
+							int start = -(pos_pwm_seed-maxScoringShift);
+							int end = start+config.k;
+							if (start<0 || end > seqs[i].length()){		// if the seed kmer alignment exceed the sequence, skip
+								if (maxScoringStrand =='-'){	// reverse the change
+									seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
+									isPlusStrands[i] = true;
+								}
+								continue;
+							}
+							posSeqs[i] = pos_pwm_seed-maxScoringShift;
+							String kmerStr = seqs[i].substring(-posSeqs[i], end);
+							if (pwmAlignedKmerStr.containsKey(kmerStr))
+								pwmAlignedKmerStr.put(kmerStr, pwmAlignedKmerStr.get(kmerStr)+1);
+							else
+								pwmAlignedKmerStr.put(kmerStr, 1);
+							if (pwmKmerStr2seq.containsKey(kmerStr))
+								pwmKmerStr2seq.get(kmerStr).add(i);
+							else{
+								ArrayList<Integer> list = new ArrayList<Integer>();
+								list.add(i);
+								pwmKmerStr2seq.put(kmerStr, list);
+							}
+							seqAlignRefs[i] = "PWM:"+WeightMatrix.getMaxLetters(wm);
+							count_pwm_aligned ++;
+				          }
+				        }	// each unaligned sequence
+				    	
+				    	for (String kmStr: pwmAlignedKmerStr.keySet()){
+				    		Kmer km = null;
+				    		String kmCR = SequenceUtil.reverseComplement(kmStr);
+				    		if (str2kmer.containsKey(kmStr)){	// if existing k-mers
+				    			km = str2kmer.get(kmStr);
+				    			kmers.remove(km);
+				    		}
+				    		else if (str2kmer.containsKey(kmCR)){	
+				    			km = str2kmer.get(kmCR);
+				    			km.RC();
+				    			kmers.remove(km);
+				    		}
+				    		else {								// new found k-mers
+				    			km = new Kmer(kmStr, pwmAlignedKmerStr.get(kmStr));
+				    		}
+			    			km.setShift(0);
+			    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
+			    			aligned_new.add(km);
+			    			alignedKmers.add(km);
+			    			// connect kmer back to the sequence
+			    			for (int i:pwmKmerStr2seq.get(kmStr)){
+			    				if (seq2kmer.get(i)==null)
+			    					seq2kmer.set(i, new HashSet<Kmer>());
+			    				seq2kmer.get(i).clear();
+								seq2kmer.get(i).add(km);
+			    			}
+				    	}
+				    	if (config.bmverbose>1)
+				    		System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers.");
 					}
 				}
 		    	
@@ -3964,6 +3926,74 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 	}
 
+    
+    private int buildPWM(int[] posSeqs, boolean[] isPlusStrands, ArrayList<ComponentFeature> events,
+    		ArrayList<String> alignedSeqs, ArrayList<Integer> alignedSeqIdx, KmerCluster cluster){
+    	final int UNALIGNED = 999;
+		double[][] pfm = new double[config.k_win+1][MAXLETTERVAL];
+    	for (int i=0;i<posSeqs.length;i++){
+			// get aligned sequences
+			int pos = posSeqs[i];
+			if (pos == UNALIGNED)
+				continue;
+			int kmMid_seq = -pos+config.k/2;
+			if (!isPlusStrands[i])			// minus strand
+				kmMid_seq = config.k_win - kmMid_seq;// - (1-config.k%2);				// adjust for odd/even value of k
+			Point center = new Point(gen, events.get(i).getPeak().getChrom(), 
+					events.get(i).getPeak().getLocation()-(config.k_win/2)+kmMid_seq);
+			String seq = kEngine.getSequence(center.expand(config.k_win/2));
+			if (!isPlusStrands[i])
+				seq=SequenceUtils.reverseComplement(seq);
+			alignedSeqs.add(seq);
+			alignedSeqIdx.add(i);
+			// count base frequencies
+ 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
+    		for (int p=0;p<config.k_win+1;p++){
+    			char base = seq.charAt(p);
+    			pfm[p][base] +=strength;
+    		}	    	
+    	}
+		
+		double[][] pwm = pfm.clone();
+		for (int i=0;i<pfm.length;i++)
+			pwm[i]=pfm[i].clone();
+		
+    	// make the PWM
+		Pair<Integer, Integer> ends = constructPWM(pwm);
+		int leftIdx = ends.car();
+		int rightIdx = ends.cdr();
+		if (rightIdx-leftIdx+1>config.k/2){		// pwm is long enough
+	    	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
+	    	for(int p=leftIdx;p<=rightIdx;p++){
+	    		for (int b=0;b<LETTERS.length;b++){
+	    			matrix[p-leftIdx][LETTERS[b]]=(float) pwm[p][LETTERS[b]];
+	    		}
+	    	}
+	    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
+	    	for(int p=leftIdx;p<=rightIdx;p++){
+	    		for (int b=0;b<LETTERS.length;b++){
+	    			pfm_trim[p-leftIdx][LETTERS[b]]=(float) pfm[p][LETTERS[b]];
+	    		}
+	    	}
+	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, alignedSeqs.size()));
+	    	cluster.sequenceCount = alignedSeqs.size();
+//	    	CommonUtils.writeFile(outName+"_OK_"+clusterID+"_PFM.txt", pfmStr);
+	    	
+	    	WeightMatrix wm = new WeightMatrix(matrix);
+	    	cluster.wm = wm;
+	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
+	    	cluster.pwmThreshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);	
+	    	if (cluster.pwmThreshold<0){
+	    		System.out.println("alignOverlapKmers: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
+	    		return -1;
+	    	}	
+	    	return leftIdx;
+		}
+		else{
+			return -1;
+		}
+    }
+    
     private Pair<Integer, Integer> constructPWM(double[][] pwm){
     	// normalize, compare to background, and log2
     	double[] ic = new double[pwm.length];						// information content
