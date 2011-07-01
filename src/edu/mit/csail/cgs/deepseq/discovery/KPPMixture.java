@@ -3685,10 +3685,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				        boolean rebuild = false;
 						for (int i=0;i<alignedSeqs.size();i++){
 							String s = alignedSeqs.get(i);
-							Pair<Integer, Double> hit = scanPWM(s, cluster.wm, scorer);
-							sb.append(String.format("%s\t%d\t%.2f\t%s\n", s, hit.car(), hit.cdr(), seqAlignRefs[alignedSeqIdx.get(i)]));
+							int seqIdx = alignedSeqIdx.get(i);
+							Pair<Integer, Double> hit = scanPWMoutwards(s, cluster.wm, scorer, leftIdx, cluster.pwmThreshold);
+							if (hit.car()==-999)		// if a hit pass threshold not found, find the best hit
+								hit = scanPWM(s, cluster.wm, scorer);
+							sb.append(String.format("%s\t%d\t%.2f\t%s\n", s, hit.car(), hit.cdr(), seqAlignRefs[seqIdx]));
 							if (hit.car()!=leftIdx){			// reset the sequences not aligning with PWM
-								posSeqs[alignedSeqIdx.get(i)]=UNALIGNED;
+								posSeqs[seqIdx]=UNALIGNED;
+								if (!isPlusStrands[seqIdx]){
+									seqs[seqIdx] = SequenceUtils.reverseComplement(seqs[seqIdx]);
+									isPlusStrands[seqIdx]=true;
+								}
 								rebuild = true;
 							}
 						}
@@ -3701,8 +3708,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    	
 						// align the unaligned seqs with pwm
 			    		WeightMatrix wm = cluster.wm;
-				    	if (cluster.pwmThreshold<wm.getMaxScore()*config.wm_factor)
-				    		cluster.pwmThreshold = wm.getMaxScore()*config.wm_factor;
 				        scorer = new WeightMatrixScorer(wm);				        
 			    		int count_pwm_aligned = 0;
 						HashMap<String, Integer> pwmAlignedKmerStr = new HashMap<String, Integer>();	// kmerString -> count
@@ -3984,9 +3989,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
 	    	cluster.pwmThreshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);	
 	    	if (cluster.pwmThreshold<0){
-	    		System.out.println("alignOverlapKmers: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
+	    		System.out.println("buildPWM: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
 	    		return -1;
-	    	}	
+	    	}
+	    	if (cluster.pwmThreshold<wm.getMaxScore()*config.wm_factor)
+	    		cluster.pwmThreshold = wm.getMaxScore()*config.wm_factor;
 	    	return leftIdx;
 		}
 		else{
