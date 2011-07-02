@@ -3643,6 +3643,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						String seq = km.getKmerString();
 						for (Kmer akm: aligned_new){
 							if (Math.abs(akm.getShift())>config.k/2)		// the mismatch must be proximal to seed kmer
+								continue;
 							if (this.mismatch(akm.getKmerString(), seq)==1){
 								km.setShift(akm.getShift());
 								km.setKmerStartOffset(akm.getKmerStartOffset());
@@ -3781,7 +3782,61 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 			} // greedily growing cluster
 	        
-			/** use all aligned sequences to find expected binding sites */
+			/** re-aligned kmers using aligned sequences */
+			if (config.re_align_kmer){
+				for (Kmer km:alignedKmers){
+					int kmer_seed = 0;					// the shift of this kmer w.r.t. seed kmer
+					if (!kmer2seq.containsKey(km))		// if kmer is not in kmer2seq, it must be new kmer from pwm scan, it should align well
+						continue;
+					HashSet<Integer> hits = kmer2seq.get(km);
+					
+					/* use k-mers already in the aligned sequences, find the consensus k-mer position */
+					ArrayList<Integer> posKmer = new ArrayList<Integer>(); // the occurences of this kmer w.r.t. seed kmer
+					for (int seqId:hits){
+						if (posSeqs[seqId] != UNALIGNED){		// aligned seqs
+							int pos = seqs[seqId].indexOf(km.getKmerString());
+							if (pos!=-1){
+								posKmer.add(posSeqs[seqId]+pos);
+							}
+						}
+					}
+					
+					// find the most frequent kmerPos
+					Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
+					int counts[] = sorted.cdr();
+					int posSorted[] = sorted.car();
+					int maxCount = counts[counts.length-1];
+					ArrayList<Integer> maxPos = new ArrayList<Integer>();
+					for (int i=counts.length-1;i>=0;i--){
+						if (counts[i]==maxCount){
+							int p = posSorted[i];
+							maxPos.add(p);
+						}	
+						else		// do not need to count for non-max elements
+							break;
+					}
+					if (maxPos.size()>1){		// if tie with 1+ positions, get the one closest to seed kmer
+						int min = Integer.MAX_VALUE;
+						int minIdx = 0;
+						for (int i=0;i<maxPos.size();i++){
+							int distance = Math.abs(maxPos.get(i));
+							if (distance<min){
+								minIdx = i;
+								min = distance;
+							}
+						}
+						kmer_seed = maxPos.get(minIdx);
+					}
+					else{
+						kmer_seed = maxPos.get(0);
+					}
+					km.setAlignString(km.getAlignString()+"\t"+maxCount+"/"+posKmer.size()+"\t"+km.getShift());
+	
+					km.setShift(kmer_seed);
+				}			
+			}
+			
+			/** use all aligned sequences to find expected binding sites, set kmer offset */
 	    	// average all the binding positions to decide the expected binding position
 	    	// weighted by strength if "use_strength" is true
 			StringBuilder sb = new StringBuilder();
@@ -5491,7 +5546,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int negative_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
-        public boolean use_kmer_mismatch = true;
+       	public boolean re_align_kmer = false;
+       	public boolean use_kmer_mismatch = true;
       	public boolean align_overlap_kmer=true;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
@@ -5549,6 +5605,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_print_hits = flags.contains("kmer_print_hits");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
+            re_align_kmer = flags.contains("re_align_kmer");
           
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
