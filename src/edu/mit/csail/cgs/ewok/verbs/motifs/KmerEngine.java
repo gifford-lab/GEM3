@@ -97,14 +97,24 @@ public class KmerEngine {
 	 * At the same time, retrieve negative sequences (for only once)
 	 * @param regions
 	 */
-	public void setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions){
+	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions){
+		double gcRatio=0;
 		if (!seqgen.isRegionCached()){
 			seqsNeg = seqgen.setupRegionCache(cacheRegions, negativeRegions);
 			neg_region_map = new TreeMap<Region, Integer>();
 			for (int i=0;i<negativeRegions.size();i++){
 				neg_region_map.put(negativeRegions.get(i), i);
 			}
+			// count cg-content
+			int gcCount = 0;
+			for (String s:seqsNeg){
+				for (char c:s.toCharArray())
+					if (c=='C'||c=='G')
+						gcCount ++;
+			}
+			gcRatio = (double)gcCount/seqsNeg.length/seqsNeg[0].length();
 		}
+		return gcRatio;
 	}
 	/*
 	 * Find significant Kmers that have high HyperGeometric p-value

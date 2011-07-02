@@ -141,7 +141,8 @@ public class GPS2 {
         mixture.setOutName(peakFileName+"_"+round);
 		
 //        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
-        
+        Set<String> flags = Args.parseFlags(args);
+        boolean update = flags.contains("update");
         int GPS_round = 3;
         if (run_gem)
         	GPS_round = 1;
@@ -191,7 +192,10 @@ public class GPS2 {
 			round++;			
             mixture.setOutName(peakFileName+"_"+round);
             mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-            mixture.buildEngine(-1);	            
+            if (update)
+            	mixture.updateKmerEngine(false);
+            else
+            	mixture.buildEngine(-1);
             System.out.println("\n============================ Round "+round+" ============================");
             mixture.execute();
 //
