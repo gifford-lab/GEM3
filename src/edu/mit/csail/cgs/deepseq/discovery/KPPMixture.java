@@ -3362,7 +3362,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			config.setGC(gc);
 //			if (config.bmverbose>1){
 				System.out.println("Compact genome sequence cache to " + totalLength + " bps, "+CommonUtils.timeElapsed(tic));
-				System.out.println(String.format("GC content=%.2f", gc));
+				System.out.println(String.format("GC content=%.2f\n", gc));
 //			}
 		}
 		
@@ -3446,8 +3446,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			config.k = k;
 		}
 		if (winSize==-1)
-			winSize = config.k_win;
-//			winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
+			winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
+		config.k_win = winSize;
 		
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName+"_OK_win"+winSize);
 		if (config.align_overlap_kmer)
@@ -3800,7 +3800,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							}
 						}
 					}
-					
+					if (posKmer.isEmpty()){
+						km.setAlignString(km.getAlignString()+"\tNOT FOUND to re-align");
+						continue;
+					}
 					// find the most frequent kmerPos
 					Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
 					int counts[] = sorted.cdr();
@@ -5537,7 +5540,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
         public double hgp = 1e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double k_fold = 3;	// the minimum fold of kmer count in positive seqs vs negative seqs
-        public double gc = 0.42;	// GC content in the genome
+        public double gc = -1;	// GC content in the genome
         public double[] bg= new double[4];	// background frequency based on GC content
         public double wm_factor = 0.5;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
@@ -5637,6 +5640,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
             k_fold = Args.parseDouble(args, "k_fold", k_fold);
             gc = Args.parseDouble(args, "gc", gc);
+            if (gc>0)
+            	setGC(gc);
             wm_factor = Args.parseDouble(args, "wmf", wm_factor);
             ic_trim = Args.parseDouble(args, "ic", ic_trim);
             hgp = Args.parseDouble(args, "hgp", hgp);
