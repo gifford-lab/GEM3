@@ -3668,7 +3668,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					kmers.removeAll(mmaligned);
 					aligned_new.clear();				// clear aligned kmers that are used for mismatch search
 					aligned_new.addAll(mmaligned);
-					alignedKmers.addAll(mmaligned);
 				} //if (config.use_kmer_mismatch)
 				
 				/** build PWM to continue grow cluster */
@@ -3745,6 +3744,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				          }
 				        }	// each unaligned sequence
 				    	
+//				    	ArrayList<Kmer> newKmer = new ArrayList<Kmer>();
 				    	for (String kmStr: pwmAlignedKmerStr.keySet()){
 				    		Kmer km = null;
 				    		String kmCR = SequenceUtil.reverseComplement(kmStr);
@@ -3759,11 +3759,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    		}
 				    		else {								// new found k-mers
 				    			km = new Kmer(kmStr, pwmAlignedKmerStr.get(kmStr));
+//				    			newKmer.add(km);
+				    			str2kmer.put(kmStr, km);
 				    		}
 			    			km.setShift(0);
 			    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
 			    			aligned_new.add(km);
-			    			alignedKmers.add(km);
 			    			// connect kmer back to the sequence
 			    			for (int i:pwmKmerStr2seq.get(kmStr)){
 			    				if (seq2kmer.get(i)==null)
@@ -3833,7 +3834,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					else{
 						kmer_seed = maxPos.get(0);
 					}
-					km.setAlignString(km.getAlignString()+"\t"+maxCount+"/"+posKmer.size()+"\t"+km.getShift());
+					km.setAlignString(km.getAlignString()+"\t"+maxCount+"/"+posKmer.size()+"\t"+km.getShift()+"=="+kmer_seed);
 	
 					km.setShift(kmer_seed);
 				}			
@@ -5608,7 +5609,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_print_hits = flags.contains("kmer_print_hits");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
-            re_align_kmer = flags.contains("re_align_kmer");
+            re_align_kmer = flags.contains("rak");
           
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
