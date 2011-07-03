@@ -3969,47 +3969,33 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		String[] seqs, KmerCluster cluster){
     	final int UNALIGNED = 999;
 		double[][] pfm = new double[config.k_win+1][MAXLETTERVAL];
-		ArrayList<String> alignedSeqs = new ArrayList<String>();
-		ArrayList<Integer> alignedSeqIdx = new ArrayList<Integer>();
+		ArrayList<String> passedSeqs = new ArrayList<String>();
+		ArrayList<Integer> passedIdx = new ArrayList<Integer>();
 		
-    	// get aligned sequences
-		for (int i=0;i<posSeqs.length;i++){
-			int pos = posSeqs[i];
-			if (pos == UNALIGNED)
-				continue;
-			int kmMid_seq = -pos+config.k/2;
-			if (!isPlusStrands[i])			// minus strand
-				kmMid_seq = config.k_win - kmMid_seq;// - (1-config.k%2);				// adjust for odd/even value of k
-			Point center = new Point(gen, events.get(i).getPeak().getChrom(), 
-					events.get(i).getPeak().getLocation()-(config.k_win/2)+kmMid_seq);
-			String seq = kEngine.getSequence(center.expand(config.k_win/2));
-			if (!isPlusStrands[i])
-				seq=SequenceUtils.reverseComplement(seq);
-			alignedSeqs.add(seq);
-			alignedSeqIdx.add(i);
-    	}
-    	
-    	// filter the sequences if we have an existing PWM 
-    	ArrayList<Integer> passed = new ArrayList<Integer>();
+		// filter the sequences if we have an existing PWM 
     	if (cluster.wm!=null){	
+    		ArrayList<Integer> alignedSeqIdx = new ArrayList<Integer>();
 	        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
-	        StringBuilder sb= new StringBuilder();
+//	        StringBuilder sb= new StringBuilder();
 	        ArrayList<Integer> pwmPos = new ArrayList<Integer>();
-			for (int i=0;i<alignedSeqs.size();i++){
-				String s = alignedSeqs.get(i);
-				Pair<Integer, Double> hit = scanPWMoutwards(s, cluster.wm, scorer, (s.length()-config.k)/2, cluster.pwmThreshold*0.8);
+			for (int i=0;i<posSeqs.length;i++){
+				int seq_seed = posSeqs[i];
+				if (seq_seed == UNALIGNED)
+					continue;
+				String s = seqs[i];
+				Pair<Integer, Double> hit = scanPWMoutwards(s, cluster.wm, scorer, -seq_seed+(cluster.wm.length()-config.k)/2, cluster.pwmThreshold*0.8);
 				if (hit.car()==-999)		// if a hit pass threshold not found, find the best hit
 					hit = scanPWM(s, cluster.wm, scorer);
-				pwmPos.add(hit.car());
-				sb.append(String.format("%s\t%d\t%.2f\n", s, hit.car(), hit.cdr()));
+				pwmPos.add(hit.car()+seq_seed);
+				alignedSeqIdx.add(i);
+//				sb.append(String.format("%s\t%d\t%.2f\n", s, hit.car(), hit.cdr()));
 			}
 			Pair<int[], int[]> sorted = StatUtil.sortByOccurences(pwmPos);
 			int counts[] = sorted.cdr();
 			int posSorted[] = sorted.car();
 			int pos = posSorted[counts.length-1];
-			
-			for (int i=0;i<alignedSeqs.size();i++){
-				String s = alignedSeqs.get(i);
+
+			for  (int i=0;i<pwmPos.size();i++){
 				int seqIdx = alignedSeqIdx.get(i);
 				if (pwmPos.get(i)!=pos){			// reset the sequences not aligning with PWM
 					posSeqs[seqIdx]=UNALIGNED;
@@ -4018,19 +4004,44 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						isPlusStrands[seqIdx]=true;
 					}
 				}
-				else
-					passed.add(i);
+				else{
+					int seq_seed = posSeqs[seqIdx];
+					int kmMid_seq = -seq_seed+config.k/2;
+					if (!isPlusStrands[seqIdx])			// minus strand
+						kmMid_seq = config.k_win - kmMid_seq;
+					Point center = new Point(gen, events.get(seqIdx).getPeak().getChrom(), 
+							events.get(seqIdx).getPeak().getLocation()-(config.k_win/2)+kmMid_seq);
+					String seq = kEngine.getSequence(center.expand(config.k_win/2));
+					if (!isPlusStrands[seqIdx])
+						seq=SequenceUtils.reverseComplement(seq);
+					passedSeqs.add(seq);
+					passedIdx.add(seqIdx);
+				}
 			}
     	}
     	else{	// no existing PWM, use all sequences
-    		for (int i=0;i<alignedSeqs.size();i++)
-    			passed.add(i);
+	    	// get aligned sequences
+			for (int i=0;i<posSeqs.length;i++){
+				int pos = posSeqs[i];
+				if (pos == UNALIGNED)
+					continue;
+				int kmMid_seq = -pos+config.k/2;
+				if (!isPlusStrands[i])			// minus strand
+					kmMid_seq = config.k_win - kmMid_seq;
+				Point center = new Point(gen, events.get(i).getPeak().getChrom(), 
+						events.get(i).getPeak().getLocation()-(config.k_win/2)+kmMid_seq);
+				String seq = kEngine.getSequence(center.expand(config.k_win/2));
+				if (!isPlusStrands[i])
+					seq=SequenceUtils.reverseComplement(seq);
+				passedSeqs.add(seq);
+				passedIdx.add(i);
+	    	}
     	}
-    	
+
 		// count base frequencies
-		for (int i:passed){
-			String s = alignedSeqs.get(i);
-			int seqIdx = alignedSeqIdx.get(i);
+		for (int i=0;i<passedSeqs.size();i++){
+			String s = passedSeqs.get(i);
+			int seqIdx = passedIdx.get(i);
 			double strength = config.use_strength?events.get(seqIdx).getTotalEventStrength():1;
     		for (int p=0;p<config.k_win+1;p++){
     			char base = s.charAt(p);
@@ -4071,8 +4082,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			pfm_trim[p-leftIdx][LETTERS[b]]=(float) pfm[p][LETTERS[b]];
 	    		}
 	    	}
-	    	cluster.pfmString = cluster.pfmString+makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, passed.size()));
-	    	cluster.sequenceCount = passed.size();
+	    	cluster.pfmString = cluster.pfmString+makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, passedSeqs.size()));
+	    	cluster.sequenceCount = passedSeqs.size();
 
 	    	return leftIdx;
 		}
