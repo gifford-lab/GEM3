@@ -3886,13 +3886,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				int pos = posSeqs[i];
 				if (pos == UNALIGNED)
 					continue;
-				if (config.bmverbose>1)
+				if (config.print_aligned_seqs)
 					sb.append(CommonUtils.padding(-leftmost+pos, '.')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
 	 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
     			sum_offsetXstrength += strength*(config.k_win/2+pos);
         		sum_strength += strength;
 	    	}
-			if (config.bmverbose>1)
+			if (config.print_aligned_seqs)
 				CommonUtils.writeFile(outName+"_seqs_aligned_"+seed.getKmerString()+".txt", sb.toString());
 	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean BS position relative to seed k-mer start
 	    	cluster.bindingPosition = bPos - cluster.pos_pwm_seed;
@@ -5624,6 +5624,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	public boolean align_overlap_kmer=true;
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
+        public boolean print_aligned_seqs = false;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5681,7 +5682,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
             re_align_kmer = flags.contains("rak");
-          
+            print_aligned_seqs = flags.contains("print_aligned_seqs");
+            
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
