@@ -595,14 +595,14 @@ public class ReadCache {
 				int subCount = hitCounts[i][j].length;
 				if (subCount>0){
 					for(int k = 0; k < subCount; k++){
-						sb_sub.append(String.format("%d\t%.2f\n",  fivePrimes[i][j][k], hitCounts[i][j][k]));
+						sb_sub.append(String.format("%d\t%.1f\n",  fivePrimes[i][j][k], hitCounts[i][j][k]));
 					}
 					sb.append(String.format("%s\t%c\t%d\n",  chrom, strand, subCount));
 					sb.append(sb_sub).append("\n");
 				}
 			}
 		}
-		CommonUtils.writeFile(name+".rsc", sb.toString());
+		CommonUtils.writeFile(name.trim()+".rsc", sb.toString());
 	}
 	/** 
 	 * Read Read Start Count (RSC) file
@@ -629,19 +629,19 @@ public class ReadCache {
             if (line.equals(""))
             	continue;
             String[] f=line.split("\t");
-            if (f.length==3){
+            if (f.length==3){		// header
             	int i = chrom2ID.get(f[0]);
             	int j = f[1].charAt(0)=='+'?0:1;
-            	int num = Integer.parseInt(f[2]);
-            	totalBases += num;
-            	currentCoords = new int[num];
-            	currentCounts = new float[num];
+            	int baseCount = Integer.parseInt(f[2]);
+            	totalBases += baseCount;
+            	currentCoords = new int[baseCount];
+            	currentCounts = new float[baseCount];
             	fivePrimes[i][j] = currentCoords;
             	hitCounts[i][j] = currentCounts;
             	idx = 0;
 	            continue;
             }
-            if (f.length==2){
+            if (f.length==2){		// data
             	currentCoords[idx] = Integer.parseInt(f[0]);
             	float count = Float.parseFloat(f[1]);
             	currentCounts[idx] = count;

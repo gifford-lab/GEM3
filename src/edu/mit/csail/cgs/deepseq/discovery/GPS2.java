@@ -55,7 +55,6 @@ public class GPS2 {
 				System.exit(1);
 			}
 		}
-		System.out.println("Loading data...");
         //Experiments : Load each condition expt:ctrl Pair
 		ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> experiments = new ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>>();
 		long loadData_tic = System.currentTimeMillis();
@@ -76,50 +75,58 @@ public class GPS2 {
         // each tag represents a condition
         for(String tag : exptTags){
         	String name="";
-        	if(tag.startsWith("--rdb")){
-        		name = tag.replaceFirst("--rdbexpt", ""); 
-        		conditionNames.add(name);
-        	}else{
-        		name = tag.replaceFirst("--expt", ""); 
+        	if(tag.startsWith("--rf")){
+        		name = tag.replaceFirst("--rfexpt", ""); 
         		conditionNames.add(name);
         	}
-
-        	if(name.length()>0)
-        		System.out.println("    loading condition: "+name);
-        	
-        	List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdbexpt"+name);
-        	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
-        	List<File> expts = Args.parseFileHandles(args, "expt"+name);
-        	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
-        	boolean nonUnique = flags.contains("nonunique");
-            String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
-
-            if(expts.size()>0 && rdbexpts.size()==0){
-                int readLength = -1;	// For file, read length will be obtained from the data
-                DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
-                DeepSeqExpt c = new DeepSeqExpt(genome, ctrls, nonUnique, fileFormat, readLength);
-                if(genome==null){
-                    genome = DeepSeqExpt.combineFakeGenomes(e,c);
-                    e.setGenome(genome);
-                    c.setGenome(genome);
-                }
-                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
-                exptHitCount+=e.getHitCount();
-                ctrlHitCount+=c.getHitCount();
-            } else if(rdbexpts.size()>0 && expts.size() == 0){
-                if(genome==null){
-                    System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); 
-                    System.exit(1);
-                }
-                int readLength = -1;
-                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, rdbexpts, "readdb", readLength),new DeepSeqExpt(genome, rdbctrls, "readdb", readLength)));
-            } else{
-                System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
-                printError();
-                System.exit(1);
-            }
+        	else {
+        		System.out.println("Loading data...");
+        		if(tag.startsWith("--rdb")){
+	        		name = tag.replaceFirst("--rdbexpt", ""); 
+	        		conditionNames.add(name);
+	        	}else{
+	        		name = tag.replaceFirst("--expt", ""); 
+	        		conditionNames.add(name);
+	        	}
+	
+	        	if(name.length()>0)
+	        		System.out.println("    loading condition: "+name);
+	        	
+	        	List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdbexpt"+name);
+	        	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
+	        	List<File> expts = Args.parseFileHandles(args, "expt"+name);
+	        	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
+	        	boolean nonUnique = flags.contains("nonunique");
+	            String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
+	
+	            if(expts.size()>0 && rdbexpts.size()==0){
+	                int readLength = -1;	// For file, read length will be obtained from the data
+	                DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
+	                DeepSeqExpt c = new DeepSeqExpt(genome, ctrls, nonUnique, fileFormat, readLength);
+	                if(genome==null){
+	                    genome = DeepSeqExpt.combineFakeGenomes(e,c);
+	                    e.setGenome(genome);
+	                    c.setGenome(genome);
+	                }
+	                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
+	                exptHitCount+=e.getHitCount();
+	                ctrlHitCount+=c.getHitCount();
+	            } else if(rdbexpts.size()>0 && expts.size() == 0){
+	                if(genome==null){
+	                    System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); 
+	                    System.exit(1);
+	                }
+	                int readLength = -1;
+	                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, rdbexpts, "readdb", readLength),new DeepSeqExpt(genome, rdbctrls, "readdb", readLength)));
+	            } else{
+	                System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
+	                printError();
+	                System.exit(1);
+	                System.out.println("    done: "+CommonUtils.timeElapsed(loadData_tic));
+	            }
+	        }
         }
-        System.out.println("    done: "+CommonUtils.timeElapsed(loadData_tic));
+        
         try{
             mixture = new KPPMixture(genome, experiments, conditionNames, args);
         } catch(Exception ex){

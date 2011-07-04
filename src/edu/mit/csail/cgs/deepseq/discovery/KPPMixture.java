@@ -246,7 +246,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      	
     	//load read data
 		this.conditionNames = conditionNames;
-    	loadChIPSeqData(subsetRegions);
+    	loadChIPSeqData(subsetRegions, args);
 		
 		// exclude some regions
      	String excludedName = Args.parseString(args, "ex", "yes");
@@ -1169,16 +1169,36 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	/* ***************************************************
 	 * Load ChIP-Seq data
 	 * ***************************************************/
-	private void loadChIPSeqData(ArrayList<Region> subsetRegions){
+	private void loadChIPSeqData(ArrayList<Region> subsetRegions, String[] args) {
 		this.caches = new ArrayList<Pair<ReadCache, ReadCache>>();
-		this.numConditions = experiments.size();
-		boolean fromReadDB = experiments.get(0).car().isFromReadDB();
+		this.numConditions = conditionNames.size();
 		ComponentFeature.setConditionNames(conditionNames);
 		condSignalFeats = new ArrayList[numConditions];
 		for(int c = 0; c < numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
 		long tic = System.currentTimeMillis();
 		System.out.println("\nGetting 5' positions of all reads...");
 
+		if (experiments.isEmpty()){		// special case, loading RSC file
+			for (int i=0;i<numConditions;i++){
+				try {
+					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
+					ipCache.readRCF(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
+					ReadCache ctrlCache = null;
+					if (controlDataExist){
+						ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
+						ipCache.readRCF(Args.parseString(args, "--rfctrl"+conditionNames.get(i), ""));
+					}
+					this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
+			}
+			wholeGenomeDataLoaded = true;
+			return;
+		}
+		
+		boolean fromReadDB = experiments.get(0).car().isFromReadDB();
 		for (int i=0;i<numConditions;i++){
 			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
 			DeepSeqExpt ip = pair.car();
@@ -1270,6 +1290,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ip=null;
 			ctrl=null;
 			System.gc();
+			if (config.write_RSC_file){
+				ipCache.writeRCF();
+				ctrlCache.writeRCF();
+			}
 		} // for each condition
 
 		if (fromReadDB){
@@ -3569,7 +3593,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
 			// align the containing sequences
 			for (Kmer km:seedFamily){
-				alignSequences(km, kmer2seq.get(km), seqs, posSeqs, isPlusStrands, seqAlignRefs);
+				HashSet<Integer> hits = kmer2seq.get(km);
+				if (hits==null || hits.isEmpty())
+					continue;
+				alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
 			}
 			// newly aligned kmers
 			ArrayList<Kmer> aligned_new = new ArrayList<Kmer>();
@@ -3581,6 +3608,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				for (Kmer km:kmers){
 					int kmer_seed = 0;			// the shift of this kmer w.r.t. seed kmer
 					HashSet<Integer> hits = kmer2seq.get(km);
+					if (hits==null || hits.isEmpty())
+						continue;
 					
 					/** use k-mers already in the aligned sequences, find the consensus k-mer position */
 					ArrayList<Integer> posKmer = new ArrayList<Integer>(); // the occurences of this kmer w.r.t. seed kmer
@@ -3811,7 +3840,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					break;			// stop this cluster, start a new one
 				}
 			} // greedily growing cluster
-	        
+			
 			/** re-aligned kmers using aligned sequences */
 			if (config.re_align_kmer){
 				for (Kmer km:alignedKmers){
@@ -4043,11 +4072,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for  (int i=0;i<pwmPos.size();i++){
 				int seqIdx = alignedSeqIdx.get(i);
 				if (pwmPos.get(i)!=pos){			// reset the sequences not aligning with PWM
-					posSeqs[seqIdx]=UNALIGNED;
-					if (!isPlusStrands[seqIdx]){
-						seqs[seqIdx] = SequenceUtils.reverseComplement(seqs[seqIdx]);
-						isPlusStrands[seqIdx]=true;
-					}
+					// ignore them for now, because this and PWM scanning again may lead to infinite loop
+//					posSeqs[seqIdx]=UNALIGNED;
+//					if (!isPlusStrands[seqIdx]){
+//						seqs[seqIdx] = SequenceUtils.reverseComplement(seqs[seqIdx]);
+//						isPlusStrands[seqIdx]=true;
+//					}
 				}
 				else{
 					int seq_seed = posSeqs[seqIdx];
@@ -5583,6 +5613,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean use_joint_event = false;
         public boolean TF_binding = true;
         public boolean outputBED = false;
+        public boolean write_RSC_file = false;
         public boolean kmer_print_hits = false;
         public boolean testPValues = false;
         public boolean post_artifact_filter=false;
@@ -5672,6 +5703,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kl_count_adjusted = flags.contains("adjust_kl");
             refine_regions = flags.contains("refine_regions");
             outputBED = flags.contains("outBED");
+            write_RSC_file = flags.contains("writeRSC");
             testPValues = flags.contains("testP");
             if (testPValues)
             	System.err.println("testP is " + testPValues);
