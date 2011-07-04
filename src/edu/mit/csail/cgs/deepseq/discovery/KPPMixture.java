@@ -5839,7 +5839,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         	if (config.cache_genome)
         		seqgen.useCache(true);
             for (Region rr : regions) {
-                mixture.log(2, rr.toString());
+                mixture.log(3, rr.toString());
                 try{
                     ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
                     // Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
