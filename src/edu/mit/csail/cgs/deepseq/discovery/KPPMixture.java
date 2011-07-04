@@ -5741,7 +5741,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             min_event_count = Args.parseInteger(args, "min", min_event_count);
             base_reset_threshold = Args.parseInteger(args, "reset", base_reset_threshold);
             min_region_width = Args.parseInteger(args, "min_region_width", 50);
-            bmverbose = Args.parseInteger(args, "bmverbose", bmverbose);
+            bmverbose = Args.parseInteger(args, "v", bmverbose);
             smooth_step = Args.parseInteger(args, "smooth", smooth_step);
             KL_smooth_width = Args.parseInteger(args, "kl_s_w", KL_smooth_width);
             excluded_fraction = Args.parseDouble(args, "excluded_fraction", excluded_fraction);
