@@ -193,7 +193,7 @@ public class GPS2 {
             mixture.setOutName(peakFileName+"_"+round);
             mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
             if (update)
-            	mixture.updateKmerEngine(false);
+            	mixture.updateKmerEngine(true);
             else
             	mixture.buildEngine(-1);
             System.out.println("\n============================ Round "+round+" ============================");

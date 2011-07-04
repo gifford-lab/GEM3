@@ -3279,7 +3279,35 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return compPos;
 	}//end of setComponentPositions method
 
-    /**
+    // update kmerEngine with the predicted kmer-events
+		public void updateKmerEngine(boolean makePFM){
+			long tic = System.currentTimeMillis();
+			if (config.k==-1)
+				return;
+			ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
+			for(Feature f : signalFeatures)
+				compFeatures.add((ComponentFeature)f);
+			
+			// reload the test sequences, and purify kmers
+			ArrayList<Point> events = getEventPoints();
+			kEngine.loadTestSequences(events, config.k_win);
+	//		purifyKmers(compFeatures);
+	//		
+	//		if (makePFM){
+	//			updateKmersWithPWM(compFeatures);
+	//			purifyKmers(compFeatures);
+	//		}
+	//		
+	//		consolidateKmers(compFeatures);
+			
+			ArrayList<Kmer> kmers = countKmers2(compFeatures);	
+			if (makePFM)
+				kmers = this.alignOverlappedKmers(kmers, compFeatures);
+			log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
+			kEngine.updateEngine(kmers, outName, false);
+		}
+
+	/**
      * Initalize the kmer engine
      * This is called only once for initial setup.
      * It compact the cached sequence data and build the kmerEngine
@@ -3473,6 +3501,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	private ArrayList<Kmer> alignOverlappedKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
 		if (kmers.size()==0)
 			return kmers;
+		System.out.println("Align and cluster k-mers ...");
 		String[] seqs_old = kEngine.getPositiveSeqs();
 		ArrayList<Kmer> allAlignedKmers = new ArrayList<Kmer>();
 		// build the kmer search tree
@@ -3834,7 +3863,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					else{
 						kmer_seed = maxPos.get(0);
 					}
-					km.setAlignString(km.getAlignString()+"\t"+maxCount+"/"+posKmer.size()+"\t"+km.getShift()+"=="+kmer_seed);
+					km.setAlignString(km.getAlignString()+"\t"+maxCount+"/"+posKmer.size()+"\t"+
+							km.getShift()+"=="+kmer_seed+"\t"+(kmer_seed-km.getShift()));
 	
 					km.setShift(kmer_seed);
 				}			
@@ -3857,7 +3887,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				if (pos == UNALIGNED)
 					continue;
 				if (config.bmverbose>1)
-					sb.append(CommonUtils.padding(-leftmost+pos, '-')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
+					sb.append(CommonUtils.padding(-leftmost+pos, '.')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
 	 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
     			sum_offsetXstrength += strength*(config.k_win/2+pos);
         		sum_strength += strength;
@@ -3867,7 +3897,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean BS position relative to seed k-mer start
 	    	cluster.bindingPosition = bPos - cluster.pos_pwm_seed;
 	    	
-	    	alignedKmer_sb.append("Cluster #"+clusterID+"\n");
+	    	if (!alignedKmers.isEmpty())
+	    		alignedKmer_sb.append("Cluster #"+clusterID+"\n");
 	    	int leftmost_km = Integer.MAX_VALUE;
 			for (Kmer km: alignedKmers){
 				km.setKmerStartOffset(km.getShift()-bPos);
@@ -3875,7 +3906,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					leftmost_km = km.getKmerStartOffset();
 			}	    	
 			for (Kmer km: alignedKmers){
-				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
+				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
 			}
 			cluster.kmerCount = alignedKmers.size();
 			allAlignedKmers.addAll(alignedKmers);
@@ -3900,7 +3931,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //				leftmost_km = km.getKmerStartOffset();
 //		}
 //		for (Kmer km:bestKmers){
-//			best_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
+//			best_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
 //		}
 //		CommonUtils.writeFile(outName+"_OK_best_aligned.txt", best_sb.toString());
 		
@@ -4190,33 +4221,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	return new Pair<Integer, Integer>(leftIdx, rightIdx);
     }
     
-	// update kmerEngine with the predicted kmer-events
-	public void updateKmerEngine(boolean makePFM){
-		long tic = System.currentTimeMillis();
-		if (config.k==-1)
-			return;
-		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
-		for(Feature f : signalFeatures)
-			compFeatures.add((ComponentFeature)f);
-		
-		// reload the test sequences, and purify kmers
-		ArrayList<Point> events = getEventPoints();
-		kEngine.loadTestSequences(events, config.k_win);
-//		purifyKmers(compFeatures);
-//		
-//		if (makePFM){
-//			updateKmersWithPWM(compFeatures);
-//			purifyKmers(compFeatures);
-//		}
-//		
-//		consolidateKmers(compFeatures);
-		
-		ArrayList<Kmer> kmers = countKmers2(compFeatures);	
-		
-		log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
-		kEngine.updateEngine(kmers, outName, false);
-	}
-
 	/**
 	 * Print the overlapping kmer counts with increasing number of k
 	 * in a specified window around the binding events
