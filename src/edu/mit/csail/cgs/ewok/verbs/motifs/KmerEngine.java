@@ -384,6 +384,46 @@ public class KmerEngine {
 	    return hgps;
 	}
 	
+	/**
+	 * Update k-mer hit counts and compute hyper-geometric p-values<br>
+	 */
+	public void updateKmerCounts(ArrayList<Kmer> kmers){
+		AhoCorasick tree = new AhoCorasick();
+		for (int i=0;i<kmers.size();i++){
+			String kmStr = kmers.get(i).getKmerString();
+			tree.add(kmStr.getBytes(), i);
+			tree.add(SequenceUtils.reverseComplement(kmStr).getBytes(), i);
+	    }
+	    tree.prepare();
+	    int[] posHitCount = new int[kmers.size()];
+	    int[] negHitCount = new int[kmers.size()];
+	    for (String seq: seqs){
+			Iterator searcher = tree.search(seq.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				Set<Integer> idxs = result.getOutputs();
+				for (int idx:idxs)
+					posHitCount[idx]++;
+			}
+	    }
+	    for (String seq: seqsNegList){
+			Iterator searcher = tree.search(seq.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				Set<Integer> idxs = result.getOutputs();
+				for (int idx:idxs)
+					negHitCount[idx]++;
+			}
+	    }
+	    int posSeqCount = seqs.length;
+	    int negSeqCount = seqsNegList.size();
+	    for (int i=0;i<kmers.size();i++){
+	    	Kmer km = kmers.get(i);
+	    	km.setSeqHitCount(posHitCount[i]);
+	    	km.setNegCount(negHitCount[i]);
+			km.setHgp( computeHGP(posSeqCount, negSeqCount, posHitCount[i], negHitCount[i]));
+	    }
+	}
 	
 	/**
 	 * Estimate threshold of a PWM using the positive/negative sequences<br>
@@ -501,12 +541,11 @@ public class KmerEngine {
 	/** 
 	 * Search all k-mers in the sequence
 	 * @param seq sequence string to search k-mers
-	 * @return a map (pos-->kmers)<br>
+	 * @return an array of KmerMatches:<br>
 	 * pos is the binding site position in the sequence<br>
-	 * kmers are the kmers that map to this position<br>
-	 * if pos is negative, then the kmer match is on the reverse compliment seq string
+	 * kmers are the kmers that map to this position on both positive and negative strands<br>
 	 */
-	public HashMap<Integer, ArrayList<Kmer>> query (String seq){
+	public KmerMatches[] query (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
@@ -527,8 +566,8 @@ public class KmerEngine {
 		}
 		
 		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
-		// negative postion --> the start position matches the rc of kmer
-		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();
+		// matches on negative strand are combined with matches on positive strand
+		TreeMap<Integer, ArrayList<Kmer>> result = new TreeMap<Integer, ArrayList<Kmer>> ();
 		String seqRC = SequenceUtils.reverseComplement(seq);
 		for (Object o: kmerFound){
 			String kmerStr = (String) o;
@@ -543,14 +582,19 @@ public class KmerEngine {
 			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
 			for (int p: pos_rc){
 				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
-				x = -(seq.length()-1-x);		// convert to position in Seq, "-" for reverse strand
+				x = seq.length()-1-x;		// convert to position in Seq
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
 			}
 		}
-
-		return result;
+		KmerMatches[] matches = new KmerMatches[result.keySet().size()];
+		int idx = 0;
+		for (int p:result.keySet()){
+			matches[idx]=new KmerMatches(result.get(p), p);
+			idx++;
+		}
+		return matches;
 	}
 	
 	/** 
@@ -634,7 +678,6 @@ public class KmerEngine {
 	/**
 	 * This KmerMatch class is used for recording kmer instances in sequences in the conventional motif finding setting
 	 * @author yuchun
-	 *
 	 */
 	class KmerMatch {
 		int seqId;			// sequence id in the dataset
@@ -647,6 +690,44 @@ public class KmerEngine {
 		}
 	}
 	
+	/**
+	 * This KmerMatches class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
+	 * @author yuchun
+	 */
+	public class KmerMatches {
+		ArrayList<Kmer> kmers;
+		int bs = 999;
+		public KmerMatches(ArrayList<Kmer> kmers, int bs){
+			this.bs = bs;
+			this.kmers = kmers;
+			Collections.sort(this.kmers);
+		}
+		public ArrayList<Kmer> getKmers(){
+			return kmers;
+		}
+		public Kmer getBestKmer(){
+			return kmers.get(0);
+		}
+		public double getTotalKmerCount(){
+    		double kmerCountSum = 0;
+    		for (Kmer kmer:kmers){
+        		kmerCountSum+=kmer.getSeqHitCount();	
+    		}
+    		return kmerCountSum;
+		}
+		public double getTotalKmerStrength(){
+    		double total = 0;
+    		for (Kmer kmer:kmers){
+    			// on first kpp round, kmers do not have strength value, use count here
+    			total+=kmer.getStrength()>1?kmer.getStrength():kmer.getSeqHitCount();	
+    		}
+    		return total;
+		}	
+		
+		public int getPosBS(){
+			return bs;
+		}
+	}
 	public static void main0(String[] args){
 		Genome g = null;
 		ArgParser ap = new ArgParser(args);

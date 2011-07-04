@@ -247,7 +247,7 @@ public class Kmer implements Comparable<Kmer>{
 	/**
 	 * calculate the best shift for input kmer to align with this kmer
 	 * allow for 2 mismatches, or 1 shift + 1 mismatch, or 2 shift
-	 * @param kmer
+	 * @param kmerMatches
 	 * @return best shift for input kmer
 	 */
 //	public int shift(String kmer){
