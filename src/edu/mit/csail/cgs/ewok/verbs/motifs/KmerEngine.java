@@ -29,6 +29,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.features.Feature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -387,7 +388,7 @@ public class KmerEngine {
 	/**
 	 * Update k-mer hit counts and compute hyper-geometric p-values<br>
 	 */
-	public void updateKmerCounts(ArrayList<Kmer> kmers){
+	public void updateKmerCounts(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
 		AhoCorasick tree = new AhoCorasick();
 		for (int i=0;i<kmers.size();i++){
 			String kmStr = kmers.get(i).getKmerString();
@@ -397,13 +398,21 @@ public class KmerEngine {
 	    tree.prepare();
 	    int[] posHitCount = new int[kmers.size()];
 	    int[] negHitCount = new int[kmers.size()];
-	    for (String seq: seqs){
+	    double[] kmerStrength = new double[kmers.size()];
+	    for (int i=0;i<seqs.length;i++){
+	    	String seq = seqs[i];
 			Iterator searcher = tree.search(seq.getBytes());
 			while (searcher.hasNext()) {
 				SearchResult result = (SearchResult) searcher.next();
 				Set<Integer> idxs = result.getOutputs();
-				for (int idx:idxs)
+				int kmerSum = 0;
+				for (int idx:idxs){
+					kmerSum += kmers.get(idx).getSeqHitCount();
+				}
+				for (int idx:idxs){
 					posHitCount[idx]++;
+					kmerStrength[idx] += kmers.get(idx).getSeqHitCount()/kmerSum*events.get(i).getTotalEventStrength();
+				}
 			}
 	    }
 	    for (String seq: seqsNegList){
@@ -422,6 +431,7 @@ public class KmerEngine {
 	    	km.setSeqHitCount(posHitCount[i]);
 	    	km.setNegCount(negHitCount[i]);
 			km.setHgp( computeHGP(posSeqCount, negSeqCount, posHitCount[i], negHitCount[i]));
+			km.setStrength(kmerStrength[i]);
 	    }
 	}
 	
@@ -708,8 +718,8 @@ public class KmerEngine {
 		public Kmer getBestKmer(){
 			return kmers.get(0);
 		}
-		public double getTotalKmerCount(){
-    		double kmerCountSum = 0;
+		public int getTotalKmerCount(){
+    		int kmerCountSum = 0;
     		for (Kmer kmer:kmers){
         		kmerCountSum+=kmer.getSeqHitCount();	
     		}

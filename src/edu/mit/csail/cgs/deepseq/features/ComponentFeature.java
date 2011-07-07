@@ -443,7 +443,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	result.append(String.format("%7.2f\t", q_lg));    
         	double p_lg = -Math.log10(getPValue(c));
         	if(unScaledControlCounts==null)
-        		p_lg = -Math.log10(getPValue(c));
+        		p_lg = -Math.log10(getPValue_wo_ctrl(c));
         	if (p_lg==Double.POSITIVE_INFINITY)
     			p_lg= 999;
         	result.append(String.format("%7.2f\t", p_lg));

@@ -1188,9 +1188,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
 					ipCache.readRCF(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
 					ReadCache ctrlCache = null;
-					if (controlDataExist){
+					String ctrlFile = Args.parseString(args, "--rfctrl"+conditionNames.get(i), null);
+					if (ctrlFile!=null){
 						ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
-						ipCache.readRCF(Args.parseString(args, "--rfctrl"+conditionNames.get(i), ""));
+						ctrlCache.readRCF(ctrlFile);
+			    		controlDataExist = true;
 					}
 					this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
 				} catch (IOException e) {
@@ -3328,7 +3330,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	//		
 	//		consolidateKmers(compFeatures);
 			
-			ArrayList<Kmer> kmers = countKmers2(compFeatures);	
+			ArrayList<Kmer> kmers = countKmers2(compFeatures);
+			kEngine.updateKmerCounts(kmers, compFeatures);
+			
 			if (makePFM)
 				kmers = this.alignOverlappedKmers(kmers, compFeatures);
 			log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
@@ -3344,7 +3348,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	if (config.k==-1 && config.k_min==-1)
     		return;
 		
-    	System.out.println("Loadning genome sequences ...");
+    	System.out.println("Loading genome sequences ...");
 		kEngine = new KmerEngine(gen, config.cache_genome);
 		long tic = System.currentTimeMillis();
 		
@@ -3725,7 +3729,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					}
 					// use kmer shift to align the containing sequences 
 					for (Kmer km: mmaligned){
-						alignSequences(km, kmer2seq.get(km), seqs, posSeqs, isPlusStrands, seqAlignRefs);
+						HashSet<Integer> hits = kmer2seq.get(km);
+						if (hits==null || hits.isEmpty())
+							continue;
+						alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
 					}
 					kmers.removeAll(mmaligned);
 					aligned_new.clear();				// clear aligned kmers that are used for mismatch search
@@ -3997,7 +4004,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    }
 		ArrayList<Kmer> updated = new ArrayList<Kmer>();
 		updated.addAll(str2kmer.values());
-		kEngine.updateKmerCounts(updated);
+		kEngine.updateKmerCounts(updated, events);
 		
 		return updated;
 //		ArrayList<Kmer> result = new ArrayList<Kmer>();
