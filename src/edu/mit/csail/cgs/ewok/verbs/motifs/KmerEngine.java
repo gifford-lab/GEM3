@@ -555,7 +555,7 @@ public class KmerEngine {
 	 * pos is the binding site position in the sequence<br>
 	 * kmers are the kmers that map to this position on both positive and negative strands<br>
 	 */
-	public KmerMatches[] query (String seq){
+	public KmerGroup[] query (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
@@ -598,10 +598,10 @@ public class KmerEngine {
 				result.get(x).add(kmer);	
 			}
 		}
-		KmerMatches[] matches = new KmerMatches[result.keySet().size()];
+		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			matches[idx]=new KmerMatches(result.get(p), p);
+			matches[idx]=new KmerGroup(result.get(p), p);
 			idx++;
 		}
 		return matches;
@@ -704,10 +704,10 @@ public class KmerEngine {
 	 * This KmerMatches class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
 	 * @author yuchun
 	 */
-	public class KmerMatches {
+	public class KmerGroup {
 		ArrayList<Kmer> kmers;
 		int bs = 999;
-		public KmerMatches(ArrayList<Kmer> kmers, int bs){
+		public KmerGroup(ArrayList<Kmer> kmers, int bs){
 			this.bs = bs;
 			this.kmers = kmers;
 			Collections.sort(this.kmers);
@@ -725,6 +725,16 @@ public class KmerEngine {
     		}
     		return kmerCountSum;
 		}
+		/** Get the weighted kmer count<cr>
+		 *  The weight is 1 for top kmer, 1/k for other kmer */
+		public int getWeightedKmerCount(){
+    		float kmerCountSum = kmers.get(0).getSeqHitCount();
+    		float k = kmers.get(0).k;
+    		for (int i=1;i<kmers.size();i++){
+        		kmerCountSum+=kmers.get(i).getSeqHitCount()/k;	
+    		}
+    		return Math.round(kmerCountSum);
+		}
 		public double getTotalKmerStrength(){
     		double total = 0;
     		for (Kmer kmer:kmers){
@@ -733,7 +743,16 @@ public class KmerEngine {
     		}
     		return total;
 		}	
-		
+		/** Get the weighted kmer strength<cr>
+		 *  The weight is 1 for top kmer, 1/k for other kmer */
+		public double getWeightedKmerStrength(){
+    		double total = kmers.get(0).getStrength();
+    		double k = kmers.get(0).k;
+    		for (int i=1;i<kmers.size();i++){
+    			total+=kmers.get(i).getStrength()/k;	
+    		}
+    		return total;
+		}			
 		public int getPosBS(){
 			return bs;
 		}

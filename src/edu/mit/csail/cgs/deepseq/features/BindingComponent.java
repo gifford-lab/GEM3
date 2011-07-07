@@ -4,7 +4,7 @@ import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
-import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerMatches;
+import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerGroup;
 
 /**
  * BindingComponents are used in mixture models to represent potential binding events.
@@ -24,9 +24,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	private Point EM_position;		// EM result
 	private int old_index;
 	private double alpha;
-	private KmerMatches kmer;
-	public KmerMatches getKmerMatches() { return kmer; }
-	public void setKmerMatches(KmerMatches kmer) { this.kmer = kmer;}
+	private KmerGroup kmerGroup;
+	public KmerGroup getKmerGroup() { return kmerGroup; }
+	public void setKmerGroup(KmerGroup kmer) { this.kmerGroup = kmer;}
 	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
 	public String getBoundSequence(){return boundSequence;}
 	public void setBoundSequence(String boundSequence){this.boundSequence = boundSequence;}

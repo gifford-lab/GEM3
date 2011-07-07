@@ -31,7 +31,7 @@ import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
 import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
-import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerMatches;
+import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerGroup;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.Utils;
 import edu.mit.csail.cgs.utils.Pair;
@@ -460,12 +460,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Creating %d threads ...", maxThreads));
         int regionsPerThread = restrictRegions.size()/threads.length;
+        // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
+        TreeSet<Region> regionsToRun = new TreeSet<Region>();
+        regionsToRun.addAll(restrictRegions);
         for (int i = 0 ; i < threads.length; i++) {
-            ArrayList<Region> threadRegions = new ArrayList<Region>();
-            // evenly distributed with regions from all chrom, avoid certain chrom getting stuck with some dense regions
-            for (int j=i;j<restrictRegions.size();j+=maxThreads){
-            	threadRegions.add(restrictRegions.get(j));
-            }
+//            ArrayList<Region> threadRegions = new ArrayList<Region>();
+//            // evenly distributed with regions from all chrom, avoid certain chrom getting stuck with some dense regions
+//            for (int j=i;j<restrictRegions.size();j+=maxThreads){
+//            	threadRegions.add(restrictRegions.get(j));
+//            }
 //            int nextStartIndex = (i+1)*regionsPerThread;
 //            if (i==threads.length-1)		// last thread
 //            	nextStartIndex = restrictRegions.size();
@@ -473,7 +476,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //            for (int j = i*regionsPerThread; j < nextStartIndex; j++) {
 //                threadRegions.add(restrictRegions.get(j));
 //            }
-            Thread t = new Thread(new GPS2Thread(threadRegions,
+            Thread t = new Thread(new GPS2Thread(regionsToRun,
             									processRegionCount,
                                                 compFeatures,
                                                 allKmerHits,
@@ -497,6 +500,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 }
             }    
             int count = processRegionCount.size();
+//            System.out.println(count);
             int trigger = totalRegionCount;
             if (!reportTriggers.isEmpty())
             	trigger = reportTriggers.first();
@@ -823,8 +827,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int kmerHitCount[] = new int[N];		// the number of kmerHits up to event #i
 		for (int i=0;i<N;i++){
 			ComponentFeature cf = compFeatures.get(i);
-			KmerMatches kmerMatches = cf.getKmerMatches();
-			int inc = (kmerMatches==null||kmerMatches.getTotalKmerCount()<=1)?0:1;
+			KmerGroup kmerGroup = cf.getKmerGroup();
+			int inc = (kmerGroup==null||kmerGroup.getWeightedKmerCount()<=1)?0:1;
 			if (i==0)
 				kmerHitCount[0] = inc;
 			else
@@ -875,16 +879,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Running EM on control data: creating %d threads", maxThreads));
         int regionsPerThread = regions.size()/threads.length;
+        TreeSet<Region> regionsToRun = new TreeSet<Region>();
+        regionsToRun.addAll(regions);
         for (int i = 0 ; i < threads.length; i++) {
-            ArrayList<Region> threadRegions = new ArrayList<Region>();
-            int nextStartIndex = (i+1)*regionsPerThread;
-            if (i==threads.length-1)		// last thread
-            	nextStartIndex = regions.size();
-            // get the regions as same chrom as possible, to minimize chrom sequence that each thread need to cache
-            for (int j = i*regionsPerThread; j < nextStartIndex; j++) {
-                threadRegions.add(regions.get(j));
-            }
-            Thread t = new Thread(new GPS2Thread(threadRegions,
+//            ArrayList<Region> threadRegions = new ArrayList<Region>();
+//            int nextStartIndex = (i+1)*regionsPerThread;
+//            if (i==threads.length-1)		// last thread
+//            	nextStartIndex = regions.size();
+//            // get the regions as same chrom as possible, to minimize chrom sequence that each thread need to cache
+//            for (int j = i*regionsPerThread; j < nextStartIndex; j++) {
+//                threadRegions.add(regions.get(j));
+//            }
+            Thread t = new Thread(new GPS2Thread(regionsToRun,
             									processRegionCount,
                                                 ctrlFeatures,
                                                 allKmerHits,
@@ -4356,14 +4362,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		HashMap<Kmer, Integer> kmer2count = new HashMap<Kmer, Integer>();
 		HashMap<Kmer, Double> kmer2strength = new HashMap<Kmer, Double>();
 		for(ComponentFeature cf : compFeatures){
-			KmerMatches kmerMatches = cf.getKmerMatches();
-			if (kmerMatches==null)
+			KmerGroup kmerGroup = cf.getKmerGroup();
+			if (kmerGroup==null)
 				continue;
 			double totalStrength = 0;
-			for (Kmer kmer:kmerMatches.getKmers()){
+			for (Kmer kmer:kmerGroup.getKmers()){
 				totalStrength += kmer.getStrength();
 			}
-			for (Kmer kmer:kmerMatches.getKmers()){
+			for (Kmer kmer:kmerGroup.getKmers()){
 				double partialStrength = kmer.getStrength()/cf.getTotalEventStrength();
 				if (kmer2strength.containsKey(kmer))	
 					kmer2strength.put(kmer, kmer2strength.get(kmer)+partialStrength);
@@ -5811,7 +5817,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         private KPPMixture mixture;
         private GPSConstants constants;
         private GPSConfig config;
-        private Collection<Region> regions;
+        private TreeSet<Region> regions;
         private Collection<Integer> processedRegionCount;
         private Collection<ComponentFeature> compFeatures;
         private Collection<KmerPP> allKmerHits;
@@ -5834,7 +5840,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         // Maximum number of components determined by the data
         private int componentMax;
 
-        public GPS2Thread (Collection<Region> regions,
+        public GPS2Thread (TreeSet<Region> regions,
         				  Collection<Integer> processedRegionCount,
                           Collection<ComponentFeature> compFeatures,
                           Collection<KmerPP> allKmerHits,
@@ -5881,7 +5887,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
         	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
         	if (config.cache_genome)
         		seqgen.useCache(true);
-            for (Region rr : regions) {
+            while (!regions.isEmpty()) {
+            	Region rr = null;
+            	synchronized (regions){
+	            	if (!regions.isEmpty()){
+	            		rr = regions.first();
+	            		regions.remove(rr);
+            		}
+	            	else
+	            		break;
+            	}
                 mixture.log(3, rr.toString());
                 try{
                     ArrayList<BindingComponent> comps= new ArrayList<BindingComponent>();
@@ -6151,14 +6166,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
                 	//construct the positional prior for each position in this region
                 	double[] pp = new double[w.getWidth()+1];
-                	KmerMatches[] pp_kmer = new KmerMatches[pp.length];
+                	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
                 	String seq = null;
                 	if (kEngine!=null && kEngine.isInitialized()){
                 		if (kmerPreDefined)
                 			seq = seqgen.execute(w).toUpperCase();
                 		else
                 			seq = kEngine.getSequence(w);
-                		KmerMatches[] matchPositions = kEngine.query(seq);
+                		KmerGroup[] matchPositions = kEngine.query(seq);
 // TODO: allowing more motif in the region	                	
 //	                	double kmerCount_max = kEngine.getMaxCount();
 //	                	double kmerCount_min = kEngine.getMinCount();
@@ -6178,7 +6193,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		
 	                	// Effectively, the top kmers will dominate, because we normalize the pp value
                 		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
-	                	for (KmerMatches m: matchPositions){
+	                	for (KmerGroup m: matchPositions){
 	                		// the posBS is the expected binding position
 	                		int bindingPos = m.getPosBS();
 	                		if (bindingPos>=pp.length || bindingPos<0){
@@ -6187,9 +6202,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 	                		double kmerCountSum = 0;
 	                		if (config.use_strength)
-	                			kmerCountSum = m.getTotalKmerStrength();
+	                			kmerCountSum = m.getWeightedKmerStrength();
 	                		else
-	                			kmerCountSum = m.getTotalKmerCount();
+	                			kmerCountSum = m.getWeightedKmerCount();
 	                		
 	                		// select the approach to generate pp from kmer count
 	                		if (config.kpp_mode==0)
@@ -6278,7 +6293,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     if (nonZeroComponentNum==0)	return null;
                     setComponentResponsibilities(signals, result.car(), result.cdr());
                     if (kEngine!=null)
-                    	setComponentKmers(pp_kmer, w.getStart(), seq);
+                    	setEventKmerGroup(pp_kmer, w.getStart(), seq);
                 } else {
                     // Run MultiIndependentMixture (Temporal Coupling) -- PoolEM
                     // Convert data in current region in primitive format
@@ -6998,10 +7013,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
         // matched EM resulted binding components with the kmer prior
         //TODO: maybe we should search closest (<k/4) pp_kmer because some position may end up out-competed by nearby positions
-        private void setComponentKmers(KmerMatches[] pp_kmer, int startPos, String seq){
+        private void setEventKmerGroup(KmerGroup[] pp_kmer, int startPos, String seq){
         	for (BindingComponent b:components){
         		int kIdx = b.getLocation().getLocation()-startPos;
-        		b.setKmerMatches(pp_kmer[kIdx]);
+        		b.setKmerGroup(pp_kmer[kIdx]);
         		if (seq!=null){
 	        		int left = kIdx - config.k_win/2;
 	        		int right = kIdx + config.k_win/2;
@@ -7014,11 +7029,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	        		// if left and right are adjusted, the seq length is not config.k_win+1 anymore
 	        		// Then we can not assume the middle is binding position
 	        		String bs = seq.substring(left,right+1);
-	        		if (b.getKmerMatches()!=null){
-	        			if (!bs.contains(b.getKmerMatches().getBestKmer().getKmerString()))
+	        		if (b.getKmerGroup()!=null){
+	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString()))
 	        				bs = SequenceUtils.reverseComplement(bs);
-	        			if (!bs.contains(b.getKmerMatches().getBestKmer().getKmerString()))
-	        				b.setKmerMatches(null);
+	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString()))
+	        				b.setKmerGroup(null);
 	        		}
 	    			b.setBoundSequence(bs);
         		}
@@ -7212,15 +7227,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
     
     class KmerPP implements Comparable<KmerPP>{
     	Point coor;
-    	KmerMatches kmerMatches;
+    	KmerGroup kmerMatches;
     	double pp;
-    	public KmerPP(Point coor, KmerMatches matches, double pp) {
+    	public KmerPP(Point coor, KmerGroup matches, double pp) {
 			this.coor = coor;
 			this.kmerMatches = matches;
 			this.pp = pp;
 		}
 		public String toString(){
-    		return String.format("%s\t%d\t%.0f\t%.3f\t%.3f", coor.getLocationString(), kmerMatches.getKmers().size(), kmerMatches.getTotalKmerCount(),kmerMatches.getTotalKmerStrength(), pp);
+    		return String.format("%s\t%d\t%.0f\t%.3f\t%.3f", coor.getLocationString(), kmerMatches.getKmers().size(), kmerMatches.getWeightedKmerCount(),kmerMatches.getWeightedKmerStrength(), pp);
     	}
 		public int compareTo(KmerPP h) {
 			return coor.compareTo(h.coor);

@@ -7,7 +7,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
-import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerMatches;
+import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerGroup;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
@@ -41,8 +41,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected Point EM_position;		//  EM result
 	protected double alpha;
 	
-	protected KmerMatches kmerMatches;
-	public KmerMatches getKmerMatches() { return kmerMatches; }
+	protected KmerGroup kmerGroup;
+	public KmerGroup getKmerGroup() { return kmerGroup; }
 	protected double enrichedKmerHGPLog10=-2;
 	public double getEnrichedKmerHGPLog10() {
 		return Math.min(15, enrichedKmerHGPLog10);
@@ -50,7 +50,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void setEnrichedKmerHGPLog10(double enrichedKmerHGP) {
 		this.enrichedKmerHGPLog10 = enrichedKmerHGP;
 	}
-	public void setKmerMatches(KmerMatches kmer) { this.kmerMatches = kmer;}
+	public void setKmerMatches(KmerGroup kmer) { this.kmerGroup = kmer;}
 	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
 	public String getBoundSequence(){return boundSequence;}
 	public void setBoundSequence(String boundSequence){this.boundSequence = boundSequence;}
@@ -78,7 +78,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		q_value_log10 = new double[numConditions];
 		EM_position = b.getEMPosition();
 		alpha = b.getAlpha();
-		kmerMatches = b.getKmerMatches();
+		kmerGroup = b.getKmerGroup();
 		ipCtrl_logKL_plus = new double[numConditions];
 		ipCtrl_logKL_minus = new double[numConditions];
 		boundSequence = b.getBoundSequence();
@@ -456,8 +456,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append("\t");
         }
         if (boundSequence!=null){
-	        if (kmerMatches!=null)
-	        	result.append(kmerMatches.getBestKmer().getKmerString()).append("\t").append(kmerMatches.getTotalKmerCount()).append("\t").append(String.format("%.1f\t", kmerMatches.getTotalKmerStrength())).append(boundSequence);
+	        if (kmerGroup!=null)
+	        	result.append(kmerGroup.getBestKmer().getKmerString()).append("\t").append(kmerGroup.getWeightedKmerCount()).append("\t").append(String.format("%.1f\t", kmerGroup.getWeightedKmerStrength())).append(boundSequence);
 	        else
 	        	result.append(CommonUtils.padding(8, ' ')).append("\t").append(0).append("\t").append(String.format("%.1f\t", 0.0)).append(boundSequence);
 	        if (getEnrichedKmerHGPLog10()>=0)
