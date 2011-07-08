@@ -260,8 +260,9 @@ public class GPS2 {
         mixture.printFeatures();
         mixture.printFilteredFeatures();
         mixture.printInsignificantFeatures();		
+        mixture.refineRegions();
         
-        /** Round 1: GPS event finding with refined read distribution, or GEM with k-mer positional prior */
+        /** Round 1: GPS event finding with refined read distribution */
         round++;
         mixture.setOutName(peakFileName+"_"+round);
         boolean noChange = Args.parseFlags(args).contains("constant_model_range");
@@ -273,21 +274,30 @@ public class GPS2 {
         }
         else
             kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-               
-        if (run_gem)
-        	mixture.initKmerEngine(); 	// GEM event finding with k-mer positional prior (KPP)
-	        
+        
         System.out.println("\n============================ Round "+round+" ============================");
         mixture.execute();
         mixture.printFeatures();
         mixture.printFilteredFeatures();
-        mixture.printInsignificantFeatures();
+        mixture.printInsignificantFeatures();	
         
-        /** Round 2: GEM with k-mer positional prior */
 		round++;			
         mixture.setOutName(peakFileName+"_"+round);
         mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+        
+        /** Round 2: GEM with k-mer positional prior */
         if (run_gem){
+        	mixture.initKmerEngine(); 	// GEM event finding with k-mer positional prior (KPP)	        
+	        System.out.println("\n============================ Round "+round+" ============================");
+	        mixture.execute();
+	        mixture.printFeatures();
+	        mixture.printFilteredFeatures();
+	        mixture.printInsignificantFeatures();
+	        
+			round++;			
+	        mixture.setOutName(peakFileName+"_"+round);
+	        mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+	        
 	        if (update)
 	        	mixture.updateKmerEngine(true);
 	        else
@@ -302,7 +312,7 @@ public class GPS2 {
 //	        mixture.printOverlappingKmers();
         }
         else{
-        	round --;      	
+        	round --;
         }
         
         mixture.plotAllReadDistributions();

@@ -3344,21 +3344,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
 			kEngine.updateEngine(kmers, outName, false);
 		}
-
 	/**
-     * Initalize the kmer engine
-     * This is called only once for initial setup.
-     * It compact the cached sequence data and build the kmerEngine
-     */
-    public void initKmerEngine(){
-    	if (config.k==-1 && config.k_min==-1)
-    		return;
-		
-    	System.out.println("Loading genome sequences ...");
-		kEngine = new KmerEngine(gen, config.cache_genome);
-		long tic = System.currentTimeMillis();
-		
-		// refine restrictRegions, to reduce memory and run time
+	 * Refine restrict regions
+	 */
+	public void refineRegions(){
 		ArrayList<Feature> events = new ArrayList<Feature>();
 		events.addAll(signalFeatures);
 		events.addAll(insignificantFeatures);
@@ -3377,6 +3366,22 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			refinedRegions.add(cf.getPosition().expand(0));
 		}
 		this.restrictRegions=mergeRegions(refinedRegions, true);
+	}
+		
+	/**
+     * Initalize the kmer engine
+     * This is called only once for initial setup.
+     * It compact the cached sequence data and build the kmerEngine
+     */
+    public void initKmerEngine(){
+    	if (config.k==-1 && config.k_min==-1)
+    		return;
+		
+    	System.out.println("Loading genome sequences ...");
+		kEngine = new KmerEngine(gen, config.cache_genome);
+		long tic = System.currentTimeMillis();
+		
+
 		// setup lightweight genome cache
 		if (!kmerPreDefined){
 			ArrayList<Region> expandedRegions = new ArrayList<Region>();
@@ -3542,40 +3547,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		System.out.println("Align and cluster k-mers ...");
 		String[] seqs_old = kEngine.getPositiveSeqs();
 		ArrayList<Kmer> allAlignedKmers = new ArrayList<Kmer>();
-		// build the kmer search tree
-		AhoCorasick oks = new AhoCorasick();
-		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
-		for (Kmer km: kmers){
-			str2kmer.put(km.getKmerString(), km);
-			oks.add(km.getKmerString().getBytes(), km);
-	    }
-		oks.prepare();
-		
-		// index kmer->seq, seq->kmer
-		ArrayList<HashSet<Kmer>> seq2kmer = new ArrayList<HashSet<Kmer>>();
-		HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
-		for (int i=0;i<seqs_old.length;i++){
-			String seq = seqs_old[i];
-			HashSet<Kmer> results = KmerEngine.queryTree (seq, oks);
-			if (results.isEmpty()){
-				seq2kmer.add(null);
-			}
-			else{
-				for (Kmer km: results){		
-					if (!kmer2seq.containsKey(km)){
-						kmer2seq.put(km, new HashSet<Integer>());
-					}
-					kmer2seq.get(km).add(i);
-				}
-				seq2kmer.add(results);
-			}
-		}
-		
-		Collections.sort(kmers, new Comparator<Kmer>(){
-		    public int compare(Kmer o1, Kmer o2) {
-		    		return o1.compareByHGP(o2);
-		    }
-		});
 
 		// cluster and align
 		final int STRAND = 1000;		// extra bp add to indicate negative strand match of kmer
@@ -3601,6 +3572,42 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}		
 			ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 			
+			Collections.sort(kmers, new Comparator<Kmer>(){
+			    public int compare(Kmer o1, Kmer o2) {
+			    		return o1.compareByHGP(o2);
+			    }
+			});			
+			
+			// build the kmer search tree
+			AhoCorasick oks = new AhoCorasick();
+			HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
+			for (Kmer km: kmers){
+				str2kmer.put(km.getKmerString(), km);
+				oks.add(km.getKmerString().getBytes(), km);
+		    }
+			oks.prepare();
+			
+			// index kmer->seq, seq->kmer
+			ArrayList<HashSet<Kmer>> seq2kmer = new ArrayList<HashSet<Kmer>>();
+			HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
+			for (int i=0;i<seqs.length;i++){
+				String seq = seqs[i];
+				HashSet<Kmer> results = KmerEngine.queryTree (seq, oks);
+				if (results.isEmpty()){
+					seq2kmer.add(null);
+				}
+				else{
+					for (Kmer km: results){		
+						if (!kmer2seq.containsKey(km)){
+							kmer2seq.put(km, new HashSet<Integer>());
+						}
+						kmer2seq.get(km).add(i);
+					}
+					seq2kmer.add(results);
+				}
+			}
+
+
 			/** get seed kmer and its mismatch k-mers, align sequences */
 			Kmer seed = kmers.get(0);
 			cluster.seedKmer = seed;
@@ -3972,7 +3979,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (Kmer km: alignedKmers){
 				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
 			}
-
+			
+			/** Select the center k-mers for this cluster */
+			ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+			for (Kmer km: alignedKmers){
+				if (Math.abs(km.getShift())>config.k_center)
+					toRemove.add(km);
+			}
+			alignedKmers.removeAll(toRemove);
+			kmers.addAll(toRemove);
+			// consolidate and update kmers
+			consolidateKmers(kmers, events);			
+			
 			allAlignedKmers.addAll(alignedKmers);
 			clusterID++;
 		} // each cluster
@@ -4017,25 +4035,28 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		CommonUtils.writeFile(outName+"_OK_PFM.txt", pfm_sb.toString());
 		
 		// update Kmer count and HGP 
-		Collections.sort(allAlignedKmers);		
-		str2kmer = new HashMap<String, Kmer>();
-		for (Kmer km: allAlignedKmers){
-			String kmStr = km.getKmerString();
-			if (str2kmer.containsKey(kmStr))		// if this kmer string exists, consolidate the kmer
-				km = str2kmer.get(kmStr);
-			else
-				str2kmer.put(kmStr, km);
-	    }
-		ArrayList<Kmer> updated = new ArrayList<Kmer>();
-		updated.addAll(str2kmer.values());
-		kEngine.updateKmerCounts(updated, events);
+		consolidateKmers(allAlignedKmers, events);	
+		return allAlignedKmers;
 		
-		return updated;
 //		ArrayList<Kmer> result = new ArrayList<Kmer>();
 //		result.addAll(bestKmers);
 //		return result;
 	}
-
+	
+	// consolidate to unique k-mers, update Kmer count and HGP
+	private void consolidateKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
+		Collections.sort(kmers);		
+		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
+		for (Kmer km: kmers){
+			String kmStr = km.getKmerString();
+			if (!str2kmer.containsKey(kmStr))		// if this kmer string exists, consolidate the kmer
+				str2kmer.put(kmStr, km);
+	    }
+		kmers.clear();
+		kmers.addAll(str2kmer.values());
+		kEngine.updateKmerCounts(kmers, events);
+	}
+	
     private ArrayList<Kmer> getSeedKmerFamily(ArrayList<Kmer> kmers, Kmer seed) {
     	ArrayList<Kmer> family = new ArrayList<Kmer>();
     	String seedKmerStr = seed.getKmerString();
@@ -5672,6 +5693,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_neg_dist = 200;// the distance of the window for negative sequences from binding sites 
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
+        public int k_center = 3;	// the distance of k-mers centered around seed k-mer
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
         public double hgp = 1e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double k_fold = 3;	// the minimum fold of kmer count in positive seqs vs negative seqs
@@ -5777,6 +5799,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_neg_dist = Args.parseInteger(args, "k_neg_dist", k_neg_dist);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
             k_overlap = Args.parseInteger(args, "k_overlap", Math.max(k_overlap, StatUtil.round(k*0.75)));
+            k_center = Args.parseInteger(args, "k_center", k_center);
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
             k_fold = Args.parseDouble(args, "k_fold", k_fold);
             gc = Args.parseDouble(args, "gc", gc);
