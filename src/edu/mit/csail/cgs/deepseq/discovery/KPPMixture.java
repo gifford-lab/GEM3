@@ -3521,10 +3521,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
 		config.k_win = winSize;
 		
-		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName+"_OK_win"+winSize);
+		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName+"_win"+winSize);
 		if (config.align_overlap_kmer)
 			kmers = alignOverlappedKmers(kmers, getEvents());
-		kEngine.updateEngine(kmers, outName+"_OK_win"+ winSize, false);		
+		kEngine.updateEngine(kmers, outName, false);		
     }
     
     /** 
@@ -3854,7 +3854,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    		}
 	    			km.setShift(0);
 	    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
-	    			alignedKmers.add(km);
+	    			if (!alignedKmers.contains(km))
+	    				alignedKmers.add(km);
 	    			// connect kmer back to the sequence
 	    			for (int i:pwmKmerStr2seq.get(kmStr)){
 	    				if (seq2kmer.get(i)==null)
@@ -3994,7 +3995,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			allAlignedKmers.addAll(alignedKmers);
 			clusterID++;
 		} // each cluster
-		CommonUtils.writeFile(outName+"_OK_aligned.txt", alignedKmer_sb.toString());
+		CommonUtils.writeFile(outName+"_aligned_history.txt", alignedKmer_sb.toString());
 		
 //		// take the best kmer from each sequence
 //		TreeSet<Kmer> bestKmers = new TreeSet<Kmer>();
@@ -4032,7 +4033,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		System.out.println(String.format("PWM threshold: %.2f/%.2f", c.pwmThreshold, c.wm.getMaxScore()));
 			pfm_sb.append(c.pfmString);
 		}
-		CommonUtils.writeFile(outName+"_OK_PFM.txt", pfm_sb.toString());
+		CommonUtils.writeFile(outName+"_PFM.txt", pfm_sb.toString());
 		
 		// update Kmer count and HGP 
 		consolidateKmers(allAlignedKmers, events);	
@@ -4312,7 +4313,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 */
 	public void printOverlappingKmers(){
 		for (int k=config.k;k<config.k+5;k++){
-			String name = outName+"_OK_win"+ (config.k*2);
+			String name = outName+"_";//OK_win"+ (config.k*2);
 	    	ArrayList<Point> events = getEventPoints();
 			kEngine.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name);
 		}
