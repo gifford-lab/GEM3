@@ -6038,7 +6038,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                                             }
                                             comps.removeAll(toRemove);
                                             // re-process the boundary region
-                                            int winSize = mixture.modelWidth*10;
+                                            int winSize = mixture.modelWidth*5;
                                             if (r.getWidth()<winSize){ // if the region is small, directly process it
                                                 ArrayList<BindingComponent> result = analyzeWindow(r, seqgen);
                                                 if (result!=null){
