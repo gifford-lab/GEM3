@@ -3832,14 +3832,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			//	    	ArrayList<Kmer> newKmer = new ArrayList<Kmer>();
 				    	for (String kmStr: pwmAlignedKmerStr.keySet()){
 				    		Kmer km = null;
-				    		String kmCR = SequenceUtil.reverseComplement(kmStr);
+				    		String kmRC = SequenceUtil.reverseComplement(kmStr);
 				    		if (str2kmer.containsKey(kmStr)){	// if existing k-mers
 				    			km = str2kmer.get(kmStr);
 				    			kmers.remove(km);
 				    		}
-				    		else if (str2kmer.containsKey(kmCR)){	
-				    			km = str2kmer.get(kmCR);
-				    			km.RC();
+				    		else if (str2kmer.containsKey(kmRC)){	
+				    			km = str2kmer.get(kmRC);
+				    			if (km.getKmerString().equals(kmRC))
+				    				km.RC();
 				    			kmers.remove(km);
 				    		}
 				    		else {								// new found k-mers
@@ -4121,6 +4122,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				Pair<Integer, Double> hit = scanPWM(seqs[i], cluster.wm, scorer);
 				if (hit.cdr()<cluster.pwmThreshold)
 					continue;
+				if (hit.car()<0){		// match on the other strand
+					posSeqs[i] = UNALIGNED;
+					continue;
+				}
 				pwmPos.add(hit.car()+seq_seed);
 				alignedSeqIdx.add(i);
 //				sb.append(String.format("%s\t%d\t%.2f\n", s, hit.car(), hit.cdr()));
