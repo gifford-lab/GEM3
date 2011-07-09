@@ -491,6 +491,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         }
         boolean anyrunning = true;
         int count = 0;
+        HashSet<Region> heavyRegions = new HashSet<Region>();
         while (anyrunning) {
             anyrunning = false;
             try {
@@ -499,8 +500,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
             for (int i = 0; i < threads.length; i++) {
                 if (threads[i].isAlive()) {
                     anyrunning = true;
-                    if (count == processRegionCount.size()&&config.bmverbose>1)
-                    	System.out.println("Analyzing "+regionsRunning.elementAt(0).toString());
+                    if (count == processRegionCount.size()){
+                    	heavyRegions.addAll(regionsRunning);
+                    	if (config.bmverbose>1)
+                    		System.out.println("Analyzing "+regionsRunning.elementAt(0).toString());
+                    }
                     break;
                 }
             }    
@@ -518,7 +522,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
         processRegionCount.clear();
         
         log(3,String.format("%d threads have finished running", maxThreads));
-
+        
+        // print out the heavy regions
+        if (!heavyRegions.isEmpty()){
+        	StringBuilder sb0 = new StringBuilder();
+        	for (Region r:heavyRegions)	
+	        	sb0.append(r.toString()).append("\n");
+	        CommonUtils.writeFile(outName+"_zzzzz_heavyRegions.txt", sb0.toString());
+        }
+        
         // print out kmer hit list
         if (config.kmer_print_hits){
 	        Collections.sort(allKmerHits);
@@ -2479,7 +2491,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	
 	double updateBindingModel(int left, int right){
 		if (signalFeatures.size()<config.min_event_count){
-			System.err.println("Warning: The read distribution is not updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
+			System.err.println("/nWarning: The read distribution is not updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
 			return -100;
 		}
 		int width = left+right+1;
