@@ -3508,7 +3508,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (config.k_min!=-1){
 			int eventCounts[] = new int[config.k_max-config.k_min+1];
 			for (int i=0;i<eventCounts.length;i++){
-				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, points, config.k_win, config.hgp, config.k_fold, outName+"_OK_win"+ (config.k_win));
+				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, points, config.k_win, config.hgp, config.k_fold, outName);
 				if (kms.isEmpty())
 					eventCounts[i] = 0;
 				else{
@@ -3540,7 +3540,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
 		config.k_win = winSize;
 		
-		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName+"_win"+winSize);
+		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
 		if (config.align_overlap_kmer)
 			kmers = alignOverlappedKmers(kmers, getEvents());
 		kEngine.updateEngine(kmers, outName, false);		
@@ -3585,7 +3585,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			KmerCluster cluster = new KmerCluster();
 			cluster.clusterId = clusterID;
 			clusters.add(cluster);
-			
+			if (config.bmverbose>1)
+				System.out.println("Aligning cluster #"+clusterID);
 			// init posSeqs, so each new kmer cluter align with all the sequences 
 			for (int i=0;i<posSeqs.length;i++){
 				posSeqs[i] = UNALIGNED;
@@ -4034,7 +4035,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			/** mask the PWM matched regions */
 			if (cluster.wm!=null){
 		        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
-		        int len = cluster.wm.length();
+		        int left = Math.round(cluster.wm.length()*(1-config.k_mask_f)/2);
+		        int right = Math.round(cluster.wm.length()*(1-(1-config.k_mask_f)/2));
 		        boolean masked = false;
 				for (int i=0;i<posSeqs.length;i++){
 					if (posSeqs[i] == UNALIGNED)
@@ -4047,9 +4049,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					if (start<0)
 						continue;
 					// replace with random letters
-					seqs[i]=seq.substring(0, start)
-							.concat(CommonUtils.padding(len, 'N'))
-							.concat(seq.substring(start+len, seq.length()));
+					seqs[i]=seq.substring(0, start+left)
+							.concat(CommonUtils.padding(right-left, 'N'))
+							.concat(seq.substring(start+right, seq.length()));
 					masked = true;
 				}
 				if (masked){
@@ -4304,10 +4306,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	
 	    	WeightMatrix wm = new WeightMatrix(matrix);
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-	    	double pwmThreshold = kEngine.estimatePwmThreshold(wm, config.wm_factor, outName);	
+	    	double pwmThreshold = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);	
+    		if (config.bmverbose>1)
+    			System.out.println(String.format("PWM %s from %d events, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), passedSeqs.size(), pwmThreshold, wm.getMaxScore()));
 	    	if (pwmThreshold<0){
-	    		if (config.bmverbose>1)
-	    			System.out.println("buildPWM: PWM "+WeightMatrix.getMaxLetters(wm)+" is non-specific.");
 	    		return -1;
 	    	}
 	    	cluster.wm = wm;
@@ -4319,7 +4321,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			pfm_trim[p-leftIdx][base]=(float) pfm[p][base];
 	    		}
 	    	}
-	    	cluster.pfmString = cluster.pfmString+makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, passedSeqs.size()));
+	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, passedSeqs.size()));
 	    	cluster.sequenceCount = passedSeqs.size();
 	    	cluster.pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
 	    	return leftIdx;
@@ -5800,7 +5802,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_neg_dist = 200;// the distance of the window for negative sequences from binding sites 
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
         public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
-        public double k_center_f = 0.5;	// the distance factor of k-mers centered around seed k-mer
+        public float k_mask_f = 1;	// the fraction of PWM to mask
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
         public double hgp = 1e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double k_fold = 3;	// the minimum fold of kmer count in positive seqs vs negative seqs
@@ -5819,6 +5821,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
+        public boolean print_pwm_fdr = false;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5878,6 +5881,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_use_filtered = flags.contains("kmer_use_filtered");
             re_align_kmer = flags.contains("rak");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
+            print_pwm_fdr = flags.contains("print_pwm_fdr");
             
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -5906,7 +5910,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_neg_dist = Args.parseInteger(args, "k_neg_dist", k_neg_dist);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
             k_overlap = Args.parseInteger(args, "k_overlap", Math.max(k_overlap, StatUtil.round(k*0.75)));
-            k_center_f = Args.parseDouble(args, "k_center_f", k_center_f);
+            k_mask_f = Args.parseFloat(args, "k_mask_f", k_mask_f);
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
             k_fold = Args.parseDouble(args, "k_fold", k_fold);
             gc = Args.parseDouble(args, "gc", gc);

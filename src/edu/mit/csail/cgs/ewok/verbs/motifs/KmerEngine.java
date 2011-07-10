@@ -254,7 +254,7 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
 		Collections.sort(kms);
-		Kmer.printKmers(kms, outPrefix+"_all", true);
+		Kmer.printKmers(kms, outPrefix+"_all_w"+winSize, true);
 		
 		kms.removeAll(highHgpKmers);
 		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeq, negSeq, CommonUtils.timeElapsed(tic)));
@@ -443,7 +443,7 @@ public class KmerEngine {
 	 * If a PWM is good PWM, the curve of the difference between the number of positive and negative sequences match vs score
 	 * should have a peak value, then we set PWM threshold = the largest score corresponding to 0.9*peak_value
 	 */
-	public double estimatePwmThreshold(WeightMatrix wm, double wm_factor, String outName){
+	public double estimatePwmThreshold(WeightMatrix wm, String outName, boolean printFDR){
 		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 		double[] posSeqScores = new double[seqs.length];
 		double[] negSeqScores = new double[seqsNegList.size()];
@@ -468,11 +468,10 @@ public class KmerEngine {
 			int positiveCount = posSeqScores.length-i;
 			long negativeCount = Math.round((double)(negSeqScores.length-index)*seqs.length/seqsNegList.size());		// scale the count
 //			hgps[i]=1-StatUtil.hyperGeometricCDF_cache(posSeqScores.length-i, seqs.length+seqsNeg.length, posSeqScores.length-i+negSeqScores.length-index, seqs.length);
-			fdrs[i] = (double)(positiveCount)/(negativeCount);
-			if (negativeCount==0)
-				fdrs[i] = 999;
+			fdrs[i] = (double)negativeCount/(positiveCount+negativeCount);
 			diffs[i] = positiveCount-negativeCount;
-//			sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], positiveCount, negativeCount, fdrs[i], diffs[i]));
+			if (printFDR)
+				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], positiveCount, negativeCount, diffs[i], fdrs[i]));
 		}	
 		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMax(diffs);
 		double max = maxDiff.car();
@@ -480,12 +479,11 @@ public class KmerEngine {
 		for (int i=maxIdx; i<diffs.length;i++){
 			if (diffs[i]<max*0.9){
 				threshold = posSeqScores[i];
-//				System.out.println(String.format("PWM %s: maxDiff=%.0f (%.1f), select score=%.2f (diff=%.0f, fdr=%.1f)", 
-//						WeightMatrix.getMaxLetters(wm), max, posSeqScores[maxIdx], threshold, diffs[i], fdrs[i]));
 				break;
 			}
 		}
-//		CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
+		if (printFDR)
+			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
 		return threshold;
 	}
 	
