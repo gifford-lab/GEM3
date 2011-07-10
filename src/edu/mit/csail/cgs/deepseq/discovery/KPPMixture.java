@@ -3561,6 +3561,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      * @return
      */
 	private ArrayList<Kmer> alignOverlappedKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
+		long tic = System.currentTimeMillis();
 		if (kmers.size()==0)
 			return kmers;
 		System.out.println("Align and cluster k-mers ...");
@@ -3894,6 +3895,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    	}
 				    	if (config.bmverbose>1)
 				    		System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers.");
+				    	if (count_pwm_aligned==0)
+				    		break;
 					}
 				}
 		    	
@@ -4105,6 +4108,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		allAlignedKmers.addAll(allKmers.values());
 		// update Kmer count and HGP
 		consolidateKmers(allAlignedKmers, events);	
+		log(1, "\nAlignment done, "+CommonUtils.timeElapsed(tic)+"\n");
 		return allAlignedKmers;
 		
 //		ArrayList<Kmer> result = new ArrayList<Kmer>();
