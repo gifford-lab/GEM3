@@ -189,4 +189,26 @@ public class SequenceUtils {
 		}
 		return kmers;
 	}    
+	
+	private static cern.jet.random.engine.RandomEngine randomEngine;
+	public static String generateRandomBases(int k){
+		if (randomEngine==null)
+			randomEngine = new cern.jet.random.engine.MersenneTwister();
+		StringBuffer sb=new StringBuffer();
+		for (int i=0;i<k;i++){
+			int num = Math.abs(randomEngine.nextInt()) % 4;
+			sb.append(int2Char(num));
+		}
+		return sb.toString();
+	}
+	public static String generateRandomString(int k){
+		if (randomEngine==null)
+			randomEngine = new cern.jet.random.engine.MersenneTwister();
+		char[] chars = new char[k];
+		for (int i=0;i<k;i++){
+			chars[i]=(char)(Math.abs(randomEngine.nextInt()) % 26 + 'A');
+		}
+		return new String(chars);
+	}
+
 }

@@ -411,7 +411,7 @@ public class KmerEngine {
 				}
 				for (int idx:idxs){
 					posHitCount[idx]++;
-					kmerStrength[idx] += kmers.get(idx).getSeqHitCount()/kmerSum*events.get(i).getTotalEventStrength();
+					kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getSeqHitCount()/kmerSum*events.get(i).getTotalEventStrength();
 				}
 			}
 	    }
@@ -424,15 +424,19 @@ public class KmerEngine {
 					negHitCount[idx]++;
 			}
 	    }
-	    int posSeqCount = seqs.length;
-	    int negSeqCount = seqsNegList.size();
 	    for (int i=0;i<kmers.size();i++){
 	    	Kmer km = kmers.get(i);
 	    	km.setSeqHitCount(posHitCount[i]);
 	    	km.setNegCount(negHitCount[i]);
-			km.setHgp( computeHGP(posSeqCount, negSeqCount, posHitCount[i], negHitCount[i]));
+			km.setHgp( updateHGP(posHitCount[i], negHitCount[i]));
 			km.setStrength(kmerStrength[i]);
 	    }
+	}
+	
+	public double updateHGP(int posHitCount, int negHitCount){
+	    int posSeqCount = seqs.length;
+	    int negSeqCount = seqsNegList.size();
+		return computeHGP(posSeqCount, negSeqCount, posHitCount, negHitCount);
 	}
 	
 	/**
@@ -616,7 +620,6 @@ public class KmerEngine {
 	 * if pos is negative, then the kmer match is on the reverse compliment seq string
 	 */
 	public static HashSet<Kmer> queryTree (String seq, AhoCorasick tree){
-		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.

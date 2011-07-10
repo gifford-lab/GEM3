@@ -2491,7 +2491,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	
 	double updateBindingModel(int left, int right){
 		if (signalFeatures.size()<config.min_event_count){
-			System.err.println("/nWarning: The read distribution is not updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
+			System.err.println("\nWarning: The read distribution is not updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
 			return -100;
 		}
 		int width = left+right+1;
@@ -3565,8 +3565,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			return kmers;
 		System.out.println("Align and cluster k-mers ...");
 		String[] seqs_old = kEngine.getPositiveSeqs();
-		ArrayList<Kmer> allAlignedKmers = new ArrayList<Kmer>();
-
+		String[] seqs = seqs_old.clone();						// clone to modify locally
+		int posSeqs[] = new int[seqs.length]; 					// the position of sequences
+		String seqAlignRefs[] = new String[seqs.length];
+		boolean isPlusStrands[] = new boolean[seqs.length];
+		for (int i=0;i<posSeqs.length;i++)
+			isPlusStrands[i] = true;
+		
 		// cluster and align
 		final int STRAND = 1000;		// extra bp add to indicate negative strand match of kmer
 		final int UNALIGNED = 999;
@@ -3580,14 +3585,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.clusterId = clusterID;
 			clusters.add(cluster);
 			
-			String[] seqs = seqs_old.clone();
-			int posSeqs[] = new int[seqs.length]; 		// the position of sequences
-			String seqAlignRefs[] = new String[seqs.length];
-			boolean isPlusStrands[] = new boolean[seqs.length];
 			// init posSeqs, so each new kmer cluter align with all the sequences 
 			for (int i=0;i<posSeqs.length;i++){
 				posSeqs[i] = UNALIGNED;
-				isPlusStrands[i] = true;
 				seqAlignRefs[i] = null;
 			}		
 			ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
@@ -3626,6 +3626,25 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					seq2kmer.add(results);
 				}
 			}
+			
+			// update kmerCount, and hgp()
+			ArrayList<Kmer> zeroCount = new ArrayList<Kmer>();
+			for (Kmer km:kmers){
+				if (kmer2seq.containsKey(km)){
+					km.setSeqHitCount(kmer2seq.get(km).size());
+					km.setHgp(kEngine.updateHGP(km.getSeqHitCount(), km.getNegCount()));
+				}
+				else{
+					zeroCount.add(km);
+				}
+			}
+			kmers.removeAll(zeroCount);
+			
+			Collections.sort(kmers, new Comparator<Kmer>(){
+			    public int compare(Kmer o1, Kmer o2) {
+			    		return o1.compareByHGP(o2);
+			    }
+			});			
 
 			/** get seed kmer and its mismatch k-mers, align sequences */
 			Kmer seed = kmers.get(0);
@@ -3796,7 +3815,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				          char maxScoringStrand = '+';
 				          for (int j=0;j<profiler.length();j++){
 				        	  double score = profiler.getMaxScore(j);
-				        	  if (maxSeqScore<score){
+				        	  if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
 				        		  maxSeqScore = score;
 				        		  maxScoringShift = j;
 				        		  maxScoringStrand = profiler.getMaxStrand(j);
@@ -3805,22 +3824,24 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				          // if a sequence pass the motif score, reset the kmer to the binding site
 				          if (maxSeqScore >= cluster.pwmThreshold){
 							if (maxScoringStrand =='-'){
-								seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
-								isPlusStrands[i] = isPlusStrands[i]?false:true;
 								maxScoringShift = seqs[i].length()-maxScoringShift-wm.length();
 								// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
 							}
 							int start = -(cluster.pos_pwm_seed-maxScoringShift);
 							int end = start+config.k;
 							if (start<0 || end > seqs[i].length()){		// if the seed kmer alignment exceed the sequence, skip
-								if (maxScoringStrand =='-'){	// reverse the change
-									seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
-									isPlusStrands[i] = isPlusStrands[i]?false:true;
-								}
 								continue;
+							}
+							if (maxScoringStrand =='-'){
+								seqs[i] = SequenceUtils.reverseComplement(seqs[i]);
+								isPlusStrands[i] = !isPlusStrands[i];
 							}
 							posSeqs[i] = cluster.pos_pwm_seed-maxScoringShift;
 							String kmerStr = seqs[i].substring(-posSeqs[i], end);
+							if (kmerStr.contains("N")){
+								String s = isPlusStrands[i]?seqs_old[i]:SequenceUtils.reverseComplement(seqs_old[i]);
+								kmerStr = s.substring(-posSeqs[i], end);
+							}
 							if (pwmAlignedKmerStr.containsKey(kmerStr))
 								pwmAlignedKmerStr.put(kmerStr, pwmAlignedKmerStr.get(kmerStr)+1);
 							else
@@ -3999,20 +4020,39 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
 			}
 			
-			/** Select the center k-mers for this cluster */
-			ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
-			for (Kmer km: alignedKmers){
-				if (Math.abs(km.getShift())>config.k_center_f*config.k)
-					toRemove.add(km);
-			}
-			alignedKmers.removeAll(toRemove);
-			kmers.addAll(toRemove);
-			// consolidate and update kmers
-			consolidateKmers(kmers, events);			
+			/** store aligned kmers */
+			ArrayList<Kmer> copy = new ArrayList<Kmer>();
+			consolidateKmers(alignedKmers, events);	
+			for (Kmer km:alignedKmers)
+				copy.add(km.clone());
+			cluster.alignedKmers = copy;
 			
-			allAlignedKmers.addAll(alignedKmers);
+			/** mask the PWM matched regions */
+			if (cluster.wm!=null){
+		        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
+		        int len = cluster.wm.length();
+				for (int i=0;i<posSeqs.length;i++){
+					if (posSeqs[i] == UNALIGNED)
+						continue;
+					String seq = seqs[i];
+					Pair<Integer, Double> hit = scanPWM(seq, cluster.wm, scorer);
+					if (hit.cdr()<cluster.pwmThreshold)
+						continue;
+					int start = hit.car();
+					if (start<0)
+						continue;
+					// replace with random letters
+					seqs[i]=seq.substring(0, start)
+							.concat(CommonUtils.padding(len, 'N'))
+							.concat(seq.substring(start+len, seq.length()));
+				}
+				
+				kmers.addAll(alignedKmers);	
+				consolidateKmers(kmers, events);
+			}
 			clusterID++;
 		} // each cluster
+		
 		CommonUtils.writeFile(outName+"_aligned_history.txt", alignedKmer_sb.toString());
 		
 //		// take the best kmer from each sequence
@@ -4053,7 +4093,17 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		CommonUtils.writeFile(outName+"_PFM.txt", pfm_sb.toString());
 		
-		// update Kmer count and HGP 
+		// get all the kmers, if duplicates, the kmer from earlier cluster has higher priority
+		HashMap<String, Kmer> allKmers = new HashMap<String, Kmer>();
+		for (KmerCluster c:clusters){
+			for (Kmer km: c.alignedKmers){
+				if ( !(allKmers.containsKey(km.getKmerString())||allKmers.containsKey(km.getKmerRC())))
+					allKmers.put(km.getKmerString(), km);
+			}
+		}
+		ArrayList<Kmer> allAlignedKmers = new ArrayList<Kmer>();
+		allAlignedKmers.addAll(allKmers.values());
+		// update Kmer count and HGP
 		consolidateKmers(allAlignedKmers, events);	
 		return allAlignedKmers;
 		
@@ -4105,7 +4155,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				int kmer_seq = seqs[seqId].indexOf(km.getKmerString());
 				if (kmer_seq<0){
 					seqs[seqId] = SequenceUtils.reverseComplement(seqs[seqId]);
-					isPlusStrands[seqId] = false;
+					isPlusStrands[seqId] = !isPlusStrands[seqId];
 					kmer_seq = seqs[seqId].indexOf(km.getKmerString());
 				}
 				posSeqs[seqId] = -kmer_seq + km.getShift();
@@ -4154,7 +4204,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //					posSeqs[seqIdx]=UNALIGNED;
 //					if (!isPlusStrands[seqIdx]){
 //						seqs[seqIdx] = SequenceUtils.reverseComplement(seqs[seqIdx]);
-//						isPlusStrands[seqIdx]=true;
+//					isPlusStrands[seqId] = !isPlusStrands[seqId];
 //					}
 				}
 				else{
@@ -4213,9 +4263,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (rightIdx-leftIdx+1>config.k/2){		// pwm is long enough
 	    	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 	    	for(int p=leftIdx;p<=rightIdx;p++){
-	    		for (int b=0;b<LETTERS.length;b++){
-	    			matrix[p-leftIdx][LETTERS[b]]=(float) pwm[p][LETTERS[b]];
+	    		for (char base:LETTERS){
+	    			matrix[p-leftIdx][base]=(float) pwm[p][base];
 	    		}
+	    	}
+	    	// special trick to deal with 'N', set it to lowest score
+	    	for(int i=0;i<matrix.length;i++){
+	    		float lowest = 2;
+	    		for (char base:LETTERS){
+	    			if (lowest>matrix[i][base])
+	    				lowest = matrix[i][base];
+	    		}
+	    		matrix[i]['N']=lowest;
 	    	}
 	    	
 	    	WeightMatrix wm = new WeightMatrix(matrix);
@@ -4231,8 +4290,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	// record pfm
 	    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 	    	for(int p=leftIdx;p<=rightIdx;p++){
-	    		for (int b=0;b<LETTERS.length;b++){
-	    			pfm_trim[p-leftIdx][LETTERS[b]]=(float) pfm[p][LETTERS[b]];
+	    		for (char base:LETTERS){
+	    			pfm_trim[p-leftIdx][base]=(float) pfm[p][base];
 	    		}
 	    	}
 	    	cluster.pfmString = cluster.pfmString+makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, passedSeqs.size()));
@@ -4250,8 +4309,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	double[] ic = new double[pwm.length];						// information content
     	for (int p=0;p<pwm.length;p++){
     		int sum=0;
-    		for (int b=0;b<LETTERS.length;b++){
-    			char base = LETTERS[b];
+    		for (char base:LETTERS){
     			if (pwm[p][base]==0)
     				pwm[p][base]=0.001; 
     			sum += pwm[p][base];
@@ -4318,7 +4376,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	if (rightIdx-leftIdx+1<=config.k/2){
     		System.out.println("makePWM: PWM is too short, stop here.");
-    		if (config.bmverbose>1){
+    		if (config.bmverbose>2){
 		    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
 		    	for (int p=0;p<ic.length;p++){
 		    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
@@ -4356,7 +4414,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		char maxScoringStrand = '+';
 		for (int i=0;i<profiler.length();i++){
 			double score = profiler.getMaxScore(i);
-			if (maxSeqScore<score){
+			if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
 				maxSeqScore = score;
 				maxScoringShift = i;
 				maxScoringStrand = profiler.getMaxStrand(i);
@@ -5538,25 +5596,25 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //    	return wm;
 //    }
 
-    // make PFM from aligned sequences
-	  private String getPFMString(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> motifStartInSeq, int length, int num){
-	
-		float[][] pfm = new float[length][MAXLETTERVAL];
-		for (int i=0;i<alignedFeatures.size();i++){
-			ComponentFeature cf = alignedFeatures.get(i);
-			int pos_motif = motifStartInSeq.get(i);	
-			if (pos_motif<0||pos_motif+length>cf.getBoundSequence().length())
-				continue;
-			String seq = cf.getBoundSequence().substring(pos_motif, pos_motif+length);		
-			for (int p=0;p<length;p++){
-				char base = seq.charAt(p);
-				float strength = (float) (config.use_strength?alignedFeatures.get(i).getTotalEventStrength():1);
-				pfm[p][base] +=strength;
-			}
-		}
-		
-		return makeTRANSFAC (pfm, String.format("DE %s_%d_c%d\n", outName, num, alignedFeatures.size()));		
-	  }
+//    // make PFM from aligned sequences
+//	  private String getPFMString(ArrayList<ComponentFeature> alignedFeatures, ArrayList<Integer> motifStartInSeq, int length, int num){
+//	
+//		float[][] pfm = new float[length][MAXLETTERVAL];
+//		for (int i=0;i<alignedFeatures.size();i++){
+//			ComponentFeature cf = alignedFeatures.get(i);
+//			int pos_motif = motifStartInSeq.get(i);	
+//			if (pos_motif<0||pos_motif+length>cf.getBoundSequence().length())
+//				continue;
+//			String seq = cf.getBoundSequence().substring(pos_motif, pos_motif+length);		
+//			for (int p=0;p<length;p++){
+//				char base = seq.charAt(p);
+//				float strength = (float) (config.use_strength?alignedFeatures.get(i).getTotalEventStrength():1);
+//				pfm[p][base] +=strength;
+//			}
+//		}
+//		
+//		return makeTRANSFAC (pfm, String.format("DE %s_%d_c%d\n", outName, num, alignedFeatures.size()));		
+//	  }
 	  
 	  private String makeTRANSFAC (float[][] pfm, String header){
 		// make string in TRANSFAC format
@@ -5627,6 +5685,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int pos_BS_pwm;
 		int sequenceCount;
 		int kmerCount;
+		ArrayList<Kmer> alignedKmers;
 		
 		KmerCluster(){}	// empty constructor;
 
@@ -5641,7 +5700,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.pos_BS_pwm = this.pos_BS_pwm;
 			cluster.sequenceCount = this.sequenceCount;
 			cluster.kmerCount = this.kmerCount;
-			
+			cluster.alignedKmers = this.alignedKmers;
 			return cluster;
 		}
 	}

@@ -69,10 +69,21 @@ public class Kmer implements Comparable<Kmer>{
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
 		this.seqHitCount = hitCount;
-		if (randomEngine.nextDouble()>0.5)
-			this.kmerStartOffset = -(this.k-1-(this.k-1)/2);
-		else
-			this.kmerStartOffset = -(this.k-1)/2;
+//		if (randomEngine.nextDouble()>0.5)
+//			this.kmerStartOffset = -(this.k-1-(this.k-1)/2);
+//		else
+//			this.kmerStartOffset = -(this.k-1)/2;
+	}
+	
+	public Kmer clone(){
+		Kmer n = new Kmer(getKmerString(), getSeqHitCount());
+		n.strength = strength;
+		n.shift = shift;
+		n.negCount = negCount;
+		n.hgp = hgp;
+		n.alignString = alignString;
+		n.kmerStartOffset = kmerStartOffset;
+		return n;
 	}
 	
 	/** 
