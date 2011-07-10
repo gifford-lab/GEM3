@@ -4192,6 +4192,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				alignedSeqIdx.add(i);
 //				sb.append(String.format("%s\t%d\t%.2f\n", s, hit.car(), hit.cdr()));
 			}
+			if (pwmPos.isEmpty())
+				return -1;
 			Pair<int[], int[]> sorted = StatUtil.sortByOccurences(pwmPos);
 			int counts[] = sorted.cdr();
 			int posSorted[] = sorted.car();
