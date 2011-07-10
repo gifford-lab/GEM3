@@ -3840,8 +3840,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							posSeqs[i] = cluster.pos_pwm_seed-maxScoringShift;
 							String kmerStr = seqs[i].substring(-posSeqs[i], end);
 							if (kmerStr.contains("N")){
-								String s = isPlusStrands[i]?seqs_old[i]:SequenceUtils.reverseComplement(seqs_old[i]);
-								kmerStr = s.substring(-posSeqs[i], end);
+//								String s = isPlusStrands[i]?seqs_old[i]:SequenceUtils.reverseComplement(seqs_old[i]);
+//								kmerStr = s.substring(-posSeqs[i], end);
+								continue;
 							}
 							if (pwmAlignedKmerStr.containsKey(kmerStr))
 								pwmAlignedKmerStr.put(kmerStr, pwmAlignedKmerStr.get(kmerStr)+1);
@@ -4034,6 +4035,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			if (cluster.wm!=null){
 		        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
 		        int len = cluster.wm.length();
+		        boolean masked = false;
 				for (int i=0;i<posSeqs.length;i++){
 					if (posSeqs[i] == UNALIGNED)
 						continue;
@@ -4048,10 +4050,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					seqs[i]=seq.substring(0, start)
 							.concat(CommonUtils.padding(len, 'N'))
 							.concat(seq.substring(start+len, seq.length()));
+					masked = true;
 				}
-				
-				kmers.addAll(alignedKmers);	
-				consolidateKmers(kmers, events);
+				if (masked){
+					kmers.addAll(alignedKmers);	
+					consolidateKmers(kmers, events);
+				}
 			}
 			clusterID++;
 		} // each cluster
@@ -4137,7 +4141,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				continue;
 			}
 			// (posHit<=7,6,5 negHit=0,1) or (posHit<=4,3,2,1 negHit=0) will pass, although its hgp is high
-			if (km.getHgp()>config.hgp && km.getSeqHitCount()>7)	
+//			if (km.getHgp()>config.hgp && km.getSeqHitCount()>7)	
+			if (km.getHgp()>config.hgp )
 				highHgpKmers.add(km);	
 		}
 		kmers.removeAll(highHgpKmers);
