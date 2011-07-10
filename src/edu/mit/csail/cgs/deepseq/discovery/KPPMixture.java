@@ -4267,6 +4267,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				passedIdx.add(i);
 	    	}
     	}
+    	if (passedSeqs.size()<config.kmer_cluster_seq_count)
+    		return -1;
 
 		// count base frequencies
 		for (int i=0;i<passedSeqs.size();i++){
@@ -4309,7 +4311,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	double pwmThreshold = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);	
     		if (config.bmverbose>1)
     			System.out.println(String.format("PWM %s from %d events, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), passedSeqs.size(), pwmThreshold, wm.getMaxScore()));
-	    	if (pwmThreshold<0){
+	    	if (pwmThreshold<wm.getMaxScore()/5){
 	    		return -1;
 	    	}
 	    	cluster.wm = wm;
