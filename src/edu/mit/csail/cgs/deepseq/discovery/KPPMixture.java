@@ -4026,7 +4026,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			/** store aligned kmers */
 			ArrayList<Kmer> copy = new ArrayList<Kmer>();
-			consolidateKmers(alignedKmers, events);	
+			consolidateKmers(alignedKmers, events, clusterID==0);	
 			for (Kmer km:alignedKmers)
 				copy.add(km.clone());
 			cluster.alignedKmers = copy;
@@ -4054,7 +4054,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				if (masked){
 					kmers.addAll(alignedKmers);	
-					consolidateKmers(kmers, events);
+					consolidateKmers(kmers, events, false);		// do not relax, because these k-mer will be re-ailgned
 				}
 			}
 			clusterID++;
@@ -4111,7 +4111,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Kmer> allAlignedKmers = new ArrayList<Kmer>();
 		allAlignedKmers.addAll(allKmers.values());
 		// update Kmer count and HGP
-		consolidateKmers(allAlignedKmers, events);	
+		consolidateKmers(allAlignedKmers, events, true);	
 		log(1, "\nAlignment done, "+CommonUtils.timeElapsed(tic)+"\n");
 		return allAlignedKmers;
 		
@@ -4121,7 +4121,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	
 	// consolidate to unique k-mers, update Kmer count and HGP, remove unenriched k-mers
-	private void consolidateKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
+	private void consolidateKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events, boolean relaxWeakKmer){
 		Collections.sort(kmers);		
 		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 		for (Kmer km: kmers){
@@ -4136,12 +4136,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
 		double ratio = kEngine.get_NP_ratio();
 		for (Kmer km:kmers){
-			if (km.getSeqHitCount() <= km.getNegCount()/ratio * config.k_fold ){
+			if (km.getSeqHitCount() < km.getNegCount()/ratio * config.k_fold ){
 				highHgpKmers.add(km);	
 				continue;
 			}
 			// (posHit<=7,6,5 negHit=0,1) or (posHit<=4,3,2,1 negHit=0) will pass, although its hgp is high
-//			if (km.getHgp()>config.hgp && km.getSeqHitCount()>7)	
+			if (relaxWeakKmer && km.getSeqHitCount()<7)	
+				continue;
 			if (km.getHgp()>config.hgp )
 				highHgpKmers.add(km);	
 		}

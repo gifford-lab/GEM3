@@ -243,7 +243,7 @@ public class KmerEngine {
 			if (negHitCounts.containsKey(kmer.kmerString)){
 				kmer.negCount = negHitCounts.get(kmer.kmerString);
 			}
-			if (kmer.seqHitCount <= kmer.negCount/get_NP_ratio() * k_fold ){
+			if (kmer.seqHitCount < kmer.negCount/get_NP_ratio() * k_fold ){
 				highHgpKmers.add(kmer);	
 				continue;
 			}
