@@ -49,7 +49,7 @@ public class KmerEngine {
 	/** region-->index for negative sequences */
 	TreeMap<Region, Integer> neg_region_map;
 	public String[] getPositiveSeqs(){return seqs;};
-//	public String[] getNegativeSeqs(){return seqsNeg;};
+	public double get_NP_ratio(){return (double)seqsNegList.size()/seqs.length;}
 	
 	private ArrayList<Kmer> allKmers = new ArrayList<Kmer>();	// all the kmers in the sequences
 	public ArrayList<Kmer> getAllKmers() {
@@ -232,7 +232,6 @@ public class KmerEngine {
 		// score the kmers, hypergeometric p-value
 		int posSeq = seqs.length;
 		int negSeq = seqsNegList.size();
-		double negRatio = (double)seqsNegList.size()/seqs.length;
 		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
@@ -244,7 +243,7 @@ public class KmerEngine {
 			if (negHitCounts.containsKey(kmer.kmerString)){
 				kmer.negCount = negHitCounts.get(kmer.kmerString);
 			}
-			if (kmer.seqHitCount < kmer.negCount/negRatio * k_fold ){
+			if (kmer.seqHitCount <= kmer.negCount/get_NP_ratio() * k_fold ){
 				highHgpKmers.add(kmer);	
 				continue;
 			}

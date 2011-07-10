@@ -4116,7 +4116,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //		return result;
 	}
 	
-	// consolidate to unique k-mers, update Kmer count and HGP
+	// consolidate to unique k-mers, update Kmer count and HGP, remove unenriched k-mers
 	private void consolidateKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
 		Collections.sort(kmers);		
 		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
@@ -4128,6 +4128,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		kmers.clear();
 		kmers.addAll(str2kmer.values());
 		kEngine.updateKmerCounts(kmers, events);
+		// test for HGP, the purpose here is to prevent unenriched k-mers sneeking back from PWM alignment
+		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
+		double ratio = kEngine.get_NP_ratio();
+		for (Kmer km:kmers){
+			if (km.getSeqHitCount() <= km.getNegCount()/ratio * config.k_fold ){
+				highHgpKmers.add(km);	
+				continue;
+			}
+			// (posHit<=7,6,5 negHit=0,1) or (posHit<=4,3,2,1 negHit=0) will pass, although its hgp is high
+			if (km.getHgp()>config.hgp && km.getSeqHitCount()>7)	
+				highHgpKmers.add(km);	
+		}
+		kmers.removeAll(highHgpKmers);
 	}
 	
     private ArrayList<Kmer> getSeedKmerFamily(ArrayList<Kmer> kmers, Kmer seed) {
