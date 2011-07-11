@@ -154,8 +154,7 @@ public class GPS2 {
         if (run_gem)
         	GPS_round = 1;
         GPS_round = Args.parseInteger(args,"r", GPS_round);
-        int GEM_round = Args.parseInteger(args,"r_pp", 1);
-        int GEM_WM_round = Args.parseInteger(args,"r_wm", 2);
+        int GEM_round = Args.parseInteger(args,"r_pp", 2);
 
         int minLeft = Args.parseInteger(args,"min_l", 300);
         int minRight = Args.parseInteger(args,"min_r", 200);
@@ -196,40 +195,22 @@ public class GPS2 {
             mixture.printFeatures();
             mixture.printFilteredFeatures();
             mixture.printInsignificantFeatures();
-			round++;			
-            mixture.setOutName(peakFileName+"_"+round);
-            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-            if (update)
-            	mixture.updateKmerEngine(true);
-            else
-            	mixture.buildEngine(-1);
-            System.out.println("\n============================ Round "+round+" ============================");
-            mixture.execute();
-//
-//	        while (round<=GPS_round+GEM_round+GEM_WM_round){
-//	            System.out.println("\n============================ Round "+round+" ============================");
-//	            mixture.execute();
-//	            mixture.printFeatures();
-//	            mixture.printFilteredFeatures();
-//	            mixture.printInsignificantFeatures();
-//				round++;
-//				
-//	            mixture.setOutName(peakFileName+"_"+round);
-//	
-//	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-//	            
-//	            if (round <= GPS_round+GEM_round)
-//	            	mixture.updateKmerEngine(false);
-//	            else
-//	            	mixture.updateKmerEngine(true);
-//	        }
-	     
-	        // print the binding event results with updated kmer information
-	        mixture.printFeatures();
-	        mixture.printFilteredFeatures();
-	        mixture.printInsignificantFeatures();
-	        
-	        mixture.printOverlappingKmers();
+            for (int i=0;i<GEM_round;i++){
+				round++;			
+	            mixture.setOutName(peakFileName+"_"+round);
+	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+	            if (update)
+	            	mixture.updateKmerEngine(true);
+	            else
+	            	mixture.buildEngine(-1);
+	            System.out.println("\n============================ Round "+round+" ============================");
+	            mixture.execute();   
+		        // print the binding event results with updated kmer information
+		        mixture.printFeatures();
+		        mixture.printFilteredFeatures();
+		        mixture.printInsignificantFeatures();
+            }
+//	        mixture.printOverlappingKmers();
         }
         
         mixture.plotAllReadDistributions();
