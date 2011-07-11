@@ -4042,17 +4042,24 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					if (posSeqs[i] == UNALIGNED)
 						continue;
 					String seq = seqs[i];
-					Pair<Integer, Double> hit = scanPWM(seq, cluster.wm, scorer);
-					if (hit.cdr()<cluster.pwmThreshold)
-						continue;
-					int start = hit.car();
-					if (start<0)
-						continue;
-					// replace with random letters
-					seqs[i]=seq.substring(0, start+left)
-							.concat(CommonUtils.padding(right-left, 'N'))
-							.concat(seq.substring(start+right, seq.length()));
-					masked = true;
+					boolean found = false;
+					while(true){				// mask all possible matches
+						Pair<Integer, Double> hit = scanPWM(seq, cluster.wm, scorer);
+						if (hit.cdr()<cluster.pwmThreshold)
+							break;
+						found = true;
+						int start = Math.abs(hit.car());
+	//					if (start<0)			// if match on rc strand, the start coordinate is the same, as implemented in WeightMatrixScorer.score()
+	//						continue;
+						// replace with N
+						seq=seq.substring(0, start+left)
+								.concat(CommonUtils.padding(right-left, 'N'))
+								.concat(seq.substring(start+right, seq.length()));
+					}
+					if (found){
+						seqs[i] = seq;
+						masked = true;
+					}
 				}
 				if (masked){
 					kmers.addAll(alignedKmers);	
@@ -4242,6 +4249,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					Point center = new Point(gen, events.get(seqIdx).getPeak().getChrom(), 
 							events.get(seqIdx).getPeak().getLocation()-(config.k_win/2)+seedMid_seq);
 					String seq = kEngine.getSequence(center.expand(config.k_win/2));
+					if (seq.length()!=config.k_win/2*2+1)
+						continue;
 					if (!isPlusStrands[seqIdx])
 						seq=SequenceUtils.reverseComplement(seq);
 					passedSeqs.add(seq);
@@ -4261,6 +4270,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				Point center = new Point(gen, events.get(i).getPeak().getChrom(), 
 						events.get(i).getPeak().getLocation()-(config.k_win/2)+seedMid_seq);
 				String seq = kEngine.getSequence(center.expand(config.k_win/2));
+				if (seq.length()!=config.k_win/2*2+1)
+					continue;
 				if (!isPlusStrands[i])
 					seq=SequenceUtils.reverseComplement(seq);
 				passedSeqs.add(seq);
