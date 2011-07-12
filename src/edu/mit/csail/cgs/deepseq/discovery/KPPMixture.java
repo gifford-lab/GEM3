@@ -3433,7 +3433,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				String chr = f.getPeak().getChrom();
 				int length = gen.getChromLength(chr)-config.k_win-1;
 				// for each event, get random negative regions from the same chromosome
-				for (int i=1;i<=config.negative_ratio;i++){
+				for (int i=1;i<=config.k_negSeq_ratio;i++){
 					int start = f.getPeak().getLocation()+config.k_neg_dist*i;
 					if ( start+config.k_win>=length)
 						continue;
@@ -3448,13 +3448,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					toRemove.add(negativeRegions.get(i));
 			}
 			negativeRegions.removeAll(toRemove);
-			
 			double gc = kEngine.setupRegionCache(expandedRegions, negativeRegions);
-			config.setGC(gc);
-//			if (config.bmverbose>1){
+			if (config.gc==-1){
+				config.setGC(gc);
+			}
+			if (config.bmverbose>1){
 				System.out.println("Compact genome sequence cache to " + totalLength + " bps, "+CommonUtils.timeElapsed(tic));
-				System.out.println(String.format("GC content=%.2f\n", gc));
-//			}
+			}
+			System.out.println(String.format("GC content=%.2f\n", config.gc));
 		}
 		
 		buildEngine(config.k_win);
@@ -4319,14 +4320,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	
 	    	WeightMatrix wm = new WeightMatrix(matrix);
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-	    	double pwmThreshold = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);	
+	    	Pair<Double, Double> estimate = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);
+	    	double pwmThreshold = estimate.car();
+	    	double pwmThresholdHGP = estimate.cdr();
     		if (config.bmverbose>1)
-    			System.out.println(String.format("PWM %s from %d events, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), passedSeqs.size(), pwmThreshold, wm.getMaxScore()));
+    			System.out.println(String.format("PWM %s from %d events, hgp=1E%.1f, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), passedSeqs.size(), Math.log10(pwmThresholdHGP), pwmThreshold, wm.getMaxScore()));
 	    	if (pwmThreshold<wm.getMaxScore()/5){
 	    		return -1;
 	    	}
+	    	if (cluster.wm!=null && cluster.pwmThresholdHGP<pwmThresholdHGP)		// previous pwm is more enriched, stop here
+	    		return -1;
 	    	cluster.wm = wm;
-	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
+//	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
+	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
+	    	cluster.pwmThreshold = pwmThreshold;
 	    	// record pfm
 	    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 	    	for(int p=leftIdx;p<=rightIdx;p++){
@@ -5721,6 +5728,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		String pfmString="";
 		WeightMatrix wm;
 		double pwmThreshold;
+		double pwmThresholdHGP;
 		int pos_pwm_seed;
 		int pos_BS_pwm;
 		int sequenceCount;
@@ -5736,6 +5744,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.pfmString = this.pfmString;
 			cluster.wm = this.wm;
 			cluster.pwmThreshold = this.pwmThreshold;
+			cluster.pwmThresholdHGP = this.pwmThresholdHGP;
 			cluster.pos_pwm_seed = this.pos_pwm_seed;
 			cluster.pos_BS_pwm = this.pos_BS_pwm;
 			cluster.sequenceCount = this.sequenceCount;
@@ -5813,19 +5822,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_win_f = 4;		// k_win = k_win_f * k
         public int k_neg_dist = 200;// the distance of the window for negative sequences from binding sites 
+        public int k_negSeq_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
-        public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
+//        public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public float k_mask_f = 1;	// the fraction of PWM to mask
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
         public double hgp = 1e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double k_fold = 3;	// the minimum fold of kmer count in positive seqs vs negative seqs
-        public double gc = -1;	// GC content in the genome
+        public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
         public double[] bg= new double[4];	// background frequency based on GC content
         public double wm_factor = 0.5;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
         public int kmer_cluster_seq_count = 100;	// minimum number of sequences to be reported as a cluster, to build a PWM (for overlapping kmer)
-        public int negative_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
        	public boolean re_align_kmer = false;
@@ -5921,8 +5930,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_win = Args.parseInteger(args, "k_win", k_win);
             k_win_f = Args.parseInteger(args, "k_win_f", k_win_f);
             k_neg_dist = Args.parseInteger(args, "k_neg_dist", k_neg_dist);
+            k_negSeq_ratio = Args.parseInteger(args, "k_neg_ratio", k_negSeq_ratio);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
-            k_overlap = Args.parseInteger(args, "k_overlap", Math.max(k_overlap, StatUtil.round(k*0.75)));
+//            k_overlap = Args.parseInteger(args, "k_overlap", Math.max(k_overlap, StatUtil.round(k*0.75)));
             k_mask_f = Args.parseFloat(args, "k_mask_f", k_mask_f);
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
             k_fold = Args.parseDouble(args, "k_fold", k_fold);

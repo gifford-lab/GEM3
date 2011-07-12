@@ -443,7 +443,7 @@ public class KmerEngine {
 	 * If a PWM is good PWM, the curve of the difference between the number of positive and negative sequences match vs score
 	 * should have a peak value, then we set PWM threshold = the largest score corresponding to 0.9*peak_value
 	 */
-	public double estimatePwmThreshold(WeightMatrix wm, String outName, boolean printFDR){
+	public Pair<Double, Double> estimatePwmThreshold(WeightMatrix wm, String outName, boolean printFDR){
 		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 		double[] posSeqScores = new double[seqs.length];
 		double[] negSeqScores = new double[seqsNegList.size()];
@@ -457,34 +457,36 @@ public class KmerEngine {
 		Arrays.sort(negSeqScores);
 		
 		// find the threshold motif score
-//		double[] hgps = new double[seqs.length];
+		double[] hgps = new double[seqs.length];
 		double diffs[] = new double[seqs.length];
 		double fdrs[] = new double[seqs.length];
-		double threshold=Double.NEGATIVE_INFINITY;
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<seqs.length;i++){
 			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
 			if( index < 0 ) { index = -index - 1; }
 			int positiveCount = posSeqScores.length-i;
 			long negativeCount = Math.round((double)(negSeqScores.length-index)*seqs.length/seqsNegList.size());		// scale the count
-//			hgps[i]=1-StatUtil.hyperGeometricCDF_cache(posSeqScores.length-i, seqs.length+seqsNeg.length, posSeqScores.length-i+negSeqScores.length-index, seqs.length);
+			hgps[i]=computeHGP(seqs.length, seqsNegList.size(), posSeqScores.length-i, negSeqScores.length-index);
 			fdrs[i] = (double)negativeCount/(positiveCount+negativeCount);
 			diffs[i] = positiveCount-negativeCount;
 			if (printFDR)
-				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\n", i, posSeqScores[i], positiveCount, negativeCount, diffs[i], fdrs[i]));
+				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\t%.1f\n", i, posSeqScores[i], positiveCount, negativeCount, diffs[i], fdrs[i], hgps[i]==0?-400:Math.log10(hgps[i]) ));
 		}	
-		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMax(diffs);
-		double max = maxDiff.car();
-		int maxIdx = maxDiff.cdr().last();
-		for (int i=maxIdx; i<diffs.length;i++){
-			if (diffs[i]<max*0.9){
-				threshold = posSeqScores[i];
-				break;
-			}
-		}
+		hgps[0]=1;		// the lowest threshold will match all positive sequences, lead to hgp=0
+		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMin(hgps);
+		double minHGP = maxDiff.car();
+		int minIdx = maxDiff.cdr().last();
+		double threshold = posSeqScores[minIdx];
+//		for (int i=maxIdx; i<diffs.length;i++){
+//			if (diffs[i]<max*0.9){
+//				threshold = posSeqScores[i];
+//				break;
+//			}
+//		}
+		System.out.println(String.format("%.2f\t%.0f\t%.4f\t%.1f\n", threshold, diffs[minIdx], fdrs[minIdx], hgps[minIdx]==0?-400:Math.log10(hgps[minIdx]) ));
 		if (printFDR)
 			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
-		return threshold;
+		return new Pair<Double, Double>(threshold, minHGP);
 	}
 	
 	/**

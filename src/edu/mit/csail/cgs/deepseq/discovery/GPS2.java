@@ -143,35 +143,33 @@ public class GPS2 {
     	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1)
     		run_gem = true;
         double kl=10;
-        int round = 0;
-        String peakFileName = mixture.getOutName();
-        mixture.setOutName(peakFileName+"_"+round);
 		
 //        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
         Set<String> flags = Args.parseFlags(args);
         boolean update = flags.contains("update");
-        int GPS_round = 3;
-        if (run_gem)
-        	GPS_round = 1;
+        int GPS_round = 2;
         GPS_round = Args.parseInteger(args,"r", GPS_round);
         int GEM_round = Args.parseInteger(args,"r_pp", 2);
-
         int minLeft = Args.parseInteger(args,"min_l", 300);
         int minRight = Args.parseInteger(args,"min_r", 200);
         /**
          ** Simple GPS1 event finding without sequence information
          **/
-        while (kl>-5 && round<=GPS_round){
-            System.out.println("\n============================ Round "+round+" ============================");
-            mixture.execute();
-            mixture.printFeatures();
-            mixture.printFilteredFeatures();
-            mixture.printInsignificantFeatures();
-			
+	    int round = 0;
+        String peakFileName = mixture.getOutName();
+        mixture.setOutName(peakFileName+"_"+round);
+        System.out.println("\n============================ Round "+round+" ============================");
+        mixture.execute();
+        mixture.printFeatures();
+        mixture.printFilteredFeatures();
+        mixture.printInsignificantFeatures();
+        mixture.refineRegions();
+        
+        while (round+1<GPS_round){
             round++;
+            System.out.println("\n============================ Round "+round+" ============================");
             mixture.setOutName(peakFileName+"_"+round);
-
-            if (round==1){
+            if (round==1){            	
                 boolean noChange = Args.parseFlags(args).contains("constant_model_range");
                 if (!noChange){
                     Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
@@ -182,33 +180,32 @@ public class GPS2 {
             }
             else
                 kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-        }
-        
-        if (run_gem){	        
-	        /**
-	         ** GPS2 event finding with kmer positional prior (KPP)
-	         **/             
-	        mixture.initKmerEngine();
-	        
-            System.out.println("\n============================ Round "+round+" ============================");
             mixture.execute();
             mixture.printFeatures();
             mixture.printFilteredFeatures();
             mixture.printInsignificantFeatures();
+        }
+        
+	        /**
+	         ** GPS2 event finding with kmer positional prior (KPP)
+	         **/   
+        if (run_gem){
+        	// initialize first set of kmers from GPS result
+	        mixture.initKmerEngine();	
+	        
             for (int i=0;i<GEM_round;i++){
 				round++;			
+	            System.out.println("\n============================ Round "+round+" ============================");
 	            mixture.setOutName(peakFileName+"_"+round);
 	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-	            if (update)
-	            	mixture.updateKmerEngine(true);
-	            else
-	            	mixture.buildEngine(-1);
-	            System.out.println("\n============================ Round "+round+" ============================");
 	            mixture.execute();   
-		        // print the binding event results with updated kmer information
 		        mixture.printFeatures();
 		        mixture.printFilteredFeatures();
 		        mixture.printInsignificantFeatures();
+		        if (update)
+	            	mixture.updateKmerEngine(true);
+	            else
+	            	mixture.buildEngine(-1);
             }
 //	        mixture.printOverlappingKmers();
         }
@@ -216,97 +213,96 @@ public class GPS2 {
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         
-        if (!run_gem)
-        	round --;
+        round --;
 
         System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
     }
     
-    public void runMixtureModel2() {	
-        double kl=10;
-    	boolean run_gem = false;
-    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1)
-    		run_gem = true;
-        int round = 0;
-        String peakFileName = mixture.getOutName();
-        mixture.setOutName(peakFileName+"_"+round);
-		
-//        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
-        Set<String> flags = Args.parseFlags(args);
-        boolean update = flags.contains("update");
-        
-        /** Round 0: Simple GPS1 event finding with default read distribution */
-        System.out.println("\n============================ Round "+round+" ============================");
-        mixture.execute();
-        mixture.printFeatures();
-        mixture.printFilteredFeatures();
-        mixture.printInsignificantFeatures();		
-        mixture.refineRegions();
-        
-        /** Round 1: GPS event finding with refined read distribution */
-        round++;
-        mixture.setOutName(peakFileName+"_"+round);
-        boolean noChange = Args.parseFlags(args).contains("constant_model_range");
-        if (!noChange){
-	        int minLeft = Args.parseInteger(args,"min_l", 300);
-	        int minRight = Args.parseInteger(args,"min_r", 200);
-            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
-            kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
-        }
-        else
-            kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-        
-        System.out.println("\n============================ Round "+round+" ============================");
-        mixture.execute();
-        mixture.printFeatures();
-        mixture.printFilteredFeatures();
-        mixture.printInsignificantFeatures();	
-        
-		round++;			
-        mixture.setOutName(peakFileName+"_"+round);
-        mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-        
-        /** Round 2: GEM with k-mer positional prior */
-        if (run_gem){
-        	mixture.initKmerEngine(); 	// GEM event finding with k-mer positional prior (KPP)	        
-	        System.out.println("\n============================ Round "+round+" ============================");
-	        mixture.execute();
-	        mixture.printFeatures();
-	        mixture.printFilteredFeatures();
-	        mixture.printInsignificantFeatures();
-	        
-			round++;			
-	        mixture.setOutName(peakFileName+"_"+round);
-	        mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-	        
-	        if (update)
-	        	mixture.updateKmerEngine(true);
-	        else
-	        	mixture.buildEngine(Args.parseInteger(args,"k_win", 60));
-//	        	mixture.buildEngine(-1);
-	        System.out.println("\n============================ Round "+round+" ============================");
-	        mixture.execute();
-	        // print the binding event results with updated kmer information
-	        mixture.printFeatures();
-	        mixture.printFilteredFeatures();
-	        mixture.printInsignificantFeatures();
-//	        mixture.printOverlappingKmers();
-        }
-        else{
-        	round --;
-        }
-        
-        mixture.plotAllReadDistributions();
-        mixture.closeLogFile();        
-        System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
-    }
+//    public void runMixtureModel2() {	
+//        double kl=10;
+//    	boolean run_gem = false;
+//    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1)
+//    		run_gem = true;
+//        int round = 0;
+//        String peakFileName = mixture.getOutName();
+//        mixture.setOutName(peakFileName+"_"+round);
+//		
+////        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
+//        Set<String> flags = Args.parseFlags(args);
+//        boolean update = flags.contains("update");
+//        
+//        /** Round 0: Simple GPS1 event finding with default read distribution */
+//        System.out.println("\n============================ Round "+round+" ============================");
+//        mixture.execute();
+//        mixture.printFeatures();
+//        mixture.printFilteredFeatures();
+//        mixture.printInsignificantFeatures();		
+//        mixture.refineRegions();
+//        
+//        /** Round 1: GPS event finding with refined read distribution */
+//        round++;
+//        mixture.setOutName(peakFileName+"_"+round);
+//        boolean noChange = Args.parseFlags(args).contains("constant_model_range");
+//        if (!noChange){
+//	        int minLeft = Args.parseInteger(args,"min_l", 300);
+//	        int minRight = Args.parseInteger(args,"min_r", 200);
+//            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
+//            kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
+//        }
+//        else
+//            kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+//        
+//        System.out.println("\n============================ Round "+round+" ============================");
+//        mixture.execute();
+//        mixture.printFeatures();
+//        mixture.printFilteredFeatures();
+//        mixture.printInsignificantFeatures();	
+//        
+//		round++;			
+//        mixture.setOutName(peakFileName+"_"+round);
+//        mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+//        
+//        /** Round 2: GEM with k-mer positional prior */
+//        if (run_gem){
+//        	mixture.initKmerEngine(); 	// GEM event finding with k-mer positional prior (KPP)	        
+//	        System.out.println("\n============================ Round "+round+" ============================");
+//	        mixture.execute();
+//	        mixture.printFeatures();
+//	        mixture.printFilteredFeatures();
+//	        mixture.printInsignificantFeatures();
+//	        
+//			round++;			
+//	        mixture.setOutName(peakFileName+"_"+round);
+//	        mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
+//	        
+//	        if (update)
+//	        	mixture.updateKmerEngine(true);
+//	        else
+//	        	mixture.buildEngine(Args.parseInteger(args,"k_win", 60));
+////	        	mixture.buildEngine(-1);
+//	        System.out.println("\n============================ Round "+round+" ============================");
+//	        mixture.execute();
+//	        // print the binding event results with updated kmer information
+//	        mixture.printFeatures();
+//	        mixture.printFilteredFeatures();
+//	        mixture.printInsignificantFeatures();
+////	        mixture.printOverlappingKmers();
+//        }
+//        else{
+//        	round --;
+//        }
+//        
+//        mixture.plotAllReadDistributions();
+//        mixture.closeLogFile();        
+//        System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
+//    }
 	
     public static void main(String[] args) throws Exception {
         long tic = System.currentTimeMillis();
         System.out.println("\nWelcome to GPS (version "+GPS_VERSION+")!");
         System.out.println("Developed by Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gps/).\n");
         GPS2 gps = new GPS2(args);
-        gps.runMixtureModel2();
+        gps.runMixtureModel();
         gps.close();
         System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
     }
