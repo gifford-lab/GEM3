@@ -186,9 +186,9 @@ public class GPS2 {
             mixture.printInsignificantFeatures();
         }
         
-	        /**
-	         ** GPS2 event finding with kmer positional prior (KPP)
-	         **/   
+        /**
+         ** GPS2 event finding with kmer positional prior (KPP)
+         **/   
         if (run_gem){
         	// initialize first set of kmers from GPS result
 	        mixture.initKmerEngine();	

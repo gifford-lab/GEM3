@@ -146,6 +146,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 **/
 	private KmerEngine kEngine;
 	private boolean kmerPreDefined = false;
+	/** motif clusters */
+	ArrayList<KmerCluster> clusters = new ArrayList<KmerCluster>();
 	
 	public KPPMixture(Genome g, 
                       ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
@@ -3432,9 +3434,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (Feature f:signalFeatures){
 				String chr = f.getPeak().getChrom();
 				int length = gen.getChromLength(chr)-config.k_win-1;
-				// for each event, get random negative regions from the same chromosome
-				for (int i=1;i<=config.k_negSeq_ratio;i++){
-					int start = f.getPeak().getLocation()+config.k_neg_dist*i;
+				int basis = f.getPeak().getLocation()+config.k_neg_dist;
+				for (int i=0;i<config.k_negSeq_ratio;i++){
+					int start = basis + (config.k_win+1)*i;
 					if ( start+config.k_win>=length)
 						continue;
 					Region r = new Region(gen, chr, start, start+config.k_win);
@@ -3508,6 +3510,56 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		double max_value=0;
 		if (config.k_min!=-1){
 			int eventCounts[] = new int[config.k_max-config.k_min+1];
+			ArrayList<KmerCluster> bestClusters = null;
+			int bestK = 0;
+			double bestHGP = 1;			
+			ArrayList<Kmer> bestKmers = null;
+			
+			for (int i=0;i<eventCounts.length;i++){
+				config.k = i+config.k_min;
+				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
+				if (kmers.isEmpty())
+					continue;
+				kmers = alignOverlappedKmers(kmers, getEvents());
+				double primaryHGP = 1;
+				WeightMatrix primaryWM = null;
+				for (KmerCluster kc:clusters){
+					if (kc.wm!=null){
+						primaryWM = kc.wm;
+						primaryHGP = kc.pwmThresholdHGP;
+						break;		// only use the first PWM, this should be the primary motif
+					}
+				}
+				System.out.println(String.format("k=%d, %s\thgp=1E%.1f", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), Math.log(primaryHGP)));
+				if (bestHGP>=primaryHGP){
+					bestHGP=primaryHGP;
+					bestClusters = (ArrayList<KmerCluster>) clusters.clone();
+					bestK = config.k;
+					bestKmers = kmers;
+				}
+			}
+			System.out.println(String.format("selected k=%d\thgp=1E%.1f", bestK, Math.log(bestHGP)));
+			config.k = bestK;
+			clusters = bestClusters;
+			kEngine.updateEngine(bestKmers, outName, false);	
+		}
+		else{
+			if (winSize==-1)
+				winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
+			config.k_win = winSize;
+			
+			ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
+			kmers = alignOverlappedKmers(kmers, getEvents());
+			kEngine.updateEngine(kmers, outName, false);	
+		}
+    }
+    public void buildEngine0( int winSize){		// backup copy
+    	ArrayList<Point> points = getEventPoints();
+		// compare different values of k to select most enriched k value
+		int k=0;
+		double max_value=0;
+		if (config.k_min!=-1){
+			int eventCounts[] = new int[config.k_max-config.k_min+1];
 			for (int i=0;i<eventCounts.length;i++){
 				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, points, config.k_win, config.hgp, config.k_fold, outName);
 				if (kms.isEmpty())
@@ -3542,8 +3594,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		config.k_win = winSize;
 		
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
-		if (config.align_overlap_kmer)
-			kmers = alignOverlappedKmers(kmers, getEvents());
+		kmers = alignOverlappedKmers(kmers, getEvents());
 		kEngine.updateEngine(kmers, outName, false);		
     }
     
@@ -3577,9 +3628,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// cluster and align
 		final int STRAND = 1000;		// extra bp add to indicate negative strand match of kmer
 		final int UNALIGNED = 999;
+		clusters.clear();
 		int clusterID = 0;
 		StringBuilder alignedKmer_sb = new StringBuilder();
-		ArrayList<KmerCluster> clusters = new ArrayList<KmerCluster>();
 		
 		while(!kmers.isEmpty()){
 			/** Initialization of new cluster and the remaining kmers */
