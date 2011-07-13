@@ -307,7 +307,7 @@ public class Kmer implements Comparable<Kmer>{
 			else
 				sb.append(kmer.toNonOverlapString()).append("\n");
 		}
-		CommonUtils.writeFile(String.format("%s_kmer_%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
+		CommonUtils.writeFile(String.format("%s_kmer_k%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
 	}
 	
 	public static ArrayList<Kmer> loadKmers(List<File> files){

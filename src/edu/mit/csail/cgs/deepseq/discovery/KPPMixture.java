@@ -4121,7 +4121,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			clusterID++;
 		} // each cluster
 		
-		CommonUtils.writeFile(outName+"_aligned_history.txt", alignedKmer_sb.toString());
+		CommonUtils.writeFile(outName+"_Alignement_k"+config.k+".txt", alignedKmer_sb.toString());
 		
 //		// take the best kmer from each sequence
 //		TreeSet<Kmer> bestKmers = new TreeSet<Kmer>();
@@ -4159,7 +4159,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		System.out.println(String.format("PWM threshold: %.2f/%.2f", c.pwmThreshold, c.wm.getMaxScore()));
 			pfm_sb.append(c.pfmString);
 		}
-		CommonUtils.writeFile(outName+"_PFM.txt", pfm_sb.toString());
+		CommonUtils.writeFile(outName+"_PFM_k"+config.k+".txt", pfm_sb.toString());
 		
 		// get all the kmers, if duplicates, the kmer from earlier cluster has higher priority
 		HashMap<String, Kmer> allKmers = new HashMap<String, Kmer>();
