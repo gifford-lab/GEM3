@@ -3336,36 +3336,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return compPos;
 	}//end of setComponentPositions method
 
-    // update kmerEngine with the predicted kmer-events
-		public void updateKmerEngine(boolean makePFM){
-			long tic = System.currentTimeMillis();
-			if (config.k==-1)
-				return;
-			ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
-			for(Feature f : signalFeatures)
-				compFeatures.add((ComponentFeature)f);
-			
-			// reload the test sequences, and purify kmers
-			ArrayList<Point> events = getEventPoints();
-			kEngine.loadTestSequences(events, config.k_win);
-	//		purifyKmers(compFeatures);
-	//		
-	//		if (makePFM){
-	//			updateKmersWithPWM(compFeatures);
-	//			purifyKmers(compFeatures);
-	//		}
-	//		
-	//		consolidateKmers(compFeatures);
-			
-			ArrayList<Kmer> kmers = countKmers2(compFeatures);
-			kEngine.updateKmerCounts(kmers, compFeatures);
-			
-			if (makePFM)
-				kmers = this.alignOverlappedKmers(kmers, compFeatures);
-			log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
-			kEngine.updateEngine(kmers, outName, false);
-		}
-	/**
+    /**
 	 * Refine restrict regions
 	 */
 	public void refineRegions(){
@@ -3499,7 +3470,37 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return points;
     }
     
-    /**
+    // update kmerEngine with the predicted kmer-events
+		public void updateKmerEngine(boolean makePFM){
+			long tic = System.currentTimeMillis();
+			if (config.k==-1)
+				return;
+			ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
+			for(Feature f : signalFeatures)
+				compFeatures.add((ComponentFeature)f);
+			
+			// reload the test sequences, and purify kmers
+			ArrayList<Point> events = getEventPoints();
+			kEngine.loadTestSequences(events, config.k_win);
+	//		purifyKmers(compFeatures);
+	//		
+	//		if (makePFM){
+	//			updateKmersWithPWM(compFeatures);
+	//			purifyKmers(compFeatures);
+	//		}
+	//		
+	//		consolidateKmers(compFeatures);
+			
+			ArrayList<Kmer> kmers = countKmers2(compFeatures);
+			kEngine.updateKmerCounts(kmers, compFeatures);
+			
+			if (makePFM)
+				kmers = this.alignOverlappedKmers(kmers, compFeatures, false);
+			log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
+			kEngine.updateEngine(kmers, outName);
+		}
+
+	/**
      * Build k-mer engine.<br>
      * Select enriched k-mers, align k-mers, setup k-mer engine
      */
@@ -3520,7 +3521,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
 				if (kmers.isEmpty())
 					continue;
-				kmers = alignOverlappedKmers(kmers, getEvents());
+				kmers = alignOverlappedKmers(kmers, getEvents(), !config.k_init_find_all_motifs);
 				double primaryHGP = 0;
 				WeightMatrix primaryWM = null;
 				for (KmerCluster kc:clusters){
@@ -3530,7 +3531,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						break;		// only use the first PWM, this should be the primary motif
 					}
 				}
-				System.out.println(String.format("k=%d, %s\thgp=1E%.1f", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), primaryHGP));
+				log(1, String.format("k=%d, %s\thgp=1E%.1f", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), primaryHGP));
 				if (bestHGP>=primaryHGP){
 					bestHGP=primaryHGP;
 					bestClusters = (ArrayList<KmerCluster>) clusters.clone();
@@ -3538,10 +3539,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					bestKmers = kmers;
 				}
 			}
-			System.out.println(String.format("selected k=%d\thgp=1E%.1f", bestK, bestHGP));
+			log(1, String.format("selected k=%d\thgp=1E%.1f", bestK, bestHGP));
 			config.k = bestK;
 			clusters = bestClusters;
-			kEngine.updateEngine(bestKmers, outName, false);	
+			if (!config.k_init_find_all_motifs){		// if we only find primary motif to select k, do a full motif discovery here
+				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
+				bestKmers = alignOverlappedKmers(kmers, getEvents(), false);
+			}
+			kEngine.updateEngine(bestKmers, outName);	
 		}
 		else{
 			if (winSize==-1)
@@ -3549,53 +3554,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			config.k_win = winSize;
 			
 			ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
-			kmers = alignOverlappedKmers(kmers, getEvents());
-			kEngine.updateEngine(kmers, outName, false);	
+			kmers = alignOverlappedKmers(kmers, getEvents(), false);
+			kEngine.updateEngine(kmers, outName);	
 		}
-    }
-    public void buildEngine0( int winSize){		// backup copy
-    	ArrayList<Point> points = getEventPoints();
-		// compare different values of k to select most enriched k value
-		int k=0;
-		double max_value=0;
-		if (config.k_min!=-1){
-			int eventCounts[] = new int[config.k_max-config.k_min+1];
-			for (int i=0;i<eventCounts.length;i++){
-				ArrayList<Kmer> kms = kEngine.selectEnrichedKmers(i+config.k_min, points, config.k_win, config.hgp, config.k_fold, outName);
-				if (kms.isEmpty())
-					eventCounts[i] = 0;
-				else{
-					Collections.sort(kms, new Comparator<Kmer>(){
-					    public int compare(Kmer o1, Kmer o2) {
-					    		return o1.compareByHGP(o2);
-					    }
-					});
-					eventCounts[i] = kms.get(0).getSeqHitCount();
-				}
-			}
-			for (int i=0;i<eventCounts.length-1;i++){
-				if (eventCounts[i]==0)
-					continue;
-				if (eventCounts[0]/eventCounts[i]>=2)
-					break;
-				
-				double percent = (eventCounts[i]-eventCounts[i+1])*100.0/(double)eventCounts[i];
-				if (percent>max_value){
-					k=i+config.k_min;
-					max_value = percent;
-				}
-				System.out.println(String.format("k=%d, decrease=%.2f%%\teventCount=%d", i+config.k_min, percent, eventCounts[i]));
-			}
-			System.out.println(String.format("selected k=%d, max decrease=%.2f%%", k, max_value));
-			config.k = k;
-		}
-		if (winSize==-1)
-			winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
-		config.k_win = winSize;
-		
-		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
-		kmers = alignOverlappedKmers(kmers, getEvents());
-		kEngine.updateEngine(kmers, outName, false);		
     }
     
     /** 
@@ -3612,7 +3573,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      * @param events
      * @return
      */
-	private ArrayList<Kmer> alignOverlappedKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
+	private ArrayList<Kmer> alignOverlappedKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events, boolean primaryMotifOnly){
 		long tic = System.currentTimeMillis();
 		if (kmers.size()==0)
 			return kmers;
@@ -4074,7 +4035,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					leftmost_km = km.getKmerStartOffset();
 			}	    	
 			for (Kmer km: alignedKmers){
-				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
+				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')+km.toShortString()+"\t"+km.getAlignString()+"\n");
 			}
 			
 			/** store aligned kmers */
@@ -4086,6 +4047,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			/** mask the PWM matched regions */
 			if (cluster.wm!=null){
+				
+				// if we only want primary motif, stop the clustering iteration here
+				if (primaryMotifOnly)
+					break;
+				
 		        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
 		        int left = Math.round(cluster.wm.length()*(1-config.k_mask_f)/2);
 		        int right = Math.round(cluster.wm.length()*(1-(1-config.k_mask_f)/2));
@@ -4114,9 +4080,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					}
 				}
 				if (masked){
-					kmers.addAll(alignedKmers);	
+					kmers.addAll(alignedKmers);					// add aligned k-mers back to the pool, since PWM matched sequences are mask, these k-mers will have much less count
 					consolidateKmers(kmers, events, false);		// do not relax, because these k-mer will be re-ailgned
 				}
+				// if no PWM matched sequence being masked, we remove the alignedKmers, work with the remaining k-mers 
 			}
 			clusterID++;
 		} // each cluster
@@ -4603,8 +4570,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (Kmer kmer:kmer2count.keySet()){
 			kmer.setSeqHitCount(kmer2count.get(kmer));
 			kmer.setNegCount(-1);
-			kmer.setStrength(kmer2strength.get(kmer));
-			kmer.setGroup(-1);								// clear group ID 
+			kmer.setStrength(kmer2strength.get(kmer));	// clear group ID 
 			kmers.add(kmer);
 		}	
 		return kmers;
@@ -5895,6 +5861,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
         public boolean print_pwm_fdr = false;
+        public boolean k_init_find_all_motifs = false;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5955,6 +5922,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             re_align_kmer = flags.contains("rak");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
+            k_init_find_all_motifs = flags.contains("k_init_find_all_motifs");
             
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter

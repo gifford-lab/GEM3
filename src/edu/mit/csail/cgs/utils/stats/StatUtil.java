@@ -1167,7 +1167,7 @@ public class StatUtil {
 	public static double log10_hyperGeometricCDF_cache_appr(int x, int N, int s, int n) {
 		double Lx = log10_hyperGeometricPDF_cache(x,N,s,n);
 		double sum = 1;
-		for (int k=x-1;k<=0;k--) {
+		for (int k=x-1;k>=0;k--) {
 			sum += log10_hyperGeometricPDF_cache(k,N,s,n)-Lx;
 		}
 		return Lx+Math.log10(sum);

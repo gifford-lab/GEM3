@@ -87,7 +87,7 @@ public class KmerEngine {
 	public KmerEngine(ArrayList<Kmer> kmers, String outPrefix){
 		if (!kmers.isEmpty()){
 			if (outPrefix!=null)
-				updateEngine(kmers, outPrefix, false);
+				updateEngine(kmers, outPrefix);
 			else
 				updateEngine(kmers);
 			k=kmers.get(0).k;
@@ -124,7 +124,7 @@ public class KmerEngine {
 	 */
 	public void buildEngine(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix){
 		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, hgp, k_fold, outPrefix);
-		updateEngine(kms, outPrefix, true);		
+		updateEngine(kms, outPrefix);		
 	}
 	
 	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix){
@@ -247,8 +247,8 @@ public class KmerEngine {
 				highHgpKmers.add(kmer);	
 				continue;
 			}
-			kmer.hgp = computeHGP(posSeq, negSeq, kmer.seqHitCount, kmer.negCount);
-			if (kmer.hgp>hgp)
+			kmer.hgp_lg10 = computeHGP(posSeq, negSeq, kmer.seqHitCount, kmer.negCount);
+			if (kmer.hgp_lg10>hgp)
 				highHgpKmers.add(kmer);		
 		}
 		// remove un-enriched kmers		
@@ -339,7 +339,7 @@ public class KmerEngine {
 			else
 				hgcdf = StatUtil.hyperGeometricCDF_cache(negHit-1, allSeq, allHit, negSeq);
 			if (hgcdf<Double.MIN_VALUE)
-				return computeHGP_BIG(posSeq, negSeq, posHit, negHit);
+				return computeHGP_TINY(posSeq, negSeq, posHit, negHit);
 			else
 				return Math.log10(hgcdf);
 		}
@@ -348,7 +348,7 @@ public class KmerEngine {
 	 * Compute hgp using the positive/negative sequences, high precision approximation
 	 * Only use for very small p-value (<MIN_VALUE, 2^-1074)
 	 */
-	private double computeHGP_BIG(int posSeq, int negSeq, int posHit, int negHit){
+	private double computeHGP_TINY(int posSeq, int negSeq, int posHit, int negHit){
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
 		// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
@@ -529,13 +529,13 @@ public class KmerEngine {
 	 * 
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
 	 */
-	public void updateEngine(ArrayList<Kmer> kmers, String outPrefix, boolean isOverlappedKmer){
+	public void updateEngine(ArrayList<Kmer> kmers, String outPrefix){
 		if (kmers.isEmpty()){
 			engineInitialized = false;
 			return;
 		}
 		Collections.sort(kmers);
-		Kmer.printKmers(kmers, outPrefix, isOverlappedKmer);
+		Kmer.printKmers(kmers, outPrefix, false);
 		
 		//Aho-Corasick for searching Kmers in sequences
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
