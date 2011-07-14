@@ -26,7 +26,7 @@ public class Kmer implements Comparable<Kmer>{
 	public double getStrength(){return strength;}
 	public void setStrength(double strength){this.strength = strength;}
 	public void incrStrength(double strength){this.strength += strength;}
-	double hgp = 1;
+	double hgp = 0;
 	/**  get hyper-geometric p-value of the kmer */
 	public double getHgp() {
 		return hgp;
@@ -121,7 +121,7 @@ public class Kmer implements Comparable<Kmer>{
 		double hg_lg = Math.log10(hgp);
 		if (hg_lg==Double.NEGATIVE_INFINITY)
 			hg_lg=-400;
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg)+"\t"+String.format("%.1f", strength)+"\t"+kmerStartOffset;
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hgp)+"\t"+String.format("%.1f", strength)+"\t"+kmerStartOffset;
 	}
 	public String toNonOverlapString(){
 		return kmerString+"\t"+seqHitCount+"\t"+String.format("%.1f", strength)+"\t"+kmerStartOffset;
@@ -133,7 +133,7 @@ public class Kmer implements Comparable<Kmer>{
 		double hg_lg = Math.log10(hgp);
 		if (hg_lg==Double.NEGATIVE_INFINITY)
 			hg_lg=-400;
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hg_lg);
+		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hgp);
 	}
 	public static String toOverlapHeader(){
 		return "OverlappedKmer\tPosCt\tNegCt\tHGP_10";

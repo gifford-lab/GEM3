@@ -1,6 +1,8 @@
 package edu.mit.csail.cgs.utils.stats;
 
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -1136,12 +1138,25 @@ public class StatUtil {
 		double v = 0.0;
 		int k = 0;
 		for (k=0;k<=x;k++) {
-			v += hyperGeometricPDF_cache(k,N,s,n);
+			double v1= hyperGeometricPDF_cache(k,N,s,n);
+			v += v1;
 		}
 		
 		if (v > 1.0)
 			v = 1.0;
 		return v;	
+	}
+	public static double log10_hyperGeometricCDF_cache(int x, int N, int s, int n) {
+		BigDecimal v = BigDecimal.ZERO;
+		int k = 0;
+		for (k=0;k<=x;k++) {
+			v = v.add(hyperGeometricPDF_cache_BIG(k,N,s,n));
+//			v = v.setScale(v.scale()-v.precision()+20, BigDecimal.ROUND_DOWN);	
+		}
+		int newScale  = v.scale()-v.precision()+20;
+		BigDecimal v2 = v.setScale(newScale, BigDecimal.ROUND_DOWN);		
+		double d = v2.unscaledValue().doubleValue();
+		return Math.log10(d)-v2.scale();	
 	}
 	/**
 	 * Returns the hypergeometric density probability of number <tt>x</tt> 
@@ -1180,6 +1195,38 @@ public class StatUtil {
 		return result;
 	}
 	
+	public static BigDecimal hyperGeometricPDF_cache_BIG (int x, int N, int s, int n) {
+		if (x+N-s-n<0)
+			return BigDecimal.ZERO;
+		// extend the cache if N is large than existing cache
+		int len = (logFactorials==null)?0:logFactorials.length;
+		if (logFactorials==null || logFactorials.length < N+1){
+			double[] old = logFactorials;
+			logFactorials = new double[N+1];
+			if (len!=0)
+				System.arraycopy(old, 0, logFactorials, 0, len);
+			else{
+				logFactorials[0]=0;
+				len++;
+			}
+			for (int i=len;i<=N;i++)
+				logFactorials[i] = logFactorials[i-1]+Math.log(i);
+		}
+		// compute
+		double kx = logFactorials[s]-logFactorials[x]-logFactorials[s-x];
+		double mknx = logFactorials[N-s]-logFactorials[n-x]-logFactorials[N-s-(n-x)];
+		double mn = logFactorials[N]-logFactorials[n]-logFactorials[N-n];
+		BigDecimal v = exp_BIG(kx + mknx - mn);
+//		v = v.setScale(v.scale()-v.precision()+20, BigDecimal.ROUND_DOWN);	
+		return v;
+	}
+	
+	public static BigDecimal exp_BIG(double v){
+		int p = (int) Math.floor(Math.log10(v<0?-v:v));
+		double unscaledValue = v/Math.pow(10, p);
+		BigDecimal exp = BigDecimal.valueOf(Math.exp(unscaledValue)).pow((int)Math.round(Math.pow(10, p)));
+		return exp;
+	}
 	/**
 	 * 
 	 * @param n
@@ -1528,8 +1575,12 @@ public class StatUtil {
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(3,8+7,8,3+2));
 //		System.out.println(hyperGeometricCDF_cache(2,8+7,7,3+2));
-		for (int i=5000;i>0;i=i-100){
-			System.out.println(hyperGeometricCDF_cache(99,41690+40506,40506,i+100));
+//		 System.out.println(Math.pow(10, 1* Math.log10(Math.exp(1)) ));
+//		 System.out.println(Math.exp(1));
+//		 System.out.println(exp_BIG(Math.log(10)));
+//		 System.out.println(Math.log10(Math.exp(1)));
+		for (int i=0;i<=5000;i=i+100){
+			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+100));
 		}
 	}
 }//end of StatUtil class 41690 / 40506

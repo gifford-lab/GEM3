@@ -328,24 +328,46 @@ public class KmerEngine {
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
 		// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
-		double hgcdf = 0;
-		if (negHit==0)
-			hgcdf = StatUtil.hyperGeometricCDF_cache(posHit+2, allSeq, allHit+2+1, posSeq);
-		else
-			hgcdf = StatUtil.hyperGeometricCDF_cache(posHit, allSeq, allHit, posSeq);
-		if (hgcdf<0.9)		// the precision of hyperGeometricCDF_cache() is 1E-8 if cdf is close to 1
-			return 1-hgcdf;
+		if (posHit<negHit){		// select smaller x for hyperGeometricCDF_cache(), to reduce # of x sum operations
+			double hgcdf = StatUtil.hyperGeometricCDF_cache(posHit, allSeq, allHit, posSeq);
+			return Math.log(1-hgcdf);
+		}
 		else{				// flip the problem, compute cdf of negative count
+			double hgcdf=0;
 			if (negHit==0)
 				hgcdf = StatUtil.hyperGeometricCDF_cache(0, allSeq, allHit+2+1, negSeq);
 			else
 				hgcdf = StatUtil.hyperGeometricCDF_cache(negHit-1, allSeq, allHit, negSeq);
-			return hgcdf;
+			if (hgcdf<Double.MIN_VALUE)
+				return computeHGP_BIG(posSeq, negSeq, posHit, negHit);
+			else
+				return Math.log10(hgcdf);
+		}
+	}
+	/**
+	 * Compute hgp using the positive/negative sequences, high precision version
+	 * Runs much slower, but more accurate for very small p-value (<MIN_VALUE, 2^-1074)
+	 */
+	private double computeHGP_BIG(int posSeq, int negSeq, int posHit, int negHit){
+		int allHit = posHit + negHit;
+		int allSeq = posSeq + negSeq;
+		// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
+		if (posHit<negHit){		// select smaller x for hyperGeometricCDF_cache(), to reduce # of x sum operations
+			double hgcdf = StatUtil.hyperGeometricCDF_cache(posHit, allSeq, allHit, posSeq);
+			return Math.log(1-hgcdf);
+		}
+		else{				// flip the problem, compute cdf of negative count
+			double hgcdf_log10=0;
+			if (negHit==0)
+				hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache(0, allSeq, allHit+2+1, negSeq);
+			else
+				hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache(negHit-1, allSeq, allHit, negSeq);
+			return hgcdf_log10;
 		}
 	}
 	
 	/**
-	 * Compute hyper-geometric p-values for the kmer strings<br>
+	 * Compute hyper-geometric p-values (log10) for the kmer strings<br>
 	 */
 	public double[] computeHGPs(ArrayList<String> kmerStrings){
 		AhoCorasick tree = new AhoCorasick();
@@ -451,6 +473,9 @@ public class KmerEngine {
 			posSeqScores[i]=scorer.getMaxSeqScore(wm, seqs[i].toCharArray());
 		}
 		Arrays.sort(posSeqScores);
+		int zeroIdx = Arrays.binarySearch(posSeqScores, 0);
+		if( zeroIdx < 0 ) { zeroIdx = -zeroIdx - 1; }
+		
 		for (int i=0;i<seqsNegList.size();i++){
 			negSeqScores[i]=scorer.getMaxSeqScore(wm, seqsNegList.get(i).toCharArray());
 		}
@@ -461,7 +486,7 @@ public class KmerEngine {
 		double diffs[] = new double[seqs.length];
 		double fdrs[] = new double[seqs.length];
 		StringBuilder sb = new StringBuilder();
-		for (int i=0;i<seqs.length;i++){
+		for (int i=zeroIdx;i<seqs.length;i++){
 			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
 			if( index < 0 ) { index = -index - 1; }
 			int positiveCount = posSeqScores.length-i;
@@ -470,9 +495,9 @@ public class KmerEngine {
 			fdrs[i] = (double)negativeCount/(positiveCount+negativeCount);
 			diffs[i] = positiveCount-negativeCount;
 			if (printFDR)
-				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\t%.1f\n", i, posSeqScores[i], positiveCount, negativeCount, diffs[i], fdrs[i], hgps[i]==0?-400:Math.log10(hgps[i]) ));
+				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.0f\t%.4f\t%.1f\n", i, posSeqScores[i], positiveCount, negativeCount, diffs[i], fdrs[i], hgps[i] ));
 		}	
-		hgps[0]=1;		// the lowest threshold will match all positive sequences, lead to hgp=0
+		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
 		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMin(hgps);
 		double minHGP = maxDiff.car();
 		int minIdx = maxDiff.cdr().last();
@@ -483,7 +508,7 @@ public class KmerEngine {
 //				break;
 //			}
 //		}
-		System.out.println(String.format("%.2f\t%.0f\t%.4f\t%.1f\n", threshold, diffs[minIdx], fdrs[minIdx], hgps[minIdx]==0?-400:Math.log10(hgps[minIdx]) ));
+		System.out.println(String.format("%.2f\t%.0f\t%.4f\t%.1f\n", threshold, diffs[minIdx], fdrs[minIdx], hgps[minIdx] ));
 		if (printFDR)
 			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
 		return new Pair<Double, Double>(threshold, minHGP);

@@ -855,7 +855,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		for (int i=0;i<N-1;i++){
 //			System.out.print(String.format("%d\t%d\t%d\t%d\t", kmerHitCount[i], N, kmerHitCount[N-1], i+1));
-			double hgp = 1-StatUtil.hyperGeometricCDF_cache(kmerHitCount[i], N, kmerHitCount[N-1], i+1);
+			double hgp = 1-StatUtil.hyperGeometricCDF_cache(kmerHitCount[i], N, kmerHitCount[N-1], i+1);  //TODO: change hgp_log10
 			compFeatures.get(i).setEnrichedKmerHGPLog10(-Math.log10(hgp));
 //			System.out.println(String.format("%.1f\t%.3f", compFeatures.get(i).getEnrichedKmerHGPLog10(), 1-(kmerHitCount[i]/(i+1.0))));
 		}		
@@ -3521,7 +3521,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				if (kmers.isEmpty())
 					continue;
 				kmers = alignOverlappedKmers(kmers, getEvents());
-				double primaryHGP = 1;
+				double primaryHGP = 0;
 				WeightMatrix primaryWM = null;
 				for (KmerCluster kc:clusters){
 					if (kc.wm!=null){
@@ -3530,7 +3530,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						break;		// only use the first PWM, this should be the primary motif
 					}
 				}
-				System.out.println(String.format("k=%d, %s\thgp=1E%.1f", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), Math.log(primaryHGP)));
+				System.out.println(String.format("k=%d, %s\thgp=1E%.1f", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), primaryHGP));
 				if (bestHGP>=primaryHGP){
 					bestHGP=primaryHGP;
 					bestClusters = (ArrayList<KmerCluster>) clusters.clone();
@@ -3538,7 +3538,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					bestKmers = kmers;
 				}
 			}
-			System.out.println(String.format("selected k=%d\thgp=1E%.1f", bestK, Math.log(bestHGP)));
+			System.out.println(String.format("selected k=%d\thgp=1E%.1f", bestK, bestHGP));
 			config.k = bestK;
 			clusters = bestClusters;
 			kEngine.updateEngine(bestKmers, outName, false);	
@@ -4375,7 +4375,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	double pwmThreshold = estimate.car();
 	    	double pwmThresholdHGP = estimate.cdr();
     		if (config.bmverbose>1)
-    			System.out.println(String.format("PWM %s from %d events, hgp=1E%.1f, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), passedSeqs.size(), Math.log10(pwmThresholdHGP), pwmThreshold, wm.getMaxScore()));
+    			System.out.println(String.format("PWM %s from %d events, hgp=1E%.1f, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), passedSeqs.size(), pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
 	    	if (pwmThreshold<wm.getMaxScore()/5){
 	    		return -1;
 	    	}
@@ -5878,7 +5878,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //        public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public float k_mask_f = 1;	// the fraction of PWM to mask
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
-        public double hgp = 1e-3; 	// p-value threshold of hyper-geometric test for enriched kmer 
+        public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
         public double k_fold = 3;	// the minimum fold of kmer count in positive seqs vs negative seqs
         public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
         public double[] bg= new double[4];	// background frequency based on GC content
