@@ -1162,13 +1162,14 @@ public class StatUtil {
 		return Math.log10(d)-v2.scale();	
 	}
 	
-	/** Approximate log10_hyperGeometricCDF 
+	/** Returns the hypergeometric cumulative probability
+	 *  Pretty high precision implementation of log10_hyperGeometricCDF, much faster than BigDecimal version 
 	 *  Summing the PDF on log10 space, avoid losing precision */
 	public static double log10_hyperGeometricCDF_cache_appr(int x, int N, int s, int n) {
 		double Lx = log10_hyperGeometricPDF_cache(x,N,s,n);
 		double sum = 1;
 		for (int k=x-1;k>=0;k--) {
-			sum += log10_hyperGeometricPDF_cache(k,N,s,n)-Lx;
+			sum += Math.pow(10, log10_hyperGeometricPDF_cache(k,N,s,n)-Lx);
 		}
 		return Lx+Math.log10(sum);
 	}
@@ -1621,7 +1622,7 @@ public class StatUtil {
 //			System.out.println(Math.log10(hyperGeometricPDF_cache_BIG(99,41690+40506,40506,i+100).doubleValue()));
 //			System.out.println(log10_hyperGeometricPDF_cache(i,41690+40506,40506,i+100));
 			System.out.println(log10_hyperGeometricCDF_cache_appr(99,41690+40506,40506,i+5000));
-//			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+5000));
+			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+5000));
 			System.out.println("-----------");
 //			System.out.println(Math.log10(binomialPValue(99.0,i+100.0,p)));
 		}

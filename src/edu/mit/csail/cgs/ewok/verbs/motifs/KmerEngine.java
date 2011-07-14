@@ -800,5 +800,9 @@ public class KmerEngine {
 	    List<File> files = Args.parseFileHandles(args, "kmers_file");
 	    kEngine.indexKmers(files);
 	}
+	public static void main1(String[] args){
+		KmerEngine ke = new KmerEngine(new ArrayList<Kmer>(),"");
+		ke.computeHGP(40876, 40873, 37993, 27993);
+	}
 }
 
