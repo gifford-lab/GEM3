@@ -345,25 +345,20 @@ public class KmerEngine {
 		}
 	}
 	/**
-	 * Compute hgp using the positive/negative sequences, high precision version
-	 * Runs much slower, but more accurate for very small p-value (<MIN_VALUE, 2^-1074)
+	 * Compute hgp using the positive/negative sequences, high precision approximation
+	 * Only use for very small p-value (<MIN_VALUE, 2^-1074)
 	 */
 	private double computeHGP_BIG(int posSeq, int negSeq, int posHit, int negHit){
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
 		// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
-		if (posHit<negHit){		// select smaller x for hyperGeometricCDF_cache(), to reduce # of x sum operations
-			double hgcdf = StatUtil.hyperGeometricCDF_cache(posHit, allSeq, allHit, posSeq);
-			return Math.log(1-hgcdf);
-		}
-		else{				// flip the problem, compute cdf of negative count
-			double hgcdf_log10=0;
-			if (negHit==0)
-				hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache(0, allSeq, allHit+2+1, negSeq);
-			else
-				hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache(negHit-1, allSeq, allHit, negSeq);
-			return hgcdf_log10;
-		}
+		// flip the problem, compute cdf of negative count
+		double hgcdf_log10=0;
+		if (negHit==0)
+			hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache_appr(0, allSeq, allHit+2+1, negSeq);
+		else
+			hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache_appr(negHit-1, allSeq, allHit, negSeq);
+		return hgcdf_log10;
 	}
 	
 	/**

@@ -1146,17 +1146,31 @@ public class StatUtil {
 			v = 1.0;
 		return v;	
 	}
+	/**
+	 * Returns the hypergeometric cumulative probability
+	 * High precision implementation with BigDecimal, but very slow	
+	 */
 	public static double log10_hyperGeometricCDF_cache(int x, int N, int s, int n) {
 		BigDecimal v = BigDecimal.ZERO;
-		int k = 0;
-		for (k=0;k<=x;k++) {
+		for (int k=0;k<=x;k++) {
 			v = v.add(hyperGeometricPDF_cache_BIG(k,N,s,n));
 //			v = v.setScale(v.scale()-v.precision()+20, BigDecimal.ROUND_DOWN);	
 		}
-		int newScale  = v.scale()-v.precision()+20;
+		int newScale  = v.scale()-v.precision()+10;
 		BigDecimal v2 = v.setScale(newScale, BigDecimal.ROUND_DOWN);		
 		double d = v2.unscaledValue().doubleValue();
 		return Math.log10(d)-v2.scale();	
+	}
+	
+	/** Approximate log10_hyperGeometricCDF 
+	 *  Summing the PDF on log10 space, avoid losing precision */
+	public static double log10_hyperGeometricCDF_cache_appr(int x, int N, int s, int n) {
+		double Lx = log10_hyperGeometricPDF_cache(x,N,s,n);
+		double sum = 1;
+		for (int k=x-1;k<=0;k--) {
+			sum += log10_hyperGeometricPDF_cache(k,N,s,n)-Lx;
+		}
+		return Lx+Math.log10(sum);
 	}
 	/**
 	 * Returns the hypergeometric density probability of number <tt>x</tt> 
@@ -1217,7 +1231,6 @@ public class StatUtil {
 		double mknx = logFactorials[N-s]-logFactorials[n-x]-logFactorials[N-s-(n-x)];
 		double mn = logFactorials[N]-logFactorials[n]-logFactorials[N-n];
 		BigDecimal v = exp_BIG(kx + mknx - mn);
-//		v = v.setScale(v.scale()-v.precision()+20, BigDecimal.ROUND_DOWN);	
 		return v;
 	}
 	
@@ -1226,6 +1239,30 @@ public class StatUtil {
 		double unscaledValue = v/Math.pow(10, p);
 		BigDecimal exp = BigDecimal.valueOf(Math.exp(unscaledValue)).pow((int)Math.round(Math.pow(10, p)));
 		return exp;
+	}
+	
+	public static double log10_hyperGeometricPDF_cache (int x, int N, int s, int n) {
+		if (x+N-s-n<0)
+			return Double.NEGATIVE_INFINITY;
+		// extend the cache if N is large than existing cache
+		int len = (logFactorials==null)?0:logFactorials.length;
+		if (logFactorials==null || logFactorials.length < N+1){
+			double[] old = logFactorials;
+			logFactorials = new double[N+1];
+			if (len!=0)
+				System.arraycopy(old, 0, logFactorials, 0, len);
+			else{
+				logFactorials[0]=0;
+				len++;
+			}
+			for (int i=len;i<=N;i++)
+				logFactorials[i] = logFactorials[i-1]+Math.log(i);
+		}
+		// compute
+		double kx = logFactorials[s]-logFactorials[x]-logFactorials[s-x];
+		double mknx = logFactorials[N-s]-logFactorials[n-x]-logFactorials[N-s-(n-x)];
+		double mn = logFactorials[N]-logFactorials[n]-logFactorials[N-n];
+		return (kx + mknx - mn)*Math.log10(Math.exp(1));
 	}
 	/**
 	 * 
@@ -1579,8 +1616,14 @@ public class StatUtil {
 //		 System.out.println(Math.exp(1));
 //		 System.out.println(exp_BIG(Math.log(10)));
 //		 System.out.println(Math.log10(Math.exp(1)));
-		for (int i=0;i<=5000;i=i+100){
-			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+100));
+		 double p=(double)40506/(41690+40506);
+		for (int i=100;i<=5000;i=i+100){
+//			System.out.println(Math.log10(hyperGeometricPDF_cache_BIG(99,41690+40506,40506,i+100).doubleValue()));
+//			System.out.println(log10_hyperGeometricPDF_cache(i,41690+40506,40506,i+100));
+			System.out.println(log10_hyperGeometricCDF_cache_appr(99,41690+40506,40506,i+5000));
+//			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+5000));
+			System.out.println("-----------");
+//			System.out.println(Math.log10(binomialPValue(99.0,i+100.0,p)));
 		}
 	}
 }//end of StatUtil class 41690 / 40506
