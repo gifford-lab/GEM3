@@ -3506,17 +3506,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
      */
     public void buildEngine( int winSize){
     	ArrayList<Point> points = getEventPoints();
-		// compare different values of k to select most enriched k value
-		int k=0;
-		double max_value=0;
 		if (config.k_min!=-1){
-			int eventCounts[] = new int[config.k_max-config.k_min+1];
+			// compare different values of k to select most enriched k value
 			ArrayList<KmerCluster> bestClusters = null;
 			int bestK = 0;
 			double bestHGP = 1;			
 			ArrayList<Kmer> bestKmers = null;
 			
-			for (int i=0;i<eventCounts.length;i++){
+			for (int i=0;i<config.k_max-config.k_min+1;i++){
 				config.k = i+config.k_min;
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
 				if (kmers.isEmpty())
@@ -3541,6 +3538,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			log(1, String.format("selected k=%d\thgp=1E%.1f", bestK, bestHGP));
 			config.k = bestK;
+			config.k_min = bestK;
+			config.k_max = bestK;
 			clusters = bestClusters;
 			if (!config.k_init_find_all_motifs){		// if we only find primary motif to select k, do a full motif discovery here
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
