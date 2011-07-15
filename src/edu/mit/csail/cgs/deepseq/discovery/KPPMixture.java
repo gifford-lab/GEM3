@@ -3538,8 +3538,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			log(1, String.format("selected k=%d\thgp=1E%.1f", bestK, bestHGP));
 			config.k = bestK;
-			config.k_min = bestK;
-			config.k_max = bestK;
+			config.k_min = -1;		// prevent selecting k again
+			config.k_max = -1;
 			clusters = bestClusters;
 			if (!config.k_init_find_all_motifs){		// if we only find primary motif to select k, do a full motif discovery here
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
