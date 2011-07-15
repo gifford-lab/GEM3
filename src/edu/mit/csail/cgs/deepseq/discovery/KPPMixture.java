@@ -4478,7 +4478,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		int seqLen = seqs_old[0].length();
 		for (int m=0;m<1;m++){
-			for (int j=1;j<pwmCluster.size();j++){
+			for (int j=0;j<pwmCluster.size();j++){
 				int[] same = new int[seqLen*2+1];
 				int[] diff = new int[seqLen*2+1];
 				for (int i=0;i<seqs_old.length;i++){
@@ -4499,7 +4499,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				for (int i=0;i<same.length;i++){
 					sb.append(String.format("%d\t%d\t%d\n", i-seqLen, same[i], diff[i]));
 				}
-				CommonUtils.writeFile(name+"_"+m+"_"+j+"_spatial_dist.txt", sb.toString());
+				CommonUtils.writeFile(name+"_spatial_dist_"+m+"_"+j+".txt", sb.toString());
 			}
 		}
 	}
