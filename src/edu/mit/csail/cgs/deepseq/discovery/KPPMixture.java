@@ -4249,17 +4249,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			int posSorted[] = sorted.car();
 			int pos = posSorted[counts.length-1];
 
+			int passSeqCount=0;
 			for  (int i=0;i<pwmPos.size();i++){
-				int seqIdx = alignedSeqIdx.get(i);
-				if (pwmPos.get(i)!=pos){			// reset the sequences not aligning with PWM
-					// ignore them for now, because this and PWM scanning again may lead to infinite loop
-//					posSeqs[seqIdx]=UNALIGNED;
-//					if (!isPlusStrands[seqIdx]){
-//						seqs[seqIdx] = SequenceUtils.reverseComplement(seqs[seqIdx]);
-//					isPlusStrands[seqId] = !isPlusStrands[seqId];
-//					}
+				if (pwmPos.get(i)==pos){
+					passSeqCount++;
 				}
-				else{
+			}
+			if (passSeqCount==cluster.lastPassSeqCount)		// same number of sequence pass the PWM, no change, skip to use previous PWM
+				return -1;
+			
+			for  (int i=0;i<pwmPos.size();i++){
+				if (pwmPos.get(i)==pos){
+					int seqIdx = alignedSeqIdx.get(i);
 					int seq_seed = posSeqs[seqIdx];
 					int seedMid_seq = -seq_seed+config.k/2;
 					if (!isPlusStrands[seqIdx])			// minus strand
@@ -4298,6 +4299,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	}
     	if (passedSeqs.size()<config.kmer_cluster_seq_count)
     		return -1;
+    	else
+    		cluster.lastPassSeqCount = passedSeqs.size();	// save the # of passed seq count
 
 		// count base frequencies
 		for (int i=0;i<passedSeqs.size();i++){
@@ -5748,6 +5751,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int pos_pwm_seed;
 		int pos_BS_pwm;
 		int sequenceCount;
+		int lastPassSeqCount;
 		int kmerCount;
 		ArrayList<Kmer> alignedKmers;
 		
