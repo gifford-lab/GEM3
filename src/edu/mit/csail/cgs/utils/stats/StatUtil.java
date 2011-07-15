@@ -1613,18 +1613,13 @@ public class StatUtil {
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(3,8+7,8,3+2));
 //		System.out.println(hyperGeometricCDF_cache(2,8+7,7,3+2));
-//		 System.out.println(Math.pow(10, 1* Math.log10(Math.exp(1)) ));
-//		 System.out.println(Math.exp(1));
-//		 System.out.println(exp_BIG(Math.log(10)));
-//		 System.out.println(Math.log10(Math.exp(1)));
-		 double p=(double)40506/(41690+40506);
-		for (int i=100;i<=5000;i=i+100){
+//		 System.out.println(log10_hyperGeometricCDF_cache_appr(1,41690+40506,1,5000));
+		for (int i=0;i<=5000;i=i+100){
 //			System.out.println(Math.log10(hyperGeometricPDF_cache_BIG(99,41690+40506,40506,i+100).doubleValue()));
 //			System.out.println(log10_hyperGeometricPDF_cache(i,41690+40506,40506,i+100));
 			System.out.println(log10_hyperGeometricCDF_cache_appr(99,41690+40506,40506,i+5000));
-			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+5000));
+//			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+5000));
 			System.out.println("-----------");
-//			System.out.println(Math.log10(binomialPValue(99.0,i+100.0,p)));
 		}
 	}
 }//end of StatUtil class 41690 / 40506

@@ -327,18 +327,20 @@ public class KmerEngine {
 	private double computeHGP(int posSeq, int negSeq, int posHit, int negHit){
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
-		// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
 		if (posHit<negHit){		// select smaller x for hyperGeometricCDF_cache(), to reduce # of x sum operations
 			double hgcdf = StatUtil.hyperGeometricCDF_cache(posHit, allSeq, allHit, posSeq);
-			return Math.log(1-hgcdf);
+			if (hgcdf==1)
+				return computeHGP_TINY(posSeq, negSeq, posHit, negHit);
+			else
+				return Math.log(1-hgcdf);
 		}
-		else{				// flip the problem, compute cdf of negative count
+		else{	// flip the problem, compute cdf of negative count, CDF for negative hit do not include negHit
 			double hgcdf=0;
 			if (negHit==0)
-				hgcdf = StatUtil.hyperGeometricCDF_cache(0, allSeq, allHit+2+1, negSeq);
+				hgcdf = StatUtil.hyperGeometricCDF_cache(0, allSeq, allHit+2+1, negSeq);		// add 1 negHit, 2 posHit as pseudo count
 			else
 				hgcdf = StatUtil.hyperGeometricCDF_cache(negHit-1, allSeq, allHit, negSeq);
-			if (hgcdf<Double.MIN_VALUE)
+			if (hgcdf==0||hgcdf<=Double.MIN_VALUE)
 				return computeHGP_TINY(posSeq, negSeq, posHit, negHit);
 			else
 				return Math.log10(hgcdf);
@@ -351,14 +353,14 @@ public class KmerEngine {
 	private double computeHGP_TINY(int posSeq, int negSeq, int posHit, int negHit){
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
-		// add one pseudo-count for negative set (zero count in negative set leads to tiny p-value)
 		// flip the problem, compute cdf of negative count
 		double hgcdf_log10=0;
 		if (negHit==0)
-			hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache_appr(0, allSeq, allHit+2+1, negSeq);
+			hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache_appr(0, allSeq, allHit+2+1, negSeq); // add 1 negHit, 2 posHit as pseudo count
 		else
 			hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache_appr(negHit-1, allSeq, allHit, negSeq);
 		return hgcdf_log10;
+
 	}
 	
 	/**
@@ -503,7 +505,7 @@ public class KmerEngine {
 //				break;
 //			}
 //		}
-		System.out.println(String.format("%.2f\t%.0f\t%.4f\t%.1f\n", threshold, diffs[minIdx], fdrs[minIdx], hgps[minIdx] ));
+		System.out.println(String.format("%.2f\t%.0f\t%.4f\t%.1f", threshold, diffs[minIdx], fdrs[minIdx], hgps[minIdx] ));
 		if (printFDR)
 			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
 		return new Pair<Double, Double>(threshold, minHGP);
