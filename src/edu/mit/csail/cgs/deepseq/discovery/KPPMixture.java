@@ -847,7 +847,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (int i=0;i<N;i++){
 			ComponentFeature cf = compFeatures.get(i);
 			KmerGroup kmerGroup = cf.getKmerGroup();
-			int inc = (kmerGroup==null||kmerGroup.getWeightedKmerCount()<=1)?0:1;
+			int inc = (kmerGroup==null||kmerGroup.getWeightedKmerCount()<1)?0:1;
 			if (i==0)
 				kmerHitCount[0] = inc;
 			else
@@ -855,8 +855,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		for (int i=0;i<N-1;i++){
 //			System.out.print(String.format("%d\t%d\t%d\t%d\t", kmerHitCount[i], N, kmerHitCount[N-1], i+1));
-			double hgp = 1-StatUtil.hyperGeometricCDF_cache(kmerHitCount[i], N, kmerHitCount[N-1], i+1);  //TODO: change hgp_log10
-			compFeatures.get(i).setEnrichedKmerHGPLog10(-Math.log10(hgp));
+			double hgp_log10 = 1-StatUtil.log10_hyperGeometricCDF_cache_appr(kmerHitCount[i], N, kmerHitCount[N-1], i+1); 
+			compFeatures.get(i).setEnrichedKmerHGPLog10(hgp_log10);
 //			System.out.println(String.format("%.1f\t%.3f", compFeatures.get(i).getEnrichedKmerHGPLog10(), 1-(kmerHitCount[i]/(i+1.0))));
 		}		
 	}
