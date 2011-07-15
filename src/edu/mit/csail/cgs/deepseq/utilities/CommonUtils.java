@@ -20,6 +20,8 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
+import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
+import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
@@ -277,4 +279,99 @@ public class CommonUtils {
           }  
   		  return pair;
     }
+    
+	/**
+	 *  Scan the sequence for best match to the weight matrix
+	 *  @return  Pair of values, the start position of highest scoring PWM hit and the score
+	 *  The position will be negative if the match is on '-' strand    
+	 */
+	public static Pair<Integer, Double> scanPWM(String sequence, int wmLen, WeightMatrixScorer scorer){
+		if (sequence==null||sequence.length()<wmLen-1){
+			return new Pair<Integer, Double>(-1, Double.NEGATIVE_INFINITY);
+		}
+		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
+		double maxSeqScore = Double.NEGATIVE_INFINITY;
+		int maxScoringShift = 0;
+		char maxScoringStrand = '+';
+		for (int i=0;i<profiler.length();i++){
+			double score = profiler.getMaxScore(i);
+			if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
+				maxSeqScore = score;
+				maxScoringShift = i;
+				maxScoringStrand = profiler.getMaxStrand(i);
+			}
+		}
+	
+		if (maxScoringStrand =='-'){
+			maxScoringShift = -maxScoringShift;		
+		}
+		return new Pair<Integer, Double>(maxScoringShift, maxSeqScore);
+	}
+
+	/**
+	 *  Scan the sequence to find all matches to the weight matrix
+	 *  @return  List of positions that pass the threshold. <br>The position will be negative if the match is on '-' strand    
+	 */
+	public static ArrayList<Integer> getAllPWMHit(String sequence, int wmLen, WeightMatrixScorer scorer, double threshold){
+		ArrayList<Integer> pos = new ArrayList<Integer>();
+		if (sequence==null||sequence.length()<wmLen-1){
+			return pos;
+		}
+		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
+		for (int i=0;i<profiler.length();i++){
+			double score = profiler.getMaxScore(i);
+			if (score >= threshold){
+				if( profiler.getMaxStrand(i)=='+')
+					pos.add(i);
+				else
+					pos.add(-i);
+			}
+		}
+		return pos;
+	}
+	
+	/**
+	 *  Scan the sequence using weight matrix
+	 *  It scans outwards from the middle point, until a match pass the threshold
+	 *  @return  Pair of values, the start position of nearest PWM hit and the score
+	 *  The position will be negative if the match is on '-' strand    
+	 *  If no match pass the scoreTarget, return -999 as position. The called need to check for this.
+	 */
+	public static  Pair<Integer, Double> scanPWMoutwards(String sequence, WeightMatrix wm, WeightMatrixScorer scorer, int middle, double threshold){
+		if (sequence==null||sequence.length()<wm.length()-1){
+			return new Pair<Integer, Double>(-999,-1.0);
+		}
+		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
+		double goodScore = 0;
+		int goodScoreShift = -999;
+		char goodScoreStrand = '+';
+		int maxRange = Math.max(middle, profiler.length()-middle);
+		for (int i=0;i<maxRange;i++){
+			int idx = middle+i;
+			if (idx<0 || idx>=sequence.length()-wm.length())
+				continue;
+			double score = profiler.getMaxScore(idx);
+			if (score>=threshold){
+				goodScore = score;
+				goodScoreShift = idx;
+				goodScoreStrand = profiler.getMaxStrand(idx);
+				break;
+			}
+			idx = middle-i;
+			if (idx<0 || idx>=sequence.length()-wm.length())
+				continue;
+			score = profiler.getMaxScore(idx);
+			if (score>=threshold){
+				goodScore = score;
+				goodScoreShift = idx;
+				goodScoreStrand = profiler.getMaxStrand(idx);
+				break;
+			}
+		}
+	
+		if (goodScoreStrand =='-'){
+			goodScoreShift = -goodScoreShift;		
+		}
+		return new Pair<Integer, Double>(goodScoreShift, goodScore);
+	}
 }

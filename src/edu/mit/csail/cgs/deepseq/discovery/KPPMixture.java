@@ -4061,7 +4061,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					String seq = seqs[i];
 					boolean found = false;
 					while(true){				// mask all possible matches
-						Pair<Integer, Double> hit = scanPWM(seq, cluster.wm, scorer);
+						Pair<Integer, Double> hit = CommonUtils.scanPWM(seq, cluster.wm.length(), scorer);
 						if (hit.cdr()<cluster.pwmThreshold)
 							break;
 						found = true;
@@ -4231,7 +4231,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				int seq_seed = posSeqs[i];
 				if (seq_seed == UNALIGNED)
 					continue;
-				Pair<Integer, Double> hit = scanPWM(seqs[i], cluster.wm, scorer);
+				Pair<Integer, Double> hit = CommonUtils.scanPWM(seqs[i], cluster.wm.length(), scorer);
 				if (hit.cdr()<cluster.pwmThreshold)
 					continue;
 				if (hit.car()<0){		// match on the other strand
@@ -4454,6 +4454,56 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	return new Pair<Integer, Integer>(leftIdx, rightIdx);
     }
     
+    /**
+	 * Compute the distance distributions between primary and secondary motifs
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public void printMotifDistanceDistribution (String name){		
+		System.out.println("Compute motif distance distribution ...");
+		String[] seqs_old = kEngine.getPositiveSeqs();
+		ArrayList<KmerCluster> pwmCluster = new ArrayList<KmerCluster>();
+		for (int i=0;i<clusters.size();i++){
+			KmerCluster c = clusters.get(i);
+			if (c.wm!=null){
+				pwmCluster.add(c);
+			}
+		}
+		ArrayList[][] hits = new ArrayList[seqs_old.length][pwmCluster.size()];
+		for (int j=0;j<pwmCluster.size();j++){
+			KmerCluster c = clusters.get(j);
+			WeightMatrixScorer scorer = new WeightMatrixScorer(c.wm);
+			for (int i=0;i<seqs_old.length;i++){
+				hits[i][j]=CommonUtils.getAllPWMHit(seqs_old[i], c.wm.length(), scorer, c.pwmThreshold);
+			}
+		}
+		int seqLen = seqs_old[0].length();
+		for (int m=0;m<1;m++){
+			for (int j=1;j<pwmCluster.size();j++){
+				int[] same = new int[seqLen*2+1];
+				int[] diff = new int[seqLen*2+1];
+				for (int i=0;i<seqs_old.length;i++){
+					ArrayList<Integer> hitm = hits[i][m];
+					ArrayList<Integer> hitj = hits[i][j];
+					if (hitm.isEmpty()||hitj.isEmpty())
+						continue;
+					for (int pm:hitm){
+						for (int pj:hitm){
+							if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
+								same[pj-pm+seqLen]++;
+							else
+								diff[-pj-pm+seqLen]++;			// -pj to get the coord on the same strand as pm
+						}
+					}
+				}
+				StringBuilder sb = new StringBuilder();
+				for (int i=0;i<same.length;i++){
+					sb.append(String.format("%d\t%d\t%d\n", i-seqLen, same[i], diff[i]));
+				}
+				CommonUtils.writeFile(name+"_"+m+"_"+j+"_spatial_dist.txt", sb.toString());
+			}
+		}
+	}
+    
 	/**
 	 * Print the overlapping kmer counts with increasing number of k
 	 * in a specified window around the binding events
@@ -4466,78 +4516,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 	}
 
-	/**
-	 *  Scan the bound sequence of componentFeature using weight matrix
-	 *  @return  Pair of values, the start position of highest scoring PWM hit and the score
-	 *  The position will be negative if the match is on '-' strand    
-	 */
-	private Pair<Integer, Double> scanPWM(String sequence, WeightMatrix wm, WeightMatrixScorer scorer){
-		if (sequence==null||sequence.length()<wm.length()-1){
-			return new Pair<Integer, Double>(-1,-1.0);
-		}
-		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
-		double maxSeqScore = Double.NEGATIVE_INFINITY;
-		int maxScoringShift = 0;
-		char maxScoringStrand = '+';
-		for (int i=0;i<profiler.length();i++){
-			double score = profiler.getMaxScore(i);
-			if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
-				maxSeqScore = score;
-				maxScoringShift = i;
-				maxScoringStrand = profiler.getMaxStrand(i);
-			}
-		}
-	
-		if (maxScoringStrand =='-'){
-			maxScoringShift = -maxScoringShift;		
-		}
-		return new Pair<Integer, Double>(maxScoringShift, maxSeqScore);
-	}
 
-	/**
-	 *  Scan the bound sequence of componentFeature using weight matrix
-	 *  It scans outwards from the middle point, until a match pass the scoreTarget
-	 *  @return  Pair of values, the start position of nearest PWM hit and the score
-	 *  The position will be negative if the match is on '-' strand    
-	 *  If no match pass the scoreTarget, return -999 as position. The called need to check for this.
-	 */
-	private Pair<Integer, Double> scanPWMoutwards(String sequence, WeightMatrix wm, WeightMatrixScorer scorer, int middle, double scoreTarget){
-		if (sequence==null||sequence.length()<wm.length()-1){
-			return new Pair<Integer, Double>(-999,-1.0);
-		}
-		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
-		double goodScore = 0;
-		int goodScoreShift = -999;
-		char goodScoreStrand = '+';
-		int maxRange = Math.max(middle, profiler.length()-middle);
-		for (int i=0;i<maxRange;i++){
-			int idx = middle+i;
-			if (idx<0 || idx>=sequence.length()-wm.length())
-				continue;
-			double score = profiler.getMaxScore(idx);
-			if (score>=scoreTarget){
-				goodScore = score;
-				goodScoreShift = idx;
-				goodScoreStrand = profiler.getMaxStrand(idx);
-				break;
-			}
-			idx = middle-i;
-			if (idx<0 || idx>=sequence.length()-wm.length())
-				continue;
-			score = profiler.getMaxScore(idx);
-			if (score>=scoreTarget){
-				goodScore = score;
-				goodScoreShift = idx;
-				goodScoreStrand = profiler.getMaxStrand(idx);
-				break;
-			}
-		}
-	
-		if (goodScoreStrand =='-'){
-			goodScoreShift = -goodScoreShift;		
-		}
-		return new Pair<Integer, Double>(goodScoreShift, goodScore);
-	}
+
+
 	
   /**
 	 * Count kmers in all binding events

@@ -207,6 +207,7 @@ public class GPS2 {
 	            else
 	            	mixture.buildEngine(-1);
             }
+            mixture.printMotifDistanceDistribution(peakFileName);
 //	        mixture.printOverlappingKmers();
         }
         

@@ -45,10 +45,11 @@ public class WeightMatrixScoreProfile {
 			return '-';
 		}
 	}
-	
+	/** max score (from 2 strands) at this position */
 	public double getMaxScore(int i) { 
 		return Math.max(forward[i], reverse[i]); 
 	}
+	/** max score over the whole sequence*/
 	public double getMaxScore(){
 		return(getMaxScore(getMaxIndex()));
 	}
