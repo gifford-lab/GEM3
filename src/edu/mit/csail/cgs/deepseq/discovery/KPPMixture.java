@@ -4345,11 +4345,24 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	double pwmThresholdHGP = estimate.cdr();
     		if (config.bmverbose>1)
     			System.out.println(String.format("PWM %s from %d events, hgp=1E%.1f, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), passedSeqs.size(), pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
-	    	if (pwmThreshold<wm.getMaxScore()/5){
-	    		return -1;
+//	    	if (pwmThreshold<wm.getMaxScore()/5){
+//	    		return -1;
+//	    	}
+    		// test if we want to accept the new PWM
+    		if (cluster.wm!=null){
+    			if( cluster.pwmThresholdHGP<pwmThresholdHGP)		// previous pwm is more enriched, stop here
+    				return -1;
+    		}
+    		else{		// if no previous PWM yet, test if new PWM can match more sequences
+    			int matchCount=0;
+		    	for (int i=0;i<posSeqs.length;i++){
+		    		Pair<Integer, Double> hit = CommonUtils.scanPWM(seqs[i], wm.length(), new WeightMatrixScorer(wm));
+		    		if (hit.cdr()>=pwmThreshold)
+		    			matchCount++;
+		    	}
+		    	if (passedSeqs.size()>matchCount)
+		    		return -1;
 	    	}
-	    	if (cluster.wm!=null && cluster.pwmThresholdHGP<pwmThresholdHGP)		// previous pwm is more enriched, stop here
-	    		return -1;
 	    	cluster.wm = wm;
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
 	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
@@ -4459,7 +4472,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void printMotifDistanceDistribution (String name){		
-		System.out.println("Compute motif distance distribution ...");
+//		System.out.println("Compute motif distance distribution ...");
 		String[] seqs_old = kEngine.getPositiveSeqs();
 		ArrayList<KmerCluster> pwmCluster = new ArrayList<KmerCluster>();
 		for (int i=0;i<clusters.size();i++){
@@ -4486,12 +4499,26 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					ArrayList<Integer> hitj = hits[i][j];
 					if (hitm.isEmpty()||hitj.isEmpty())
 						continue;
-					for (int pm:hitm){
-						for (int pj:hitm){
-							if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
-								same[pj-pm+seqLen]++;
-							else
-								diff[-pj-pm+seqLen]++;			// -pj to get the coord on the same strand as pm
+					if (m==j){		//self comparison
+						for (int a=0;a<hitm.size();a++){
+							int pm = hitm.get(a);
+							for (int b=a;b<hitm.size();b++){
+								int pj = hitm.get(b);
+								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
+									same[pj-pm+seqLen]++;
+								else
+									diff[-pj-pm+seqLen]++;			// -pj to get the coord on the same strand as pm
+							}
+						}
+					}
+					else{
+						for (int pm:hitm){
+							for (int pj:hitj){
+								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
+									same[pj-pm+seqLen]++;
+								else
+									diff[-pj-pm+seqLen]++;			// -pj to get the coord on the same strand as pm
+							}
 						}
 					}
 				}
@@ -4499,7 +4526,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				for (int i=0;i<same.length;i++){
 					sb.append(String.format("%d\t%d\t%d\n", i-seqLen, same[i], diff[i]));
 				}
-				CommonUtils.writeFile(name+"_spatial_dist_"+m+"_"+j+".txt", sb.toString());
+				CommonUtils.writeFile(name+"_Spatial_dist_"+pwmCluster.get(m).clusterId+"_"+pwmCluster.get(j).clusterId+".txt", sb.toString());
 			}
 		}
 	}
