@@ -4171,12 +4171,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	String seedKmerStr = seed.getKmerString();
     	String seedKmerRC = seed.getKmerRC();
     	for (Kmer kmer: kmers){
-	    	if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=Math.round(config.k*0.1)){
+	    	if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=1+config.k*0.1){
 	    		kmer.setShift(0);
 	    		family.add(kmer);
 	    		kmer.setAlignString(seedKmerStr);
 	    	}
-	    	else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=Math.round(config.k*0.1)){
+	    	else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=1+config.k*0.1){
 	    		kmer.setShift(0);
 	    		kmer.RC();
 	    		family.add(kmer);
