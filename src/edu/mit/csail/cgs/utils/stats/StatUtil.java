@@ -1614,10 +1614,10 @@ public class StatUtil {
 //		System.out.println(hyperGeometricCDF_cache(3,8+7,8,3+2));
 //		System.out.println(hyperGeometricCDF_cache(2,8+7,7,3+2));
 //		 System.out.println(log10_hyperGeometricCDF_cache_appr(1,41690+40506,1,5000));
-		for (int i=0;i<=5000;i=i+100){
+		for (int i=10700;i<=10800;i=i+10){
 //			System.out.println(Math.log10(hyperGeometricPDF_cache_BIG(99,41690+40506,40506,i+100).doubleValue()));
 //			System.out.println(log10_hyperGeometricPDF_cache(i,41690+40506,40506,i+100));
-			System.out.println(log10_hyperGeometricCDF_cache_appr(99,41690+40506,40506,i+5000));
+			System.out.println(i+"\t"+log10_hyperGeometricCDF_cache_appr(i,40876+40873,40873,i+31761));
 //			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+5000));
 			System.out.println("-----------");
 		}
