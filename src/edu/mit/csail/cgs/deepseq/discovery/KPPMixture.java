@@ -3873,11 +3873,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				          }
 				        }	// each sequence
 				    	
-				    	// stop if no new seq is aligned
-//				    	if (count_pwm_aligned==0)
-//				    		break;
-				    	
-			//	    	ArrayList<Kmer> newKmer = new ArrayList<Kmer>();
 				    	for (String kmStr: pwmAlignedKmerStr.keySet()){
 				    		Kmer km = null;
 				    		String kmRC = SequenceUtil.reverseComplement(kmStr);
@@ -3918,25 +3913,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					break;			// stop this cluster, start a new one
 				}
 			} // greedily growing cluster until form a pwm
-			
-//			/** align all seqs with pwm, build new pwm, iterate until converge */
-//			int iteration = 1;
-//			while(cluster.wm!=null && iteration<=20){
-//
-//				/** build PWM to continue grow cluster */
-//				int alignedSeqCount=0;
-//				for (int i=0;i<posSeqs.length;i++){
-//					if (posSeqs[i] != UNALIGNED)
-//						alignedSeqCount++;
-//				}
-//				if (alignedSeqCount>=config.kmer_cluster_seq_count){
-//					int leftIdx = buildPWM(posSeqs, isPlusStrands, events, seqs, cluster);
-//					if (leftIdx != -1){				    	
-//						break;
-//					}
-//				}
-//				iteration++;
-//			}// pwm scan and build pwm
 	    	
 			/** re-aligned kmers using aligned sequences */
 			if (config.re_align_kmer){
@@ -4350,18 +4326,22 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    	}
     		// test if we want to accept the new PWM
     		if (cluster.wm!=null){
-    			if( cluster.pwmThresholdHGP<pwmThresholdHGP)		// previous pwm is more enriched, stop here
+    			if( cluster.pwmThresholdHGP<pwmThresholdHGP){		// previous pwm is more enriched, stop here
     				return -1;
+    			}
     		}
-    		else{		// if no previous PWM yet, test if new PWM can match more sequences
-    			int matchCount=0;
-		    	for (int i=0;i<posSeqs.length;i++){
-		    		Pair<Integer, Double> hit = CommonUtils.scanPWM(seqs[i], wm.length(), new WeightMatrixScorer(wm));
-		    		if (hit.cdr()>=pwmThreshold)
-		    			matchCount++;
-		    	}
-		    	if (passedSeqs.size()>matchCount)
-		    		return -1;
+    		else{		// if no previous PWM yet
+    			if (pwmThreshold<wm.getMaxScore()/4){				// if the score is not good enough
+    				// test if new PWM can match more sequences
+	    			int matchCount=0;				
+			    	for (int i=0;i<posSeqs.length;i++){
+			    		Pair<Integer, Double> hit = CommonUtils.scanPWM(seqs[i], wm.length(), new WeightMatrixScorer(wm));
+			    		if (hit.cdr()>=pwmThreshold)
+			    			matchCount++;
+			    	}
+			    	if (passedSeqs.size()>matchCount)
+			    		return -1;
+    			}
 	    	}
 	    	cluster.wm = wm;
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
@@ -4483,7 +4463,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		ArrayList[][] hits = new ArrayList[seqs_old.length][pwmCluster.size()];
 		for (int j=0;j<pwmCluster.size();j++){
-			KmerCluster c = clusters.get(j);
+			KmerCluster c = pwmCluster.get(j);
 			WeightMatrixScorer scorer = new WeightMatrixScorer(c.wm);
 			for (int i=0;i<seqs_old.length;i++){
 				hits[i][j]=CommonUtils.getAllPWMHit(seqs_old[i], c.wm.length(), scorer, c.pwmThreshold);

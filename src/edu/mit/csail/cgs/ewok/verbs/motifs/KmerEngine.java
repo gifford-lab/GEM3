@@ -505,7 +505,7 @@ public class KmerEngine {
 //				break;
 //			}
 //		}
-		System.out.println(String.format("%.2f\t%.0f\t%.4f\t%.1f", threshold, diffs[minIdx], fdrs[minIdx], hgps[minIdx] ));
+//		System.out.println(String.format("%.2f\t%.0f\t%.4f\t%.1f", threshold, diffs[minIdx], fdrs[minIdx], hgps[minIdx] ));
 		if (printFDR)
 			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
 		return new Pair<Double, Double>(threshold, minHGP);
