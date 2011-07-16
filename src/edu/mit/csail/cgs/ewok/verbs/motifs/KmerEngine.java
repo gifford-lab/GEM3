@@ -159,14 +159,13 @@ public class KmerEngine {
 			}
 		}
 		
-		// sort the kmer strings, to make a kmer to also represent its reverse compliment (RC)	
+		// Merge kmer and its reverse compliment (RC)	
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
-		ArrayList<String> sortedKeys = new ArrayList<String>();
-		sortedKeys.addAll(map.keySet());
-		Collections.sort(sortedKeys);	
+		ArrayList<String> kmerStrings = new ArrayList<String>();
+		kmerStrings.addAll(map.keySet());
 		
 		// create kmers from its and RC's counts
-		for (String key:sortedKeys){
+		for (String key:kmerStrings){
 			if (!map.containsKey(key))		// this kmer has been removed, represented by RC
 				continue;
 
@@ -174,8 +173,13 @@ public class KmerEngine {
 			String key_rc = SequenceUtils.reverseComplement(key);				
 			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
 				if (map.containsKey(key_rc)){
-					map.put(key, (map.get(key)+map.get(key_rc)));
-					map.remove(key_rc);		// remove this kmer because it is represented by its RC
+					int kCount = map.get(key);
+					int rcCount = map.get(key_rc);
+					String winner = kCount>=rcCount?key:key_rc;
+					String loser = kCount>=rcCount?key_rc:key;
+					map.put(winner, kCount+rcCount);	// winner take all
+					map.remove(loser);					// remove the loser kmer because it is represented by its RC
+					key = winner;
 				}
 			}
 			

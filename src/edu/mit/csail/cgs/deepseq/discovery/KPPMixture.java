@@ -3510,7 +3510,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			// compare different values of k to select most enriched k value
 			ArrayList<KmerCluster> bestClusters = null;
 			int bestK = 0;
-			double bestHGP = 1;			
+			double bestHGP = 1;		
+			int bestWMseqCount = 100;
 			ArrayList<Kmer> bestKmers = null;
 			
 			for (int i=0;i<config.k_max-config.k_min+1;i++){
@@ -3521,22 +3522,35 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				kmers = alignOverlappedKmers(kmers, getEvents(), !config.k_init_find_all_motifs);
 				double primaryHGP = 0;
 				WeightMatrix primaryWM = null;
+				int primaryWMseqCount = 100;
 				for (KmerCluster kc:clusters){
 					if (kc.wm!=null){
 						primaryWM = kc.wm;
 						primaryHGP = kc.pwmThresholdHGP;
+						primaryWMseqCount = kc.sequenceCount;
 						break;		// only use the first PWM, this should be the primary motif
 					}
 				}
-				log(1, String.format("k=%d, %s\thgp=1E%.1f", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), primaryHGP));
-				if (bestHGP>=primaryHGP){
+				log(1, String.format("k=%d, %s\thgp=1E%.1f, from %d sequences", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), primaryHGP, primaryWMseqCount));
+				boolean isNewBetter = false;
+				// similar to buildPWM(), if hgps are too close, also consider sequence count
+				if (Math.abs(primaryHGP-bestHGP)<Math.abs(bestHGP)/100){		
+					if (bestHGP*bestWMseqCount>=primaryHGP*primaryWMseqCount)
+						isNewBetter = true;
+				}
+				else{
+					if (bestHGP>=primaryHGP)
+						isNewBetter = true;
+				}
+				if (isNewBetter){
 					bestHGP=primaryHGP;
+					bestWMseqCount = primaryWMseqCount;
 					bestClusters = (ArrayList<KmerCluster>) clusters.clone();
 					bestK = config.k;
 					bestKmers = kmers;
 				}
 			}
-			log(1, String.format("selected k=%d\thgp=1E%.1f", bestK, bestHGP));
+			log(1, String.format("\nselected k=%d\thgp=1E%.1f,  from %d sequences", bestK, bestHGP, bestWMseqCount));
 			config.k = bestK;
 			config.k_min = -1;		// prevent selecting k again
 			config.k_max = -1;
@@ -4157,12 +4171,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	String seedKmerStr = seed.getKmerString();
     	String seedKmerRC = seed.getKmerRC();
     	for (Kmer kmer: kmers){
-	    	if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=1+config.k*0.1){
+	    	if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=Math.round(config.k*0.1)){
 	    		kmer.setShift(0);
 	    		family.add(kmer);
 	    		kmer.setAlignString(seedKmerStr);
 	    	}
-	    	else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=1+config.k*0.1){
+	    	else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=Math.round(config.k*0.1)){
 	    		kmer.setShift(0);
 	    		kmer.RC();
 	    		family.add(kmer);
@@ -4326,8 +4340,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    	}
     		// test if we want to accept the new PWM
     		if (cluster.wm!=null){
-    			if( cluster.pwmThresholdHGP<pwmThresholdHGP){		// previous pwm is more enriched, stop here
-    				return -1;
+    			// if very close, also consider #Seq that PWM is built from
+    			if (Math.abs(pwmThresholdHGP-cluster.pwmThresholdHGP)<Math.abs(cluster.pwmThresholdHGP)/100){		
+    				if( cluster.pwmThresholdHGP*cluster.sequenceCount<pwmThresholdHGP*passedSeqs.size()){		// 
+	    				return -1;
+	    			}
+    			}
+    			else{
+	    			if( cluster.pwmThresholdHGP<pwmThresholdHGP){		// previous pwm is more enriched, stop here
+	    				return -1;
+	    			}
     			}
     		}
     		else{		// if no previous PWM yet
@@ -4347,6 +4369,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
 	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
 	    	cluster.pwmThreshold = pwmThreshold;
+	    	cluster.sequenceCount = passedSeqs.size();
 	    	// record pfm
 	    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 	    	for(int p=leftIdx;p<=rightIdx;p++){
@@ -4354,8 +4377,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			pfm_trim[p-leftIdx][base]=(float) pfm[p][base];
 	    		}
 	    	}
-	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, passedSeqs.size()));
-	    	cluster.sequenceCount = passedSeqs.size();
+	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.sequenceCount));
 	    	cluster.pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
 	    	return leftIdx;
 		}
@@ -4434,6 +4456,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	rightIdx--;
 	    }
     	
+    	//TODO: this PWM width test may be removed, because we have selected for hgp and event count
     	if (rightIdx-leftIdx+1<=config.k/2){
     		System.out.println("makePWM: PWM is too short, stop here.");
     		if (config.bmverbose>2){
