@@ -3508,6 +3508,49 @@ class KPPMixture extends MultiConditionFeatureFinder {
     public void buildEngine( int winSize){
     	ArrayList<Point> points = getEventPoints();
 		if (config.k_min!=-1){
+			// compare different values of k to select most enriched k value			
+			ArrayList<Integer> widths = new ArrayList<Integer>(); 
+			for (int i=0;i<config.k_max-config.k_min+1;i++){
+				config.k = i+config.k_min;
+				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
+				if (kmers.isEmpty()){
+					log(1, "k="+config.k+", NO enriched K-mers.");
+					continue;
+				}
+				kmers = alignOverlappedKmers(kmers, getEvents(), true);
+				KmerCluster pCluster = null;
+				for (KmerCluster kc:clusters){
+					if (kc.wm!=null){
+						widths.add(kc.wm.length());
+						pCluster = kc;
+						break;		// only use the first PWM, this should be the primary motif
+					}
+				}
+				if (pCluster == null)
+					log(1, "k="+config.k+", NO PWM.");
+				else	
+					log(1, String.format("k=%d, %s\tW=%d\thgp=1E%.1f", 
+						config.k, WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
+			}
+			Pair<int[], int[]> sorted = StatUtil.sortByOccurences(widths);
+			config.k = sorted.car()[0];
+			log(1, String.format("\nSelected k=%d", config.k));
+			config.k_min = -1;		// prevent selecting k again
+			config.k_max = -1;
+		}
+		else{
+			if (winSize==-1)
+				winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
+			config.k_win = winSize;
+		}	
+		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
+		kmers = alignOverlappedKmers(kmers, getEvents(), false);
+		kEngine.updateEngine(kmers, outName);		
+    }
+    
+    public void buildEngine0( int winSize){
+    	ArrayList<Point> points = getEventPoints();
+		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
 			ArrayList<KmerCluster> bestClusters = null;
 			int bestK = 0;
@@ -3515,6 +3558,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			int bestWMseqDiff = 0;
 			ArrayList<Kmer> bestKmers = null;
 			
+			int[] widths = new int[config.k_max-config.k_min+1]; 
 			for (int i=0;i<config.k_max-config.k_min+1;i++){
 				config.k = i+config.k_min;
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
@@ -3613,7 +3657,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.clusterId = clusterID;
 			clusters.add(cluster);
 			if (config.bmverbose>1)
-				System.out.println("Aligning cluster #"+clusterID);
+				System.out.println("Aligning cluster #"+clusterID+",   n="+kmers.size());
 			// init posSeqs, so each new kmer cluter align with all the sequences 
 			for (int i=0;i<posSeqs.length;i++){
 				posSeqs[i] = UNALIGNED;
