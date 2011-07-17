@@ -471,14 +471,14 @@ public class KmerEngine {
 		double[] posSeqScores = new double[seqs.length];
 		double[] negSeqScores = new double[seqsNegList.size()];
 		for (int i=0;i<seqs.length;i++){
-			posSeqScores[i]=scorer.getMaxSeqScore(wm, seqs[i].toCharArray());
+			posSeqScores[i]=scorer.getMaxSeqScore(wm, seqs[i]);
 		}
 		Arrays.sort(posSeqScores);
 		int zeroIdx = Arrays.binarySearch(posSeqScores, 0);
 		if( zeroIdx < 0 ) { zeroIdx = -zeroIdx - 1; }
 		
 		for (int i=0;i<seqsNegList.size();i++){
-			negSeqScores[i]=scorer.getMaxSeqScore(wm, seqsNegList.get(i).toCharArray());
+			negSeqScores[i]=scorer.getMaxSeqScore(wm, seqsNegList.get(i));
 		}
 		Arrays.sort(negSeqScores);
 		
@@ -506,7 +506,7 @@ public class KmerEngine {
 		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMin(hgps);
 		int minIdx = maxDiff.cdr().last();
 		MotifThreshold score = new MotifThreshold();
-		score.score = posSeqScores[minIdx];;
+		score.score = posSeqScores[minIdx];
 		score.hgp = maxDiff.car();
 		score.posHit = poshits[minIdx];
 		score.negHit = neghits[minIdx];
