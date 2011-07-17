@@ -179,14 +179,14 @@ public class KmerEngine {
 					String loser = kCount>=rcCount?key_rc:key;
 					map.put(winner, kCount+rcCount);	// winner take all
 					map.remove(loser);					// remove the loser kmer because it is represented by its RC
-					key = winner;
 				}
 			}
-			
+		}
+
+		// create the kmer object
+		for (String key:map.keySet()){	
 			if (map.get(key)< Math.max(expectedCount, minHitCount))
-				continue;	// skip low count kmers, 
-			
-			// create the kmer object
+				continue;	// skip low count kmers 
 			Kmer kmer = new Kmer(key, map.get(key));
 			kms.add(kmer);
 		}
