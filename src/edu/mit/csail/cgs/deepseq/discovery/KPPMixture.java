@@ -29,6 +29,7 @@ import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
 import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine;
+import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.MotifThreshold;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerGroup;
@@ -3511,7 +3512,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ArrayList<KmerCluster> bestClusters = null;
 			int bestK = 0;
 			double bestHGP = 1;		
-			int bestWMseqCount = 100;
+			int bestWMseqDiff = 0;
 			ArrayList<Kmer> bestKmers = null;
 			
 			for (int i=0;i<config.k_max-config.k_min+1;i++){
@@ -3522,20 +3523,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				kmers = alignOverlappedKmers(kmers, getEvents(), !config.k_init_find_all_motifs);
 				double primaryHGP = 0;
 				WeightMatrix primaryWM = null;
-				int primaryWMseqCount = 100;
+				int primaryWMseqDiff = 0;
 				for (KmerCluster kc:clusters){
 					if (kc.wm!=null){
 						primaryWM = kc.wm;
 						primaryHGP = kc.pwmThresholdHGP;
-						primaryWMseqCount = kc.sequenceCount;
+						primaryWMseqDiff = kc.pwmThresholdDiff;
 						break;		// only use the first PWM, this should be the primary motif
 					}
 				}
-				log(1, String.format("k=%d, %s\thgp=1E%.1f, from %d sequences", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), primaryHGP, primaryWMseqCount));
+				log(1, String.format("k=%d, %s\thgp=1E%.1f, with %d seq hit differences", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), primaryHGP, primaryWMseqDiff));
 				boolean isNewBetter = false;
 				// similar to buildPWM(), if hgps are too close, also consider sequence count
 				if (Math.abs(primaryHGP-bestHGP)<Math.abs(bestHGP)/100){		
-					if (bestHGP*bestWMseqCount>=primaryHGP*primaryWMseqCount)
+					if (bestHGP*bestWMseqDiff>=primaryHGP*primaryWMseqDiff)
 						isNewBetter = true;
 				}
 				else{
@@ -3544,13 +3545,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				if (isNewBetter){
 					bestHGP=primaryHGP;
-					bestWMseqCount = primaryWMseqCount;
+					bestWMseqDiff = primaryWMseqDiff;
 					bestClusters = (ArrayList<KmerCluster>) clusters.clone();
 					bestK = config.k;
 					bestKmers = kmers;
 				}
 			}
-			log(1, String.format("\nselected k=%d\thgp=1E%.1f,  from %d sequences", bestK, bestHGP, bestWMseqCount));
+			log(1, String.format("\nselected k=%d\thgp=1E%.1f,  with %d seq hit differences", bestK, bestHGP, bestWMseqDiff));
 			config.k = bestK;
 			config.k_min = -1;		// prevent selecting k again
 			config.k_max = -1;
@@ -4330,11 +4331,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	
 	    	WeightMatrix wm = new WeightMatrix(matrix);
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-	    	Pair<Double, Double> estimate = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);
-	    	double pwmThreshold = estimate.car();
-	    	double pwmThresholdHGP = estimate.cdr();
+	    	MotifThreshold estimate = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);
+	    	double pwmThreshold = estimate.score;
+	    	double pwmThresholdHGP = estimate.hgp;
+	    	int diff = estimate.posHit - estimate.negHit;
     		if (config.bmverbose>1)
-    			System.out.println(String.format("PWM %s from %d events, hgp=1E%.1f, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), passedSeqs.size(), pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
+    			System.out.println(String.format("PWM %s match %d+/%d- events, hgp=1E%.1f, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), estimate.posHit, estimate.negHit, pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
 //	    	if (pwmThreshold<wm.getMaxScore()/5){
 //	    		return -1;
 //	    	}
@@ -4342,7 +4344,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (cluster.wm!=null){
     			// if very close, also consider #Seq that PWM is built from
     			if (Math.abs(pwmThresholdHGP-cluster.pwmThresholdHGP)<Math.abs(cluster.pwmThresholdHGP)/100){		
-    				if( cluster.pwmThresholdHGP*cluster.sequenceCount<pwmThresholdHGP*passedSeqs.size()){		// 
+    				if( cluster.pwmThresholdHGP*cluster.pwmThresholdDiff<pwmThresholdHGP*diff){		// 
 	    				return -1;
 	    			}
     			}
@@ -4369,7 +4371,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
 	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
 	    	cluster.pwmThreshold = pwmThreshold;
-	    	cluster.sequenceCount = passedSeqs.size();
+	    	cluster.pwmThresholdDiff = diff;
+	    	cluster.sequenceCount = estimate.posHit;
 	    	// record pfm
 	    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 	    	for(int p=leftIdx;p<=rightIdx;p++){
@@ -5759,6 +5762,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		WeightMatrix wm;
 		double pwmThreshold;
 		double pwmThresholdHGP;
+		int pwmThresholdDiff;
 		int pos_pwm_seed;
 		int pos_BS_pwm;
 		int sequenceCount;
@@ -5776,6 +5780,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.wm = this.wm;
 			cluster.pwmThreshold = this.pwmThreshold;
 			cluster.pwmThresholdHGP = this.pwmThresholdHGP;
+			cluster.pwmThresholdDiff = this.pwmThresholdDiff;
 			cluster.pos_pwm_seed = this.pos_pwm_seed;
 			cluster.pos_BS_pwm = this.pos_BS_pwm;
 			cluster.sequenceCount = this.sequenceCount;
