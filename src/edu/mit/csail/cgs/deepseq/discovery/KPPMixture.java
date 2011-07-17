@@ -3532,8 +3532,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					log(1, String.format("k=%d, %s\tW=%d\thgp=1E%.1f", 
 						config.k, WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
 			}
+			if (widths.isEmpty()){
+				config.k = (config.k_max+config.k_min)/2;
+				log(1, String.format("No PWM can be built from any k value, use mean value k=", config.k));
+			}
 			Pair<int[], int[]> sorted = StatUtil.sortByOccurences(widths);
-			config.k = sorted.car()[0];
+			int[] sortedWidth = sorted.car();
+			config.k = sortedWidth[sortedWidth.length-1];
 			log(1, String.format("\nSelected k=%d", config.k));
 			config.k_min = -1;		// prevent selecting k again
 			config.k_max = -1;
