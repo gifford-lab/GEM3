@@ -3541,7 +3541,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
      * Build k-mer engine.<br>
      * Select enriched k-mers, align k-mers, setup k-mer engine
      */
-    public void buildEngine( int winSize){
+    public void buildEngine_W( int winSize){
     	ArrayList<Point> points = getEventPoints();
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value			
@@ -3563,10 +3563,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					}
 				}
 				if (pCluster == null)
-					log(1, "k="+config.k+", NO PWM.");
+					log(1, "k="+config.k+", n=" +kmers.size()+ ", NO PWM.");
 				else	
-					log(1, String.format("k=%d, %s\tW=%d\thgp=1E%.1f", 
-						config.k, WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
+					log(1, String.format("k=%d, \tn=%d\t%s\tW=%d\thgp=1E%.1f", 
+						config.k, kmers.size(), WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
 			}
 			if (widths.isEmpty()){
 				config.k = (config.k_max+config.k_min)/2;
@@ -3589,73 +3589,50 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		kEngine.updateEngine(kmers, outName);		
     }
     
-    public void buildEngine0( int winSize){
+    public void buildEngine( int winSize){
     	ArrayList<Point> points = getEventPoints();
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			ArrayList<KmerCluster> bestClusters = null;
 			int bestK = 0;
-			double bestHGP = 1;		
-			int bestWMseqDiff = 0;
-			ArrayList<Kmer> bestKmers = null;
+			int bestKxKmerCount = 0;
 			
-			int[] widths = new int[config.k_max-config.k_min+1]; 
 			for (int i=0;i<config.k_max-config.k_min+1;i++){
 				config.k = i+config.k_min;
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
-				if (kmers.isEmpty())
-					continue;
-				kmers = alignOverlappedKmers(kmers, getEvents(), !config.k_init_find_all_motifs);
-				double primaryHGP = 0;
-				WeightMatrix primaryWM = null;
-				int primaryWMseqDiff = 0;
-				for (KmerCluster kc:clusters){
-					if (kc.wm!=null){
-						primaryWM = kc.wm;
-						primaryHGP = kc.pwmThresholdHGP;
-						primaryWMseqDiff = kc.pwmThresholdDiff;
-						break;		// only use the first PWM, this should be the primary motif
+				if (config.k_init_calc_PWM){
+					KmerCluster pCluster = null;
+					for (KmerCluster kc:clusters){
+						if (kc.wm!=null){
+							pCluster = kc;
+							break;		// only use the first PWM, this should be the primary motif
+						}
 					}
+					if (pCluster == null)
+						log(1, "k="+config.k+", n=" +kmers.size()+ ", NO PWM.");
+					else	
+						log(1, String.format("k=%d, \tn=%d\t%s\tW=%d\thgp=1E%.1f", 
+							config.k, kmers.size(), WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
 				}
-				log(1, String.format("k=%d, %s\thgp=1E%.1f, with %d seq hit differences", config.k, primaryWM==null?"NO PWM":WeightMatrix.getMaxLetters(primaryWM), primaryHGP, primaryWMseqDiff));
-				boolean isNewBetter = false;
-				// similar to buildPWM(), if hgps are too close, also consider sequence count
-				if (Math.abs(primaryHGP-bestHGP)<Math.abs(bestHGP)/100){		
-					if (bestHGP*bestWMseqDiff>=primaryHGP*primaryWMseqDiff)
-						isNewBetter = true;
-				}
-				else{
-					if (bestHGP>=primaryHGP)
-						isNewBetter = true;
-				}
-				if (isNewBetter){
-					bestHGP=primaryHGP;
-					bestWMseqDiff = primaryWMseqDiff;
-					bestClusters = (ArrayList<KmerCluster>) clusters.clone();
+				else
+					log(1, String.format("k=%d, \tn=%d.", config.k, kmers.size()));
+				if (bestKxKmerCount<config.k * kmers.size()){
+					bestKxKmerCount=config.k * kmers.size();
 					bestK = config.k;
-					bestKmers = kmers;
 				}
 			}
-			log(1, String.format("\nselected k=%d\thgp=1E%.1f,  with %d seq hit differences", bestK, bestHGP, bestWMseqDiff));
+			log(1, String.format("\nselected k=%d\tn=%d.", bestK, bestKxKmerCount/bestK));
 			config.k = bestK;
 			config.k_min = -1;		// prevent selecting k again
 			config.k_max = -1;
-			clusters = bestClusters;
-			if (!config.k_init_find_all_motifs){		// if we only find primary motif to select k, do a full motif discovery here
-				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
-				bestKmers = alignOverlappedKmers(kmers, getEvents(), false);
-			}
-			kEngine.updateEngine(bestKmers, outName);	
 		}
 		else{
 			if (winSize==-1)
 				winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
 			config.k_win = winSize;
-			
-			ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
-			kmers = alignOverlappedKmers(kmers, getEvents(), false);
-			kEngine.updateEngine(kmers, outName);	
-		}
+		}	
+		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
+		kmers = alignOverlappedKmers(kmers, getEvents(), false);
+		kEngine.updateEngine(kmers, outName);		
     }
     
     /** 
@@ -5959,7 +5936,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
         public boolean print_pwm_fdr = false;
-        public boolean k_init_find_all_motifs = false;
+        public boolean k_init_calc_PWM = false;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -6020,7 +5997,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             re_align_kmer = flags.contains("rak");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
-            k_init_find_all_motifs = flags.contains("k_init_find_all_motifs");
+            k_init_calc_PWM = flags.contains("k_init_calc_PWM");
             
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
