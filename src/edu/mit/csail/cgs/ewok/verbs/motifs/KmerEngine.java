@@ -328,12 +328,12 @@ public class KmerEngine {
 	/**
 	 * Compute hgp using the positive/negative sequences
 	 */
-	private double computeHGP(int posSeq, int negSeq, int posHit, int negHit){
+	public double computeHGP(int posSeq, int negSeq, int posHit, int negHit){
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
 		if (posHit<negHit){		// select smaller x for hyperGeometricCDF_cache(), to reduce # of x sum operations
 			double hgcdf = StatUtil.hyperGeometricCDF_cache(posHit, allSeq, allHit, posSeq);
-			if (hgcdf==1)
+			if (hgcdf>0.99)
 				return computeHGP_TINY(posSeq, negSeq, posHit, negHit);
 			else
 				return Math.log(1-hgcdf);
@@ -822,7 +822,9 @@ public class KmerEngine {
 	}
 	public static void main1(String[] args){
 		KmerEngine ke = new KmerEngine(new ArrayList<Kmer>(),"");
-		ke.computeHGP(40876, 40873, 37993, 27993);
+//		ke.computeHGP(40876, 40873, 37993, 27993);
+		System.err.println(ke.computeHGP(49,1113,39,358));
+		System.err.println(ke.computeHGP(50,1112,40,357));
 	}
 }
 

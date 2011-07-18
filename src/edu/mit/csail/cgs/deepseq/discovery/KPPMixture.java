@@ -843,6 +843,43 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}//end of evaluateConfidence method
 
 	private void setQValueCutoff(List<ComponentFeature>compFeatures) {
+		KmerCluster pCluster = null;
+		for (KmerCluster kc:clusters){
+			if (kc.wm!=null){
+				pCluster = kc;
+				break;		// only use the first PWM, this should be the primary motif
+			}
+		}
+		if (pCluster == null)
+			return;
+		int N = compFeatures.size();
+		int motifHitCount[] = new int[N];		// the number of Motif Hits up to event #i
+		String[] seqs = new String[N];	// DNA sequences around binding sites
+
+		for(int i=0;i<N;i++){
+			Region posRegion = compFeatures.get(i).getPeak().expand(config.k_win/2);
+			seqs[i] = kEngine.getSequence(posRegion).toUpperCase();
+		}
+		WeightMatrixScorer scorer = new WeightMatrixScorer(pCluster.wm);
+		for (int i=0;i<seqs.length;i++){
+			boolean isHit = scorer.getMaxSeqScore(pCluster.wm, seqs[i])>=pCluster.pwmThreshold;
+			int inc = (isHit)?1:0;
+			if (i==0)
+				motifHitCount[0] = inc;
+			else
+				motifHitCount[i] = inc + motifHitCount[i-1];
+		}
+		StringBuilder sb = new StringBuilder();
+		for (int i=0;i<N-1;i++){
+			int negHit = motifHitCount[N-1]-motifHitCount[i];
+			double hgp_log10 = kEngine.computeHGP(i+1, N-i-1, motifHitCount[i], negHit);
+			compFeatures.get(i).setEnrichedKmerHGPLog10(hgp_log10);
+			sb.append(String.format("%s\t%d\t%d\t%d\t%d\t%.1f\n", compFeatures.get(i).getPeak().toString(), i+1, N-i-1, motifHitCount[i], negHit, hgp_log10));
+		}	
+		CommonUtils.writeFile(outName+"_q_cutoff.txt", sb.toString());
+	}
+	
+	private void setQValueCutoff_old(List<ComponentFeature>compFeatures) {
 		int N = compFeatures.size();
 		int kmerHitCount[] = new int[N];		// the number of kmerHits up to event #i
 		for (int i=0;i<N;i++){
@@ -861,7 +898,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //			System.out.println(String.format("%.1f\t%.3f", compFeatures.get(i).getEnrichedKmerHGPLog10(), 1-(kmerHitCount[i]/(i+1.0))));
 		}		
 	}
-
 	private void falseDiscoveryTest(List<ComponentFeature> ipFeatures){
 		Vector<ComponentFeature> ctrlFeatures = predictEventsInControlData();
 		StringBuilder sb = new StringBuilder();
@@ -4406,13 +4442,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		else{		// if no previous PWM yet
     			if (pwmThreshold<wm.getMaxScore()/4){				// if the score is not good enough
     				// test if new PWM can match more sequences
-	    			int matchCount=0;				
-			    	for (int i=0;i<posSeqs.length;i++){
-			    		Pair<Integer, Double> hit = CommonUtils.scanPWM(seqs[i], wm.length(), new WeightMatrixScorer(wm));
-			    		if (hit.cdr()>=pwmThreshold)
-			    			matchCount++;
-			    	}
-			    	if (passedSeqs.size()>matchCount)
+			    	if (passedSeqs.size()>estimate.posHit)
 			    		return -1;
     			}
 	    	}
