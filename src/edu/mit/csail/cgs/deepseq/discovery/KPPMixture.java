@@ -3600,6 +3600,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				config.k = i+config.k_min;
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
 				if (config.k_init_calc_PWM){
+					kmers = alignOverlappedKmers(kmers, getEvents(), false);
 					KmerCluster pCluster = null;
 					for (KmerCluster kc:clusters){
 						if (kc.wm!=null){
@@ -4167,15 +4168,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		StringBuilder pfm_sb = new StringBuilder();		
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
-    		if (wm==null || c.sequenceCount<config.kmer_cluster_seq_count)
+    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count)
     			continue;
-    		System.out.println(String.format("-------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.sequenceCount));
+    		System.out.println(String.format("-------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.pwmPosSeqCount));
     		int pos = c.pos_BS_pwm;
     		if (pos>0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
-    		System.out.println(String.format("PWM threshold: %.2f/%.2f", c.pwmThreshold, c.wm.getMaxScore()));
+    		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosSeqCount, c.pwmPosSeqCount-c.pwmHitDiff, c.pwmThresholdHGP));
 			pfm_sb.append(c.pfmString);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+config.k+".txt", pfm_sb.toString());
@@ -4406,7 +4407,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (cluster.wm!=null){
     			// if very close, also consider #Seq that PWM is built from
     			if (Math.abs(pwmThresholdHGP-cluster.pwmThresholdHGP)<Math.abs(cluster.pwmThresholdHGP)/100){		
-    				if( cluster.pwmThresholdHGP*cluster.pwmThresholdDiff<pwmThresholdHGP*diff){		// 
+    				if( cluster.pwmThresholdHGP*cluster.pwmHitDiff<pwmThresholdHGP*diff){		// 
 	    				return -1;
 	    			}
     			}
@@ -4427,8 +4428,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
 	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
 	    	cluster.pwmThreshold = pwmThreshold;
-	    	cluster.pwmThresholdDiff = diff;
-	    	cluster.sequenceCount = estimate.posHit;
+	    	cluster.pwmHitDiff = diff;
+	    	cluster.pwmPosSeqCount = estimate.posHit;
 	    	// record pfm
 	    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 	    	for(int p=leftIdx;p<=rightIdx;p++){
@@ -4436,7 +4437,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    			pfm_trim[p-leftIdx][base]=(float) pfm[p][base];
 	    		}
 	    	}
-	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.sequenceCount));
+	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosSeqCount));
 	    	cluster.pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
 	    	return leftIdx;
 		}
@@ -5818,10 +5819,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		WeightMatrix wm;
 		double pwmThreshold;
 		double pwmThresholdHGP;
-		int pwmThresholdDiff;
+		int pwmHitDiff;
 		int pos_pwm_seed;
 		int pos_BS_pwm;
-		int sequenceCount;
+		int pwmPosSeqCount;
 		int lastPassSeqCount;
 		int kmerCount;
 		ArrayList<Kmer> alignedKmers;
@@ -5836,10 +5837,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.wm = this.wm;
 			cluster.pwmThreshold = this.pwmThreshold;
 			cluster.pwmThresholdHGP = this.pwmThresholdHGP;
-			cluster.pwmThresholdDiff = this.pwmThresholdDiff;
+			cluster.pwmHitDiff = this.pwmHitDiff;
 			cluster.pos_pwm_seed = this.pos_pwm_seed;
 			cluster.pos_BS_pwm = this.pos_BS_pwm;
-			cluster.sequenceCount = this.sequenceCount;
+			cluster.pwmPosSeqCount = this.pwmPosSeqCount;
 			cluster.kmerCount = this.kmerCount;
 			cluster.alignedKmers = this.alignedKmers;
 			return cluster;
