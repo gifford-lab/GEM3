@@ -3599,8 +3599,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (int i=0;i<config.k_max-config.k_min+1;i++){
 				config.k = i+config.k_min;
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
+				int kmerCount = kmers.size();
 				if (config.k_init_calc_PWM){
-					kmers = alignOverlappedKmers(kmers, getEvents(), false);
+					alignOverlappedKmers(kmers, getEvents(), true);
 					KmerCluster pCluster = null;
 					for (KmerCluster kc:clusters){
 						if (kc.wm!=null){
@@ -3609,19 +3610,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 					}
 					if (pCluster == null)
-						log(1, "k="+config.k+", n=" +kmers.size()+ ", NO PWM.");
+						log(1, "k="+config.k+", n=" +kmerCount+ ", NO PWM.");
 					else	
 						log(1, String.format("k=%d, \tn=%d\t%s\tW=%d\thgp=1E%.1f", 
-							config.k, kmers.size(), WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
+							config.k, kmerCount, WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
 				}
 				else
-					log(1, String.format("k=%d, \tn=%d.", config.k, kmers.size()));
-				if (bestKxKmerCount<config.k * kmers.size()){
-					bestKxKmerCount=config.k * kmers.size();
+					log(1, String.format("k=%d, \tn=%d.", config.k, kmerCount));
+				if (bestKxKmerCount<config.k * kmerCount){
+					bestKxKmerCount=config.k * kmerCount;
 					bestK = config.k;
 				}
 			}
-			log(1, String.format("\nSelected k=%d\tn=%d.", bestK, bestKxKmerCount/bestK));
+			log(1, String.format("\n------------------------\nSelected k=%d\tn=%d.", bestK, bestKxKmerCount/bestK));
 			config.k = bestK;
 			config.k_min = -1;		// prevent selecting k again
 			config.k_max = -1;
