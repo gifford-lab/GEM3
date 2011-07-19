@@ -3621,7 +3621,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					bestK = config.k;
 				}
 			}
-			log(1, String.format("\nselected k=%d\tn=%d.", bestK, bestKxKmerCount/bestK));
+			log(1, String.format("\nSelected k=%d\tn=%d.", bestK, bestKxKmerCount/bestK));
 			config.k = bestK;
 			config.k_min = -1;		// prevent selecting k again
 			config.k_max = -1;
@@ -3666,7 +3666,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// cluster and align
 		final int STRAND = 1000;		// extra bp add to indicate negative strand match of kmer
 		final int UNALIGNED = 999;
-		clusters.clear();
+    	final double pwmScoreFactor = 4;
+    	clusters.clear();
 		int clusterID = 0;
 		StringBuilder alignedKmer_sb = new StringBuilder();
 		
@@ -4105,38 +4106,38 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				if (primaryMotifOnly)
 					break;
 				
-		        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
-		        int left = Math.round(cluster.wm.length()*(1-config.k_mask_f)/2);
-		        int right = Math.round(cluster.wm.length()*(1-(1-config.k_mask_f)/2));
 		        boolean masked = false;
-				for (int i=0;i<posSeqs.length;i++){
-					if (posSeqs[i] == UNALIGNED)
-						continue;
-					String seq = seqs[i];
-					boolean found = false;
-					while(true){				// mask all possible matches
-						Pair<Integer, Double> hit = CommonUtils.scanPWM(seq, cluster.wm.length(), scorer);
-						if (hit.cdr()<cluster.pwmThreshold)
-							break;
-						found = true;
-						int start = Math.abs(hit.car());
-	//					if (start<0)			// if match on rc strand, the start coordinate is the same, as implemented in WeightMatrixScorer.score()
-	//						continue;
-						// replace with N
-						seq=seq.substring(0, start+left)
-								.concat(CommonUtils.padding(right-left, 'N'))
-								.concat(seq.substring(start+right, seq.length()));
+		        if (cluster.pwmThreshold>=cluster.wm.getMaxScore()/pwmScoreFactor){			// if PWM quality is not too bad, mask
+			        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
+			        int left = Math.round(cluster.wm.length()*(1-config.k_mask_f)/2);
+			        int right = Math.round(cluster.wm.length()*(1-(1-config.k_mask_f)/2));
+					for (int i=0;i<posSeqs.length;i++){
+						if (posSeqs[i] == UNALIGNED)
+							continue;
+						String seq = seqs[i];
+						boolean found = false;
+						while(true){				// mask all possible matches
+							Pair<Integer, Double> hit = CommonUtils.scanPWM(seq, cluster.wm.length(), scorer);
+							if (hit.cdr()<cluster.pwmThreshold)
+								break;
+							found = true;
+							int start = Math.abs(hit.car());// if match on rc strand, the start coordinate is the same, as implemented in WeightMatrixScorer.score()
+							// replace with N
+							seq=seq.substring(0, start+left)
+									.concat(CommonUtils.padding(right-left, 'N'))
+									.concat(seq.substring(start+right, seq.length()));
+						}
+						if (found){
+							seqs[i] = seq;
+							masked = true;
+						}
 					}
-					if (found){
-						seqs[i] = seq;
-						masked = true;
-					}
-				}
+		        }
 				if (masked){
-					kmers.addAll(alignedKmers);					// add aligned k-mers back to the pool, since PWM matched sequences are mask, these k-mers will have much less count
+					kmers.addAll(alignedKmers);					// add aligned k-mers back to the pool, since PWM matched sequences are masked, these k-mers will have much less count
 					consolidateKmers(kmers, events, false);		// do not relax, because these k-mer will be re-ailgned
 				}
-				// if no PWM matched sequence being masked, we remove the alignedKmers, work with the remaining k-mers 
+				// if no PWM matched sequence being masked, we have removed the alignedKmers, next cluster work with the remaining k-mers 
 			}
 			clusterID++;
 		} // each cluster
@@ -4168,9 +4169,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		StringBuilder pfm_sb = new StringBuilder();		
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
-    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count)
+    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || c.pwmThreshold<c.wm.getMaxScore()/pwmScoreFactor)
     			continue;
-    		System.out.println(String.format("-------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.pwmPosSeqCount));
+    		System.out.println(String.format("----------------------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.pwmPosSeqCount));
     		int pos = c.pos_BS_pwm;
     		if (pos>0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
@@ -4271,12 +4272,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
     private int buildPWM(int[] posSeqs, boolean[] isPlusStrands, ArrayList<ComponentFeature> events, 
     		String[] seqs, KmerCluster cluster){
     	final int UNALIGNED = 999;
+    	final double pwmScoreFactor = 4;
 		double[][] pfm = new double[config.k_win+1][MAXLETTERVAL];
 		ArrayList<String> passedSeqs = new ArrayList<String>();
 		ArrayList<Integer> passedIdx = new ArrayList<Integer>();
 		
-		// filter the sequences if we have an existing PWM 
-    	if (cluster.wm!=null){	
+		// filter the sequences if we have an existing PWM, and with good quality 
+    	if (cluster.wm!=null && cluster.pwmThreshold>=cluster.wm.getMaxScore()/pwmScoreFactor){	
     		ArrayList<Integer> alignedSeqIdx = new ArrayList<Integer>();
 	        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
 //	        StringBuilder sb= new StringBuilder();
@@ -4418,7 +4420,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			}
     		}
     		else{		// if no previous PWM yet
-    			if (pwmThreshold<wm.getMaxScore()/4){				// if the score is not good enough
+    			if (pwmThreshold<wm.getMaxScore()/pwmScoreFactor){				// if the score is not good enough
     				// test if new PWM can match more sequences
 			    	if (passedSeqs.size()>estimate.posHit)
 			    		return -1;
@@ -4536,11 +4538,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void printMotifDistanceDistribution (String name){		
 //		System.out.println("Compute motif distance distribution ...");
+    	final double pwmScoreFactor = 4;
 		String[] seqs_old = kEngine.getPositiveSeqs();
 		ArrayList<KmerCluster> pwmCluster = new ArrayList<KmerCluster>();
 		for (int i=0;i<clusters.size();i++){
 			KmerCluster c = clusters.get(i);
-			if (c.wm!=null){
+			if (c.wm!=null && c.pwmThreshold>=c.wm.getMaxScore()/pwmScoreFactor){
 				pwmCluster.add(c);
 			}
 		}
