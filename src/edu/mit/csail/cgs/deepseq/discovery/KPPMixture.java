@@ -3458,7 +3458,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					toRemove.add(negativeRegions.get(i));
 			}
 			negativeRegions.removeAll(toRemove);
-			double gc = kEngine.setupRegionCache(expandedRegions, negativeRegions);
+			double gc = kEngine.setupRegionCache(expandedRegions, negativeRegions, config.k_neg_dist);
 			if (config.gc==-1){
 				config.setGC(gc);
 			}
@@ -4520,16 +4520,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    }
     	
     	//TODO: this PWM width test may be removed, because we have selected for hgp and event count
-    	if (rightIdx-leftIdx+1<=config.k/2){
-    		System.out.println("makePWM: PWM is too short, stop here.");
-    		if (config.bmverbose>2){
-		    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
-		    	for (int p=0;p<ic.length;p++){
-		    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
-		    	}
-		    	System.out.println(sb.toString());
-    		}
-    	}
+//    	if (rightIdx-leftIdx+1<=config.k/2){
+//    		System.out.println("makePWM: PWM is too short, stop here.");
+//    		if (config.bmverbose>2){
+//		    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
+//		    	for (int p=0;p<ic.length;p++){
+//		    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
+//		    	}
+//		    	System.out.println(sb.toString());
+//    		}
+//    	}
     	return new Pair<Integer, Integer>(leftIdx, rightIdx);
     }
     
@@ -5918,7 +5918,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_win_f = 4;		// k_win = k_win_f * k
-        public int k_neg_dist = 200;// the distance of the window for negative sequences from binding sites 
+        public int k_neg_dist = 500;// the distance of the nearest edge of negative region from binding sites 
         public int k_negSeq_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
 //        public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    

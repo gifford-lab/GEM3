@@ -41,20 +41,20 @@ public class KmerEngine {
 	private int k=10;
 	private int minHitCount = 3;
 	private int numPos;
-	private HashMap<String, Integer> negKmerHitCounts;
 	
-	String[] seqs;		// DNA sequences around binding sites
-	String[] seqsNeg;	// DNA sequences in negative sets
-	ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
+	private String[] seqs;		// DNA sequences around binding sites
+	private String[] seqsNeg;	// DNA sequences in negative sets
+	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
+	private int negRegionDistance;
 	/** region-->index for negative sequences */
-	TreeMap<Region, Integer> neg_region_map;
+	private TreeMap<Region, Integer> neg_region_map;
 	public String[] getPositiveSeqs(){return seqs;};
 	public double get_NP_ratio(){return (double)seqsNegList.size()/seqs.length;}
 	
-	private ArrayList<Kmer> allKmers = new ArrayList<Kmer>();	// all the kmers in the sequences
-	public ArrayList<Kmer> getAllKmers() {
-		return allKmers;
-	}
+//	private ArrayList<Kmer> allKmers = new ArrayList<Kmer>();	// all the kmers in the sequences
+//	public ArrayList<Kmer> getAllKmers() {
+//		return allKmers;
+//	}
 	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 	
 	// AhoCorasick algorithm for multi-pattern search
@@ -62,13 +62,6 @@ public class KmerEngine {
 	// Then each individual search can be done in scan()
 	private AhoCorasick tree;
 	private AhoCorasick tree_negatives;
-	
-	private int maxShift;		// max kmer flanking Shift of whole dataset
-	public int getMaxShift() {return maxShift;}
-	public void setMaxShift(int maxShift) {this.maxShift = maxShift;}
-	private int minShift;		// min kmer flanking Shift of whole dataset
-	public int getMinShift() {return minShift;}
-	public void setMinShift(int minShift) {this.minShift = minShift;}
 	
 	public boolean isInitialized(){ return engineInitialized;}
 	
@@ -98,7 +91,8 @@ public class KmerEngine {
 	 * At the same time, retrieve negative sequences (for only once)
 	 * @param regions
 	 */
-	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions){
+	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions, int negRegionDistance){
+		this.negRegionDistance = negRegionDistance;
 		double gcRatio=0;
 		if (!seqgen.isRegionCached()){
 			seqsNeg = seqgen.setupRegionCache(cacheRegions, negativeRegions);
@@ -190,7 +184,7 @@ public class KmerEngine {
 			Kmer kmer = new Kmer(key, map.get(key));
 			kms.add(kmer);
 		}
-		allKmers = new ArrayList<Kmer>(kms);		//TODO: make sure it does not take too much memory
+//		allKmers = new ArrayList<Kmer>(kms);		//TODO: make sure it does not take too much memory
 		map=null;
 		System.gc();
 		System.out.println("k="+k+", mapped "+kms.size()+" k-mers, "+CommonUtils.timeElapsed(tic));
@@ -263,10 +257,6 @@ public class KmerEngine {
 		kms.removeAll(highHgpKmers);
 		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeq, negSeq, CommonUtils.timeElapsed(tic)));
 		
-		negKmerHitCounts = new HashMap<String, Integer>();
-		for (Kmer km: highHgpKmers){
-			negKmerHitCounts.put(km.kmerString, km.negCount);
-		}
 		return kms;
 	}
 	
@@ -280,18 +270,18 @@ public class KmerEngine {
 	public void loadTestSequences(ArrayList<Point> events, int winSize){
 		int eventCount = events.size();
 		seqs = new String[eventCount];	// DNA sequences around binding sites
-		ArrayList<Region> seqCoors = new ArrayList<Region>();
+		ArrayList<Region> posImpactRegion = new ArrayList<Region>();			// to make sure negative region is not within negRegionDistance of positive regions.
 
 		for(int i=0;i<eventCount;i++){
 			Region posRegion = events.get(i).expand(winSize/2);
-			seqCoors.add(posRegion);
 			seqs[i] = seqgen.execute(posRegion).toUpperCase();
+			posImpactRegion.add(events.get(i).expand(negRegionDistance));
 		}
 		/** Negative sequences has been retrieved when setting up region caches */
 		// need to filter out those overlap with positive sequences
 		ArrayList<Region> negRegions = new ArrayList<Region>();
 		negRegions.addAll(neg_region_map.keySet());
-		Region.filterOverlapRegions(negRegions, seqCoors);
+		Region.filterOverlapRegions(negRegions, posImpactRegion);				// to make sure negative region is not within negRegionDistance of positive regions.
 		seqsNegList.clear();
 		for (Region r:negRegions){
 			seqsNegList.add(seqsNeg[neg_region_map.get(r)].substring(0, winSize+1));
