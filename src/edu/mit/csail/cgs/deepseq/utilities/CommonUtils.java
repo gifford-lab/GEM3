@@ -282,7 +282,7 @@ public class CommonUtils {
     
 	/**
 	 *  Scan the sequence for best match to the weight matrix
-	 *  @return  Pair of values, the start position of highest scoring PWM hit and the score
+	 *  @return  Pair of values, the lower coordinate of highest scoring PWM hit and the score
 	 *  The position will be negative if the match is on '-' strand    
 	 */
 	public static Pair<Integer, Double> scanPWM(String sequence, int wmLen, WeightMatrixScorer scorer){
@@ -309,8 +309,10 @@ public class CommonUtils {
 	}
 
 	/**
-	 *  Scan the sequence to find all matches to the weight matrix
-	 *  @return  List of positions that pass the threshold. <br>The position will be negative if the match is on '-' strand    
+	 *  Scan the sequence to find all matches to the weight matrix<br>
+	 *  Note: the definition of motif position here is different from scanPWM() method
+	 *  @return  List of positions (middle of motif match) that pass the threshold. <br>
+	 *  The position will be negative if the match is on '-' strand     
 	 */
 	public static ArrayList<Integer> getAllPWMHit(String sequence, int wmLen, WeightMatrixScorer scorer, double threshold){
 		ArrayList<Integer> pos = new ArrayList<Integer>();
@@ -322,9 +324,9 @@ public class CommonUtils {
 			double score = profiler.getMaxScore(i);
 			if (score >= threshold){
 				if( profiler.getMaxStrand(i)=='+')
-					pos.add(i);
+					pos.add(i+wmLen/2);
 				else
-					pos.add(-i);
+					pos.add(-i-(wmLen-wmLen/2) );
 			}
 		}
 		return pos;
