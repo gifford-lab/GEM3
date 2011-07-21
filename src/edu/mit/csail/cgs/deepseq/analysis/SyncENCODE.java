@@ -32,7 +32,7 @@ public class SyncENCODE {
 	            String type = f[4];
 	            String cond = f[5];
 	            String tf = f[6];
-	            String rep = f[7];
+	            String rep = f[7].replaceAll("[a-z]", "");
 	            String cell = f[8];
 	            String key = date+" "+pi+" "+cond+" "+tf+" "+cell+" "+rep;
 	            expRep2Line.put(key, line);
@@ -59,6 +59,7 @@ public class SyncENCODE {
         StringBuilder sbMissRep = new StringBuilder();
         int countNewExpt = 0;
         StringBuilder sbNewExpt = new StringBuilder();
+        int allCount = 0;
         try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(args[1])));
 	        String line;
@@ -72,7 +73,7 @@ public class SyncENCODE {
 	            String type = f[4];
 	            String cond = f[5];
 	            String tf = f[6];
-	            String rep = f[7].replace("a", "").replace("b", "").replace("c", "");
+	            String rep = f[7].replaceAll("[a-z]", "");
 	            String cell = f[8];
 	            String key = date+" "+pi+" "+cond+" "+tf+" "+cell+" "+rep;
 	            String key2 = date+" "+pi+" "+cond+" "+tf+" "+cell;
@@ -81,19 +82,20 @@ public class SyncENCODE {
 	            	countSame++;
 	            	sbSame.append(key).append("\t").append(expt).append("\t").append(expRep2Line.get(key)).append("\n");
 	            }
-	            if (expt2rep.containsKey(key2) && !expRep2Line.containsKey(key)){
+	            else if (expt2rep.containsKey(key2) && !expRep2Line.containsKey(key)){
 	            	countMissRep++;
 	            	sbMissRep.append(key).append("\t").append(expt).append("\t");
 	            	for (String r:expt2rep.get(key2))
 	            		sbMissRep.append("\n").append(expRep2Line.get(key2+" "+r));
 	            	sbMissRep.append("\n");
 	            }
-	            if (!expt2rep.containsKey(key2)){
+	            else if (!expt2rep.containsKey(key2)){
 	            	countNewExpt++;
 	            	sbNewExpt.append(key).append("\n");
 	            }
+	            allCount++;
 	        }	
-	        System.out.println("To be downloaded\t"+newExptRep.keySet().size());
+	        System.out.println("To be downloaded\t"+allCount);
 	        System.out.println("******************************");
 	        System.out.println("Same Expt\t"+countSame);
 //	        System.out.println(sbSame.toString());
@@ -102,7 +104,7 @@ public class SyncENCODE {
 	        System.out.println(sbMissRep.toString());
 	        System.out.println("******************************");
 	        System.out.println("New Expt\t"+countNewExpt);
-	        System.out.println(sbNewExpt.toString());
+//	        System.out.println(sbNewExpt.toString());
 	        
 	        if (bin != null) {
 	            bin.close();

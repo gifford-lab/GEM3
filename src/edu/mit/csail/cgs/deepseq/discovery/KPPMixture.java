@@ -3853,7 +3853,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					for (Kmer km: kmers){
 						String seq = km.getKmerString();
 						for (Kmer akm: aligned_new){
-							if (Math.abs(akm.getShift())>config.k/2)		// the mismatch must be proximal to seed kmer
+//							if (Math.abs(akm.getShift())>config.k/2)		// the mismatch must be proximal to seed kmer
+							if (km.getSeqHitCount() > akm.getSeqHitCount())		// the mismatch kmer should have less count than the reference kmer, avoiding a bad weak kmer misguiding a strong kmer
 								continue;
 							if (this.mismatch(akm.getKmerString(), seq)==1){
 								km.setShift(akm.getShift());

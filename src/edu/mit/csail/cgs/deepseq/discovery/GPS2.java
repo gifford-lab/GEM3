@@ -146,7 +146,7 @@ public class GPS2 {
 		
 //        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
         Set<String> flags = Args.parseFlags(args);
-        boolean update = flags.contains("update");
+        boolean rebuild = flags.contains("rebuild");
         int GPS_round = 2;
         GPS_round = Args.parseInteger(args,"r", GPS_round);
         int GEM_round = Args.parseInteger(args,"r_pp", 2);
@@ -202,7 +202,7 @@ public class GPS2 {
 		        mixture.printFeatures();
 		        mixture.printFilteredFeatures();
 		        mixture.printInsignificantFeatures();
-		        if (update)
+		        if (!rebuild)
 	            	mixture.updateKmerEngine(true);
 	            else
 	            	mixture.buildEngine(Args.parseInteger(args,"k_win2", 60));
