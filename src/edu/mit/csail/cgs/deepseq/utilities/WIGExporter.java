@@ -41,11 +41,11 @@ public class WIGExporter {
 	protected DeepSeqExpt expt;
 	protected int [] stackedHitCounts;
 	private int winSize=20, winStep=20;
-	private int readLength=26, read5PrimeExt=100, read3PrimeExt=0;
+	private int readLength=26, read5PrimeExt=0, read3PrimeExt=200;
 	private String outName="out";
 	private boolean dbconnected=false;
-	private int perBaseMax=3;
-	private boolean needlefiltering=true;
+	private int perBaseMax=10;
+	private boolean needlefiltering=false;
 	private static final Logger logger = Logger.getLogger(SingleConditionFeatureFinder.class);
 	
 	
@@ -61,9 +61,9 @@ public class WIGExporter {
 			System.err.println("WIGExporter usage:\n" +
 					"\t--species <organism;genome>\n" +
 					"\t--(rdb)expt <experiment names>\n" +
-					"\t--readlen <read length>\n" +
 					"\t--read5ext <5' extension>\n" +
 					"\t--read3ext <3' extension>\n" +
+					"\t--pbmax <max read count per base>\n" +
 					"\t--winsize <window size/step in WIG file>\n" +
 					"\t--out <output file name>");
 			System.exit(1);
@@ -94,6 +94,8 @@ public class WIGExporter {
 		read3PrimeExt = Args.parseInteger(args,"read3ext",read3PrimeExt);
 		readLength = Args.parseInteger(args,"readlen",readLength);
 		winSize = Args.parseInteger(args,"winsize",winSize);
+		perBaseMax = Args.parseInteger(args,"pbmax",perBaseMax);
+		if(ap.hasKey("pbmax")){needlefiltering=true;}
 	    winStep=winSize;
 	    		
 	    // Load the experiments
@@ -116,7 +118,9 @@ public class WIGExporter {
 	    }
 	    logger.info("Expt hit count: " + (int) expt.getHitCount() + ", weight: " + (int) expt.getWeightTotal());
 	    
+	    read3PrimeExt = Math.max(0, read3PrimeExt-readLength);
 	    expt.setFivePrimeExt(read5PrimeExt);
+	    expt.setThreePrimeExt(read3PrimeExt);
 	}
 	
 	public void execute(){
