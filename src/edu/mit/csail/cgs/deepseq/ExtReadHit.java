@@ -20,8 +20,8 @@ public class ExtReadHit extends ReadHit{
 	}
 	public ExtReadHit(Genome g, int id,String c, int s, int e, char str, double w, int startShift, int fivePrimeExt, int threePrimeExt){
 		super(g,id,c,
-		    (str=='+' ? Math.max(1, s+startShift-fivePrimeExt):Math.max(1, s-startShift-threePrimeExt)),
-		    (str=='+' ? Math.min(g.getChromLength(c),e+startShift+threePrimeExt):Math.min(e-startShift+fivePrimeExt, g.getChromLength(c))),
+		    (str=='+' ? Math.max(1, s+startShift-fivePrimeExt+1):Math.max(1, s-startShift-threePrimeExt+1)),
+		    (str=='+' ? Math.min(g.getChromLength(c),e+startShift+threePrimeExt-1):Math.min(e-startShift+fivePrimeExt-1, g.getChromLength(c))),
 		    str,w);
 		//this.startShift=startShift;
 		//this.fivePrimeExt = fivePrimeExt;
