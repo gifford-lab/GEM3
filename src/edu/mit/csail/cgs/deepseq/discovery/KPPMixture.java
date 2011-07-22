@@ -4280,7 +4280,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Integer> passedIdx = new ArrayList<Integer>();
 		
 		// filter the sequences if we have an existing PWM, and with good quality 
-    	if (cluster.wm!=null && cluster.pwmThreshold>=cluster.wm.getMaxScore()/pwmScoreFactor){	
+    	if (config.filter_pwm_seq && cluster.wm!=null && cluster.pwmThreshold>=cluster.wm.getMaxScore()/pwmScoreFactor){	
     		ArrayList<Integer> alignedSeqIdx = new ArrayList<Integer>();
 	        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
 //	        StringBuilder sb= new StringBuilder();
@@ -5944,6 +5944,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean print_aligned_seqs = false;
         public boolean print_pwm_fdr = false;
         public boolean k_init_calc_PWM = false;
+        public boolean filter_pwm_seq = false;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -6005,6 +6006,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");
+            filter_pwm_seq = flags.contains("filter_pwm_seq");
             
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
