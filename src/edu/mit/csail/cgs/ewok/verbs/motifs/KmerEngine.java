@@ -414,27 +414,29 @@ public class KmerEngine {
 	    for (int i=0;i<seqs.length;i++){
 	    	String seq = seqs[i];
 			Iterator searcher = tree.search(seq.getBytes());
+			HashSet<Integer> idxs = new HashSet<Integer>();
 			while (searcher.hasNext()) {
 				SearchResult result = (SearchResult) searcher.next();
-				Set<Integer> idxs = result.getOutputs();
-				int kmerSum = 0;
-				for (int idx:idxs){
-					kmerSum += kmers.get(idx).getSeqHitCount();
-				}
-				for (int idx:idxs){
-					posHitCount[idx]++;
-					kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getSeqHitCount()/kmerSum*events.get(i).getTotalEventStrength();
-				}
+				idxs.addAll(result.getOutputs());
+			}
+			int kmerSum = 0;
+			for (int idx:idxs){
+				kmerSum += kmers.get(idx).getSeqHitCount();
+			}
+			for (int idx:idxs){
+				posHitCount[idx]++;
+				kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getSeqHitCount()/kmerSum*events.get(i).getTotalEventStrength();
 			}
 	    }
 	    for (String seq: seqsNegList){
 			Iterator searcher = tree.search(seq.getBytes());
+			HashSet<Integer> idxs = new HashSet<Integer>();
 			while (searcher.hasNext()) {
 				SearchResult result = (SearchResult) searcher.next();
-				Set<Integer> idxs = result.getOutputs();
-				for (int idx:idxs)
-					negHitCount[idx]++;
+				idxs.addAll(result.getOutputs());
 			}
+			for (int idx:idxs)
+				negHitCount[idx]++;
 	    }
 	    for (int i=0;i<kmers.size();i++){
 	    	Kmer km = kmers.get(i);

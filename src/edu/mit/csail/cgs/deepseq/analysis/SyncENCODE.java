@@ -71,6 +71,7 @@ public class SyncENCODE {
         int countNewExpt = 0;
         StringBuilder sbNewExpt = new StringBuilder();
         int allCount = 0;
+        int countDiffDate = 0;
         try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(args[1])));
 	        String line;
@@ -91,25 +92,26 @@ public class SyncENCODE {
 	            String key2 = date+" "+pi+" "+cond+" "+tf+" "+cell;
 	            String key3 = pi+" "+cond+" "+tf+" "+cell;
 	            newExptRep.put(key, line);
-	            if (expt2rep.containsKey(key2) && expRep2Line.containsKey(key)){
+	            if (expt2rep.containsKey(key2) && expRep2Line.containsKey(key)){		// same expt, same rep (ignoring a, b .. suffix)
 	            	countSame++;
 	            	sbSame.append(key).append("\t").append(expt).append("\t").append(expRep2Line.get(key)).append("\n");
 	            }
-	            else if (expt2rep.containsKey(key2) && !expRep2Line.containsKey(key)){
+	            else if (expt2rep.containsKey(key2) && !expRep2Line.containsKey(key)){	// has expt, but replicates do not match up
 	            	countMissRep++;
 	            	sbMissRep.append(key).append("\t").append(expt).append("\t");
 	            	for (String r:expt2rep.get(key2))
 	            		sbMissRep.append("\n").append(expRep2Line.get(key2+" "+r));
 	            	sbMissRep.append("\n");
 	            }
-	            else if (!expt2rep.containsKey(key2)){
+	            else if (!expt2rep.containsKey(key2)){									// new expt
 	            	countNewExpt++;
 	            	sbNewExpt.append(key).append("\n");
 	            	if (expRep2date.containsKey(key3)){		// new expt b/c diff date
 	            		System.out.print(key3+'\t'+date);
 	            		for (String d:expRep2date.get(key3))
 	            			System.out.print("\t"+d);
-	            		System.out.println();
+	            		System.out.println("\n"+line);
+	            		countDiffDate++;
 	            	}
 	            }
 	            allCount++;
@@ -124,7 +126,7 @@ public class SyncENCODE {
 	        System.out.println("******************************");
 	        System.out.println("New Expt\t"+countNewExpt);
 //	        System.out.println(sbNewExpt.toString());
-	        
+	        System.out.println("New Expt b/c diff date "+countDiffDate);
 	        if (bin != null) {
 	            bin.close();
 	        }	        
