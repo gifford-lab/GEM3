@@ -3803,12 +3803,48 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			Kmer seed=null;
 			// for first cluster, select the seed kmer from the top kmer that is most centered on binding positions
 			if (clusterID==0 && config.k_select_seed){
-				int evaluateSize = Math.min(kmers.size(),10);
+				int evaluateSize = Math.min(kmers.size(),100);
+				ArrayList<Kmer> topKmers = new ArrayList<Kmer>();
+				double hgpCutoff = kmers.get(0).getHgp()/2;
+				for (int i=0;i<evaluateSize;i++){
+					if (kmers.get(i).getHgp()<hgpCutoff)
+						topKmers.add(kmers.get(i));
+				}
+				Collections.sort(topKmers);			// sort by count
+				boolean[][] match = new boolean[topKmers.size()][topKmers.size()];
+				for(int i=0;i<topKmers.size();i++){
+					String ks_i=topKmers.get(i).getKmerString();
+					String ksr_i=topKmers.get(i).getKmerRC();
+					String left = ks_i.substring(1);
+					String right = ks_i.substring(0,ks_i.length()-1);
+					String left2 = ksr_i.substring(1);
+					String right2 = ksr_i.substring(0,ksr_i.length()-1);
+					for(int j=0;j<i;j++){
+						String ks_j=topKmers.get(j).getKmerString();
+						if (ks_j.contains(left)||ks_j.contains(left2)||ks_j.contains(right)||ks_j.contains(right2))
+							match[i][j] = true;					// 1 nt shift
+						else if (mismatch(ks_i, ks_j)==1||mismatch(ksr_i, ks_j)==1)	// 1 mismatch
+							match[i][j] = true;
+					}
+				}
+				ArrayList<Kmer> leaders = new ArrayList<Kmer>();
+				for(int i=0;i<topKmers.size();i++){
+					boolean isLeader = true;
+					for (int j=0;j<topKmers.size();j++){
+						if (match[i][j]){
+							isLeader = false;
+							break;
+						}
+					}
+					if (isLeader)
+						leaders.add(topKmers.get(i));
+				}
+				
 				Kmer bestKmer=null;
 				double bestSqareAvg = Double.MAX_VALUE;
 				int perfectPos = config.k_win/2-config.k/2;
-				for (int i=0;i<evaluateSize;i++){
-					Kmer km = kmers.get(i);
+				for (int i=0;i<leaders.size();i++){
+					Kmer km = leaders.get(i);
 					String kmerStr = km.getKmerString();
 					String kmerRC = km.getKmerRC();
 					ArrayList<Integer> dists = new ArrayList<Integer>();
@@ -3825,17 +3861,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						dists.add(dist);
 					}
 					Collections.sort(dists);
-					int median = dists.get(dists.size()/2);
 					double sqareSum = 0;
 					for (int d:dists)
-						sqareSum+=d;
+						sqareSum+=d*d;
 					double sqareAvg = sqareSum/dists.size();
+					if (config.bmverbose>1)
+						System.out.println(String.format("***** %s\tAverage square offset=%.1f",km.toShortString(), sqareAvg));
 					if (bestSqareAvg>sqareAvg){
 						bestSqareAvg=sqareAvg;
 						bestKmer = km;
 					}
 				}
 				seed = bestKmer;
+				if (config.bmverbose>1)
+					System.out.println("Seed: "+seed.toShortString());
 			}
 			else{
 				seed = kmers.get(0);
