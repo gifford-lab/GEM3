@@ -610,12 +610,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			// delete read data in un-enriched region, we don't need them for binomial test
 			// but if no control data, we need whole genome data to estimate lambda for Poisson test
-			if(controlDataExist) {
-				for(int c = 0; c < numConditions; c++) {
-					caches.get(c).car().deleteUnenrichedReadData(restrictRegions);				
-					caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
-				}
-			}
+//			if(controlDataExist) {
+//				for(int c = 0; c < numConditions; c++) {
+//					caches.get(c).car().deleteUnenrichedReadData(restrictRegions);				
+//					caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
+//				}
+//			}
 		}
 		
 		/**
@@ -775,72 +775,70 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                	cf.setPValue(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
 				}
 			}
-		} else {
-	        //			I commented the evaluation of the average shift size
-	        //			We won't need it cause in our data, we do not shift reads.
-	        //			Besides, we will consider a fixed region of modelRange bp as the peak region.
-			createChromStats(compFeatures);
+		} 
+		/** compute possion p-value from IP only (similar to MACS) */
+		createChromStats(compFeatures);
+		
+		Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
+		for(int i = 0; i < compFeatures.size(); i++) {
+			String chrom = compFeatures.get(i).getPosition().getChrom();
+			if(!chrom_comp_pair.containsKey(chrom))
+				chrom_comp_pair.put(chrom, new ArrayList<Integer>());
 			
-			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
-			for(int i = 0; i < compFeatures.size(); i++) {
-				String chrom = compFeatures.get(i).getPosition().getChrom();
-				if(!chrom_comp_pair.containsKey(chrom))
-					chrom_comp_pair.put(chrom, new ArrayList<Integer>());
-				
-				chrom_comp_pair.get(chrom).add(i);
-			}
-			
-			ipStrandFivePrimes   = new ArrayList[2];
-			Arrays.fill(ipStrandFivePrimes, new ArrayList<StrandedBase>());
-			ctrlStrandFivePrimes = new ArrayList[2];
-			Arrays.fill(ctrlStrandFivePrimes, new ArrayList<StrandedBase>());
-			ipStrandFivePrimePos   = new int[2][];
-			ctrlStrandFivePrimePos = new int[2][];
-			
-			for(String chrom:chrom_comp_pair.keySet()) {
-				int chromLen = gen.getChromLength(chrom);
-				for(int c = 0; c < numConditions; c++) {
-					
-					for(int i:chrom_comp_pair.get(chrom)) {
-						ComponentFeature cf = compFeatures.get(i);
-						Region expandedRegion = new Region(gen, chrom, Math.max(0, cf.getPosition().getLocation()-config.third_lambda_region_width), Math.min(chromLen-1, cf.getPosition().getLocation()+config.third_lambda_region_width));
-						ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
-						ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
-						
-	                    ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
-						
-						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
-							ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
-							ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
-							for(int v = 0; v < ipStrandFivePrimePos[k].length; v++)
-								ipStrandFivePrimePos[k][v] = ipStrandFivePrimes[k].get(v).getCoordinate();
-							for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
-								ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
-						}
-	
-						double local_lambda = estimateLocalLambda(cf, c);
-						cf.setControlReadCounts(local_lambda, c);                        
-						if (config.testPValues)
-							poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / config.mappable_genome_length));
-						else
-							poisson.setMean(local_lambda);
-	
-	                    int count = (int)Math.ceil(cf.getEventReadCounts(c));
-	                    double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
-						cf.setPValue_wo_ctrl(pValue, c);						
-						for(int k = 0; k < ipStrandFivePrimes.length; k++) {
-							ipStrandFivePrimes[k].clear();
-							ctrlStrandFivePrimes[k].clear();
-						}
-					}//end of for(int i:chrom_comp_pair.get(chrom)) LOOP	
-				}				
-			}			
+			chrom_comp_pair.get(chrom).add(i);
 		}
+		
+		ipStrandFivePrimes   = new ArrayList[2];
+		Arrays.fill(ipStrandFivePrimes, new ArrayList<StrandedBase>());
+//		ctrlStrandFivePrimes = new ArrayList[2];
+//		Arrays.fill(ctrlStrandFivePrimes, new ArrayList<StrandedBase>());
+		ipStrandFivePrimePos   = new int[2][];
+//		ctrlStrandFivePrimePos = new int[2][];
+		
+		for(String chrom:chrom_comp_pair.keySet()) {
+			int chromLen = gen.getChromLength(chrom);
+			for(int c = 0; c < numConditions; c++) {
+				
+				for(int i:chrom_comp_pair.get(chrom)) {
+					ComponentFeature cf = compFeatures.get(i);
+					Region expandedRegion = new Region(gen, chrom, Math.max(0, cf.getPosition().getLocation()-config.third_lambda_region_width), Math.min(chromLen-1, cf.getPosition().getLocation()+config.third_lambda_region_width));
+					ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
+					ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
+					
+//                    ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
+					
+					for(int k = 0; k < ipStrandFivePrimes.length; k++) {	// + and - strands
+						ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
+//						ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
+						for(int v = 0; v < ipStrandFivePrimePos[k].length; v++)
+							ipStrandFivePrimePos[k][v] = ipStrandFivePrimes[k].get(v).getCoordinate();
+//						for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
+//							ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
+					}
+
+					double local_lambda = estimateLocalLambda(cf, c);
+					cf.setControlReadCounts(local_lambda, c);                        
+//					if (config.testPValues)
+//						poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / config.mappable_genome_length));
+//					else
+					poisson.setMean(local_lambda);
+
+                    int count = (int)Math.ceil(cf.getEventReadCounts(c));
+                    double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
+					cf.setPValue_wo_ctrl(pValue, c);						
+					for(int k = 0; k < ipStrandFivePrimes.length; k++) {
+						ipStrandFivePrimes[k].clear();
+//						ctrlStrandFivePrimes[k].clear();
+					}
+				}//end of for(int i:chrom_comp_pair.get(chrom)) LOOP	
+			}				
+		}			
+		
 		// calculate q-values, correction for multiple testing
 		benjaminiHochbergCorrection(compFeatures);
 		
 		// find q-value cutoff by k-mer occurence
-		setQValueCutoff(compFeatures);
+//		setQValueCutoff(compFeatures);
 	}//end of evaluateConfidence method
 
 	private void setQValueCutoff(List<ComponentFeature>compFeatures) {
@@ -2735,14 +2733,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 			Region chromRegion = new Region(gen, chrom, 0, gen.getChromLength(chrom)-1);			
 			List<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP");
-			List<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
-			if(controlDataExist) {
-				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL");
-			}
-			else {
-				for(int t = 0; t < numConditions; t++)
-					ctrl_chrom_signals.add(new ArrayList<StrandedBase>());
-			}
+//			List<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
+//			if(controlDataExist) {
+//				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL");
+//			}
+//			else {
+//				for(int t = 0; t < numConditions; t++)
+//					ctrl_chrom_signals.add(new ArrayList<StrandedBase>());
+//			}
 			
 			int counts = 0;
 			// Read counts. List 0 for IP, List 1 for CTRL.
@@ -2755,12 +2753,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				counts += currCondHitCounts;
 			}
 
-			if(controlDataExist) {
-				for(List<StrandedBase> ctrl_chrom_signal_cond:ctrl_chrom_signals) {
-					int currCondHitCounts = (int)StrandedBase.countBaseHits(ctrl_chrom_signal_cond);
-					currChromCondCounts.get(1).add(currCondHitCounts);
-				}
-			}
+//			if(controlDataExist) {
+//				for(List<StrandedBase> ctrl_chrom_signal_cond:ctrl_chrom_signals) {
+//					int currCondHitCounts = (int)StrandedBase.countBaseHits(ctrl_chrom_signal_cond);
+//					currChromCondCounts.get(1).add(currCondHitCounts);
+//				}
+//			}
 
 			totalIPCounts.put(chrom, counts);
 			condHitCounts.put(chrom, currChromCondCounts);
@@ -2768,11 +2766,90 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 	}//end of createChromStats method
 
-	/*
+	/**
 	 * evalute significance when there is no control.  Returns the estimate of the 
-     * local read density 
+     * local read density. Modified from Giorgos's version, remove all the code with control
 	 */
 	private double estimateLocalLambda(ComponentFeature cf, int c) {
+		double local_lambda, lambda_bg, first_lambda_ip, second_lambda_ip, third_lambda_ip;
+
+		Point pos = cf.getPosition();
+		String chrom      = pos.getChrom();
+		int chromLen      = gen.getChromLength(chrom);
+		Region peakRegion = pos.expand(modelRange);
+
+		int left_peak,  left_third_region,  left_second_region,  left_first_region;
+		int right_peak, right_third_region, right_second_region, right_first_region;
+
+		int num_first_lambda_ip = 0, num_second_lambda_ip = 0, num_third_lambda_ip = 0;
+
+		double num_peak_ip;
+
+		double ipCounts = condHitCounts.get(chrom).get(0).get(c);
+
+//		left_peak           = (int)Math.min(chromLen-1, peakRegion.getStart());
+		left_third_region   = (int)Math.max(         0, pos.getLocation() - config.third_lambda_region_width/2);
+		left_second_region  = (int)Math.max(         0, pos.getLocation() - config.second_lambda_region_width/2);
+//		left_first_region   = (int)Math.max(         0, pos.getLocation() - config.first_lambda_region_width/2);
+
+//		right_peak          = (int)Math.max(         0, peakRegion.getEnd());
+		right_third_region  = (int)Math.min(chromLen-1, pos.getLocation() + config.third_lambda_region_width/2);
+		right_second_region = (int)Math.min(chromLen-1, pos.getLocation() + config.second_lambda_region_width/2);
+//		right_first_region  = (int)Math.min(chromLen-1, pos.getLocation() + config.first_lambda_region_width/2);
+
+		// Get the number of reads assigned to the peak - soft assignment
+		num_peak_ip = cf.getEventReadCounts(c);
+
+		// k = 0: '+' strand, k = 1: '-' strand
+		for(int k = 0; k <= 1; k++) {
+			
+			int s_idx, e_idx;
+			
+			if(ipStrandFivePrimePos[k].length > 0) {
+				// IP Channel
+				s_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], left_third_region);
+				e_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], right_third_region);
+				if(s_idx < 0) { s_idx = -s_idx-1; }
+				if(e_idx < 0) { e_idx = -e_idx-1; }
+				s_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], ">=", left_third_region, s_idx);
+				e_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], "<=", right_third_region, e_idx);
+
+				for(int i = s_idx; i <= e_idx; i++) {
+//					if(left_first_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_first_region) {
+//						num_first_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+//						num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
+//						num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+//					}
+//					else 
+					if(left_second_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_second_region) {
+						num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
+						num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+					}
+					else if(left_third_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_third_region) {
+						num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
+					}
+				}	
+			}
+		}//end of for(int k = 0; k <= 1; k++) LOOP
+
+		// Subtract the number of reads that are inside the peak region
+		// We just want to compare it against the surrounding regions (excl. the peak specific signal)
+//		num_first_lambda_ip  = Math.max(0, num_first_lambda_ip  - (int)num_peak_ip);
+		num_second_lambda_ip = Math.max(0, num_second_lambda_ip - (int)num_peak_ip);
+		num_third_lambda_ip  = Math.max(0, num_third_lambda_ip  - (int)num_peak_ip);
+
+
+//		first_lambda_ip      = num_first_lambda_ip*((double)peakRegion.getWidth()/(double)(config.first_lambda_region_width-peakRegion.getWidth()));
+		second_lambda_ip     = num_second_lambda_ip*((double)peakRegion.getWidth()/(double)(config.second_lambda_region_width-peakRegion.getWidth()));
+		third_lambda_ip      = num_third_lambda_ip*((double)peakRegion.getWidth()/(double)(config.third_lambda_region_width-peakRegion.getWidth()));
+		lambda_bg              = ipCounts*((double)peakRegion.getWidth()/(double)(chromLen-peakRegion.getWidth()));
+		//skip first lambda regions (1K)
+		local_lambda = Math.max(lambda_bg, Math.max(second_lambda_ip, third_lambda_ip));
+
+        return local_lambda;
+	}//end of evalFeatureSignificance method
+	
+	private double estimateLocalLambda_old(ComponentFeature cf, int c) {
 		double local_lambda, lambda_bg, first_lambda_ip, second_lambda_ip, third_lambda_ip, lambda_peak_ctrl, first_lambda_ctrl, second_lambda_ctrl, third_lambda_ctrl;
 
 		Point pos = cf.getPosition();
@@ -3747,7 +3824,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			if (clusterID==0){
 				int evaluateSize = Math.min(kmers.size(),10);
 				Kmer bestKmer=null;
-				double bestSqareAvg = 0;
+				double bestSqareAvg = Double.MAX_VALUE;
 				int perfectPos = config.k_win/2-config.k/2;
 				for (int i=0;i<evaluateSize;i++){
 					Kmer km = kmers.get(i);
@@ -3766,11 +3843,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 						dists.add(dist);
 					}
+					Collections.sort(dists);
+					int median = dists.get(dists.size()/2);
 					double sqareSum = 0;
 					for (int d:dists)
-						sqareSum+=d*d;
+						sqareSum+=d;
 					double sqareAvg = sqareSum/dists.size();
-					if (bestSqareAvg<sqareAvg){
+					if (bestSqareAvg>sqareAvg){
 						bestSqareAvg=sqareAvg;
 						bestKmer = km;
 					}

@@ -200,9 +200,12 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public int compareByLocation(ComponentFeature f) {
 		return getPeak().compareTo(f.getPeak());
 	}
-	public int compareByPValue(ComponentFeature f) {
-		if(p_values[sortingCondition]<f.getPValue(sortingCondition)){return(-1);}
-		else if(p_values[sortingCondition]>f.getPValue(sortingCondition)){return(1);}
+	/** Compare p-value for expt with control <br>
+	 *  Also calculate possion p-value based on IP only<br>
+	 *  When comparing, use the larger p-value */
+	public int compareByPValue(ComponentFeature f) {		
+		if(getPValue(sortingCondition)<f.getPValue(sortingCondition)){return(-1);}
+		else if(getPValue(sortingCondition)>f.getPValue(sortingCondition)){return(1);}
 		else return(compareByCondResponsibility(f)); //P-values equal, compare by responsibility now
 	}
 	public int compareByPValue_wo_ctrl(ComponentFeature f) {
@@ -261,7 +264,12 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		}
 		return ratios/numConditions;
 	}
+	/** Return p-value for expt with control for the specified condition<br>
+	 *  the larger value of binomial p-value and possion p-value based on IP only */
 	public double getPValue(int cond){
+		return Math.max(p_values[cond], p_values_wo_ctrl[cond]);
+	}
+	public double getPValue_w_ctrl(int cond){
 		return p_values[cond];
 	}
 	public double getPValue_wo_ctrl(int cond){
@@ -399,6 +407,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
   		  		  .append(name+"   Fold\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
+  	      		  .append(name+"P_poiss\t")
   	      		  .append("IPvsEMP\t")
   	      		  .append(name+"IPvsCTR\t");
         	if (c<numConditions-1)
@@ -440,13 +449,21 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	double q_lg = getQValueLog10(c);
     		if (q_lg==Double.POSITIVE_INFINITY)
     			q_lg= 999;
-        	result.append(String.format("%7.2f\t", q_lg));    
-        	double p_lg = -Math.log10(getPValue(c));
-        	if(unScaledControlCounts==null)
-        		p_lg = -Math.log10(getPValue_wo_ctrl(c));
-        	if (p_lg==Double.POSITIVE_INFINITY)
-    			p_lg= 999;
-        	result.append(String.format("%7.2f\t", p_lg));
+        	result.append(String.format("%7.2f\t", q_lg));   
+        	if(unScaledControlCounts!=null){
+	        	double p_lg1 = -Math.log10(getPValue_w_ctrl(c));
+	        	if (p_lg1==Double.POSITIVE_INFINITY)
+	    			p_lg1= 999;
+	        	result.append(String.format("%7.2f\t", p_lg1)); 
+        	}
+        	else
+        		result.append("NaN\t");
+        	
+        	double p_lg2 = -Math.log10(getPValue_wo_ctrl(c));
+        	if (p_lg2==Double.POSITIVE_INFINITY)
+        		p_lg2= 999;
+        	result.append(String.format("%7.2f\t", p_lg2)); 
+
     		result.append(String.format("%7.2f\t", getShapeDeviation(c)));    		
         	if(unScaledControlCounts!=null)
         		result.append(String.format("%7.2f\t", getAverageIpCtrlLogKL()));
