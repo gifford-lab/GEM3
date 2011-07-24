@@ -2776,35 +2776,26 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		Point pos = cf.getPosition();
 		String chrom      = pos.getChrom();
 		int chromLen      = gen.getChromLength(chrom);
-		Region peakRegion = pos.expand(modelRange);
+		Region peakRegion = pos.expand(modelRange*3);
 
-		int left_peak,  left_third_region,  left_second_region,  left_first_region;
-		int right_peak, right_third_region, right_second_region, right_first_region;
+		int left_third_region,  left_second_region, right_third_region, right_second_region;
 
-		int num_first_lambda_ip = 0, num_second_lambda_ip = 0, num_third_lambda_ip = 0;
-
-		double num_peak_ip;
-
+		int num_second_lambda_ip = 0, num_third_lambda_ip = 0;
+		
 		double ipCounts = condHitCounts.get(chrom).get(0).get(c);
 
-//		left_peak           = (int)Math.min(chromLen-1, peakRegion.getStart());
 		left_third_region   = (int)Math.max(         0, pos.getLocation() - config.third_lambda_region_width/2);
 		left_second_region  = (int)Math.max(         0, pos.getLocation() - config.second_lambda_region_width/2);
-//		left_first_region   = (int)Math.max(         0, pos.getLocation() - config.first_lambda_region_width/2);
-
-//		right_peak          = (int)Math.max(         0, peakRegion.getEnd());
 		right_third_region  = (int)Math.min(chromLen-1, pos.getLocation() + config.third_lambda_region_width/2);
 		right_second_region = (int)Math.min(chromLen-1, pos.getLocation() + config.second_lambda_region_width/2);
-//		right_first_region  = (int)Math.min(chromLen-1, pos.getLocation() + config.first_lambda_region_width/2);
 
 		// Get the number of reads assigned to the peak - soft assignment
-		num_peak_ip = cf.getEventReadCounts(c);
+		double num_peakRegion_ip = countIpReads(peakRegion, c);
 
 		// k = 0: '+' strand, k = 1: '-' strand
 		for(int k = 0; k <= 1; k++) {
 			
 			int s_idx, e_idx;
-			
 			if(ipStrandFivePrimePos[k].length > 0) {
 				// IP Channel
 				s_idx = Arrays.binarySearch(ipStrandFivePrimePos[k], left_third_region);
@@ -2815,12 +2806,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				e_idx = StatUtil.searchFrom(ipStrandFivePrimePos[k], "<=", right_third_region, e_idx);
 
 				for(int i = s_idx; i <= e_idx; i++) {
-//					if(left_first_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_first_region) {
-//						num_first_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
-//						num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
-//						num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
-//					}
-//					else 
 					if(left_second_region <= ipStrandFivePrimePos[k][i] && ipStrandFivePrimePos[k][i] <= right_second_region) {
 						num_second_lambda_ip += ipStrandFivePrimes[k].get(i).getCount();
 						num_third_lambda_ip  += ipStrandFivePrimes[k].get(i).getCount();
@@ -2834,16 +2819,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 		// Subtract the number of reads that are inside the peak region
 		// We just want to compare it against the surrounding regions (excl. the peak specific signal)
-//		num_first_lambda_ip  = Math.max(0, num_first_lambda_ip  - (int)num_peak_ip);
-		num_second_lambda_ip = Math.max(0, num_second_lambda_ip - (int)num_peak_ip);
-		num_third_lambda_ip  = Math.max(0, num_third_lambda_ip  - (int)num_peak_ip);
-
-
-//		first_lambda_ip      = num_first_lambda_ip*((double)peakRegion.getWidth()/(double)(config.first_lambda_region_width-peakRegion.getWidth()));
-		second_lambda_ip     = num_second_lambda_ip*((double)peakRegion.getWidth()/(double)(config.second_lambda_region_width-peakRegion.getWidth()));
-		third_lambda_ip      = num_third_lambda_ip*((double)peakRegion.getWidth()/(double)(config.third_lambda_region_width-peakRegion.getWidth()));
-		lambda_bg              = ipCounts*((double)peakRegion.getWidth()/(double)(chromLen-peakRegion.getWidth()));
-		//skip first lambda regions (1K)
+		num_second_lambda_ip = Math.max(0, num_second_lambda_ip - (int)num_peakRegion_ip);
+		num_third_lambda_ip  = Math.max(0, num_third_lambda_ip  - (int)num_peakRegion_ip);
+		
+		second_lambda_ip     = num_second_lambda_ip*((double)peakRegion.getWidth()/(config.second_lambda_region_width-peakRegion.getWidth()));
+		third_lambda_ip      = num_third_lambda_ip*((double)peakRegion.getWidth()/(config.third_lambda_region_width-peakRegion.getWidth()));
+		lambda_bg              = (ipCounts-num_peakRegion_ip)*(peakRegion.getWidth()/(chromLen-peakRegion.getWidth()));
 		local_lambda = Math.max(lambda_bg, Math.max(second_lambda_ip, third_lambda_ip));
 
         return local_lambda;
@@ -3286,7 +3267,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	private float countIpReads(Region r, int cond){
         return caches.get(cond).car().countStrandedBases(r,'+') + 
-            caches.get(cond).car().countStrandedBases(r,'+');
+            caches.get(cond).car().countStrandedBases(r,'-');
 	}
 	private float countCtrlReads(Region r){
 		float count=0;
@@ -3298,7 +3279,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}	
 	private float countCtrlReads(Region r, int cond){
         return caches.get(cond).cdr().countStrandedBases(r,'+') + 
-            caches.get(cond).cdr().countStrandedBases(r,'+');
+            caches.get(cond).cdr().countStrandedBases(r,'-');
 	}
 
 
@@ -6083,8 +6064,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
         public int resolution_extend = 2;
         public int first_lambda_region_width  =  1000;
-        public int second_lambda_region_width =  5000;
-        public int third_lambda_region_width  = 10000;
+        public int second_lambda_region_width =  10000;
+        public int third_lambda_region_width  = 20000;
         public boolean use_dynamic_sparseness = true;
         public boolean use_betaEM = true;
         public boolean use_scanPeak  = true;
@@ -6179,8 +6160,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
             max_hit_per_bp = Args.parseInteger(args, "mrc", 0); //max read count per bp, default -1, estimate from data
             window_size_factor = Args.parseInteger(args, "wsf", 3);
-            second_lambda_region_width = Args.parseInteger(args, "w2", 5000);
-            third_lambda_region_width = Args.parseInteger(args, "w3", 10000);
+            second_lambda_region_width = Args.parseInteger(args, "w2", second_lambda_region_width);
+            third_lambda_region_width = Args.parseInteger(args, "w3", third_lambda_region_width);
             joint_event_distance = Args.parseInteger(args, "j", 10000);		// max distance of joint events
             top_events = Args.parseInteger(args, "top", top_events);
             min_event_count = Args.parseInteger(args, "min", min_event_count);
