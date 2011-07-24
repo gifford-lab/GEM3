@@ -162,7 +162,6 @@ public class KmerEngine {
 		for (String key:kmerStrings){
 			if (!map.containsKey(key))		// this kmer has been removed, represented by RC
 				continue;
-
 			// consolidate kmer and its reverseComplment kmer
 			String key_rc = SequenceUtils.reverseComplement(key);				
 			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
@@ -184,7 +183,6 @@ public class KmerEngine {
 			Kmer kmer = new Kmer(key, map.get(key));
 			kms.add(kmer);
 		}
-//		allKmers = new ArrayList<Kmer>(kms);		//TODO: make sure it does not take too much memory
 		map=null;
 		System.gc();
 		System.out.println("k="+k+", mapped "+kms.size()+" k-mers, "+CommonUtils.timeElapsed(tic));
@@ -586,9 +584,8 @@ public class KmerEngine {
 	/** 
 	 * Search all k-mers in the sequence
 	 * @param seq sequence string to search k-mers
-	 * @return an array of KmerMatches:<br>
-	 * pos is the binding site position in the sequence<br>
-	 * kmers are the kmers that map to this position on both positive and negative strands<br>
+	 * @return an array of KmerGroups:<br>
+	 * Each k-mer group maps to a binding position in the sequence
 	 */
 	public KmerGroup[] query (String seq){
 		seq = seq.toUpperCase();
@@ -643,12 +640,9 @@ public class KmerEngine {
 	}
 	
 	/** 
-	 * Search all k-mers in the sequence
+	 * Search all k-mers (loaded in the AhoCorasick tree) in the sequence, both strand
 	 * @param seq sequence string to search k-mers
-	 * @return a kmers list<br>
-	 * pos is the binding site position in the sequence<br>
-	 * kmers are the kmers that map to this position<br>
-	 * if pos is negative, then the kmer match is on the reverse compliment seq string
+	 * @return a set of kmers found
 	 */
 	public static HashSet<Kmer> queryTree (String seq, AhoCorasick tree){
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 

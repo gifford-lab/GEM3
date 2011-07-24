@@ -41,6 +41,7 @@ import edu.mit.csail.cgs.utils.models.data.DataRegression;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
+import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.AhoCorasick;
 
 
@@ -3741,7 +3742,44 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			});			
 
 			/** get seed kmer and its mismatch k-mers, align sequences */
-			Kmer seed = kmers.get(0);
+			Kmer seed=null;
+			// for first cluster, select the seed kmer from the top kmer that is most centered on binding positions
+			if (clusterID==0){
+				int evaluateSize = Math.min(kmers.size(),10);
+				Kmer bestKmer=null;
+				double bestSqareAvg = 0;
+				int perfectPos = config.k_win/2-config.k/2;
+				for (int i=0;i<evaluateSize;i++){
+					Kmer km = kmers.get(i);
+					String kmerStr = km.getKmerString();
+					String kmerRC = km.getKmerRC();
+					ArrayList<Integer> dists = new ArrayList<Integer>();
+					for (int si:kmer2seq.get(km)){
+						String seq = seqs[si];
+						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
+						if (pos.isEmpty()){					// match in negative strand
+							pos = StringUtils.findAllOccurences(seq, kmerRC);
+						}
+						int dist = 0;
+						for (int p:pos){
+							dist = Math.max(Math.abs(p-perfectPos), dist);
+						}
+						dists.add(dist);
+					}
+					double sqareSum = 0;
+					for (int d:dists)
+						sqareSum+=d*d;
+					double sqareAvg = sqareSum/dists.size();
+					if (bestSqareAvg<sqareAvg){
+						bestSqareAvg=sqareAvg;
+						bestKmer = km;
+					}
+				}
+				seed = bestKmer;
+			}
+			else{
+				seed = kmers.get(0);
+			}
 			cluster.seedKmer = seed;
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
 			// align the containing sequences
