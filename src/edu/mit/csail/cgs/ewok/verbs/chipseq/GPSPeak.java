@@ -6,8 +6,10 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 public class GPSPeak extends Point{
 	double strength;
 	double controlStrength;
+	double expectedStrength;
 	double qvalue;
 	double pvalue;
+	double pois_pvalue;
 	double IPvsEMP;
 	double IPvsCTR;
 	private boolean jointEvent;		// 1 for joint event, 0 for unary, etc
@@ -58,6 +60,19 @@ public class GPSPeak extends Point{
 	}
 	
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
+			double ctrlStrength, double qvalue, double pvalue, double IPvsEMP){
+		super(g, chr.replaceFirst("chr", ""), pos);
+		this.strength = ipStrength;
+		this.controlStrength = ctrlStrength;
+		this.qvalue = qvalue;
+		this.pvalue = pvalue;
+		this.IPvsEMP = IPvsEMP;
+		this.IPvsCTR = 0;
+		this.EM_position = this;
+	}
+	// GPS output format 2010-11-10	
+	// Position	   IP	Control	   Fold	Q_-lg10	P_-lg10	IPvsEMP	IPvsCTR
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
 			double ctrlStrength, double qvalue, double pvalue, double IPvsEMP, double IPvsCTR){
 		super(g, chr.replaceFirst("chr", ""), pos);
 		this.strength = ipStrength;
@@ -68,6 +83,8 @@ public class GPSPeak extends Point{
 		this.IPvsCTR = IPvsCTR;
 		this.EM_position = this;
 	}
+	// GPS output format 2011-01-30	
+	// Position	     IP	Control	   Fold	Q_-lg10	P_-lg10	IPvsEMP	IPvsCTR	Kmer	KmerCount	KmerStrength	BoundSequence
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double ctrlStrength, 
 			double qvalue, double pvalue, double IPvsEMP, double IPvsCTR, 
 			String kmer, int kmerCount, double kmerStrength, String boundSequence){
@@ -84,20 +101,42 @@ public class GPSPeak extends Point{
 		this.kmerStrength = kmerStrength;
 		this.boundSequence = boundSequence;
 	}
-	
-	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
-			double ctrlStrength, double qvalue, double pvalue, double IPvsEMP){
+	// GPS output format 2011-07-25	
+	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double expectedStrength,
+			double ctrlStrength, double qvalue, double pvalue, double pois_pvalue, double IPvsEMP, double IPvsCTR){
 		super(g, chr.replaceFirst("chr", ""), pos);
 		this.strength = ipStrength;
 		this.controlStrength = ctrlStrength;
+		this.expectedStrength = expectedStrength;
 		this.qvalue = qvalue;
 		this.pvalue = pvalue;
+		this.pois_pvalue = pois_pvalue;
 		this.IPvsEMP = IPvsEMP;
-		this.IPvsCTR = 0;
+		this.IPvsCTR = IPvsCTR;
 		this.EM_position = this;
-	}	
+	}
+	// GPS output format 2011-07-25	
+	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	Kmer	Count	Strength	BoundSequence	EnrichedHGP
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double ctrlStrength, double expectedStrength,
+			double qvalue, double pvalue, double pois_pvalue, double IPvsEMP, double IPvsCTR, 
+			String kmer, int kmerCount, double kmerStrength, String boundSequence){
+		super(g, chr.replaceFirst("chr", ""), pos);
+		this.strength = ipStrength;
+		this.controlStrength = ctrlStrength;
+		this.expectedStrength = expectedStrength;
+		this.qvalue = qvalue;
+		this.pvalue = pvalue;
+		this.pois_pvalue = pois_pvalue;
+		this.IPvsEMP = IPvsEMP;
+		this.IPvsCTR = IPvsCTR;
+		this.EM_position = this;
+		this.kmer = kmer;
+		this.kmerCount = kmerCount;
+		this.kmerStrength = kmerStrength;
+		this.boundSequence = boundSequence;
+	}
 	
-
 	public boolean isJointEvent() {
 		return jointEvent;
 	}

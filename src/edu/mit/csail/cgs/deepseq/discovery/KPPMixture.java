@@ -793,8 +793,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					double secondLambda = computeLambda(compFeatures, i, c, config.second_lambda_region_width);					
 					double local_lambda = Math.max(secondLambda,  Math.max(thirdLambda, chrom_lambda));
 					ComponentFeature cf = compFeatures.get(i); 
-					if (!controlDataExist)
-						cf.setControlReadCounts(local_lambda, c);                        
+					cf.setExpectedCounts(local_lambda, c);                        
 					poisson.setMean(local_lambda);
 
                     int count = (int)Math.ceil(cf.getEventReadCounts(c));

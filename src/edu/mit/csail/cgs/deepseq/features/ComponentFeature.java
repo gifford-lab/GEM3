@@ -35,6 +35,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected double ipCtrl_logKL_minus[];
 	protected double shapeDeviation[];
 	protected double unScaledControlCounts[];
+	protected double expectedCounts[];
 	protected double p_values[];
 	protected double p_values_wo_ctrl[];
 	protected double q_value_log10[];
@@ -95,6 +96,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public double getTotalEventStrength(){return(totalSumResponsibility);}
 	public double getCondSumResponsibility(int cond){return condSumResponsibility[cond];}
 	public double[] getUnscaledControlCounts(){return(unScaledControlCounts);}
+	public double getExpectedCount(int cond){return(expectedCounts[cond]);}
 	public double getScaledControlCounts(int cond){
 		return unScaledControlCounts[cond]*non_specific_ratio[cond];
 	}
@@ -125,15 +127,20 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		ipCtrl_logKL_plus[cond] = logKL_plus;
 		ipCtrl_logKL_minus[cond] = logKL_minus;
 	}
-	/*
-	 * Set control read count for the specified condition
-	 * If no control, the local lambda for Poisson is stored here.
-	 */
+	/** Set control read count for the specified condition */
 	public void setControlReadCounts(double controlCount, int cond) {
 		if (unScaledControlCounts == null){
 			unScaledControlCounts = new double[numConditions];
 		}
 		unScaledControlCounts[cond] = controlCount;
+	}
+	
+	/** Set the local lambda (expected IP count) for Poisson test */
+	public void setExpectedCounts(double expectedCount, int cond) {
+		if (expectedCounts == null){
+			expectedCounts = new double[numConditions];
+		}
+		expectedCounts[cond] = expectedCount;
 	}
 	
 	public void setCondSignificance(int cond, boolean val) { condSignificance[cond] = val; }
@@ -404,6 +411,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         	}
         	header.append(name+"Control\t")
   		  		  .append(name+"   Fold\t")
+        	      .append(name+"Expectd\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
   	      		  .append(name+"P_poiss\t")
@@ -442,7 +450,12 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         			  .append(String.format("%7.1f\t", fold));
         	} else {
         		result.append("NaN\t").append("NaN\t");                
-            }        
+            }  
+        	if(expectedCounts!=null){
+        		result.append(String.format("%7.1f\t", getExpectedCount(c)));
+        	}else {
+        		result.append("NaN\t");                
+            }
         	double q_lg = getQValueLog10(c);
     		if (q_lg==Double.POSITIVE_INFINITY)
     			q_lg= 999;
