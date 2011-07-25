@@ -172,9 +172,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		return position.getChrom().equalsIgnoreCase(f.getPosition().getChrom());
 	}
 	
-	//Comparable default method
+	/** Comparable default method, sort by location*/
 	public int compareTo(ComponentFeature f) {
-//		return compareByAvgQValue(f);
 		return compareByLocation(f);
 	}
 	
@@ -278,7 +277,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public double getQValueLog10(int cond){
 		return q_value_log10[cond];
 	}
-	public void setPValue(double pValue, int cond){
+	public void setPValue_w_ctrl(double pValue, int cond){
 		p_values[cond] = pValue;
 	}
 	public void setPValue_wo_ctrl(double pValue, int cond){
@@ -436,11 +435,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		result.append(String.format("%7.1f\t", getEventReadCounts(c) ));
         	}
         	if(unScaledControlCounts!=null){
-        		double fold = 0;
-        		if (getScaledControlCounts(c)==0)
+        		double fold = getEventReadCounts(c)/getScaledControlCounts(c);
+        		if (fold>9999.9)
         			fold = 9999.9;
-        		else
-        			fold = getEventReadCounts(c)/getScaledControlCounts(c);
         		result.append(String.format("%7.1f\t", getScaledControlCounts(c)))
         			  .append(String.format("%7.1f\t", fold));
         	} else {

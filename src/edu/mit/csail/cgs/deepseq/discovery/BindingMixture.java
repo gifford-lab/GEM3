@@ -3941,7 +3941,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 					double pValueControl = 1, pValueUniform = 1, pValueBalance = 1, pValuePoisson = 1;
                     int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
                     if (ipCount==0){			// if one of the conditino does not have reads, set p-value=1
-                    	cf.setPValue(1, cond);
+                    	cf.setPValue_w_ctrl(1, cond);
                     	continue;
                     }
                     try{
@@ -3969,9 +3969,9 @@ public class BindingMixture extends MultiConditionFeatureFinder{
                         throw new RuntimeException(err.toString(), err);
                     }
                     if (testPValues)
-                    	cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+                    	cf.setPValue_w_ctrl(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
                     else
-                    	cf.setPValue(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
+                    	cf.setPValue_w_ctrl(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
 				}
 			}
 		} else {

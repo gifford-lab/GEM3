@@ -2216,7 +2216,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 					double pValueBalance = 1, pValuePoisson = 1;
                     int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
                     if (ipCount==0){			// if one of the conditino does not have reads, set p-value=1
-                    	cf.setPValue(1, cond);
+                    	cf.setPValue_w_ctrl(1, cond);
                     	continue;
                     }
                     try{
@@ -2235,9 +2235,9 @@ class GPSMixture extends MultiConditionFeatureFinder {
                         throw new RuntimeException(err.toString(), err);
                     }
                     if (config.testPValues)
-                    	cf.setPValue(Math.max(pValuePoisson,pValueBalance), cond);
+                    	cf.setPValue_w_ctrl(Math.max(pValuePoisson,pValueBalance), cond);
                     else
-                    	cf.setPValue(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
+                    	cf.setPValue_w_ctrl(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
 				}
 			}
 		} else {

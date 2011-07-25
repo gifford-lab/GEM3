@@ -739,7 +739,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					double pValueControl = 1, pValueUniform = 1, pValueBalance = 1, pValuePoisson = 1;
 	                int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
 	                if (ipCount==0){			// if one of the condition does not have reads, set p-value=1
-	                	cf.setPValue(1, cond);
+	                	cf.setPValue_w_ctrl(1, cond);
 	                	continue;
 	                }
 	                try{
@@ -770,13 +770,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                    throw new RuntimeException(err.toString(), err);
 	                }
 	                if (config.testPValues)
-	                	cf.setPValue(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+	                	cf.setPValue_w_ctrl(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
 	                else
-	                	cf.setPValue(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
+	                	cf.setPValue_w_ctrl(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
 				}
 			}
 		} 
 		/** compute possion p-value from IP only (similar to MACS) */
+		Collections.sort(compFeatures);				// sort by location
+		
 		createChromStats(compFeatures);
 		
 		Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
@@ -790,46 +792,24 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		ipStrandFivePrimes   = new ArrayList[2];
 		Arrays.fill(ipStrandFivePrimes, new ArrayList<StrandedBase>());
-//		ctrlStrandFivePrimes = new ArrayList[2];
-//		Arrays.fill(ctrlStrandFivePrimes, new ArrayList<StrandedBase>());
 		ipStrandFivePrimePos   = new int[2][];
-//		ctrlStrandFivePrimePos = new int[2][];
 		
 		for(String chrom:chrom_comp_pair.keySet()) {
 			int chromLen = gen.getChromLength(chrom);
 			for(int c = 0; c < numConditions; c++) {
-				
+				double chrom_lambda = ((double)condHitCounts.get(chrom).get(0).get(c))/chromLen*(modelRange*2+1);				
 				for(int i:chrom_comp_pair.get(chrom)) {
-					ComponentFeature cf = compFeatures.get(i);
-					Region expandedRegion = new Region(gen, chrom, Math.max(0, cf.getPosition().getLocation()-config.third_lambda_region_width), Math.min(chromLen-1, cf.getPosition().getLocation()+config.third_lambda_region_width));
-					ipStrandFivePrimes[0] = caches.get(c).car().getStrandedBases(expandedRegion, '+');
-					ipStrandFivePrimes[1] = caches.get(c).car().getStrandedBases(expandedRegion, '-');
-					
-//                    ctrlStrandFivePrimes = ipStrandFivePrimes.clone();
-					
-					for(int k = 0; k < ipStrandFivePrimes.length; k++) {	// + and - strands
-						ipStrandFivePrimePos[k]   = new int[ipStrandFivePrimes[k].size()];
-//						ctrlStrandFivePrimePos[k] = new int[ctrlStrandFivePrimes[k].size()];
-						for(int v = 0; v < ipStrandFivePrimePos[k].length; v++)
-							ipStrandFivePrimePos[k][v] = ipStrandFivePrimes[k].get(v).getCoordinate();
-//						for(int v = 0; v < ctrlStrandFivePrimePos[k].length; v++)
-//							ctrlStrandFivePrimePos[k][v] = ctrlStrandFivePrimes[k].get(v).getCoordinate();
-					}
-
-					double local_lambda = estimateLocalLambda(cf, c);
-					cf.setControlReadCounts(local_lambda, c);                        
-//					if (config.testPValues)
-//						poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / config.mappable_genome_length));
-//					else
+					double thirdLambda = computeLambda(compFeatures, i, c, config.third_lambda_region_width);
+					double secondLambda = computeLambda(compFeatures, i, c, config.second_lambda_region_width);					
+					double local_lambda = Math.max(secondLambda,  Math.max(thirdLambda, chrom_lambda));
+					ComponentFeature cf = compFeatures.get(i); 
+					if (!controlDataExist)
+						cf.setControlReadCounts(local_lambda, c);                        
 					poisson.setMean(local_lambda);
 
                     int count = (int)Math.ceil(cf.getEventReadCounts(c));
                     double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
-					cf.setPValue_wo_ctrl(pValue, c);						
-					for(int k = 0; k < ipStrandFivePrimes.length; k++) {
-						ipStrandFivePrimes[k].clear();
-//						ctrlStrandFivePrimes[k].clear();
-					}
+					cf.setPValue_wo_ctrl(pValue, c);
 				}//end of for(int i:chrom_comp_pair.get(chrom)) LOOP	
 			}				
 		}			
@@ -841,6 +821,45 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //		setQValueCutoff(compFeatures);
 	}//end of evaluateConfidence method
 
+	/** compute local lambda around event i, excluding nearby events */
+	private double computeLambda(List<ComponentFeature> compFeatures, int i, int c, int length){
+		ComponentFeature cf = compFeatures.get(i); 
+		Region expandedRegion = cf.getPosition().expand(length/2);
+		ArrayList<Region> peakRegions = new ArrayList<Region>();		// peaks in third_lambda_region
+		peakRegions.add(cf.getPosition().expand(modelRange));
+		int j=0;
+		while(true){
+			j++;
+			if (i+j==compFeatures.size())
+				break;
+			Region r = compFeatures.get(i+j).getPosition().expand(modelRange);
+			if (expandedRegion.overlaps(r))
+				peakRegions.add(r);
+			else
+				break;
+		}
+		j=0;
+		while(true){
+			j--;
+			if (i+j<0)
+				break;
+			Region r = compFeatures.get(i+j).getPosition().expand(modelRange);
+			if (expandedRegion.overlaps(r))
+				peakRegions.add(r);
+			else
+				break;
+		}
+		peakRegions = mergeRegions(peakRegions, false);
+		expandedRegion = expandedRegion.combine(peakRegions.get(0)).combine(peakRegions.get(peakRegions.size()-1));
+		double expandedCount = countIpReads(expandedRegion, c);
+		int expandedLength = expandedRegion.getWidth();
+		for (Region r:peakRegions){
+			expandedLength-=r.getWidth();
+			expandedCount-=countIpReads(r, c);
+		}
+		return expandedCount/expandedLength*(modelRange*2+1);
+	}
+	
 	private void setQValueCutoff(List<ComponentFeature>compFeatures) {
 		KmerCluster pCluster = null;
 		for (KmerCluster kc:clusters){
@@ -2733,15 +2752,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 			Region chromRegion = new Region(gen, chrom, 0, gen.getChromLength(chrom)-1);			
 			List<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP");
-//			List<List<StrandedBase>> ctrl_chrom_signals = new ArrayList<List<StrandedBase>>();
-//			if(controlDataExist) {
-//				ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL");
-//			}
-//			else {
-//				for(int t = 0; t < numConditions; t++)
-//					ctrl_chrom_signals.add(new ArrayList<StrandedBase>());
-//			}
-			
+	
 			int counts = 0;
 			// Read counts. List 0 for IP, List 1 for CTRL.
 			// Each List contains the read counts for each condition
@@ -2752,13 +2763,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				currChromCondCounts.get(0).add(currCondHitCounts);
 				counts += currCondHitCounts;
 			}
-
-//			if(controlDataExist) {
-//				for(List<StrandedBase> ctrl_chrom_signal_cond:ctrl_chrom_signals) {
-//					int currCondHitCounts = (int)StrandedBase.countBaseHits(ctrl_chrom_signal_cond);
-//					currChromCondCounts.get(1).add(currCondHitCounts);
-//				}
-//			}
 
 			totalIPCounts.put(chrom, counts);
 			condHitCounts.put(chrom, currChromCondCounts);
@@ -6057,7 +6061,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_win_f = 4;		// k_win = k_win_f * k
-        public int k_neg_dist = 500;// the distance of the nearest edge of negative region from binding sites 
+        public int k_neg_dist = 200;// the distance of the nearest edge of negative region from binding sites 
         public int k_negSeq_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
 //        public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
@@ -6086,7 +6090,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
-        public double q_refine = 1.5;
+        public double q_refine = -1;
         public double joint_event_distance = 500;
         public double alpha_factor = 3.0;
         public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
@@ -6103,8 +6107,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
         public int resolution_extend = 2;
         public int first_lambda_region_width  =  1000;
-        public int second_lambda_region_width =  10000;
-        public int third_lambda_region_width  = 20000;
+        public int second_lambda_region_width =  5000;
+        public int third_lambda_region_width  = 10000;
         public boolean use_dynamic_sparseness = true;
         public boolean use_betaEM = true;
         public boolean use_scanPeak  = true;
@@ -6192,6 +6196,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
             q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
             q_refine = Args.parseDouble(args, "q2", q_refine);	// q-value for refine regions
+            if (q_refine==-1)
+            	q_refine = q_value_threshold*0.75;
+            else{
+            	if (q_refine>q_value_threshold){
+            		System.err.println("q2>q");
+            		System.exit(-1);
+            	}
+            }
+            	
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
             alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
             fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
