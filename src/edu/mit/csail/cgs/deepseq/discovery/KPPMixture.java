@@ -463,24 +463,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// the results are put into compFeatures
         Thread[] threads = new Thread[maxThreads];
         log(1,String.format("Creating %d threads ...", maxThreads));
-//        int regionsPerThread = restrictRegions.size()/threads.length;
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         TreeSet<Region> regionsToRun = new TreeSet<Region>();
         regionsToRun.addAll(restrictRegions);
         for (int i = 0 ; i < threads.length; i++) {
-//            ArrayList<Region> threadRegions = new ArrayList<Region>();
-//            // evenly distributed with regions from all chrom, avoid certain chrom getting stuck with some dense regions
-//            for (int j=i;j<restrictRegions.size();j+=maxThreads){
-//            	threadRegions.add(restrictRegions.get(j));
-//            }
-//            int nextStartIndex = (i+1)*regionsPerThread;
-//            if (i==threads.length-1)		// last thread
-//            	nextStartIndex = restrictRegions.size();
-//            // get the regions as same chrom as possible, to minimize chrom sequence that each thread need to cache
-//            for (int j = i*regionsPerThread; j < nextStartIndex; j++) {
-//                threadRegions.add(restrictRegions.get(j));
-//            }
             Thread t = new Thread(new GPS2Thread(regionsToRun,
             									processRegionCount,
             									regionsRunning,
@@ -529,8 +516,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
         
         // print out the heavy regions
         if (!heavyRegions.isEmpty()){
+        	ArrayList<Region> rs = new ArrayList<Region>();
+        	rs.addAll(heavyRegions);
+        	Collections.sort(rs);
         	StringBuilder sb0 = new StringBuilder();
-        	for (Region r:heavyRegions)	
+        	for (Region r:rs)	
 	        	sb0.append(r.toString()).append("\n");
 	        CommonUtils.writeFile(outName+"_zzzzz_heavyRegions.txt", sb0.toString());
         }
@@ -642,8 +632,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 			for (int cond=0; cond<numConditions; cond++){
 				if(cf.getEventReadCounts(cond)>config.sparseness){	// first pass read count test
-					if (config.TF_binding){	// single event IP/ctrf only applies to TF
-						if (cf.getQValueLog10(cond)>config.q_value_threshold){
+					if (config.TF_binding){	// single event IP/ctrl only applies to TF
+						if (cf.getQValueLog10(cond)>=config.q_value_threshold){
 							significant = true;
 							break;
 						}
@@ -857,7 +847,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			expandedLength-=r.getWidth();
 			expandedCount-=countIpReads(r, c);
 		}
-		return expandedCount/expandedLength*(modelRange*2+1);
+		if (expandedCount==0||expandedLength==0)		// set to 0, so other local lambda will be picked instead
+			return 0;
+		else
+			return expandedCount/expandedLength*(modelRange*2+1);
 	}
 	
 	private void setQValueCutoff(List<ComponentFeature>compFeatures) {
