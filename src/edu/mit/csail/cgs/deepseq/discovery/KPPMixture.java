@@ -3862,7 +3862,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						sqareSum+=d*d;
 					double sqareAvg = sqareSum/dists.size();
 					if (config.bmverbose>1)
-						System.out.println(String.format("***** %s\tAverage square offset=%.1f",km.toShortString(), sqareAvg));
+						System.out.println(String.format("***** %s\tscore=%.1f",km.toShortString(), sqareAvg));
 					if (bestSqareAvg>sqareAvg){
 						bestSqareAvg=sqareAvg;
 						bestKmer = km;
