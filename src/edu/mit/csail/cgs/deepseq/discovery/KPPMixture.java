@@ -3837,8 +3837,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				
 				Kmer bestKmer=null;
-				double bestSqareAvg = Double.MAX_VALUE;
+				double bestScoreAvg = Double.MAX_VALUE;
 				int perfectPos = config.k_win/2-config.k/2;
+				double scoreXstrength = 0;
+				double score2Xstrength = 0;
+				double sum_strength = 0;
 				for (int i=0;i<leaders.size();i++){
 					Kmer km = leaders.get(i);
 					String kmerStr = km.getKmerString();
@@ -3855,16 +3858,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							dist = Math.max(Math.abs(p-perfectPos), dist);
 						}
 						dists.add(dist);
-					}
-					Collections.sort(dists);
-					double sqareSum = 0;
-					for (int d:dists)
-						sqareSum+=d*d;
-					double sqareAvg = sqareSum/dists.size();
+						double strength = config.use_event_strength?events.get(si).getTotalEventStrength():1;
+		    			scoreXstrength += strength*dist;		// score = dist, weighted by event strength
+		    			score2Xstrength += strength*dist*dist;		// score2 = dist*dist, weighted by event strength
+		        		sum_strength += strength;	
+		        	}
+					Integer[] dist_array = new Integer[dists.size()];
+					Double std = StatUtil.std(dists.toArray(dist_array));
+					double scoreAvg = scoreXstrength/sum_strength;
 					if (config.bmverbose>1)
-						System.out.println(String.format("***** %s\tscore=%.1f",km.toShortString(), sqareAvg));
-					if (bestSqareAvg>sqareAvg){
-						bestSqareAvg=sqareAvg;
+						System.out.println(String.format("***** %s\tscore=%.1f\tscore2=%.1f\tstd=%.1f",km.toShortString(), scoreAvg, score2Xstrength/sum_strength, std.doubleValue()));
+					if (bestScoreAvg>scoreAvg){
+						bestScoreAvg=scoreAvg;
 						bestKmer = km;
 					}
 				}
@@ -4204,7 +4209,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					continue;
 				if (config.print_aligned_seqs)
 					sb.append(CommonUtils.padding(-leftmost+pos, '.')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
-	 			double strength = config.use_strength?events.get(i).getTotalEventStrength():1;
+	 			double strength = config.use_event_strength?events.get(i).getTotalEventStrength():1;
     			sum_offsetXstrength += strength*(config.k_win/2+pos);		// BS_seed = BS_seq + seq_seed
         		sum_strength += strength;
 	    	}
@@ -4497,7 +4502,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (int i=0;i<passedSeqs.size();i++){
 			String s = passedSeqs.get(i);
 			int seqIdx = passedIdx.get(i);
-			double strength = config.use_strength?events.get(seqIdx).getTotalEventStrength():1;
+			double strength = config.use_event_strength?events.get(seqIdx).getTotalEventStrength():1;
     		for (int p=0;p<config.k_win+1;p++){
     			char base = s.charAt(p);
     			pfm[p][base] +=strength;
@@ -6041,7 +6046,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean sort_by_location=false;
         public boolean exclude_unenriched = false;
         public boolean dump_regression = false;
-        public boolean use_strength = false;
+        public boolean use_event_strength = false;
+        public boolean use_kmer_strength = false;
         public boolean print_kmer_bPos = false;
       	public int KL_smooth_width = 0;
         public int max_hit_per_bp = -1;
@@ -6132,7 +6138,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             	System.err.println("testP is " + testPValues);
             exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
-            use_strength = flags.contains("use_strength");
+            use_event_strength = flags.contains("use_event_strength");
+            use_kmer_strength = flags.contains("use_kmer_strength");
             kmer_print_hits = flags.contains("kmer_print_hits");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
@@ -6629,7 +6636,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		}
 
 	                		double kmerCountSum = 0;
-	                		if (config.use_strength)
+	                		if (config.use_kmer_strength)
 	                			kmerCountSum = m.getWeightedKmerStrength();
 	                		else
 	                			kmerCountSum = m.getWeightedKmerCount();
