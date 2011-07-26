@@ -4229,7 +4229,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					leftmost_km = km.getKmerStartOffset();
 			}	    	
 			for (Kmer km: alignedKmers){
-				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')+km.toShortString()+"\t"+km.getAlignString()+"\n");
+				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')
+						+km.getKmerString()+"\t"+km.getSeqHitCount()+"\t"+km.getNegCount()+"\t"+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
 			}
 			
 			/** store aligned kmers */

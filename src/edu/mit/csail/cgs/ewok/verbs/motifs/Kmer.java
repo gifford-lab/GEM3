@@ -102,21 +102,22 @@ public class Kmer implements Comparable<Kmer>{
 		return this.kmerString.equals(kmerString);
 	}
 	public String toString(){
-		return String.format("%s\t%d\t%d\t%d\t%.1f\t%.1f",kmerString, kmerStartOffset, seqHitCount, negCount, hgp_lg10, strength);
+		return String.format("%s/%s\t%d\t%d\t%d\t%.1f\t%.1f",kmerString,getKmerRC(),kmerStartOffset, seqHitCount, negCount, hgp_lg10, strength);
 	}
 
 	public static String toHeader(){
-		return "EnrichedKmer\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
+		return "EnrichedKmer/RC\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
 	}
 	public String toShortString(){
-		return kmerString+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hgp_lg10);
+		return kmerString+"/"+getKmerRC()+"\t"+seqHitCount+"\t"+negCount+"\t"+String.format("%.1f", hgp_lg10);
 	}
 	public static String toShortHeader(){
-		return "OverlappedKmer\tPosCt\tNegCt\tHGP_10";
+		return "OverlappedKmer/RC\tPosCt\tNegCt\tHGP_10";
 	}
 	public static Kmer fromString(String str){
 		String[] f = str.split("\t");
-		Kmer kmer = new Kmer(f[0], Integer.parseInt(f[2]));
+		String[] f0 = f[0].split("/");
+		Kmer kmer = new Kmer(f0[0], Integer.parseInt(f[2]));
 		kmer.kmerStartOffset = Integer.parseInt(f[1]);
 		kmer.negCount = Integer.parseInt(f[3]);
 		kmer.hgp_lg10 = Double.parseDouble(f[4]);
