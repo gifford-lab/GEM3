@@ -3733,7 +3733,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.clusterId = clusterID;
 			clusters.add(cluster);
 			if (config.bmverbose>1)
-				System.out.println("Aligning cluster #"+clusterID+",   n="+kmers.size());
+				System.out.println("Aligning cluster #"+clusterID+",   n="+kmers.size()+"\t"+CommonUtils.timeElapsed(tic));
 			// init posSeqs, so each new kmer cluter align with all the sequences 
 			for (int i=0;i<posSeqs.length;i++){
 				posSeqs[i] = UNALIGNED;
@@ -4123,7 +4123,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			    			}
 				    	}
 				    	if (config.bmverbose>1)
-				    		System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers.");
+				    		System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr.size()+" k-mers, "+CommonUtils.timeElapsed(tic));
 				    	if (count_pwm_aligned==0)
 				    		break;
 					}
@@ -4543,7 +4543,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	double pwmThresholdHGP = estimate.hgp;
 	    	int diff = estimate.posHit - estimate.negHit;
     		if (config.bmverbose>1)
-    			System.out.println(String.format("PWM %s match %d+/%d- events, hgp=1E%.1f, threshold %.2f/%.2f", WeightMatrix.getMaxLetters(wm), estimate.posHit, estimate.negHit, pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
+    			System.out.println(String.format("PWM %s match %d+/%d- events, hgp=1E%.1f, threshold %.2f/%.2f", 
+    					WeightMatrix.getMaxLetters(wm), estimate.posHit, estimate.negHit, pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
 //	    	if (pwmThreshold<wm.getMaxScore()/5){
 //	    		return -1;
 //	    	}
