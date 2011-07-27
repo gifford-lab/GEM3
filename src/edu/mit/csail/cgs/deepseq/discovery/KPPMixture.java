@@ -4040,7 +4040,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    	HashMap<String, ArrayList<Integer>> pwmKmerStr2seq = new HashMap<String, ArrayList<Integer>>();	// kmerString -> list of sequence ids
 				    	for (int i=0;i<posSeqs.length;i++){
 				    	  String seq = seqs[i];
-				    	  if (seq.length()<wm.length()-1)
+				    	  if (posSeqs[i] != UNALIGNED)
 				    		  continue;
 				    	      	  
 				          WeightMatrixScoreProfile profiler = scorer.execute(seq);
