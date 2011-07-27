@@ -43,6 +43,10 @@ public class WIGExporter {
 	private int winSize=20, winStep=20;
 	private int readLength=26, read5PrimeExt=0, read3PrimeExt=200;
 	private String outName="out";
+	private String trackName="out";
+	private String trackDesc="out";
+	private String trackColor="0,0,255";
+	private int trackYMax=-1;
 	private boolean dbconnected=false;
 	private int perBaseMax=10;
 	private boolean needlefiltering=false;
@@ -65,6 +69,10 @@ public class WIGExporter {
 					"\t--read3ext <3' extension>\n" +
 					"\t--pbmax <max read count per base>\n" +
 					"\t--winsize <window size/step in WIG file>\n" +
+					"\t--name <string to use as track name>\n" +
+					"\t--description <string to use as track description>\n" +
+					"\t--ylimit <default track y max>\n" +
+					"\t--color <R,G,B>\n" +
 					"\t--out <output file name>");
 			System.exit(1);
 		}
@@ -90,12 +98,16 @@ public class WIGExporter {
 		}
 		
 		outName = Args.parseString(args,"out",outName);
+		trackName = Args.parseString(args,"name",trackName);
+		trackDesc = Args.parseString(args,"description",trackDesc);
+		trackColor = Args.parseString(args,"color",trackColor);
 		read5PrimeExt = Args.parseInteger(args,"read5ext",read5PrimeExt);
 		read3PrimeExt = Args.parseInteger(args,"read3ext",read3PrimeExt);
 		readLength = Args.parseInteger(args,"readlen",readLength);
 		winSize = Args.parseInteger(args,"winsize",winSize);
 		perBaseMax = Args.parseInteger(args,"pbmax",perBaseMax);
 		if(ap.hasKey("pbmax")){needlefiltering=true;}
+		if(ap.hasKey("ylimit")){trackYMax=Args.parseInteger(args,"ylimit",-1);}
 	    winStep=winSize;
 	    		
 	    // Load the experiments
@@ -128,10 +140,16 @@ public class WIGExporter {
 			FileWriter fw = new FileWriter(outName+".wig");
 			
 			double basesDone=0, printStep=10000000,  numPrint=0;
+			if(trackName.equals("out"))
+				trackName=outName;
+			if(trackDesc.equals("out"))
+				trackDesc=outName;
 			
 			//Print the header
-			fw.write("track type=wiggle_0 name=\""+outName+"\" description=\""+outName+" summary\""+" visibility=full color=0,0,255 \n");
-			
+			fw.write("track type=wiggle_0 name=\""+trackName+"\" description=\""+trackDesc+" summary\""+" visibility=full color="+trackColor+" ");
+			if(trackYMax >0)
+				fw.write("autoScale=off viewLimits=0:"+trackYMax+" ");
+			fw.write("\n");
 			       			
 			ChromRegionIterator chroms = new ChromRegionIterator(gen);
 			while(chroms.hasNext()){
