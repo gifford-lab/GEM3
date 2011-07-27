@@ -3837,7 +3837,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				
 				Kmer bestKmer=null;
-				double bestScoreAvg = Double.MAX_VALUE;
+				double bestScore = Double.MAX_VALUE;
 				int perfectPos = config.k_win/2-config.k/2;
 				double scoreXstrength = 0;
 				double score2Xstrength = 0;
@@ -3856,9 +3856,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						int dist = 0;
 						for (int p:pos){
 							dist = Math.max(Math.abs(p-perfectPos), dist);
-						}
-						dists.add(dist);
+						}						
 						double strength = config.use_event_strength?events.get(si).getTotalEventStrength():1;
+						for (int j=0;j<strength;j++)
+							dists.add(dist);
 		    			scoreXstrength += strength*dist;		// score = dist, weighted by event strength
 		    			score2Xstrength += strength*dist*dist;		// score2 = dist*dist, weighted by event strength
 		        		sum_strength += strength;	
@@ -3867,9 +3868,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					Double std = StatUtil.std(dists.toArray(dist_array));
 					double scoreAvg = scoreXstrength/sum_strength;
 					if (config.bmverbose>1)
-						System.out.println(String.format("***** %s\tscore=%.1f\tscore2=%.1f\tstd=%.1f",km.toShortString(), scoreAvg, score2Xstrength/sum_strength, std.doubleValue()));
-					if (bestScoreAvg>scoreAvg){
-						bestScoreAvg=scoreAvg;
+						System.out.println(String.format("***** %s\tscore=%.2f\tscore2=%.2f\tstd=%.2f",km.toShortString(), scoreAvg, score2Xstrength/sum_strength, std.doubleValue()));
+					if (bestScore>std){
+						bestScore=std;
 						bestKmer = km;
 					}
 				}

@@ -417,7 +417,7 @@ public class KmerEngine {
 				SearchResult result = (SearchResult) searcher.next();
 				idxs.addAll(result.getOutputs());
 			}
-			int kmerSum = 0;
+			double kmerSum = 0;
 			for (int idx:idxs){
 				kmerSum += kmers.get(idx).getSeqHitCount();
 			}
