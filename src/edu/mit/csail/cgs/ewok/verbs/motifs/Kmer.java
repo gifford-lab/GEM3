@@ -11,8 +11,6 @@ import java.util.HashSet;
 import java.util.List;
 
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class Kmer implements Comparable<Kmer>{
@@ -24,20 +22,22 @@ public class Kmer implements Comparable<Kmer>{
 	public int getK(){return k;}
 	
 	HashSet<Integer> posHits = new HashSet<Integer>();
-	int posHitCount; //one hit at most for one sequence, to avoid simple repeat
-	public int getPosHitCount() {return posHitCount;}
+//	int posHitCount; //one hit at most for one sequence, to avoid simple repeat
+	public int getPosHitCount() {return posHits.size();}
 	public void setPosHits(HashSet<Integer> posHits) {
 		this.posHits = posHits;
-		posHitCount = posHits.size();
+//		posHitCount = posHits.size();
 	}
+	public HashSet<Integer> getPosHits(){return posHits;}
 	
-	int negHitCount;
+//	int negHitCount;
 	HashSet<Integer> negHits = new HashSet<Integer>();
-	public int getNegHitCount() {return negHitCount;}
+	public int getNegHitCount() {return negHits.size();}
 	public void setNegHits(HashSet<Integer> negHits) {
 		this.negHits = negHits;
-		negHitCount = negHits.size();
+//		negHitCount = negHits.size();
 	}
+	public HashSet<Integer> getNegHits(){return negHits;}
 	
 	double strength;	// the total read counts from all events explained by this kmer
 	public double getStrength(){return strength;}
@@ -70,17 +70,17 @@ public class Kmer implements Comparable<Kmer>{
 	/** Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
 	public void setKmerStartOffset(int s){kmerStartOffset=s;}
 	
-	public Kmer(String kmerStr, int hitCount){
+	public Kmer(String kmerStr, HashSet<Integer> posHits ){
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
-		this.posHitCount = hitCount;
+		setPosHits(posHits);
 	}
 	
 	public Kmer clone(){
-		Kmer n = new Kmer(getKmerString(), getPosHitCount());
+		Kmer n = new Kmer(getKmerString(), (HashSet<Integer>)posHits.clone());
 		n.strength = strength;
 		n.shift = shift;
-		n.negHitCount = negHitCount;
+		n.negHits = (HashSet<Integer>)negHits.clone();
 		n.hgp_lg10 = hgp_lg10;
 		n.alignString = alignString;
 		n.kmerStartOffset = kmerStartOffset;
@@ -103,21 +103,21 @@ public class Kmer implements Comparable<Kmer>{
 	}	
 	// default, sort kmer by seqHitCount
 	public int compareTo(Kmer o) {
-		double diff = o.posHitCount-posHitCount;
+		double diff = o.getPosHitCount()-getPosHitCount();
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
 	}
 	public boolean hasString(String kmerString){
 		return this.kmerString.equals(kmerString);
 	}
 	public String toString(){
-		return String.format("%s/%s\t%d\t%d\t%d\t%.1f\t%.1f",kmerString,getKmerRC(),kmerStartOffset, posHitCount, negHitCount, hgp_lg10, strength);
+		return String.format("%s/%s\t%d\t%d\t%d\t%.1f\t%.1f",kmerString,getKmerRC(),kmerStartOffset, getPosHitCount(), getNegHitCount(), hgp_lg10, strength);
 	}
 
 	public static String toHeader(){
 		return "EnrichedKmer/RC\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
 	}
 	public String toShortString(){
-		return kmerString+"/"+getKmerRC()+"\t"+posHitCount+"\t"+negHitCount+"\t"+String.format("%.1f", hgp_lg10);
+		return kmerString+"/"+getKmerRC()+"\t"+getPosHitCount()+"\t"+getNegHitCount()+"\t"+String.format("%.1f", hgp_lg10);
 	}
 	public static String toShortHeader(){
 		return "OverlappedKmer/RC\tPosCt\tNegCt\tHGP_10";
@@ -125,21 +125,24 @@ public class Kmer implements Comparable<Kmer>{
 	public static Kmer fromString(String str){
 		String[] f = str.split("\t");
 		String[] f0 = f[0].split("/");
-		Kmer kmer = new Kmer(f0[0], Integer.parseInt(f[2]));
+		Kmer kmer = new Kmer(f0[0], null);		//TODO: need to read seqIds from file
 		kmer.kmerStartOffset = Integer.parseInt(f[1]);
-		kmer.negHitCount = Integer.parseInt(f[3]);
+//		kmer.negHitCount = Integer.parseInt(f[3]);	//TODO: negative hits also
 		kmer.hgp_lg10 = Double.parseDouble(f[4]);
 		kmer.strength = Double.parseDouble(f[5]);
 
 		return kmer;
 	}
 
-	public void incrSeqHitCount() {
-		posHitCount++;
-	}
+//	public void incrSeqHitCount() {
+//		posHitCount++;
+//	}
 	public void mergeKmer(Kmer newKmer){
 		if (kmerString.equals(newKmer.kmerString)){
-			posHitCount += newKmer.posHitCount;
+			posHits.addAll(newKmer.posHits);
+			negHits.addAll(newKmer.negHits);
+//			posHitCount = posHits.size();
+//			negHitCount = negHits.size();
 			strength += newKmer.strength;
 		}
 	}

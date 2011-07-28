@@ -134,7 +134,7 @@ public class KmerEngine {
 		// collect pos/neg test sequences based on event positions
 		loadTestSequences(events, winSize);
 		
-		HashMap<String, Integer> map = new HashMap<String, Integer>();
+		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<seqs.length;seqId++){
 			String seq = seqs[seqId];
 			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
@@ -144,46 +144,44 @@ public class KmerEngine {
 				uniqueKmers.add(seq.substring(i, i+k));
 			}
 			for (String s: uniqueKmers){
-				if (map.containsKey(s)){
-					 map.put(s, (map.get(s)+1));
+				if (!kmerstr2seqs.containsKey(s)){
+					 kmerstr2seqs.put(s, new HashSet<Integer>());
 				}
-				else{
-					 map.put(s, 1);
-				}
+				kmerstr2seqs.get(s).add(seqId);
 			}
 		}
 		
 		// Merge kmer and its reverse compliment (RC)	
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
 		ArrayList<String> kmerStrings = new ArrayList<String>();
-		kmerStrings.addAll(map.keySet());
+		kmerStrings.addAll(kmerstr2seqs.keySet());
 		
 		// create kmers from its and RC's counts
 		for (String key:kmerStrings){
-			if (!map.containsKey(key))		// this kmer has been removed, represented by RC
+			if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
 				continue;
 			// consolidate kmer and its reverseComplment kmer
 			String key_rc = SequenceUtils.reverseComplement(key);				
 			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
-				if (map.containsKey(key_rc)){
-					int kCount = map.get(key);
-					int rcCount = map.get(key_rc);
+				if (kmerstr2seqs.containsKey(key_rc)){
+					int kCount = kmerstr2seqs.get(key).size();
+					int rcCount = kmerstr2seqs.get(key_rc).size();
 					String winner = kCount>=rcCount?key:key_rc;
 					String loser = kCount>=rcCount?key_rc:key;
-					map.put(winner, kCount+rcCount);	// winner take all
-					map.remove(loser);					// remove the loser kmer because it is represented by its RC
+					kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner take all
+					kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
 				}
 			}
 		}
 
 		// create the kmer object
-		for (String key:map.keySet()){	
-			if (map.get(key)< Math.max(expectedCount, minHitCount))
+		for (String key:kmerstr2seqs.keySet()){	
+			if (kmerstr2seqs.get(key).size()< Math.max(expectedCount, minHitCount))
 				continue;	// skip low count kmers 
-			Kmer kmer = new Kmer(key, map.get(key));
+			Kmer kmer = new Kmer(key, kmerstr2seqs.get(key));
 			kms.add(kmer);
 		}
-		map=null;
+		kmerstr2seqs=null;
 		System.gc();
 		System.out.println("k="+k+", mapped "+kms.size()+" k-mers, "+CommonUtils.timeElapsed(tic));
 		
@@ -202,8 +200,9 @@ public class KmerEngine {
 		tmp.prepare();
 		
 		// count hits in the negative sequences
-		HashMap<String, Integer> negHitCounts = new HashMap<String, Integer>();
-		for (String seq: seqsNegList){
+		HashMap<String, HashSet<Integer>> kmerstr2negSeqs = new HashMap<String, HashSet<Integer>>();
+		for (int negSeqId=0; negSeqId<seqsNegList.size();negSeqId++){
+			String seq = seqsNegList.get(negSeqId);
 			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
 			Iterator searcher = tmp.search(seq.getBytes());
 			while (searcher.hasNext()) {
@@ -218,10 +217,9 @@ public class KmerEngine {
 			}
 			for (Object o: kmerHits){
 				String kmer = (String) o;
-				if (negHitCounts.containsKey(kmer))
-					negHitCounts.put(kmer, negHitCounts.get(kmer)+1);
-				else
-					negHitCounts.put(kmer, 1);
+				if (!kmerstr2negSeqs.containsKey(kmer))					
+					kmerstr2negSeqs.put(kmer, new HashSet<Integer>());
+				kmerstr2negSeqs.get(kmer).add(negSeqId);
 			}
 		}
 		
@@ -232,18 +230,18 @@ public class KmerEngine {
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
 		for (Kmer kmer:kms){
-			if (kmer.posHitCount<=1){
+			if (kmer.getPosHitCount()<=1){
 				toRemove.add(kmer);	
 				continue;
 			}
-			if (negHitCounts.containsKey(kmer.kmerString)){
-				kmer.negHitCount = negHitCounts.get(kmer.kmerString);
+			if (kmerstr2negSeqs.containsKey(kmer.kmerString)){
+				kmer.setNegHits(kmerstr2negSeqs.get(kmer.kmerString));
 			}
-			if (kmer.posHitCount < kmer.negHitCount/get_NP_ratio() * k_fold ){
+			if (kmer.getPosHitCount() < kmer.getNegHitCount()/get_NP_ratio() * k_fold ){
 				highHgpKmers.add(kmer);	
 				continue;
 			}
-			kmer.hgp_lg10 = computeHGP(posSeq, negSeq, kmer.posHitCount, kmer.negHitCount);
+			kmer.hgp_lg10 = computeHGP(posSeq, negSeq, kmer.getPosHitCount(), kmer.getNegHitCount());
 			if (kmer.hgp_lg10>hgp)
 				highHgpKmers.add(kmer);		
 		}
@@ -406,9 +404,13 @@ public class KmerEngine {
 			tree.add(SequenceUtils.reverseComplement(kmStr).getBytes(), i);
 	    }
 	    tree.prepare();
-	    int[] posHitCount = new int[kmers.size()];
-	    int[] negHitCount = new int[kmers.size()];
-	    double[] kmerStrength = new double[kmers.size()];
+	    ArrayList<HashSet<Integer>> posHits = new ArrayList<HashSet<Integer>>(kmers.size());
+	    for (HashSet<Integer> seqs:posHits)
+	    	seqs = new HashSet<Integer>();
+	    ArrayList<HashSet<Integer>> negHits = new ArrayList<HashSet<Integer>>(kmers.size());
+	    for (HashSet<Integer> seqs:negHits)
+	    	seqs = new HashSet<Integer>();
+//	    double[] kmerStrength = new double[kmers.size()];		// TODO: ignore kmer Strength for now
 	    for (int i=0;i<seqs.length;i++){
 	    	String seq = seqs[i];
 			Iterator searcher = tree.search(seq.getBytes());
@@ -418,15 +420,16 @@ public class KmerEngine {
 				idxs.addAll(result.getOutputs());
 			}
 			double kmerSum = 0;
+//			for (int idx:idxs){
+//				kmerSum += kmers.get(idx).getPosHitCount();
+//			}
 			for (int idx:idxs){
-				kmerSum += kmers.get(idx).getPosHitCount();
-			}
-			for (int idx:idxs){
-				posHitCount[idx]++;
-				kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getPosHitCount()/kmerSum*events.get(i).getTotalEventStrength();
+				posHits.get(idx).add(i);
+//				kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getPosHitCount()/kmerSum*events.get(i).getTotalEventStrength();
 			}
 	    }
-	    for (String seq: seqsNegList){
+	    for (int i=0;i<seqsNegList.size();i++){
+	    	String seq = seqsNegList.get(i);
 			Iterator searcher = tree.search(seq.getBytes());
 			HashSet<Integer> idxs = new HashSet<Integer>();
 			while (searcher.hasNext()) {
@@ -434,14 +437,14 @@ public class KmerEngine {
 				idxs.addAll(result.getOutputs());
 			}
 			for (int idx:idxs)
-				negHitCount[idx]++;
+				negHits.get(idx).add(i);
 	    }
 	    for (int i=0;i<kmers.size();i++){
 	    	Kmer km = kmers.get(i);
-	    	km.setSeqHitCount(posHitCount[i]);
-	    	km.setNegCount(negHitCount[i]);
-			km.setHgp( updateHGP(posHitCount[i], negHitCount[i]));
-			km.setStrength(kmerStrength[i]);
+	    	km.setPosHits(posHits.get(i));
+	    	km.setNegHits(negHits.get(i));
+			km.setHgp( updateHGP(km.getPosHitCount(), km.getNegHitCount()));
+//			km.setStrength(kmerStrength[i]);
 	    }
 	}
 	
@@ -714,31 +717,30 @@ public class KmerEngine {
 	}
 
 	/**
-	 * This KmerMatch class is used for recording kmer instances in sequences in the conventional motif finding setting
-	 * @author yuchun
-	 */
-	class KmerMatch {
-		int seqId;			// sequence id in the dataset
-		int pos;			// position in the se
-		int isMinus;		// the kmer is on positive strand (0), or negative strand (1). use int (not boolean) for iteration.
-		KmerMatch(int seqId, int pos, int isMinus){
-			this.seqId = seqId;
-			this.pos = pos;
-			this.isMinus = isMinus;
-		}
-	}
-	
-	/**
-	 * This KmerMatches class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
+	 * This KmerGroup class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
 	 * @author yuchun
 	 */
 	public class KmerGroup {
 		ArrayList<Kmer> kmers;
 		int bs = 999;
+		int posHitGroupCount;
+		int posNegGroupCount;
 		public KmerGroup(ArrayList<Kmer> kmers, int bs){
 			this.bs = bs;
 			this.kmers = kmers;
 			Collections.sort(this.kmers);
+			
+    		HashSet<Integer> allPosHits = new HashSet<Integer>();
+    		for (int i=0;i<kmers.size();i++){
+        		allPosHits.addAll(kmers.get(i).getPosHits());
+    		}
+    		posHitGroupCount = allPosHits.size();
+    		
+    		HashSet<Integer> allNegHits = new HashSet<Integer>();
+    		for (int i=0;i<kmers.size();i++){
+        		allNegHits.addAll(kmers.get(i).getNegHits());
+    		}
+    		posNegGroupCount = allNegHits.size();
 		}
 		public ArrayList<Kmer> getKmers(){
 			return kmers;
@@ -746,22 +748,16 @@ public class KmerEngine {
 		public Kmer getBestKmer(){
 			return kmers.get(0);
 		}
-		public int getTotalKmerCount(){
-    		int kmerCountSum = 0;
-    		for (Kmer kmer:kmers){
-        		kmerCountSum+=kmer.getPosHitCount();	
-    		}
-    		return kmerCountSum;
-		}
-		/** Get the weighted kmer count<cr>
-		 *  The weight is 1 for top kmer, 1/k for other kmer */
-		public int getWeightedKmerCount(){
-    		float kmerCountSum = kmers.get(0).getPosHitCount();
-    		float k = kmers.get(0).k;
-    		for (int i=1;i<kmers.size();i++){
-        		kmerCountSum+=kmers.get(i).getPosHitCount()/k;	
-    		}
-    		return Math.round(kmerCountSum);
+//		public int getTotalKmerCount(){
+//    		int kmerCountSum = 0;
+//    		for (Kmer kmer:kmers){
+//        		kmerCountSum+=kmer.getPosHitCount();	
+//    		}
+//    		return kmerCountSum;
+//		}
+		/** Get the number of sequences hit by any kmer in the group */
+		public int getGroupHitCount(){
+			return posHitGroupCount;
 		}
 		public double getTotalKmerStrength(){
     		double total = 0;
@@ -785,6 +781,7 @@ public class KmerEngine {
 			return bs;
 		}
 	}
+	
 	public static void main0(String[] args){
 		Genome g = null;
 		ArgParser ap = new ArgParser(args);
