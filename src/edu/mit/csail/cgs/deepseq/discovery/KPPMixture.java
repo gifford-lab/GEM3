@@ -807,7 +807,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		benjaminiHochbergCorrection(compFeatures);
 		
 		// find q-value cutoff by k-mer occurence
-//		setQValueCutoff(compFeatures);
+		setQValueCutoff(compFeatures);
 	}//end of evaluateConfidence method
 
 	/** compute local lambda around event i, excluding nearby events */
@@ -872,21 +872,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		WeightMatrixScorer scorer = new WeightMatrixScorer(pCluster.wm);
 		for (int i=0;i<seqs.length;i++){
-			boolean isHit = scorer.getMaxSeqScore(pCluster.wm, seqs[i])>=pCluster.pwmThreshold;
-			int inc = (isHit)?1:0;
-			if (i==0)
-				motifHitCount[0] = inc;
-			else
-				motifHitCount[i] = inc + motifHitCount[i-1];
+			double score = scorer.getMaxSeqScore(pCluster.wm, seqs[i]);
+			compFeatures.get(i).setEnrichedKmerHGPLog10(score);
+//			boolean isHit = score>=pCluster.pwmThreshold;
+//			int inc = (isHit)?1:0;
+//			if (i==0)
+//				motifHitCount[0] = inc;
+//			else
+//				motifHitCount[i] = inc + motifHitCount[i-1];
 		}
-		StringBuilder sb = new StringBuilder();
-		for (int i=0;i<N-1;i++){
-			int negHit = motifHitCount[N-1]-motifHitCount[i];
-			double hgp_log10 = kEngine.computeHGP(i+1, N-i-1, motifHitCount[i], negHit);
-			compFeatures.get(i).setEnrichedKmerHGPLog10(hgp_log10);
-			sb.append(String.format("%s\t%d\t%d\t%d\t%d\t%.1f\n", compFeatures.get(i).getPeak().toString(), i+1, N-i-1, motifHitCount[i], negHit, hgp_log10));
-		}	
-		CommonUtils.writeFile(outName+"_q_cutoff.txt", sb.toString());
+//		StringBuilder sb = new StringBuilder();
+//		for (int i=0;i<N-1;i++){
+//			int negHit = motifHitCount[N-1]-motifHitCount[i];
+//			double hgp_log10 = kEngine.computeHGP(i+1, N-i-1, motifHitCount[i], negHit);
+//			compFeatures.get(i).setEnrichedKmerHGPLog10(hgp_log10);
+//			sb.append(String.format("%s\t%d\t%d\t%d\t%d\t%.1f\n", compFeatures.get(i).getPeak().toString(), i+1, N-i-1, motifHitCount[i], negHit, hgp_log10));
+//		}	
+//		CommonUtils.writeFile(outName+"_q_cutoff.txt", sb.toString());
 	}
 	
 	private void setQValueCutoff_old(List<ComponentFeature>compFeatures) {
@@ -4030,7 +4032,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					if (posSeqs[i] != UNALIGNED)
 						alignedSeqCount++;
 				}
-				if (alignedSeqCount>=config.kmer_cluster_seq_count){
+				if (alignedSeqCount>=config.kmer_cluster_seq_count && cluster.buildNewPWM){
 					int leftIdx = buildPWM(posSeqs, isPlusStrands, events, seqs, cluster);
 					if (leftIdx != -1){				    	
 			    		WeightMatrix wm = cluster.wm;
@@ -4545,11 +4547,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			// if very close, also consider #Seq that PWM is built from
     			if (Math.abs(pwmThresholdHGP-cluster.pwmThresholdHGP)<Math.abs(cluster.pwmThresholdHGP)/100){		
     				if( cluster.pwmThresholdHGP*cluster.pwmHitDiff<pwmThresholdHGP*diff){		// 
+    			    	cluster.buildNewPWM = false;			// tried build PWM once, failed, do not build any more
 	    				return -1;
 	    			}
     			}
     			else{
 	    			if( cluster.pwmThresholdHGP<pwmThresholdHGP){		// previous pwm is more enriched, stop here
+    			    	cluster.buildNewPWM = false;
 	    				return -1;
 	    			}
     			}
@@ -4562,6 +4566,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			}
 	    	}
 	    	cluster.wm = wm;
+	    	cluster.buildNewPWM = true;
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
 	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
 	    	cluster.pwmThreshold = pwmThreshold;
@@ -4827,6 +4832,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		Kmer seedKmer;
 		String pfmString="";
 		WeightMatrix wm;
+		boolean buildNewPWM = true;						// whether or not to build new PWM
 		double pwmThreshold;
 		double pwmThresholdHGP;
 		int pwmHitDiff;
@@ -4845,6 +4851,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.seedKmer = this.seedKmer;
 			cluster.pfmString = this.pfmString;
 			cluster.wm = this.wm;
+			cluster.buildNewPWM = this.buildNewPWM;
 			cluster.pwmThreshold = this.pwmThreshold;
 			cluster.pwmThresholdHGP = this.pwmThresholdHGP;
 			cluster.pwmHitDiff = this.pwmHitDiff;

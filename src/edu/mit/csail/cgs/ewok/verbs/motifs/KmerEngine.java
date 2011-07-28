@@ -405,11 +405,11 @@ public class KmerEngine {
 	    }
 	    tree.prepare();
 	    ArrayList<HashSet<Integer>> posHits = new ArrayList<HashSet<Integer>>(kmers.size());
-	    for (HashSet<Integer> seqs:posHits)
-	    	seqs = new HashSet<Integer>();
+	    for (int i=0;i<kmers.size();i++)
+	    	posHits.add(new HashSet<Integer>());
 	    ArrayList<HashSet<Integer>> negHits = new ArrayList<HashSet<Integer>>(kmers.size());
-	    for (HashSet<Integer> seqs:negHits)
-	    	seqs = new HashSet<Integer>();
+	    for (int i=0;i<kmers.size();i++)
+	    	negHits.add(new HashSet<Integer>());
 //	    double[] kmerStrength = new double[kmers.size()];		// TODO: ignore kmer Strength for now
 	    for (int i=0;i<seqs.length;i++){
 	    	String seq = seqs[i];
