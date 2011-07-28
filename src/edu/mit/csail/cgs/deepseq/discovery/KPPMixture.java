@@ -3781,7 +3781,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (Kmer km:kmers){
 				if (kmer2seq.containsKey(km)){
 					km.setSeqHitCount(kmer2seq.get(km).size());
-					km.setHgp(kEngine.updateHGP(km.getSeqHitCount(), km.getNegCount()));
+					km.setHgp(kEngine.updateHGP(km.getPosHitCount(), km.getNegHitCount()));
 				}
 				else{
 					zeroCount.add(km);
@@ -3921,7 +3921,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					}
 					
 					// find the most frequent kmerPos
-					if (posKmer.size()>km.getSeqHitCount()/2){		// the kmer positions aligned must be at least half of total kmer count
+					if (posKmer.size()>km.getPosHitCount()/2){		// the kmer positions aligned must be at least half of total kmer count
 						Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
 						int counts[] = sorted.cdr();
 						int posSorted[] = sorted.car();
@@ -3993,7 +3993,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						String seq = km.getKmerString();
 						for (Kmer akm: aligned_new){
 //							if (Math.abs(akm.getShift())>config.k/2)		// the mismatch must be proximal to seed kmer
-							if (km.getSeqHitCount() > akm.getSeqHitCount())		// the mismatch kmer should have less count than the reference kmer, avoiding a bad weak kmer misguiding a strong kmer
+							if (km.getPosHitCount() > akm.getPosHitCount())		// the mismatch kmer should have less count than the reference kmer, avoiding a bad weak kmer misguiding a strong kmer
 								continue;
 							if (this.mismatch(akm.getKmerString(), seq)==1){
 								km.setShift(akm.getShift());
@@ -4231,7 +4231,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}	    	
 			for (Kmer km: alignedKmers){
 				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')
-						+km.getKmerString()+"\t"+km.getSeqHitCount()+"\t"+km.getNegCount()+"\t"+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
+						+km.getKmerString()+"\t"+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
 			}
 			
 			/** store aligned kmers */
@@ -4360,12 +4360,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
 		double ratio = kEngine.get_NP_ratio();
 		for (Kmer km:kmers){
-			if (km.getSeqHitCount() < km.getNegCount()/ratio * config.k_fold ){
+			if (km.getPosHitCount() < km.getNegHitCount()/ratio * config.k_fold ){
 				highHgpKmers.add(km);	
 				continue;
 			}
 			// (posHit<=7,6,5 negHit=0,1) or (posHit<=4,3,2,1 negHit=0) will pass, although its hgp is high
-			if (relaxWeakKmer && km.getSeqHitCount()<7)	
+			if (relaxWeakKmer && km.getPosHitCount()<7)	
 				continue;
 			if (km.getHgp()>config.hgp )
 				highHgpKmers.add(km);	

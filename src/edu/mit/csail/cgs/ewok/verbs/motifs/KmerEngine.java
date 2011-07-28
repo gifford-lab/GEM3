@@ -232,18 +232,18 @@ public class KmerEngine {
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
 		for (Kmer kmer:kms){
-			if (kmer.seqHitCount<=1){
+			if (kmer.posHitCount<=1){
 				toRemove.add(kmer);	
 				continue;
 			}
 			if (negHitCounts.containsKey(kmer.kmerString)){
-				kmer.negCount = negHitCounts.get(kmer.kmerString);
+				kmer.negHitCount = negHitCounts.get(kmer.kmerString);
 			}
-			if (kmer.seqHitCount < kmer.negCount/get_NP_ratio() * k_fold ){
+			if (kmer.posHitCount < kmer.negHitCount/get_NP_ratio() * k_fold ){
 				highHgpKmers.add(kmer);	
 				continue;
 			}
-			kmer.hgp_lg10 = computeHGP(posSeq, negSeq, kmer.seqHitCount, kmer.negCount);
+			kmer.hgp_lg10 = computeHGP(posSeq, negSeq, kmer.posHitCount, kmer.negHitCount);
 			if (kmer.hgp_lg10>hgp)
 				highHgpKmers.add(kmer);		
 		}
@@ -419,11 +419,11 @@ public class KmerEngine {
 			}
 			double kmerSum = 0;
 			for (int idx:idxs){
-				kmerSum += kmers.get(idx).getSeqHitCount();
+				kmerSum += kmers.get(idx).getPosHitCount();
 			}
 			for (int idx:idxs){
 				posHitCount[idx]++;
-				kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getSeqHitCount()/kmerSum*events.get(i).getTotalEventStrength();
+				kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getPosHitCount()/kmerSum*events.get(i).getTotalEventStrength();
 			}
 	    }
 	    for (String seq: seqsNegList){
@@ -749,17 +749,17 @@ public class KmerEngine {
 		public int getTotalKmerCount(){
     		int kmerCountSum = 0;
     		for (Kmer kmer:kmers){
-        		kmerCountSum+=kmer.getSeqHitCount();	
+        		kmerCountSum+=kmer.getPosHitCount();	
     		}
     		return kmerCountSum;
 		}
 		/** Get the weighted kmer count<cr>
 		 *  The weight is 1 for top kmer, 1/k for other kmer */
 		public int getWeightedKmerCount(){
-    		float kmerCountSum = kmers.get(0).getSeqHitCount();
+    		float kmerCountSum = kmers.get(0).getPosHitCount();
     		float k = kmers.get(0).k;
     		for (int i=1;i<kmers.size();i++){
-        		kmerCountSum+=kmers.get(i).getSeqHitCount()/k;	
+        		kmerCountSum+=kmers.get(i).getPosHitCount()/k;	
     		}
     		return Math.round(kmerCountSum);
 		}
@@ -767,7 +767,7 @@ public class KmerEngine {
     		double total = 0;
     		for (Kmer kmer:kmers){
     			// on first kpp round, kmers do not have strength value, use count here
-    			total+=kmer.getStrength()>1?kmer.getStrength():kmer.getSeqHitCount();	
+    			total+=kmer.getStrength()>1?kmer.getStrength():kmer.getPosHitCount();	
     		}
     		return total;
 		}	
