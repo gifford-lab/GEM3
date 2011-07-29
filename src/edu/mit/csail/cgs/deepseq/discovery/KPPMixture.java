@@ -147,6 +147,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	/** Kmer motif engine
 	 **/
 	private KmerEngine kEngine;
+	private Kmer bestSeed = null;
 	private boolean kmerPreDefined = false;
 	/** motif clusters */
 	ArrayList<KmerCluster> clusters = new ArrayList<KmerCluster>();
@@ -3713,7 +3714,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (kmers.size()==0)
 			return kmers;
 		System.out.println("Align and cluster k-mers ...");
-		Kmer bestSeed = null;
 		String[] seqs_old = kEngine.getPositiveSeqs();
 		String[] seqs = seqs_old.clone();						// clone to modify locally
 		ArrayList<Kmer> kmers_old = new ArrayList<Kmer>();
@@ -4047,7 +4047,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						HashMap<String, HashSet<Integer>> pwmAlignedKmerStr2seqs = new HashMap<String, HashSet<Integer>>();	// kmerString -> count
 				    	for (int i=0;i<posSeqs.length;i++){
 				    	  String seq = seqs[i];
-				    	  if (posSeqs[i] != UNALIGNED)
+				    	  if (posSeqs[i] != UNALIGNED && config.pwm_align_new)
 				    		  continue;
 				    	      	  
 				          WeightMatrixScoreProfile profiler = scorer.execute(seq);
@@ -4139,7 +4139,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			if (cluster.wm!=null){
 				if (bestSeed==null)						// first cluster, save the seed
 					bestSeed = seed;
-				else if (cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP){		// this pwm is better
+				else if (cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*1.1){		// this pwm is at least 10% better
 					// reset kmers and posSeqs, to start over with this new bestSeed
 					seqs = seqs_old.clone();						// clone to modify locally
 					for (int i=0;i<posSeqs.length;i++)
@@ -4520,6 +4520,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		return -1;
     	else
     		cluster.lastPassSeqCount = passedSeqs.size();	// save the # of passed seq count
+    	
+    	if (config.bmverbose>1)
+		System.out.println(String.format("%s: %d seq to build PWM.", 
+				CommonUtils.timeElapsed(tic), passedSeqs.size()));
 
 		// count base frequencies
 		for (int i=0;i<passedSeqs.size();i++){
@@ -4985,6 +4989,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean k_init_calc_PWM = false;
         public boolean filter_pwm_seq = false;
         public boolean k_select_seed = false;
+        public boolean pwm_align_new = false;		// use PWM to align only un-aligned seqs (vs. all sequences)
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5049,6 +5054,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");
             filter_pwm_seq = flags.contains("filter_pwm_seq");
             k_select_seed = flags.contains("k_select_seed");
+            pwm_align_new = flags.contains("pwm_align_new");
             
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
