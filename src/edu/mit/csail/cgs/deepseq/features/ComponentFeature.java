@@ -484,7 +484,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         }
         if (boundSequence!=null){
 	        if (kmerGroup!=null)
-	        	result.append(kmerGroup.getBestKmer().getKmerString()).append("\t").append(kmerGroup.getGroupHitCount()).append("\t").append(String.format("%.1f\t", kmerGroup.getWeightedKmerStrength())).append(boundSequence);
+	        	result.append(String.format("%s %d/%d\t%.2f\t%.1f\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getHgp(), kmerGroup.getWeightedKmerStrength(), boundSequence));
 	        else
 	        	result.append(CommonUtils.padding(8, ' ')).append("\t").append(0).append("\t").append(String.format("%.1f\t", 0.0)).append(boundSequence);
 	        if (getEnrichedKmerHGPLog10()!=99)

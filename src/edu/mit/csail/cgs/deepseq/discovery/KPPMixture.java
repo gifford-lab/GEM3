@@ -253,6 +253,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		this.conditionNames = conditionNames;
     	loadChIPSeqData(subsetRegions, args);
 		
+    	// check if there is miss control data
+		if (controlDataExist){
+			for (Pair<ReadCache, ReadCache> p:caches){
+				if (p.cdr()==null){
+					System.err.println("\nMissing control data to match "+p.car().getName());
+					System.exit(-1);
+				}
+			}
+		}
+		
 		// exclude some regions
      	String excludedName = Args.parseString(args, "ex", "yes");
      	if (!excludedName.equals("yes")){
@@ -3787,7 +3797,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (Kmer km:kmers){
 				if (kmer2seq.containsKey(km)){
 					km.setPosHits(kmer2seq.get(km));
-					km.setHgp(kEngine.updateHGP(km.getPosHitCount(), km.getNegHitCount()));
+					km.setHgp(kEngine.computeHGP(km.getPosHitCount(), km.getNegHitCount()));
 				}
 				else{
 					zeroCount.add(km);
@@ -4522,8 +4532,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		cluster.lastPassSeqCount = passedSeqs.size();	// save the # of passed seq count
     	
     	if (config.bmverbose>1)
-		System.out.println(String.format("%s: %d seq to build PWM.", 
-				CommonUtils.timeElapsed(tic), passedSeqs.size()));
+    		System.out.println(String.format("%s: %d seq to build PWM.", CommonUtils.timeElapsed(tic), passedSeqs.size()));
 
 		// count base frequencies
 		for (int i=0;i<passedSeqs.size();i++){
@@ -4562,6 +4571,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
 	    	
 	    	WeightMatrix wm = new WeightMatrix(matrix);
+
+	    	if (config.bmverbose>1)
+	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
 	    	MotifThreshold estimate = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);
 	    	double pwmThreshold = estimate.score;

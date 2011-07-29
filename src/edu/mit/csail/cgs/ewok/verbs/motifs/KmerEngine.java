@@ -311,6 +311,11 @@ public class KmerEngine {
 //		}
 	}
 	
+	public double computeHGP(int posHitCount, int negHitCount){
+	    int posSeqCount = seqs.length;
+	    int negSeqCount = seqsNegList.size();
+		return computeHGP(posSeqCount, negSeqCount, posHitCount, negHitCount);
+	}
 	/**
 	 * Compute hgp using the positive/negative sequences
 	 */
@@ -443,15 +448,9 @@ public class KmerEngine {
 	    	Kmer km = kmers.get(i);
 	    	km.setPosHits(posHits.get(i));
 	    	km.setNegHits(negHits.get(i));
-			km.setHgp( updateHGP(km.getPosHitCount(), km.getNegHitCount()));
+			km.setHgp( computeHGP(km.getPosHitCount(), km.getNegHitCount()));
 //			km.setStrength(kmerStrength[i]);
 	    }
-	}
-	
-	public double updateHGP(int posHitCount, int negHitCount){
-	    int posSeqCount = seqs.length;
-	    int negSeqCount = seqsNegList.size();
-		return computeHGP(posSeqCount, negSeqCount, posHitCount, negHitCount);
 	}
 	
 	/**
@@ -636,7 +635,9 @@ public class KmerEngine {
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			matches[idx]=new KmerGroup(result.get(p), p);
+			KmerGroup kg = new KmerGroup(result.get(p), p);
+			matches[idx]=kg;
+			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
 		}
 		return matches;
@@ -724,7 +725,8 @@ public class KmerEngine {
 		ArrayList<Kmer> kmers;
 		int bs = 999;
 		int posHitGroupCount;
-		int posNegGroupCount;
+		int negHitGroupCount;
+		double hgp;
 		public KmerGroup(ArrayList<Kmer> kmers, int bs){
 			this.bs = bs;
 			this.kmers = kmers;
@@ -740,8 +742,11 @@ public class KmerEngine {
     		for (int i=0;i<kmers.size();i++){
         		allNegHits.addAll(kmers.get(i).getNegHits());
     		}
-    		posNegGroupCount = allNegHits.size();
+    		negHitGroupCount = allNegHits.size();
 		}
+		public double getHgp() {return hgp;	}
+		public void setHgp(double hgp) {this.hgp = hgp;	}
+		
 		public ArrayList<Kmer> getKmers(){
 			return kmers;
 		}
@@ -758,6 +763,9 @@ public class KmerEngine {
 		/** Get the number of sequences hit by any kmer in the group */
 		public int getGroupHitCount(){
 			return posHitGroupCount;
+		}
+		public int getGroupNegHitCount(){
+			return negHitGroupCount;
 		}
 		public double getTotalKmerStrength(){
     		double total = 0;

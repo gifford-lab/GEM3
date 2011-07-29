@@ -121,14 +121,14 @@ public class GPSParser {
                                Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), 
                                Math.pow(10,-1*Double.parseDouble(t[5])), Double.parseDouble(t[6]), Double.parseDouble(t[7]),
                                t[8], (int)Double.parseDouble(t[9]), Double.parseDouble(t[10]), t.length >= 12 ? t[11] : "");
-	    } else if (t.length == 10 ) {		// with kmer info
+	    } else if (t.length == 10 ) {		// not with kmer info
 	    	// GPS output format 2011-07-25	
 	    	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	
 	    	Region r = Region.fromString(g, t[0]);
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                                Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), Double.parseDouble(t[5]), 
                                Math.pow(10,-1*Double.parseDouble(t[6])), Double.parseDouble(t[7]), Double.parseDouble(t[8]), Double.parseDouble(t[9]));
-	    } else if (t.length == 14 ) {		// with kmer info
+	    } else if (t.length == 14 || t.length == 15 ) {		// with kmer info
 	    	// GPS output format 2011-07-25	
 	    	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	Kmer	Count	Strength	BoundSequence	EnrichedHGP
 	    	Region r = Region.fromString(g, t[0]);
