@@ -3713,8 +3713,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (kmers.size()==0)
 			return kmers;
 		System.out.println("Align and cluster k-mers ...");
+		Kmer bestSeed = null;
 		String[] seqs_old = kEngine.getPositiveSeqs();
 		String[] seqs = seqs_old.clone();						// clone to modify locally
+		ArrayList<Kmer> kmers_old = new ArrayList<Kmer>();
+		for (Kmer km:kmers)
+			kmers_old.add(km.clone());
 		int posSeqs[] = new int[seqs.length]; 					// the position of sequences
 		String seqAlignRefs[] = new String[seqs.length];
 		boolean isPlusStrands[] = new boolean[seqs.length];
@@ -3735,7 +3739,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.clusterId = clusterID;
 			clusters.add(cluster);
 			if (config.bmverbose>1)
-				System.out.println("Aligning cluster #"+clusterID+",   n="+kmers.size()+"\t"+CommonUtils.timeElapsed(tic));
+				System.out.println(CommonUtils.timeElapsed(tic)+": Aligning cluster #"+clusterID+",   n="+kmers.size());
 			// init posSeqs, so each new kmer cluter align with all the sequences 
 			for (int i=0;i<posSeqs.length;i++){
 				posSeqs[i] = UNALIGNED;
@@ -3799,90 +3803,92 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 			/** get seed kmer and its mismatch k-mers, align sequences */
 			Kmer seed=null;
-			// for first cluster, select the seed kmer from the top kmer that is most centered on binding positions
-			if (clusterID==0 && config.k_select_seed){
-				int evaluateSize = Math.min(kmers.size(),100);
-				ArrayList<Kmer> topKmers = new ArrayList<Kmer>();
-				double hgpCutoff = kmers.get(0).getHgp()/2;
-				for (int i=0;i<evaluateSize;i++){
-					if (kmers.get(i).getHgp()<hgpCutoff)
-						topKmers.add(kmers.get(i));
-				}
-				Collections.sort(topKmers);			// sort by count
-				boolean[][] match = new boolean[topKmers.size()][topKmers.size()];
-				for(int i=0;i<topKmers.size();i++){
-					String ks_i=topKmers.get(i).getKmerString();
-					String ksr_i=topKmers.get(i).getKmerRC();
-					String left = ks_i.substring(1);
-					String right = ks_i.substring(0,ks_i.length()-1);
-					String left2 = ksr_i.substring(1);
-					String right2 = ksr_i.substring(0,ksr_i.length()-1);
-					for(int j=0;j<i;j++){
-						String ks_j=topKmers.get(j).getKmerString();
-						if (ks_j.contains(left)||ks_j.contains(left2)||ks_j.contains(right)||ks_j.contains(right2))
-							match[i][j] = true;					// 1 nt shift
-						else if (mismatch(ks_i, ks_j)==1||mismatch(ksr_i, ks_j)==1)	// 1 mismatch
-							match[i][j] = true;
-					}
-				}
-				ArrayList<Kmer> leaders = new ArrayList<Kmer>();
-				for(int i=0;i<topKmers.size();i++){
-					boolean isLeader = true;
-					for (int j=0;j<topKmers.size();j++){
-						if (match[i][j]){
-							isLeader = false;
-							break;
-						}
-					}
-					if (isLeader)
-						leaders.add(topKmers.get(i));
-				}
-				
-				Kmer bestKmer=null;
-				double bestScore = Double.MAX_VALUE;
-				int perfectPos = config.k_win/2-config.k/2;
-				double scoreXstrength = 0;
-				double score2Xstrength = 0;
-				double sum_strength = 0;
-				for (int i=0;i<leaders.size();i++){
-					Kmer km = leaders.get(i);
-					String kmerStr = km.getKmerString();
-					String kmerRC = km.getKmerRC();
-					ArrayList<Integer> dists = new ArrayList<Integer>();
-					for (int si:kmer2seq.get(km)){
-						String seq = seqs[si];
-						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
-						if (pos.isEmpty()){					// match in negative strand
-							pos = StringUtils.findAllOccurences(seq, kmerRC);
-						}
-						int dist = 0;
-						for (int p:pos){
-							dist = Math.max(Math.abs(p-perfectPos), dist);
-						}						
-						double strength = config.use_event_strength?events.get(si).getTotalEventStrength():1;
-						for (int j=0;j<strength;j++)
-							dists.add(dist);
-		    			scoreXstrength += strength*dist;		// score = dist, weighted by event strength
-		    			score2Xstrength += strength*dist*dist;		// score2 = dist*dist, weighted by event strength
-		        		sum_strength += strength;	
-		        	}
-					Integer[] dist_array = new Integer[dists.size()];
-					Double std = StatUtil.std(dists.toArray(dist_array));
-					double scoreAvg = scoreXstrength/sum_strength;
-					if (config.bmverbose>1)
-						System.out.println(String.format("***** %s\tscore=%.2f\tscore2=%.2f\tstd=%.2f",km.toShortString(), scoreAvg, score2Xstrength/sum_strength, std.doubleValue()));
-					if (bestScore>std){
-						bestScore=std;
-						bestKmer = km;
-					}
-				}
-				seed = bestKmer;
-				if (config.bmverbose>1)
-					System.out.println("Seed: "+seed.toShortString());
-			}
-			else{
+//			// for first cluster, select the seed kmer from the top kmer that is most centered on binding positions
+//			if (clusterID==0 && config.k_select_seed){
+//				int evaluateSize = Math.min(kmers.size(),100);
+//				ArrayList<Kmer> topKmers = new ArrayList<Kmer>();
+//				double hgpCutoff = kmers.get(0).getHgp()/2;
+//				for (int i=0;i<evaluateSize;i++){
+//					if (kmers.get(i).getHgp()<hgpCutoff)
+//						topKmers.add(kmers.get(i));
+//				}
+//				Collections.sort(topKmers);			// sort by count
+//				boolean[][] match = new boolean[topKmers.size()][topKmers.size()];
+//				for(int i=0;i<topKmers.size();i++){
+//					String ks_i=topKmers.get(i).getKmerString();
+//					String ksr_i=topKmers.get(i).getKmerRC();
+//					String left = ks_i.substring(1);
+//					String right = ks_i.substring(0,ks_i.length()-1);
+//					String left2 = ksr_i.substring(1);
+//					String right2 = ksr_i.substring(0,ksr_i.length()-1);
+//					for(int j=0;j<i;j++){
+//						String ks_j=topKmers.get(j).getKmerString();
+//						if (ks_j.contains(left)||ks_j.contains(left2)||ks_j.contains(right)||ks_j.contains(right2))
+//							match[i][j] = true;					// 1 nt shift
+//						else if (mismatch(ks_i, ks_j)==1||mismatch(ksr_i, ks_j)==1)	// 1 mismatch
+//							match[i][j] = true;
+//					}
+//				}
+//				ArrayList<Kmer> leaders = new ArrayList<Kmer>();
+//				for(int i=0;i<topKmers.size();i++){
+//					boolean isLeader = true;
+//					for (int j=0;j<topKmers.size();j++){
+//						if (match[i][j]){
+//							isLeader = false;
+//							break;
+//						}
+//					}
+//					if (isLeader)
+//						leaders.add(topKmers.get(i));
+//				}
+//				
+//				Kmer bestKmer=null;
+//				double bestScore = Double.MAX_VALUE;
+//				int perfectPos = config.k_win/2-config.k/2;
+//				double scoreXstrength = 0;
+//				double score2Xstrength = 0;
+//				double sum_strength = 0;
+//				for (int i=0;i<leaders.size();i++){
+//					Kmer km = leaders.get(i);
+//					String kmerStr = km.getKmerString();
+//					String kmerRC = km.getKmerRC();
+//					ArrayList<Integer> dists = new ArrayList<Integer>();
+//					for (int si:kmer2seq.get(km)){
+//						String seq = seqs[si];
+//						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
+//						if (pos.isEmpty()){					// match in negative strand
+//							pos = StringUtils.findAllOccurences(seq, kmerRC);
+//						}
+//						int dist = 0;
+//						for (int p:pos){
+//							dist = Math.max(Math.abs(p-perfectPos), dist);
+//						}						
+//						double strength = config.use_event_strength?events.get(si).getTotalEventStrength():1;
+//						for (int j=0;j<strength;j++)
+//							dists.add(dist);
+//		    			scoreXstrength += strength*dist;		// score = dist, weighted by event strength
+//		    			score2Xstrength += strength*dist*dist;		// score2 = dist*dist, weighted by event strength
+//		        		sum_strength += strength;	
+//		        	}
+//					Integer[] dist_array = new Integer[dists.size()];
+//					Double std = StatUtil.std(dists.toArray(dist_array));
+//					double scoreAvg = scoreXstrength/sum_strength;
+//					if (config.bmverbose>1)
+//						System.out.println(String.format("***** %s\tscore=%.2f\tscore2=%.2f\tstd=%.2f",km.toShortString(), scoreAvg, score2Xstrength/sum_strength, std.doubleValue()));
+//					if (bestScore>std){
+//						bestScore=std;
+//						bestKmer = km;
+//					}
+//				}
+//				seed = bestKmer;
+//				if (config.bmverbose>1)
+//					System.out.println("Seed: "+seed.toShortString());
+//			}
+			if (bestSeed!=null && clusterID==0)
+				seed = bestSeed;
+			else
 				seed = kmers.get(0);
-			}
+			
 			cluster.seedKmer = seed;
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
 			// align the containing sequences
@@ -4033,7 +4039,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						alignedSeqCount++;
 				}
 				if (alignedSeqCount>=config.kmer_cluster_seq_count && cluster.buildNewPWM){
-					int leftIdx = buildPWM(posSeqs, isPlusStrands, events, seqs, cluster);
+					int leftIdx = buildPWM(posSeqs, isPlusStrands, events, seqs, cluster, tic);
 					if (leftIdx != -1){				    	
 			    		WeightMatrix wm = cluster.wm;
 				        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);				        
@@ -4117,17 +4123,38 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			    			}
 				    	}
 				    	if (config.bmverbose>1)
-				    		System.out.println("PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr2seqs.keySet().size()+" k-mers "+CommonUtils.timeElapsed(tic));
+				    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr2seqs.keySet().size()+" k-mers.");
 				    	if (count_pwm_aligned==0)
 				    		break;
 					}
 				}
 		    	
 				if (aligned_new.isEmpty()){		// if no new mismatch or pwm aligned kmer, then no new aligned sequence
+				
 					break;			// stop this cluster, start a new one
 				}
 			} // greedily growing cluster until form a pwm
 	    	
+			// compare pwm Hgp to previous cluster Hgp, so that the primary cluster will have the best Hgp
+			if (cluster.wm!=null){
+				if (bestSeed==null)						// first cluster, save the seed
+					bestSeed = seed;
+				else if (cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP){		// this pwm is better
+					// reset kmers and posSeqs, to start over with this new bestSeed
+					seqs = seqs_old.clone();						// clone to modify locally
+					for (int i=0;i<posSeqs.length;i++)
+						isPlusStrands[i] = true;
+					for (Kmer km:kmers_old)
+						kmers.add(km.clone());				
+			    	clusters.clear();
+					clusterID = 0;
+					alignedKmer_sb = new StringBuilder();
+					bestSeed = seed;
+					System.out.println("Current motif is better, start over with seed="+seed.getKmerString());
+					continue;										// start over with new seed
+				}
+			}	
+			
 			/** re-aligned kmers using aligned sequences */
 			if (config.re_align_kmer){
 				for (Kmer km:alignedKmers){
@@ -4406,7 +4433,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 
     private int buildPWM(int[] posSeqs, boolean[] isPlusStrands, ArrayList<ComponentFeature> events, 
-    		String[] seqs, KmerCluster cluster){
+    		String[] seqs, KmerCluster cluster, long tic){
     	final int UNALIGNED = 999;
     	final double pwmScoreFactor = 4;
 		double[][] pfm = new double[config.k_win+1][MAXLETTERVAL];
@@ -4537,7 +4564,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	double pwmThresholdHGP = estimate.hgp;
 	    	int diff = estimate.posHit - estimate.negHit;
     		if (config.bmverbose>1)
-    			System.out.println(String.format("PWM %s match %d+/%d- events, hgp=1E%.1f, threshold %.2f/%.2f", 
+    			System.out.println(String.format("%s: PWM %s match %d+/%d- events, hgp=1E%.1f, threshold %.2f/%.2f", CommonUtils.timeElapsed(tic), 
     					WeightMatrix.getMaxLetters(wm), estimate.posHit, estimate.negHit, pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
 //	    	if (pwmThreshold<wm.getMaxScore()/5){
 //	    		return -1;
@@ -4545,18 +4572,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		// test if we want to accept the new PWM
     		if (cluster.wm!=null){
     			// if very close, also consider #Seq that PWM is built from
-    			if (Math.abs(pwmThresholdHGP-cluster.pwmThresholdHGP)<Math.abs(cluster.pwmThresholdHGP)/100){		
-    				if( cluster.pwmThresholdHGP*cluster.pwmHitDiff<pwmThresholdHGP*diff){		// 
-    			    	cluster.buildNewPWM = false;			// tried build PWM once, failed, do not build any more
-	    				return -1;
-	    			}
-    			}
-    			else{
+//    			if (Math.abs(pwmThresholdHGP-cluster.pwmThresholdHGP)<Math.abs(cluster.pwmThresholdHGP)/100){		
+//    				if( cluster.pwmThresholdHGP*cluster.pwmHitDiff<pwmThresholdHGP*diff){		// 
+//    			    	cluster.buildNewPWM = false;			// tried build PWM once, failed, do not build any more
+//	    				return -1;
+//	    			}
+//    			}
+//    			else{
 	    			if( cluster.pwmThresholdHGP<pwmThresholdHGP){		// previous pwm is more enriched, stop here
     			    	cluster.buildNewPWM = false;
 	    				return -1;
 	    			}
-    			}
+//    			}
     		}
     		else{		// if no previous PWM yet
     			if (pwmThreshold<wm.getMaxScore()/pwmScoreFactor){				// if the score is not good enough
