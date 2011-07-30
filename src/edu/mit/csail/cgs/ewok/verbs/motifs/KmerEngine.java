@@ -485,7 +485,7 @@ public class KmerEngine {
 			neghits[i] = negSeqScores.length-index;
 		}
 		int endIdx = seqs.length-1;
-		for (int i=seqs.length-1;i<=zeroIdx;i++){
+		for (int i=seqs.length-1;i>=zeroIdx;i--){
 			if( poshits[i]*0.7 < neghits[i]){
 				endIdx = i;
 				break;
@@ -494,7 +494,7 @@ public class KmerEngine {
 		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
 		Thread[] threads = new Thread[numThread];
 		ArrayList<Integer> idxs = new ArrayList<Integer>();
-		for (int i=endIdx;i<=zeroIdx;i++)
+		for (int i=endIdx;i>=zeroIdx;i--)
 			idxs.add(i);
 		for (int i=0;i<numThread;i++){
             Thread t = new Thread(new HGPThread(idxs, seqs.length, seqsNegList.size(), poshits, neghits, hgps));
@@ -838,7 +838,7 @@ public class KmerEngine {
 	            	else
 	            		break;
 	        	}
-				computeHGP(posTotal, negTotal, posHits[i], negHits[i]);
+				hgps[i]=computeHGP(posTotal, negTotal, posHits[i], negHits[i]);
 			}
 		}
 	}
