@@ -4575,7 +4575,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	if (config.bmverbose>1)
 	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-	    	MotifThreshold estimate = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);
+	    	int f = Math.min((int)Math.ceil(events.size()/5000.0), 5);
+	    	MotifThreshold estimate = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr, f);
 	    	double pwmThreshold = estimate.score;
 	    	double pwmThresholdHGP = estimate.hgp;
 	    	int diff = estimate.posHit - estimate.negHit;
