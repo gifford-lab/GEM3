@@ -4993,7 +4993,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean kmer_use_filtered = false;
        	public boolean re_align_kmer = false;
        	public boolean use_kmer_mismatch = true;
-      	public boolean align_overlap_kmer=true;
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
@@ -5001,7 +5000,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean k_init_calc_PWM = false;
         public boolean filter_pwm_seq = false;
         public boolean k_select_seed = false;
-        public boolean pwm_align_new = false;		// use PWM to align only un-aligned seqs (vs. all sequences)
+        public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5066,7 +5065,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");
             filter_pwm_seq = flags.contains("filter_pwm_seq");
             k_select_seed = flags.contains("k_select_seed");
-            pwm_align_new = flags.contains("pwm_align_new");
+            pwm_align_new = !flags.contains("pwm_align_all");
             
                 // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -5081,7 +5080,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_scanPeak = ! flags.contains("no_scanPeak");
             do_model_selection = !flags.contains("no_model_selection");
             use_kmer_mismatch = !flags.contains("no_kmm");
-            align_overlap_kmer = !flags.contains("no_aok");
 
             mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
            
