@@ -319,7 +319,7 @@ public class KmerEngine {
 	/**
 	 * Compute hgp using the positive/negative sequences
 	 */
-	public double computeHGP(int posSeq, int negSeq, int posHit, int negHit){
+	public static double computeHGP(int posSeq, int negSeq, int posHit, int negHit){
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
 		if (posHit<negHit){		// select smaller x for hyperGeometricCDF_cache(), to reduce # of x sum operations
@@ -345,7 +345,7 @@ public class KmerEngine {
 	 * Compute hgp using the positive/negative sequences, high precision approximation
 	 * Only use for very small p-value (<MIN_VALUE, 2^-1074)
 	 */
-	private double computeHGP_TINY(int posSeq, int negSeq, int posHit, int negHit){
+	private static double computeHGP_TINY(int posSeq, int negSeq, int posHit, int negHit){
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
 		// flip the problem, compute cdf of negative count
@@ -355,7 +355,6 @@ public class KmerEngine {
 		else
 			hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache_appr(negHit-1, allSeq, allHit, negSeq);
 		return hgcdf_log10;
-
 	}
 	
 	/**
@@ -478,28 +477,52 @@ public class KmerEngine {
 		int[] poshits = new int[seqs.length];
 		int[] neghits = new int[seqs.length];
 		double[] hgps = new double[seqs.length];
-		int diffs[] = new int[seqs.length];
-		double fdrs[] = new double[seqs.length];
 		StringBuilder sb = new StringBuilder();
 		for (int i=zeroIdx;i<seqs.length;i++){
 			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
 			if( index < 0 ) { index = -index - 1; }
-			int positiveCount = posSeqScores.length-i;
-			int negativeCount = Math.round((float)(negSeqScores.length-index)*seqs.length/seqsNegList.size());		// scale the count
-			hgps[i]=computeHGP(seqs.length, seqsNegList.size(), posSeqScores.length-i, negSeqScores.length-index);
-			fdrs[i] = (double)negativeCount/(positiveCount+negativeCount);
-			diffs[i] = positiveCount-negativeCount;
-			poshits[i] = positiveCount;
-			neghits[i] = negativeCount;
-			if (printFDR)
-				sb.append(String.format("%d\t%.2f\t%d\t%d\t%d\t%.4f\t%.1f\n", i, posSeqScores[i], positiveCount, negativeCount, diffs[i], fdrs[i], hgps[i] ));
-		}	
+			poshits[i] = posSeqScores.length-i;
+			neghits[i] = negSeqScores.length-index;
+		}
+		int endIdx = seqs.length-1;
+		for (int i=seqs.length-1;i<=zeroIdx;i++){
+			if( poshits[i]*0.7 < neghits[i]){
+				endIdx = i;
+				break;
+			}
+		}
+		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
+		Thread[] threads = new Thread[numThread];
+		ArrayList<Integer> idxs = new ArrayList<Integer>();
+		for (int i=endIdx;i<=zeroIdx;i++)
+			idxs.add(i);
+		for (int i=0;i<numThread;i++){
+            Thread t = new Thread(new HGPThread(idxs, seqs.length, seqsNegList.size(), poshits, neghits, hgps));
+            t.start();
+            threads[i] = t;
+		}
+		boolean anyrunning = true;
+        while (anyrunning) {
+            anyrunning = false;
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) { }
+            for (int i = 0; i < threads.length; i++) {
+                if (threads[i].isAlive()) {
+                    anyrunning = true;
+                    break;
+                }
+            }   
+        }
+		
+//			if (printFDR)
+//				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posSeqScores[i], positiveCount, negativeCount, hgps[i] ));
 		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
-		Pair<Double, TreeSet<Integer>> maxDiff = StatUtil.findMin(hgps);
-		int minIdx = maxDiff.cdr().last();
+		Pair<Double, TreeSet<Integer>> minHgp = StatUtil.findMin(hgps);
+		int minIdx = minHgp.cdr().last();
 		MotifThreshold score = new MotifThreshold();
 		score.score = posSeqScores[minIdx];
-		score.hgp = maxDiff.car();
+		score.hgp = minHgp.car();
 		score.posHit = poshits[minIdx];
 		score.negHit = neghits[minIdx];
 //		for (int i=maxIdx; i<diffs.length;i++){
@@ -789,7 +812,36 @@ public class KmerEngine {
 			return bs;
 		}
 	}
-	
+	class HGPThread implements Runnable {
+		ArrayList<Integer> idxs;
+		int posTotal;
+		int negTotal;
+		int[] posHits;
+		int[] negHits;
+		double[] hgps;
+		HGPThread(ArrayList<Integer> idxs, int posTotal, int negTotal, int[] posHits, int[] negHits, double[] hgps){
+			this.idxs = idxs;
+			this.posTotal = posTotal;
+			this.negTotal = negTotal;
+			this.posHits = posHits;
+			this.negHits = negHits;
+			this.hgps = hgps;
+		}
+		public void run() {
+			int i;
+			while (!idxs.isEmpty()) {
+				synchronized (idxs){
+	            	if (!idxs.isEmpty()){
+	            		i = idxs.get(0);
+	            		idxs.remove(0);
+	        		}
+	            	else
+	            		break;
+	        	}
+				computeHGP(posTotal, negTotal, posHits[i], negHits[i]);
+			}
+		}
+	}
 	public static void main0(String[] args){
 		Genome g = null;
 		ArgParser ap = new ArgParser(args);
