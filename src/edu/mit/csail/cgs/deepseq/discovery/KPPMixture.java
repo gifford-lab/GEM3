@@ -3899,6 +3899,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			else
 				seed = kmers.get(0);
 			
+			// print out top kmer information
+			for (int i=0;i<Math.min(5,kmers.size());i++){
+				System.out.println(kmers.get(i).toShortString());
+			}
+			System.out.println("Seed k-mer:\t"+seed.toShortString());
+			
 			cluster.seedKmer = seed;
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
 			// align the containing sequences

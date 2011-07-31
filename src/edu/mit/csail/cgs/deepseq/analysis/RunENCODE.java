@@ -24,8 +24,78 @@ public class RunENCODE {
 		    add("Stam");
 		}};
 		HashSet<String> TFtoRun = new HashSet<String>(){{
-		    add("c-Myc");
+//		    add("c-Myc");
 //		    add("GR");
+			// 0 discoveries
+		    add("BRF1");
+		    add("BRF2");
+		    add("NELFe");
+		    add("XRCC4");
+		    add("SUZ12");
+		    add("ZNF274");
+		    add("ZZZ3");
+//		    
+//		    // 0 known motif
+//		    add("ZNF274");
+//		    add("ZNF274");
+//		    add("ZNF274");
+//		    add("ZNF274");
+//
+//		    // else
+//			add("BATF");
+//		    add("BCL11A");
+//		    add("BCL3");
+//			add("EBF");
+//		    add("Egr-1");
+//		    add("GABP");
+//			add("IRF4");
+//		    add("NRSF");
+//		    add("PAX5-C20");
+//		    add("PAX5-N19");
+//		    add("POU2F2");
+//		    add("PU.1");
+//		    add("Pbx3");
+//		    add("SP1");
+//		    add("SRF");
+//		    add("Sin3Ak-20");
+//		    add("TAF1");
+//		    add("TCF12");
+//		    add("USF-1");
+//		    add("ZBTB33");
+//		    add("p300");
+//		    add("BHLHE40");
+//		    add("FOSL2");
+//		    add("HEY1");
+//		    add("JunD");
+//		    add("RXRA");
+//		    add("ZBTB33");
+//		    add("SIX5");
+//		    add("FOXP2");
+//		    add("NFKB");
+//		    add("Max");
+//		    add("Rad21");
+//		    add("TR4");
+//		    add("YY1");
+//		    add("ZZZ3");
+//		    add("c-Fos");
+//		    add("TCF4");
+//		    add("c-Jun");
+//		    add("AP-2alpha");
+//		    add("AP-2gamma");
+//		    add("BAF155");
+//		    add("BAF170");
+//		    add("BDP1");
+//		    add("Brg1");
+//		    add("E2F4");
+//		    add("E2F6");
+//		    add("Ini1");
+//		    add("Nrf1");
+//		    add("RPC155");
+//		    add("TFIIIC-110");
+//		    add("TR4");
+//		    add("STAT1");
+//		    add("SREBP1A");
+//		    add("SREBP2");
 		}};
 		TFtoRun.add("Input");
 		
@@ -46,7 +116,7 @@ public class RunENCODE {
 	            String rep = f[4];
 	            String cell = f[5];
 	            String genome = f[8];
-	            if (genome.equalsIgnoreCase("hg19") && labs.contains(lab)  && TFtoRun.contains(tf)
+	            if (genome.equalsIgnoreCase("hg19") && labs.contains(lab) && TFtoRun.contains(tf)
 	            		&& !((tf.startsWith("H3")||tf.startsWith("H4")
 	            				||tf.startsWith("Pol2")
 	            				||tf.startsWith("CTCF")
@@ -78,7 +148,8 @@ public class RunENCODE {
         	exptRep.get(name).add(s);
         }
         
-        StringBuilder list_sb = new StringBuilder();
+        StringBuilder tf_sb = new StringBuilder();
+        StringBuilder input_sb = new StringBuilder();
         StringBuilder gem_sb = new StringBuilder();
         for (String s:exptRep.keySet()){
         	String[] f = s.split(" ");
@@ -89,20 +160,20 @@ public class RunENCODE {
         	if (exptRep.containsKey(input)){
         		String tf_name = s.replace(' ', '_');
         		String input_name = input.replace(' ', '_');
-        		list_sb.append(tf_name+"\t");
+        		tf_sb.append(tf_name+"\t");
         		for (String rep:exptRep.get(s)){
         			System.out.print(rep+"\t");
-        			list_sb.append(rep+"\t");
+        			tf_sb.append(rep+"\t");
         		}
-        		list_sb.deleteCharAt(list_sb.length()-1);		// remove TAB
-        		list_sb.append("\n");
-        		list_sb.append(input_name+"\t");
+        		tf_sb.deleteCharAt(tf_sb.length()-1);		// remove TAB
+        		tf_sb.append("\n");
+        		input_sb.append(input_name+"\t");
         		for (String rep:exptRep.get(input)){
         			System.out.print(rep+"\t");
-        			list_sb.append(rep+"\t");
+        			input_sb.append(rep+"\t");
         		}
-        		list_sb.deleteCharAt(list_sb.length()-1);		// remove TAB
-        		list_sb.append("\n");
+        		input_sb.deleteCharAt(input_sb.length()-1);		// remove TAB
+        		input_sb.append("\n");
         		String[] ff = tf_name.split("_");
         		String run_name = ff[2]+"_"+ff[1]+"_"+ff[0];
         		gem_sb.append(run_name+"\t").append(tf_name+"\t").append(input_name+"\t--k_min 7 --k_max 13\n");
@@ -115,7 +186,8 @@ public class RunENCODE {
         	System.out.println();
         }
         System.out.println("*****************************");
-        System.out.println(list_sb.toString());
+        System.out.println(tf_sb.toString());
+        System.out.println(input_sb.toString());
         System.out.println(gem_sb.toString());
 	}
 
