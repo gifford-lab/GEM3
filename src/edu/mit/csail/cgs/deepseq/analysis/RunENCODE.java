@@ -23,6 +23,12 @@ public class RunENCODE {
 		    add("Snyder");
 		    add("Stam");
 		}};
+		HashSet<String> TFtoRun = new HashSet<String>(){{
+		    add("c-Myc");
+//		    add("GR");
+		}};
+		TFtoRun.add("Input");
+		
 		ArrayList<String> expts = new ArrayList<String>();
 		TreeSet<String> tfs = new TreeSet<String>();
 		try {	
@@ -40,9 +46,14 @@ public class RunENCODE {
 	            String rep = f[4];
 	            String cell = f[5];
 	            String genome = f[8];
-	            if (genome.equalsIgnoreCase("hg19") && labs.contains(lab) && 
-	            		!((tf.startsWith("H3")||tf.startsWith("H4")||tf.contains("Seq")||tf.contains("seq")||tf.contains("Dnase")
-	            				||tf.equals("Large-Fragment")||tf.equals("MNase")||tf.equals("Naked-DNA")||tf.equals("Mouse-IgG")||tf.equals("Control")))){
+	            if (genome.equalsIgnoreCase("hg19") && labs.contains(lab)  && TFtoRun.contains(tf)
+	            		&& !((tf.startsWith("H3")||tf.startsWith("H4")
+	            				||tf.startsWith("Pol2")
+	            				||tf.startsWith("CTCF")
+	            				||tf.contains("Seq")||tf.contains("seq")||tf.contains("Dnase")
+	            				||tf.equals("Large-Fragment")||tf.equals("MNase")||tf.equals("Naked-DNA")
+	            				||tf.equals("Mouse-IgG")||tf.equals("Control")))
+	            					){
 	            	expts.add(expt);
 	            	tfs.add(tf);
 	            }
@@ -67,6 +78,8 @@ public class RunENCODE {
         	exptRep.get(name).add(s);
         }
         
+        StringBuilder list_sb = new StringBuilder();
+        StringBuilder gem_sb = new StringBuilder();
         for (String s:exptRep.keySet()){
         	String[] f = s.split(" ");
         	String tf = f[2];
@@ -74,10 +87,25 @@ public class RunENCODE {
         		continue;
         	String input = s.replace(tf, "Input");
         	if (exptRep.containsKey(input)){
-        		for (String n:exptRep.get(s))
-        			System.out.print(n+"\t");
-        		for (String n:exptRep.get(input))
-        			System.out.print(n+"\t");
+        		String tf_name = s.replace(' ', '_');
+        		String input_name = input.replace(' ', '_');
+        		list_sb.append(tf_name+"\t");
+        		for (String rep:exptRep.get(s)){
+        			System.out.print(rep+"\t");
+        			list_sb.append(rep+"\t");
+        		}
+        		list_sb.deleteCharAt(list_sb.length()-1);		// remove TAB
+        		list_sb.append("\n");
+        		list_sb.append(input_name+"\t");
+        		for (String rep:exptRep.get(input)){
+        			System.out.print(rep+"\t");
+        			list_sb.append(rep+"\t");
+        		}
+        		list_sb.deleteCharAt(list_sb.length()-1);		// remove TAB
+        		list_sb.append("\n");
+        		String[] ff = tf_name.split("_");
+        		String run_name = ff[2]+"_"+ff[1]+"_"+ff[0];
+        		gem_sb.append(run_name+"\t").append(tf_name+"\t").append(input_name+"\t--k_min 7 --k_max 13\n");
         	}
         	else{
         		for (String n:exptRep.get(s))
@@ -86,7 +114,9 @@ public class RunENCODE {
         	}
         	System.out.println();
         }
-
+        System.out.println("*****************************");
+        System.out.println(list_sb.toString());
+        System.out.println(gem_sb.toString());
 	}
 
 }

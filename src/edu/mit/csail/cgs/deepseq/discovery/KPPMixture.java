@@ -4975,7 +4975,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_win_f = 4;		// k_win = k_win_f * k
-        public int k_neg_dist = 200;// the distance of the nearest edge of negative region from binding sites 
+        public int k_neg_dist = 500;// the distance of the nearest edge of negative region from binding sites 
         public int k_negSeq_ratio = 1; 		// The ratio of negative sequences to positive sequences
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
 //        public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
