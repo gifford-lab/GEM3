@@ -45,6 +45,7 @@ public class KmerEngine {
 	private String[] seqs;		// DNA sequences around binding sites
 	private String[] seqsNeg;	// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
+	public int getNegSeqCount(){return seqsNegList.size();}
 	private int negRegionDistance;
 	/** region-->index for negative sequences */
 	private TreeMap<Region, Integer> neg_region_map;

@@ -3533,6 +3533,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			if (config.bmverbose>1){
 				System.out.println("Compact genome sequence cache to " + totalLength + " bps, "+CommonUtils.timeElapsed(tic));
 			}
+			else
+				System.out.println("Done, "+CommonUtils.timeElapsed(tic));
 			System.out.println(String.format("GC content=%.2f\n", config.gc));
 		}
 		
@@ -3587,17 +3589,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			// reload the test sequences, and purify kmers
 			ArrayList<Point> events = getEventPoints();
 			kEngine.loadTestSequences(events, config.k_win);
-	//		purifyKmers(compFeatures);
-	//		
-	//		if (makePFM){
-	//			updateKmersWithPWM(compFeatures);
-	//			purifyKmers(compFeatures);
-	//		}
-	//		
-	//		consolidateKmers(compFeatures);
 			
 			ArrayList<Kmer> kmers = countKmers2(compFeatures);
 			kEngine.updateKmerCounts(kmers, compFeatures);
+			
+			log(1, String.format("k=%d, %d k-mers, %d+/%d- sequences", 
+					config.k, kmers.size(), kEngine.getPositiveSeqs().length, kEngine.getNegSeqCount()));
 			
 			if (makePFM)
 				kmers = this.alignOverlappedKmers(kmers, compFeatures, false);
@@ -3723,7 +3720,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		long tic = System.currentTimeMillis();
 		if (kmers.size()==0)
 			return kmers;
-		System.out.println("Align and cluster k-mers ...");
+		System.out.println("\nAlign and cluster k-mers ...");
 		String[] seqs_old = kEngine.getPositiveSeqs();
 		String[] seqs = seqs_old.clone();						// clone to modify locally
 		ArrayList<Kmer> kmers_old = new ArrayList<Kmer>();
@@ -3894,17 +3891,31 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //				if (config.bmverbose>1)
 //					System.out.println("Seed: "+seed.toShortString());
 //			}
-			if (bestSeed!=null && clusterID==0)
-				seed = bestSeed;
+			if (bestSeed!=null && clusterID==0){
+				String bestStr = bestSeed.getKmerString();
+				String bestRc = bestSeed.getKmerRC();
+				for (Kmer km:kmers){
+					if (km.getKmerString().equals(bestStr)||
+							km.getKmerString().equals(bestRc)){
+						seed = km;
+						break;
+					}
+				}
+				if (seed==null)				// not found
+					seed = kmers.get(0);
+			}	
 			else
 				seed = kmers.get(0);
 			
 			// print out top kmer information
-			for (int i=0;i<Math.min(5,kmers.size());i++){
-				System.out.println(kmers.get(i).toShortString());
+			if (clusterID==0){
+				System.out.println("\nTop 5 k-mers");
+				System.out.println(Kmer.toShortHeader());
+				for (int i=0;i<Math.min(5,kmers.size());i++){
+					System.out.println(kmers.get(i).toShortString());
+				}
+				System.out.println("Seed k-mer:\n"+seed.toShortString());
 			}
-			System.out.println("Seed k-mer:\t"+seed.toShortString());
-			
 			cluster.seedKmer = seed;
 			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
 			// align the containing sequences

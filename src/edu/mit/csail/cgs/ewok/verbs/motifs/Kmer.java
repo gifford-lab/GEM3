@@ -114,13 +114,13 @@ public class Kmer implements Comparable<Kmer>{
 	}
 
 	public static String toHeader(){
-		return "EnrichedKmer/RC\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
+		return "Enriched k-mer/r.c.\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
 	}
 	public String toShortString(){
 		return kmerString+"/"+getKmerRC()+"\t"+getPosHitCount()+"\t"+getNegHitCount()+"\t"+String.format("%.1f", hgp_lg10);
 	}
 	public static String toShortHeader(){
-		return "OverlappedKmer/RC\tPosCt\tNegCt\tHGP_10";
+		return "Enriched k-mer/r.c.\tPosCt\tNegCt\tHGP_10";
 	}
 	public static Kmer fromString(String str){
 		String[] f = str.split("\t");
