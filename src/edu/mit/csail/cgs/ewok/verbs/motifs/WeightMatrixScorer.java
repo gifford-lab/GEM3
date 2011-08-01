@@ -75,6 +75,9 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
      * @return
      */
     public  double getMaxSeqScore(WeightMatrix matrix, String sequence){
+    	if (sequence.length()<matrix.length())
+    		return matrix.getMinScore();
+    	
     	double[] scores = score(matrix, sequence.toCharArray(), '+');
     	Pair<Double, TreeSet<Integer>> max = StatUtil.findMax(scores);
     	double maxScore = max.car();

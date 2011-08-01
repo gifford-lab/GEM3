@@ -4175,6 +4175,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					seqs = seqs_old.clone();						// clone to modify locally
 					for (int i=0;i<posSeqs.length;i++)
 						isPlusStrands[i] = true;
+					kmers.clear();
 					for (Kmer km:kmers_old)
 						kmers.add(km.clone());				
 			    	clusters.clear();
