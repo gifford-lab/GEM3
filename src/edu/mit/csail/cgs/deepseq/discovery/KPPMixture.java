@@ -3660,7 +3660,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (int i=0;i<config.k_max-config.k_min+1;i++){
 				config.k = i+config.k_min;
 				ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, config.k_win, config.hgp, config.k_fold, outName);
-				int kmerCount = kmers.size();
+				int kmerCount = 0;
+				for (Kmer km:kmers)				// kmerCount as the total difference between positive and negative hit count
+					kmerCount += km.getPosHitCount()-km.getNegHitCount();
 				if (config.k_init_calc_PWM){
 					alignOverlappedKmers(kmers, getEvents(), true);
 					KmerCluster pCluster = null;
