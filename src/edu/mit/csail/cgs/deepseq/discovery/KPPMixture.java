@@ -5005,7 +5005,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean print_aligned_seqs = false;
         public boolean print_pwm_fdr = false;
         public boolean k_init_calc_PWM = false;
-        public boolean filter_pwm_seq = false;
+        public boolean filter_pwm_seq = true;
         public boolean k_select_seed = false;
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
         public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
@@ -5071,7 +5071,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");
-            filter_pwm_seq = flags.contains("filter_pwm_seq");
             k_select_seed = flags.contains("k_select_seed");
             
             // default as true, need the opposite flag to turn it off
@@ -5088,6 +5087,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             do_model_selection = !flags.contains("no_model_selection");
             use_kmer_mismatch = !flags.contains("no_kmm");
             pwm_align_new = !flags.contains("pwm_align_all");
+            filter_pwm_seq = !flags.contains("pwm_seq_asIs");
             strigent_event_pvalue = !flags.contains("relax");
 
             mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
