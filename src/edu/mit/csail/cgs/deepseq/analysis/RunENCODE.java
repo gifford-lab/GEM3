@@ -25,7 +25,7 @@ public class RunENCODE {
 		}};
 		HashSet<String> TFtoRun = new HashSet<String>(){{
 //		    add("c-Myc");
-		    add("GR");
+//		    add("GR");
 			// 0 discoveries
 //		    add("BRF1");
 //		    add("BRF2");
@@ -37,15 +37,32 @@ public class RunENCODE {
 			
 //		    
 //		    // 0 known motif
-//		    add("ZNF274");
-//		    add("ZNF274");
-//		    add("ZNF274");
-//		    add("ZNF274");
-//
+		    add("BCL11A");
+		    add("BCL3");
+		    add("BAF155");
+		    add("BATF");
+		    add("BCL");
+		    add("BDP1");
+		    add("CCNT2");
+		    add("CHD2");
+		    add("CTCFL");
+		    add("HDAC2");
+		    add("HEY1");
+		    add("HMGN3");
+		    add("KAP1");
+		    add("PU.1");
+		    add("Rad21");
+		    add("SETDB1");
+		    add("SIRT6");
+		    add("SMC3");
+		    add("SP2");
+		    add("Sin3Ak-20");
+		    add("THAP1");
+		    add("TR4");
+		    add("ZNF263");
+		    
 //		    // else
-//			add("BATF");
-//		    add("BCL11A");
-//		    add("BCL3");
+
 //			add("EBF");
 //		    add("Egr-1");
 //		    add("GABP");
@@ -54,11 +71,9 @@ public class RunENCODE {
 //		    add("PAX5-C20");
 //		    add("PAX5-N19");
 //		    add("POU2F2");
-//		    add("PU.1");
 //		    add("Pbx3");
 //		    add("SP1");
 //		    add("SRF");
-//		    add("Sin3Ak-20");
 //		    add("TAF1");
 //		    add("TCF12");
 //		    add("USF-1");
@@ -75,7 +90,6 @@ public class RunENCODE {
 //		    add("NFKB");
 //		    add("Max");
 //		    add("Rad21");
-//		    add("TR4");
 //		    add("YY1");
 //		    add("ZZZ3");
 //		    add("c-Fos");
@@ -83,7 +97,6 @@ public class RunENCODE {
 //		    add("c-Jun");
 //		    add("AP-2alpha");
 //		    add("AP-2gamma");
-//		    add("BAF155");
 //		    add("BAF170");
 //		    add("BDP1");
 //		    add("Brg1");
@@ -93,7 +106,6 @@ public class RunENCODE {
 //		    add("Nrf1");
 //		    add("RPC155");
 //		    add("TFIIIC-110");
-//		    add("TR4");
 //		    add("STAT1");
 //		    add("SREBP1A");
 //		    add("SREBP2");
@@ -161,7 +173,7 @@ public class RunENCODE {
         	if (exptRep.containsKey(input)){
         		String tf_name = s.replace('_', '-');
         		tf_name = tf_name.replace(' ', '_');
-        		String input_name = s.replace('_', '-');
+        		String input_name = input.replace('_', '-');
         		input_name = input_name.replace(' ', '_');
         		tf_sb.append(tf_name+"\t");
         		for (String rep:exptRep.get(s)){

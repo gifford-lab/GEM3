@@ -256,7 +256,6 @@ public class KmerEngine {
 		
 		return kms;
 	}
-	
 
 	/**
 	 * Load pos/neg test sequences based on event positions

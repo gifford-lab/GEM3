@@ -4299,7 +4299,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					break;
 				
 		        boolean masked = false;
-		        if (cluster.pwmThreshold>=cluster.wm.getMaxScore()/pwmScoreFactor){			// if PWM quality is not too bad, mask
+		        if (cluster.pwmGoodQuality){			// if PWM quality is not too bad, mask
 			        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
 			        int left = Math.round(cluster.wm.length()*(1-config.k_mask_f)/2);
 			        int right = Math.round(cluster.wm.length()*(1-(1-config.k_mask_f)/2));
@@ -4327,6 +4327,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		        }
 				if (masked){
 					kmers.addAll(alignedKmers);					// add aligned k-mers back to the pool, since PWM matched sequences are masked, these k-mers will have much less count
+					kmers.remove(seed);
 					consolidateKmers(kmers, events, false);		// do not relax, because these k-mer will be re-ailgned
 				}
 				// if no PWM matched sequence being masked, we have removed the alignedKmers, next cluster work with the remaining k-mers 
@@ -4335,28 +4336,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		} // each cluster
 		
 		CommonUtils.writeFile(outName+"_Alignement_k"+config.k+".txt", alignedKmer_sb.toString());
-		
-//		// take the best kmer from each sequence
-//		TreeSet<Kmer> bestKmers = new TreeSet<Kmer>();
-//		StringBuilder best_sb = new StringBuilder();
-//		int leftmost_km = Integer.MAX_VALUE;
-//		for (int i=0;i<seq2kmer.size();i++){
-//			ArrayList<Kmer> kms = new ArrayList<Kmer>();
-//			if (seq2kmer.get(i)==null)
-//				continue;
-//			kms.addAll(seq2kmer.get(i));
-//			// specify the position of kmers and seqs as the position relative to the seed kmer start
-//			Collections.sort(kms);
-//			Kmer km = kms.get(0);
-//			bestKmers.add(km);
-//			if (km.getKmerStartOffset()<leftmost_km)
-//				leftmost_km = km.getKmerStartOffset();
-//		}
-//		for (Kmer km:bestKmers){
-//			best_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')+km.toOverlapString()+"\t"+km.getAlignString()+"\n");
-//		}
-//		CommonUtils.writeFile(outName+"_OK_best_aligned.txt", best_sb.toString());
-		
+			
 		// output cluster information, PFM, and PWM
 		StringBuilder pfm_sb = new StringBuilder();		
 		for (KmerCluster c:clusters){
@@ -4623,9 +4603,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		else{		// if no previous PWM yet
     			if (pwmThreshold<wm.getMaxScore()/pwmScoreFactor){				// if the score is not good enough
     				// test if new PWM can match more sequences
+			    	cluster.pwmGoodQuality = false;
 			    	if (passedSeqs.size()>estimate.posHit)
 			    		return -1;
     			}
+    			else		// good score
+    				cluster.pwmGoodQuality = true;
 	    	}
 	    	cluster.wm = wm;
 	    	cluster.buildNewPWM = true;
@@ -4895,6 +4878,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		String pfmString="";
 		WeightMatrix wm;
 		boolean buildNewPWM = true;						// whether or not to build new PWM
+		boolean pwmGoodQuality = false;
 		double pwmThreshold;
 		double pwmThresholdHGP;
 		int pwmHitDiff;
@@ -4914,6 +4898,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.pfmString = this.pfmString;
 			cluster.wm = this.wm;
 			cluster.buildNewPWM = this.buildNewPWM;
+			cluster.pwmGoodQuality = this.pwmGoodQuality;
 			cluster.pwmThreshold = this.pwmThreshold;
 			cluster.pwmThresholdHGP = this.pwmThresholdHGP;
 			cluster.pwmHitDiff = this.pwmHitDiff;
