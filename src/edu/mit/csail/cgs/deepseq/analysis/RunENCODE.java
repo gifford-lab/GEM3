@@ -25,15 +25,16 @@ public class RunENCODE {
 		}};
 		HashSet<String> TFtoRun = new HashSet<String>(){{
 //		    add("c-Myc");
-//		    add("GR");
+		    add("GR");
 			// 0 discoveries
-		    add("BRF1");
-		    add("BRF2");
-		    add("NELFe");
-		    add("XRCC4");
-		    add("SUZ12");
-		    add("ZNF274");
-		    add("ZZZ3");
+//		    add("BRF1");
+//		    add("BRF2");
+//		    add("NELFe");
+//		    add("XRCC4");
+//		    add("SUZ12");
+//		    add("ZNF274");
+//		    add("ZZZ3");
+			
 //		    
 //		    // 0 known motif
 //		    add("ZNF274");
@@ -158,8 +159,10 @@ public class RunENCODE {
         		continue;
         	String input = s.replace(tf, "Input");
         	if (exptRep.containsKey(input)){
-        		String tf_name = s.replace(' ', '_');
-        		String input_name = input.replace(' ', '_');
+        		String tf_name = s.replace('_', '-');
+        		tf_name = tf_name.replace(' ', '_');
+        		String input_name = s.replace('_', '-');
+        		input_name = input_name.replace(' ', '_');
         		tf_sb.append(tf_name+"\t");
         		for (String rep:exptRep.get(s)){
         			System.out.print(rep+"\t");

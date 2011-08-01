@@ -214,7 +214,7 @@ public class GPS2 {
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         
-        round --;
+//        round --;
 
         System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
     }

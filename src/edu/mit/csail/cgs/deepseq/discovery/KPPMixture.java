@@ -777,42 +777,38 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 			}
 		} 
-		/** compute possion p-value from IP only (similar to MACS) */
-		Collections.sort(compFeatures);				// sort by location
-		
-		createChromStats(compFeatures);
-		
-		Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
-		for(int i = 0; i < compFeatures.size(); i++) {
-			String chrom = compFeatures.get(i).getPosition().getChrom();
-			if(!chrom_comp_pair.containsKey(chrom))
-				chrom_comp_pair.put(chrom, new ArrayList<Integer>());
+		/** compute Poisson p-value from IP only (similar to MACS) */
+		if( (!controlDataExist) || (controlDataExist && config.strigent_event_pvalue)) {
+			Collections.sort(compFeatures);				// sort by location
 			
-			chrom_comp_pair.get(chrom).add(i);
+			createChromStats(compFeatures);
+			
+			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
+			for(int i = 0; i < compFeatures.size(); i++) {
+				String chrom = compFeatures.get(i).getPosition().getChrom();
+				if(!chrom_comp_pair.containsKey(chrom))
+					chrom_comp_pair.put(chrom, new ArrayList<Integer>());			
+				chrom_comp_pair.get(chrom).add(i);
+			}
+		
+			for(String chrom:chrom_comp_pair.keySet()) {
+				int chromLen = gen.getChromLength(chrom);
+				for(int c = 0; c < numConditions; c++) {
+					double chrom_lambda = ((double)condHitCounts.get(chrom).get(0).get(c))/chromLen*(modelRange*2+1);				
+					for(int i:chrom_comp_pair.get(chrom)) {
+						double thirdLambda = computeLambda(compFeatures, i, c, config.third_lambda_region_width);
+						double secondLambda = computeLambda(compFeatures, i, c, config.second_lambda_region_width);					
+						double local_lambda = Math.max(secondLambda,  Math.max(thirdLambda, chrom_lambda));
+						ComponentFeature cf = compFeatures.get(i); 
+						cf.setExpectedCounts(local_lambda, c);                        
+						poisson.setMean(local_lambda);
+	                    int count = (int)Math.ceil(cf.getEventReadCounts(c));
+	                    double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
+						cf.setPValue_wo_ctrl(pValue, c);
+					}//end of for(int i:chrom_comp_pair.get(chrom)) LOOP	
+				}				
+			}
 		}
-		
-		ipStrandFivePrimes   = new ArrayList[2];
-		Arrays.fill(ipStrandFivePrimes, new ArrayList<StrandedBase>());
-		ipStrandFivePrimePos   = new int[2][];
-		
-		for(String chrom:chrom_comp_pair.keySet()) {
-			int chromLen = gen.getChromLength(chrom);
-			for(int c = 0; c < numConditions; c++) {
-				double chrom_lambda = ((double)condHitCounts.get(chrom).get(0).get(c))/chromLen*(modelRange*2+1);				
-				for(int i:chrom_comp_pair.get(chrom)) {
-					double thirdLambda = computeLambda(compFeatures, i, c, config.third_lambda_region_width);
-					double secondLambda = computeLambda(compFeatures, i, c, config.second_lambda_region_width);					
-					double local_lambda = Math.max(secondLambda,  Math.max(thirdLambda, chrom_lambda));
-					ComponentFeature cf = compFeatures.get(i); 
-					cf.setExpectedCounts(local_lambda, c);                        
-					poisson.setMean(local_lambda);
-
-                    int count = (int)Math.ceil(cf.getEventReadCounts(c));
-                    double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
-					cf.setPValue_wo_ctrl(pValue, c);
-				}//end of for(int i:chrom_comp_pair.get(chrom)) LOOP	
-			}				
-		}			
 		
 		// calculate q-values, correction for multiple testing
 		benjaminiHochbergCorrection(compFeatures);
@@ -3593,7 +3589,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ArrayList<Kmer> kmers = countKmers2(compFeatures);
 			kEngine.updateKmerCounts(kmers, compFeatures);
 			
-			log(1, String.format("k=%d, %d k-mers, %d+/%d- sequences", 
+			log(1,String.format("k=%d, %d k-mers, %d+/%d- sequences", 
 					config.k, kmers.size(), kEngine.getPositiveSeqs().length, kEngine.getNegSeqCount()));
 			
 			if (makePFM)
@@ -3687,10 +3683,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					bestK = config.k;
 				}
 			}
-			log(1, String.format("\n------------------------\nSelected k=%d\tn=%d.", bestK, bestKxKmerCount/bestK));
-			config.k = bestK;
-			config.k_min = -1;		// prevent selecting k again
-			config.k_max = -1;
+			if (bestK!=0){
+				log(1, String.format("\n------------------------\nSelected k=%d\tn=%d.", bestK, bestKxKmerCount/bestK));
+				config.k = bestK;
+				config.k_min = -1;		// prevent selecting k again
+				config.k_max = -1;
+			}
+			else{
+				log(1, "The value of k can not be determined automatically.");
+				System.exit(-1);
+			}
 		}
 		else{
 			if (winSize==-1)
@@ -5018,6 +5020,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean filter_pwm_seq = false;
         public boolean k_select_seed = false;
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
+        public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5082,9 +5085,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");
             filter_pwm_seq = flags.contains("filter_pwm_seq");
             k_select_seed = flags.contains("k_select_seed");
-            pwm_align_new = !flags.contains("pwm_align_all");
             
-                // default as true, need the opposite flag to turn it off
+            // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
             filterEvents = !flags.contains("nf");	// not filtering of predicted events
@@ -5097,6 +5099,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_scanPeak = ! flags.contains("no_scanPeak");
             do_model_selection = !flags.contains("no_model_selection");
             use_kmer_mismatch = !flags.contains("no_kmm");
+            pwm_align_new = !flags.contains("pwm_align_all");
+            strigent_event_pvalue = !flags.contains("relax");
 
             mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
            
