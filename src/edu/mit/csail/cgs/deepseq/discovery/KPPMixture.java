@@ -147,6 +147,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	/** Kmer motif engine
 	 **/
 	private KmerEngine kEngine;
+	/** The k-mer that gives best PWM (lowest Hgp) */
 	private Kmer bestSeed = null;
 	private boolean kmerPreDefined = false;
 	/** motif clusters */
@@ -3725,6 +3726,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (kmers.size()==0)
 			return kmers;
 		System.out.println("\nAlign and cluster k-mers ...");
+		boolean bestSeed_is_reset = false;
 		String[] seqs_old = kEngine.getPositiveSeqs();
 		String[] seqs = seqs_old.clone();						// clone to modify locally
 		ArrayList<Kmer> kmers_old = new ArrayList<Kmer>();
@@ -4170,7 +4172,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			if (cluster.wm!=null){
 				if (bestSeed==null)						// first cluster, save the seed
 					bestSeed = seed;
-				else if (cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*1.1){		// this pwm is at least 10% better
+				else if (cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*1.1 && !bestSeed_is_reset){		// this pwm is at least 10% better
 					// reset kmers and posSeqs, to start over with this new bestSeed
 					seqs = seqs_old.clone();						// clone to modify locally
 					for (int i=0;i<posSeqs.length;i++)
@@ -4183,6 +4185,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					alignedKmer_sb = new StringBuilder();
 					bestSeed = seed;
 					System.out.println("Current motif is better, start over with seed="+seed.getKmerString());
+					bestSeed_is_reset=true;							// marked as "reset", only once, avoid potential infinite loop
 					continue;										// start over with new seed
 				}
 			}	
@@ -4503,6 +4506,35 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						continue;
 					if (!isPlusStrands[seqIdx])
 						seq=SequenceUtils.reverseComplement(seq);
+					// mark 'N' to the retrieved sequence
+					char[]old=seqs[seqIdx].toCharArray();
+					int N_start=-1, N_end=-1;
+					for (int c=0;c<old.length;c++){
+						if (old[c]=='N'){
+							N_start=c;	
+							for (int n=c+1;n<old.length;n++){
+								if (old[n]=='N')
+									N_end = n;
+								else
+									break;
+							}
+							break;
+						}
+					}
+					if (N_start!=-1){				// has N 
+						int N_start_new = N_start-seedMid_seq+config.k_win/2;
+						if (N_start_new<0)
+							N_start_new = 0;
+						int N_end_new = N_end-seedMid_seq+config.k_win/2;
+						if (N_end_new>old.length-1)
+							N_end_new = old.length-1;
+						if (N_start_new<=N_end_new){
+							char[]newSeq=seq.toCharArray();
+							for (int c=N_start_new; c<=N_end_new;c++)
+								newSeq[c]='N';
+							seq = new String(newSeq);
+						}
+					}
 					passedSeqs.add(seq);
 					passedIdx.add(seqIdx);
 				}
@@ -4524,6 +4556,35 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					continue;
 				if (!isPlusStrands[i])
 					seq=SequenceUtils.reverseComplement(seq);
+				// mark 'N' to the retrieved sequence
+				char[]old=seqs[i].toCharArray();
+				int N_start=-1, N_end=-1;
+				for (int c=0;c<old.length;c++){
+					if (old[c]=='N'){
+						N_start=c;	
+						for (int n=c+1;n<old.length;n++){
+							if (old[n]=='N')
+								N_end = n;
+							else
+								break;
+						}
+						break;
+					}
+				}
+				if (N_start!=-1){				// has N 
+					int N_start_new = N_start-seedMid_seq+config.k_win/2;
+					if (N_start_new<0)
+						N_start_new = 0;
+					int N_end_new = N_end-seedMid_seq+config.k_win/2;
+					if (N_end_new>old.length-1)
+						N_end_new = old.length-1;
+					if (N_start_new<=N_end_new){
+						char[]newSeq=seq.toCharArray();
+						for (int c=N_start_new; c<=N_end_new;c++)
+							newSeq[c]='N';
+						seq = new String(newSeq);
+					}
+				}
 				passedSeqs.add(seq);
 				passedIdx.add(i);
 	    	}
@@ -4558,7 +4619,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (rightIdx-leftIdx+1>config.k/2){		// pwm is long enough
 	    	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 	    	for(int p=leftIdx;p<=rightIdx;p++){
-	    		for (char base:LETTERS){
+	    		for (char base:LETTERS){							// ignore 'N' count
 	    			matrix[p-leftIdx][base]=(float) pwm[p][base];
 	    		}
 	    	}
@@ -4639,10 +4700,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
     private Pair<Integer, Integer> finalizePWM(double[][] pwm){
     	// normalize, compare to background, and log2
     	double[] ic = new double[pwm.length];						// information content
-    	for (int p=0;p<pwm.length;p++){
+    	for (int p=0;p<pwm.length;p++){						// for each position
     		int sum=0;
-    		for (char base:LETTERS){
-    			if (pwm[p][base]==0)
+    		for (char base:LETTERS){						// do not count 'N'
+    			if (pwm[p][base]==0)						// 0 count can cause log(0), so set a small value
     				pwm[p][base]=0.001; 
     			sum += pwm[p][base];
     		}
