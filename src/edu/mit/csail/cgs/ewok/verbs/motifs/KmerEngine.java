@@ -473,27 +473,27 @@ public class KmerEngine {
 		Arrays.sort(negSeqScores);
 		
 		// find the threshold motif score
-		int[] poshits = new int[seqs.length];
-		int[] neghits = new int[seqs.length];
-		double[] hgps = new double[seqs.length];
+		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
+		for (int i=zeroIdx;i<posSeqScores.length;i++)
+			posScoreUnique.add(posSeqScores[i]);
+		Double[] posScores_u = new Double[posScoreUnique.size()];
+		posScoreUnique.toArray(posScores_u);
+		int[] poshits = new int[posScoreUnique.size()];
+		int[] neghits = new int[posScoreUnique.size()];
+		double[] hgps = new double[posScoreUnique.size()];
 		StringBuilder sb = new StringBuilder();
-		for (int i=zeroIdx;i<seqs.length;i++){
-			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
-			if( index < 0 ) { index = -index - 1; }
-			poshits[i] = posSeqScores.length-i;
+		for (int i=0;i<posScores_u.length;i++){
+			double key = posScores_u[i];
+			int index = CommonUtils.findKey(posSeqScores, key);
+			poshits[i] = posSeqScores.length-index;
+			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
 		}
-		int endIdx = seqs.length-1;
-		for (int i=seqs.length-1;i>=zeroIdx;i--){
-			if( poshits[i]*0.7 < neghits[i]){
-				endIdx = i;
-				break;
-			}
-		}
+
 		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
 		Thread[] threads = new Thread[numThread];
 		ArrayList<Integer> idxs = new ArrayList<Integer>();
-		for (int i=endIdx;i>=zeroIdx;i--)
+		for (int i=posScores_u.length-1;i>=0;i--)
 			idxs.add(i);
 		for (int i=0;i<numThread;i++){
             Thread t = new Thread(new HGPThread(idxs, seqs.length, seqsNegList.size(), poshits, neghits, hgps));
@@ -513,16 +513,17 @@ public class KmerEngine {
                 }
             }   
         }
+		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
+		
 		if (printPwmHgp){
-			for (int i=0;i<posSeqScores.length;i++)
-				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posSeqScores[i], poshits[i], neghits[i], hgps[i] ));
+			for (int i=0;i<posScores_u.length;i++)
+				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posScores_u[i], poshits[i], neghits[i], hgps[i] ));
 		}
 		
-		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
 		Pair<Double, TreeSet<Integer>> minHgp = StatUtil.findMin(hgps);
 		int minIdx = minHgp.cdr().last();
 		MotifThreshold score = new MotifThreshold();
-		score.score = posSeqScores[minIdx];
+		score.score = posScores_u[minIdx];
 		score.hgp = minHgp.car();
 		score.posHit = poshits[minIdx];
 		score.negHit = neghits[minIdx];
@@ -539,9 +540,11 @@ public class KmerEngine {
 	}
 
 	/**
-	 * Estimate threshold of a Kmer Group Count using the positive/negative sequences
+	 * Estimate threshold of a Kmer Group Score using the positive/negative sequences<br>
+	 * Compute the hyper-geometric p-value from number of pos/neg sequences that have the scores higher than the considered score.<br>
+	 * Return the score gives the most significant p-value.
 	 */
-	public MotifThreshold estimateKgcThreshold(String outName, boolean printKgcHgp){
+	public MotifThreshold estimateKgsThreshold(String outName, boolean printKgcHgp){
 		double[] posSeqScores = new double[seqs.length];
 		double[] negSeqScores = new double[seqsNegList.size()];
 		for (int i=0;i<seqs.length;i++){
@@ -554,9 +557,6 @@ public class KmerEngine {
 			}
 		}
 		Arrays.sort(posSeqScores);
-		int zeroIdx = Arrays.binarySearch(posSeqScores, 0);
-		if( zeroIdx < 0 ) { zeroIdx = -zeroIdx - 1; }
-		
 		for (int i=0;i<seqsNegList.size();i++){
 			KmerGroup[] kgs = query(seqsNegList.get(i));
 			if (kgs.length==0)
@@ -569,27 +569,27 @@ public class KmerEngine {
 		Arrays.sort(negSeqScores);
 		
 		// find the threshold motif score
-		int[] poshits = new int[seqs.length];
-		int[] neghits = new int[seqs.length];
-		double[] hgps = new double[seqs.length];
+		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
+		for (double s:posSeqScores)
+			posScoreUnique.add(s);
+		Double[] posScores_u = new Double[posScoreUnique.size()];
+		posScoreUnique.toArray(posScores_u);
+		int[] poshits = new int[posScoreUnique.size()];
+		int[] neghits = new int[posScoreUnique.size()];
+		double[] hgps = new double[posScoreUnique.size()];
 		StringBuilder sb = new StringBuilder();
-		for (int i=zeroIdx;i<seqs.length;i++){
-			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
-			if( index < 0 ) { index = -index - 1; }
-			poshits[i] = posSeqScores.length-i;
+		for (int i=0;i<posScores_u.length;i++){
+			double key = posScores_u[i];
+			int index = CommonUtils.findKey(posSeqScores, key);
+			poshits[i] = posSeqScores.length-index;
+			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
 		}
-		int endIdx = seqs.length-1;
-		for (int i=seqs.length-1;i>=zeroIdx;i--){
-			if( poshits[i]*0.7 < neghits[i]){
-				endIdx = i;
-				break;
-			}
-		}
+
 		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
 		Thread[] threads = new Thread[numThread];
 		ArrayList<Integer> idxs = new ArrayList<Integer>();
-		for (int i=endIdx;i>=zeroIdx;i--)
+		for (int i=posScores_u.length-1;i>=0;i--)
 			idxs.add(i);
 		for (int i=0;i<numThread;i++){
             Thread t = new Thread(new HGPThread(idxs, seqs.length, seqsNegList.size(), poshits, neghits, hgps));
@@ -609,21 +609,21 @@ public class KmerEngine {
                 }
             }   
         }
+		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
 		
 		if (printKgcHgp){
-			for (int i=0;i<posSeqScores.length;i++)
-				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posSeqScores[i], poshits[i], neghits[i], hgps[i] ));
+			for (int i=0;i<posScores_u.length;i++)
+				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posScores_u[i], poshits[i], neghits[i], hgps[i] ));
 		}
-		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
 		Pair<Double, TreeSet<Integer>> minHgp = StatUtil.findMin(hgps);
 		int minIdx = minHgp.cdr().last();
 		MotifThreshold score = new MotifThreshold();
-		score.score = posSeqScores[minIdx];
+		score.score = posScores_u[minIdx];
 		score.hgp = minHgp.car();
 		score.posHit = poshits[minIdx];
 		score.negHit = neghits[minIdx];
 		if (printKgcHgp)
-			CommonUtils.writeFile(outName+"_KgcHgp.txt", sb.toString());
+			CommonUtils.writeFile(outName+"_KgsHgp.txt", sb.toString());
 		return score;
 	}
 	
@@ -958,8 +958,7 @@ public class KmerEngine {
 	}
 	public static void main1(String[] args){
 		KmerEngine ke = new KmerEngine(new ArrayList<Kmer>(),"");
-//		ke.computeHGP(40876, 40873, 37993, 27993);
-		System.err.println(ke.computeHGP(49,1113,39,358));
+		System.err.println(ke.computeHGP(652,665,652,665));
 		System.err.println(ke.computeHGP(50,1112,40,357));
 	}
 }

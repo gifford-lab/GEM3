@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 
@@ -240,6 +241,26 @@ public class CommonUtils {
 		}
 //		System.out.println("File was written to "+fileName);
 	}
+	/** 
+	 * Find the index that gives value larger than or equal to the key
+	 * @param values
+	 * @param key
+	 * @return
+	 */
+	public static int findKey(double[] values, double key){
+		int index = Arrays.binarySearch(values, key);
+		if( index < 0 )  							// if key not found
+			index = -(index+1); 
+		else{		// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+			for (int k=index; k>=0;k--){
+				if (values[k]==key)
+					index = k;
+				else
+					break;
+			}
+		}
+		return index;
+	}
 	
 	public static String padding(int repeatNum, char padChar) throws IndexOutOfBoundsException {
 	      if (repeatNum < 0) {
@@ -375,5 +396,8 @@ public class CommonUtils {
 			goodScoreShift = -goodScoreShift;		
 		}
 		return new Pair<Integer, Double>(goodScoreShift, goodScore);
+	}
+	public static void main(String[] args){
+		System.out.println(findKey(new double[]{0,1,1,1,2,4,6}, 7));
 	}
 }
