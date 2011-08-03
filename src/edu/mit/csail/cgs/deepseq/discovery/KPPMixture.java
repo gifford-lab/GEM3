@@ -4851,6 +4851,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 	}
+	
+	public void estimateKgcThreshold(){
+		MotifThreshold t = kEngine.estimateKgcThreshold(outName, true);
+		System.out.println(String.format("%.2f\t%d\t%d\t%.1f\n", t.score, t.posHit, t.negHit, t.hgp ));
+	}
     
 	/**
 	 * Print the overlapping kmer counts with increasing number of k

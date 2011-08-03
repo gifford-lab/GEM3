@@ -454,10 +454,9 @@ public class KmerEngine {
 	
 	/**
 	 * Estimate threshold of a PWM using the positive/negative sequences<br>
-	 * If a PWM is good PWM, the curve of the difference between the number of positive and negative sequences match vs score
-	 * should have a peak value, then we set PWM threshold = the largest score corresponding to 0.9*peak_value
+	 * Multi-thread to compute HGP with large count
 	 */
-	public MotifThreshold estimatePwmThreshold(WeightMatrix wm, String outName, boolean printFDR){
+	public MotifThreshold estimatePwmThreshold(WeightMatrix wm, String outName, boolean printPwmHgp){
 		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 		double[] posSeqScores = new double[seqs.length];
 		double[] negSeqScores = new double[seqsNegList.size()];
@@ -514,9 +513,11 @@ public class KmerEngine {
                 }
             }   
         }
+		if (printPwmHgp){
+			for (int i=0;i<posSeqScores.length;i++)
+				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posSeqScores[i], poshits[i], neghits[i], hgps[i] ));
+		}
 		
-//			if (printFDR)
-//				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posSeqScores[i], positiveCount, negativeCount, hgps[i] ));
 		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
 		Pair<Double, TreeSet<Integer>> minHgp = StatUtil.findMin(hgps);
 		int minIdx = minHgp.cdr().last();
@@ -525,23 +526,105 @@ public class KmerEngine {
 		score.hgp = minHgp.car();
 		score.posHit = poshits[minIdx];
 		score.negHit = neghits[minIdx];
-//		for (int i=maxIdx; i<diffs.length;i++){
-//			if (diffs[i]<max*0.9){
-//				threshold = posSeqScores[i];
-//				break;
-//			}
-//		}
-//		System.out.println(String.format("%.2f\t%.0f\t%.4f\t%.1f", threshold, diffs[minIdx], fdrs[minIdx], hgps[minIdx] ));
-		if (printFDR)
-			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_fdr.txt", sb.toString());
+		if (printPwmHgp)
+			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_PwmHgp.txt", sb.toString());
 		return score;
 	}
-	
+
 	public class MotifThreshold{
 		public double score;
 		public int posHit;
 		public int negHit;
 		public double hgp;		
+	}
+
+	/**
+	 * Estimate threshold of a Kmer Group Count using the positive/negative sequences
+	 */
+	public MotifThreshold estimateKgcThreshold(String outName, boolean printKgcHgp){
+		double[] posSeqScores = new double[seqs.length];
+		double[] negSeqScores = new double[seqsNegList.size()];
+		for (int i=0;i<seqs.length;i++){
+			KmerGroup[] kgs = query(seqs[i]);
+			if (kgs.length==0)
+				posSeqScores[i]=0;
+			else{
+				Arrays.sort(kgs);
+				posSeqScores[i]=-kgs[0].getHgp();				// score = -log10 hgp, becomes positive value
+			}
+		}
+		Arrays.sort(posSeqScores);
+		int zeroIdx = Arrays.binarySearch(posSeqScores, 0);
+		if( zeroIdx < 0 ) { zeroIdx = -zeroIdx - 1; }
+		
+		for (int i=0;i<seqsNegList.size();i++){
+			KmerGroup[] kgs = query(seqsNegList.get(i));
+			if (kgs.length==0)
+				negSeqScores[i]=0;
+			else{
+				Arrays.sort(kgs);
+				negSeqScores[i]=-kgs[0].getHgp();
+			}
+		}
+		Arrays.sort(negSeqScores);
+		
+		// find the threshold motif score
+		int[] poshits = new int[seqs.length];
+		int[] neghits = new int[seqs.length];
+		double[] hgps = new double[seqs.length];
+		StringBuilder sb = new StringBuilder();
+		for (int i=zeroIdx;i<seqs.length;i++){
+			int index = Arrays.binarySearch(negSeqScores, posSeqScores[i]);
+			if( index < 0 ) { index = -index - 1; }
+			poshits[i] = posSeqScores.length-i;
+			neghits[i] = negSeqScores.length-index;
+		}
+		int endIdx = seqs.length-1;
+		for (int i=seqs.length-1;i>=zeroIdx;i--){
+			if( poshits[i]*0.7 < neghits[i]){
+				endIdx = i;
+				break;
+			}
+		}
+		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
+		Thread[] threads = new Thread[numThread];
+		ArrayList<Integer> idxs = new ArrayList<Integer>();
+		for (int i=endIdx;i>=zeroIdx;i--)
+			idxs.add(i);
+		for (int i=0;i<numThread;i++){
+            Thread t = new Thread(new HGPThread(idxs, seqs.length, seqsNegList.size(), poshits, neghits, hgps));
+            t.start();
+            threads[i] = t;
+		}
+		boolean anyrunning = true;
+        while (anyrunning) {
+            anyrunning = false;
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) { }
+            for (int i = 0; i < threads.length; i++) {
+                if (threads[i].isAlive()) {
+                    anyrunning = true;
+                    break;
+                }
+            }   
+        }
+		
+		if (printKgcHgp){
+			for (int i=0;i<posSeqScores.length;i++)
+				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posSeqScores[i], poshits[i], neghits[i], hgps[i] ));
+		}
+		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
+		Pair<Double, TreeSet<Integer>> minHgp = StatUtil.findMin(hgps);
+		int minIdx = minHgp.cdr().last();
+		MotifThreshold score = new MotifThreshold();
+		score.score = posSeqScores[minIdx];
+		score.hgp = minHgp.car();
+		score.posHit = poshits[minIdx];
+		score.negHit = neghits[minIdx];
+		if (printKgcHgp)
+			CommonUtils.writeFile(outName+"_KgcHgp.txt", sb.toString());
+		return score;
 	}
 	
 	/**
@@ -744,7 +827,7 @@ public class KmerEngine {
 	 * This KmerGroup class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
 	 * @author yuchun
 	 */
-	public class KmerGroup {
+	public class KmerGroup implements Comparable<KmerGroup>{
 		ArrayList<Kmer> kmers;
 		int bs = 999;
 		int posHitGroupCount;
@@ -810,6 +893,16 @@ public class KmerEngine {
 		}			
 		public int getPosBS(){
 			return bs;
+		}
+		public int compareToByPosHitCount(KmerGroup kg) {		// descending pos hit count
+			if(posHitGroupCount>kg.getGroupHitCount()){return(-1);}
+			else if(posHitGroupCount<kg.getGroupHitCount()){return(1);}
+			else return(0);
+		}
+		public int compareTo(KmerGroup kg) {					// ascending hgp
+			if(hgp<kg.getHgp()){return(-1);}
+			else if(hgp>kg.getHgp()){return(1);}
+			else return(0);
 		}
 	}
 	class HGPThread implements Runnable {
