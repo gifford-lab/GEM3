@@ -454,7 +454,8 @@ public class KmerEngine {
 	
 	/**
 	 * Estimate threshold of a PWM using the positive/negative sequences<br>
-	 * Multi-thread to compute HGP with large count
+	 * Multi-thread to compute HGP<br>
+	 * Do not consider negative score. (to reduce run time; negative pwm score means the PWM is of bad quality anyway)
 	 */
 	public MotifThreshold estimatePwmThreshold(WeightMatrix wm, String outName, boolean printPwmHgp){
 		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
@@ -472,16 +473,24 @@ public class KmerEngine {
 		}
 		Arrays.sort(negSeqScores);
 		
-		// find the threshold motif score
 		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
 		for (int i=zeroIdx;i<posSeqScores.length;i++)
 			posScoreUnique.add(posSeqScores[i]);
+		if (posScoreUnique.isEmpty()){						// this could happen if all pwm scores are less than 0
+			MotifThreshold score = new MotifThreshold();
+			score.score = 0;
+			score.hgp = 0;
+			score.posHit = 0;
+			score.negHit = 0;
+			return score;
+		}
+		
+		// count hits at each score, compute hgp
 		Double[] posScores_u = new Double[posScoreUnique.size()];
 		posScoreUnique.toArray(posScores_u);
 		int[] poshits = new int[posScoreUnique.size()];
 		int[] neghits = new int[posScoreUnique.size()];
 		double[] hgps = new double[posScoreUnique.size()];
-		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<posScores_u.length;i++){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
@@ -515,6 +524,7 @@ public class KmerEngine {
         }
 		hgps[0]=0;		// the lowest threshold will match all positive sequences, lead to hgp=0
 		
+		StringBuilder sb = new StringBuilder();
 		if (printPwmHgp){
 			for (int i=0;i<posScores_u.length;i++)
 				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posScores_u[i], poshits[i], neghits[i], hgps[i] ));
