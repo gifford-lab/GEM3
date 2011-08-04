@@ -49,6 +49,12 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
         double[] results = new double[sequence.length];
         /* scan through the sequence */
         int length = matrix.length();
+       	for (int i = 0; i < sequence.length; i++) {
+       		results[i] = (float)matrix.getMinScore();
+       	}
+       	if (sequence.length<length)
+     		return results;
+       	
         for (int i = 0; i <= sequence.length - length; i++) {
             float score = (float)0.0;
             for (int j = 0; j < length; j++) {
@@ -61,9 +67,7 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
             	results[i] = score;
             }
         }
-       	for (int i = (sequence.length - length)+1; i < sequence.length; i++) {
-       		results[i] = (float)matrix.getMinScore();
-       	}
+
        
         return results;
     }
