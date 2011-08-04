@@ -4603,6 +4603,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		System.out.println(String.format("%s: %d seq to build PWM.", CommonUtils.timeElapsed(tic), passedSeqs.size()));
 
 		// count base frequencies
+		for (int p=0;p<config.k_win+1;p++){
+			for (char base:LETTERS)			// 0 count can cause log(0), set pseudo-count 0.375 to every pos, every base
+				pfm[p][base]=0.375; 		//http://www.ncbi.nlm.nih.gov.libproxy.mit.edu/pmc/articles/PMC2490743/
+		}    	
 		for (int i=0;i<passedSeqs.size();i++){
 			String s = passedSeqs.get(i);
 			int seqIdx = passedIdx.get(i);
@@ -4708,8 +4712,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	for (int p=0;p<pwm.length;p++){						// for each position
     		int sum=0;
     		for (char base:LETTERS){						// do not count 'N'
-    			if (pwm[p][base]==0)						// 0 count can cause log(0), so set a small value
-    				pwm[p][base]=0.001; 
     			sum += pwm[p][base];
     		}
     		for (int b=0;b<LETTERS.length;b++){
