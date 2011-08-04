@@ -623,7 +623,7 @@ public class KmerEngine {
 		
 		if (printKgcHgp){
 			for (int i=0;i<posScores_u.length;i++)
-				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posScores_u[i], poshits[i], neghits[i], hgps[i] ));
+				sb.append(String.format("%d\t%.3f\t%d\t%d\t%.1f\n", i, posScores_u[i], poshits[i], neghits[i], hgps[i] ));
 		}
 		Pair<Double, TreeSet<Integer>> minHgp = StatUtil.findMin(hgps);
 		int minIdx = minHgp.cdr().last();

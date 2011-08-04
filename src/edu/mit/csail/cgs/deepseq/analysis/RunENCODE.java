@@ -26,7 +26,7 @@ public class RunENCODE {
 		HashSet<String> TFtoRun = new HashSet<String>(){{
 //		    add("c-Myc");
 //		    add("GR");
-			// 0 discoveries
+//			// 0 discoveries
 //		    add("BRF1");
 //		    add("BRF2");
 //		    add("NELFe");
@@ -34,81 +34,92 @@ public class RunENCODE {
 //		    add("SUZ12");
 //		    add("ZNF274");
 //		    add("ZZZ3");
-			
-//		    
-//		    // 0 known motif
-		    add("BCL11A");
-		    add("BCL3");
-		    add("BAF155");
-		    add("BATF");
-		    add("BCL");
-		    add("BDP1");
-		    add("CCNT2");
-		    add("CHD2");
-		    add("CTCFL");
-		    add("HDAC2");
-		    add("HEY1");
-		    add("HMGN3");
-		    add("KAP1");
-		    add("PU.1");
-		    add("Rad21");
-		    add("SETDB1");
-		    add("SIRT6");
-		    add("SMC3");
-		    add("SP2");
-		    add("Sin3Ak-20");
-		    add("THAP1");
-		    add("TR4");
-		    add("ZNF263");
+//			
+////		    
+////		    // 0 known motif
+//		    add("BCL11A");
+//		    add("BCL3");
+//		    add("BAF155");
+//		    add("BATF");
+//		    add("BCL");
+//		    add("BDP1");
+//		    add("CCNT2");
+//		    add("CHD2");
+//		    add("CTCFL");
+//		    add("HDAC2");
+//		    add("HEY1");
+//		    add("HMGN3");
+//		    add("KAP1");
+//		    add("PU.1");
+//		    add("Rad21");
+//		    add("SETDB1");
+//		    add("SIRT6");
+//		    add("SMC3");
+//		    add("SP2");
+//		    add("Sin3Ak-20");
+//		    add("THAP1");
+//		    add("TR4");
+//		    add("ZNF263");
 		    
 //		    // else
-
-//			add("EBF");
-//		    add("Egr-1");
-//		    add("GABP");
-//			add("IRF4");
-//		    add("NRSF");
-//		    add("PAX5-C20");
-//		    add("PAX5-N19");
-//		    add("POU2F2");
-//		    add("Pbx3");
-//		    add("SP1");
-//		    add("SRF");
-//		    add("TAF1");
-//		    add("TCF12");
-//		    add("USF-1");
-//		    add("ZBTB33");
-//		    add("p300");
-//		    add("BHLHE40");
-//		    add("FOSL2");
-//		    add("HEY1");
-//		    add("JunD");
-//		    add("RXRA");
-//		    add("ZBTB33");
-//		    add("SIX5");
-//		    add("FOXP2");
-//		    add("NFKB");
-//		    add("Max");
-//		    add("Rad21");
-//		    add("YY1");
-//		    add("ZZZ3");
-//		    add("c-Fos");
-//		    add("TCF4");
-//		    add("c-Jun");
 //		    add("AP-2alpha");
 //		    add("AP-2gamma");
+//		    add("ATF3");
 //		    add("BAF170");
-//		    add("BDP1");
+//		    add("BHLHE40");
 //		    add("Brg1");
+//		    add("CEBPB");
 //		    add("E2F4");
 //		    add("E2F6");
+//		    add("EBF");
+//		    add("ERRA");
+//		    add("Egr-1");
+//		    add("FOSL2");
+//		    add("FOXP2");
+//		    add("GABP");
+//		    add("GATA-1");
+//		    add("GATA-2");
+//		    add("GRp20");
+//		    add("GTF2B");
+//		    add("HNF4A");
+//		    add("HSF1");
+//		    add("IRF4");
 //		    add("Ini1");
-//		    add("Nrf1");
+//		    add("JunD");
+//		    add("Max");
+		    add("NF-E2");
+		    add("NF-YA");
+		    add("NF-YB");
+		    add("NFKB");
+		    add("NRSF");
+		    add("Nrf1");
+		    add("PAX5-C20");
+		    add("PAX5-N19");
+		    add("PGC1A");
+		    add("POU2F2");
+//		    add("Pbx3");
+//		    add("Pol3");
 //		    add("RPC155");
-//		    add("TFIIIC-110");
-//		    add("STAT1");
+//		    add("RXRA");
+//		    add("SIX5");
+//		    add("SP1");
+//		    add("SREBP1");
 //		    add("SREBP1A");
 //		    add("SREBP2");
+//		    add("SRF");
+//		    add("STAT1");
+//		    add("STAT2");
+//		    add("TAF1");
+//		    add("TCF12");
+//		    add("TCF4");
+//		    add("TFIIIC-110");
+//		    add("USF-1");
+//		    add("YY1");
+//		    add("ZBTB33");
+//		    add("c-Fos");
+//		    add("c-Jun");
+//		    add("p300");
+		    
 		}};
 		TFtoRun.add("Input");
 		
@@ -160,6 +171,8 @@ public class RunENCODE {
         	}
         	exptRep.get(name).add(s);
         }
+        for (String t:tfs)
+        	System.out.println("add(\""+t+"\");");
         
         StringBuilder tf_sb = new StringBuilder();
         StringBuilder input_sb = new StringBuilder();
@@ -200,6 +213,7 @@ public class RunENCODE {
         	}
         	System.out.println();
         }
+        
         System.out.println("*****************************");
         System.out.println(tf_sb.toString());
         System.out.println(input_sb.toString());
