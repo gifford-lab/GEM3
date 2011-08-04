@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.TreeSet;
 
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
@@ -124,12 +125,28 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public static Kmer fromString(String str){
 		String[] f = str.split("\t");
-		String[] f0 = f[0].split("/");
-		Kmer kmer = new Kmer(f0[0], null);		//TODO: need to read seqIds from file
+		String[] f0f = f[0].split("/");
+		HashSet<Integer> posHits = new HashSet<Integer>();
+		HashSet<Integer> negHits = new HashSet<Integer>();
+		if (f.length==8){
+			String f6 = f[6].trim();
+			if (!f6.equals("")){
+				String[] f6f = f6.split(" ");
+				for (String hit:f6f)
+					posHits.add(Integer.valueOf(hit));
+			}
+			String f7 = f[7].trim();
+			if (!f7.equals("")){
+				String[] f7f = f7.split(" ");
+				for (String hit:f7f)
+					negHits.add(Integer.valueOf(hit));
+			}
+		}
+		Kmer kmer = new Kmer(f0f[0], posHits);	
 		kmer.kmerStartOffset = Integer.parseInt(f[1]);
-//		kmer.negHitCount = Integer.parseInt(f[3]);	//TODO: negative hits also
 		kmer.hgp_lg10 = Double.parseDouble(f[4]);
 		kmer.strength = Double.parseDouble(f[5]);
+		kmer.setNegHits(negHits);
 
 		return kmer;
 	}
@@ -151,7 +168,7 @@ public class Kmer implements Comparable<Kmer>{
 		return SequenceUtils.reverseComplement(kmerString);
 	}
 	
-	public static void printKmers(ArrayList<Kmer> kmers, String filePrefix, boolean printShortFormat){
+	public static void printKmers(ArrayList<Kmer> kmers, String filePrefix, boolean printShortFormat, boolean print_kmer_hits){
 		if (kmers==null || kmers.isEmpty())
 			return;
 		
@@ -166,12 +183,22 @@ public class Kmer implements Comparable<Kmer>{
 		for (Kmer kmer:kmers){
 			if (printShortFormat)
 				sb.append(kmer.toShortString()).append("\n");
-			else
-				sb.append(kmer.toString()).append("\n");
+			else{
+				sb.append(kmer.toString());
+				if (print_kmer_hits)
+					sb.append("\t").append(hits2string(kmer.getPosHits())).append("\t").append(hits2string(kmer.getNegHits()));
+				sb.append("\n");
+			}
 		}
 		CommonUtils.writeFile(String.format("%s_kmer_k%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
 	}
-	
+	private static String hits2string(HashSet<Integer> ids){
+		StringBuilder sb = new StringBuilder();
+		TreeSet<Integer> sorted = new TreeSet<Integer>(ids);
+		for (int id:sorted)
+			sb.append(id).append(" ");
+		return sb.toString();
+	}
 	public static ArrayList<Kmer> loadKmers(List<File> files){
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (File file: files){
@@ -195,5 +222,28 @@ public class Kmer implements Comparable<Kmer>{
 		}
 		return kmers;
 	}
-	
+	public static ArrayList<Kmer> loadKmers(File file){
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+			
+	        String line;
+	        bin.readLine();	// skip header
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            Kmer kmer = Kmer.fromString(line);
+	            kmers.add(kmer);
+	        }			
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+file.getName());
+            e.printStackTrace(System.err);
+        }
+		return kmers;
+	}
+	public static void main(String[] args){
+		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
+	}
 }

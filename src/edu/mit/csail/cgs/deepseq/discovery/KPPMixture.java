@@ -201,7 +201,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		            	}
 			        }
 			        if (!kmers.isEmpty()){
-			        	kEngine = new KmerEngine(kmers, outName);
+//			        	kEngine = new KmerEngine(kmers, outName);
 			        }
 				} catch (FileNotFoundException e) {
 					e.printStackTrace();
@@ -3601,7 +3601,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			if (makePFM)
 				kmers = this.alignOverlappedKmers(kmers, compFeatures, false);
 			log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
-			kEngine.updateEngine(kmers, outName);
+			kEngine.updateEngine(kmers, outName, config.print_kmer_hits);
 		}
 
 	/**
@@ -3653,7 +3653,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}	
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
 		kmers = alignOverlappedKmers(kmers, getEvents(), false);
-		kEngine.updateEngine(kmers, outName);		
+		kEngine.updateEngine(kmers, outName, config.print_kmer_hits);		
     }
     
     public void buildEngine( int winSize){
@@ -3709,7 +3709,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}	
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
 		kmers = alignOverlappedKmers(kmers, getEvents(), false);
-		kEngine.updateEngine(kmers, outName);		
+		kEngine.updateEngine(kmers, outName, config.print_kmer_hits);		
     }
     
     /** 
@@ -4865,7 +4865,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for (int k=config.k;k<config.k+5;k++){
 			String name = outName+"_";//OK_win"+ (config.k*2);
 	    	ArrayList<Point> events = getEventPoints();
-			kEngine.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name);
+			kEngine.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name, false);
 		}
 	}
 	
@@ -5075,6 +5075,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
         public boolean print_pwm_fdr = false;
+      	public boolean print_kmer_hits = false;
         public boolean k_init_calc_PWM = false;
         public boolean filter_pwm_seq = true;
         public boolean k_select_seed = false;
@@ -5141,6 +5142,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             re_align_kmer = flags.contains("rak");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
+            print_kmer_hits = flags.contains("print_kmer_hits");
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");
             k_select_seed = flags.contains("k_select_seed");
             

@@ -78,10 +78,10 @@ public class KmerEngine {
 	/* 
 	 * Contruct a Kmer Engine from a list of Kmers
 	 */
-	public KmerEngine(ArrayList<Kmer> kmers, String outPrefix){
+	public KmerEngine(ArrayList<Kmer> kmers, String outPrefix, boolean print_kmer_hits){
 		if (!kmers.isEmpty()){
 			if (outPrefix!=null)
-				updateEngine(kmers, outPrefix);
+				updateEngine(kmers, outPrefix, print_kmer_hits);
 			else
 				updateEngine(kmers);
 			k=kmers.get(0).k;
@@ -117,9 +117,9 @@ public class KmerEngine {
 	 * in sequence around the binding events 
 	 * and build the kmer AhoCorasick engine
 	 */
-	public void buildEngine(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix){
+	public void buildEngine(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix, boolean print_kmer_hits){
 		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, hgp, k_fold, outPrefix);
-		updateEngine(kms, outPrefix);		
+		updateEngine(kms, outPrefix, print_kmer_hits);		
 	}
 	
 	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix){
@@ -249,7 +249,7 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
 		Collections.sort(kms);
-		Kmer.printKmers(kms, outPrefix+"_all_w"+winSize, true);
+		Kmer.printKmers(kms, outPrefix+"_all_w"+winSize, true, false);
 		
 		kms.removeAll(highHgpKmers);
 		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeq, negSeq, CommonUtils.timeElapsed(tic)));
@@ -657,13 +657,13 @@ public class KmerEngine {
 	 * 
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
 	 */
-	public void updateEngine(ArrayList<Kmer> kmers, String outPrefix){
+	public void updateEngine(ArrayList<Kmer> kmers, String outPrefix, boolean printSeqIds){
 		if (kmers.isEmpty()){
 			engineInitialized = false;
 			return;
 		}
 		Collections.sort(kmers);
-		Kmer.printKmers(kmers, outPrefix, false);
+		Kmer.printKmers(kmers, outPrefix, false, printSeqIds);
 		
 		//Aho-Corasick for searching Kmers in sequences
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
@@ -967,7 +967,7 @@ public class KmerEngine {
 	    kEngine.indexKmers(files);
 	}
 	public static void main1(String[] args){
-		KmerEngine ke = new KmerEngine(new ArrayList<Kmer>(),"");
+		KmerEngine ke = new KmerEngine(new ArrayList<Kmer>(),"", true);
 		System.err.println(ke.computeHGP(652,665,652,665));
 		System.err.println(ke.computeHGP(50,1112,40,357));
 	}
