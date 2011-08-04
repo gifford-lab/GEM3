@@ -4855,8 +4855,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	
 	public void estimateKgsThreshold(){
+		if (! kEngine.isInitialized())
+			return;
+		
 		MotifThreshold t = kEngine.estimateKgsThreshold(outName, true);
-		System.out.println(String.format("%.2f\t%d\t%d\t%.1f\n", t.score, t.posHit, t.negHit, t.hgp ));
+		if (t!=null)
+			System.out.println(String.format("%.2f\t%d\t%d\t%.1f\n", t.score, t.posHit, t.negHit, t.hgp ));
 	}
     
 	/**

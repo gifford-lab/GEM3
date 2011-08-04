@@ -555,6 +555,9 @@ public class KmerEngine {
 	 * Return the score gives the most significant p-value.
 	 */
 	public MotifThreshold estimateKgsThreshold(String outName, boolean printKgcHgp){
+		if (! engineInitialized)
+			return null;
+		
 		double[] posSeqScores = new double[seqs.length];
 		double[] negSeqScores = new double[seqsNegList.size()];
 		for (int i=0;i<seqs.length;i++){
