@@ -4372,7 +4372,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			// paint motif logo
 			c.wm.setNameVerType(outName, "m"+c.clusterId, "");
-			paintMotif(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 90);
+			paintMotif(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+config.k+".txt", pfm_sb.toString());
 		
@@ -4435,6 +4435,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || !c.pwmGoodQuality)
     			continue;
     		html.append("<img src='"+outName+"_"+c.clusterId+"_motif.png"+"' height='90'><br>");
+    		html.append(String.format("PWM threshold: %.2f/%.2f, hit=%d+/%d-, hgp=%.1f<br><br>", 
+    				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosSeqCount, c.pwmPosSeqCount-c.pwmHitDiff, c.pwmThresholdHGP));
 		}
 		html.append("</td></tr></table>");
 		CommonUtils.writeFile(outName+"_result.htm", html.toString());
@@ -6760,7 +6762,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
     }
     
-    public static void main1(String args[]){
+    public static void main(String args[]){
 		// load motif
     	Genome genome;
     	Organism org=null;
@@ -6786,6 +6788,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
 		motif = wm.car();
 		
-		paintMotif(motif, new File("test.png"), 300);
+		paintMotif(motif, new File("test.png"), 75);
     }
  }

@@ -24,7 +24,7 @@ public class WeightMatrixPainter {
         LineMetrics linemetrics = fontmetrics.getLineMetrics(label,g);
         g.setColor(Color.BLACK);
         g.drawString(label,x1 + w/2 - fontmetrics.charsWidth(label.toCharArray(),0,label.length()) / 2,y2-2);
-        int labelHeight = fontmetrics.getHeight() + 4;
+        int labelHeight = fontmetrics.getHeight() + 2;
 
         Font baseFont = new Font("Arial",Font.BOLD, h );
         int pixelsPerLetter = (w-xpad*2) / wm.length();
