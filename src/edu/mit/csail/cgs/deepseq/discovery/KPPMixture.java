@@ -4429,7 +4429,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
 					km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
 		}
-		html.append("</table></td><td><br>");
+		html.append("</table><br><a href='"+outName+"_kmer_k"+config.k+".txt'>Click here to see the complete K-mer list.</a>");
+		html.append("</td><td><br>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
     		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || !c.pwmGoodQuality)
@@ -6762,7 +6763,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
     }
     
-    public static void main(String args[]){
+    public static void main1(String args[]){
 		// load motif
     	Genome genome;
     	Organism org=null;
