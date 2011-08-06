@@ -55,10 +55,14 @@ public class Kmer implements Comparable<Kmer>{
 		this.hgp_lg10 = hgp;
 	}
 	
-	int shift;			// the position relative to seedKmer, after aligning this kmer to seedKmer
+	int shift;
 	/** get the position relative to seedKmer, after aligning this kmer to seedKmer */
 	public int getShift(){return shift;}
 	public void setShift(int s){shift=s;}
+	
+	int clusterId;
+	public int getClusterId(){return clusterId;}
+	public void setClusterId(int id){clusterId=id;}
 
 	String alignString;
 	public void setAlignString(String str){alignString=str;}

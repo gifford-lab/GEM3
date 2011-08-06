@@ -272,7 +272,16 @@ public class CommonUtils {
 	      }
 	      return new String(buf);
 	}
-
+	public static String padding(int repeatNum, String s) throws IndexOutOfBoundsException {
+	      if (repeatNum < 0) {
+	          throw new IndexOutOfBoundsException("Cannot pad a negative amount: " + repeatNum);
+	      }
+	      StringBuilder sb = new StringBuilder();
+	      for (int i = 0; i < repeatNum; i++) {
+	          sb.append(s);
+	      }
+	      return sb.toString();
+	}
     /*
      * parse motif string, version, threshold, species_id from command line
      */

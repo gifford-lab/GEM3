@@ -4302,8 +4302,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			/** store aligned kmers */
 			ArrayList<Kmer> copy = new ArrayList<Kmer>();
 			consolidateKmers(alignedKmers, events, clusterID==0);	
-			for (Kmer km:alignedKmers)
-				copy.add(km.clone());
+			for (Kmer km:alignedKmers){
+				Kmer cp = km.clone();
+				cp.setClusterId(clusterID);
+				copy.add(cp);
+			}
 			cluster.alignedKmers = copy;
 			
 			/** mask the PWM matched regions */
@@ -4356,7 +4359,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		StringBuilder pfm_sb = new StringBuilder();		
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
-    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || c.pwmThreshold<c.wm.getMaxScore()/pwmScoreFactor)
+    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || !c.pwmGoodQuality)
     			continue;
     		System.out.println(String.format("----------------------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.pwmPosSeqCount));
     		int pos = c.pos_BS_pwm;
@@ -4368,7 +4371,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			pfm_sb.append(c.pfmString);
 			
 			// paint motif logo
-			c.wm.setNameVerType(outName, "m"+c.clusterId, "TRANSFAC");
+			c.wm.setNameVerType(outName, "m"+c.clusterId, "");
 			paintMotif(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 90);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+config.k+".txt", pfm_sb.toString());
@@ -4385,6 +4388,57 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		allAlignedKmers.addAll(allKmers.values());
 		// update Kmer count and HGP
 		consolidateKmers(allAlignedKmers, events, true);	
+		
+		// output HTML report
+		Collections.sort(allAlignedKmers);
+		StringBuffer html = new StringBuffer("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
+		html.append(outName).append("</font></th>");
+		html.append("<tr><td><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
+		
+    	int leftmost_km = Integer.MAX_VALUE;
+    	for (int i=0;i<Math.min(10, allAlignedKmers.size());i++){
+    		Kmer km = allAlignedKmers.get(i);
+			if (km.getKmerStartOffset()<leftmost_km)
+				leftmost_km = km.getKmerStartOffset();
+		}
+		for (int i=0;i<Math.min(10, allAlignedKmers.size());i++){
+			html.append("<tr><td>");
+			html.append("<b><font size='5' face='Courier New'>");
+			Kmer km = allAlignedKmers.get(i);
+			char[] kmStr = km.getKmerString().toCharArray();
+			html.append(CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-'));
+			for (char b:kmStr){
+				switch(b){
+				case 'A': html.append("<font color='green'>A</font>");break;
+				case 'C': html.append("<font color='blue'>C</font>");break;
+				case 'G': html.append("<font color='orange'>G</font>");break;
+				case 'T': html.append("<font color='red'>T</font>");break;
+				}
+			}
+//			html.append("/");
+//			char[] kmRc = km.getKmerRC().toCharArray();
+//			for (char b:kmRc){
+//				switch(b){
+//				case 'A': html.append("<font color='green'>A</font>");break;
+//				case 'C': html.append("<font color='blue'>C</font>");break;
+//				case 'G': html.append("<font color='orange'>G</font>");break;
+//				case 'T': html.append("<font color='red'>T</font>");break;
+//				}
+//			}
+			html.append("</font></b></td>");
+			html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
+					km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
+		}
+		html.append("</table></td><td><br>");
+		for (KmerCluster c:clusters){
+    		WeightMatrix wm = c.wm;
+    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || !c.pwmGoodQuality)
+    			continue;
+    		html.append("<img src='"+outName+"_"+c.clusterId+"_motif.png"+"' height='90'><br>");
+		}
+		html.append("</td></tr></table>");
+		CommonUtils.writeFile(outName+"_result.htm", html.toString());
+		
 		log(1, "\nAlignment done, "+CommonUtils.timeElapsed(tic)+"\n");
 		return allAlignedKmers;
 		
