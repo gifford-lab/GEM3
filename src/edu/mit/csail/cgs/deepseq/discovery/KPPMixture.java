@@ -20,7 +20,9 @@ import cern.jet.random.engine.DRand;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
+import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
@@ -34,6 +36,8 @@ import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerGroup;
 import edu.mit.csail.cgs.tools.utils.Args;
+import edu.mit.csail.cgs.utils.ArgParser;
+import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Utils;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.models.data.DataFrame;
@@ -4362,6 +4366,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosSeqCount, c.pwmPosSeqCount-c.pwmHitDiff, c.pwmThresholdHGP));
 			pfm_sb.append(c.pfmString);
+			
+			// paint motif logo
+			c.wm.setNameVerType(outName, "m"+c.clusterId, "TRANSFAC");
+			paintMotif(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 90);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+config.k+".txt", pfm_sb.toString());
 		
@@ -4924,6 +4932,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	  }
 	  return mismatch;
 	}
+	
+	private static void paintMotif(WeightMatrix wm, File f, int pixheight){
+		int pixwidth = pixheight * wm.length() /2;
+        BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_RGB);
+        Graphics g = im.getGraphics();
+        Graphics2D g2 = (Graphics2D)g;
+        g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
+        WeightMatrixPainter wmp = new WeightMatrixPainter();
+        g2.setColor(Color.WHITE);
+        g2.fillRect(0,0,pixwidth, pixheight);
+        wmp.paint(wm,g2,0,0,pixwidth,pixheight);
+        try {
+            ImageIO.write(im,"png",f);
+        }  catch (IOException ex) {
+            ex.printStackTrace();
+        }
+	}
 
 	private class MotifCluster{
 		int clusterId;
@@ -5081,7 +5106,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
         public boolean print_pwm_fdr = false;
-      	public boolean print_kmer_hits = false;
+      	public boolean print_kmer_hits = true;
         public boolean k_init_calc_PWM = false;
         public boolean filter_pwm_seq = true;
         public boolean k_select_seed = false;
@@ -5148,7 +5173,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             re_align_kmer = flags.contains("rak");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
-            print_kmer_hits = flags.contains("print_kmer_hits");
+//            print_kmer_hits = flags.contains("print_kmer_hits");
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");
             k_select_seed = flags.contains("k_select_seed");
             
@@ -6679,5 +6704,34 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		public int compareTo(KmerPP h) {
 			return coor.compareTo(h.coor);
 		}
+    }
+    
+    public static void main1(String args[]){
+		// load motif
+    	Genome genome;
+    	Organism org=null;
+    	WeightMatrix motif = null;
+    	ArgParser ap = new ArgParser(args);
+		Set<String> flags = Args.parseFlags(args);		
+	    try {
+	      Pair<Organism, Genome> pair = Args.parseGenome(args);
+	      if(pair==null){
+	        //Make fake genome... chr lengths provided???
+	        if(ap.hasKey("geninfo")){
+	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+	            }else{
+	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
+	            }
+	      }else{
+	        genome = pair.cdr();
+	        org = pair.car();
+	      }
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+		motif = wm.car();
+		
+		paintMotif(motif, new File("test.png"), 300);
     }
  }

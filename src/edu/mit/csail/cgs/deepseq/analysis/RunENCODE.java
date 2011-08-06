@@ -119,7 +119,6 @@ public class RunENCODE {
 		    add("c-Fos");
 		    add("c-Jun");
 		    add("p300");
-		    
 		}};
 		TFtoRun.add("Input");
 		

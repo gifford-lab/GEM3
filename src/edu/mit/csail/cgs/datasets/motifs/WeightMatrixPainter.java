@@ -16,19 +16,19 @@ public class WeightMatrixPainter {
 
         int w = x2 - x1;
         int h = y2 - y1;
-        
+        int xpad = 5;
         Font labelFont = new Font("Arial",Font.PLAIN,12);
         g.setFont(labelFont);
         FontMetrics fontmetrics = g.getFontMetrics();
         String label = wm.toString();
         LineMetrics linemetrics = fontmetrics.getLineMetrics(label,g);
         g.setColor(Color.BLACK);
-        g.drawString(label,x1 + w/2 - fontmetrics.charsWidth(label.toCharArray(),0,label.length()) / 2,y2);
+        g.drawString(label,x1 + w/2 - fontmetrics.charsWidth(label.toCharArray(),0,label.length()) / 2,y2-2);
         int labelHeight = fontmetrics.getHeight() + 4;
 
-        Font baseFont = new Font("Arial",Font.BOLD,(int)(h * .9));
-        int pixelsPerLetter = w / (wm.length() + 1);
-        double xfactor = ((float)w) / (baseFont.getSize() * (wm.length() + 1.0));
+        Font baseFont = new Font("Arial",Font.BOLD, h );
+        int pixelsPerLetter = (w-xpad*2) / wm.length();
+        double xfactor = ((float)(w-xpad*2)) / (baseFont.getSize() * wm.length())*1.4;
         //        System.err.println("Xfactor is " + xfactor + " and base sizeis " + baseFont.getSize());
         double vals[] = new double[4];
         for (int pos = 0; pos < wm.length(); pos++) {
@@ -51,17 +51,20 @@ public class WeightMatrixPainter {
                 AffineTransform transform = new AffineTransform(xfactor,0,0,val * totalscale,0,0);
                 Font thisFont = baseFont.deriveFont(transform);
                 g.setFont(thisFont);
-                
+                int offset = 0;
                 if (letters[j] == 'A') {
                     g.setColor(Color.GREEN);
                 } else if (letters[j] == 'C') {
                     g.setColor(Color.BLUE);
+//                    offset = (int)(thisFont.getSize()*0.04);
                 } else if (letters[j] == 'G') {
                     g.setColor(Color.ORANGE);
+                    offset = -(int)(thisFont.getSize()*0.04);
                 }  else if (letters[j] == 'T') {
                     g.setColor(Color.RED);
+                    offset = (int)(thisFont.getSize()*0.03);
                 }
-                g.drawString(letters[j].toString(),x1 + (int)((pos + .5 )* pixelsPerLetter),ypos);
+                g.drawString(letters[j].toString(),x1+xpad +offset+ pos * pixelsPerLetter,ypos);
                 ypos -= thisFont.getSize() * val * totalscale;
             }                
         }

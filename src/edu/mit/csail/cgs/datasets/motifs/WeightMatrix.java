@@ -233,6 +233,11 @@ public class WeightMatrix {
     public int length () {return matrix.length;}
     public String getName(){return name;}
     public String getVersion(){return version;}
+    public void setNameVerType(String name, String version, String type){
+    	this.name = name;
+    	this.version = version;
+    	this.type = type;
+    }
     /* returns the maximum possible score that a sequence
        could have against the specified matrix */
     public double getMaxScore() {
