@@ -4201,10 +4201,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			/** re-aligned kmers using aligned sequences */
 			if (config.re_align_kmer){
-				for (Kmer km:alignedKmers){
+				realign: for (Kmer km:alignedKmers){
 					int kmer_seed = 0;					// the shift of this kmer w.r.t. seed kmer
 					if (!kmer2seq.containsKey(km))		// if kmer is not in kmer2seq, it must be new kmer from pwm scan, it should align well
-						continue;
+						continue realign;
 					HashSet<Integer> hits = kmer2seq.get(km);
 					
 					/* use k-mers already in the aligned sequences, find the consensus k-mer position */
@@ -4219,7 +4219,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					}
 					if (posKmer.isEmpty()){
 						km.setAlignString(km.getAlignString()+"\tNOT FOUND to re-align");
-						continue;
+						continue realign;
 					}
 					// find the most frequent kmerPos
 					Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
@@ -4299,15 +4299,21 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						+km.getKmerString()+"\t"+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
 			}
 			
-			/** store aligned kmers */
+			/** store aligned kmers (within k bp from seed) in the cluster, remove from kmer pool */
 			ArrayList<Kmer> copy = new ArrayList<Kmer>();
+			ArrayList<Kmer> outOfRange = new ArrayList<Kmer>();				// The kmers that are k bp away from seed kmer
 			consolidateKmers(alignedKmers, events, clusterID==0);	
 			for (Kmer km:alignedKmers){
-				Kmer cp = km.clone();
-				cp.setClusterId(clusterID);
-				copy.add(cp);
+				if (km.getShift()<=config.k){
+					Kmer cp = km.clone();
+					cp.setClusterId(clusterID);
+					copy.add(cp);
+				}
+				else
+					outOfRange.add(km);
 			}
 			cluster.alignedKmers = copy;
+			kmers.addAll(outOfRange);					// put the out_of_range kmers back to pool
 			
 			/** mask the PWM matched regions */
 			if (cluster.wm!=null){
@@ -4343,12 +4349,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 					}
 		        }
-				if (masked){
-					kmers.addAll(alignedKmers);					// add aligned k-mers back to the pool, since PWM matched sequences are masked, these k-mers will have much less count
-					kmers.remove(seed);
-					consolidateKmers(kmers, events, false);		// do not relax, because these k-mer will be re-ailgned
-				}
-				// if no PWM matched sequence being masked, we have removed the alignedKmers, next cluster work with the remaining k-mers 
 			}
 			clusterID++;
 		} // each cluster
@@ -6756,7 +6756,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
     }
     
-    public static void main(String args[]){
+    public static void main1(String args[]){
 		// load motif
     	Genome genome;
     	Organism org=null;
