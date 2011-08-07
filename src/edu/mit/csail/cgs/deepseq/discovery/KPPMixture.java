@@ -4374,7 +4374,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			pfm_sb.append(c.pfmString);
 			
 			// paint motif logo
-			c.wm.setNameVerType(name, "m"+c.clusterId, "");
+			c.wm.setNameVerType(name, "#"+c.clusterId, "");
 			paintMotif(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+config.k+".txt", pfm_sb.toString());
@@ -4418,16 +4418,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				case 'T': html.append("<font color='red'>T</font>");break;
 				}
 			}
-//			html.append("/");
-//			char[] kmRc = km.getKmerRC().toCharArray();
-//			for (char b:kmRc){
-//				switch(b){
-//				case 'A': html.append("<font color='green'>A</font>");break;
-//				case 'C': html.append("<font color='blue'>C</font>");break;
-//				case 'G': html.append("<font color='orange'>G</font>");break;
-//				case 'T': html.append("<font color='red'>T</font>");break;
-//				}
-//			}
 			html.append("</font></b></td>");
 			html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
 					km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
@@ -6766,7 +6756,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
     }
     
-    public static void main1(String args[]){
+    public static void main(String args[]){
 		// load motif
     	Genome genome;
     	Organism org=null;

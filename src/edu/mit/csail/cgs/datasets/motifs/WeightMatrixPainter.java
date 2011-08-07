@@ -60,10 +60,10 @@ public class WeightMatrixPainter {
 //                    offset = (int)(thisFont.getSize()*0.04);
                 } else if (letters[j] == 'G') {
                     g.setColor(Color.ORANGE);
-                    offset = -(int)(thisFont.getSize()*0.03);
+                    offset = -(int)(pixelsPerLetter*0.05);
                 }  else if (letters[j] == 'T') {
                     g.setColor(Color.RED);
-                    offset = (int)(thisFont.getSize()*0.03);
+                    offset = (int)(pixelsPerLetter*0.05);
                 }
                 g.drawString(letters[j].toString(),x1+X_MARGIN +offset+ pos * pixelsPerLetter,ypos);
                 ypos -= thisFont.getSize() * val * totalscale;
