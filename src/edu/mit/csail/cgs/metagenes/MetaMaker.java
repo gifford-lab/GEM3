@@ -40,6 +40,7 @@ public class MetaMaker {
 			double lineMin = Args.parseDouble(args,"linemin", 0);
 			double lineMax = Args.parseDouble(args,"linemax", 100);
 			int lineThick = Args.parseInteger(args,"linethick", 1);
+			double pbMax = Args.parseDouble(args,"pbMax", 100);
 			String profilerType = Args.parseString(args, "profiler", "simplechipseq");	
 			List<String> expts = (List<String>) Args.parseStrings(args,"expt");
 			List<String> backs = (List<String>) Args.parseStrings(args,"back");
@@ -72,7 +73,7 @@ public class MetaMaker {
 				System.out.println("Loading data...");
 				if(profilerType.equals("fiveprime"))
 					readExt = -1;
-				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt);
+				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, pbMax);
 			}else if(profilerType.equals("chipseq5prime")){
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
@@ -182,6 +183,7 @@ public class MetaMaker {
 				"--win <profile width> --bins <num bins> \n" +
 				"--readext <read extension> \n" +
 				"--linemin <min>  --linemax <max> \n" +
+				"--pbmax <per base max>\n" +
 				"--profiler <simplechipseq/fiveprime/chipseq/chipseqz/chipchip> \n" +
 				"--expt <experiment names> --back <control experiment names (only applies to chipseq)> \n" +
 				"--peaks <peaks file name> --out <output root name> \n" +

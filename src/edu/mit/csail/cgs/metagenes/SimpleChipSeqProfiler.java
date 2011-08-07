@@ -16,25 +16,28 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 	private BinningParameters params;
 	private List<ChipSeqExpander> expanders;
 	private int extension; 
+	private double perBaseMax=100;
 	private boolean useFivePrime = false;
 	
 	public SimpleChipSeqProfiler(BinningParameters ps, ChipSeqExpander exp) { 
-		this(ps, exp, 175);
+		this(ps, exp, 175, 100);
 	}
-	public SimpleChipSeqProfiler(BinningParameters ps, ChipSeqExpander exp, int ext) {
+	public SimpleChipSeqProfiler(BinningParameters ps, ChipSeqExpander exp, int ext, double pbMax) {
 		params = ps;
 		expanders = new ArrayList<ChipSeqExpander>(); 
 		expanders.add(exp);
 		extension=ext;
 		if(extension==-1)
 			useFivePrime=true;
+		perBaseMax = pbMax;
 	}
-	public SimpleChipSeqProfiler(BinningParameters ps, List<ChipSeqExpander> exps, int ext) {
+	public SimpleChipSeqProfiler(BinningParameters ps, List<ChipSeqExpander> exps, int ext, double pbMax) {
 		params = ps;
 		expanders = exps;
 		extension=ext;
 		if(extension==-1)
 			useFivePrime=true;
+		perBaseMax=pbMax;
 	}
 
 	public BinningParameters getBinningParameters() {
@@ -62,6 +65,8 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		
 		for(ChipSeqExpander expander : expanders){
 			Iterator<ChipSeqHit> hits = expander.execute(extQuery);
+			HashMap<Region, Double> readFilter = new HashMap<Region, Double>();
+			
 			while(hits.hasNext()) {
 				ChipSeqHit hit=null;
 				if(useFivePrime)
@@ -69,20 +74,27 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 				else
 					hit = hits.next().extendHit(extension);
 				if(hit.overlaps(query)){
-					int startOffset = Math.max(0, hit.getStart()-start);
-					int endOffset = Math.max(0, Math.min(end, hit.getEnd()-start));
-				
-					if(!strand) { 
-						int tmpEnd = window-startOffset;
-						int tmpStart = window-endOffset;
-						startOffset = tmpStart;
-						endOffset = tmpEnd;
+					if(!readFilter.containsKey(hit))
+						readFilter.put(hit, hit.getWeight());
+					else
+						readFilter.put(hit, readFilter.get(hit)+hit.getWeight());
+					
+					if(readFilter.get(hit)<=perBaseMax){
+						int startOffset = Math.max(0, hit.getStart()-start);
+						int endOffset = Math.max(0, Math.min(end, hit.getEnd()-start));
+					
+						if(!strand) { 
+							int tmpEnd = window-startOffset;
+							int tmpStart = window-endOffset;
+							startOffset = tmpStart;
+							endOffset = tmpEnd;
+						}
+						
+						int startbin = params.findBin(startOffset);
+						int endbin = params.findBin(endOffset);
+						
+						addToArray(startbin, endbin, array, 1.0);
 					}
-					
-					int startbin = params.findBin(startOffset);
-					int endbin = params.findBin(endOffset);
-					
-					addToArray(startbin, endbin, array, 1.0);
 				}
 			}
 		}		
