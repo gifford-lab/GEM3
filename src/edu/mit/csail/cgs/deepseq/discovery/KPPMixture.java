@@ -4984,7 +4984,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	
 	private static void paintMotif(WeightMatrix wm, File f, int pixheight){
-		int pixwidth = (pixheight-WeightMatrixPainter.Y_MARGIN*2-WeightMatrixPainter.YLABEL_SIZE) * wm.length() /2 +WeightMatrixPainter.X_MARGIN*2;
+		int pixwidth = (pixheight-WeightMatrixPainter.Y_MARGIN*3-WeightMatrixPainter.YLABEL_SIZE) * wm.length() /2 +WeightMatrixPainter.X_MARGIN*2;
         BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_RGB);
         Graphics g = im.getGraphics();
         Graphics2D g2 = (Graphics2D)g;

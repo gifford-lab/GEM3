@@ -29,7 +29,7 @@ public class WeightMatrixPainter {
 
         Font baseFont = new Font("Arial",Font.BOLD, h );
         int pixelsPerLetter = (w-X_MARGIN*2) / wm.length();
-        double xfactor = ((float)(w-X_MARGIN*2)) / (baseFont.getSize() * wm.length())*1.4;
+        double xfactor = ((float)pixelsPerLetter) / baseFont.getSize() * 1.3;
         //        System.err.println("Xfactor is " + xfactor + " and base sizeis " + baseFont.getSize());
         double vals[] = new double[4];
         for (int pos = 0; pos < wm.length(); pos++) {
