@@ -4356,6 +4356,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		CommonUtils.writeFile(outName+"_Alignement_k"+config.k+".txt", alignedKmer_sb.toString());
 			
 		// output cluster information, PFM, and PWM
+		File f = new File(outName);
+		String name = f.getName();
+		f=null;
 		StringBuilder pfm_sb = new StringBuilder();		
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
@@ -4371,7 +4374,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			pfm_sb.append(c.pfmString);
 			
 			// paint motif logo
-			c.wm.setNameVerType(outName, "m"+c.clusterId, "");
+			c.wm.setNameVerType(name, "m"+c.clusterId, "");
 			paintMotif(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+config.k+".txt", pfm_sb.toString());
@@ -4392,7 +4395,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// output HTML report
 		Collections.sort(allAlignedKmers);
 		StringBuffer html = new StringBuffer("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
-		html.append(outName).append("</font></th>");
+		html.append(name).append("</font></th>");
 		html.append("<tr><td><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 		
     	int leftmost_km = Integer.MAX_VALUE;
@@ -4429,13 +4432,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
 					km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
 		}
-		html.append("</table><br><a href='"+outName+"_kmer_k"+config.k+".txt'>Click here to see the complete K-mer list.</a>");
+		html.append("</table><br><a href='"+name+"_kmer_k"+config.k+".txt'>Click here to see the complete K-mer list.</a>");
 		html.append("</td><td><br>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
     		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || !c.pwmGoodQuality)
     			continue;
-    		html.append("<img src='"+outName+"_"+c.clusterId+"_motif.png"+"' height='90'><br>");
+    		html.append("<img src='"+name+"_"+c.clusterId+"_motif.png"+"'><br>");
     		html.append(String.format("PWM threshold: %.2f/%.2f, hit=%d+/%d-, hgp=%.1f<br><br>", 
     				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosSeqCount, c.pwmPosSeqCount-c.pwmHitDiff, c.pwmThresholdHGP));
 		}
@@ -4991,7 +4994,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	
 	private static void paintMotif(WeightMatrix wm, File f, int pixheight){
-		int pixwidth = pixheight * wm.length() /2;
+		int pixwidth = (pixheight-WeightMatrixPainter.Y_MARGIN*2-WeightMatrixPainter.YLABEL_SIZE) * wm.length() /2 +WeightMatrixPainter.X_MARGIN*2;
         BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_RGB);
         Graphics g = im.getGraphics();
         Graphics2D g2 = (Graphics2D)g;
