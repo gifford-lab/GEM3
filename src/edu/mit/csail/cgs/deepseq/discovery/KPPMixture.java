@@ -3683,20 +3683,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 					}
 					if (pCluster == null)
-						log(1, "k="+config.k+", n=" +kmerCount+ ", NO PWM.");
+						log(1, "k="+config.k+", coverage=" +config.k*kmerCount+ ", NO PWM.");
 					else	
-						log(1, String.format("k=%d, \tn=%d\t%s\tW=%d\thgp=1E%.1f", 
-							config.k, kmerCount, WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
+						log(1, String.format("k=%d, \tcoverage=%d\t%s\tW=%d\thgp=1E%.1f", 
+							config.k, config.k*kmerCount, WeightMatrix.getMaxLetters(pCluster.wm), pCluster.wm.length(), pCluster.pwmThresholdHGP));
 				}
 				else
-					log(1, String.format("k=%d, \tn=%d.", config.k, kmerCount));
+					log(1, String.format("k=%d, \tcoverage=%d.", config.k, config.k*kmerCount));
 				if (bestKxKmerCount<config.k * kmerCount){
 					bestKxKmerCount=config.k * kmerCount;
 					bestK = config.k;
 				}
 			}
 			if (bestK!=0){
-				log(1, String.format("\n------------------------\nSelected k=%d\tn=%d.", bestK, bestKxKmerCount/bestK));
+				log(1, String.format("\n------------------------\nSelected k=%d\tcoverage=%d.", bestK, bestKxKmerCount));
 				config.k = bestK;
 				config.k_min = -1;		// prevent selecting k again
 				config.k_max = -1;
@@ -4370,7 +4370,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
-    		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosSeqCount, c.pwmPosSeqCount-c.pwmHitDiff, c.pwmThresholdHGP));
+    		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosSeqCount, c.pwmNegSeqCount, c.pwmThresholdHGP));
 			pfm_sb.append(c.pfmString);
 			
 			// paint motif logo
@@ -4423,6 +4423,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
 		}
 		html.append("</table><br><a href='"+name+"_kmer_k"+config.k+".txt'>Click here to see the complete K-mer list.</a>");
+		html.append("<br><a href='"+name+"_Alignement_k"+config.k+".txt'>Click here to see the k-mer alignment file.</a>");
+		html.append("<br><a href='"+name+"_PFM_k"+config.k+".txt'>Click here to see the PFM of motifs</a>");
 		html.append("</td><td><br>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
@@ -4430,7 +4432,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			continue;
     		html.append("<img src='"+name+"_"+c.clusterId+"_motif.png"+"'><br>");
     		html.append(String.format("PWM threshold: %.2f/%.2f, hit=%d+/%d-, hgp=%.1f<br><br>", 
-    				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosSeqCount, c.pwmPosSeqCount-c.pwmHitDiff, c.pwmThresholdHGP));
+    				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosSeqCount, c.pwmNegSeqCount, c.pwmThresholdHGP));
 		}
 		html.append("</td></tr></table>");
 		CommonUtils.writeFile(outName+"_result.htm", html.toString());
@@ -4733,8 +4735,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
 	    	cluster.pwmThreshold = pwmThreshold;
 	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
-	    	cluster.pwmHitDiff = diff;
 	    	cluster.pwmPosSeqCount = estimate.posHit;
+	    	cluster.pwmNegSeqCount = estimate.negHit;
 	    	// record pfm
 	    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
 	    	for(int p=leftIdx;p<=rightIdx;p++){
@@ -5023,7 +5025,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		boolean pwmGoodQuality = false;
 		double pwmThreshold;
 		double pwmThresholdHGP;
-		int pwmHitDiff;
+		int pwmNegSeqCount;
 		int pos_pwm_seed;
 		int pos_BS_pwm;
 		int pwmPosSeqCount;
@@ -5043,7 +5045,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			cluster.pwmGoodQuality = this.pwmGoodQuality;
 			cluster.pwmThreshold = this.pwmThreshold;
 			cluster.pwmThresholdHGP = this.pwmThresholdHGP;
-			cluster.pwmHitDiff = this.pwmHitDiff;
+			cluster.pwmNegSeqCount = this.pwmNegSeqCount;
 			cluster.pos_pwm_seed = this.pos_pwm_seed;
 			cluster.pos_BS_pwm = this.pos_BS_pwm;
 			cluster.pwmPosSeqCount = this.pwmPosSeqCount;
