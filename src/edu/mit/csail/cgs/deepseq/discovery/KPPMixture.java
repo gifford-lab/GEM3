@@ -3932,7 +3932,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				System.out.println("Seed k-mer:\n"+seed.toShortString());
 			}
 			cluster.seedKmer = seed;
-			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
+			ArrayList<Kmer> seedFamily = null;
+			if (config.use_seed_family)
+				seedFamily = getSeedKmerFamily(kmers, seed);
+			else{
+				seedFamily = new ArrayList<Kmer>();
+				seedFamily.add(seed);
+				seed.setShift(0);
+				seed.setAlignString("Seed");
+			}
 			// align the containing sequences
 			for (Kmer km:seedFamily){
 				HashSet<Integer> hits = kmer2seq.get(km);
@@ -5140,6 +5148,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean kmer_use_filtered = false;
        	public boolean re_align_kmer = false;
        	public boolean use_kmer_mismatch = true;
+       	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
@@ -5228,6 +5237,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_scanPeak = ! flags.contains("no_scanPeak");
             do_model_selection = !flags.contains("no_model_selection");
             use_kmer_mismatch = !flags.contains("no_kmm");
+            use_seed_family = !flags.contains("no_seed_family");
             pwm_align_new = !flags.contains("pwm_align_all");
             filter_pwm_seq = !flags.contains("pwm_seq_asIs");
             strigent_event_pvalue = !flags.contains("relax");
