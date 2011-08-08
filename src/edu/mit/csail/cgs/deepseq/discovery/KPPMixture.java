@@ -4138,12 +4138,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    	for (String kmStr: pwmAlignedKmerStr2seqs.keySet()){
 				    		Kmer km = null;
 				    		String kmRC = SequenceUtil.reverseComplement(kmStr);
-				    		if (str2kmer.containsKey(kmStr)){	// if existing k-mers
+				    		if (str2kmer.containsKey(kmStr)||str2kmer.containsKey(kmRC)){	// if existing k-mers
 				    			km = str2kmer.get(kmStr);
-				    			kmers.remove(km);
-				    		}
-				    		else if (str2kmer.containsKey(kmRC)){	
-				    			km = str2kmer.get(kmRC);
+				    			if (km==null)
+				    				km=str2kmer.get(kmRC);
+				    			if (alignedKmers.contains(km) || aligned_new.contains(km))	// if this kmer has been aligned, skip to next one
+				    				continue;
 				    			if (km.getKmerString().equals(kmRC))
 				    				km.RC();
 				    			kmers.remove(km);
@@ -4154,8 +4154,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    		}
 			    			km.setShift(0);
 			    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
-			    			if ((!alignedKmers.contains(km)) && (!aligned_new.contains(km)))
-			    				aligned_new.add(km);
+			    			aligned_new.add(km);
 			    			// connect kmer back to the sequence
 			    			for (int i:pwmAlignedKmerStr2seqs.get(kmStr)){
 			    				if (seq2kmer.get(i)==null)
@@ -6745,7 +6744,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
     }
     
-    public static void main(String args[]){
+    public static void main1(String args[]){
 		// load motif
     	Genome genome;
     	Organism org=null;
