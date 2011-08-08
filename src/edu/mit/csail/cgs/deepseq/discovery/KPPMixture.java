@@ -4301,10 +4301,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			/** store aligned kmers (within k bp from seed) in the cluster, remove from kmer pool */
 			ArrayList<Kmer> copy = new ArrayList<Kmer>();
-			ArrayList<Kmer> outOfRange = new ArrayList<Kmer>();				// The kmers that are k bp away from seed kmer
+			ArrayList<Kmer> outOfRange = new ArrayList<Kmer>();				// The kmers that are k/2 bp away from seed kmer
 			consolidateKmers(alignedKmers, events, clusterID==0);	
 			for (Kmer km:alignedKmers){
-				if (km.getShift()<=config.k){
+				if (km.getShift()<=config.k/2){
 					Kmer cp = km.clone();
 					cp.setClusterId(clusterID);
 					copy.add(cp);
@@ -4362,7 +4362,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		StringBuilder pfm_sb = new StringBuilder();		
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
-    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || !c.pwmGoodQuality)
+    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || (!c.pwmGoodQuality))
     			continue;
     		System.out.println(String.format("----------------------------------------------\n%s k-mer cluster #%d, from %d k-mers, %d binding events.", outName, c.clusterId, c.kmerCount, c.pwmPosSeqCount));
     		int pos = c.pos_BS_pwm;
@@ -4426,7 +4426,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		html.append("</td><td><br>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
-    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || !c.pwmGoodQuality)
+    		if (wm==null || c.pwmPosSeqCount<config.kmer_cluster_seq_count || (!c.pwmGoodQuality))
     			continue;
     		html.append("<img src='"+name+"_"+c.clusterId+"_motif.png"+"'><br>");
     		html.append(String.format("PWM threshold: %.2f/%.2f, hit=%d+/%d-, hgp=%.1f<br><br>", 
@@ -4712,40 +4712,27 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (config.bmverbose>1)
     			System.out.println(String.format("%s: PWM %s match %d+/%d- events, hgp=1E%.1f, threshold %.2f/%.2f", CommonUtils.timeElapsed(tic), 
     					WeightMatrix.getMaxLetters(wm), estimate.posHit, estimate.negHit, pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
-//	    	if (pwmThreshold<wm.getMaxScore()/5){
-//	    		return -1;
-//	    	}
+
     		// test if we want to accept the new PWM
     		if (cluster.wm!=null){
-    			// if very close, also consider #Seq that PWM is built from
-//    			if (Math.abs(pwmThresholdHGP-cluster.pwmThresholdHGP)<Math.abs(cluster.pwmThresholdHGP)/100){		
-//    				if( cluster.pwmThresholdHGP*cluster.pwmHitDiff<pwmThresholdHGP*diff){		// 
-//    			    	cluster.buildNewPWM = false;			// tried build PWM once, failed, do not build any more
-//	    				return -1;
-//	    			}
-//    			}
-//    			else{
-	    			if( cluster.pwmThresholdHGP<pwmThresholdHGP){		// previous pwm is more enriched, stop here
-    			    	cluster.buildNewPWM = false;
-	    				return -1;
-	    			}
-//    			}
+    			if( cluster.pwmThresholdHGP<pwmThresholdHGP){		// previous pwm is more enriched, stop here
+			    	cluster.buildNewPWM = false;
+    				return -1;
+    			}
     		}
     		else{		// if no previous PWM yet
-    			if (pwmThreshold<wm.getMaxScore()/pwmScoreFactor){				// if the score is not good enough
+    			if (pwmThreshold<wm.getMaxScore()/pwmScoreFactor){	// if the pwm score is not good enough
     				// test if new PWM can match more sequences
-			    	cluster.pwmGoodQuality = false;
 			    	if (passedSeqs.size()>estimate.posHit)
 			    		return -1;
     			}
-    			else		// good score
-    				cluster.pwmGoodQuality = true;
 	    	}
 	    	cluster.wm = wm;
 	    	cluster.buildNewPWM = true;
+	    	cluster.pwmGoodQuality = pwmThreshold>=wm.getMaxScore()/pwmScoreFactor;
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
-	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
 	    	cluster.pwmThreshold = pwmThreshold;
+	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
 	    	cluster.pwmHitDiff = diff;
 	    	cluster.pwmPosSeqCount = estimate.posHit;
 	    	// record pfm
@@ -6756,7 +6743,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
     }
     
-    public static void main1(String args[]){
+    public static void main(String args[]){
 		// load motif
     	Genome genome;
     	Organism org=null;
@@ -6782,6 +6769,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
 		motif = wm.car();
 		
-		paintMotif(motif, new File("test.png"), 75);
+		paintMotif(motif, new File("test.png"), 150);
     }
  }

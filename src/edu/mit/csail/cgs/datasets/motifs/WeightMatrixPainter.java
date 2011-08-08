@@ -48,25 +48,32 @@ public class WeightMatrixPainter {
             }
             double totalscale = (2.0 - bits) / 2.0;
             for (int j = 3; j >= 0; j--) {
-                double val = vals[j];
-                AffineTransform transform = new AffineTransform(xfactor,0,0,val * totalscale,0,0);
-                Font thisFont = baseFont.deriveFont(transform);
-                g.setFont(thisFont);
-                int offset = 0;
                 if (letters[j] == 'A') {
                     g.setColor(Color.GREEN);
                 } else if (letters[j] == 'C') {
                     g.setColor(Color.BLUE);
-//                    offset = (int)(thisFont.getSize()*0.04);
                 } else if (letters[j] == 'G') {
                     g.setColor(Color.ORANGE);
-                    offset = -(int)(pixelsPerLetter*0.05);
                 }  else if (letters[j] == 'T') {
                     g.setColor(Color.RED);
-                    offset = (int)(pixelsPerLetter*0.05);
+                }        
+                double val = vals[j];
+                AffineTransform transform = new AffineTransform(xfactor,0,0,val * totalscale,0,0);
+                Font thisFont = baseFont.deriveFont(transform);
+                int letterHeight = (int) (thisFont.getSize() * val * totalscale);        
+                if (letterHeight>1){
+	                g.setFont(thisFont);
+	                int offset = 0;
+	                if (letters[j] == 'G') 
+	                    offset = -(int)(pixelsPerLetter*0.05);
+	                else if (letters[j] == 'T')
+	                    offset = (int)(pixelsPerLetter*0.05);
+	                g.drawString(letters[j].toString(),x1+X_MARGIN +offset+ pos * pixelsPerLetter,ypos);
                 }
-                g.drawString(letters[j].toString(),x1+X_MARGIN +offset+ pos * pixelsPerLetter,ypos);
-                ypos -= thisFont.getSize() * val * totalscale;
+                else if (letterHeight==1){
+                	g.fillRect(x1+X_MARGIN+ pos*pixelsPerLetter, ypos, (int)(pixelsPerLetter*0.9), letterHeight);
+                }
+                ypos -= letterHeight;
             }                
         }
     }
