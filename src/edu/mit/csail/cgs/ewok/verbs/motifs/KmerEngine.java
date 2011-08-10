@@ -922,7 +922,7 @@ public class KmerEngine {
 			else return(0);
 		}
 		public String toString(){
-			return String.format("%d: %d+/%d-, hpg=%.2f", bs, posHitGroupCount, negHitGroupCount, hgp);
+			return String.format("%s %d: %d+/%d-, hpg=%.2f", getBestKmer().getKmerString(), bs, posHitGroupCount, negHitGroupCount, hgp);
 		}
 	}
 	class HGPThread implements Runnable {

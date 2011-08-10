@@ -43,7 +43,7 @@ public class KmerScanner {
 		kmers.removeAll(toRemove);
 		kmers.trimToSize();
 		KmerScanner scanner = new KmerScanner(kmers, 39070, 39750);
-		KmerGroup[] kgs = scanner.query("CACGAAGCACACGCCCGAAAATCCTGAGCACGTGGCTCTACCGAGGGACTGGAAGCGCTCC");
+		KmerGroup[] kgs = scanner.query("CTGTGCACATGCACTTCTCTTTCTGGTCACAAGGGGCTGTCTTGTGCACATGCAGTTCCCC");
 		for (KmerGroup kg:kgs){
 			System.out.println(kg.toString());
 		}

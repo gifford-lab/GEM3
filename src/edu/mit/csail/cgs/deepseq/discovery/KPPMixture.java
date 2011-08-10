@@ -4311,7 +4311,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ArrayList<Kmer> outOfRange = new ArrayList<Kmer>();				// The kmers that are k/2 bp away from seed kmer
 			consolidateKmers(alignedKmers, events, clusterID==0);	
 			for (Kmer km:alignedKmers){
-				if (km.getShift()<=config.k/2){
+				if (Math.abs(km.getShift())<=config.k/2){
 					Kmer cp = km.clone();
 					cp.setClusterId(clusterID);
 					copy.add(cp);
