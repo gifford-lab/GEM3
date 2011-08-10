@@ -82,10 +82,12 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	public Kmer clone(){
-		Kmer n = new Kmer(getKmerString(), (HashSet<Integer>)posHits.clone());
+		Kmer n = new Kmer(getKmerString(), new HashSet<Integer>());
 		n.strength = strength;
 		n.shift = shift;
-		n.negHits = (HashSet<Integer>)negHits.clone();
+		n.negHits = new HashSet<Integer>();
+		n.posHits.addAll(posHits);
+		n.negHits.addAll(negHits);
 		n.hgp_lg10 = hgp_lg10;
 		n.alignString = alignString;
 		n.kmerStartOffset = kmerStartOffset;
@@ -115,11 +117,10 @@ public class Kmer implements Comparable<Kmer>{
 		return this.kmerString.equals(kmerString);
 	}
 	public String toString(){
-		return String.format("%s/%s\t%d\t%d\t%d\t%.1f\t%.1f",kmerString,getKmerRC(),kmerStartOffset, getPosHitCount(), getNegHitCount(), hgp_lg10, strength);
+		return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f", kmerString, getKmerRC(),clusterId, kmerStartOffset, getPosHitCount(), getNegHitCount(), hgp_lg10, strength);
 	}
-
 	public static String toHeader(){
-		return "Enriched k-mer/r.c.\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
+		return "Enriched k-mer/r.c.\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
 	}
 	public String toShortString(){
 		return kmerString+"/"+getKmerRC()+"\t"+getPosHitCount()+"\t"+getNegHitCount()+"\t"+String.format("%.1f", hgp_lg10);
@@ -132,24 +133,27 @@ public class Kmer implements Comparable<Kmer>{
 		String[] f0f = f[0].split("/");
 		HashSet<Integer> posHits = new HashSet<Integer>();
 		HashSet<Integer> negHits = new HashSet<Integer>();
-		if (f.length==8){
-			String f6 = f[6].trim();
-			if (!f6.equals("")){
-				String[] f6f = f6.split(" ");
-				for (String hit:f6f)
-					posHits.add(Integer.valueOf(hit));
-			}
+		if (f.length==8|f.length==9){
 			String f7 = f[7].trim();
 			if (!f7.equals("")){
 				String[] f7f = f7.split(" ");
 				for (String hit:f7f)
+					posHits.add(Integer.valueOf(hit));
+			}
+		}
+		if (f.length==9){
+			String f8 = f[8].trim();
+			if (!f8.equals("")){
+				String[] f8f = f8.split(" ");
+				for (String hit:f8f)
 					negHits.add(Integer.valueOf(hit));
 			}
 		}
 		Kmer kmer = new Kmer(f0f[0], posHits);	
-		kmer.kmerStartOffset = Integer.parseInt(f[1]);
-		kmer.hgp_lg10 = Double.parseDouble(f[4]);
-		kmer.strength = Double.parseDouble(f[5]);
+		kmer.clusterId = Integer.parseInt(f[1]);
+		kmer.kmerStartOffset = Integer.parseInt(f[2]);
+		kmer.hgp_lg10 = Double.parseDouble(f[5]);
+		kmer.strength = Double.parseDouble(f[6]);
 		kmer.setNegHits(negHits);
 
 		return kmer;
@@ -245,6 +249,7 @@ public class Kmer implements Comparable<Kmer>{
         	System.err.println("Error when processing "+file.getName());
             e.printStackTrace(System.err);
         }
+        kmers.trimToSize();
 		return kmers;
 	}
 	public static void main(String[] args){

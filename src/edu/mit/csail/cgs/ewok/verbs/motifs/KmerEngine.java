@@ -45,12 +45,18 @@ public class KmerEngine {
 	private String[] seqs;		// DNA sequences around binding sites
 	private String[] seqsNeg;	// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
-	public int getNegSeqCount(){return seqsNegList.size();}
+	public int getNegSeqCount(){return negSeqCount;}
+    private int posSeqCount;
+    private int negSeqCount;
+    public void setTotalSeqCount(int pos, int neg){
+    	posSeqCount = pos;
+    	negSeqCount = neg;
+    }
 	private int negRegionDistance;
 	/** region-->index for negative sequences */
 	private TreeMap<Region, Integer> neg_region_map;
 	public String[] getPositiveSeqs(){return seqs;};
-	public double get_NP_ratio(){return (double)seqsNegList.size()/seqs.length;}
+	public double get_NP_ratio(){return (double)negSeqCount/posSeqCount;}
 	
 //	private ArrayList<Kmer> allKmers = new ArrayList<Kmer>();	// all the kmers in the sequences
 //	public ArrayList<Kmer> getAllKmers() {
@@ -136,7 +142,7 @@ public class KmerEngine {
 		loadTestSequences(events, winSize);
 		
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
-		for (int seqId=0;seqId<seqs.length;seqId++){
+		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
 			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
 			for (int i=0;i<numPos;i++){
@@ -202,7 +208,7 @@ public class KmerEngine {
 		
 		// count hits in the negative sequences
 		HashMap<String, HashSet<Integer>> kmerstr2negSeqs = new HashMap<String, HashSet<Integer>>();
-		for (int negSeqId=0; negSeqId<seqsNegList.size();negSeqId++){
+		for (int negSeqId=0; negSeqId<negSeqCount;negSeqId++){
 			String seq = seqsNegList.get(negSeqId);
 			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
 			Iterator searcher = tmp.search(seq.getBytes());
@@ -225,9 +231,6 @@ public class KmerEngine {
 		}
 		
 		// score the kmers, hypergeometric p-value
-		int posSeq = seqs.length;
-		int negSeq = seqsNegList.size();
-		
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
 		for (Kmer kmer:kms){
@@ -242,7 +245,7 @@ public class KmerEngine {
 				highHgpKmers.add(kmer);	
 				continue;
 			}
-			kmer.hgp_lg10 = computeHGP(posSeq, negSeq, kmer.getPosHitCount(), kmer.getNegHitCount());
+			kmer.hgp_lg10 = computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount());
 			if (kmer.hgp_lg10>hgp)
 				highHgpKmers.add(kmer);		
 		}
@@ -252,7 +255,7 @@ public class KmerEngine {
 		Kmer.printKmers(kms, outPrefix+"_all_w"+winSize, true, false);
 		
 		kms.removeAll(highHgpKmers);
-		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeq, negSeq, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
 		return kms;
 	}
@@ -273,6 +276,7 @@ public class KmerEngine {
 			seqs[i] = seqgen.execute(posRegion).toUpperCase();
 			posImpactRegion.add(events.get(i).expand(negRegionDistance));
 		}
+
 		/** Negative sequences has been retrieved when setting up region caches */
 		// need to filter out those overlap with positive sequences
 		ArrayList<Region> negRegions = new ArrayList<Region>();
@@ -282,6 +286,10 @@ public class KmerEngine {
 		for (Region r:negRegions){
 			seqsNegList.add(seqsNeg[neg_region_map.get(r)].substring(0, winSize+1));
 		}
+		
+		posSeqCount = seqs.length;
+	    negSeqCount = seqsNegList.size();
+	    
 //		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 //		ArrayList<String> negSeqList = new ArrayList<String>();
 //		for(int i=0;i<eventCount;i++){
@@ -312,8 +320,6 @@ public class KmerEngine {
 	}
 	
 	public double computeHGP(int posHitCount, int negHitCount){
-	    int posSeqCount = seqs.length;
-	    int negSeqCount = seqsNegList.size();
 		return computeHGP(posSeqCount, negSeqCount, posHitCount, negHitCount);
 	}
 	/**
@@ -387,8 +393,6 @@ public class KmerEngine {
 					negHitCount[idx]++;
 			}
 	    }
-	    int posSeqCount = seqs.length;
-	    int negSeqCount = seqsNegList.size();
 	    double hgps[] = new double[kmerStrings.size()];
 	    for (int i=0;i<kmerStrings.size();i++){
 			hgps[i] = computeHGP(posSeqCount, negSeqCount, posHitCount[i], negHitCount[i]);
@@ -415,7 +419,7 @@ public class KmerEngine {
 	    for (int i=0;i<kmers.size();i++)
 	    	negHits.add(new HashSet<Integer>());
 //	    double[] kmerStrength = new double[kmers.size()];		// TODO: ignore kmer Strength for now
-	    for (int i=0;i<seqs.length;i++){
+	    for (int i=0;i<posSeqCount;i++){
 	    	String seq = seqs[i];
 			Iterator searcher = tree.search(seq.getBytes());
 			HashSet<Integer> idxs = new HashSet<Integer>();
@@ -432,7 +436,7 @@ public class KmerEngine {
 //				kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getPosHitCount()/kmerSum*events.get(i).getTotalEventStrength();
 			}
 	    }
-	    for (int i=0;i<seqsNegList.size();i++){
+	    for (int i=0;i<negSeqCount;i++){
 	    	String seq = seqsNegList.get(i);
 			Iterator searcher = tree.search(seq.getBytes());
 			HashSet<Integer> idxs = new HashSet<Integer>();
@@ -459,16 +463,16 @@ public class KmerEngine {
 	 */
 	public MotifThreshold estimatePwmThreshold(WeightMatrix wm, String outName, boolean printPwmHgp){
 		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
-		double[] posSeqScores = new double[seqs.length];
-		double[] negSeqScores = new double[seqsNegList.size()];
-		for (int i=0;i<seqs.length;i++){
+		double[] posSeqScores = new double[posSeqCount];
+		double[] negSeqScores = new double[negSeqCount];
+		for (int i=0;i<posSeqCount;i++){
 			posSeqScores[i]=scorer.getMaxSeqScore(wm, seqs[i]);
 		}
 		Arrays.sort(posSeqScores);
 		int zeroIdx = Arrays.binarySearch(posSeqScores, 0);
 		if( zeroIdx < 0 ) { zeroIdx = -zeroIdx - 1; }
 		
-		for (int i=0;i<seqsNegList.size();i++){
+		for (int i=0;i<negSeqCount;i++){
 			negSeqScores[i]=scorer.getMaxSeqScore(wm, seqsNegList.get(i));
 		}
 		Arrays.sort(negSeqScores);
@@ -505,7 +509,7 @@ public class KmerEngine {
 		for (int i=posScores_u.length-1;i>=0;i--)
 			idxs.add(i);
 		for (int i=0;i<numThread;i++){
-            Thread t = new Thread(new HGPThread(idxs, seqs.length, seqsNegList.size(), poshits, neghits, hgps));
+            Thread t = new Thread(new HGPThread(idxs, posSeqCount, negSeqCount, poshits, neghits, hgps));
             t.start();
             threads[i] = t;
 		}
@@ -558,9 +562,9 @@ public class KmerEngine {
 		if (! engineInitialized)
 			return null;
 		
-		double[] posSeqScores = new double[seqs.length];
-		double[] negSeqScores = new double[seqsNegList.size()];
-		for (int i=0;i<seqs.length;i++){
+		double[] posSeqScores = new double[posSeqCount];
+		double[] negSeqScores = new double[negSeqCount];
+		for (int i=0;i<posSeqCount;i++){
 			KmerGroup[] kgs = query(seqs[i]);
 			if (kgs.length==0)
 				posSeqScores[i]=0;
@@ -570,7 +574,7 @@ public class KmerEngine {
 			}
 		}
 		Arrays.sort(posSeqScores);
-		for (int i=0;i<seqsNegList.size();i++){
+		for (int i=0;i<negSeqCount;i++){
 			KmerGroup[] kgs = query(seqsNegList.get(i));
 			if (kgs.length==0)
 				negSeqScores[i]=0;
@@ -605,7 +609,7 @@ public class KmerEngine {
 		for (int i=posScores_u.length-1;i>=0;i--)
 			idxs.add(i);
 		for (int i=0;i<numThread;i++){
-            Thread t = new Thread(new HGPThread(idxs, seqs.length, seqsNegList.size(), poshits, neghits, hgps));
+            Thread t = new Thread(new HGPThread(idxs, posSeqCount, negSeqCount, poshits, neghits, hgps));
             t.start();
             threads[i] = t;
 		}
@@ -916,6 +920,9 @@ public class KmerEngine {
 			if(hgp<kg.getHgp()){return(-1);}
 			else if(hgp>kg.getHgp()){return(1);}
 			else return(0);
+		}
+		public String toString(){
+			return String.format("%d: %d+/%d-, hpg=%.2f", bs, posHitGroupCount, negHitGroupCount, hgp);
 		}
 	}
 	class HGPThread implements Runnable {
