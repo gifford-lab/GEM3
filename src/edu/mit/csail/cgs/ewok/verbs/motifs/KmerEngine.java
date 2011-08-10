@@ -252,7 +252,7 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
 		Collections.sort(kms);
-		Kmer.printKmers(kms, outPrefix+"_all_w"+winSize, true, false);
+		Kmer.printKmers(kms, posSeqCount, negSeqCount, outPrefix+"_all_w"+winSize, true, false);
 		
 		kms.removeAll(highHgpKmers);
 		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
@@ -670,7 +670,7 @@ public class KmerEngine {
 			return;
 		}
 		Collections.sort(kmers);
-		Kmer.printKmers(kmers, outPrefix, false, printSeqIds);
+		Kmer.printKmers(kmers, posSeqCount, negSeqCount, outPrefix, false, printSeqIds);
 		
 		//Aho-Corasick for searching Kmers in sequences
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.

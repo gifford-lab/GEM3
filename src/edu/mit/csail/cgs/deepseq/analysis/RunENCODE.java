@@ -109,16 +109,17 @@ public class RunENCODE {
 //		    add("SRF");
 //		    add("STAT1");
 //		    add("STAT2");
-		    add("TAF1");
-		    add("TCF12");
-		    add("TCF4");
-		    add("TFIIIC-110");
-		    add("USF-1");
-		    add("YY1");
-		    add("ZBTB33");
-		    add("c-Fos");
-		    add("c-Jun");
-		    add("p300");
+//		    add("TAF1");
+//		    add("TCF12");
+//		    add("TCF4");
+//		    add("TFIIIC-110");
+//		    add("USF-1");
+//		    add("YY1");
+//		    add("ZBTB33");
+//		    add("c-Fos");
+//		    add("c-Jun");
+//		    add("p300");
+			add("CTCF");
 		}};
 		TFtoRun.add("Input");
 		
@@ -142,7 +143,6 @@ public class RunENCODE {
 	            if (genome.equalsIgnoreCase("hg19") && labs.contains(lab) && TFtoRun.contains(tf)
 	            		&& !((tf.startsWith("H3")||tf.startsWith("H4")
 	            				||tf.startsWith("Pol2")
-	            				||tf.startsWith("CTCF")
 	            				||tf.contains("Seq")||tf.contains("seq")||tf.contains("Dnase")
 	            				||tf.equals("Large-Fragment")||tf.equals("MNase")||tf.equals("Naked-DNA")
 	            				||tf.equals("Mouse-IgG")||tf.equals("Control")))

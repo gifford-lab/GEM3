@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.TreeSet;
 
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class Kmer implements Comparable<Kmer>{
@@ -120,13 +121,13 @@ public class Kmer implements Comparable<Kmer>{
 		return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f", kmerString, getKmerRC(),clusterId, kmerStartOffset, getPosHitCount(), getNegHitCount(), hgp_lg10, strength);
 	}
 	public static String toHeader(){
-		return "Enriched k-mer/r.c.\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
+		return "#Enriched k-mer/r.c.\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
 	}
 	public String toShortString(){
 		return kmerString+"/"+getKmerRC()+"\t"+getPosHitCount()+"\t"+getNegHitCount()+"\t"+String.format("%.1f", hgp_lg10);
 	}
 	public static String toShortHeader(){
-		return "Enriched k-mer/r.c.\tPosCt\tNegCt\tHGP_10";
+		return "#Enriched k-mer/r.c.\tPosCt\tNegCt\tHGP_10";
 	}
 	public static Kmer fromString(String str){
 		String[] f = str.split("\t");
@@ -176,13 +177,15 @@ public class Kmer implements Comparable<Kmer>{
 		return SequenceUtils.reverseComplement(kmerString);
 	}
 	
-	public static void printKmers(ArrayList<Kmer> kmers, String filePrefix, boolean printShortFormat, boolean print_kmer_hits){
+	public static void printKmers(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount,
+			String filePrefix, boolean printShortFormat, boolean print_kmer_hits){
 		if (kmers==null || kmers.isEmpty())
 			return;
 		
 		Collections.sort(kmers);
 		
 		StringBuilder sb = new StringBuilder();
+		sb.append(String.format("#%d/%d\n", posSeqCount, negSeqCount));
 		if (printShortFormat)
 			sb.append(Kmer.toShortHeader());
 		else
@@ -234,10 +237,11 @@ public class Kmer implements Comparable<Kmer>{
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
-			
+			bin.readLine();			// skip header line, to be compatible with old file format
 	        String line;
-	        bin.readLine();	// skip header
 	        while((line = bin.readLine()) != null) { 
+	        	if (line.startsWith("#"))
+	        		continue;
 	            line = line.trim();
 	            Kmer kmer = Kmer.fromString(line);
 	            kmers.add(kmer);
@@ -252,6 +256,26 @@ public class Kmer implements Comparable<Kmer>{
         kmers.trimToSize();
 		return kmers;
 	}
+	public static Pair<Integer, Integer> getTotalCounts(File file){
+		int posSeqCount=-1;
+		int negSeqCount=-1;
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+	        String line = bin.readLine();
+	        line = line.substring(1,line.length());			//remove # sign
+	        String[] f = line.split("/");
+	        posSeqCount = Integer.parseInt(f[0]);
+	        negSeqCount = Integer.parseInt(f[1]);
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+file.getName());
+            e.printStackTrace(System.err);
+        }
+		return new Pair<Integer, Integer>(posSeqCount,negSeqCount);
+	}
+	
 	public static void main(String[] args){
 		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
 	}

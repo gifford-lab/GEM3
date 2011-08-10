@@ -45,7 +45,7 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
         return new WeightMatrixScoreProfile(matrix, fscores, rscores);
     }
 
-    public double[] score(WeightMatrix matrix, char[] sequence, char strand) {
+    public static double[] score(WeightMatrix matrix, char[] sequence, char strand) {
         double[] results = new double[sequence.length];
         /* scan through the sequence */
         int length = matrix.length();
@@ -67,8 +67,6 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
             	results[i] = score;
             }
         }
-
-       
         return results;
     }
 
@@ -78,7 +76,7 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
      * @param sequence
      * @return
      */
-    public  double getMaxSeqScore(WeightMatrix matrix, String sequence){
+    public static double getMaxSeqScore(WeightMatrix matrix, String sequence){
     	if (sequence.length()<matrix.length())
     		return matrix.getMinScore();
     	
