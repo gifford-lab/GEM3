@@ -41,13 +41,16 @@ public class KmerScanner {
 	public KmerGroup[] query (String seq){
 		return kEngine.query(seq);
 	}
-	public double getMaxKGscore (String seq){
+	public KmerGroup getBestKG (String seq){
 		double minScore = 0;
+		KmerGroup best = null;
 		KmerGroup[] kgs = query(seq);
 		for (KmerGroup kg:kgs)
-			if (minScore >= kg.getHgp())
+			if (minScore >= kg.getHgp()){
 				minScore = kg.getHgp();
-		return minScore;
+				best = kg;
+			}
+		return best;
 	}	
 	public static void main(String[] args){
 		// k-mer group info
@@ -106,9 +109,9 @@ public class KmerScanner {
 			String seqN = seqgen.execute(pt.expand(windowSize));
 			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
 			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
-			double kgs = scanner.getMaxKGscore(seq);
-			double kgsN = scanner.getMaxKGscore(seqN);
-			sb.append(String.format("%d\t%.2f\t%.2f\t%.2f\t%.2f\n", i, pwm, pwmN, kgs, kgsN));
+			KmerGroup kg = scanner.getBestKG(seq);
+			KmerGroup kgN = scanner.getBestKG(seqN);
+			sb.append(String.format("%d\t%.2f\t%.2f\t%.2f\t%.2f\n", i, pwm, pwmN, kg.getHgp(), kgN.getHgp()));
 		}
 		System.out.println(sb.toString());
 		CommonUtils.writeFile("Ctcf_scores.txt", sb.toString());

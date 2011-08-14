@@ -208,7 +208,7 @@ public class GPS2 {
 	            	mixture.buildEngine(Args.parseInteger(args,"k_win2", 60));
             }
             mixture.printMotifDistanceDistribution(peakFileName);
-            mixture.estimateKgsThreshold();
+            mixture.estimateOverallKgsThreshold();
 //	        mixture.printOverlappingKmers();
         }
         

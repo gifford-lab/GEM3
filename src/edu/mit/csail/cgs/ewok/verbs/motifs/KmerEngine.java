@@ -134,7 +134,7 @@ public class KmerEngine {
 		numPos = (winSize+1)-k+1;
 		tic = System.currentTimeMillis();
 		int eventCount = events.size();
-		Collections.sort(events);		// sort by location
+//		Collections.sort(events);		// sort by location
 		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
 		int expectedCount = (int) Math.round(eventCount / Math.pow(4, k));
 
@@ -283,8 +283,12 @@ public class KmerEngine {
 		negRegions.addAll(neg_region_map.keySet());
 		Region.filterOverlapRegions(negRegions, posImpactRegion);				// to make sure negative region is not within negRegionDistance of positive regions.
 		seqsNegList.clear();
+		int negCount = 0;
 		for (Region r:negRegions){
 			seqsNegList.add(seqsNeg[neg_region_map.get(r)].substring(0, winSize+1));
+			negCount++;
+			if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
+				break;
 		}
 		
 		posSeqCount = seqs.length;

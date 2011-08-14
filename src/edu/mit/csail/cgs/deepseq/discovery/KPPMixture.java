@@ -3570,7 +3570,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				ComponentFeature cf = (ComponentFeature)f;
 				events.add(cf);
 			}
-		}
+		}		
+		Collections.sort(events, new Comparator<ComponentFeature>(){
+            public int compare(ComponentFeature o1, ComponentFeature o2) {
+                if(controlDataExist)
+                    return o1.compareByPValue(o2);
+                else
+                    return o1.compareByPValue_wo_ctrl(o2);
+            }
+        });
 		return events;
     }   
     
@@ -3588,13 +3596,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			long tic = System.currentTimeMillis();
 			if (config.k==-1)
 				return;
-			ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
-			for(Feature f : signalFeatures)
-				compFeatures.add((ComponentFeature)f);
+			ArrayList<ComponentFeature> compFeatures = getEvents();
 			
-			// reload the test sequences, and purify kmers
-			ArrayList<Point> events = getEventPoints();
-			kEngine.loadTestSequences(events, config.k_win);
+			// reload the test sequences, and re-count kmers
+			ArrayList<Point> eventPoints = getEventPoints();
+			kEngine.loadTestSequences(eventPoints, config.k_win);
 			
 			ArrayList<Kmer> kmers = countKmers2(compFeatures);
 			kEngine.updateKmerCounts(kmers, compFeatures);
@@ -4406,12 +4412,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		html.append("<tr><td><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 		
     	int leftmost_km = Integer.MAX_VALUE;
-    	for (int i=0;i<Math.min(10, allAlignedKmers.size());i++){
+    	for (int i=0;i<Math.min(20, allAlignedKmers.size());i++){
     		Kmer km = allAlignedKmers.get(i);
 			if (km.getKmerStartOffset()<leftmost_km)
 				leftmost_km = km.getKmerStartOffset();
 		}
-		for (int i=0;i<Math.min(10, allAlignedKmers.size());i++){
+		for (int i=0;i<Math.min(20, allAlignedKmers.size());i++){
 			html.append("<tr><td>");
 			html.append("<b><font size='5' face='Courier New'>");
 			Kmer km = allAlignedKmers.get(i);
@@ -4444,6 +4450,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		html.append("</td></tr></table>");
 		CommonUtils.writeFile(outName+"_result.htm", html.toString());
 		
+		for (int i=0;i<Math.min(clusters.size(), 20);i++){
+			ArrayList<Kmer> clusterKmers = clusters.get(i).alignedKmers;
+			MotifThreshold t = this.estimateClusterKgsThreshold(clusterKmers);
+			if (t!=null)
+				System.out.println(String.format("%d\t%.2f\t%d\t%d\t%.1f", i, t.score, t.posHit, t.negHit, t.hgp ));
+		}
 		log(1, "\nAlignment done, "+CommonUtils.timeElapsed(tic)+"\n");
 		return allAlignedKmers;
 		
@@ -4907,8 +4919,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 	}
+	public MotifThreshold estimateClusterKgsThreshold(ArrayList<Kmer> clusterKmers){
+		kEngine.updateEngine(clusterKmers);
+		return kEngine.estimateKgsThreshold(outName, false);
+
+	}
 	
-	public void estimateKgsThreshold(){
+	public void estimateOverallKgsThreshold(){
 		if (! kEngine.isInitialized())
 			return;
 		
