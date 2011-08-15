@@ -466,18 +466,17 @@ public class KmerEngine {
 	 * Do not consider negative score. (to reduce run time; negative pwm score means the PWM is of bad quality anyway)
 	 */
 	public MotifThreshold estimatePwmThreshold(WeightMatrix wm, String outName, boolean printPwmHgp){
-		WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			posSeqScores[i]=scorer.getMaxSeqScore(wm, seqs[i]);
+			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
 		}
 		Arrays.sort(posSeqScores);
 		int zeroIdx = Arrays.binarySearch(posSeqScores, 0);
 		if( zeroIdx < 0 ) { zeroIdx = -zeroIdx - 1; }
 		
 		for (int i=0;i<negSeqCount;i++){
-			negSeqScores[i]=scorer.getMaxSeqScore(wm, seqsNegList.get(i));
+			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
 		}
 		Arrays.sort(negSeqScores);
 		

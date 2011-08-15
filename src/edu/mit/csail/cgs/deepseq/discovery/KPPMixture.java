@@ -887,9 +887,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			Region posRegion = compFeatures.get(i).getPeak().expand(config.k_win/2);
 			seqs[i] = kEngine.getSequence(posRegion).toUpperCase();
 		}
-		WeightMatrixScorer scorer = new WeightMatrixScorer(pCluster.wm);
 		for (int i=0;i<seqs.length;i++){
-			double score = scorer.getMaxSeqScore(pCluster.wm, seqs[i]);
+			double score = WeightMatrixScorer.getMaxSeqScore(pCluster.wm, seqs[i]);
 			compFeatures.get(i).setEnrichedKmerHGPLog10(score);
 //			boolean isHit = score>=pCluster.pwmThreshold;
 //			int inc = (isHit)?1:0;
@@ -4407,9 +4406,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// output HTML report
 		Collections.sort(allAlignedKmers);
-		StringBuffer html = new StringBuffer("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
+		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
+		html.append("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
 		html.append(name).append("</font></th>");
-		html.append("<tr><td><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
+		html.append("<tr><td>");
+		html.append("<a href='"+name+"_GPS_significant.txt'>Significant Events</a>&nbsp;&nbsp;: "+signalFeatures.size());
+		html.append("<br><a href='"+name+"_GPS_insignificant.txt'>Insignificant Events</a>: "+insignificantFeatures.size());
+		html.append("<br><a href='"+name+"_GPS_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+filteredFeatures.size());
+		html.append("<p><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 		
     	int leftmost_km = Integer.MAX_VALUE;
     	for (int i=0;i<Math.min(20, allAlignedKmers.size());i++){
@@ -4419,7 +4423,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		for (int i=0;i<Math.min(20, allAlignedKmers.size());i++){
 			html.append("<tr><td>");
-			html.append("<b><font size='5' face='Courier New'>");
+			html.append("<b><font size='4' face='Courier New'>");
 			Kmer km = allAlignedKmers.get(i);
 			char[] kmStr = km.getKmerString().toCharArray();
 			html.append(CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-'));
