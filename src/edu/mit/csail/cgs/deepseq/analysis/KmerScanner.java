@@ -114,6 +114,8 @@ public class KmerScanner {
 		TreeMap<Region, Region> reg2reg = new TreeMap<Region, Region>();
 		each_event: for(int i=0;i<gpsPeaks.size();i++){
 			GPSPeak p = gpsPeaks.get(i);
+			if (p.getLocation()<1000)
+				continue each_event;
 			Region rNeg = new Point(genome, p.getChrom(), p.getLocation()-1000).expand(windowSize);
 			if (posRegions.get(i).getWidth()==width && rNeg.getWidth()==width){
 				for(Region r:posRegions){
