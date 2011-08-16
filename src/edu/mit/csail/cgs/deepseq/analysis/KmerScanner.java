@@ -3,8 +3,10 @@ package edu.mit.csail.cgs.deepseq.analysis;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeMap;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -54,6 +56,7 @@ public class KmerScanner {
 	}	
 	public static void main(String[] args){
 		// k-mer group info
+		String outName= Args.parseString(args, "out", "out");
 		File file = new File(Args.parseString(args, "kmer", null));
 		ArrayList<Kmer> kmers = Kmer.loadKmers(file);
 		int clusterId = Args.parseInteger(args, "cluster", 0);
@@ -102,19 +105,37 @@ public class KmerScanner {
 		seqgen.useCache(true);		
 		
 		StringBuilder sb = new StringBuilder();
+		ArrayList<Region> posRegions = new ArrayList<Region>();
 		for(int i=0;i<gpsPeaks.size();i++){
 			GPSPeak p = gpsPeaks.get(i);
-			String seq = seqgen.execute(p.expand(windowSize));
-			Point pt = new Point(genome, p.getChrom(), p.getLocation()+500);
-			String seqN = seqgen.execute(pt.expand(windowSize));
+			posRegions.add(p.expand(windowSize));
+		}
+		int width = windowSize*2+1;
+		TreeMap<Region, Region> reg2reg = new TreeMap<Region, Region>();
+		each_event: for(int i=0;i<gpsPeaks.size();i++){
+			GPSPeak p = gpsPeaks.get(i);
+			Region rNeg = new Point(genome, p.getChrom(), p.getLocation()-1000).expand(windowSize);
+			if (posRegions.get(i).getWidth()==width && rNeg.getWidth()==width){
+				for(Region r:posRegions){
+					if (rNeg.overlaps(r))
+						continue each_event;
+				}
+				reg2reg.put(posRegions.get(i), rNeg);
+			}
+		}
+		
+		for (Region r:reg2reg.keySet()){
+			String seq = seqgen.execute(r);
+			Region rN = reg2reg.get(r);
+			String seqN = seqgen.execute(rN);
 			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
 			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
 			KmerGroup kg = scanner.getBestKG(seq);
 			KmerGroup kgN = scanner.getBestKG(seqN);
-			sb.append(String.format("%d\t%.2f\t%.2f\t%.2f\t%.2f\n", i, pwm, pwmN, kg.getHgp(), kgN.getHgp()));
+			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), rN.toString(), pwm, pwmN, kg==null?0:kg.getHgp(), kgN==null?0:kgN.getHgp()));
 		}
 		System.out.println(sb.toString());
-		CommonUtils.writeFile("Ctcf_scores.txt", sb.toString());
+		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
 		
 //		KmerGroup[] kgs = scanner.query("TATTTACATGCAGTGTCCGGAAGACGCCAGAAGAGGGCAGTAGATGCCCTAGTAGTGGAGC");
 //		for (KmerGroup kg:kgs){
