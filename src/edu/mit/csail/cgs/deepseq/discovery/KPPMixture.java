@@ -3591,27 +3591,27 @@ class KPPMixture extends MultiConditionFeatureFinder {
     }
     
     // update kmerEngine with the predicted kmer-events
-		public void updateKmerEngine(boolean makePFM){
-			long tic = System.currentTimeMillis();
-			if (config.k==-1)
-				return;
-			ArrayList<ComponentFeature> compFeatures = getEvents();
-			
-			// reload the test sequences, and re-count kmers
-			ArrayList<Point> eventPoints = getEventPoints();
-			kEngine.loadTestSequences(eventPoints, config.k_win);
-			
-			ArrayList<Kmer> kmers = countKmers2(compFeatures);
-			kEngine.updateKmerCounts(kmers, compFeatures);
-			
-			log(1,String.format("k=%d, %d k-mers, %d+/%d- sequences", 
-					config.k, kmers.size(), kEngine.getPositiveSeqs().length, kEngine.getNegSeqCount()));
-			
-			if (makePFM)
-				kmers = this.alignOverlappedKmers(kmers, compFeatures, false);
-			log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
-			kEngine.updateEngine(kmers, outName, config.print_kmer_hits);
-		}
+	public void updateKmerEngine(){
+		long tic = System.currentTimeMillis();
+		if (config.k==-1)
+			return;
+		ArrayList<ComponentFeature> compFeatures = getEvents();
+		
+		// reload the test sequences, and re-count kmers
+		ArrayList<Point> eventPoints = getEventPoints();
+		kEngine.loadTestSequences(eventPoints, config.k_win);
+		
+		ArrayList<Kmer> kmers = countKmers2(compFeatures);
+		kEngine.updateKmerCounts(kmers, compFeatures);
+		
+		log(1,String.format("k=%d, %d k-mers, %d+/%d- sequences", 
+				config.k, kmers.size(), kEngine.getPositiveSeqs().length, kEngine.getNegSeqCount()));
+		
+		kmers = this.alignOverlappedKmers(kmers, compFeatures, false);
+		log(1, "Kmers ("+kmers.size()+") updated, "+CommonUtils.timeElapsed(tic));
+		
+		kEngine.updateEngine(kmers, outName, config.print_kmer_hits);
+	}
 
 	/**
      * Build k-mer engine.<br>
@@ -3718,7 +3718,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}	
 		ArrayList<Kmer> kmers = kEngine.selectEnrichedKmers(config.k, points, winSize, config.hgp, config.k_fold, outName);
 		kmers = alignOverlappedKmers(kmers, getEvents(), false);
-		kEngine.updateEngine(kmers, outName, config.print_kmer_hits);		
+		
+		ArrayList<Kmer> primaryKmers = new ArrayList<Kmer>();
+		for (Kmer km:kmers)
+			if (km.getClusterId()==0)
+				primaryKmers.add(km);
+		kEngine.updateEngine(primaryKmers, outName, config.print_kmer_hits);		
     }
     
     /** 
@@ -4311,20 +4316,20 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						+km.getKmerString()+"\t"+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
 			}
 			
-			/** store aligned kmers (within k bp from seed) in the cluster, remove from kmer pool */
+			/** store aligned kmers in the cluster, remove out_of_range kmers from kmer pool */
 			ArrayList<Kmer> copy = new ArrayList<Kmer>();
 			ArrayList<Kmer> outOfRange = new ArrayList<Kmer>();				// The kmers that are k/2 bp away from seed kmer
 			consolidateKmers(alignedKmers, events, clusterID==0);	
 			for (Kmer km:alignedKmers){
-				if (Math.abs(km.getShift())<=config.k/2){
-					Kmer cp = km.clone();
-					cp.setClusterId(clusterID);
-					copy.add(cp);
-				}
-				else
+				Kmer cp = km.clone();
+				cp.setClusterId(clusterID);
+				copy.add(cp);
+				if (Math.abs(km.getShift())>config.k/2){
 					outOfRange.add(km);
+					km.setClusterId(-1);
+				}
 			}
-			cluster.alignedKmers = copy;
+			cluster.alignedKmers = copy;				// store all the aligned k-mers
 			kmers.addAll(outOfRange);					// put the out_of_range kmers back to pool
 			
 			/** mask the PWM matched regions */
@@ -5018,7 +5023,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 
 	private class MotifCluster{
-		int clusterId;
+		int clusterId=-1;
 		Kmer seedKmer;
 		ArrayList<ComponentFeature> alignedFeatures=new ArrayList<ComponentFeature>();
 		// PWM hit start position in the bound sequence
@@ -5033,6 +5038,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 		protected MotifCluster clone(){
 			MotifCluster cluster = new MotifCluster();
+			cluster.clusterId = this.clusterId;
 			cluster.seedKmer = this.seedKmer;
 			cluster.alignedFeatures.addAll(this.alignedFeatures);
 			cluster.motifStartInSeq.addAll(this.motifStartInSeq);

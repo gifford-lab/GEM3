@@ -202,9 +202,9 @@ public class GPS2 {
 		        mixture.printFeatures();
 		        mixture.printFilteredFeatures();
 		        mixture.printInsignificantFeatures();
-		        if (!rebuild)
-	            	mixture.updateKmerEngine(true);
-	            else
+//		        if (!rebuild)
+//	            	mixture.updateKmerEngine();
+//	            else
 	            	mixture.buildEngine(Args.parseInteger(args,"k_win2", 60));
             }
             mixture.printMotifDistanceDistribution(peakFileName);
