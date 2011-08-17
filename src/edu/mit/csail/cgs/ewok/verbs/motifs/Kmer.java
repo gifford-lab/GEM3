@@ -61,7 +61,7 @@ public class Kmer implements Comparable<Kmer>{
 	public int getShift(){return shift;}
 	public void setShift(int s){shift=s;}
 	
-	int clusterId;
+	int clusterId=-1;
 	public int getClusterId(){return clusterId;}
 	public void setClusterId(int id){clusterId=id;}
 
