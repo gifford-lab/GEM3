@@ -3827,7 +3827,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 			}
 			kmers.removeAll(zeroCount);
-			
+			if (kmers.isEmpty()){
+				clusters.remove(clusterID);
+				break;
+			}
 			Collections.sort(kmers, new Comparator<Kmer>(){
 			    public int compare(Kmer o1, Kmer o2) {
 			    		return o1.compareByHGP(o2);
@@ -4067,14 +4070,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							pwmAlignedKmerStr2seqs.get(kmerStr).add(i);
 
 							seqAlignRefs[i] = "PWM:"+WeightMatrix.getMaxLetters(wm);
-							count_pwm_aligned ++;
 				          }
 				        }	// each sequence
 				    	
 				    	for (String kmStr: pwmAlignedKmerStr2seqs.keySet()){
 				    		Kmer km = null;
 				    		String kmRC = SequenceUtil.reverseComplement(kmStr);
-				    		if (str2kmer.containsKey(kmStr)||str2kmer.containsKey(kmRC)){	// if existing k-mers
+				    		if (str2kmer.containsKey(kmStr)||str2kmer.containsKey(kmRC)){	// if existing enriched k-mers
 				    			km = str2kmer.get(kmStr);
 				    			if (km==null)
 				    				km=str2kmer.get(kmRC);
@@ -4083,21 +4085,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			if (km.getKmerString().equals(kmRC))
 				    				km.RC();
 				    			kmers.remove(km);
+
+								count_pwm_aligned ++;
+				    			km.setShift(0);
+				    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
+				    			aligned_new.add(km);				    		
 				    		}
-				    		else {								// new found k-mers
-				    			km = new Kmer(kmStr, pwmAlignedKmerStr2seqs.get(kmStr));				    			
-				    			str2kmer.put(kmStr, km);
-				    		}
-			    			km.setShift(0);
-			    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
-			    			aligned_new.add(km);
-			    			// connect kmer back to the sequence
-			    			for (int i:pwmAlignedKmerStr2seqs.get(kmStr)){
-			    				if (seq2kmer.get(i)==null)
-			    					seq2kmer.set(i, new HashSet<Kmer>());
-			    				seq2kmer.get(i).clear();
-								seq2kmer.get(i).add(km);
-			    			}
 				    	}
 				    	if (config.bmverbose>1)
 				    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr2seqs.keySet().size()+" k-mers.");
@@ -4237,12 +4230,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			/** store aligned kmers in the cluster, remove out_of_range kmers from kmer pool */
 			ArrayList<Kmer> copy = new ArrayList<Kmer>();
 			ArrayList<Kmer> outOfRange = new ArrayList<Kmer>();				// The kmers that are k/2 bp away from seed kmer
-			consolidateKmers(alignedKmers, events, clusterID==0);	
+			consolidateKmers(alignedKmers, events);	
 			for (Kmer km:alignedKmers){
 				Kmer cp = km.clone();
 				cp.setClusterId(clusterID);
 				copy.add(cp);
-				if (Math.abs(km.getShift())>config.k/2){
+				if (Math.abs(km.getShift())!=0){		// out_of_range: not exactly aligned with seed kmer
 					outOfRange.add(km);
 					km.setClusterId(-1);
 				}
@@ -4251,39 +4244,51 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			kmers.addAll(outOfRange);					// put the out_of_range kmers back to pool
 			
 			/** mask the PWM matched regions */
-			if (cluster.wm!=null){
-				
-				// if we only want primary motif, stop the clustering iteration here
-				if (primaryMotifOnly)
-					break;
-				
-		        boolean masked = false;
-		        if (cluster.pwmGoodQuality){			// if PWM quality is not too bad, mask
-			        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
-			        int left = Math.round(cluster.wm.length()*(1-config.k_mask_f)/2);
-			        int right = Math.round(cluster.wm.length()*(1-(1-config.k_mask_f)/2));
-					for (int i=0;i<posSeqs.length;i++){
-						if (posSeqs[i] == UNALIGNED)
-							continue;
-						String seq = seqs[i];
-						boolean found = false;
-						while(true){				// mask all possible matches
-							Pair<Integer, Double> hit = CommonUtils.scanPWM(seq, cluster.wm.length(), scorer);
-							if (hit.cdr()<cluster.pwmThreshold)
-								break;
-							found = true;
-							int start = Math.abs(hit.car());// if match on rc strand, the start coordinate is the same, as implemented in WeightMatrixScorer.score()
-							// replace with N
-							seq=seq.substring(0, start+left)
-									.concat(CommonUtils.padding(right-left, 'N'))
-									.concat(seq.substring(start+right, seq.length()));
+			if (config.mask_by_pwm){
+				if (cluster.wm!=null){				
+					// if we only want primary motif, stop the clustering iteration here
+					if (primaryMotifOnly)
+						break;
+					
+			        if (cluster.pwmGoodQuality){			// if PWM quality is not too bad, mask
+				        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
+				        int left = Math.round(cluster.wm.length()*(1-config.k_mask_f)/2);
+				        int right = Math.round(cluster.wm.length()*(1-(1-config.k_mask_f)/2));
+						for (int i=0;i<posSeqs.length;i++){
+							if (posSeqs[i] == UNALIGNED)
+								continue;
+							String seq = seqs[i];
+							boolean found = false;
+							while(true){				// mask all possible matches
+								Pair<Integer, Double> hit = CommonUtils.scanPWM(seq, cluster.wm.length(), scorer);
+								if (hit.cdr()<cluster.pwmThreshold)
+									break;
+								found = true;
+								int start = Math.abs(hit.car());// if match on rc strand, the start coordinate is the same, as implemented in WeightMatrixScorer.score()
+								// replace with N
+								seq=seq.substring(0, start+left)
+										.concat(CommonUtils.padding(right-left, 'N'))
+										.concat(seq.substring(start+right, seq.length()));
+							}
+							if (found){
+								seqs[i] = seq;
+							}
 						}
-						if (found){
-							seqs[i] = seq;
-							masked = true;
-						}
-					}
-		        }
+			        }
+				}
+			}
+			else{		// mask by seed k-mer position
+				for (int i=0;i<posSeqs.length;i++){
+					if (posSeqs[i] == UNALIGNED)
+						continue;
+					String seq = seqs[i];
+					if (-posSeqs[i]<0 || (-posSeqs[i]+config.k)>seq.length())
+						continue;
+					seq=seq.substring(0, -posSeqs[i])
+					.concat(CommonUtils.padding(config.k, 'N'))
+					.concat(seq.substring(-posSeqs[i]+config.k, seq.length()));
+					seqs[i] = seq;
+				}
 			}
 			clusterID++;
 		} // each cluster
@@ -4325,7 +4330,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Kmer> allAlignedKmers = new ArrayList<Kmer>();
 		allAlignedKmers.addAll(allKmers.values());
 		// update Kmer count and HGP
-		consolidateKmers(allAlignedKmers, events, true);	
+		consolidateKmers(allAlignedKmers, events);	
 		
 		// output HTML report
 		Collections.sort(allAlignedKmers);
@@ -4487,7 +4492,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 
 	// consolidate to unique k-mers, update Kmer count and HGP, remove unenriched k-mers
-	private void consolidateKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events, boolean relaxWeakKmer){
+	private void consolidateKmers(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
 		Collections.sort(kmers);		
 		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 		for (Kmer km: kmers){
@@ -4506,9 +4511,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				highHgpKmers.add(km);	
 				continue;
 			}
-			// (posHit<=7,6,5 negHit=0,1) or (posHit<=4,3,2,1 negHit=0) will pass, although its hgp is high
-			if (relaxWeakKmer && km.getPosHitCount()<7)	
-				continue;
+//			// (posHit<=7,6,5 negHit=0,1) or (posHit<=4,3,2,1 negHit=0) will pass, although its hgp is high
+//			if (relaxWeakKmer && km.getPosHitCount()<7)	
+//				continue;
 			if (km.getHgp()>config.hgp )
 				highHgpKmers.add(km);	
 		}
@@ -5198,6 +5203,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean k_select_seed = false;
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
         public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
+        public boolean mask_by_pwm = false;
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -5257,6 +5263,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
             re_align_kmer = flags.contains("rak");
+            mask_by_pwm = flags.contains("mask_by_pwm");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
 //            print_kmer_hits = flags.contains("print_kmer_hits");
