@@ -114,7 +114,7 @@ public class KmerScanner {
 		TreeMap<Region, Region> reg2reg = new TreeMap<Region, Region>();
 		each_event: for(int i=0;i<gpsPeaks.size();i++){
 			GPSPeak p = gpsPeaks.get(i);
-			if (p.getLocation()<1000)
+			if (p.getLocation()<1000+windowSize)
 				continue each_event;
 			Region rNeg = new Point(genome, p.getChrom(), p.getLocation()-1000).expand(windowSize);
 			if (posRegions.get(i).getWidth()==width && rNeg.getWidth()==width){
@@ -136,8 +136,8 @@ public class KmerScanner {
 			KmerGroup kgN = scanner.getBestKG(seqN);
 			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), rN.toString(), pwm, pwmN, kg==null?0:kg.getHgp(), kgN==null?0:kgN.getHgp()));
 		}
-		System.out.println(sb.toString());
 		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
+		System.out.println(outName+"_w"+width+"_scores.txt");
 		
 //		KmerGroup[] kgs = scanner.query("TATTTACATGCAGTGTCCGGAAGACGCCAGAAGAGGGCAGTAGATGCCCTAGTAGTGGAGC");
 //		for (KmerGroup kg:kgs){

@@ -4333,7 +4333,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		consolidateKmers(allAlignedKmers, events);	
 		
 		// output HTML report
-		Collections.sort(allAlignedKmers);
+		Collections.sort(allAlignedKmers, new Comparator<Kmer>(){
+		    public int compare(Kmer o1, Kmer o2) {
+		    	return o1.compareByHGP(o2);
+		    }
+		});	
 		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
 		html.append("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
 		html.append(name).append("</font></th>");
@@ -4344,15 +4348,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		html.append("<p><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 		
     	int leftmost_km = Integer.MAX_VALUE;
+    	ArrayList<Kmer> outputs = new ArrayList<Kmer>();
     	for (int i=0;i<Math.min(20, allAlignedKmers.size());i++){
     		Kmer km = allAlignedKmers.get(i);
 			if (km.getKmerStartOffset()<leftmost_km)
 				leftmost_km = km.getKmerStartOffset();
+			outputs.add(km);
 		}
-		for (int i=0;i<Math.min(20, allAlignedKmers.size());i++){
+		Collections.sort(outputs, new Comparator<Kmer>(){
+		    public int compare(Kmer o1, Kmer o2) {
+		    		return o1.compareByClusterAndHGP(o2);
+		    }
+		});		
+    	
+		for (int i=0;i<outputs.size();i++){
 			html.append("<tr><td>");
 			html.append("<b><font size='4' face='Courier New'>");
-			Kmer km = allAlignedKmers.get(i);
+			Kmer km = outputs.get(i);
 			char[] kmStr = km.getKmerString().toCharArray();
 			html.append(CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-'));
 			for (char b:kmStr){
@@ -4802,6 +4814,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// normalize, compare to background, and log2
     	double[] ic = new double[pwm.length];						// information content
     	for (int p=0;p<pwm.length;p++){						// for each position
+    		double countN = pwm[p]['N'];
+    		if (countN!=0){
+	    		for (char base:LETTERS){						// add the fraction of 'N' according to bg dist
+	    			pwm[p][base] += countN*config.bg[base];
+	    		}   
+    		}
     		int sum=0;
     		for (char base:LETTERS){						// do not count 'N'
     			sum += pwm[p][base];
