@@ -4816,8 +4816,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	for (int p=0;p<pwm.length;p++){						// for each position
     		double countN = pwm[p]['N'];
     		if (countN!=0){
-	    		for (char base:LETTERS){						// add the fraction of 'N' according to bg dist
-	    			pwm[p][base] += countN*config.bg[base];
+    			for (int b=0;b<LETTERS.length;b++){
+        			char base = LETTERS[b];						// add the fraction of 'N' according to bg dist
+	    			pwm[p][base] += countN*config.bg[b];
 	    		}   
     		}
     		int sum=0;
