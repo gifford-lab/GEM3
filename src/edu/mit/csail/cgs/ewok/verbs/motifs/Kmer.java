@@ -20,6 +20,12 @@ public class Kmer implements Comparable<Kmer>{
 	
 	String kmerString;
 	public String getKmerString() {	return kmerString;}
+	String kmerRC;
+	public String getKmerRC(){
+		if (kmerRC==null)
+			kmerRC=SequenceUtils.reverseComplement(kmerString);
+		return kmerRC;
+	}
 	int k;
 	public int getK(){return k;}
 	
@@ -97,7 +103,9 @@ public class Kmer implements Comparable<Kmer>{
 	
 	/** Use reverse compliment to represent the kmer */
 	public void RC(){
+		String tmp = kmerString;
 		kmerString = getKmerRC();
+		kmerRC = tmp;
 	}
 	// sort kmer by strength
 	public int compareByStrength(Kmer o) {
@@ -177,10 +185,7 @@ public class Kmer implements Comparable<Kmer>{
 			strength += newKmer.strength;
 		}
 	}
-	
-	public String getKmerRC(){
-		return SequenceUtils.reverseComplement(kmerString);
-	}
+
 	
 	public static void printKmers(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount,
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits){
