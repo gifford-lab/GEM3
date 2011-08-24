@@ -5460,6 +5460,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    		pwm[p]['N']=lowest;
 	    	}
 		}
+		else 
+			return -1;
 		
 		/* try all pwm length with the most IC-rich columns, find the best PWM */
 		int[] left=new int[rightIdx-leftIdx+1-config.k/2];
