@@ -90,7 +90,7 @@ public class KmerEngine {
 				updateEngine(kmers, outPrefix, print_kmer_hits);
 			else
 				updateEngine(kmers);
-			k=kmers.get(0).k;
+			k=kmers.get(0).getK();
 		}
 	}
 	/**
@@ -202,7 +202,7 @@ public class KmerEngine {
 		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		AhoCorasick tmp = new AhoCorasick();
 		for (Kmer km: kms){
-			tmp.add(km.kmerString.getBytes(), km.kmerString);
+			tmp.add(km.getKmerString().getBytes(), km.getKmerString());
 	    }
 		tmp.prepare();
 		
@@ -238,15 +238,15 @@ public class KmerEngine {
 				toRemove.add(kmer);	
 				continue;
 			}
-			if (kmerstr2negSeqs.containsKey(kmer.kmerString)){
-				kmer.setNegHits(kmerstr2negSeqs.get(kmer.kmerString));
+			if (kmerstr2negSeqs.containsKey(kmer.getKmerString())){
+				kmer.setNegHits(kmerstr2negSeqs.get(kmer.getKmerString()));
 			}
 			if (kmer.getPosHitCount() < kmer.getNegHitCount()/get_NP_ratio() * k_fold ){
 				highHgpKmers.add(kmer);	
 				continue;
 			}
-			kmer.hgp_lg10 = computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount());
-			if (kmer.hgp_lg10>hgp)
+			kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
+			if (kmer.getHgp()>hgp)
 				highHgpKmers.add(kmer);		
 		}
 		// remove un-enriched kmers		
@@ -680,8 +680,8 @@ public class KmerEngine {
 		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		tree = new AhoCorasick();
 		for (Kmer km: kmers){
-			str2kmer.put(km.kmerString, km);
-			tree.add(km.kmerString.getBytes(), km.kmerString);
+			str2kmer.put(km.getKmerString(), km);
+			tree.add(km.getKmerString().getBytes(), km.getKmerString());
 	    }
 	    tree.prepare();
 	    engineInitialized = true;
@@ -702,8 +702,8 @@ public class KmerEngine {
 		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		tree = new AhoCorasick();
 		for (Kmer km: kmers){
-			str2kmer.put(km.kmerString, km);
-			tree.add(km.kmerString.getBytes(), km.kmerString);
+			str2kmer.put(km.getKmerString(), km);
+			tree.add(km.getKmerString().getBytes(), km.getKmerString());
 	    }
 	    tree.prepare();
 	    engineInitialized = true;
@@ -812,7 +812,7 @@ public class KmerEngine {
 		this.k = kmers.get(0).getK();
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		for (Kmer kmer:kmers){
-			map.put(kmer.kmerString, 0);
+			map.put(kmer.getKmerString(), 0);
 		}
 		for (String chr : genome.getChromList()){
 			System.out.println(chr);
@@ -837,7 +837,7 @@ public class KmerEngine {
 		Collections.sort(kmers);
 		StringBuilder sb = new StringBuilder();
 		for (Kmer km:kmers){
-			sb.append(km.kmerString).append("\t").append(map.get(km.kmerString)).append("\n");
+			sb.append(km.getKmerString()).append("\t").append(map.get(km.getKmerString())).append("\n");
 		}
 		CommonUtils.writeFile(genome.getVersion()+"_kmers_"+k+".txt", sb.toString());
 		System.out.println(CommonUtils.timeElapsed(tic));
@@ -905,7 +905,7 @@ public class KmerEngine {
 		 *  The weight is 1 for top kmer, 1/k for other kmer */
 		public double getWeightedKmerStrength(){
     		double total = kmers.get(0).getStrength();
-    		double k = kmers.get(0).k;
+    		double k = kmers.get(0).getK();
     		for (int i=1;i<kmers.size();i++){
     			total+=kmers.get(i).getStrength()/k;	
     		}

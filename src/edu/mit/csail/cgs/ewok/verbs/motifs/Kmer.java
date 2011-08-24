@@ -14,32 +14,44 @@ import java.util.TreeSet;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class Kmer implements Comparable<Kmer>{
 	static cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 	
-	String kmerString;
+	private String kmerString;
 	public String getKmerString() {	return kmerString;}
-	String kmerRC;
+	private String kmerRC;
 	public String getKmerRC(){
 		if (kmerRC==null)
 			kmerRC=SequenceUtils.reverseComplement(kmerString);
 		return kmerRC;
 	}
-	int k;
+	private int k;
 	public int getK(){return k;}
 	
-	HashSet<Integer> posHits = new HashSet<Integer>();
+	private HashSet<Integer> posHits = new HashSet<Integer>();
 //	int posHitCount; //one hit at most for one sequence, to avoid simple repeat
 	public int getPosHitCount() {return posHits.size();}
 	public void setPosHits(HashSet<Integer> posHits) {
 		this.posHits = posHits;
-//		posHitCount = posHits.size();
+		double[] ids = new double[posHits.size()];
+		int count=0;
+		for (int id:posHits){
+			ids[count++]=id;
+		}
+		double mean = StatUtil.mean(ids);
+		double median = StatUtil.median(ids);
+		setTop((median-mean)*ids.length);
 	}
 	public HashSet<Integer> getPosHits(){return posHits;}
 	
+	private double top;
+	public void setTop(double top) {this.top = top;}
+	public double getTop() {return top;	}
+	
 //	int negHitCount;
-	HashSet<Integer> negHits = new HashSet<Integer>();
+	private HashSet<Integer> negHits = new HashSet<Integer>();
 	public int getNegHitCount() {return negHits.size();}
 	public void setNegHits(HashSet<Integer> negHits) {
 		this.negHits = negHits;
@@ -47,12 +59,12 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public HashSet<Integer> getNegHits(){return negHits;}
 	
-	double strength;	// the total read counts from all events explained by this kmer
+	private double strength;	// the total read counts from all events explained by this kmer
 	public double getStrength(){return strength;}
 	public void setStrength(double strength){this.strength = strength;}
 	public void incrStrength(double strength){this.strength += strength;}
 	
-	double hgp_lg10 = 0;
+	private double hgp_lg10 = 0;
 	/**  get hyper-geometric p-value (log10) of the kmer */
 	public double getHgp() {
 		return hgp_lg10;
@@ -62,21 +74,21 @@ public class Kmer implements Comparable<Kmer>{
 		this.hgp_lg10 = hgp;
 	}
 	
-	int shift;
+	private int shift;
 	/** get the position relative to seedKmer, after aligning this kmer to seedKmer */
 	public int getShift(){return shift;}
 	public void setShift(int s){shift=s;}
 	
-	int clusterId=-1;
+	private int clusterId=-1;
 	public int getClusterId(){return clusterId;}
 	public void setClusterId(int id){clusterId=id;}
 
-	String alignString;
+	private String alignString;
 	public void setAlignString(String str){alignString=str;}
 	public String getAlignString(){return alignString;}
 	
 	/** The offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
-	int kmerStartOffset;			
+	private int kmerStartOffset;			
 	/** Get the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
 	public int getKmerStartOffset(){return kmerStartOffset;}
 	/** Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
@@ -89,11 +101,12 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	public Kmer clone(){
-		Kmer n = new Kmer(getKmerString(), new HashSet<Integer>());
+		HashSet<Integer> hits = new HashSet<Integer>();
+		hits.addAll(this.posHits);
+		Kmer n = new Kmer(getKmerString(), hits);
 		n.strength = strength;
 		n.shift = shift;
 		n.negHits = new HashSet<Integer>();
-		n.posHits.addAll(posHits);
 		n.negHits.addAll(negHits);
 		n.hgp_lg10 = hgp_lg10;
 		n.alignString = alignString;
@@ -131,10 +144,10 @@ public class Kmer implements Comparable<Kmer>{
 		return this.kmerString.equals(kmerString);
 	}
 	public String toString(){
-		return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f", kmerString, getKmerRC(),clusterId, kmerStartOffset, getPosHitCount(), getNegHitCount(), hgp_lg10, strength);
+		return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f", kmerString, getKmerRC(),clusterId, kmerStartOffset, getPosHitCount(), getNegHitCount(), hgp_lg10, top);
 	}
 	public static String toHeader(){
-		return "#Enriched k-mer/r.c.\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tStrength";
+		return "#Enriched k-mer/r.c.\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tTop";
 	}
 	public String toShortString(){
 		return kmerString+"/"+getKmerRC()+"\t"+getPosHitCount()+"\t"+getNegHitCount()+"\t"+String.format("%.1f", hgp_lg10);

@@ -3839,11 +3839,27 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						break;
 					}
 				}
-				if (seed==null)				// not found
-					seed = kmers.get(0);
+				if (seed==null){				// not found
+					for (Kmer km:kmers){
+						if (km.getTop()<0){
+							seed = km;
+							break;
+						}
+					}
+					if (seed==null)
+						seed = kmers.get(0);
+				}
 			}	
-			else
-				seed = kmers.get(0);
+			else{				
+				for (Kmer km:kmers){
+					if (km.getTop()<0){
+						seed = km;
+						break;
+					}
+				}
+				if (seed==null)
+					seed = kmers.get(0);
+			}
 			
 			// print out top kmer information
 			if (clusterID==0){
@@ -3883,8 +3899,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			// align sequences by kmers
 			for (Kmer km:alignedKmers){
-				HashSet<Integer> hits = kmer2seq.get(km);
-				if (hits==null || hits.isEmpty())
+				HashSet<Integer> hits = km.getPosHits();
+				if (hits==null || hits.isEmpty() || km.getTop()>0)
 					continue;
 				alignSequences(km, hits, seqs, posSeqs, isPlusStrands, seqAlignRefs);
 			}
@@ -3896,9 +3912,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					alignedSeqCount++;
 			}
 			if (alignedSeqCount>=config.kmer_cluster_seq_count && cluster.buildNewPWM){
-				boolean hasNewSeq = true;
-				while(hasNewSeq){		        
-			        hasNewSeq = false;
+				int count_pwm_aligned=1;
+				while(count_pwm_aligned!=0){		        
+					count_pwm_aligned=0;
 					int leftIdx = buildPWM(posSeqs, isPlusStrands, events, seqs, cluster, tic);
 					if (leftIdx != -1){				    	
 			    		WeightMatrix wm = cluster.wm;
@@ -3938,7 +3954,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							}
 							posSeqs[i] = cluster.pos_pwm_seed-maxScoringShift;
 							seqAlignRefs[i] = "PWM:"+WeightMatrix.getMaxLetters(wm);
-							hasNewSeq = true;
+							count_pwm_aligned ++;
 							String kmerStr = seqs[i].substring(-posSeqs[i], end);
 							if (kmerStr.contains("N")){
 								continue;
@@ -3948,8 +3964,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							pwmAlignedKmerStr2seqs.get(kmerStr).add(i);
 				          }
 				        }	// each sequence
-				    	
-				    	int count_pwm_aligned=0;
+
+				    	int alignedPWMCount = alignedKmers.size();
+						ArrayList<Kmer> alignedKmers_pwm = new ArrayList<Kmer>();
 				    	for (String kmStr: pwmAlignedKmerStr2seqs.keySet()){
 				    		Kmer km = null;
 				    		String kmRC = SequenceUtil.reverseComplement(kmStr);
@@ -3957,20 +3974,40 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			km = str2kmer.get(kmStr);
 				    			if (km==null)
 				    				km=str2kmer.get(kmRC);
-				    			if (alignedKmers.contains(km))	// if this kmer has been aligned, skip to next one
+				    			if (alignedKmers.contains(km)||alignedKmers_pwm.contains(km))	// if this kmer has been aligned, skip to next one
 				    				continue;
 	
-								count_pwm_aligned ++;
+
 				    			if (km.getKmerString().equals(kmRC))
 				    				km.RC();
 				    			kmers.remove(km);
 				    			km.setShift(0);
 				    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
-				    			alignedKmers.add(km);				    		
+				    			alignedKmers_pwm.add(km);				    		
 				    		}
 				    	}
+				    	// align k-mers by co-ocurrence
+						ArrayList<Kmer> aligned_pwm = new ArrayList<Kmer>();
+						aligned_pwm.addAll(alignedKmers_pwm);
+						while(!aligned_pwm.isEmpty()){
+							ArrayList<Kmer> aligned_new = new ArrayList<Kmer>();
+							for (Kmer ka: aligned_pwm){
+								ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+								for (Kmer km:kmers){
+									if (pairKmers(ka, km, seqs)){
+										aligned_new.add(km);
+										toRemove.add(km);
+									}
+								}
+								if (!toRemove.isEmpty())
+									kmers.removeAll(toRemove);
+							}
+							alignedKmers.addAll(aligned_pwm);	
+							aligned_pwm.clear();
+							aligned_pwm.addAll(aligned_new);
+						}
 				    	if (config.bmverbose>1)
-				    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+pwmAlignedKmerStr2seqs.keySet().size()+" k-mers.");
+				    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+(alignedKmers.size()-alignedPWMCount)+" k-mers.");
 					}
 				}
 			}
@@ -4004,7 +4041,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					int kmer_seed = 0;					// the shift of this kmer w.r.t. seed kmer
 					if (!kmer2seq.containsKey(km))		// if kmer is not in kmer2seq, it must be new kmer from pwm scan, it should align well
 						continue realign;
-					HashSet<Integer> hits = kmer2seq.get(km);
+					HashSet<Integer> hits = km.getPosHits();
 					
 					/* use k-mers already in the aligned sequences, find the consensus k-mer position */
 					ArrayList<Integer> posKmer = new ArrayList<Integer>(); // the occurences of this kmer w.r.t. seed kmer
@@ -4276,6 +4313,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	
 	private boolean pairKmers(Kmer ka, Kmer km, String seqs[]){
+		if (ka.getTop()>0)
+			return false;
 		ArrayList<Integer> offsets = new ArrayList<Integer>();
 		SetTools<Integer> tool = new SetTools<Integer>();
 		Set<Integer> common = tool.intersection(ka.getPosHits(), km.getPosHits());
@@ -5336,30 +5375,128 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			pwm[i]=pfm[i].clone();
 		
     	// make the PWM
-		Pair<Integer, Integer> ends = finalizePWM(pwm);
-		int leftIdx = ends.car();
-		int rightIdx = ends.cdr();
-		if (rightIdx-leftIdx+1>config.k/2){		// pwm is long enough
-	    	float[][] matrix = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
-	    	for(int p=leftIdx;p<=rightIdx;p++){
-	    		for (char base:LETTERS){							// ignore 'N' count
-	    			matrix[p-leftIdx][base]=(float) pwm[p][base];
+    	// normalize, compare to background, and log2
+    	double[] ic = new double[pwm.length];						// information content
+    	for (int p=0;p<pwm.length;p++){						// for each position
+    		double countN = pwm[p]['N'];
+    		if (countN!=0){
+    			for (int b=0;b<LETTERS.length;b++){
+        			char base = LETTERS[b];						// add the fraction of 'N' according to bg dist
+	    			pwm[p][base] += countN*config.bg[b];
+	    		}   
+    		}
+    		int sum=0;
+    		for (char base:LETTERS){						// do not count 'N'
+    			sum += pwm[p][base];
+    		}
+    		for (int b=0;b<LETTERS.length;b++){
+    			char base = LETTERS[b];
+    			double f = pwm[p][base]/sum;						// normalize freq
+    			pwm[p][base] = Math.log(f/config.bg[b])/Math.log(2.0);		//log base 2
+    			ic[p] += f*pwm[p][base];
+    		}
+    	}
+    	// make a WeightMatrix object
+    	int leftIdx, rightIdx;
+    	if (config.trim_simple){	// trim low ic ends (simple method)
+	    	leftIdx=ic.length-1;
+	    	for (int p=0;p<ic.length;p++){
+	    		if (ic[p]>=config.ic_trim){
+	    			leftIdx = p;
+	    			break;
 	    		}
 	    	}
-	    	// special trick to deal with 'N', set it to lowest score
-	    	for(int i=0;i<matrix.length;i++){
-	    		float lowest = 2;
-	    		for (char base:LETTERS){
-	    			if (lowest>matrix[i][base])
-	    				lowest = matrix[i][base];
+	    	rightIdx=0;
+	    	for (int p=ic.length-1;p>=0;p--){
+	    		if (ic[p]>=config.ic_trim){    			
+	    			rightIdx=p;
+	    			break;
 	    		}
-	    		matrix[i]['N']=lowest;
 	    	}
+    	}
+	    else{	// trim low ic ends (more sophisticated method)
+	    	// To avoid situations where a remote position happens to pass the ic threshold
+	    	leftIdx=-1;
+	    	double score = 0;
+	    	for (int p=0;p<ic.length;p++){
+	    		if (ic[p]>config.ic_trim){
+	    			score ++;
+	    		}
+	    		else{
+	    			score -= 0.3;
+	    		}
+	    		if (score<0 && p-leftIdx<config.k/2){
+	    			score=0;
+	    			leftIdx=p;
+	    		}
+	    	}
+	    	leftIdx++;
 	    	
+	    	rightIdx=ic.length;
+	    	score = 0;
+	    	for (int p=ic.length-1;p>=0;p--){
+	    		if (ic[p]>config.ic_trim){
+	    			score ++;
+	    		}
+	    		else{
+	    			score -= 0.3;
+	    		}
+	    		if (score<0 && rightIdx-p<config.k/2){
+	    			score=0;
+	    			rightIdx=p;
+	    		}
+	    	}
+	    	rightIdx--;
+	    }
+    	
+    	// special trick to deal with 'N', set it to lowest score
+		if (rightIdx-leftIdx+1>config.k/2){		// pwm is long enough
+	    	for(int p=leftIdx;p<=rightIdx;p++){
+	    		double lowest = 2;
+	    		for (char base:LETTERS){
+	    			if (lowest>pwm[p][base])
+	    				lowest = pwm[p][base];
+	    		}
+	    		pwm[p]['N']=lowest;
+	    	}
+		}
+		
+		/* try all pwm length with the most IC-rich columns, find the best PWM */
+		int[] left=new int[rightIdx-leftIdx+1-config.k/2];
+		int[] right=new int[rightIdx-leftIdx+1-config.k/2];
+		for (int i=0;i<left.length;i++){
+			int bestLeft = 0;
+			int bestSumIC = 0;
+			for(int p=leftIdx;p<=rightIdx-config.k/2-i;p++){
+				int sumIC=0;
+				for (int j=p;j<=config.k/2+i+p;j++)
+					sumIC += ic[j];
+				if (bestSumIC<sumIC){
+					bestSumIC=sumIC;
+					bestLeft = p;
+				}
+			}
+			left[i]=bestLeft;
+			right[i]=bestLeft+config.k/2+i;
+		}
+		
+		MotifThreshold bestEstimate = null;
+    	double bestHGP = 0;
+    	WeightMatrix bestWM = null;
+    	int bestLeft=0;
+    	int bestRight=0;    
+		for (int i=0;i<left.length;i++){		// pwm is long enough
+	    	float[][] matrix = new float[right[i]-left[i]+1][MAXLETTERVAL];   
+	    	for(int p=left[i];p<=right[i];p++){
+	    		for (char base:LETTERS){							// ignore 'N' count
+	    			matrix[p-left[i]][base]=(float) pwm[p][base];
+	    		}
+	    	}
+
 	    	WeightMatrix wm = new WeightMatrix(matrix);
 
-	    	if (config.bmverbose>1)
-	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
+//	    	if (config.bmverbose>1)
+//	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
 	    	MotifThreshold estimate = kEngine.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);
 	    	double pwmThreshold = estimate.score;
@@ -5368,43 +5505,50 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		if (config.bmverbose>1)
     			System.out.println(String.format("%s: PWM %s match %d+/%d- events, hgp=1E%.1f, threshold %.2f/%.2f", CommonUtils.timeElapsed(tic), 
     					WeightMatrix.getMaxLetters(wm), estimate.posHit, estimate.negHit, pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
-
-    		// test if we want to accept the new PWM
-    		if (cluster.wm!=null){
-    			if( cluster.pwmThresholdHGP<pwmThresholdHGP){		// previous pwm is more enriched, stop here
-			    	cluster.buildNewPWM = false;
-    				return -1;
-    			}
+    		if (pwmThresholdHGP<bestHGP){
+    			bestWM = wm;
+    			bestHGP = pwmThresholdHGP;
+    			bestEstimate = estimate;
+    			bestLeft=left[i];
+    			bestRight=right[i];
     		}
-    		else{		// if no previous PWM yet
-    			if (pwmThreshold<wm.getMaxScore()/pwmScoreFactor){	// if the pwm score is not good enough
-    				// test if new PWM can match more sequences
-			    	if (passedSeqs.size()>estimate.posHit)
-			    		return -1;
-    			}
-	    	}
-	    	cluster.wm = wm;
-	    	cluster.buildNewPWM = true;
-	    	cluster.pwmGoodQuality = pwmThreshold>=wm.getMaxScore()/pwmScoreFactor;
+//    		else
+//    			break;
+		}
+		
+		// test if we want to accept the new PWM
+		if (cluster.wm!=null){
+			if( cluster.pwmThresholdHGP<bestHGP){		// previous pwm is more enriched, stop here
+		    	cluster.buildNewPWM = false;
+				return -1;
+			}
+		}
+//		else{		// if no previous PWM yet
+//			if (bestEstimate.score<bestWM.getMaxScore()/pwmScoreFactor){	// if the pwm score is not good enough
+//				// test if new PWM can match more sequences
+//		    	if (passedSeqs.size()>bestEstimate.posHit)
+//		    		return -1;
+//			}
+//    	}
+    	cluster.wm = bestWM;
+    	cluster.buildNewPWM = true;
+    	cluster.pwmGoodQuality = (bestEstimate.posHit>kEngine.getPositiveSeqs().length*config.pwm_hit_factor);
+//    	cluster.pwmGoodQuality = bestEstimate.score>=bestWM.getMaxScore()/pwmScoreFactor;
 //	    	cluster.pwmThreshold = Math.max(pwmThreshold, wm.getMaxScore()*config.wm_factor);
-	    	cluster.pwmThreshold = pwmThreshold;
-	    	cluster.pwmThresholdHGP = pwmThresholdHGP;
-	    	cluster.pwmPosSeqCount = estimate.posHit;
-	    	cluster.pwmNegSeqCount = estimate.negHit;
-	    	// record pfm
-	    	float[][] pfm_trim = new float[rightIdx-leftIdx+1][MAXLETTERVAL];   
-	    	for(int p=leftIdx;p<=rightIdx;p++){
-	    		for (char base:LETTERS){
-	    			pfm_trim[p-leftIdx][base]=(float) pfm[p][base];
-	    		}
-	    	}
-	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosSeqCount));
-	    	cluster.pos_pwm_seed = leftIdx-(config.k_win/2-config.k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
-	    	return leftIdx;
-		}
-		else{
-			return -1;
-		}
+    	cluster.pwmThreshold = bestEstimate.score;
+    	cluster.pwmThresholdHGP = bestHGP;
+    	cluster.pwmPosSeqCount = bestEstimate.posHit;
+    	cluster.pwmNegSeqCount = bestEstimate.negHit;
+    	// record pfm
+    	float[][] pfm_trim = new float[bestRight-bestLeft+1][MAXLETTERVAL];   
+    	for(int p=bestLeft;p<=bestRight;p++){
+    		for (char base:LETTERS){
+    			pfm_trim[p-bestLeft][base]=(float) pfm[p][base];
+    		}
+    	}
+    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosSeqCount));
+    	cluster.pos_pwm_seed = bestLeft-(config.k_win/2-config.k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
+    	return bestLeft;
     }
     
     private Pair<Integer, Integer> finalizePWM(double[][] pwm){
@@ -5481,18 +5625,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	}
 	    	rightIdx--;
 	    }
-    	
-    	//TODO: this PWM width test may be removed, because we have selected for hgp and event count
-//    	if (rightIdx-leftIdx+1<=config.k/2){
-//    		System.out.println("makePWM: PWM is too short, stop here.");
-//    		if (config.bmverbose>2){
-//		    	StringBuilder sb = new StringBuilder("Information contents of aligned positions\n");
-//		    	for (int p=0;p<ic.length;p++){
-//		    		sb.append(String.format("%d\t%.1f\t%s\n", p, ic[p], (p==leftIdx||p==rightIdx)?"<--":""));
-//		    	}
-//		    	System.out.println(sb.toString());
-//    		}
-//    	}
+
     	return new Pair<Integer, Integer>(leftIdx, rightIdx);
     }
     
@@ -5803,6 +5936,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double wm_factor = 0.5;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
+        public double pwm_hit_factor = 0.05;
         public int kmer_cluster_seq_count = 100;	// minimum number of sequences to be reported as a cluster, to build a PWM (for overlapping kmer)
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
@@ -5929,6 +6063,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
             kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
             kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);
+            pwm_hit_factor = Args.parseDouble(args, "pwm_hit_factor", pwm_hit_factor);
             
             ip_ctrl_ratio = Args.parseDouble(args, "icr", ip_ctrl_ratio);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
