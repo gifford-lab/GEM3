@@ -3877,6 +3877,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			seed.setAlignString("Seed");
 
 			// align k-mers, sequences by co-ocurrence
+			HashMap<Integer, HashSet<Kmer>> shift2kmers = new HashMap<Integer, HashSet<Kmer>>();
+			shift2kmers.put(0, new HashSet<Kmer>());
+			shift2kmers.get(0).add(seed);
 			ArrayList<Kmer> aligned = new ArrayList<Kmer>();
 			aligned.add(seed);
 			while(!aligned.isEmpty()){
@@ -3884,8 +3887,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				for (Kmer ka: aligned){
 					ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 					for (Kmer km:kmers){
-						if (pairKmers(ka, km, seqs, posSeqs, isPlusStrands, seqAlignRefs)){
+						if (pairKmers(ka, km, seqs, posSeqs, isPlusStrands, seqAlignRefs, shift2kmers)){
 							aligned_new.add(km);
+							if (!shift2kmers.containsKey(km.getShift()))
+								shift2kmers.put(km.getShift(), new HashSet<Kmer>());
+							shift2kmers.get(km.getShift()).add(km);
 							toRemove.add(km);
 						}
 					}
@@ -3992,7 +3998,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			kmers.remove(km);
 				    			km.setShift(0);
 				    			km.setAlignString("PWM:"+WeightMatrix.getMaxLetters(wm));
-				    			alignedKmers_pwm.add(km);				    		
+				    			alignedKmers_pwm.add(km);	
+				    			shift2kmers.get(0).add(km);
 				    		}
 				    	}
 				    	// align k-mers by co-ocurrence
@@ -4003,15 +4010,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							for (Kmer ka: aligned_pwm){
 								ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 								for (Kmer km:kmers){
-									if (pairKmers(ka, km, seqs, posSeqs, isPlusStrands, seqAlignRefs)){
+									if (pairKmers(ka, km, seqs, posSeqs, isPlusStrands, seqAlignRefs, shift2kmers)){
 										aligned_new.add(km);
+										if (!shift2kmers.containsKey(km.getShift()))
+											shift2kmers.put(km.getShift(), new HashSet<Kmer>());
+										shift2kmers.get(km.getShift()).add(km);
 										toRemove.add(km);
 									}
 								}
 								if (!toRemove.isEmpty())
 									kmers.removeAll(toRemove);
 							}
-							alignedKmers.addAll(aligned_pwm);	
+							alignedKmers.addAll(aligned_pwm);
 							aligned_pwm.clear();
 							aligned_pwm.addAll(aligned_new);
 						}
@@ -4325,7 +4335,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return allAlignedKmers;
 	}
 	
-	private boolean pairKmers(Kmer ka, Kmer km, String seqs[], int[] posSeqs, boolean[] isPlusStrands, String[] seqAlignRefs){
+	private boolean pairKmers(Kmer ka, Kmer km, String seqs[], int[] posSeqs, boolean[] isPlusStrands, String[] seqAlignRefs, HashMap<Integer, HashSet<Kmer>> shift2kmers){
 //		if (ka.getTop()>0)
 //			return false;
 		ArrayList<Integer> offsets = new ArrayList<Integer>();
@@ -4371,9 +4381,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			else
 				offset =sortedElements[highCountIdx];
+			// kmer should not be too far
 			if (Math.abs(offset)>config.k)
 				return false;
-			km.setShift(offset+ka.getShift());
+			// kmer should have at least 1 1bp-mismatch on the same position
+			int shift = offset+ka.getShift();
+			boolean match = false;
+			if (shift2kmers.containsKey(shift)){
+				for (Kmer kma:shift2kmers.get(shift))
+					if (this.mismatch(kma.getKmerString(), km.getKmerString())<=1){
+						match = true;
+						break;
+					}
+				if (!match)
+					return false;
+			}
+			
+			km.setShift(shift);
 			km.setAlignString(ka.getKmerString()+"\t"+count[highCountIdx]+"/"+offsets.size()+"/"+ka.getPosHitCount()+"/"+km.getPosHitCount()+":"+offset);
 			StringBuilder sb = new StringBuilder();
 			int superShift=0;
