@@ -3981,8 +3981,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    				km=str2kmer.get(kmRC);
 				    			if (alignedKmers_pwm.contains(km))	// if this kmer has been aligned, skip to next one
 				    				continue;
-				    			if (alignedKmers.contains(km) && km.getAlignString().startsWith("PWM"))
-				    				alignedKmers.remove(km);
+				    			if (alignedKmers.contains(km))		
+				    				if(km.getAlignString().startsWith("PWM"))		// Previously PWM aligned
+				    					alignedKmers.remove(km);
+				    				else
+				    					continue;
 				    				
 				    			if (km.getKmerString().equals(kmRC))
 				    				km.RC();
@@ -4106,22 +4109,26 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			double sum_offsetXstrength = 0;
 	    	double sum_strength = 0;
 	    	int leftmost = Integer.MAX_VALUE;
+	    	int count_aligned_seqs = 0;
 			for (int i=0;i<posSeqs.length;i++){
 				int pos = posSeqs[i];
+				if (pos != UNALIGNED)
+					count_aligned_seqs++;
 				if (pos < leftmost )
 					leftmost = pos;					
 			}
+			boolean print_aligned_seqs = config.print_aligned_seqs && count_aligned_seqs>kEngine.getPositiveSeqs().length*config.pwm_hit_factor;
 			for (int i=0;i<posSeqs.length;i++){
 				int pos = posSeqs[i];
 				if (pos == UNALIGNED)
 					continue;
-				if (config.print_aligned_seqs)
+				if (print_aligned_seqs)
 					sb.append(CommonUtils.padding(-leftmost+pos, '.')+seqs[i]+"\t\t"+seqAlignRefs[i]+"\n");
 	 			double strength = config.use_event_strength?events.get(i).getTotalEventStrength():1;
     			sum_offsetXstrength += strength*(config.k_win/2+pos);		// BS_seed = BS_seq + seq_seed
         		sum_strength += strength;
 	    	}
-			if (config.print_aligned_seqs)
+			if (print_aligned_seqs)
 				CommonUtils.writeFile(outName+"_seqs_aligned_"+seed.getKmerString()+".txt", sb.toString());
 	    	int bPos=StatUtil.round(sum_offsetXstrength/sum_strength);		// mean BS position relative to seed k-mer start
 	    	cluster.pos_BS_pwm = bPos - cluster.pos_pwm_seed;
@@ -4319,8 +4326,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	
 	private boolean pairKmers(Kmer ka, Kmer km, String seqs[], int[] posSeqs, boolean[] isPlusStrands, String[] seqAlignRefs){
-		if (ka.getTop()>0)
-			return false;
+//		if (ka.getTop()>0)
+//			return false;
 		ArrayList<Integer> offsets = new ArrayList<Integer>();
 		SetTools<Integer> tool = new SetTools<Integer>();
 		Set<Integer> common = tool.intersection(ka.getPosHits(), km.getPosHits());
