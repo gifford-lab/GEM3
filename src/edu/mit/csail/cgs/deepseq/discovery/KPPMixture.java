@@ -3920,9 +3920,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			    		WeightMatrix wm = cluster.wm;
 				        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);		
 						HashMap<String, HashSet<Integer>> pwmAlignedKmerStr2seqs = new HashMap<String, HashSet<Integer>>();	// kmerString -> count
-				    	for (int i=0;i<posSeqs.length;i++){
+						for (int i=0;i<posSeqs.length;i++){				// re-align those seq using better PWM
+							if (posSeqs[i]!=UNALIGNED && seqAlignRefs[i].startsWith("PWM"))
+								posSeqs[i]=UNALIGNED;
+						}
+						for (int i=0;i<posSeqs.length;i++){
 				    	  String seq = seqs[i];
-				    	  if ((posSeqs[i] != UNALIGNED && config.pwm_align_new) || seq.length()<wm.length())
+				    	  if ((posSeqs[i]!=UNALIGNED && config.pwm_align_new) || seq.length()<wm.length())
 				    		  continue;
 				    	      	  
 				          WeightMatrixScoreProfile profiler = scorer.execute(seq);
@@ -3974,10 +3978,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				    			km = str2kmer.get(kmStr);
 				    			if (km==null)
 				    				km=str2kmer.get(kmRC);
-				    			if (alignedKmers.contains(km)||alignedKmers_pwm.contains(km))	// if this kmer has been aligned, skip to next one
+				    			if (alignedKmers_pwm.contains(km))	// if this kmer has been aligned, skip to next one
 				    				continue;
-	
-
+				    			if (alignedKmers.contains(km) && km.getAlignString().startsWith("PWM"))
+				    				alignedKmers.remove(km);
+				    				
 				    			if (km.getKmerString().equals(kmRC))
 				    				km.RC();
 				    			kmers.remove(km);
@@ -4350,7 +4355,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int[] sortedElements = result.car();
 		int[] count = result.cdr();
 		int highCountIdx = count.length - 1;
-		if (count[highCountIdx]>offsets.size()*0.5){
+		if (count[highCountIdx]>offsets.size()*0.5){// && count[highCountIdx]>ka.getPosHitCount()*0.25 && count[highCountIdx]>km.getPosHitCount()*0.25){
 			int offset=0;
 			if (sortedElements[highCountIdx]>STRAND/2){
 				km.RC();
@@ -4358,8 +4363,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			else
 				offset =sortedElements[highCountIdx];
+			if (Math.abs(offset)>2)
+				return false;
 			km.setShift(offset+ka.getShift());
-			km.setAlignString(ka.getKmerString()+" "+count[highCountIdx]+"/"+offsets.size());
+			km.setAlignString(ka.getKmerString()+"\t"+count[highCountIdx]+"/"+offsets.size()+"/"+ka.getPosHitCount()+"/"+km.getPosHitCount()+":"+offset);
 			return true;
 		}
 		return false;
