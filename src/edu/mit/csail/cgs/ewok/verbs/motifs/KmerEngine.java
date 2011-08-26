@@ -508,9 +508,10 @@ public class KmerEngine {
 
 		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
 		Thread[] threads = new Thread[numThread];
-		ArrayList<Integer> idxs = new ArrayList<Integer>();
+		ArrayList<Integer> idxs = new ArrayList<Integer>();			// the score ids to compute HGP
 		for (int i=posScores_u.length-1;i>=0;i--)
-			idxs.add(i);
+			if (poshits[i]>neghits[i]*2.0*posSeqCount/negSeqCount)	// posHit should be at least 2 fold
+				idxs.add(i);
 		for (int i=0;i<numThread;i++){
             Thread t = new Thread(new HGPThread(idxs, posSeqCount, negSeqCount, poshits, neghits, hgps));
             t.start();

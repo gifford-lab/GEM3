@@ -3841,24 +3841,34 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				if (seed==null){				// not found
 					for (Kmer km:kmers){
-						if (km.getTop()<0){
+						if (km.getTop()<0 && km.getHgp()<config.hgp){
 							seed = km;
 							break;
 						}
 					}
-					if (seed==null)
+					if (seed==null){
+						if (kmers.get(0).getHgp()>config.hgp){		// if the top kmer do not pass HGP test, stop
+							clusters.remove(clusterID);
+							break;
+						}
 						seed = kmers.get(0);
+					}
 				}
 			}	
 			else{				
 				for (Kmer km:kmers){
-					if (km.getTop()<0){
+					if (km.getTop()<0 && km.getHgp()<config.hgp){
 						seed = km;
 						break;
 					}
 				}
-				if (seed==null)
+				if (seed==null){
+					if (kmers.get(0).getHgp()>config.hgp){
+						clusters.remove(clusterID);
+						break;
+					}
 					seed = kmers.get(0);
+				}
 			}
 			
 			// print out top kmer information
@@ -3900,7 +3910,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				alignedKmers.addAll(aligned);	
 				aligned.clear();
-				aligned.addAll(aligned_new);
+				if (!aligned_new.isEmpty()){
+					aligned.addAll(aligned_new);
+					Collections.sort(aligned);
+				}
 			}
 			
 //			// align sequences by kmers
@@ -4023,7 +4036,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							}
 							alignedKmers.addAll(aligned_pwm);
 							aligned_pwm.clear();
-							aligned_pwm.addAll(aligned_new);
+							if (!aligned_new.isEmpty()){
+								aligned_pwm.addAll(aligned_new);
+								Collections.sort(aligned_pwm);
+							}
 						}
 				    	if (config.bmverbose>1)
 				    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences and "+(alignedKmers.size()-alignedPWMCount)+" k-mers.");
@@ -5280,7 +5296,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
     private int buildPWM(int[] posSeqs, boolean[] isPlusStrands, ArrayList<ComponentFeature> events, 
     		String[] seqs, KmerCluster cluster, long tic){
-    	final double pwmScoreFactor = 4;
 		double[][] pfm = new double[config.k_win+1][MAXLETTERVAL];
 		ArrayList<String> passedSeqs = new ArrayList<String>();
 		ArrayList<Integer> passedIdx = new ArrayList<Integer>();
@@ -5425,7 +5440,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     		cluster.lastPassSeqCount = passedSeqs.size();	// save the # of passed seq count
     	
     	if (config.bmverbose>1)
-    		System.out.println(String.format("%s: %d seq to build PWM.", CommonUtils.timeElapsed(tic), passedSeqs.size()));
+    		System.out.println(String.format("%s: %d seqs to build PWM.", CommonUtils.timeElapsed(tic), passedSeqs.size()));
 
 		// count base frequencies
 		for (int p=0;p<config.k_win+1;p++){
@@ -5539,11 +5554,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int[] left=new int[rightIdx-leftIdx+1-config.k/2];
 		int[] right=new int[rightIdx-leftIdx+1-config.k/2];
 		for (int i=0;i<left.length;i++){
-			int bestLeft = 0;
+			int bestLeft = -1;
 			int bestSumIC = 0;
 			for(int p=leftIdx;p<=rightIdx-config.k/2-i;p++){
-				int sumIC=0;
-				for (int j=p;j<=config.k/2+i+p;j++)
+				int end = config.k/2+i+p;
+				if (ic[p]<config.ic_trim || ic[end]<config.ic_trim)			// if the ends have low ic, skip
+					continue;
+				int sumIC=0; 
+				for (int j=p;j<=end;j++)
 					sumIC += ic[j];
 				if (bestSumIC<sumIC){
 					bestSumIC=sumIC;
@@ -5560,6 +5578,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	int bestLeft=0;
     	int bestRight=0;    
 		for (int i=0;i<left.length;i++){
+			if (left[i]==-1)
+				continue;
 	    	float[][] matrix = new float[right[i]-left[i]+1][MAXLETTERVAL];   
 	    	for(int p=left[i];p<=right[i];p++){
 	    		for (char base:LETTERS){							// ignore 'N' count
@@ -6009,7 +6029,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double wm_factor = 0.5;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
-        public double pwm_hit_factor = 0.05;
+        public double pwm_hit_factor = 0.01;
 //        public int kmer_cluster_seq_count = 100;	// minimum number of sequences to be reported as a cluster, to build a PWM (for overlapping kmer)
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
