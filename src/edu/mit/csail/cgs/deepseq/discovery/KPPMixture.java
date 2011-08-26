@@ -5605,9 +5605,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			bestLeft=left[i];
     			bestRight=right[i];
     		}
-//    		else
-//    			break;
 		}
+		if (bestEstimate==null)
+			return -1;
 		
 		// test if we want to accept the new PWM
 		if (cluster.wm!=null){
@@ -5616,13 +5616,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				return -1;
 			}
 		}
-//		else{		// if no previous PWM yet
-//			if (bestEstimate.score<bestWM.getMaxScore()/pwmScoreFactor){	// if the pwm score is not good enough
-//				// test if new PWM can match more sequences
-//		    	if (passedSeqs.size()>bestEstimate.posHit)
-//		    		return -1;
-//			}
-//    	}
+
     	cluster.wm = bestWM;
     	cluster.buildNewPWM = true;
     	cluster.pwmGoodQuality = (bestEstimate.posHit>kEngine.getPositiveSeqs().length*config.pwm_hit_factor);
