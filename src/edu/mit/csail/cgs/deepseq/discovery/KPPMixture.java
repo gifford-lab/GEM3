@@ -4381,14 +4381,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			else
 				offset =sortedElements[highCountIdx];
-			// kmer should not be too far
+			// kmer should not be too far from the aligned kmer
 			if (Math.abs(offset)>config.k)
 				return false;
-			// kmer should have at least 1 1bp-mismatch on the same position
+			
 			int shift = offset+ka.getShift();
+			// kmer should not be too far from seed
+			if (Math.abs(shift)>config.k)
+				return false;
 			boolean match = false;
 			if (shift2kmers.containsKey(shift)){
 				for (Kmer kma:shift2kmers.get(shift))
+					// kmer should have at least 1 1bp-mismatch on the same position
 					if (this.mismatch(kma.getKmerString(), km.getKmerString())<=1){
 						match = true;
 						break;
@@ -4410,7 +4414,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				superShift = ka.getShift();
 			}
 			String superString = sb.toString();
-			if (SequenceUtils.reverseComplement(superString).equals(superString))		// if superString is palidromic, skip aligning sequences
+			if (SequenceUtils.reverseComplement(superString).equals(superString))		// if superString is palindromic, skip aligning sequences
 				return true;
 			// align the common sequences
 			for (Integer seqId:common){
