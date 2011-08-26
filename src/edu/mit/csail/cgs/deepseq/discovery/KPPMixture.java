@@ -4325,12 +4325,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		html.append("</td></tr></table>");
 		CommonUtils.writeFile(outName+"_result.htm", html.toString());
 		
-		for (int i=0;i<Math.min(clusters.size(), 20);i++){
-			ArrayList<Kmer> clusterKmers = clusters.get(i).alignedKmers;
-			MotifThreshold t = this.estimateClusterKgsThreshold(clusterKmers);
-			if (t!=null)
-				System.out.println(String.format("%d\t%.2f\t%d\t%d\t%.1f", i, t.score, t.posHit, t.negHit, t.hgp ));
-		}
+//		for (int i=0;i<Math.min(clusters.size(), 20);i++){
+//			ArrayList<Kmer> clusterKmers = clusters.get(i).alignedKmers;
+//			MotifThreshold t = this.estimateClusterKgsThreshold(clusterKmers);
+//			if (t!=null)
+//				System.out.println(String.format("%d\t%.2f\t%d\t%d\t%.1f", i, t.score, t.posHit, t.negHit, t.hgp ));
+//		}
 		log(1, "\nAlignment done, "+CommonUtils.timeElapsed(tic)+"\n");
 		return allAlignedKmers;
 	}
@@ -4382,7 +4382,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			else
 				offset =sortedElements[highCountIdx];
 			// kmer should not be too far from the aligned kmer
-			if (Math.abs(offset)>config.k)
+			if (Math.abs(offset)>2)
 				return false;
 			
 			int shift = offset+ka.getShift();
