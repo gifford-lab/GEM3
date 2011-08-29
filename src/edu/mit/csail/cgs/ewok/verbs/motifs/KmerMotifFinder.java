@@ -1,6 +1,10 @@
 package edu.mit.csail.cgs.ewok.verbs.motifs;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,7 +21,6 @@ import net.sf.samtools.util.SequenceUtil;
 
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
-import edu.mit.csail.cgs.utils.ArrayUtils;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
@@ -30,17 +33,21 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
-import edu.mit.csail.cgs.deepseq.features.Feature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
-public class KmerEngine {
+public class KmerMotifFinder {
+	private final int RC=100000;
+	private final int UNALIGNED=9999;
 	private Genome genome;
 	private boolean engineInitialized =false;
 	private int k=10;
 	private int minHitCount = 3;
 	private int numPos;
+	
+	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
+	private Kmer bestSeed = null;
 	
 	private String[] seqs;		// DNA sequences around binding sites
 	private String[] seqsNeg;	// DNA sequences in negative sets
@@ -73,9 +80,20 @@ public class KmerEngine {
 	public boolean isInitialized(){ return engineInitialized;}
 	
 	private SequenceGenerator<Region> seqgen;
-	private long tic;
+	private long tic;	
+
+	/** motif clusters */
+	ArrayList<KmerCluster> clusters = new ArrayList<KmerCluster>();
 		
-	public KmerEngine(Genome g, boolean useCache){
+	public KmerMotifFinder(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs){
+		seqs = new String[pos_seqs.size()];	
+		pos_seqs.toArray(seqs);
+		seqsNegList = neg_seqs;
+		posSeqCount = seqs.length;
+	    negSeqCount = seqsNegList.size();
+	}
+	
+	public KmerMotifFinder(Genome g, boolean useCache){
 		genome = g;
 		seqgen = new SequenceGenerator<Region>();
 		if (useCache)
@@ -84,7 +102,7 @@ public class KmerEngine {
 	/* 
 	 * Contruct a Kmer Engine from a list of Kmers
 	 */
-	public KmerEngine(ArrayList<Kmer> kmers, String outPrefix, boolean print_kmer_hits){
+	public KmerMotifFinder(ArrayList<Kmer> kmers, String outPrefix, boolean print_kmer_hits){
 		if (!kmers.isEmpty()){
 			if (outPrefix!=null)
 				updateEngine(kmers, outPrefix, print_kmer_hits);
@@ -131,16 +149,20 @@ public class KmerEngine {
 	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix){
 		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 		this.k = k;
-		numPos = (winSize+1)-k+1;
-		tic = System.currentTimeMillis();
 		int eventCount = events.size();
 //		Collections.sort(events);		// sort by location
-		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
-		int expectedCount = (int) Math.round(eventCount / Math.pow(4, k));
 
 		// collect pos/neg test sequences based on event positions
 		loadTestSequences(events, winSize);
 		
+		return selectEnrichedKmers(k, hgp, k_fold, outPrefix);
+	}
+	
+	private ArrayList<Kmer> selectEnrichedKmers(int k, double hgp, double k_fold, String outPrefix){
+		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
+		tic = System.currentTimeMillis();
+		numPos = seqs[0].length()-k+1;
+		int expectedCount = (int) Math.round(seqs.length / Math.pow(4, k));
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
@@ -252,14 +274,649 @@ public class KmerEngine {
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
 		Collections.sort(kms);
-		Kmer.printKmers(kms, posSeqCount, negSeqCount, outPrefix+"_all_w"+winSize, true, false);
+		Kmer.printKmers(kms, posSeqCount, negSeqCount, outPrefix+"_all_w"+seqs[0].length(), true, false);
 		
 		kms.removeAll(highHgpKmers);
 		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
 		return kms;
 	}
+	private ArrayList<Kmer> alignByKmerScan (ArrayList<Kmer> kmers_in){
+		int verbose = 2;
+		long tic = System.currentTimeMillis();
+		if (kmers_in.size()==0)
+			return kmers_in;
+		System.out.println("\nAlign and cluster k-mers ...");
+		boolean bestSeed_is_reset = false;					// clone to modify locally
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		for (Kmer km:kmers_in)
+			kmers.add(km.clone());
+    	clusters.clear();
+    	
+		for (int clusterID = 0; clusterID<1; clusterID++){
+			
+			/** Initialization of new cluster and the remaining kmers */
+			KmerCluster cluster = new KmerCluster();
+			cluster.clusterId = clusterID;
+			clusters.add(cluster);
+			if (verbose>1)
+				System.out.println(CommonUtils.timeElapsed(tic)+": Aligning cluster #"+clusterID+",   n="+kmers.size());
+			
+			/* Initialization, setup sequence list, and update kmers */
+			// build the kmer search tree
+			AhoCorasick oks = new AhoCorasick();
+			HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
+			for (Kmer km: kmers){
+				str2kmer.put(km.getKmerString(), km);
+				oks.add(km.getKmerString().getBytes(), km);
+		    }
+			oks.prepare();
+			
+			// index kmer->seq, seq->kmer
+			ArrayList<Sequence> seqList = new ArrayList<Sequence>();
+			HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
+			for (int i=0;i<seqs.length;i++){
+				String seq = seqs[i];
+				Sequence s = new Sequence(seq, i+1);
+				seqList.add(s);
+				HashSet<Kmer> results = KmerEngine.queryTree (seq, oks);
+				if (!results.isEmpty()){
+					for (Kmer km: results){		
+						if (!kmer2seq.containsKey(km)){
+							kmer2seq.put(km, new HashSet<Integer>());
+						}
+						kmer2seq.get(km).add(i);
 
+						// This is DIFFERENT from alignSequencesByCoOccurence(ArrayList<Kmer>)
+						// farward strand
+						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
+						for (int p:pos){
+							if (!s.fPos.containsKey(km))
+								s.fPos.put(km, new HashSet<Integer>());
+							s.fPos.get(km).add(p);
+						}
+						pos = StringUtils.findAllOccurences(seq, km.getKmerRC());
+						for (int p:pos){
+							if (!s.fPos.containsKey(km))
+								s.fPos.put(km, new HashSet<Integer>());
+							s.fPos.get(km).add(p+RC);					// match kmer RC
+						}
+						// reverse strand
+						pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
+						for (int p:pos){
+							if (!s.rPos.containsKey(km))
+								s.rPos.put(km, new HashSet<Integer>());
+							s.rPos.get(km).add(p);
+						}
+						pos = StringUtils.findAllOccurences(s.rc, km.getKmerRC());
+						for (int p:pos){
+							if (!s.rPos.containsKey(km))
+								s.rPos.put(km, new HashSet<Integer>());
+							s.rPos.get(km).add(p+RC);					// match kmer RC
+						}
+//						s.setCount();
+					}
+				}
+			}
+			
+			// update kmerCount, and hgp()
+			ArrayList<Kmer> zeroCount = new ArrayList<Kmer>();
+			for (Kmer km:kmers){
+				if (kmer2seq.containsKey(km)){
+					km.setPosHits(kmer2seq.get(km));
+					km.setHgp(computeHGP(km.getPosHitCount(), km.getNegHitCount()));
+				}
+				else{
+					zeroCount.add(km);
+				}
+			}
+			kmers.removeAll(zeroCount);
+			if (kmers.isEmpty()){
+				clusters.remove(clusterID);
+				break;
+			}
+			Collections.sort(kmers, new Comparator<Kmer>(){
+			    public int compare(Kmer o1, Kmer o2) {
+			    	return o1.compareByHGP(o2);
+			    }
+			});			
+	
+			/** get seed kmer */
+			Kmer seed=null;
+			if (bestSeed!=null && clusterID==0){
+				String bestStr = bestSeed.getKmerString();
+				String bestRc = bestSeed.getKmerRC();
+				for (Kmer km:kmers){
+					if (km.getKmerString().equals(bestStr)||
+							km.getKmerString().equals(bestRc)){
+						seed = km;
+						break;
+					}
+				}
+				if (seed==null){				// not found
+					for (Kmer km:kmers){
+						if (km.getTop()<0 && km.getHgp()<hgp){
+							seed = km;
+							break;
+						}
+					}
+					if (seed==null){
+						if (kmers.get(0).getHgp()>hgp){		// if the top kmer do not pass HGP test, stop
+							clusters.remove(clusterID);
+							break;
+						}
+						seed = kmers.get(0);
+					}
+				}
+			}	
+			else{				
+				for (Kmer km:kmers){
+					if (km.getTop()<0 && km.getHgp()<hgp){
+						seed = km;
+						break;
+					}
+				}
+				if (seed==null){
+					if (kmers.get(0).getHgp()>hgp){
+						clusters.remove(clusterID);
+						break;
+					}
+					seed = kmers.get(0);
+				}
+			}
+			
+			// print out top kmer information
+			if (clusterID==0){
+				System.out.println("\nTop 5 k-mers");
+				System.out.println(Kmer.toShortHeader());
+				for (int i=0;i<Math.min(5,kmers.size());i++){
+					System.out.println(kmers.get(i).toShortString());
+				}
+				System.out.println("Seed k-mer:\n"+seed.toShortString());
+			}
+			cluster.seedKmer = seed;
+			
+			seed.setShift(0);
+			
+			/** align sequences using kmer positions */
+	    	for (Sequence s : seqList){
+				int seed_seq = s.getSeq().indexOf(seed.getKmerString());
+				if (seed_seq<0){
+					s.RC();
+					seed_seq = s.getSeq().indexOf(seed.getKmerString());
+					if (seed_seq<0)
+						continue;
+				}
+				s.pos = -seed_seq;
+			}
+	    	
+	    	/** Iteratively re-build kmers and align sequences */
+	    	MotifThreshold bestThreshold = new MotifThreshold();
+	    	while(true){
+		    	/** set kmer consensus position */
+		    	TreeMap<Kmer, ArrayList<Integer>> kmer2pos = new TreeMap<Kmer, ArrayList<Integer>>();
+				for (Sequence s:seqList){
+					if (s.pos != UNALIGNED){		// aligned seqs
+						TreeMap<Kmer, HashSet<Integer>> kmerPos = s.getKmerPos();
+						for (Kmer km:kmerPos.keySet()){
+							if (!kmer2pos.containsKey(km))
+								kmer2pos.put(km, new ArrayList<Integer>());
+							for (int pRef:kmerPos.get(km)){
+								if (pRef>RC/2){
+									int pos = (pRef-RC)+s.pos;
+									if (pos>=-k/2 && pos<=k/2)
+										kmer2pos.get(km).add(pos+RC);		// use kmerRC 
+								}
+								else{
+									int pos = pRef+s.pos;
+									if (pos>=-k/2 && pos<=k/2)
+										kmer2pos.get(km).add(pos);		
+								}
+							}
+						}
+					}
+				}
+	
+				ArrayList<Kmer> newKmers = new ArrayList<Kmer>();
+				realign: for (Kmer km:kmer2pos.keySet()){
+					ArrayList<Integer> posKmer = kmer2pos.get(km);
+					if (posKmer==null || posKmer.isEmpty()){
+						km.setAlignString(km.getAlignString()+"\tNOT in 2k region");
+						continue realign;
+					}
+					// find the most frequent kmerPos
+					Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
+					int counts[] = sorted.cdr();
+					int posSorted[] = sorted.car();
+					int maxCount = counts[counts.length-1];
+					ArrayList<Integer> maxPos = new ArrayList<Integer>();
+					for (int i=counts.length-1;i>=0;i--){
+						if (counts[i]==maxCount){
+							int p = posSorted[i];
+							maxPos.add(p);
+						}	
+						else		// do not need to count for non-max elements
+							break;
+					}
+					int shift=0;
+					if (maxPos.size()>1){		// if tie with 1+ positions, get the one closest to seed kmer
+						int min = Integer.MAX_VALUE;
+						int minIdx = 0;
+						for (int i=0;i<maxPos.size();i++){
+							int distance = Math.abs(maxPos.get(i));
+							if (distance<min){
+								minIdx = i;
+								min = distance;
+							}
+						}
+						shift=maxPos.get(minIdx);
+					}
+					else{
+						shift=maxPos.get(0);
+					}
+					if (shift>RC/2){			// kmer's RC match on the aligned sequences
+						km.setShift(shift-RC);
+						km.RC();
+					}
+					else
+						km.setShift(shift);
+	
+					km.setKmerStartOffset(km.getShift());
+					newKmers.add(km);
+				}	
+				newKmers.trimToSize();
+				if (newKmers.isEmpty())
+					break;
+				
+				updateEngine(newKmers);
+				MotifThreshold threshold = estimateKgsThreshold("", false);
+				if (threshold.hgp<bestThreshold.hgp){
+					bestThreshold = threshold;
+					cluster.alignedKmers=new ArrayList<Kmer>();
+					for (Kmer km:newKmers)
+						cluster.alignedKmers.add(km.clone());
+				}
+				else
+					break;
+					
+				for (Sequence s : seqList){
+					s.reset();
+					KmerGroup[] kgs = query(s.getSeq());
+					if (kgs.length!=0){
+						Arrays.sort(kgs);
+						if (kgs[0].hgp<=-threshold.score){
+							s.pos = -kgs[0].bs;
+							s.score = -kgs[0].hgp;		// score = -log10 hgp, becomes positive value
+						}
+					}
+				}
+		
+		    	int leftmost = Integer.MAX_VALUE;
+		    	for (Sequence s : seqList){
+					if (s.pos==UNALIGNED)
+						continue;
+					if (s.pos < leftmost )
+						leftmost = s.pos;		
+				}
+		
+				StringBuilder sb = new StringBuilder();
+				for (Sequence s : seqList){
+					if (s.pos==UNALIGNED)
+						continue;
+					sb.append(String.format("%d\t%.1f\t%d\t%s\t%s%s\n", s.id, s.score, s.pos, s.isForward?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getSeq()));
+				}
+				CommonUtils.writeFile("seqs_aligned.txt", sb.toString());
+				sb=null;
+	    	}
+		}
+		return kmers;
+	}
+	
+	private void alignSequencesByCoOccurence(ArrayList<Kmer> kmers){
+		/* Initialization, setup sequence list, and update kmers */
+		// build the kmer search tree
+		AhoCorasick oks = new AhoCorasick();
+		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
+		for (Kmer km: kmers){
+			str2kmer.put(km.getKmerString(), km);
+			oks.add(km.getKmerString().getBytes(), km);
+	    }
+		oks.prepare();
+		
+		// index kmer->seq, seq->kmer
+		ArrayList<Sequence> seqList = new ArrayList<Sequence>();
+		HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
+		for (int i=0;i<seqs.length;i++){
+			String seq = seqs[i];
+			Sequence s = new Sequence(seq, i+1);
+			seqList.add(s);
+			HashSet<Kmer> results = KmerEngine.queryTree (seq, oks);
+			if (!results.isEmpty()){
+				for (Kmer km: results){		
+					if (!kmer2seq.containsKey(km)){
+						kmer2seq.put(km, new HashSet<Integer>());
+					}
+					kmer2seq.get(km).add(i);
+
+					// forward strand
+					ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
+					for (int p:pos){
+						if (!s.fPos.containsKey(km))
+							s.fPos.put(km, new HashSet<Integer>());
+						s.fPos.get(km).add(p);
+					}
+					pos = StringUtils.findAllOccurences(seq, km.getKmerRC());
+					for (int p:pos){
+						if (!s.fPos.containsKey(km))
+							s.fPos.put(km, new HashSet<Integer>());
+						s.fPos.get(km).add(getRcCoor(p)+RC);					// 5' end if sequence is RC
+					}
+					// reverse strand
+					pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
+					for (int p:pos){
+						if (!s.rPos.containsKey(km))
+							s.rPos.put(km, new HashSet<Integer>());
+						s.rPos.get(km).add(p);
+					}
+					pos = StringUtils.findAllOccurences(s.rc, km.getKmerRC());
+					for (int p:pos){
+						if (!s.rPos.containsKey(km))
+							s.rPos.put(km, new HashSet<Integer>());
+						s.rPos.get(km).add(getRcCoor(p)+RC);					// 5' end if sequence is RC
+					}
+					s.setCount();
+				}
+			}
+		}
+		// update kmerCount, and hgp()
+		ArrayList<Kmer> zeroCount = new ArrayList<Kmer>();
+		for (Kmer km:kmers){
+			if (kmer2seq.containsKey(km)){
+				km.setPosHits(kmer2seq.get(km));
+				km.setHgp(computeHGP(km.getPosHitCount(), km.getNegHitCount()));
+			}
+			else{
+				zeroCount.add(km);
+			}
+		}
+		kmers.removeAll(zeroCount);
+		
+		Collections.sort(seqList);
+		
+		ArrayList<Sequence> seqAligned = new ArrayList<Sequence>();
+		ArrayList<Sequence> seqBadScore = new ArrayList<Sequence>();
+		Sequence top = seqList.get(0);
+		top.pos = 0;
+		seqAligned.add(top);
+		seqList.remove(0);
+		
+		eachSeq: while(!seqList.isEmpty()){
+			top = seqList.get(0);
+			if (top.id==396)
+				top.getKmerPosCount();
+			Pair<Double, Integer> max = findBestPosition(top, seqAligned);
+			if (max.car()<=0){
+				seqBadScore.add(top);
+				seqList.remove(0);
+				continue eachSeq;
+			}
+			top.score = max.car();
+			if (max.cdr()>RC/2){
+				top.pos = max.cdr()-RC;
+				top.isForward = false;
+			}
+			else{
+				top.pos = max.cdr();
+				top.isForward = true;
+			}
+			seqAligned.add(top);
+			seqList.remove(0);
+		}
+
+    	int leftmost = Integer.MAX_VALUE;
+		for (int i=0;i<seqAligned.size();i++){
+			int pos = seqAligned.get(i).pos;
+			if (pos < leftmost )
+				leftmost = pos;		
+		}
+
+		StringBuilder sb = new StringBuilder();
+		for (int i=0;i<seqAligned.size();i++){
+			Sequence s = seqAligned.get(i);
+			sb.append(String.format("%d\t%.1f\t%d\t%s\t%s%s\n", s.id, s.score, s.pos, s.isForward?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getSeq()));
+		}
+		CommonUtils.writeFile("seqs_aligned.txt", sb.toString());
+	}
+	private int getRcCoor(int original){
+		return numPos-1-original;
+	}
+	
+	private Pair<Double, Integer> findBestPosition(Sequence top, ArrayList<Sequence> seqAligned){
+		//estimate the potential sequence positions
+		HashSet<Integer> allPos = new HashSet<Integer>();
+		// based on each kmer's most frequent position in the alignment
+		TreeMap<Kmer, HashSet<Integer>> kmer2pos = top.getKmerPos();
+		if (kmer2pos.isEmpty())
+			return new Pair<Double, Integer>(Double.NEGATIVE_INFINITY, 0);
+		
+		for (Kmer km:kmer2pos.keySet()){
+			HashSet<Integer> kmerPos = kmer2pos.get(km);				
+			ArrayList<Integer> possiblePos = new ArrayList<Integer>(); //kmer's all positions in the alignment
+			for (Sequence sa:seqAligned){
+				if (!sa.getKmerPos().containsKey(km))
+					continue;
+				for (int pRef:sa.getKmerPos().get(km)){
+					if (pRef>RC/2)
+						possiblePos.add((pRef-RC)+sa.pos+RC);		// kmer on rc of sa, use kmerRC coor
+					else
+						possiblePos.add(pRef+sa.pos);
+				}
+			}
+			if (possiblePos.isEmpty())
+				continue;
+			
+			Pair<int[],int[]> sorted = StatUtil.sortByOccurences(possiblePos);
+			int maxCount = sorted.cdr()[sorted.cdr().length-1];		// get the most frequent position
+			for (int i=sorted.cdr().length-1;i>=0;i--){
+				if (sorted.cdr()[i]==maxCount){
+					int goodPos = sorted.car()[i];
+					if (goodPos>RC/2){				// kmer on rc of sa
+						for (int p: kmerPos){
+							if (p>RC/2)				// kmer on rc of top, same strand, use kmerRC coor
+								allPos.add((goodPos-RC)-(p-RC));
+							else					// kmer on seq of top
+								allPos.add((goodPos-RC)-p+RC);
+						}	
+					}		
+					else{							// kmer on seq of sa
+						for (int p: kmerPos){
+							if (p>RC/2)				// kmer on rc of top, diff strand, use kmerRC coor
+								allPos.add(goodPos-(p-RC)+RC);
+							else
+								allPos.add(goodPos-p);
+						}
+					}
+				}
+			}
+		}
+		if (allPos.isEmpty())
+			return new Pair<Double, Integer>(Double.NEGATIVE_INFINITY, 0);
+		
+		Integer[] allPosArray = new Integer[allPos.size()];
+		allPos.toArray(allPosArray);
+		double[][] scores = new double[allPosArray.length][seqAligned.size()];
+		for (int i=0;i<allPosArray.length;i++){
+			int p=allPosArray[i];
+			for (int j=0;j<seqAligned.size();j++){
+				Sequence ref = seqAligned.get(j);
+				scores[i][j] = scoreSequenceAlignment(ref, top, p);
+			}
+		}
+		// top 10 scores
+		int topSeqNum = Math.min(seqAligned.size(), 10);
+		double[] topScores = new double[allPosArray.length];
+		for (int i=0;i<allPosArray.length;i++){
+			double scorePos[] = scores[i];
+			Arrays.sort(scorePos);
+			for (int j=0;j<topSeqNum;j++){
+				topScores[i]+=scorePos[scorePos.length-1-j];
+			}
+		}
+		Pair<Double, TreeSet<Integer>> max = StatUtil.findMax(topScores);
+		return new Pair<Double, Integer>(max.car(), allPosArray[max.cdr().first()]);
+	}
+	
+	public int scoreSequenceAlignment(Sequence ref, Sequence top, int sPos){
+		int score=0;
+		TreeMap<Kmer, HashSet<Integer>> sKmerPos = (sPos>RC/2)?top.getKmerRCPos():top.getKmerPos();
+		if (sPos>RC/2)
+			sPos-=RC;
+		for (Kmer km:ref.getKmerPos().keySet()){
+			if (!top.getKmerPos().containsKey(km))
+				continue;
+			boolean match = false;
+			findMatch: for (int pRef:ref.getKmerPos().get(km))
+				for (int pS:sKmerPos.get(km)){
+					if ((pRef+ref.pos)-(pS+sPos)==0){
+						match = true;
+						break findMatch;
+					}
+				}
+			if (match)
+				score+=km.getPosHitCount();
+			else
+				score-=km.getPosHitCount();
+		}
+		return score;
+	}
+	
+	public class Sequence implements Comparable<Sequence>{
+		int id;				// original input id
+		String seq;
+		String rc;
+		int pos=UNALIGNED;
+		private boolean isForward = true;
+		String seq2k = null;
+		
+		TreeMap<Kmer, HashSet<Integer>> fPos = new TreeMap<Kmer, HashSet<Integer>>();		// forward
+		TreeMap<Kmer, HashSet<Integer>> rPos = new TreeMap<Kmer, HashSet<Integer>>();		// reverse
+		int totalCount;
+		int maxCount;
+		int kmerPosCount;
+		double score;
+		
+		public Sequence(String seq, int id){
+			this.id = id;
+			this.seq = seq;
+			this.rc = SequenceUtils.reverseComplement(seq);
+		}
+		
+		public void RC(){
+			isForward = !isForward;
+		}
+		public String getSeq(){
+			return isForward?seq:rc;
+		}
+		public String getSeq2k(int k){
+			if (seq2k==null){
+				int start = -k/2+pos;
+				int end = k+k/2+pos;
+				if (start<0)
+					start=0;
+				if (end>seq.length())
+					end = seq.length();
+				seq2k = getSeq().substring(start, end);
+			}
+			return seq2k;
+		}
+		public void reset(){
+			pos = UNALIGNED;
+			seq2k = null;
+		}
+		
+		public TreeMap<Kmer, HashSet<Integer>> getKmerPosStrand(boolean isForward){
+			return isForward?fPos:rPos;
+		}
+		public TreeMap<Kmer, HashSet<Integer>> getKmerPos(){
+			return isForward?fPos:rPos;
+		}
+		public TreeMap<Kmer, HashSet<Integer>> getKmerRCPos(){
+			return (!isForward)?fPos:rPos;
+		}
+		public int getKmerPosCount(){
+			return kmerPosCount;
+		}		
+		public void setCount(){
+			maxCount=0;
+			totalCount=0;
+			kmerPosCount=0;
+			for (Kmer km:fPos.keySet()){
+				int count = km.getPosHitCount();
+				if (maxCount<count)
+					maxCount=count;
+				totalCount+=count;
+				kmerPosCount+=fPos.get(km).size();
+			}
+		}
+
+		public int compareTo(Sequence s) {					// descending count
+			int max = compareByMaxCount(s);
+			if (max!=0)
+				return max;
+			if(totalCount<s.totalCount){return(1);}
+			else if(totalCount>s.totalCount){return(-1);}
+			else return(0);
+		}
+		
+		public int compareByMaxCount(Sequence s) {					// descending count
+			if(maxCount<s.maxCount){return(1);}
+			else if(maxCount>s.maxCount){return(-1);}
+			else return(0);
+		}
+		
+		public String toString(){
+			return String.format("%d\t%d\t%s\t%d\t%s", id, maxCount, isForward?"F":"R", pos, isForward?seq:rc);
+		}
+	}
+	
+	private class KmerCluster{
+		int clusterId;
+		Kmer seedKmer;
+		String pfmString="";
+		WeightMatrix wm;
+		boolean buildNewPWM = true;						// whether or not to build new PWM
+		boolean pwmGoodQuality = false;
+		double pwmThreshold;
+		double pwmThresholdHGP;
+		int pwmNegSeqCount;
+		int pos_pwm_seed;
+		int pos_BS_pwm;
+		int pwmPosSeqCount;
+		int lastPassSeqCount;
+		int kmerCount;
+		ArrayList<Kmer> alignedKmers;
+		
+		KmerCluster(){}	// empty constructor;
+
+		protected KmerCluster clone(){
+			KmerCluster cluster = new KmerCluster();
+			cluster.clusterId = this.clusterId;
+			cluster.seedKmer = this.seedKmer;
+			cluster.pfmString = this.pfmString;
+			cluster.wm = this.wm;
+			cluster.buildNewPWM = this.buildNewPWM;
+			cluster.pwmGoodQuality = this.pwmGoodQuality;
+			cluster.pwmThreshold = this.pwmThreshold;
+			cluster.pwmThresholdHGP = this.pwmThresholdHGP;
+			cluster.pwmNegSeqCount = this.pwmNegSeqCount;
+			cluster.pos_pwm_seed = this.pos_pwm_seed;
+			cluster.pos_BS_pwm = this.pos_BS_pwm;
+			cluster.pwmPosSeqCount = this.pwmPosSeqCount;
+			cluster.kmerCount = this.kmerCount;
+			cluster.alignedKmers = this.alignedKmers;
+			return cluster;
+		}
+	}
 	/**
 	 * Load pos/neg test sequences based on event positions
 	 * @param events
@@ -555,7 +1212,7 @@ public class KmerEngine {
 		public double score;
 		public int posHit;
 		public int negHit;
-		public double hgp;		
+		public double hgp=0;		
 	}
 
 	/**
@@ -982,10 +1639,41 @@ public class KmerEngine {
 	    List<File> files = Args.parseFileHandles(args, "kmers_file");
 	    kEngine.indexKmers(files);
 	}
-	public static void main1(String[] args){
-		KmerEngine ke = new KmerEngine(new ArrayList<Kmer>(),"", true);
-		System.err.println(ke.computeHGP(652,665,652,665));
-		System.err.println(ke.computeHGP(50,1112,40,357));
+	public static void main(String[] args){
+		ArrayList<String> pos_seqs = new ArrayList<String>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[0]))));
+	        String line;
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            pos_seqs.add(line);
+	        }			
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+args[0]);
+            e.printStackTrace(System.err);
+        }
+		ArrayList<String> neg_seqs = new ArrayList<String>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[1]))));
+	        String line;
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            neg_seqs.add(line);
+	        }			
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+args[0]);
+            e.printStackTrace(System.err);
+        }
+        
+        KmerMotifFinder kmf = new KmerMotifFinder(pos_seqs, neg_seqs);
+        ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(8, -3, 3, "KMF");
+        kmf.alignByKmerScan(kmers);
 	}
 }
 
