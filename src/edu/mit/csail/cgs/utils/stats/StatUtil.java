@@ -154,6 +154,7 @@ public class StatUtil {
 	}	
 	/** 
 	 * Sort the elements by their occurences, acsending order
+	 * @return Pair of [elements, counts]
 	 */
 	public static Pair<int[], int[]> sortByOccurences (ArrayList<Integer> nums){
 		HashMap<Integer, Integer> map = countOccurences(nums);
