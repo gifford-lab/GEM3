@@ -20,24 +20,20 @@ import cern.jet.random.engine.DRand;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.*;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
-import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
-import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine;
-import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.MotifThreshold;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
-import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerGroup;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.ArgParser;
-import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.SetTools;
 import edu.mit.csail.cgs.utils.Utils;
 import edu.mit.csail.cgs.utils.Pair;
@@ -48,7 +44,6 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.AhoCorasick;
-
 
 class KPPMixture extends MultiConditionFeatureFinder {
 	private final char[] LETTERS = {'A','C','G','T'};
@@ -4262,7 +4257,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			
 			// paint motif logo
 			c.wm.setNameVerType(name, "#"+c.clusterId, "");
-			paintMotif(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
+			CommonUtils.printMotifLogo(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+config.k+".txt", pfm_sb.toString());
 		
@@ -4409,7 +4404,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			if (shift2kmers.containsKey(shift)){
 				for (Kmer kma:shift2kmers.get(shift))
 					// kmer should have at least 1 1bp-mismatch on the same position
-					if (this.mismatch(kma.getKmerString(), km.getKmerString())<=1){
+					if (CommonUtils.mismatch(kma.getKmerString(), km.getKmerString())<=1){
 						match = true;
 						break;
 					}
@@ -5261,12 +5256,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	String seedKmerStr = seed.getKmerString();
     	String seedKmerRC = seed.getKmerRC();
     	for (Kmer kmer: kmers){
-	    	if (kmer.hasString(seedKmerStr) || mismatch(seedKmerStr, kmer.getKmerString())<=1+config.k*0.1){
+	    	if (kmer.hasString(seedKmerStr) || CommonUtils.mismatch(seedKmerStr, kmer.getKmerString())<=1+config.k*0.1){
 	    		kmer.setShift(0);
 	    		family.add(kmer);
 	    		kmer.setAlignString(seedKmerStr);
 	    	}
-	    	else if (kmer.hasString(seedKmerRC)||mismatch(seedKmerRC, kmer.getKmerString())<=1+config.k*0.1){
+	    	else if (kmer.hasString(seedKmerRC)||CommonUtils.mismatch(seedKmerRC, kmer.getKmerString())<=1+config.k*0.1){
 	    		kmer.setShift(0);
 	    		kmer.RC();
 	    		family.add(kmer);
@@ -5849,34 +5844,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		msb.append("XX\n\n");
 		return msb.toString();
 	  }
-
-	private int mismatch(String ref, String seq){
-	  if (ref.length()!=seq.length())
-		  return -1;
-	  int mismatch = 0;
-	  for (int i=0;i<ref.length();i++){
-		  if (ref.charAt(i)!=seq.charAt(i))
-			  mismatch ++;
-	  }
-	  return mismatch;
-	}
-	
-	private static void paintMotif(WeightMatrix wm, File f, int pixheight){
-		int pixwidth = (pixheight-WeightMatrixPainter.Y_MARGIN*3-WeightMatrixPainter.YLABEL_SIZE) * wm.length() /2 +WeightMatrixPainter.X_MARGIN*2;
-        BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_RGB);
-        Graphics g = im.getGraphics();
-        Graphics2D g2 = (Graphics2D)g;
-        g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
-        WeightMatrixPainter wmp = new WeightMatrixPainter();
-        g2.setColor(Color.WHITE);
-        g2.fillRect(0,0,pixwidth, pixheight);
-        wmp.paint(wm,g2,0,0,pixwidth,pixheight);
-        try {
-            ImageIO.write(im,"png",f);
-        }  catch (IOException ex) {
-            ex.printStackTrace();
-        }
-	}
 
 	private class MotifCluster{
 		int clusterId=-1;
@@ -7640,33 +7607,5 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			return coor.compareTo(h.coor);
 		}
     }
-    
-    public static void main1(String args[]){
-		// load motif
-    	Genome genome;
-    	Organism org=null;
-    	WeightMatrix motif = null;
-    	ArgParser ap = new ArgParser(args);
-		Set<String> flags = Args.parseFlags(args);		
-	    try {
-	      Pair<Organism, Genome> pair = Args.parseGenome(args);
-	      if(pair==null){
-	        //Make fake genome... chr lengths provided???
-	        if(ap.hasKey("geninfo")){
-	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-	            }else{
-	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-	            }
-	      }else{
-	        genome = pair.cdr();
-	        org = pair.car();
-	      }
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }
-		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-		motif = wm.car();
-		
-		paintMotif(motif, new File("test.png"), 150);
-    }
+
  }

@@ -4,10 +4,10 @@ import java.util.ArrayList;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine.KmerGroup;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
-import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
-import edu.mit.csail.cgs.ewok.verbs.motifs.KmerEngine.KmerGroup;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;

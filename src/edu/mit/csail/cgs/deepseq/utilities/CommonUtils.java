@@ -3,6 +3,11 @@
  */
 package edu.mit.csail.cgs.deepseq.utilities;
 
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -15,15 +20,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Set;
+
+import javax.imageio.ImageIO;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
+import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.ewok.verbs.motifs.Kmer;
+import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
+import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
@@ -406,7 +417,66 @@ public class CommonUtils {
 		}
 		return new Pair<Integer, Double>(goodScoreShift, goodScore);
 	}
+	
+	public static void printMotifLogo(WeightMatrix wm, File f, int pixheight){
+		int pixwidth = (pixheight-WeightMatrixPainter.Y_MARGIN*3-WeightMatrixPainter.YLABEL_SIZE) * wm.length() /2 +WeightMatrixPainter.X_MARGIN*2;
+        BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_RGB);
+        Graphics g = im.getGraphics();
+        Graphics2D g2 = (Graphics2D)g;
+        g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
+        WeightMatrixPainter wmp = new WeightMatrixPainter();
+        g2.setColor(Color.WHITE);
+        g2.fillRect(0,0,pixwidth, pixheight);
+        wmp.paint(wm,g2,0,0,pixwidth,pixheight);
+        try {
+            ImageIO.write(im,"png",f);
+        }  catch (IOException ex) {
+            ex.printStackTrace();
+        }
+	}
+	
+	public static int mismatch(String ref, String seq){
+	  if (ref.length()!=seq.length())
+		  return -1;
+	  int mismatch = 0;
+	  for (int i=0;i<ref.length();i++){
+		  if (ref.charAt(i)!=seq.charAt(i))
+			  mismatch ++;
+	  }
+	  return mismatch;
+	}
+	
 	public static void main(String[] args){
 		System.out.println(findKey(new double[]{0,1,1,1,2,4,6}, 7));
 	}
+	
+    
+    public static void main1(String args[]){
+		// load motif
+    	Genome genome;
+    	Organism org=null;
+    	WeightMatrix motif = null;
+    	ArgParser ap = new ArgParser(args);
+		Set<String> flags = Args.parseFlags(args);		
+	    try {
+	      Pair<Organism, Genome> pair = Args.parseGenome(args);
+	      if(pair==null){
+	        //Make fake genome... chr lengths provided???
+	        if(ap.hasKey("geninfo")){
+	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+	            }else{
+	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
+	            }
+	      }else{
+	        genome = pair.cdr();
+	        org = pair.car();
+	      }
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+		motif = wm.car();
+		
+		CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
+    }
 }

@@ -1,4 +1,4 @@
-package edu.mit.csail.cgs.ewok.verbs.motifs;
+package edu.mit.csail.cgs.deepseq.discovery.kmer;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -104,6 +104,7 @@ public class Kmer implements Comparable<Kmer>{
 		HashSet<Integer> hits = new HashSet<Integer>();
 		hits.addAll(this.posHits);
 		Kmer n = new Kmer(getKmerString(), hits);
+		n.clusterId = clusterId;
 		n.strength = strength;
 		n.shift = shift;
 		n.negHits = new HashSet<Integer>();

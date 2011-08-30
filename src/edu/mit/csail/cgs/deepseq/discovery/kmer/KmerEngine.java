@@ -1,4 +1,4 @@
-package edu.mit.csail.cgs.ewok.verbs.motifs;
+package edu.mit.csail.cgs.deepseq.discovery.kmer;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -33,6 +33,7 @@ import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.features.Feature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
+import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KmerEngine {
