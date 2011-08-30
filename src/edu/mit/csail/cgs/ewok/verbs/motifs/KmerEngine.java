@@ -294,6 +294,17 @@ public class KmerEngine {
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
 	    
+	    /*
+	    StringBuilder sb = new StringBuilder();
+	    for (String s:seqs)
+	    	sb.append(s).append("\n");
+	    CommonUtils.writeFile("ctcf_pos_seqs.txt", sb.toString());
+	    sb = new StringBuilder();
+	    for (String s:seqsNegList)
+	    	sb.append(s).append("\n");
+	    CommonUtils.writeFile("ctcf_neg_seqs.txt", sb.toString());
+	    */
+	    
 //		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 //		ArrayList<String> negSeqList = new ArrayList<String>();
 //		for(int i=0;i<eventCount;i++){
