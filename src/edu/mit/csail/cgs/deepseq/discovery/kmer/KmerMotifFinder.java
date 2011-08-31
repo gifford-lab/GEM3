@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -389,9 +390,7 @@ public class KmerMotifFinder {
 			/* Initialization, setup sequence list, and update kmers */
 			// build the kmer search tree
 			AhoCorasick oks = new AhoCorasick();
-			HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 			for (Kmer km: kmers){
-				str2kmer.put(km.getKmerString(), km);
 				oks.add(km.getKmerString().getBytes(), km);
 		    }
 			oks.prepare();
@@ -455,7 +454,12 @@ public class KmerMotifFinder {
 				}
 			}
 			kmers.removeAll(unenriched);
+			for (Sequence s:seqList){
+				s.removeAllKmers(unenriched);
+			}			
 			unenriched = null;
+			kmer2seq = null;
+
 			
 			if (kmers.isEmpty()){
 				clusters.remove(clusterID);
@@ -877,7 +881,11 @@ public class KmerMotifFinder {
 				copy.add(cp);
 			}
 			cluster.alignedKmers = copy;				// store all the aligned k-mers
+			
 			kmers.removeAll(alignedKmers);
+			for (Sequence s:seqList){					// TODO: Hard remove here, should we do soft remove?
+				s.removeAllKmers(alignedKmers);
+			}	
 			copy = null;
 			alignedKmers = null;
 			
@@ -1341,7 +1349,12 @@ public class KmerMotifFinder {
 			pos = UNALIGNED;
 			seq2k = null;
 		}
-		
+		public void removeAllKmers(Collection<Kmer> kmers){
+			for (Kmer km:kmers){
+				fPos.remove(km);
+				rPos.remove(km);
+			}
+		}
 		public HashMap<Kmer, HashSet<Integer>> getKmerPosStrand(boolean isForward){
 			return isForward?fPos:rPos;
 		}
