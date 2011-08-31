@@ -196,7 +196,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			            line = line.trim();
 			            String[] words = line.split("\\s+");
 			            try {
-				            Kmer kmer = new Kmer(words[0], null);		// TODO
+				            Kmer kmer = new Kmer(words[0], 0);		// TODO
 				            kmers.add(kmer);
 		            	}
 		            	catch (NumberFormatException nfe) {	// ignore if not a number, such as header
