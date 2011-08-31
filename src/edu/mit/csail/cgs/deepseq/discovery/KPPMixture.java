@@ -3840,7 +3840,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			// print out top kmer information
 			if (clusterID==0){
 				System.out.println("\nTop 5 k-mers");
-				System.out.println(Kmer.toShortHeader());
+				System.out.println(Kmer.toShortHeader(config.k));
 				for (int i=0;i<Math.min(5,kmers.size());i++){
 					System.out.println(kmers.get(i).toShortString());
 				}
