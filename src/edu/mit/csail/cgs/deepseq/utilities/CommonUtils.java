@@ -188,9 +188,11 @@ public class CommonUtils {
 	}
 	private static String timeString(long length){
 		float sec = length/1000F;
-		return sec>60?
-			String.format("%.1f",sec/60)+" min":
-			String.format("%.1f",sec)+" sec";
+		return sec>3600?
+				String.format("%.1fh",sec/3600):
+				sec>60?
+					String.format("%.1fm",sec/60):
+					String.format("%.1fs",sec);
 	}
 	public static String getDateTime() {
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");

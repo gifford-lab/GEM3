@@ -4,13 +4,11 @@ import java.util.ArrayList;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.KmerGroup;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
-import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class ComponentFeature extends Feature  implements Comparable<ComponentFeature>{
 	// these should be set at the beginning of BindingMixure
