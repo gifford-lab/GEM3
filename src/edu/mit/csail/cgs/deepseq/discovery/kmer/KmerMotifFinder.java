@@ -1167,27 +1167,36 @@ public class KmerMotifFinder {
 		}
 		
 		/* try all pwm length with the most IC-rich columns, find the best PWM */
-		int[] left=new int[rightIdx-leftIdx+1-(k-2)];
-		int[] right=new int[rightIdx-leftIdx+1-(k-2)];
-		for (int i=0;i<left.length;i++){
-			int bestLeft = -1;
-			double bestSumIC = 0;
-			for(int p=leftIdx;p<=rightIdx-(k-2)-i;p++){
-				int end = (k-2)+i+p;
-				if (ic[p]<ic_trim || ic[end]<ic_trim)			// if the ends have low ic, skip
-					continue;
-				double sumIC=0; 
-				for (int j=p;j<=end;j++)
-					sumIC += ic[j];
-				if(sumIC<1*(end-p+1))							// average IC >= 1
-					continue;
-				if (bestSumIC<sumIC){
-					bestSumIC=sumIC;
-					bestLeft = p;
+		int[] left, right;
+		if (rightIdx-leftIdx+1>(k-2)){
+			left=new int[rightIdx-leftIdx+1-(k-2)];
+			right=new int[rightIdx-leftIdx+1-(k-2)];
+			for (int i=0;i<left.length;i++){
+				int bestLeft = -1;
+				double bestSumIC = 0;
+				for(int p=leftIdx;p<=rightIdx-(k-2)-i;p++){
+					int end = (k-2)+i+p;
+					if (ic[p]<ic_trim || ic[end]<ic_trim)			// if the ends have low ic, skip
+						continue;
+					double sumIC=0; 
+					for (int j=p;j<=end;j++)
+						sumIC += ic[j];
+					if(sumIC<1*(end-p+1))							// average IC >= 1
+						continue;
+					if (bestSumIC<sumIC){
+						bestSumIC=sumIC;
+						bestLeft = p;
+					}
 				}
+				left[i]=bestLeft;
+				right[i]=bestLeft+(k-2)+i;
 			}
-			left[i]=bestLeft;
-			right[i]=bestLeft+(k-2)+i;
+		}
+		else{				// if it is not very long
+			left=new int[1];
+			right=new int[1];
+			left[0]=leftIdx;
+			right[0]=rightIdx;
 		}
 		
 		MotifThreshold bestEstimate = null;
