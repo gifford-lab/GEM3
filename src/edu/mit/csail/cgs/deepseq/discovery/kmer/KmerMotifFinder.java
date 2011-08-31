@@ -673,7 +673,8 @@ public class KmerMotifFinder {
 				updateEngine(alignedKmers);
 				MotifThreshold threshold = estimateKsmThreshold("", false);
 				if (verbose>1)
-					System.out.println(String.format("%s: KSM score=%.1f\thpg=%.1f\t%d+/%d-", CommonUtils.timeElapsed(tic), threshold.score, threshold.hgp, threshold.posHit, threshold.negHit));
+					System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1E%.1f", 
+							CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
 				
 				if (threshold.hgp<cluster.ksmThreshold.hgp){
 					cluster.ksmThreshold = threshold;
@@ -1166,13 +1167,13 @@ public class KmerMotifFinder {
 		}
 		
 		/* try all pwm length with the most IC-rich columns, find the best PWM */
-		int[] left=new int[rightIdx-leftIdx+1-k/2];
-		int[] right=new int[rightIdx-leftIdx+1-k/2];
+		int[] left=new int[rightIdx-leftIdx+1-(k-2)];
+		int[] right=new int[rightIdx-leftIdx+1-(k-2)];
 		for (int i=0;i<left.length;i++){
 			int bestLeft = -1;
 			double bestSumIC = 0;
-			for(int p=leftIdx;p<=rightIdx-k/2-i;p++){
-				int end = k/2+i+p;
+			for(int p=leftIdx;p<=rightIdx-(k-2)-i;p++){
+				int end = (k-2)+i+p;
 				if (ic[p]<ic_trim || ic[end]<ic_trim)			// if the ends have low ic, skip
 					continue;
 				double sumIC=0; 
@@ -1186,7 +1187,7 @@ public class KmerMotifFinder {
 				}
 			}
 			left[i]=bestLeft;
-			right[i]=bestLeft+k/2+i;
+			right[i]=bestLeft+(k-2)+i;
 		}
 		
 		MotifThreshold bestEstimate = null;
@@ -1216,8 +1217,8 @@ public class KmerMotifFinder {
     			if (pwmThresholdHGP==0)
     				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
         		else
-        			System.out.println(String.format("%s: PWM %s match %d+/%d- events, hgp=1E%.1f, threshold %.2f/%.2f", CommonUtils.timeElapsed(tic), 
-    					WeightMatrix.getMaxLetters(wm), estimate.posHit, estimate.negHit, pwmThresholdHGP, pwmThreshold, wm.getMaxScore()));
+        			System.out.println(String.format("%s: PWM score %.2f/%.2f\tmatch %d+/%d- seqs\thgp=1E%.1f\t%s", CommonUtils.timeElapsed(tic), 
+        					pwmThreshold, wm.getMaxScore(), estimate.posHit, estimate.negHit, pwmThresholdHGP, WeightMatrix.getMaxLetters(wm)));
     		if (pwmThresholdHGP<=bestHGP){
     			bestWM = wm;
     			bestHGP = pwmThresholdHGP;
