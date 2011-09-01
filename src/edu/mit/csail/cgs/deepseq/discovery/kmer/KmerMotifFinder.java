@@ -62,6 +62,7 @@ public class KmerMotifFinder {
 	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
 	private Kmer bestSeed = null;
 	private boolean select_seed=false;
+	private int max_cluster = 30;
 	
 	private int k_win;
 	private String[] seqs;		// DNA sequences around binding sites
@@ -376,10 +377,9 @@ public class KmerMotifFinder {
 		seqList.trimToSize();
 		
     	clusters.clear();
-    	int clusterID = 0;
     	StringBuilder alignedKmer_sb = new StringBuilder();
     	
-		while (!kmers.isEmpty()){
+		for (int clusterID = 0; clusterID<max_cluster; clusterID++){
 			
 			/** Initialization of new cluster and the remaining kmers */
 			KmerCluster cluster = new KmerCluster();
@@ -683,7 +683,7 @@ public class KmerMotifFinder {
 				updateEngine(alignedKmers);
 				MotifThreshold threshold = estimateKsmThreshold("", false);
 				if (verbose>1)
-					System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1E%.1f", 
+					System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
 							CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
 				
 				if (threshold.hgp<cluster.ksmThreshold.hgp){
@@ -912,7 +912,6 @@ public class KmerMotifFinder {
 				.concat(seq.substring(-s.pos+k, seq.length()));
 				s.setSeq(seq);
 			}
-			clusterID++;
 		} // Loop for each cluster
 		
 		CommonUtils.writeFile(outName+"_Alignement_k"+k+".txt", alignedKmer_sb.toString());
@@ -928,13 +927,13 @@ public class KmerMotifFinder {
     		if (wm==null || (!c.pwmGoodQuality))
     			continue;
     		System.out.println(String.format("------------------------------------------------\n%s k-mer cluster #%d, aligned %d k-mers, %d sequences.", outName, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
-    		System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=%.1f", c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
+    		System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=1e%.1f", c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
     		if (pos>0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
-    		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
+    		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
 			pfm_sb.append(c.pfmString);
 			
 			// paint motif logo
@@ -1002,18 +1001,18 @@ public class KmerMotifFinder {
 			html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
 					km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
 		}
-		html.append("</table><br><a href='"+name+"_kmer_k"+k+".txt'>Click here to see the complete K-mer list.</a>");
-		html.append("<br><a href='"+name+"_Alignement_k"+k+".txt'>Click here to see the k-mer alignment file.</a>");
-		html.append("<br><a href='"+name+"_PFM_k"+k+".txt'>Click here to see the PFM of motifs</a>");
+		html.append("</table><br><a href='"+name+"_kmer_k"+k+".txt'>The complete K-mer list.</a>");
+		html.append("<br><a href='"+name+"_Alignement_k"+k+".txt'>The k-mer alignment file.</a>");
+		html.append("<br><a href='"+name+"_PFM_k"+k+".txt'>The PFM of motifs</a>");
 		html.append("</td><td><br>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
     		if (wm==null || (!c.pwmGoodQuality))
     			continue;
     		html.append("<img src='"+name+"_"+c.clusterId+"_motif.png"+"'><br>");
-    		html.append(String.format("PWM threshold: %.2f/%.2f, hit=%d+/%d-, hgp=%.1f<br>", 
+    		html.append(String.format("PWM score: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
     				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
-    		html.append(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=%.1f<br><br>", 
+    		html.append(String.format("KSM score: %.2f, \thit=%d+/%d-, hgp=1e%.1f<br><br>", 
     				c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
 		}
 		html.append("</td></tr></table>");
@@ -1132,44 +1131,24 @@ public class KmerMotifFinder {
     			ic[p] += f*pwm[p][base];
     		}
     	}
-    	// make a WeightMatrix object
-    	int leftIdx, rightIdx;
-    	// trim low ic ends (more sophisticated method)
-	    // To avoid situations where a remote position happens to pass the ic threshold
-    	leftIdx=-1;
-    	double score = 0;
+    	// // trim low ic ends (simple method)
+    	int leftIdx=ic.length-1;
     	for (int p=0;p<ic.length;p++){
-    		if (ic[p]>ic_trim){
-    			score ++;
-    		}
-    		else{
-    			score -= 0.3;
-    		}
-    		if (score<0 && p-leftIdx<k/2){
-    			score=0;
-    			leftIdx=p;
+    		if (ic[p]>=ic_trim){
+    			leftIdx = p;
+    			break;
     		}
     	}
-    	leftIdx++;
-    	
-    	rightIdx=ic.length;
-    	score = 0;
+    	int rightIdx=0;
     	for (int p=ic.length-1;p>=0;p--){
-    		if (ic[p]>ic_trim){
-    			score ++;
-    		}
-    		else{
-    			score -= 0.3;
-    		}
-    		if (score<0 && rightIdx-p<k/2){
-    			score=0;
+    		if (ic[p]>=ic_trim){    			
     			rightIdx=p;
+    			break;
     		}
     	}
-    	rightIdx--;
     	
-    	// special trick to deal with 'N', set it to lowest score
-		if (rightIdx-leftIdx+1>k/2){		// pwm is long enough
+    	// special treatment for 'N': set it to lowest score
+		if (rightIdx-leftIdx+1>3){		// pwm is long enough
 	    	for(int p=leftIdx;p<=rightIdx;p++){
 	    		double lowest = 2;
 	    		for (char base:LETTERS){
@@ -1245,7 +1224,7 @@ public class KmerMotifFinder {
     			if (pwmThresholdHGP==0)
     				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
         		else
-        			System.out.println(String.format("%s: PWM score %.2f/%.2f\tmatch %d+/%d- seqs\thgp=1E%.1f\t%s", CommonUtils.timeElapsed(tic), 
+        			System.out.println(String.format("%s: PWM score %.2f/%.2f\tmatch %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), 
         					pwmThreshold, wm.getMaxScore(), estimate.posHit, estimate.negHit, pwmThresholdHGP, WeightMatrix.getMaxLetters(wm)));
     		if (pwmThresholdHGP<=bestHGP){
     			bestWM = wm;
