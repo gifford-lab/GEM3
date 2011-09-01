@@ -42,7 +42,7 @@ public class Kmer implements Comparable<Kmer>{
 		}
 		double mean = StatUtil.mean(ids);
 		double median = StatUtil.median(ids);
-		setTop((median-mean)*ids.length);
+		setTop(median-mean);
 	}
 	public HashSet<Integer> getPosHits(){return posHits;}
 	
@@ -93,6 +93,12 @@ public class Kmer implements Comparable<Kmer>{
 	public int getKmerStartOffset(){return kmerStartOffset;}
 	/** Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
 	public void setKmerStartOffset(int s){kmerStartOffset=s;}
+	
+	public Kmer(String kmerStr, Integer posHit ){
+		this.kmerString = kmerStr;
+		this.k = kmerString.length();
+		posHits.add(posHit);
+	}
 	
 	public Kmer(String kmerStr, HashSet<Integer> posHits ){
 		this.kmerString = kmerStr;
@@ -147,14 +153,22 @@ public class Kmer implements Comparable<Kmer>{
 	public String toString(){
 		return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f", kmerString, getKmerRC(),clusterId, kmerStartOffset, getPosHitCount(), getNegHitCount(), hgp_lg10, top);
 	}
-	public static String toHeader(){
-		return "#Enriched k-mer/r.c.\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tTop";
+	public static String toHeader(int k){
+		int length=2*k+1;
+		String firstField = "#Enriched k-mer/r.c.";
+		if (firstField.length()<length)
+			firstField += CommonUtils.padding(length-firstField.length(), ' ');
+		return firstField+"\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tTop";
 	}
 	public String toShortString(){
 		return kmerString+"/"+getKmerRC()+"\t"+getPosHitCount()+"\t"+getNegHitCount()+"\t"+String.format("%.1f", hgp_lg10);
 	}
-	public static String toShortHeader(){
-		return "#Enriched k-mer/r.c.\tPosCt\tNegCt\tHGP_10";
+	public static String toShortHeader(int k){
+		int length=2*k+1;
+		String firstField = "#Enriched k-mer/r.c.";
+		if (firstField.length()<length)
+			firstField += CommonUtils.padding(length-firstField.length(), ' ');
+		return firstField+"\tPosCt\tNegCt\tHGP_10";
 	}
 	public static Kmer fromString(String str){
 		String[] f = str.split("\t");
@@ -211,9 +225,9 @@ public class Kmer implements Comparable<Kmer>{
 		StringBuilder sb = new StringBuilder();
 		sb.append(String.format("#%d/%d\n", posSeqCount, negSeqCount));
 		if (printShortFormat)
-			sb.append(Kmer.toShortHeader());
+			sb.append(Kmer.toShortHeader(kmers.get(0).getK()));
 		else
-			sb.append(Kmer.toHeader());
+			sb.append(Kmer.toHeader(kmers.get(0).getK()));
 		sb.append("\n");
 		for (Kmer kmer:kmers){
 			if (printShortFormat)
