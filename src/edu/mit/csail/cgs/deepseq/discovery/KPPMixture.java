@@ -3691,7 +3691,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		ArrayList<Kmer> primaryKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmers)
-			if (km.getClusterId()==0)
+//			if (km.getClusterId()==0)
 				primaryKmers.add(km);
 		kmf.updateEngine(primaryKmers, outName);		
     }
