@@ -61,6 +61,7 @@ public class KmerMotifFinder {
 	private double k_fold;
 	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
 	private Kmer bestSeed = null;
+	private boolean select_seed=false;
 	
 	private int k_win;
 	private String[] seqs;		// DNA sequences around binding sites
@@ -101,11 +102,12 @@ public class KmerMotifFinder {
 		
 	public KmerMotifFinder(){ }
 	
-	public void setParameters(double hgp, double k_fold, double motif_hit_factor, String outName, int verbose){
+	public void setParameters(double hgp, double k_fold, double motif_hit_factor, String outName, boolean select_seed, int verbose){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
 	    this.outName = outName;
+	    this.select_seed = select_seed;
 	    this.verbose = verbose;
 	}
 	
@@ -383,9 +385,6 @@ public class KmerMotifFinder {
 			KmerCluster cluster = new KmerCluster();
 			cluster.clusterId = clusterID;
 			clusters.add(cluster);
-			if (verbose>1)
-				System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
-						": Aligning cluster #"+clusterID+",   n="+kmers.size());
 			
 			/* Initialization, setup sequence list, and update kmers */
 			// build the kmer search tree
@@ -459,12 +458,16 @@ public class KmerMotifFinder {
 			}			
 			unenriched = null;
 			kmer2seq = null;
-
 			
 			if (kmers.isEmpty()){
 				clusters.remove(clusterID);
 				break;
 			}
+			
+			if (verbose>1)
+				System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
+						": Aligning cluster #"+clusterID+",   n="+kmers.size());
+
 			Collections.sort(kmers, new Comparator<Kmer>(){
 			    public int compare(Kmer o1, Kmer o2) {
 			    	return o1.compareByHGP(o2);
@@ -638,9 +641,12 @@ public class KmerMotifFinder {
 				}	
 				kmer2pos = null;
 				alignedKmers.trimToSize();
-				if (alignedKmers.isEmpty())
+				if (verbose>1)
+					System.out.println(String.format("%s: %d kmers aligned.", 
+							CommonUtils.timeElapsed(tic), alignedKmers.size()));
+				if (alignedKmers.size()<=1)
 					break;
-				
+
 				// print out aligned k-mers
 				/*	
 				Collections.sort(alignedKmers, new Comparator<Kmer>(){
@@ -794,31 +800,32 @@ public class KmerMotifFinder {
 	    	}  // Iteratively improve k-mer and sequences alignment
 	    	
 			// compare pwm Hgp to previous cluster Hgp, so that the primary cluster will have the best Hgp
-			if (bestSeed==null)						// first cluster, save the seed
-				bestSeed = seed;
-			else if (cluster.ksmThreshold.hgp<clusters.get(0).ksmThreshold.hgp*1.1 && !bestSeed_is_reset){		// this cluster is at least 10% better
-				// reset kmers and posSeqs, to start over with this new bestSeed
-				seqList = new ArrayList<Sequence>();
-				for (int i=0;i<seqs.length;i++){
-					Sequence s = new Sequence(seqs[i], i);
-					seqList.add(s);
+	    	if (select_seed){
+				if (bestSeed==null)						// first cluster, save the seed
+					bestSeed = seed;
+				else if (cluster.ksmThreshold.hgp<clusters.get(0).ksmThreshold.hgp*1.1 && !bestSeed_is_reset){		// this cluster is at least 10% better
+					// reset kmers and posSeqs, to start over with this new bestSeed
+					seqList = new ArrayList<Sequence>();
+					for (int i=0;i<seqs.length;i++){
+						Sequence s = new Sequence(seqs[i], i);
+						seqList.add(s);
+					}
+					seqList.trimToSize();
+					
+					kmers.clear();
+					for (Kmer km:kmers_in)
+						kmers.add(km.clone());	
+					kmers.trimToSize();
+					
+			    	clusters.clear();
+					clusterID = 0;
+					alignedKmer_sb = new StringBuilder();
+					bestSeed = seed;
+					System.out.println("Current motif is more enriched, set primary seed="+seed.getKmerString());
+					bestSeed_is_reset=true;							// marked as "reset", only once, avoid potential infinite loop
+					continue;										// start over with new seed
 				}
-				seqList.trimToSize();
-				
-				kmers.clear();
-				for (Kmer km:kmers_in)
-					kmers.add(km.clone());	
-				kmers.trimToSize();
-				
-		    	clusters.clear();
-				clusterID = 0;
-				alignedKmer_sb = new StringBuilder();
-				bestSeed = seed;
-				System.out.println("Current motif is more enriched, set primary seed="+seed.getKmerString());
-				bestSeed_is_reset=true;							// marked as "reset", only once, avoid potential infinite loop
-				continue;										// start over with new seed
 			}
-	    	
 	    	/** use all aligned sequences to find expected binding sites, set kmer offset */
 	    	// average all the binding positions to decide the expected binding position
 			StringBuilder sb = new StringBuilder();
@@ -876,18 +883,22 @@ public class KmerMotifFinder {
 	    	
 			/** store aligned kmers in the cluster */
 			ArrayList<Kmer> copy = new ArrayList<Kmer>();
+			ArrayList<Kmer> zero_shift = new ArrayList<Kmer>();
 			for (Kmer km:alignedKmers){
 				Kmer cp = km.clone();
 				copy.add(cp);
+				if (km.getShift()==0)
+					zero_shift.add(km);
 			}
 			cluster.alignedKmers = copy;				// store all the aligned k-mers
-			
-			kmers.removeAll(alignedKmers);
-			for (Sequence s:seqList){					// TODO: Hard remove here, should we do soft remove?
-				s.removeAllKmers(alignedKmers);
-			}	
 			copy = null;
 			alignedKmers = null;
+			
+//			kmers.removeAll(zero_shift);
+//			for (Sequence s:seqList){					// TODO: Hard remove here, should we do soft remove?
+//				s.removeAllKmers(zero_shift);
+//			}	
+//			zero_shift = null;
 			
 			/** mask aligned sequences at seed kmer region */
 			for (Sequence s : seqList){
@@ -2481,8 +2492,8 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs);
-        kmf.setParameters(-3, 3, 0.01, "Test", 2);
-        int k = kmf.selectK(12, 12);
+        kmf.setParameters(-3, 3, 0.01, "Test", false, 2);
+        int k = kmf.selectK(8, 8);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
         kmf.alignByKmerScan(kmers, 2, 0.3, false);
 	}
