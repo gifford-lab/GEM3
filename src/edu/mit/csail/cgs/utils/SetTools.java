@@ -46,6 +46,12 @@ public class SetTools<X> {
 		return true; 
 	}
     
+	/**
+	 * Get the elements in first set but not in second set
+	 * @param first
+	 * @param second
+	 * @return
+	 */
     public Set<X> subtract(Set<X> first, Set<X> second) { 
         HashSet<X> s = new HashSet<X>();
         for(X v : first) { if(!second.contains(v)) { s.add(v); } }

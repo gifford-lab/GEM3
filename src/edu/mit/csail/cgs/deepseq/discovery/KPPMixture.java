@@ -23,7 +23,6 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder;
@@ -32,7 +31,6 @@ import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
-import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.SetTools;
@@ -44,7 +42,6 @@ import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
-import edu.mit.csail.cgs.utils.strings.multipattern.AhoCorasick;
 
 class KPPMixture extends MultiConditionFeatureFinder {
 	private final char[] LETTERS = {'A','C','G','T'};
@@ -184,36 +181,36 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	/* *********************************
     	 * Load Kmer list
     	 ***********************************/
-    	String kmerFile = Args.parseString(args, "kf", null);
-    	if (kmerFile!=null){
-    		kmerPreDefined = true;
-			File kFile = new File(kmerFile);
-			if(kFile.isFile()){
-				try {
-					ArrayList<Kmer> kmers = new ArrayList<Kmer>(); 
-					BufferedReader reader = new BufferedReader(new FileReader(kFile.getName()));
-			        String line;
-			        while ((line = reader.readLine()) != null) {
-			            line = line.trim();
-			            String[] words = line.split("\\s+");
-			            try {
-				            Kmer kmer = new Kmer(words[0], 0);		// TODO
-				            kmers.add(kmer);
-		            	}
-		            	catch (NumberFormatException nfe) {	// ignore if not a number, such as header
-		            		continue;
-		            	}
-			        }
-			        if (!kmers.isEmpty()){
-//			        	kEngine = new KmerEngine(kmers, outName);
-			        }
-				} catch (FileNotFoundException e) {
-					e.printStackTrace();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-    	}
+//    	String kmerFile = Args.parseString(args, "kf", null);
+//    	if (kmerFile!=null){
+//    		kmerPreDefined = true;
+//			File kFile = new File(kmerFile);
+//			if(kFile.isFile()){
+//				try {
+//					ArrayList<Kmer> kmers = new ArrayList<Kmer>(); 
+//					BufferedReader reader = new BufferedReader(new FileReader(kFile.getName()));
+//			        String line;
+//			        while ((line = reader.readLine()) != null) {
+//			            line = line.trim();
+//			            String[] words = line.split("\\s+");
+//			            try {
+//				            Kmer kmer = new Kmer(words[0], 0);		// TODO
+//				            kmers.add(kmer);
+//		            	}
+//		            	catch (NumberFormatException nfe) {	// ignore if not a number, such as header
+//		            		continue;
+//		            	}
+//			        }
+//			        if (!kmers.isEmpty()){
+////			        	kEngine = new KmerEngine(kmers, outName);
+//			        }
+//				} catch (FileNotFoundException e) {
+//					e.printStackTrace();
+//				} catch (IOException e) {
+//					e.printStackTrace();
+//				}
+//			}
+//    	}
 		/* ***************************************************
 		 * Print out command line options
 		 * ***************************************************/
@@ -3473,9 +3470,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	/**
      * Initalize the kmer engine
      * This is called only once for initial setup.
-     * It compact the cached sequence data and build the kmerEngine
+     * It compact the cached sequence data and build the KMF
      */
-    public void initKmerEngine(){
+    public void initKMF(){
     	if (config.k==-1 && config.k_min==-1)
     		return;
 		
@@ -3542,7 +3539,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println(String.format("GC content=%.2f\n", config.gc));
 		}
 		
-		buildEngine(config.k_win);
+		runKMF(config.k_win);
     }
     private ArrayList<ComponentFeature> getEvents(){
 		ArrayList<ComponentFeature> events = new ArrayList<ComponentFeature>();
@@ -3665,9 +3662,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //		kmf.updateEngine(kmers, outName);		
 //    }
     
-    public void buildEngine( int winSize){
+    public void runKMF( int winSize){
+    	// load sequence from binding event positions
     	kmf.loadTestSequences(getEventPoints(), winSize);
+    	
+    	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, outName, config.select_seed, config.bmverbose);
+    	
+    	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
 			int bestK = kmf.selectK(config.k_min, config.k_max);
@@ -3686,15 +3688,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
 			config.k_win = winSize;
 		}	
+		
+		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
 		kmers = kmf.alignByKmerScan(kmers, config.seed_range, config.kmer_aligned_fraction, config.print_aligned_seqs);
 		
+		// print the clustered k-mers
+		Collections.sort(kmers);
+		Kmer.printKmers(kmers, kmf.getPositiveSeqs().length, kmf.getNegSeqCount(), outName, false, true);
+		
+		// use only primary cluster k-mers for search
 		ArrayList<Kmer> primaryKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmers)
-//			if (km.getClusterId()==0)
+			if (km.getClusterId()==0)
 				primaryKmers.add(km);
-		kmf.updateEngine(primaryKmers, outName);		
+		kmf.updateEngine(primaryKmers);		
     }
+    
     /** 
      * Align overlapped k-mers using the positive sequences containing these k-mers<br>
      * Find the distances between pair of k-mers

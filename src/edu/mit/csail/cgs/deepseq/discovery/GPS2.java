@@ -191,7 +191,7 @@ public class GPS2 {
          **/   
         if (run_gem){
         	// initialize first set of kmers from GPS result
-	        mixture.initKmerEngine();	
+	        mixture.initKMF();	
 	        
             for (int i=0;i<GEM_round;i++){
 				round++;			
@@ -202,10 +202,7 @@ public class GPS2 {
 		        mixture.printFeatures();
 		        mixture.printFilteredFeatures();
 		        mixture.printInsignificantFeatures();
-//		        if (!rebuild)
-//	            	mixture.updateKmerEngine();
-//	            else
-	            	mixture.buildEngine(Args.parseInteger(args,"k_win2", 60));
+		        mixture.runKMF(Args.parseInteger(args,"k_win2", 60));
             }
             mixture.printMotifDistanceDistribution(peakFileName);
 //            mixture.estimateOverallKgsThreshold();
