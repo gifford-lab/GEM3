@@ -1211,37 +1211,45 @@ public class KmerMotifFinder {
 					break;
 				
 				// align sequences with PWM
-				alignSequencesUsingPWM(seqList, clusters.get(i));
+				alignSequencesUsingPWM(seqList, cluster);
 			}
+			
+			cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction);
 		}
-		
-		for (int iter=0; iter<10; iter++){
-			// record cluster PWM hgp for comparison
-			double[] hgps = new double[clusters.size()];
-			if (verbose>1)
-				System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
-						": Iteration #"+iter);
-			for (int i=0; i<clusters.size(); i++){
-				hgps[i] = clusters.get(i).pwmThresholdHGP;
-				clusters.get(i).seq2hits = findAllPWMHits(seqList, clusters.get(i));
-			}				
-			System.out.println(CommonUtils.arrayToString(hgps));
-			int conflicts = resolveConflictHits(seqList);
-			if (verbose>1)
-				System.out.println(conflicts+" sequence hits are matched by multiple PWMs");
-			if (conflicts==0)
-				break;
-				
-			buildPWMfromHits(seqList);
-			boolean noChange = true;
-			for (int i=0; i<clusters.size(); i++){
-				if (hgps[i] != clusters.get(i).pwmThresholdHGP){
-					noChange = false;
+
+		// Consolidate the clusters
+		mergeClusters(kmer_set_overlap_ratio);
+
+		/** Resolve multiple-PWM-match conflict */
+		if (clusters.size()>1){
+			for (int iter=0; iter<10; iter++){
+				// record cluster PWM hgp for comparison
+				double[] hgps = new double[clusters.size()];
+				if (verbose>1)
+					System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
+							": Iteration #"+iter);
+				for (int i=0; i<clusters.size(); i++){
+					hgps[i] = clusters.get(i).pwmThresholdHGP;
+					clusters.get(i).seq2hits = findAllPWMHits(seqList, clusters.get(i));
+				}				
+				System.out.println(CommonUtils.arrayToString(hgps));
+				int conflicts = resolveConflictHits(seqList);
+				if (verbose>1)
+					System.out.println(conflicts+" sequence hits are matched by multiple PWMs");
+				if (conflicts==0)
 					break;
+					
+				buildPWMfromHits(seqList);
+				boolean noChange = true;
+				for (int i=0; i<clusters.size(); i++){
+					if (hgps[i] != clusters.get(i).pwmThresholdHGP){
+						noChange = false;
+						break;
+					}
 				}
+				if (noChange)
+					break;
 			}
-			if (noChange)
-				break;
 		}
 		if (verbose>1)
 			System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
@@ -1369,6 +1377,7 @@ public class KmerMotifFinder {
 	
 		return !merged.isEmpty();
 	}
+	
 	public int resolveConflictHits(ArrayList<Sequence> seqList){
 		int conflict = 0;
 		for (int i=0;i<seqList.size();i++){
@@ -3215,8 +3224,8 @@ public class KmerMotifFinder {
         kmf.setParameters(-3, 3, 0.01, 0.05, "Test", false, true, 2, 0.2, 0.5);
         int k = kmf.selectK(8, 8);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
-//        kmf.clusterKmers(kmers, 2, 0.3, false);
-        kmf.alignByKmerScan(kmers, 2, 0.3, false);
+        kmf.clusterKmers(kmers, 2, 0.3, false);
+//        kmf.alignByKmerScan(kmers, 2, 0.3, false);
 	}
 }
 
