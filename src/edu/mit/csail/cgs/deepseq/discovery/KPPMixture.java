@@ -3667,7 +3667,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	kmf.loadTestSequences(getEventPoints(), winSize);
     	
     	// set the parameters
-    	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, outName, config.select_seed, config.bmverbose);
+    	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
+    			outName, config.select_seed, config.use_grid_search, config.bmverbose, config.seed_search_fraction, config.kmer_set_overlap_ratio);
     	
     	// select best k value
 		if (config.k_min!=-1){
@@ -3691,7 +3692,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignByKmerScan(kmers, config.seed_range, config.kmer_aligned_fraction, config.print_aligned_seqs);
+		kmers = kmf.clusterKmers(kmers, config.seed_range, config.kmer_aligned_fraction, config.print_aligned_seqs);
 		
 		// print the clustered k-mers
 		Collections.sort(kmers);
@@ -5569,7 +5570,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    	if (config.bmverbose>1)
 //	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-	    	MotifThreshold estimate = kmf.estimatePwmThreshold(wm, outName, config.print_pwm_fdr);
+	    	// Do not consider negative score. (to reduce run time; negative pwm score means the PWM is of bad quality anyway)
+	    	MotifThreshold estimate = kmf.estimatePwmThreshold(wm, outName, config.print_pwm_fdr, 0);
 	    	double pwmThreshold = estimate.score;
 	    	double pwmThresholdHGP = estimate.hgp;
     		if (config.bmverbose>1)
@@ -5976,9 +5978,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
         public double motif_hit_factor = 0.01;
+        public double motif_hit_factor_report = 0.05;
+        public double seed_search_fraction = 0.2;
+        public double kmer_set_overlap_ratio = 0.5;
         public int seed_range = 3;
         public double kmer_aligned_fraction = 0.3;
         public boolean select_seed = false;
+        public boolean use_grid_search = true;
         public boolean kmer_use_insig = false;
         public boolean kmer_use_filtered = false;
        	public boolean re_align_kmer = false;
@@ -5990,7 +5996,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean print_pwm_fdr = false;
         public boolean k_init_calc_PWM = false;
         public boolean filter_pwm_seq = true;
-        public boolean k_select_seed = false;
+//        public boolean k_select_seed = false;
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
         public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
         public boolean mask_by_pwm = false;
@@ -6051,6 +6057,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_kmer_strength = flags.contains("use_kmer_strength");
             kmer_print_hits = flags.contains("kmer_print_hits");
             select_seed = flags.contains("select_seed");
+            use_grid_search = !flags.contains("no_grid_search");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
             re_align_kmer = flags.contains("rak");
@@ -6059,7 +6066,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             print_pwm_fdr = flags.contains("print_pwm_fdr");
 //            print_kmer_hits = flags.contains("print_kmer_hits");
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");
-            k_select_seed = flags.contains("k_select_seed");
+//            k_select_seed = flags.contains("k_select_seed");
             
             // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -6106,6 +6113,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);
             motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
             kmer_aligned_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_aligned_fraction);
+            kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
+            seed_search_fraction = Args.parseDouble(args, "seed_search_fraction", seed_search_fraction);
             seed_range = Args.parseInteger(args, "seed_range", seed_range);
             
             ip_ctrl_ratio = Args.parseDouble(args, "icr", ip_ctrl_ratio);
