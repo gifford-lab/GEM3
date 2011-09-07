@@ -3692,7 +3692,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.clusterKmers(kmers, config.seed_range, config.kmer_aligned_fraction, config.print_aligned_seqs);
+		kmers = kmf.clusterKmers(kmers, config.k/2, config.kmer_aligned_fraction, config.print_aligned_seqs);
 		
 		// print the clustered k-mers
 		Collections.sort(kmers);

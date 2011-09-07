@@ -1133,6 +1133,7 @@ public class KmerMotifFinder {
     	
     	/** Construct inital clusters and merge similar clusters */
     	int clusterID = 0;
+    	ArrayList<Kmer> alignedCandidates = new ArrayList<Kmer>(); 
 		while ( !seedCandidates.isEmpty()){
 			
 			/** Initialization of new cluster and the remaining kmers */
@@ -1150,12 +1151,12 @@ public class KmerMotifFinder {
 			Kmer seed = seedCandidates.get(0);
 			cluster.seedKmer = seed;
 			
-			alignSequencesUsingSeedFamily(seqList, kmers, seed);
+			alignSequencesUsingSeedFamily(seqList, seedCandidates, seed);
 	    	
-			cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction);
-//			if (verbose>1)
-//				System.out.println(String.format("%s: %d kmers aligned.", 
-//						CommonUtils.timeElapsed(tic), cluster.alignedKmers.size()));
+			cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, alignedCandidates);
+			
+			alignedCandidates.addAll(cluster.alignedKmers);
+			
 			seedCandidates.removeAll(cluster.alignedKmers);
 
 			clusterID++;
@@ -1163,45 +1164,31 @@ public class KmerMotifFinder {
 		clusters.trimToSize();
 		
 		// Consolidate the clusters
-		mergeClusters(kmer_set_overlap_ratio);
+//		mergeClusters(kmer_set_overlap_ratio);
 		
 		/** Use seed-derived kmer sets to align sequences, and grow PWM by progressively improve its enrichment score */
 		for (int i=0; i<clusters.size(); i++){
 			// re-align the k-mers in each cluster
 			KmerCluster cluster = clusters.get(i);
 			cluster.clusterId = i;
-			Kmer seed = cluster.seedKmer;
 
 			if (verbose>1)
 				System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
 						": Aligning cluster #"+cluster.clusterId+",   seed="+cluster.seedKmer.toShortString());
 
-			alignSequencesUsingSeedFamily(seqList, kmers, seed);
-			ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, 10000, kmer_aligned_fraction);				// no range limit
-			
-			SetTools<Kmer> setTools = new SetTools<Kmer>();
-			Set<Kmer> first = new HashSet<Kmer>();
-			first.addAll(cluster.alignedKmers);
-			Set<Kmer> second = new HashSet<Kmer>();
-			second.addAll(alignedKmers);
-			Set<Kmer> unaligned = setTools.subtract(first, second);			// ignore those can not be aligned			
-			cluster.alignedKmers.removeAll(unaligned);
+//			alignSequencesUsingSeedFamily(seqList, kmers, seed);
+//			ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, 10000, kmer_aligned_fraction);				// no range limit
+//			
+//			SetTools<Kmer> setTools = new SetTools<Kmer>();
+//			Set<Kmer> first = new HashSet<Kmer>();
+//			first.addAll(cluster.alignedKmers);
+//			Set<Kmer> second = new HashSet<Kmer>();
+//			second.addAll(alignedKmers);
+//			Set<Kmer> unaligned = setTools.subtract(first, second);			// ignore those can not be aligned			
+//			cluster.alignedKmers.removeAll(unaligned);
 
 			// aligned sequences with aliged kmer set (KSM)
 			alignSequencesUsingKSM(seqList, cluster);
-			
-//			int aligned_seqs_count=0;
-//			for (Sequence s:seqList){
-//		    	  if (s.pos!=UNALIGNED)
-//		    		  aligned_seqs_count++;
-//			}
-//			cluster.total_aligned_seqs = aligned_seqs_count;
-//			
-//			if (aligned_seqs_count<=seed.getPosHitCount())	{		// if most of sequences are aligned by seed kmer, stop
-//				if (verbose>1)
-//					System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
-//				break;
-//			}
 
 			// grow PWM
 			while(true){
@@ -1214,7 +1201,7 @@ public class KmerMotifFinder {
 				alignSequencesUsingPWM(seqList, cluster);
 			}
 			
-			cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction);
+			cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
 		}
 		
 		ArrayList<KmerCluster> noPWM = new ArrayList<KmerCluster>();
@@ -1225,6 +1212,10 @@ public class KmerMotifFinder {
 
 		// Consolidate the clusters
 		mergeClusters(kmer_set_overlap_ratio);
+
+		Collections.sort(clusters);
+		for (int i=0; i<clusters.size(); i++)
+			clusters.get(i).clusterId = i;
 
 		/** Resolve multiple-PWM-match conflict */
 		if (clusters.size()>1){
@@ -1257,6 +1248,7 @@ public class KmerMotifFinder {
 					break;
 			}
 		}
+		
 		if (verbose>1)
 			System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
 					": Collect aligned k-mers based on PWM hit aligned sequences.");
@@ -1272,7 +1264,7 @@ public class KmerMotifFinder {
 			alignSequencesUsingPWM(seqList, clusters.get(i));
 			
 			// get aligned k-mers from PWM aligned sequences
-			ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction);
+			ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
 			updateEngine(alignedKmers);
 			cluster.ksmThreshold = estimateKsmThreshold("", false);		// only estimate KSM threshold, do not align sequences
 			
@@ -1852,7 +1844,7 @@ public class KmerMotifFinder {
 	 * @param kmer_aligned_fraction
 	 * @return
 	 */
-	private ArrayList<Kmer> getAlignedKmers (ArrayList<Sequence> seqList, int seed_range, double kmer_aligned_fraction){
+	private ArrayList<Kmer> getAlignedKmers (ArrayList<Sequence> seqList, int seed_range, double kmer_aligned_fraction, ArrayList<Kmer> excludes){
 
     	/** set kmer consensus position */
 		HashMap<Kmer, ArrayList<Integer>> kmer2pos = new HashMap<Kmer, ArrayList<Integer>>();
@@ -1860,6 +1852,8 @@ public class KmerMotifFinder {
 			if (s.pos != UNALIGNED){		// aligned seqs
 				HashMap<Kmer, HashSet<Integer>> kmerPos = s.getKmerPos();
 				for (Kmer km:kmerPos.keySet()){
+					if (excludes.contains(km))
+						continue;
 //						if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
 //							km.getK();;
 					if (!kmer2pos.containsKey(km))
@@ -3271,9 +3265,9 @@ public class KmerMotifFinder {
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs);
         kmf.setParameters(-3, 3, 0.01, 0.05, "Test", false, true, 2, 0.2, 0.5);
-        int k = kmf.selectK(8, 8);
+        int k = kmf.selectK(12, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
-        kmf.clusterKmers(kmers, 2, 0.3, false);
+        kmf.clusterKmers(kmers, k/2, 0.3, false);
 //        kmf.alignByKmerScan(kmers, 2, 0.3, false);
 	}
 }
