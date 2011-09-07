@@ -1174,7 +1174,7 @@ public class KmerMotifFinder {
 
 			if (verbose>1)
 				System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
-						": Aligning cluster #"+cluster.clusterId+",   seed="+cluster.seedKmer);
+						": Aligning cluster #"+cluster.clusterId+",   seed="+cluster.seedKmer.toShortString());
 
 			alignSequencesUsingSeedFamily(seqList, kmers, seed);
 			ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, 10000, kmer_aligned_fraction);				// no range limit
@@ -1216,6 +1216,12 @@ public class KmerMotifFinder {
 			
 			cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction);
 		}
+		
+		ArrayList<KmerCluster> noPWM = new ArrayList<KmerCluster>();
+		for (KmerCluster c:clusters)
+			if (c.wm==null)
+				noPWM.add(c);
+		clusters.removeAll(noPWM);
 
 		// Consolidate the clusters
 		mergeClusters(kmer_set_overlap_ratio);
@@ -1233,7 +1239,7 @@ public class KmerMotifFinder {
 					clusters.get(i).seq2hits = findAllPWMHits(seqList, clusters.get(i));
 				}				
 				System.out.println(CommonUtils.arrayToString(hgps));
-				int conflicts = resolveConflictHits(seqList);
+				int conflicts = removeAllConflictHits(seqList);
 				if (verbose>1)
 					System.out.println(conflicts+" sequence hits are matched by multiple PWMs");
 				if (conflicts==0)
@@ -1411,6 +1417,44 @@ public class KmerMotifFinder {
 		}
 		return conflict;
 	}
+	
+	public int removeAllConflictHits(ArrayList<Sequence> seqList){
+		int conflict = 0;
+		for (int i=0;i<seqList.size();i++){
+			ArrayList<PWMHit> hits = new ArrayList<PWMHit>();
+			for (int j=0; j<clusters.size(); j++){
+				if (clusters.get(j).seq2hits.containsKey(i))
+					hits.add(clusters.get(j).seq2hits.get(i));
+			}
+			if (hits.size()<=1)
+				continue;
+			Collections.sort(hits, new Comparator<PWMHit>(){
+			    public int compare(PWMHit o1, PWMHit o2) {
+			    	return o1.compareByPosition(o2);
+			    }
+			});	
+			HashSet<Integer> toRemove= new HashSet<Integer>();
+			for (int j=0;j<hits.size()-1;j++){
+				PWMHit hit = hits.get(j);
+				for (int k=j+1;k<hits.size();k++){
+					if (hit.overlaps(hits.get(k))){
+						toRemove.add(j);
+						toRemove.add(k);
+					}
+				}
+			}
+			if (toRemove.isEmpty())
+				continue;
+			for (int idx:toRemove){
+				PWMHit hit = hits.get(idx);
+				clusters.get(hit.clusterId).seq2hits.remove(hit.seqId);
+			}
+			conflict+=toRemove.size();
+		}
+		return conflict;
+	}
+	
+
 	public void buildPWMfromHits(ArrayList<Sequence> seqList){
 		int extend = 2;
 		ArrayList<KmerCluster> badClusters = new ArrayList<KmerCluster>();
@@ -1990,6 +2034,11 @@ public class KmerMotifFinder {
 		public int compareTo(PWMHit h) {					// descending score
 			if(score<h.score){return(1);}
 			else if(score>h.score){return(-1);}
+			else return(0);
+		}
+		public int compareByPosition(PWMHit h) {					// ascending score
+			if(start<h.start){return(-1);}
+			else if(start>h.start){return(1);}
 			else return(0);
 		}
 		boolean overlaps(PWMHit h){
