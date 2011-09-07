@@ -5982,7 +5982,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double seed_search_fraction = 0.2;
         public double kmer_set_overlap_ratio = 0.5;
         public int seed_range = 3;
-        public double kmer_aligned_fraction = 0.3;
+        public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
         public boolean select_seed = false;
         public boolean use_grid_search = true;
         public boolean kmer_use_insig = false;

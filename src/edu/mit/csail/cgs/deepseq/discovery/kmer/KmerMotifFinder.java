@@ -604,7 +604,7 @@ public class KmerMotifFinder {
 						km.setAlignString("NOT in 2k region");
 						continue;
 					}
-					if (posKmer.size()<km.getPosHitCount()*kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/4 of total hit
+					if (posKmer.size()<km.getPosHitCount()*kmer_aligned_fraction){			// The kmer hit in seed_range region should be at least 1/2 of total hit
 						km.setAlignString("Too few hit "+posKmer.size());
 						continue;
 					}
@@ -905,7 +905,7 @@ public class KmerMotifFinder {
 			alignedKmers = null;
 			
 //			kmers.removeAll(zero_shift);
-//			for (Sequence s:seqList){					// TODO: Hard remove here, should we do soft remove?
+//			for (Sequence s:seqList){					
 //				s.removeAllKmers(zero_shift);
 //			}	
 //			zero_shift = null;
@@ -1213,9 +1213,6 @@ public class KmerMotifFinder {
 		// Consolidate the clusters
 		mergeClusters(kmer_set_overlap_ratio);
 
-		Collections.sort(clusters);
-		for (int i=0; i<clusters.size(); i++)
-			clusters.get(i).clusterId = i;
 
 		/** Resolve multiple-PWM-match conflict */
 		if (clusters.size()>1){
@@ -1225,8 +1222,11 @@ public class KmerMotifFinder {
 				if (verbose>1)
 					System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
 							": Iteration #"+iter);
+
+				Collections.sort(clusters);
 				for (int i=0; i<clusters.size(); i++){
 					hgps[i] = clusters.get(i).pwmThresholdHGP;
+					clusters.get(i).clusterId = i;
 					clusters.get(i).seq2hits = findAllPWMHits(seqList, clusters.get(i));
 				}				
 				System.out.println(CommonUtils.arrayToString(hgps));
@@ -1439,7 +1439,7 @@ public class KmerMotifFinder {
 				continue;
 			for (int idx:toRemove){
 				PWMHit hit = hits.get(idx);
-				clusters.get(hit.clusterId).seq2hits.remove(hit.seqId);
+				clusters.get(hit.clusterId).seq2hits.remove(hit.seqId);				//TODO: fix out of range error
 			}
 			conflict+=toRemove.size();
 		}
@@ -3268,7 +3268,7 @@ public class KmerMotifFinder {
         int k = kmf.selectK(12, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
         kmf.clusterKmers(kmers, k/2, 0.3, false);
-//        kmf.alignByKmerScan(kmers, 2, 0.3, false);
+//        kmf.alignByKmerScan(kmers, k/2, 0.5, false);
 	}
 }
 
