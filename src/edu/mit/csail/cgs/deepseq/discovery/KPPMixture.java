@@ -3692,7 +3692,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignByKmerScan(kmers, config.k/2, config.kmer_aligned_fraction, config.print_aligned_seqs);
+		kmers = kmf.alignByKmerScan(kmers, config.k/2, config.kmer_aligned_fraction, 
+				config.print_aligned_seqs, config.re_train);
 		
 		// print the clustered k-mers
 		Collections.sort(kmers);
@@ -5993,6 +5994,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
+        public boolean re_train = false;
         public boolean print_pwm_fdr = false;
         public boolean k_init_calc_PWM = false;
         public boolean filter_pwm_seq = true;
@@ -6063,6 +6065,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             re_align_kmer = flags.contains("rak");
             mask_by_pwm = flags.contains("mask_by_pwm");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
+            re_train = flags.contains("re_train");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
 //            print_kmer_hits = flags.contains("print_kmer_hits");
             k_init_calc_PWM = flags.contains("k_init_calc_PWM");

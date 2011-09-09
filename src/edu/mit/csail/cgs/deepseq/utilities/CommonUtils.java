@@ -279,6 +279,9 @@ public class CommonUtils {
 	      if (repeatNum < 0) {
 	          throw new IndexOutOfBoundsException("Cannot pad a negative amount: " + repeatNum);
 	      }
+	      if (repeatNum == 0) 
+	    	  return "";
+
 	      final char[] buf = new char[repeatNum];
 	      for (int i = 0; i < buf.length; i++) {
 	          buf[i] = padChar;
@@ -289,6 +292,9 @@ public class CommonUtils {
 	      if (repeatNum < 0) {
 	          throw new IndexOutOfBoundsException("Cannot pad a negative amount: " + repeatNum);
 	      }
+	      if (repeatNum == 0) 
+	    	  return "";
+	      
 	      StringBuilder sb = new StringBuilder();
 	      for (int i = 0; i < repeatNum; i++) {
 	          sb.append(s);

@@ -36,6 +36,7 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
        	
         return new WeightMatrixScoreProfile(matrix, fscores, rscores);
     }
+    
     public WeightMatrixScoreProfile execute(String seq) { 
     	seq = seq.toUpperCase();
         double[] fscores = null, rscores = null;
