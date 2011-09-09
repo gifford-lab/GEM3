@@ -155,7 +155,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public static String toHeader(int k){
 		int length=2*k+1;
-		String firstField = "#Enriched k-mer/r.c.";
+		String firstField = "# k-mer/r.c.";
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
 		return firstField+"\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tTop";
@@ -165,7 +165,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public static String toShortHeader(int k){
 		int length=2*k+1;
-		String firstField = "#Enriched k-mer/r.c.";
+		String firstField = "# k-mer/r.c.";
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
 		return firstField+"\tPosCt\tNegCt\tHGP_10";
