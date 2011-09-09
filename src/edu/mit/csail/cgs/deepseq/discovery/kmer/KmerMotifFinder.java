@@ -1100,6 +1100,10 @@ public class KmerMotifFinder {
 	    		}
 			}
 	    	
+	    	cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+	    	
+	    	alignSequencesUsingKSM(seqList, cluster);
+	    	
 	    	if (re_train)	{
 		    	/** build PWM, do not iterate */
 				int aligned_seqs_count=0;
@@ -1253,7 +1257,7 @@ public class KmerMotifFinder {
 		        }
 			}
 			for (Kmer km: alignedKmers)
-				if (km.getShift()<=2)
+				if (km.getShift()<=k/2)
 					kmers.remove(km);
 //				for (Sequence s : seqList){
 //					if (s.pos==UNALIGNED)
@@ -1376,6 +1380,64 @@ public class KmerMotifFinder {
 			}
 		}
 		return processClusters();
+	}
+	
+    /**
+	 * Compute the distance distributions between primary and secondary motifs
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public void printMotifDistanceDistribution (String name){		
+		System.out.println("Compute motif distance distribution ...");
+
+		ArrayList[][] hits = new ArrayList[seqs.length][clusters.size()];
+		for (int j=0;j<clusters.size();j++){
+			KmerCluster c = clusters.get(j);
+			WeightMatrixScorer scorer = new WeightMatrixScorer(c.wm);
+			for (int i=0;i<seqs.length;i++){
+				hits[i][j]=CommonUtils.getAllPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold);
+			}
+		}
+		int seqLen = seqs[0].length();
+		for (int m=0;m<1;m++){
+			for (int j=0;j<clusters.size();j++){
+				int range = seqLen - clusters.get(m).wm.length()/2 - clusters.get(j).wm.length()/2;
+				int[] same = new int[range*2+1];
+				int[] diff = new int[range*2+1];
+				for (int i=0;i<seqs.length;i++){
+					ArrayList<Integer> hitm = hits[i][m];
+					ArrayList<Integer> hitj = hits[i][j];
+					if (hitm.isEmpty()||hitj.isEmpty())
+						continue;
+					if (m==j){		//self comparison
+						for (int a=0;a<hitm.size();a++){
+							int pm = hitm.get(a);
+							for (int b=a;b<hitm.size();b++){
+								int pj = hitm.get(b);
+								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
+									same[pj-pm+range]++;
+								else
+									diff[-pj-pm+range]++;			// -pj to get the coord on the same strand as pm
+							}
+						}
+					}
+					else{
+						for (int pm:hitm){
+							for (int pj:hitj){
+								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
+									same[pj-pm+range]++;
+								else
+									diff[-pj-pm+range]++;			// -pj to get the coord on the same strand as pm
+							}
+						}
+					}
+				}
+				StringBuilder sb = new StringBuilder();
+				for (int i=0;i<same.length;i++){
+					sb.append(String.format("%d\t%d\t%d\n", i-range, same[i], diff[i]));
+				}
+				CommonUtils.writeFile(name+"_Spatial_dist_"+clusters.get(m).clusterId+"_"+clusters.get(j).clusterId+".txt", sb.toString());
+			}
+		}
 	}
 	
 	private void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence> seqList){
@@ -3889,7 +3951,7 @@ public class KmerMotifFinder {
         int k = kmf.selectK(6, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
-        kmf.alignBySimplePWM(kmers, k/2, 0.5, false, false);
+        kmf.alignBySimplePWM(kmers, k, 0.5, false, false);
 	}
 }
 

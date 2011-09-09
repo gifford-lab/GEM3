@@ -3692,8 +3692,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignBySimplePWM(kmers, config.k/2, config.kmer_aligned_fraction, 
+		kmers = kmf.alignBySimplePWM(kmers, config.k, config.kmer_aligned_fraction, 
 				config.print_aligned_seqs, config.re_train);
+		
+		// print PWM spatial distribtution
+		kmf.loadTestSequences(getEventPoints(), winSize);			// reload sequences to replaced masked sequences
+		kmf.printMotifDistanceDistribution(outName);
 		
 		// print the clustered k-mers
 		Collections.sort(kmers);
