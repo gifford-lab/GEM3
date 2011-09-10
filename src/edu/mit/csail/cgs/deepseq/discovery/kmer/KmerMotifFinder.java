@@ -2553,17 +2553,13 @@ public class KmerMotifFinder {
 				km.setAlignString("NOT in 2k region");
 				continue;
 			}
-			if (posKmer.size()<km.getPosHitCount()*kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/4 of total hit
-				km.setAlignString("Too few hit "+posKmer.size());
-				continue;
-			}
 				
 			// find the most frequent kmerPos
 			Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
 			int counts[] = sorted.cdr();
 			int posSorted[] = sorted.car();
 			int maxCount = counts[counts.length-1];
-			if (maxCount<posKmer.size()*0.5 && maxCount<km.getPosHitCount()*0.5)	// for palindromic kmer, posKmer>hitCount
+			if (maxCount<km.getPosHitCount()*kmer_aligned_fraction)	// for palindromic kmer, posKmer>hitCount
 				continue;
 			ArrayList<Integer> maxPos = new ArrayList<Integer>();
 			for (int i=counts.length-1;i>=0;i--){

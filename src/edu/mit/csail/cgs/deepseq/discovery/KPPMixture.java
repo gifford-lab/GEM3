@@ -3668,7 +3668,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
-    			outName, config.select_seed, config.use_grid_search, config.bmverbose, config.seed_search_fraction, config.kmer_set_overlap_ratio);
+    			outName, config.select_seed, config.use_grid_search, config.bmverbose, config.wm_factor, config.kmer_set_overlap_ratio);
     	
     	// select best k value
 		if (config.k_min!=-1){
