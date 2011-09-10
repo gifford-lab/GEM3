@@ -1259,6 +1259,7 @@ public class KmerMotifFinder {
 			for (Kmer km: alignedKmers)
 				if (km.getShift()<=k/2)
 					kmers.remove(km);
+			kmers.remove(seed);
 //				for (Sequence s : seqList){
 //					if (s.pos==UNALIGNED)
 //						continue;
