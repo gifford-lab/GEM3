@@ -1136,8 +1136,6 @@ public class KmerMotifFinder {
 		    	/** use all aligned sequences to find expected binding sites, set kmer offset */
 		    	// average all the binding positions to decide the expected binding position
 				StringBuilder sb = new StringBuilder();
-				double sum_offset = 0;
-		    	double count = 0;
 		    	int leftmost = Integer.MAX_VALUE;
 		    	int total_aligned_seqs = 0;
 		    	for (Sequence s : seqList){
@@ -1148,22 +1146,24 @@ public class KmerMotifFinder {
 					total_aligned_seqs++;
 				}
 		    	cluster.total_aligned_seqs = total_aligned_seqs;
+		    	double[] bs = new double[total_aligned_seqs];
+		    	int count = 0;
 		    	int midPos=k_win/2;
 				for (Sequence s : seqList){
 					if (s.pos==UNALIGNED)
 						continue;
 					if (print_aligned_seqs)
 						sb.append(String.format("%d\t%.1f\t%d\t%s\t%s%s\n", s.id, s.score, s.pos, s.isForward?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getSeq()));
-					sum_offset+=midPos+s.pos;
+					bs[count]=midPos+s.pos;
 					count++;
 				}
-				cluster.pos_BS_seed=StatUtil.round(sum_offset/count);		// mean BS position relative to seed k-mer start
+				cluster.pos_BS_seed=StatUtil.round(StatUtil.mean(bs));		// mean BS position relative to seed k-mer start
 				if (print_aligned_seqs)
 					CommonUtils.writeFile(outName+"_"+clusterID+"_seqs_aligned.txt", sb.toString());
 				sb = null;
 				if (verbose>1 && cluster.wm!=null){
 					int pos_BS_midPWM = cluster.pos_BS_seed - cluster.pos_pwm_seed - cluster.wm.length()/2;
-					System.out.println("pos_BS_midPWM = "+pos_BS_midPWM);
+					System.out.println(String.format("pos_BS_midPWM = %d, variance=%.2f", pos_BS_midPWM, StatUtil.std(bs)));
 				}
 	    	}
 	    	
@@ -2334,7 +2334,7 @@ public class KmerMotifFinder {
 		ArrayList<Kmer> alignedKmers = cluster.alignedKmers;
 		updateEngine(alignedKmers);
 		MotifThreshold threshold = estimateKsmThreshold("", false);
-		if (verbose>1)
+		if (verbose>1 && threshold!=null)
 			System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
 					CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
 		
@@ -2549,17 +2549,16 @@ public class KmerMotifFinder {
 //				if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
 //					km.getK();
 			ArrayList<Integer> posKmer = kmer2pos.get(km);
-			if (posKmer==null || posKmer.isEmpty()){
-				km.setAlignString("NOT in 2k region");
+			if (posKmer==null || posKmer.size()<km.getPosHitCount()*kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/4 of total hit
+				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
-			}
-				
+			}	
 			// find the most frequent kmerPos
 			Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
 			int counts[] = sorted.cdr();
 			int posSorted[] = sorted.car();
 			int maxCount = counts[counts.length-1];
-			if (maxCount<km.getPosHitCount()*kmer_aligned_fraction)	// for palindromic kmer, posKmer>hitCount
+			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * kmer_aligned_fraction)	// for palindromic kmer, posKmer>hitCount
 				continue;
 			ArrayList<Integer> maxPos = new ArrayList<Integer>();
 			for (int i=counts.length-1;i>=0;i--){
