@@ -60,7 +60,7 @@ public class KmerMotifFinder {
 	private double motif_hit_factor_report=0.05;			// KSM or PWM
 	private String outName;
 	private boolean use_grid_search=true;
-	private double seed_search_fraction = 0.2;
+	private double wm_factor = 0.5;
 	private double kmer_set_overlap_ratio = 0.5;
 	
 	private double k_fold;
@@ -109,14 +109,14 @@ public class KmerMotifFinder {
 	public KmerMotifFinder(){ }
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, String outName, 
-			boolean select_seed, boolean use_grid_search, int verbose, double seed_search_fraction, double kmer_set_overlap_ratio){
+			boolean select_seed, boolean use_grid_search, int verbose, double wm_factor, double kmer_set_overlap_ratio){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
 	    this.outName = outName;
 	    this.select_seed = select_seed;
 	    this.verbose = verbose;
-	    this.seed_search_fraction = seed_search_fraction;
+	    this.wm_factor = wm_factor;
 	    this.motif_hit_factor_report = motif_hit_factor_report;
 	    this.kmer_set_overlap_ratio = kmer_set_overlap_ratio;
 	    this.use_grid_search = use_grid_search;
@@ -1736,7 +1736,7 @@ public class KmerMotifFinder {
 		    }
 		});		
 		ArrayList<Kmer> seedCandidates = new ArrayList<Kmer>();
-		for (int i=0;i<kmers.size()*seed_search_fraction;i++){
+		for (int i=0;i<kmers.size()*0.2;i++){
 			seedCandidates.add(kmers.get(i));
 		}
 		
@@ -2282,7 +2282,7 @@ public class KmerMotifFinder {
 	//	    	if (bmverbose>1)
 	//	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
 		    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-		    	MotifThreshold estimate = estimatePwmThreshold(wm, "", false, wm.getMaxScore()/2);
+		    	MotifThreshold estimate = estimatePwmThreshold(wm, "", false, wm.getMaxScore()*wm_factor);
 		    	double pwmThreshold = estimate.score;
 		    	double pwmThresholdHGP = estimate.hgp;
 	    		if (verbose>1)
@@ -3325,13 +3325,13 @@ public class KmerMotifFinder {
 		if (idxs.size()>100 && use_grid_search){
 		
 			// coarse search
-			int gridStep = (int)Math.ceil(Math.sqrt((double)idxs.size()));
+			int gridStep = (int)Math.ceil(Math.sqrt((double)idxs.size()/2));
 			ArrayList<Integer> idxCoarse = new ArrayList<Integer>();	
 			for (int i=0;i<idxs.size();i+=gridStep){
 				idxCoarse.add(idxs.get(i));
 			}
-//			if (idxCoarse.get(idxCoarse.size()-1)!=idxs.get(idxs.size()-1))
-//				idxCoarse.add(idxs.get(idxs.size()-1));
+			if (idxCoarse.get(idxCoarse.size()-1)!=idxs.get(idxs.size()-1))
+				idxCoarse.add(idxs.get(idxs.size()-1));
 			
 			best = findBestScore(idxCoarse, poshits, neghits, hgps);
 			
@@ -3933,7 +3933,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs);
-        kmf.setParameters(-3, 3, 0.01, 0.05, "Test", false, true, 2, 0.2, 0.5);
+        kmf.setParameters(-3, 3, 0.01, 0.05, "Test", false, true, 2, 0.5, 0.5);
         int k = kmf.selectK(6, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
