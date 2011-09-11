@@ -1025,25 +1025,19 @@ public class KmerMotifFinder {
 			
 			/** get seed kmer */
 			Kmer seed=null;
-			if (clusterID==0){
-				if (bestSeed!=null){
-					String bestStr = bestSeed.getKmerString();
-					String bestRc = bestSeed.getKmerRC();
-					for (Kmer km:kmers){
-						if (km.getKmerString().equals(bestStr)||
-								km.getKmerString().equals(bestRc)){
-							seed = km;
-							break;
-						}
+			if (bestSeed!=null && clusterID==0){
+				String bestStr = bestSeed.getKmerString();
+				String bestRc = bestSeed.getKmerRC();
+				for (Kmer km:kmers){
+					if (km.getKmerString().equals(bestStr)||
+							km.getKmerString().equals(bestRc)){
+						seed = km;
+						break;
 					}
-					if (seed==null)				// not found
-						seed = kmers.get(0);
 				}
-				else{
+				if (seed==null)				// not found
 					seed = kmers.get(0);
-					bestSeed = seed;
-				}
-			}
+			}	
 			else
 				seed = kmers.get(0);
 			
@@ -1299,7 +1293,6 @@ public class KmerMotifFinder {
 						System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
 								": Iteration #"+iter);
 	
-					Collections.sort(clusters);
 					for (int i=0; i<clusters.size(); i++){
 						hgps[i] = clusters.get(i).pwmThresholdHGP;
 						clusters.get(i).clusterId = i;
@@ -1527,7 +1520,15 @@ public class KmerMotifFinder {
     			badClusters.add(c);
 		}
 		clusters.removeAll(badClusters);
-		Collections.sort(clusters);
+		
+		// sort secondary clusters
+		ArrayList<KmerCluster> secondaryClusters = new ArrayList<KmerCluster>();
+		for (int i=1;i<clusters.size();i++)
+			secondaryClusters.add(clusters.get(i));
+		clusters.removeAll(secondaryClusters);
+		Collections.sort(secondaryClusters);
+		clusters.addAll(secondaryClusters);
+		
 		for (int i=0;i<clusters.size();i++){
 			clusters.get(i).clusterId = i;
 			for (Kmer km: clusters.get(i).alignedKmers)
