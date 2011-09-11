@@ -66,8 +66,6 @@ public class KmerMotifFinder {
 	private double k_fold;
 	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
 	private Kmer bestSeed = null;
-	private boolean select_seed=false;
-	private int max_cluster = 30;
 	
 	private int k_win;
 	private String[] seqs;		// DNA sequences around binding sites
@@ -109,12 +107,11 @@ public class KmerMotifFinder {
 	public KmerMotifFinder(){ }
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, String outName, 
-			boolean select_seed, boolean use_grid_search, int verbose, double wm_factor, double kmer_set_overlap_ratio){
+			boolean use_grid_search, int verbose, double wm_factor, double kmer_set_overlap_ratio){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
 	    this.outName = outName;
-	    this.select_seed = select_seed;
 	    this.verbose = verbose;
 	    this.wm_factor = wm_factor;
 	    this.motif_hit_factor_report = motif_hit_factor_report;
@@ -1028,19 +1025,25 @@ public class KmerMotifFinder {
 			
 			/** get seed kmer */
 			Kmer seed=null;
-			if (bestSeed!=null && clusterID==0){
-				String bestStr = bestSeed.getKmerString();
-				String bestRc = bestSeed.getKmerRC();
-				for (Kmer km:kmers){
-					if (km.getKmerString().equals(bestStr)||
-							km.getKmerString().equals(bestRc)){
-						seed = km;
-						break;
+			if (clusterID==0){
+				if (bestSeed!=null){
+					String bestStr = bestSeed.getKmerString();
+					String bestRc = bestSeed.getKmerRC();
+					for (Kmer km:kmers){
+						if (km.getKmerString().equals(bestStr)||
+								km.getKmerString().equals(bestRc)){
+							seed = km;
+							break;
+						}
 					}
+					if (seed==null)				// not found
+						seed = kmers.get(0);
 				}
-				if (seed==null)				// not found
+				else{
 					seed = kmers.get(0);
-			}	
+					bestSeed = seed;
+				}
+			}
 			else
 				seed = kmers.get(0);
 			
@@ -3939,7 +3942,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs);
-        kmf.setParameters(-3, 3, 0.01, 0.05, "Test", false, true, 2, 0.5, 0.5);
+        kmf.setParameters(-3, 3, 0.01, 0.05, "Test", true, 2, 0.5, 0.5);
         int k = kmf.selectK(6, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
