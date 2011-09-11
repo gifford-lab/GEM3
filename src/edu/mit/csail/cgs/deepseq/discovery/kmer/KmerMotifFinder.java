@@ -1086,7 +1086,15 @@ public class KmerMotifFinder {
 			}
 	    	
 	    	cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
-	    	
+			if (cluster.alignedKmers.isEmpty()){
+				kmers.remove(seed);
+				quick_restart = true;
+				clusterID++;
+				for (Sequence s : seqList)
+					s.reset();
+				continue;
+			}
+			
 	    	alignSequencesUsingKSM(seqList, cluster);
 	    	
 	    	if (re_train)	{
@@ -1257,6 +1265,7 @@ public class KmerMotifFinder {
 //					s.setSeq(seq);
 //				}
 			clusterID++;
+			quick_restart = false;
 		} // Loop for each cluster
 		
 		if (re_train)	{
@@ -2334,7 +2343,9 @@ public class KmerMotifFinder {
 		ArrayList<Kmer> alignedKmers = cluster.alignedKmers;
 		updateEngine(alignedKmers);
 		MotifThreshold threshold = estimateKsmThreshold("", false);
-		if (verbose>1 && threshold!=null)
+		if (threshold==null)
+			return;
+		if (verbose>1)
 			System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
 					CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
 		
