@@ -1025,19 +1025,25 @@ public class KmerMotifFinder {
 			
 			/** get seed kmer */
 			Kmer seed=null;
-			if (bestSeed!=null && clusterID==0){
-				String bestStr = bestSeed.getKmerString();
-				String bestRc = bestSeed.getKmerRC();
-				for (Kmer km:kmers){
-					if (km.getKmerString().equals(bestStr)||
-							km.getKmerString().equals(bestRc)){
-						seed = km;
-						break;
+			if (clusterID==0){
+				if (bestSeed!=null){
+					String bestStr = bestSeed.getKmerString();
+					String bestRc = bestSeed.getKmerRC();
+					for (Kmer km:kmers){
+						if (km.getKmerString().equals(bestStr)||
+								km.getKmerString().equals(bestRc)){
+							seed = km;
+							break;
+						}
 					}
+					if (seed==null)				// not found
+						seed = kmers.get(0);
 				}
-				if (seed==null)				// not found
+				else{
 					seed = kmers.get(0);
-			}	
+					bestSeed = seed;
+				}
+			}
 			else
 				seed = kmers.get(0);
 			
