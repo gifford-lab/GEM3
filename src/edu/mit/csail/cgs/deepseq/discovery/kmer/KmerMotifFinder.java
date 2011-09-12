@@ -1186,7 +1186,9 @@ public class KmerMotifFinder {
 				}
 	    	}
 	    	
-			// get Aligned Kmers either from PWM or seed family alignement
+			// get Aligned Kmers from PWM alignement. if no PWM, it is the seed_family alignment
+	    	if (cluster.wm!=null)
+	    		alignSequencesUsingPWM(seqList, cluster);
 	    	ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
 
 	    	// set k-mer offset
