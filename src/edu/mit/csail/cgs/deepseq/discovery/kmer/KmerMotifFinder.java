@@ -1133,6 +1133,14 @@ public class KmerMotifFinder {
 					int leftIdx = buildPWM(seqList, cluster, tic);	
 					if (leftIdx > -1){				    	
 						alignSequencesUsingPWM(seqList, cluster);
+						cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+						if (cluster.alignedKmers.isEmpty())
+							break;
+//						ArrayList<Kmer> candidateKmers = new ArrayList<Kmer>();
+//						candidateKmers.addAll(kmers);
+//						candidateKmers.removeAll(cluster.alignedKmers);
+//						cluster.alignedKmers.addAll(getMismatchKmers(cluster.alignedKmers, candidateKmers));
+						alignSequencesUsingKSM(seqList, cluster);
 					}
 					else
 						break;
@@ -1371,6 +1379,33 @@ public class KmerMotifFinder {
 			}
 		}
 		return processClusters();
+	}
+	
+	private ArrayList<Kmer> getMismatchKmers(ArrayList<Kmer> aligned, ArrayList<Kmer> candidates){
+		ArrayList<Kmer> mmaligned = new ArrayList<Kmer>();			// kmers aligned by using mismatch
+		Collections.sort(aligned);
+		for (Kmer km: candidates){
+			String seq = km.getKmerString();
+			for (Kmer akm: aligned){
+//				if (Math.abs(akm.getShift())>config.k/2)		// the mismatch must be proximal to seed kmer
+				if (km.getPosHitCount() > akm.getPosHitCount())		// the mismatch kmer should have less count than the reference kmer, avoiding a bad weak kmer misguiding a strong kmer
+					continue;
+				if (CommonUtils.mismatch(akm.getKmerString(), seq)==1){
+					km.setShift(akm.getShift());
+					km.setAlignString("MM:"+akm.getKmerString());
+					mmaligned.add(km);
+					break;
+				}
+				if (CommonUtils.mismatch(akm.getKmerRC(), seq)==1){
+					int shift = akm.getShift();
+					km.setShift(shift>RC/2?shift:shift-RC);
+					km.setAlignString("MM:"+akm.getKmerString());
+					mmaligned.add(km);
+					break;
+				}
+			}
+		}
+		return mmaligned;
 	}
 	
     /**
@@ -2625,13 +2660,13 @@ public class KmerMotifFinder {
 		for (Sequence seq:seqList){
 			if (seq.pos==UNALIGNED)
 				continue;
-			if (scorer!=null){
-				Pair<Integer, Double> hit = CommonUtils.scanPWM(seq.getSeq(), cluster.wm.length(), scorer);
-				if (hit.cdr()<cluster.pwmThreshold)
-					continue;
-				if (hit.car()+seq.pos-cluster.pos_pwm_seed!=0)
-					continue;
-			}
+//			if (scorer!=null){
+//				Pair<Integer, Double> hit = CommonUtils.scanPWM(seq.getSeq(), cluster.wm.length(), scorer);
+//				if (hit.cdr()<cluster.pwmThreshold*0.5)
+//					continue;
+//				if (hit.car()+seq.pos-cluster.pos_pwm_seed!=0)
+//					continue;
+//			}
 			// align window = k_win
 //			int start = k/2-k_win/2-seq.pos;
 //			int end = start+k_win;
