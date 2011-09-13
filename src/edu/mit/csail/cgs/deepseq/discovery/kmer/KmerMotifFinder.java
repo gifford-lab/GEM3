@@ -2383,15 +2383,15 @@ public class KmerMotifFinder {
 	private void alignSequencesUsingKSM(ArrayList<Sequence> seqList, KmerCluster cluster){
 		ArrayList<Kmer> alignedKmers = cluster.alignedKmers;
 		updateEngine(alignedKmers);
-		MotifThreshold threshold = estimateKsmThreshold("", false);
-		if (threshold==null)
-			return;
-		if (verbose>1)
-			System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
-					CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
-		
-		if (threshold.hgp<cluster.ksmThreshold.hgp){
-			cluster.ksmThreshold = threshold;
+//		MotifThreshold threshold = estimateKsmThreshold("", false);
+//		if (threshold==null)
+//			return;
+//		if (verbose>1)
+//			System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
+//					CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
+//		
+//		if (threshold.hgp<cluster.ksmThreshold.hgp){
+//			cluster.ksmThreshold = threshold;
 			
 			// scan all sequences, align them using kmer hit results
 			for (Sequence s : seqList){
@@ -2418,7 +2418,7 @@ public class KmerMotifFinder {
 				if (kgs.length!=0){
 					Arrays.sort(kgs);
 					KmerGroup kg = kgs[0];
-					if (kg.hgp<=-threshold.score){
+//					if (kg.hgp<=-threshold.score){
 						s.score = -kg.hgp;		// score = -log10 hgp, becomes positive value
 						if (kg.bs>RC/2){		// match on reverse strand
 							s.RC();
@@ -2426,10 +2426,10 @@ public class KmerMotifFinder {
 						}
 						else
 							s.pos = -kg.bs;
-					}
+//					}
 				}
 			}
-		}
+//		}
 	}
 	/** align all sequences using a PWM<br>
 	 * sequences have a PWM hit is aligned according hit position, if no PWM hit, set it to unaligned
