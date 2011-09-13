@@ -1191,27 +1191,25 @@ public class KmerMotifFinder {
 	    		alignSequencesUsingPWM(seqList, cluster);
 	    	ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
 
-	    	// set k-mer offset
-			for (Kmer km: alignedKmers){
+	    	ArrayList<Kmer> copy = new ArrayList<Kmer>();
+	    	
+			for (Kmer km: alignedKmers){			// set k-mer offset
+				Kmer cp = km.clone();
+				copy.add(cp);
 				int shift = km.getShift();
 				if (shift>RC/2){
 					shift-=RC;
-					km.RC();
-					km.setShift(shift);
+					cp.RC();
+					cp.setShift(shift);
 				}
-				km.setKmerStartOffset(shift-cluster.pos_BS_seed);
+				cp.setKmerStartOffset(shift-cluster.pos_BS_seed);
+//				if (shift<=k/2)
+//					kmers.remove(km);
 			}	    	
-			
-			if (!re_train)	{	
-				/** store aligned kmers in the cluster */
-				ArrayList<Kmer> copy = new ArrayList<Kmer>();
-				for (Kmer km:alignedKmers){
-					Kmer cp = km.clone();
-					copy.add(cp);
-				}
-				cluster.alignedKmers = copy;				// store all the aligned k-mers
-				copy = null;
-			}
+			kmers.remove(seed);
+			kmers.removeAll(alignedKmers);
+			cluster.alignedKmers = copy;				// store all the aligned k-mers
+			copy = null;
 			
 			/** mask aligned sequences */
 			float k_mask_f=1;
@@ -1262,10 +1260,7 @@ public class KmerMotifFinder {
 					}
 		        }
 			}
-			for (Kmer km: alignedKmers)
-				if (km.getShift()<=k/2)
-					kmers.remove(km);
-			kmers.remove(seed);
+
 //				for (Sequence s : seqList){
 //					if (s.pos==UNALIGNED)
 //						continue;
