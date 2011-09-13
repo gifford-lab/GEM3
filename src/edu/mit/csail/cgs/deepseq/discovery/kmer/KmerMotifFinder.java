@@ -1203,8 +1203,8 @@ public class KmerMotifFinder {
 					cp.setShift(shift);
 				}
 				cp.setKmerStartOffset(shift-cluster.pos_BS_seed);
-				if (Math.abs(shift)<=k/2)
-					kmers.remove(km);
+//				if (Math.abs(shift)<=k/2)
+//					kmers.remove(km);
 			}	    	
 			kmers.remove(seed);
 			cluster.alignedKmers = copy;				// store all the aligned k-mers
