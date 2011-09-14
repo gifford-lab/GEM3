@@ -62,6 +62,7 @@ public class KmerMotifFinder {
 	private boolean use_grid_search=true;
 	private double wm_factor = 0.5;
 	private double kmer_set_overlap_ratio = 0.5;
+	private int kmer_remove_mode = 0;
 	
 	private double k_fold;
 	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
@@ -106,8 +107,8 @@ public class KmerMotifFinder {
 		
 	public KmerMotifFinder(){ }
 	
-	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, String outName, 
-			boolean use_grid_search, int verbose, double wm_factor, double kmer_set_overlap_ratio){
+	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
+			double kmer_set_overlap_ratio, int kmer_remove_mode, boolean use_grid_search, String outName, int verbose){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
@@ -117,6 +118,7 @@ public class KmerMotifFinder {
 	    this.motif_hit_factor_report = motif_hit_factor_report;
 	    this.kmer_set_overlap_ratio = kmer_set_overlap_ratio;
 	    this.use_grid_search = use_grid_search;
+	    this.kmer_remove_mode = kmer_remove_mode;
 	}
 	
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs){
@@ -1193,6 +1195,15 @@ public class KmerMotifFinder {
 
 	    	ArrayList<Kmer> copy = new ArrayList<Kmer>();
 	    	
+			int shift_remove = 0;
+			switch(kmer_remove_mode){
+			case 0: shift_remove = 0; break;
+			case 1: shift_remove = 1; break;
+			case 2: shift_remove = k/2; break;
+			case 3: shift_remove = k; break;
+			case 4: shift_remove = 1; break;		//TODO
+			}
+			
 			for (Kmer km: alignedKmers){			// set k-mer offset
 				Kmer cp = km.clone();
 				copy.add(cp);
@@ -1203,8 +1214,8 @@ public class KmerMotifFinder {
 					cp.setShift(shift);
 				}
 				cp.setKmerStartOffset(shift-cluster.pos_BS_seed);
-//				if (Math.abs(shift)<=k/2)
-//					kmers.remove(km);
+				if (Math.abs(shift)<shift_remove)		// 0: no remove, 1: remove seed and family, 2: k/2, 3: k, 4: pwm
+					kmers.remove(km);
 			}	    	
 			kmers.remove(seed);
 			cluster.alignedKmers = copy;				// store all the aligned k-mers
@@ -3980,7 +3991,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs);
-        kmf.setParameters(-3, 3, 0.01, 0.05, "Test", true, 2, 0.5, 0.5);
+        kmf.setParameters(-3, 3, 0.01, 0.05, 0.5, 0.5, 0, true, "Test", 2);
         int k = kmf.selectK(6, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
