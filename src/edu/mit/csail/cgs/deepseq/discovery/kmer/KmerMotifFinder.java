@@ -978,6 +978,9 @@ public class KmerMotifFinder {
 	
 	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int seed_range, double kmer_aligned_fraction, 
 			boolean print_aligned_seqs, boolean re_train){
+		
+		boolean use_seed_family = false;
+		
 		tic = System.currentTimeMillis();
 		if (kmers_in.size()==0)
 			return kmers_in;
@@ -1064,13 +1067,21 @@ public class KmerMotifFinder {
 			
 			cluster.seedKmer = seed;
 			
-			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
-			
-			if (seedFamily.size()==1){
-				kmers.remove(seed);
-				quick_restart = true;
-				clusterID++;
-				continue;
+			ArrayList<Kmer> seedFamily = new ArrayList<Kmer>();
+			if (use_seed_family){
+				seedFamily = getSeedKmerFamily(kmers, seed);
+				
+				if (seedFamily.size()==1){
+					kmers.remove(seed);
+					quick_restart = true;
+					clusterID++;
+					continue;
+				}
+			}
+			else{
+				seedFamily = new ArrayList<Kmer>();
+				seedFamily.add(seed);
+				seed.setAlignString(seed.getKmerString());
 			}
 			
 			/** align sequences using seedFamily kmer positions */
@@ -1089,6 +1100,7 @@ public class KmerMotifFinder {
 					break;				// seq is aligned, do not try with weaker k-mers
 	    		}
 			}
+	    	seedFamily = null;
 	    	
 	    	cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
 			if (cluster.alignedKmers.isEmpty()){
@@ -1620,7 +1632,7 @@ public class KmerMotifFinder {
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
-			pfm_sb.append(c.pfmString);
+			pfm_sb.append(makeTRANSFAC (c.pfm, String.format("DE %s_%d_c%d\n", outName, c.clusterId, c.pwmPosHitCount)));
 			
 			// paint motif logo
 			c.wm.setNameVerType(name, "#"+c.clusterId, "");
@@ -2386,7 +2398,7 @@ public class KmerMotifFinder {
 	    			pfm_trim[p-bestLeft][base]=(float) pfm[p][base];
 	    		}
 	    	}
-	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosHitCount));
+	    	cluster.pfm = pfm_trim;
 	    	cluster.pos_pwm_seed = bestLeft-(alignedSeqs.get(0).length()/2-k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
 	    	
 	    	return bestLeft;
@@ -2724,23 +2736,23 @@ public class KmerMotifFinder {
     
 	private String makeTRANSFAC (float[][] pfm, String header){
 		// make string in TRANSFAC format
-		StringBuilder msb = new StringBuilder();
-		msb.append(header);
+		StringBuilder sb = new StringBuilder();
+		sb.append(header);
 		for (int p=0;p<pfm.length;p++){
-			msb.append(p+1).append(" ");
+			sb.append(p+1).append(" ");
 			int maxBase = 0;
 			float maxCount=0;
 			for (int b=0;b<LETTERS.length;b++){
-				msb.append(String.format("%d ", (int)pfm[p][LETTERS[b]]));
+				sb.append(String.format("%d ", (int)pfm[p][LETTERS[b]]));
 				if (maxCount<pfm[p][LETTERS[b]]){
 					maxCount=pfm[p][LETTERS[b]];
 					maxBase = b;
 				}
 			}
-			msb.append(LETTERS[maxBase]).append("\n");
+			sb.append(LETTERS[maxBase]).append("\n");
 		}
-		msb.append("XX\n\n");
-		return msb.toString();
+		sb.append("XX\n\n");
+		return sb.toString();
 	}
     
     class PWMHit implements Comparable<PWMHit>{
@@ -3088,7 +3100,7 @@ public class KmerMotifFinder {
 	private class KmerCluster implements Comparable<KmerCluster>{
 		int clusterId;
 		Kmer seedKmer;
-		String pfmString="";
+		float[][] pfm;
 		WeightMatrix wm;
 		boolean pwmGoodQuality = false;
 		double pwmThreshold;
@@ -3108,7 +3120,7 @@ public class KmerMotifFinder {
 			KmerCluster cluster = new KmerCluster();
 			cluster.clusterId = this.clusterId;
 			cluster.seedKmer = this.seedKmer;
-			cluster.pfmString = this.pfmString;
+			cluster.pfm = this.pfm.clone();
 			cluster.wm = this.wm;
 			cluster.pwmGoodQuality = this.pwmGoodQuality;
 			cluster.pwmThreshold = this.pwmThreshold;
@@ -3991,7 +4003,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs);
-        kmf.setParameters(-3, 3, 0.01, 0.05, 0.5, 0.5, 0, true, "Test", 2);
+        kmf.setParameters(-3, 3, 0.01, 0.05, 0.6, 0.5, 0, true, "Test", 2);
         int k = kmf.selectK(6, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
