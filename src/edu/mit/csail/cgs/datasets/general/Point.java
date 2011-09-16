@@ -12,7 +12,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
  */
 public class Point implements Comparable<Point> {
 
-  private static final Pattern POINT_PATTERN = Pattern.compile(Region.POINT_REGION_REG_EX);
+  protected static final Pattern POINT_PATTERN = Pattern.compile(Region.POINT_REGION_REG_EX);
   
   /**
    * The genome that this point corresponds to
