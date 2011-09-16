@@ -3664,7 +3664,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     
     public void runKMF( int winSize){
     	// load sequence from binding event positions
-    	kmf.loadTestSequences(getEventPoints(), winSize);
+    	kmf.loadTestSequences(getEvents(), winSize);
     	
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
@@ -3696,7 +3696,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				config.print_aligned_seqs, config.re_train);
 		
 		// print PWM spatial distribtution
-		kmf.loadTestSequences(getEventPoints(), winSize);			// reload sequences to replaced masked sequences
+		kmf.loadTestSequences(getEvents(), winSize);			// reload sequences to replaced masked sequences
 		kmf.printMotifDistanceDistribution(outName);
 		
 		// print the clustered k-mers
@@ -5788,9 +5788,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 * in a specified window around the binding events
 	 */
 	public void printOverlappingKmers(){
-		for (int k=config.k;k<config.k+5;k++){
+	    	ArrayList<ComponentFeature> events = getEvents();
+	    	for (int k=config.k;k<config.k+5;k++){
 			String name = outName+"_";//OK_win"+ (config.k*2);
-	    	ArrayList<Point> events = getEventPoints();
 			kmf.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name, false);
 		}
 	}
