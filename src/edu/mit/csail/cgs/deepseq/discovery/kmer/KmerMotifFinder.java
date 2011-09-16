@@ -62,13 +62,16 @@ public class KmerMotifFinder {
 	private boolean use_grid_search=true;
 	private double wm_factor = 0.5;
 	private double kmer_set_overlap_ratio = 0.5;
+	private int kmer_remove_mode = 0;
 	
 	private double k_fold;
 	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
 	private Kmer bestSeed = null;
 	
 	private int k_win;
+	private double[] profile;
 	private String[] seqs;		// DNA sequences around binding sites
+	private double[] seq_weights;
 	private String[] seqsNeg;	// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
 	public int getNegSeqCount(){return negSeqCount;}
@@ -106,8 +109,8 @@ public class KmerMotifFinder {
 		
 	public KmerMotifFinder(){ }
 	
-	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, String outName, 
-			boolean use_grid_search, int verbose, double wm_factor, double kmer_set_overlap_ratio){
+	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
+			double kmer_set_overlap_ratio, int kmer_remove_mode, boolean use_grid_search, String outName, int verbose){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
@@ -117,23 +120,44 @@ public class KmerMotifFinder {
 	    this.motif_hit_factor_report = motif_hit_factor_report;
 	    this.kmer_set_overlap_ratio = kmer_set_overlap_ratio;
 	    this.use_grid_search = use_grid_search;
+	    this.kmer_remove_mode = kmer_remove_mode;
 	}
 	
-	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs){
+	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
 		seqs = new String[pos_seqs.size()];	
 		pos_seqs.toArray(seqs);
+		seq_weights = new double[pos_w.size()];
+		for (int i=0;i<seq_weights.length;i++)
+			seq_weights[i]=pos_w.get(i);
 		seqsNegList = neg_seqs;
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
 	    updateSequenceInfo();
 	}
+	private void resetProfile(){
+		for (int i=0; i<profile.length; i++)
+	    	profile[i] = 1;
+	}
+	
 	private void updateSequenceInfo(){
 		k_win = seqs[0].length();
+		
+		// logistic distribution to fit the spatial resolution shape, with a more heavy tail than Gaussian
+		// http://en.wikipedia.org/wiki/Logistic_distribution
+		// ctcf_sigma = 9.53; GABP_sigma = 15.98;
+	    profile = new double[k_win];
+	    double sigma = 13;
+	    for (int i=0; i<=k_win/2; i++){
+	    	double e = Math.exp(-i/sigma);
+	    	profile[k_win/2-i] = e/(sigma*(1+e)*(1+e));
+	    	profile[k_win/2+i] = profile[k_win/2-i];
+	    }
+	    StatUtil.normalize(profile);
 	    
 	    // count cg-content
 		int gcCount = 0;
-		for (String s:seqsNegList){
-			for (char c:s.toCharArray())
+		for (String seq:seqsNegList){
+			for (char c:seq.toCharArray())
 				if (c=='C'||c=='G')
 					gcCount ++;
 		}
@@ -196,12 +220,12 @@ public class KmerMotifFinder {
 	 * in sequence around the binding events 
 	 * and build the kmer AhoCorasick engine
 	 */
-	public void buildEngine(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outPrefix, boolean print_kmer_hits){
+	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, double hgp, double k_fold, String outPrefix, boolean print_kmer_hits){
 		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, hgp, k_fold, outPrefix);
-		updateEngine(kms, outPrefix);		
+		updateEngine(kms, outPrefix);
 	}
 	
-	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<Point> events, int winSize, double hgp, double k_fold, String outName){
+	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<ComponentFeature> events, int winSize, double hgp, double k_fold, String outName){
 		this.hgp = hgp;
 		this.outName = outName;
 		this.k_fold = k_fold;
@@ -976,6 +1000,9 @@ public class KmerMotifFinder {
 	
 	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int seed_range, double kmer_aligned_fraction, 
 			boolean print_aligned_seqs, boolean re_train){
+		
+		boolean use_seed_family = false;
+		
 		tic = System.currentTimeMillis();
 		if (kmers_in.size()==0)
 			return kmers_in;
@@ -1062,13 +1089,21 @@ public class KmerMotifFinder {
 			
 			cluster.seedKmer = seed;
 			
-			ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);
-			
-			if (seedFamily.size()==1){
-				kmers.remove(seed);
-				quick_restart = true;
-				clusterID++;
-				continue;
+			ArrayList<Kmer> seedFamily = new ArrayList<Kmer>();
+			if (use_seed_family){
+				seedFamily = getSeedKmerFamily(kmers, seed);
+				
+				if (seedFamily.size()==1){
+					kmers.remove(seed);
+					quick_restart = true;
+					clusterID++;
+					continue;
+				}
+			}
+			else{
+				seedFamily = new ArrayList<Kmer>();
+				seedFamily.add(seed);
+				seed.setAlignString(seed.getKmerString());
 			}
 			
 			/** align sequences using seedFamily kmer positions */
@@ -1087,6 +1122,7 @@ public class KmerMotifFinder {
 					break;				// seq is aligned, do not try with weaker k-mers
 	    		}
 			}
+	    	seedFamily = null;
 	    	
 	    	cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
 			if (cluster.alignedKmers.isEmpty()){
@@ -1193,6 +1229,15 @@ public class KmerMotifFinder {
 
 	    	ArrayList<Kmer> copy = new ArrayList<Kmer>();
 	    	
+			int shift_remove = 0;
+			switch(kmer_remove_mode){
+			case 0: shift_remove = 0; break;
+			case 1: shift_remove = 1; break;
+			case 2: shift_remove = k/2; break;
+			case 3: shift_remove = k; break;
+			case 4: shift_remove = 1; break;		//TODO
+			}
+			
 			for (Kmer km: alignedKmers){			// set k-mer offset
 				Kmer cp = km.clone();
 				copy.add(cp);
@@ -1203,8 +1248,8 @@ public class KmerMotifFinder {
 					cp.setShift(shift);
 				}
 				cp.setKmerStartOffset(shift-cluster.pos_BS_seed);
-//				if (Math.abs(shift)<=k/2)
-//					kmers.remove(km);
+				if (Math.abs(shift)<shift_remove)		// 0: no remove, 1: remove seed and family, 2: k/2, 3: k, 4: pwm
+					kmers.remove(km);
 			}	    	
 			kmers.remove(seed);
 			cluster.alignedKmers = copy;				// store all the aligned k-mers
@@ -1271,6 +1316,8 @@ public class KmerMotifFinder {
 //					.concat(seq.substring(-s.pos+k, seq.length()));
 //					s.setSeq(seq);
 //				}
+			if (clusterID==0)			// positive profile is only for primary cluster
+				resetProfile();
 			clusterID++;
 			quick_restart = false;
 		} // Loop for each cluster
@@ -1609,7 +1656,7 @@ public class KmerMotifFinder {
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
-			pfm_sb.append(c.pfmString);
+			pfm_sb.append(makeTRANSFAC (c.pfm, String.format("DE %s_%d_c%d\n", outName, c.clusterId, c.pwmPosHitCount)));
 			
 			// paint motif logo
 			c.wm.setNameVerType(name, "#"+c.clusterId, "");
@@ -2169,6 +2216,7 @@ public class KmerMotifFinder {
 			KmerCluster cluster = clusters.get(j);
 			Iterator<PWMHit> hits = cluster.seq2hits.values().iterator();
 			ArrayList<String> alignedSeqs = new ArrayList<String>();
+			ArrayList<Double> weights = new ArrayList<Double>();
 			while(hits.hasNext()){
 				PWMHit hit = hits.next();
 				String seq = seqList.get(hit.seqId).getSeqStrand(true);
@@ -2190,9 +2238,10 @@ public class KmerMotifFinder {
 				if (!hit.isForward)
 					s = SequenceUtils.reverseComplement(s);
 				alignedSeqs.add(s);
+				weights.add(seq_weights[hit.seqId]*profile[(hit.start+hit.end-k_win)/2]);
 			}
 			// make PWM from aligned sequence segament
-			int result = buildPWMfromAlignedSequences(alignedSeqs, cluster, false);
+			int result = buildPWMfromAlignedSequences(alignedSeqs, weights, cluster, false);
 			if (result==-1){
 				badClusters.add(cluster);
 				if (verbose>1)
@@ -2202,21 +2251,25 @@ public class KmerMotifFinder {
 		clusters.removeAll(badClusters);
 	}
 	
-	private int buildPWMfromAlignedSequences(ArrayList<String> alignedSeqs, KmerCluster cluster, boolean onlyBetter){
+	private int buildPWMfromAlignedSequences(ArrayList<String> alignedSeqs, ArrayList<Double> weights, KmerCluster cluster, boolean onlyBetter){
 			if (alignedSeqs.isEmpty())
 				return -1;
 			double[][] pfm = new double[alignedSeqs.get(0).length()][MAXLETTERVAL];
 	    	if (verbose>1)
 	    		System.out.println(String.format("%s: %d seqs to build PWM.", CommonUtils.timeElapsed(tic), alignedSeqs.size()));
 			// count base frequencies
+	    	double meanWeight = 0;
+	    	for (double w:weights)
+	    		meanWeight+=w;
+	    	meanWeight /= weights.size();
 			for (int p=0;p<pfm.length;p++){
 				for (char base:LETTERS)			// 0 count can cause log(0), set pseudo-count 0.375 to every pos, every base
-					pfm[p][base]=0.375; 		//http://www.ncbi.nlm.nih.gov.libproxy.mit.edu/pmc/articles/PMC2490743/
+					pfm[p][base]=0.375*meanWeight; 		//http://www.ncbi.nlm.nih.gov.libproxy.mit.edu/pmc/articles/PMC2490743/
 			} 
-	    	for (String s:alignedSeqs){
+	    	for (int i=0;i<alignedSeqs.size();i++){
 				for (int p=0;p<pfm.length;p++){
-	    			char base = s.charAt(p);
-	    			pfm[p][base] ++;
+	    			char base = alignedSeqs.get(i).charAt(p);
+	    			pfm[p][base] += weights.get(i);
 	    		}
 	    	}
 	    	
@@ -2235,7 +2288,7 @@ public class KmerMotifFinder {
 		    			pwm[p][base] += countN*bg[b];
 		    		}   
 	    		}
-	    		int sum=0;
+	    		double sum=0;
 	    		for (char base:LETTERS){						// do not count 'N'
 	    			sum += pwm[p][base];
 	    		}
@@ -2375,7 +2428,7 @@ public class KmerMotifFinder {
 	    			pfm_trim[p-bestLeft][base]=(float) pfm[p][base];
 	    		}
 	    	}
-	    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosHitCount));
+	    	cluster.pfm = pfm_trim;
 	    	cluster.pos_pwm_seed = bestLeft-(alignedSeqs.get(0).length()/2-k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
 	    	
 	    	return bestLeft;
@@ -2659,6 +2712,7 @@ public class KmerMotifFinder {
 		}
     	
 		ArrayList<String> alignedSeqs = new ArrayList<String>();
+		ArrayList<Double> weights = new ArrayList<Double>();
 		for (Sequence seq:seqList){
 			if (seq.pos==UNALIGNED)
 				continue;
@@ -2699,6 +2753,12 @@ public class KmerMotifFinder {
 				continue;
  			String s = startPadding+seq.getSeq().substring(start, end)+endPadding;
  			alignedSeqs.add(s);
+ 			int prof_pos = k/2-seq.pos;
+ 			if (prof_pos<0)
+ 				prof_pos = 0;
+ 			else if (prof_pos>k_win-1)
+ 				prof_pos = k_win-1;
+ 			weights.add(seq_weights[seq.id]*profile[prof_pos]);
     	}
 		if (alignedSeqs.size()<seqs.length*motif_hit_factor){
 			if (verbose>1)
@@ -2706,30 +2766,30 @@ public class KmerMotifFinder {
 			return -1;
 		}
 		
-		int bestLeft = buildPWMfromAlignedSequences(alignedSeqs, cluster, true);
+		int bestLeft = buildPWMfromAlignedSequences(alignedSeqs, weights, cluster, true);
 		
     	return bestLeft;
     }
     
 	private String makeTRANSFAC (float[][] pfm, String header){
 		// make string in TRANSFAC format
-		StringBuilder msb = new StringBuilder();
-		msb.append(header);
+		StringBuilder sb = new StringBuilder();
+		sb.append(header);
 		for (int p=0;p<pfm.length;p++){
-			msb.append(p+1).append(" ");
+			sb.append(p+1).append(" ");
 			int maxBase = 0;
 			float maxCount=0;
 			for (int b=0;b<LETTERS.length;b++){
-				msb.append(String.format("%d ", (int)pfm[p][LETTERS[b]]));
+				sb.append(String.format("%d ", (int)pfm[p][LETTERS[b]]));
 				if (maxCount<pfm[p][LETTERS[b]]){
 					maxCount=pfm[p][LETTERS[b]];
 					maxBase = b;
 				}
 			}
-			msb.append(LETTERS[maxBase]).append("\n");
+			sb.append(LETTERS[maxBase]).append("\n");
 		}
-		msb.append("XX\n\n");
-		return msb.toString();
+		sb.append("XX\n\n");
+		return sb.toString();
 	}
     
     class PWMHit implements Comparable<PWMHit>{
@@ -3077,7 +3137,7 @@ public class KmerMotifFinder {
 	private class KmerCluster implements Comparable<KmerCluster>{
 		int clusterId;
 		Kmer seedKmer;
-		String pfmString="";
+		float[][] pfm;
 		WeightMatrix wm;
 		boolean pwmGoodQuality = false;
 		double pwmThreshold;
@@ -3097,7 +3157,7 @@ public class KmerMotifFinder {
 			KmerCluster cluster = new KmerCluster();
 			cluster.clusterId = this.clusterId;
 			cluster.seedKmer = this.seedKmer;
-			cluster.pfmString = this.pfmString;
+			cluster.pfm = this.pfm.clone();
 			cluster.wm = this.wm;
 			cluster.pwmGoodQuality = this.pwmGoodQuality;
 			cluster.pwmThreshold = this.pwmThreshold;
@@ -3116,21 +3176,22 @@ public class KmerMotifFinder {
 			else return(0);
 		}
 	}
+	
 	/**
 	 * Load pos/neg test sequences based on event positions
 	 * @param events
 	 * @param winSize
 	 * @param winShift
 	 */
-	public void loadTestSequences(ArrayList<Point> events, int winSize){
+	public void loadTestSequences(ArrayList<ComponentFeature> events, int winSize){
 		int eventCount = events.size();
 		seqs = new String[eventCount];	// DNA sequences around binding sites
 		ArrayList<Region> posImpactRegion = new ArrayList<Region>();			// to make sure negative region is not within negRegionDistance of positive regions.
 
 		for(int i=0;i<eventCount;i++){
-			Region posRegion = events.get(i).expand(winSize/2);
+			Region posRegion = events.get(i).getPeak().expand(winSize/2);
 			seqs[i] = seqgen.execute(posRegion).toUpperCase();
-			posImpactRegion.add(events.get(i).expand(negRegionDistance));
+			posImpactRegion.add(events.get(i).getPeak().expand(negRegionDistance));
 		}
 
 		/** Negative sequences has been retrieved when setting up region caches */
@@ -3148,8 +3209,15 @@ public class KmerMotifFinder {
 		
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
+	    seq_weights = new double[eventCount];
+		for (int i=0;i<seq_weights.length;i++)
+			seq_weights[i]=events.get(i).getTotalEventStrength();
 	    updateSequenceInfo();
 	    
+	    StringBuilder sb = new StringBuilder();
+	    for (int i=0;i<seqs.length;i++)
+	    	sb.append(seqs[i]).append("\t").append(seq_weights[i]).append("\n");
+	    CommonUtils.writeFile("pos_seqsw.txt", sb.toString());
 //		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 //		ArrayList<String> negSeqList = new ArrayList<String>();
 //		for(int i=0;i<eventCount;i++){
@@ -3948,12 +4016,18 @@ public class KmerMotifFinder {
 	}
 	public static void main(String[] args){
 		ArrayList<String> pos_seqs = new ArrayList<String>();
+		ArrayList<Double> pos_w = new ArrayList<Double>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[0]))));
 	        String line;
+	        String[]f = null;
 	        while((line = bin.readLine()) != null) { 
-	            line = line.trim();
-	            pos_seqs.add(line);
+	            f = line.trim().split("\t");
+	            pos_seqs.add(f[0]);
+	            if (f.length>1)
+	            	pos_w.add(Double.parseDouble(f[1]));
+	            else
+	            	pos_w.add(1.0);
 	        }			
 	        if (bin != null) {
 	            bin.close();
@@ -3976,11 +4050,11 @@ public class KmerMotifFinder {
         } catch (IOException e) {
         	System.err.println("Error when processing "+args[1]);
             e.printStackTrace(System.err);
-        }
+        }   
         
         KmerMotifFinder kmf = new KmerMotifFinder();
-        kmf.setSequences(pos_seqs, neg_seqs);
-        kmf.setParameters(-3, 3, 0.01, 0.05, "Test", true, 2, 0.5, 0.5);
+        kmf.setSequences(pos_seqs, neg_seqs, pos_w);
+        kmf.setParameters(-3, 3, 0.01, 0.05, 0.6, 0.5, 0, true, "Test", 2);
         int k = kmf.selectK(6, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);

@@ -3664,11 +3664,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
     
     public void runKMF( int winSize){
     	// load sequence from binding event positions
-    	kmf.loadTestSequences(getEventPoints(), winSize);
+    	kmf.loadTestSequences(getEvents(), winSize);
     	
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
-    			outName, config.use_grid_search, config.bmverbose, config.wm_factor, config.kmer_set_overlap_ratio);
+    			config.wm_factor, config.kmer_set_overlap_ratio, config.kmer_remove_mode, config.use_grid_search, outName, config.bmverbose);
     	
     	// select best k value
 		if (config.k_min!=-1){
@@ -3696,7 +3696,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				config.print_aligned_seqs, config.re_train);
 		
 		// print PWM spatial distribtution
-		kmf.loadTestSequences(getEventPoints(), winSize);			// reload sequences to replaced masked sequences
+		kmf.loadTestSequences(getEvents(), winSize);			// reload sequences to replaced masked sequences
 		kmf.printMotifDistanceDistribution(outName);
 		
 		// print the clustered k-mers
@@ -5788,9 +5788,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	 * in a specified window around the binding events
 	 */
 	public void printOverlappingKmers(){
-		for (int k=config.k;k<config.k+5;k++){
+	    	ArrayList<ComponentFeature> events = getEvents();
+	    	for (int k=config.k;k<config.k+5;k++){
 			String name = outName+"_";//OK_win"+ (config.k*2);
-	    	ArrayList<Point> events = getEventPoints();
 			kmf.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name, false);
 		}
 	}
@@ -5986,6 +5986,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double motif_hit_factor_report = 0.05;
         public double seed_search_fraction = 0.2;
         public double kmer_set_overlap_ratio = 0.5;
+        public int kmer_remove_mode = 0;
         public int seed_range = 3;
         public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
         public boolean select_seed = false;
@@ -6123,6 +6124,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
             seed_search_fraction = Args.parseDouble(args, "seed_search_fraction", seed_search_fraction);
             seed_range = Args.parseInteger(args, "seed_range", seed_range);
+            kmer_remove_mode = Args.parseInteger(args, "kmer_shift_remove", kmer_remove_mode);
             
             ip_ctrl_ratio = Args.parseDouble(args, "icr", ip_ctrl_ratio);
             maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
