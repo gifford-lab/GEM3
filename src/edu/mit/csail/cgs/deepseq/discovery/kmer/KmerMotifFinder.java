@@ -68,8 +68,14 @@ public class KmerMotifFinder {
 	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
 	private Kmer bestSeed = null;
 	
+	private double kmer_aligned_fraction; 
+	private boolean print_aligned_seqs; 
+	private boolean re_train; 
+	private int maxCluster;
+	
 	private int k_win;
 	private double[] profile;
+	private boolean isMasked;
 	private String[] seqs;		// DNA sequences around binding sites
 	private double[] seq_weights;
 	private String[] seqsNeg;	// DNA sequences in negative sets
@@ -110,7 +116,8 @@ public class KmerMotifFinder {
 	public KmerMotifFinder(){ }
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
-			double kmer_set_overlap_ratio, int kmer_remove_mode, boolean use_grid_search, String outName, int verbose){
+			double kmer_set_overlap_ratio, int kmer_remove_mode, boolean use_grid_search, String outName, int verbose, 
+			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
@@ -121,6 +128,10 @@ public class KmerMotifFinder {
 	    this.kmer_set_overlap_ratio = kmer_set_overlap_ratio;
 	    this.use_grid_search = use_grid_search;
 	    this.kmer_remove_mode = kmer_remove_mode;
+	    this.kmer_aligned_fraction = kmer_aligned_fraction;
+	    this.print_aligned_seqs = print_aligned_seqs;
+	    this.re_train = re_train;
+	    this.maxCluster = maxCluster;
 	}
 	
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
@@ -141,6 +152,7 @@ public class KmerMotifFinder {
 	
 	private void updateSequenceInfo(){
 		k_win = seqs[0].length();
+		isMasked = false;
 		
 		// logistic distribution to fit the spatial resolution shape, with a more heavy tail than Gaussian
 		// http://en.wikipedia.org/wiki/Logistic_distribution
@@ -244,12 +256,60 @@ public class KmerMotifFinder {
 	 * @return
 	 */
 	public int selectK(int k_min, int k_max){
-		// compare different values of k to select most enriched k value			
+		String[] pos_seq_backup = seqs.clone();
+		String[] neg_seqs_backup = new String[seqsNegList.size()];
+		seqsNegList.toArray(neg_seqs_backup);
+		
+		// compare different values of k to select most enriched k value
+		int bestK = 0;
+		double bestHGP = 0;
+		for (int i=0;i<k_max-k_min+1;i++){
+			int k = i+k_min;
+			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
+			alignBySimplePWM(kmers, 10);
+			double bestclusterHGP = 0;
+			KmerCluster bestCluster=null;
+			for (KmerCluster c:clusters){
+				if (bestclusterHGP>c.pwmThresholdHGP){
+					bestclusterHGP=c.pwmThresholdHGP;
+					bestCluster = c;
+				}
+			}
+			if (bestCluster!=null)
+				System.out.println(String.format("k=%d, \tPWM=%s\tW=%d.\n", k, WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.length()));
+			else
+				System.out.println(String.format("k=%d, can not form a PWM.\n", k));
+			if (bestHGP>bestclusterHGP){
+				bestHGP=bestclusterHGP;
+				bestK = k;
+			}
+			
+			seqs = pos_seq_backup.clone();
+			seqsNegList.clear();
+			for (String s:neg_seqs_backup)
+				seqsNegList.add(s);
+		}
+
+		System.out.println(String.format("\n-------------------------------\nSelected k=%d\tbestHGP=%.2f.\n-------------------------------\n", bestK, bestHGP));
+		return bestK;
+	}
+	/** 
+	 * Select the value of k by the coverage of enriched k-mers<br>
+	 * Count the exact base of coverage from every sequence
+	 * @param k_min
+	 * @param k_max
+	 * @return
+	 */
+	public int selectKbyCoverage(int k_min, int k_max, ArrayList<ComponentFeature> events, int winSize){
 		ArrayList<Integer> widths = new ArrayList<Integer>(); 
 		// compare different values of k to select most enriched k value
 		int bestK = 0;
 		int bestCoverage = 0;
 		for (int i=0;i<k_max-k_min+1;i++){
+
+			if (isMasked && events!=null)
+				loadTestSequences(events, winSize);
+			
 			int k = i+k_min;
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
 			
@@ -998,9 +1058,8 @@ public class KmerMotifFinder {
 //		return processClusters();
 //	}
 	
-	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int seed_range, double kmer_aligned_fraction, 
-			boolean print_aligned_seqs, boolean re_train){
-		
+	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int topCluster){
+		int seed_range = k;
 		boolean use_seed_family = false;
 		
 		tic = System.currentTimeMillis();
@@ -1024,7 +1083,16 @@ public class KmerMotifFinder {
     	clusters.clear();
     	int clusterID = 0;
     	boolean quick_restart = false;
-		while (!kmers.isEmpty()){
+		while (!kmers.isEmpty() && clusterID<=maxCluster){
+			
+			if (topCluster!=-1){			// only generate a few clusters to select optimal K
+				int pwmCount = 0;
+				for (KmerCluster c:clusters)
+					if (c.wm!=null)
+						pwmCount++;
+				if (pwmCount>=topCluster)
+					return null;
+			}
 			
 			/** Initialization of new cluster and the remaining kmers */
 			KmerCluster cluster = new KmerCluster();
@@ -1302,6 +1370,7 @@ public class KmerMotifFinder {
 							seqsNegList.set(i, seq);
 						}
 					}
+			        isMasked = true;
 		        }
 			}
 
@@ -1463,7 +1532,14 @@ public class KmerMotifFinder {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void printMotifDistanceDistribution (String name){		
 		System.out.println("\nCompute motif distance distribution ...");
-
+//
+//		ArrayList<KmerCluster> badClusters = new ArrayList<KmerCluster>();
+//		for (KmerCluster c:clusters){
+//    		if (c.wm==null)
+//    			badClusters.add(c);
+//		}
+//		clusters.removeAll(badClusters);
+		
 		ArrayList[][] hits = new ArrayList[seqs.length][clusters.size()];
 		for (int j=0;j<clusters.size();j++){
 			KmerCluster c = clusters.get(j);
@@ -3214,10 +3290,7 @@ public class KmerMotifFinder {
 			seq_weights[i]=events.get(i).getTotalEventStrength();
 	    updateSequenceInfo();
 	    
-	    StringBuilder sb = new StringBuilder();
-	    for (int i=0;i<seqs.length;i++)
-	    	sb.append(seqs[i]).append("\t").append(seq_weights[i]).append("\n");
-	    CommonUtils.writeFile("pos_seqsw.txt", sb.toString());
+
 //		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 //		ArrayList<String> negSeqList = new ArrayList<String>();
 //		for(int i=0;i<eventCount;i++){
@@ -3245,6 +3318,17 @@ public class KmerMotifFinder {
 //		for (int i=0; i<seqsNeg.length;i++){
 //			seqsNeg[i] = negSeqList.get(i);
 //		}
+	}
+	
+	public void printInputSequences(String outName){
+	    StringBuilder sb = new StringBuilder();
+	    for (int i=0;i<seqs.length;i++)
+	    	sb.append(String.format("%s\t%.2f\n", seqs[i], seq_weights[i]));
+	    CommonUtils.writeFile(outName+"_pos_seqsw.txt", sb.toString());
+	    sb = new StringBuilder();
+	    for (int i=0;i<seqsNegList.size();i++)
+	    	sb.append(String.format("%s\n", seqsNegList.get(i)));
+	    CommonUtils.writeFile(outName+"_neg_seqs.txt", sb.toString());
 	}
 	
 	public double computeHGP(int posHitCount, int negHitCount){
@@ -4016,7 +4100,7 @@ public class KmerMotifFinder {
 	}
 	public static void main(String[] args){
 		ArrayList<String> pos_seqs = new ArrayList<String>();
-		ArrayList<Double> pos_w = new ArrayList<Double>();
+		ArrayList<Double> seq_w = new ArrayList<Double>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[0]))));
 	        String line;
@@ -4025,9 +4109,9 @@ public class KmerMotifFinder {
 	            f = line.trim().split("\t");
 	            pos_seqs.add(f[0]);
 	            if (f.length>1)
-	            	pos_w.add(Double.parseDouble(f[1]));
+	            	seq_w.add(Double.parseDouble(f[1]));
 	            else
-	            	pos_w.add(1.0);
+	            	seq_w.add(1.0);
 	        }			
 	        if (bin != null) {
 	            bin.close();
@@ -4053,12 +4137,12 @@ public class KmerMotifFinder {
         }   
         
         KmerMotifFinder kmf = new KmerMotifFinder();
-        kmf.setSequences(pos_seqs, neg_seqs, pos_w);
-        kmf.setParameters(-3, 3, 0.01, 0.05, 0.6, 0.5, 0, true, "Test", 2);
+        kmf.setSequences(pos_seqs, neg_seqs, seq_w);
+        kmf.setParameters(-3, 3, 0.01, 0.05, 0.6, 0.5, 0, true, "Test", 0, 0.5, false, false, 200);
         int k = kmf.selectK(6, 12);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
-        kmf.alignBySimplePWM(kmers, k, 0.5, false, false);
+        kmf.alignBySimplePWM(kmers, -1);
 	}
 }
 
