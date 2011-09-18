@@ -255,7 +255,7 @@ public class KmerMotifFinder {
 	 * @param k_max
 	 * @return
 	 */
-	public int selectK(int k_min, int k_max, boolean use_seed_family){
+	public int selectK(int k_min, int k_max, boolean use_seed_family, boolean use_KSM){
 		String[] pos_seq_backup = seqs.clone();
 		String[] neg_seqs_backup = new String[seqsNegList.size()];
 		seqsNegList.toArray(neg_seqs_backup);
@@ -268,7 +268,7 @@ public class KmerMotifFinder {
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			alignBySimplePWM(kmers, 3, use_seed_family);
+			alignBySimplePWM(kmers, 3, use_seed_family, use_KSM);
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -1060,7 +1060,7 @@ public class KmerMotifFinder {
 //		return processClusters();
 //	}
 	
-	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int topCluster, boolean use_seed_family){
+	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int topCluster, boolean use_seed_family, boolean use_KSM){
 		int seed_range = k;
 		
 		tic = System.currentTimeMillis();
@@ -1193,17 +1193,19 @@ public class KmerMotifFinder {
 			}
 	    	seedFamily = null;
 	    	
-	    	cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
-			if (cluster.alignedKmers.isEmpty()){
-				kmers.remove(seed);
-				quick_restart = true;
-				clusterID++;
-				for (Sequence s : seqList)
-					s.reset();
-				continue;
-			}
+	    	if (use_KSM){
+		    	cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+				if (cluster.alignedKmers.isEmpty()){
+					kmers.remove(seed);
+					quick_restart = true;
+					clusterID++;
+					for (Sequence s : seqList)
+						s.reset();
+					continue;
+				}
+				alignSequencesUsingKSM(seqList, cluster);
+	    	}
 			
-	    	alignSequencesUsingKSM(seqList, cluster);
 	    	
 	    	if (re_train)	{
 		    	/** build PWM, do not iterate */
@@ -1244,14 +1246,12 @@ public class KmerMotifFinder {
 					int leftIdx = buildPWM(seqList, cluster, tic);	
 					if (leftIdx > -1){				    	
 						alignSequencesUsingPWM(seqList, cluster);
-						cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
-						if (cluster.alignedKmers.isEmpty())
-							break;
-//						ArrayList<Kmer> candidateKmers = new ArrayList<Kmer>();
-//						candidateKmers.addAll(kmers);
-//						candidateKmers.removeAll(cluster.alignedKmers);
-//						cluster.alignedKmers.addAll(getMismatchKmers(cluster.alignedKmers, candidateKmers));
-						alignSequencesUsingKSM(seqList, cluster);
+						if (use_KSM){
+							cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+							if (cluster.alignedKmers.isEmpty())
+								break;
+							alignSequencesUsingKSM(seqList, cluster);
+						}
 					}
 					else
 						break;
@@ -4141,10 +4141,11 @@ public class KmerMotifFinder {
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
         kmf.setParameters(-3, 3, 0.01, 0.05, 0.6, 0.5, 0, true, "Test", 0, 0.5, false, false, 200);
         boolean use_seed_family = true;
-        int k = kmf.selectK(6, 12, use_seed_family);
+        boolean use_KSM = true;
+        int k = kmf.selectK(6, 12, use_seed_family, use_KSM);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
-        kmf.alignBySimplePWM(kmers, -1, use_seed_family);
+        kmf.alignBySimplePWM(kmers, -1, use_seed_family, use_KSM);
 	}
 }
 
