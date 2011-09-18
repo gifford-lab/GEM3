@@ -255,7 +255,7 @@ public class KmerMotifFinder {
 	 * @param k_max
 	 * @return
 	 */
-	public int selectK(int k_min, int k_max){
+	public int selectK(int k_min, int k_max, boolean use_seed_family){
 		String[] pos_seq_backup = seqs.clone();
 		String[] neg_seqs_backup = new String[seqsNegList.size()];
 		seqsNegList.toArray(neg_seqs_backup);
@@ -263,10 +263,12 @@ public class KmerMotifFinder {
 		// compare different values of k to select most enriched k value
 		int bestK = 0;
 		double bestHGP = 0;
+		StringBuilder sb = new StringBuilder("\n----------------------------------------------\n");
 		for (int i=0;i<k_max-k_min+1;i++){
 			int k = i+k_min;
+			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			alignBySimplePWM(kmers, 10);
+			alignBySimplePWM(kmers, 3, use_seed_family);
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -276,9 +278,9 @@ public class KmerMotifFinder {
 				}
 			}
 			if (bestCluster!=null)
-				System.out.println(String.format("k=%d, \tPWM=%s\tW=%d.\n", k, WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.length()));
+				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
 			else
-				System.out.println(String.format("k=%d, can not form a PWM.\n", k));
+				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
 			if (bestHGP>bestclusterHGP){
 				bestHGP=bestclusterHGP;
 				bestK = k;
@@ -289,8 +291,8 @@ public class KmerMotifFinder {
 			for (String s:neg_seqs_backup)
 				seqsNegList.add(s);
 		}
-
-		System.out.println(String.format("\n-------------------------------\nSelected k=%d\tbestHGP=%.2f.\n-------------------------------\n", bestK, bestHGP));
+		System.out.print(sb.toString());
+		System.out.println(String.format("\nSelected k=%d\tbestHGP=%.1f.\n----------------------------------------------\n", bestK, bestHGP));
 		return bestK;
 	}
 	/** 
@@ -1058,9 +1060,8 @@ public class KmerMotifFinder {
 //		return processClusters();
 //	}
 	
-	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int topCluster){
+	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int topCluster, boolean use_seed_family){
 		int seed_range = k;
-		boolean use_seed_family = false;
 		
 		tic = System.currentTimeMillis();
 		if (kmers_in.size()==0)
@@ -4139,10 +4140,11 @@ public class KmerMotifFinder {
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
         kmf.setParameters(-3, 3, 0.01, 0.05, 0.6, 0.5, 0, true, "Test", 0, 0.5, false, false, 200);
-        int k = kmf.selectK(6, 12);
+        boolean use_seed_family = true;
+        int k = kmf.selectK(6, 12, use_seed_family);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
-        kmf.alignBySimplePWM(kmers, -1);
+        kmf.alignBySimplePWM(kmers, -1, use_seed_family);
 	}
 }
 
