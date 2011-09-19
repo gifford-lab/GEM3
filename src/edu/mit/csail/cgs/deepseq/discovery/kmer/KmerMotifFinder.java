@@ -263,7 +263,8 @@ public class KmerMotifFinder {
 		// compare different values of k to select most enriched k value
 		int bestK = 0;
 		double bestHGP = 0;
-		StringBuilder sb = new StringBuilder("\n----------------------------------------------\n");
+		ArrayList<KmerCluster> kClusters = new ArrayList<KmerCluster>();
+		StringBuilder sb = new StringBuilder("\n------------------- "+outName+" ----------------------\n");
 		for (int i=0;i<k_max-k_min+1;i++){
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
@@ -277,20 +278,34 @@ public class KmerMotifFinder {
 					bestCluster = c;
 				}
 			}
-			if (bestCluster!=null)
-				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
+			if (bestCluster!=null){
+				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s\tscore=%.2f.\n", k, bestCluster.pwmThresholdHGP, 
+						bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.getMaxScore()));
+				kClusters.add(bestCluster);
+			}
 			else
 				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
-			if (bestHGP>bestclusterHGP){
-				bestHGP=bestclusterHGP;
-				bestK = k;
-			}
 			
+			if (bestHGP>bestclusterHGP)
+				bestHGP=bestclusterHGP;
+			
+			// reload non-masked sequences
 			seqs = pos_seq_backup.clone();
 			seqsNegList.clear();
 			for (String s:neg_seqs_backup)
 				seqsNegList.add(s);
 		}
+		ArrayList<KmerCluster> goodClusters = new ArrayList<KmerCluster>();			// clusters with hgp >= 95% of bestHGP
+		for (KmerCluster c:kClusters)
+			if (c.pwmThresholdHGP<=bestHGP*0.95)
+				goodClusters.add(c);
+		Collections.sort(goodClusters, new Comparator<KmerCluster>(){
+		    public int compare(KmerCluster o1, KmerCluster o2) {
+		    	return o1.compareForSelectingK(o2);
+		    }
+		});	
+		bestK = goodClusters.get(0).seedKmer.getK();
+		
 		System.out.print(sb.toString());
 		System.out.println(String.format("\nSelected k=%d\tbestHGP=%.1f.\n----------------------------------------------\n", bestK, bestHGP));
 		return bestK;
@@ -3251,6 +3266,28 @@ public class KmerMotifFinder {
 			if(pwmThresholdHGP<c.pwmThresholdHGP){return(-1);}
 			else if(pwmThresholdHGP>c.pwmThresholdHGP){return(+1);}
 			else return(0);
+		}
+		/**
+		 * This method is only used for selecting K when the hgp of the clusters are very close (<5%)<br>
+		 * It first select for k that gives pwm width most close to k, then select for pwm that have a highest pwm score per position
+		 * @param c
+		 * @return
+		 */
+		
+		public int compareForSelectingK(KmerCluster c) {					
+			int diff = Math.abs(wm.length()-seedKmer.getK());	
+			double pwmAvg = wm.getMaxScore()/wm.length();
+			int diffC = Math.abs(c.wm.length()-c.seedKmer.getK());	
+			double pwmAvgC = c.wm.getMaxScore()/c.wm.length();
+			if(diff==diffC){
+				if(pwmAvg<pwmAvgC){return(1);}
+				else if(pwmAvg>pwmAvgC){return(-1);}
+				else return(0);
+			}
+			else if (diff<diffC)
+				return (-1);
+			else
+				return (1);
 		}
 	}
 	
