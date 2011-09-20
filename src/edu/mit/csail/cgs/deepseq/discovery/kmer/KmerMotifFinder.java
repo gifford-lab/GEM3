@@ -262,14 +262,13 @@ public class KmerMotifFinder {
 		
 		// compare different values of k to select most enriched k value
 		int bestK = 0;
-		double bestHGP = 0;
 		ArrayList<KmerCluster> kClusters = new ArrayList<KmerCluster>();
 		StringBuilder sb = new StringBuilder("\n------------------- "+outName+" ----------------------\n");
 		for (int i=0;i<k_max-k_min+1;i++){
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			alignBySimplePWM(kmers, 3, use_seed_family, use_KSM);
+			alignBySimplePWM(kmers, 1, use_seed_family, use_KSM);
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -279,15 +278,12 @@ public class KmerMotifFinder {
 				}
 			}
 			if (bestCluster!=null){
-				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s\tscore=%.2f.\n", k, bestCluster.pwmThresholdHGP, 
-						bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.getMaxScore()));
+				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s\tscore=%.2f/%d=%.2f.\n", k, bestCluster.pwmThresholdHGP, bestCluster.wm.length(),
+						 WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.getMaxScore(),bestCluster.wm.length(), bestCluster.wm.getMaxScore()/bestCluster.wm.length()));
 				kClusters.add(bestCluster);
 			}
 			else
 				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
-			
-			if (bestHGP>bestclusterHGP)
-				bestHGP=bestclusterHGP;
 			
 			// reload non-masked sequences
 			seqs = pos_seq_backup.clone();
@@ -295,10 +291,31 @@ public class KmerMotifFinder {
 			for (String s:neg_seqs_backup)
 				seqsNegList.add(s);
 		}
+		
+		// find the most freq pwm width(s)
+		ArrayList<Integer> widths = new ArrayList<Integer>();
+		for (KmerCluster c : kClusters){
+			widths.add(c.wm.length());
+		}
+		Pair<int[], int[]> sorted = StatUtil.sortByOccurences(widths);
+		int maxCount = sorted.cdr()[sorted.cdr().length-1];
+		HashSet<Integer> consensusWidths = new HashSet<Integer>();
+		for (int i=0;i<sorted.cdr().length;i++){
+			if (sorted.cdr()[i]==maxCount)
+				consensusWidths.add(sorted.car()[i]);
+		}
+
+		// find the bestHGP with consensus width
+		double bestHGP = 0;
+		for (KmerCluster c : kClusters){
+			if (consensusWidths.contains(c.wm.length()) && c.pwmThresholdHGP<bestHGP)
+				bestHGP = c.pwmThresholdHGP;
+		}
 		ArrayList<KmerCluster> goodClusters = new ArrayList<KmerCluster>();			// clusters with hgp >= 95% of bestHGP
-		for (KmerCluster c:kClusters)
-			if (c.pwmThresholdHGP<=bestHGP*0.95)
+		for (KmerCluster c:kClusters){
+			if (consensusWidths.contains(c.wm.length()) && c.pwmThresholdHGP<=bestHGP*0.95)
 				goodClusters.add(c);
+		}
 		Collections.sort(goodClusters, new Comparator<KmerCluster>(){
 		    public int compare(KmerCluster o1, KmerCluster o2) {
 		    	return o1.compareForSelectingK(o2);
@@ -307,9 +324,11 @@ public class KmerMotifFinder {
 		bestK = goodClusters.get(0).seedKmer.getK();
 		
 		System.out.print(sb.toString());
-		System.out.println(String.format("\nSelected k=%d\tbestHGP=%.1f.\n----------------------------------------------\n", bestK, bestHGP));
+		System.out.println(String.format("\nSelected k=%d\tW=%d\tbestHGP=%.1f.\n----------------------------------------------\n", 
+				bestK, goodClusters.get(0).wm.length(),goodClusters.get(0).pwmThresholdHGP));
 		return bestK;
 	}
+	
 	/** 
 	 * Select the value of k by the coverage of enriched k-mers<br>
 	 * Count the exact base of coverage from every sequence

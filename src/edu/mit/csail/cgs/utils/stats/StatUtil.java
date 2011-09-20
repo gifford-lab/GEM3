@@ -153,11 +153,11 @@ public class StatUtil {
 		return map;
 	}	
 	/** 
-	 * Sort the elements by their occurences, acsending order
+	 * Sort the elements by their occurrences, ascending order
 	 * @return Pair of [elements, counts]
 	 */
-	public static Pair<int[], int[]> sortByOccurences (ArrayList<Integer> nums){
-		HashMap<Integer, Integer> map = countOccurences(nums);
+	public static Pair<int[], int[]> sortByOccurences (ArrayList<Integer> integerList){
+		HashMap<Integer, Integer> map = countOccurences(integerList);
 		int[] elements = new int[map.keySet().size()];
 		int[] counts = new int[elements.length];
 		int i=0;
