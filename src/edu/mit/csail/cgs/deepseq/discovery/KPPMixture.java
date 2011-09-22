@@ -5989,7 +5989,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
         public double motif_hit_factor = 0.005;
         public double motif_hit_factor_report = 0.05;
-        public double seed_search_fraction = 0.2;
         public double kmer_set_overlap_ratio = 0.5;
         public int kmer_remove_mode = 0;
         public int seed_range = 3;
@@ -6131,7 +6130,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
             kmer_aligned_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_aligned_fraction);
             kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
-            seed_search_fraction = Args.parseDouble(args, "seed_search_fraction", seed_search_fraction);
             seed_range = Args.parseInteger(args, "seed_range", seed_range);
             kmer_remove_mode = Args.parseInteger(args, "kmer_shift_remove", kmer_remove_mode);
             

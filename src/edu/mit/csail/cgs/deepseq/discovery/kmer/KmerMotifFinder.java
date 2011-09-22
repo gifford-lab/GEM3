@@ -2044,7 +2044,7 @@ public class KmerMotifFinder {
 			    		}					
 					}
 				}
-				if (minHitSum>hitSum)
+				if (minHitSum>hitSum && hitSum>10)				// some times the hitSum can be 0.0 or 1.0
 					minHitSum = hitSum;
 				sb.append(String.format("%.1f\t", hitSum));
 				cluster.pi = hitSum;
@@ -2062,6 +2062,8 @@ public class KmerMotifFinder {
 			double currAlpha = Math.min(minHitSum,alpha);
 			for (KmerCluster cluster : clusters){
 				cluster.pi -= currAlpha;
+				if (cluster.pi<0)
+					cluster.pi = 0;
 				totalHitSum += cluster.pi;
 			}
 			
@@ -2076,18 +2078,18 @@ public class KmerMotifFinder {
 			double ll = 0;
 			for (int i=0;i<data.size();i++){
 				ArrayList<PWMHit> hitGroup = data.get(i);
-				double resp_sum=0;
 				
 				int maxPwmLen = 0;
 				for (PWMHit h: hitGroup){
-					if(clusters.get(h.clusterId).pi==0)				// skip the eliminated PWM components
+					if(clusters.get(h.clusterId).pi<0.00001)				// skip the eliminated PWM components
 						continue;
 					int w = wmLen[h.clusterId];
 					if (maxPwmLen<w)
 						maxPwmLen=w;
 				}
+				double resp_sum=0;
 				for (PWMHit h: hitGroup){
-					if(clusters.get(h.clusterId).pi==0)	{			// skip the eliminated PWM components
+					if(clusters.get(h.clusterId).pi<0.00001)	{			// skip the eliminated PWM components
 						h.responsibility = 0;
 						continue;
 					}
@@ -2108,12 +2110,12 @@ public class KmerMotifFinder {
             // log prior
             double LP=0;
             for(KmerCluster c: clusters)
-                if (c.pi!=0)
+                if (c.pi>0.00001)
                     LP+=(-currAlpha)*Math.log(c.pi);		// sparse prior
             double lap = ll+LP;
             
 			if (verbose>1)
-				System.out.println(String.format("%s: Log posterior diff = %.5f", CommonUtils.timeElapsed(tic), lap-logPosterior));
+				System.out.println(String.format("%s: Log posterior diff = %.5f", CommonUtils.timeElapsed(tic), Math.abs(lap-logPosterior)));
 			if (Math.abs(lap-logPosterior)>0.0001){
 				logPosterior = lap;
 			}
@@ -2122,7 +2124,7 @@ public class KmerMotifFinder {
 					ArrayList<PWMHit> hitGroup = data.get(i);
 					if (hitGroup.size()==1){					// only 1 hit, the cluster takes all responsibility
 						for (PWMHit h: hitGroup){
-							if(clusters.get(h.clusterId).pi==0)	{			// skip the eliminated PWM components
+							if(clusters.get(h.clusterId).pi<0.00001)	{			// skip the eliminated PWM components
 								h.responsibility = 0;
 								continue;
 							}
