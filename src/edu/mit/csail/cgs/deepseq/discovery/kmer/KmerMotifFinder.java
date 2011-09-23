@@ -2079,13 +2079,15 @@ public class KmerMotifFinder {
 		
 		double logPosterior = Double.NEGATIVE_INFINITY;
 		double currAlpha = 0;
+		boolean eliminated = false;
+		HashSet<Integer> zeroComp = new HashSet<Integer>();
 		for(int iter=0;iter<200;iter++){
 			// E-STEP for each hit group
 			for (int i=0;i<data.size();i++){
 				ArrayList<PWMHit> hitGroup = data.get(i);
 				if (hitGroup.size()==1){					// only 1 hit, the cluster takes all responsibility
 					for (PWMHit hit: hitGroup){
-						if (clusters.get(hit.clusterId).pi<=0)
+						if (zeroComp.contains(hit.clusterId))
 							hit.responsibility = 0;
 						else
 							hit.responsibility = 1;
@@ -2108,6 +2110,10 @@ public class KmerMotifFinder {
 			double minHitSum = Double.MAX_VALUE;
 			for (int j=0; j<clusters.size(); j++){
 				KmerCluster cluster = clusters.get(j);
+				if(zeroComp.contains(j)){
+					sb.append(String.format("%.1f\t", cluster.pi));
+					continue;
+				}
 				float[][] pfm = new float[cluster.pfm.length][MAXLETTERVAL];
 				for (int p=0;p<pfm.length;p++){
 					for (char base:LETTERS)			// 0 count can cause log(0), set pseudo-count 0.375 to every pos, every base
@@ -2144,17 +2150,24 @@ public class KmerMotifFinder {
 				currAlpha = 0;
 			else if (iter==5)
 				currAlpha = 3;
-			else if (iter>5)
+			else if (iter>5 && !eliminated)	{			// if just eliminated, stay on same alpha
 				currAlpha *= 3;
+			}
 			currAlpha = Math.min(currAlpha,alpha);
 			
+			eliminated = false;
 			for (KmerCluster cluster : clusters){
+				if (zeroComp.contains(cluster.clusterId))
+					continue;
 				cluster.pi -= currAlpha;
-				if (cluster.pi<0){
+				if (cluster.pi<=0){
 					cluster.pi = 0;
+					eliminated = true;
+					zeroComp.add(cluster.clusterId);
 				}
 				totalHitSum += cluster.pi;
 			}
+			
 			
 			for (KmerCluster cluster : clusters){
 				cluster.pi /= totalHitSum;
@@ -2169,15 +2182,17 @@ public class KmerMotifFinder {
 				
 				int maxPwmLen = 0;
 				for (PWMHit h: hitGroup){
-					if(clusters.get(h.clusterId).pi<0.00001)				// skip the eliminated PWM components
+					if(zeroComp.contains(h.clusterId))				// skip the eliminated PWM components
 						continue;
 					int w = wmLen[h.clusterId];
 					if (maxPwmLen<w)
 						maxPwmLen=w;
 				}
+				if (maxPwmLen==0)
+					continue;
 				double resp_sum=0;
 				for (PWMHit h: hitGroup){
-					if(clusters.get(h.clusterId).pi<0.00001)	{			// skip the eliminated PWM components
+					if(zeroComp.contains(h.clusterId))	{			// skip the eliminated PWM components
 						h.responsibility = 0;
 						continue;
 					}
@@ -2199,12 +2214,12 @@ public class KmerMotifFinder {
             // log prior
             double LP=0;
             for(KmerCluster c: clusters)
-                if (c.pi>0.00001)
+                if (!zeroComp.contains(c.clusterId))
                     LP+=(-currAlpha)*Math.log(c.pi);		// sparse prior
             double lap = ll+LP;
             
 			if (verbose>1)
-				System.out.println(String.format("LAP diff = %.5f", Math.abs(lap-logPosterior)));
+				System.out.println(String.format("Alpha=%.1f\tLAP diff=%.5f", currAlpha, Math.abs(lap-logPosterior)));
 			if (Math.abs(lap-logPosterior)>0.0001){
 				logPosterior = lap;
 			}
@@ -2215,7 +2230,7 @@ public class KmerMotifFinder {
 					ArrayList<PWMHit> hitGroup = data.get(i);
 					if (hitGroup.size()==1){					// only 1 hit, the cluster takes all responsibility
 						for (PWMHit h: hitGroup){
-							if(clusters.get(h.clusterId).pi<0.00001)	{			// skip the eliminated PWM components
+							if(zeroComp.contains(h.clusterId))	{			// skip the eliminated PWM components
 								h.responsibility = 0;
 								continue;
 							}
@@ -2225,11 +2240,11 @@ public class KmerMotifFinder {
 					}			
 					// normalize data likelihood to get responsibility
 					double totalResp=0;
-					for (PWMHit c: hitGroup){
-						totalResp += c.responsibility;
+					for (PWMHit h: hitGroup){
+						totalResp += h.responsibility;
 					}
-					for (PWMHit c: hitGroup){			
-						c.responsibility = c.responsibility/totalResp;
+					for (PWMHit h: hitGroup){			
+						h.responsibility = h.responsibility/totalResp;
 					}
 				}
 				break;
