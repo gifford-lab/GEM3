@@ -3666,7 +3666,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();
     	kmf.loadTestSequences(events, winSize);
-    	if (config.print_intput_seqs)
+    	if (config.print_input_seqs)
     		kmf.printInputSequences(outName);
     	
     	// set the parameters
@@ -6004,7 +6004,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
         public boolean print_aligned_seqs = false;
-        public boolean print_intput_seqs = false;
+        public boolean print_input_seqs = false;
         public boolean re_train = false;
         public boolean print_pwm_fdr = false;
         public boolean k_init_calc_PWM = false;
@@ -6076,7 +6076,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             re_align_kmer = flags.contains("rak");
             mask_by_pwm = flags.contains("mask_by_pwm");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
-            print_intput_seqs = flags.contains("print_intput_seqs");
+            print_input_seqs = flags.contains("print_input_seqs");
             re_train = flags.contains("re_train");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
 //            print_kmer_hits = flags.contains("print_kmer_hits");

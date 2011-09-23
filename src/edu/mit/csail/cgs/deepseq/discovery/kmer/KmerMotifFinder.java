@@ -2078,13 +2078,18 @@ public class KmerMotifFinder {
 		}
 		
 		double logPosterior = Double.NEGATIVE_INFINITY;
+		double currAlpha = 0;
 		for(int iter=0;iter<200;iter++){
 			// E-STEP for each hit group
 			for (int i=0;i<data.size();i++){
 				ArrayList<PWMHit> hitGroup = data.get(i);
 				if (hitGroup.size()==1){					// only 1 hit, the cluster takes all responsibility
-					for (PWMHit hit: hitGroup)
-						hit.responsibility = 1;		
+					for (PWMHit hit: hitGroup){
+						if (clusters.get(hit.clusterId).pi<=0)
+							hit.responsibility = 0;
+						else
+							hit.responsibility = 1;
+					}
 					continue;
 				}			
 				// normalize data likelihood to get responsibility
@@ -2135,11 +2140,19 @@ public class KmerMotifFinder {
 				cluster.pfm = pfm;
 			}
 
-			double currAlpha = Math.min(minHitSum,alpha);
+			if (iter<5)
+				currAlpha = 0;
+			else if (iter==5)
+				currAlpha = 3;
+			else if (iter>5)
+				currAlpha *= 3;
+			currAlpha = Math.min(currAlpha,alpha);
+			
 			for (KmerCluster cluster : clusters){
 				cluster.pi -= currAlpha;
-				if (cluster.pi<0)
+				if (cluster.pi<0){
 					cluster.pi = 0;
+				}
 				totalHitSum += cluster.pi;
 			}
 			
@@ -2147,8 +2160,7 @@ public class KmerMotifFinder {
 				cluster.pi /= totalHitSum;
 			}
 			if (verbose>1)
-				System.out.println(CommonUtils.timeElapsed(tic)+": "+sb.toString());
-			
+				System.out.print(CommonUtils.timeElapsed(tic)+": i"+iter+" "+sb.toString());
 			
 			// Compute log likelihood
 			double ll = 0;
@@ -2180,7 +2192,8 @@ public class KmerMotifFinder {
 					h.responsibility = prob*clusters.get(h.clusterId).pi;
 					resp_sum += h.responsibility;
 				}
-				ll += Math.log(resp_sum);
+				if (resp_sum!=0)
+					ll += Math.log(resp_sum);
 			}
 			
             // log prior
@@ -2191,11 +2204,13 @@ public class KmerMotifFinder {
             double lap = ll+LP;
             
 			if (verbose>1)
-				System.out.println(String.format("%s: Log posterior diff = %.5f", CommonUtils.timeElapsed(tic), Math.abs(lap-logPosterior)));
+				System.out.println(String.format("LAP diff = %.5f", Math.abs(lap-logPosterior)));
 			if (Math.abs(lap-logPosterior)>0.0001){
 				logPosterior = lap;
 			}
 			else{		// normalize responsibility before exit the loop
+				if (currAlpha<alpha)
+					continue;
 				for (int i=0;i<data.size();i++){
 					ArrayList<PWMHit> hitGroup = data.get(i);
 					if (hitGroup.size()==1){					// only 1 hit, the cluster takes all responsibility
@@ -4504,7 +4519,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.01, 0.05, 0.6, 0.5, 0, true, "Test", 2, 0.5, false, true, 200);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.5, 0.4, 0, true, "Test", 2, 0.5, false, true, 200);
         boolean use_seed_family = true;
         boolean use_KSM = true;
         int k = kmf.selectK(6, 8, use_seed_family, use_KSM);
