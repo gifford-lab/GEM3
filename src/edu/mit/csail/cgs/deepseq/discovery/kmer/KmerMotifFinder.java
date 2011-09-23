@@ -116,7 +116,7 @@ public class KmerMotifFinder {
 	public KmerMotifFinder(){ }
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
-			double kmer_set_overlap_ratio, int kmer_remove_mode, boolean use_grid_search, String outName, int verbose, 
+			int kmer_remove_mode, boolean use_grid_search, String outName, int verbose, 
 			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
@@ -125,7 +125,6 @@ public class KmerMotifFinder {
 	    this.verbose = verbose;
 	    this.wm_factor = wm_factor;
 	    this.motif_hit_factor_report = motif_hit_factor_report;
-	    this.kmer_set_overlap_ratio = kmer_set_overlap_ratio;
 	    this.use_grid_search = use_grid_search;
 	    this.kmer_remove_mode = kmer_remove_mode;
 	    this.kmer_aligned_fraction = kmer_aligned_fraction;
@@ -1618,72 +1617,6 @@ public class KmerMotifFinder {
 		return allAlignedKmers;
 	}
 	
-	/** refine PWMs by EM like iterations<br>
-	 * given the un-masked positive sequences, and multiple PWMs<br>
-	 * find the best PWMs to cluster the sequences
-	 */
-	public void refinePWMs(ArrayList<Sequence> seqList, String[] pos_seq_backup, String[] neg_seq_backup, 
-			ArrayList<Kmer> kmers_in, int seed_range){
-
-		ArrayList<KmerCluster> noPWM = new ArrayList<KmerCluster>();
-		for (KmerCluster c:clusters){
-			if (c.wm==null){
-				noPWM.add(c);
-				c.pi = c.pwmPosHitCount;
-			}
-		}
-		clusters.removeAll(noPWM);
-		if (clusters.size()<=1)
-			return;
-		
-		File f = new File(outName);
-		String name = f.getName();
-		
-		/** Resolve multiple-PWM-match conflict */
-		for (int iter=0; iter<100; iter++){
-			
-			// record cluster PWM hgp for comparison
-			double[] hgps = new double[clusters.size()];
-			if (verbose>1)
-				System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
-						": Iteration #"+iter);
-
-			for (int i=0; i<clusters.size(); i++){
-				KmerCluster c = clusters.get(i);
-				hgps[i] = c.pwmThresholdHGP;
-				c.clusterId = i;
-				c.seq2hits = findAllPWMHits(seqList, c);
-				// paint motif logo
-				c.wm.setNameVerType(name+"_i"+iter, "#"+c.clusterId, "");
-				CommonUtils.printMotifLogo(c.wm, new File(outName+"_i"+iter+"_"+c.clusterId+"_motif.png"), 75);
-			}	
-			if (verbose>1)
-				System.out.println(CommonUtils.timeElapsed(tic)+": Cluster hgps\t"+CommonUtils.arrayToString(hgps));
-			int conflicts = resolveConflictHits(seqList);
-			if (verbose>1)
-				System.out.println(CommonUtils.timeElapsed(tic)+": "+conflicts+" sequence hits are matched by multiple PWMs");
-			if (conflicts==0)
-				break;
-				
-			buildPWMfromHits(seqList);
-			
-			if (clusters.size()<=1)
-				break;
-			if (clusters.size()!=hgps.length)		// some PWM/cluster may be removed
-				continue;
-			
-			boolean noChange = true;
-			for (int i=0; i<clusters.size(); i++){
-				if (hgps[i] != clusters.get(i).pwmThresholdHGP){
-					noChange = false;
-					break;
-				}
-			}
-			if (noChange)
-				break;
-		}
-	}
-	
 	private void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence> seqList){
 
 		/* Initialization, setup sequence list, and update kmers */
@@ -1985,6 +1918,71 @@ public class KmerMotifFinder {
 	    }	// each sequence
 		return seq2hits;
 	}
+	/** refine PWMs by EM like iterations<br>
+	 * given the un-masked positive sequences, and multiple PWMs<br>
+	 * find the best PWMs to cluster the sequences
+	 */
+	public void refinePWMs(ArrayList<Sequence> seqList, String[] pos_seq_backup, String[] neg_seq_backup, 
+			ArrayList<Kmer> kmers_in, int seed_range){
+	
+		ArrayList<KmerCluster> noPWM = new ArrayList<KmerCluster>();
+		for (KmerCluster c:clusters){
+			if (c.wm==null){
+				noPWM.add(c);
+				c.pi = c.pwmPosHitCount;
+			}
+		}
+		clusters.removeAll(noPWM);
+		if (clusters.size()<=1)
+			return;
+		
+		File f = new File(outName);
+		String name = f.getName();
+		
+		/** Resolve multiple-PWM-match conflict */
+		for (int iter=0; iter<100; iter++){
+			
+			// record cluster PWM hgp for comparison
+			double[] hgps = new double[clusters.size()];
+			if (verbose>1)
+				System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
+						": Iteration #"+iter);
+	
+			for (int i=0; i<clusters.size(); i++){
+				KmerCluster c = clusters.get(i);
+				hgps[i] = c.pwmThresholdHGP;
+				c.clusterId = i;
+				c.seq2hits = findAllPWMHits(seqList, c);
+				// paint motif logo
+				c.wm.setNameVerType(name+"_i"+iter, "#"+c.clusterId, "");
+				CommonUtils.printMotifLogo(c.wm, new File(outName+"_i"+iter+"_"+c.clusterId+"_motif.png"), 75);
+			}	
+			if (verbose>1)
+				System.out.println(CommonUtils.timeElapsed(tic)+": Cluster hgps\t"+CommonUtils.arrayToString(hgps));
+			int conflicts = resolveConflictHits(seqList);
+			if (verbose>1)
+				System.out.println(CommonUtils.timeElapsed(tic)+": "+conflicts+" sequence hits are matched by multiple PWMs");
+			if (conflicts==0)
+				break;
+				
+			buildPWMfromHits(seqList);
+			
+			if (clusters.size()<=1)
+				break;
+			if (clusters.size()!=hgps.length)		// some PWM/cluster may be removed
+				continue;
+			
+			boolean noChange = true;
+			for (int i=0; i<clusters.size(); i++){
+				if (hgps[i] != clusters.get(i).pwmThresholdHGP){
+					noChange = false;
+					break;
+				}
+			}
+			if (noChange)
+				break;
+		}
+	}
 	public int resolveConflictHits(ArrayList<Sequence> seqList){
 		double alpha = seqs.length * motif_hit_factor_report;
 		if (verbose>1)
@@ -2167,8 +2165,6 @@ public class KmerMotifFinder {
 				}
 				totalHitSum += cluster.pi;
 			}
-			
-			
 			for (KmerCluster cluster : clusters){
 				cluster.pi /= totalHitSum;
 			}
@@ -2444,7 +2440,7 @@ public class KmerMotifFinder {
 	    	return bestLeft;
 	    }
 	public void buildPWMfromHits(ArrayList<Sequence> seqList){
-		int extend = 0;
+		int extend = 2;
 		ArrayList<KmerCluster> badClusters = new ArrayList<KmerCluster>();
 		for (int j=0; j<clusters.size(); j++){
 			KmerCluster cluster = clusters.get(j);
@@ -2623,7 +2619,8 @@ public class KmerMotifFinder {
 	//	    	if (bmverbose>1)
 	//	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
 		    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
-		    	MotifThreshold estimate = estimatePwmThreshold(wm, "", false, wm.getMaxScore()*wm_factor);
+		    	MotifThreshold estimate = estimatePwmThreshold(wm, wm.getMaxScore()*wm_factor);
+//		    	MotifThreshold estimate = optimizePwmThreshold(wm, "", false, wm.getMaxScore()*wm_factor);
 		    	double pwmThreshold = estimate.score;
 		    	double pwmThresholdHGP = estimate.hgp;
 	    		if (verbose>1)
@@ -3497,11 +3494,11 @@ public class KmerMotifFinder {
 	}
 	
 	/**
-	 * Estimate threshold of a PWM (larger than startingScore) using the positive/negative sequences<br>
+	 * Optimize the threshold of a PWM (larger than startingScore) using the positive/negative sequences<br>
 	 * Multi-thread to compute HGP<br>
-	 * Approximate grid search, to reduce run time
+	 * Approximate grid search to find best HGP, to reduce run time
 	 */
-	public MotifThreshold estimatePwmThreshold(WeightMatrix wm, String outName, boolean printPwmHgp, double startingScore){
+	public MotifThreshold optimizePwmThreshold(WeightMatrix wm, String outName, boolean printPwmHgp, double startingScore){
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
@@ -3585,7 +3582,57 @@ public class KmerMotifFinder {
 //			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_PwmHgp.txt", sb.toString());
 		return score;
 	}
-
+	/**
+	 * Estimate threshold of a PWM (larger than and closest to wmScore) using the positive/negative sequences<br>
+	 * This is different from optimizePwmThreshold in that it only compute 1 HGP
+	 */
+	public MotifThreshold estimatePwmThreshold(WeightMatrix wm, double wmScore){
+		double[] posSeqScores = new double[posSeqCount];
+		double[] negSeqScores = new double[negSeqCount];
+		for (int i=0;i<posSeqCount;i++){
+			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
+		}
+		Arrays.sort(posSeqScores);
+		int startIdx = Arrays.binarySearch(posSeqScores, wmScore);
+		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
+		
+		for (int i=0;i<negSeqCount;i++){
+			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
+		}
+		Arrays.sort(negSeqScores);
+		
+		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
+		for (int i=startIdx;i<posSeqScores.length;i++)
+			posScoreUnique.add(posSeqScores[i]);
+		if (posScoreUnique.isEmpty()){						// this could happen if all pwm scores are less than 0
+			MotifThreshold score = new MotifThreshold();
+			score.score = 0;
+			score.hgp = 0;
+			score.posHit = 0;
+			score.negHit = 0;
+			return score;
+		}
+		// count hits at each score, compute hgp
+		Double[] posScores_u = new Double[posScoreUnique.size()];
+		posScoreUnique.toArray(posScores_u);
+		
+		MotifThreshold score = new MotifThreshold();
+		for (int i=0;i<posScores_u.length;i++){
+			score.score = posScores_u[i];
+			int index = CommonUtils.findKey(posSeqScores, score.score);
+			score.posHit = posSeqScores.length-index;
+			index = CommonUtils.findKey(negSeqScores, score.score);
+			score.negHit = negSeqScores.length-index;
+			if (score.posHit>=score.negHit*2.0*posSeqCount/negSeqCount){	// posHit should be at least 2 fold
+				score.hgp = computeHGP(posSeqCount, negSeqCount, score.posHit, score.negHit);
+				return score;
+			}			
+		}
+		// if we can not find a threshold that is larger than wmScore and have 2 fold enrichment, return with hgp=0
+		score.hgp = 0;
+		return score;
+	}
+	
 	private Pair<Double, Integer> findBestScore(ArrayList<Integer> idxs, int[] poshits, int[] neghits, double[] hgps){
 
 		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
@@ -3629,11 +3676,12 @@ public class KmerMotifFinder {
 	}
 
 	/**
-	 * Estimate threshold of a Kmer Group Score using the positive/negative sequences<br>
+	 * Optimize threshold of a Kmer Group Score using the positive/negative sequences<br>
 	 * Compute the hyper-geometric p-value from number of pos/neg sequences that have the scores higher than the considered score.<br>
 	 * Return the score gives the most significant p-value.
 	 */
-	public MotifThreshold estimateKsmThreshold(String outName, boolean printKgcHgp){
+	public MotifThreshold optimizeKsmThreshold(String outName, boolean printKgcHgp){
+		// TODO: grid search
 		if (! engineInitialized)
 			return null;
 		
@@ -4208,7 +4256,7 @@ public class KmerMotifFinder {
 				// get aligned k-mers from PWM aligned sequences
 				ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
 				updateEngine(alignedKmers);
-				cluster.ksmThreshold = estimateKsmThreshold("", false);		// only estimate KSM threshold, do not align sequences
+				cluster.ksmThreshold = optimizeKsmThreshold("", false);		// only estimate KSM threshold, do not align sequences
 				
 				/** use all aligned sequences to find expected binding sites, set kmer offset */
 		    	// average all the binding positions to decide the expected binding position
@@ -4534,10 +4582,10 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.5, 0.4, 0, true, "Test", 2, 0.5, false, true, 200);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, "Test", 2, 0.5, false, true, 200);
         boolean use_seed_family = true;
         boolean use_KSM = true;
-        int k = kmf.selectK(6, 8, use_seed_family, use_KSM);
+        int k = kmf.selectK(8, 8, use_seed_family, use_KSM);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
 //        kmf.clusterKmers(kmers, k/2, 0.3, false);
         kmf.alignBySimplePWM(kmers, -1, use_seed_family, use_KSM);

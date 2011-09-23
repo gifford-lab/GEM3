@@ -3671,7 +3671,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
-    			config.wm_factor, config.kmer_set_overlap_ratio, config.kmer_remove_mode, config.use_grid_search, 
+    			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, 
     			outName, config.bmverbose, config.kmer_aligned_fraction, 
 				config.print_aligned_seqs, config.re_train, config.max_cluster);
     	
@@ -5580,7 +5580,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
 	    	// Do not consider negative score. (to reduce run time; negative pwm score means the PWM is of bad quality anyway)
-	    	MotifThreshold estimate = kmf.estimatePwmThreshold(wm, outName, config.print_pwm_fdr, 0);
+	    	MotifThreshold estimate = kmf.optimizePwmThreshold(wm, outName, config.print_pwm_fdr, 0);
 	    	double pwmThreshold = estimate.score;
 	    	double pwmThresholdHGP = estimate.hgp;
     		if (config.bmverbose>1)
@@ -5774,7 +5774,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	public MotifThreshold estimateClusterKgsThreshold(ArrayList<Kmer> clusterKmers){
 		kmf.updateEngine(clusterKmers);
-		return kmf.estimateKsmThreshold(outName, false);
+		return kmf.optimizeKsmThreshold(outName, false);
 
 	}
 	
@@ -5782,7 +5782,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (! kmf.isInitialized())
 			return;
 		
-		MotifThreshold t = kmf.estimateKsmThreshold(outName, true);
+		MotifThreshold t = kmf.optimizeKsmThreshold(outName, true);
 		if (t!=null)
 			System.out.println(String.format("%.2f\t%d\t%d\t%.1f\n", t.score, t.posHit, t.negHit, t.hgp ));
 	}
