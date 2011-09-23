@@ -5624,7 +5624,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			pfm_trim[p-bestLeft][base]=(float) pfm[p][base];
     		}
     	}
-    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosSeqCount));
+    	cluster.pfmString = makeTRANSFAC (pfm_trim, cluster.pwmPosSeqCount, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosSeqCount));
     	cluster.pos_pwm_seed = bestLeft-(config.k_win/2-config.k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
     	return bestLeft;
     }
@@ -5817,7 +5817,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return kmers;
 	}
 	  
-	private String makeTRANSFAC (float[][] pfm, String header){
+	private String makeTRANSFAC (float[][] pfm, int hitCount, String header){
 		// make string in TRANSFAC format
 		StringBuilder msb = new StringBuilder();
 		msb.append(header);
@@ -5826,7 +5826,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			int maxBase = 0;
 			float maxCount=0;
 			for (int b=0;b<LETTERS.length;b++){
-				msb.append(String.format("%d ", (int)pfm[p][LETTERS[b]]));
+				msb.append(String.format("%d ", (int)(pfm[p][LETTERS[b]]*hitCount)));
 				if (maxCount<pfm[p][LETTERS[b]]){
 					maxCount=pfm[p][LETTERS[b]];
 					maxBase = b;
