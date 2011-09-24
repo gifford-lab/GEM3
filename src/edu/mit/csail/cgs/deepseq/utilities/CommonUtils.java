@@ -428,7 +428,8 @@ public class CommonUtils {
 	
 	public static void printMotifLogo(WeightMatrix wm, File f, int pixheight){
 		int pixwidth = (pixheight-WeightMatrixPainter.Y_MARGIN*3-WeightMatrixPainter.YLABEL_SIZE) * wm.length() /2 +WeightMatrixPainter.X_MARGIN*2;
-        BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_RGB);
+		System.setProperty("java.awt.headless", "true");
+		BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_ARGB);
         Graphics g = im.getGraphics();
         Graphics2D g2 = (Graphics2D)g;
         g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
@@ -454,12 +455,12 @@ public class CommonUtils {
 	  return mismatch;
 	}
 	
-	public static void main(String[] args){
+	public static void main0(String[] args){
 		System.out.println(findKey(new double[]{0,1,1,1,2,4,6}, 7));
 	}
 	
     
-    public static void main1(String args[]){
+    public static void main(String args[]){
 		// load motif
     	Genome genome;
     	Organism org=null;
