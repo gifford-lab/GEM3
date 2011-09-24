@@ -1235,6 +1235,7 @@ public class KmerMotifFinder {
 			Kmer seed=null;
 			if (clusterID==0){
 				if (bestSeed!=null){
+					System.out.println("Use seed k-mer from preivous round: "+bestSeed.toShortString());
 					String bestStr = bestSeed.getKmerString();
 					String bestRc = bestSeed.getKmerRC();
 					for (Kmer km:kmers){
@@ -1249,6 +1250,7 @@ public class KmerMotifFinder {
 				}
 				else{
 					seed = kmers.get(0);
+					System.out.println("No preivous seed, pick top k-mer: "+seed.toShortString());
 					bestSeed = seed;
 				}
 			}
@@ -1914,6 +1916,7 @@ public class KmerMotifFinder {
 			  if (maxScoringStrand =='-')
 				  ss= SequenceUtils.reverseComplement(ss);
 			  hit.str = ss;
+			  hit.weight = use_weight?seq_weights[hit.seqId]*profile[(hit.start+hit.end)/2]:1;
 			  seq2hits.put(i, hit);
 	      }
 	    }	// each sequence
@@ -2144,7 +2147,7 @@ public class KmerMotifFinder {
 						hitSum += hit.responsibility;
 						for (int p=0;p<pfm.length;p++){
 			    			char base = hit.str.charAt(p);
-			    			pfm[p][base] += hit.responsibility;
+			    			pfm[p][base] += hit.responsibility*hit.weight;
 			    		}					
 					}
 				}
@@ -2770,7 +2773,7 @@ public class KmerMotifFinder {
 				if (!hit.isForward)
 					s = SequenceUtils.reverseComplement(s);
 				alignedSeqs.add(s);
-				weights.add((use_weight?seq_weights[hit.seqId]*profile[(hit.start+hit.end)/2]:1)*hit.responsibility);
+				weights.add(hit.weight*hit.responsibility);
 			}
 			// make PWM from aligned sequence segament
 			int result = buildPWMfromAlignedSequences(alignedSeqs, weights, cluster, false);
@@ -3241,6 +3244,7 @@ public class KmerMotifFinder {
     	/** responsibility : the fraction of this data (hit group) is explained by this PWM hit*/
     	double responsibility=1;
     	String str;
+    	double weight=1;	// the weight of hit when computing PWM, Weight = EventStrength * PositionalLogitProb. 
     	
 		public int compareTo(PWMHit h) {					// descending score
 			if(score<h.score){return(1);}
