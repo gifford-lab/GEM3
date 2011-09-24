@@ -11,8 +11,6 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
-import net.sf.samtools.util.SequenceUtil;
-
 import cern.jet.random.Poisson;
 import cern.jet.random.Binomial;
 import cern.jet.random.engine.DRand;
@@ -3671,7 +3669,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
-    			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, 
+    			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight,
     			outName, config.bmverbose, config.kmer_aligned_fraction, 
 				config.print_aligned_seqs, config.re_train, config.max_cluster);
     	
@@ -6007,7 +6005,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean print_input_seqs = false;
         public boolean re_train = false;
         public boolean print_pwm_fdr = false;
-        public boolean k_init_calc_PWM = false;
+        public boolean use_weight = true;
         public boolean filter_pwm_seq = true;
 //        public boolean k_select_seed = false;
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
@@ -6079,9 +6077,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             print_input_seqs = flags.contains("print_input_seqs");
             re_train = flags.contains("re_train");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
-//            print_kmer_hits = flags.contains("print_kmer_hits");
-            k_init_calc_PWM = flags.contains("k_init_calc_PWM");
-//            k_select_seed = flags.contains("k_select_seed");
             
             // default as true, need the opposite flag to turn it off
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -6098,6 +6093,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_kmer_mismatch = !flags.contains("no_kmm");
             use_seed_family = !flags.contains("no_seed_family");
             use_KSM = !flags.contains("no_KSM");
+            use_weight = !flags.contains("no_weight");
             pwm_align_new = !flags.contains("pwm_align_all");
             filter_pwm_seq = !flags.contains("pwm_seq_asIs");
             strigent_event_pvalue = !flags.contains("relax");
