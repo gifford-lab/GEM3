@@ -65,7 +65,7 @@ public class KmerMotifFinder {
 	
 	private double k_fold;
 	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
-	private Kmer bestSeed = null;
+	private Kmer primarySeed = null;
 	
 	private double kmer_aligned_fraction; 
 	private boolean print_aligned_seqs; 
@@ -1203,8 +1203,10 @@ public class KmerMotifFinder {
 				for (KmerCluster c:clusters)
 					if (c.wm!=null)
 						pwmCount++;
-				if (pwmCount>=topCluster)
+				if (pwmCount>=topCluster){
+					primarySeed = null;		// do not record primary seed here
 					return null;
+				}
 			}
 			
 			/** Initialization of new cluster and the remaining kmers */
@@ -1234,10 +1236,12 @@ public class KmerMotifFinder {
 			/** get seed kmer */
 			Kmer seed=null;
 			if (clusterID==0){
-				if (bestSeed!=null){
-					System.out.println("Use seed k-mer from preivous round: "+bestSeed.toShortString());
-					String bestStr = bestSeed.getKmerString();
-					String bestRc = bestSeed.getKmerRC();
+				if (primarySeed!=null){
+					if (verbose>1)
+						System.out.println(CommonUtils.timeElapsed(tic)+
+								": Use seed k-mer from preivous round: "+primarySeed.toShortString());
+					String bestStr = primarySeed.getKmerString();
+					String bestRc = primarySeed.getKmerRC();
 					for (Kmer km:kmers){
 						if (km.getKmerString().equals(bestStr)||
 								km.getKmerString().equals(bestRc)){
@@ -1250,8 +1254,10 @@ public class KmerMotifFinder {
 				}
 				else{
 					seed = kmers.get(0);
-					System.out.println("No preivous seed, pick top k-mer: "+seed.toShortString());
-					bestSeed = seed;
+					if (verbose>1)
+						System.out.println(CommonUtils.timeElapsed(tic)+
+								": No preivous seed, pick top k-mer: "+seed.toShortString());
+					primarySeed = seed;
 				}
 			}
 			else
@@ -1951,7 +1957,7 @@ public class KmerMotifFinder {
 			if (verbose>1)
 				System.out.println("------------------------------------------------\n"+CommonUtils.timeElapsed(tic)+
 						": Iteration #"+iter);
-	
+			
 			for (int i=0; i<clusters.size(); i++){
 				KmerCluster c = clusters.get(i);
 				hgps[i] = c.pwmThresholdHGP;
@@ -1961,11 +1967,16 @@ public class KmerMotifFinder {
 				c.wm.setNameVerType(name+"_i"+iter, "#"+c.clusterId, "");
 				CommonUtils.printMotifLogo(c.wm, new File(outName+"_i"+iter+"_"+c.clusterId+"_motif.png"), 75);
 			}	
-			if (verbose>1)
-				System.out.println(CommonUtils.timeElapsed(tic)+": Cluster hgps\t"+CommonUtils.arrayToString(hgps));
+			if (verbose>1){
+				StringBuilder sb = new StringBuilder(CommonUtils.timeElapsed(tic)+": Cluster PWMs\t");
+				for (KmerCluster c:clusters)
+					sb.append(WeightMatrix.getMaxLetters(c.wm)).append(" ");
+				sb.append("\n").append(CommonUtils.timeElapsed(tic)+": Cluster hgps\t"+CommonUtils.arrayToString(hgps));
+				System.out.println(sb.toString());
+			}
 			int conflicts = resolveConflictHits(seqList);
 			if (verbose>1)
-				System.out.println(CommonUtils.timeElapsed(tic)+": "+conflicts+" sequence hits are matched by multiple PWMs");
+				System.out.println(CommonUtils.timeElapsed(tic)+": "+conflicts+" sequences share hits by multiple PWMs");
 			if (conflicts==0)
 				break;
 				
@@ -2741,7 +2752,7 @@ public class KmerMotifFinder {
     	return bestLeft;
     }
 	public void buildPWMfromHits(ArrayList<Sequence> seqList){
-		int extend = 2;
+		int extend = 0;
 		ArrayList<KmerCluster> badClusters = new ArrayList<KmerCluster>();
 		for (int j=0; j<clusters.size(); j++){
 			KmerCluster cluster = clusters.get(j);
