@@ -3676,7 +3676,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			int bestK = kmf.selectK(config.k_min, config.k_max, config.use_seed_family, config.use_KSM);
+			int bestK = kmf.selectK(config.k_min, config.k_max, config.noise, config.use_seed_family, config.use_KSM);
 			if (bestK!=0){
 				config.k = bestK;
 				config.k_min = -1;		// prevent selecting k again
@@ -3695,7 +3695,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignBySimplePWM(kmers, -1, config.use_seed_family, config.use_KSM);
+		kmers = kmf.alignBySimplePWM(kmers, -1, config.noise, config.use_seed_family, config.use_KSM);
 		
 		// print PWM spatial distribtution
 		kmf.loadTestSequences(getEvents(), winSize);			// reload sequences to replaced masked sequences
@@ -6001,6 +6001,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
        	public boolean use_KSM = true;				// align with KSM (together with PWM)
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
+      	public double noise = 0.0;
         public boolean print_aligned_seqs = false;
         public boolean print_input_seqs = false;
         public boolean re_train = false;
@@ -6123,6 +6124,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
 //            kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
             kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);
+            noise = Args.parseDouble(args, "noise", noise);
             motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
             kmer_aligned_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_aligned_fraction);
             kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
