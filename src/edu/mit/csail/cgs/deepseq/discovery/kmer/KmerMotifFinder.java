@@ -3750,9 +3750,9 @@ public class KmerMotifFinder {
 		 * @return
 		 */
 		public int compareForSelectingK(KmerCluster c) {					
-			int diff = Math.abs(wm.length()-seedKmer.getK());	
+			int diff = Math.abs(wm.length()+1-seedKmer.getK());				// expect k to be 1 base longer than pwm length	
 			double pwmAvg = wm.getMaxScore()/wm.length();
-			int diffC = Math.abs(c.wm.length()-c.seedKmer.getK());	
+			int diffC = Math.abs(c.wm.length()+1-c.seedKmer.getK());	
 			double pwmAvgC = c.wm.getMaxScore()/c.wm.length();
 			if(diff==diffC){
 				if(pwmAvg<pwmAvgC){return(1);}
