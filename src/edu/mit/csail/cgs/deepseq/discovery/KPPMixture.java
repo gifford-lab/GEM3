@@ -3676,7 +3676,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			int bestK = kmf.selectK(config.k_min, config.k_max, config.noise, config.use_seed_family, config.use_KSM, true);
+			int bestK = kmf.selectK(config.k_min, config.k_max, config.noise, config.use_seed_family, config.use_ksm, true);
 			if (bestK!=0){
 				config.k = bestK;
 				config.k_min = -1;		// prevent selecting k again
@@ -3695,7 +3695,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignBySimplePWM(kmers, -1, config.noise, config.use_seed_family, config.use_KSM, config.use_PWM_MM);
+		kmers = kmf.alignBySimplePWM(kmers, -1, config.noise, config.use_seed_family, config.use_ksm, config.use_pwm_mm);
 		
 		// print PWM spatial distribtution
 		kmf.loadTestSequences(getEvents(), winSize);			// reload sequences to replaced masked sequences
@@ -5998,8 +5998,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
        	public boolean re_align_kmer = false;
        	public boolean use_kmer_mismatch = true;
        	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
-       	public boolean use_KSM = true;				// align with KSM (together with PWM)
-       	public boolean use_PWM_MM = true;			// align with PWM mismatch (together with PWM)
+       	public boolean use_ksm = true;				// align with KSM (together with PWM)
+       	public boolean use_pwm_mm = false;			// align with PWM mismatch (together with PWM)
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
       	public double noise = 0.0;
@@ -6070,9 +6070,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_kmer_strength = flags.contains("use_kmer_strength");
             kmer_print_hits = flags.contains("kmer_print_hits");
             select_seed = flags.contains("select_seed");
-            use_grid_search = !flags.contains("no_grid_search");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
+            use_pwm_mm = flags.contains("use_pwm_mm");
             re_align_kmer = flags.contains("rak");
             mask_by_pwm = flags.contains("mask_by_pwm");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
@@ -6094,9 +6094,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
             do_model_selection = !flags.contains("no_model_selection");
             use_kmer_mismatch = !flags.contains("no_kmm");
             use_seed_family = !flags.contains("no_seed_family");
-            use_KSM = !flags.contains("no_KSM");
-            use_PWM_MM = !flags.contains("no_PWM_MM");
+            use_ksm = !flags.contains("no_ksm");
             use_weight = !flags.contains("no_weight");
+            use_grid_search = !flags.contains("no_grid_search");
             pwm_align_new = !flags.contains("pwm_align_all");
             filter_pwm_seq = !flags.contains("pwm_seq_asIs");
             strigent_event_pvalue = !flags.contains("relax");

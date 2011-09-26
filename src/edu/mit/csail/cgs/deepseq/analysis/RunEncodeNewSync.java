@@ -22,117 +22,12 @@ public class RunEncodeNewSync {
 		RunEncodeNewSync r = new RunEncodeNewSync(args[0]);
 	}
 	
+	/**
+	 * Take Shaun's ENCODE (new sync) download.txt file as input<br>
+	 * Generate pair of ChIP-Seq IP/CTRL pairs for GEM script to process, together with file to group replicates to one single experiments.
+	 * @param fileName
+	 */
 	RunEncodeNewSync(String fileName){
-		HashSet<String> labs = new HashSet<String>(){{
-		    add("Bernstein");
-		    add("Crawford");
-		    add("Myers");
-		    add("Snyder");
-		    add("Stam");
-		}};
-		HashSet<String> TFtoRun = new HashSet<String>(){{
-//		    add("c-Myc");
-//		    add("GR");
-//			// 0 discoveries
-//		    add("BRF1");
-//		    add("BRF2");
-//		    add("NELFe");
-//		    add("XRCC4");
-//		    add("SUZ12");
-//		    add("ZNF274");
-//		    add("ZZZ3");
-//			
-////		    
-////		    // 0 known motif
-//		    add("BCL11A");
-//		    add("BCL3");
-//		    add("BAF155");
-//		    add("BATF");
-//		    add("BCL");
-//		    add("BDP1");
-//		    add("CCNT2");
-//		    add("CHD2");
-//		    add("CTCFL");
-//		    add("HDAC2");
-//		    add("HEY1");
-//		    add("HMGN3");
-//		    add("KAP1");
-//		    add("PU.1");
-//		    add("Rad21");
-//		    add("SETDB1");
-//		    add("SIRT6");
-//		    add("SMC3");
-//		    add("SP2");
-//		    add("Sin3Ak-20");
-//		    add("THAP1");
-//		    add("TR4");
-//		    add("ZNF263");
-		    
-//		    // else
-//		    add("AP-2alpha");
-//		    add("AP-2gamma");
-//		    add("ATF3");
-//		    add("BAF170");
-//		    add("BHLHE40");
-//		    add("Brg1");
-//		    add("CEBPB");
-//		    add("E2F4");
-//		    add("E2F6");
-//		    add("EBF");
-//		    add("ERRA");
-//		    add("Egr-1");
-//		    add("FOSL2");
-//		    add("FOXP2");
-//		    add("GABP");
-//		    add("GATA-1");
-//		    add("GATA-2");
-//		    add("GRp20");
-//		    add("GTF2B");
-//		    add("HNF4A");
-//		    add("HSF1");
-//		    add("IRF4");
-//		    add("Ini1");
-//		    add("JunD");
-//		    add("Max");
-//		    add("NF-E2");
-//		    add("NF-YA");
-//		    add("NF-YB");
-//		    add("NFKB");
-//		    add("NRSF");
-//		    add("Nrf1");
-//		    add("PAX5-C20");
-//		    add("PAX5-N19");
-//		    add("PGC1A");
-//		    add("POU2F2");
-//		    add("Pbx3");
-//		    add("Pol3");
-//		    add("RPC155");
-//		    add("RXRA");
-//		    add("SIX5");
-//		    add("SP1");
-//		    add("SREBP1");
-//		    add("SREBP1A");
-//		    add("SREBP2");
-//		    add("SRF");
-//		    add("STAT1");
-//		    add("STAT2");
-//		    add("TAF1");
-//		    add("TCF12");
-//		    add("TCF4");
-//		    add("TFIIIC-110");
-//		    add("USF-1");
-//		    add("YY1");
-//		    add("ZBTB33");
-//		    add("c-Fos");
-//		    add("c-Jun");
-//		    add("p300");
-			add("CTCF");
-		}};
-		TFtoRun.add("Input");
-		
-		ArrayList<String> expts = new ArrayList<String>();
-		TreeSet<String> tfs = new TreeSet<String>();
-		
 		HashMap<String, Expt> id2expt = new HashMap<String, Expt>();
 		HashMap<String, Expt> tag2input = new HashMap<String, Expt>();
 		try {	

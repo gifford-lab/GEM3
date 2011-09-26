@@ -1520,19 +1520,7 @@ public class KmerMotifFinder {
 					}
 			        isMasked = true;
 		        }
-			}
-
-//				for (Sequence s : seqList){
-//					if (s.pos==UNALIGNED)
-//						continue;
-//					String seq = s.getSeq();
-//					if (-s.pos<0 || (-s.pos+k)>seq.length())
-//						continue;
-//					seq=seq.substring(0, -s.pos)
-//					.concat(CommonUtils.padding(k, 'N'))
-//					.concat(seq.substring(-s.pos+k, seq.length()));
-//					s.setSeq(seq);
-//				}
+			}		// mask with PWM
 
 			clusterID++;
 			quick_restart = false;
