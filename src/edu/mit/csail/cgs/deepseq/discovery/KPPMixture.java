@@ -3676,7 +3676,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			int bestK = kmf.selectK(config.k_min, config.k_max, config.noise, config.use_seed_family, config.use_KSM);
+			int bestK = kmf.selectK(config.k_min, config.k_max, config.noise, config.use_seed_family, config.use_KSM, true);
 			if (bestK!=0){
 				config.k = bestK;
 				config.k_min = -1;		// prevent selecting k again
@@ -3695,7 +3695,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignBySimplePWM(kmers, -1, config.noise, config.use_seed_family, config.use_KSM);
+		kmers = kmf.alignBySimplePWM(kmers, -1, config.noise, config.use_seed_family, config.use_KSM, config.use_PWM_MM);
 		
 		// print PWM spatial distribtution
 		kmf.loadTestSequences(getEvents(), winSize);			// reload sequences to replaced masked sequences
@@ -5999,6 +5999,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
        	public boolean use_kmer_mismatch = true;
        	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
        	public boolean use_KSM = true;				// align with KSM (together with PWM)
+       	public boolean use_PWM_MM = true;			// align with PWM mismatch (together with PWM)
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
       	public double noise = 0.0;
@@ -6094,6 +6095,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_kmer_mismatch = !flags.contains("no_kmm");
             use_seed_family = !flags.contains("no_seed_family");
             use_KSM = !flags.contains("no_KSM");
+            use_PWM_MM = !flags.contains("no_PWM_MM");
             use_weight = !flags.contains("no_weight");
             pwm_align_new = !flags.contains("pwm_align_all");
             filter_pwm_seq = !flags.contains("pwm_seq_asIs");
