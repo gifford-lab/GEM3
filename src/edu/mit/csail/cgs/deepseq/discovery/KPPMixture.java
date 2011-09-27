@@ -2668,7 +2668,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int w = 1000;
 		int h = 600;
 		int margin= 50;
-	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+		System.setProperty("java.awt.headless", "true");
+	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
 	    Graphics g = im.getGraphics();
 	    Graphics2D g2 = (Graphics2D)g;
 	    g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));

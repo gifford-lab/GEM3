@@ -366,6 +366,10 @@ public class KmerMotifFinder {
 			for (String s:neg_seqs_backup)
 				seqsNegList.add(s);
 		}
+		if (kClusters.isEmpty()){
+			System.out.println("\n----------------------------------------------\nNone of the k values form a PWM, stop here!\n");
+			System.exit(0);
+		}
 		
 		// check if there is discontinuity in widths 
 		ArrayList<Integer> widths = new ArrayList<Integer>();
