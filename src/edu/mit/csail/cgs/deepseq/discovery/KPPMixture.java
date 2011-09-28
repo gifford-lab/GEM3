@@ -1091,8 +1091,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (totalSigCount<config.sparseness)
 			return null;
 		
-		// if IP/Control enrichment ratios are lower than cutoff for all 500bp sliding windows in all conditions, 
+		// if IP/Control enrichment ratios are lower than cutoff for all ~300bp sliding windows in all conditions, 
 		// skip this region, and record it in excludedRegions
+		// as long as one of the sub window is enriched, the whole region is enriched, so it is quite conservative, 
+		// but it can be useful to block out long continuous regions		
 		if (controlDataExist && config.exclude_unenriched){
 			boolean enriched = false;
 			for (int s=w.getStart(); s<w.getEnd();s+=modelWidth/2){
@@ -5957,7 +5959,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean filterDupReads=true;
         public boolean kl_count_adjusted = false;
         public boolean sort_by_location=false;
-        public boolean exclude_unenriched = false;
+        public boolean exclude_unenriched = true;
         public boolean dump_regression = false;
         public boolean use_event_strength = false;
         public boolean use_kmer_strength = false;
@@ -6065,7 +6067,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             testPValues = flags.contains("testP");
             if (testPValues)
             	System.err.println("testP is " + testPValues);
-            exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
             use_event_strength = flags.contains("use_event_strength");
             use_kmer_strength = flags.contains("use_kmer_strength");
@@ -6082,6 +6083,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             print_pwm_fdr = flags.contains("print_pwm_fdr");
             
             // default as true, need the opposite flag to turn it off
+            exclude_unenriched = !flags.contains("not_ex_unenriched");
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
             filterEvents = !flags.contains("nf");	// not filtering of predicted events

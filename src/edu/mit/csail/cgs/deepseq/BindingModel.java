@@ -83,10 +83,15 @@ public class BindingModel {
 	}
 	
 	//Accessors
+	/** return the leftmost coordinate of the read model */
 	public int getMin(){return min;}
+	/** return the rightmost coordinate of the read model */
 	public int getMax(){return max;}
+	/** return the coordinate of summit of the read model */
 	public int getSummit(){return summit;}
+	/** return the larger value of positive side or negative side of the read model */
 	public int getRange(){return Math.max(Math.abs(min), Math.abs(max));}
+	/** return the total width of read model (positive side + negative side) */
 	public int getWidth(){return data.length;}
 	public double[] getProbabilities(){	return  probs.clone();}
 	public double[] getLogProbabilities() { return logProbs.clone();}
