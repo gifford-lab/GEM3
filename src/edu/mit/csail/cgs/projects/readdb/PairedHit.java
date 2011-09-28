@@ -77,6 +77,38 @@ public class PairedHit implements Comparable<PairedHit> {
     public StrandedRegion rightPointRegion(Genome genome) {
     	return new StrandedRegion(genome, genome.getChromName(rightChrom), rightPos, rightPos+1, rightStrand ? '+' : '-');
     }
+    
+    public int lesserPos() {
+    	if (leftChrom == rightChrom) {
+    		return leftPos < rightPos ? leftPos : rightPos;
+    	} else {
+    		return leftChrom < rightChrom ? leftPos : rightPos;
+    	}
+    }
+    
+    public int greaterPos() {
+    	if (leftChrom == rightChrom) {
+    		return leftPos > rightPos ? leftPos : rightPos;
+    	} else {
+    		return leftChrom > rightChrom ? leftPos : rightPos;
+    	}
+    }
+    
+    public boolean lesserStrand() {
+    	if (leftChrom == rightChrom) {
+    		return leftPos < rightPos ? leftStrand : rightStrand;
+    	} else {
+    		return leftChrom < rightChrom ? leftStrand : rightStrand;
+    	}
+    }
+    
+    public boolean greaterStrand() {
+    	if (leftChrom == rightChrom) {
+    		return leftPos > rightPos ? leftStrand : rightStrand;
+    	} else {
+    		return leftChrom > rightChrom ? leftStrand : rightStrand;
+    	}
+    }
 
 	public void flipSides() {
         int x = leftChrom;
