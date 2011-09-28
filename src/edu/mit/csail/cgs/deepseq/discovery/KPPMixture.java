@@ -11,8 +11,6 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
-import net.sf.samtools.util.SequenceUtil;
-
 import cern.jet.random.Poisson;
 import cern.jet.random.Binomial;
 import cern.jet.random.engine.DRand;
@@ -1093,8 +1091,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (totalSigCount<config.sparseness)
 			return null;
 		
-		// if IP/Control enrichment ratios are lower than cutoff for all 500bp sliding windows in all conditions, 
+		// if IP/Control enrichment ratios are lower than cutoff for all ~300bp sliding windows in all conditions, 
 		// skip this region, and record it in excludedRegions
+		// as long as one of the sub window is enriched, the whole region is enriched, so it is quite conservative, 
+		// but it can be useful to block out long continuous regions		
 		if (controlDataExist && config.exclude_unenriched){
 			boolean enriched = false;
 			for (int s=w.getStart(); s<w.getEnd();s+=modelWidth/2){
@@ -2670,7 +2670,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int w = 1000;
 		int h = 600;
 		int margin= 50;
-	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+		System.setProperty("java.awt.headless", "true");
+	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
 	    Graphics g = im.getGraphics();
 	    Graphics2D g2 = (Graphics2D)g;
 	    g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
@@ -3666,19 +3667,19 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();
     	kmf.loadTestSequences(events, winSize);
-    	if (config.print_intput_seqs)
+    	if (config.print_input_seqs)
     		kmf.printInputSequences(outName);
     	
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
-    			config.wm_factor, config.kmer_set_overlap_ratio, config.kmer_remove_mode, config.use_grid_search, 
+    			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight,
     			outName, config.bmverbose, config.kmer_aligned_fraction, 
 				config.print_aligned_seqs, config.re_train, config.max_cluster);
     	
     	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			int bestK = kmf.selectK(config.k_min, config.k_max, config.use_seed_family, config.use_KSM);
+			int bestK = kmf.selectK(config.k_min, config.k_max, config.noise, config.use_seed_family, config.use_ksm, true);
 			if (bestK!=0){
 				config.k = bestK;
 				config.k_min = -1;		// prevent selecting k again
@@ -3697,7 +3698,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignBySimplePWM(kmers, -1, config.use_seed_family, config.use_KSM);
+		kmers = kmf.alignBySimplePWM(kmers, -1, config.noise, config.use_seed_family, config.use_ksm, config.use_pwm_mm);
 		
 		// print PWM spatial distribtution
 		kmf.loadTestSequences(getEvents(), winSize);			// reload sequences to replaced masked sequences
@@ -5580,7 +5581,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //	    		System.out.println(String.format("%s: got PWM.", CommonUtils.timeElapsed(tic)));
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative sequences
 	    	// Do not consider negative score. (to reduce run time; negative pwm score means the PWM is of bad quality anyway)
-	    	MotifThreshold estimate = kmf.estimatePwmThreshold(wm, outName, config.print_pwm_fdr, 0);
+	    	MotifThreshold estimate = kmf.optimizePwmThreshold(wm, outName, config.print_pwm_fdr, 0);
 	    	double pwmThreshold = estimate.score;
 	    	double pwmThresholdHGP = estimate.hgp;
     		if (config.bmverbose>1)
@@ -5624,7 +5625,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     			pfm_trim[p-bestLeft][base]=(float) pfm[p][base];
     		}
     	}
-    	cluster.pfmString = makeTRANSFAC (pfm_trim, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosSeqCount));
+    	cluster.pfmString = makeTRANSFAC (pfm_trim, cluster.pwmPosSeqCount, String.format("DE %s_%d_c%d\n", outName, cluster.clusterId, cluster.pwmPosSeqCount));
     	cluster.pos_pwm_seed = bestLeft-(config.k_win/2-config.k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
     	return bestLeft;
     }
@@ -5774,7 +5775,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	public MotifThreshold estimateClusterKgsThreshold(ArrayList<Kmer> clusterKmers){
 		kmf.updateEngine(clusterKmers);
-		return kmf.estimateKsmThreshold(outName, false);
+		return kmf.optimizeKsmThreshold(outName, false);
 
 	}
 	
@@ -5782,7 +5783,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (! kmf.isInitialized())
 			return;
 		
-		MotifThreshold t = kmf.estimateKsmThreshold(outName, true);
+		MotifThreshold t = kmf.optimizeKsmThreshold(outName, true);
 		if (t!=null)
 			System.out.println(String.format("%.2f\t%d\t%d\t%.1f\n", t.score, t.posHit, t.negHit, t.hgp ));
 	}
@@ -5817,7 +5818,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		return kmers;
 	}
 	  
-	private String makeTRANSFAC (float[][] pfm, String header){
+	private String makeTRANSFAC (float[][] pfm, int hitCount, String header){
 		// make string in TRANSFAC format
 		StringBuilder msb = new StringBuilder();
 		msb.append(header);
@@ -5826,7 +5827,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			int maxBase = 0;
 			float maxCount=0;
 			for (int b=0;b<LETTERS.length;b++){
-				msb.append(String.format("%d ", (int)pfm[p][LETTERS[b]]));
+				msb.append(String.format("%d ", (int)(pfm[p][LETTERS[b]]*hitCount)));
 				if (maxCount<pfm[p][LETTERS[b]]){
 					maxCount=pfm[p][LETTERS[b]];
 					maxBase = b;
@@ -5958,7 +5959,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean filterDupReads=true;
         public boolean kl_count_adjusted = false;
         public boolean sort_by_location=false;
-        public boolean exclude_unenriched = false;
+        public boolean exclude_unenriched = true;
         public boolean dump_regression = false;
         public boolean use_event_strength = false;
         public boolean use_kmer_strength = false;
@@ -5989,7 +5990,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
         public double motif_hit_factor = 0.005;
         public double motif_hit_factor_report = 0.05;
-        public double seed_search_fraction = 0.2;
         public double kmer_set_overlap_ratio = 0.5;
         public int kmer_remove_mode = 0;
         public int seed_range = 3;
@@ -6001,14 +6001,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
        	public boolean re_align_kmer = false;
        	public boolean use_kmer_mismatch = true;
        	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
-       	public boolean use_KSM = true;				// align with KSM (together with PWM)
+       	public boolean use_ksm = true;				// align with KSM (together with PWM)
+       	public boolean use_pwm_mm = false;			// align with PWM mismatch (together with PWM)
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
+      	public double noise = 0.0;
         public boolean print_aligned_seqs = false;
-        public boolean print_intput_seqs = false;
+        public boolean print_input_seqs = false;
         public boolean re_train = false;
         public boolean print_pwm_fdr = false;
-        public boolean k_init_calc_PWM = false;
+        public boolean use_weight = true;
         public boolean filter_pwm_seq = true;
 //        public boolean k_select_seed = false;
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
@@ -6065,26 +6067,23 @@ class KPPMixture extends MultiConditionFeatureFinder {
             testPValues = flags.contains("testP");
             if (testPValues)
             	System.err.println("testP is " + testPValues);
-            exclude_unenriched = flags.contains("ex_unenriched");
             dump_regression = flags.contains("dump_regression");
             use_event_strength = flags.contains("use_event_strength");
             use_kmer_strength = flags.contains("use_kmer_strength");
             kmer_print_hits = flags.contains("kmer_print_hits");
             select_seed = flags.contains("select_seed");
-            use_grid_search = !flags.contains("no_grid_search");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
+            use_pwm_mm = flags.contains("use_pwm_mm");
             re_align_kmer = flags.contains("rak");
             mask_by_pwm = flags.contains("mask_by_pwm");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
-            print_intput_seqs = flags.contains("print_intput_seqs");
+            print_input_seqs = flags.contains("print_input_seqs");
             re_train = flags.contains("re_train");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
-//            print_kmer_hits = flags.contains("print_kmer_hits");
-            k_init_calc_PWM = flags.contains("k_init_calc_PWM");
-//            k_select_seed = flags.contains("k_select_seed");
             
             // default as true, need the opposite flag to turn it off
+            exclude_unenriched = !flags.contains("not_ex_unenriched");
             use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
             use_betaEM = ! flags.contains("poolEM");
             filterEvents = !flags.contains("nf");	// not filtering of predicted events
@@ -6098,7 +6097,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
             do_model_selection = !flags.contains("no_model_selection");
             use_kmer_mismatch = !flags.contains("no_kmm");
             use_seed_family = !flags.contains("no_seed_family");
-            use_KSM = !flags.contains("no_KSM");
+            use_ksm = !flags.contains("no_ksm");
+            use_weight = !flags.contains("no_weight");
+            use_grid_search = !flags.contains("no_grid_search");
             pwm_align_new = !flags.contains("pwm_align_all");
             filter_pwm_seq = !flags.contains("pwm_seq_asIs");
             strigent_event_pvalue = !flags.contains("relax");
@@ -6128,10 +6129,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
             kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
 //            kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
             kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);
+            noise = Args.parseDouble(args, "noise", noise);
             motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
             kmer_aligned_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_aligned_fraction);
             kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
-            seed_search_fraction = Args.parseDouble(args, "seed_search_fraction", seed_search_fraction);
             seed_range = Args.parseInteger(args, "seed_range", seed_range);
             kmer_remove_mode = Args.parseInteger(args, "kmer_shift_remove", kmer_remove_mode);
             
