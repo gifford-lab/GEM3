@@ -604,7 +604,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for(int i = 0; i < compFeatures.size(); i++) {
 				exRegions.add(compFeatures.get(i).getPosition().expand(modelRange));
 			}
-			exRegions.addAll(excludedRegions);	// also excluding the excluded regions (user specified + un-enriched)
+			for (Region ex:excludedRegions)
+				if (ex!=null)
+					exRegions.add(ex);	// also excluding the excluded regions (user specified + un-enriched)
 			
 			calcIpCtrlRatio(mergeRegions(exRegions, false));
 			if(controlDataExist) {
@@ -1119,7 +1121,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				if (enriched)
 					break;
 			}
-			if (!enriched){
+			if (!enriched && w!=null){
 				excludedRegions.add(w);
 				return null;
 			}
