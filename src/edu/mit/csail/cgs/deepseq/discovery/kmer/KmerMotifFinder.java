@@ -1218,7 +1218,7 @@ public class KmerMotifFinder {
 			if (topCluster!=-1){			// only generate a few clusters to select optimal K
 				int pwmCount = 0;
 				for (KmerCluster c:clusters)
-					if (c.wm!=null)
+					if (c.wm!=null && c.pwmGoodQuality && c.total_aligned_seqs>=seqs.length*motif_hit_factor_report)
 						pwmCount++;
 				if (pwmCount>=topCluster){
 					primarySeed = null;		// do not record primary seed here
@@ -1620,6 +1620,8 @@ public class KmerMotifFinder {
 		clusters.addAll(secondaryClusters);
 		
 		for (int i=0;i<clusters.size();i++){
+			if (i==0)
+				primarySeed = clusters.get(0).seedKmer;
 			clusters.get(i).clusterId = i;
 			for (Kmer km: clusters.get(i).alignedKmers)
 				km.setClusterId(i);
