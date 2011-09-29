@@ -31,5 +31,24 @@ public class ProfileRegion extends Region {
 			return 0;
 		}
 	}
+	
+	public String toString() {
+		StringBuffer sb = new StringBuffer();
+		sb.append(this.getLocationString());
+		for (int i=0; i<profile.length; i++) {
+			sb.append("|"+profile[i]);
+		}
+		return sb.toString();
+	}
+	
+	public static ProfileRegion fromString(Genome genome, String s) {
+		String[] split = s.split("|");
+		Region reg = Region.fromString(genome, split[0]);
+		double[] profile = new double[split.length-1];
+		for (int i=1; i<profile.length; i++) {
+			profile[i-1] = Double.parseDouble(split[i]);
+		}
+		return new ProfileRegion(genome, reg.getChrom(), reg.getStart(), reg.getEnd(), profile);
+	}
 
 }
