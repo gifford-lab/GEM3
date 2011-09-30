@@ -2063,6 +2063,9 @@ public class KmerMotifFinder {
 						clusters.set(m, newCluster);
 						
 						// try the other PWM after removing the overlap hits
+						if (verbose>1)
+				    		System.out.println(String.format("%s: Merge is successful, now testing remaining cluster #%d.", 
+				    			CommonUtils.timeElapsed(tic), cluster_j.clusterId));
 						alignSequencesUsingPWM(seqList, newCluster);
 						ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
 						for (Sequence s:seqList)
@@ -2076,30 +2079,38 @@ public class KmerMotifFinder {
 						}
 						if (aligned_seqs_count<seqs.length*motif_hit_factor){
 							if (verbose>1)
-					    		System.out.println(String.format("%s: Number of sequences %d is too few, remove cluster %d.", 
+					    		System.out.println(String.format("%s: Number of sequences %d is too few, remove cluster #%d.", 
 					    			CommonUtils.timeElapsed(tic), aligned_seqs_count, cluster_j.clusterId));
 							clusters.remove(j);
 						}
 						else{
-							improvePWM (cluster_j, seqList_j, seed_range, false, use_PWM_MM);
-							if (cluster_j.pwmPosHitCount<seqs.length*motif_hit_factor){
+							buildPWM(seqList_j, cluster_j, 0, tic, false);
+							alignSequencesUsingPWM(seqList_j, cluster_j);
+							improvePWM (cluster_j, seqList_j, seed_range, false, false);
+							int alignedSeqCount = alignSequencesUsingPWM(seqList_j, cluster_j);
+							if (alignedSeqCount<seqs.length*motif_hit_factor){
 								if (verbose>1)
-						    		System.out.println(String.format("%s: new PWM hit %d is too few, remove cluster %d.", 
-						    			CommonUtils.timeElapsed(tic), cluster_j.pwmPosHitCount, cluster_j.clusterId));
+						    		System.out.println(String.format("%s: new PWM hit %d is too few, remove cluster #%d.", 
+						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_j.clusterId));
 								clusters.remove(j);
 							}
 							else{
+								if (verbose>1)
+						    		System.out.println(String.format("%s: new PWM has sufficient hit %d, keep  cluster #%d.", 
+						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_j.clusterId));
+								// update the # aligned_seqs using the number from all sequences
 								if (cluster_j.pwmPosHitCount>cluster_j.total_aligned_seqs)
 									cluster_j.total_aligned_seqs = cluster_j.pwmPosHitCount;
-								if (verbose>1)
-						    		System.out.println(String.format("%s: new PWM has sufficient hit %d, keep  cluster %d.", 
-						    			CommonUtils.timeElapsed(tic), cluster_j.pwmPosHitCount, cluster_j.clusterId));
 							}
 						}
 						isMerged = true;
 						if (verbose>1)
-				    		System.out.println(CommonUtils.timeElapsed(tic)+": cluster "+cluster_m.clusterId+" and cluster "+cluster_j.clusterId+" merge to new PWM "+WeightMatrix.getMaxLetters(newCluster.wm)+"\n");
+				    		System.out.println(CommonUtils.timeElapsed(tic)+": cluster #"+cluster_m.clusterId+" and cluster #"+cluster_j.clusterId+" merge to new PWM "+WeightMatrix.getMaxLetters(newCluster.wm)+"\n");
 						break outer;
+					}
+					else{
+						if (verbose>1)
+				    		System.out.println(String.format("%s: Merged PWM is not more enriched, do not merge\n", CommonUtils.timeElapsed(tic)));
 					}
 				}
 			}
@@ -3364,7 +3375,7 @@ public class KmerMotifFinder {
 	/** align all sequences using a PWM<br>
 	 * sequences have a PWM hit is aligned according hit position, if no PWM hit, set it to unaligned
 	 */
-	private void alignSequencesUsingPWM(ArrayList<Sequence> seqList, KmerCluster cluster){
+	private int alignSequencesUsingPWM(ArrayList<Sequence> seqList, KmerCluster cluster){
 			    	
     		WeightMatrix wm = cluster.wm;
 	        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);		
@@ -3402,6 +3413,8 @@ public class KmerMotifFinder {
 
 	    	if (verbose>1)
 	    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" align "+count_pwm_aligned+" sequences.");
+	    	
+	    	return count_pwm_aligned;
 	}
 	
 //	private void alignSequencesUsingSeedFamily(ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
