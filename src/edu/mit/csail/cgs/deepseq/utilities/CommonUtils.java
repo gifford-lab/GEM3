@@ -359,8 +359,8 @@ public class CommonUtils {
 
 	/**
 	 *  Scan the sequence to find all matches to the weight matrix<br>
-	 *  Note: the definition of motif position here is different from scanPWM() method
-	 *  @return  List of positions (middle of motif match) that pass the threshold. <br>
+	 *  Note: the definition of motif position here is different from scanPWM() method<br>
+	 *  Return  List of positions (middle of motif match) that pass the threshold. <br>
 	 *  The position will be negative if the match is on '-' strand     
 	 */
 	public static ArrayList<Integer> getAllPWMHit(String sequence, int wmLen, WeightMatrixScorer scorer, double threshold){
