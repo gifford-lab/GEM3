@@ -1378,38 +1378,18 @@ public class KmerMotifFinder {
 //				}
 //	    	}
 //	    	else{
-		    	/** Iteratively build PWM and align sequences */
-		    	while(true){			
-					int aligned_seqs_count=0;
-					for (Sequence s:seqList){
-				    	  if (s.pos!=UNALIGNED)
-				    		  aligned_seqs_count++;
-					}
-					if (aligned_seqs_count<seed.getPosHitCount()*1.5)	{		// if most of sequences are aligned by seed kmer, stop
-						if (verbose>1)
-							System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
-						break;
-					}
-					
-			    	// build PWM
-					int leftIdx = buildPWM(seqList, cluster, 0, tic, true);	
-					if (leftIdx > -1){				    	
-						alignSequencesUsingPWM(seqList, cluster);
-						if (use_PWM_MM){
-							alignSequencesUsingPWMmm(seqList, cluster);
-						}
-						if (use_KSM){
-							cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
-							if (cluster.alignedKmers.isEmpty())
-								break;
-							alignSequencesUsingKSM(seqList, cluster);
-						}
-					}
-					else
-						break;
-		    	}  // Iteratively improve PWM and sequences alignment
-		    	
-		    	
+				int aligned_seqs_count=0;
+				for (Sequence s:seqList){
+			    	  if (s.pos!=UNALIGNED)
+			    		  aligned_seqs_count++;
+				}
+				if (aligned_seqs_count<seed.getPosHitCount()*1.5)	{		// if most of sequences are aligned by seed kmer, stop
+					if (verbose>1)
+						System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
+					break;
+				}		    	
+				/** Iteratively build PWM and align sequences */
+				improvePWM (cluster, seqList, seed_range, use_KSM, use_PWM_MM);
 //	    	}
 	    	
 			// get Aligned Kmers from PWM alignement. if no PWM, it is the seed_family alignment
@@ -1604,14 +1584,18 @@ public class KmerMotifFinder {
 			
 			// sort secondary clusters
 			ArrayList<KmerCluster> secondaryClusters = new ArrayList<KmerCluster>();
-			for (int i=1;i<clusters.size();i++)
+			for (int i=1;i<clusters.size();i++){
 				secondaryClusters.add(clusters.get(i));
+			}
 			clusters.removeAll(secondaryClusters);
 			Collections.sort(secondaryClusters);
 			clusters.addAll(secondaryClusters);
+			for (int i=0;i<clusters.size();i++){
+				clusters.get(i).clusterId = i;
+			}	
 			
 			if (verbose>1)
-				System.out.println("\nMerge overlapping motif clusters ...");
+				System.out.println("\nMerge overlapping motif clusters ...\n");
 			mergeOverlapClusters (outName, seqList, seed_range, use_KSM, use_PWM_MM);
 		}
 		
@@ -1963,7 +1947,7 @@ public class KmerMotifFinder {
 	}
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void mergeOverlapClusters (String name, ArrayList<Sequence> seqList, int seed_range, boolean use_KSM, boolean use_PWM_MM){		
+	private void mergeOverlapClusters (String name, ArrayList<Sequence> seqList, int seed_range, boolean use_KSM, boolean use_PWM_MM){		
 		boolean isMerged = false;
 		
 		ArrayList[][] hits = new ArrayList[seqs.length][clusters.size()];
@@ -2017,9 +2001,12 @@ public class KmerMotifFinder {
 						maxDist = p;
 					}
 				}
+				
 				if (maxCount>=minHitCount*0.3){				// if there is large enough overlap, try to merge 2 clusters
 					if (verbose>1)
-			    		System.out.println(CommonUtils.timeElapsed(tic)+": Trying to merge "+WeightMatrix.getMaxLetters(cluster_m.wm)+" and "+WeightMatrix.getMaxLetters(cluster_j.wm));
+			    		System.out.println(String.format("%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f) ... ", CommonUtils.timeElapsed(tic), 
+		    				WeightMatrix.getMaxLetters(cluster_m.wm), cluster_m.clusterId, cluster_m.pwmThresholdHGP,
+		    				WeightMatrix.getMaxLetters(cluster_j.wm), cluster_j.clusterId, cluster_j.pwmThresholdHGP));
 					
 					KmerCluster newCluster = cluster_m.clone();
 					alignSequencesUsingPWM(seqList, newCluster);	// align with first PWM
@@ -2060,29 +2047,13 @@ public class KmerMotifFinder {
 			        }	// each sequence
 					if (verbose>1)
 			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" align additional "+count_pwm_aligned+" sequences.");
-				
+					
 			    	// build PWM
 					buildPWM(seqList, newCluster, 0, tic, false);
 					alignSequencesUsingPWM(seqList, newCluster);
 					
 					// Iteratively improve PWM and sequences alignment
-					while(true){							
-						int leftIdx = buildPWM(seqList, newCluster, 0, tic, true);
-						if (leftIdx > -1){				    	
-							alignSequencesUsingPWM(seqList, newCluster);
-							if (use_PWM_MM){
-								alignSequencesUsingPWMmm(seqList, newCluster);
-							}
-							if (use_KSM){
-								newCluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
-								if (newCluster.alignedKmers.isEmpty())
-									break;
-								alignSequencesUsingKSM(seqList, newCluster);
-							}
-						}
-						else
-							break;
-			    	}  
+					improvePWM (newCluster, seqList, seed_range, use_KSM, use_PWM_MM);
 					
 					// merge if the new PWM is more enriched
 					if (newCluster.pwmThresholdHGP<cluster_m.pwmThresholdHGP ||
@@ -2090,10 +2061,44 @@ public class KmerMotifFinder {
 						if (newCluster.pwmPosHitCount>newCluster.total_aligned_seqs)
 							newCluster.total_aligned_seqs = newCluster.pwmPosHitCount;
 						clusters.set(m, newCluster);
-						clusters.remove(j);
+						
+						// try the other PWM after removing the overlap hits
+						alignSequencesUsingPWM(seqList, newCluster);
+						ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
+						for (Sequence s:seqList)
+							if (s.pos == UNALIGNED)
+								seqList_j.add(s);
+						alignSequencesUsingPWM(seqList_j, cluster_j);
+						int aligned_seqs_count=0;
+						for (Sequence s:seqList_j){
+					    	  if (s.pos!=UNALIGNED)
+					    		  aligned_seqs_count++;
+						}
+						if (aligned_seqs_count<seqs.length*motif_hit_factor){
+							if (verbose>1)
+					    		System.out.println(String.format("%s: Number of sequences %d is too few, remove cluster %d.", 
+					    			CommonUtils.timeElapsed(tic), aligned_seqs_count, cluster_j.clusterId));
+							clusters.remove(j);
+						}
+						else{
+							improvePWM (cluster_j, seqList_j, seed_range, false, use_PWM_MM);
+							if (cluster_j.pwmPosHitCount<seqs.length*motif_hit_factor){
+								if (verbose>1)
+						    		System.out.println(String.format("%s: new PWM hit %d is too few, remove cluster %d.", 
+						    			CommonUtils.timeElapsed(tic), cluster_j.pwmPosHitCount, cluster_j.clusterId));
+								clusters.remove(j);
+							}
+							else{
+								if (cluster_j.pwmPosHitCount>cluster_j.total_aligned_seqs)
+									cluster_j.total_aligned_seqs = cluster_j.pwmPosHitCount;
+								if (verbose>1)
+						    		System.out.println(String.format("%s: new PWM has sufficient hit %d, keep  cluster %d.", 
+						    			CommonUtils.timeElapsed(tic), cluster_j.pwmPosHitCount, cluster_j.clusterId));
+							}
+						}
 						isMerged = true;
 						if (verbose>1)
-				    		System.out.println(CommonUtils.timeElapsed(tic)+": cluster "+m+" and cluster "+j+" merge to new PWM "+WeightMatrix.getMaxLetters(newCluster.wm)+"\n");
+				    		System.out.println(CommonUtils.timeElapsed(tic)+": cluster "+cluster_m.clusterId+" and cluster "+cluster_j.clusterId+" merge to new PWM "+WeightMatrix.getMaxLetters(newCluster.wm)+"\n");
 						break outer;
 					}
 				}
@@ -2104,6 +2109,27 @@ public class KmerMotifFinder {
 			mergeOverlapClusters (name, seqList, seed_range, use_KSM, use_PWM_MM);
 	}
 	
+	/** Iteratively build PWM and align sequences */
+	private void improvePWM (KmerCluster cluster, ArrayList<Sequence> seqList, int seed_range, boolean use_KSM, boolean use_PWM_MM){	
+    	while(true){	
+			int leftIdx = buildPWM(seqList, cluster, 0, tic, true);	
+			if (leftIdx > -1){				    	
+				alignSequencesUsingPWM(seqList, cluster);
+				if (use_PWM_MM){
+					alignSequencesUsingPWMmm(seqList, cluster);
+				}
+				if (use_KSM){
+					cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+					if (cluster.alignedKmers.isEmpty())
+						break;
+					alignSequencesUsingKSM(seqList, cluster);
+				}
+			}
+			else
+				break;
+    	}  // Iteratively improve PWM and sequences alignment
+	}
+
 	
 	/**
 	 * Compute the distance distributions between primary and secondary motifs
