@@ -1553,24 +1553,10 @@ public class KmerMotifFinder {
 			KmerCluster cluster = clusters.get(i);
 			if (cluster.wm==null)
 				continue;
-			while(true){	
-				alignSequencesUsingPWM(seqList, cluster);
-				int leftIdx = buildPWM(seqList, cluster, 0, tic, true);
-				if (leftIdx > -1){				    	
-					alignSequencesUsingPWM(seqList, cluster);
-					if (use_PWM_MM){
-						alignSequencesUsingPWMmm(seqList, cluster);
-					}
-					if (use_KSM){
-						cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
-						if (cluster.alignedKmers.isEmpty())
-							break;
-						alignSequencesUsingKSM(seqList, cluster);
-					}
-				}
-				else
-					break;
-	    	}  
+			if (verbose>1)
+				System.out.println("");
+			alignSequencesUsingPWM(seqList, cluster);
+			improvePWM (cluster, seqList, seed_range, use_KSM, use_PWM_MM); 
 		}
 		
 		boolean mergeClusters = true;
@@ -1596,7 +1582,8 @@ public class KmerMotifFinder {
 			
 			if (verbose>1)
 				System.out.println("\nMerge overlapping motif clusters ...\n");
-			mergeOverlapClusters (outName, seqList, seed_range, use_KSM, use_PWM_MM);
+			boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// whether a pair has been checked
+			mergeOverlapClusters (outName, seqList, seed_range, use_KSM, use_PWM_MM, checked);
 		}
 		
 		// remove clusters if it did not form PWM, or PWM hit is too few
@@ -1947,7 +1934,8 @@ public class KmerMotifFinder {
 	}
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private void mergeOverlapClusters (String name, ArrayList<Sequence> seqList, int seed_range, boolean use_KSM, boolean use_PWM_MM){		
+	private void mergeOverlapClusters (String name, ArrayList<Sequence> seqList, int seed_range, 
+			boolean use_KSM, boolean use_PWM_MM, boolean[][] checked){		
 		boolean isMerged = false;
 		
 		ArrayList[][] hits = new ArrayList[seqs.length][clusters.size()];
@@ -1964,6 +1952,9 @@ public class KmerMotifFinder {
 			for (int j=m+1;j<clusters.size();j++){
 				KmerCluster cluster_m = clusters.get(m);
 				KmerCluster cluster_j = clusters.get(j);
+				if (checked[cluster_m.clusterId][cluster_j.clusterId])
+					continue;
+				
 				int range = seqLen - cluster_m.wm.length()/2 - cluster_j.wm.length()/2;
 				int[] same = new int[range*2+1];
 				int[] diff = new int[range*2+1];
@@ -2061,7 +2052,10 @@ public class KmerMotifFinder {
 						if (newCluster.pwmPosHitCount>newCluster.total_aligned_seqs)
 							newCluster.total_aligned_seqs = newCluster.pwmPosHitCount;
 						clusters.set(m, newCluster);
-						
+						for (int d=0;d<checked.length;d++){
+							checked[d][cluster_m.clusterId]=false;
+							checked[cluster_m.clusterId][d]=false;
+						}
 						// try the other PWM after removing the overlap hits
 						if (verbose>1)
 				    		System.out.println(String.format("%s: Merge is successful, now testing remaining cluster #%d.", 
@@ -2098,6 +2092,10 @@ public class KmerMotifFinder {
 								if (verbose>1)
 						    		System.out.println(String.format("%s: new PWM has sufficient hit %d, keep  cluster #%d.", 
 						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_j.clusterId));
+								for (int d=0;d<checked.length;d++){
+									checked[d][cluster_j.clusterId]=false;
+									checked[cluster_j.clusterId][d]=false;
+								}
 								// update the # aligned_seqs using the number from all sequences
 								if (cluster_j.pwmPosHitCount>cluster_j.total_aligned_seqs)
 									cluster_j.total_aligned_seqs = cluster_j.pwmPosHitCount;
@@ -2109,18 +2107,23 @@ public class KmerMotifFinder {
 						break outer;
 					}
 					else{
+						checked[cluster_m.clusterId][cluster_j.clusterId]=true;
 						if (verbose>1)
 				    		System.out.println(String.format("%s: Merged PWM is not more enriched, do not merge\n", CommonUtils.timeElapsed(tic)));
 					}
+				}
+				else{
+					checked[cluster_m.clusterId][cluster_j.clusterId] = true;
 				}
 			}
 		}
 		
 		if (isMerged)		// if merged, continue to merge, otherwise return
-			mergeOverlapClusters (name, seqList, seed_range, use_KSM, use_PWM_MM);
+			mergeOverlapClusters (name, seqList, seed_range, use_KSM, use_PWM_MM, checked);
 	}
 	
-	/** Iteratively build PWM and align sequences */
+	/** Iteratively build PWM and align sequences <br>
+	 *  The seqList should be aligned so that a new PWM can be built. */
 	private void improvePWM (KmerCluster cluster, ArrayList<Sequence> seqList, int seed_range, boolean use_KSM, boolean use_PWM_MM){	
     	while(true){	
 			int leftIdx = buildPWM(seqList, cluster, 0, tic, true);	
