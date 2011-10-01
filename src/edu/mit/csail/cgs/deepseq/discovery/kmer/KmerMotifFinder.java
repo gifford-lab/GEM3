@@ -1,5 +1,12 @@
 package edu.mit.csail.cgs.deepseq.discovery.kmer;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,6 +25,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import javax.imageio.ImageIO;
+
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -32,6 +41,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -1672,10 +1682,10 @@ public class KmerMotifFinder {
 		    }
 		});	
 		
-		outputClusters(allAlignedKmers);
-		
 		// print PWM spatial distribtution
 		printMotifDistanceDistribution(outName);
+		
+		outputClusters(allAlignedKmers);
 
 		System.out.print("\nAlignment done, "+CommonUtils.timeElapsed(tic)+"\n");
 		
@@ -1910,17 +1920,21 @@ public class KmerMotifFinder {
 		html.append("</table><br><a href='"+name+"_kmer_k"+k+".txt'>The complete K-mer list.</a>");
 		html.append("<br><a href='"+name+"_Alignement_k"+k+".txt'>The k-mer alignment file.</a>");
 		html.append("<br><a href='"+name+"_PFM_k"+k+".txt'>The PFM of motifs</a>");
-		html.append("</td><td><br>");
+		html.append("</td><td valign='top'><br><br>");
+		html.append("<table border=0 align=center><th>Motif</th><th>Spatial distribution</th>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
     		if (wm==null || (!c.pwmGoodQuality)|| c.total_aligned_seqs<seqs.length*motif_hit_factor_report)
     			continue;
-    		html.append("<img src='"+name+"_"+c.clusterId+"_motif.png"+"'><br>");
-    		html.append(String.format("PWM score: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
+    		
+    		html.append("<tr><td><img src='"+name+"_"+c.clusterId+"_motif.png"+"'><br>");
+    		html.append(String.format("PWM: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
     				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
 //    		html.append(String.format("KSM score: %.2f, \thit=%d+/%d-, hgp=1e%.1f<br><br>", 
 //    				c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
+    		html.append("</td><td><img src='"+name+"_Spatial_dist_0_"+c.clusterId+".png"+"' height='150'></td></tr>");
 		}
+		html.append("</table>");
 		html.append("</td></tr></table>");
 		CommonUtils.writeFile(outName+"_result.htm", html.toString());
 		
@@ -2195,12 +2209,103 @@ public class KmerMotifFinder {
 					}
 				}
 				StringBuilder sb = new StringBuilder();
+				int x[]=new int[range*2+1];
 				for (int i=0;i<same.length;i++){
-					sb.append(String.format("%d\t%d\t%d\n", i-range, same[i], diff[i]));
+					x[i]=i-range;
+					sb.append(String.format("%d\t%d\t%d\n", x[i], same[i], diff[i]));
 				}
-				CommonUtils.writeFile(name+"_Spatial_dist_"+clusters.get(m).clusterId+"_"+clusters.get(j).clusterId+".txt", sb.toString());
+				String fileSuffix = name+"_Spatial_dist_"+clusters.get(m).clusterId+"_"+clusters.get(j).clusterId;
+				plotMotifDistanceDistribution(x, same, diff, fileSuffix+".png");
+				
+				CommonUtils.writeFile(fileSuffix+".txt", sb.toString());
 			}
 		}
+	}
+	public void plotMotifDistanceDistribution(int[]x, int[]same, int[]diff, String filename){
+		File f = new File(filename);
+		int w = 660;
+		int h = 300;
+		int margin= 30;
+		int x_frame = 0;
+		int y_frame = 0;
+		
+		System.setProperty("java.awt.headless", "true");
+	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+	    Graphics g = im.getGraphics();
+	    Graphics2D g2 = (Graphics2D)g;
+	    g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
+	    g2.setColor(Color.white);
+	    g2.fillRect(0, 0, w, h);	
+	    
+	    int total = 0;
+	    int max_same = 0;
+	    for (int s:same){
+	    	if(s>max_same)
+	    		max_same=s;
+	    	total+=s;
+	    }
+	    int max_diff = 0;
+	    for (int s:diff){
+	    	if(s>max_diff)
+	    		max_diff=s;
+	    	total+=s;
+	    }
+	    
+	    float x_ratio = 2*60.0f/(w-margin*2-x_frame);
+	    float y_ratio = (max_same+max_diff)/(float)(h-margin*3-y_frame);
+	    int y_zero = Math.round((float)max_same*(h-margin*3-y_frame)/(max_same+max_diff))+margin;
+	    int x_y_axis = x_frame+margin;
+	    int x_zero = x_frame+(w-x_frame)/2;
+	    int y_bottom = h-margin-y_frame;
+	    
+	    // frame and tick
+	    g2.setColor(Color.gray);
+	    g2.drawLine(x_y_axis, y_bottom, w-margin, y_bottom);					// x-frame
+	    g2.drawLine(x_y_axis, margin, x_y_axis, y_bottom);						// y-frame    
+	    g2.drawLine(x_y_axis, y_zero, w-margin, y_zero);						// x-axis    
+	    int font = 20;
+	    g.setFont(new Font("Arial",Font.PLAIN,font));
+	    for (int p=-3;p<=3;p++){
+	    	int x_coor= x_zero+Math.round(p*20/x_ratio);
+	    	g2.drawLine(x_coor, y_bottom-4, x_coor, y_bottom);	// tick  
+	    	g2.drawString(p==0?" 0":""+p*20, x_zero+Math.round(p*20/x_ratio)-font/2, y_bottom+font);			// tick label
+	    }
+	    
+	    // message
+	    g2.setColor(Color.black);
+	    if (max_same>max_diff)
+	    	g2.drawString("Total:"+total, x_y_axis+font, y_zero-font*3);
+	    else
+	    	g2.drawString("Total:"+total, x_y_axis+font, y_zero+font*3);
+	    
+	    // plot the data
+	    int diameter = 8;
+	    for (int i=0;i<x.length;i++){
+	    	int x_coor= x_zero+Math.round(x[i]/x_ratio);
+	    	if (same[i]!=0){
+		    	g2.setColor(Color.blue);
+		    	g2.drawLine(x_coor, y_zero-Math.round(same[i]/y_ratio), x_coor, y_zero);	// same bar  
+		    	g2.drawOval(x_coor-diameter/2, y_zero-Math.round(same[i]/y_ratio)-diameter/2, diameter, diameter);
+		    	if (same[i]==max_same){
+		    		g2.drawString(String.format("%d,%d", x[i], same[i]), x_coor-font, y_zero-Math.round(same[i]/y_ratio)-font/2);
+		    	}
+	    	}
+	    	if (diff[i]!=0){
+		    	g2.setColor(Color.red);
+		    	g2.drawLine(x_coor, y_zero, x_coor, y_zero+Math.round(diff[i]/y_ratio));	// diff bar  
+		    	g2.drawOval(x_coor-diameter/2, y_zero+Math.round(diff[i]/y_ratio)-diameter/2, diameter, diameter);
+		    	if (diff[i]==max_diff){
+		    		g2.drawString(String.format("%d,%d", x[i], diff[i]), x_coor-font, y_zero+Math.round(diff[i]/y_ratio)+font+5);
+		    	}
+	    	}
+	    }
+	    
+	    try{
+	    	ImageIO.write(im, "png", f);
+	    }
+	    catch(IOException e){
+	    	System.err.println("Error in printing file "+filename);
+	    }
 	}
 	private HashMap<Integer, PWMHit> findAllPWMHits(ArrayList<Sequence> seqList, KmerCluster cluster){
 		
@@ -5245,9 +5350,44 @@ public class KmerMotifFinder {
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);
 //        }
-        int k = kmf.selectK(9, 9, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
+        int k = kmf.selectK(8, 8, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
         kmf.alignBySimplePWM(kmers, -1, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
+	}
+	public static void main1(String[] args){
+		ArrayList<Integer> x_list = new ArrayList<Integer>();
+		ArrayList<Integer> same_list = new ArrayList<Integer>();
+		ArrayList<Integer> diff_list = new ArrayList<Integer>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[0]))));
+	        String line;
+	        String[]f = null;
+	        while((line = bin.readLine()) != null) { 
+	            f = line.trim().split("\t");
+	            if (f.length==3){
+	            	x_list.add(Integer.parseInt(f[0]));
+	            	same_list.add(Integer.parseInt(f[1]));
+	            	diff_list.add(Integer.parseInt(f[2]));
+	            }
+	        }			
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+args[0]);
+            e.printStackTrace(System.err);
+        }
+        int[] x = new int[x_list.size()];
+        int[] same = new int[x_list.size()];
+        int[] diff = new int[x_list.size()];
+        for (int i=0;i<x.length;i++)
+        	x[i] = x_list.get(i);
+        for (int i=0;i<x.length;i++)
+        	same[i] = same_list.get(i);
+        for (int i=0;i<x.length;i++)
+        	diff[i] = diff_list.get(i);
+        KmerMotifFinder kmf = new KmerMotifFinder();
+        kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
 	}
 }
 
