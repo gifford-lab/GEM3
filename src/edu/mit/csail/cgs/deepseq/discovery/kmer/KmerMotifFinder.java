@@ -1348,7 +1348,7 @@ public class KmerMotifFinder {
 	    	seedFamily = null;
 	    	
 	    	// build first PWM with some noise
-	    	if (verbose>1)
+	    	if (verbose>1 && noiseRatio!=0)
 				System.out.println(CommonUtils.timeElapsed(tic)+ ": PWM noise = " + noiseRatio);
 			if ( buildPWM(seqList, cluster, noiseRatio, tic, true) > -1){    	
 				alignSequencesUsingPWM(seqList, cluster);
@@ -1573,7 +1573,8 @@ public class KmerMotifFinder {
 			if (cluster.wm==null)
 				continue;
 			if (verbose>1)
-				System.out.println("");
+				System.out.println(String.format("\n%s: Refining %s hgp=1e-%.1f", CommonUtils.timeElapsed(tic), 
+						WeightMatrix.getMaxLetters(cluster.wm), cluster.pwmThresholdHGP));
 			while(true){
 				HashMap<Integer, PWMHit> hits = findAllPWMHits (seqList, cluster); 
 				if (buildPWMfromHits(seqList, cluster, hits.values().iterator())<=-1)
@@ -1974,13 +1975,17 @@ public class KmerMotifFinder {
 	private void mergeOverlapClusters (String name, ArrayList<Sequence> seqList, int seed_range, 
 			boolean use_KSM, boolean use_PWM_MM, boolean[][] checked){		
 		boolean isMerged = false;
+		int maxClusterId=0;
+		for (KmerCluster c:clusters)
+			if (c.clusterId > maxClusterId)
+				maxClusterId = c.clusterId;
 		
-		ArrayList[][] hits = new ArrayList[seqs.length][clusters.size()];
+		ArrayList[][] hits = new ArrayList[seqs.length][maxClusterId+1];
 		for (int j=0;j<clusters.size();j++){
 			KmerCluster c = clusters.get(j);
 			WeightMatrixScorer scorer = new WeightMatrixScorer(c.wm);
 			for (int i=0;i<seqs.length;i++){
-				hits[i][j]=CommonUtils.getAllPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold);
+				hits[i][c.clusterId]=CommonUtils.getAllPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold);
 			}
 		}
 				
@@ -2036,9 +2041,9 @@ public class KmerMotifFinder {
 				
 				if (maxCount>=minHitCount*0.3){				// if there is large enough overlap, try to merge 2 clusters
 					if (verbose>1)
-			    		System.out.println(String.format("%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d ... ", 
+			    		System.out.println(String.format("%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
 			    				CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(cluster_main.wm), cluster_main.clusterId, cluster_main.pwmThresholdHGP,
-		    				WeightMatrix.getMaxLetters(cluster_junior.wm), cluster_junior.clusterId, cluster_junior.pwmThresholdHGP, maxDist));
+		    				WeightMatrix.getMaxLetters(cluster_junior.wm), cluster_junior.clusterId, cluster_junior.pwmThresholdHGP, maxDist, isRC?"rc":""));
 					
 					KmerCluster newCluster = cluster_main.clone();
 					alignSequencesUsingPWM(seqList, newCluster);	// align with first PWM
