@@ -1568,17 +1568,19 @@ public class KmerMotifFinder {
     	// re-build PWM with un-masked sequences
 		if (verbose>1)
 			System.out.println("\nRebuilding motif clusters with un-masked sequences ...");
-		for (int i=1;i<clusters.size();i++){		// do not need this for primary cluster
+		for (int i=0;i<clusters.size();i++){		// do not need this for primary cluster
 			KmerCluster cluster = clusters.get(i);
 			if (cluster.wm==null)
 				continue;
 			if (verbose>1)
 				System.out.println(String.format("\n%s: Refining %s hgp=1e-%.1f", CommonUtils.timeElapsed(tic), 
 						WeightMatrix.getMaxLetters(cluster.wm), cluster.pwmThresholdHGP));
-			while(true){
-				HashMap<Integer, PWMHit> hits = findAllPWMHits (seqList, cluster); 
-				if (buildPWMfromHits(seqList, cluster, hits.values().iterator())<=-1)
-					break;
+			for (double dec=0;dec<0.3;dec+=0.1){		// refine using more relax threshold to try more sequences
+				while(true){
+					HashMap<Integer, PWMHit> hits = findAllPWMHits (seqList, cluster, wm_factor-dec); 
+					if (buildPWMfromHits(seqList, cluster, hits.values().iterator())<=-1)	// But the selection wm_factor IS NOT CHANGED
+						break;
+				}
 			}
 		}
 		
@@ -1974,7 +1976,7 @@ public class KmerMotifFinder {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void mergeOverlapClusters (String name, ArrayList<Sequence> seqList, int seed_range, 
 			boolean use_KSM, boolean use_PWM_MM, boolean[][] checked){		
-		boolean isMerged = false;
+		boolean isChanged = false;
 		int maxClusterId=0;
 		for (KmerCluster c:clusters)
 			if (c.clusterId > maxClusterId)
@@ -2041,7 +2043,7 @@ public class KmerMotifFinder {
 				
 				if (maxCount>=minHitCount*0.3){				// if there is large enough overlap, try to merge 2 clusters
 					if (verbose>1)
-			    		System.out.println(String.format("%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
+			    		System.out.println(String.format("\n%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
 			    				CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(cluster_main.wm), cluster_main.clusterId, cluster_main.pwmThresholdHGP,
 		    				WeightMatrix.getMaxLetters(cluster_junior.wm), cluster_junior.clusterId, cluster_junior.pwmThresholdHGP, maxDist, isRC?"rc":""));
 					
@@ -2101,68 +2103,75 @@ public class KmerMotifFinder {
 							checked[d][cluster_main.clusterId]=false;
 							checked[cluster_main.clusterId][d]=false;
 						}
-						// try the other PWM after removing the overlap hits
+						cluster_main = newCluster;
 						if (verbose>1)
-				    		System.out.println(String.format("%s: Merge is successful, now testing remaining cluster #%d.", 
-				    			CommonUtils.timeElapsed(tic), cluster_junior.clusterId));
-						alignSequencesUsingPWM(seqList, newCluster);
-						ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
-						for (Sequence s:seqList)
-							if (s.pos == UNALIGNED)
-								seqList_j.add(s);
-						alignSequencesUsingPWM(seqList_j, cluster_junior);
-						int aligned_seqs_count=0;
-						for (Sequence s:seqList_j){
-					    	  if (s.pos!=UNALIGNED)
-					    		  aligned_seqs_count++;
+				    		System.out.println(CommonUtils.timeElapsed(tic)+": cluster #"+cluster_main.clusterId+" and cluster #"
+				    				+cluster_junior.clusterId+" merge to new PWM "+WeightMatrix.getMaxLetters(newCluster.wm));	
+					}
+					else{	
+						checked[cluster_main.clusterId][cluster_junior.clusterId]=true;
+						if (verbose>1)
+				    		System.out.println(String.format("%s: Merged PWM is not more enriched, do not merge", CommonUtils.timeElapsed(tic)));
+					}
+					// No matter successful merging or not, try the other PWM after removing the overlap hits
+					if (verbose>1)
+			    		System.out.println(String.format("%s: Testing the remaining cluster #%d.", 
+			    			CommonUtils.timeElapsed(tic), cluster_junior.clusterId));						
+					alignSequencesUsingPWM(seqList, cluster_main);
+					ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
+					for (Sequence s:seqList)
+						if (s.pos == UNALIGNED)
+							seqList_j.add(s);
+					alignSequencesUsingPWM(seqList_j, cluster_junior);
+					int aligned_seqs_count=0;
+					for (Sequence s:seqList_j){
+				    	  if (s.pos!=UNALIGNED)
+				    		  aligned_seqs_count++;
+					}
+					if (aligned_seqs_count<seqs.length*motif_hit_factor || aligned_seqs_count<cluster_junior.pwmPosHitCount/2){
+						if (verbose>1)
+				    		System.out.println(String.format("%s: Number of sequences (%d) hit by cluster #%d is too few, remove it.", 
+				    			CommonUtils.timeElapsed(tic), aligned_seqs_count, cluster_junior.clusterId));
+						clusters.remove(j);
+					}
+					else{
+						cluster_junior.wm = null;			// reset here, to get a new PWM
+						int alignedSeqCount = 0;
+						buildPWM(seqList_j, cluster_junior, 0, tic, false);
+						if (cluster_junior.wm != null){		// got a new PWM
+							alignSequencesUsingPWM(seqList_j, cluster_junior);
+							improvePWM (cluster_junior, seqList_j, seed_range, false, false);
+							alignedSeqCount = alignSequencesUsingPWM(seqList_j, cluster_junior);
 						}
-						if (aligned_seqs_count<seqs.length*motif_hit_factor || aligned_seqs_count<cluster_junior.pwmPosHitCount/2){
+						if (alignedSeqCount<seqs.length*motif_hit_factor){
 							if (verbose>1)
-					    		System.out.println(String.format("%s: Number of sequences %d is too few, remove cluster #%d.", 
-					    			CommonUtils.timeElapsed(tic), aligned_seqs_count, cluster_junior.clusterId));
+					    		System.out.println(String.format("%s: new PWM hit %d is too few, remove cluster #%d.", 
+					    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_junior.clusterId));
 							clusters.remove(j);
 						}
 						else{
-							buildPWM(seqList_j, cluster_junior, 0, tic, false);
-							alignSequencesUsingPWM(seqList_j, cluster_junior);
-							improvePWM (cluster_junior, seqList_j, seed_range, false, false);
-							int alignedSeqCount = alignSequencesUsingPWM(seqList_j, cluster_junior);
-							if (alignedSeqCount<seqs.length*motif_hit_factor){
-								if (verbose>1)
-						    		System.out.println(String.format("%s: new PWM hit %d is too few, remove cluster #%d.", 
-						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_junior.clusterId));
-								clusters.remove(j);
+							if (verbose>1)
+					    		System.out.println(String.format("%s: new PWM has sufficient hit %d, keep  cluster #%d.", 
+					    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_junior.clusterId));
+							for (int d=0;d<checked.length;d++){
+								checked[d][cluster_junior.clusterId]=false;
+								checked[cluster_junior.clusterId][d]=false;
 							}
-							else{
-								if (verbose>1)
-						    		System.out.println(String.format("%s: new PWM has sufficient hit %d, keep  cluster #%d.", 
-						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_junior.clusterId));
-								for (int d=0;d<checked.length;d++){
-									checked[d][cluster_junior.clusterId]=false;
-									checked[cluster_junior.clusterId][d]=false;
-								}
-								// update the # aligned_seqs using the number from all sequences
-								if (cluster_junior.pwmPosHitCount>cluster_junior.total_aligned_seqs)
-									cluster_junior.total_aligned_seqs = cluster_junior.pwmPosHitCount;
-							}
+							// update the # aligned_seqs using the number from all sequences
+							if (cluster_junior.pwmPosHitCount>cluster_junior.total_aligned_seqs)
+								cluster_junior.total_aligned_seqs = cluster_junior.pwmPosHitCount;
 						}
-						isMerged = true;
-						if (verbose>1)
-				    		System.out.println(CommonUtils.timeElapsed(tic)+": cluster #"+cluster_main.clusterId+" and cluster #"+cluster_junior.clusterId+" merge to new PWM "+WeightMatrix.getMaxLetters(newCluster.wm)+"\n");
 					}
-					else{	// if PWM is not more enriched
-						checked[cluster_main.clusterId][cluster_junior.clusterId]=true;
-						if (verbose>1)
-				    		System.out.println(String.format("%s: Merged PWM is not more enriched, do not merge\n", CommonUtils.timeElapsed(tic)));
-					}
-				}		// if overlap is not big enough
-				else{
+
+					isChanged = true;	// no matter merged or not, cluster j is changed
+				}		
+				else{					// if overlap is not big enough
 					checked[cluster_main.clusterId][cluster_junior.clusterId] = true;
 				}
 			}
 		}
 		
-		if (isMerged)		// if merged, continue to merge, otherwise return
+		if (isChanged)		// if merged, continue to merge, otherwise return
 			mergeOverlapClusters (name, seqList, seed_range, use_KSM, use_PWM_MM, checked);
 	}
 	
@@ -2337,7 +2346,7 @@ public class KmerMotifFinder {
 	    	System.err.println("Error in printing file "+filename);
 	    }
 	}
-	private HashMap<Integer, PWMHit> findAllPWMHits(ArrayList<Sequence> seqList, KmerCluster cluster){
+	private HashMap<Integer, PWMHit> findAllPWMHits(ArrayList<Sequence> seqList, KmerCluster cluster, double pwm_factor){
 		
 		WeightMatrix wm = cluster.wm;
 	    WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
@@ -2361,7 +2370,7 @@ public class KmerMotifFinder {
 	      }
 	      // if a sequence pass the motif score, store it
 //	      if (maxSeqScore > 0){
-	      if (maxSeqScore >= cluster.pwmThreshold){
+	      if (maxSeqScore >= wm.getMaxScore()*pwm_factor){
 	    	  PWMHit hit = new PWMHit();
 	    	  hit.clusterId = cluster.clusterId;
 	    	  hit.wm = wm;
@@ -2420,7 +2429,7 @@ public class KmerMotifFinder {
 				KmerCluster c = clusters.get(i);
 				hgps[i] = c.pwmThresholdHGP;
 				c.clusterId = i;
-				c.seq2hits = findAllPWMHits(seqList, c);
+				c.seq2hits = findAllPWMHits(seqList, c, wm_factor);
 				// paint motif logo
 				c.wm.setNameVerType(name+"_i"+iter, "#"+c.clusterId, "");
 				CommonUtils.printMotifLogo(c.wm, new File(outName+"_i"+iter+"_"+c.clusterId+"_motif.png"), 75);
