@@ -2001,7 +2001,7 @@ public class KmerMotifFinder {
 				if (checked[cluster_main.clusterId][cluster_junior.clusterId])
 					continue;
 				
-				int range = seqLen - cluster_main.wm.length()/2 - cluster_junior.wm.length()/2;
+				int range = seqLen - cluster_main.wm.length()/2 - cluster_junior.wm.length()/2 + 2;  // add 2 for rounding error
 				int[] same = new int[range*2+1];
 				int[] diff = new int[range*2+1];
 				for (int i=0;i<seqs.length;i++){
