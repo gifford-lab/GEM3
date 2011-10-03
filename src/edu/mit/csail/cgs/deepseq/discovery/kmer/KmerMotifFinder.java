@@ -2099,6 +2099,7 @@ public class KmerMotifFinder {
 						if (newCluster.pwmPosHitCount>newCluster.total_aligned_seqs)
 							newCluster.total_aligned_seqs = newCluster.pwmPosHitCount;
 						clusters.set(m, newCluster);
+						isChanged = true;
 						for (int d=0;d<checked.length;d++){
 							checked[d][cluster_main.clusterId]=false;
 							checked[cluster_main.clusterId][d]=false;
@@ -2135,6 +2136,7 @@ public class KmerMotifFinder {
 						clusters.remove(j);
 					}
 					else{
+						WeightMatrix old_j = cluster_junior.wm;
 						cluster_junior.wm = null;			// reset here, to get a new PWM
 						int alignedSeqCount = 0;
 						buildPWM(seqList_j, cluster_junior, 0, tic, false);
@@ -2150,6 +2152,18 @@ public class KmerMotifFinder {
 							clusters.remove(j);
 						}
 						else{
+							// update the # aligned_seqs using the number from all sequences
+							if (cluster_junior.pwmPosHitCount>cluster_junior.total_aligned_seqs)
+								cluster_junior.total_aligned_seqs = cluster_junior.pwmPosHitCount;
+							if (old_j.isSame(cluster_junior.wm)){
+								if (verbose>1)
+						    		System.out.println(String.format("%s: Cluster #%d is unchanged.", 
+						    			CommonUtils.timeElapsed(tic), cluster_junior.clusterId));
+								if (!isChanged)		// both clusters are not changed
+									checked[cluster_main.clusterId][cluster_junior.clusterId] = true;
+								continue;
+							}
+							isChanged = true;
 							if (verbose>1)
 					    		System.out.println(String.format("%s: new PWM has sufficient hit %d, keep  cluster #%d.", 
 					    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_junior.clusterId));
@@ -2157,13 +2171,8 @@ public class KmerMotifFinder {
 								checked[d][cluster_junior.clusterId]=false;
 								checked[cluster_junior.clusterId][d]=false;
 							}
-							// update the # aligned_seqs using the number from all sequences
-							if (cluster_junior.pwmPosHitCount>cluster_junior.total_aligned_seqs)
-								cluster_junior.total_aligned_seqs = cluster_junior.pwmPosHitCount;
 						}
 					}
-
-					isChanged = true;	// no matter merged or not, cluster j is changed
 				}		
 				else{					// if overlap is not big enough
 					checked[cluster_main.clusterId][cluster_junior.clusterId] = true;

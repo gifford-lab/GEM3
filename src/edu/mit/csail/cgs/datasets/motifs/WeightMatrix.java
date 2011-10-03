@@ -320,7 +320,20 @@ public class WeightMatrix {
         out.type = type;
         return out;
     }
-
+    public boolean isSame(WeightMatrix other){
+    	if (matrix.length!=other.matrix.length)
+    		return false;
+    	if (matrix[0].length!=other.matrix[0].length)
+    		return false;
+    	for (int i=0;i<matrix.length;i++){
+    		
+    		for (int j=0;j<matrix[0].length;j++){
+    			if (matrix[i][j]!=other.matrix[i][j])
+    				return false;
+    		}
+    	}
+    	return true;
+    }
     /* examines the weight matrix to determine if it's a log-odds matrix or not */
     public boolean setLogOdds() {
         islogodds = false;
