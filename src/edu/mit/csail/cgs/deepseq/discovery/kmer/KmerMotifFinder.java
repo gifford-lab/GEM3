@@ -1888,6 +1888,10 @@ public class KmerMotifFinder {
 			// paint motif logo
 			c.wm.setNameVerType(name, "#"+c.clusterId, "");
 			CommonUtils.printMotifLogo(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
+			
+			WeightMatrix wm_rc = WeightMatrix.reverseComplement(wm);
+			c.wm.setNameVerType(name, "#"+c.clusterId, "rc");
+			CommonUtils.printMotifLogo(wm_rc, new File(outName+"_"+c.clusterId+"_motif_rc.png"), 75);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+k+".txt", pfm_sb.toString());
 

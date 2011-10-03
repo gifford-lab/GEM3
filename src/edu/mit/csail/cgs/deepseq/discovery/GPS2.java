@@ -193,7 +193,7 @@ public class GPS2 {
         	// initialize first set of kmers from GPS result
 	        mixture.initKMF();	
 	        
-            for (int i=0;i<GEM_round;i++){
+            for (int i=1;i<GEM_round;i++){
 				round++;			
 	            System.out.println("\n============================ Round "+round+" ============================");
 	            mixture.setOutName(peakFileName+"_"+round);
@@ -202,11 +202,12 @@ public class GPS2 {
 		        mixture.printFeatures();
 		        mixture.printFilteredFeatures();
 		        mixture.printInsignificantFeatures();
-		        mixture.runKMF(Args.parseInteger(args,"k_win2", 60));
+		        mixture.runKMF(Args.parseInteger(args,"k_win", 60));// Note: KPPMixture also has args parsing, keep default value the same
             }
-            mixture.printMotifDistanceDistribution(peakFileName);
-//            mixture.estimateOverallKgsThreshold();
-//	        mixture.printOverlappingKmers();
+            int winSize = Args.parseInteger(args,"k_win2", 100);
+            System.out.println("\n============== Finding motif for "+peakFileName+"_"+(round+1)+", large window size="+winSize+" =============\n");
+            mixture.setOutName(peakFileName+"_"+(round+1));
+	        mixture.runKMF(winSize);	// Note: KPPMixture also has args parsing, keep default value the same
         }
         
         mixture.plotAllReadDistributions();

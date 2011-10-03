@@ -3511,15 +3511,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //			}
 //			negativeRegions = Region.filterOverlapRegions(negativeRegions, expandedRegions);
 			// In proximal regions, but excluding binding regions
+			int winSize = Math.max(config.k_win, config.k_win2); 
 			for (Feature f:signalFeatures){
 				String chr = f.getPeak().getChrom();
-				int length = gen.getChromLength(chr)-config.k_win-1;
+				int length = gen.getChromLength(chr)-1;
 				int basis = f.getPeak().getLocation()+config.k_neg_dist;
 				for (int i=0;i<config.k_negSeq_ratio;i++){
-					int start = basis + (config.k_win+1)*i;
-					if ( start+config.k_win>=length)
+					int start = basis + (winSize+1)*i;
+					if ( start+winSize>=length)
 						continue;
-					Region r = new Region(gen, chr, start, start+config.k_win);
+					Region r = new Region(gen, chr, start, start+winSize);
 					negativeRegions.add(r);
 				}
 			}
@@ -3693,8 +3694,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 		else{
-			if (winSize==-1)
-				winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
 			config.k_win = winSize;
 		}	
 		
@@ -5971,6 +5970,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_max= -1;		// the maximum value of k        
         public int k_seqs = 100000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
+        public int k_win2 = 100;	// the window around binding event to search for motifs (in later rounds)
         public int k_win_f = 4;		// k_win = k_win_f * k
         public int k_neg_dist = 500;// the distance of the nearest edge of negative region from binding sites 
         public int k_negSeq_ratio = 1; 		// The ratio of negative sequences to positive sequences
