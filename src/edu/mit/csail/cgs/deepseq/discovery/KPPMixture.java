@@ -1681,7 +1681,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 						if (count >= config.sparseness){
 							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(breakPoint).getCoordinate());
-							// if the average read count per modelWidth is less than config.sparseness/2, find sparse point to further split
 							rs.add(r);
 						}
 						start = breakPoint+1;
@@ -1743,13 +1742,60 @@ class KPPMixture extends MultiConditionFeatureFinder {
                         }
                         if (enriched) { break ;}
                     }
-                    if (!enriched){	// remove this region if it is not enriched in any condition
+                    if (!enriched){	// remove this region if it is not enriched in all conditions
                         toRemove.add(r);
                     } 
 				}
-				rs.removeAll(toRemove);				
-				if (!rs.isEmpty())
-					regions.addAll(rs);
+				rs.removeAll(toRemove);		
+				
+				List<Region> smallRegions = new ArrayList<Region>();
+				for (Region r:rs){
+					int maxSize = 5000;
+					if (config.TF_binding)
+						maxSize = 2000;
+					start = r.getStart();
+					int end = r.getEnd();
+					if (r.getWidth()>maxSize){ // if the region is too large, break it further at the lowest coverage point
+						float[] profile = new float[end-start+1];
+						for (StrandedBase b: allBases)
+							profile[b.getCoordinate()-start] = profile[b.getCoordinate()-start]+b.getCount();
+						float[] movingAvg = new float[profile.length];
+						int halfBin = 100;
+						for (int p=0;p<=halfBin*2;p++)
+							movingAvg[halfBin]=movingAvg[halfBin]+profile[p];
+						for (int p=halfBin+1;p<profile.length-halfBin;p++){
+							movingAvg[p]=movingAvg[p-1]-profile[p-1-halfBin]+profile[p+halfBin];
+						}
+						// for every maxSize region, start from modelWidth, find the lowest movingAvg point to break
+						int subStart = halfBin;
+						while( subStart<profile.length-maxSize){
+							int subEnd=0;
+							float lowest = Float.MAX_VALUE;
+							for (int p=subStart+modelWidth;p<subStart+modelWidth+maxSize;p++){
+								if (movingAvg[p]<lowest){
+									subEnd = p;
+									lowest = movingAvg[p];
+								}
+							}
+							// if there is a region with same  lowest value, take the middle position
+							int p = subEnd;
+							for (p=subEnd;p<subStart+modelWidth+maxSize;p++){
+								if (movingAvg[p]!=lowest)
+									break;
+							}
+							subEnd = (subEnd+p-1)/2;
+							smallRegions.add(new Region(gen, chrom, (subStart==halfBin?0:subStart)+start, subEnd+start));
+							subStart = subEnd+1;
+							System.out.println(chrom+":"+(subEnd+start));
+						}
+						if (subStart+start<end)
+							smallRegions.add(new Region(gen, chrom, subStart+start, end));
+					}
+					else
+						smallRegions.add(r);
+				}
+				if (!smallRegions.isEmpty())
+					regions.addAll(smallRegions);
 			}
 		}
 		
