@@ -1648,6 +1648,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for(String chrom : chr2regions.keySet()) {
 			for(Region focusRegion : chr2regions.get(chrom)) {
 				List<Region> rs = new ArrayList<Region>();
+				HashMap<Region, ArrayList<StrandedBase>> reg2bases = new HashMap<Region, ArrayList<StrandedBase>>();
 				List<StrandedBase> allBases = new ArrayList<StrandedBase>();
 				for (int c=0; c<caches.size(); c++){
 					List<StrandedBase> bases = null;
@@ -1682,6 +1683,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						if (count >= config.sparseness){
 							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(breakPoint).getCoordinate());
 							rs.add(r);
+							ArrayList<StrandedBase> bases = new ArrayList<StrandedBase>();
+							for (int p=start;p<=breakPoint;p++)
+								bases.add(allBases.get(p));
+							reg2bases.put(r, bases);
 						}
 						start = breakPoint+1;
 					}
@@ -1694,6 +1699,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				if (count>=config.sparseness){
 					Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(allBases.size()-1).getCoordinate());
 					rs.add(r);
+					ArrayList<StrandedBase> bases = new ArrayList<StrandedBase>();
+					for (int p=start;p<allBases.size();p++)
+						bases.add(allBases.get(p));
+					reg2bases.put(r, bases);
 				}
 
 				// check regions, exclude un-enriched regions based on control counts.  If a region is too big (bigger
@@ -1744,6 +1753,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     }
                     if (!enriched){	// remove this region if it is not enriched in all conditions
                         toRemove.add(r);
+                        reg2bases.remove(r);
                     } 
 				}
 				rs.removeAll(toRemove);		
@@ -1756,9 +1766,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					start = r.getStart();
 					int end = r.getEnd();
 					if (r.getWidth()>maxSize){ // if the region is too large, break it further at the lowest coverage point
+						// base count profile
 						float[] profile = new float[end-start+1];
-						for (StrandedBase b: allBases)
+						for (StrandedBase b: reg2bases.get(r))
 							profile[b.getCoordinate()-start] = profile[b.getCoordinate()-start]+b.getCount();
+						reg2bases.remove(r);
+						
+						// moving average
 						float[] movingAvg = new float[profile.length];
 						int halfBin = 100;
 						for (int p=0;p<=halfBin*2;p++)
@@ -1766,12 +1780,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						for (int p=halfBin+1;p<profile.length-halfBin;p++){
 							movingAvg[p]=movingAvg[p-1]-profile[p-1-halfBin]+profile[p+halfBin];
 						}
+						
 						// for every maxSize region, start from modelWidth, find the lowest movingAvg point to break
 						int subStart = halfBin;
 						while( subStart<profile.length-maxSize){
 							int subEnd=0;
 							float lowest = Float.MAX_VALUE;
-							for (int p=subStart+modelWidth;p<subStart+modelWidth+maxSize;p++){
+							for (int p=subStart+modelWidth;p<subStart+maxSize;p++){
 								if (movingAvg[p]<lowest){
 									subEnd = p;
 									lowest = movingAvg[p];
@@ -1779,14 +1794,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							}
 							// if there is a region with same  lowest value, take the middle position
 							int p = subEnd;
-							for (p=subEnd;p<subStart+modelWidth+maxSize;p++){
+							for (p=subEnd;p<subStart+maxSize;p++){
 								if (movingAvg[p]!=lowest)
 									break;
 							}
 							subEnd = (subEnd+p-1)/2;
 							smallRegions.add(new Region(gen, chrom, (subStart==halfBin?0:subStart)+start, subEnd+start));
 							subStart = subEnd+1;
-							System.out.println(chrom+":"+(subEnd+start));
 						}
 						if (subStart+start<end)
 							smallRegions.add(new Region(gen, chrom, subStart+start, end));
