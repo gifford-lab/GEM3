@@ -1762,7 +1762,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				for (Region r:rs){
 					int maxSize = 5000;
 					if (config.TF_binding)
-						maxSize = 2000;
+						maxSize = config.windowSize;
 					start = r.getStart();
 					int end = r.getEnd();
 					if (r.getWidth()>maxSize){ // if the region is too large, break it further at the lowest coverage point
@@ -1783,10 +1783,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						
 						// for every maxSize region, start from modelWidth, find the lowest movingAvg point to break
 						int subStart = halfBin;
-						while( subStart<profile.length-maxSize){
+						while( subStart<profile.length-maxSize+halfBin){
 							int subEnd=0;
 							float lowest = Float.MAX_VALUE;
-							for (int p=subStart+modelWidth;p<subStart+maxSize;p++){
+							for (int p=subStart+modelWidth;p<subStart+maxSize-halfBin;p++){
 								if (movingAvg[p]<lowest){
 									subEnd = p;
 									lowest = movingAvg[p];
@@ -1794,7 +1794,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 							}
 							// if there is a region with same  lowest value, take the middle position
 							int p = subEnd;
-							for (p=subEnd;p<subStart+maxSize;p++){
+							for (p=subEnd;p<subStart+maxSize-halfBin;p++){
 								if (movingAvg[p]!=lowest)
 									break;
 							}
@@ -6084,7 +6084,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int top_events = 2000;
         public int min_event_count = 500;	// minimum num of events to update read distribution
         public int smooth_step = 30;
-        public int window_size_factor = 3;	//number of model width per window
+        public int window_size_factor = 4;	//number of model width per window
         public int min_region_width = 50;	//minimum width for select enriched region
         public double mappable_genome_length = -1; // defalut is to compute
         public double sparseness=6.0;
