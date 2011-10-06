@@ -382,11 +382,10 @@ public class CommonUtils {
 	}
 	
 	/**
-	 *  Scan the sequence using weight matrix
-	 *  It scans outwards from the middle point, until a match pass the threshold
-	 *  @return  Pair of values, the start position of nearest PWM hit and the score
-	 *  The position will be negative if the match is on '-' strand    
-	 *  If no match pass the scoreTarget, return -999 as position. The called need to check for this.
+	 *  Scan the sequence using weight matrix, outwards from the given point, until a match pass the threshold<br>
+	 *  @return  Pair of values, the start position of nearest PWM hit and the score<br>
+	 *  The position will be negative if the match is on '-' strand    <br>
+	 *  If no match pass the threshold, return -999 as position. The caller need to check for this.<br>
 	 */
 	public static  Pair<Integer, Double> scanPWMoutwards(String sequence, WeightMatrix wm, WeightMatrixScorer scorer, int middle, double threshold){
 		if (sequence==null||sequence.length()<wm.length()-1){
