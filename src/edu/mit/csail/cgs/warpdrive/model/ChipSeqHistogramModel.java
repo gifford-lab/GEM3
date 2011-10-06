@@ -1,10 +1,15 @@
 package edu.mit.csail.cgs.warpdrive.model;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+import edu.mit.csail.cgs.datasets.general.Point;
+import edu.mit.csail.cgs.datasets.general.ProfileRegion;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.chipseq.*;
+import edu.mit.csail.cgs.projects.chiapet.Neighborhood;
 import edu.mit.csail.cgs.projects.readdb.*;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
@@ -23,6 +28,12 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 
     private Region region;
     private boolean newinput;
+    
+    private double[] readdist;
+	private double[] eventdist;
+	private double[] condist;
+	private int cutoff;
+	private Map<Integer,String> revChromMap;
 
     public ChipSeqHistogramModel (ChipSeqAlignment a) throws IOException, ClientException {
         alignments = new HashSet<ChipSeqAlignment>();
@@ -86,7 +97,10 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     }
                     resultsPlus = null;
                     resultsMinus = null;
-                    if (props.ShowSelfLigationOverlap) {
+                    if (props.ShowInteractionProfile) {
+                    	resultsPlus = getInteractionProfile();
+                    	resultsMinus = new TreeMap<Integer,Float>();
+                    } else if (props.ShowSelfLigationOverlap) {
                     	resultsPlus = getSelfHistogram();
                     	resultsMinus = new TreeMap<Integer,Float>();
                     } else if (props.UseWeights) {
@@ -214,6 +228,108 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
         client.close();
     }
     
+    public static double[] readDoubleList(String file) throws IOException {
+		List<Double> list = new ArrayList<Double>();
+		BufferedReader r = new BufferedReader(new FileReader(file));
+		String s;
+		String[] split;
+		while ((s = r.readLine()) != null) {
+			split = s.split("\t");
+			list.add(Double.parseDouble(split[0]));
+		}
+		double[] tor = new double[list.size()];
+		for (int i=0; i<tor.length; i++) {
+			tor[i] = list.get(i);
+		}
+		return tor;
+	}
+    
+    public TreeMap<Integer,Float> getInteractionProfile() throws IOException, ClientException {
+    	if (readdist==null) {
+    		double[] readdista = readDoubleList(props.ReadDistribution);
+    		if (readdista.length % 2 == 0) {
+    			double[] tmparr = readdista;
+    			readdista = new double[tmparr.length-1];
+    			for (int i=0; i<readdista.length; i++) {
+    				readdista[i] = tmparr[i];
+    			}
+    		}
+    		double[] eventdista = readDoubleList(props.EventDistribution);
+    		if (eventdista.length % 2 == 0) {
+    			double[] tmparr = eventdista;
+    			eventdista = new double[tmparr.length-1];
+    			for (int i=0; i<eventdista.length; i++) {
+    				eventdista[i] = tmparr[i];
+    			}
+    		}
+    		this.readdist = readdista;
+    		this.eventdist = eventdista;
+    		this.cutoff = eventdist.length/2;
+    		revChromMap = region.getGenome().getRevChromIDMap();
+    	}
+    	Neighborhood n = new Neighborhood();
+    	Point tss = Point.fromString(region.getGenome(), props.TSS);
+		Region tssregion = new Region(region.getGenome(), tss.getChrom(), tss.getLocation()-cutoff, tss.getLocation()+cutoff);
+		Set<PairedHit> hitset = getHitSet(tssregion);
+		Region rextend = region.expand(cutoff, cutoff);
+		Region rexex = rextend.expand(cutoff, cutoff);
+		double[] exprof = new double[rexex.getEnd()-rexex.getStart()+1];
+		n.addProfile(new ProfileRegion(region.getGenome(), rexex.getChrom(), rexex.getStart(), rexex.getEnd(), exprof));
+		for (PairedHit p : hitset) {
+			double leftscore = 0;
+			double rightscore = 0;
+			String leftChrom = revChromMap.get(p.leftChrom);
+			String rightChrom = revChromMap.get(p.rightChrom);
+			if ((leftChrom.equals(tss.getChrom())) && (Math.abs(p.leftPos-tss.getLocation())<cutoff)) {
+				leftscore = eventdist[p.leftPos-tss.getLocation()+cutoff];
+			}
+			if ((rightChrom.equals(tss.getChrom())) && (Math.abs(p.rightPos-tss.getLocation())<cutoff)) {
+				rightscore = eventdist[p.rightPos-tss.getLocation()+cutoff];
+			}
+			if (leftscore>rightscore) {
+				if (rextend.getChrom().equals(rightChrom) && p.rightPos>=rextend.getStart() && p.rightPos<=rextend.getEnd()) {
+					double[] profile = new double[readdist.length];
+					if (p.rightStrand) {
+						for (int i=0; i<profile.length; i++) {
+							profile[i] = readdist[i]*leftscore;
+						}
+					} else {
+						for (int i=0; i<profile.length; i++) {
+							profile[i] = readdist[readdist.length-i-1]*leftscore;
+						}
+					}
+					ProfileRegion pr = new ProfileRegion(region.getGenome(), rightChrom, p.rightPos-cutoff, p.rightPos+cutoff, profile);
+					
+					n.addProfile(pr);
+				}
+			} else {
+				if (rextend.getChrom().equals(leftChrom) && p.leftPos>=rextend.getStart() && p.leftPos<=rextend.getEnd()) {
+					double[] profile = new double[readdist.length];
+					if (p.leftStrand) {
+						for (int i=0; i<profile.length; i++) {
+							profile[i] = readdist[i]*rightscore;
+						}
+					} else {
+						for (int i=0; i<profile.length; i++) {
+							profile[i] = readdist[readdist.length-i-1]*rightscore;
+						}
+					}
+					ProfileRegion pr = new ProfileRegion(region.getGenome(), leftChrom, p.leftPos-cutoff, p.leftPos+cutoff, profile);
+					//System.err.println("max query: "+(pr.getEnd()-pr.getStart()));
+					//System.err.println("array size: "+profile.length);
+					n.addProfile(pr);
+				}
+			}
+		}
+		TreeMap<Integer,Float> output = new TreeMap<Integer,Float>();
+		float[] profile = n.getProfile();
+		int dcutoff = cutoff*2;
+		for (int i=dcutoff; i<dcutoff+region.getWidth(); i++) {
+			output.put(i-dcutoff+region.getStart(), profile[i]*300000000);
+		}
+		return output;
+    }
+    
     public TreeMap<Integer,Float> getSelfHistogram() throws IOException, ClientException {
     	int[] profile = new int[region.getWidth()];
 		int shift = props.SelfLigationCutoff+props.SmoothingWindowWidth;
@@ -328,6 +444,24 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 						p.flipSides();
 						hitset.add(p);
 						
+					}
+				}
+			}
+			
+			hits = client.getPairedHits(s,
+					chrom,
+					false,
+					r.getStart(),
+					r.getEnd(),
+					null,
+					null);
+			for (PairedHit p : hits) {
+				if (!(hitset.contains(p))) {
+					p.flipSides();
+					if (!hitset.contains(p)) {
+						p.flipSides();
+						hitset.add(p);
+
 					}
 				}
 			}

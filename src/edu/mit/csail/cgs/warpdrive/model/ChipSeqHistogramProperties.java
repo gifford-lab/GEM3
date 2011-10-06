@@ -13,6 +13,10 @@ public class ChipSeqHistogramProperties extends ModelProperties {
     public Integer SelfLigationCutoff = 10000;
     public Integer SmoothingWindowWidth = 0;
     public Boolean RightFlipped = Boolean.TRUE;
+    public String TSS = "11:96164825";
+    public String ReadDistribution = "";
+    public String EventDistribution = "";
+    public Boolean ShowInteractionProfile = Boolean.FALSE;
     
     private int totalReadCount = 0;
 
