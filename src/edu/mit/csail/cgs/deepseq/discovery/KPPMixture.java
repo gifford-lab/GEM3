@@ -1648,6 +1648,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		for(String chrom : chr2regions.keySet()) {
 			for(Region focusRegion : chr2regions.get(chrom)) {
 				List<Region> rs = new ArrayList<Region>();
+				HashMap<Region, ArrayList<StrandedBase>> reg2bases = new HashMap<Region, ArrayList<StrandedBase>>();
 				List<StrandedBase> allBases = new ArrayList<StrandedBase>();
 				for (int c=0; c<caches.size(); c++){
 					List<StrandedBase> bases = null;
@@ -1681,8 +1682,11 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 						if (count >= config.sparseness){
 							Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(breakPoint).getCoordinate());
-							// if the average read count per modelWidth is less than config.sparseness/2, find sparse point to further split
 							rs.add(r);
+							ArrayList<StrandedBase> bases = new ArrayList<StrandedBase>();
+							for (int p=start;p<=breakPoint;p++)
+								bases.add(allBases.get(p));
+							reg2bases.put(r, bases);
 						}
 						start = breakPoint+1;
 					}
@@ -1695,6 +1699,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				if (count>=config.sparseness){
 					Region r = new Region(gen, chrom, allBases.get(start).getCoordinate(), allBases.get(allBases.size()-1).getCoordinate());
 					rs.add(r);
+					ArrayList<StrandedBase> bases = new ArrayList<StrandedBase>();
+					for (int p=start;p<allBases.size();p++)
+						bases.add(allBases.get(p));
+					reg2bases.put(r, bases);
 				}
 
 				// check regions, exclude un-enriched regions based on control counts.  If a region is too big (bigger
@@ -1743,13 +1751,65 @@ class KPPMixture extends MultiConditionFeatureFinder {
                         }
                         if (enriched) { break ;}
                     }
-                    if (!enriched){	// remove this region if it is not enriched in any condition
+                    if (!enriched){	// remove this region if it is not enriched in all conditions
                         toRemove.add(r);
+                        reg2bases.remove(r);
                     } 
 				}
-				rs.removeAll(toRemove);				
-				if (!rs.isEmpty())
-					regions.addAll(rs);
+				rs.removeAll(toRemove);		
+				
+				List<Region> smallRegions = new ArrayList<Region>();
+				for (Region r:rs){
+					int maxSize = 5000;
+					if (config.TF_binding)
+						maxSize = config.windowSize;
+					start = r.getStart();
+					int end = r.getEnd();
+					if (r.getWidth()>maxSize){ // if the region is too large, break it further at the lowest coverage point
+						// base count profile
+						float[] profile = new float[end-start+1];
+						for (StrandedBase b: reg2bases.get(r))
+							profile[b.getCoordinate()-start] = profile[b.getCoordinate()-start]+b.getCount();
+						reg2bases.remove(r);
+						
+						// moving average
+						float[] movingAvg = new float[profile.length];
+						int halfBin = 100;
+						for (int p=0;p<=halfBin*2;p++)
+							movingAvg[halfBin]=movingAvg[halfBin]+profile[p];
+						for (int p=halfBin+1;p<profile.length-halfBin;p++){
+							movingAvg[p]=movingAvg[p-1]-profile[p-1-halfBin]+profile[p+halfBin];
+						}
+						
+						// for every maxSize region, start from modelWidth, find the lowest movingAvg point to break
+						int subStart = halfBin;
+						while( subStart<profile.length-maxSize+halfBin){
+							int subEnd=0;
+							float lowest = Float.MAX_VALUE;
+							for (int p=subStart+modelWidth;p<subStart+maxSize-halfBin;p++){
+								if (movingAvg[p]<lowest){
+									subEnd = p;
+									lowest = movingAvg[p];
+								}
+							}
+							// if there is a region with same  lowest value, take the middle position
+							int p = subEnd;
+							for (p=subEnd;p<subStart+maxSize-halfBin;p++){
+								if (movingAvg[p]!=lowest)
+									break;
+							}
+							subEnd = (subEnd+p-1)/2;
+							smallRegions.add(new Region(gen, chrom, (subStart==halfBin?0:subStart)+start, subEnd+start));
+							subStart = subEnd+1;
+						}
+						if (subStart+start<end)
+							smallRegions.add(new Region(gen, chrom, subStart+start, end));
+					}
+					else
+						smallRegions.add(r);
+				}
+				if (!smallRegions.isEmpty())
+					regions.addAll(smallRegions);
 			}
 		}
 		
@@ -3511,15 +3571,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //			}
 //			negativeRegions = Region.filterOverlapRegions(negativeRegions, expandedRegions);
 			// In proximal regions, but excluding binding regions
+			int winSize = Math.max(config.k_win, config.k_win2); 
 			for (Feature f:signalFeatures){
 				String chr = f.getPeak().getChrom();
-				int length = gen.getChromLength(chr)-config.k_win-1;
+				int length = gen.getChromLength(chr)-1;
 				int basis = f.getPeak().getLocation()+config.k_neg_dist;
 				for (int i=0;i<config.k_negSeq_ratio;i++){
-					int start = basis + (config.k_win+1)*i;
-					if ( start+config.k_win>=length)
+					int start = basis + (winSize+1)*i;
+					if ( start+winSize>=length)
 						continue;
-					Region r = new Region(gen, chr, start, start+config.k_win);
+					Region r = new Region(gen, chr, start, start+winSize);
 					negativeRegions.add(r);
 				}
 			}
@@ -3693,8 +3754,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 		else{
-			if (winSize==-1)
-				winSize = Math.min(config.k_win, (config.k*config.k_win_f)/2*2);	// make sure it is even value
 			config.k_win = winSize;
 		}	
 		
@@ -5971,6 +6030,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_max= -1;		// the maximum value of k        
         public int k_seqs = 100000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
+        public int k_win2 = 100;	// the window around binding event to search for motifs (in later rounds)
         public int k_win_f = 4;		// k_win = k_win_f * k
         public int k_neg_dist = 500;// the distance of the nearest edge of negative region from binding sites 
         public int k_negSeq_ratio = 1; 		// The ratio of negative sequences to positive sequences
@@ -6024,7 +6084,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int top_events = 2000;
         public int min_event_count = 500;	// minimum num of events to update read distribution
         public int smooth_step = 30;
-        public int window_size_factor = 3;	//number of model width per window
+        public int window_size_factor = 4;	//number of model width per window
         public int min_region_width = 50;	//minimum width for select enriched region
         public double mappable_genome_length = -1; // defalut is to compute
         public double sparseness=6.0;
