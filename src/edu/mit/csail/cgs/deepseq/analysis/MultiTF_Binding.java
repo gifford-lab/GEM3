@@ -180,14 +180,16 @@ public class MultiTF_Binding {
 				int id = s.id;
 				int b = s.bs.getLocation();
 				// figure out the direction of TF binding based on sequence motif match
-				int direction = 0;
-				String seq = seqgen.execute(s.bs.expand(seqRange));
-				Pair<Integer, Double> hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, seqRange, wm.getMaxScore()*0.6);
-				if (hit.car()!=-999){
-					if (hit.car()>=0)
-						direction = 1;
-					else
-						direction = -1;
+				int direction = 0;		// not sure, because no PWM, or no PWM match
+				if (wm!=null){
+					String seq = seqgen.execute(s.bs.expand(seqRange));
+					Pair<Integer, Double> hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, seqRange, wm.getMaxScore()*0.6);
+					if (hit.car()!=-999){
+						if (hit.car()>=0)
+							direction = 1;
+						else
+							direction = -1;
+					}
 				}
 				// count the nearby binding calls in upstream and downstream direction
 				ArrayList<Site> chromSites = chrom2sites.get(s.bs.getChrom());
