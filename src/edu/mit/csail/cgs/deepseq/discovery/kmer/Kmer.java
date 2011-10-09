@@ -46,6 +46,8 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public HashSet<Integer> getPosHits(){return posHits;}
 	
+	public double familyHgp;
+	
 	private double top;
 	public void setTop(double top) {this.top = top;}
 	public double getTop() {return top;	}
@@ -132,12 +134,17 @@ public class Kmer implements Comparable<Kmer>{
 		double diff = o.strength-strength;
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1;  // descending
 	}
+	// sort kmer by family kmer-group hgp
+	public int compareByFamilyHGP(Kmer o) {
+		double diff = o.familyHgp-familyHgp;
+		return diff==0?this.compareTo(o):(diff<0)?1:-1;  // ascending HGP, descending seqHitCount
+	}	
 	// sort kmer by hgp
 	public int compareByHGP(Kmer o) {
 		double diff = o.hgp_lg10-hgp_lg10;
 		return diff==0?this.compareTo(o):(diff<0)?1:-1;  // ascending HGP, descending seqHitCount
 	}	
-	// default, sort kmer by seqHitCount
+	// default, sort kmer by posHitCount
 	public int compareTo(Kmer o) {
 		double diff = o.getPosHitCount()-getPosHitCount();
 		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending

@@ -366,8 +366,10 @@ public class KmerMotifFinder {
 				}
 			}
 			if (bestCluster!=null){
-				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s\tscore=%.2f/%d=%.2f.\n", k, bestCluster.pwmThresholdHGP, bestCluster.wm.length(),
-						 WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.getMaxScore(),bestCluster.wm.length(), bestCluster.wm.getMaxScore()/bestCluster.wm.length()));
+				sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, 
+						bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
+//				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s\tscore=%.2f/%d=%.2f.\n", k, bestCluster.pwmThresholdHGP, bestCluster.wm.length(),
+//						 WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.getMaxScore(),bestCluster.wm.length(), bestCluster.wm.getMaxScore()/bestCluster.wm.length()));
 				kClusters.add(bestCluster);
 			}
 			else
@@ -384,52 +386,66 @@ public class KmerMotifFinder {
 			System.exit(0);
 		}
 		
-		// check if there is discontinuity in widths 
-		ArrayList<Integer> widths = new ArrayList<Integer>();
+		// find the k value with largest hit count
+		int bestHitCount = 0;
+		KmerCluster bestCluster=null;
 		for (KmerCluster c : kClusters){
-			widths.add(c.wm.length());
+			if (c.pwmPosHitCount>bestHitCount){
+				bestHitCount = c.pwmPosHitCount;
+				bestCluster = c;
+			}
 		}
-		Collections.sort(widths);
-		ArrayList<Integer> continuous = new ArrayList<Integer>();
-		continuous.add(widths.get(0));
-		for (int i=0;i<widths.size()-1;i++){
-			if (widths.get(i+1)-widths.get(i)>1)	// a gap in width, could match monomer or dimer, such as Oct4_Sox2
-				break;
-			else
-				continuous.add(widths.get(i+1));
-		}
-		widths.clear();
-		widths.addAll(continuous);
-		// find the most freq pwm width(s)
-		Pair<int[], int[]> sorted = StatUtil.sortByOccurences(widths);
-		int maxCount = sorted.cdr()[sorted.cdr().length-1];
-		HashSet<Integer> consensusWidths = new HashSet<Integer>();
-		for (int i=0;i<sorted.cdr().length;i++){
-			if (sorted.cdr()[i]==maxCount)
-				consensusWidths.add(sorted.car()[i]);
-		}
-
-		// find the bestHGP with consensus width
-		double bestHGP = 0;
-		for (KmerCluster c : kClusters){
-			if (consensusWidths.contains(c.wm.length()) && c.pwmThresholdHGP<bestHGP)
-				bestHGP = c.pwmThresholdHGP;
-		}
-		ArrayList<KmerCluster> goodClusters = new ArrayList<KmerCluster>();			// clusters with hgp >= 95% of bestHGP
-		for (KmerCluster c:kClusters){
-			if (consensusWidths.contains(c.wm.length()) && c.pwmThresholdHGP<=bestHGP*0.90)
-				goodClusters.add(c);
-		}
-		Collections.sort(goodClusters, new Comparator<KmerCluster>(){
-		    public int compare(KmerCluster o1, KmerCluster o2) {
-		    	return o1.compareForSelectingK(o2);
-		    }
-		});	
-		bestK = goodClusters.get(0).seedKmer.getK();
-		
+		bestK = bestCluster.seedKmer.getK();
 		System.out.print(sb.toString());
-		System.out.println(String.format("\nSelected k=%d\tW=%d\tbestHGP=%.1f.\n----------------------------------------------\n", 
-				bestK, goodClusters.get(0).wm.length(),goodClusters.get(0).pwmThresholdHGP));
+		System.out.println(String.format("\nSelected k=%d\thit=%d\tbestHGP=%.1f.\n----------------------------------------------\n", 
+				bestK, bestCluster.pwmPosHitCount, bestCluster.pwmThresholdHGP));
+//		
+//		// check if there is discontinuity in widths 
+//		ArrayList<Integer> widths = new ArrayList<Integer>();
+//		for (KmerCluster c : kClusters){
+//			widths.add(c.wm.length());
+//		}
+//		Collections.sort(widths);
+//		ArrayList<Integer> continuous = new ArrayList<Integer>();
+//		continuous.add(widths.get(0));
+//		for (int i=0;i<widths.size()-1;i++){
+//			if (widths.get(i+1)-widths.get(i)>1)	// a gap in width, could match monomer or dimer, such as Oct4_Sox2
+//				break;
+//			else
+//				continuous.add(widths.get(i+1));
+//		}
+//		widths.clear();
+//		widths.addAll(continuous);
+//		// find the most freq pwm width(s)
+//		Pair<int[], int[]> sorted = StatUtil.sortByOccurences(widths);
+//		int maxCount = sorted.cdr()[sorted.cdr().length-1];
+//		HashSet<Integer> consensusWidths = new HashSet<Integer>();
+//		for (int i=0;i<sorted.cdr().length;i++){
+//			if (sorted.cdr()[i]==maxCount)
+//				consensusWidths.add(sorted.car()[i]);
+//		}
+//
+//		// find the bestHGP with consensus width
+//		bestHGP = 0;
+//		for (KmerCluster c : kClusters){
+//			if (consensusWidths.contains(c.wm.length()) && c.pwmThresholdHGP<bestHGP)
+//				bestHGP = c.pwmThresholdHGP;
+//		}
+//		ArrayList<KmerCluster> goodClusters = new ArrayList<KmerCluster>();			// clusters with hgp >= 95% of bestHGP
+//		for (KmerCluster c:kClusters){
+//			if (consensusWidths.contains(c.wm.length()) && c.pwmThresholdHGP<=bestHGP*0.90)
+//				goodClusters.add(c);
+//		}
+//		Collections.sort(goodClusters, new Comparator<KmerCluster>(){
+//		    public int compare(KmerCluster o1, KmerCluster o2) {
+//		    	return o1.compareForSelectingK(o2);
+//		    }
+//		});	
+//		bestK = goodClusters.get(0).seedKmer.getK();
+//		
+//		System.out.print(sb.toString());
+//		System.out.println(String.format("\nSelected k=%d\tW=%d\tbestHGP=%.1f.\n----------------------------------------------\n", 
+//				bestK, goodClusters.get(0).wm.length(),goodClusters.get(0).pwmThresholdHGP));
 		return bestK;
 	}
 	
@@ -1255,11 +1271,11 @@ public class KmerMotifFinder {
 					break;
 				}
 	
-				Collections.sort(kmers, new Comparator<Kmer>(){
-				    public int compare(Kmer o1, Kmer o2) {
-				    	return o1.compareByHGP(o2);
-				    }
-				});	
+//				Collections.sort(kmers, new Comparator<Kmer>(){
+//				    public int compare(Kmer o1, Kmer o2) {
+//				    	return o1.compareByHGP(o2);
+//				    }
+//				});	
 				quick_restart = false;
 			}
 			
@@ -1269,26 +1285,33 @@ public class KmerMotifFinder {
 			
 			/** get seed kmer */
 			Kmer seed=null;
+			boolean isSeedInherited=false;
 			if (clusterID==0){
 				cluster.clusterId = 0;
 				if (primarySeed!=null){
-					if (verbose>1)
-						System.out.println(CommonUtils.timeElapsed(tic)+
-								": Use seed k-mer from preivous round: "+primarySeed.getKmerString()+"/"+primarySeed.getKmerRC());
 					String bestStr = primarySeed.getKmerString();
 					String bestRc = primarySeed.getKmerRC();
 					for (Kmer km:kmers){
 						if (km.getKmerString().equals(bestStr)||
 								km.getKmerString().equals(bestRc)){
 							seed = km;
+							isSeedInherited = true;
 							break;
 						}
 					}
-					if (seed==null)				// not found
-						seed = kmers.get(0);
+					if (seed==null)	{			// not found
+						seed = selectBestKmer(kmers);
+						if (verbose>1)
+							System.out.println(CommonUtils.timeElapsed(tic)+
+									": Preivous seed is not found, pick top k-mer: "+seed.toShortString());
+					}
+					else
+						if (verbose>1)
+							System.out.println(CommonUtils.timeElapsed(tic)+
+									": Use seed k-mer from preivous round: "+primarySeed.getKmerString()+"/"+primarySeed.getKmerRC());
 				}
-				else{
-					seed = kmers.get(0);
+				else{	// no previously saved seed k-mer
+					seed = selectBestKmer(kmers);
 					if (verbose>1)
 						System.out.println(CommonUtils.timeElapsed(tic)+
 								": No preivous seed, pick top k-mer: "+seed.toShortString());
@@ -1296,16 +1319,16 @@ public class KmerMotifFinder {
 				}
 			}
 			else
-				seed = kmers.get(0);
+				seed = selectBestKmer(kmers);
 			
 			// print out top kmer information
 			if (clusterID==0){
 				System.out.println("\nTop 5 k-mers");
 				System.out.println(Kmer.toShortHeader(k));
 				for (int i=0;i<Math.min(5,kmers.size());i++){
-					System.out.println(kmers.get(i).toShortString());
+					System.out.println(kmers.get(i).toShortString()+(isSeedInherited?"":String.format("\t%.1f",kmers.get(i).familyHgp)));
 				}
-				System.out.println("Seed k-mer:\n"+seed.toShortString()+"\n");
+				System.out.println("Seed k-mer:\n"+seed.toShortString()+(isSeedInherited?"":String.format("\t%.1f",seed.familyHgp))+"\n");
 			}
 			else
 				if (verbose>1)
@@ -1608,7 +1631,7 @@ public class KmerMotifFinder {
 			if (verbose>1)
 				System.out.println("\nMerge overlapping motif clusters ...\n");
 			boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// whether a pair has been checked
-			mergeOverlapClusters (outName, seqList, seed_range, use_KSM, use_PWM_MM, checked);
+			mergeOverlapClusters (outName, seqList, seed_range, use_KSM, use_PWM_MM, checked, 0);
 		}
 		
 		/** post processing */
@@ -1708,6 +1731,7 @@ public class KmerMotifFinder {
 		return allAlignedKmers;
 	}
 	
+	/** Index k-mers and sequences, remove un-enriched k-mers */
 	private void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence> seqList){
 
 		/* Initialization, setup sequence list, and update kmers */
@@ -1783,6 +1807,29 @@ public class KmerMotifFinder {
 		}			
 		unenriched = null;
 		kmer2seq = null;
+	}
+	
+	private Kmer selectBestKmer(ArrayList<Kmer> kmers){
+		ArrayList<Kmer> candidates = new ArrayList<Kmer>();
+		Collections.sort(kmers);
+		int topCount = kmers.get(0).getPosHitCount();
+		for (int i=0;i<kmers.size();i++)
+			if (kmers.get(i).getPosHitCount()>topCount/2)
+				candidates.add(kmers.get(i));
+		for (Kmer km:candidates){
+			ArrayList<Kmer> family = new ArrayList<Kmer>();
+			family.add(km);
+			family.addAll(getMMKmers(kmers, km.getKmerString(), 0));
+			// compute KmerGroup hgp for the km family
+			KmerGroup kg = new KmerGroup(family, 0);
+			km.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+		}
+		Collections.sort(candidates, new Comparator<Kmer>(){
+		    public int compare(Kmer o1, Kmer o2) {
+		    	return o1.compareByFamilyHGP(o2);
+		    }
+		});	
+		return candidates.get(0);
 	}
 	
 	private void alignSequencesUsingPWMmm(ArrayList<Sequence> seqList, KmerCluster cluster){
@@ -1899,10 +1946,13 @@ public class KmerMotifFinder {
 		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
 		html.append("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
 		html.append(name).append("</font></th>");
-		html.append("<tr><td>");
+		html.append("<tr><td valign='top'><br>");
 		html.append("<a href='"+name+"_GPS_significant.txt'>Significant Events</a>&nbsp;&nbsp;: "+seqs.length);
 //		html.append("<br><a href='"+name+"_GPS_insignificant.txt'>Insignificant Events</a>: "+insignificantFeatures.size());
 //		html.append("<br><a href='"+name+"_GPS_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+filteredFeatures.size());
+		html.append("<p><ul><li><a href='"+name+"_kmer_k"+k+".txt'>Complete K-mer list.</a>");
+		html.append("<li><a href='"+name+"_Alignement_k"+k+".txt'>K-mer alignment file.</a>");
+		html.append("<li><a href='"+name+"_PFM_k"+k+".txt'>Motif PFMs</a></ul>");
 		html.append("<p><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 		
     	int leftmost_km = Integer.MAX_VALUE;
@@ -1937,10 +1987,8 @@ public class KmerMotifFinder {
 			html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
 					km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
 		}
-		html.append("</table><br><a href='"+name+"_kmer_k"+k+".txt'>The complete K-mer list.</a>");
-		html.append("<br><a href='"+name+"_Alignement_k"+k+".txt'>The k-mer alignment file.</a>");
-		html.append("<br><a href='"+name+"_PFM_k"+k+".txt'>The PFM of motifs</a>");
-		html.append("</td><td valign='top'><br><br>");
+		html.append("</table>");
+		html.append("</td><td valign='top'><br>");
 		html.append("<table border=0 align=center><th>Motif PSSM</th><th>Motif spatial distribution (w.r.t. primary motif)</th>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
@@ -1970,16 +2018,14 @@ public class KmerMotifFinder {
 	/** 
 	 * Merge overlapped motif clusters<br>
 	 * Assuming the clusters are sorted as its cluster id (0-based)
-	 * @param name
-	 * @param seqList
-	 * @param seed_range
-	 * @param use_KSM
-	 * @param use_PWM_MM
-	 * @param checked
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void mergeOverlapClusters (String name, ArrayList<Sequence> seqList, int seed_range, 
-			boolean use_KSM, boolean use_PWM_MM, boolean[][] checked){		
+			boolean use_KSM, boolean use_PWM_MM, boolean[][] checked, int depth){	
+		if (depth>10)
+			return;
+		if (verbose>1)
+    		System.out.println("\n"+CommonUtils.timeElapsed(tic)+": Merge overlapping motifs, #" + depth);
 		boolean isChanged = false;
 		int maxClusterId=0;
 		for (KmerCluster c:clusters)
@@ -2047,7 +2093,7 @@ public class KmerMotifFinder {
 				
 				if (maxCount>=minHitCount*0.3){				// if there is large enough overlap, try to merge 2 clusters
 					if (verbose>1)
-			    		System.out.println(String.format("\n%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
+			    		System.out.println(String.format("%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
 			    				CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(cluster_main.wm), cluster_main.clusterId, cluster_main.pwmThresholdHGP,
 		    				WeightMatrix.getMaxLetters(cluster_junior.wm), cluster_junior.clusterId, cluster_junior.pwmThresholdHGP, maxDist, isRC?"rc":""));
 					
@@ -2185,7 +2231,7 @@ public class KmerMotifFinder {
 		}
 		
 		if (isChanged)		// if merged, continue to merge, otherwise return
-			mergeOverlapClusters (name, seqList, seed_range, use_KSM, use_PWM_MM, checked);
+			mergeOverlapClusters (name, seqList, seed_range, use_KSM, use_PWM_MM, checked, depth+1);
 	}
 	
 	/** Iteratively build PWM and align sequences <br>
@@ -5349,6 +5395,41 @@ public class KmerMotifFinder {
 			}
 		}
 	}
+	public static void main1(String[] args){
+		ArrayList<Integer> x_list = new ArrayList<Integer>();
+		ArrayList<Integer> same_list = new ArrayList<Integer>();
+		ArrayList<Integer> diff_list = new ArrayList<Integer>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[0]))));
+	        String line;
+	        String[]f = null;
+	        while((line = bin.readLine()) != null) { 
+	            f = line.trim().split("\t");
+	            if (f.length==3){
+	            	x_list.add(Integer.parseInt(f[0]));
+	            	same_list.add(Integer.parseInt(f[1]));
+	            	diff_list.add(Integer.parseInt(f[2]));
+	            }
+	        }			
+	        if (bin != null) {
+	            bin.close();
+	        }
+	    } catch (IOException e) {
+	    	System.err.println("Error when processing "+args[0]);
+	        e.printStackTrace(System.err);
+	    }
+	    int[] x = new int[x_list.size()];
+	    int[] same = new int[x_list.size()];
+	    int[] diff = new int[x_list.size()];
+	    for (int i=0;i<x.length;i++)
+	    	x[i] = x_list.get(i);
+	    for (int i=0;i<x.length;i++)
+	    	same[i] = same_list.get(i);
+	    for (int i=0;i<x.length;i++)
+	    	diff[i] = diff_list.get(i);
+	    KmerMotifFinder kmf = new KmerMotifFinder();
+	    kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
+	}
 	public static void main0(String[] args){
 		Genome g = null;
 		ArgParser ap = new ArgParser(args);
@@ -5418,44 +5499,9 @@ public class KmerMotifFinder {
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);
 //        }
-        int k = kmf.selectK(8, 8, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
+        int k = kmf.selectK(8, 10, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
         kmf.alignBySimplePWM(kmers, -1, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
-	}
-	public static void main1(String[] args){
-		ArrayList<Integer> x_list = new ArrayList<Integer>();
-		ArrayList<Integer> same_list = new ArrayList<Integer>();
-		ArrayList<Integer> diff_list = new ArrayList<Integer>();
-		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[0]))));
-	        String line;
-	        String[]f = null;
-	        while((line = bin.readLine()) != null) { 
-	            f = line.trim().split("\t");
-	            if (f.length==3){
-	            	x_list.add(Integer.parseInt(f[0]));
-	            	same_list.add(Integer.parseInt(f[1]));
-	            	diff_list.add(Integer.parseInt(f[2]));
-	            }
-	        }			
-	        if (bin != null) {
-	            bin.close();
-	        }
-        } catch (IOException e) {
-        	System.err.println("Error when processing "+args[0]);
-            e.printStackTrace(System.err);
-        }
-        int[] x = new int[x_list.size()];
-        int[] same = new int[x_list.size()];
-        int[] diff = new int[x_list.size()];
-        for (int i=0;i<x.length;i++)
-        	x[i] = x_list.get(i);
-        for (int i=0;i<x.length;i++)
-        	same[i] = same_list.get(i);
-        for (int i=0;i<x.length;i++)
-        	diff[i] = diff_list.get(i);
-        KmerMotifFinder kmf = new KmerMotifFinder();
-        kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
 	}
 }
 
