@@ -1816,16 +1816,23 @@ public class KmerMotifFinder {
 		    	return o1.compareByHGP(o2);
 		    }
 		});	
-		int num = Math.min(5, kmers.size());
-		for (int i=0;i<num;i++)
-			candidates.add(kmers.get(i));
-		for (Kmer km:candidates){
+		int num = 5;
+		ArrayList<Kmer> newList = new ArrayList<Kmer>();
+		for (int i=0;i<kmers.size();i++)
+			newList.add(kmers.get(i));
+		for (Kmer km:kmers){
+			if (!newList.contains(km))		// if km has been selected as member of other kmer family
+				continue;
 			ArrayList<Kmer> family = new ArrayList<Kmer>();
 			family.add(km);
-			family.addAll(getMMKmers(kmers, km.getKmerString(), 0));
+			family.addAll(getMMKmers(newList, km.getKmerString(), 0));
+			newList.removeAll(family);
 			// compute KmerGroup hgp for the km family
 			KmerGroup kg = new KmerGroup(family, 0);
 			km.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+			candidates.add(km);
+			if (candidates.size()>5)
+				break;
 		}
 		Collections.sort(candidates, new Comparator<Kmer>(){
 		    public int compare(Kmer o1, Kmer o2) {
