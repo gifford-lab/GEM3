@@ -1811,11 +1811,14 @@ public class KmerMotifFinder {
 	
 	private Kmer selectBestKmer(ArrayList<Kmer> kmers){
 		ArrayList<Kmer> candidates = new ArrayList<Kmer>();
-		Collections.sort(kmers);
-		int topCount = kmers.get(0).getPosHitCount();
-		for (int i=0;i<kmers.size();i++)
-			if (kmers.get(i).getPosHitCount()>topCount/2)
-				candidates.add(kmers.get(i));
+		Collections.sort(kmers, new Comparator<Kmer>(){
+		    public int compare(Kmer o1, Kmer o2) {
+		    	return o1.compareByHGP(o2);
+		    }
+		});	
+		int num = Math.min(5, kmers.size());
+		for (int i=0;i<num;i++)
+			candidates.add(kmers.get(i));
 		for (Kmer km:candidates){
 			ArrayList<Kmer> family = new ArrayList<Kmer>();
 			family.add(km);

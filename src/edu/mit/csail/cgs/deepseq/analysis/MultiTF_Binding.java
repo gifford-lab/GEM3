@@ -36,8 +36,19 @@ public class MultiTF_Binding {
 
 	// command line option:  Y:\Tools\GPS\runs\ESTF(the folder contains GEM result folders) --species "Mus musculus;mm9"
 	public static void main(String[] args) {
-		MultiTF_Binding obj = new MultiTF_Binding(args);
-		obj.printBindingOffsets();
+		MultiTF_Binding mtb = new MultiTF_Binding(args);
+		int round = Args.parseInteger(args, "r", 2);
+		switch(round){
+		case 2:	mtb.loadEventAndMotifs(2);		// GEM
+				mtb.printBindingOffsets(2);
+				break;
+		case 1:	mtb.loadEventAndMotifs(1);		// GPS
+				mtb.printBindingOffsets(1);
+				break;
+		case 9:	mtb.loadEventAndMotifs(1);		// Motif
+				mtb.printMotifOffsets();
+		}
+		
 	}
 	
 	public MultiTF_Binding(String[] args){
@@ -62,10 +73,16 @@ public class MultiTF_Binding {
 				names.add(child.getName());
 		}
 		
-		int round = 2;
 		gc = Args.parseDouble(args, "gc", gc);
 		
+		seqgen = new SequenceGenerator<Region>();
+		seqgen.useCache(false);
+	}
+	
+	private void loadEventAndMotifs(int round){
+		
 		for (int tf=0;tf<names.size();tf++){
+			// load binding event files 
 			String name = names.get(tf);
 			File gpsFile = new File(new File(dir, name), name+"_"+round+"_GPS_significant.txt");
 			String filePath = gpsFile.getAbsolutePath();
@@ -85,6 +102,7 @@ public class MultiTF_Binding {
 				System.exit(1);
 			}
 			
+			// load motif files
 			File dir2= new File(dir, name);
 			final String suffix = name+"_"+round+"_PFM";
 			File[] files = dir2.listFiles(new FilenameFilter(){
@@ -133,11 +151,7 @@ public class MultiTF_Binding {
 				pwms.add(null);
 			}
 		}
-		
-		seqgen = new SequenceGenerator<Region>();
-		seqgen.useCache(true);
 	}
-	
 	class Site implements Comparable<Site>{
 		int tf_id;
 		Point bs;
@@ -147,7 +161,7 @@ public class MultiTF_Binding {
 		}
 	}
 
-	private void printBindingOffsets(){
+	private void printBindingOffsets(int round){
 		// classify sites by chrom
 		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
 		for (ArrayList<Site> sites:all_sites){
@@ -235,7 +249,80 @@ public class MultiTF_Binding {
 				}
 				sb.append("\n");
 			}
-			CommonUtils.writeFile(new File(dir, names.get(i)+"_profiles.txt").getAbsolutePath(), sb.toString());
+			String filename = names.get(i)+(round==2?"":"_"+round)+"_profiles.txt";
+			CommonUtils.writeFile(new File(dir, filename).getAbsolutePath(), sb.toString());
+		}
+	}
+	/** For each binding event of A, scan with all motif, compute the offset between A and all others */
+	private void printMotifOffsets(){
+		// classify sites by chrom
+		int seqRange = 250;
+		for (int i=0;i<names.size();i++){
+			System.out.println(names.get(i));
+			ArrayList<Site> sites = all_sites.get(i);
+			WeightMatrix wm = pwms.get(i);
+			if (wm ==null)
+				continue;
+			String[] seqs = new String[sites.size()];
+			for (int j=0;j<sites.size();j++){
+				seqs[j] = seqgen.execute(sites.get(j).bs.expand(seqRange));
+			}
+			
+			ArrayList[][] hits = new ArrayList[seqs.length][pwms.size()];
+			
+			for (int j=0;j<pwms.size();j++){
+				WeightMatrix pwm = pwms.get(j);
+				if (pwm==null)
+					continue;
+				WeightMatrixScorer scorer = new WeightMatrixScorer(pwm);
+				for (int s=0;s<seqs.length;s++){
+					hits[s][j]=CommonUtils.getAllPWMHit(seqs[s], pwm.length(), scorer, pwm.getMaxScore()*0.6);
+				}
+			}
+			int seqLen = seqs[0].length();
+			for (int j=0;j<pwms.size();j++){
+				if (pwms.get(j)==null)
+					continue;
+				int range = seqLen - pwms.get(i).length()/2 - pwms.get(j).length()/2;
+				int[] same = new int[range*2+1];
+				int[] diff = new int[range*2+1];
+				for (int s=0;s<seqs.length;s++){
+					ArrayList<Integer> hitm = hits[s][i];
+					ArrayList<Integer> hitj = hits[s][j];
+					if (hitm.isEmpty()||hitj.isEmpty())
+						continue;
+					if (i==j){		//self comparison
+						for (int a=0;a<hitm.size();a++){
+							int pm = hitm.get(a);
+							for (int b=a;b<hitm.size();b++){
+								int pj = hitm.get(b);
+								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
+									same[pj-pm+range]++;
+								else
+									diff[-pj-pm+range]++;			// -pj to get the coord on the same strand as pm
+							}
+						}
+					}
+					else{
+						for (int pm:hitm){
+							for (int pj:hitj){
+								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
+									same[pj-pm+range]++;
+								else
+									diff[-pj-pm+range]++;			// -pj to get the coord on the same strand as pm
+							}
+						}
+					}
+				}
+				StringBuilder sb = new StringBuilder();
+				int x[]=new int[range*2+1];
+				for (int p=0;p<same.length;p++){
+					x[p]=p-range;
+					sb.append(String.format("%d\t%d\t%d\n", x[p], same[p], diff[p]));
+				}
+				String filename = names.get(i)+"_motif_"+names.get(j)+".txt";
+				CommonUtils.writeFile(new File(dir, filename).getAbsolutePath(), sb.toString());
+			}			
 		}
 	}
 }
