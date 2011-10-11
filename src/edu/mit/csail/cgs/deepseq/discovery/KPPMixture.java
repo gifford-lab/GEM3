@@ -505,7 +505,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     if (count == processRegionCount.size()){
                     	try{
 	                    	heavyRegions.addAll(regionsRunning);
-	                    	if (config.bmverbose>1)
+	                    	if (config.bmverbose>1 && !regionsRunning.isEmpty())
 	                    		System.out.println("Analyzing "+regionsRunning.elementAt(0).toString());
                     	}
                     	catch (ConcurrentModificationException e){
