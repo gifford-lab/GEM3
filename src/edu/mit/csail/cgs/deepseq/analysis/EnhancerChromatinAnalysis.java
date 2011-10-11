@@ -55,6 +55,7 @@ public class EnhancerChromatinAnalysis {
 	/**
 	 * @param args
 	 */
+	// --species "Homo sapiens;hg18" --peakCallGPS "p300_esc_2_GPS_significant.txt" --analysisType 0 --out "ESC" --dev --from_file
 	public static void main(String[] args) throws IOException {
 		EnhancerChromatinAnalysis analysis = new EnhancerChromatinAnalysis(args);
 

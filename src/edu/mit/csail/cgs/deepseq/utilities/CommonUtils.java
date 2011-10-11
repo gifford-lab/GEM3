@@ -458,7 +458,7 @@ public class CommonUtils {
 		System.out.println(findKey(new double[]{0,1,1,1,2,4,6}, 7));
 	}
 	
-    
+    // --species "Mus musculus;mm8" --motif "CTCF" --version "090828" --windowSize 100 --motifThreshold 11.52
     public static void main(String args[]){
 		// load motif
     	Genome genome;

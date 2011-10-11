@@ -1326,9 +1326,9 @@ public class KmerMotifFinder {
 				System.out.println("\nTop 5 k-mers");
 				System.out.println(Kmer.toShortHeader(k));
 				for (int i=0;i<Math.min(5,kmers.size());i++){
-					System.out.println(kmers.get(i).toShortString()+(isSeedInherited?"":String.format("\t%.1f",kmers.get(i).familyHgp)));
+					System.out.println(kmers.get(i).toShortString()+((isSeedInherited||kmers.get(i).familyHgp==0)?"":String.format("\t%.1f",kmers.get(i).familyHgp)));
 				}
-				System.out.println("Seed k-mer:\n"+seed.toShortString()+(isSeedInherited?"":String.format("\t%.1f",seed.familyHgp))+"\n");
+				System.out.println("Seed k-mer:\n"+seed.toShortString()+((isSeedInherited||seed.familyHgp==0)?"":String.format("\t%.1f",seed.familyHgp))+"\n");
 			}
 			else
 				if (verbose>1)
@@ -1809,14 +1809,13 @@ public class KmerMotifFinder {
 		kmer2seq = null;
 	}
 	
-	private Kmer selectBestKmer(ArrayList<Kmer> kmers){
+	private Kmer selectBestKmer0(ArrayList<Kmer> kmers){
 		ArrayList<Kmer> candidates = new ArrayList<Kmer>();
 		Collections.sort(kmers, new Comparator<Kmer>(){
 		    public int compare(Kmer o1, Kmer o2) {
 		    	return o1.compareByHGP(o2);
 		    }
 		});	
-		int num = 5;
 		ArrayList<Kmer> newList = new ArrayList<Kmer>();
 		for (int i=0;i<kmers.size();i++)
 			newList.add(kmers.get(i));
@@ -1831,7 +1830,7 @@ public class KmerMotifFinder {
 			KmerGroup kg = new KmerGroup(family, 0);
 			km.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 			candidates.add(km);
-			if (candidates.size()>5)
+			if (candidates.size()>3)
 				break;
 		}
 		Collections.sort(candidates, new Comparator<Kmer>(){
@@ -1841,6 +1840,38 @@ public class KmerMotifFinder {
 		});	
 		return candidates.get(0);
 	}
+	
+	private Kmer selectBestKmer(ArrayList<Kmer> kmers){
+		Kmer minHgpKmer = kmers.get(0);
+		Kmer maxCountKmer = kmers.get(0);
+		for (Kmer km:kmers){
+			if (km.getHgp()<minHgpKmer.getHgp())
+				minHgpKmer = km;
+			if (km.getPosHitCount()>maxCountKmer.getPosHitCount())
+				maxCountKmer = km;
+		}
+		if (minHgpKmer==maxCountKmer)
+			return minHgpKmer;		
+	
+		ArrayList<Kmer> family1 = new ArrayList<Kmer>();
+		family1.add(minHgpKmer);
+		family1.addAll(getMMKmers(kmers, minHgpKmer.getKmerString(), 0));
+		// compute KmerGroup hgp for the km family
+		KmerGroup kg = new KmerGroup(family1, 0);
+		minHgpKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+		
+		ArrayList<Kmer> family2 = new ArrayList<Kmer>();
+		family2.add(maxCountKmer);
+		family2.addAll(getMMKmers(kmers, maxCountKmer.getKmerString(), 0));
+		// compute KmerGroup hgp for the km family
+		kg = new KmerGroup(family2, 0);
+		maxCountKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+		
+		if (minHgpKmer.familyHgp<=maxCountKmer.familyHgp)
+			return minHgpKmer;
+		else
+			return maxCountKmer;
+	}	
 	
 	private void alignSequencesUsingPWMmm(ArrayList<Sequence> seqList, KmerCluster cluster){
 		String pwmStr = WeightMatrix.getMaxLetters(cluster.wm);
