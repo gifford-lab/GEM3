@@ -334,11 +334,8 @@ public class KmerMotifFinder {
 	}
 	
 	/** 
-	 * Select the value of k by the coverage of enriched k-mers<br>
-	 * Count the exact base of coverage from every sequence
-	 * @param k_min
-	 * @param k_max
-	 * @return
+	 * Select the value of k <br>
+	 * that forms cluster with largest hit count and at least 90% of the best HGP
 	 */
 	public int selectK(int k_min, int k_max, double noiseRatio, boolean use_seed_family, boolean use_KSM, boolean use_PWM_MM){
 		if (k_min==k_max)
@@ -350,13 +347,14 @@ public class KmerMotifFinder {
 		
 		// compare different values of k to select most enriched k value
 		int bestK = 0;
+		double bestAllHGP = 0;
 		ArrayList<KmerCluster> kClusters = new ArrayList<KmerCluster>();
 		StringBuilder sb = new StringBuilder("\n------------------- "+outName+" ----------------------\n");
 		for (int i=0;i<k_max-k_min+1;i++){
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			alignBySimplePWM(kmers, 1, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
+			alignBySimplePWM(kmers, 2, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -368,9 +366,10 @@ public class KmerMotifFinder {
 			if (bestCluster!=null){
 				sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, 
 						bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
-//				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s\tscore=%.2f/%d=%.2f.\n", k, bestCluster.pwmThresholdHGP, bestCluster.wm.length(),
-//						 WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.getMaxScore(),bestCluster.wm.length(), bestCluster.wm.getMaxScore()/bestCluster.wm.length()));
 				kClusters.add(bestCluster);
+				
+				if (bestAllHGP>bestCluster.pwmThresholdHGP)
+					bestAllHGP=bestCluster.pwmThresholdHGP;
 			}
 			else
 				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
@@ -386,18 +385,18 @@ public class KmerMotifFinder {
 			System.exit(0);
 		}
 		
-		// find the k value with largest hit count
+		// find the k value with largest hit count and at least 90% of the best HGP
 		int bestHitCount = 0;
 		KmerCluster bestCluster=null;
 		for (KmerCluster c : kClusters){
-			if (c.pwmPosHitCount>bestHitCount){
+			if (c.pwmPosHitCount>bestHitCount && c.pwmThresholdHGP<bestAllHGP*0.9){
 				bestHitCount = c.pwmPosHitCount;
 				bestCluster = c;
 			}
 		}
 		bestK = bestCluster.seedKmer.getK();
 		System.out.print(sb.toString());
-		System.out.println(String.format("\nSelected k=%d\thit=%d\tbestHGP=%.1f.\n----------------------------------------------\n", 
+		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f.\n----------------------------------------------\n", 
 				bestK, bestCluster.pwmPosHitCount, bestCluster.pwmThresholdHGP));
 //		
 //		// check if there is discontinuity in widths 
@@ -1242,6 +1241,7 @@ public class KmerMotifFinder {
     	clusters.clear();
     	int clusterID = 0;
     	boolean quick_restart = false;
+    	boolean primarySeed_is_reset = false;
 		while (!kmers.isEmpty() && clusterID<=maxCluster){
 			
 			if (topCluster!=-1){			// only generate a few clusters to select optimal K
@@ -1342,6 +1342,7 @@ public class KmerMotifFinder {
 			seed.setAlignString(seed.getKmerString());
 			if (use_seed_family){
 				seedFamily.addAll(getMMKmers(kmers, seed.getKmerString(), 0));
+				// if this seed do not match other kmers, stop here
 				if (seedFamily.size()==1){
 					kmers.remove(seed);
 					quick_restart = true;
@@ -1429,6 +1430,37 @@ public class KmerMotifFinder {
 				improvePWM (cluster, seqList, seed_range, use_KSM, use_PWM_MM);
 //	    	}
 	    	
+			// compare pwm Hgp to primary cluster Hgp, so that the primary cluster will have the best Hgp
+			if (cluster.wm!=null){
+				if (clusterID!=0 && cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP && !primarySeed_is_reset){		// this pwm is better
+					// reset sequences, kmers, to start over with this new bestSeed
+					seqs = pos_seq_backup.clone();
+					seqsNegList.clear();
+					for (String s:neg_seq_backup)
+						seqsNegList.add(s);
+
+					seqList.clear();
+					for (int i=0;i<seqs.length;i++){
+						Sequence s = new Sequence(seqs[i], i);
+						seqList.add(s);
+					}
+					seqList.trimToSize();
+					
+					kmers.clear();
+					for (Kmer km:kmers_in)
+						kmers.add(km.clone());
+					kmers.trimToSize();
+					
+			    	clusters.clear();
+					clusterID = 0;
+					primarySeed = seed;
+					if (verbose>1)
+						System.out.println("Current motif is better, start over with seed="+seed.getKmerString());
+					primarySeed_is_reset=true;							// marked as "reset", only once, avoid potential infinite loop
+					continue;										// start over with new seed
+				}
+			}
+				
 			// get Aligned Kmers from PWM alignement. if no PWM, it is the seed_family alignment
 	    	if (cluster.wm!=null){
 	    		alignSequencesUsingPWM(seqList, cluster);
@@ -3299,7 +3331,7 @@ public class KmerMotifFinder {
  			alignedSeqs.add(s);
  			if (use_weight){
  				double weight = seq_weights[seq.id];
- 				if (cluster.clusterId==0){
+ 				if (cluster.clusterId==0){				// if this motif is primary, also use the positional weight based on the distance between binding site and motif
 		 			int prof_pos = k/2-seq.pos;
 		 			if (prof_pos<0)
 		 				prof_pos = 0;
