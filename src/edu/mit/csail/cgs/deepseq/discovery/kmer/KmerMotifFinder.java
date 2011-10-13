@@ -1365,8 +1365,6 @@ public class KmerMotifFinder {
 						if (seed_seq<0)
 							continue;
 					}
-//					if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
-//						km.getK();
 					s.pos = -seed_seq;
 					break;				// seq is aligned, do not try with weaker k-mers
 	    		}
@@ -1418,16 +1416,16 @@ public class KmerMotifFinder {
 //				}
 //	    	}
 //	    	else{
-				int aligned_seqs_count=0;
-				for (Sequence s:seqList){
-			    	  if (s.pos!=UNALIGNED)
-			    		  aligned_seqs_count++;
-				}
-				if (aligned_seqs_count<seed.getPosHitCount()*1.5)	{		// if most of sequences are aligned by seed kmer, stop
-					if (verbose>1)
-						System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
-					break;
-				}		    	
+//				int aligned_seqs_count=0;
+//				for (Sequence s:seqList){
+//			    	  if (s.pos!=UNALIGNED)
+//			    		  aligned_seqs_count++;
+//				}
+//				if (aligned_seqs_count<seed.getPosHitCount()*1.5)	{		// if most of sequences are aligned by seed kmer, stop
+//					if (verbose>1)
+//						System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
+//					break;
+//				}		    	
 				/** Iteratively build PWM and align sequences */
 				improvePWM (cluster, seqList, seed_range, use_KSM, use_PWM_MM);
 //	    	}
@@ -2174,7 +2172,7 @@ public class KmerMotifFinder {
 				
 				if (maxCount>=minHitCount*0.3){				// if there is large enough overlap, try to merge 2 clusters
 					if (verbose>1)
-			    		System.out.println(String.format("%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
+			    		System.out.println(String.format("\n%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
 			    				CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(cluster_main.wm), cluster_main.clusterId, cluster_main.pwmThresholdHGP,
 		    				WeightMatrix.getMaxLetters(cluster_junior.wm), cluster_junior.clusterId, cluster_junior.pwmThresholdHGP, maxDist, isRC?"rc":""));
 					
@@ -2260,6 +2258,7 @@ public class KmerMotifFinder {
 				    	  if (s.pos!=UNALIGNED)
 				    		  aligned_seqs_count++;
 					}
+					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
 					if (aligned_seqs_count<seqs.length*motif_hit_factor || aligned_seqs_count<cluster_junior.pwmPosHitCount/2){
 						if (verbose>1)
 				    		System.out.println(String.format("%s: Number of sequences (%d) hit by cluster #%d is too few, remove it.", 
