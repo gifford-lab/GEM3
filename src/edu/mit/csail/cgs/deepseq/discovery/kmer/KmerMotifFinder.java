@@ -69,6 +69,7 @@ public class KmerMotifFinder {
 	private String outName;
 	private boolean use_grid_search=true;
 	private boolean use_weight=true;
+	private boolean allow_single_family =false;
 	private double wm_factor = 0.5;
 	private double kmer_set_overlap_ratio = 0.5;
 	private int kmer_remove_mode = 0;
@@ -125,7 +126,7 @@ public class KmerMotifFinder {
 	public KmerMotifFinder(){ }
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
-			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, String outName, int verbose, 
+			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, int verbose, 
 			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
@@ -136,6 +137,7 @@ public class KmerMotifFinder {
 	    this.motif_hit_factor_report = motif_hit_factor_report;
 	    this.use_grid_search = use_grid_search;
 	    this.use_weight = use_weight;
+	    this.allow_single_family = allow_single_family;
 	    this.kmer_remove_mode = kmer_remove_mode;
 	    this.kmer_aligned_fraction = kmer_aligned_fraction;
 	    this.print_aligned_seqs = print_aligned_seqs;
@@ -1343,7 +1345,7 @@ public class KmerMotifFinder {
 			if (use_seed_family){
 				seedFamily.addAll(getMMKmers(kmers, seed.getKmerString(), 0));
 				// if this seed do not match other kmers, stop here
-				if (seedFamily.size()==1){
+				if (!allow_single_family && seedFamily.size()==1){
 					kmers.remove(seed);
 					quick_restart = true;
 					if (clusterID==0)
@@ -1672,6 +1674,12 @@ public class KmerMotifFinder {
 		for (KmerCluster c:clusters){
     		if (c.wm==null || (!c.pwmGoodQuality) || c.total_aligned_seqs<seqs.length*motif_hit_factor_report)
     			badClusters.add(c);
+		}
+		// if all of the clusters does not pass, relax the PWM hit count criteria
+		if (badClusters.size()==clusters.size()){
+			for (KmerCluster c:clusters)
+				if (c.total_aligned_seqs<seqs.length*motif_hit_factor)
+					badClusters.remove(c);
 		}
 		clusters.removeAll(badClusters);
 		
@@ -5564,7 +5572,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, "Test", 2, 0.5, false, false, 200);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200);
         boolean use_seed_family = true;
         boolean use_KSM = true;
         boolean use_PWM_MM = false;
