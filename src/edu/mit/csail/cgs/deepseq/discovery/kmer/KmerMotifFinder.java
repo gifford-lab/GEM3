@@ -1455,7 +1455,7 @@ public class KmerMotifFinder {
 					clusterID = 0;
 					primarySeed = seed;
 					if (verbose>1)
-						System.out.println("Current motif is better, start over with seed="+seed.getKmerString());
+						System.out.println("**** Secondary motif is more enriched than primary motif, start over with seed="+seed.getKmerString());
 					primarySeed_is_reset=true;							// marked as "reset", only once, avoid potential infinite loop
 					continue;										// start over with new seed
 				}
@@ -2016,13 +2016,14 @@ public class KmerMotifFinder {
 			CommonUtils.printMotifLogo(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
 			
 			WeightMatrix wm_rc = WeightMatrix.reverseComplement(wm);
-			c.wm.setNameVerType(name, "#"+c.clusterId, "rc");
+			wm_rc.setNameVerType(name, "#"+c.clusterId, "rc");
 			CommonUtils.printMotifLogo(wm_rc, new File(outName+"_"+c.clusterId+"_motif_rc.png"), 75);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+k+".txt", pfm_sb.toString());
 
 		// output HTML report
 		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
+		html.append("<script language='javascript' type='text/javascript'><!--\nfunction popitup(url) {	newwindow=window.open(url,'name','height=75,width=400');	if (window.focus) {newwindow.focus()}	return false;}// --></script>");
 		html.append("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
 		html.append(name).append("</font></th>");
 		html.append("<tr><td valign='top'><br>");
@@ -2074,7 +2075,7 @@ public class KmerMotifFinder {
     		if (wm==null || (!c.pwmGoodQuality)|| c.total_aligned_seqs<seqs.length*motif_hit_factor_report)
     			continue;
     		
-    		html.append("<tr><td><img src='"+name+"_"+c.clusterId+"_motif.png"+"'><br>");
+    		html.append("<tr><td><img src='"+name+"_"+c.clusterId+"_motif.png"+"'><a href='#' onclick='return popitup(\""+name+"_"+c.clusterId+"_motif_rc.png\")'>rc</a><br>");
     		html.append(String.format("PSSM: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
     				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
 //    		html.append(String.format("KSM score: %.2f, \thit=%d+/%d-, hgp=1e%.1f<br><br>", 
@@ -2104,7 +2105,7 @@ public class KmerMotifFinder {
 		if (depth>10)
 			return;
 		if (verbose>1)
-    		System.out.println("\n"+CommonUtils.timeElapsed(tic)+": Merge overlapping motifs, #" + depth);
+    		System.out.println("\n"+CommonUtils.timeElapsed(tic)+": Merge overlapping motifs, iteration " + depth);
 		boolean isChanged = false;
 		int maxClusterId=0;
 		for (KmerCluster c:clusters)
