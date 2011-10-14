@@ -21,6 +21,7 @@ public abstract class ReadLoader {
 	protected double totalWeight;
 	protected double totalForWeight=-1,totalRevWeight=-1;
 	protected int readLength;
+	protected boolean pairedEnd = false; //What to do with this flag is left to the subclass
 	
 	public ReadLoader(Genome g, int rLen){
 		gen=g;
@@ -55,8 +56,10 @@ public abstract class ReadLoader {
 	protected abstract double countStrandedWeight(char strand);
 	public abstract List<ReadHit> loadHits(Region r);
 	public abstract List<ExtReadHit> loadExtHits(Region r, int startShift, int fivePrimeExt, int threePrimeExt);
+	public abstract List<ReadHit> loadPairs(Region r);
 	public abstract int countHits (Region r);
 	public abstract double sumWeights (Region r);
 	public abstract void cleanup();
 	public abstract void setGenome(Genome g);
+	public void setPairedEnd(boolean pe){pairedEnd=pe;} 
 }

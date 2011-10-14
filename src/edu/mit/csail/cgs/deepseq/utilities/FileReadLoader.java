@@ -124,6 +124,14 @@ public class FileReadLoader extends ReadLoader{
 		}
 		return hits;
 	}
+	
+	//Load paired reads from our files
+	public List<ReadHit> loadPairs(Region r) {
+		ArrayList<ReadHit> hits = new ArrayList<ReadHit>();
+		//TODO: NOT YET IMPLEMENTED FOR FILES
+		return hits;
+	}
+	
 	// load all start coordinates (unsorted if multiple files)
 	public ArrayList<int [][][]> getAllStarts(){
 		ArrayList<int [][][]> allStarts = new ArrayList<int [][][]>();
