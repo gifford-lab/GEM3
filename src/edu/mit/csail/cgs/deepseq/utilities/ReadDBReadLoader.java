@@ -173,15 +173,56 @@ public class ReadDBReadLoader extends ReadLoader{
 		ArrayList<ReadHit> total = new ArrayList<ReadHit>();
 		try {
 			for(ChipSeqAlignment alignment : aligns) {
-                for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
+                if(!pairedEnd){
+                	for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
                                                         r.getGenome().getChromID(r.getChrom()),
                                                         r.getStart(),
                                                         r.getEnd(),
                                                         null,
                                                         null)) {
-                    total.add(convertToReadHit(r.getGenome(),
-                                               currID++,
-                                               h));
+                		total.add(convertToReadHit(r.getGenome(),currID++, h));
+                	}
+                }else{
+                	for (PairedHit h : client.getPairedHits(Integer.toString(alignment.getDBID()),
+							                            r.getGenome().getChromID(r.getChrom()),
+							                            true,
+							                            r.getStart(),
+							                            r.getEnd(),
+							                            null,
+							                            null)) {
+                		total.add(convertToReadHit(r.getGenome(),currID++, h, true));
+                		total.add(convertToReadHit(r.getGenome(),currID++, h, false));
+                	}
+                }
+            }
+			return total;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClientException e) {
+			//Do nothing here; ClientException could be thrown because a chromosome doesn't contain any hits
+			return(total);
+		}
+		return total;
+	}
+	
+	//Load reads in a region
+	public List<ReadHit> loadPairs(Region r) {
+		ArrayList<ReadHit> total = new ArrayList<ReadHit>();
+		try {
+			for(ChipSeqAlignment alignment : aligns) {
+                if(pairedEnd){
+                	for (PairedHit h : client.getPairedHits(Integer.toString(alignment.getDBID()),
+							                            r.getGenome().getChromID(r.getChrom()),
+							                            true,
+							                            r.getStart(),
+							                            r.getEnd(),
+							                            null,
+							                            null)) {
+                		ReadHit hit = convertToReadHit(r.getGenome(),currID++, h);
+                		if(hit != null)
+                			total.add(hit);
+                	}
                 }
             }
 			return total;
@@ -273,16 +314,26 @@ public class ReadDBReadLoader extends ReadLoader{
 		ArrayList<ExtReadHit> total = new ArrayList<ExtReadHit>();
 		try {
 			for(ChipSeqAlignment alignment : aligns) {
-                for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
+				if(!pairedEnd){
+					for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
                                                         r.getGenome().getChromID(r.getChrom()),
                                                         r.getStart(),
                                                         r.getEnd(),
                                                         null,
                                                         null)) {
-                    total.add(convertToExtReadHit(r.getGenome(),
-                                                  currID++,
-                                                  h,
-                                                  startShift, fivePrimeExt, threePrimeExt));
+						total.add(convertToExtReadHit(r.getGenome(), currID++, h, startShift, fivePrimeExt, threePrimeExt));
+					}
+                }else{
+                	for (PairedHit h : client.getPairedHits(Integer.toString(alignment.getDBID()),
+					                            r.getGenome().getChromID(r.getChrom()),
+					                            true,
+					                            r.getStart(),
+					                            r.getEnd(),
+					                            null,
+					                            null)) {
+                		total.add(convertToExtReadHit(r.getGenome(),currID++, h, true, startShift, fivePrimeExt, threePrimeExt));
+                		total.add(convertToExtReadHit(r.getGenome(),currID++, h, false, startShift, fivePrimeExt, threePrimeExt));
+					}
                 }
 			}
         } catch (IOException e) {
@@ -348,6 +399,18 @@ public class ReadDBReadLoader extends ReadLoader{
                            h.strand ? '+' : '-',
                            h.weight);
     }
+    public ReadHit convertToReadHit(Genome g, int id, PairedHit h){
+    	if(h.leftChrom == h.rightChrom)
+    		return new ReadHit(g, id, g.getChromName(h.leftChrom), h.leftPos, h.rightPos, '+', h.weight);
+    	else
+    		return null;
+    }    		
+    public ReadHit convertToReadHit(Genome g, int id, PairedHit h, boolean left) {
+        if(left)
+        	return new ReadHit(g, id, g.getChromName(h.leftChrom), h.leftPos, h.leftPos + h.leftLength, h.leftStrand ? '+' : '-', h.weight);
+        else
+        	return new ReadHit(g, id, g.getChromName(h.rightChrom), h.rightPos, h.rightPos + h.rightLength, h.rightStrand ? '+' : '-', h.weight);
+    }
     public ExtReadHit convertToExtReadHit(Genome g, int id, SingleHit h, int startshift, int fiveprime, int threeprime) {
         return new ExtReadHit(g,
                               id,
@@ -357,6 +420,12 @@ public class ReadDBReadLoader extends ReadLoader{
                               h.strand ? '+' : '-',
                               h.weight,
                               startshift, fiveprime, threeprime);
+    }
+    public ExtReadHit convertToExtReadHit(Genome g, int id, PairedHit h, boolean left, int startshift, int fiveprime, int threeprime) {
+        if(left)
+        	return new ExtReadHit(g, id, g.getChromName(h.leftChrom), h.leftPos, h.leftPos + h.leftLength, h.leftStrand ? '+' : '-', h.weight, startshift, fiveprime, threeprime);
+        else
+        	return new ExtReadHit(g, id, g.getChromName(h.rightChrom), h.rightPos, h.rightPos + h.rightLength, h.rightStrand ? '+' : '-', h.weight, startshift, fiveprime, threeprime);
     }
 
 	
