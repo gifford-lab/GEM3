@@ -46,67 +46,72 @@ public class ReadDBReadLoader extends ReadLoader{
 
 		currID=new Random(System.currentTimeMillis()).nextInt();
 		try {
-			client = new Client();
-		
 			//Initialize
-            ChipSeqLoader loader = new ChipSeqLoader(false); 
-			for(ChipSeqLocator locator : locs){
-				String exptName = locator.getExptName(); exptNames.add(exptName);
-				if (locator.getAlignName() == null) {
-		            if(locator.getReplicates().isEmpty()) { //No alignment name, no replicate names
-		            	Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
-		        		for(ChipSeqExpt expt : expts) { 
-		                	Collection<ChipSeqAlignment> aligns;
-							aligns = loader.loadAllAlignments(expt);
-							for (ChipSeqAlignment currentAlign : aligns) {
-		            			if (currentAlign.getGenome().equals(g)) { 
-		            				aligns.add(currentAlign);
-		    						break;
-		    					}
-		            		}
-		    			}
-		            } else { //No alignment name, given replicate names
-		                for(String repName : locator.getReplicates()) { 
-		                    ChipSeqExpt expt = loader.loadExperiment(locator.getExptName(), repName);
-		                    ChipSeqAlignment alignment = 
-		                        loader.loadAlignment(expt, locator.getAlignName(), g);
-		                    if(alignment != null) { 
-		                        aligns.add(alignment);
-		                        break;
-		                    }
-		                }
-		            }
-		        } else {
-		        	if(locator.getReplicates().isEmpty()) {//Given alignment name, no replicate names
-		        		Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
-                        System.err.println("Have name but no replicates.  Got " + expts.size() + " experiments for " + locator.getExptName());
-		        		for(ChipSeqExpt expt : expts) { 
-		                	Collection<ChipSeqAlignment> alignments;
-							alignments = loader.loadAllAlignments(expt);
-							for (ChipSeqAlignment currentAlign : alignments) {
-                                System.err.println("  " + currentAlign);
-		            			if (currentAlign.getGenome().equals(g) && currentAlign.getName().equals(locator.getAlignName())) { 
-		            				aligns.add(currentAlign);
-		    						break;
-		    					}
-		            		}
-		    			}
-		            }else{
-		            	for (String replicate : locator.getReplicates()) {//Given alignment name, given replicate names
-		        			aligns.add(loader.loadAlignment(loader.loadExperiment(locator.getExptName(),
-                                                                                  replicate), 
-                                                            locator.getAlignName(),
-                                                            g));
-		        		}
-		            }
-		        }
+			ChipSeqLoader loader = new ChipSeqLoader(false); 
+			try{
+				for(ChipSeqLocator locator : locs){
+					String exptName = locator.getExptName(); exptNames.add(exptName);
+					if (locator.getAlignName() == null) {
+			            if(locator.getReplicates().isEmpty()) { //No alignment name, no replicate names
+			            	Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
+			        		for(ChipSeqExpt expt : expts) { 
+			                	Collection<ChipSeqAlignment> aligns;
+								aligns = loader.loadAllAlignments(expt);
+								for (ChipSeqAlignment currentAlign : aligns) {
+			            			if (currentAlign.getGenome().equals(g)) { 
+			            				aligns.add(currentAlign);
+			    						break;
+			    					}
+			            		}
+			    			}
+			            } else { //No alignment name, given replicate names
+			                for(String repName : locator.getReplicates()) { 
+			                    ChipSeqExpt expt = loader.loadExperiment(locator.getExptName(), repName);
+			                    ChipSeqAlignment alignment = 
+			                        loader.loadAlignment(expt, locator.getAlignName(), g);
+			                    if(alignment != null) { 
+			                        aligns.add(alignment);
+			                        break;
+			                    }
+			                }
+			            }
+			        } else {
+			        	if(locator.getReplicates().isEmpty()) {//Given alignment name, no replicate names
+			        		Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
+	                        System.err.println("Have name but no replicates.  Got " + expts.size() + " experiments for " + locator.getExptName());
+			        		for(ChipSeqExpt expt : expts) { 
+			                	Collection<ChipSeqAlignment> alignments;
+								alignments = loader.loadAllAlignments(expt);
+								for (ChipSeqAlignment currentAlign : alignments) {
+	                                System.err.println("  " + currentAlign);
+			            			if (currentAlign.getGenome().equals(g) && currentAlign.getName().equals(locator.getAlignName())) { 
+			            				aligns.add(currentAlign);
+			    						break;
+			    					}
+			            		}
+			    			}
+			            }else{
+			            	for (String replicate : locator.getReplicates()) {//Given alignment name, given replicate names
+			        			aligns.add(loader.loadAlignment(loader.loadExperiment(locator.getExptName(),
+	                                                                                  replicate), 
+	                                                            locator.getAlignName(),
+	                                                            g));
+			        		}
+			            }
+			        }
+				}
+	            if (locs.size() != 0 && aligns.size() == 0) {
+	                System.err.println("Locators were " + locs + " but didn't get any alignments");
+	            }
+	
+				client = new Client();
+	            countHits();
+	            
 			}
-            if (locs.size() != 0 && aligns.size() == 0) {
-                System.err.println("Locators were " + locs + " but didn't get any alignments");
-            }
-
-            countHits();
-			
+            catch (NotFoundException e) {
+    			loader.close();				// if the requested ChIP-Seq data is not found, close client/connection to read db
+    			e.printStackTrace();
+    		}
 			//Error that doesn't seem to be caught by the exceptions
             //			if(totalHits==0){
             //				System.err.println("No reads found for these experiment names");
@@ -119,9 +124,6 @@ public class ReadDBReadLoader extends ReadLoader{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
