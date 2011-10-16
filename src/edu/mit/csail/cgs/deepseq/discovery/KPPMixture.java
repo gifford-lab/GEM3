@@ -2734,15 +2734,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int margin= 50;
 		System.setProperty("java.awt.headless", "true");
 	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-	    Graphics g = im.getGraphics();
-	    Graphics2D g2 = (Graphics2D)g;
+	    Graphics2D g2 = (Graphics2D)im.getGraphics();
 	    g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
 	    g2.setColor(Color.white);
 	    g2.fillRect(0, 0, w, h);	
 	    g2.setColor(Color.gray);
 	    g2.drawLine(20, h-margin, w-20, h-margin);		// x-axis
 	    g2.drawLine(w/2, margin, w/2, h-margin);	// y-axis    
-	    g.setFont(new Font("Arial",Font.PLAIN,16));
+	    g2.setFont(new Font("Arial",Font.PLAIN,16));
 	    for (int p=-2;p<=2;p++){
 	    	g2.drawLine(w/2+p*200, h-margin-10, w/2+p*200, h-margin);	// tick  
 	    	g2.drawString(""+p*200, w/2+p*200-5, h-margin+22);			// tick label
@@ -2769,7 +2768,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    	int y2=(int) (h-points.get(p+1).cdr()/maxProb*(h-margin*2)*0.8)-margin;
 		    	g2.drawLine(x1, y1, x2, y2);	    
 		    }
-		    g.setFont(new Font("Arial",Font.PLAIN,20));
+		    g2.setFont(new Font("Arial",Font.PLAIN,20));
 		    g2.drawString(rounds.get(i), w-300, i*25+margin+25);
 	    }
 

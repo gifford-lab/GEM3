@@ -2124,6 +2124,8 @@ public class KmerMotifFinder {
 		int seqLen = seqs[0].length();
 		for (int m=0;m<clusters.size();m++){
 			for (int j=m+1;j<clusters.size();j++){
+				if (m>=clusters.size()||j>=clusters.size())			// removing a cluster may change the cluster index/size
+					continue;
 				KmerCluster cluster_main = clusters.get(m);
 				KmerCluster cluster_junior = clusters.get(j);
 				if (m!=0 && cluster_main.pwmPosHitCount<cluster_junior.pwmPosHitCount){
@@ -2133,7 +2135,7 @@ public class KmerMotifFinder {
 				if (checked[cluster_main.clusterId][cluster_junior.clusterId])
 					continue;
 				
-				int range = seqLen - cluster_main.wm.length()/2 - cluster_junior.wm.length()/2 + 2;  // add 2 for rounding error
+				int range = seqLen - cluster_main.wm.length()/2 - cluster_junior.wm.length()/2 + 4;  // add 2 for rounding error
 				int[] same = new int[range*2+1];
 				int[] diff = new int[range*2+1];
 				for (int i=0;i<seqs.length;i++){
@@ -2262,9 +2264,9 @@ public class KmerMotifFinder {
 					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
 					if (aligned_seqs_count<seqs.length*motif_hit_factor || aligned_seqs_count<cluster_junior.pwmPosHitCount/2){
 						if (verbose>1)
-				    		System.out.println(String.format("%s: Number of sequences (%d) hit by cluster #%d is too few, remove it.", 
+				    		System.out.println(String.format("%s: Exclusive hits(%d) by cluster #%d is too few, remove it.", 
 				    			CommonUtils.timeElapsed(tic), aligned_seqs_count, cluster_junior.clusterId));
-						clusters.remove(j);
+						clusters.remove(cluster_junior);
 					}
 					else{
 						WeightMatrix old_j = cluster_junior.wm;
@@ -2280,7 +2282,7 @@ public class KmerMotifFinder {
 							if (verbose>1)
 					    		System.out.println(String.format("%s: new PWM hit %d is too few, remove cluster #%d.", 
 					    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_junior.clusterId));
-							clusters.remove(j);
+							clusters.remove(cluster_junior);
 						}
 						else{
 							// update the # aligned_seqs using the number from all sequences
@@ -3329,9 +3331,10 @@ public class KmerMotifFinder {
 				startPadding = CommonUtils.padding(-start, "N");
 				start=0;
 			}
-			if (end>k_win){
-				endPadding = CommonUtils.padding(end-k_win, "N");
-				end=k_win;
+			int seqLen = seq.getSeq().length();
+			if (end>seqLen){
+				endPadding = CommonUtils.padding(end-seqLen, "N");
+				end=seqLen;
 			}
 			if (start>=end)
 				continue;
@@ -3343,8 +3346,8 @@ public class KmerMotifFinder {
 		 			int prof_pos = k/2-seq.pos;
 		 			if (prof_pos<0)
 		 				prof_pos = 0;
-		 			else if (prof_pos>k_win-1)
-		 				prof_pos = k_win-1;
+		 			else if (prof_pos>seqLen-1)
+		 				prof_pos = seqLen-1;
 		 			weight *=profile[prof_pos];
  				}
 	 			weights.add(weight);
