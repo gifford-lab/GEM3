@@ -69,6 +69,7 @@ public class KmerMotifFinder {
 	private String outName;
 	private boolean use_grid_search=true;
 	private boolean use_weight=true;
+	private boolean allow_single_family =false;
 	private double wm_factor = 0.5;
 	private double kmer_set_overlap_ratio = 0.5;
 	private int kmer_remove_mode = 0;
@@ -125,7 +126,7 @@ public class KmerMotifFinder {
 	public KmerMotifFinder(){ }
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
-			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, String outName, int verbose, 
+			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, int verbose, 
 			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
@@ -136,6 +137,7 @@ public class KmerMotifFinder {
 	    this.motif_hit_factor_report = motif_hit_factor_report;
 	    this.use_grid_search = use_grid_search;
 	    this.use_weight = use_weight;
+	    this.allow_single_family = allow_single_family;
 	    this.kmer_remove_mode = kmer_remove_mode;
 	    this.kmer_aligned_fraction = kmer_aligned_fraction;
 	    this.print_aligned_seqs = print_aligned_seqs;
@@ -334,11 +336,8 @@ public class KmerMotifFinder {
 	}
 	
 	/** 
-	 * Select the value of k by the coverage of enriched k-mers<br>
-	 * Count the exact base of coverage from every sequence
-	 * @param k_min
-	 * @param k_max
-	 * @return
+	 * Select the value of k <br>
+	 * that forms cluster with largest hit count and at least 90% of the best HGP
 	 */
 	public int selectK(int k_min, int k_max, double noiseRatio, boolean use_seed_family, boolean use_KSM, boolean use_PWM_MM){
 		if (k_min==k_max)
@@ -350,13 +349,14 @@ public class KmerMotifFinder {
 		
 		// compare different values of k to select most enriched k value
 		int bestK = 0;
+		double bestAllHGP = 0;
 		ArrayList<KmerCluster> kClusters = new ArrayList<KmerCluster>();
 		StringBuilder sb = new StringBuilder("\n------------------- "+outName+" ----------------------\n");
 		for (int i=0;i<k_max-k_min+1;i++){
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			alignBySimplePWM(kmers, 1, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
+			alignBySimplePWM(kmers, 2, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -368,9 +368,10 @@ public class KmerMotifFinder {
 			if (bestCluster!=null){
 				sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, 
 						bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
-//				sb.append(String.format("k=%d\thgp=1e%.1f\tW=%d\tPWM=%s\tscore=%.2f/%d=%.2f.\n", k, bestCluster.pwmThresholdHGP, bestCluster.wm.length(),
-//						 WeightMatrix.getMaxLetters(bestCluster.wm), bestCluster.wm.getMaxScore(),bestCluster.wm.length(), bestCluster.wm.getMaxScore()/bestCluster.wm.length()));
 				kClusters.add(bestCluster);
+				
+				if (bestAllHGP>bestCluster.pwmThresholdHGP)
+					bestAllHGP=bestCluster.pwmThresholdHGP;
 			}
 			else
 				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
@@ -386,18 +387,18 @@ public class KmerMotifFinder {
 			System.exit(0);
 		}
 		
-		// find the k value with largest hit count
+		// find the k value with largest hit count and at least 90% of the best HGP
 		int bestHitCount = 0;
 		KmerCluster bestCluster=null;
 		for (KmerCluster c : kClusters){
-			if (c.pwmPosHitCount>bestHitCount){
+			if (c.pwmPosHitCount>bestHitCount && c.pwmThresholdHGP<bestAllHGP*0.9){
 				bestHitCount = c.pwmPosHitCount;
 				bestCluster = c;
 			}
 		}
 		bestK = bestCluster.seedKmer.getK();
 		System.out.print(sb.toString());
-		System.out.println(String.format("\nSelected k=%d\thit=%d\tbestHGP=%.1f.\n----------------------------------------------\n", 
+		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f.\n----------------------------------------------\n", 
 				bestK, bestCluster.pwmPosHitCount, bestCluster.pwmThresholdHGP));
 //		
 //		// check if there is discontinuity in widths 
@@ -1242,6 +1243,7 @@ public class KmerMotifFinder {
     	clusters.clear();
     	int clusterID = 0;
     	boolean quick_restart = false;
+    	boolean primarySeed_is_reset = false;
 		while (!kmers.isEmpty() && clusterID<=maxCluster){
 			
 			if (topCluster!=-1){			// only generate a few clusters to select optimal K
@@ -1342,7 +1344,8 @@ public class KmerMotifFinder {
 			seed.setAlignString(seed.getKmerString());
 			if (use_seed_family){
 				seedFamily.addAll(getMMKmers(kmers, seed.getKmerString(), 0));
-				if (seedFamily.size()==1){
+				// if this seed do not match other kmers, stop here
+				if (!allow_single_family && seedFamily.size()==1){
 					kmers.remove(seed);
 					quick_restart = true;
 					if (clusterID==0)
@@ -1362,8 +1365,6 @@ public class KmerMotifFinder {
 						if (seed_seq<0)
 							continue;
 					}
-//					if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
-//						km.getK();
 					s.pos = -seed_seq;
 					break;				// seq is aligned, do not try with weaker k-mers
 	    		}
@@ -1415,20 +1416,51 @@ public class KmerMotifFinder {
 //				}
 //	    	}
 //	    	else{
-				int aligned_seqs_count=0;
-				for (Sequence s:seqList){
-			    	  if (s.pos!=UNALIGNED)
-			    		  aligned_seqs_count++;
-				}
-				if (aligned_seqs_count<seed.getPosHitCount()*1.5)	{		// if most of sequences are aligned by seed kmer, stop
-					if (verbose>1)
-						System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
-					break;
-				}		    	
+//				int aligned_seqs_count=0;
+//				for (Sequence s:seqList){
+//			    	  if (s.pos!=UNALIGNED)
+//			    		  aligned_seqs_count++;
+//				}
+//				if (aligned_seqs_count<seed.getPosHitCount()*1.5)	{		// if most of sequences are aligned by seed kmer, stop
+//					if (verbose>1)
+//						System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
+//					break;
+//				}		    	
 				/** Iteratively build PWM and align sequences */
 				improvePWM (cluster, seqList, seed_range, use_KSM, use_PWM_MM);
 //	    	}
 	    	
+			// compare pwm Hgp to primary cluster Hgp, so that the primary cluster will have the best Hgp
+			if (cluster.wm!=null){
+				if (clusterID!=0 && cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP && !primarySeed_is_reset){		// this pwm is better
+					// reset sequences, kmers, to start over with this new bestSeed
+					seqs = pos_seq_backup.clone();
+					seqsNegList.clear();
+					for (String s:neg_seq_backup)
+						seqsNegList.add(s);
+
+					seqList.clear();
+					for (int i=0;i<seqs.length;i++){
+						Sequence s = new Sequence(seqs[i], i);
+						seqList.add(s);
+					}
+					seqList.trimToSize();
+					
+					kmers.clear();
+					for (Kmer km:kmers_in)
+						kmers.add(km.clone());
+					kmers.trimToSize();
+					
+			    	clusters.clear();
+					clusterID = 0;
+					primarySeed = seed;
+					if (verbose>1)
+						System.out.println("**** Secondary motif is more enriched than primary motif, start over with seed="+seed.getKmerString());
+					primarySeed_is_reset=true;							// marked as "reset", only once, avoid potential infinite loop
+					continue;										// start over with new seed
+				}
+			}
+				
 			// get Aligned Kmers from PWM alignement. if no PWM, it is the seed_family alignment
 	    	if (cluster.wm!=null){
 	    		alignSequencesUsingPWM(seqList, cluster);
@@ -1640,6 +1672,12 @@ public class KmerMotifFinder {
 		for (KmerCluster c:clusters){
     		if (c.wm==null || (!c.pwmGoodQuality) || c.total_aligned_seqs<seqs.length*motif_hit_factor_report)
     			badClusters.add(c);
+		}
+		// if all of the clusters does not pass, relax the PWM hit count criteria
+		if (badClusters.size()==clusters.size()){
+			for (KmerCluster c:clusters)
+				if (c.total_aligned_seqs<seqs.length*motif_hit_factor)
+					badClusters.remove(c);
 		}
 		clusters.removeAll(badClusters);
 		
@@ -1978,13 +2016,14 @@ public class KmerMotifFinder {
 			CommonUtils.printMotifLogo(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
 			
 			WeightMatrix wm_rc = WeightMatrix.reverseComplement(wm);
-			c.wm.setNameVerType(name, "#"+c.clusterId, "rc");
+			wm_rc.setNameVerType(name, "#"+c.clusterId, "rc");
 			CommonUtils.printMotifLogo(wm_rc, new File(outName+"_"+c.clusterId+"_motif_rc.png"), 75);
 		}
 		CommonUtils.writeFile(outName+"_PFM_k"+k+".txt", pfm_sb.toString());
 
 		// output HTML report
 		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
+		html.append("<script language='javascript' type='text/javascript'><!--\nfunction popitup(url) {	newwindow=window.open(url,'name','height=75,width=400');	if (window.focus) {newwindow.focus()}	return false;}// --></script>");
 		html.append("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
 		html.append(name).append("</font></th>");
 		html.append("<tr><td valign='top'><br>");
@@ -2036,7 +2075,7 @@ public class KmerMotifFinder {
     		if (wm==null || (!c.pwmGoodQuality)|| c.total_aligned_seqs<seqs.length*motif_hit_factor_report)
     			continue;
     		
-    		html.append("<tr><td><img src='"+name+"_"+c.clusterId+"_motif.png"+"'><br>");
+    		html.append("<tr><td><img src='"+name+"_"+c.clusterId+"_motif.png"+"'><a href='#' onclick='return popitup(\""+name+"_"+c.clusterId+"_motif_rc.png\")'>rc</a><br>");
     		html.append(String.format("PSSM: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
     				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
 //    		html.append(String.format("KSM score: %.2f, \thit=%d+/%d-, hgp=1e%.1f<br><br>", 
@@ -2066,7 +2105,7 @@ public class KmerMotifFinder {
 		if (depth>10)
 			return;
 		if (verbose>1)
-    		System.out.println("\n"+CommonUtils.timeElapsed(tic)+": Merge overlapping motifs, #" + depth);
+    		System.out.println("\n"+CommonUtils.timeElapsed(tic)+": Merge overlapping motifs, iteration " + depth);
 		boolean isChanged = false;
 		int maxClusterId=0;
 		for (KmerCluster c:clusters)
@@ -2085,6 +2124,8 @@ public class KmerMotifFinder {
 		int seqLen = seqs[0].length();
 		for (int m=0;m<clusters.size();m++){
 			for (int j=m+1;j<clusters.size();j++){
+				if (m>=clusters.size()||j>=clusters.size())			// removing a cluster may change the cluster index/size
+					continue;
 				KmerCluster cluster_main = clusters.get(m);
 				KmerCluster cluster_junior = clusters.get(j);
 				if (m!=0 && cluster_main.pwmPosHitCount<cluster_junior.pwmPosHitCount){
@@ -2094,7 +2135,7 @@ public class KmerMotifFinder {
 				if (checked[cluster_main.clusterId][cluster_junior.clusterId])
 					continue;
 				
-				int range = seqLen - cluster_main.wm.length()/2 - cluster_junior.wm.length()/2 + 2;  // add 2 for rounding error
+				int range = seqLen - cluster_main.wm.length()/2 - cluster_junior.wm.length()/2 + 4;  // add 2 for rounding error
 				int[] same = new int[range*2+1];
 				int[] diff = new int[range*2+1];
 				for (int i=0;i<seqs.length;i++){
@@ -2134,7 +2175,7 @@ public class KmerMotifFinder {
 				
 				if (maxCount>=minHitCount*0.3){				// if there is large enough overlap, try to merge 2 clusters
 					if (verbose>1)
-			    		System.out.println(String.format("%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
+			    		System.out.println(String.format("\n%s: Trying to merge %s(#%d, %.1f) and %s(#%d, %.1f), dist=%d%s ... ", 
 			    				CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(cluster_main.wm), cluster_main.clusterId, cluster_main.pwmThresholdHGP,
 		    				WeightMatrix.getMaxLetters(cluster_junior.wm), cluster_junior.clusterId, cluster_junior.pwmThresholdHGP, maxDist, isRC?"rc":""));
 					
@@ -2220,11 +2261,12 @@ public class KmerMotifFinder {
 				    	  if (s.pos!=UNALIGNED)
 				    		  aligned_seqs_count++;
 					}
+					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
 					if (aligned_seqs_count<seqs.length*motif_hit_factor || aligned_seqs_count<cluster_junior.pwmPosHitCount/2){
 						if (verbose>1)
-				    		System.out.println(String.format("%s: Number of sequences (%d) hit by cluster #%d is too few, remove it.", 
+				    		System.out.println(String.format("%s: Exclusive hits(%d) by cluster #%d is too few, remove it.", 
 				    			CommonUtils.timeElapsed(tic), aligned_seqs_count, cluster_junior.clusterId));
-						clusters.remove(j);
+						clusters.remove(cluster_junior);
 					}
 					else{
 						WeightMatrix old_j = cluster_junior.wm;
@@ -2240,7 +2282,7 @@ public class KmerMotifFinder {
 							if (verbose>1)
 					    		System.out.println(String.format("%s: new PWM hit %d is too few, remove cluster #%d.", 
 					    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster_junior.clusterId));
-							clusters.remove(j);
+							clusters.remove(cluster_junior);
 						}
 						else{
 							// update the # aligned_seqs using the number from all sequences
@@ -3289,9 +3331,10 @@ public class KmerMotifFinder {
 				startPadding = CommonUtils.padding(-start, "N");
 				start=0;
 			}
-			if (end>k_win){
-				endPadding = CommonUtils.padding(end-k_win, "N");
-				end=k_win;
+			int seqLen = seq.getSeq().length();
+			if (end>seqLen){
+				endPadding = CommonUtils.padding(end-seqLen, "N");
+				end=seqLen;
 			}
 			if (start>=end)
 				continue;
@@ -3299,12 +3342,12 @@ public class KmerMotifFinder {
  			alignedSeqs.add(s);
  			if (use_weight){
  				double weight = seq_weights[seq.id];
- 				if (cluster.clusterId==0){
+ 				if (cluster.clusterId==0){				// if this motif is primary, also use the positional weight based on the distance between binding site and motif
 		 			int prof_pos = k/2-seq.pos;
 		 			if (prof_pos<0)
 		 				prof_pos = 0;
-		 			else if (prof_pos>k_win-1)
-		 				prof_pos = k_win-1;
+		 			else if (prof_pos>seqLen-1)
+		 				prof_pos = seqLen-1;
 		 			weight *=profile[prof_pos];
  				}
 	 			weights.add(weight);
@@ -5532,7 +5575,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, "Test", 2, 0.5, false, false, 200);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200);
         boolean use_seed_family = true;
         boolean use_KSM = true;
         boolean use_PWM_MM = false;

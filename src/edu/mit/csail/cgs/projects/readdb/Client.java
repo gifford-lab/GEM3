@@ -74,7 +74,7 @@ public class Client implements ReadOnlyClient {
      * @throws ClientException if the client cannot authenticate to the server
      */
     public Client() throws IOException, ClientException {
-        String homedir = (String)System.getProperties().get("user.home");
+        String homedir = System.getenv("HOME");
         String basename = "readdb_passwd";
         if (System.getenv("READDBROLE") != null) {
             basename = System.getenv("READDBROLE") + basename;

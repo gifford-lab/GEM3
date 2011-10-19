@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeMap;
 
 import edu.mit.csail.cgs.datasets.general.Point;
@@ -74,9 +75,9 @@ public class MultiTF_Binding {
 		}
 		
 		gc = Args.parseDouble(args, "gc", gc);
-		
+		Set<String> flags = Args.parseFlags(args);
 		seqgen = new SequenceGenerator<Region>();
-		seqgen.useCache(false);
+		seqgen.useCache(!flags.contains("no_cache"));
 	}
 	
 	private void loadEventAndMotifs(int round){
@@ -172,7 +173,7 @@ public class MultiTF_Binding {
 				chrom2sites.get(chr).add(s);
 			}
 		}
-		// sort sites in each chrom
+		// sort and index sites in each chrom
 		for (String chr: chrom2sites.keySet()){
 			ArrayList<Site> sites = chrom2sites.get(chr);
 			Collections.sort(sites);
@@ -181,17 +182,23 @@ public class MultiTF_Binding {
 		}
 		int range = 250;
 		int seqRange = 30;
+		// for each TF as anchor point
 		for (int i=0;i<names.size();i++){
 			ArrayList<float[]> profiles = new ArrayList<float[]>();
 			for (int n=0;n<names.size();n++){
 				profiles.add(new float[range*2+1]);
 			}
 			System.out.println(names.get(i));
-			ArrayList<Site> sites = all_sites.get(i);
+			ArrayList<Site> sites_TF = all_sites.get(i);		// all sites of this TF
 			WeightMatrix wm = pwms.get(i);
 			WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
-			for (Site s:sites){
-				int id = s.id;
+			StringBuilder site_sb = new StringBuilder("Site    \torient\t");
+			for (int n=0;n<names.size();n++){
+				site_sb.append(names.get(n).substring(3)+"\t");
+			}
+			site_sb.deleteCharAt(site_sb.length()-1).append("\n");
+			for (Site s:sites_TF){
+				int id = s.id;			// id of this TF binding in all binding sites in the chrom
 				int b = s.bs.getLocation();
 				// figure out the direction of TF binding based on sequence motif match
 				int direction = 0;		// not sure, because no PWM, or no PWM match
@@ -205,9 +212,16 @@ public class MultiTF_Binding {
 							direction = -1;
 					}
 				}
+				site_sb.append(s.bs.toString()).append("\t").append(Math.abs(direction)).append("\t");
+				
+				int[] offsets = new int[names.size()];
+				for (int n=0;n<offsets.length;n++){
+					offsets[n]=999;
+				}
+				
 				// count the nearby binding calls in upstream and downstream direction
 				ArrayList<Site> chromSites = chrom2sites.get(s.bs.getChrom());
-				for(int p=id;p<chromSites.size();p++){
+				for(int p=id;p<chromSites.size();p++){		// downstream (including same BS)
 					Site s2 = chromSites.get(p);
 					int offset = s2.bs.getLocation()-b;
 					if (offset>range)
@@ -218,10 +232,18 @@ public class MultiTF_Binding {
 						case 1: profile[offset+range]++;break;
 						case -1: profile[-offset+range]++;break;
 					}
+					if (offsets[s2.tf_id]==999){
+						if (s2.tf_id==i && offset==0)	// skip this binding site itself
+							continue;
+						if (direction==0){
+							offsets[s2.tf_id]=offset;
+						}
+						else
+							offsets[s2.tf_id]=offset*direction;
+					}
 				}
-				if (s.id==0)
-					continue;
-				for(int p=id-1;p>=0;p--){
+				// upstream is separated to search outwards, starting from BS position
+				for(int p=id-1;p>=0;p--){					// upstream
 					Site s2 = chromSites.get(p);
 					int offset = s2.bs.getLocation()-b;
 					if (offset<-range)
@@ -232,27 +254,45 @@ public class MultiTF_Binding {
 						case 1: profile[offset+range]++;break;
 						case -1: profile[-offset+range]++;break;
 					}
+					if (offsets[s2.tf_id]==999){
+						if (s2.tf_id==i && offset==0)	// skip this binding site itself
+							continue;
+						if (direction==0){
+							offsets[s2.tf_id]=offset;
+						}
+						else
+							offsets[s2.tf_id]=offset*direction;
+					}
 				}
-			}
+				for (int n=0;n<offsets.length;n++){
+					site_sb.append(offsets[n]).append("\t");
+				}
+				site_sb.deleteCharAt(site_sb.length()-1).append("\n");
+			} // for each site
 			
 			// output
+			String filename1 = names.get(i)+(round==2?"":("_"+round))+"_site_offsets.txt";
+			CommonUtils.writeFile(new File(dir, filename1).getAbsolutePath(), site_sb.toString());			
+			
 			StringBuilder sb = new StringBuilder(names.get(i).substring(3)+"\t");
 			for (int n=0;n<names.size();n++){
 				sb.append(names.get(n).substring(3)+"\t");
 			}
-			sb.append("\n");
+			sb.deleteCharAt(sb.length()-1).append("\n");
+			
 			for (int p=-range;p<=range;p++){
 				sb.append(p).append("\t");
 				for (int n=0;n<names.size();n++){
 					float[] profile = profiles.get(n);
 						sb.append(String.format("%.0f\t", profile[p+range]));
 				}
-				sb.append("\n");
+				sb.deleteCharAt(sb.length()-1).append("\n");
 			}
-			String filename = names.get(i)+(round==2?"":"_"+round)+"_profiles.txt";
+			String filename = names.get(i)+(round==2?"":("_"+round))+"_profiles.txt";
 			CommonUtils.writeFile(new File(dir, filename).getAbsolutePath(), sb.toString());
 		}
 	}
+	
 	/** For each binding event of A, scan with all motif, compute the offset between A and all others */
 	private void printMotifOffsets(){
 		// classify sites by chrom

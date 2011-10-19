@@ -46,67 +46,72 @@ public class ReadDBReadLoader extends ReadLoader{
 
 		currID=new Random(System.currentTimeMillis()).nextInt();
 		try {
-			client = new Client();
-		
 			//Initialize
-            ChipSeqLoader loader = new ChipSeqLoader(false); 
-			for(ChipSeqLocator locator : locs){
-				String exptName = locator.getExptName(); exptNames.add(exptName);
-				if (locator.getAlignName() == null) {
-		            if(locator.getReplicates().isEmpty()) { //No alignment name, no replicate names
-		            	Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
-		        		for(ChipSeqExpt expt : expts) { 
-		                	Collection<ChipSeqAlignment> aligns;
-							aligns = loader.loadAllAlignments(expt);
-							for (ChipSeqAlignment currentAlign : aligns) {
-		            			if (currentAlign.getGenome().equals(g)) { 
-		            				aligns.add(currentAlign);
-		    						break;
-		    					}
-		            		}
-		    			}
-		            } else { //No alignment name, given replicate names
-		                for(String repName : locator.getReplicates()) { 
-		                    ChipSeqExpt expt = loader.loadExperiment(locator.getExptName(), repName);
-		                    ChipSeqAlignment alignment = 
-		                        loader.loadAlignment(expt, locator.getAlignName(), g);
-		                    if(alignment != null) { 
-		                        aligns.add(alignment);
-		                        break;
-		                    }
-		                }
-		            }
-		        } else {
-		        	if(locator.getReplicates().isEmpty()) {//Given alignment name, no replicate names
-		        		Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
-                        System.err.println("Have name but no replicates.  Got " + expts.size() + " experiments for " + locator.getExptName());
-		        		for(ChipSeqExpt expt : expts) { 
-		                	Collection<ChipSeqAlignment> alignments;
-							alignments = loader.loadAllAlignments(expt);
-							for (ChipSeqAlignment currentAlign : alignments) {
-                                System.err.println("  " + currentAlign);
-		            			if (currentAlign.getGenome().equals(g) && currentAlign.getName().equals(locator.getAlignName())) { 
-		            				aligns.add(currentAlign);
-		    						break;
-		    					}
-		            		}
-		    			}
-		            }else{
-		            	for (String replicate : locator.getReplicates()) {//Given alignment name, given replicate names
-		        			aligns.add(loader.loadAlignment(loader.loadExperiment(locator.getExptName(),
-                                                                                  replicate), 
-                                                            locator.getAlignName(),
-                                                            g));
-		        		}
-		            }
-		        }
+			ChipSeqLoader loader = new ChipSeqLoader(false); 
+			try{
+				for(ChipSeqLocator locator : locs){
+					String exptName = locator.getExptName(); exptNames.add(exptName);
+					if (locator.getAlignName() == null) {
+			            if(locator.getReplicates().isEmpty()) { //No alignment name, no replicate names
+			            	Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
+			        		for(ChipSeqExpt expt : expts) { 
+			                	Collection<ChipSeqAlignment> aligns;
+								aligns = loader.loadAllAlignments(expt);
+								for (ChipSeqAlignment currentAlign : aligns) {
+			            			if (currentAlign.getGenome().equals(g)) { 
+			            				aligns.add(currentAlign);
+			    						break;
+			    					}
+			            		}
+			    			}
+			            } else { //No alignment name, given replicate names
+			                for(String repName : locator.getReplicates()) { 
+			                    ChipSeqExpt expt = loader.loadExperiment(locator.getExptName(), repName);
+			                    ChipSeqAlignment alignment = 
+			                        loader.loadAlignment(expt, locator.getAlignName(), g);
+			                    if(alignment != null) { 
+			                        aligns.add(alignment);
+			                        break;
+			                    }
+			                }
+			            }
+			        } else {
+			        	if(locator.getReplicates().isEmpty()) {//Given alignment name, no replicate names
+			        		Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());
+	                        System.err.println("Have name but no replicates.  Got " + expts.size() + " experiments for " + locator.getExptName());
+			        		for(ChipSeqExpt expt : expts) { 
+			                	Collection<ChipSeqAlignment> alignments;
+								alignments = loader.loadAllAlignments(expt);
+								for (ChipSeqAlignment currentAlign : alignments) {
+	                                System.err.println("  " + currentAlign);
+			            			if (currentAlign.getGenome().equals(g) && currentAlign.getName().equals(locator.getAlignName())) { 
+			            				aligns.add(currentAlign);
+			    						break;
+			    					}
+			            		}
+			    			}
+			            }else{
+			            	for (String replicate : locator.getReplicates()) {//Given alignment name, given replicate names
+			        			aligns.add(loader.loadAlignment(loader.loadExperiment(locator.getExptName(),
+	                                                                                  replicate), 
+	                                                            locator.getAlignName(),
+	                                                            g));
+			        		}
+			            }
+			        }
+				}
+	            if (locs.size() != 0 && aligns.size() == 0) {
+	                System.err.println("Locators were " + locs + " but didn't get any alignments");
+	            }
+	
+				client = new Client();
+	            countHits();
+	            
 			}
-            if (locs.size() != 0 && aligns.size() == 0) {
-                System.err.println("Locators were " + locs + " but didn't get any alignments");
-            }
-
-            countHits();
-			
+            catch (NotFoundException e) {
+    			loader.close();				// if the requested ChIP-Seq data is not found, close client/connection to read db
+    			e.printStackTrace();
+    		}
 			//Error that doesn't seem to be caught by the exceptions
             //			if(totalHits==0){
             //				System.err.println("No reads found for these experiment names");
@@ -119,9 +124,6 @@ public class ReadDBReadLoader extends ReadLoader{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -171,15 +173,56 @@ public class ReadDBReadLoader extends ReadLoader{
 		ArrayList<ReadHit> total = new ArrayList<ReadHit>();
 		try {
 			for(ChipSeqAlignment alignment : aligns) {
-                for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
+                if(!pairedEnd){
+                	for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
                                                         r.getGenome().getChromID(r.getChrom()),
                                                         r.getStart(),
                                                         r.getEnd(),
                                                         null,
                                                         null)) {
-                    total.add(convertToReadHit(r.getGenome(),
-                                               currID++,
-                                               h));
+                		total.add(convertToReadHit(r.getGenome(),currID++, h));
+                	}
+                }else{
+                	for (PairedHit h : client.getPairedHits(Integer.toString(alignment.getDBID()),
+							                            r.getGenome().getChromID(r.getChrom()),
+							                            true,
+							                            r.getStart(),
+							                            r.getEnd(),
+							                            null,
+							                            null)) {
+                		total.add(convertToReadHit(r.getGenome(),currID++, h, true));
+                		total.add(convertToReadHit(r.getGenome(),currID++, h, false));
+                	}
+                }
+            }
+			return total;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClientException e) {
+			//Do nothing here; ClientException could be thrown because a chromosome doesn't contain any hits
+			return(total);
+		}
+		return total;
+	}
+	
+	//Load reads in a region
+	public List<ReadHit> loadPairs(Region r) {
+		ArrayList<ReadHit> total = new ArrayList<ReadHit>();
+		try {
+			for(ChipSeqAlignment alignment : aligns) {
+                if(pairedEnd){
+                	for (PairedHit h : client.getPairedHits(Integer.toString(alignment.getDBID()),
+							                            r.getGenome().getChromID(r.getChrom()),
+							                            true,
+							                            r.getStart(),
+							                            r.getEnd(),
+							                            null,
+							                            null)) {
+                		ReadHit hit = convertToReadHit(r.getGenome(),currID++, h);
+                		if(hit != null)
+                			total.add(hit);
+                	}
                 }
             }
 			return total;
@@ -271,16 +314,26 @@ public class ReadDBReadLoader extends ReadLoader{
 		ArrayList<ExtReadHit> total = new ArrayList<ExtReadHit>();
 		try {
 			for(ChipSeqAlignment alignment : aligns) {
-                for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
+				if(!pairedEnd){
+					for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
                                                         r.getGenome().getChromID(r.getChrom()),
                                                         r.getStart(),
                                                         r.getEnd(),
                                                         null,
                                                         null)) {
-                    total.add(convertToExtReadHit(r.getGenome(),
-                                                  currID++,
-                                                  h,
-                                                  startShift, fivePrimeExt, threePrimeExt));
+						total.add(convertToExtReadHit(r.getGenome(), currID++, h, startShift, fivePrimeExt, threePrimeExt));
+					}
+                }else{
+                	for (PairedHit h : client.getPairedHits(Integer.toString(alignment.getDBID()),
+					                            r.getGenome().getChromID(r.getChrom()),
+					                            true,
+					                            r.getStart(),
+					                            r.getEnd(),
+					                            null,
+					                            null)) {
+                		total.add(convertToExtReadHit(r.getGenome(),currID++, h, true, startShift, fivePrimeExt, threePrimeExt));
+                		total.add(convertToExtReadHit(r.getGenome(),currID++, h, false, startShift, fivePrimeExt, threePrimeExt));
+					}
                 }
 			}
         } catch (IOException e) {
@@ -346,6 +399,18 @@ public class ReadDBReadLoader extends ReadLoader{
                            h.strand ? '+' : '-',
                            h.weight);
     }
+    public ReadHit convertToReadHit(Genome g, int id, PairedHit h){
+    	if(h.leftChrom == h.rightChrom)
+    		return new ReadHit(g, id, g.getChromName(h.leftChrom), h.leftPos, h.rightPos, '+', h.weight);
+    	else
+    		return null;
+    }    		
+    public ReadHit convertToReadHit(Genome g, int id, PairedHit h, boolean left) {
+        if(left)
+        	return new ReadHit(g, id, g.getChromName(h.leftChrom), h.leftPos, h.leftPos + h.leftLength, h.leftStrand ? '+' : '-', h.weight);
+        else
+        	return new ReadHit(g, id, g.getChromName(h.rightChrom), h.rightPos, h.rightPos + h.rightLength, h.rightStrand ? '+' : '-', h.weight);
+    }
     public ExtReadHit convertToExtReadHit(Genome g, int id, SingleHit h, int startshift, int fiveprime, int threeprime) {
         return new ExtReadHit(g,
                               id,
@@ -355,6 +420,12 @@ public class ReadDBReadLoader extends ReadLoader{
                               h.strand ? '+' : '-',
                               h.weight,
                               startshift, fiveprime, threeprime);
+    }
+    public ExtReadHit convertToExtReadHit(Genome g, int id, PairedHit h, boolean left, int startshift, int fiveprime, int threeprime) {
+        if(left)
+        	return new ExtReadHit(g, id, g.getChromName(h.leftChrom), h.leftPos, h.leftPos + h.leftLength, h.leftStrand ? '+' : '-', h.weight, startshift, fiveprime, threeprime);
+        else
+        	return new ExtReadHit(g, id, g.getChromName(h.rightChrom), h.rightPos, h.rightPos + h.rightLength, h.rightStrand ? '+' : '-', h.weight, startshift, fiveprime, threeprime);
     }
 
 	

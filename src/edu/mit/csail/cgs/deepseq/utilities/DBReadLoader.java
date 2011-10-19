@@ -158,6 +158,13 @@ public class DBReadLoader extends ReadLoader{
 		}
 	}
 	
+	//Load paired reads from our files
+	public List<ReadHit> loadPairs(Region r) {
+		ArrayList<ReadHit> hits = new ArrayList<ReadHit>();
+		//TODO: NOT YET IMPLEMENTED FOR DB LOADER
+		return hits;
+	}
+	
 	//Load extended reads in a region
 	public List<ExtReadHit> loadExtHits(Region r, int startShift, int fivePrimeExt, int threePrimeExt) {
 		try {

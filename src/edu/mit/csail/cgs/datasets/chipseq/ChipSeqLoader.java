@@ -150,7 +150,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		rs.close();
 		ps.close();
 
-		if (expt == null) { throw new NotFoundException(name); }
+		if (expt == null) { throw new NotFoundException(name+";"+rep); }
 		return expt;
 	}
 

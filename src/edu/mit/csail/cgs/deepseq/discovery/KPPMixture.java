@@ -2734,15 +2734,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		int margin= 50;
 		System.setProperty("java.awt.headless", "true");
 	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-	    Graphics g = im.getGraphics();
-	    Graphics2D g2 = (Graphics2D)g;
+	    Graphics2D g2 = (Graphics2D)im.getGraphics();
 	    g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
 	    g2.setColor(Color.white);
 	    g2.fillRect(0, 0, w, h);	
 	    g2.setColor(Color.gray);
 	    g2.drawLine(20, h-margin, w-20, h-margin);		// x-axis
 	    g2.drawLine(w/2, margin, w/2, h-margin);	// y-axis    
-	    g.setFont(new Font("Arial",Font.PLAIN,16));
+	    g2.setFont(new Font("Arial",Font.PLAIN,16));
 	    for (int p=-2;p<=2;p++){
 	    	g2.drawLine(w/2+p*200, h-margin-10, w/2+p*200, h-margin);	// tick  
 	    	g2.drawString(""+p*200, w/2+p*200-5, h-margin+22);			// tick label
@@ -2769,7 +2768,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		    	int y2=(int) (h-points.get(p+1).cdr()/maxProb*(h-margin*2)*0.8)-margin;
 		    	g2.drawLine(x1, y1, x2, y2);	    
 		    }
-		    g.setFont(new Font("Arial",Font.PLAIN,20));
+		    g2.setFont(new Font("Arial",Font.PLAIN,20));
 		    g2.drawString(rounds.get(i), w-300, i*25+margin+25);
 	    }
 
@@ -3735,7 +3734,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
-    			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight,
+    			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight, config.allow_single_family,
     			outName, config.bmverbose, config.kmer_aligned_fraction, 
 				config.print_aligned_seqs, config.re_train, config.max_cluster);
     	
@@ -6069,6 +6068,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean re_train = false;
         public boolean print_pwm_fdr = false;
         public boolean use_weight = true;
+        public boolean allow_single_family =false;	// allow the kmer family only contains seed, i.e. no mismatch kmers
         public boolean filter_pwm_seq = true;
 //        public boolean k_select_seed = false;
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
@@ -6139,6 +6139,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             print_input_seqs = flags.contains("print_input_seqs");
             re_train = flags.contains("re_train");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
+            allow_single_family = flags.contains("allow_single_family");
             
             // default as true, need the opposite flag to turn it off
             exclude_unenriched = !flags.contains("not_ex_unenriched");
