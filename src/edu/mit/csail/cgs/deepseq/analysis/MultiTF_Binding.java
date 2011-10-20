@@ -89,6 +89,7 @@ public class MultiTF_Binding {
 			String name = names.get(tf);
 			
 			// load motif files
+			WeightMatrix wm = null;
 			File dir2= new File(dir, name);
 			final String suffix = name+"_"+ (round==2?2:1) +"_PFM";
 			File[] files = dir2.listFiles(new FilenameFilter(){
@@ -104,41 +105,41 @@ public class MultiTF_Binding {
 				pwms.add(null);
 				continue;
 			}
-			
-			WeightMatrix wm = null;
-			try{
-				List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(files[0].getAbsolutePath(), "file");
-				if (wms.isEmpty()){
-					System.out.println(name+" does not have a valid motif file.");
-					pwms.add(null);
-					continue;
+			else{				// if we have valid PFM file
+				try{
+					List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(files[0].getAbsolutePath(), "file");
+					if (wms.isEmpty()){
+						System.out.println(name+" does not have a valid motif file.");
+						pwms.add(null);
+					}
+					else{		// if we have valid PFM
+						wm = wms.get(0);
+						float[][] matrix = wm.matrix;
+						// normalize
+				        for (int position = 0; position < matrix.length; position++) {
+				            double sum = 0;
+				            for (int j = 0; j < letters.length; j++) {
+				                sum += matrix[position][letters[j]];
+				            }
+				            for (int j = 0; j < letters.length; j++) {
+				                matrix[position][letters[j]] = (float)(matrix[position][letters[j]] / sum);
+				            }
+				        }
+				        // log-odds
+				        for (int pos = 0; pos < matrix.length; pos++) {
+				            for (int j = 0; j < letters.length; j++) {
+				                matrix[pos][letters[j]] = (float)Math.log(Math.max(matrix[pos][letters[j]], .000001) / 
+				                		(letters[j]=='G'||letters[j]=='C'?gc/2:(1-gc)/2));
+				            }
+				        } 
+						pwms.add(wm);
+					}
 				}
-				wm = wms.get(0);
-				float[][] matrix = wm.matrix;
-				// normalize
-		        for (int position = 0; position < matrix.length; position++) {
-		            double sum = 0;
-		            for (int j = 0; j < letters.length; j++) {
-		                sum += matrix[position][letters[j]];
-		            }
-		            for (int j = 0; j < letters.length; j++) {
-		                matrix[position][letters[j]] = (float)(matrix[position][letters[j]] / sum);
-		            }
-		        }
-		        // log-odds
-		        for (int pos = 0; pos < matrix.length; pos++) {
-		            for (int j = 0; j < letters.length; j++) {
-		                matrix[pos][letters[j]] = (float)Math.log(Math.max(matrix[pos][letters[j]], .000001) / 
-		                		(letters[j]=='G'||letters[j]=='C'?gc/2:(1-gc)/2));
-		            }
-		        } 
-				pwms.add(wm);
+				catch (IOException e){
+					System.out.println(name+" motif PFM file reading error!!!");
+					pwms.add(null);
+				}
 			}
-			catch (IOException e){
-				System.out.println(name+" motif PFM file reading error!!!");
-				pwms.add(null);
-			}
-			
 			// load binding event files 
 			File gpsFile = new File(new File(dir, name), name+"_"+ (round==2?2:1) +"_GPS_significant.txt");
 			String filePath = gpsFile.getAbsolutePath();
