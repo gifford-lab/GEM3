@@ -48,6 +48,9 @@ public class MultiTF_Binding {
 				break;
 		case 9:	mtb.loadEventAndMotifs(1);		// Motif
 				mtb.printMotifOffsets();
+		default:mtb.loadEventAndMotifs(round);		// Fake GPS calls, but snap to nearest PSSM within 50bp 
+				mtb.printBindingOffsets(round);
+				break;
 		}
 		
 	}
@@ -81,31 +84,13 @@ public class MultiTF_Binding {
 	}
 	
 	private void loadEventAndMotifs(int round){
-		
+
 		for (int tf=0;tf<names.size();tf++){
-			// load binding event files 
 			String name = names.get(tf);
-			File gpsFile = new File(new File(dir, name), name+"_"+round+"_GPS_significant.txt");
-			String filePath = gpsFile.getAbsolutePath();
-			try{
-				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
-				ArrayList<Site> sites = new ArrayList<Site>();
-				for (GPSPeak p:gpsPeaks){
-					Site site = new Site();
-					site.tf_id = tf;
-					site.bs = (Point)p;
-					sites.add(site);
-				}
-				all_sites.add(sites);
-			}
-			catch (IOException e){
-				System.out.println(name+" does not have valid GPS/GEM event call file.");
-				System.exit(1);
-			}
 			
 			// load motif files
 			File dir2= new File(dir, name);
-			final String suffix = name+"_"+round+"_PFM";
+			final String suffix = name+"_"+ (round==2?2:1) +"_PFM";
 			File[] files = dir2.listFiles(new FilenameFilter(){
 				public boolean accept(File arg0, String arg1) {
 					if (arg1.startsWith(suffix))
@@ -119,6 +104,8 @@ public class MultiTF_Binding {
 				pwms.add(null);
 				continue;
 			}
+			
+			WeightMatrix wm = null;
 			try{
 				List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(files[0].getAbsolutePath(), "file");
 				if (wms.isEmpty()){
@@ -126,7 +113,7 @@ public class MultiTF_Binding {
 					pwms.add(null);
 					continue;
 				}
-				WeightMatrix wm = wms.get(0);
+				wm = wms.get(0);
 				float[][] matrix = wm.matrix;
 				// normalize
 		        for (int position = 0; position < matrix.length; position++) {
@@ -151,6 +138,46 @@ public class MultiTF_Binding {
 				System.out.println(name+" motif PFM file reading error!!!");
 				pwms.add(null);
 			}
+			
+			// load binding event files 
+			File gpsFile = new File(new File(dir, name), name+"_"+ (round==2?2:1) +"_GPS_significant.txt");
+			String filePath = gpsFile.getAbsolutePath();
+			WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+			int posShift = wm.length()/2;				// shift to the middle of motif
+			int negShift = wm.length()-wm.length()/2;
+			try{
+				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
+				ArrayList<Site> sites = new ArrayList<Site>();
+				for (GPSPeak p:gpsPeaks){
+					Site site = new Site();
+					site.tf_id = tf;
+					
+					if (round!=1&&round!=2&&round!=9&&wm!=null){		// use nearest motif as binding site
+						Region region = p.expand(round);
+						String seq = seqgen.execute(region);	// here round is the range of window 
+						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*0.6).car();
+						if (hit!=-999){
+							if (hit>=0)
+								site.bs = new Point(p.getGenome(), p.getChrom(), region.getStart()+hit+posShift);
+							else
+								site.bs = new Point(p.getGenome(), p.getChrom(), region.getStart()-hit+negShift);
+						}
+						else
+							site.bs = (Point)p;		// no motif found, still use original GPS call
+					}
+					else
+						site.bs = (Point)p;
+					
+					sites.add(site);
+				}
+				all_sites.add(sites);
+			}
+			catch (IOException e){
+				System.out.println(name+" does not have valid GPS/GEM event call file.");
+				System.exit(1);
+			}
+			
+
 		}
 	}
 	class Site implements Comparable<Site>{
