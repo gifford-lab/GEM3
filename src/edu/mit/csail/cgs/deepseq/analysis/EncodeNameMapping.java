@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.TreeSet;
 
 public class EncodeNameMapping {
@@ -187,34 +188,56 @@ public class EncodeNameMapping {
             e.printStackTrace(System.err);
         }
         
+        // Some name that are not consistent by splitting into cell/condition/etc, directly map
         HashMap directMap = new HashMap<String, String>(){{
         	put("ATF3-v041610.1_Myers_K562", "ATF3_K562_encode-Snyder_seq_hsa");
+        	put("c-Myc_Crawford_MCF-7-estrogen", "Myc_MCF-7_encode-Crawford_seq_hsa_estrogen");
         	put("CTCF_Crawford_MCF-7-estrogen", "CTCF_MCF-7_encode-Crawford_seq_hsa_estrogen");
         	put("EBF-PCR1x_Myers_GM12878", "EBF1_GM12878_encode-Myers_seq_hsa_C-8");
+        	put("FOS-eGFP_White_K562", "Fos_K562_encode-White_seq_hsa_eGFP");
         	put("FOSL1--SC-183-v041610.1_Myers_K562", "FosL1_K562_encode-Myers_seq_hsa_v041610.1-SC-183");
         	put("FOSL2-v041610.1_Myers_HepG2", "FosL2_HepG2_encode-Myers_seq_hsa_v041610.1");
         	put("GR-PCR2x_Myers_A549-DEX-100nM", "GR_A549_encode-Myers_seq_hsa_DEX-100nM-PCR2x");
         	put("JunB-eGFP_White_K562", "JunB_K562_encode-White_seq_hsa_eGFP");
+        	put("JunD-eGFP_White_K562", "JunD_K562_encode-White_seq_hsa_eGFP");
         	put("NR4A1-eGFP_White_K562", "NR4A1_K562_encode-White_seq_hsa_eGFP");
         	put("PAX5-C20-PCR1x_Myers_GM12878", "PAX5_GM12878_encode-Myers_seq_hsa_C20");
         	put("PAX5-C20-v041610.1_Myers_GM12891", "PAX5_GM12891_encode-Myers_seq_hsa_v041610.1-C20");
         	put("PAX5-C20-v041610.1_Myers_GM12892", "PAX5_GM12892_encode-Myers_seq_hsa_v041610.1-C20");
         	put("PAX5-N19-PCR1x_Myers_GM12878", "PAX5_GM12878_encode-Myers_seq_hsa_N19");
-        	put("JunD-eGFP_White_K562", "JunD_K562_encode-White_seq_hsa_eGFP");
         	put("Egr-1-PCR2x_Myers_GM12878", "Egr-1_GM12878_encode-Myers_seq_hsa_PCR2x");
         	put("Egr-1-v041610.1_Myers_GM12878", "Egr-1_GM12878_encode-Myers_seq_hsa_v041610.1");
         	put("Egr-1-v041610.2_Myers_H1-hESC", "Egr-1_H1-hESC_encode-Myers_seq_hsa_v041610.2");
         	put("GATA2-eGFP_White_K562", "GATA2_K562_encode-White_seq_hsa_eGFP");
+        	put("GATA2--SC-267-PCR1x_Myers_K562", "GATA2_K562_encode-Myers_seq_hsa_CG2-96");
         	put("FOXA1--SC-101058-v041610.1_Myers_HepG2", "FOXA1_HepG2_encode-Myers_seq_hsa_v041610.1-SC-101058");
+        	put("HDAC8-eGFP_White_K562", "HDAC8_K562_encode-White_seq_hsa_eGFP");
         	put("NRSF-v041610.2_Myers_H1-hESC", "NRSF_H1-hESC_encode-Myers_seq_hsa_v041610.2");
         	put("p300-v041610.1_Myers_HepG2", "p300_HepG2_encode-Myers_seq_hsa_v041610.1");
         	put("SRF-v041610.1_Myers_GM12878", "SRF_GM12878_encode-Myers_seq_hsa_v041610.1");
         	put("TAF1-v041610.2_Myers_GM12892", "TAF1_GM12892_encode-Myers_seq_hsa_v041610.2");
         	put("TAF1-v041610.2_Myers_H1-hESC", "TAF1_H1-hESC_encode-Myers_seq_hsa_v041610.2");
-        	put("TAF1-v041610.1_Myers_K562", "YY1_K562_encode-Myers_seq_hsa_v041610.2");
-        	put("YY1-v041610.2_Myers_K562", "TAF1_K562_encode-Myers_seq_hsa_v041610.1");
+        	put("TAF1-v041610.1_Myers_K562", "TAF1_K562_encode-Myers_seq_hsa_v041610.1");
+        	put("YY1-v041610.2_Myers_K562", "YY1_K562_encode-Myers_seq_hsa_v041610.2");
         	put("ZBTB33-v041610.1_Myers_HepG2", "ZBTB33_HepG2_encode-Myers_seq_hsa_v041610.1");
-        	}};
+        }};
+        	
+        // ENCODE experiment not found in Pouya's list, have been checked manually
+		HashSet<String> notFound_checked = new HashSet<String>(){{
+		    add("FOSL1_H1-hESC_Myers");
+		    add("FOXP2_SK-N-MC_Myers");
+		    add("FOXP2_PFSK-1_Myers");
+		    add("GRp20_HepG2-forskolin_Snyder");
+		    add("MEF2A_K562_Myers");
+		    add("NRSF_SK-N-SH_Myers");
+		    add("Pol3_GM12878_Snyder");
+		    add("Pol3_K562_Snyder");
+		    add("YY1_HepG2_Myers");
+		    add("Jun_GM12878_Snyder");
+		    add("YY1_HCT-116_Myers");
+		    add("ZBTB33_HCT-116_Myers");
+		    add("Myc_GM12878_Snyder");
+		}};
         TreeSet<String> newTF = new TreeSet<String>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(args[1])));
@@ -253,8 +276,10 @@ public class EncodeNameMapping {
 	        	
 	        	String key = tf+"_"+t[2]+"_"+t[1];
 	        	
-	        	if (!map.containsKey(key))
-	        		newTF.add(name+"\t"+key);
+	        	if (!map.containsKey(key)){
+	        		if (!notFound_checked.contains(key))
+	        			newTF.add(name+"\t"+key);
+	        	}
 	        	else
 	        		System.out.println(name+"\t"+map.get(key));
 	        }
