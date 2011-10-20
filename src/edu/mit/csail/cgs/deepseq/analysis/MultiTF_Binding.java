@@ -103,7 +103,6 @@ public class MultiTF_Binding {
 			if (files.length==0){
 				System.out.println(name+" does not have a motif PFM file.");
 				pwms.add(null);
-				continue;
 			}
 			else{				// if we have valid PFM file
 				try{
