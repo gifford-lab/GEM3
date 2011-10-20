@@ -143,9 +143,13 @@ public class MultiTF_Binding {
 			// load binding event files 
 			File gpsFile = new File(new File(dir, name), name+"_"+ (round==2?2:1) +"_GPS_significant.txt");
 			String filePath = gpsFile.getAbsolutePath();
-			WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
-			int posShift = wm.length()/2;				// shift to the middle of motif
-			int negShift = wm.length()-wm.length()/2;
+			WeightMatrixScorer scorer = null;
+			int posShift=0, negShift=0;
+			if (round!=1&&round!=2&&round!=9&&wm!=null){	
+				scorer = new WeightMatrixScorer(wm);
+				posShift = wm.length()/2;				// shift to the middle of motif
+				negShift = wm.length()-wm.length()/2;
+			}
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
