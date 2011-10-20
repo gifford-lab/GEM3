@@ -140,6 +140,7 @@ public class MultiTF_Binding {
 					pwms.add(null);
 				}
 			}
+			
 			// load binding event files 
 			File gpsFile = new File(new File(dir, name), name+"_"+ (round==2?2:1) +"_GPS_significant.txt");
 			String filePath = gpsFile.getAbsolutePath();
@@ -149,6 +150,7 @@ public class MultiTF_Binding {
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
+				System.out.println(String.format("%d: loading %s", tf, gpsFile.getName()));
 				for (GPSPeak p:gpsPeaks){
 					Site site = new Site();
 					site.tf_id = tf;
