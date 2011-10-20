@@ -35,21 +35,23 @@ public class MultiTF_Binding {
 	File dir;
 	private SequenceGenerator<Region> seqgen;
 
-	// command line option:  Y:\Tools\GPS\runs\ESTF(the folder contains GEM result folders) --species "Mus musculus;mm9"
+	// command line option:  (the folder contains GEM result folders) 
+	// Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 50 --no_cache
 	public static void main(String[] args) {
 		MultiTF_Binding mtb = new MultiTF_Binding(args);
 		int round = Args.parseInteger(args, "r", 2);
+		int prefix = Args.parseInteger(args, "prefix", 0);
 		switch(round){
 		case 2:	mtb.loadEventAndMotifs(2);		// GEM
-				mtb.printBindingOffsets(2);
+				mtb.printBindingOffsets(2, prefix);
 				break;
 		case 1:	mtb.loadEventAndMotifs(1);		// GPS
-				mtb.printBindingOffsets(1);
+				mtb.printBindingOffsets(1, prefix);
 				break;
 		case 9:	mtb.loadEventAndMotifs(1);		// Motif
 				mtb.printMotifOffsets();
 		default:mtb.loadEventAndMotifs(round);		// Fake GPS calls, but snap to nearest PSSM within 50bp 
-				mtb.printBindingOffsets(round);
+				mtb.printBindingOffsets(round, prefix);
 				break;
 		}
 		
@@ -195,7 +197,7 @@ public class MultiTF_Binding {
 		}
 	}
 
-	private void printBindingOffsets(int round){
+	private void printBindingOffsets(int round, int prefix){
 		// classify sites by chrom
 		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
 		for (ArrayList<Site> sites:all_sites){
@@ -307,9 +309,9 @@ public class MultiTF_Binding {
 			String filename1 = names.get(i)+(round==2?"":("_"+round))+"_site_offsets.txt";
 			CommonUtils.writeFile(new File(dir, filename1).getAbsolutePath(), site_sb.toString());			
 			
-			StringBuilder sb = new StringBuilder(names.get(i).substring(3)+"\t");
+			StringBuilder sb = new StringBuilder(names.get(i).substring(prefix)+"\t");
 			for (int n=0;n<names.size();n++){
-				sb.append(names.get(n).substring(3)+"\t");
+				sb.append(names.get(n).substring(prefix)+"\t");
 			}
 			sb.deleteCharAt(sb.length()-1).append("\n");
 			
