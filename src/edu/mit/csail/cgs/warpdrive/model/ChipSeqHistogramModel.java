@@ -5,6 +5,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+import cern.jet.random.Poisson;
+import cern.jet.random.engine.DRand;
+
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.ProfileRegion;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -21,7 +24,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Runnable {
     
     private Client client;
-    private TreeMap<Integer,Float> resultsPlus, resultsMinus;
+    private TreeMap<Integer,Float> resultsPlus, resultsMinus, resultsPval;
     private Set<ChipSeqAlignment> alignments;
     private Set<String> ids;
     private ChipSeqHistogramProperties props;
@@ -34,6 +37,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 	private double[] condist;
 	private int cutoff;
 	private Map<Integer,String> revChromMap;
+	private Poisson poisson = new Poisson(1, new DRand());
 
     public ChipSeqHistogramModel (ChipSeqAlignment a) throws IOException, ClientException {
         alignments = new HashSet<ChipSeqAlignment>();
@@ -63,6 +67,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
     public void clearValues() {
         resultsPlus = null;
         resultsMinus = null;
+        resultsPval = null;
     }
     public Region getRegion() {return region;}
     public void setRegion(Region r) {
@@ -78,6 +83,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
     public boolean isReady() {return !newinput;}
     public Map<Integer,Float> getPlus() {return resultsPlus;}
     public Map<Integer,Float> getMinus() {return resultsMinus;}
+    public Map<Integer,Float> getPval() {return resultsPval;}
     public synchronized void run() {
         while(keepRunning()) {
             try {
@@ -97,7 +103,11 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     }
                     resultsPlus = null;
                     resultsMinus = null;
-                    if (props.ShowInteractionProfile) {
+                    resultsPval = null;
+                    if (props.ShowInteractionHistogram) {
+                    	resultsPlus = getInteractionProbability();
+                    	resultsMinus = new TreeMap<Integer,Float>();
+                    } else if (props.ShowInteractionProfile) {
                     	resultsPlus = getInteractionProfile();
                     	resultsMinus = new TreeMap<Integer,Float>();
                     } else if (props.ShowSelfLigationOverlap) {
@@ -243,6 +253,91 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 		}
 		return tor;
 	}
+    
+    public TreeMap<Integer,Float> getInteractionProbability() throws IOException, ClientException {
+    	resultsPval = new TreeMap<Integer,Float>();
+    	Region anchor = Region.fromString(region.getGenome(), props.Anchor);
+    	int anchorchrom = anchor.getGenome().getChromID(anchor.getChrom());
+    	int regionchrom = region.getGenome().getChromID(region.getChrom());
+    	List<PairedHit> hits = new ArrayList<PairedHit>();
+    	for (String s : ids) {
+			hits.addAll(client.getPairedHits(s,
+					anchorchrom,
+					true,
+					anchor.getStart(),
+					anchor.getEnd(),
+					null,
+					true));
+			hits.addAll(client.getPairedHits(s,
+					anchorchrom,
+					false,
+					anchor.getStart(),
+					anchor.getEnd(),
+					null,
+					true));
+			hits.addAll(client.getPairedHits(s,
+					anchorchrom,
+					true,
+					anchor.getStart(),
+					anchor.getEnd(),
+					null,
+					false));
+			hits.addAll(client.getPairedHits(s,
+					anchorchrom,
+					false,
+					anchor.getStart(),
+					anchor.getEnd(),
+					null,
+					false));
+    	}
+    	int[] probs = new int[region.getWidth()/props.BinWidth+1];
+    	for (PairedHit p : hits) {
+    		if (p.leftChrom==anchorchrom && anchor.getStart()<=p.leftPos && anchor.getEnd()>=p.leftPos) {
+    			if (p.rightChrom==regionchrom && region.getStart()<=p.rightPos && region.getEnd()>=p.rightPos) {
+    				probs[(p.rightPos-region.getStart())/props.BinWidth]++;
+    			}
+    		} else if (p.leftChrom==regionchrom && region.getStart()<=p.leftPos && region.getEnd()>=p.leftPos) {
+    			probs[(p.leftPos-region.getStart())/props.BinWidth]++;
+    		}
+    	}
+    	TreeMap<Integer,Float> tor = new TreeMap<Integer,Float>();
+    	System.err.println(probs.length+" bins");
+    	for (int i=0; i<probs.length; i++) {
+    		if (probs[i]>0) {
+    			tor.put(region.getStart()+i*props.BinWidth, (float)probs[i]);
+    			Region probe = new Region(region.getGenome(),region.getChrom(),(region.getStart()+i*props.BinWidth),(region.getStart()+(i+1)*props.BinWidth));
+    			//System.err.println(probe+"\t"+interactionPValue(anchor, probe, probs[i]));
+    			float pval = (float)interactionPValue(anchor, probe, probs[i]);
+    			if (pval <= (props.PValueCutoff/((float)probs.length))) {
+    				resultsPval.put(probe.getStart(), pval);
+    			}
+    		}
+    	}
+    	return tor;
+    }
+    
+    private double interactionPValue(Region r1, Region r2, int count) throws IOException, ClientException {
+    	int count1 = 0;
+		int chrom1 = r1.getGenome().getChromID(r1.getChrom());
+		for (String a : ids) {
+			count1 += client.getCount(a, chrom1, true, r1.getStart(), r1.getEnd(), null, true, true);
+			count1 += client.getCount(a, chrom1, true, r1.getStart(), r1.getEnd(), null, true, false);
+			count1 += client.getCount(a, chrom1, true, r1.getStart(), r1.getEnd(), null, false, true);
+			count1 += client.getCount(a, chrom1, true, r1.getStart(), r1.getEnd(), null, false, false);
+		}
+		int count2 = 0;
+		int chrom2 = r2.getGenome().getChromID(r2.getChrom());
+		for (String a : ids) {
+			count2 += client.getCount(a, chrom2, true, r2.getStart(), r2.getEnd(), null, true, true);
+			count2 += client.getCount(a, chrom2, true, r2.getStart(), r2.getEnd(), null, true, false);
+			count2 += client.getCount(a, chrom2, true, r2.getStart(), r2.getEnd(), null, false, true);
+			count2 += client.getCount(a, chrom2, true, r2.getStart(), r2.getEnd(), null, false, false);
+		}
+		double prob1 = ((double)count1) / ((double)props.TotalReads);
+		double prob2 = ((double)count2) / ((double)props.TotalReads);
+		poisson.setMean(props.ChimericReads*prob1*prob2);
+		return 1.0d - poisson.cdf(count) + poisson.pdf(count);
+    }
     
     public TreeMap<Integer,Float> getInteractionProfile() throws IOException, ClientException {
     	if (readdist==null) {

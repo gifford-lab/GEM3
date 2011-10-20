@@ -14,9 +14,14 @@ public class ChipSeqHistogramProperties extends ModelProperties {
     public Integer SmoothingWindowWidth = 0;
     public Boolean RightFlipped = Boolean.TRUE;
     public String TSS = "11:96164825";
+    public String Anchor = "3:34546470-34551382";
     public String ReadDistribution = "";
     public String EventDistribution = "";
+    public Integer TotalReads = 0;
+    public Integer ChimericReads = 0;
+    public Float PValueCutoff = 0.01f;
     public Boolean ShowInteractionProfile = Boolean.FALSE;
+    public Boolean ShowInteractionHistogram = Boolean.FALSE;
     
     private int totalReadCount = 0;
 
