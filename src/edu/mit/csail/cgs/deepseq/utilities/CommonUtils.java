@@ -383,7 +383,7 @@ public class CommonUtils {
 	
 	/**
 	 *  Scan the sequence using weight matrix, outwards from the given point, until a match pass the threshold<br>
-	 *  @return  Pair of values, the start position of nearest PWM hit and the score<br>
+	 *  return  Pair of values, the start position of nearest PWM hit and the score<br>
 	 *  The position will be negative if the match is on '-' strand    <br>
 	 *  If no match pass the threshold, return -999 as position. The caller need to check for this.<br>
 	 */
