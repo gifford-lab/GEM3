@@ -19,7 +19,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 public class GPSFastaWriter{  
 	
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args){
     ArgParser ap = new ArgParser(args);
     Set<String> flags = Args.parseFlags(args);
     Genome genome=null;
@@ -46,17 +46,28 @@ public class GPSFastaWriter{
     // load GPS results
     String GPSfileName = Args.parseString(args, "GPS", null);
     if (GPSfileName==null){
-      System.err.println("GPS file not found!");
+      System.err.println("Please provide GPS file, '--GPS file' ");
       System.exit(0);
+    }
+    File gpsFile = new File(GPSfileName);
+    if (!gpsFile.exists()){
+        System.err.println("Can not find GPS file : "+GPSfileName);
+        System.exit(0);
     }
 
     SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	seqgen.useCache(!flags.contains("no_cache"));
 
-    File gpsFile = new File(GPSfileName);
 	GPSfileName = gpsFile.getName();
     String exptName = GPSfileName.substring(0,GPSfileName.indexOf("_1_GPS_significant.txt"));
-    List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
+    List<GPSPeak> gpsPeaks =null;
+    try{
+    	gpsPeaks= GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
+    }
+    catch(IOException e){
+    	System.err.println("Error reading/parsing GPS file: "+GPSfileName);
+        System.exit(0);
+    }
     top = Math.min(top, gpsPeaks.size());
     int count=0;
     StringBuilder sb = new StringBuilder();
