@@ -2,6 +2,7 @@ package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -18,7 +19,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class GPSFastaWriter{  
-	
+	// --species "Homo sapiens;hg19" --window 100 --top 500 --no_cache  --root C:\Data\workspace\gse
   public static void main(String[] args){
     ArgParser ap = new ArgParser(args);
     Set<String> flags = Args.parseFlags(args);
@@ -43,49 +44,55 @@ public class GPSFastaWriter{
     int window = Args.parseInteger(args, "window", 100);
     int top = Args.parseInteger(args, "top", 500);
     
-    // load GPS results
-    String GPSfileName = Args.parseString(args, "GPS", null);
-    if (GPSfileName==null){
-      System.err.println("Please provide GPS file, '--GPS file' ");
-      System.exit(0);
-    }
-    File gpsFile = new File(GPSfileName);
-    if (!gpsFile.exists()){
-        System.err.println("Can not find GPS file : "+GPSfileName);
-        System.exit(0);
-    }
-
-    SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+     SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	seqgen.useCache(!flags.contains("no_cache"));
-
-	GPSfileName = gpsFile.getName();
-    String exptName = GPSfileName.substring(0,GPSfileName.indexOf("_1_GPS_significant.txt"));
-    List<GPSPeak> gpsPeaks =null;
-    try{
-    	gpsPeaks= GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
-    }
-    catch(IOException e){
-    	System.err.println("Error reading/parsing GPS file: "+GPSfileName);
-        System.exit(0);
-    }
-    top = Math.min(top, gpsPeaks.size());
-    int count=0;
-    StringBuilder sb = new StringBuilder();
-    for (GPSPeak p: gpsPeaks){
-    	if (count>top)
-    		break;
-    	int start = p.getLocation()-window/2;
-    	if (start<0)
-    		start=0;
-    	int end = start+window-1;
-    	if (end>=genome.getChromLength(p.getChrom()))
-    		continue;
-    	Region r = new Region(genome, p.getChrom(), start, end);
-    	sb.append(">").append(exptName).append("\t#").append(count).append("\t").append(r.toString()).append("\n");
-    	sb.append(seqgen.execute(r)).append("\n");
-    	count++;
-    }
-    CommonUtils.writeFile(exptName+"_"+window+"bp.fasta", sb.toString());
+	
+	List<String> names = new ArrayList<String>();
+	File dir = new File(Args.parseString(args, "root", null));
+    if (!dir.exists()){
+      System.err.println("Please provide root of GEM/GPS analysis folders, '--root rootName' ");
+      System.exit(0);
+    }	
+	File[] children = dir.listFiles();
+	for (int i=0;i<children.length;i++){
+		File child = children[i];
+		if (child.isDirectory())
+			names.add(child.getName());
+	}
+	
+    // load GPS results
+	for (String exptName : names){
+	    File gpsFile = new File(new File(exptName), exptName+"_1_GPS_significant.txt");
+	    if (!gpsFile.exists()){
+	    	System.err.println("GPS file not exist: "+gpsFile.getAbsolutePath());
+	        continue;
+	      }
+	    List<GPSPeak> gpsPeaks =null;
+	    try{
+	    	gpsPeaks= GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
+	    }
+	    catch(IOException e){
+	    	System.err.println("Error reading/parsing GPS file: "+gpsFile.getAbsolutePath());
+	        continue;
+	    }
+	    top = Math.min(top, gpsPeaks.size());
+	    int count=0;
+	    StringBuilder sb = new StringBuilder();
+	    for (GPSPeak p: gpsPeaks){
+	    	if (count>top)
+	    		break;
+	    	int start = p.getLocation()-window/2;
+	    	if (start<0)
+	    		start=0;
+	    	int end = start+window-1;
+	    	if (end>=genome.getChromLength(p.getChrom()))
+	    		continue;
+	    	Region r = new Region(genome, p.getChrom(), start, end);
+	    	sb.append(">").append(exptName).append("\t#").append(count).append("\t").append(r.toString()).append("\n");
+	    	sb.append(seqgen.execute(r)).append("\n");
+	    	count++;
+	    }
+	    CommonUtils.writeFile(exptName+"_"+window+"bp.fasta", sb.toString());
+	  }
   }
-  
 }
