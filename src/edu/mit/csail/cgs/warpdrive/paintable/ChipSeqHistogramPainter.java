@@ -287,16 +287,6 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
 					}
 				}
 			}
-			for (int pos : minus.keySet()) {
-				if (plus.containsKey(pos)) {
-					continue;
-				}
-				double val = minus.get(pos);
-				int xpix = getXPos(pos, regionStart, regionEnd, x1, x2);
-				if(!plotXVals.containsKey(xpix) || plotXVals.get(xpix)<val){
-					plotXVals.put(xpix,val);
-				}
-			}
 			for(int xpix : plotXVals.keySet()){
 				double val = plotXVals.get(xpix); 
 				int ypix = getYPos(val, 0, maxhits, y1, y2, logscale);
