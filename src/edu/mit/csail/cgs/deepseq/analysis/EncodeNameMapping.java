@@ -12,15 +12,15 @@ public class EncodeNameMapping {
 
 	public static void main(String[] args) {
 	// Command line: C:\Data\ENCODE\MotifCompare\name_map.txt C:\Data\ENCODE\MotifCompare\top_encode_PFM.txt
-//		mapToFactorGroup(args);
+		mapToFactorGroup(args);
 		
 	// Command line: C:\Data\ENCODE\MotifCompare\info\ENCODE_name_mapping_Pouya.txt C:\Data\ENCODE\MotifCompare\Aug_runs\top_encode_PFM_toPouya.txt
 //		mapToExpName(args);
 	// Command line: C:\Data\ENCODE\MotifCompare\info\ENCODE_name_mapping_Pouya.txt C:\Data\ENCODE\MotifCompare\encode_PFM_1.txt
-		mapToExpNameNewSync(args);
+//		mapToExpNameNewSync(args);
 	}
 	public static void mapToFactorGroup(String[] args) {
-		// TODO Auto-generated method stub
+		// load TF name mapping to factor groups
 		HashMap<String, String> map = new HashMap<String, String>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(args[0])));
@@ -38,6 +38,8 @@ public class EncodeNameMapping {
         	System.err.println("Error when processing "+args[0]);
             e.printStackTrace(System.err);
         }
+        
+        // match TF to factor groups or as unknown
         TreeSet<String> newTF = new TreeSet<String>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(args[1])));

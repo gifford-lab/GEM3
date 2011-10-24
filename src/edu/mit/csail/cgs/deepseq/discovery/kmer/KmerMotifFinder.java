@@ -1432,7 +1432,7 @@ public class KmerMotifFinder {
 	    	
 			// compare pwm Hgp to primary cluster Hgp, so that the primary cluster will have the best Hgp
 			if (cluster.wm!=null){
-				if (clusterID!=0 && cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP && !primarySeed_is_reset){		// this pwm is better
+				if (clusterID!=0 && cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*1.1 && !primarySeed_is_reset){		// this pwm is better
 					// reset sequences, kmers, to start over with this new bestSeed
 					seqs = pos_seq_backup.clone();
 					seqsNegList.clear();
