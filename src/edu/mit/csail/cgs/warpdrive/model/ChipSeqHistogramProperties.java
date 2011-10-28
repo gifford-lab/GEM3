@@ -17,11 +17,13 @@ public class ChipSeqHistogramProperties extends ModelProperties {
     public String Anchor = "3:34546470-34551382";
     public String ReadDistribution = "";
     public String EventDistribution = "";
+    public String Kernel = "";
     public Integer TotalReads = 0;
     public Integer ChimericReads = 0;
     public Float PValueCutoff = 0.01f;
     public Boolean ShowInteractionProfile = Boolean.FALSE;
     public Boolean ShowInteractionHistogram = Boolean.FALSE;
+    public Boolean ShowInteractionKernel = Boolean.FALSE;
     
     private int totalReadCount = 0;
 

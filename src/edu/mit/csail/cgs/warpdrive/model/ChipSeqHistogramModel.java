@@ -32,6 +32,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
     private Region region;
     private boolean newinput;
     
+    private double[] kernel;
     private double[] readdist;
 	private double[] eventdist;
 	private double[] condist;
@@ -104,7 +105,10 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     resultsPlus = null;
                     resultsMinus = null;
                     resultsPval = null;
-                    if (props.ShowInteractionHistogram) {
+                    if (props.ShowInteractionKernel) {
+                    	resultsPlus = getForwardInteractionKernel();
+                    	resultsMinus = getReverseInteractionKernel();
+                    } else if (props.ShowInteractionHistogram) {
                     	resultsPlus = getInteractionProbability();
                     	resultsMinus = new TreeMap<Integer,Float>();
                     } else if (props.ShowInteractionProfile) {
@@ -338,6 +342,88 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 		poisson.setMean(props.ChimericReads*prob1*prob2);
 		return 1.0d - poisson.cdf(count) + poisson.pdf(count);
     }
+    
+    public TreeMap<Integer,Float> getForwardInteractionKernel() throws IOException, ClientException {
+    	if (kernel==null) {
+    		kernel = readDoubleList(props.Kernel);
+    	}
+    	TreeMap<Integer,Float> tor = new TreeMap<Integer,Float>();
+    	double[] arr = getForwardProfile(region);
+    	double max = 0;
+    	for (int i=0; i<arr.length; i++) {
+    		if (arr[i]>max) max = arr[i];
+    	}
+    	for (int i=0; i<arr.length; i++) {
+    		arr[i] = arr[i]*100d/max;
+    		tor.put(region.getStart()+i, (float)arr[i]);
+    	}
+    	return tor;
+    }
+    
+    public TreeMap<Integer,Float> getReverseInteractionKernel() throws IOException, ClientException {
+    	if (kernel==null) {
+    		kernel = readDoubleList(props.Kernel);
+    	}
+    	TreeMap<Integer,Float> tor = new TreeMap<Integer,Float>();
+    	double[] arr = getReverseProfile(region);
+    	double max = 0;
+    	for (int i=0; i<arr.length; i++) {
+    		if (arr[i]>max) max = arr[i];
+    	}
+    	for (int i=0; i<arr.length; i++) {
+    		arr[i] = arr[i]*100d/max;
+    		tor.put(region.getStart()+i, (float)arr[i]);
+    	}
+    	return tor;
+    }
+    
+    public double[] getForwardProfile(Region r) throws IOException, ClientException {
+    	int halfkern = kernel.length/2;
+		double[] tor = new double[r.getWidth()];
+		Region e = r.expand(kernel.length, kernel.length);
+		Set<PairedHit> subset = getHitSet(e);
+		for (PairedHit p : subset) {
+			if (p.leftStrand) {
+				int pmkern = p.leftPos-halfkern;
+				int ppkern = p.leftPos+halfkern;
+				for (int i=Math.max(r.getStart(), pmkern); i<Math.min(r.getEnd(),ppkern); i++) {
+					tor[i-r.getStart()] += kernel[i-pmkern];
+				}
+			}
+			if (p.rightStrand) {
+				int pmkern = p.rightPos-halfkern;
+				int ppkern = p.rightPos+halfkern;
+				for (int i=Math.max(r.getStart(), pmkern); i<Math.min(r.getEnd(),ppkern); i++) {
+					tor[i-r.getStart()] += kernel[i-pmkern];
+				}
+			}
+		}
+		return tor;
+	}
+    
+    public double[] getReverseProfile(Region r) throws IOException, ClientException {
+    	int halfkern = kernel.length/2;
+		double[] tor = new double[r.getWidth()];
+		Region e = r.expand(kernel.length, kernel.length);
+		Set<PairedHit> subset = getHitSet(e);
+		for (PairedHit p : subset) {
+			if (!p.leftStrand) {
+				int pmkern = p.leftPos-halfkern;
+				int ppkern = p.leftPos+halfkern;
+				for (int i=Math.max(r.getStart(), pmkern); i<Math.min(r.getEnd(),ppkern); i++) {
+					tor[i-r.getStart()] += kernel[i-pmkern];
+				}
+			}
+			if (!p.rightStrand) {
+				int pmkern = p.rightPos-halfkern;
+				int ppkern = p.rightPos+halfkern;
+				for (int i=Math.max(r.getStart(), pmkern); i<Math.min(r.getEnd(),ppkern); i++) {
+					tor[i-r.getStart()] += kernel[i-pmkern];
+				}
+			}
+		}
+		return tor;
+	}
     
     public TreeMap<Integer,Float> getInteractionProfile() throws IOException, ClientException {
     	if (readdist==null) {
