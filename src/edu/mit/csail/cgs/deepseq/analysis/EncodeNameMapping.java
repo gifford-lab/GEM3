@@ -47,14 +47,19 @@ public class EncodeNameMapping {
 	        String line;
 	        while((line = bin.readLine()) != null) { 
 	        	line = line.trim();
-	        	if (!line.startsWith("DE "))
-	        		continue;
-	        	String[] f = line.substring(3).split("_");
+//	        	if (!line.startsWith("DE "))		// from PFM file
+//	        		continue;
+//	        	String[] f = line.substring(3).split("_");
+	        	String[] f = line.split("_");		// from sequence file list
 	        	String tf = f[0];
+	        	String pi = f[1];
+	        	String cell = f[2];
+	        	StringBuilder sb = new StringBuilder();
+	        	sb.append(tf).append("_").append(pi).append("_").append(cell).append("\t").append(map.get(tf));
 	        	if (!map.containsKey(tf))
 	        		newTF.add(tf);
 	        	else
-	        		System.out.println(map.get(tf)+"\t"+line.substring(3));
+	        		System.out.println(sb.toString());
 	        }
 	        if (bin != null) {
 	            bin.close();

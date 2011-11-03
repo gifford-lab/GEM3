@@ -6042,7 +6042,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double k_fold = 3;	// the minimum fold of kmer count in positive seqs vs negative seqs
         public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
         public double[] bg= new double[4];	// background frequency based on GC content
-        public double wm_factor = 0.5;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
+        public double wm_factor = 0.6;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
         public double motif_hit_factor = 0.005;
@@ -6068,7 +6068,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean re_train = false;
         public boolean print_pwm_fdr = false;
         public boolean use_weight = true;
-        public boolean allow_single_family =false;	// allow the kmer family only contains seed, i.e. no mismatch kmers
+        public boolean allow_single_family =true;	// allow the kmer family only contains seed, i.e. no mismatch kmers
         public boolean filter_pwm_seq = true;
 //        public boolean k_select_seed = false;
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
@@ -6139,7 +6139,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             print_input_seqs = flags.contains("print_input_seqs");
             re_train = flags.contains("re_train");
             print_pwm_fdr = flags.contains("print_pwm_fdr");
-            allow_single_family = flags.contains("allow_single_family");
+            
             
             // default as true, need the opposite flag to turn it off
             exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -6159,6 +6159,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_ksm = !flags.contains("no_ksm");
             use_weight = !flags.contains("no_weight");
             use_grid_search = !flags.contains("no_grid_search");
+            allow_single_family = !flags.contains("no_single_family");
             pwm_align_new = !flags.contains("pwm_align_all");
             filter_pwm_seq = !flags.contains("pwm_seq_asIs");
             strigent_event_pvalue = !flags.contains("relax");

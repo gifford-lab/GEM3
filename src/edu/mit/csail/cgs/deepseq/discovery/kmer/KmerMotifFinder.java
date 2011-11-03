@@ -3815,7 +3815,7 @@ public class KmerMotifFinder {
 //				if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
 //					km.getK();
 			ArrayList<Integer> posKmer = kmer2pos.get(km);
-			if (posKmer==null || posKmer.size()<km.getPosHitCount()*kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/4 of total hit
+			if (posKmer==null || posKmer.size()<km.getPosHitCount()*kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/2 of total hit
 				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
 			}	
