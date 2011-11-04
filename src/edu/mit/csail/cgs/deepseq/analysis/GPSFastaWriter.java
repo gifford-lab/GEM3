@@ -76,7 +76,7 @@ public class GPSFastaWriter{
 	        continue;
 	    }
 	    top = Math.min(top, gpsPeaks.size());
-	    int count=0;
+	    int count=1;
 	    StringBuilder sb = new StringBuilder();
 	    for (GPSPeak p: gpsPeaks){
 	    	if (count>top)
@@ -88,7 +88,7 @@ public class GPSFastaWriter{
 	    	if (end>=genome.getChromLength(p.getChrom()))
 	    		continue;
 	    	Region r = new Region(genome, p.getChrom(), start, end);
-	    	sb.append(">").append(exptName).append("\t#").append(count).append("\t").append(r.toString()).append("\n");
+	    	sb.append(">seq_").append(count).append(" ").append(exptName).append(" ").append(r.toString()).append("\n");
 	    	sb.append(seqgen.execute(r)).append("\n");
 	    	count++;
 	    }
