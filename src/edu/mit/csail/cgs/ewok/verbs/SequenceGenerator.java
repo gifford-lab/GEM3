@@ -92,7 +92,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         }
     }
     /**
-     * get sequence of specified region (including start and end) in lower case
+     * get sequence of specified region (including start and end)
      */
     public String execute(X region) {
     	if (regionIsCached)
@@ -152,7 +152,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
             		region.getWidth() + ") but only got " + result.length());
         }
 
-        return result.toLowerCase();
+        return result;
     }
     
     /**
@@ -206,7 +206,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     			if (cache!=null){							// for previous chrom
     				if (chr2rs.containsKey(chrom)){			// piggy-back to retrieve one-time sequences
     					for (Region r1:chr2rs.get(chrom))
-    						seqs.add(execute((X)r1).toUpperCase());
+    						seqs.add(execute((X)r1));
     				}
 	    			synchronized(cache) {
 	    				cache.put(g.getChromID(chrom), null);
@@ -220,14 +220,14 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     		// cache region using the current cache
     		synchronized(regionCache) {
     			regionStarts.get(chrom)[count]=r.getStart(); 
-        		regionCache.get(chrom)[count]=execute((X)r).toUpperCase();    			
+        		regionCache.get(chrom)[count]=execute((X)r);    			
     		}
     		count ++;
     	}
     	if (cache!=null){
 			if (chr2rs.containsKey(lastRegion.getChrom())){			// piggy-back to retrieve one-time sequences
 				for (Region r1:chr2rs.get(lastRegion.getChrom()))
-					seqs.add(execute((X)r1).toUpperCase());
+					seqs.add(execute((X)r1));
 			}
 	    	synchronized(cache) {
 	    		cache.put(g.getChromID(lastRegion.getChrom()), null);
@@ -237,7 +237,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 	    	for(String chr:chr2rs.keySet()){
 	    		if (!regionCache.containsKey(chr)){
 	    			for (Region r1:chr2rs.get(chr))
-						seqs.add(execute((X)r1).toUpperCase());
+						seqs.add(execute((X)r1));
 	    			synchronized(cache) {
 	    				cache.put(g.getChromID(chrom), null);
 	    				cache.remove(g.getChromID(chrom));	// clean cache for this chrom

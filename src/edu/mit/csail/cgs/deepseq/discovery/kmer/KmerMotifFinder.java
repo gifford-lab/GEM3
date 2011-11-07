@@ -71,7 +71,7 @@ public class KmerMotifFinder {
 	private boolean use_weight=true;
 	private boolean allow_single_family =false;
 	private double wm_factor = 0.5;
-	private double kmer_set_overlap_ratio = 0.5;
+//	private double kmer_set_overlap_ratio = 0.5;
 	private int kmer_remove_mode = 0;
 	
 	private double k_fold;
@@ -82,6 +82,7 @@ public class KmerMotifFinder {
 	private boolean print_aligned_seqs; 
 	private boolean re_train; 
 	private int maxCluster;
+	private boolean ignore_repeat_masked;
 	
 	private int k_win;
 	private double[] profile;
@@ -127,7 +128,7 @@ public class KmerMotifFinder {
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
 			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, int verbose, 
-			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster){
+			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster, boolean ignore_repeat_masked){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
@@ -143,6 +144,7 @@ public class KmerMotifFinder {
 	    this.print_aligned_seqs = print_aligned_seqs;
 	    this.re_train = re_train;
 	    this.maxCluster = maxCluster;
+	    this.ignore_repeat_masked = ignore_repeat_masked;
 	}
 	
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
@@ -239,22 +241,68 @@ public class KmerMotifFinder {
 		return gcRatio;
 	}
 	/**
-		 * Load pos/neg test sequences based on event positions
+		 * Load pos/neg test sequences based on event positions<br>
+		 * Skip repeat masked sequences if it is more than half of the sequence, otherwise convert repeat characters into 'N'
+		 * 
 		 * @param events
 		 * @param winSize
 		 * @param winShift
 		 */
-		public void loadTestSequences(ArrayList<ComponentFeature> events, int winSize){
-			int eventCount = events.size();
-			seqs = new String[eventCount];	// DNA sequences around binding sites
-			ArrayList<Region> posImpactRegion = new ArrayList<Region>();			// to make sure negative region is not within negRegionDistance of positive regions.
+		public void loadTestSequences(ArrayList<ComponentFeature> events, int winSize, String repeatMaskedRegionFile){
 	
+			// TODO: load repeat masked regions
+			ArrayList<Region> repeatMaskedRegions = new ArrayList<Region>();
+			if (repeatMaskedRegionFile!=null){
+				BufferedReader bin = null;
+				int count = 0;
+				try{
+			        bin = new BufferedReader(new InputStreamReader(new FileInputStream(repeatMaskedRegionFile)));
+					
+			        String line;
+			        bin.readLine();bin.readLine();bin.readLine();	// skip header
+			        while((line = bin.readLine()) != null) { 
+			            line = line.trim();
+			            String[] f=line.split("\t");
+			        }
+				}
+				catch (IOException e){
+					System.err.println("Error in reading repeat mask file, "+repeatMaskedRegionFile);
+					e.printStackTrace(System.err);
+				}
+			}
+			
+			int eventCount = events.size();
+			ArrayList<Region> posImpactRegion = new ArrayList<Region>();			// to make sure negative region is not within negRegionDistance of positive regions.
+			ArrayList<String> posSeqs = new ArrayList<String>();
+			ArrayList<Double> posSeqWeights = new ArrayList<Double>();
 			for(int i=0;i<eventCount;i++){
 				Region posRegion = events.get(i).getPeak().expand(winSize/2);
-				seqs[i] = seqgen.execute(posRegion).toUpperCase();
+				String seq = seqgen.execute(posRegion);
+				if (ignore_repeat_masked){
+					int count = 0;
+					for (char c:seq.toCharArray())
+						if (Character.isLowerCase(c) || c=='N')
+							count++;
+					if (count>seq.length()/2)						// if more than half of sequence is repeat, skip
+						continue;
+					if (count>1){									// convert lower case repeat to N
+						char[] chars = seq.toCharArray();
+						for (int j=0;j<chars.length;j++)
+							if (Character.isLowerCase(chars[j]))
+								chars[j] = 'N';
+						seq = new String(chars);
+					}
+				}
+				posSeqs.add(seq);
+				posSeqWeights.add(events.get(i).getTotalEventStrength());
 				posImpactRegion.add(events.get(i).getPeak().expand(negRegionDistance));
 			}
-	
+			seqs = new String[posSeqs.size()];	// DNA sequences around binding sites
+			posSeqs.toArray(seqs);
+		    seq_weights = new double[posSeqs.size()];
+			for (int i=0;i<posSeqs.size();i++)
+				seq_weights[i]=posSeqWeights.get(i);
+			
 			/** Negative sequences has been retrieved when setting up region caches */
 			ArrayList<Region> negRegions = new ArrayList<Region>();
 			negRegions.addAll(neg_region_map.keySet());
@@ -262,7 +310,23 @@ public class KmerMotifFinder {
 			seqsNegList.clear();
 			int negCount = 0;
 			for (Region r:negRegions){
-				seqsNegList.add(seqsNeg[neg_region_map.get(r)].substring(0, winSize+1));
+				String seq = seqsNeg[neg_region_map.get(r)].substring(0, winSize+1);
+				if (ignore_repeat_masked){
+					int count = 0;
+					for (char c:seq.toCharArray())
+						if (Character.isLowerCase(c) || c=='N')
+							count++;
+					if (count>seq.length()/2)						// if more than half of sequence is repeat, skip
+						continue;
+					if (count>1){									// convert lower case repeat to N
+						char[] chars = seq.toCharArray();
+						for (int i=0;i<chars.length;i++)
+							if (Character.isLowerCase(chars[i]))
+								chars[i] = 'N';
+						seq = new String(chars);
+					}
+				}
+				seqsNegList.add(seq);
 				negCount++;
 				if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
 					break;
@@ -270,11 +334,10 @@ public class KmerMotifFinder {
 			
 			posSeqCount = seqs.length;
 		    negSeqCount = seqsNegList.size();
-		    seq_weights = new double[eventCount];
-			for (int i=0;i<seq_weights.length;i++)
-				seq_weights[i]=events.get(i).getTotalEventStrength();
-		    updateSequenceInfo();
+		    if (verbose>1)
+				System.out.println(String.format("Loaded %d events, %d positive sequences, skipped %d repeat sequences", events.size(), posSeqCount, events.size()-posSeqCount));
 		    
+		    updateSequenceInfo();			
 	
 	//		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 	//		ArrayList<String> negSeqList = new ArrayList<String>();
@@ -314,26 +377,26 @@ public class KmerMotifFinder {
 	    	sb.append(String.format("%s\n", seqsNegList.get(i)));
 	    CommonUtils.writeFile(outName+"_neg_seqs.txt", sb.toString());
 	}
-	/*
-	 * Find significant Kmers that have high HyperGeometric p-value
-	 * in sequence around the binding events 
-	 * and build the kmer AhoCorasick engine
-	 */
-	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, double hgp, double k_fold, String outPrefix, boolean print_kmer_hits){
-		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, hgp, k_fold, outPrefix);
-		updateEngine(kms, outPrefix);
-	}
-	
-	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<ComponentFeature> events, int winSize, double hgp, double k_fold, String outName){
-		this.hgp = hgp;
-		this.outName = outName;
-		this.k_fold = k_fold;
-
-		// collect pos/neg test sequences based on event positions
-		loadTestSequences(events, winSize);
-		
-		return selectEnrichedKmers(k);
-	}
+//	/*
+//	 * Find significant Kmers that have high HyperGeometric p-value
+//	 * in sequence around the binding events 
+//	 * and build the kmer AhoCorasick engine
+//	 */
+//	public void buildEngine(int k, ArrayList<ComponentFeature> events, int winSize, double hgp, double k_fold, String outPrefix, boolean print_kmer_hits){
+//		ArrayList<Kmer> kms = selectEnrichedKmers(k, events, winSize, hgp, k_fold, outPrefix);
+//		updateEngine(kms, outPrefix);
+//	}
+//	
+//	public ArrayList<Kmer> selectEnrichedKmers(int k, ArrayList<ComponentFeature> events, int winSize, double hgp, double k_fold, String outName){
+//		this.hgp = hgp;
+//		this.outName = outName;
+//		this.k_fold = k_fold;
+//
+//		// collect pos/neg test sequences based on event positions
+//		loadTestSequences(events, winSize);
+//		
+//		return selectEnrichedKmers(k);
+//	}
 	
 	/** 
 	 * Select the value of k <br>
@@ -465,7 +528,7 @@ public class KmerMotifFinder {
 		for (int i=0;i<k_max-k_min+1;i++){
 
 			if (isMasked && events!=null)
-				loadTestSequences(events, winSize);
+				loadTestSequences(events, winSize, null);
 			
 			int k = i+k_min;
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
@@ -575,7 +638,10 @@ public class KmerMotifFinder {
 			for (int i=0;i<numPos;i++){
 				if ((i+k)>seq.length()) // endIndex of substring is exclusive
 					break;
-				uniqueKmers.add(seq.substring(i, i+k));
+				String kstring = seq.substring(i, i+k);
+				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
+					continue;
+				uniqueKmers.add(kstring);
 			}
 			for (String s: uniqueKmers){
 				if (!kmerstr2seqs.containsKey(s)){
@@ -5575,7 +5641,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200, true);
         boolean use_seed_family = true;
         boolean use_KSM = true;
         boolean use_PWM_MM = false;

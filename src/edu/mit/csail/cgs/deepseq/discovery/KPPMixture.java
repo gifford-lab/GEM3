@@ -69,6 +69,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	//Gaussian kernel for density estimation
 	private double[] gaussian;
 	private boolean doScanning=true;
+	
+	private String repeatMaskedRegionFile;
 
 	/****************
 	 * Data
@@ -175,6 +177,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		commonInit(modelFile);
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
+		
+		repeatMaskedRegionFile = Args.parseString(args, "repeat_mask", null);
 
     	/* *********************************
     	 * Load Kmer list
@@ -473,7 +477,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		// create threads and run EM algorithms
 		// the results are put into compFeatures
         Thread[] threads = new Thread[maxThreads];
-        log(1,String.format("Creating %d threads ...", maxThreads));
+        log(1,String.format("Running with %d threads ...", maxThreads));
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         TreeSet<Region> regionsToRun = new TreeSet<Region>();
@@ -3726,17 +3730,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //    }
     
     public void runKMF( int winSize){
-    	// load sequence from binding event positions
-    	ArrayList<ComponentFeature> events = getEvents();
-    	kmf.loadTestSequences(events, winSize);
-    	if (config.print_input_seqs)
-    		kmf.printInputSequences(outName);
-    	
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
     			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight, config.allow_single_family,
     			outName, config.bmverbose, config.kmer_aligned_fraction, 
-				config.print_aligned_seqs, config.re_train, config.max_cluster);
+				config.print_aligned_seqs, config.re_train, config.max_cluster, config.ignore_repeat_masked);
+    	
+    	// load sequence from binding event positions
+    	ArrayList<ComponentFeature> events = getEvents();
+    	kmf.loadTestSequences(events, winSize, repeatMaskedRegionFile);
+    	if (config.print_input_seqs)
+    		kmf.printInputSequences(outName);
+    	
     	
     	// select best k value
 		if (config.k_min!=-1){
@@ -5852,7 +5857,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	    	ArrayList<ComponentFeature> events = getEvents();
 	    	for (int k=config.k;k<config.k+5;k++){
 			String name = outName+"_";//OK_win"+ (config.k*2);
-			kmf.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name, false);
+//			kmf.buildEngine(k, events, config.k*2, config.hgp, config.k_fold, name, false);
 		}
 	}
 	
@@ -6032,7 +6037,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_win2 = 100;	// the window around binding event to search for motifs (in later rounds)
         public int k_win_f = 4;		// k_win = k_win_f * k
         public int k_neg_dist = 500;// the distance of the nearest edge of negative region from binding sites 
-        public int k_negSeq_ratio = 1; 		// The ratio of negative sequences to positive sequences
+        public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
         public int max_cluster = 500;
 //        public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
@@ -6074,6 +6079,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
         public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
         public boolean mask_by_pwm = false;
+        public boolean ignore_repeat_masked=true;		// ignore lower case sequences and N in motif discovery
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -6163,6 +6169,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             pwm_align_new = !flags.contains("pwm_align_all");
             filter_pwm_seq = !flags.contains("pwm_seq_asIs");
             strigent_event_pvalue = !flags.contains("relax");
+            ignore_repeat_masked = !flags.contains("no_rm");
 
             mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
            
