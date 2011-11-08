@@ -82,7 +82,7 @@ public class KmerMotifFinder {
 	private boolean print_aligned_seqs; 
 	private boolean re_train; 
 	private int maxCluster;
-	private boolean ignore_repeat_masked;
+	private double repeat_fraction;
 	
 	private int k_win;
 	private double[] profile;
@@ -128,7 +128,7 @@ public class KmerMotifFinder {
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
 			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, int verbose, 
-			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster, boolean ignore_repeat_masked){
+			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster, double repeat_fraction){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
@@ -144,7 +144,7 @@ public class KmerMotifFinder {
 	    this.print_aligned_seqs = print_aligned_seqs;
 	    this.re_train = re_train;
 	    this.maxCluster = maxCluster;
-	    this.ignore_repeat_masked = ignore_repeat_masked;
+	    this.repeat_fraction = repeat_fraction;
 	}
 	
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
@@ -278,12 +278,12 @@ public class KmerMotifFinder {
 			for(int i=0;i<eventCount;i++){
 				Region posRegion = events.get(i).getPeak().expand(winSize/2);
 				String seq = seqgen.execute(posRegion);
-				if (ignore_repeat_masked){
+				if (repeat_fraction<1){
 					int count = 0;
 					for (char c:seq.toCharArray())
 						if (Character.isLowerCase(c) || c=='N')
 							count++;
-					if (count>seq.length()/2)						// if more than half of sequence is repeat, skip
+					if (count>seq.length()*repeat_fraction)			// if repeat fraction in sequence is too high, skip
 						continue;
 					if (count>1){									// convert lower case repeat to N
 						char[] chars = seq.toCharArray();
@@ -311,18 +311,18 @@ public class KmerMotifFinder {
 			int negCount = 0;
 			for (Region r:negRegions){
 				String seq = seqsNeg[neg_region_map.get(r)].substring(0, winSize+1);
-				if (ignore_repeat_masked){
+				if (repeat_fraction<1){
 					int count = 0;
 					for (char c:seq.toCharArray())
 						if (Character.isLowerCase(c) || c=='N')
 							count++;
-					if (count>seq.length()/2)						// if more than half of sequence is repeat, skip
+					if (count>seq.length()*repeat_fraction)			// if repeat fraction in sequence is too high, skip
 						continue;
 					if (count>1){									// convert lower case repeat to N
 						char[] chars = seq.toCharArray();
-						for (int i=0;i<chars.length;i++)
-							if (Character.isLowerCase(chars[i]))
-								chars[i] = 'N';
+						for (int j=0;j<chars.length;j++)
+							if (Character.isLowerCase(chars[j]))
+								chars[j] = 'N';
 						seq = new String(chars);
 					}
 				}
@@ -5641,7 +5641,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200, true);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200, 0);
         boolean use_seed_family = true;
         boolean use_KSM = true;
         boolean use_PWM_MM = false;

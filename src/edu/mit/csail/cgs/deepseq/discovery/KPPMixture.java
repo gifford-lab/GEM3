@@ -3734,7 +3734,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
     			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight, config.allow_single_family,
     			outName, config.bmverbose, config.kmer_aligned_fraction, 
-				config.print_aligned_seqs, config.re_train, config.max_cluster, config.ignore_repeat_masked);
+				config.print_aligned_seqs, config.re_train, config.max_cluster, config.repeat_fraction);
     	
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();
@@ -6053,6 +6053,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double motif_hit_factor = 0.005;
         public double motif_hit_factor_report = 0.05;
         public double kmer_set_overlap_ratio = 0.5;
+        public double repeat_fraction=0;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
         public int kmer_remove_mode = 0;
         public int seed_range = 3;
         public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
@@ -6079,7 +6080,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
         public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
         public boolean mask_by_pwm = false;
-        public boolean ignore_repeat_masked=true;		// ignore lower case sequences and N in motif discovery
         
         public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
         public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -6169,7 +6169,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             pwm_align_new = !flags.contains("pwm_align_all");
             filter_pwm_seq = !flags.contains("pwm_seq_asIs");
             strigent_event_pvalue = !flags.contains("relax");
-            ignore_repeat_masked = !flags.contains("no_rm");
 
             mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
            
@@ -6200,6 +6199,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
             kmer_aligned_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_aligned_fraction);
             kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
+            repeat_fraction = Args.parseDouble(args, "repeat_fraction", repeat_fraction);
             seed_range = Args.parseInteger(args, "seed_range", seed_range);
             kmer_remove_mode = Args.parseInteger(args, "kmer_shift_remove", kmer_remove_mode);
             
