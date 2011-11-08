@@ -293,7 +293,7 @@ public class KmerMotifFinder {
 						seq = new String(chars);
 					}
 				}
-				posSeqs.add(seq);
+				posSeqs.add(seq.toUpperCase());		// if repeat_fraction>=1, allow all repeats, convert to upper case
 				posSeqWeights.add(events.get(i).getTotalEventStrength());
 				posImpactRegion.add(events.get(i).getPeak().expand(negRegionDistance));
 			}
@@ -326,7 +326,7 @@ public class KmerMotifFinder {
 						seq = new String(chars);
 					}
 				}
-				seqsNegList.add(seq);
+				seqsNegList.add(seq.toUpperCase());		// if repeat_fraction>=1, allow repeats, convert to upper case
 				negCount++;
 				if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
 					break;
@@ -335,7 +335,8 @@ public class KmerMotifFinder {
 			posSeqCount = seqs.length;
 		    negSeqCount = seqsNegList.size();
 		    if (verbose>1)
-				System.out.println(String.format("Loaded %d events, %d positive sequences, skipped %d repeat sequences", events.size(), posSeqCount, events.size()-posSeqCount));
+				System.out.println(String.format("From %d events, loaded %d positive sequences, skipped %d(%.1f%%) repeat sequences\n", 
+						events.size(), posSeqCount, events.size()-posSeqCount, 100-100.0*posSeqCount/events.size()));
 		    
 		    updateSequenceInfo();			
 	
@@ -5017,7 +5018,7 @@ public class KmerMotifFinder {
 		return matches;
 	}
 		
-	public String getSequence(Region r){
+	public String getSequenceUppercase(Region r){
 		return seqgen.execute(r).toUpperCase();
 	}
 	

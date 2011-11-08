@@ -886,7 +886,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 		for(int i=0;i<N;i++){
 			Region posRegion = compFeatures.get(i).getPeak().expand(config.k_win/2);
-			seqs[i] = kmf.getSequence(posRegion).toUpperCase();
+			seqs[i] = kmf.getSequenceUppercase(posRegion).toUpperCase();
 		}
 		for (int i=0;i<seqs.length;i++){
 			double score = WeightMatrixScorer.getMaxSeqScore(pCluster.wm, seqs[i]);
@@ -5395,7 +5395,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						seedMid_seq = config.k_win - seedMid_seq;
 					Point center = new Point(gen, events.get(seqIdx).getPeak().getChrom(), 
 							events.get(seqIdx).getPeak().getLocation()-(config.k_win/2)+seedMid_seq);
-					String seq = kmf.getSequence(center.expand(config.k_win/2));
+					String seq = kmf.getSequenceUppercase(center.expand(config.k_win/2));
 					if (seq.length()!=config.k_win/2*2+1)
 						continue;
 					if (!isPlusStrands[seqIdx])
@@ -5445,7 +5445,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					seedMid_seq = config.k_win - seedMid_seq;
 				Point center = new Point(gen, events.get(i).getPeak().getChrom(), 
 						events.get(i).getPeak().getLocation()-(config.k_win/2)+seedMid_seq);
-				String seq = kmf.getSequence(center.expand(config.k_win/2));
+				String seq = kmf.getSequenceUppercase(center.expand(config.k_win/2));
 				if (seq.length()!=config.k_win/2*2+1)
 					continue;
 				if (!isPlusStrands[i])
@@ -6616,10 +6616,10 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
                 	String seq = null;
                 	if (kmf!=null && kmf.isInitialized()){
-                		if (kmerPreDefined)
+                		if (kmerPreDefined)		// if kmer is loaded from other sources, get fresh sequence 
                 			seq = seqgen.execute(w).toUpperCase();
-                		else
-                			seq = kmf.getSequence(w);
+                		else					// otherwise, we have run KMF, get the cached sequences
+                			seq = kmf.getSequenceUppercase(w);
                 		KmerGroup[] matchPositions = kmf.query(seq);
 // TODO: allowing more motif in the region	                	
 //	                	double kmerCount_max = kEngine.getMaxCount();
