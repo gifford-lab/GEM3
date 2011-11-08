@@ -3733,8 +3733,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
     			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight, config.allow_single_family,
-    			outName, config.bmverbose, config.kmer_aligned_fraction, 
-				config.print_aligned_seqs, config.re_train, config.max_cluster, config.repeat_fraction);
+    			outName, config.bmverbose, config.kmer_aligned_fraction, config.print_aligned_seqs, config.re_train, 
+				config.max_cluster, config.repeat_fraction, config.use_seed_reset);
     	
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();
@@ -6074,6 +6074,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean re_train = false;
         public boolean print_pwm_fdr = false;
         public boolean use_weight = true;
+        public boolean use_seed_reset = true;
         public boolean allow_single_family =true;	// allow the kmer family only contains seed, i.e. no mismatch kmers
         public boolean filter_pwm_seq = true;
 //        public boolean k_select_seed = false;
@@ -6164,6 +6165,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_seed_family = !flags.contains("no_seed_family");
             use_ksm = !flags.contains("no_ksm");
             use_weight = !flags.contains("no_weight");
+            use_seed_reset = !flags.contains("no_seed_reset");
             use_grid_search = !flags.contains("no_grid_search");
             allow_single_family = !flags.contains("no_single_family");
             pwm_align_new = !flags.contains("pwm_align_all");

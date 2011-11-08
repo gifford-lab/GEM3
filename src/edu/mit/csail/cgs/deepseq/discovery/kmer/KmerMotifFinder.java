@@ -69,6 +69,7 @@ public class KmerMotifFinder {
 	private String outName;
 	private boolean use_grid_search=true;
 	private boolean use_weight=true;
+	private boolean use_seed_reset = true;
 	private boolean allow_single_family =false;
 	private double wm_factor = 0.5;
 //	private double kmer_set_overlap_ratio = 0.5;
@@ -128,7 +129,7 @@ public class KmerMotifFinder {
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
 			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, int verbose, 
-			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster, double repeat_fraction){
+			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster, double repeat_fraction, boolean use_seed_reset){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
@@ -145,6 +146,7 @@ public class KmerMotifFinder {
 	    this.re_train = re_train;
 	    this.maxCluster = maxCluster;
 	    this.repeat_fraction = repeat_fraction;
+	    this.use_seed_reset = use_seed_reset;
 	}
 	
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
@@ -1499,7 +1501,7 @@ public class KmerMotifFinder {
 	    	
 			// compare pwm Hgp to primary cluster Hgp, so that the primary cluster will have the best Hgp
 			if (cluster.wm!=null){
-				if (clusterID!=0 && cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*1.1 && !primarySeed_is_reset){		// this pwm is better
+				if (use_seed_reset && clusterID!=0 && cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*1.1 && !primarySeed_is_reset){		// this pwm is better
 					// reset sequences, kmers, to start over with this new bestSeed
 					seqs = pos_seq_backup.clone();
 					seqsNegList.clear();
@@ -5642,7 +5644,7 @@ public class KmerMotifFinder {
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200, 0);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200, 0, true);
         boolean use_seed_family = true;
         boolean use_KSM = true;
         boolean use_PWM_MM = false;
