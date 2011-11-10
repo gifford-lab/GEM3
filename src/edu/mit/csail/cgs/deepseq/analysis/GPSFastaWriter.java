@@ -1,14 +1,20 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
+import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
@@ -46,6 +52,8 @@ public class GPSFastaWriter{
     
      SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	seqgen.useCache(!flags.contains("no_cache"));
+	boolean skip_repeat = !flags.contains("allow_repeat");
+	boolean write_read_coverage = flags.contains("write_read_coverage");
 	
 	List<String> names = new ArrayList<String>();
 	File dir = new File(Args.parseString(args, "root", null));
@@ -66,7 +74,7 @@ public class GPSFastaWriter{
 	    if (!gpsFile.exists()){
 	    	System.err.println("GPS file not exist: "+gpsFile.getAbsolutePath());
 	        continue;
-	      }
+	    }
 	    List<GPSPeak> gpsPeaks =null;
 	    try{
 	    	gpsPeaks= GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
@@ -75,10 +83,64 @@ public class GPSFastaWriter{
 	    	System.err.println("Error reading/parsing GPS file: "+gpsFile.getAbsolutePath());
 	        continue;
 	    }
-	    top = Math.min(top, gpsPeaks.size());
+	    
+	    // use exptName.report.txt file to get the data strings to read db
+	    DeepSeqExpt chipSeq = null;
+	    if (write_read_coverage){
+	    	ArrayList<String> readDbStrings = new ArrayList<String>();
+		    File reportFile = new File(new File(exptName), exptName+".report.txt");
+		    if (!reportFile.exists()){
+		    	System.err.println("Report file not exist: "+reportFile.getAbsolutePath());
+		        continue;
+		    }
+			BufferedReader bin = null;
+			try{
+		        bin = new BufferedReader(new InputStreamReader(new FileInputStream(reportFile)));
+		        String line;
+		        while((line = bin.readLine()) != null) { 
+		            String[] f=line.split("--rdbexptE1 \"");
+		            if (f.length>1){
+		            	for (int i=1;i<f.length;i++){
+		            		String field = f[i];
+		            		int end = field.indexOf("\"");
+		            		readDbStrings.add(field.substring(0,end));
+		            	}
+		            	break;
+		            }
+		        }
+			}
+			catch (IOException e){
+				System.err.println("Error in reading report file, "+reportFile.getAbsolutePath());
+				e.printStackTrace(System.err);
+			}
+			
+		    // get the read data
+		    ArrayList<ChipSeqLocator> locators = new ArrayList<ChipSeqLocator>();
+	        for (String dbStr: readDbStrings) {
+	            String[] pieces = dbStr.split(";");
+	            if (pieces.length == 2) {
+	            	locators.add(new ChipSeqLocator(pieces[0], pieces[1]));
+	            } else if (pieces.length == 3) {
+	            	locators.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
+	            } else {
+	                throw new RuntimeException("Couldn't parse a ChipSeqLocator from " + dbStr);
+	            }
+	        }
+	        if (locators.isEmpty())
+	        	continue;
+	        chipSeq = new DeepSeqExpt(genome, locators, "readdb", -1);
+	    }        
+	    
+	    if (top==-1)				// if top = -1, use all peaks
+	    	top = gpsPeaks.size();
+	    else
+	    	top = Math.min(top, gpsPeaks.size());
 	    int count=1;
 	    StringBuilder sb = new StringBuilder();
-	    for (GPSPeak p: gpsPeaks){
+	    StringBuilder hms_summit_sb = new StringBuilder();
+	    StringBuilder hms_readcoverage_sb = new StringBuilder();
+	    StringBuilder chipmunk_sb = new StringBuilder();
+	    eachPeak: for (GPSPeak p: gpsPeaks){
 	    	if (count>top)
 	    		break;
 	    	int start = p.getLocation()-window/2;
@@ -88,11 +150,68 @@ public class GPSFastaWriter{
 	    	if (end>=genome.getChromLength(p.getChrom()))
 	    		continue;
 	    	Region r = new Region(genome, p.getChrom(), start, end);
+	    	String seq = seqgen.execute(r);
+	    	if (skip_repeat){
+				for (char c:seq.toCharArray())
+					if (Character.isLowerCase(c) || c=='N')
+						continue eachPeak;
+	    	}
+	    	//	passed the repeat check, output
 	    	sb.append(">seq_").append(count).append(" ").append(exptName).append(" ").append(r.toString()).append("\n");
-	    	sb.append(seqgen.execute(r)).append("\n");
+	    	sb.append(seq).append("\n");
+	    	hms_summit_sb.append(window/2).append("\n");
+	    	if (write_read_coverage){
+	    		// HMS coverage is based on read itself only
+	    		double[] coverage = new double[r.getWidth()]; 
+	    		int origin = r.getStart();
+	    		List<ReadHit> hits = chipSeq.loadHits(r);
+	    		for (ReadHit h : hits){
+	    			for (int i=h.getStart();i<=h.getEnd();i++){
+	    				int idx = i-origin;
+	    				if (idx>=0 && idx<r.getWidth())
+	    					coverage[idx]++;
+	    			}
+	    		}
+	    		hms_readcoverage_sb.append(">seq_").append(count).append(" ").append(exptName).append(" ").append(r.toString()).append("\n");
+	    		for (int i=0;i<coverage.length;i++){
+	    			hms_readcoverage_sb.append(String.format("(%d) %.2f ", i, coverage[i]));
+	    		}
+	    		hms_readcoverage_sb.append("\n");
+	    		
+	    		// ChIPMunk coverage is based on extended reads (here extend to 200bp)
+	    		coverage = new double[r.getWidth()];
+	    		int readExtendedLength = 200;
+	    		for (ReadHit h : hits){
+	    			if (h.getStrand()=='+'){
+		    			for (int i=h.getStart();i<h.getStart()+readExtendedLength;i++){
+		    				int idx = i-origin;
+		    				if (idx>=0 && idx<r.getWidth())
+		    					coverage[idx]++;
+		    			}
+	    			}
+	    			else{
+		    			for (int i=h.getEnd()-readExtendedLength+1;i<=h.getEnd();i++){
+		    				int idx = i-origin;
+		    				if (idx>=0 && idx<r.getWidth())
+		    					coverage[idx]++;
+		    			}
+	    			}
+	    		}
+	    		chipmunk_sb.append("> ");
+	    		for (int i=0;i<coverage.length;i++){
+	    			chipmunk_sb.append(String.format("%.2f ", coverage[i]));
+	    		}
+	    		chipmunk_sb.append("\n").append(seq).append("\n");
+	    	}
 	    	count++;
 	    }
 	    CommonUtils.writeFile(exptName+"_"+window+"bp.fasta", sb.toString());
+	    CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.summit.txt", hms_summit_sb.toString());
+	    if (write_read_coverage){
+	    	CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.basecover.txt", hms_readcoverage_sb.toString());
+	    	CommonUtils.writeFile(exptName+"_"+window+"bp_ChIPMunk.peak.txt", chipmunk_sb.toString());
+	    }
+	    System.out.println(exptName+" is processed, "+(count-1)+" sequences has been written.");
 	  }
   }
 }
