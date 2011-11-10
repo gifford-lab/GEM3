@@ -69,7 +69,8 @@ public class KmerMotifFinder {
 	private String outName;
 	private boolean use_grid_search=true;
 	private boolean use_weight=true;
-	private double wm_factor = 0.5;
+	private boolean use_PWM_MM = false;
+	private double wm_factor;
 //	private double kmer_set_overlap_ratio = 0.5;
 	private int kmer_remove_mode = 0;
 	
@@ -79,7 +80,11 @@ public class KmerMotifFinder {
 	private boolean allow_seed_reset=true;
 	private boolean allow_seed_inheritance=true;
 	private double seedOverrideScoreDifference=1.1;
-	private Kmer primarySeed = null;
+	private Kmer primarySeed = null;;
+	private double noiseRatio;;
+	private boolean use_seed_family;;
+	private boolean use_KSM;;
+	private String startingKmer;
 	
 	private double kmer_aligned_fraction; 
 	private boolean print_aligned_seqs; 
@@ -132,7 +137,8 @@ public class KmerMotifFinder {
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
 			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, int verbose, 
 			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster, double repeat_fraction, 
-			boolean allow_seed_reset, boolean allow_seed_inheritance){
+			boolean allow_seed_reset, boolean allow_seed_inheritance, double noiseRatio,
+			boolean use_seed_family, boolean use_KSM, String startingKmer){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
@@ -151,6 +157,10 @@ public class KmerMotifFinder {
 	    this.repeat_fraction = repeat_fraction;
 	    this.allow_seed_reset=allow_seed_reset;
 	    this.allow_seed_inheritance = allow_seed_inheritance;
+	    this.noiseRatio = noiseRatio;
+	    this.use_seed_family = use_seed_family;
+	    this.use_KSM = use_KSM;
+	    this.startingKmer = startingKmer;
 	}
 	
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
@@ -409,7 +419,7 @@ public class KmerMotifFinder {
 	 * Select the value of k <br>
 	 * that forms cluster with largest hit count and at least 90% of the best HGP
 	 */
-	public int selectK(int k_min, int k_max, double noiseRatio, boolean use_seed_family, boolean use_KSM, boolean use_PWM_MM){
+	public int selectK(int k_min, int k_max){
 		if (k_min==k_max)
 			return k_min;
 		
@@ -426,7 +436,7 @@ public class KmerMotifFinder {
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			alignBySimplePWM(kmers, 2, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
+			alignBySimplePWM(kmers, 2);
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -454,7 +464,7 @@ public class KmerMotifFinder {
 		}
 		if (kClusters.isEmpty()){
 			System.out.println("\n----------------------------------------------\nNone of the k values form a PWM, stop here!\n");
-			System.exit(0);
+			return 0;
 		}
 		
 		// find the k value with largest hit count and at least 90% of the best HGP
@@ -1288,8 +1298,7 @@ public class KmerMotifFinder {
 //		return processClusters();
 //	}
 	
-	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int topCluster, double noiseRatio,
-			boolean use_seed_family, boolean use_KSM, boolean use_PWM_MM){
+	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int topCluster){
 		int seed_range = k;
 		String[] pos_seq_backup = seqs.clone();
 		String[] neg_seq_backup = new String[seqsNegList.size()];
@@ -1316,7 +1325,7 @@ public class KmerMotifFinder {
     	clusters.clear();
     	int clusterID = 0;
     	boolean quick_restart = false;
-    	boolean primarySeed_is_reset = false;
+    	boolean primarySeed_is_immutable = false;
 		while (!kmers.isEmpty() && clusterID<=maxCluster){
 			
 			if (topCluster!=-1){			// only generate a few clusters to select optimal K
@@ -1363,34 +1372,52 @@ public class KmerMotifFinder {
 			boolean isSeedInherited=false;
 			if (clusterID==0){
 				cluster.clusterId = 0;
-				if (allow_seed_inheritance && primarySeed!=null){
-					String bestStr = primarySeed.getKmerString();
-					String bestRc = primarySeed.getKmerRC();
+				if (startingKmer!=null){
+					String rc = SequenceUtils.reverseComplement(startingKmer);
 					for (Kmer km:kmers){
-						if (km.getKmerString().equals(bestStr)||
-								km.getKmerString().equals(bestRc)){
+						if (km.getKmerString().equals(startingKmer)||
+								km.getKmerString().equals(rc)){
 							seed = km;
-							isSeedInherited = true;
+							primarySeed_is_immutable = true;		
+							System.out.println("\nUse specified seed k-mer: "+seed.toShortString());
 							break;
 						}
 					}
-					if (seed==null)	{			// not found
+					if (!primarySeed_is_immutable){	// Use specified seed k-mer does not match with enriched k-mers
+						seed = selectBestKmer(kmers);
+						System.out.println("\nSpecified seed k-mer "+startingKmer+" is not found, pick top k-mer");
+					}
+				}
+				else{			// no user specified starting k-mer
+					if (allow_seed_inheritance && primarySeed!=null){
+						String bestStr = primarySeed.getKmerString();
+						String bestRc = primarySeed.getKmerRC();
+						for (Kmer km:kmers){
+							if (km.getKmerString().equals(bestStr)||
+									km.getKmerString().equals(bestRc)){
+								seed = km;
+								isSeedInherited = true;
+								break;
+							}
+						}
+						if (seed==null)	{			// not found
+							seed = selectBestKmer(kmers);
+							if (verbose>1)
+								System.out.println(CommonUtils.timeElapsed(tic)+
+										": Preivous seed is not found, pick top k-mer: "+seed.toShortString());
+						}
+						else
+							if (verbose>1)
+								System.out.println(CommonUtils.timeElapsed(tic)+
+										": Use seed k-mer from preivous round: "+primarySeed.getKmerString()+"/"+primarySeed.getKmerRC());
+					}
+					else{	// no previously saved seed k-mer
 						seed = selectBestKmer(kmers);
 						if (verbose>1)
 							System.out.println(CommonUtils.timeElapsed(tic)+
-									": Preivous seed is not found, pick top k-mer: "+seed.toShortString());
+									": Start with new seed, pick top k-mer: "+seed.toShortString());
+						primarySeed = seed;
 					}
-					else
-						if (verbose>1)
-							System.out.println(CommonUtils.timeElapsed(tic)+
-									": Use seed k-mer from preivous round: "+primarySeed.getKmerString()+"/"+primarySeed.getKmerRC());
-				}
-				else{	// no previously saved seed k-mer
-					seed = selectBestKmer(kmers);
-					if (verbose>1)
-						System.out.println(CommonUtils.timeElapsed(tic)+
-								": Start with new seed, pick top k-mer: "+seed.toShortString());
-					primarySeed = seed;
 				}
 			}
 			else
@@ -1505,7 +1532,9 @@ public class KmerMotifFinder {
 	    	
 			// compare pwm Hgp to primary cluster Hgp, so that the primary cluster will have the best Hgp
 			if (cluster.wm!=null){
-				if (allow_seed_reset && clusterID!=0 && cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*seedOverrideScoreDifference && !primarySeed_is_reset){		// this pwm is better
+				if (allow_seed_reset && clusterID!=0 && 
+						cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*seedOverrideScoreDifference && 
+						!primarySeed_is_immutable){		// this pwm is better, and primary seed is allow to change
 					// reset sequences, kmers, to start over with this new bestSeed
 					seqs = pos_seq_backup.clone();
 					seqsNegList.clear();
@@ -1529,7 +1558,7 @@ public class KmerMotifFinder {
 					primarySeed = seed;
 					if (verbose>1)
 						System.out.println("**** Secondary motif is more enriched than primary motif, start over with seed="+seed.getKmerString());
-					primarySeed_is_reset=true;							// marked as "reset", only once, avoid potential infinite loop
+					primarySeed_is_immutable=true;							// marked as "reset", only once, avoid potential infinite loop
 					continue;										// start over with new seed
 				}
 			}
@@ -5596,7 +5625,7 @@ public class KmerMotifFinder {
 		        if(ap.hasKey("geninfo")){
 		          g = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
 		        }else{
-	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
+	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");System.exit(1);
 	            }
 		      }else{
 		        g = pair.cdr();
@@ -5647,18 +5676,17 @@ public class KmerMotifFinder {
         }   
         
         KmerMotifFinder kmf = new KmerMotifFinder();
-        kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200, 0, true, true);
         boolean use_seed_family = true;
         boolean use_KSM = true;
-        boolean use_PWM_MM = false;
         double noiseRatio = 0;
+        kmf.setSequences(pos_seqs, neg_seqs, seq_w);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200, 0, true, true, noiseRatio, use_seed_family, use_KSM, null);
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);
 //        }
-        int k = kmf.selectK(8, 10, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
+        int k = kmf.selectK(8, 10);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
-        kmf.alignBySimplePWM(kmers, -1, noiseRatio, use_seed_family, use_KSM, use_PWM_MM);
+        kmf.alignBySimplePWM(kmers, -1);
 	}
 }
 

@@ -191,8 +191,13 @@ public class GPS2 {
          **/   
         if (run_gem){
         	// initialize first set of kmers from GPS result
-	        mixture.initKMF();	
-	        
+	        int returnValue = mixture.initKMF();	
+	        if (returnValue == -1){					// this could happen if no k value can be found to give good motif
+	        	mixture.plotAllReadDistributions();
+	            mixture.closeLogFile();
+	            return;
+	        }
+	        	
             for (int i=1;i<GEM_round;i++){
 				round++;			
 	            System.out.println("\n============================ Round "+round+" ============================");

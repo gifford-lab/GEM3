@@ -3534,13 +3534,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	}
 		
 	/**
-     * Initalize the kmer engine
-     * This is called only once for initial setup.
-     * It compact the cached sequence data and build the KMF
+     * Initalize the kmer engine, then run KMF<br>
+     * This is called only once for initial setup.<br>
+     * It compact the cached sequence data and build the KMF<br>
+     * If the return value is -1, KMF is not successful, should exit the program.
      */
-    public void initKMF(){
+    public int initKMF(){
     	if (config.k==-1 && config.k_min==-1)
-    		return;
+    		return -1;
 		
     	System.out.println("Loading genome sequences ...");
 		kmf = new KmerMotifFinder(gen, config.cache_genome);
@@ -3606,8 +3607,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println(String.format("GC content=%.2f\n", config.gc));
 		}
 		
-		runKMF(config.k_win);
+		return runKMF(config.k_win);		
     }
+    
     private ArrayList<ComponentFeature> getEvents(){
 		ArrayList<ComponentFeature> events = new ArrayList<ComponentFeature>();
 		int count = 1;
@@ -3728,13 +3730,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
 //		kmers = alignOverlappedKmers(kmers, getEvents(), false);
 //		kmf.updateEngine(kmers, outName);		
 //    }
-    
-    public void runKMF( int winSize){
+    /**
+     * Run the K-mer motif discovery procedure <br>
+     * If the return value is -1, KMF is not successful, should exit the program.
+     */
+    public int runKMF( int winSize){
     	// set the parameters
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
     			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight, config.allow_single_family,
     			outName, config.bmverbose, config.kmer_aligned_fraction, config.print_aligned_seqs, config.re_train, config.max_cluster,
-				 config.repeat_fraction, config.allow_seed_reset, config.allow_seed_inheritance);
+				 config.repeat_fraction, config.allow_seed_reset, config.allow_seed_inheritance, config.noise, config.use_seed_family, config.use_ksm, config.seed);
     	
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();
@@ -3746,7 +3751,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			int bestK = kmf.selectK(config.k_min, config.k_max, config.noise, config.use_seed_family, config.use_ksm, true);
+			int bestK = kmf.selectK(config.k_min, config.k_max);
 			if (bestK!=0){
 				config.k = bestK;
 				config.k_min = -1;		// prevent selecting k again
@@ -3754,7 +3759,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			else{
 				log(1, "The value of k can not be determined automatically.");
-				System.exit(-1);
+				return -1;
 			}
 		}
 		else{
@@ -3763,7 +3768,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignBySimplePWM(kmers, -1, config.noise, config.use_seed_family, config.use_ksm, config.use_pwm_mm);
+		kmers = kmf.alignBySimplePWM(kmers, -1);
 			
 		// print the clustered k-mers
 		Collections.sort(kmers);
@@ -3775,6 +3780,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			if (km.getClusterId()==0)
 				primaryKmers.add(km);
 		kmf.updateEngine(primaryKmers);		
+		return 0;
     }
     
     /** 
@@ -6032,6 +6038,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k = -1;			// the width of kmer
         public int k_min = -1;		// the minimum value of k
         public int k_max= -1;		// the maximum value of k        
+        public String seed = null;
         public int k_seqs = 100000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_win2 = 100;	// the window around binding event to search for motifs (in later rounds)
@@ -6065,7 +6072,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
        	public boolean use_kmer_mismatch = true;
        	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
        	public boolean use_ksm = true;				// align with KSM (together with PWM)
-       	public boolean use_pwm_mm = false;			// align with PWM mismatch (together with PWM)
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
       	public double noise = 0.0;
@@ -6140,14 +6146,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
             select_seed = flags.contains("select_seed");
             kmer_use_insig = flags.contains("kmer_use_insig");
             kmer_use_filtered = flags.contains("kmer_use_filtered");
-            use_pwm_mm = flags.contains("use_pwm_mm");
             re_align_kmer = flags.contains("rak");
             mask_by_pwm = flags.contains("mask_by_pwm");
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_input_seqs = flags.contains("print_input_seqs");
             re_train = flags.contains("re_train");
-            print_pwm_fdr = flags.contains("print_pwm_fdr");
-            
+            print_pwm_fdr = flags.contains("print_pwm_fdr");            
             
             // default as true, need the opposite flag to turn it off
             exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -6180,6 +6184,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k = Args.parseInteger(args, "k", k);
             k_min = Args.parseInteger(args, "k_min", k_min);
             k_max = Args.parseInteger(args, "k_max", k_max);
+            seed = Args.parseString(args, "seed", null);
+            if (seed!=null){
+            	k = seed.length();
+            	k_min = -1;
+            	k_max = -1;
+            }
             k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
             k_win = Args.parseInteger(args, "k_win", k_win);
             k_win_f = Args.parseInteger(args, "k_win_f", k_win_f);
