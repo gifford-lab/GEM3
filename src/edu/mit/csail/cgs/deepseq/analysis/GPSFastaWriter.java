@@ -230,6 +230,8 @@ public class GPSFastaWriter{
 	    	count++;
 	    }
 		chipSeq.closeLoaders();
+		chipSeq=null;
+		System.gc();
 	    if (write_read_coverage){
 		    CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.summit.txt", hms_summit_sb.toString());
 		    CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.fasta", sb.toString());
