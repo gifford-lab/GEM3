@@ -228,12 +228,14 @@ public class GPSFastaWriter{
 	    	}
 	    	count++;
 	    }
-	    CommonUtils.writeFile(exptName+"_"+window+"bp.fasta", sb.toString());
-	    CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.summit.txt", hms_summit_sb.toString());
 	    if (write_read_coverage){
+		    CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.summit.txt", hms_summit_sb.toString());
+		    CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.fasta", sb.toString());
 	    	CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.basecover.txt", hms_readcoverage_sb.toString());
 	    	CommonUtils.writeFile(exptName+"_"+window+"bp_ChIPMunk.peak.txt", chipmunk_sb.toString());
 	    }
+	    else
+	    	CommonUtils.writeFile(exptName+"_"+window+"bp.fasta", sb.toString());
 	    System.out.println(exptName+" is processed, "+(count-1)+" sequences has been written.");
 	  }
   }
