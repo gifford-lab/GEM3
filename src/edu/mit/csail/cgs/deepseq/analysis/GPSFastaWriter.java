@@ -154,17 +154,18 @@ public class GPSFastaWriter{
 	        chipSeq = new DeepSeqExpt(genome, locators, "readdb", -1);
 	    }        
 	    
+	    int seqNum = 0;
 	    if (top==-1)				// if top = -1, use all peaks
-	    	top = gpsPeaks.size();
+	    	seqNum = gpsPeaks.size();
 	    else
-	    	top = Math.min(top, gpsPeaks.size());
+	    	seqNum = Math.min(top, gpsPeaks.size());
 	    int count=1;
 	    StringBuilder sb = new StringBuilder();
 	    StringBuilder hms_summit_sb = new StringBuilder();
 	    StringBuilder hms_readcoverage_sb = new StringBuilder();
 	    StringBuilder chipmunk_sb = new StringBuilder();
 	    eachPeak: for (GPSPeak p: gpsPeaks){
-	    	if (count>top)
+	    	if (count>seqNum)
 	    		break;
 	    	int start = p.getLocation()-window/2;
 	    	if (start<0)
