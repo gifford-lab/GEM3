@@ -25,7 +25,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class GPSFastaWriter{  
-	// --species "Homo sapiens;hg19" --window 100 --top 500 --no_cache  --root C:\Data\workspace\gse
+	// --species "Homo sapiens;hg19" --window 200 --top -1 --no_cache  --root C:\Data\workspace\gse [--expts expt_done.txt] --write_read_coverage
   public static void main(String[] args){
     ArgParser ap = new ArgParser(args);
     Set<String> flags = Args.parseFlags(args);
@@ -58,18 +58,41 @@ public class GPSFastaWriter{
 	List<String> names = new ArrayList<String>();
 	File dir = new File(Args.parseString(args, "root", null));
     if (!dir.exists()){
-      System.err.println("Please provide root of GEM/GPS analysis folders, '--root rootName' ");
+      System.err.println("Please provide root of GEM/GPS analysis folders, '--root root_path' ");
       System.exit(0);
     }	
-	File[] children = dir.listFiles();
-	for (int i=0;i<children.length;i++){
-		File child = children[i];
-		if (child.isDirectory())
-			names.add(child.getName());
-	}
+    
+    String expts_file = Args.parseString(args, "expts", null);
+    if (expts_file!=null){		// read expt names from a file
+    	File listFile = new File(dir, expts_file);
+	    if (!listFile.exists()){
+	    	System.err.println("Expt list file not exist: "+listFile.getAbsolutePath());
+	    	System.exit(0);
+	    }
+		BufferedReader bin = null;
+		try{
+	        bin = new BufferedReader(new InputStreamReader(new FileInputStream(listFile)));
+	        String line;
+	        while((line = bin.readLine()) != null) 
+	            names.add(line.trim());
+		}
+		catch (IOException e){
+			System.err.println("Error in reading expt list file, "+listFile.getAbsolutePath());
+			e.printStackTrace(System.err);
+		}
+    }
+    else{
+		File[] children = dir.listFiles();
+		for (int i=0;i<children.length;i++){
+			File child = children[i];
+			if (child.isDirectory())
+				names.add(child.getName());
+		}
+    }
 	
     // load GPS results
 	for (String exptName : names){
+		System.out.println("Writing sequences and related info from events for "+exptName);
 	    File gpsFile = new File(new File(exptName), exptName+"_1_GPS_significant.txt");
 	    if (!gpsFile.exists()){
 	    	System.err.println("GPS file not exist: "+gpsFile.getAbsolutePath());
