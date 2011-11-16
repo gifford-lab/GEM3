@@ -3768,7 +3768,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.alignBySimplePWM(kmers, -1);
+		kmers = kmf.findMotif_HybridAlignment(kmers, -1);
 			
 		// print the clustered k-mers
 		Collections.sort(kmers);

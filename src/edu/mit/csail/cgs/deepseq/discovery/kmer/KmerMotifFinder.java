@@ -56,6 +56,11 @@ public class KmerMotifFinder {
 	private final int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
             Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
 	
+	private boolean discriminative = false;
+	public void setDiscriminative(){
+		discriminative = true;
+	}
+	
 	private int verbose = 2;
 	private Genome genome;
 	private boolean engineInitialized =false;
@@ -436,7 +441,7 @@ public class KmerMotifFinder {
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			alignBySimplePWM(kmers, 2);
+			findMotif_HybridAlignment(kmers, 2);
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -1298,7 +1303,7 @@ public class KmerMotifFinder {
 //		return processClusters();
 //	}
 	
-	public ArrayList<Kmer> alignBySimplePWM (ArrayList<Kmer> kmers_in, int topCluster){
+	public ArrayList<Kmer> findMotif_HybridAlignment (ArrayList<Kmer> kmers_in, int topCluster){
 		int seed_range = k;
 		String[] pos_seq_backup = seqs.clone();
 		String[] neg_seq_backup = new String[seqsNegList.size()];
@@ -1723,20 +1728,22 @@ public class KmerMotifFinder {
 		}	// if re-train
 		
     	// re-build PWM with un-masked sequences
-		if (verbose>1)
-			System.out.println("\nRebuilding motif clusters with un-masked sequences ...");
-		for (int i=0;i<clusters.size();i++){		// do not need this for primary cluster
-			KmerCluster cluster = clusters.get(i);
-			if (cluster.wm==null)
-				continue;
+		if (!discriminative){
 			if (verbose>1)
-				System.out.println(String.format("\n%s: Refining %s hgp=1e-%.1f", CommonUtils.timeElapsed(tic), 
-						WeightMatrix.getMaxLetters(cluster.wm), cluster.pwmThresholdHGP));
-			for (double dec=0;dec<0.3;dec+=0.1){		// refine using more relax threshold to try more sequences
-				while(true){
-					HashMap<Integer, PWMHit> hits = findAllPWMHits (seqList, cluster, wm_factor-dec); 
-					if (buildPWMfromHits(seqList, cluster, hits.values().iterator())<=-1)	// But the selection wm_factor IS NOT CHANGED
-						break;
+				System.out.println("\nRefining motifs with un-masked sequences ...");
+			for (int i=0;i<clusters.size();i++){		// do not need this for primary cluster
+				KmerCluster cluster = clusters.get(i);
+				if (cluster.wm==null)
+					continue;
+				if (verbose>1)
+					System.out.println(String.format("\n%s: Refining %s hgp=1e-%.1f", CommonUtils.timeElapsed(tic), 
+							WeightMatrix.getMaxLetters(cluster.wm), cluster.pwmThresholdHGP));
+				for (double dec=0;dec<0.3;dec+=0.1){		// refine using more relax threshold to try more sequences
+					while(true){
+						HashMap<Integer, PWMHit> hits = findAllPWMHits (seqList, cluster, wm_factor-dec); 
+						if (buildPWMfromHits(seqList, cluster, hits.values().iterator())<=-1)	// But the selection wm_factor IS NOT CHANGED
+							break;
+					}
 				}
 			}
 		}
@@ -5637,41 +5644,65 @@ public class KmerMotifFinder {
 	    List<File> files = Args.parseFileHandles(args, "kmers_file");
 	    kEngine.indexKmers(files);
 	}
+	
+	// options cMyc_cMyc cMyc_HeLa_61bp_GEM.fasta cMyc_HeLa_61bp_GEM_neg.fasta 5 8 CCACGTG
 	public static void main(String[] args){
 		ArrayList<String> pos_seqs = new ArrayList<String>();
 		ArrayList<Double> seq_w = new ArrayList<Double>();
+		if (args.length<5){
+			System.err.println("Usage: KmerMotifFinder name pos_seq_fasta neg_seq_fasta k_min k_max [seed_k-mer]");
+			System.exit(-1);
+		}
+		String name = args[0];
+		String pos_file = args[1];
+		String neg_file = args[2];
+		int k_min = Integer.parseInt(args[3]);
+		int k_max = Integer.parseInt(args[4]);
+		int k = -1;
+		String seed = null;
+		if (args.length==6){
+			seed = args[5];
+			k=seed.length();
+			System.out.println("Starting seed k-mer is "+seed+".\n");
+		}
+		
 		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[0]))));
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(pos_file))));
 	        String line;
 	        String[]f = null;
 	        while((line = bin.readLine()) != null) { 
-	            f = line.trim().split("\t");
-	            pos_seqs.add(f[0]);
-	            if (f.length>1)
-	            	seq_w.add(Double.parseDouble(f[1]));
-	            else
-	            	seq_w.add(1.0);
+	        	line = line.trim();
+	        	if (line.startsWith(">")){
+	        		f = line.split(" ");
+	        		if (f.length>1)
+		            	seq_w.add(Double.parseDouble(f[1]));
+		            else
+		            	seq_w.add(1.0);
+	        	}
+	        	else
+	        		pos_seqs.add(line);
 	        }			
 	        if (bin != null) {
 	            bin.close();
 	        }
         } catch (IOException e) {
-        	System.err.println("Error when processing "+args[0]);
+        	System.err.println("Error when processing "+pos_file);
             e.printStackTrace(System.err);
         }
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[1]))));
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(neg_file))));
 	        String line;
 	        while((line = bin.readLine()) != null) { 
 	            line = line.trim();
-	            neg_seqs.add(line);
+	            if (!line.startsWith(">"))
+	            	neg_seqs.add(line);
 	        }			
 	        if (bin != null) {
 	            bin.close();
 	        }
         } catch (IOException e) {
-        	System.err.println("Error when processing "+args[1]);
+        	System.err.println("Error when processing "+neg_file);
             e.printStackTrace(System.err);
         }   
         
@@ -5680,13 +5711,15 @@ public class KmerMotifFinder {
         boolean use_KSM = true;
         double noiseRatio = 0;
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, false, "Test", 2, 0.5, false, false, 200, 0, true, true, noiseRatio, use_seed_family, use_KSM, null);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, 2, 0.5, false, false, 200, 0, true, true, noiseRatio, use_seed_family, use_KSM, seed);
+        kmf.setDiscriminative();
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);
 //        }
-        int k = kmf.selectK(8, 10);
+        if (k==-1)
+        	k = kmf.selectK(k_min, k_max);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
-        kmf.alignBySimplePWM(kmers, -1);
+        kmf.findMotif_HybridAlignment(kmers, -1);
 	}
 }
 
