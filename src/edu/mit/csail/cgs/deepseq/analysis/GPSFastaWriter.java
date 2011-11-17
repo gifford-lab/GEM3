@@ -25,7 +25,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class GPSFastaWriter{  
-	// --species "Homo sapiens;hg19" --window 200 --top -1 --no_cache  --root C:\Data\workspace\gse [--expts expt_done.txt] --write_read_coverage
+	// --species "Homo sapiens;hg19" --expts expt_done.txt [--root C:\Data\workspace\gse] --window 200 --top -1 --no_cache  
   public static void main(String[] args){
     ArgParser ap = new ArgParser(args);
     Set<String> flags = Args.parseFlags(args);
@@ -47,13 +47,17 @@ public class GPSFastaWriter{
       e.printStackTrace();
     }
     
+    boolean wantMEME = flags.contains("meme");
+    boolean wantGEM = flags.contains("gem");
+    boolean wantHMS = flags.contains("hms");
+    boolean wantChIPMunk = flags.contains("chipmunk");
+    
     int window = Args.parseInteger(args, "window", 100);
     int top = Args.parseInteger(args, "top", 500);
     
      SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	seqgen.useCache(!flags.contains("no_cache"));
 	boolean skip_repeat = !flags.contains("allow_repeat");
-	boolean write_read_coverage = flags.contains("write_read_coverage");
 	
 	List<String> names = new ArrayList<String>();
 	File dir = new File(Args.parseString(args, "root", null));
@@ -81,7 +85,7 @@ public class GPSFastaWriter{
 			e.printStackTrace(System.err);
 		}
     }
-    else{
+    else{		// if no expt name file, try all sub-folders
 		File[] children = dir.listFiles();
 		for (int i=0;i<children.length;i++){
 			File child = children[i];
@@ -109,7 +113,7 @@ public class GPSFastaWriter{
 	    
 	    // use exptName.report.txt file to get the data strings to read db
 	    DeepSeqExpt chipSeq = null;
-	    if (write_read_coverage){
+	    if (wantHMS || wantChIPMunk){
 	    	ArrayList<String> readDbStrings = new ArrayList<String>();
 		    File reportFile = new File(new File(exptName), exptName+".report.txt");
 		    if (!reportFile.exists()){
@@ -152,7 +156,7 @@ public class GPSFastaWriter{
 	        if (locators.isEmpty())
 	        	continue;
 	        chipSeq = new DeepSeqExpt(genome, locators, "readdb", -1);
-	    }        
+	    } // prepare read DB access        
 	    
 	    int seqNum = 0;
 	    if (top==-1)				// if top = -1, use all peaks
@@ -161,6 +165,7 @@ public class GPSFastaWriter{
 	    	seqNum = Math.min(top, gpsPeaks.size());
 	    int count=1;
 	    StringBuilder sb = new StringBuilder();
+	    StringBuilder gem_sb = new StringBuilder();
 	    StringBuilder hms_summit_sb = new StringBuilder();
 	    StringBuilder hms_readcoverage_sb = new StringBuilder();
 	    StringBuilder chipmunk_sb = new StringBuilder();
@@ -174,6 +179,11 @@ public class GPSFastaWriter{
 	    	if (end>=genome.getChromLength(p.getChrom()))
 	    		continue;
 	    	Region r = new Region(genome, p.getChrom(), start, end);
+	    	if (wantGEM){
+	    		r = p.expand(window/2);
+	    		if (r.getWidth()!=2*(window/2)+1)		// if at the end of chromosome, skip
+	    			continue;
+	    	}
 	    	String seq = seqgen.execute(r);
 	    	if (skip_repeat){
 				for (char c:seq.toCharArray())
@@ -183,12 +193,18 @@ public class GPSFastaWriter{
 	    	//	passed the repeat check, output
 	    	sb.append(">seq_").append(count).append(" ").append(exptName).append(" ").append(r.toString()).append("\n");
 	    	sb.append(seq).append("\n");
+	    	
+	    	gem_sb.append(String.format(">seq_%d %.1f %s %s\n", count, p.getStrength(), exptName, r.toString()));
+	    	gem_sb.append(seq).append("\n");
+	    	
 	    	hms_summit_sb.append(window/2).append("\n");
-	    	if (write_read_coverage){
+	    	
+	    	List<ReadHit> hits = null;
+	    	if (wantHMS){
 	    		// HMS coverage is based on read itself only
 	    		double[] coverage = new double[r.getWidth()]; 
 	    		int origin = r.getStart();
-	    		List<ReadHit> hits = chipSeq.loadHits(r);
+	    		hits = chipSeq.loadHits(r);
 	    		for (ReadHit h : hits){
 	    			for (int i=h.getStart();i<=h.getEnd();i++){
 	    				int idx = i-origin;
@@ -202,9 +218,14 @@ public class GPSFastaWriter{
 	    		}
 	    		hms_readcoverage_sb.append("\n");
 	    		
+	    	}
+	    	if (wantChIPMunk){
 	    		// ChIPMunk coverage is based on extended reads (here extend to 200bp)
-	    		coverage = new double[r.getWidth()];
+	    		double[] coverage = new double[r.getWidth()];
+	    		int origin = r.getStart();
 	    		int readExtendedLength = 200;
+	    		if (hits==null)
+	    			hits = chipSeq.loadHits(r);
 	    		for (ReadHit h : hits){
 	    			if (h.getStrand()=='+'){
 		    			for (int i=h.getStart();i<h.getStart()+readExtendedLength;i++){
@@ -229,7 +250,7 @@ public class GPSFastaWriter{
 	    	}
 	    	count++;
 	    }
-	    if (write_read_coverage){
+	    if (wantHMS || wantChIPMunk){
 			chipSeq.closeLoaders();
 			chipSeq=null;
 			System.gc();
@@ -238,8 +259,11 @@ public class GPSFastaWriter{
 	    	CommonUtils.writeFile(exptName+"_"+window+"bp_HMS.basecover.txt", hms_readcoverage_sb.toString());
 	    	CommonUtils.writeFile(exptName+"_"+window+"bp_ChIPMunk.peak.txt", chipmunk_sb.toString());
 	    }
-	    else
+	    if (wantMEME)
 	    	CommonUtils.writeFile(exptName+"_"+window+"bp.fasta", sb.toString());
+	    if (wantGEM)
+	    	CommonUtils.writeFile(exptName+"_"+window+"bp_GEM.fasta", gem_sb.toString());
+	    
 	    System.out.println(exptName+" is processed, "+(count-1)+" sequences has been written.");
 	  }
   }
