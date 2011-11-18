@@ -56,7 +56,7 @@ public class StrandedRegion extends Region implements Stranded {
         if(!(o instanceof StrandedRegion)) { return false; }
         StrandedRegion nr = (StrandedRegion)o;
         if(nr.strand != strand) { return false; }
-        return true;
+        return super.equals(nr);
     }
 
     public StrandedRegion expand(int upstream, int downstream) {
