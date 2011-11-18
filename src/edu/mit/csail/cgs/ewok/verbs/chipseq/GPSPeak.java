@@ -17,13 +17,15 @@ public class GPSPeak extends Point{
 	int distance;
 	Point EM_position;
 	String kmer;
-	int kmerCount;
+	int kmerGroupCount;
+	char kmerStrand;
 	double kmerStrength;
 	String boundSequence;
 	public String getKmer() {return kmer;}
 	public void setKmer(String km) {kmer=km;}
-	public int getKmerCount() {	return kmerCount;}
+	public int getKmerGroupCount() {	return kmerGroupCount;}
 	public double getKmerStrength() {return kmerStrength;}
+	public char getKmerStrand() {return kmerStrand;}
 	public String getBoundSequence() {return boundSequence;}
 	public void setBoundSequence(String bs) {boundSequence=bs;}
 
@@ -97,7 +99,7 @@ public class GPSPeak extends Point{
 		this.IPvsCTR = IPvsCTR;
 		this.EM_position = this;
 		this.kmer = kmer;
-		this.kmerCount = kmerCount;
+		this.kmerGroupCount = kmerCount;
 		this.kmerStrength = kmerStrength;
 		this.boundSequence = boundSequence;
 	}
@@ -120,7 +122,7 @@ public class GPSPeak extends Point{
 	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	Kmer	Count	Strength	BoundSequence	EnrichedHGP
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double ctrlStrength, double expectedStrength,
 			double qvalue, double pvalue, double pois_pvalue, double IPvsEMP, double IPvsCTR, 
-			String kmer, int kmerCount, double kmerStrength, String boundSequence){
+			String kmer, int kmerCount, char kmerStrand, String boundSequence){
 		super(g, chr.replaceFirst("chr", ""), pos);
 		this.strength = ipStrength;
 		this.controlStrength = ctrlStrength;
@@ -132,8 +134,8 @@ public class GPSPeak extends Point{
 		this.IPvsCTR = IPvsCTR;
 		this.EM_position = this;
 		this.kmer = kmer;
-		this.kmerCount = kmerCount;
-		this.kmerStrength = kmerStrength;
+		this.kmerGroupCount = kmerCount;
+		this.kmerStrand = kmerStrand;
 		this.boundSequence = boundSequence;
 	}
 	

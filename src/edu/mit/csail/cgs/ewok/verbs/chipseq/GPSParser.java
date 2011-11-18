@@ -135,7 +135,7 @@ public class GPSParser {
             peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
                     Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), Double.parseDouble(t[5]), 
                     Math.pow(10,-1*Double.parseDouble(t[6])), Double.parseDouble(t[7]), Double.parseDouble(t[8]), Double.parseDouble(t[9]),
-                    t[10], (int)Double.parseDouble(t[11]), Double.parseDouble(t[12]), t[13]);
+                    t[10], (int)Double.parseDouble(t[11]), t[12].charAt(0), t[13]);
 	    } else {
             throw new RuntimeException("Invalid number of fields (" + t.length + ") on line " + lineNumber + ": " + gpsLine);
         }

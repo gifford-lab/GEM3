@@ -42,6 +42,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	
 	protected KmerGroup kmerGroup;
 	public KmerGroup getKmerGroup() { return kmerGroup; }
+	protected char kmerStrand;
+	public char getKmerStrand(){return kmerStrand;}
 	protected double enrichedKmerHGPLog10=99;
 	public double getEnrichedKmerHGPLog10() {
 		return enrichedKmerHGPLog10;
@@ -78,6 +80,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		EM_position = b.getEMPosition();
 		alpha = b.getAlpha();
 		kmerGroup = b.getKmerGroup();
+		kmerStrand = b.getKmerStrand();
 		ipCtrl_logKL_plus = new double[numConditions];
 		ipCtrl_logKL_minus = new double[numConditions];
 		boundSequence = b.getBoundSequence();
@@ -419,7 +422,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append("\t");
         }
         if (boundSequence!=null){
-	        header.append("Kmer       \t").append("Count\t").append("Strength\t").append("BoundSequence"); 
+	        header.append("Kmer       \t").append("KG_hgp\t").append("Strand\t").append("BoundSequence"); 
 	        if (getEnrichedKmerHGPLog10()>=0)
 	        	header.append("\tEnrichedHGP");
         }
@@ -482,9 +485,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         }
         if (boundSequence!=null){
 	        if (kmerGroup!=null)
-	        	result.append(String.format("%s %d/%d\t%.2f\t%.1f\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getHgp(), kmerGroup.getWeightedKmerStrength(), boundSequence));
+	        	result.append(String.format("%s %d/%d\t%.2f\t%s\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getHgp(), kmerStrand, boundSequence));
 	        else
-	        	result.append(CommonUtils.padding(8, ' ')).append("\t").append(0).append("\t").append(String.format("%.1f\t", 0.0)).append(boundSequence);
+	        	result.append(CommonUtils.padding(8, '-')).append("\t").append(0).append("\t").append("*\t").append(boundSequence);
 	        if (getEnrichedKmerHGPLog10()!=99)
 	        	result.append(String.format("\t%.1f", getEnrichedKmerHGPLog10()));
         }

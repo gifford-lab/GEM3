@@ -30,6 +30,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
 	public String getBoundSequence(){return boundSequence;}
 	public void setBoundSequence(String boundSequence){this.boundSequence = boundSequence;}
+	private char kmerStrand='+';
+	public char getKmerStrand(){return kmerStrand;}
+	public void setKmerStrand(char strand){kmerStrand = strand;}
 	
 	public int getOld_index() {
 		return old_index;

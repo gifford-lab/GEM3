@@ -7491,10 +7491,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	        		// Then we can not assume the middle is binding position
 	        		String bs = seq.substring(left,right+1);
 	        		if (b.getKmerGroup()!=null){
-	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString()))
+	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString())){
 	        				bs = SequenceUtils.reverseComplement(bs);
-	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString()))
+	        				b.setKmerStrand('-');
+	        			}
+	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString())){
 	        				b.setKmerGroup(null);
+	        				b.setKmerStrand('0');
+	        			}
 	        		}
 	    			b.setBoundSequence(bs);
         		}
