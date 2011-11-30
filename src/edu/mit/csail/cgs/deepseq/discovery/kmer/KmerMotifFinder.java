@@ -52,8 +52,8 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 public class KmerMotifFinder {
 	private final int RC=100000;		// extra bp add to indicate negative strand match of kmer
 	private final int UNALIGNED=9999;	// the special shift for unaligned kmer
-	private final char[] LETTERS = {'A','C','G','T'};
-	private final int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
+	public static final char[] LETTERS = {'A','C','G','T'};
+	public final int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
             Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
 	
 	private boolean discriminative = false;
