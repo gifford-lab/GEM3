@@ -30,7 +30,8 @@ public class ChipSeqAboveBelowStrandPainter extends ChipSeqPainter {
     protected Vector<ChipSeqHit> crickLayoutHits = new Vector<ChipSeqHit>();
     protected NonOverlappingLayout<ChipSeqHit> watsonLayout = new NonOverlappingLayout<ChipSeqHit>();
     protected NonOverlappingLayout<ChipSeqHit> crickLayout = new NonOverlappingLayout<ChipSeqHit>();
-
+    private Color plusHitColor = Color.blue;
+    private Color minusHitColor = Color.blue;
 
     public ChipSeqAboveBelowStrandPainter(ChipSeqDataModel model) {
         super(model);
@@ -48,10 +49,12 @@ public class ChipSeqAboveBelowStrandPainter extends ChipSeqPainter {
                 Region extended = null;
                 while (itr.hasNext()) {
                     ChipSeqHit hit = itr.next();
-                    if (hit.getStrand() == '+') {
-                        watsonLayoutHits.add(hit);
-                    } else {
-                        crickLayoutHits.add(hit);
+                    if(getProperties().DrawNonUnique || hit.getWeight()>=1.0){
+                    	if (hit.getStrand() == '+') {
+                    		watsonLayoutHits.add(hit);
+                    	} else {
+                    		crickLayoutHits.add(hit);
+                    	}
                     }
                 }
                 watsonLayout.setRegions(watsonLayoutHits);
@@ -97,7 +100,7 @@ public class ChipSeqAboveBelowStrandPainter extends ChipSeqPainter {
         double trackHeight = (double)availHeight / (double)(maxoverlap+1.0);
         int pixTrackHeight = Math.max(1, (int)Math.floor(trackHeight));
         
-        g.setColor(Color.blue);
+        g.setColor(plusHitColor);
         Stroke oldStroke = g.getStroke();
         //g.setStroke(new BasicStroke((float)2.0));
 
@@ -111,7 +114,7 @@ public class ChipSeqAboveBelowStrandPainter extends ChipSeqPainter {
             }
         }
 
-        g.setColor(Color.red);
+        g.setColor(minusHitColor);
         for(int over = 1; over <= Math.min(Math.ceil(crickMaxOverlap), Math.ceil(maxoverlap)); over++) { 
             Collection<Region> crickRegs = crickOverlap.collectRegions(over);
             for(Region or : crickRegs) { 
@@ -193,82 +196,89 @@ public class ChipSeqAboveBelowStrandPainter extends ChipSeqPainter {
         int hitHeight = Math.max(2, (int)Math.floor((double)pixTrackHeight * 0.90));
         int halfHitHeight = hitHeight / 2;
         
-        g.setColor(Color.blue);
+        g.setColor(plusHitColor);
         Stroke oldStroke = g.getStroke();
         //g.setStroke(new BasicStroke((float)2.0));
 
         for(ChipSeqHit watsonHit : watsonLayoutHits) {
             int track = 0;
-            
-            if(!watsonLayout.hasTrack(watsonHit)) { 
-                System.err.println("No track assigned to hit: " + watsonHit.getLocationString());
-            } 
-            else { 
-                track = Math.min(numTracks,watsonLayout.getTrack(watsonHit));
+            if(getProperties().DrawNonUnique || watsonHit.getWeight()>=1.0){
+	            if(!watsonLayout.hasTrack(watsonHit)) { 
+	                System.err.println("No track assigned to hit: " + watsonHit.getLocationString());
+	            } 
+	            else { 
+	                track = Math.min(numTracks,watsonLayout.getTrack(watsonHit));
+	            }
+	
+	            int hy1 = baseline - (pixTrackHeight * (track + 1));
+	            int hy2 = hy1 + pixTrackHeight;
+	            int hmy = hy1 + halfTrackHeight;
+	                        
+	            int htop = hmy - halfHitHeight;
+	            int hbottom = hmy + halfHitHeight;
+	            
+	            int hitStart = watsonHit.getStart();
+	            int hitEnd = watsonHit.getEnd();
+	            
+	            int hx1 = xcoord(hitStart, x1, rs, xScale);
+	            int hx2 = xcoord(hitEnd, x1, rs, xScale);
+	            int hleft = Math.max(x1, hx1);
+	            int hright = Math.min(x2, hx2);
+	
+	            int rectwidth = hright - hleft + 1;
+	
+	            Color c = new Color(plusHitColor.getRed(), plusHitColor.getGreen(), plusHitColor.getBlue(), (int)(watsonHit.getWeight()*255));
+	            g.setColor(c);
+	            if (watsonHit.getWeight() == 1) {
+	              
+	            }
+	            else {              
+	              //g.setColor(Color.cyan);
+	            }
+	            g.fillRect(hleft, htop, rectwidth, hbottom - htop);
             }
-
-            int hy1 = baseline - (pixTrackHeight * (track + 1));
-            int hy2 = hy1 + pixTrackHeight;
-            int hmy = hy1 + halfTrackHeight;
-                        
-            int htop = hmy - halfHitHeight;
-            int hbottom = hmy + halfHitHeight;
-            
-            int hitStart = watsonHit.getStart();
-            int hitEnd = watsonHit.getEnd();
-            
-            int hx1 = xcoord(hitStart, x1, rs, xScale);
-            int hx2 = xcoord(hitEnd, x1, rs, xScale);
-            int hleft = Math.max(x1, hx1);
-            int hright = Math.min(x2, hx2);
-
-            int rectwidth = hright - hleft + 1;
-
-            if (watsonHit.getWeight() == 1) {
-              g.setColor(Color.blue);
-            }
-            else {              
-              g.setColor(Color.cyan);
-            }
-            g.drawRect(hleft, htop, rectwidth, hbottom - htop);
         }
         
         
-        g.setColor(Color.red);        
+        g.setColor(minusHitColor);        
         for(ChipSeqHit crickHit : crickLayoutHits) {
-            int track = 0;
-            
-            if(!crickLayout.hasTrack(crickHit)) { 
-                System.err.println("No track assigned to hit: " + crickHit.getLocationString());
-            } 
-            else { 
-                track = Math.min(numTracks,crickLayout.getTrack(crickHit));
-            }
-
-            int hy1 = baseline + (pixTrackHeight * track);
-            int hy2 = hy1 + pixTrackHeight;
-            int hmy = hy1 + halfTrackHeight;           
-            
-            int htop = hmy - halfHitHeight;
-            int hbottom = hmy + halfHitHeight;
-            
-            int hitStart = crickHit.getStart();
-            int hitEnd = crickHit.getEnd();
-            
-            int hx1 = xcoord(hitStart, x1, rs, xScale);
-            int hx2 = xcoord(hitEnd, x1, rs, xScale);
-            int hleft = Math.max(x1, hx1);
-            int hright = Math.min(x2, hx2);
-
-            int rectwidth = hright - hleft + 1;
-
-            if (crickHit.getWeight() == 1) {
-              g.setColor(Color.red);
-            }
-            else {              
-              g.setColor(Color.pink);
-            }
-            g.drawRect(hleft, htop, rectwidth, hbottom - htop);
+        	if(getProperties().DrawNonUnique || crickHit.getWeight()>=1.0){
+	        	int track = 0;
+	            
+	            if(!crickLayout.hasTrack(crickHit)) { 
+	                System.err.println("No track assigned to hit: " + crickHit.getLocationString());
+	            } 
+	            else { 
+	                track = Math.min(numTracks,crickLayout.getTrack(crickHit));
+	            }
+	
+	            int hy1 = baseline + (pixTrackHeight * track);
+	            int hy2 = hy1 + pixTrackHeight;
+	            int hmy = hy1 + halfTrackHeight;           
+	            
+	            int htop = hmy - halfHitHeight;
+	            int hbottom = hmy + halfHitHeight;
+	            
+	            int hitStart = crickHit.getStart();
+	            int hitEnd = crickHit.getEnd();
+	            
+	            int hx1 = xcoord(hitStart, x1, rs, xScale);
+	            int hx2 = xcoord(hitEnd, x1, rs, xScale);
+	            int hleft = Math.max(x1, hx1);
+	            int hright = Math.min(x2, hx2);
+	
+	            int rectwidth = hright - hleft + 1;
+	
+	            Color c = new Color(plusHitColor.getRed(), plusHitColor.getGreen(), plusHitColor.getBlue(), (int)(crickHit.getWeight()*255));
+	            g.setColor(c);
+	            if (crickHit.getWeight() == 1) {
+	              
+	            }
+	            else {              
+	              //g.setColor(Color.pink);
+	            }
+	            g.fillRect(hleft, htop, rectwidth, hbottom - htop);
+        	}
         }
         
         /* draw the scale */
