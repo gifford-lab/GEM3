@@ -98,6 +98,8 @@ public class CompareMotifMethods {
 		HashMap<String, Integer> tf2count = new HashMap<String, Integer>();
 		for (String expt: expts){
 			String tf = expt2tf.get(expt);
+			if (!tf2db.containsKey(tf))						// only count annotated expts/tfs with public known motif
+				continue;
 			if (tf2count.containsKey(tf))
 				tf2count.put(tf, tf2count.get(tf)+1);
 			else
