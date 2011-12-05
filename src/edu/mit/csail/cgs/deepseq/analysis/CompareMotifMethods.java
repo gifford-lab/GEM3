@@ -1,7 +1,9 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -11,12 +13,173 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-public class ComparePWM {
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+
+public class CompareMotifMethods {
 	
 	public static void main(String[] args) {
 //		parseSTAMP(args);		// JTUX.motifs top_encode_PFM.txt out_match_pairs.txt
-		parseENCODETest(args);	// C:\Data\ENCODE\MotifCompare\info\known-match-ranks-merged_sorted.txt  C:\Data\ENCODE\MotifCompare\info\ENCODE_name_mapping_Pouya.txt C:\Data\ENCODE\MotifCompare\encode_PFM_2_mapping.txt Yuchun-run2
+//		parseENCODETest(args);	// C:\Data\ENCODE\MotifCompare\info\known-match-ranks-merged_sorted.txt  C:\Data\ENCODE\MotifCompare\info\ENCODE_name_mapping_Pouya.txt C:\Data\ENCODE\MotifCompare\encode_PFM_2_mapping.txt Yuchun-run2
+		compareStampResults(args); // motifCompare\encode_public_tf2db.txt motifCompare\encode_public_expts_tfs.txt motifCompare\methods.txt motifCompare\stamp
 	}
+	
+	/** 
+	 * To compare motif found by each methods with known motif in database using STAMP
+	 */
+	private static void compareStampResults(String[] args){
+		
+		final int STAMP_UNIT_LINE_COUNT = 11;
+		final int STAMP_TOP_COUNT = 11;
+		final double STAMP_P_VALUE=1e-5;
+		
+		// load the mapping file between tf and known motif db entries
+		String[] lines = readSmallTextFile(args[0]);
+		HashMap<String, HashSet<String>> tf2db = new HashMap<String, HashSet<String>>();
+		for (int i=1;i<lines.length;i++){	// skip line 0, header
+			String[] fs = lines[i].split("\t");
+			if (fs.length<=1)
+				continue;
+			String tf = fs[0];
+			HashSet<String> entries = new HashSet<String>();
+			for (int j=1;j<fs.length;j++)
+				entries.add(fs[j]);
+			tf2db.put(tf, entries);
+		}
+		
+		// load encode expts, and motif methods
+		String[] expts = readSmallTextFile(args[1]);
+		HashMap<String, String> expt2tf = new HashMap<String, String>();
+		for (int i=0;i<expts.length;i++){
+			String[] fs = expts[i].split("\t");
+			expt2tf.put(fs[0], fs[1]);
+			expts[i]=fs[0];
+		}
+		String[] methods = readSmallTextFile(args[2]);
+	
+		// load  STAMP file for each expt_method pair
+		HashMap<String, Integer> performances = new HashMap<String, Integer>();
+		File dir = new File(args[3]);
+		for (String expt: expts){
+			String tf = expt2tf.get(expt);
+			if (tf2db.containsKey(tf)){
+				each_method: for (String method: methods){
+					String pair = expt+"."+method;
+					File f = new File(dir, pair+"_match_pairs.txt");
+					if (!f.exists())
+						continue;
+					String[] sls = readSmallTextFile(f.getAbsolutePath());	// stampe lines
+					for (int i=0;i<sls.length;i+=STAMP_UNIT_LINE_COUNT){
+						if (sls[i].startsWith(">")){
+							int rank = i/STAMP_UNIT_LINE_COUNT;				// motif rank in this expt
+							for (int j=1;j<STAMP_TOP_COUNT;j++){		// each top db entry in STAMP match results
+								String[] sl_fs = sls[i+j].split("\t");
+								String entry = sl_fs[0];
+								if (tf2db.get(tf).contains(entry)){
+									double p = Double.parseDouble(sl_fs[1]);
+									if (p<STAMP_P_VALUE){
+										performances.put(pair, rank);
+										continue each_method;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		// print out results
+		StringBuilder sb = new StringBuilder("expt\ttf\t");
+		for (String method: methods){
+			sb.append(method).append("\t");
+		}
+		sb.append("\n");
+		HashMap<String, Integer> tf2count = new HashMap<String, Integer>();
+		for (String expt: expts){
+			String tf = expt2tf.get(expt);
+			if (tf2count.containsKey(tf))
+				tf2count.put(tf, tf2count.get(tf)+1);
+			else
+				tf2count.put(tf,1);
+			sb.append(expt).append("\t").append(tf).append("\t");
+			for (String method: methods){
+				String pair = expt+"."+method;
+				int rank = performances.containsKey(pair)?performances.get(pair):99;
+				sb.append(rank).append("\t");
+			}
+			sb.append("\n");
+		}
+		CommonUtils.writeFile("method_rank_matrix.txt", sb.toString());
+		
+		// print out result for each top rank
+		HashMap<String, int[]> performanceByExpt = new HashMap<String, int[]>();
+		HashMap<String, float[]> performanceByTF = new HashMap<String, float[]>();
+		sb = new StringBuilder("Rank\t");
+		StringBuilder sb2 = new StringBuilder("Rank\t");
+		for (String method: methods){
+			sb.append(method).append("\t");
+			sb2.append(method).append("\t");
+			performanceByExpt.put(method, new int[9]);
+			performanceByTF.put(method, new float[9]);
+		}
+		sb.append("\n");
+		sb2.append("\n");
+		for (String expt: expts){
+			String tf = expt2tf.get(expt);
+			for (String method: methods){
+				String pair = expt+"."+method;
+				int rank = performances.containsKey(pair)?performances.get(pair):99;
+				for (int r=0;r<9;r++){
+					if (rank<=r){
+						performanceByExpt.get(method)[r]++;
+						performanceByTF.get(method)[r]+= 1.0/tf2count.get(tf);
+					}
+				}
+			}
+		}
+		
+		for (int r=0;r<9;r++){
+			sb.append("Top"+r+"\t");
+			sb2.append("Top"+r+"\t");
+			for (String method: methods){
+				int[] scores = performanceByExpt.get(method);
+				float[] scores_tf = performanceByTF.get(method);
+				sb.append(scores[r]).append("\t");
+				sb2.append(String.format("%.2f\t", scores_tf[r]));
+			}
+			sb.append("\n");
+			sb2.append("\n");
+		}
+		
+		CommonUtils.writeFile("method_expt_scores.txt", sb.toString());
+		CommonUtils.writeFile("method_tf_scores.txt", sb2.toString());
+	}
+	
+	private static String[] readSmallTextFile(String filename){
+		BufferedReader bin;
+		ArrayList<String> lines = new ArrayList<String>();
+		try {
+			File file = new File(filename);
+			if (!file.exists()){
+				System.err.println(filename + " is not found");
+				return null;
+			}
+			bin = new BufferedReader(new InputStreamReader(new FileInputStream(filename)));
+	        String line;
+			while((line = bin.readLine()) != null) { 
+			    line = line.trim();
+			    if (line.length()>0)
+			    	lines.add(line);
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+		String[] text = new String[lines.size()];
+		lines.toArray(text);
+		return text;
+	}
+	
 	/**
 	 * To compare GEM's motif results with those from other methods on ENCODE ChIP-Seq data<br>
 	 */
