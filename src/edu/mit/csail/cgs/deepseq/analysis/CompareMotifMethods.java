@@ -29,8 +29,9 @@ public class CompareMotifMethods {
 	private static void compareStampResults(String[] args){
 		
 		final int STAMP_UNIT_LINE_COUNT = 11;
-		final int STAMP_TOP_COUNT = 11;
-		final double STAMP_P_VALUE=1e-5;
+		
+		int stamp_top_count = Integer.parseInt(args[4]);		
+		double stamp_p_value=Double.parseDouble(args[5]);
 		
 		// load the mapping file between tf and known motif db entries
 		String[] lines = readSmallTextFile(args[0]);
@@ -71,12 +72,12 @@ public class CompareMotifMethods {
 					for (int i=0;i<sls.length;i+=STAMP_UNIT_LINE_COUNT){
 						if (sls[i].startsWith(">")){
 							int rank = i/STAMP_UNIT_LINE_COUNT;				// motif rank in this expt
-							for (int j=1;j<STAMP_TOP_COUNT;j++){		// each top db entry in STAMP match results
+							for (int j=1;j<stamp_top_count;j++){		// each top db entry in STAMP match results
 								String[] sl_fs = sls[i+j].split("\t");
 								String entry = sl_fs[0];
 								if (tf2db.get(tf).contains(entry)){
 									double p = Double.parseDouble(sl_fs[1]);
-									if (p<STAMP_P_VALUE){
+									if (p<stamp_p_value){
 										performances.put(pair, rank);
 										continue each_method;
 									}
