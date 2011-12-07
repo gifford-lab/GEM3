@@ -96,7 +96,7 @@ public class GPSFastaWriter{
 	
     // load GPS results
 	for (String exptName : names){
-		System.out.println("Writing sequences and related info from events for "+exptName);
+		System.out.print("Processing sequences and related info for "+exptName+", ");
 	    File gpsFile = new File(new File(exptName), exptName+"_1_GPS_significant.txt");
 	    if (!gpsFile.exists()){
 	    	System.err.println("GPS file not exist: "+gpsFile.getAbsolutePath());
@@ -264,7 +264,7 @@ public class GPSFastaWriter{
 	    if (wantGEM)
 	    	CommonUtils.writeFile(exptName+"_"+window+"bp_GEM.fasta", gem_sb.toString());
 	    
-	    System.out.println(exptName+" is processed, "+(count-1)+" sequences has been written.");
+	    System.out.println((count-1)+" sequences.");
 	  }
   }
 }
