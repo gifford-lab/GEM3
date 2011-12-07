@@ -42,9 +42,11 @@ public class CompareMotifMethods {
 				continue;
 			String tf = fs[0];
 			HashSet<String> entries = new HashSet<String>();
-			for (int j=1;j<fs.length;j++)
-				if (fs[j].length()>=1)
-					entries.add(fs[j]);
+			for (int j=1;j<fs.length;j++){
+				String entry = fs[j].trim();
+				if (entry.length()>=1)
+					entries.add(entry);
+			}
 			tf2db.put(tf, entries);
 		}
 		
@@ -58,6 +60,7 @@ public class CompareMotifMethods {
 			String[] ms = fs[1].split("\t");
 			HashSet<String> cluster = new HashSet<String>();
 			for (String m:ms){
+				m = m.trim();
 				if (m.length()>=1)
 					cluster.add(m);
 			}
@@ -82,8 +85,8 @@ public class CompareMotifMethods {
 		HashMap<String, String> expt2tf = new HashMap<String, String>();
 		for (int i=0;i<expts.length;i++){
 			String[] fs = expts[i].split("\t");
-			expt2tf.put(fs[0], fs[1]);
-			expts[i]=fs[0];
+			expt2tf.put(fs[0].trim(), fs[1].trim());
+			expts[i]=fs[0].trim();
 		}
 		String[] methods = readSmallTextFile(args[3]);
 	
@@ -102,9 +105,9 @@ public class CompareMotifMethods {
 					for (int i=0;i<sls.length;i+=STAMP_UNIT_LINE_COUNT){
 						if (sls[i].startsWith(">")){
 							int rank = i/STAMP_UNIT_LINE_COUNT;				// motif rank in this expt
-							for (int j=1;j<stamp_top_count;j++){		// each top db entry in STAMP match results
+							for (int j=1;j<=stamp_top_count;j++){		// each top db entry in STAMP match results
 								String[] sl_fs = sls[i+j].split("\t");
-								String entry = sl_fs[0];
+								String entry = sl_fs[0].trim();
 								if (tf2db.get(tf).contains(entry)){
 									double p = Double.parseDouble(sl_fs[1]);
 									if (p<stamp_p_value){
