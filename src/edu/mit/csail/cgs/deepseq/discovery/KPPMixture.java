@@ -6039,7 +6039,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_min = -1;		// the minimum value of k
         public int k_max= -1;		// the maximum value of k        
         public String seed = null;
-        public int k_seqs = 100000;	// the top number of event to get underlying sequences for initial Kmer learning 
+        public int k_seqs = 20000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_win2 = 100;	// the window around binding event to search for motifs (in later rounds)
         public int k_win_f = 4;		// k_win = k_win_f * k
