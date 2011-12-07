@@ -30,8 +30,8 @@ public class CompareMotifMethods {
 		
 		final int STAMP_UNIT_LINE_COUNT = 11;
 		
-		int stamp_top_count = Integer.parseInt(args[4]);		
-		double stamp_p_value=Double.parseDouble(args[5]);
+		int stamp_top_count = Integer.parseInt(args[5]);		
+		double stamp_p_value=Double.parseDouble(args[6]);
 		
 		// load the mapping file between tf and known motif db entries
 		String[] lines = readSmallTextFile(args[0]);
@@ -43,23 +43,53 @@ public class CompareMotifMethods {
 			String tf = fs[0];
 			HashSet<String> entries = new HashSet<String>();
 			for (int j=1;j<fs.length;j++)
-				entries.add(fs[j]);
+				if (fs[j].length()>=1)
+					entries.add(fs[j]);
 			tf2db.put(tf, entries);
 		}
 		
+		// load motif clusters
+		lines = readSmallTextFile(args[1]);
+		ArrayList<HashSet<String>> clusters = new ArrayList<HashSet<String>>();
+		for (int i=0;i<lines.length;i++){	
+			String[] fs = lines[i].split("Cluster_Members:\t");
+			if (fs.length<=1)
+				continue;
+			String[] ms = fs[1].split("\t");
+			HashSet<String> cluster = new HashSet<String>();
+			for (String m:ms){
+				if (m.length()>=1)
+					cluster.add(m);
+			}
+			clusters.add(cluster);
+		}
+		
+		// expand tf to db entry mapping
+		for (String tf: tf2db.keySet()){
+			HashSet<String> expandedSet = new HashSet<String>();
+			HashSet<String> annotations = tf2db.get(tf);
+			for (String anno:annotations){
+				for (HashSet<String> cluster: clusters){
+					if (cluster.contains(anno))
+						expandedSet.addAll(cluster);
+				}
+			}
+			tf2db.put(tf, expandedSet);
+		}
+		
 		// load encode expts, and motif methods
-		String[] expts = readSmallTextFile(args[1]);
+		String[] expts = readSmallTextFile(args[2]);
 		HashMap<String, String> expt2tf = new HashMap<String, String>();
 		for (int i=0;i<expts.length;i++){
 			String[] fs = expts[i].split("\t");
 			expt2tf.put(fs[0], fs[1]);
 			expts[i]=fs[0];
 		}
-		String[] methods = readSmallTextFile(args[2]);
+		String[] methods = readSmallTextFile(args[3]);
 	
 		// load  STAMP file for each expt_method pair
 		HashMap<String, Integer> performances = new HashMap<String, Integer>();
-		File dir = new File(args[3]);
+		File dir = new File(args[4]);
 		for (String expt: expts){
 			String tf = expt2tf.get(expt);
 			if (tf2db.containsKey(tf)){
