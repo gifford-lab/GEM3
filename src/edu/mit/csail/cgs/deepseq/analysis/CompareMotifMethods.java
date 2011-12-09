@@ -29,7 +29,7 @@ public class CompareMotifMethods {
 	 */
 	private static void compareTFStampResults(String[] args){
 		final int  TOP_MOTIF_RANK = 9;
-		double stamp_p_value=Double.parseDouble(args[5]);
+		double stamp_p_value=Double.parseDouble(args[4]);
 		
 		// load the mapping file between tf and known motif db entries
 		String[] lines = readSmallTextFile(args[0]);
@@ -49,18 +49,18 @@ public class CompareMotifMethods {
 		}
 		
 		// load encode expts, and motif methods
-		String[] expts = readSmallTextFile(args[2]);		// read expt/tf pairs
+		String[] expts = readSmallTextFile(args[1]);		// read expt/tf pairs
 		HashMap<String, String> expt2tf = new HashMap<String, String>();
 		for (int i=0;i<expts.length;i++){
 			String[] fs = expts[i].split("\t");
 			expt2tf.put(fs[0].trim(), fs[1].trim());
 			expts[i]=fs[0].trim();							// replace with expt only
 		}
-		String[] methods = readSmallTextFile(args[3]);
+		String[] methods = readSmallTextFile(args[2]);
 	
 		// load  STAMP file for each expt_method pair
 		HashMap<String, Integer> performances = new HashMap<String, Integer>();
-		File dir = new File(args[4]);
+		File dir = new File(args[3]);
 		for (String expt: expts){
 			String tf = expt2tf.get(expt);
 			if (tf2db.containsKey(tf)){
