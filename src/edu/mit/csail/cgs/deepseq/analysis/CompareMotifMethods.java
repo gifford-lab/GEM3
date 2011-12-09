@@ -34,7 +34,7 @@ public class CompareMotifMethods {
 		// load the mapping file between tf and known motif db entries
 		String[] lines = readSmallTextFile(args[0]);
 		HashMap<String, HashSet<String>> tf2db = new HashMap<String, HashSet<String>>();
-		for (int i=1;i<lines.length;i++){	// skip line 0, header
+		for (int i=0;i<lines.length;i++){	
 			String[] fs = lines[i].split("\t");
 			if (fs.length<=1)
 				continue;
@@ -70,7 +70,7 @@ public class CompareMotifMethods {
 					if (!f.exists())
 						continue;
 					String[] sls = readSmallTextFile(f.getAbsolutePath());	// stampe lines
-					for (int i=0;i<TOP_MOTIF_RANK*2;i+=2){
+					for (int i=0;i<sls.length-1;i+=2){
 						if (sls[i].startsWith(">")){
 							int rank = i/2;				// motif rank in this expt
 							// only check the top match to TF.jtux
