@@ -20,7 +20,142 @@ public class CompareMotifMethods {
 	public static void main(String[] args) {
 //		parseSTAMP(args);		// JTUX.motifs top_encode_PFM.txt out_match_pairs.txt
 //		parseENCODETest(args);	// C:\Data\ENCODE\MotifCompare\info\known-match-ranks-merged_sorted.txt  C:\Data\ENCODE\MotifCompare\info\ENCODE_name_mapping_Pouya.txt C:\Data\ENCODE\MotifCompare\encode_PFM_2_mapping.txt Yuchun-run2
-		compareStampResults(args); // motifCompare\encode_public_tf2db.txt motifCompare\encode_public_expts_tfs.txt motifCompare\methods.txt motifCompare\stamp
+//		compareStampResults(args); // motifCompare\encode_public_tf2db.txt motifCompare\encode_public_expts_tfs.txt motifCompare\methods.txt motifCompare\stamp
+		compareTFStampResults(args); // motifCompare\encode_public_tf2db.txt motifCompare\encode_public_expts_tfs.txt motifCompare\methods.txt motifCompare\stamp
+	}
+	
+	/** 
+	 * To compare motif found by each methods with TF.jtux using STAMP
+	 */
+	private static void compareTFStampResults(String[] args){
+		final int  TOP_MOTIF_RANK = 9;
+		double stamp_p_value=Double.parseDouble(args[5]);
+		
+		// load the mapping file between tf and known motif db entries
+		String[] lines = readSmallTextFile(args[0]);
+		HashMap<String, HashSet<String>> tf2db = new HashMap<String, HashSet<String>>();
+		for (int i=1;i<lines.length;i++){	// skip line 0, header
+			String[] fs = lines[i].split("\t");
+			if (fs.length<=1)
+				continue;
+			String tf = fs[0];
+			HashSet<String> entries = new HashSet<String>();
+			for (int j=1;j<fs.length;j++){
+				String entry = fs[j].trim();
+				if (entry.length()>=1)
+					entries.add(entry);
+			}
+			tf2db.put(tf, entries);
+		}
+		
+		// load encode expts, and motif methods
+		String[] expts = readSmallTextFile(args[2]);		// read expt/tf pairs
+		HashMap<String, String> expt2tf = new HashMap<String, String>();
+		for (int i=0;i<expts.length;i++){
+			String[] fs = expts[i].split("\t");
+			expt2tf.put(fs[0].trim(), fs[1].trim());
+			expts[i]=fs[0].trim();							// replace with expt only
+		}
+		String[] methods = readSmallTextFile(args[3]);
+	
+		// load  STAMP file for each expt_method pair
+		HashMap<String, Integer> performances = new HashMap<String, Integer>();
+		File dir = new File(args[4]);
+		for (String expt: expts){
+			String tf = expt2tf.get(expt);
+			if (tf2db.containsKey(tf)){
+				each_method: for (String method: methods){
+					String pair = expt+"."+method;
+					File f = new File(dir, pair+"_match_pairs.txt");
+					if (!f.exists())
+						continue;
+					String[] sls = readSmallTextFile(f.getAbsolutePath());	// stampe lines
+					for (int i=0;i<TOP_MOTIF_RANK*2;i+=2){
+						if (sls[i].startsWith(">")){
+							int rank = i/2;				// motif rank in this expt
+							// only check the top match to TF.jtux
+							String[] sl_fs = sls[i+1].split("\t");
+							String entry = sl_fs[0].trim();
+							if (tf2db.get(tf).contains(entry)){
+								double p = Double.parseDouble(sl_fs[1]);
+								if (p<stamp_p_value){
+									performances.put(pair, rank);
+									continue each_method;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		// print out results
+		StringBuilder sb = new StringBuilder("expt\ttf\t");
+		for (String method: methods){
+			sb.append(method).append("\t");
+		}
+		sb.append("\n");
+		HashMap<String, Integer> tf2count = new HashMap<String, Integer>();
+		for (String expt: expts){
+			String tf = expt2tf.get(expt);
+			if (!tf2db.containsKey(tf))						// only count annotated expts/tfs with public known motif
+				continue;
+			if (tf2count.containsKey(tf))
+				tf2count.put(tf, tf2count.get(tf)+1);
+			else
+				tf2count.put(tf,1);
+			sb.append(expt).append("\t").append(tf).append("\t");
+			for (String method: methods){
+				String pair = expt+"."+method;
+				int rank = performances.containsKey(pair)?performances.get(pair):99;
+				sb.append(rank).append("\t");
+			}
+			sb.append("\n");
+		}
+		CommonUtils.writeFile("method_rank_matrix.txt", sb.toString());
+		
+		// print out result for each top rank
+		HashMap<String, int[]> performanceByExpt = new HashMap<String, int[]>();
+		HashMap<String, float[]> performanceByTF = new HashMap<String, float[]>();
+		sb = new StringBuilder("Rank\t");
+		StringBuilder sb2 = new StringBuilder("Rank\t");
+		for (String method: methods){
+			sb.append(method).append("\t");
+			sb2.append(method).append("\t");
+			performanceByExpt.put(method, new int[9]);
+			performanceByTF.put(method, new float[9]);
+		}
+		sb.append("\n");
+		sb2.append("\n");
+		for (String expt: expts){
+			String tf = expt2tf.get(expt);
+			for (String method: methods){
+				String pair = expt+"."+method;
+				int rank = performances.containsKey(pair)?performances.get(pair):99;
+				for (int r=0;r<TOP_MOTIF_RANK;r++){
+					if (rank<=r){
+						performanceByExpt.get(method)[r]++;
+						performanceByTF.get(method)[r]+= 1.0/tf2count.get(tf);
+					}
+				}
+			}
+		}
+		
+		for (int r=0;r<TOP_MOTIF_RANK;r++){
+			sb.append("Top"+r+"\t");
+			sb2.append("Top"+r+"\t");
+			for (String method: methods){
+				int[] scores = performanceByExpt.get(method);
+				float[] scores_tf = performanceByTF.get(method);
+				sb.append(scores[r]).append("\t");
+				sb2.append(String.format("%.2f\t", scores_tf[r]));
+			}
+			sb.append("\n");
+			sb2.append("\n");
+		}
+		
+		CommonUtils.writeFile("method_expt_scores.txt", sb.toString());
+		CommonUtils.writeFile("method_tf_scores.txt", sb2.toString());
 	}
 	
 	/** 
@@ -190,7 +325,6 @@ public class CompareMotifMethods {
 		CommonUtils.writeFile("method_expt_scores.txt", sb.toString());
 		CommonUtils.writeFile("method_tf_scores.txt", sb2.toString());
 	}
-	
 	private static String[] readSmallTextFile(String filename){
 		BufferedReader bin;
 		ArrayList<String> lines = new ArrayList<String>();
