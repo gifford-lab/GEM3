@@ -72,7 +72,9 @@ public class KmerMotifFinder {
 	private double motif_hit_factor=0.01;			// KSM or PWM
 	private double motif_hit_factor_report=0.05;			// KSM or PWM
 	private String outName;
+	private boolean estimate_ksm_threshold = false;
 	private boolean use_grid_search=true;
+	private int maxThread;
 	private boolean use_weight=true;
 	private boolean use_PWM_MM = false;
 	private double wm_factor;
@@ -143,7 +145,7 @@ public class KmerMotifFinder {
 			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, int verbose, 
 			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster, double repeat_fraction, 
 			boolean allow_seed_reset, boolean allow_seed_inheritance, double noiseRatio,
-			boolean use_seed_family, boolean use_KSM, String startingKmer){
+			boolean use_seed_family, boolean use_KSM, boolean estimate_ksm_threshold, int maxThread, String startingKmer){
 	    this.hgp = hgp;
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
@@ -165,6 +167,8 @@ public class KmerMotifFinder {
 	    this.noiseRatio = noiseRatio;
 	    this.use_seed_family = use_seed_family;
 	    this.use_KSM = use_KSM;
+	    this.estimate_ksm_threshold = estimate_ksm_threshold;
+	    this.maxThread = maxThread;
 	    this.startingKmer = startingKmer;
 	}
 	
@@ -1497,43 +1501,9 @@ public class KmerMotifFinder {
 				}
 				alignSequencesUsingKSM(seqList, cluster);
 	    	}
-			
-//	    	
-//	    	if (re_train)	{
-//		    	/** build PWM, do not iterate */
-//				int aligned_seqs_count=0;
-//				for (Sequence s:seqList){
-//			    	  if (s.pos!=UNALIGNED)
-//			    		  aligned_seqs_count++;
-//				}
-//				if (aligned_seqs_count<seed.getPosHitCount()*1.5)	{		// if most of sequences are aligned by seed kmer, stop
-//					if (verbose>1)
-//						System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
-//					kmers.remove(seed);
-//					continue;
-//				}
-//				
-//		    	// build PWM
-//				int leftIdx = buildPWM(seqList, cluster, tic);	
-//				if (leftIdx <= -1){		
-//					kmers.remove(seed);
-//					continue;
-//				}
-//	    	}
-//	    	else{
-//				int aligned_seqs_count=0;
-//				for (Sequence s:seqList){
-//			    	  if (s.pos!=UNALIGNED)
-//			    		  aligned_seqs_count++;
-//				}
-//				if (aligned_seqs_count<seed.getPosHitCount()*1.5)	{		// if most of sequences are aligned by seed kmer, stop
-//					if (verbose>1)
-//						System.out.println(CommonUtils.timeElapsed(tic)+": Sequence: "+aligned_seqs_count+", seed k-mer hit: "+seed.getPosHitCount());
-//					break;
-//				}		    	
-				/** Iteratively build PWM and align sequences */
-				improvePWM (cluster, seqList, seed_range, use_KSM, use_PWM_MM);
-//	    	}
+    	
+			/** Iteratively build PWM and align sequences */
+			improvePWM (cluster, seqList, seed_range, use_KSM, use_PWM_MM);
 	    	
 			// compare pwm Hgp to primary cluster Hgp, so that the primary cluster will have the best Hgp
 			if (cluster.wm!=null){
@@ -3739,13 +3709,16 @@ public class KmerMotifFinder {
 	private void alignSequencesUsingKSM(ArrayList<Sequence> seqList, KmerCluster cluster){
 		ArrayList<Kmer> alignedKmers = cluster.alignedKmers;
 		updateEngine(alignedKmers);
-//		MotifThreshold threshold = estimateKsmThreshold("", false);
-//		if (threshold==null)
-//			return;
-//		if (verbose>1)
-//			System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
-//					CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
-//		
+		
+		MotifThreshold threshold = new MotifThreshold();
+		if (estimate_ksm_threshold){
+		threshold = optimizeKsmThreshold("", false);
+			if (threshold==null)
+				return;
+			if (verbose>1)
+				System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
+						CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
+		}
 //		if (threshold.hgp<cluster.ksmThreshold.hgp){
 //			cluster.ksmThreshold = threshold;
 			
@@ -3774,7 +3747,7 @@ public class KmerMotifFinder {
 				if (kgs.length!=0){
 					Arrays.sort(kgs);
 					KmerGroup kg = kgs[0];
-//					if (kg.hgp<=-threshold.score){
+					if (kg.hgp<=-threshold.score){
 						s.score = -kg.hgp;		// score = -log10 hgp, becomes positive value
 						if (kg.bs>RC/2){		// match on reverse strand
 							s.RC();
@@ -3782,7 +3755,7 @@ public class KmerMotifFinder {
 						}
 						else
 							s.pos = -kg.bs;
-//					}
+					}
 				}
 			}
 //		}
@@ -3896,8 +3869,6 @@ public class KmerMotifFinder {
 				for (Kmer km:kmerPos.keySet()){
 					if (excludes.contains(km))
 						continue;
-//						if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
-//							km.getK();;
 					if (!kmer2pos.containsKey(km))
 						kmer2pos.put(km, new ArrayList<Integer>());
 					HashSet<Integer> hits = kmerPos.get(km);
@@ -3921,8 +3892,6 @@ public class KmerMotifFinder {
 
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmer2pos.keySet()){
-//				if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
-//					km.getK();
 			ArrayList<Integer> posKmer = kmer2pos.get(km);
 			if (posKmer==null || posKmer.size()<km.getPosHitCount()*kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/2 of total hit
 				km.setAlignString("Too few hit "+posKmer.size());
@@ -4702,7 +4671,7 @@ public class KmerMotifFinder {
 	
 	private Pair<Double, Integer> findBestScore(ArrayList<Integer> idxs, int[] poshits, int[] neghits, double[] hgps){
 
-		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
+		int numThread = Math.min(maxThread, java.lang.Runtime.getRuntime().availableProcessors());
 		Thread[] threads = new Thread[numThread];
 		for (int i=0;i<numThread;i++){
             Thread t = new Thread(new HGPThread(idxs, posSeqCount, negSeqCount, poshits, neghits, hgps));
@@ -4723,12 +4692,6 @@ public class KmerMotifFinder {
             }   
         }
 		
-		StringBuilder sb = new StringBuilder();
-//		if (printPwmHgp){
-//			for (int i=0;i<posScores_u.length;i++)
-//				sb.append(String.format("%d\t%.2f\t%d\t%d\t%.1f\n", i, posScores_u[i], poshits[i], neghits[i], hgps[i] ));
-//		}
-		
 		Pair<Double, TreeSet<Integer>> minHgp = StatUtil.findMin(hgps);
 		int minIdx = minHgp.cdr().last();
 		
@@ -4743,11 +4706,105 @@ public class KmerMotifFinder {
 	}
 
 	/**
-	 * Optimize threshold of a Kmer Group Score using the positive/negative sequences<br>
+	 * Grid search threshold of a Kmer Group Score using the positive/negative sequences<br>
 	 * Compute the hyper-geometric p-value from number of pos/neg sequences that have the scores higher than the considered score.<br>
 	 * Return the score gives the most significant p-value.
 	 */
 	public MotifThreshold optimizeKsmThreshold(String outName, boolean printKgcHgp){
+		if (! engineInitialized)
+			return null;
+		
+		double[] posSeqScores = new double[posSeqCount];
+		double[] negSeqScores = new double[negSeqCount];
+		for (int i=0;i<posSeqCount;i++){
+			KmerGroup[] kgs = query(seqs[i]);
+			if (kgs.length==0)
+				posSeqScores[i]=0;
+			else{
+				Arrays.sort(kgs);
+				posSeqScores[i]=-kgs[0].getHgp();				// score = -log10 hgp, becomes positive value
+			}
+		}
+		Arrays.sort(posSeqScores);
+		for (int i=0;i<negSeqCount;i++){
+			KmerGroup[] kgs = query(seqsNegList.get(i));
+			if (kgs.length==0)
+				negSeqScores[i]=0;
+			else{
+				Arrays.sort(kgs);
+				negSeqScores[i]=-kgs[0].getHgp();
+			}
+		}
+		Arrays.sort(negSeqScores);
+		
+		// find the threshold motif score
+		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
+		for (double s:posSeqScores)
+			posScoreUnique.add(s);
+		Double[] posScores_u = new Double[posScoreUnique.size()];
+		posScoreUnique.toArray(posScores_u);
+		int[] poshits = new int[posScoreUnique.size()];
+		int[] neghits = new int[posScoreUnique.size()];
+		double[] hgps = new double[posScoreUnique.size()];
+		StringBuilder sb = new StringBuilder();
+		for (int i=0;i<posScores_u.length;i++){
+			double key = posScores_u[i];
+			int index = CommonUtils.findKey(posSeqScores, key);
+			poshits[i] = posSeqScores.length-index;
+			index = CommonUtils.findKey(negSeqScores, key);
+			neghits[i] = negSeqScores.length-index;
+		}
+
+		ArrayList<Integer> idxs = new ArrayList<Integer>();			// the score ids to compute HGP
+		for (int i=posScores_u.length-1;i>=0;i--)
+			if (poshits[i]>neghits[i]*2.0*posSeqCount/negSeqCount)	// posHit should be at least 2 fold
+				idxs.add(i);
+		
+		Pair<Double, Integer> best;
+		
+		if (idxs.size()>100 && use_grid_search){
+		
+			// coarse search
+			int gridStep = (int)Math.ceil(Math.sqrt((double)idxs.size()/2));
+			ArrayList<Integer> idxCoarse = new ArrayList<Integer>();	
+			for (int i=0;i<idxs.size();i+=gridStep){
+				idxCoarse.add(idxs.get(i));
+			}
+			if (idxCoarse.get(idxCoarse.size()-1)!=idxs.get(idxs.size()-1))
+				idxCoarse.add(idxs.get(idxs.size()-1));
+			
+			best = findBestScore(idxCoarse, poshits, neghits, hgps);
+			
+			// finer resolution search
+			int bestIdx = idxs.indexOf(best.cdr());
+			int start = Math.max(bestIdx-gridStep+1, 0);
+			int end = Math.min(bestIdx+gridStep-1,idxs.size()-1) ;
+			ArrayList<Integer> idxFine = new ArrayList<Integer>();	
+			for (int i=start;i<=end;i++){
+				idxFine.add(idxs.get(i));
+			}
+			
+			best = findBestScore(idxFine, poshits, neghits, hgps);
+		}
+		else
+			best = findBestScore(idxs, poshits, neghits, hgps);
+		
+		MotifThreshold score = new MotifThreshold();
+		score.score = posScores_u[best.cdr()];
+		score.hgp = best.car();
+		score.posHit = poshits[best.cdr()];
+		score.negHit = neghits[best.cdr()];
+//		if (printPwmHgp)
+//			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_PwmHgp.txt", sb.toString());
+		return score;
+	}
+
+	/**
+	 * Optimize threshold of a Kmer Group Score using the positive/negative sequences<br>
+	 * Compute the hyper-geometric p-value from number of pos/neg sequences that have the scores higher than the considered score.<br>
+	 * Return the score gives the most significant p-value.
+	 */
+	public MotifThreshold estimateKsmThreshold(String outName, boolean printKgcHgp){
 		// TODO: grid search
 		if (! engineInitialized)
 			return null;
@@ -4793,7 +4850,7 @@ public class KmerMotifFinder {
 			neghits[i] = negSeqScores.length-index;
 		}
 
-		int numThread = java.lang.Runtime.getRuntime().availableProcessors();
+		int numThread = Math.min(maxThread, java.lang.Runtime.getRuntime().availableProcessors());
 		Thread[] threads = new Thread[numThread];
 		ArrayList<Integer> idxs = new ArrayList<Integer>();
 		for (int i=posScores_u.length-1;i>=0;i--)
@@ -4833,8 +4890,7 @@ public class KmerMotifFinder {
 		if (printKgcHgp)
 			CommonUtils.writeFile(outName+"_KgsHgp.txt", sb.toString());
 		return score;
-	}
-	
+	}	
 	/**
 	 * Check if a k-mer is a k-mer that was not enriched in positive sets
 	 */
@@ -5711,7 +5767,8 @@ public class KmerMotifFinder {
         boolean use_KSM = true;
         double noiseRatio = 0;
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, 2, 0.5, false, false, 200, 0, true, true, noiseRatio, use_seed_family, use_KSM, seed);
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, 2, 0.5, false, false, 200, 0, 
+        		true, true, noiseRatio, use_seed_family, use_KSM, true, 99, seed);
         kmf.setDiscriminative();
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);

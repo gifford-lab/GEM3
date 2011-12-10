@@ -3739,7 +3739,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
     			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight, config.allow_single_family,
     			outName, config.bmverbose, config.kmer_aligned_fraction, config.print_aligned_seqs, config.re_train, config.max_cluster,
-				 config.repeat_fraction, config.allow_seed_reset, config.allow_seed_inheritance, config.noise, config.use_seed_family, config.use_ksm, config.seed);
+				 config.repeat_fraction, config.allow_seed_reset, config.allow_seed_inheritance, config.noise, config.use_seed_family, 
+				 config.use_ksm, config.estimate_ksm_threshold, maxThreads, config.seed);
     	
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();
@@ -6072,6 +6073,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
        	public boolean use_kmer_mismatch = true;
        	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
        	public boolean use_ksm = true;				// align with KSM (together with PWM)
+       	public boolean estimate_ksm_threshold = true;
       	public boolean kpp_normalize_max = true;
       	public double kpp_factor = 0.8;
       	public double noise = 0.0;
@@ -6169,6 +6171,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_kmer_mismatch = !flags.contains("no_kmm");
             use_seed_family = !flags.contains("no_seed_family");
             use_ksm = !flags.contains("no_ksm");
+            estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
             use_weight = !flags.contains("no_weight");
             use_grid_search = !flags.contains("no_grid_search");
             allow_single_family = !flags.contains("no_single_family");
