@@ -2106,7 +2106,8 @@ public class KmerMotifFinder {
 		html.append("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
 		html.append(name).append("</font></th>");
 		html.append("<tr><td valign='top'><br>");
-		html.append("<a href='"+name+"_GPS_significant.txt'>Significant Events</a>&nbsp;&nbsp;: "+seqs.length);
+		html.append("<a href='"+name+"_GPS_significant.txt'>Significant binding events</a>");
+		html.append("<br>Total positive sequences: "+seqs.length);
 //		html.append("<br><a href='"+name+"_GPS_insignificant.txt'>Insignificant Events</a>: "+insignificantFeatures.size());
 //		html.append("<br><a href='"+name+"_GPS_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+filteredFeatures.size());
 		html.append("<p><ul><li><a href='"+name+"_kmer_k"+k+".txt'>Complete K-mer list.</a>");
