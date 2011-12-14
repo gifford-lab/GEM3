@@ -2050,6 +2050,16 @@ public class KmerMotifFinder {
 		f=null;
 		StringBuilder pfm_sb = new StringBuilder();	
 		
+		// remove clusters with low hit count
+		ArrayList<KmerCluster> toRemove = new ArrayList<KmerCluster>();
+		for (int i=0;i<clusters.size();i++){
+			KmerCluster c = clusters.get(i);
+			double hitRatio = (double)c.pwmPosHitCount / posSeqCount;
+			if (i>=10&&hitRatio<motif_hit_factor_report || hitRatio<motif_hit_factor)
+					toRemove.add(c);
+		}
+		clusters.removeAll(toRemove);
+		
 		// output kmer alignments
 		StringBuilder alignedKmer_sb = new StringBuilder();
 		for (KmerCluster c:clusters){
@@ -2149,14 +2159,12 @@ public class KmerMotifFinder {
 		}
 		html.append("</table>");
 		html.append("</td><td valign='top'><br>");
-		html.append("<table border=0 align=center><th>Motif PSSM</th><th>Motif spatial distribution (w.r.t. primary motif)</th>");
+		html.append("<table border=0 align=center><th>Motif PSSM</th><th>Motif spatial distribution (w.r.t. primary PWM)</th>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
-    		if (wm==null || (!c.pwmGoodQuality)|| c.total_aligned_seqs<seqs.length*motif_hit_factor_report)
-    			continue;
     		
     		html.append("<tr><td><img src='"+name+"_"+c.clusterId+"_motif.png"+"'><a href='#' onclick='return popitup(\""+name+"_"+c.clusterId+"_motif_rc.png\")'>rc</a><br>");
-    		html.append(String.format("PSSM: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
+    		html.append(String.format("PWM: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
     				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
 //    		html.append(String.format("KSM score: %.2f, \thit=%d+/%d-, hgp=1e%.1f<br><br>", 
 //    				c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
@@ -2175,6 +2183,7 @@ public class KmerMotifFinder {
 //		}
 		
 	}
+	
 	/** 
 	 * Merge overlapped motif clusters<br>
 	 * Assuming the clusters are sorted as its cluster id (0-based)

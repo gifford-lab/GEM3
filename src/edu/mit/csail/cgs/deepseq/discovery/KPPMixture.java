@@ -144,6 +144,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     private StringBuilder configsb = new StringBuilder();
 	private StringBuilder log_all_msg = new StringBuilder();
 	private FileWriter logFileWriter;
+	private File outputFolder = null;
 
 	/** Kmer motif engine
 	 **/
@@ -175,6 +176,15 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		String modelFile = Args.parseString(args, "d", null);	// read distribution file
 
 		commonInit(modelFile);
+		
+//		File outFile = new File(outName);
+//		outputFolder = outFile.getParentFile();
+//		if (!outputFolder.exists()){
+//			System.err.println("\nThe output file path is not correct: "+outFile.getAbsolutePath());
+//    		System.exit(-1);
+//		}
+//		outName = new File(new File(outputFolder, "gem_results"), outFile.getName()).getAbsolutePath();
+		
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 		
@@ -679,7 +689,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						else{
 							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
 //							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-							if (ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic){
+							if (ratio>=config.fold){
 								notFiltered = true;
 								break;
 							}
@@ -6044,7 +6054,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_win2 = 100;	// the window around binding event to search for motifs (in later rounds)
         public int k_win_f = 4;		// k_win = k_win_f * k
-        public int k_neg_dist = 500;// the distance of the nearest edge of negative region from binding sites 
+        public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
         public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
         public int max_cluster = 500;
@@ -6059,9 +6069,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
         public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
         public double motif_hit_factor = 0.005;
-        public double motif_hit_factor_report = 0.005;
+        public double motif_hit_factor_report = 0.05;
         public double kmer_set_overlap_ratio = 0.5;
-        public double repeat_fraction=0;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
+        public double repeat_fraction=1;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
         public int kmer_remove_mode = 0;
         public int seed_range = 3;
         public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
