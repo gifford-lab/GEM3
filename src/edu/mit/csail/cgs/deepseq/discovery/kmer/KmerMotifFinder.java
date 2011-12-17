@@ -2166,7 +2166,7 @@ public class KmerMotifFinder {
 		}
 		html.append("</table>");
 		html.append("</td><td valign='top'><br>");
-		html.append("<table border=0 align=center><th>Motif PSSM</th><th>Motif spatial distribution (w.r.t. primary PWM)</th>");
+		html.append("<table border=0 align=center><th>Motif PWM</th><th>Motif spatial distribution (w.r.t. primary PWM)</th>");
 		for (KmerCluster c:clusters){
     		WeightMatrix wm = c.wm;
     		

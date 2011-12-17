@@ -222,23 +222,23 @@ public class GPS2 {
 
         String prefix = new File(filePrefix).getName();
     	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
-    	String path = new File(currentFolder, filePrefix).getAbsolutePath();
+    	String path = new File(currentFolder, prefix).getAbsolutePath();
         if (run_gem){
 	        System.out.println("\nFinished! GEM analysis results are printed to:\n"+
 	        		path+"_GEM_events.txt\n"+
-	        		path+"_results.htm\n+" +
-	        		path+"_outputs/*.*\n");
-	        CommonUtils.copyFile(filePrefix+"2_GEM_events.txt", path+"_GEM_events.txt");
-	        String htmName = prefix+"_outputs/"+prefix+"_2_results.htm";
+	        		path+"_result.htm\n" +
+	        		path+"_outputs\n");
+	        CommonUtils.copyFile(filePrefix+"_2_GEM_events.txt", path+"_GEM_events.txt");
+	        String htmName = prefix+"_outputs/"+prefix+"_2_result.htm";
 	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
-	        	htmName+"'></HEAD><BODY>If your browser did not redirect, click here for <a href='"+
-	        	htmName+"'>GEM Result</a>.</BODY></HTML>";
-	        CommonUtils.writeFile(path+"_results.htm", html);
+	        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
+	        	htmName+"'>click here for GEM Result</a>.</BODY></HTML>";
+	        CommonUtils.writeFile(path+"_result.htm", html);
         }
         else{
             System.out.println("\nFinished! GPS analysis results are printed to:\n"+
             		path+"_GPS_events.txt\n"+
-	        		path+"_outputs/*.*\n");
+	        		path+"_outputs\n");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_GPS_events.txt", path+"_GPS_events.txt");
         }
     }

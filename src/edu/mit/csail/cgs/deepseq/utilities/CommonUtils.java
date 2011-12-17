@@ -464,7 +464,7 @@ public class CommonUtils {
 		  out.close();
 		}
 		catch(FileNotFoundException ex){
-		  System.out.println(ex.getMessage() + " in the specified directory.");
+		  System.err.println(ex.getMessage() + " in the specified directory.");
 		  System.exit(0);
 		}
 		catch(IOException e){

@@ -159,13 +159,18 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		File outFile = new File(outName);
 		outputFolder = outFile.getParentFile();
-		if (!outputFolder.exists()){
-			System.err.println("\nThe output file path is not correct: "+outFile.getAbsolutePath());
-    		System.exit(-1);
+		File gem_outputs_folder;
+		if (outputFolder!=null){
+			if (!outputFolder.exists()){
+				System.err.println("\nThe output file path is not correct: "+outFile.getAbsolutePath());
+	    		System.exit(-1);
+			}
+			gem_outputs_folder = new File(outputFolder, outFile.getName()+"_outputs");
 		}
-		File gem_results_folder = new File(outputFolder, outFile.getName()+"_outputs");
-		gem_results_folder.mkdir();
-		outName = new File(gem_results_folder, outFile.getName()).getAbsolutePath();	// re-direct outName prefix to a folder
+		else
+			gem_outputs_folder = new File(outFile.getName()+"_outputs");
+		gem_outputs_folder.mkdir();
+		outName = new File(gem_outputs_folder, outFile.getName()).getAbsolutePath();	// re-direct outName prefix to a folder
 		
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
@@ -2937,7 +2942,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		switch(round){
 		case 0:
 		case 1:
-			fname = outName+"_GPS_events.txt";
+			fname = outName+"_GPS_events.txt"; break;
 		default:
 			fname = outName+"_GEM_events.txt";
 		}
@@ -2969,7 +2974,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		switch(round){
 		case 0:
 		case 1:
-			fname = outName+"_GPS_insignificant.txt";
+			fname = outName+"_GPS_insignificant.txt";break;
 		default:
 			fname = outName+"_GEM_insignificant.txt";
 		}
@@ -2994,7 +2999,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			switch(round){
 			case 0:
 			case 1:
-				fname = outName+"_GPS_filtered.txt";
+				fname = outName+"_GPS_filtered.txt";break;
 			default:
 				fname = outName+"_GEM_filtered.txt";
 			}
@@ -4250,7 +4255,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
 		                		if (pp[j]>0){
 		                			pp[j] = pp[j]/total*(alpha*config.kpp_factor);
-		                			hits.get(j).pp = pp[j];
+		                			if (config.kpp_use_kmer)
+		                				hits.get(j).pp = pp[j];
 	                			}
 	                		}
 	                	}
