@@ -8,12 +8,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -452,6 +447,29 @@ public class CommonUtils {
 			  mismatch ++;
 	  }
 	  return mismatch;
+	}
+	public static void copyFile(String srFile, String dtFile){
+		try{
+		  File f1 = new File(srFile);
+		  File f2 = new File(dtFile);
+		  InputStream in = new FileInputStream(f1);
+		  OutputStream out = new FileOutputStream(f2);
+		
+		  byte[] buf = new byte[1024];
+		  int len;
+		  while ((len = in.read(buf)) > 0){
+			  out.write(buf, 0, len);
+		  }
+		  in.close();
+		  out.close();
+		}
+		catch(FileNotFoundException ex){
+		  System.out.println(ex.getMessage() + " in the specified directory.");
+		  System.exit(0);
+		}
+		catch(IOException e){
+		  System.out.println(e.getMessage());  
+		}
 	}
 	
 	public static void main0(String[] args){

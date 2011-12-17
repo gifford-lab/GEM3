@@ -150,25 +150,25 @@ public class GPS2 {
         int GPS_round = 2;
         GPS_round = Args.parseInteger(args,"r", GPS_round);
         int GEM_round = Args.parseInteger(args,"r_pp", 2);
-        int minLeft = Args.parseInteger(args,"min_l", 300);
-        int minRight = Args.parseInteger(args,"min_r", 200);
+        int minLeft = Args.parseInteger(args,"d_l", 300);
+        int minRight = Args.parseInteger(args,"d_r", 200);
         /**
          ** Simple GPS1 event finding without sequence information
          **/
 	    int round = 0;
-        String peakFileName = mixture.getOutName();
-        mixture.setOutName(peakFileName+"_"+round);
+        String filePrefix = mixture.getOutName();
+        mixture.setOutName(filePrefix+"_"+round);
         System.out.println("\n============================ Round "+round+" ============================");
         mixture.execute();
-        mixture.printFeatures();
-        mixture.printFilteredFeatures();
-        mixture.printInsignificantFeatures();
+        mixture.printFeatures(round);
+        mixture.printFilteredFeatures(round);
+        mixture.printInsignificantFeatures(round);
         mixture.refineRegions();
         
         while (round+1<GPS_round){
             round++;
             System.out.println("\n============================ Round "+round+" ============================");
-            mixture.setOutName(peakFileName+"_"+round);
+            mixture.setOutName(filePrefix+"_"+round);
             if (round==1){            	
                 boolean noChange = Args.parseFlags(args).contains("constant_model_range");
                 if (!noChange){
@@ -181,9 +181,9 @@ public class GPS2 {
             else
                 kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
             mixture.execute();
-            mixture.printFeatures();
-            mixture.printFilteredFeatures();
-            mixture.printInsignificantFeatures();
+            mixture.printFeatures(round);
+            mixture.printFilteredFeatures(round);
+            mixture.printInsignificantFeatures(round);
         }
         
         /**
@@ -201,17 +201,17 @@ public class GPS2 {
             for (int i=1;i<GEM_round;i++){
 				round++;			
 	            System.out.println("\n============================ Round "+round+" ============================");
-	            mixture.setOutName(peakFileName+"_"+round);
+	            mixture.setOutName(filePrefix+"_"+round);
 	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
 	            mixture.execute();   
-		        mixture.printFeatures();
-		        mixture.printFilteredFeatures();
-		        mixture.printInsignificantFeatures();
+		        mixture.printFeatures(round);
+		        mixture.printFilteredFeatures(round);
+		        mixture.printInsignificantFeatures(round);
 		        mixture.runKMF(Args.parseInteger(args,"k_win", 60));// Note: KPPMixture also has args parsing, keep default value the same
             }
             int winSize = Args.parseInteger(args,"k_win2", 100);
-            System.out.println("\n============== Finding motif for "+peakFileName+"_"+(round+1)+", large window size="+winSize+" =============\n");
-            mixture.setOutName(peakFileName+"_"+(round+1));
+            System.out.println("\n============== Finding motif for "+filePrefix+"_"+(round+1)+", large window size="+winSize+" =============\n");
+            mixture.setOutName(filePrefix+"_"+(round+1));
 	        mixture.runKMF(winSize);	// Note: KPPMixture also has args parsing, keep default value the same
         }
         
@@ -220,7 +220,27 @@ public class GPS2 {
         
 //        round --;
 
-        System.out.println("\nFinished! Binding events are printed to: "+peakFileName+"_"+round+"_GPS_significant.txt");
+        String prefix = new File(filePrefix).getName();
+    	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
+    	String path = new File(currentFolder, filePrefix).getAbsolutePath();
+        if (run_gem){
+	        System.out.println("\nFinished! GEM analysis results are printed to:\n"+
+	        		path+"_GEM_events.txt\n"+
+	        		path+"_results.htm\n+" +
+	        		path+"_outputs/*.*\n");
+	        CommonUtils.copyFile(filePrefix+"2_GEM_events.txt", path+"_GEM_events.txt");
+	        String htmName = prefix+"_outputs/"+prefix+"_2_results.htm";
+	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
+	        	htmName+"'></HEAD><BODY>If your browser did not redirect, click here for <a href='"+
+	        	htmName+"'>GEM Result</a>.</BODY></HTML>";
+	        CommonUtils.writeFile(path+"_results.htm", html);
+        }
+        else{
+            System.out.println("\nFinished! GPS analysis results are printed to:\n"+
+            		path+"_GPS_events.txt\n"+
+	        		path+"_outputs/*.*\n");
+	        CommonUtils.copyFile(filePrefix+"_"+round+"_GPS_events.txt", path+"_GPS_events.txt");
+        }
     }
     	
     public static void main(String[] args) throws Exception {

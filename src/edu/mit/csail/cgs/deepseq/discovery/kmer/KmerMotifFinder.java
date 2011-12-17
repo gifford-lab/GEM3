@@ -72,6 +72,7 @@ public class KmerMotifFinder {
 	private double motif_hit_factor=0.01;			// KSM or PWM
 	private double motif_hit_factor_report=0.05;			// KSM or PWM
 	private String outName;
+	private File outputFolder;
 	private boolean estimate_ksm_threshold = false;
 	private boolean use_grid_search=true;
 	private int maxThread;
@@ -138,11 +139,16 @@ public class KmerMotifFinder {
 
 	/** motif clusters */
 	ArrayList<KmerCluster> clusters = new ArrayList<KmerCluster>();
-		
+	public WeightMatrix getPrimaryPWM(){
+		if (clusters.size()>=1)
+			return clusters.get(0).wm;
+		return null;
+	}
+	
 	public KmerMotifFinder(){ }
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
-			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, int verbose, 
+			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, File outputFolder, int verbose, 
 			double kmer_aligned_fraction, boolean print_aligned_seqs, boolean re_train, int maxCluster, double repeat_fraction, 
 			boolean allow_seed_reset, boolean allow_seed_inheritance, double noiseRatio,
 			boolean use_seed_family, boolean use_KSM, boolean estimate_ksm_threshold, int maxThread, String startingKmer){
@@ -150,6 +156,7 @@ public class KmerMotifFinder {
 	    this.k_fold = k_fold;	
 	    this.motif_hit_factor = motif_hit_factor;
 	    this.outName = outName;
+	    this.outputFolder = outputFolder;
 	    this.verbose = verbose;
 	    this.wm_factor = wm_factor;
 	    this.motif_hit_factor_report = motif_hit_factor_report;
@@ -5720,6 +5727,10 @@ public class KmerMotifFinder {
 			System.exit(-1);
 		}
 		String name = args[0];
+		File outFolder = new File(name+"_results");
+		outFolder.mkdir();
+		name = new File(outFolder, name).getAbsolutePath();
+		
 		String pos_file = args[1];
 		String neg_file = args[2];
 		int k_min = Integer.parseInt(args[3]);
@@ -5777,7 +5788,7 @@ public class KmerMotifFinder {
         boolean use_KSM = true;
         double noiseRatio = 0;
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, 2, 0.5, false, false, 200, 0, 
+        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, outFolder, 2, 0.5, false, false, 200, 0, 
         		true, true, noiseRatio, use_seed_family, use_KSM, true, 99, seed);
         kmf.setDiscriminative();
 //        for (double n=0;n<1;n+=0.1){
