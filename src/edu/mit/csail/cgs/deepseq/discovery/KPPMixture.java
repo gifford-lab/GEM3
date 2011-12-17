@@ -2938,14 +2938,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}	
 		else
 			Collections.sort(fs);
-		String fname = null;
-		switch(round){
-		case 0:
-		case 1:
-			fname = outName+"_GPS_events.txt"; break;
-		default:
-			fname = outName+"_GEM_events.txt";
-		}
+		String fname = outName+"_GEM_events.txt";
 		printFeatures(fname, fs);
 	}
 
@@ -2970,14 +2963,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		else
 			Collections.sort(fs);
-		String fname = null;
-		switch(round){
-		case 0:
-		case 1:
-			fname = outName+"_GPS_insignificant.txt";break;
-		default:
-			fname = outName+"_GEM_insignificant.txt";
-		}
+		String fname = outName+"_GEM_insignificant.txt";
 		printFeatures(fname, fs);
 	}
 	
@@ -2995,14 +2981,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                         }
                     });
 			}
-			String fname = null;
-			switch(round){
-			case 0:
-			case 1:
-				fname = outName+"_GPS_filtered.txt";break;
-			default:
-				fname = outName+"_GEM_filtered.txt";
-			}
+			String fname = outName+"_GEM_filtered.txt";
 			printFeatures(fname, fs);
 		}
 	}
@@ -3478,7 +3457,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
-		kmers = kmf.findMotif_HybridAlignment(kmers, -1);
+		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
+		kmers = kmf.findMotif_HybridAlignment(kmers, -1, eventCounts);
 			
 		// print the clustered k-mers
 		Collections.sort(kmers);
@@ -3586,14 +3566,14 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int k_min = -1;		// the minimum value of k
         public int k_max= -1;		// the maximum value of k        
         public String seed = null;
-        public int k_seqs = 20000;	// the top number of event to get underlying sequences for initial Kmer learning 
+        public int k_seqs = 50000;	// the top number of event to get underlying sequences for initial Kmer learning 
         public int k_win = 60;		// the window around binding event to search for kmers
         public int k_win2 = 100;	// the window around binding event to search for motifs (in later rounds)
         public int k_win_f = 4;		// k_win = k_win_f * k
         public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
         public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
         public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
-        public int max_cluster = 500;
+        public int max_cluster = 100;
 //        public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
         public float k_mask_f = 1;	// the fraction of PWM to mask
         public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
@@ -3651,7 +3631,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public int min_region_width = 50;	//minimum width for select enriched region
         public double mappable_genome_length = -1; // defalut is to compute
         public double sparseness=6.0;
-        public double fold = 3.0;
+        public double fold = 2.5;
         public double kl_ic = 0.0;
         public double shapeDeviation = 0;
         public int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
@@ -3747,7 +3727,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             k_neg_dist = Args.parseInteger(args, "k_neg_dist", k_neg_dist);
             k_negSeq_ratio = Args.parseInteger(args, "k_neg_ratio", k_negSeq_ratio);
             k_shift = Args.parseInteger(args, "k_shift", k_shift);
-            max_cluster = Args.parseInteger(args, "max_cluster", 500);
+            max_cluster = Args.parseInteger(args, "max_cluster", max_cluster);
             k_mask_f = Args.parseFloat(args, "k_mask_f", k_mask_f);
             kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
             k_fold = Args.parseDouble(args, "k_fold", k_fold);
@@ -4216,12 +4196,25 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		                	}
                 		}
                 		else {			// use PWM to set KPP
-                			WeightMatrix wm = kmf.getPrimaryPWM();
-                			if (wm!=null){
-                				WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+                			KmerMotifFinder.KmerCluster cluster = kmf.getPrimaryCluster();
+                			if (cluster!=null){
+                				WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
                 				WeightMatrixScoreProfile profiler = scorer.execute(seq);
                 				for (int i=0;i<profiler.length();i++){
-                					pp[i] = Math.max(0, profiler.getMaxScore(i));
+                					double max = profiler.getMaxScore(i);
+                					if (max<0)
+                						continue;
+                					char strand = profiler.getMaxStrand(i);
+                					int pos = cluster.pos_BS_seed-cluster.pos_pwm_seed;
+                					if (strand=='+')
+                						pos = pos + i;
+                					else
+                						pos = i + cluster.wm.length()-1 + (-pos);
+                					if (pos<0||pos>=seq.length())
+                						continue;
+                					if (max>pp[pos]){
+                						pp[pos] = max;
+                					}
                 				}
                 			}
                 		}

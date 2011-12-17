@@ -157,6 +157,7 @@ public class GPS2 {
          **/
 	    int round = 0;
         String filePrefix = mixture.getOutName();
+        String prefix = new File(filePrefix).getName();
         mixture.setOutName(filePrefix+"_"+round);
         System.out.println("\n============================ Round "+round+" ============================");
         mixture.execute();
@@ -210,7 +211,7 @@ public class GPS2 {
 		        mixture.runKMF(Args.parseInteger(args,"k_win", 60));// Note: KPPMixture also has args parsing, keep default value the same
             }
             int winSize = Args.parseInteger(args,"k_win2", 100);
-            System.out.println("\n============== Finding motif for "+filePrefix+"_"+(round+1)+", large window size="+winSize+" =============\n");
+            System.out.println("\n============== Finding motif for "+prefix+"_"+(round+1)+", large window size="+winSize+" =============\n");
             mixture.setOutName(filePrefix+"_"+(round+1));
 	        mixture.runKMF(winSize);	// Note: KPPMixture also has args parsing, keep default value the same
         }
@@ -220,7 +221,6 @@ public class GPS2 {
         
 //        round --;
 
-        String prefix = new File(filePrefix).getName();
     	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
     	String path = new File(currentFolder, prefix).getAbsolutePath();
         if (run_gem){
@@ -239,7 +239,7 @@ public class GPS2 {
             System.out.println("\nFinished! GPS analysis results are printed to:\n"+
             		path+"_GPS_events.txt\n"+
 	        		path+"_outputs\n");
-	        CommonUtils.copyFile(filePrefix+"_"+round+"_GPS_events.txt", path+"_GPS_events.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
         }
     }
     	
