@@ -33,10 +33,11 @@ public class MultiTF_Binding {
 	ArrayList<ArrayList<Site>> all_sites = new ArrayList<ArrayList<Site>>();
 	double gc = 0.42;//mouse		gc=0.41 for human
 	File dir;
+	boolean oldFormat =  false;
 	private SequenceGenerator<Region> seqgen;
 
 	// command line option:  (the folder contains GEM result folders) 
-	// Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 50 --no_cache
+	// Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 50 --no_cache --old_format
 	public static void main(String[] args) {
 		MultiTF_Binding mtb = new MultiTF_Binding(args);
 		int round = Args.parseInteger(args, "r", 2);
@@ -70,7 +71,9 @@ public class MultiTF_Binding {
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
-		    
+
+		Set<String> flags = Args.parseFlags(args);
+		oldFormat = flags.contains("old_format");
 		dir = new File(args[0]);
 		File[] children = dir.listFiles();
 		for (int i=0;i<children.length;i++){
@@ -80,7 +83,6 @@ public class MultiTF_Binding {
 		}
 		
 		gc = Args.parseDouble(args, "gc", gc);
-		Set<String> flags = Args.parseFlags(args);
 		seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(!flags.contains("no_cache"));
 	}
@@ -93,6 +95,8 @@ public class MultiTF_Binding {
 			// load motif files
 			WeightMatrix wm = null;
 			File dir2= new File(dir, name);
+			if (!oldFormat)
+				dir2= new File(dir2, name+"_outputs");
 			final String suffix = name+"_"+ (round==2?2:1) +"_PFM";
 			File[] files = dir2.listFiles(new FilenameFilter(){
 				public boolean accept(File arg0, String arg1) {
@@ -143,7 +147,8 @@ public class MultiTF_Binding {
 			}
 			
 			// load binding event files 
-			File gpsFile = new File(new File(dir, name), name+"_"+ (round==2?2:1) +"_GPS_significant.txt");
+			File gpsFile = new File(dir2, name+"_"+ (round==2?2:1) +
+					(oldFormat?"_GPS_significant.txt":"_GEM_events.txt"));
 			String filePath = gpsFile.getAbsolutePath();
 			WeightMatrixScorer scorer = null;
 			int posShift=0, negShift=0;
@@ -155,7 +160,7 @@ public class MultiTF_Binding {
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
-				System.out.println(String.format("%d: loading %s", tf, gpsFile.getName()));
+				System.out.println(String.format("TF#%d: loading %s", tf, gpsFile.getName()));
 				for (GPSPeak p:gpsPeaks){
 					Site site = new Site();
 					site.tf_id = tf;
