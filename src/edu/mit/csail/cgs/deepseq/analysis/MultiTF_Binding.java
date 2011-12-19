@@ -32,12 +32,13 @@ public class MultiTF_Binding {
 	ArrayList<WeightMatrix> pwms = new ArrayList<WeightMatrix>();
 	ArrayList<ArrayList<Site>> all_sites = new ArrayList<ArrayList<Site>>();
 	double gc = 0.42;//mouse		gc=0.41 for human
+	double wm_factor = 0.6;	// PWM threshold, as fraction of max score
 	File dir;
 	boolean oldFormat =  false;
 	private SequenceGenerator<Region> seqgen;
 
 	// command line option:  (the folder contains GEM result folders) 
-	// Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 50 --no_cache --old_format
+	// Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 50 --no_cache --old_format --pwm_factor 0.6
 	public static void main(String[] args) {
 		MultiTF_Binding mtb = new MultiTF_Binding(args);
 		int round = Args.parseInteger(args, "r", 2);
@@ -81,7 +82,7 @@ public class MultiTF_Binding {
 			if (child.isDirectory())
 				names.add(child.getName());
 		}
-		
+		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
 		gc = Args.parseDouble(args, "gc", gc);
 		seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(!flags.contains("no_cache"));
@@ -244,7 +245,7 @@ public class MultiTF_Binding {
 				int direction = 0;		// not sure, because no PWM, or no PWM match
 				if (wm!=null){
 					String seq = seqgen.execute(s.bs.expand(seqRange));
-					Pair<Integer, Double> hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, seqRange, wm.getMaxScore()*0.6);
+					Pair<Integer, Double> hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, seqRange, wm.getMaxScore()*wm_factor);
 					if (hit.car()!=-999){
 						if (hit.car()>=0)
 							direction = 1;
