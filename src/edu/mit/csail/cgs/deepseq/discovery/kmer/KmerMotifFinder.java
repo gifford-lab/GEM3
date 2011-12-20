@@ -61,7 +61,7 @@ public class KmerMotifFinder {
 		discriminative = true;
 	}
 	
-	private int verbose = 2;
+	private int verbose;
 	private Genome genome;
 	private boolean engineInitialized =false;
 	private int k;
@@ -69,14 +69,15 @@ public class KmerMotifFinder {
 	private int numPos;
 	private double[] bg= new double[4];	// background frequency based on GC content
 	private double ic_trim = 0.4;
-	private double motif_hit_factor=0.01;			// KSM or PWM
-	private double motif_hit_factor_report=0.05;			// KSM or PWM
+	private double motif_hit_factor;			// KSM or PWM
+	private double motif_hit_factor_report;			// KSM or PWM
 	private String outName;
 	private boolean estimate_ksm_threshold = false;
 	private boolean use_grid_search=true;
 	private int maxThread;
 	private boolean use_weight=true;
 	private boolean use_PWM_MM = false;
+	private boolean use_smart_mm = true;	
 	private double wm_factor;
 //	private double kmer_set_overlap_ratio = 0.5;
 	private int kmer_remove_mode = 0;
@@ -1454,8 +1455,10 @@ public class KmerMotifFinder {
 			
 			cluster.seedKmer = seed;
 			
+			/** seed family is derived from seed kmer, but adding mismatch k-mers, order by #mm */
 			ArrayList<Kmer> seedFamily = new ArrayList<Kmer>();
 			seedFamily.add(seed);
+			kmers.remove(seed);
 			seed.setShift(0);
 			seed.setAlignString(seed.getKmerString());
 			if (use_seed_family){
@@ -3849,7 +3852,7 @@ public class KmerMotifFinder {
 //	}
 
 	/**
-	 * Get all the kmers that has 1 base mismatch to the kmerStr<br>
+	 * Get all the kmers that has k/4 (k>=8) or 1 (k<8) mismatch to the kmerStr<br>
 	 * and set shift and alignString for the kmers 
 	 * @param kmers
 	 * @param kmerStr the length should be the same as kmers
@@ -3858,18 +3861,29 @@ public class KmerMotifFinder {
 	 */
 	private ArrayList<Kmer> getMMKmers(ArrayList<Kmer> kmers, String kmerStr, int shift) {
 		ArrayList<Kmer> family = new ArrayList<Kmer>();
+		if (kmers.isEmpty())
+			return family;
+		ArrayList<Kmer> copy = (ArrayList<Kmer>) kmers.clone();
+		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		String kmerRC = SequenceUtils.reverseComplement(kmerStr);
-		for (Kmer kmer: kmers){
-	    	if (CommonUtils.mismatch(kmerStr, kmer.getKmerString())==1){
+		int mm = 1;
+		if (k>=8 && this.use_smart_mm)
+			mm = k/4;
+		// progressively allow more mismatch
+		for (int i=1;i<=mm;i++){
+			for (Kmer kmer: copy){
+		    	if (CommonUtils.mismatch(kmerStr, kmer.getKmerString())==i)
+		    		kmer.setAlignString(kmer.getKmerString());
+		    	else if (CommonUtils.mismatch(kmerRC, kmer.getKmerString())==i)	// do not RC kmer, set the string for alignment
+		    		kmer.setAlignString(kmer.getKmerRC());
+		    	else 
+		    		continue;
 	    		kmer.setShift(0);
 	    		family.add(kmer);
-	    		kmer.setAlignString(kmer.getKmerString());
-	    	}
-	    	else if (CommonUtils.mismatch(kmerRC, kmer.getKmerString())<=1){	// do not RC kmer, set the string for alignment
-	    		kmer.setShift(0);
-	    		family.add(kmer);
-	    		kmer.setAlignString(kmer.getKmerRC());
-	    	}
+		    	toRemove.add(kmer);
+			}
+			copy.removeAll(toRemove);
+			toRemove.clear();
 		}
 		return family;
 	}
