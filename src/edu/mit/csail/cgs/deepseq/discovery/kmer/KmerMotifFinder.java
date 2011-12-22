@@ -77,7 +77,7 @@ public class KmerMotifFinder {
 	private int maxThread;
 	private boolean use_weight=true;
 	private boolean use_PWM_MM = false;
-	private boolean use_smart_mm = true;	
+	private boolean use_smart_mm = false;	
 	private double wm_factor;
 //	private double kmer_set_overlap_ratio = 0.5;
 	private int kmer_remove_mode = 0;
@@ -3544,7 +3544,7 @@ public class KmerMotifFinder {
     	meanWeight /= weights.size();
 		for (int p=0;p<pfm.length;p++){
 			for (char base:LETTERS)			// 0 count can cause log(0), set pseudo-count 0.375 to every pos, every base
-				pfm[p][base]=0.375*meanWeight; 		//http://www.ncbi.nlm.nih.gov.libproxy.mit.edu/pmc/articles/PMC2490743/
+				pfm[p][base]=0.375*meanWeight; 		//http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2490743/
 		} 
     	for (int i=0;i<alignedSeqs.size();i++){
 			for (int p=0;p<pfm.length;p++){
@@ -3622,14 +3622,17 @@ public class KmerMotifFinder {
 		
 		/* try all pwm length with the most IC-rich columns, find the best PWM */
 		int[] left, right;
-		if (rightIdx-leftIdx+1>(k-2)){
-			left=new int[rightIdx-leftIdx+1-(k-2)];
-			right=new int[rightIdx-leftIdx+1-(k-2)];
+		int toShort = k-2;
+		if (k<=7)
+			toShort = k-1;
+		if (rightIdx-leftIdx+1>toShort){		// length > k-1
+			left=new int[rightIdx-leftIdx+1-toShort];
+			right=new int[rightIdx-leftIdx+1-toShort];
 			for (int i=0;i<left.length;i++){
 				int bestLeft = -1;
 				double bestSumIC = 0;
-				for(int p=leftIdx;p<=rightIdx-(k-2)-i;p++){
-					int end = (k-2)+i+p;
+				for(int p=leftIdx;p<=rightIdx-toShort-i;p++){
+					int end = toShort+i+p;
 					if (ic[p]<ic_trim || ic[end]<ic_trim)			// if the ends have low ic, skip
 						continue;
 					double sumIC=0; 
@@ -3643,7 +3646,7 @@ public class KmerMotifFinder {
 					}
 				}
 				left[i]=bestLeft;
-				right[i]=bestLeft+(k-2)+i;
+				right[i]=bestLeft+toShort+i;
 			}
 		}
 		else{				// if it is not very long

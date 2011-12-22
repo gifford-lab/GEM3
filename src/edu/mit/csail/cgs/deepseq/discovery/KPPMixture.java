@@ -3599,7 +3599,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
        	public boolean use_kmer_mismatch = true;
        	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
        	public boolean use_ksm = true;				// align with KSM (together with PWM)
-		public boolean refine_pwm = true;
      	public boolean estimate_ksm_threshold = true;
       	public boolean kpp_normalize_max = true;
       	public boolean kpp_use_kmer = true;
@@ -3608,6 +3607,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public boolean print_aligned_seqs = false;
         public boolean print_input_seqs = false;
         public boolean re_train = false;
+		public boolean refine_pwm = false;
         public boolean print_pwm_fdr = false;
         public boolean use_weight = true;
         public boolean allow_single_family =true;	// allow the kmer family only contains seed, i.e. no mismatch kmers
@@ -3681,6 +3681,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             print_aligned_seqs = flags.contains("print_aligned_seqs");
             print_input_seqs = flags.contains("print_input_seqs");
             re_train = flags.contains("re_train");
+            refine_pwm = flags.contains("refine_pwm");
             print_pwm_fdr = flags.contains("print_pwm_fdr");            
             
             // default as true, need the opposite flag to turn it off
@@ -3699,7 +3700,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
             use_kmer_mismatch = !flags.contains("no_kmm");
             use_seed_family = !flags.contains("no_seed_family");
             use_ksm = !flags.contains("no_ksm");
-            refine_pwm = !flags.contains("no_refine_pwm");
             kpp_use_kmer = !flags.contains("kpp_pwm");
             estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
             use_weight = !flags.contains("no_weight");
