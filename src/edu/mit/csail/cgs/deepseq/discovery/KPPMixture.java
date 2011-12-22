@@ -597,7 +597,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 }
             });
 		// get median event strength
-		double medianStrength = compFeatures.get(compFeatures.size()/2).getTotalEventStrength();
+		double quarterStrength = compFeatures.get(compFeatures.size()/4).getTotalEventStrength();
 //		System.out.println(String.format("Median event strength = %.1f\n",medianStrength));
 		
 		// only do this calculation at the first round, then throw out read data in non-specific regions (when we have control data for stat test)
@@ -665,7 +665,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 
 			boolean notFiltered = false;
 			// only filter high read count events (more likely to be artifacts) 
-			if (config.filterEvents && cf.getTotalEventStrength()>medianStrength){
+			if (config.filterEvents && cf.getTotalEventStrength()>quarterStrength){
 				for (int cond=0; cond<numConditions; cond++){
 					// if one condition is good event, this position is GOOD
 					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
@@ -676,8 +676,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 						}
 						else{
 							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
+							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
 //							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-							if (ratio>=config.fold){
+//							if (ratio>=config.fold){
 								notFiltered = true;
 								break;
 							}
@@ -3633,8 +3634,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double mappable_genome_length = -1; // defalut is to compute
         public double sparseness=6.0;
         public double fold = 2.5;
-        public double kl_ic = 0.0;
-        public double shapeDeviation = 0;
+        public double kl_ic = -1.0;
+        public double shapeDeviation;
         public int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
         public int resolution_extend = 2;
         public int first_lambda_region_width  =  1000;
@@ -3766,7 +3767,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
             alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
             fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
-            shapeDeviation =  TF_binding?-0.4:-0.3;		// set default according to filter type    		
+            shapeDeviation =  TF_binding?-0.3:-0.2;		// set default according to filter type    		
             shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
             max_hit_per_bp = Args.parseInteger(args, "mrc", 0); //max read count per bp, default -1, estimate from data
             window_size_factor = Args.parseInteger(args, "wsf", 3);

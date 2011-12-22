@@ -448,7 +448,7 @@ public class KmerMotifFinder {
 		int bestK = 0;
 		double bestAllHGP = 0;
 		ArrayList<KmerCluster> kClusters = new ArrayList<KmerCluster>();
-		StringBuilder sb = new StringBuilder("\n------------------- "+outName+" ----------------------\n");
+		StringBuilder sb = new StringBuilder("\n------------------- "+ new File(outName).getName() +" ----------------------\n");
 		for (int i=0;i<k_max-k_min+1;i++){
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
