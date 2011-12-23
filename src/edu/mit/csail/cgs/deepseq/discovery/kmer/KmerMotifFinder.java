@@ -75,7 +75,8 @@ public class KmerMotifFinder {
 	private boolean estimate_ksm_threshold = false;
 	private boolean use_grid_search=true;
 	private int maxThread;
-	private boolean use_weight=true;
+	private boolean use_weight=true;		// use sequence weighting when building PWM 
+	private boolean use_kmer_weight=true;	// use sequence weighting when counting k-mers
 	private boolean use_PWM_MM = false;
 	private boolean use_smart_mm = false;	
 	private double wm_factor;
@@ -104,9 +105,10 @@ public class KmerMotifFinder {
 	private int k_win;
 	private double[] profile;
 	private boolean isMasked;
-	private String[] seqs;		// DNA sequences around binding sites
-	private double[] seq_weights;
-	private String[] seqsNeg;	// DNA sequences in negative sets
+	private String[] seqs;			// DNA sequences around binding sites
+	private double[] seq_weights;	// binding strength corresponding to the seqs[]
+	private double totalWeight;
+	private String[] seqsNeg;		// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
 	public int getNegSeqCount(){return negSeqCount;}
     private int posSeqCount;
@@ -146,7 +148,13 @@ public class KmerMotifFinder {
 		return null;
 	}
 	
-	public KmerMotifFinder(){ }
+	public KmerMotifFinder(){
+		setUseKmerWeight();
+	}
+	
+	private void setUseKmerWeight(){
+		Kmer.set_use_weighted_hit_count(use_kmer_weight);
+	}
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
 			int kmer_remove_mode, boolean use_grid_search, boolean use_weight, boolean allow_single_family, String outName, boolean refinePWM, int verbose, 
@@ -184,8 +192,11 @@ public class KmerMotifFinder {
 		seqs = new String[pos_seqs.size()];	
 		pos_seqs.toArray(seqs);
 		seq_weights = new double[pos_w.size()];
-		for (int i=0;i<seq_weights.length;i++)
+		totalWeight=0;
+		for (int i=0;i<seq_weights.length;i++){
 			seq_weights[i]=pos_w.get(i);
+			totalWeight += seq_weights[i];
+		}
 		seqsNegList = neg_seqs;
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
@@ -227,6 +238,8 @@ public class KmerMotifFinder {
 	}
 	
 	public KmerMotifFinder(Genome g, boolean useCache){
+		setUseKmerWeight();
+
 		genome = g;
 		seqgen = new SequenceGenerator<Region>();
 		if (useCache)
@@ -333,8 +346,14 @@ public class KmerMotifFinder {
 			seqs = new String[posSeqs.size()];	// DNA sequences around binding sites
 			posSeqs.toArray(seqs);
 		    seq_weights = new double[posSeqs.size()];
-			for (int i=0;i<posSeqs.size();i++)
+
+			totalWeight=0;
+			for (int i=0;i<seq_weights.length;i++){
 				seq_weights[i]=posSeqWeights.get(i);
+				totalWeight += seq_weights[i];
+			}
+			if (use_kmer_weight)
+				Kmer.set_use_weights(seq_weights, seqs.length/totalWeight);
 			
 			/** Negative sequences has been retrieved when setting up region caches */
 			ArrayList<Region> negRegions = new ArrayList<Region>();
@@ -659,12 +678,16 @@ public class KmerMotifFinder {
 		System.out.println(String.format("\n------------------------\nSelected k=%d\tcoverage=%d.", bestK, bestKxKmerCount));
 		return bestK;
 	}
+	
+	/** 
+	 * Index k-mers from the positive sequences, select enriched k-mers
+	 * */
 	public ArrayList<Kmer> selectEnrichedKmers(int k){
 		this.k = k;
 		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
 		numPos = k_win-k+1;
-		int expectedCount = (int) Math.round(seqs.length / Math.pow(4, k));
+		int expectedCount = (int) Math.round(seqs.length*(seqs[0].length()-k+1) / Math.pow(4, k));
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
@@ -761,7 +784,7 @@ public class KmerMotifFinder {
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
 		for (Kmer kmer:kms){
-			if (kmer.getPosHitCount()<=1){
+			if (kmer.getPosHits().size()<=1){
 				toRemove.add(kmer);	
 				continue;
 			}
@@ -771,6 +794,9 @@ public class KmerMotifFinder {
 			if (kmer.getPosHitCount() < kmer.getNegHitCount()/get_NP_ratio() * k_fold ){
 				highHgpKmers.add(kmer);	
 				continue;
+			}
+			if (use_kmer_weight){
+				kmer.setWeightedPosHitCount();
 			}
 			kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
 			if (kmer.getHgp()>hgp)
@@ -1956,7 +1982,7 @@ public class KmerMotifFinder {
 			family.addAll(getMMKmers(newList, km.getKmerString(), 0));
 			newList.removeAll(family);
 			// compute KmerGroup hgp for the km family
-			KmerGroup kg = new KmerGroup(family, 0);
+			KmerGroup kg = use_kmer_weight ? new KmerGroup(family, 0, seq_weights, totalWeight) : new KmerGroup(family, 0);
 			km.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 			candidates.add(km);
 			if (candidates.size()>3)
@@ -1986,14 +2012,14 @@ public class KmerMotifFinder {
 		family1.add(minHgpKmer);
 		family1.addAll(getMMKmers(kmers, minHgpKmer.getKmerString(), 0));
 		// compute KmerGroup hgp for the km family
-		KmerGroup kg = new KmerGroup(family1, 0);
+		KmerGroup kg = use_kmer_weight ? new KmerGroup(family1, 0, seq_weights, totalWeight) : new KmerGroup(family1, 0);
 		minHgpKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		ArrayList<Kmer> family2 = new ArrayList<Kmer>();
 		family2.add(maxCountKmer);
 		family2.addAll(getMMKmers(kmers, maxCountKmer.getKmerString(), 0));
 		// compute KmerGroup hgp for the km family
-		kg = new KmerGroup(family2, 0);
+		kg = use_kmer_weight ? new KmerGroup(family2, 0, seq_weights, totalWeight) : new KmerGroup(family2, 0);
 		maxCountKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		if (minHgpKmer.familyHgp<=maxCountKmer.familyHgp)
@@ -4766,7 +4792,7 @@ public class KmerMotifFinder {
 				posSeqScores[i]=0;
 			else{
 				Arrays.sort(kgs);
-				posSeqScores[i]=-kgs[0].getHgp();				// score = -log10 hgp, becomes positive value
+				posSeqScores[i]=-kgs[0].getHgp();	// use first kg, the best match	// score = -log10 hgp, becomes positive value
 			}
 		}
 		Arrays.sort(posSeqScores);
@@ -5061,7 +5087,7 @@ public class KmerMotifFinder {
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			KmerGroup kg = new KmerGroup(result.get(p), p);
+			KmerGroup kg = use_kmer_weight ? new KmerGroup(result.get(p), p, seq_weights, totalWeight) : new KmerGroup(result.get(p), p);
 			matches[idx]=kg;
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -5152,7 +5178,7 @@ public class KmerMotifFinder {
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			KmerGroup kg = new KmerGroup(result.get(p), p);
+			KmerGroup kg = use_kmer_weight ? new KmerGroup(result.get(p), p, seq_weights, totalWeight) : new KmerGroup(result.get(p), p);
 			matches[idx]=kg;
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -5599,6 +5625,28 @@ public class KmerMotifFinder {
     		}
     		negHitGroupCount = allNegHits.size();
 		}
+		
+		public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights, double totalWeight){
+			this.bs = bs;
+			this.kmers = kmers;
+			Collections.sort(this.kmers);
+			
+    		HashSet<Integer> allPosHits = new HashSet<Integer>();
+    		for (int i=0;i<kmers.size();i++){
+        		allPosHits.addAll(kmers.get(i).getPosHits());
+    		}
+    		double weight=0;
+    		for (int i: allPosHits)
+    			weight+=weights[i];
+    		posHitGroupCount = (int)(weight*allPosHits.size()/totalWeight);
+    		
+    		HashSet<Integer> allNegHits = new HashSet<Integer>();
+    		for (int i=0;i<kmers.size();i++){
+        		allNegHits.addAll(kmers.get(i).getNegHits());
+    		}
+    		negHitGroupCount = allNegHits.size();
+		}
+		
 		/** hgp (log10) using the positive/negative sequences */
 		public double getHgp() {return hgp;	}
 		/** hgp (log10) using the positive/negative sequences */

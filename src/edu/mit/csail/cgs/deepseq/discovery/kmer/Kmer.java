@@ -18,7 +18,16 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class Kmer implements Comparable<Kmer>{
 	static cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
-	
+	static boolean use_weighted_hit_count = false;
+	static void set_use_weighted_hit_count(boolean weighted){
+		use_weighted_hit_count = weighted;
+	}
+	static double[] seq_weights;
+	static double count_over_weight;
+	static void set_use_weights(double[] weights, double ratio){
+		seq_weights = weights;
+		count_over_weight = ratio;
+	}	
 	private String kmerString;
 	public String getKmerString() {	return kmerString;}
 	private String kmerRC;
@@ -31,10 +40,19 @@ public class Kmer implements Comparable<Kmer>{
 	public int getK(){return k;}
 	
 	private HashSet<Integer> posHits = new HashSet<Integer>();
-//	int posHitCount; //one hit at most for one sequence, to avoid simple repeat
-	public int getPosHitCount() {return posHits.size();}
+	/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
+	 * 	get a weighted version of hit count if use_weighted_hit_count is true
+	 */
+	public int getPosHitCount() {
+		if (use_weighted_hit_count)
+			return weightedPosHitCount;
+		else
+			return posHits.size();
+	}
 	public void setPosHits(HashSet<Integer> posHits) {
 		this.posHits = posHits;
+		if (use_weighted_hit_count)
+			setWeightedPosHitCount();
 		double[] ids = new double[posHits.size()];
 		int count=0;
 		for (int id:posHits){
@@ -46,6 +64,16 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public HashSet<Integer> getPosHits(){return posHits;}
 	
+	private int weightedPosHitCount;
+	public void setWeightedPosHitCount(){
+		double weight=0;
+		for (int i: posHits)
+			weight+=seq_weights[i];
+		weightedPosHitCount = (int)(weight*count_over_weight);
+	}
+//	public int getWeightedHitCount(){
+//		return weightedPosHitCount;
+//	}
 	public double familyHgp;
 	
 	private double top;
@@ -158,24 +186,40 @@ public class Kmer implements Comparable<Kmer>{
 		return this.kmerString.equals(kmerString);
 	}
 	public String toString(){
-		return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f", kmerString, getKmerRC(),clusterId, kmerStartOffset, getPosHitCount(), getNegHitCount(), hgp_lg10, top);
+		if (use_weighted_hit_count)
+			return String.format("%s/%s\t%d\t%d\t%d\t%d\t%d\t%.1f\t%.1f", 
+				kmerString, getKmerRC(),clusterId, kmerStartOffset, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10, top);
+		else
+			return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f", 
+				kmerString, getKmerRC(),clusterId, kmerStartOffset, posHits.size(), getNegHitCount(), hgp_lg10, top);
 	}
 	public static String toHeader(int k){
 		int length=2*k+1;
 		String firstField = "# k-mer/r.c.";
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
-		return firstField+"\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tTop";
+		if (use_weighted_hit_count)
+			return firstField+"\tCluster\tOffset\tPosCt\twPosCt\tNegCt\tHGP_10\tTop";
+		else
+			return firstField+"\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tTop";
 	}
 	public String toShortString(){
-		return kmerString+"/"+getKmerRC()+"\t"+getPosHitCount()+"\t"+getNegHitCount()+"\t"+String.format("%.1f", hgp_lg10);
+		if (use_weighted_hit_count)
+			return String.format("%s/%s\t%d\t%d\t%d\t%.1f", 
+				kmerString, getKmerRC(), posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+		else
+			return String.format("%s/%s\t%d\t%d\t%.1f", 
+				kmerString, getKmerRC(), posHits.size(), getNegHitCount(), hgp_lg10);
 	}
 	public static String toShortHeader(int k){
 		int length=2*k+1;
 		String firstField = "# k-mer/r.c.";
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
-		return firstField+"\tPosCt\tNegCt\tHGP_10";
+		if (use_weighted_hit_count)
+			return firstField+"\tPosCt\twPosCt\tNegCt\tHGP_10";
+		else
+			return firstField+"\tPosCt\tNegCt\tHGP_10";
 	}
 	public static Kmer fromString(String str){
 		String[] f = str.split("\t");
