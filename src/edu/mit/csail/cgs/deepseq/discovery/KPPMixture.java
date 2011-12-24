@@ -71,8 +71,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	private double[] gaussian;
 	private boolean doScanning=true;
 	
-	private String repeatMaskedRegionFile;
-
 	/****************
 	 * Data
 	 ****************/
@@ -175,8 +173,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 		
-		repeatMaskedRegionFile = Args.parseString(args, "repeat_mask", null);
-
     	/* *********************************
     	 * Load Kmer list
     	 ***********************************/
@@ -3434,7 +3430,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
     	
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();
-    	kmf.loadTestSequences(events, winSize, repeatMaskedRegionFile);
+    	kmf.loadTestSequences(events, winSize);
     	if (config.print_input_seqs)
     		kmf.printInputSequences(outName);
     	

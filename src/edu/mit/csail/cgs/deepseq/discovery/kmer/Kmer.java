@@ -23,10 +23,8 @@ public class Kmer implements Comparable<Kmer>{
 		use_weighted_hit_count = weighted;
 	}
 	static double[] seq_weights;
-	static double count_over_weight;
-	static void set_use_weights(double[] weights, double ratio){
+	static void set_seq_weights(double[] weights){
 		seq_weights = weights;
-		count_over_weight = ratio;
 	}	
 	private String kmerString;
 	public String getKmerString() {	return kmerString;}
@@ -69,7 +67,7 @@ public class Kmer implements Comparable<Kmer>{
 		double weight=0;
 		for (int i: posHits)
 			weight+=seq_weights[i];
-		weightedPosHitCount = (int)(weight*count_over_weight);
+		weightedPosHitCount = (int)weight;
 	}
 //	public int getWeightedHitCount(){
 //		return weightedPosHitCount;

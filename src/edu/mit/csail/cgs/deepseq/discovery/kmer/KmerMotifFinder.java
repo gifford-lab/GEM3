@@ -106,7 +106,7 @@ public class KmerMotifFinder {
 	private double[] profile;
 	private boolean isMasked;
 	private String[] seqs;			// DNA sequences around binding sites
-	private double[] seq_weights;	// binding strength corresponding to the seqs[]
+	private double[] seq_weights;	// sequence hit count weighted by binding strength, corresponding to the seqs[]
 	private double totalWeight;
 	private String[] seqsNeg;		// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
@@ -294,29 +294,8 @@ public class KmerMotifFinder {
 		 * @param winSize
 		 * @param winShift
 		 */
-		public void loadTestSequences(ArrayList<ComponentFeature> events, int winSize, String repeatMaskedRegionFile){
-	
-			// TODO: load repeat masked regions
-			ArrayList<Region> repeatMaskedRegions = new ArrayList<Region>();
-			if (repeatMaskedRegionFile!=null){
-				BufferedReader bin = null;
-				int count = 0;
-				try{
-			        bin = new BufferedReader(new InputStreamReader(new FileInputStream(repeatMaskedRegionFile)));
-					
-			        String line;
-			        bin.readLine();bin.readLine();bin.readLine();	// skip header
-			        while((line = bin.readLine()) != null) { 
-			            line = line.trim();
-			            String[] f=line.split("\t");
-			        }
-				}
-				catch (IOException e){
-					System.err.println("Error in reading repeat mask file, "+repeatMaskedRegionFile);
-					e.printStackTrace(System.err);
-				}
-			}
-			
+		public void loadTestSequences(ArrayList<ComponentFeature> events, int winSize){
+		
 			int eventCount = events.size();
 			ArrayList<Region> posImpactRegion = new ArrayList<Region>();			// to make sure negative region is not within negRegionDistance of positive regions.
 			ArrayList<String> posSeqs = new ArrayList<String>();
@@ -352,8 +331,11 @@ public class KmerMotifFinder {
 				seq_weights[i]=posSeqWeights.get(i);
 				totalWeight += seq_weights[i];
 			}
+			for (int i=0;i<seq_weights.length;i++){
+				seq_weights[i] = seq_weights[i]*seqs.length/totalWeight;	// scale weights with total sequence count, and total weight
+			}
 			if (use_kmer_weight)
-				Kmer.set_use_weights(seq_weights, seqs.length/totalWeight);
+				Kmer.set_seq_weights(seq_weights);
 			
 			/** Negative sequences has been retrieved when setting up region caches */
 			ArrayList<Region> negRegions = new ArrayList<Region>();
@@ -581,7 +563,7 @@ public class KmerMotifFinder {
 		for (int i=0;i<k_max-k_min+1;i++){
 
 			if (isMasked && events!=null)
-				loadTestSequences(events, winSize, null);
+				loadTestSequences(events, winSize);
 			
 			int k = i+k_min;
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
@@ -1791,7 +1773,7 @@ public class KmerMotifFinder {
 		// if all of the clusters does not pass, relax the PWM hit count criteria
 		if (badClusters.size()==clusters.size()){
 			for (KmerCluster c:clusters)
-				if (c.total_aligned_seqs<seqs.length*motif_hit_factor)
+				if (c.total_aligned_seqs<seqs.length*motif_hit_factor && c.wm!=null )
 					badClusters.remove(c);
 		}
 		clusters.removeAll(badClusters);
@@ -4608,7 +4590,8 @@ public class KmerMotifFinder {
 		for (int i=0;i<posSeqCount;i++){
 			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
 		}
-		Arrays.sort(posSeqScores);
+		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
+		
 		int startIdx = Arrays.binarySearch(posSeqScores, startingScore);
 		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
 		
@@ -4638,7 +4621,14 @@ public class KmerMotifFinder {
 		for (int i=0;i<posScores_u.length;i++){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
-			poshits[i] = posSeqScores.length-index;
+			if (use_kmer_weight){
+				double weightedHit = 0;
+				for (int s=index; s<posSeqScores.length; s++)
+					weightedHit += seq_weights[ posIdx[s] ];
+				poshits[i] = (int) weightedHit;
+			}
+			else
+				poshits[i] = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
 		}
@@ -4795,7 +4785,7 @@ public class KmerMotifFinder {
 				posSeqScores[i]=-kgs[0].getHgp();	// use first kg, the best match	// score = -log10 hgp, becomes positive value
 			}
 		}
-		Arrays.sort(posSeqScores);
+		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
 		for (int i=0;i<negSeqCount;i++){
 			KmerGroup[] kgs = query(seqsNegList.get(i));
 			if (kgs.length==0)
@@ -4816,11 +4806,17 @@ public class KmerMotifFinder {
 		int[] poshits = new int[posScoreUnique.size()];
 		int[] neghits = new int[posScoreUnique.size()];
 		double[] hgps = new double[posScoreUnique.size()];
-		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<posScores_u.length;i++){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
-			poshits[i] = posSeqScores.length-index;
+			if (use_kmer_weight){
+				double weightedHit = 0;
+				for (int s=index; s<posSeqScores.length; s++)
+					weightedHit += seq_weights[ posIdx[s] ];
+				poshits[i] = (int) weightedHit;
+			}
+			else
+				poshits[i] = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
 		}
