@@ -1772,9 +1772,9 @@ public class KmerMotifFinder {
 		}
 		// if all of the clusters does not pass, relax the PWM hit count criteria
 		if (badClusters.size()==clusters.size()){
-			for (KmerCluster c:clusters)
-				if (c.total_aligned_seqs<seqs.length*motif_hit_factor && c.wm!=null )
-					badClusters.remove(c);
+			for (int i=0;i<Math.max(5, clusters.size());i++)
+				if (clusters.get(i).wm!=null )
+					badClusters.remove(clusters.get(i));
 		}
 		clusters.removeAll(badClusters);
 		
