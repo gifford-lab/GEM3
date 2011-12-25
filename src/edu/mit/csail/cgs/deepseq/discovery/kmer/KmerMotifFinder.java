@@ -4621,13 +4621,13 @@ public class KmerMotifFinder {
 		for (int i=0;i<posScores_u.length;i++){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
-			if (use_kmer_weight){
-				double weightedHit = 0;
-				for (int s=index; s<posSeqScores.length; s++)
-					weightedHit += seq_weights[ posIdx[s] ];
-				poshits[i] = (int) weightedHit;
-			}
-			else
+//			if (use_kmer_weight){
+//				double weightedHit = 0;
+//				for (int s=index; s<posSeqScores.length; s++)
+//					weightedHit += seq_weights[ posIdx[s] ];
+//				poshits[i] = (int) weightedHit;
+//			}
+//			else
 				poshits[i] = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
@@ -4809,13 +4809,13 @@ public class KmerMotifFinder {
 		for (int i=0;i<posScores_u.length;i++){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
-			if (use_kmer_weight){
-				double weightedHit = 0;
-				for (int s=index; s<posSeqScores.length; s++)
-					weightedHit += seq_weights[ posIdx[s] ];
-				poshits[i] = (int) weightedHit;
-			}
-			else
+//			if (use_kmer_weight){
+//				double weightedHit = 0;
+//				for (int s=index; s<posSeqScores.length; s++)
+//					weightedHit += seq_weights[ posIdx[s] ];
+//				poshits[i] = (int) weightedHit;
+//			}
+//			else
 				poshits[i] = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
@@ -4871,7 +4871,6 @@ public class KmerMotifFinder {
 	 * Return the score gives the most significant p-value.
 	 */
 	public MotifThreshold estimateKsmThreshold(String outName, boolean printKgcHgp){
-		// TODO: grid search
 		if (! engineInitialized)
 			return null;
 		

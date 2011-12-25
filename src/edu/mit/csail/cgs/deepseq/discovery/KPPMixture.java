@@ -3389,7 +3389,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ComponentFeature cf = (ComponentFeature)f;
 			events.add(cf);
 		}
-		if (config.kmer_use_insig){
+		int significantCount = signalFeatures.size();
+		if (config.kmer_use_insig || significantCount<2000 ){
 			for(Feature f : insignificantFeatures){
 				if(count++>config.k_seqs)
 					break;
@@ -3397,7 +3398,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				events.add(cf);
 			}
 		}
-		if (config.kmer_use_filtered){			
+		if (config.kmer_use_filtered || significantCount<2000 ){			
 			for(Feature f : filteredFeatures){
 				if(count++>config.k_seqs)
 					break;
