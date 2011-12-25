@@ -448,6 +448,7 @@ public class KmerMotifFinder {
 		// compare different values of k to select most enriched k value
 		int bestK = 0;
 		double bestAllHGP = 0;
+		KmerCluster bestAllCluster=null;
 		ArrayList<KmerCluster> kClusters = new ArrayList<KmerCluster>();
 		StringBuilder sb = new StringBuilder("\n------------------- "+ new File(outName).getName() +" ----------------------\n");
 		for (int i=0;i<k_max-k_min+1;i++){
@@ -468,8 +469,10 @@ public class KmerMotifFinder {
 						bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
 				kClusters.add(bestCluster);
 				
-				if (bestAllHGP>bestCluster.pwmThresholdHGP)
+				if (bestAllHGP>bestCluster.pwmThresholdHGP){
 					bestAllHGP=bestCluster.pwmThresholdHGP;
+					bestAllCluster = bestCluster;
+				}
 			}
 			else
 				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
@@ -485,19 +488,10 @@ public class KmerMotifFinder {
 			return 0;
 		}
 		
-		// find the k value with largest hit count and at least 90% of the best HGP
-		int bestHitCount = 0;
-		KmerCluster bestCluster=null;
-		for (KmerCluster c : kClusters){
-			if (c.pwmPosHitCount>bestHitCount && c.pwmThresholdHGP<bestAllHGP*0.9){
-				bestHitCount = c.pwmPosHitCount;
-				bestCluster = c;
-			}
-		}
-		bestK = bestCluster.seedKmer.getK();
+		bestK = bestAllCluster.seedKmer.getK();
 		System.out.print(sb.toString());
 		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f.\n----------------------------------------------\n", 
-				bestK, bestCluster.pwmPosHitCount, bestCluster.pwmThresholdHGP));
+				bestK, bestAllCluster.pwmPosHitCount, bestAllCluster.pwmThresholdHGP));
 //		
 //		// check if there is discontinuity in widths 
 //		ArrayList<Integer> widths = new ArrayList<Integer>();
