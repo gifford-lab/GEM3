@@ -197,6 +197,12 @@ public class KmerMotifFinder {
 			seq_weights[i]=pos_w.get(i);
 			totalWeight += seq_weights[i];
 		}
+		for (int i=0;i<seq_weights.length;i++){
+			seq_weights[i] = seq_weights[i]*seqs.length/totalWeight;	// scale weights with total sequence count, and total weight
+		}
+		if (use_kmer_weight)
+			Kmer.set_seq_weights(seq_weights);
+		
 		seqsNegList = neg_seqs;
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
@@ -448,7 +454,6 @@ public class KmerMotifFinder {
 		// compare different values of k to select most enriched k value
 		int bestK = 0;
 		double bestAllHGP = 0;
-		KmerCluster bestAllCluster=null;
 		ArrayList<KmerCluster> kClusters = new ArrayList<KmerCluster>();
 		StringBuilder sb = new StringBuilder("\n------------------- "+ new File(outName).getName() +" ----------------------\n");
 		for (int i=0;i<k_max-k_min+1;i++){
@@ -469,10 +474,8 @@ public class KmerMotifFinder {
 						bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
 				kClusters.add(bestCluster);
 				
-				if (bestAllHGP>bestCluster.pwmThresholdHGP){
+				if (bestAllHGP>bestCluster.pwmThresholdHGP)
 					bestAllHGP=bestCluster.pwmThresholdHGP;
-					bestAllCluster = bestCluster;
-				}
 			}
 			else
 				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
@@ -488,10 +491,19 @@ public class KmerMotifFinder {
 			return 0;
 		}
 		
-		bestK = bestAllCluster.seedKmer.getK();
+		// find the k value with largest hit count and at least 90% of the best HGP
+		int bestHitCount = 0;
+		KmerCluster bestCluster=null;
+		for (KmerCluster c : kClusters){
+			if (c.pwmPosHitCount>bestHitCount && c.pwmThresholdHGP<bestAllHGP*0.9){
+				bestHitCount = c.pwmPosHitCount;
+				bestCluster = c;
+			}
+		}
+		bestK = bestCluster.seedKmer.getK();
 		System.out.print(sb.toString());
 		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f.\n----------------------------------------------\n", 
-				bestK, bestAllCluster.pwmPosHitCount, bestAllCluster.pwmThresholdHGP));
+				bestK, bestCluster.pwmPosHitCount, bestCluster.pwmThresholdHGP));
 //		
 //		// check if there is discontinuity in widths 
 //		ArrayList<Integer> widths = new ArrayList<Integer>();
@@ -1958,7 +1970,7 @@ public class KmerMotifFinder {
 			family.addAll(getMMKmers(newList, km.getKmerString(), 0));
 			newList.removeAll(family);
 			// compute KmerGroup hgp for the km family
-			KmerGroup kg = use_kmer_weight ? new KmerGroup(family, 0, seq_weights, totalWeight) : new KmerGroup(family, 0);
+			KmerGroup kg = use_kmer_weight ? new KmerGroup(family, 0, seq_weights) : new KmerGroup(family, 0);
 			km.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 			candidates.add(km);
 			if (candidates.size()>3)
@@ -1988,14 +2000,14 @@ public class KmerMotifFinder {
 		family1.add(minHgpKmer);
 		family1.addAll(getMMKmers(kmers, minHgpKmer.getKmerString(), 0));
 		// compute KmerGroup hgp for the km family
-		KmerGroup kg = use_kmer_weight ? new KmerGroup(family1, 0, seq_weights, totalWeight) : new KmerGroup(family1, 0);
+		KmerGroup kg = use_kmer_weight ? new KmerGroup(family1, 0, seq_weights) : new KmerGroup(family1, 0);
 		minHgpKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		ArrayList<Kmer> family2 = new ArrayList<Kmer>();
 		family2.add(maxCountKmer);
 		family2.addAll(getMMKmers(kmers, maxCountKmer.getKmerString(), 0));
 		// compute KmerGroup hgp for the km family
-		kg = use_kmer_weight ? new KmerGroup(family2, 0, seq_weights, totalWeight) : new KmerGroup(family2, 0);
+		kg = use_kmer_weight ? new KmerGroup(family2, 0, seq_weights) : new KmerGroup(family2, 0);
 		maxCountKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		if (minHgpKmer.familyHgp<=maxCountKmer.familyHgp)
@@ -4584,6 +4596,7 @@ public class KmerMotifFinder {
 		for (int i=0;i<posSeqCount;i++){
 			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
 		}
+//		Arrays.sort(posSeqScores);
 		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
 		
 		int startIdx = Arrays.binarySearch(posSeqScores, startingScore);
@@ -4615,13 +4628,13 @@ public class KmerMotifFinder {
 		for (int i=0;i<posScores_u.length;i++){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
-//			if (use_kmer_weight){
-//				double weightedHit = 0;
-//				for (int s=index; s<posSeqScores.length; s++)
-//					weightedHit += seq_weights[ posIdx[s] ];
-//				poshits[i] = (int) weightedHit;
-//			}
-//			else
+			if (use_kmer_weight){
+				double weightedHit = 0;
+				for (int s=index; s<posSeqScores.length; s++)
+					weightedHit += seq_weights[ posIdx[s] ];
+				poshits[i] = (int) weightedHit;
+			}
+			else
 				poshits[i] = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
@@ -4779,6 +4792,7 @@ public class KmerMotifFinder {
 				posSeqScores[i]=-kgs[0].getHgp();	// use first kg, the best match	// score = -log10 hgp, becomes positive value
 			}
 		}
+//		Arrays.sort(posSeqScores);
 		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
 		for (int i=0;i<negSeqCount;i++){
 			KmerGroup[] kgs = query(seqsNegList.get(i));
@@ -4803,13 +4817,13 @@ public class KmerMotifFinder {
 		for (int i=0;i<posScores_u.length;i++){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
-//			if (use_kmer_weight){
-//				double weightedHit = 0;
-//				for (int s=index; s<posSeqScores.length; s++)
-//					weightedHit += seq_weights[ posIdx[s] ];
-//				poshits[i] = (int) weightedHit;
-//			}
-//			else
+			if (use_kmer_weight){
+				double weightedHit = 0;
+				for (int s=index; s<posSeqScores.length; s++)
+					weightedHit += seq_weights[ posIdx[s] ];
+				poshits[i] = (int) weightedHit;
+			}
+			else
 				poshits[i] = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
@@ -5076,7 +5090,7 @@ public class KmerMotifFinder {
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			KmerGroup kg = use_kmer_weight ? new KmerGroup(result.get(p), p, seq_weights, totalWeight) : new KmerGroup(result.get(p), p);
+			KmerGroup kg = use_kmer_weight ? new KmerGroup(result.get(p), p, seq_weights) : new KmerGroup(result.get(p), p);
 			matches[idx]=kg;
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -5167,7 +5181,7 @@ public class KmerMotifFinder {
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			KmerGroup kg = use_kmer_weight ? new KmerGroup(result.get(p), p, seq_weights, totalWeight) : new KmerGroup(result.get(p), p);
+			KmerGroup kg = use_kmer_weight ? new KmerGroup(result.get(p), p, seq_weights) : new KmerGroup(result.get(p), p);
 			matches[idx]=kg;
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -5615,7 +5629,7 @@ public class KmerMotifFinder {
     		negHitGroupCount = allNegHits.size();
 		}
 		
-		public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights, double totalWeight){
+		public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights){
 			this.bs = bs;
 			this.kmers = kmers;
 			Collections.sort(this.kmers);
@@ -5627,7 +5641,7 @@ public class KmerMotifFinder {
     		double weight=0;
     		for (int i: allPosHits)
     			weight+=weights[i];
-    		posHitGroupCount = (int)(weight*allPosHits.size()/totalWeight);
+    		posHitGroupCount = (int)(weight);
     		
     		HashSet<Integer> allNegHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
