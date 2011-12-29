@@ -150,6 +150,42 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
     	dataset = null;
     }
     
+    public Genome(String tempName, File chrLengths, boolean inventids) {
+    	species = "FakeOrganism";
+    	version = tempName;
+    	speciesid = dbid = -1;
+    	cxn = null;
+    	isyeast = false;
+    	chroms = new HashMap<String,ChromosomeInfo>();
+    	revchroms = new HashMap<Integer,ChromosomeInfo>();
+    	if(!chrLengths.isFile()){System.err.println("Invalid genome info file name");System.exit(1);}
+        BufferedReader reader;
+		try {
+			reader = new BufferedReader(new FileReader(chrLengths));
+		    String line;
+	        int id=0;
+	        while ((line = reader.readLine()) != null) {
+	            line = line.trim();
+	            String[] words = line.split("\\s+");
+	            if(words.length>=2){
+	            	String chr = words[0].replaceFirst("^chromosome", "");
+	            	chr = chr.replaceFirst("^chrom", "");
+	            	chr = chr.replaceFirst("^chr", "");
+	            	ChromosomeInfo info = new ChromosomeInfo(id++, Integer.parseInt(words[1]), chr);
+	            	chroms.put(info.getName(), info);
+	            	revchroms.put(info.dbid, info);
+	            }
+	    	}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (NumberFormatException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+    	dataset = null;
+    }
+    
     public Genome(String tempName, Map<String, Integer> chrLengthMap) {
     	species = "FakeOrganism";
     	version = tempName;
