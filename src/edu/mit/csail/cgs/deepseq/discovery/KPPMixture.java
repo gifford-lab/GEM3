@@ -3631,7 +3631,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         public double mappable_genome_length = -1; // defalut is to compute
         public double sparseness=6.0;
         public double fold = 2.5;
-        public double kl_ic = -1.0;
+        public double kl_ic = -2.0;
         public double shapeDeviation;
         public int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
         public int resolution_extend = 2;

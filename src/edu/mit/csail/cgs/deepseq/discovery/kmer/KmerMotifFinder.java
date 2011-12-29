@@ -1778,7 +1778,7 @@ public class KmerMotifFinder {
 		}
 		// if all of the clusters does not pass, relax the PWM hit count criteria
 		if (badClusters.size()==clusters.size()){
-			for (int i=0;i<Math.max(5, clusters.size());i++)
+			for (int i=0;i<Math.min(5, clusters.size());i++)
 				if (clusters.get(i).wm!=null )
 					badClusters.remove(clusters.get(i));
 		}
