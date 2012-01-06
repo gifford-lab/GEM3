@@ -249,6 +249,26 @@ public class CommonUtils {
 		}
 //		System.out.println("File was written to "+fileName);
 	}
+	
+	public static ArrayList<String> readTextFile(String fileName){
+		ArrayList<String> strs = new ArrayList<String>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileName))));
+	        String line;
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            strs.add(line);
+	        }			
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+fileName);
+            e.printStackTrace(System.err);
+        }   
+        return strs;
+	}
+	
 	/** 
 	 * Find the index that gives value larger than or equal to the key
 	 * @param values
@@ -438,6 +458,41 @@ public class CommonUtils {
         }
 	}
 	
+	public static void visualizeSequences(String[] seqs, int width, int height, File f){
+		if (seqs.length==0)
+			return;
+		int pixwidth = seqs[0].length()*width;
+		int pixheight = seqs.length*height;
+		System.setProperty("java.awt.headless", "true");
+		BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_ARGB);
+        Graphics g = im.getGraphics();
+        Graphics2D g2 = (Graphics2D)g;
+        g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
+        g2.setColor(Color.WHITE);
+        g2.fillRect(0,0,pixwidth, pixheight);
+        
+        for (int i=0;i<seqs.length;i++){
+        	char[] letters = seqs[i].toCharArray();
+        	for (int j=0;j<letters.length;j++){
+                if (letters[j] == 'A') {
+                    g.setColor(Color.GREEN);
+                } else if (letters[j] == 'C') {
+                    g.setColor(Color.BLUE);
+                } else if (letters[j] == 'G') {
+                    g.setColor(Color.ORANGE);
+                }  else if (letters[j] == 'T') {
+                    g.setColor(Color.RED);
+                }
+                g.fillRect(j*width, i*height, width, height);
+        	}
+        }
+        try {
+            ImageIO.write(im,"png",f);
+        }  catch (IOException ex) {
+            ex.printStackTrace();
+        }
+	}
+	
 	public static int mismatch(String ref, String seq){
 	  if (ref.length()!=seq.length())
 		  return -1;
@@ -478,31 +533,40 @@ public class CommonUtils {
 	
     // --species "Mus musculus;mm8" --motif "CTCF" --version "090828" --windowSize 100 --motifThreshold 11.52
     public static void main(String args[]){
-		// load motif
-    	Genome genome;
-    	Organism org=null;
-    	WeightMatrix motif = null;
-    	ArgParser ap = new ArgParser(args);
-		Set<String> flags = Args.parseFlags(args);		
-	    try {
-	      Pair<Organism, Genome> pair = Args.parseGenome(args);
-	      if(pair==null){
-	        //Make fake genome... chr lengths provided???
-	        if(ap.hasKey("geninfo")){
-	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-	            }else{
-	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-	            }
-	      }else{
-	        genome = pair.cdr();
-	        org = pair.car();
-	      }
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }
-		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-		motif = wm.car();
-		
-		CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
+//		// load motif
+//    	Genome genome;
+//    	Organism org=null;
+//    	WeightMatrix motif = null;
+//    	ArgParser ap = new ArgParser(args);
+//		Set<String> flags = Args.parseFlags(args);		
+//	    try {
+//	      Pair<Organism, Genome> pair = Args.parseGenome(args);
+//	      if(pair==null){
+//	        //Make fake genome... chr lengths provided???
+//	        if(ap.hasKey("geninfo")){
+//	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+//	            }else{
+//	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
+//	            }
+//	      }else{
+//	        genome = pair.cdr();
+//	        org = pair.car();
+//	      }
+//	    } catch (NotFoundException e) {
+//	      e.printStackTrace();
+//	    }
+//		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+//		motif = wm.car();		
+//		CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
+	    String inName = Args.parseString(args, "seqFile", null);
+	    ArrayList<String> strs = readTextFile(inName);
+	    if (strs.isEmpty())
+	    	return;
+	    String[] ss = new String[strs.size()];
+	    strs.toArray(ss);
+	    int width = Args.parseInteger(args, "w", 400);
+	    int height = Args.parseInteger(args, "h", 600);
+	    visualizeSequences(ss, width/ss[0].length(), height/ss.length, new File(inName+".png"));
+	    
     }
 }

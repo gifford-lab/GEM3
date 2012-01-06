@@ -5823,46 +5823,26 @@ public class KmerMotifFinder {
 			k=seed.length();
 			System.out.println("Starting seed k-mer is "+seed+".\n");
 		}
+		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
+        String[]f = null;
+		for (String line: strs){
+            if (!line.startsWith(">")){
+        		f = line.split(" ");
+        		if (f.length>1)
+	            	seq_w.add(Double.parseDouble(f[1]));
+	            else
+	            	seq_w.add(1.0);
+        	}
+        	else
+        		pos_seqs.add(line);
+		}
 		
-		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(pos_file))));
-	        String line;
-	        String[]f = null;
-	        while((line = bin.readLine()) != null) { 
-	        	line = line.trim();
-	        	if (line.startsWith(">")){
-	        		f = line.split(" ");
-	        		if (f.length>1)
-		            	seq_w.add(Double.parseDouble(f[1]));
-		            else
-		            	seq_w.add(1.0);
-	        	}
-	        	else
-	        		pos_seqs.add(line);
-	        }			
-	        if (bin != null) {
-	            bin.close();
-	        }
-        } catch (IOException e) {
-        	System.err.println("Error when processing "+pos_file);
-            e.printStackTrace(System.err);
-        }
 		ArrayList<String> neg_seqs = new ArrayList<String>();
-		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(neg_file))));
-	        String line;
-	        while((line = bin.readLine()) != null) { 
-	            line = line.trim();
-	            if (!line.startsWith(">"))
-	            	neg_seqs.add(line);
-	        }			
-	        if (bin != null) {
-	            bin.close();
-	        }
-        } catch (IOException e) {
-        	System.err.println("Error when processing "+neg_file);
-            e.printStackTrace(System.err);
-        }   
+		strs = CommonUtils.readTextFile(neg_file);
+		for (String line: strs){
+            if (!line.startsWith(">"))
+            	neg_seqs.add(line);
+		}
         
         KmerMotifFinder kmf = new KmerMotifFinder();
         boolean use_seed_family = true;
