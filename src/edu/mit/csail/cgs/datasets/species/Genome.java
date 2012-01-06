@@ -171,7 +171,12 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
 	            	String chr = words[0].replaceFirst("^chromosome", "");
 	            	chr = chr.replaceFirst("^chrom", "");
 	            	chr = chr.replaceFirst("^chr", "");
-	            	ChromosomeInfo info = new ChromosomeInfo(id++, Integer.parseInt(words[1]), chr);
+	            	ChromosomeInfo info;
+	            	if (inventids) {
+	            		info = new ChromosomeInfo(id++, Integer.parseInt(words[1]), chr);
+	            	} else {
+	            		info = new ChromosomeInfo(Integer.parseInt(words[2]), Integer.parseInt(words[1]), chr);
+	            	}
 	            	chroms.put(info.getName(), info);
 	            	revchroms.put(info.dbid, info);
 	            }
