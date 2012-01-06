@@ -4294,7 +4294,16 @@ class KPPMixture extends MultiConditionFeatureFinder {
                         if(componentSpacing==lastResolution)
                             break;
                     } 	// end of while (resolution)
-                    if (nonZeroComponentNum==0)	return null;
+                    if (nonZeroComponentNum==0)	
+                    	return null;
+                    
+                    // discard components with less than alpha reads
+                    ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+                    for (BindingComponent c: components)
+                    	if (c.getTotalSumResponsibility()<alpha)
+                    		toRemove.add(c);
+                    components.removeAll(toRemove);
+                    
                     setComponentResponsibilities(signals, result.car(), result.cdr());
                     if (kmf!=null && config.kpp_use_kmer)
                     	setEventKmerGroup(pp_kmer, w.getStart(), seq);
