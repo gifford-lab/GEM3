@@ -244,7 +244,7 @@ public class MultiTF_Binding {
 				// figure out the direction of TF binding based on sequence motif match
 				int direction = 0;		// not sure, because no PWM, or no PWM match
 				if (wm!=null){
-					String seq = seqgen.execute(s.bs.expand(seqRange));
+					String seq = seqgen.execute(s.bs.expand(seqRange)).toUpperCase();
 					Pair<Integer, Double> hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, seqRange, wm.getMaxScore()*wm_factor);
 					if (hit.car()!=-999){
 						if (hit.car()>=0)
@@ -253,7 +253,7 @@ public class MultiTF_Binding {
 							direction = -1;
 					}
 				}
-				site_sb.append(s.bs.toString()).append("\t").append(Math.abs(direction)).append("\t");
+				site_sb.append(s.bs.toString()).append("\t").append(direction).append("\t");
 				
 				int[] offsets = new int[names.size()];
 				for (int n=0;n<offsets.length;n++){
