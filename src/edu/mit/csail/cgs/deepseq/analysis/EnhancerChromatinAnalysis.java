@@ -274,12 +274,12 @@ public class EnhancerChromatinAnalysis {
 				ip=null;
 				System.gc();
 				ipCache.displayStats();
-				ipCache.writeRCF();
+				ipCache.writeRSC();
 				System.out.println(CommonUtils.timeElapsed(tic));
 			}
 			else{
 				try{
-					ipCache.readRCF(ipCache.getName()+".rsc");
+					ipCache.readRSC(ipCache.getName()+".rsc");
 				}
 				catch(IOException e){
 					e.printStackTrace(System.err);

@@ -51,12 +51,13 @@ public class SequenceWriter {
 	}
 	
 	public void writeSequences(){
-		int range = Args.parseInteger(args, "range", 101);
+		int range = Args.parseInteger(args, "range", 201);
 		String coorFile = Args.parseString(args, "coords", null);
 		ArrayList<String> coorStrs = CommonUtils.readTextFile(coorFile);
 		String indexFile = Args.parseString(args, "index", null);
 		ArrayList<String> idxStrs = CommonUtils.readTextFile(indexFile);
 		StringBuilder sb = new StringBuilder();
+		ArrayList<String> seqs = new ArrayList<String>();
 		for (String idx: idxStrs){
 			if (idx.length()==0)
 				continue;
@@ -65,14 +66,21 @@ public class SequenceWriter {
 			if (fs.length==0)
 				continue;
 			Region r = Point.fromString(genome, fs[0]).expand(range/2);
-			String seq = "AACCTTTG";
-//			seq = seqgen.execute(r);
+//			String seq = "AACCTTTG";
+			String seq = seqgen.execute(r);
 			boolean isMinus = fs[1].equals("-1");
 			if (isMinus)
 				seq = SequenceUtils.reverseComplement(seq);
 			sb.append(">").append(r.toString()).append("\t").append(isMinus?"-":"+").append("\n");
-			sb.append(seq).append("\n");			
+			sb.append(seq).append("\n");	
+			seqs.add(seq);
 		}
-		CommonUtils.writeFile(coorFile+".fasta.txt", sb.toString());
+		CommonUtils.writeFile(indexFile+".fasta.txt", sb.toString());
+		
+		String[] ss = new String[seqs.size()];
+		seqs.toArray(ss);
+		int width = 141*5;
+		int height = 395*3;
+		CommonUtils.visualizeSequences(ss, width/ss[0].length(), height/ss.length, new File(indexFile+".png"));
 	}
 }

@@ -912,6 +912,7 @@ public class Region implements Comparable<Region>, Saveable {
 			}
 		}
 		mergedRegions.add(previous);
+		mergedRegions.trimToSize();
 		return mergedRegions;
 	}//end of mergeRegions method
 

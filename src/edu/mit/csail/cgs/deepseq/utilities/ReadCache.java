@@ -111,7 +111,7 @@ public class ReadCache {
 		fivePrimes    = new int[numChroms][2][];
 		hitCounts = new float[numChroms][2][];
 		
-		fivePrimesList    = new ArrayList[numChroms][2];
+		fivePrimesList = new ArrayList[numChroms][2];
 		for(i = 0; i < fivePrimesList.length; i++) { for(int j = 0; j < fivePrimesList[i].length; j++) { fivePrimesList[i][j] = new ArrayList<Integer>(); } }
 		
 		hitCountsList = new ArrayList[numChroms][2];
@@ -289,7 +289,9 @@ public class ReadCache {
 					// add the last element
 					fivePrimesList[i][j].add(previous);				// now file reader stores 5' end
 					hitCountsList[i][j].add((float)count);
-	
+					fivePrimesList[i][j].trimToSize();
+					hitCountsList[i][j].trimToSize();
+					
 					// update stats
 					totalBases += fivePrimesList[i][j].size();
 					for (float c: hitCountsList[i][j])
@@ -535,7 +537,7 @@ public class ReadCache {
 	}
 	
 	public void deleteUnenrichedReadData(ArrayList<Region> enrichedRegions){
-		fivePrimesList    = new ArrayList[numChroms][2];
+		fivePrimesList = new ArrayList[numChroms][2];
 		for(int i = 0; i < fivePrimesList.length; i++) { for(int j = 0; j < fivePrimesList[i].length; j++) { fivePrimesList[i][j] = new ArrayList<Integer>(); } }
 		hitCountsList = new ArrayList[numChroms][2];
 		for(int i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
@@ -550,7 +552,7 @@ public class ReadCache {
 				}
 			}
 		}
-		fivePrimes    = new int[numChroms][2][];
+		fivePrimes = new int[numChroms][2][];
 		hitCounts = new float[numChroms][2][];		
 		
 		populateArrays(false);
@@ -584,9 +586,8 @@ public class ReadCache {
 	/** 
 	 * Write Read Start Count (RSC) file
 	 */
-	public void writeRCF(){
+	public void writeRSC(){
 		StringBuilder sb = new StringBuilder();
-		ArrayList<Pair<Point, Float>> bases = new ArrayList<Pair<Point, Float>>();
 		for(int i = 0; i < hitCounts.length; i++){
 			String chrom = id2Chrom.get(i);
 			for(int j = 0; j < hitCounts[i].length; j++){
@@ -607,7 +608,7 @@ public class ReadCache {
 	/** 
 	 * Read Read Start Count (RSC) file
 	 */
-	public void readRCF(String filename) throws IOException{
+	public void readRSC(String filename) throws IOException{
 		BufferedReader bin = null;
         bin = new BufferedReader(new InputStreamReader(new FileInputStream(filename)));
 		

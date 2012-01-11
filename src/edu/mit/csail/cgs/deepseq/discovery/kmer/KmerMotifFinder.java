@@ -796,6 +796,7 @@ public class KmerMotifFinder {
 		Kmer.printKmers(kms, posSeqCount, negSeqCount, outName+"_all_w"+seqs[0].length(), true, false);
 		
 		kms.removeAll(highHgpKmers);
+		kms.trimToSize();
 		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
 		return kms;

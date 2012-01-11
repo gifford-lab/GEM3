@@ -474,13 +474,13 @@ public class CommonUtils {
         for (int i=0;i<seqs.length;i++){
         	char[] letters = seqs[i].toCharArray();
         	for (int j=0;j<letters.length;j++){
-                if (letters[j] == 'A') {
+                if (letters[j] == 'A'||letters[j] == 'a') {
                     g.setColor(Color.GREEN);
-                } else if (letters[j] == 'C') {
+                } else if (letters[j] == 'C'||letters[j] == 'c') {
                     g.setColor(Color.BLUE);
-                } else if (letters[j] == 'G') {
+                } else if (letters[j] == 'G'||letters[j] == 'g') {
                     g.setColor(Color.ORANGE);
-                }  else if (letters[j] == 'T') {
+                }  else if (letters[j] == 'T'||letters[j] == 't') {
                     g.setColor(Color.RED);
                 }
                 g.fillRect(j*width, i*height, width, height);

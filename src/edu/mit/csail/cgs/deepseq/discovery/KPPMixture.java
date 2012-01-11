@@ -99,10 +99,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	//Regions to be excluded, supplied by user, appended with un-enriched regions
 	private ArrayList<Region> excludedRegions = new ArrayList<Region>();
 
-	// Regions that have towers (many reads stack on same base positions)
-	private ArrayList<Region> towerRegions = new ArrayList<Region>();
-	private ArrayList<Float> towerStrength = new ArrayList<Float>();
-
 	//Number of reads for a specified region of the IP experiment for each condition
 	private double[] sigHitCounts;
 	//(Total) number of reads for a specified region of the IP experiment (across all conditions)
@@ -161,6 +157,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		if (outputFolder!=null){
 			if (!outputFolder.exists()){
 				System.err.println("\nThe output file path is not correct: "+outFile.getAbsolutePath());
+				cleanUpDataLoader();
 	    		System.exit(-1);
 			}
 			gem_outputs_folder = new File(outputFolder, outFile.getName()+"_outputs");
@@ -231,11 +228,13 @@ class KPPMixture extends MultiConditionFeatureFinder {
         
     	if(config.second_lambda_region_width < config.first_lambda_region_width) {
     		System.err.println("\nThe first control region width (w2) has to be more than " + config.first_lambda_region_width + " bp.");
+			cleanUpDataLoader();
     		System.exit(-1);
     	}    	
     	if(config.third_lambda_region_width < config.second_lambda_region_width) {
     		System.err.println("\nThe second control region width (w3) has to be more than " + config.second_lambda_region_width + " bp.");
-    		System.exit(-1);
+			cleanUpDataLoader();
+			System.exit(-1);
     	}
     	
     	/* *********************************
@@ -255,6 +254,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (Pair<ReadCache, ReadCache> p:caches){
 				if (p.cdr()==null){
 					System.err.println("\nMissing control data to match "+p.car().getName());
+					cleanUpDataLoader();
 					System.exit(-1);
 				}
 			}
@@ -397,7 +397,27 @@ class KPPMixture extends MultiConditionFeatureFinder {
         //        addConfigString("Make hard assignment", properties.make_hard_assignment);
         System.out.println(getConfigString());
 	}
+	
+	protected void finalize() throws Throwable {
+	    try {
+	    	cleanUpDataLoader();        
+	    } finally {
+	        super.finalize();
+	    }
+	}
 
+	private void cleanUpDataLoader(){
+		for (int i=0;i<experiments.size();i++){
+			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);
+			DeepSeqExpt ip = pair.car();
+			DeepSeqExpt ctrl = pair.cdr();
+			if (ip!=null)
+				ip.closeLoaders();
+			if (ctrl!=null)
+				ctrl.closeLoaders();
+		}
+	}
+	
 	private void commonInit(String modelFile){
         constants = new GPSConstants();
         config = new GPSConfig();
@@ -406,6 +426,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		File pFile = new File(modelFile);
 		if(!pFile.isFile()){
 			System.err.println("\nCannot find read distribution file!");
+			cleanUpDataLoader();
 			System.exit(1);
 		}
         model = new BindingModel(pFile);
@@ -524,6 +545,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
         }
         System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
         processRegionCount.clear();
+        compFeatures.trimToSize();
         
         log(3,String.format("%d threads have finished running", maxThreads));
         
@@ -546,6 +568,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	        for (KmerPP h:allKmerHits)
 	        	sb.append(h.toString()).append("\n");
 	        CommonUtils.writeFile(outName+"_Kmer_Hits.txt", sb.toString());
+	        sb = null;
         }
         
 		/* ********************************************************
@@ -557,6 +580,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (ComponentFeature cf:compFeatures){
 				refinedRegions.add(cf.getPosition().expand(0));
 			}
+			refinedRegions.trimToSize();
 			// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
 			this.restrictRegions=mergeRegions(refinedRegions, true);
 		}
@@ -694,6 +718,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			else
 				insignificantFeatures.add(cf);
 		}
+		((ArrayList<Feature>)signalFeatures).trimToSize();
+		filteredFeatures.trimToSize();
+		insignificantFeatures.trimToSize();
 		
 		// set joint event flag in the events
 		if (signalFeatures.size()>=2){
@@ -1257,12 +1284,12 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for (int i=0;i<numConditions;i++){
 				try {
 					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
-					ipCache.readRCF(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
+					ipCache.readRSC(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
 					ReadCache ctrlCache = null;
 					String ctrlFile = Args.parseString(args, "--rfctrl"+conditionNames.get(i), null);
 					if (ctrlFile!=null){
 						ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
-						ctrlCache.readRCF(ctrlFile);
+						ctrlCache.readRSC(ctrlFile);
 			    		controlDataExist = true;
 					}
 					this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
@@ -1368,8 +1395,8 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			ctrl=null;
 			System.gc();
 			if (config.write_RSC_file){
-				ipCache.writeRCF();
-				ctrlCache.writeRCF();
+				ipCache.writeRSC();
+				ctrlCache.writeRSC();
 			}
 		} // for each condition
 
@@ -1464,7 +1491,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		else
 			throw new IllegalArgumentException("The only valid values for channel is either IP or CTRL.");
-
+		signals.trimToSize();
 		return signals;
 	}
 
@@ -1629,7 +1656,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 			for(Region focusRegion : chr2regions.get(chrom)) {
 				List<Region> rs = new ArrayList<Region>();
 				HashMap<Region, ArrayList<StrandedBase>> reg2bases = new HashMap<Region, ArrayList<StrandedBase>>();
-				List<StrandedBase> allBases = new ArrayList<StrandedBase>();
+				ArrayList<StrandedBase> allBases = new ArrayList<StrandedBase>();
 				for (int c=0; c<caches.size(); c++){
 					List<StrandedBase> bases = null;
 					if (isIP)
@@ -1642,7 +1669,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 					}
 					allBases.addAll(bases); // pool all conditions
 				}
-				
+				allBases.trimToSize();
 				Collections.sort(allBases);	// sort by location
 				
 				// cut the pooled reads into independent regions
@@ -1794,6 +1821,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		
 		log(3, "selectEnrichedRegions(): " + CommonUtils.timeElapsed(tic));
+		regions.trimToSize();
 		return regions;
 	}//end of selectEnrichedRegions method
 
@@ -3170,28 +3198,6 @@ class KPPMixture extends MultiConditionFeatureFinder {
 	public void printError() {
 	}
 	
-	/**
-	 * Some old methods, not used any more
-	 */
-	private void printTowerRegions(){
-		// save the list of regions to file
-		try{
-			StringBuilder fileName = new StringBuilder(outName).append("_");
-			fileName.append("TowerRegions.txt");
-			FileWriter fw = new FileWriter(fileName.toString());
-
-			StringBuilder txt = new StringBuilder();
-			for (int i=0;i<towerRegions.size();i++){
-				txt.append(towerRegions.get(i).toString()).append("\t");
-				txt.append(towerStrength.get(i)).append("\n");
-			}
-			fw.write(txt.toString());
-			fw.close();
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
 	private void printExcludedRegions(){
 		if (excludedRegions.isEmpty())
 			return;
@@ -3405,7 +3411,9 @@ class KPPMixture extends MultiConditionFeatureFinder {
 				ComponentFeature cf = (ComponentFeature)f;
 				events.add(cf);
 			}
-		}		
+		}	
+		events.trimToSize();
+		
 		Collections.sort(events, new Comparator<ComponentFeature>(){
             public int compare(ComponentFeature o1, ComponentFeature o2) {
                 if(controlDataExist)
@@ -3414,6 +3422,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                     return o1.compareByPValue_wo_ctrl(o2);
             }
         });
+		
 		return events;
     }   
     
@@ -3757,6 +3766,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
             else{
             	if (q_refine>q_value_threshold){
             		System.err.println("q2>q");
+        			cleanUpDataLoader();
             		System.exit(-1);
             	}
             }
@@ -4130,6 +4140,7 @@ class KPPMixture extends MultiConditionFeatureFinder {
                 } catch(Exception e){
                     System.err.println("ERROR: Java Exception when analyzing region "+rr.toString());
                     e.printStackTrace(System.err);
+        			cleanUpDataLoader();
                     System.exit(-1);
                 } finally{
                 	regionsRunning.remove(rr);
