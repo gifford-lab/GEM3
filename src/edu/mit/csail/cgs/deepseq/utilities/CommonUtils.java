@@ -458,33 +458,67 @@ public class CommonUtils {
         }
 	}
 	
+	/**
+	 * Visualize sequences as color pixels
+	 * @param seqs, raw sequences or FASTA sequences
+	 * @param width, width of each base pixle
+	 * @param height, height of each base pixle
+	 * @param f, output file
+	 */
 	public static void visualizeSequences(String[] seqs, int width, int height, File f){
 		if (seqs.length==0)
 			return;
-		int pixwidth = seqs[0].length()*width;
-		int pixheight = seqs.length*height;
+		
+		int pixheight = 0;
+		int maxLen = 0;
+		for (String s:seqs){
+        	if (s.length()!=0 && s.charAt(0)!='>')	{		// ignore header line of FASTA file
+        		pixheight += height;
+        		if (maxLen < s.length())
+        			maxLen = s.length();
+        	}
+		}
+		int pixwidth = maxLen*width;
+		
 		System.setProperty("java.awt.headless", "true");
 		BufferedImage im = new BufferedImage(pixwidth, pixheight,BufferedImage.TYPE_INT_ARGB);
         Graphics g = im.getGraphics();
         Graphics2D g2 = (Graphics2D)g;
-        g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
         g2.setColor(Color.WHITE);
         g2.fillRect(0,0,pixwidth, pixheight);
         
-        for (int i=0;i<seqs.length;i++){
-        	char[] letters = seqs[i].toCharArray();
+        int count = 0;
+        for (String s:seqs){
+        	if (s.charAt(0)=='>')			// ignore header line of FASTA file
+        		continue;
+        	char[] letters = s.toCharArray();
         	for (int j=0;j<letters.length;j++){
-                if (letters[j] == 'A'||letters[j] == 'a') {
-                    g.setColor(Color.GREEN);
-                } else if (letters[j] == 'C'||letters[j] == 'c') {
+        		switch(letters[j]){
+        		case 'A':
+        		case 'a':
+        			g.setColor(Color.GREEN);
+        			break;
+        		case 'C':
+        		case 'c':
                     g.setColor(Color.BLUE);
-                } else if (letters[j] == 'G'||letters[j] == 'g') {
+        			break;
+        		case 'G':
+        		case 'g':
                     g.setColor(Color.ORANGE);
-                }  else if (letters[j] == 'T'||letters[j] == 't') {
+        			break;
+        		case 'T':
+        		case 't':
                     g.setColor(Color.RED);
-                }
-                g.fillRect(j*width, i*height, width, height);
+        			break;
+        		case '-':
+                    g.setColor(Color.WHITE);
+        			break;
+                default:
+                	g.setColor(Color.GRAY);
+        		}
+                g.fillRect(j*width, count*height, width, height);
         	}
+            count++;
         }
         try {
             ImageIO.write(im,"png",f);
@@ -564,9 +598,9 @@ public class CommonUtils {
 	    	return;
 	    String[] ss = new String[strs.size()];
 	    strs.toArray(ss);
-	    int width = Args.parseInteger(args, "w", 400);
-	    int height = Args.parseInteger(args, "h", 600);
-	    visualizeSequences(ss, width/ss[0].length(), height/ss.length, new File(inName+".png"));
+	    int width = Args.parseInteger(args, "w", 5);
+	    int height = Args.parseInteger(args, "h", 3);
+	    visualizeSequences(ss, width, height, new File(inName+".png"));
 	    
     }
 }

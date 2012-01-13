@@ -57,6 +57,7 @@ public class SequenceWriter {
 		String indexFile = Args.parseString(args, "index", null);
 		ArrayList<String> idxStrs = CommonUtils.readTextFile(indexFile);
 		StringBuilder sb = new StringBuilder();
+		StringBuilder sb2 = new StringBuilder();
 		ArrayList<String> seqs = new ArrayList<String>();
 		for (String idx: idxStrs){
 			if (idx.length()==0)
@@ -73,14 +74,18 @@ public class SequenceWriter {
 				seq = SequenceUtils.reverseComplement(seq);
 			sb.append(">").append(r.toString()).append("\t").append(isMinus?"-":"+").append("\n");
 			sb.append(seq).append("\n");	
+			
+			sb2.append(r.getMidpoint().toString()).append("\t").append(isMinus?"-":"+").append("\n");
+			
 			seqs.add(seq);
 		}
 		CommonUtils.writeFile(indexFile+".fasta.txt", sb.toString());
+		CommonUtils.writeFile(indexFile+".coords.txt", sb2.toString());
 		
 		String[] ss = new String[seqs.size()];
 		seqs.toArray(ss);
-		int width = 141*5;
-		int height = 395*3;
-		CommonUtils.visualizeSequences(ss, width/ss[0].length(), height/ss.length, new File(indexFile+".png"));
+		int width = Args.parseInteger(args, "width", 5);
+		int height = Args.parseInteger(args, "height", 3);
+		CommonUtils.visualizeSequences(ss, width, height, new File(indexFile+".png"));
 	}
 }
