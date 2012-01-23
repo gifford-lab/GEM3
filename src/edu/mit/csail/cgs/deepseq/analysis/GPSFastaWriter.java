@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -15,6 +16,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
 import edu.mit.csail.cgs.deepseq.ReadHit;
+import edu.mit.csail.cgs.deepseq.features.Feature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
@@ -54,10 +56,11 @@ public class GPSFastaWriter{
     
     int window = Args.parseInteger(args, "window", 100);
     int top = Args.parseInteger(args, "top", 500);
+    int k_neg_dist = Args.parseInteger(args, "k_neg_dist", 300);
     
-     SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+    SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	seqgen.useCache(!flags.contains("no_cache"));
-	boolean skip_repeat = !flags.contains("allow_repeat");
+	boolean skip_repeat = flags.contains("no_repeat");
 	
 	List<String> names = new ArrayList<String>();
 	File dir = new File(Args.parseString(args, "root", null));
@@ -97,7 +100,8 @@ public class GPSFastaWriter{
     // load GPS results
 	for (String exptName : names){
 		System.out.print("Processing sequences and related info for "+exptName+", ");
-	    File gpsFile = new File(new File(exptName), exptName+"_1_GPS_significant.txt");
+		File folder = new File(new File(exptName), exptName+"_outputs");
+	    File gpsFile = new File(folder, exptName+"_1_GEM_events.txt");
 	    if (!gpsFile.exists()){
 	    	System.err.println("GPS file not exist: "+gpsFile.getAbsolutePath());
 	        continue;
@@ -166,9 +170,13 @@ public class GPSFastaWriter{
 	    int count=1;
 	    StringBuilder sb = new StringBuilder();
 	    StringBuilder gem_sb = new StringBuilder();
+	    StringBuilder gem_neg_sb = new StringBuilder();
 	    StringBuilder hms_summit_sb = new StringBuilder();
 	    StringBuilder hms_readcoverage_sb = new StringBuilder();
 	    StringBuilder chipmunk_sb = new StringBuilder();
+	    ArrayList<Region> negativeRegions = new ArrayList<Region>();
+
+	    ArrayList<Region> expandedRegions = new ArrayList<Region>(); // regions expanded from positive positions
 	    eachPeak: for (GPSPeak p: gpsPeaks){
 	    	if (count>seqNum)
 	    		break;
@@ -185,6 +193,16 @@ public class GPSFastaWriter{
 	    			continue;
 	    	}
 	    	String seq = seqgen.execute(r);
+	    	// negative region for GEM
+			// In proximal regions, but excluding binding regions
+			String chr = p.getChrom();
+			int chrLength = genome.getChromLength(chr)-1;
+			start = p.getLocation()+ k_neg_dist;
+			if ( start+window>=chrLength)
+				continue;
+			Region r_neg = new Region(genome, chr, start, start+window);
+			negativeRegions.add(r_neg);
+	    	
 	    	if (skip_repeat){
 				for (char c:seq.toCharArray())
 					if (Character.isLowerCase(c) || c=='N')
@@ -196,7 +214,7 @@ public class GPSFastaWriter{
 	    	
 	    	gem_sb.append(String.format(">seq_%d %.1f %s %s\n", count, p.getStrength(), exptName, r.toString()));
 	    	gem_sb.append(seq).append("\n");
-	    	
+
 	    	hms_summit_sb.append(window/2).append("\n");
 	    	
 	    	List<ReadHit> hits = null;
@@ -250,6 +268,18 @@ public class GPSFastaWriter{
 	    	}
 	    	count++;
 	    }
+	    
+	    // GEM negative regions, excluding positive regions
+
+		negativeRegions = Region.filterOverlapRegions(negativeRegions, expandedRegions);
+		int neg_count=0;
+		for (Region r: negativeRegions){			
+	    	String neg_seq = seqgen.execute(r);
+	    	gem_neg_sb.append(String.format(">neg_seq_%d %s %s\n", neg_count, exptName, r.toString()));
+	    	gem_neg_sb.append(neg_seq).append("\n");
+	    	neg_count++;
+		}
+		
 	    if (wantHMS || wantChIPMunk){
 			chipSeq.closeLoaders();
 			chipSeq=null;
@@ -261,8 +291,10 @@ public class GPSFastaWriter{
 	    }
 	    if (wantMEME)
 	    	CommonUtils.writeFile(exptName+"_"+window+"bp.fasta", sb.toString());
-	    if (wantGEM)
+	    if (wantGEM){
 	    	CommonUtils.writeFile(exptName+"_"+window+"bp_GEM.fasta", gem_sb.toString());
+	    	CommonUtils.writeFile(exptName+"_"+window+"bp_GEM_neg.fasta", gem_neg_sb.toString());
+	    }
 	    
 	    System.out.println((count-1)+" sequences.");
 	  }
