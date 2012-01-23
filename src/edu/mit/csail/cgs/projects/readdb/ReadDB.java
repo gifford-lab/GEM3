@@ -62,7 +62,7 @@ public class ReadDB {
         CommandLine line = parser.parse( options, args, false );            
         String hostname = null, username = null, password = null;
         int portnum = -1;
-        if (line.hasOption("help")) {
+        if (line.hasOption("help") || args.length==0) {
             printHelp();
             System.exit(1);
         }
