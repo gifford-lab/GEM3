@@ -36,18 +36,18 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.*;
 
-import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
+import edu.mit.csail.cgs.deepseq.discovery.Config;
+import edu.mit.csail.cgs.deepseq.discovery.KPPMixture;
 
 public class KmerMotifFinder {
 	private final int RC=100000;		// extra bp add to indicate negative strand match of kmer
@@ -154,6 +154,34 @@ public class KmerMotifFinder {
 	
 	private void setUseKmerWeight(){
 		Kmer.set_use_weighted_hit_count(use_kmer_weight);
+	}
+	
+	public void setConfig(Config config, String outName){
+	    this.hgp = config.hgp;
+	    this.k_fold = config.k_fold;	
+	    this.motif_hit_factor = config.motif_hit_factor;
+	    this.outName = outName;
+	    this.refinePWM = config.refine_pwm;
+	    this.verbose = config.verbose;
+	    this.wm_factor = config.wm_factor;
+	    this.motif_hit_factor_report = config.motif_hit_factor_report;
+	    this.use_grid_search = config.use_grid_search;
+	    this.use_weight = config.use_weight;
+	    this.allow_single_family = config.allow_single_family;
+	    this.kmer_remove_mode = config.kmer_remove_mode;
+	    this.kmer_aligned_fraction = config.kmer_aligned_fraction;
+	    this.print_aligned_seqs = config.print_aligned_seqs;
+	    this.re_train = config.re_train;
+	    this.maxCluster = config.max_cluster;
+	    this.repeat_fraction = config.repeat_fraction;
+	    this.allow_seed_reset = config.allow_seed_reset;
+	    this.allow_seed_inheritance = config.allow_seed_inheritance;
+	    this.noiseRatio = config.noise;
+	    this.use_seed_family = config.use_seed_family;
+	    this.use_KSM = config.use_ksm;
+	    this.estimate_ksm_threshold = config.estimate_ksm_threshold;
+	    this.maxThread = config.maxThreads;
+	    this.startingKmer = config.seed;
 	}
 	
 	public void setParameters(double hgp, double k_fold, double motif_hit_factor, double motif_hit_factor_report, double wm_factor, 
@@ -1870,6 +1898,10 @@ public class KmerMotifFinder {
 		
 		outputClusters(allAlignedKmers, eventCounts);
 
+		// print the clustered k-mers
+		Collections.sort(kmers);
+		Kmer.printKmers(allAlignedKmers, posSeqCount, negSeqCount, outName, false, true);
+		
 		System.out.print("\nAlignment done, "+CommonUtils.timeElapsed(tic)+"\n");
 		
 		return allAlignedKmers;
@@ -5808,26 +5840,25 @@ public class KmerMotifFinder {
 			System.err.println("Usage: KmerMotifFinder name pos_seq_fasta neg_seq_fasta k_min k_max [seed_k-mer]");
 			System.exit(-1);
 		}
-		String name = args[0];
+		String name = Args.parseString(args, "out_name", null);
 		File outFolder = new File(name+"_results");
 		outFolder.mkdir();
 		name = new File(outFolder, name).getAbsolutePath();
 		
-		String pos_file = args[1];
-		String neg_file = args[2];
-		int k_min = Integer.parseInt(args[3]);
-		int k_max = Integer.parseInt(args[4]);
-		int k = -1;
-		String seed = null;
-		if (args.length==6){
-			seed = args[5];
+		String pos_file = Args.parseString(args, "pos_seq", null);
+		String neg_file = Args.parseString(args, "neg_seq", null);
+		int k = Args.parseInteger(args, "k", -1);
+        int k_min = Args.parseInteger(args, "k_min", -1);
+        int k_max = Args.parseInteger(args, "k_max", -1);
+		String seed = Args.parseString(args, "seed", null);
+		if (seed!=null){
 			k=seed.length();
 			System.out.println("Starting seed k-mer is "+seed+".\n");
 		}
 		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
         String[]f = null;
 		for (String line: strs){
-            if (!line.startsWith(">")){
+            if (line.startsWith(">")){
         		f = line.split(" ");
         		if (f.length>1)
 	            	seq_w.add(Double.parseDouble(f[1]));
@@ -5835,14 +5866,14 @@ public class KmerMotifFinder {
 	            	seq_w.add(1.0);
         	}
         	else
-        		pos_seqs.add(line);
+        		pos_seqs.add(line.toUpperCase());
 		}
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		strs = CommonUtils.readTextFile(neg_file);
 		for (String line: strs){
             if (!line.startsWith(">"))
-            	neg_seqs.add(line);
+            	neg_seqs.add(line.toUpperCase());
 		}
         
         KmerMotifFinder kmf = new KmerMotifFinder();
@@ -5850,8 +5881,18 @@ public class KmerMotifFinder {
         boolean use_KSM = true;
         double noiseRatio = 0;
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, true, 2, 0.5, false, false, 200, 0, 
-        		true, true, noiseRatio, use_seed_family, use_KSM, true, 99, seed);
+        Config config = new Config();
+        try{
+			config.parseArgs(args);   
+		}
+		catch (Exception e){
+			e.printStackTrace();
+    		System.exit(-1);
+		}  
+        
+//        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, true, 2, 0.5, false, false, 200, 0, 
+//        		true, true, noiseRatio, use_seed_family, use_KSM, true, 99, seed);
+        kmf.setConfig(config, name);
         kmf.setDiscriminative();
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);

@@ -11,6 +11,7 @@ import java.util.Map;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
@@ -144,14 +145,18 @@ public class GPS_ReadDistribution {
 					double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
 					double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);	
 					int position = -Integer.MAX_VALUE;	// middle of motif, relative to GPS peak
+					char strand = '+';
 					if(rightScore>=motifThreshold){
 						position = z+halfWidth;
+						strand = profiler.getMaxStrand(MOTIF_DISTANCE+z);
 					}
 					if(leftScore>=motifThreshold){
 						position = -z+halfWidth;
+						strand = profiler.getMaxStrand(MOTIF_DISTANCE-z);
 					}
 					if(position > -Integer.MAX_VALUE){
-						Point motifPos = new Point(genome, p.getChrom(), p.getLocation()+position);
+//						Point motifPos = new Point(genome, p.getChrom(), p.getLocation()+position);
+						Point motifPos = new StrandedPoint(genome, p.getChrom(), p.getLocation()+position, strand);
 						points.add(motifPos);
 						break; 	// break from the motif search of this peak
 					}
@@ -192,7 +197,10 @@ public class GPS_ReadDistribution {
 			int pos = p.getLocation();
 			if (!chromLengthMap.containsKey(p.getChrom()) || pos>chromLengthMap.get(p.getChrom()))
 				continue;
-			pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), strand);
+			if (p instanceof StrandedPoint)
+				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), ((StrandedPoint) p).getStrand()=='+'?strand:(char)(88-strand));
+			else
+				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), strand);
 			for (int i=0;i<pair.car().size();i++){
 				sum[pair.car().get(i)-pos+range] += Math.min(pair.cdr().get(i), mrc);
 			}
