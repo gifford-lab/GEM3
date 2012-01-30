@@ -614,6 +614,33 @@ public class WeightMatrix {
         }
         return new String(out[0]);
     }
+    /** returns a simple consensus string <br>
+     * i.e. the first line of printMatrixLetters()*/
+    public static String getConsensus(WeightMatrix matrix) {
+    	if(matrix.setLogOdds())
+    		return WeightMatrix.getMaxLetters(matrix);
+    	
+        char[] out = new char[matrix.length()];
+        for (int i = 0; i < out.length; i++) {
+            out[i]='N';
+        }
+        Character letters[] = {'A','C','G','T'};
+        WMLetterCmp cmp = new WMLetterCmp(matrix);
+        double minval = matrix.setLogOdds() ? 0 : .4;
+        for (int i = 0; i < matrix.length(); i++) {
+            cmp.setIndex(i);
+            Arrays.sort(letters,cmp);
+            for (int j = 0; j < 4; j++) {
+                if (matrix.matrix[i][letters[j]] > minval) {
+                    out[i] = letters[j]; 
+                    minval = matrix.matrix[i][letters[j]];
+                } else {
+                    break;
+                }
+            }
+        }
+        return new String(out);
+    }
     /* returns the four letters ordered by their LL at the specified index */
     public static Character[] getLetterOrder(WeightMatrix wm, int index) {
         Character letters[] = {'A','C','G','T'};
