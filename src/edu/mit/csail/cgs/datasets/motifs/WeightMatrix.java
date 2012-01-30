@@ -238,6 +238,34 @@ public class WeightMatrix {
     	this.version = version;
     	this.type = type;
     }
+    
+    /**
+     * Return column i (indexed by A,C,G,T)
+     * @param i
+     * @return
+     */
+    public double[] getColumn(int i){
+    	double[] col = new double[4];
+    	col[0]=matrix[i]['A'];
+    	col[1]=matrix[i]['C'];
+    	col[2]=matrix[i]['G'];
+    	col[3]=matrix[i]['T'];
+    	return col;
+    }
+    
+    /**
+     * Return complement of column i (indexed by A,C,G,T)
+     * @param i
+     * @return
+     */
+    public double[] getCompColumn(int i){
+    	double[] col = new double[4];
+    	col[0]=matrix[i]['T'];
+    	col[1]=matrix[i]['G'];
+    	col[2]=matrix[i]['C'];
+    	col[3]=matrix[i]['A'];
+    	return col;
+    }
     /* returns the maximum possible score that a sequence
        could have against the specified matrix */
     public double getMaxScore() {

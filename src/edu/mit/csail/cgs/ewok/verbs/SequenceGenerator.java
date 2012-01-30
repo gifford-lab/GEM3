@@ -162,7 +162,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
      * @param regions sorted, non-overlapping regions for cache
      * @param rs regions for one-time sequence retrieval
      */
-    public String[] setupRegionCache(ArrayList<Region> regions, ArrayList<Region> rs){
+    public String[] setupRegionCache(List<Region> regions, List<Region> rs){
     	ArrayList<String> seqs = new ArrayList<String>();
     	if (regions==null||regions.isEmpty())
     		return null;    	
