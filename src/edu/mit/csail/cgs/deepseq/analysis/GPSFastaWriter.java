@@ -202,12 +202,11 @@ public class GPSFastaWriter{
 				continue;
 			Region r_neg = new Region(genome, chr, start, start+window);
 			negativeRegions.add(r_neg);
-	    	
-	    	if (skip_repeat){
-				for (char c:seq.toCharArray())
-					if (Character.isLowerCase(c) || c=='N')
-						continue eachPeak;
-	    	}
+
+			for (char c:seq.toCharArray())
+				if ((Character.isLowerCase(c) && skip_repeat) || c=='N')
+					continue eachPeak;
+			
 	    	//	passed the repeat check, output
 	    	sb.append(">seq_").append(count).append(" ").append(exptName).append(" ").append(r.toString()).append("\n");
 	    	sb.append(seq).append("\n");
