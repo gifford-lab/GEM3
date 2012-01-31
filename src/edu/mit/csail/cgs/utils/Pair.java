@@ -38,4 +38,8 @@ public class Pair<FirstClass, LastClass> {
         return p.first.equals(first) && p.last.equals(last);
     }
     
+    public Pair<LastClass, FirstClass> swap() {
+    	return new Pair<LastClass,FirstClass>(this.cdr(),this.car());
+    }
+    
 }
