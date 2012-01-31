@@ -154,16 +154,19 @@ public class RealValuedHistogram {
     public double getHistoStop(){return stop;}
     
     public void printContents(){
-    	for(int i = 0; i < bins.length; i++) { 
-            System.out.println(String.format("%f\t%f", start+((double)i*binWidth), bins[i]));
+    	System.out.println(String.format("Less\t%f", bins[0]));
+    	for(int i = 1; i < bins.length-1; i++) { 
+            System.out.println(String.format("%f\t%f", start+((double)(i-1)*binWidth), bins[i]));
         }
+    	System.out.println(String.format("More\t%f", bins[bins.length-1]));
     }
     
     public String contentsToString(){
-    	String contents="";
-    	for(int i = 0; i < bins.length; i++) { 
-            contents = contents+String.format("%f\t%f\n", start+((double)i*binWidth), bins[i]);
+    	String contents=String.format("Less\t%.2f\n", bins[0]);
+    	for(int i = 1; i < bins.length-1; i++) { 
+            contents = contents+String.format("%.1f\t%.2f\n", start+((double)(i-1)*binWidth), bins[i]);
         }
+    	contents = contents+String.format("More\t%.2f", bins[bins.length-1]);
     	return contents;
     }
 }
