@@ -56,9 +56,9 @@ public class KmerMotifFinder {
 	public final int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
             Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
 	
-	private boolean discriminative = false;
-	public void setDiscriminative(){
-		discriminative = true;
+	private boolean standalone = false;
+	public void setStandalone(){
+		standalone = true;
 	}
 	
 	private int verbose;
@@ -112,6 +112,7 @@ public class KmerMotifFinder {
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
 	public int getNegSeqCount(){return negSeqCount;}
     private int posSeqCount;
+    private int topSeqNum;
     private int negSeqCount;
     public void setTotalSeqCount(int pos, int neg){
     	posSeqCount = pos;
@@ -157,6 +158,7 @@ public class KmerMotifFinder {
 	}
 	
 	public void setConfig(Config config, String outName){
+		this.topSeqNum = config.k_seqs;
 	    this.hgp = config.hgp;
 	    this.k_fold = config.k_fold;	
 	    this.motif_hit_factor = config.motif_hit_factor;
@@ -217,6 +219,7 @@ public class KmerMotifFinder {
 	}
 	
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
+		int seqNum = Math.max(pos_seqs.size(), topSeqNum);
 		seqs = new String[pos_seqs.size()];	
 		pos_seqs.toArray(seqs);
 		seq_weights = new double[pos_w.size()];
@@ -1753,7 +1756,7 @@ public class KmerMotifFinder {
 		// refine PWMs using un-masked sequences, and merge similar PWMs
 		if (refinePWM){
 	    	// re-build PWM with un-masked sequences
-			if (!discriminative){
+			if (!standalone){
 				if (verbose>1)
 					System.out.println("\nRefining motifs with un-masked sequences ...");
 				for (int i=0;i<clusters.size();i++){		// do not need this for primary cluster
@@ -2175,7 +2178,7 @@ public class KmerMotifFinder {
 		html.append("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
 		html.append(name).append("</font></th>");
 		html.append("<tr><td valign='top'><br>");
-		if (!this.discriminative && eventCounts!=null){
+		if (!this.standalone && eventCounts!=null){
 			html.append("<a href='"+name+"_GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
 			html.append("<br><a href='"+name+"_GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
 			html.append("<br><a href='"+name+"_GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
@@ -5836,12 +5839,9 @@ public class KmerMotifFinder {
 	public static void main(String[] args){
 		ArrayList<String> pos_seqs = new ArrayList<String>();
 		ArrayList<Double> seq_w = new ArrayList<Double>();
-		if (args.length<5){
-			System.err.println("Usage: KmerMotifFinder name pos_seq_fasta neg_seq_fasta k_min k_max [seed_k-mer]");
-			System.exit(-1);
-		}
+
 		String name = Args.parseString(args, "out_name", null);
-		File outFolder = new File(name+"_results");
+		File outFolder = new File(name+"_outputs");
 		outFolder.mkdir();
 		name = new File(outFolder, name).getAbsolutePath();
 		
@@ -5851,6 +5851,10 @@ public class KmerMotifFinder {
         int k_min = Args.parseInteger(args, "k_min", -1);
         int k_max = Args.parseInteger(args, "k_max", -1);
 		String seed = Args.parseString(args, "seed", null);
+		if (pos_file==null || neg_file==null || (k==-1&&k_min==-1)){
+			System.err.println("Usage: KmerMotifFinder --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta --neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta --k_min 5 --k_max 8 --out_name cMyc_cMyc --seed CACGTG");
+			System.exit(-1);
+		}
 		if (seed!=null){
 			k=seed.length();
 			System.out.println("Starting seed k-mer is "+seed+".\n");
@@ -5877,10 +5881,6 @@ public class KmerMotifFinder {
 		}
         
         KmerMotifFinder kmf = new KmerMotifFinder();
-        boolean use_seed_family = true;
-        boolean use_KSM = true;
-        double noiseRatio = 0;
-        kmf.setSequences(pos_seqs, neg_seqs, seq_w);
         Config config = new Config();
         try{
 			config.parseArgs(args);   
@@ -5893,7 +5893,8 @@ public class KmerMotifFinder {
 //        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, true, 2, 0.5, false, false, 200, 0, 
 //        		true, true, noiseRatio, use_seed_family, use_KSM, true, 99, seed);
         kmf.setConfig(config, name);
-        kmf.setDiscriminative();
+        kmf.setSequences(pos_seqs, neg_seqs, seq_w);
+        kmf.setStandalone();
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);
 //        }

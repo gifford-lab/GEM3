@@ -73,7 +73,7 @@ public class Config {
     public boolean print_aligned_seqs = false;
     public boolean print_input_seqs = false;
     public boolean re_train = false;
-	public boolean refine_pwm = false;
+	public boolean refine_pwm = true;
     public boolean print_pwm_fdr = false;
     public boolean use_weight = true;
     public boolean allow_single_family =true;	// allow the kmer family only contains seed, i.e. no mismatch kmers
