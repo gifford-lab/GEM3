@@ -166,7 +166,7 @@ public class RealValuedHistogram {
     	for(int i = 1; i < bins.length-1; i++) { 
             contents = contents+String.format("%.1f\t%.2f\n", start+((double)(i-1)*binWidth), bins[i]);
         }
-    	contents = contents+String.format("More\t%.2f", bins[bins.length-1]);
+    	contents = contents+String.format("More\t%.2f\n", bins[bins.length-1]);
     	return contents;
     }
 }
