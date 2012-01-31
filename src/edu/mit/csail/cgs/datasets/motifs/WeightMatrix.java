@@ -19,6 +19,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 
 public class WeightMatrix {
 
+	public static double LOG2 = Math.log(2);
     public static int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
                                               Math.max(Math.max('a','c'),Math.max('t','g')))
         + 1;
@@ -238,6 +239,34 @@ public class WeightMatrix {
     	this.version = version;
     	this.type = type;
     }
+    
+    /**
+     * Return column i (indexed by A,C,G,T)
+     * @param i
+     * @return
+     */
+    public double[] getColumn(int i){
+    	double[] col = new double[4];
+    	col[0]=matrix[i]['A'];
+    	col[1]=matrix[i]['C'];
+    	col[2]=matrix[i]['G'];
+    	col[3]=matrix[i]['T'];
+    	return col;
+    }
+    
+    /**
+     * Return complement of column i (indexed by A,C,G,T)
+     * @param i
+     * @return
+     */
+    public double[] getCompColumn(int i){
+    	double[] col = new double[4];
+    	col[0]=matrix[i]['T'];
+    	col[1]=matrix[i]['G'];
+    	col[2]=matrix[i]['C'];
+    	col[3]=matrix[i]['A'];
+    	return col;
+    }
     /* returns the maximum possible score that a sequence
        could have against the specified matrix */
     public double getMaxScore() {
@@ -357,10 +386,25 @@ public class WeightMatrix {
         islogodds = true;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-                matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+                matrix[i][allLetters[j]] = (float)(Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()))/LOG2);
             }
         }                
     }
+    
+    /* convert this matrix to log-odds form using the specified background freqs
+     * freqs Maps from A,C,G,T to frequency
+     */
+	 public void toLogOdds(Map<String, Double> freqs) {
+	     setLogOdds();  // tests for log-oddsness by looking for weights < 0
+	     if (islogodds) {return;} 
+	     islogodds = true;
+	     for (int i = 0; i < matrix.length; i++) {
+	         for (int j = 0; j < allLetters.length; j++) {
+	             matrix[i][allLetters[j]] = (float)(Math.log(Math.max(matrix[i][allLetters[j]], .000001) / freqs.get(("" + allLetters[j]).toUpperCase()))/LOG2);
+	         }
+	     }                
+	 }
+    
     /* converts this matrix to log-odds form.  Uses either the matrix's
        default background model or a uniform .25 model
     */
@@ -383,10 +427,10 @@ public class WeightMatrix {
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
             	if (bgModel != null) {
-            	  matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+            	  matrix[i][allLetters[j]] = (float)(Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()))/LOG2);
             	}
             	else {
-            		matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25);
+            		matrix[i][allLetters[j]] = (float)(Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25)/LOG2);
             	}
             }
         }        
@@ -400,7 +444,7 @@ public class WeightMatrix {
         islogodds = false;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-                matrix[i][allLetters[j]] = (float)(Math.exp(matrix[i][allLetters[j]]) * .25);
+                matrix[i][allLetters[j]] = (float)(Math.pow((double)(matrix[i][allLetters[j]]),2) * .25);
             }
         }
     }
@@ -410,7 +454,7 @@ public class WeightMatrix {
         islogodds = false;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-                matrix[i][allLetters[j]] = (float)(Math.exp(matrix[i][allLetters[j]]) * bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+                matrix[i][allLetters[j]] = (float)(Math.pow((double)(matrix[i][allLetters[j]]),2) * bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
             }
         }
     }
@@ -586,6 +630,24 @@ public class WeightMatrix {
         }
         return new String(out[0]);
     }
+    /** returns a simple consensus string <br>
+     * i.e. the first line of printMatrixLetters()*/
+    public static String getConsensus(WeightMatrix matrix) {
+    	char[] out = new char[matrix.length()];
+        for (int i = 0; i < out.length; i++) {
+            out[i]='N';
+        }
+        double maxval = matrix.setLogOdds() ? 0 : 0.4;
+        for (int i = 0; i < matrix.length(); i++) {
+            for (int j = 0; j < 4; j++) {
+                if (matrix.matrix[i][letters[j]] > maxval) {
+                    out[i] = letters[j]; 
+                    maxval = matrix.matrix[i][letters[j]];
+                }
+            }
+        }
+        return new String(out);
+    }
     /* returns the four letters ordered by their LL at the specified index */
     public static Character[] getLetterOrder(WeightMatrix wm, int index) {
         Character letters[] = {'A','C','G','T'};
@@ -609,6 +671,33 @@ public class WeightMatrix {
         }
         output.name = input.name;
         output.version = "revcomp " + input.version;
+        output.species = input.species;
+        output.type = input.type;
+        return output;
+    }
+    public static WeightMatrix getLogOddsVersion(WeightMatrix input, Map<String, Double> back) {
+        WeightMatrix output = new WeightMatrix(input.length());
+        //clone
+        for (int i = 0; i < input.length(); i++) {
+            output.matrix[i]['A'] = input.matrix[i]['A'];
+            output.matrix[i]['C'] = input.matrix[i]['C'];
+            output.matrix[i]['G'] = input.matrix[i]['G'];
+            output.matrix[i]['T'] = input.matrix[i]['T'];
+            output.matrix[i]['a'] = input.matrix[i]['a'];
+            output.matrix[i]['c'] = input.matrix[i]['c'];
+            output.matrix[i]['g'] = input.matrix[i]['g'];
+            output.matrix[i]['t'] = input.matrix[i]['t'];
+        }
+        if (!input.islogodds) { 
+        	output.islogodds = true;
+        	for (int i = 0; i < output.matrix.length; i++) {
+        		for (int j = 0; j < allLetters.length; j++) {
+        			output.matrix[i][allLetters[j]] = (float)(Math.log(Math.max(output.matrix[i][allLetters[j]], .000001) / back.get(("" + allLetters[j]).toUpperCase()))/LOG2);
+        		}
+        	}
+        }
+        output.name = input.name;
+        output.version = "logOdds " + input.version;
         output.species = input.species;
         output.type = input.type;
         return output;
