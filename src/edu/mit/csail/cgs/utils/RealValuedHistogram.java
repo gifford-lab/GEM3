@@ -162,7 +162,7 @@ public class RealValuedHistogram {
     public String contentsToString(){
     	String contents="";
     	for(int i = 0; i < bins.length; i++) { 
-            contents = contents+String.format("%f\t%f", start+((double)i*binWidth), bins[i]);
+            contents = contents+String.format("%f\t%f\n", start+((double)i*binWidth), bins[i]);
         }
     	return contents;
     }
