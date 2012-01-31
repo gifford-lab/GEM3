@@ -19,6 +19,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 
 public class WeightMatrix {
 
+	public static double LOG2 = Math.log(2);
     public static int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
                                               Math.max(Math.max('a','c'),Math.max('t','g')))
         + 1;
@@ -385,7 +386,7 @@ public class WeightMatrix {
         islogodds = true;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-                matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+                matrix[i][allLetters[j]] = (float)(Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()))/LOG2);
             }
         }                
     }
@@ -399,7 +400,7 @@ public class WeightMatrix {
 	     islogodds = true;
 	     for (int i = 0; i < matrix.length; i++) {
 	         for (int j = 0; j < allLetters.length; j++) {
-	             matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / freqs.get(("" + allLetters[j]).toUpperCase()));
+	             matrix[i][allLetters[j]] = (float)(Math.log(Math.max(matrix[i][allLetters[j]], .000001) / freqs.get(("" + allLetters[j]).toUpperCase()))/LOG2);
 	         }
 	     }                
 	 }
@@ -426,10 +427,10 @@ public class WeightMatrix {
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
             	if (bgModel != null) {
-            	  matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+            	  matrix[i][allLetters[j]] = (float)(Math.log(Math.max(matrix[i][allLetters[j]], .000001) / bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()))/LOG2);
             	}
             	else {
-            		matrix[i][allLetters[j]] = (float)Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25);
+            		matrix[i][allLetters[j]] = (float)(Math.log(Math.max(matrix[i][allLetters[j]], .000001) / .25)/LOG2);
             	}
             }
         }        
@@ -443,7 +444,7 @@ public class WeightMatrix {
         islogodds = false;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-                matrix[i][allLetters[j]] = (float)(Math.exp(matrix[i][allLetters[j]]) * .25);
+                matrix[i][allLetters[j]] = (float)(Math.pow((double)(matrix[i][allLetters[j]]),2) * .25);
             }
         }
     }
@@ -453,7 +454,7 @@ public class WeightMatrix {
         islogodds = false;
         for (int i = 0; i < matrix.length; i++) {
             for (int j = 0; j < allLetters.length; j++) {
-                matrix[i][allLetters[j]] = (float)(Math.exp(matrix[i][allLetters[j]]) * bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
+                matrix[i][allLetters[j]] = (float)(Math.pow((double)(matrix[i][allLetters[j]]),2) * bgModel.getMarkovProb(("" + allLetters[j]).toUpperCase()));
             }
         }
     }
@@ -700,7 +701,7 @@ public class WeightMatrix {
         	output.islogodds = true;
         	for (int i = 0; i < output.matrix.length; i++) {
         		for (int j = 0; j < allLetters.length; j++) {
-        			output.matrix[i][allLetters[j]] = (float)Math.log(Math.max(output.matrix[i][allLetters[j]], .000001) / back.get(("" + allLetters[j]).toUpperCase()));
+        			output.matrix[i][allLetters[j]] = (float)(Math.log(Math.max(output.matrix[i][allLetters[j]], .000001) / back.get(("" + allLetters[j]).toUpperCase()))/LOG2);
         		}
         	}
         }
