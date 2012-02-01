@@ -238,7 +238,7 @@ public class KmerMotifFinder {
 		
 		if (neg_seqs.size()>seqNum)
 			for (int i=0;i<seqNum;i++)
-				seqsNegList.add(pos_seqs.get(i));
+				seqsNegList.add(neg_seqs.get(i));
 		else
 			seqsNegList = neg_seqs;
 		posSeqCount = seqs.length;
@@ -1911,7 +1911,7 @@ public class KmerMotifFinder {
 		Collections.sort(kmers);
 		Kmer.printKmers(allAlignedKmers, posSeqCount, negSeqCount, outName, false, true);
 		
-		System.out.print("\nAlignment done, "+CommonUtils.timeElapsed(tic)+"\n");
+		System.out.print("\nK-mer motif finding is done, "+CommonUtils.timeElapsed(tic)+"\n");
 		
 		return allAlignedKmers;
 	}
