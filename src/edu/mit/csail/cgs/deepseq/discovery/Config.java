@@ -77,7 +77,7 @@ public class Config {
     public boolean print_pwm_fdr = false;
     public boolean use_weight = true;
     public boolean allow_single_family =true;	// allow the kmer family only contains seed, i.e. no mismatch kmers
-    public boolean allow_seed_reset=true;		// reset primariy motif if secondary motif is more enriched
+    public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
     public boolean allow_seed_inheritance=true;	// allow primary seed k-mer to pass on to the next round of GEM
     public boolean filter_pwm_seq = true;
 //    public boolean k_select_seed = false;

@@ -219,10 +219,12 @@ public class KmerMotifFinder {
 	}
 	
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
-		int seqNum = Math.max(pos_seqs.size(), topSeqNum);
-		seqs = new String[pos_seqs.size()];	
-		pos_seqs.toArray(seqs);
-		seq_weights = new double[pos_w.size()];
+		int seqNum = Math.min(pos_seqs.size(), topSeqNum);
+		seqs = new String[seqNum];	
+		for (int i=0;i<seqNum;i++)
+			seqs[i] = pos_seqs.get(i);
+		
+		seq_weights = new double[seqNum];
 		totalWeight=0;
 		for (int i=0;i<seq_weights.length;i++){
 			seq_weights[i]=pos_w.get(i);
@@ -234,7 +236,11 @@ public class KmerMotifFinder {
 		if (use_kmer_weight)
 			Kmer.set_seq_weights(seq_weights);
 		
-		seqsNegList = neg_seqs;
+		if (neg_seqs.size()>seqNum)
+			for (int i=0;i<seqNum;i++)
+				seqsNegList.add(pos_seqs.get(i));
+		else
+			seqsNegList = neg_seqs;
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
 	    updateSequenceInfo();
