@@ -492,13 +492,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		reportTriggers.add(10000);
 		
 		if (kmf!=null && kmf.isInitialized()){
-			System.out.println("\nRunning EM with k-mer positional prior ...\n");
+			System.out.println("\nRunning EM with k-mer motif positional prior ...\n");
 		}
 		
 		// create threads and run EM algorithms
 		// the results are put into compFeatures
-        Thread[] threads = new Thread[maxThreads];
-        log(1,String.format("Running with %d threads ...", maxThreads));
+        Thread[] threads = new Thread[config.maxThreads];
+        log(1,String.format("Running with %d threads ...", config.maxThreads));
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         TreeSet<Region> regionsToRun = new TreeSet<Region>();
@@ -554,7 +554,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         processRegionCount.clear();
         compFeatures.trimToSize();
         
-        log(3,String.format("%d threads have finished running", maxThreads));
+        log(3,String.format("%d threads have finished running", config.maxThreads));
         
         // print out the heavy regions
         if (!heavyRegions.isEmpty()){
@@ -971,8 +971,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// create threads and run EM algorithms
 		// the results are put into compFeatures
 		Collection<KmerPP> allKmerHits = new Vector<KmerPP>();
-        Thread[] threads = new Thread[maxThreads];
-        log(1,String.format("Running EM on control data: creating %d threads", maxThreads));
+        Thread[] threads = new Thread[config.maxThreads];
+        log(1,String.format("Running EM on control data: creating %d threads", config.maxThreads));
         int regionsPerThread = regions.size()/threads.length;
         TreeSet<Region> regionsToRun = new TreeSet<Region>();
         regionsToRun.addAll(regions);
@@ -1024,7 +1024,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         
         System.out.println(ctrlFeatures.size()+" features found in control data.");
         
-        log(1,String.format("%d threads have finished running", maxThreads));
+        log(1,String.format("%d threads have finished running", config.maxThreads));
         
         return ctrlFeatures;
 	}
@@ -3444,7 +3444,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 //    			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight, config.allow_single_family,
 //    			outName, config.refine_pwm, config.verbose, config.kmer_aligned_fraction, config.print_aligned_seqs, config.re_train, config.max_cluster,
 //				 config.repeat_fraction, config.allow_seed_reset, config.allow_seed_inheritance, config.noise, config.use_seed_family, 
-//				 config.use_ksm, config.estimate_ksm_threshold, maxThreads, config.seed);
+//				 config.use_ksm, config.estimate_ksm_threshold, config.maxThreads, config.seed);
     	kmf.setConfig(config, outName);
     	
     	// load sequence from binding event positions
