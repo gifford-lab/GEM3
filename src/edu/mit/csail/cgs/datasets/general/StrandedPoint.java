@@ -30,6 +30,10 @@ public class StrandedPoint extends Point implements Stranded {
         return super.equals(sp);
     }
     
+    public String getLocationString() {
+        return super.getLocationString()+":"+strand;
+      }
+    
     /**
      * parses the input String into a StrandedPoint. Understands abbreviates in the
      * coordinates such as k and m. <br>
