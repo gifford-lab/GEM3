@@ -3,10 +3,13 @@ package edu.mit.csail.cgs.deepseq.analysis;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -16,6 +19,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
@@ -126,23 +130,86 @@ public class KmerScanner {
 			}
 		}
 		
+		ArrayList<Double> pwm_scores = new ArrayList<Double>();
+		ArrayList<Double> pwmN_scores = new ArrayList<Double>();
+		ArrayList<Double> ksm_scores = new ArrayList<Double>();
+		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 		for (Region r:reg2reg.keySet()){
-			String seq = seqgen.execute(r);
+			String seq = seqgen.execute(r).toUpperCase();
 			Region rN = reg2reg.get(r);
-			String seqN = seqgen.execute(rN);
+			String seqN = seqgen.execute(rN).toUpperCase();
 			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
+			pwm_scores.add(pwm);
 			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
+			pwmN_scores.add(pwmN);
 			KmerGroup kg = scanner.getBestKG(seq);
 			KmerGroup kgN = scanner.getBestKG(seqN);
-			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), rN.toString(), pwm, pwmN, kg==null?0:kg.getHgp(), kgN==null?0:kgN.getHgp()));
+			ksm_scores.add(kg==null?0:-kg.getHgp());
+			ksmN_scores.add(kgN==null?0:-kgN.getHgp());
+			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), rN.toString(), pwm, pwmN, kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp()));
 		}
+		
 		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
 		System.out.println(outName+"_w"+width+"_scores.txt");
+		
+
+		ArrayList<ScoreEnrichment> pwm_se = computeScoreEnrichments(pwm_scores, pwmN_scores);
+		sb = new StringBuilder();
+		for (ScoreEnrichment se: pwm_se){
+			sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+		}
+		CommonUtils.writeFile(outName+"_w"+width+"_pwm_enrichment.txt", sb.toString());
+		
+		ArrayList<ScoreEnrichment> ksm_se = computeScoreEnrichments(ksm_scores, ksmN_scores);
+		sb = new StringBuilder();
+		for (ScoreEnrichment se: ksm_se){
+			sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+		}
+		CommonUtils.writeFile(outName+"_w"+width+"_ksm_enrichment.txt", sb.toString());
 		
 //		KmerGroup[] kgs = scanner.query("TATTTACATGCAGTGTCCGGAAGACGCCAGAAGAGGGCAGTAGATGCCCTAGTAGTGGAGC");
 //		for (KmerGroup kg:kgs){
 //			System.out.println(kg.toString());
 //		}
 	}
-
+	
+	private static ArrayList<ScoreEnrichment> computeScoreEnrichments(ArrayList<Double> posScores, ArrayList<Double> negScores){
+		int total  = posScores.size();		
+		double posSeqScores[] = new double[total];
+		double negSeqScores[] = new double[total];
+		for (int i=0;i<total;i++){
+			posSeqScores[i]=posScores.get(i);
+			negSeqScores[i]=negScores.get(i);
+			
+		}
+		ArrayList<ScoreEnrichment> ses = new ArrayList<ScoreEnrichment> ();
+		Arrays.sort(posSeqScores);		
+		Arrays.sort(negSeqScores);
+		
+		// find the threshold motif score
+		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
+		for (double s:posSeqScores)
+			posScoreUnique.add(s);
+		Double[] posScores_u = new Double[posScoreUnique.size()];
+		posScoreUnique.toArray(posScores_u);
+		for (int i=0;i<posScores_u.length;i++){
+			ScoreEnrichment se = new ScoreEnrichment();
+			double score = posScores_u[i];
+			se.score = score;
+			int index = CommonUtils.findKey(posSeqScores, score);
+			se.posHit = posSeqScores.length-index;
+			index = CommonUtils.findKey(negSeqScores, score);
+			se.negHit = negSeqScores.length-index;
+			se.hgp = KmerMotifFinder.computeHGP(total, total, se.posHit, se.negHit);
+			ses.add(se);
+		}
+		return ses;
+	}
+	
+	private static class ScoreEnrichment{
+		double score;
+		int posHit;
+		int negHit;
+		double hgp;
+	}
 }

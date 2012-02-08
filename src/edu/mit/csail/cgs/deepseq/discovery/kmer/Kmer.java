@@ -51,6 +51,8 @@ public class Kmer implements Comparable<Kmer>{
 		this.posHits = posHits;
 		if (use_weighted_hit_count)
 			setWeightedPosHitCount();
+		if (posHits.isEmpty())
+			return;
 		double[] ids = new double[posHits.size()];
 		int count=0;
 		for (int id:posHits){
@@ -224,19 +226,18 @@ public class Kmer implements Comparable<Kmer>{
 		String[] f0f = f[0].split("/");
 		HashSet<Integer> posHits = new HashSet<Integer>();
 		HashSet<Integer> negHits = new HashSet<Integer>();
-		if (f.length==8|f.length==9){
-			String f7 = f[7].trim();
-			if (!f7.equals("")){
-				String[] f7f = f7.split(" ");
-				for (String hit:f7f)
-					posHits.add(Integer.valueOf(hit));
-			}
-		}
-		if (f.length==9){
+		if (f.length==10){
 			String f8 = f[8].trim();
 			if (!f8.equals("")){
 				String[] f8f = f8.split(" ");
 				for (String hit:f8f)
+					posHits.add(Integer.valueOf(hit));
+			}
+
+			String f9 = f[9].trim();
+			if (!f9.equals("")){
+				String[] f9f = f9.split(" ");
+				for (String hit:f9f)
 					negHits.add(Integer.valueOf(hit));
 			}
 		}
