@@ -179,8 +179,7 @@ public class KmerScanner {
 		double negSeqScores[] = new double[total];
 		for (int i=0;i<total;i++){
 			posSeqScores[i]=posScores.get(i);
-			negSeqScores[i]=negScores.get(i);
-			
+			negSeqScores[i]=negScores.get(i);			
 		}
 		ArrayList<ScoreEnrichment> ses = new ArrayList<ScoreEnrichment> ();
 		Arrays.sort(posSeqScores);		
@@ -193,8 +192,10 @@ public class KmerScanner {
 		Double[] posScores_u = new Double[posScoreUnique.size()];
 		posScoreUnique.toArray(posScores_u);
 		for (int i=0;i<posScores_u.length;i++){
-			ScoreEnrichment se = new ScoreEnrichment();
 			double score = posScores_u[i];
+			if (score<=0)
+				continue;
+			ScoreEnrichment se = new ScoreEnrichment();
 			se.score = score;
 			int index = CommonUtils.findKey(posSeqScores, score);
 			se.posHit = posSeqScores.length-index;
