@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -29,6 +30,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class KmerScanner {
 
@@ -134,10 +136,19 @@ public class KmerScanner {
 		ArrayList<Double> pwmN_scores = new ArrayList<Double>();
 		ArrayList<Double> ksm_scores = new ArrayList<Double>();
 		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
+		
+
+		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
+		
 		for (Region r:reg2reg.keySet()){
 			String seq = seqgen.execute(r).toUpperCase();
 			Region rN = reg2reg.get(r);
-			String seqN = seqgen.execute(rN).toUpperCase();
+			
+			String seqN;
+			if (flags.contains("shuffle"))
+				seqN = SequenceUtils.shuffle(seq, randObj);
+			else
+				seqN = seqgen.execute(rN).toUpperCase();
 			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
 			pwm_scores.add(pwm);
 			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
