@@ -616,8 +616,8 @@ public class WeightMatrix {
         }
         Character letters[] = {'A','C','G','T'};
         WMLetterCmp cmp = new WMLetterCmp(matrix);
-        double minval = matrix.setLogOdds() ? 0 : .25;
         for (int i = 0; i < matrix.length(); i++) {
+        	double minval = matrix.setLogOdds() ? 0 : .25;
             cmp.setIndex(i);
             Arrays.sort(letters,cmp);
             for (int j = 0; j < 4; j++) {
@@ -637,8 +637,8 @@ public class WeightMatrix {
         for (int i = 0; i < out.length; i++) {
             out[i]='N';
         }
-        double maxval = matrix.setLogOdds() ? 0 : 0.4;
         for (int i = 0; i < matrix.length(); i++) {
+        	double maxval = matrix.setLogOdds() ? 0 : 0.4;
             for (int j = 0; j < 4; j++) {
                 if (matrix.matrix[i][letters[j]] > maxval) {
                     out[i] = letters[j]; 
