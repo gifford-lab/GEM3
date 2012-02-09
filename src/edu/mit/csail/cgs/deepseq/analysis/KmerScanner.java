@@ -15,6 +15,7 @@ import java.util.TreeSet;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
+import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
@@ -33,7 +34,7 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class KmerScanner {
-
+	public static char[] letters = {'A','C','T','G'};
 	private ArrayList<Kmer> kmers;
 	private KmerEngine kEngine;
 	// each element in the list is for one ChIP-Seq method
@@ -93,10 +94,11 @@ public class KmerScanner {
 	    }
 	    
 	    // PWM
-		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-		WeightMatrix motif = wm.car();
-		double motifThreshold = wm.cdr();
+//		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+//		WeightMatrix motif = wm.car();
+//		double motifThreshold = wm.cdr();
 	    	    
+	    WeightMatrix motif = loadPWM(new File(Args.parseString(args, "pfm", null)), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
 		// event locations
 		int windowSize = Args.parseInteger(args, "win", 50);
 		String eventFile = Args.parseString(args, "event", null);
@@ -182,6 +184,43 @@ public class KmerScanner {
 //		for (KmerGroup kg:kgs){
 //			System.out.println(kg.toString());
 //		}
+	}
+	
+	private static WeightMatrix loadPWM(File file, double gc ){
+		WeightMatrix wm;
+		try{
+			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(file.getAbsolutePath(), "file");
+			if (wms.isEmpty()){
+				wm=null;
+				System.out.println(file.getName()+" is not a valid motif file.");
+			}
+			else{		// if we have valid PFM, convert it to PWM
+				wm = wms.get(0);		// only get primary motif
+				float[][] matrix = wm.matrix;
+				// normalize
+		        for (int position = 0; position < matrix.length; position++) {
+		            double sum = 0;
+		            for (int j = 0; j < letters.length; j++) {
+		                sum += matrix[position][letters[j]];
+		            }
+		            for (int j = 0; j < letters.length; j++) {
+		                matrix[position][letters[j]] = (float)(matrix[position][letters[j]] / sum);
+		            }
+		        }
+		        // log-odds
+		        for (int pos = 0; pos < matrix.length; pos++) {
+		            for (int j = 0; j < letters.length; j++) {
+		                matrix[pos][letters[j]] = (float)Math.log(Math.max(matrix[pos][letters[j]], .000001) / 
+		                		(letters[j]=='G'||letters[j]=='C'?gc/2:(1-gc)/2));
+		            }
+		        } 
+			}
+		}
+		catch (IOException e){
+			System.out.println(file.getName()+" motif PFM file reading error!!!");
+			wm = null;
+		}
+		return wm;
 	}
 	
 	private static ArrayList<ScoreEnrichment> computeScoreEnrichments(ArrayList<Double> posScores, ArrayList<Double> negScores){
