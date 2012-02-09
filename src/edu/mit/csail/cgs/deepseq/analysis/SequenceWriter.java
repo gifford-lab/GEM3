@@ -58,6 +58,7 @@ public class SequenceWriter {
 		ArrayList<String> idxStrs = CommonUtils.readTextFile(indexFile);
 		StringBuilder sb = new StringBuilder();
 		StringBuilder sb2 = new StringBuilder();
+		StringBuilder sb3 = new StringBuilder();
 		ArrayList<String> seqs = new ArrayList<String>();
 		for (String idx: idxStrs){
 			if (idx.length()==0)
@@ -76,11 +77,12 @@ public class SequenceWriter {
 			sb.append(seq).append("\n");	
 			
 			sb2.append(r.getMidpoint().toString()).append("\t").append(isMinus?"-":"+").append("\n");
-			
+			sb3.append(String.format("chr%s\t%d\t%d\t%s\t0\t%s\n", r.getChrom(), r.getMidpoint().getLocation(),r.getMidpoint().getLocation(), r.getMidpoint().toString(), isMinus?"-":"+"));
 			seqs.add(seq);
 		}
 		CommonUtils.writeFile(indexFile+".fasta.txt", sb.toString());
 		CommonUtils.writeFile(indexFile+".coords.txt", sb2.toString());
+		CommonUtils.writeFile(indexFile+".bed", sb3.toString());
 		
 		String[] ss = new String[seqs.size()];
 		seqs.toArray(ss);

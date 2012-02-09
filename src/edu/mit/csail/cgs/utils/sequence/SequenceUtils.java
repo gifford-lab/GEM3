@@ -2,6 +2,7 @@ package edu.mit.csail.cgs.utils.sequence;
 
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.Random;
 
 /**
  * <code>SequenceUtils</code> provides a number of static methods for manipulating
@@ -209,6 +210,20 @@ public class SequenceUtils {
 			chars[i]=(char)(Math.abs(randomEngine.nextInt()) % 26 + 'A');
 		}
 		return new String(chars);
+	}
+	public static String shuffle(String str, Random randObj){
+		if (str.length()<=1)
+		    return str;
+
+		int split=str.length()/2;
+
+		String temp1=shuffle(str.substring(0,split), randObj);
+		String temp2=shuffle(str.substring(split), randObj);
+
+		if (randObj.nextDouble() > 0.5) 
+		    return temp1 + temp2;
+		else 
+		    return temp2 + temp1;
 	}
 
 }
