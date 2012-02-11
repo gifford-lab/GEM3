@@ -637,8 +637,9 @@ public class WeightMatrix {
         for (int i = 0; i < out.length; i++) {
             out[i]='N';
         }
+        //Single letter consensus
         for (int i = 0; i < matrix.length(); i++) {
-        	double maxval = matrix.setLogOdds() ? 0 : 0.4;
+        	double maxval = matrix.setLogOdds() ? 0.5 : 0.6;
             for (int j = 0; j < 4; j++) {
                 if (matrix.matrix[i][letters[j]] > maxval) {
                     out[i] = letters[j]; 
@@ -646,6 +647,19 @@ public class WeightMatrix {
                 }
             }
         }
+        //Degenerate consensus
+        for (int i = 0; i < matrix.length(); i++) {
+        	if(out[i]=='N'){
+        		double maxval = matrix.setLogOdds() ? 1.2 : 0.8;
+        		if(matrix.matrix[i]['A']+matrix.matrix[i]['G'] > maxval) {  out[i]='R';  maxval=matrix.matrix[i]['A']+matrix.matrix[i]['G']; }
+        		if(matrix.matrix[i]['C']+matrix.matrix[i]['T'] > maxval) {  out[i]='Y';  maxval=matrix.matrix[i]['C']+matrix.matrix[i]['T']; }
+        		if(matrix.matrix[i]['C']+matrix.matrix[i]['G'] > maxval) {  out[i]='S';  maxval=matrix.matrix[i]['C']+matrix.matrix[i]['G']; }
+        		if(matrix.matrix[i]['A']+matrix.matrix[i]['T'] > maxval) {  out[i]='W';  maxval=matrix.matrix[i]['A']+matrix.matrix[i]['T']; }
+        		if(matrix.matrix[i]['T']+matrix.matrix[i]['G'] > maxval) {  out[i]='K';  maxval=matrix.matrix[i]['T']+matrix.matrix[i]['G']; }
+        		if(matrix.matrix[i]['A']+matrix.matrix[i]['C'] > maxval) {  out[i]='M';  maxval=matrix.matrix[i]['A']+matrix.matrix[i]['C']; }
+        	}
+        }
+        
         return new String(out);
     }
     /* returns the four letters ordered by their LL at the specified index */
