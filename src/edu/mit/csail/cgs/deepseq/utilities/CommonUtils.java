@@ -461,8 +461,8 @@ public class CommonUtils {
 	/**
 	 * Visualize sequences as color pixels
 	 * @param seqs, raw sequences or FASTA sequences
-	 * @param width, width of each base pixle
-	 * @param height, height of each base pixle
+	 * @param width, width of each base, in pixel
+	 * @param height, height of each base, in pixel
 	 * @param f, output file
 	 */
 	public static void visualizeSequences(String[] seqs, int width, int height, File f){
