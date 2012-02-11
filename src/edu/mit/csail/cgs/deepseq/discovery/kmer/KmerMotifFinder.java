@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -60,6 +61,7 @@ public class KmerMotifFinder {
 	public void setStandalone(){
 		standalone = true;
 	}
+	Config config = new Config();
 	
 	private int verbose;
 	private Genome genome;
@@ -158,6 +160,7 @@ public class KmerMotifFinder {
 	}
 	
 	public void setConfig(Config config, String outName){
+		this.config = config;
 		this.topSeqNum = config.k_seqs;
 	    this.hgp = config.hgp;
 	    this.k_fold = config.k_fold;	
@@ -236,11 +239,19 @@ public class KmerMotifFinder {
 		if (use_kmer_weight)
 			Kmer.set_seq_weights(seq_weights);
 		
-		if (neg_seqs.size()>seqNum)
+		if (config.k_neg_shuffle){
+			System.out.println("Use shuffled sequences as negative sequences.\n");
+			Random randObj = new Random();
 			for (int i=0;i<seqNum;i++)
-				seqsNegList.add(neg_seqs.get(i));
-		else
-			seqsNegList = neg_seqs;
+				seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
+		}
+		else{
+			if (neg_seqs.size()>seqNum)
+				for (int i=0;i<seqNum;i++)
+					seqsNegList.add(neg_seqs.get(i));
+			else
+				seqsNegList = neg_seqs;
+		}
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
 	    updateSequenceInfo();
@@ -380,35 +391,42 @@ public class KmerMotifFinder {
 			if (use_kmer_weight)
 				Kmer.set_seq_weights(seq_weights);
 			
-			/** Negative sequences has been retrieved when setting up region caches */
-			ArrayList<Region> negRegions = new ArrayList<Region>();
-			negRegions.addAll(neg_region_map.keySet());
-			Region.filterOverlapRegions(negRegions, posImpactRegion);	// make sure negative region is not within negRegionDistance of positive regions.
 			seqsNegList.clear();
-			int negCount = 0;
-			for (Region r:negRegions){
-				String seq = seqsNeg[neg_region_map.get(r)].substring(0, winSize+1);
-				if (repeat_fraction<1){
-					int count = 0;
-					for (char c:seq.toCharArray())
-						if (Character.isLowerCase(c) || c=='N')
-							count++;
-					if (count>seq.length()*repeat_fraction)			// if repeat fraction in sequence is too high, skip
-						continue;
-					if (count>1){									// convert lower case repeat to N
-						char[] chars = seq.toCharArray();
-						for (int j=0;j<chars.length;j++)
-							if (Character.isLowerCase(chars[j]))
-								chars[j] = 'N';
-						seq = new String(chars);
-					}
-				}
-				seqsNegList.add(seq.toUpperCase());		// if repeat_fraction>=1, allow repeats, convert to upper case
-				negCount++;
-				if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
-					break;
+			if (config.k_neg_shuffle){
+				System.out.println("Use shuffled sequences as negative sequences.\n");
+				Random randObj = new Random();
+				for (int i=0;i<seqs.length;i++)
+					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
 			}
-			
+			else{
+				/** Negative sequences has been retrieved when setting up region caches */
+				ArrayList<Region> negRegions = new ArrayList<Region>();
+				negRegions.addAll(neg_region_map.keySet());
+				Region.filterOverlapRegions(negRegions, posImpactRegion);	// make sure negative region is not within negRegionDistance of positive regions.
+				int negCount = 0;
+				for (Region r:negRegions){
+					String seq = seqsNeg[neg_region_map.get(r)].substring(0, winSize+1);
+					if (repeat_fraction<1){
+						int count = 0;
+						for (char c:seq.toCharArray())
+							if (Character.isLowerCase(c) || c=='N')
+								count++;
+						if (count>seq.length()*repeat_fraction)			// if repeat fraction in sequence is too high, skip
+							continue;
+						if (count>1){									// convert lower case repeat to N
+							char[] chars = seq.toCharArray();
+							for (int j=0;j<chars.length;j++)
+								if (Character.isLowerCase(chars[j]))
+									chars[j] = 'N';
+							seq = new String(chars);
+						}
+					}
+					seqsNegList.add(seq.toUpperCase());		// if repeat_fraction>=1, allow repeats, convert to upper case
+					negCount++;
+					if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
+						break;
+				}
+			}
 			posSeqCount = seqs.length;
 		    negSeqCount = seqsNegList.size();
 		    if (verbose>1)
@@ -2159,7 +2177,6 @@ public class KmerMotifFinder {
 		for (KmerCluster c:clusters){
      		WeightMatrix wm = c.wm;
     		System.out.println(String.format("--------------------------------------------------------------\n%s k-mer cluster #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
-//    		System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=1e%.1f", c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
     		if (pos>0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
@@ -2167,6 +2184,8 @@ public class KmerMotifFinder {
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
 			pfm_sb.append(makeTRANSFAC (c.pfm, c.pwmPosHitCount, String.format("DE %s_%d_c%d\n", name, c.clusterId, c.pwmPosHitCount)));
+    		if (use_KSM)
+    			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=1e%.1f", c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
 			
 			// paint motif logo
 			c.wm.setNameVerType(name, "#"+c.clusterId, "");

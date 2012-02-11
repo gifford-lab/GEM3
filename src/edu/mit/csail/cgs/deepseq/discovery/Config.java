@@ -61,6 +61,7 @@ public class Config {
     public boolean use_grid_search = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
+    public boolean k_neg_shuffle = false;
    	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
@@ -142,6 +143,7 @@ public class Config {
         select_seed = flags.contains("select_seed");
         kmer_use_insig = flags.contains("kmer_use_insig");
         kmer_use_filtered = flags.contains("kmer_use_filtered");
+        k_neg_shuffle = flags.contains("k_neg_shuffle");
         re_align_kmer = flags.contains("rak");
         mask_by_pwm = flags.contains("mask_by_pwm");
         print_aligned_seqs = flags.contains("print_aligned_seqs");
