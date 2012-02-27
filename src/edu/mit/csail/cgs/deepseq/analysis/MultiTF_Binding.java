@@ -222,8 +222,8 @@ public class MultiTF_Binding {
 			for (int i=0;i<sites.size();i++)
 				sites.get(i).id = i;
 		}
-		int range = 250;
-		int seqRange = 30;
+		int range = 400;
+		int seqRange = 20;
 		// for each TF as anchor point
 		for (int i=0;i<names.size();i++){
 			ArrayList<float[]> profiles = new ArrayList<float[]>();
