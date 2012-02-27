@@ -76,13 +76,14 @@ public class MultiTF_Binding {
 		Set<String> flags = Args.parseFlags(args);
 		oldFormat = flags.contains("old_format");
 		dir = new File(Args.parseString(args, "dir", "."));
-		File[] children = dir.listFiles();
-		for (int i=0;i<children.length;i++){
-			File child = children[i];
-			if (child.isDirectory())
-				names.add(child.getName());
-		}
-		Collections.sort(names);
+		names = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+//		File[] children = dir.listFiles();
+//		for (int i=0;i<children.length;i++){
+//			File child = children[i];
+//			if (child.isDirectory())
+//				names.add(child.getName());
+//		}
+//		Collections.sort(names);
 		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
 		gc = Args.parseDouble(args, "gc", gc);
 		seqgen = new SequenceGenerator<Region>();

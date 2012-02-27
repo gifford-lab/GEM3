@@ -257,7 +257,8 @@ public class CommonUtils {
 	        String line;
 	        while((line = bin.readLine()) != null) { 
 	            line = line.trim();
-	            strs.add(line);
+	            if (line.length()!=0)
+	            	strs.add(line);
 	        }			
 	        if (bin != null) {
 	            bin.close();
