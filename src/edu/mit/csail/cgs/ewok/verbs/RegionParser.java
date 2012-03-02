@@ -15,10 +15,12 @@ import edu.mit.csail.cgs.datasets.species.Genome;
  */
 public class RegionParser implements Mapper<String,Region> {
     
-    private static Pattern regPatt;
+    private static Pattern regPatt;  //Region pattern
+    private static Pattern sregPatt;  //StrandedRegion pattern
     
     static { 
         regPatt = Pattern.compile("(\\w+):(\\d+)-(\\d+)");
+        sregPatt = Pattern.compile("(\\w+):(\\d+)-(\\d+):(\\w+)");
     }
     
     private Genome genome;
@@ -48,18 +50,26 @@ public class RegionParser implements Mapper<String,Region> {
             int end = Integer.parseInt(m.group(3));
             return new Region(genome, chrom, start, end);
         } else { 
-            if(array.length >= minLength) { 
-                int start = Integer.parseInt(array[startIndex]);
-                int end = Integer.parseInt(array[endIndex]);
-                if(nameIndex < array.length) {
-                    return new NamedRegion(genome, chrom, start, end, array[nameIndex]);
-                } else { 
-                    return new Region(genome, chrom, start, end);
-                }
-            } else { 
-                System.err.println("Line \"" + input + "\" doesn't have the correct length (" + minLength + ")");
-                return null;
-            }
+        	Matcher sm = sregPatt.matcher(chrom);
+        	if(sm.matches()) { 
+                chrom = sm.group(1);
+                int start = Integer.parseInt(sm.group(2));
+                int end = Integer.parseInt(sm.group(3));
+                return new Region(genome, chrom, start, end);
+        	}else{
+	            if(array.length >= minLength) { 
+	                int start = Integer.parseInt(array[startIndex]);
+	                int end = Integer.parseInt(array[endIndex]);
+	                if(nameIndex < array.length) {
+	                    return new NamedRegion(genome, chrom, start, end, array[nameIndex]);
+	                } else { 
+	                    return new Region(genome, chrom, start, end);
+	                }
+	            } else { 
+	                System.err.println("Line \"" + input + "\" doesn't have the correct length (" + minLength + ")");
+	                return null;
+	            }
+        	}
         }
     }
 
