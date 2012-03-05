@@ -141,6 +141,8 @@ public class GPS_ReadDistribution {
 				int halfWidth = profiler.getMatrix().length()/2;
 				//search from BS outwards, to find the nearest strong motif
 				for(int z=0; z<=r.getWidth()/2; z++){
+					if (MOTIF_DISTANCE+z>=profiler.length())
+						continue;
 					double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
 					double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);	
 					int position = -Integer.MAX_VALUE;	// middle of motif, relative to GPS peak
