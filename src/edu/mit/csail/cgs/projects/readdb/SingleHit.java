@@ -1,5 +1,9 @@
 package edu.mit.csail.cgs.projects.readdb;
 
+/**
+ * SingleHit pos = read 5'
+ * 
+ */
 public class SingleHit implements Comparable<SingleHit> {
     public int chrom;
     public int pos;

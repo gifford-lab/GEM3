@@ -394,8 +394,8 @@ public class ReadDBReadLoader extends ReadLoader{
 		return new ReadHit(g,
 				id,
 				g.getChromName(h.chrom),
-				h.pos,
-				h.pos + h.length,
+				h.strand ? h.pos : (h.pos-h.length+1),
+				h.strand ? (h.pos+h.length-1) : h.pos,
 				h.strand ? '+' : '-',
 						h.weight);
 	}
@@ -412,25 +412,25 @@ public class ReadDBReadLoader extends ReadLoader{
 	}    		
 	public ReadHit convertToReadHit(Genome g, int id, PairedHit h, boolean left) {
 		if(left)
-			return new ReadHit(g, id, g.getChromName(h.leftChrom), h.leftPos, h.leftPos + h.leftLength, h.leftStrand ? '+' : '-', h.weight);
+			return new ReadHit(g, id, g.getChromName(h.leftChrom), (h.leftStrand ? h.leftPos : (h.leftPos-h.leftLength+1)), (h.leftStrand ? (h.leftPos+h.leftLength-1) : h.leftPos), h.leftStrand ? '+' : '-', h.weight);
 		else
-			return new ReadHit(g, id, g.getChromName(h.rightChrom), h.rightPos, h.rightPos + h.rightLength, h.rightStrand ? '+' : '-', h.weight);
+			return new ReadHit(g, id, g.getChromName(h.rightChrom), (h.rightStrand ? h.rightPos : (h.rightPos-h.rightLength+1)), (h.rightStrand ? (h.rightPos+h.rightLength-1) : h.rightPos), h.rightStrand ? '+' : '-', h.weight);
 	}
 	public ExtReadHit convertToExtReadHit(Genome g, int id, SingleHit h, int startshift, int fiveprime, int threeprime) {
 		return new ExtReadHit(g,
 				id,
 				g.getChromName(h.chrom),
-				h.pos,
-				h.pos + h.length,
+				h.strand ? h.pos : (h.pos-h.length+1),
+				h.strand ? (h.pos+h.length-1) : h.pos,
 				h.strand ? '+' : '-',
 						h.weight,
 						startshift, fiveprime, threeprime);
 	}
 	public ExtReadHit convertToExtReadHit(Genome g, int id, PairedHit h, boolean left, int startshift, int fiveprime, int threeprime) {
 		if(left)
-			return new ExtReadHit(g, id, g.getChromName(h.leftChrom), h.leftPos, h.leftPos + h.leftLength, h.leftStrand ? '+' : '-', h.weight, startshift, fiveprime, threeprime);
+			return new ExtReadHit(g, id, g.getChromName(h.leftChrom), (h.leftStrand ? h.leftPos : (h.leftPos-h.leftLength+1)), (h.leftStrand ? (h.leftPos+h.leftLength-1) : h.leftPos), h.leftStrand ? '+' : '-', h.weight, startshift, fiveprime, threeprime);
 		else
-			return new ExtReadHit(g, id, g.getChromName(h.rightChrom), h.rightPos, h.rightPos + h.rightLength, h.rightStrand ? '+' : '-', h.weight, startshift, fiveprime, threeprime);
+			return new ExtReadHit(g, id, g.getChromName(h.rightChrom), (h.rightStrand ? h.rightPos : (h.rightPos-h.rightLength+1)), (h.rightStrand ? (h.rightPos+h.rightLength-1) : h.rightPos), h.rightStrand ? '+' : '-', h.weight, startshift, fiveprime, threeprime);
 	}
 
 

@@ -126,16 +126,6 @@ public class DeepSeqExpt {
 	// load paired base coordinates (sorted) and counts
 	public Pair<ArrayList<Integer>,ArrayList<Float>> loadStrandedBaseCounts(Region r, char strand){
 		if (loader instanceof ReadDBReadLoader){
-//			System.out.println(r.toString()+"\t"+strand);
-//			Pair<ArrayList<Integer>,ArrayList<Float>> h1 = ((ReadDBReadLoader)loader).loadStrandedBaseCounts(r, strand);
-//			Pair<ArrayList<Integer>,ArrayList<Float>> h2 = ((ReadDBReadLoader)loader).loadStrandedBaseCounts0(r, strand);
-//			if (h1.car().size()!=h2.car().size()||h1.cdr().size()!=h2.cdr().size())
-//			System.err.println(h1.car().size()+" "+h2.car().size()+"\t"+h1.cdr().size()+" "+h2.cdr().size());
-			
-//			for (int i=0;i<h1.car().size();i++){
-//				if (h1.car().get(i)!=h2.car().get(i)||h1.cdr().get(i)!=h2.cdr().get(i))
-//					System.err.println(h1.car().get(i)+" "+h1.cdr().get(i)+"\t"+h2.car().get(i)+" "+h2.cdr().get(i));
-//			}
 			return ((ReadDBReadLoader)loader).loadStrandedBaseCounts(r, strand);
 		}
 		if (loader instanceof FileReadLoader){

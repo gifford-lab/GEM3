@@ -31,7 +31,11 @@ public class StrandedPoint extends Point implements Stranded {
     }
     
     public String getLocationString() {
-        return super.getLocationString()+":"+strand;
+    	if (strand==' ') {
+    		return super.getLocationString();
+    	} else {
+    		return super.getLocationString()+":"+strand;
+    	}
       }
     
     /**
