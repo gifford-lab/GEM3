@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
@@ -156,8 +157,12 @@ public class GPS_ReadDistribution {
 						strand = profiler.getMaxStrand(MOTIF_DISTANCE-z);
 					}
 					if(position > -Integer.MAX_VALUE){
-//						Point motifPos = new Point(genome, p.getChrom(), p.getLocation()+position);
-						Point motifPos = new StrandedPoint(genome, p.getChrom(), p.getLocation()+position, strand);
+						Set<String> flags = Args.parseFlags(args);
+						Point motifPos = null;
+						if (flags.contains("stranded"))
+							motifPos = new StrandedPoint(genome, p.getChrom(), p.getLocation()+position, strand);
+						else
+							motifPos = new Point(genome, p.getChrom(), p.getLocation()+position);
 						points.add(motifPos);
 						break; 	// break from the motif search of this peak
 					}
