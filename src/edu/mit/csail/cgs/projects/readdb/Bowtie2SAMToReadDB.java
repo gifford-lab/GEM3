@@ -27,7 +27,7 @@ public class Bowtie2SAMToReadDB {
     public static boolean pairedEndOnly;
     public static boolean junctionOnly;
     
-    public static HashMap<String, Boolean> firstMateUnique = new HashMap<String, Boolean>(); 
+    public static boolean lastFirstMateUnique=false; 
 
     public static void main(String args[]) throws IOException, ParseException {
         Options options = new Options();
@@ -69,18 +69,10 @@ public class Bowtie2SAMToReadDB {
     		 * Note: if you change this, you may have to change the SAMStats output also
     		 */
     		if(record.getFirstOfPairFlag() && record.getProperPairFlag() && record.getStringAttribute("YT").equals("CP")){
-    			String ID = record.getMateReferenceName()+"."+record.getAlignmentStart()+"."+record.getMateAlignmentStart();
-    			firstMateUnique.put(ID, true);
+    			lastFirstMateUnique = currUnique;
     		}else if(record.getSecondOfPairFlag() && record.getProperPairFlag() && record.getStringAttribute("YT").equals("CP")){
-    			String ID = record.getMateReferenceName()+"."+record.getMateAlignmentStart()+"."+record.getAlignmentStart();
-    			//Lookup 
-    			boolean mateUnique = false;
-    			if(firstMateUnique.containsKey(ID) && firstMateUnique.get(ID)){
-    				mateUnique = true;
-    				firstMateUnique.remove(ID);
-    			}
     			
-    			if(!uniqueOnly || currUnique || mateUnique){
+    			if(!uniqueOnly || (currUnique || lastFirstMateUnique)){
 	    			//Print
 	                boolean neg = record.getReadNegativeStrandFlag();
 	                boolean mateneg = record.getMateNegativeStrandFlag();
