@@ -122,10 +122,9 @@ public class GPS_ReadDistribution {
 		}
 		
 		// load motif
-	    String motifString = Args.parseString(args, "motif", null);
 	    Pair<WeightMatrix, Double> wm = null;
 	    WeightMatrixScorer scorer=null;
-	    if (motifString!=null){
+	    if (Args.parseString(args, "motif", null)!=null||Args.parseString(args, "pfm", null)!=null){
 			wm = CommonUtils.loadPWM(args, org.getDBID());
 			System.out.println("Using motif "+wm.getFirst().name);
 			scorer = new WeightMatrixScorer(wm.getFirst());

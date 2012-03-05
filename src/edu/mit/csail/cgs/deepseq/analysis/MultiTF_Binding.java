@@ -25,7 +25,6 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class MultiTF_Binding {
-    public static char[] letters = {'A','C','T','G'};
 
 	Genome genome=null;
 	ArrayList<String> names = new ArrayList<String>();
@@ -114,39 +113,7 @@ public class MultiTF_Binding {
 				pwms.add(null);
 			}
 			else{				// if we have valid PFM file
-				try{
-					List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(files[0].getAbsolutePath(), "file");
-					if (wms.isEmpty()){
-						System.out.println(name+" does not have a valid motif file.");
-						pwms.add(null);
-					}
-					else{		// if we have valid PFM
-						wm = wms.get(0);
-						float[][] matrix = wm.matrix;
-						// normalize
-				        for (int position = 0; position < matrix.length; position++) {
-				            double sum = 0;
-				            for (int j = 0; j < letters.length; j++) {
-				                sum += matrix[position][letters[j]];
-				            }
-				            for (int j = 0; j < letters.length; j++) {
-				                matrix[position][letters[j]] = (float)(matrix[position][letters[j]] / sum);
-				            }
-				        }
-				        // log-odds
-				        for (int pos = 0; pos < matrix.length; pos++) {
-				            for (int j = 0; j < letters.length; j++) {
-				                matrix[pos][letters[j]] = (float)Math.log(Math.max(matrix[pos][letters[j]], .000001) / 
-				                		(letters[j]=='G'||letters[j]=='C'?gc/2:(1-gc)/2));
-				            }
-				        } 
-						pwms.add(wm);
-					}
-				}
-				catch (IOException e){
-					System.out.println(name+" motif PFM file reading error!!!");
-					pwms.add(null);
-				}
+				pwms.add( CommonUtils.loadPWM_PFM_file(files[0].getAbsolutePath(), gc) );
 			}
 			
 			// load binding event files 

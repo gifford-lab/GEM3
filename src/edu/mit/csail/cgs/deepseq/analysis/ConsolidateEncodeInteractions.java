@@ -22,7 +22,7 @@ public class ConsolidateEncodeInteractions {
 			if (line.length()==0)
 				continue;
 			String[] f = line.split("\t");
-			String cell = f[5];
+			String cell = f[6];
 			if (!entryByCell.containsKey(cell))
 				entryByCell.put(cell, new ArrayList<String>());
 			entryByCell.get(cell).add(line);
@@ -32,8 +32,12 @@ public class ConsolidateEncodeInteractions {
 			HashMap<String, ArrayList<Integer>> pair2positions = new HashMap<String, ArrayList<Integer>>();
 			for (String line:entryByCell.get(cell)){
 				String[] f = line.split("\t");
-				String tf1 = f[0].substring(0,f[0].indexOf(":"));
-				String tf2 = f[1].substring(0,f[1].indexOf(":"));
+				String tf1 = f[0];
+				if (tf1.contains(":"))
+					tf1=tf1.substring(0,tf1.indexOf(":"));
+				String tf2 = f[1];
+				if (tf2.contains(":"))
+					tf2=tf2.substring(0,tf2.indexOf(":"));
 				int pos = Integer.parseInt(f[3]);
 
 				String pair;
@@ -41,7 +45,7 @@ public class ConsolidateEncodeInteractions {
 					pair = tf1+"*"+tf2;
 				else{
 					pair = tf2+"*"+tf1;
-					pos = -pos;
+//					pos = -pos;		// comment out, report distance
 				}
 				if (!pair2positions.containsKey(pair))
 					pair2positions.put(pair, new ArrayList<Integer>());

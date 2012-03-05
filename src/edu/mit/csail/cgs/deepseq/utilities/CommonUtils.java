@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
@@ -22,6 +23,7 @@ import javax.imageio.ImageIO;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
+import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
@@ -323,20 +325,29 @@ public class CommonUtils {
     public static Pair<WeightMatrix, Double> loadPWM(String args[], int orgId){
     	Pair<WeightMatrix, Double> pair=null;
     	try {   
-            String motifString = Args.parseString(args, "motif", null);
+    		double motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
+    		if (motifThreshold==-1){
+    			System.err.println("No motif threshold was provided, default=9.99 is used.");
+    			motifThreshold = 9.99;
+    		}  
+      	    String motifString = Args.parseString(args, "motif", null);
             if (motifString!=null){
       	      String motifVersion = Args.parseString(args, "version", null);
-      	      double motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
-      	      if (motifThreshold==-1){
-      	    	  System.err.println("No motif threshold was provided, default=9.99 is used.");
-      	    	  motifThreshold = 9.99;
-      	      }
+      	      
       		  int motif_species_id = Args.parseInteger(args, "motif_species_id", -1);
 //      		  int wmid = WeightMatrix.getWeightMatrixID(motif_species_id!=-1?motif_species_id:orgId, motifString, motifVersion);
       		  int wmid = WeightMatrix.getWeightMatrixID(motifString, motifVersion);
       		  WeightMatrix motif = WeightMatrix.getWeightMatrix(wmid);
       		  System.out.println(motif.toString());
       		  pair = new Pair<WeightMatrix, Double>(motif, motifThreshold);
+            }
+            else{
+            	String pfmFile = Args.parseString(args, "pfm", null);
+            	if (pfmFile!=null){
+            		double gc = Args.parseDouble(args, "gc", 0.41);
+            		WeightMatrix motif = loadPWM_PFM_file(pfmFile, gc);
+                	pair = new Pair<WeightMatrix, Double>(motif, motifThreshold);
+            	}
             }
           } 
           catch (NotFoundException e) {
@@ -345,6 +356,39 @@ public class CommonUtils {
   		  return pair;
     }
     
+    public static WeightMatrix loadPWM_PFM_file(String pfmFile, double gc){
+		try{
+			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(pfmFile, "file");
+			if (wms.isEmpty()){
+				return null;
+			}
+			else{		// if we have valid PFM
+				WeightMatrix wm = wms.get(0);
+				float[][] matrix = wm.matrix;
+				// normalize
+		        for (int position = 0; position < matrix.length; position++) {
+		            double sum = 0;
+		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+		                sum += matrix[position][WeightMatrix.letters[j]];
+		            }
+		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+		                matrix[position][WeightMatrix.letters[j]] = (float)(matrix[position][WeightMatrix.letters[j]] / sum);
+		            }
+		        }
+		        // log-odds
+		        for (int pos = 0; pos < matrix.length; pos++) {
+		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+		                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .000001) / 
+		                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
+		            }
+		        } 
+		        return wm;
+			}
+		}
+		catch (IOException e){
+			return null;
+		}
+    }
 	/**
 	 *  Scan the sequence for best match to the weight matrix
 	 *  @return  Pair of values, the lower coordinate of highest scoring PWM hit and the score
@@ -568,40 +612,42 @@ public class CommonUtils {
 	
     // --species "Mus musculus;mm8" --motif "CTCF" --version "090828" --windowSize 100 --motifThreshold 11.52
     public static void main(String args[]){
-//		// load motif
-//    	Genome genome;
-//    	Organism org=null;
-//    	WeightMatrix motif = null;
-//    	ArgParser ap = new ArgParser(args);
-//		Set<String> flags = Args.parseFlags(args);		
-//	    try {
-//	      Pair<Organism, Genome> pair = Args.parseGenome(args);
-//	      if(pair==null){
-//	        //Make fake genome... chr lengths provided???
-//	        if(ap.hasKey("geninfo")){
-//	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-//	            }else{
-//	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-//	            }
-//	      }else{
-//	        genome = pair.cdr();
-//	        org = pair.car();
-//	      }
-//	    } catch (NotFoundException e) {
-//	      e.printStackTrace();
-//	    }
-//		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-//		motif = wm.car();		
-//		CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
-	    String inName = Args.parseString(args, "seqFile", null);
-	    ArrayList<String> strs = readTextFile(inName);
-	    if (strs.isEmpty())
-	    	return;
-	    String[] ss = new String[strs.size()];
-	    strs.toArray(ss);
-	    int width = Args.parseInteger(args, "w", 5);
-	    int height = Args.parseInteger(args, "h", 3);
-	    visualizeSequences(ss, width, height, new File(inName+".png"));
+		// load motif
+    	Genome genome;
+    	Organism org=null;
+    	WeightMatrix motif = null;
+    	ArgParser ap = new ArgParser(args);
+		Set<String> flags = Args.parseFlags(args);		
+	    try {
+	      Pair<Organism, Genome> pair = Args.parseGenome(args);
+	      if(pair==null){
+	        //Make fake genome... chr lengths provided???
+	        if(ap.hasKey("geninfo")){
+	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+	            }else{
+	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
+	            }
+	      }else{
+	        genome = pair.cdr();
+	        org = pair.car();
+	      }
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+		motif = wm.car();		
+		CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
+		
+		// --seqFile Y:\Tools\GPS\Multi_TFs\ESTF-Jan10\Sox2_Klf4_Tcfcp2I1_sites_MSA.fasta.txt
+//	    String inName = Args.parseString(args, "seqFile", null);
+//	    ArrayList<String> strs = readTextFile(inName);
+//	    if (strs.isEmpty())
+//	    	return;
+//	    String[] ss = new String[strs.size()];
+//	    strs.toArray(ss);
+//	    int width = Args.parseInteger(args, "w", 5);
+//	    int height = Args.parseInteger(args, "h", 3);
+//	    visualizeSequences(ss, width, height, new File(inName+".png"));
 	    
     }
 }
