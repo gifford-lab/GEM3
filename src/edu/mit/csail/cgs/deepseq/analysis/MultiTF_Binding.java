@@ -113,7 +113,8 @@ public class MultiTF_Binding {
 				pwms.add(null);
 			}
 			else{				// if we have valid PFM file
-				pwms.add( CommonUtils.loadPWM_PFM_file(files[0].getAbsolutePath(), gc) );
+				wm = CommonUtils.loadPWM_PFM_file(files[0].getAbsolutePath(), gc);
+				pwms.add( wm );
 			}
 			
 			// load binding event files 
