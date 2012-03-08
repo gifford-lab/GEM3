@@ -203,12 +203,29 @@ public class GPS_ReadDistribution {
 			int pos = p.getLocation();
 			if (!chromLengthMap.containsKey(p.getChrom()) || pos>chromLengthMap.get(p.getChrom()))
 				continue;
-			if (p instanceof StrandedPoint)
-				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), ((StrandedPoint) p).getStrand()=='+'?strand:(char)(88-strand));
-			else
+			if (p instanceof StrandedPoint){
+				char point_strand = ((StrandedPoint) p).getStrand();
+				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), point_strand=='+'?strand:(char)(88-strand));
+				// convert absolute coordinates to relative offset
+				ArrayList<Integer> coords = pair.car();
+				for (int i=0;i<coords.size();i++){
+					int offset = coords.get(i)-pos;
+					if (point_strand=='-')
+						offset = -offset;
+					coords.set(i, offset);
+				}
+			}
+			else{
 				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), strand);
+				// convert absolute coordinates to relative offset
+				ArrayList<Integer> coords = pair.car();
+				for (int i=0;i<coords.size();i++){
+					int offset = coords.get(i)-pos;
+					coords.set(i, offset);
+				}
+			}
 			for (int i=0;i<pair.car().size();i++){
-				sum[pair.car().get(i)-pos+range] += Math.min(pair.cdr().get(i), mrc);
+				sum[pair.car().get(i)+range] += Math.min(pair.cdr().get(i), mrc);
 			}
 		}
 
