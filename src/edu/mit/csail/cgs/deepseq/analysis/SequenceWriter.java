@@ -86,7 +86,7 @@ public class SequenceWriter {
 		
 		String[] ss = new String[seqs.size()];
 		seqs.toArray(ss);
-		int width = Args.parseInteger(args, "width", 5);
+		int width = Args.parseInteger(args, "width", 3);
 		int height = Args.parseInteger(args, "height", 3);
 		CommonUtils.visualizeSequences(ss, width, height, new File(indexFile+".png"));
 	}

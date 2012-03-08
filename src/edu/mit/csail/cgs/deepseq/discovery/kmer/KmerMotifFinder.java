@@ -292,7 +292,7 @@ public class KmerMotifFinder {
 	}
 	
 	public KmerMotifFinder(Genome g, boolean useCache){
-		setUseKmerWeight();
+//		setUseKmerWeight();
 
 		genome = g;
 		seqgen = new SequenceGenerator<Region>();
