@@ -112,6 +112,8 @@ public class Config {
     public boolean use_scanPeak  = true;
     public boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
     public boolean cache_genome = true;			// cache the genome sequence
+    public String genome_path = null;
+    
     public int verbose=1;		// BindingMixture verbose mode
     public int base_reset_threshold = 200;	// threshold to set a base read count to 1
     public int windowSize;			// size for EM sliding window for splitting long regions
@@ -182,6 +184,7 @@ public class Config {
         mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
        
         // Optional input parameter
+        genome_path = Args.parseString(args, "genome", genome_path);
         k = Args.parseInteger(args, "k", k);
         k_min = Args.parseInteger(args, "k_min", k_min);
         k_max = Args.parseInteger(args, "k_max", k_max);

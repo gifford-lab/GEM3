@@ -36,7 +36,7 @@ public class GPS2 {
         if(pair != null) {
             genome = pair.cdr();
         } else {
-            String genomeString = Args.parseString(args,"g",null);
+            String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
             if(genomeString != null){
                 genome = new Genome("Genome", new File(genomeString));
             } else{

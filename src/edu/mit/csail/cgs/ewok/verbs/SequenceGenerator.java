@@ -23,6 +23,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     private static Map<Integer,String> cache;
     private boolean useCache = false;
     private boolean useLocalFiles = true;
+    private String genomePath = null;
 
     private static Map<String, String[]> regionCache;
     private static Map<String, int[]> regionStarts;
@@ -42,6 +43,9 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     public void useLocalFiles(boolean b) {
         useLocalFiles = b;
     }
+    public void setGenomePath(String genomePath){
+    	this.genomePath = genomePath;
+    }
     
     /** cache the whole chromosome of this region */
     private void cache(X region) throws SQLException, IOException {
@@ -53,9 +57,11 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         }
         String chromseq = null;
         if (useLocalFiles) {
-            File f = new File("/scratch/" + region.getGenome().getVersion() + "/chr" + region.getChrom() + ".fa");
+        	if (genomePath==null)
+        		genomePath = "/scratch/" + region.getGenome().getVersion();
+            File f = new File( genomePath + "/chr" + region.getChrom() + ".fa");
             if (!f.exists()) {
-                f = new File("/scratch/" + region.getGenome().getVersion() + "/chr" + region.getChrom() + ".fasta");
+                f = new File( genomePath+ "/chr" + region.getChrom() + ".fasta");
             }
             if (f.exists()) {
                 FASTAStream stream = new FASTAStream(f);
@@ -69,6 +75,9 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                 }
                 stream.close();                
             }
+            else
+            	System.out.print("Genome is not found at "+genomePath);
+            
         }
         if (chromseq == null) {
             java.sql.Connection cxn = DatabaseFactory.getConnection("core");

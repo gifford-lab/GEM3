@@ -152,7 +152,7 @@ public class KmerMotifFinder {
 	}
 	
 	public KmerMotifFinder(){
-		setUseKmerWeight();
+//		setUseKmerWeight();
 	}
 	
 	private void setUseKmerWeight(){
@@ -291,14 +291,16 @@ public class KmerMotifFinder {
     	bg[3]=bg[0];
 	}
 	
-	public KmerMotifFinder(Genome g, boolean useCache){
+	public KmerMotifFinder(Genome g, boolean useCache, String genomePath){
 //		setUseKmerWeight();
 
 		genome = g;
 		seqgen = new SequenceGenerator<Region>();
 		if (useCache)
-			seqgen.useCache(true);		
+			seqgen.useCache(true);	
+		seqgen.setGenomePath(genomePath);
 	}
+	
 	/* 
 	 * Contruct a Kmer Engine from a list of Kmers
 	 */

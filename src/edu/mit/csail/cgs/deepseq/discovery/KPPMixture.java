@@ -3343,7 +3343,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		return -1;
 		
     	System.out.println("Loading genome sequences ...");
-		kmf = new KmerMotifFinder(gen, config.cache_genome);
+		kmf = new KmerMotifFinder(gen, config.cache_genome, config.genome_path);
 		long tic = System.currentTimeMillis();
 
 		// setup lightweight genome cache
