@@ -98,7 +98,7 @@ public class Config {
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
     public double mappable_genome_length = -1; // defalut is to compute
-    public double sparseness=6.0;
+    public double sparseness=-1;
     public double fold = 2.5;
     public double kl_ic = -2.0;
     public double shapeDeviation;
@@ -231,7 +231,7 @@ public class Config {
         	}
         }
         	
-        sparseness = Args.parseDouble(args, "a", 6.0);	// minimum alpha parameter for sparse prior
+        sparseness = Args.parseDouble(args, "a", sparseness);	// minimum alpha parameter for sparse prior
         alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
         fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
         shapeDeviation =  TF_binding?-0.3:-0.2;		// set default according to filter type    		

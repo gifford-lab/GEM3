@@ -269,16 +269,22 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// exclude some regions
      	String excludedName = Args.parseString(args, "ex", "yes");
+     	int exludedLength = 0;
      	if (!excludedName.equals("yes")){
      		excludedRegions = mergeRegions(CommonUtils.loadRegionFile(excludedName, gen), false);
-     		log(1, "Exclude " + excludedRegions.size() + " regions.");
+     		log(1, "\nExclude " + excludedRegions.size() + " regions.\n");
 			for(int c = 0; c < numConditions; c++) {
 				caches.get(c).car().excludeRegions(excludedRegions);
 				if(controlDataExist) {
 					caches.get(c).cdr().excludeRegions(excludedRegions);
 				}
-			}     	
+			}   
+			for (Region r:excludedRegions)
+				exludedLength += r.getWidth();
      	}
+     	// subtract excluded regions length from mappable genome size
+     	config.mappable_genome_length -= exludedLength;
+     	
 		// print initial dataset counts
 		for(int c = 0; c < numConditions; c++) {
 			caches.get(c).car().displayStats();
@@ -295,7 +301,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// Normalize conditions
 		normExpts(caches);
-				
+		
+		// esitimate sparseness minimum value from the whole genome coverage
+		if (config.sparseness==-1){
+			double totalReadCount=0;
+			for(int i=0; i<numConditions; i++)
+				totalReadCount += caches.get(i).car().getHitCount();	
+			int expectedHitCount = calcExpectedHitCount(totalReadCount, 1e-4, modelWidth);
+			config.sparseness = expectedHitCount;
+			log(2, String.format("\nAt Poisson p-value 1e-4, expect %d reads in a %dbp window.", expectedHitCount, modelWidth));
+		}
+		
 		// estimate ratio and segment genome into regions
     	ratio_total=new double[numConditions];
     	ratio_non_specific_total = new double[numConditions];
@@ -1438,7 +1454,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			// if user supply using config.max_hit_per_bp, use it
 			// if not supplied, take the max of default (3) and possion expected count
 			if (config.max_hit_per_bp==-1){
-				int maxPerBP = calcHitCount_per_BP(ipCount, 1e-9);
+				int maxPerBP = calcExpectedHitCount(ipCount, 1e-9, 1);
 				max_HitCount_per_base = Math.max(max_HitCount_per_base, maxPerBP);
 			}
 			else
@@ -1458,13 +1474,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 	}
 	
-	// determine the max hit count by threshold of Poisson p-value
-	// set average read as lambda parameter for Poisson distribution
-	private int calcHitCount_per_BP(double totalReads, double threshold){
+	// compute expected hit count by threshold of Poisson p-value
+	// set average read in given region as lambda parameter for Poisson distribution
+	private int calcExpectedHitCount(double totalReads, double threshold, int regionWidth){
 		int countThres=0;
 		DRand re = new DRand();
 		Poisson P = new Poisson(0, re);
-		double lambda = totalReads/config.mappable_genome_length;
+		double lambda = totalReads*regionWidth /config.mappable_genome_length;
 		P.setMean(lambda);
 		double l=1;
 		for(int b=1; l>threshold; b++){
@@ -2401,8 +2417,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	}
 	/**
 	 * This method normalizes conditions as follows:							<br>
-	 * It evaluates the slope between each pair of an IP condition and a reference one.
-	 * Here, chosen to be condition 1. It does the same for the Ctrl channel.    <br>
+	 * It evaluates the slope between each pair of an IP condition and a reference one (condition 1). 
+	 * It does the same for the Ctrl channel.    <br>
 	 * Then, it re-scales all reads for each condition by multipying with the corresponding slopes.  <br>
 	 * Lastly, it evaluates the ratio between the original and the 'inflated' read counts
 	 * and divides every read weight with this amount to ensure that the total read counts remain constant.
