@@ -48,6 +48,9 @@ public class MetaNonFrame{
 	public void setLinePanelColorQuanta(double [] q){
 		linePanel.setLineColorQuanta(q);
 	}
+	public void setDrawColorBar(boolean c){
+		linePanel.setDrawColorBar(c);
+	}
 	public void saveImages(String root){
 		try {
 			System.out.println("Saving images with root name: "+root);
