@@ -1319,7 +1319,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-
 			}
 			wholeGenomeDataLoaded = true;
 			return;

@@ -2186,7 +2186,7 @@ public class KmerMotifFinder {
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
 			pfm_sb.append(makeTRANSFAC (c.pfm, c.pwmPosHitCount, String.format("DE %s_%d_c%d\n", name, c.clusterId, c.pwmPosHitCount)));
-    		if (use_KSM)
+    		if (use_KSM && c.ksmThreshold!=null)
     			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=1e%.1f", c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
 			
 			// paint motif logo
