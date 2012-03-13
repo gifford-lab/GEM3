@@ -41,6 +41,7 @@ public class MetaMaker {
 			double lineMax = Args.parseDouble(args,"linemax", 100);
 			int lineThick = Args.parseInteger(args,"linethick", 1);
 			double pbMax = Args.parseDouble(args,"pbMax", 100);
+			boolean drawColorBar = !Args.parseFlags(args).contains("nocolorbar");
 			String profilerType = Args.parseString(args, "profiler", "simplechipseq");	
 			List<String> expts = (List<String>) Args.parseStrings(args,"expt");
 			List<String> backs = (List<String>) Args.parseStrings(args,"back");
@@ -114,6 +115,7 @@ public class MetaMaker {
 				if(peakFiles.size()==1 || peakFiles.size()==0){
 					MetaNonFrame nonframe = new MetaNonFrame(gen, params, profiler, normalizeProfile);
 					nonframe.setColor(c);
+					nonframe.setDrawColorBar(drawColorBar);
 					MetaProfileHandler handler = nonframe.getHandler();
 					if(peakFiles.size()==1){
 						System.out.println("Single set mode...");
@@ -189,7 +191,8 @@ public class MetaMaker {
 				"--peaks <peaks file name> --out <output root name> \n" +
 				"--color <red/green/blue> \n" +
 				"--cluster [flag to cluster in batch mode] \n" +
-				"--batch [a flag to run without displaying the window]");
+				"--batch [a flag to run without displaying the window]\n" +
+				"--nocolorbar [flag to turn off colorbar in batch mode]\n");
 		System.exit(1);
 	}
 }

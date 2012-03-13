@@ -29,6 +29,8 @@ public class ProfileLinePanel extends JPanel implements ProfileListener{
 	private Vector<ProfileLinePaintable> linePainters;
 	private boolean colorQuantized=false;
 	private double [] colorQuantaLimits=null;
+	private boolean drawColorBar=true;
+	private boolean drawBorder = true;
 
 	public ProfileLinePanel(BinningParameters bps, PaintableScale s) { 
 		params = bps;
@@ -116,6 +118,13 @@ public class ProfileLinePanel extends JPanel implements ProfileListener{
 		scale.setScale(v, scale.getMax());
 		repaint();
 	}
+	public void setDrawColorBar(boolean c){
+		drawColorBar = c;
+		if(!c)
+			colorbarHeight=0;
+		else
+			colorbarHeight=50;
+	}
 	
 	public void setLineColorQuanta(double[] q){
 		if(q!=null){
@@ -132,7 +141,8 @@ public class ProfileLinePanel extends JPanel implements ProfileListener{
 		g.fillRect(0, 0, w, h);
 
 		//Colorbar
-		drawSiteColorBar((Graphics2D)g, 0, 0);
+		if(drawColorBar)
+			drawSiteColorBar((Graphics2D)g, 0, 0);
 		
 		//Lines
 		synchronized(this) { 
@@ -162,6 +172,12 @@ public class ProfileLinePanel extends JPanel implements ProfileListener{
 					g.drawString(s, w-5-metrics.stringWidth(s), colorbarHeight+(i*((linePainters.size()*lineWeight)/numAxisTicks)));
 				}	
 			}
+		}
+		
+		//Border
+		if(drawBorder){
+			g.setColor(Color.black);
+			g.drawRect(0, 0, w, h);
 		}
 	}
 	
