@@ -88,7 +88,7 @@ public class Pairwise_TF_Binding {
 		if (wm!=null){
 			scorer = new WeightMatrixScorer(wm);
 			posShift = wm.length()/2;				// shift to the middle of motif
-			negShift = wm.length()-wm.length()/2;
+			negShift = wm.length()-1-wm.length()/2;
 		}
 		try{
 			List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
@@ -99,7 +99,7 @@ public class Pairwise_TF_Binding {
 				
 				if (wm!=null){		// use nearest motif as binding site
 					Region region = p.expand(round);
-					String seq = seqgen.execute(region);	// here round is the range of window 
+					String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
 					int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*0.6).car();
 					if (hit!=-999){
 						if (hit>=0)
