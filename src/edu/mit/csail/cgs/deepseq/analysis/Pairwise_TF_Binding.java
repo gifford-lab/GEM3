@@ -71,7 +71,7 @@ public class Pairwise_TF_Binding {
 		all_sites.add(loadSites(genome, seqgen, oct4_gem, null, 1));
 		all_sites.add(loadSites(genome, seqgen, oct4_gps, null, 2));
 		all_sites.add(loadSites(genome, seqgen, oct4_gps, oct4_wm, 3));
-		all_sites.add(loadSites(genome, seqgen, sox2_gem, sox2_wm, 0));
+		all_sites.add(loadSites(genome, seqgen, sox2_gem, sox2_wm, 4));
 		names.add("sox2_gem");
 		names.add("oct4_gem");
 		names.add("oct4_gps");
