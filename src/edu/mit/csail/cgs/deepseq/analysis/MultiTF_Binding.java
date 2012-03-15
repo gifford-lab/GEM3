@@ -126,7 +126,7 @@ public class MultiTF_Binding {
 			if (round!=1&&round!=2&&round!=9&&wm!=null){	
 				scorer = new WeightMatrixScorer(wm);
 				posShift = wm.length()/2;				// shift to the middle of motif
-				negShift = wm.length()-wm.length()/2;
+				negShift = wm.length()-1-wm.length()/2;
 			}
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
@@ -138,7 +138,7 @@ public class MultiTF_Binding {
 					
 					if (round!=1&&round!=2&&round!=9&&wm!=null){		// use nearest motif as binding site
 						Region region = p.expand(round);
-						String seq = seqgen.execute(region);	// here round is the range of window 
+						String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
 						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*0.6).car();
 						if (hit!=-999){
 							if (hit>=0)
@@ -316,7 +316,7 @@ public class MultiTF_Binding {
 				continue;
 			String[] seqs = new String[sites.size()];
 			for (int j=0;j<sites.size();j++){
-				seqs[j] = seqgen.execute(sites.get(j).bs.expand(seqRange));
+				seqs[j] = seqgen.execute(sites.get(j).bs.expand(seqRange)).toUpperCase();
 			}
 			
 			ArrayList[][] hits = new ArrayList[seqs.length][pwms.size()];
