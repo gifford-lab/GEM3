@@ -13,13 +13,13 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 
-public class GPS2 {
-	public final static String GPS_VERSION = "1.1";
+public class GEM {
+	public final static String GEM_VERSION = "0.9";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
 	
-	public GPS2(String[] args) throws NotFoundException {
+	public GEM(String[] args) throws NotFoundException {
         init();
         parseArgs(args);
     }
@@ -140,16 +140,15 @@ public class GPS2 {
 	
     public void runMixtureModel() {		
     	boolean run_gem = false;
-    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1)
+    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1
+    			|| Args.parseString(args, "seed", null)!=null)
     		run_gem = true;
         double kl=10;
 		
 //        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
         Set<String> flags = Args.parseFlags(args);
-        boolean rebuild = flags.contains("rebuild");
-        int GPS_round = 2;
-        GPS_round = Args.parseInteger(args,"r", GPS_round);
-        int GEM_round = Args.parseInteger(args,"r_pp", 2);
+        int GPS_round = Args.parseInteger(args,"r_gps", 2);
+        int GEM_round = Args.parseInteger(args,"r_gem", 2);
         int minLeft = Args.parseInteger(args,"d_l", 300);
         int minRight = Args.parseInteger(args,"d_r", 200);
         /**
@@ -210,10 +209,12 @@ public class GPS2 {
 		        mixture.printInsignificantFeatures(round);
 		        mixture.runKMF(Args.parseInteger(args,"k_win", 60));// Note: KPPMixture also has args parsing, keep default value the same
             }
-            int winSize = Args.parseInteger(args,"k_win2", 100);
-            System.out.println("\n============== Finding motif for "+prefix+"_"+(round+1)+", large window size="+winSize+" =============\n");
-            mixture.setOutName(filePrefix+"_"+(round+1));
-	        mixture.runKMF(winSize);	// Note: KPPMixture also has args parsing, keep default value the same
+            int winSize = Args.parseInteger(args,"k_win2", -1);
+            if (winSize!=-1){
+	            System.out.println("\n============== Finding motif for "+prefix+"_"+(round+1)+", large window size="+winSize+" =============\n");
+	            mixture.setOutName(filePrefix+"_"+(round+1));
+		        mixture.runKMF(winSize);	// Note: KPPMixture also has args parsing, keep default value the same
+            }
         }
         
         mixture.plotAllReadDistributions();
@@ -227,9 +228,9 @@ public class GPS2 {
 	        System.out.println("\nFinished! GEM analysis results are printed to:\n"+
 	        		path+"_GEM_events.txt\n"+
 	        		path+"_result.htm\n" +
-	        		path+"_outputs\n");
-	        CommonUtils.copyFile(filePrefix+"_2_GEM_events.txt", path+"_GEM_events.txt");
-	        String htmName = prefix+"_outputs/"+prefix+"_2_result.htm";
+	        		path+"_outputs (folder)\n");
+	        CommonUtils.copyFile(filePrefix+"_"+GPS_round+"_GEM_events.txt", path+"_GEM_events.txt");
+	        String htmName = prefix+"_outputs/"+prefix+"_"+GPS_round+"_result.htm";
 	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 	        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
 	        	htmName+"'>click here for GEM Result</a>.</BODY></HTML>";
@@ -238,16 +239,16 @@ public class GPS2 {
         else{
             System.out.println("\nFinished! GPS analysis results are printed to:\n"+
             		path+"_GPS_events.txt\n"+
-	        		path+"_outputs\n");
+	        		path+"_outputs (folder)\n");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
         }
     }
     	
     public static void main(String[] args) throws Exception {
         long tic = System.currentTimeMillis();
-        System.out.println("\nWelcome to GPS (version "+GPS_VERSION+")!");
-        System.out.println("Developed by Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gps/).\n");
-        GPS2 gps = new GPS2(args);
+        System.out.println("\nWelcome to GEM (version "+GEM_VERSION+")!");
+        System.out.println("Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gem/).\n");
+        GEM gps = new GEM(args);
         gps.runMixtureModel();
         gps.close();
         System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");

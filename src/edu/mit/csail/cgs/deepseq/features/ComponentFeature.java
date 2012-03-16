@@ -423,8 +423,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         }
         if (boundSequence!=null){
 	        header.append("Kmer       \t").append("KG_hgp\t").append("Strand\t").append("BoundSequence"); 
-	        if (getEnrichedKmerHGPLog10()>=0)
-	        	header.append("\tEnrichedHGP");
         }
         header.append("\n");
         return header.toString();
