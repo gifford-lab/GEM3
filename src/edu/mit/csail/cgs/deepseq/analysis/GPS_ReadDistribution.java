@@ -49,6 +49,7 @@ public class GPS_ReadDistribution {
 	private double motifThreshold;
 	
 	private String name = null;
+	private String motif_strand = null;
 	
 	public static void main(String[] args) throws IOException {
 		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
@@ -98,6 +99,7 @@ public class GPS_ReadDistribution {
 		top = Args.parseInteger(args, "top", top);			// number of top point positions to use
 		mrc = Args.parseInteger(args, "mrc", mrc);			// max read count
 		name = Args.parseString(args, "name", "noname");
+		motif_strand = Args.parseString(args, "motif_strand", null);
 		smooth_step = Args.parseInteger(args, "smooth", smooth_step);
 		// load points
 		String coordFile = Args.parseString(args, "coords", null);
@@ -161,8 +163,10 @@ public class GPS_ReadDistribution {
 						Point motifPos = null;
 						if (flags.contains("stranded"))
 							motifPos = new StrandedPoint(genome, p.getChrom(), p.getLocation()+position, strand);
-						else
+						else if (motif_strand==null || (motif_strand.equalsIgnoreCase("F")&& strand=='+')||(motif_strand.equalsIgnoreCase("R")&& strand=='-'))
 							motifPos = new Point(genome, p.getChrom(), p.getLocation()+position);
+						else
+							break;
 						points.add(motifPos);
 						break; 	// break from the motif search of this peak
 					}
