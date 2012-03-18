@@ -149,12 +149,12 @@ public class GPS_ReadDistribution {
 					double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
 					double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);	
 					int position = -Integer.MAX_VALUE;	// middle of motif, relative to GPS peak
-					char strand = '+';
+					char strand = '*';
 					if(rightScore>=motifThreshold){
 						position = z+halfWidth;
 						strand = profiler.getMaxStrand(MOTIF_DISTANCE+z);
 					}
-					if(leftScore>=motifThreshold){
+					if(leftScore>=motifThreshold && leftScore>rightScore){
 						position = -z+halfWidth;
 						strand = profiler.getMaxStrand(MOTIF_DISTANCE-z);
 					}
