@@ -61,7 +61,7 @@ public class Config {
     public boolean use_grid_search = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
-    public boolean use_weighted_kmer = false;
+    public boolean use_weighted_kmer = true;
     public boolean k_neg_shuffle = false;
    	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
@@ -149,7 +149,6 @@ public class Config {
         kmer_use_insig = flags.contains("kmer_use_insig");
         kmer_use_filtered = flags.contains("kmer_use_filtered");
 
-        use_weighted_kmer = flags.contains("use_weighted_kmer");
         k_neg_shuffle = flags.contains("k_neg_shuffle");
         re_align_kmer = flags.contains("rak");
         mask_by_pwm = flags.contains("mask_by_pwm");
@@ -180,6 +179,7 @@ public class Config {
         kpp_use_kmer = !flags.contains("kpp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         use_weight = !flags.contains("no_weight");
+        use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_grid_search = !flags.contains("no_grid_search");
         allow_single_family = !flags.contains("no_single_family");
         allow_seed_reset = !flags.contains("no_seed_reset");
