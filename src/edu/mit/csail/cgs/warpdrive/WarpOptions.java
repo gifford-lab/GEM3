@@ -76,6 +76,7 @@ public class WarpOptions {
     public ArrayList<WeightMatrixScan> motifscans;
     public ArrayList<ExptNameVersion> peakCallers;
     public ArrayList<Experiment> exprExperiments;
+    public HashMap<String,String> chiapetExpts;
     public ArrayList<ChipSeqLocator> chipseqExpts;
     public ArrayList<ChipSeqLocator> pairedChipseqExpts;
     public ArrayList<ChipSeqAnalysis> chipseqAnalyses;

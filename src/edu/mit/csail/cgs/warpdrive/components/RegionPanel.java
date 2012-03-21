@@ -333,6 +333,12 @@ public class RegionPanel extends JPanel
             addModelToPaintable(p,seqmodel);
         }
 
+        if (opts.chiapetExpts.size() > 0) {
+        	RegionModel m;
+        	RegionPaintable p;
+        	
+        }
+        
         if (opts.chipseqExpts.size() > 0) {
             try {
                 ChipSeqLoader loader = new ChipSeqLoader();
