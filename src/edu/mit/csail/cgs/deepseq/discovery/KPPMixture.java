@@ -3094,6 +3094,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 					fw.write(f.headString_v1());
 					first=false;
 				}
+				if (!config.print_bound_seqs)
+					f.setBoundSequence("");
 				fw.write(f.toString_v1());
 			}
 			fw.close();
@@ -3105,7 +3107,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				first=true;
 				for(ComponentFeature f : fs){
 					if(first){
-						fw.write("track name=GPS_"+outName+" description=\"GPS Event Call\"\n");
+						fw.write("track name=GEM_"+outName+" description=\"GEM Event Call\"\n");
                         //					fw.write(f.headString_BED());
 						first=false;
 					}
@@ -3474,8 +3476,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			int bestK = kmf.selectK(config.k_min, config.k_max);
 			if (bestK!=0){
 				config.k = bestK;
-				config.k_min = -1;		// prevent selecting k again
-				config.k_max = -1;
+				if (config.allow_seed_inheritance){
+					config.k_min = -1;		// prevent selecting k again
+					config.k_max = -1;
+				}
 			}
 			else{
 				log(1, "The value of k can not be determined automatically.");

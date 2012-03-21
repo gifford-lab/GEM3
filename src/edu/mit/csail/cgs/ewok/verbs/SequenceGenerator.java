@@ -75,8 +75,10 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                 }
                 stream.close();                
             }
-            else
-            	System.out.print("Genome is not found at "+genomePath);
+            else{
+            	System.out.print("Genome is not found at "+genomePath+". \n");
+            	System.exit(-1);
+            }
             
         }
         if (chromseq == null) {

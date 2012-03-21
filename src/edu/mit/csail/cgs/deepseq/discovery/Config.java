@@ -61,6 +61,7 @@ public class Config {
     public boolean use_grid_search = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
+    public boolean use_weighted_kmer = true;
     public boolean k_neg_shuffle = false;
    	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
@@ -73,6 +74,8 @@ public class Config {
   	public double noise = 0.0;
     public boolean print_aligned_seqs = false;
     public boolean print_input_seqs = false;
+    public boolean print_all_kmers = false;
+    public boolean print_bound_seqs = false;
     public boolean re_train = false;
 	public boolean refine_pwm = false;
     public boolean print_pwm_fdr = false;
@@ -145,11 +148,14 @@ public class Config {
         select_seed = flags.contains("select_seed");
         kmer_use_insig = flags.contains("kmer_use_insig");
         kmer_use_filtered = flags.contains("kmer_use_filtered");
+
         k_neg_shuffle = flags.contains("k_neg_shuffle");
         re_align_kmer = flags.contains("rak");
         mask_by_pwm = flags.contains("mask_by_pwm");
         print_aligned_seqs = flags.contains("print_aligned_seqs");
         print_input_seqs = flags.contains("print_input_seqs");
+        print_all_kmers = flags.contains("print_all_kmers");
+        print_bound_seqs = flags.contains("print_bound_seqs");
         re_train = flags.contains("re_train");
         refine_pwm = flags.contains("refine_pwm");
         print_pwm_fdr = flags.contains("print_pwm_fdr");            
@@ -173,6 +179,7 @@ public class Config {
         kpp_use_kmer = !flags.contains("kpp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         use_weight = !flags.contains("no_weight");
+        use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_grid_search = !flags.contains("no_grid_search");
         allow_single_family = !flags.contains("no_single_family");
         allow_seed_reset = !flags.contains("no_seed_reset");

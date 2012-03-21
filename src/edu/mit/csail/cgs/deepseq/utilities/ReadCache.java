@@ -261,7 +261,7 @@ public class ReadCache {
 		for(int i = 0; i < fivePrimesList.length; i++){			// chrom
 			for(int j = 0; j < fivePrimesList[i].length; j++){	// strand
 				try{
-					int[][][] tmp = allStarts.get(0);
+					int[][][] tmp = allStarts.get(0);		// assuming only one text file
 					int[] allPositions = tmp[i][j];
 					tmp[i][j]=null;
 					for (int k=1;k<allStarts.size();k++){		// for each of files/replicates
