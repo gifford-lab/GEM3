@@ -7,6 +7,7 @@ import javax.swing.*;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.io.*;
@@ -22,6 +23,7 @@ import edu.mit.csail.cgs.ewok.verbs.binding.BindingExpander;
 import edu.mit.csail.cgs.ewok.verbs.expression.LocatedExprMeasurementExpander;
 import edu.mit.csail.cgs.ewok.verbs.motifs.PerBaseMotifMatch;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.*;
+import edu.mit.csail.cgs.projects.chiapet.PairedStorage;
 import edu.mit.csail.cgs.utils.*;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
@@ -334,9 +336,18 @@ public class RegionPanel extends JPanel
         }
 
         if (opts.chiapetExpts.size() > 0) {
-        	RegionModel m;
-        	RegionPaintable p;
+        	try {
+        	for (String k : opts.chiapetExpts.keySet()) {
+        		List<Double> kernel = new ArrayList<Double>();
+        		PairedStorage storage = new PairedStorage(genome, 0, 0, null, kernel, kernel, 0, 0);
+        		storage.initializeFromAnnotatedFile(opts.chiapetExpts.get(k));
+        		RegionModel m = new InteractionLikelihoodModel(storage);
+            }
         	
+        	RegionPaintable p;
+        	} catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         
         if (opts.chipseqExpts.size() > 0) {
