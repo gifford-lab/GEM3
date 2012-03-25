@@ -15,12 +15,15 @@ public class InteractionLikelihoodModel extends WarpModel implements
 	private PairedStorage storage;
 	
 	public InteractionLikelihoodModel(PairedStorage storage) {
+		props = new InteractionLikelihoodProperties();
+		region = null;
+		newinput = false;
 		this.storage = storage;
 	}
 
 	public boolean isReady() {return !newinput;}
 
-	public void run() {
+	public synchronized void run() {
 		while(keepRunning()) {
             try {
                 if (!newinput) {
@@ -30,10 +33,12 @@ public class InteractionLikelihoodModel extends WarpModel implements
 
             }
             if (newinput) {
+            	System.err.println(props);
             	Region anchor = Region.fromString(region.getGenome(), props.Anchor);
             	int width = props.BinWidth;
             	results = new TreeMap<Integer,Double>();
             	int tmpx = region.getStart();
+            	System.err.println(region.getWidth()/width);
             	while (tmpx<region.getEnd()) {
             		Region tmpreg = new Region(region.getGenome(),region.getChrom(),tmpx,tmpx+width);
             		double ratio = storage.computeRatio(anchor, tmpreg);
@@ -41,6 +46,7 @@ public class InteractionLikelihoodModel extends WarpModel implements
             		tmpx += width;
             	}
             }
+            System.err.println("computed ratios");
             newinput = false;
             notifyListeners();
 		}

@@ -86,7 +86,7 @@ public class WarpOptionsPane
     private JList motifs;
 
     // file-based tracks
-    private FileBasedTracksPanel filetracks;
+    private FileBasedTracksPanel filetracks, chiapettracks;
 
     public WarpOptionsPane () throws NotFoundException {
         super();
@@ -245,6 +245,9 @@ public class WarpOptionsPane
         exprPanel.setLayout(new BorderLayout());
         exprPanel.add(exprSelect, BorderLayout.CENTER);
         
+        //chiapet tab
+        chiapettracks = new FileBasedTracksPanel();
+        
         // chipseq tab
         chipSeqSelect = new ChipSeqSelectPanel();        
         chipSeqPanel.setLayout(new BorderLayout());
@@ -339,6 +342,9 @@ public class WarpOptionsPane
 
         addTab("Peaks",peakPanel);
         addTab("Expression", exprPanel);
+        
+        dummy = new JPanel(); dummy.add(chiapettracks); dummy.add(new JPanel());
+        addTab("ChIA-PET",new JScrollPane(dummy));
         
         addTab("ChIP-Seq", chipSeqPanel);
         addTab("Paired ChIP-Seq", pairedChipSeqPanel);
@@ -457,6 +463,7 @@ public class WarpOptionsPane
                 position.setText(opts.chrom + ":" + opts.start + "-" + opts.stop);
             }
         }       
+        chiapettracks.fill(opts.chiapetExpts);
         chipSeqSelect.addToSelected(opts.chipseqExpts);
         pairedChipSeqSelect.addToSelected(opts.pairedChipseqExpts);
         chipSeqAnalysisSelect.addToSelected(opts.chipseqAnalyses);
@@ -558,6 +565,7 @@ public class WarpOptionsPane
         Collection<Experiment> expts = exprSelect.getSelected();
         these.exprExperiments.addAll(expts);
         
+        chiapettracks.parse(these.chiapetExpts);
         for(ChipSeqLocator loc : chipSeqSelect.getSelected()) { 
             these.chipseqExpts.add(loc);
         }
