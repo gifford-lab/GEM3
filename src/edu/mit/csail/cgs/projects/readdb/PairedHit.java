@@ -1,6 +1,7 @@
 package edu.mit.csail.cgs.projects.readdb;
 
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.general.StrandedRegion;
 import edu.mit.csail.cgs.datasets.species.Genome;
 
@@ -70,12 +71,20 @@ public class PairedHit implements Comparable<PairedHit> {
     	return new StrandedRegion(genome, genome.getChromName(leftChrom), leftPos, leftPos+1, leftStrand ? '+' : '-');
     }
     
+    public StrandedPoint leftStrandedPoint(Genome genome) {
+    	return new StrandedPoint(genome, genome.getChromName(leftChrom), leftPos, leftStrand ? '+' : '-');
+    }
+    
     public StrandedRegion rightRegion(Genome genome) {
     	return new StrandedRegion(genome, genome.getChromName(rightChrom), rightPos, rightPos+(rightStrand ? rightLength : -rightLength), rightStrand ? '+' : '-');
     }
     
     public StrandedRegion rightPointRegion(Genome genome) {
     	return new StrandedRegion(genome, genome.getChromName(rightChrom), rightPos, rightPos+1, rightStrand ? '+' : '-');
+    }
+    
+    public StrandedPoint rightStrandedPoint(Genome genome) {
+    	return new StrandedPoint(genome, genome.getChromName(rightChrom), rightPos, rightStrand ? '+' : '-');
     }
     
     public int lesserPos() {

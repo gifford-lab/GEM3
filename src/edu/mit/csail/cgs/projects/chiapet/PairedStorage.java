@@ -78,6 +78,8 @@ public class PairedStorage {
 	private int binsize = 100;
 	private double tmpnorm = 0.0d;
 	private boolean removeArtifact;
+	private String dir;
+	private String currentChrom = "";
 
 	public static void main(String[] args) throws NotFoundException, IOException, ClientException {
 		Genome g = Args.parseGenome(args).cdr();
@@ -332,6 +334,22 @@ public class PairedStorage {
 		}
 		for (PairedHit hit : leftset) {
 			index.put(hit, i++);
+		}
+	}
+	
+	public void initializeFromAnnotatedDirectory(String dir) {
+		this.dir = dir;
+	}
+	
+	public String getCurrentChrom() {
+		return currentChrom;
+	}
+	
+	public void loadChrom(String chrom) throws NumberFormatException, IOException {
+		if (!chrom.equals(currentChrom)) {
+			currentChrom = chrom;
+			System.err.println("loading "+chrom);
+			initializeFromAnnotatedFile(dir+chrom+".txt");
 		}
 	}
 	
@@ -1925,6 +1943,14 @@ public class PairedStorage {
 			tor += fullMap.get(hit) - restrictedMap.get(hit) - modifier;
 		}
 		return tor;
+	}
+	
+	public double fullValue(PairedHit hit) {
+		return fullMap.get(hit);
+	}
+	
+	public double restrictedValue(PairedHit hit) {
+		return restrictedMap.get(hit);
 	}
 
 	public double getCount(Region anchor, Region region, double[] z) {

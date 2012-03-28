@@ -341,8 +341,8 @@ Listener<EventObject>, PainterContainer, MouseListener {
 					List<Double> kernel = new ArrayList<Double>();
 					PairedStorage storage = new PairedStorage(genome, 0, 0, null, kernel, kernel, 0, 0);
 					System.err.println("reading "+opts.chiapetExpts.get(k)+" from file");
-					storage.initializeFromAnnotatedFile(k);
-					RegionModel m = new InteractionLikelihoodModel(storage);
+					storage.initializeFromAnnotatedDirectory(k);
+					RegionModel m = new InteractionLikelihoodModel(genome,storage);
 					RegionPaintable p = new InteractionLikelihoodPainter((InteractionLikelihoodModel)m);
 					addModel(m);
 					Thread t = new Thread((Runnable)m); t.start();
