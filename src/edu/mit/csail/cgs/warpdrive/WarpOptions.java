@@ -76,6 +76,7 @@ public class WarpOptions {
     public ArrayList<WeightMatrixScan> motifscans;
     public ArrayList<ExptNameVersion> peakCallers;
     public ArrayList<Experiment> exprExperiments;
+    public HashMap<String,String> chiapetExpts;
     public ArrayList<ChipSeqLocator> chipseqExpts;
     public ArrayList<ChipSeqLocator> pairedChipseqExpts;
     public ArrayList<ChipSeqAnalysis> chipseqAnalyses;
@@ -144,6 +145,7 @@ public class WarpOptions {
         bindingScans = new ArrayList<BindingScan>();
         otherannots = new ArrayList<String>();
         agilentdata= new ArrayList<ExptNameVersion>();
+        chiapetExpts = new HashMap<String,String>();
         chipseqExpts = new ArrayList<ChipSeqLocator>();
         pairedChipseqExpts = new ArrayList<ChipSeqLocator>();
         agilentll = new ArrayList<AnalysisNameVersion>();
@@ -172,6 +174,7 @@ public class WarpOptions {
         bindingScans = new ArrayList<BindingScan>();
         otherannots = new ArrayList<String>();
         agilentdata= new ArrayList<ExptNameVersion>();
+        chiapetExpts = new HashMap<String,String>();
         chipseqExpts = new ArrayList<ChipSeqLocator>();
         pairedChipseqExpts = new ArrayList<ChipSeqLocator>();
         agilentll = new ArrayList<AnalysisNameVersion>();
@@ -218,6 +221,7 @@ public class WarpOptions {
         mergeInto(ncrnas,union.ncrnas);
         mergeInto(otherannots,union.otherannots);
         mergeInto(agilentdata,union.agilentdata);
+        mergeInto(chiapetExpts,union.chiapetExpts);
         mergeInto(chipseqExpts,union.chipseqExpts);
         mergeInto(pairedChipseqExpts,union.pairedChipseqExpts);
         mergeInto(bayesresults,union.bayesresults);
@@ -283,6 +287,7 @@ public class WarpOptions {
         differenceOf(ncrnas,other.ncrnas);
         differenceOf(otherannots,other.otherannots);
         differenceOf(agilentdata,other.agilentdata);
+        differenceOf(chiapetExpts,other.chiapetExpts);
         differenceOf(chipseqExpts,other.chipseqExpts);
         differenceOf(pairedChipseqExpts,other.pairedChipseqExpts);
         differenceOf(bayesresults,other.bayesresults);
@@ -329,6 +334,7 @@ public class WarpOptions {
         o.ncrnas = (ArrayList<String>) ncrnas.clone();
         o.otherannots = (ArrayList<String>) otherannots.clone();
         o.agilentdata = (ArrayList<ExptNameVersion>)agilentdata.clone();
+        o.chiapetExpts = (HashMap<String,String>)chiapetExpts.clone();
         o.chipseqExpts = (ArrayList<ChipSeqLocator>)chipseqExpts.clone();
         o.pairedChipseqExpts = (ArrayList<ChipSeqLocator>)pairedChipseqExpts.clone();
         o.bayesresults = (ArrayList<AnalysisNameVersion>)bayesresults.clone();
@@ -442,6 +448,14 @@ public class WarpOptions {
                 if (args[i].equals("--genes")) {
                     opts.genes.add(args[++i]);;
                 }            
+                if (args[i].equals("--chiapet")) {
+                	String pieces[] = args[++i].split(";");
+                    if (pieces.length == 1) {
+                        opts.chiapetExpts.put(pieces[0],pieces[0]);
+                    } else {
+                        opts.chiapetExpts.put(pieces[0],pieces[1]);
+                    }
+                }
                 if (args[i].equals("--chipseq")) {
                     String pieces[] = args[++i].split(";");
                     if (pieces.length == 2) {
