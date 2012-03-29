@@ -139,7 +139,7 @@ public class MultiTF_Binding {
 					if (round!=1&&round!=2&&round!=9&&wm!=null){		// use nearest motif as binding site
 						Region region = p.expand(round);
 						String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
-						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*0.6).car();
+						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*wm_factor).car();
 						if (hit!=-999){
 							if (hit>=0)
 								site.bs = new Point(p.getGenome(), p.getChrom(), region.getStart()+hit+posShift);
