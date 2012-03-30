@@ -79,6 +79,7 @@ public class WarpOptions {
     public HashMap<String,String> chiapetExpts;
     public ArrayList<ChipSeqLocator> chipseqExpts;
     public ArrayList<ChipSeqLocator> pairedChipseqExpts;
+    public ArrayList<ChipSeqLocator> chiapetArcs;
     public ArrayList<ChipSeqAnalysis> chipseqAnalyses;
     // filename to label mappings.  These are loaded from a file
     // and the data held statically
@@ -148,6 +149,7 @@ public class WarpOptions {
         chiapetExpts = new HashMap<String,String>();
         chipseqExpts = new ArrayList<ChipSeqLocator>();
         pairedChipseqExpts = new ArrayList<ChipSeqLocator>();
+        chiapetArcs = new ArrayList<ChipSeqLocator>();
         agilentll = new ArrayList<AnalysisNameVersion>();
         bayesresults = new ArrayList<AnalysisNameVersion>();
         msp = new ArrayList<AnalysisNameVersion>();
@@ -177,6 +179,7 @@ public class WarpOptions {
         chiapetExpts = new HashMap<String,String>();
         chipseqExpts = new ArrayList<ChipSeqLocator>();
         pairedChipseqExpts = new ArrayList<ChipSeqLocator>();
+        chiapetArcs = new ArrayList<ChipSeqLocator>();
         agilentll = new ArrayList<AnalysisNameVersion>();
         bayesresults = new ArrayList<AnalysisNameVersion>();
         msp = new ArrayList<AnalysisNameVersion>();
@@ -224,6 +227,7 @@ public class WarpOptions {
         mergeInto(chiapetExpts,union.chiapetExpts);
         mergeInto(chipseqExpts,union.chipseqExpts);
         mergeInto(pairedChipseqExpts,union.pairedChipseqExpts);
+        mergeInto(chiapetArcs,union.chiapetArcs);
         mergeInto(bayesresults,union.bayesresults);
         mergeInto(agilentll,union.agilentll);
         mergeInto(msp,union.msp);
@@ -290,6 +294,7 @@ public class WarpOptions {
         differenceOf(chiapetExpts,other.chiapetExpts);
         differenceOf(chipseqExpts,other.chipseqExpts);
         differenceOf(pairedChipseqExpts,other.pairedChipseqExpts);
+        differenceOf(chiapetArcs,other.chiapetArcs);
         differenceOf(bayesresults,other.bayesresults);
         differenceOf(agilentll,other.agilentll);
         differenceOf(msp,other.msp);
@@ -337,6 +342,7 @@ public class WarpOptions {
         o.chiapetExpts = (HashMap<String,String>)chiapetExpts.clone();
         o.chipseqExpts = (ArrayList<ChipSeqLocator>)chipseqExpts.clone();
         o.pairedChipseqExpts = (ArrayList<ChipSeqLocator>)pairedChipseqExpts.clone();
+        o.chiapetArcs = (ArrayList<ChipSeqLocator>)chiapetArcs.clone();
         o.bayesresults = (ArrayList<AnalysisNameVersion>)bayesresults.clone();
         o.agilentll = (ArrayList<AnalysisNameVersion>)agilentll.clone();
         o.msp = (ArrayList<AnalysisNameVersion>)msp.clone();
@@ -478,6 +484,16 @@ public class WarpOptions {
                         opts.pairedChipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
                     } else {
                         System.err.println("Couldn't parse --pairedchipseq " + args[i]);
+                    }
+                }
+                if (args[i].equals("--chiapetarc")) {
+                    String pieces[] = args[++i].split(";");
+                    if (pieces.length == 2) {
+                        opts.chiapetArcs.add(new ChipSeqLocator(pieces[0], pieces[1]));
+                    } else if (pieces.length == 3) {
+                        opts.chiapetArcs.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
+                    } else {
+                        System.err.println("Couldn't parse --chiapetarc " + args[i]);
                     }
                 }
                 if (args[i].equals("--chipseqanalysis")) {

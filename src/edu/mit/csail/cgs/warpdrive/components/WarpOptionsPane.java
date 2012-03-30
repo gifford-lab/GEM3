@@ -48,6 +48,7 @@ public class WarpOptionsPane
         chipSeqPanel,
         chipSeqAnalysisPanel,
         pairedChipSeqPanel,
+        chiaPetArcPanel,
         optionsPanel,
         peakPanel, 
         exprPanel;
@@ -67,7 +68,7 @@ public class WarpOptionsPane
     private BindingScanSelectPanel bindingSelect;
     
     // chipseq tab
-    private ChipSeqSelectPanel chipSeqSelect, pairedChipSeqSelect;
+    private ChipSeqSelectPanel chipSeqSelect, pairedChipSeqSelect, chiaPetArcSelect;
     private ChipSeqAnalysisSelectPanel chipSeqAnalysisSelect;
 
     // annotations tab
@@ -149,6 +150,7 @@ public class WarpOptionsPane
         exprSelect.close();
         chipSeqSelect.close();
         pairedChipSeqSelect.close();
+        chiaPetArcSelect.close();
         chipSeqAnalysisSelect.close();
     	bindingSelect.close(); 
     	closed = true; 
@@ -178,6 +180,7 @@ public class WarpOptionsPane
         chipSeqPanel = new JPanel();
         chipSeqAnalysisPanel = new JPanel();
         pairedChipSeqPanel = new JPanel();
+        chiaPetArcPanel = new JPanel();
         optionsPanel = new JPanel();
         peakPanel = new JPanel();
         exprPanel = new JPanel();
@@ -256,6 +259,10 @@ public class WarpOptionsPane
         pairedChipSeqSelect = new ChipSeqSelectPanel();
         pairedChipSeqPanel.setLayout(new BorderLayout());
         pairedChipSeqPanel.add(pairedChipSeqSelect, BorderLayout.CENTER);
+        
+        chiaPetArcSelect = new ChipSeqSelectPanel();
+        chiaPetArcPanel.setLayout(new BorderLayout());
+        chiaPetArcPanel.add(chiaPetArcSelect, BorderLayout.CENTER);
         
         // chipseq analysis
         chipSeqAnalysisSelect = new ChipSeqAnalysisSelectPanel();
@@ -348,6 +355,7 @@ public class WarpOptionsPane
         
         addTab("ChIP-Seq", chipSeqPanel);
         addTab("Paired ChIP-Seq", pairedChipSeqPanel);
+        addTab("ChIA-PET Arcs", chiaPetArcPanel);
         addTab("ChipSeq Analysis", chipSeqAnalysisPanel);
 
 
@@ -466,6 +474,7 @@ public class WarpOptionsPane
         chiapettracks.fill(opts.chiapetExpts);
         chipSeqSelect.addToSelected(opts.chipseqExpts);
         pairedChipSeqSelect.addToSelected(opts.pairedChipseqExpts);
+        chiaPetArcSelect.addToSelected(opts.chiapetArcs);
         chipSeqAnalysisSelect.addToSelected(opts.chipseqAnalyses);
         bindingSelect.addToSelected(opts.bindingScans);
         exprSelect.addToSelected(opts.exprExperiments);
@@ -572,6 +581,9 @@ public class WarpOptionsPane
         for(ChipSeqLocator loc : pairedChipSeqSelect.getSelected()) { 
             these.pairedChipseqExpts.add(loc);
         }
+        for (ChipSeqLocator loc : chiaPetArcSelect.getSelected()) {
+        	these.chiapetArcs.add(loc);
+        }
         for (ChipSeqAnalysis a : chipSeqAnalysisSelect.getSelected()) {
             these.chipseqAnalyses.add(a);
         }
@@ -624,6 +636,7 @@ public class WarpOptionsPane
         exptSelect.setGenome(lg);
         chipSeqSelect.setGenome(lg);
         pairedChipSeqSelect.setGenome(lg);
+        chiaPetArcSelect.setGenome(lg);
         chipSeqAnalysisSelect.setGenome(lg);
         motifPanel.setGenome(lg);
         motifScanPanel.setGenome(lg);

@@ -410,6 +410,27 @@ Listener<EventObject>, PainterContainer, MouseListener {
 				e.printStackTrace();
 			}
 		}
+		if (opts.chiapetArcs.size() > 0) {
+			try {
+				ChipSeqLoader loader = new ChipSeqLoader(true);
+				for(int i = 0; i < opts.chiapetArcs.size(); i++) { 
+
+					Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.chiapetArcs.get(i), genome);
+					InteractionArcModel m = new InteractionArcModel(alignments);
+					InteractionArcPainter p = new InteractionArcPainter(m);
+					addModel(m);
+					Thread t = new Thread((Runnable)m); t.start();
+					p.setLabel("Interaction " + opts.chiapetArcs.get(i).toString());
+
+					p.addEventListener(this);
+					addPainter(p);
+					addModelToPaintable(p,m);
+				}
+				loader.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 		if (opts.chipseqAnalyses.size() > 0) {
 			try {
 				ChipSeqLoader loader = new ChipSeqLoader(true);
