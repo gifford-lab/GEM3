@@ -62,8 +62,12 @@ public class InteractionArcPainter extends RegionPaintable {
 		}
 		if(!model.isReady()) { return; }
 
+		boolean differential = getProperties().Differential;
+
+
 		int width = x2 - x1;
 		int height = Math.max(y2 - y1,1);
+		int halfy = y2 - (height/2);
 		int regionStart = model.getRegion().getStart();
 		int regionEnd = model.getRegion().getEnd();
 		int regionWidth = model.getRegion().getWidth();
@@ -79,28 +83,51 @@ public class InteractionArcPainter extends RegionPaintable {
 		int h = height;
 		float maxweight = 0;
 		g.setStroke(new BasicStroke(1.0f));
-		for (int i = 0; i < hits.size(); i++) {
-			PairedHit hit = hits.get(i);
-			int leftx = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
-			int rightx = getXPos(hit.rightPos, regionStart, regionEnd, x1, x2);
-			int midx = (leftx+rightx)/2;
-			int midy = y2 - (int)(((double)(rightx-leftx)/(double)width) * height);
-			g.setColor(Color.BLACK);
-			float tmpweight = hit.weight;
-			if (tmpweight>maxweight) {
-				maxweight = tmpweight;
-			}
-			if (tmpweight>0.0f) {
-				g.setStroke(new BasicStroke(tmpweight/15f));
-				tmpweight = Math.max(0.0f, tmpweight);
-				g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/100f)));
-				//g.setColor(new Color(0.0f, 0.0f, 0.0f, 0.02f));
-				QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
+		if (differential) {
+			g.setColor(Color.black);
+			g.drawLine(x1, halfy, x2, halfy);
+			for (int i = 0; i < hits.size(); i++) {
+				PairedHit hit = hits.get(i);
+				float tmpweight = hit.weight;
+				int leftx = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
+				int rightx = getXPos(hit.rightPos, regionStart, regionEnd, x1, x2);
+				int midx = (leftx+rightx)/2;
+				int midy;
+				if (tmpweight>=0) {
+					midy = halfy - (int)(((double)(rightx-leftx)/(double)width) * height);
+				} else {
+					midy = halfy + (int)(((double)(rightx-leftx)/(double)width) * height);
+				}
+				tmpweight = Math.abs(tmpweight);
+				g.setStroke(new BasicStroke(tmpweight));
+				g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/25f)));
+				QuadCurve2D loop = new QuadCurve2D.Float(leftx, halfy, midx, midy, rightx, halfy);
 				g.draw(loop);
 			}
-			
+		} else {
+			for (int i = 0; i < hits.size(); i++) {
+				PairedHit hit = hits.get(i);
+				int leftx = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
+				int rightx = getXPos(hit.rightPos, regionStart, regionEnd, x1, x2);
+				int midx = (leftx+rightx)/2;
+				int midy = y2 - (int)(((double)(rightx-leftx)/(double)width) * 2*height);
+				g.setColor(Color.BLACK);
+				float tmpweight = hit.weight;
+				if (tmpweight>maxweight) {
+					maxweight = tmpweight;
+				}
+				if (tmpweight>0.0f) {
+					g.setStroke(new BasicStroke(tmpweight/15f));
+					tmpweight = Math.max(0.0f, tmpweight);
+					g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/100f)));
+					//g.setColor(new Color(0.0f, 0.0f, 0.0f, 0.02f));
+					QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
+					g.draw(loop);
+				}
+
+			}
+			System.err.println("maxweight: "+maxweight);
 		}
-		System.err.println("maxweight: "+maxweight);
 		g.setStroke(oldStroke);
 	}
 

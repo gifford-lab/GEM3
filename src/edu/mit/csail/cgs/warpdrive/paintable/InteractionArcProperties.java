@@ -4,6 +4,7 @@ public class InteractionArcProperties extends ExperimentPaintableProperties {
 	
 	public Integer LineWidth = 1;
     public Boolean DrawOtherChromHits = Boolean.FALSE;
+	public Boolean Differential = Boolean.FALSE;
 	
 
 }
