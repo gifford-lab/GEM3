@@ -12,6 +12,10 @@ public class StrandedPoint extends Point implements Stranded {
 		super(g, c, start);
 		strand = str;
 	}
+	
+	public StrandedPoint(Point p, char str) {
+		this(p.getGenome(), p.getChrom(), p.getLocation(), str);
+	}
 
 	public char getStrand() {
 		return strand;

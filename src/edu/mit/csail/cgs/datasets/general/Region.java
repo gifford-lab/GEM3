@@ -375,6 +375,16 @@ public class Region implements Comparable<Region>, Saveable {
     }
     return new Region(g, chrom, ns, ne);
   }
+  
+  /**
+   * Returns a new Region with the same midpoint as <code>this</code>
+   * but with width <code>width</code>
+   * @param width
+   * @return
+   */
+  public Region resize(int width) {
+	  return this.getMidpoint().expand(width/2);
+  }
 
 
   /**
