@@ -129,9 +129,9 @@ public class MultiTF_Binding {
 				negShift = wm.length()-1-wm.length()/2;
 			}
 			try{
+				System.out.println(String.format("TF#%d: loading %s", tf, gpsFile.getName()));
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
-				System.out.println(String.format("TF#%d: loading %s", tf, gpsFile.getName()));
 				for (GPSPeak p:gpsPeaks){
 					Site site = new Site();
 					site.tf_id = tf;
