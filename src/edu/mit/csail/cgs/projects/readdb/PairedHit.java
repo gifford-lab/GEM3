@@ -87,6 +87,14 @@ public class PairedHit implements Comparable<PairedHit> {
     	return new StrandedPoint(genome, genome.getChromName(rightChrom), rightPos, rightStrand ? '+' : '-');
     }
     
+    public boolean leftContainedIn(Region r) {
+    	return r.contains(leftPointRegion(r.getGenome()));
+    }
+    
+    public boolean rightContainedIn(Region r) {
+    	return r.contains(rightPointRegion(r.getGenome()));
+    }
+    
     public int lesserPos() {
     	if (leftChrom == rightChrom) {
     		return leftPos < rightPos ? leftPos : rightPos;
