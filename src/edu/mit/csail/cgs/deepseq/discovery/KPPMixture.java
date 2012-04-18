@@ -307,9 +307,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			double totalReadCount=0;
 			for(int i=0; i<numConditions; i++)
 				totalReadCount += caches.get(i).car().getHitCount();	
-			int expectedHitCount = calcExpectedHitCount(totalReadCount, 1e-4, modelWidth);
+			int expectedHitCount = calcExpectedHitCount(totalReadCount, config.p_alpha, modelWidth);
 			config.sparseness = expectedHitCount;
-			log(2, String.format("\nAt Poisson p-value 1e-4, expect %d reads in a %dbp window.", expectedHitCount, modelWidth));
+			log(2, String.format("\nAt Poisson p-value %.1e, expect %d reads in a %dbp window.", config.p_alpha, expectedHitCount, modelWidth));
 		}
 		
 		// estimate ratio and segment genome into regions
