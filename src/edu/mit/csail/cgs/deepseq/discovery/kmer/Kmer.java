@@ -187,11 +187,11 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public String toString(){
 		if (use_weighted_hit_count)
-			return String.format("%s/%s\t%d\t%d\t%d\t%d\t%d\t%.1f\t%.1f", 
-				kmerString, getKmerRC(),clusterId, kmerStartOffset, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10, top);
+			return String.format("%s/%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
+				kmerString, getKmerRC(),clusterId, kmerStartOffset, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
 		else
-			return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f\t%.1f", 
-				kmerString, getKmerRC(),clusterId, kmerStartOffset, posHits.size(), getNegHitCount(), hgp_lg10, top);
+			return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f", 
+				kmerString, getKmerRC(),clusterId, kmerStartOffset, posHits.size(), getNegHitCount(), hgp_lg10);
 	}
 	public static String toHeader(int k){
 		int length=2*k+1;
@@ -199,9 +199,9 @@ public class Kmer implements Comparable<Kmer>{
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
 		if (use_weighted_hit_count)
-			return firstField+"\tCluster\tOffset\tPosCt\twPosCt\tNegCt\tHGP_10\tTop";
+			return firstField+"\tCluster\tOffset\tPosCt\twPosCt\tNegCt\tHGP_10";
 		else
-			return firstField+"\tCluster\tOffset\tPosCt\tNegCt\tHGP_10\tTop";
+			return firstField+"\tCluster\tOffset\tPosCt\tNegCt\tHGP_10";
 	}
 	public String toShortString(){
 		if (use_weighted_hit_count)
@@ -227,20 +227,36 @@ public class Kmer implements Comparable<Kmer>{
 		HashSet<Integer> posHits = new HashSet<Integer>();
 		HashSet<Integer> negHits = new HashSet<Integer>();
 		if (f.length==10){
-			String f8 = f[8].trim();
-			if (!f8.equals("")){
-				String[] f8f = f8.split(" ");
-				for (String hit:f8f)
+			String pos_id_string = f[8].trim();
+			if (!pos_id_string.equals("-1")){
+				String[] pos_ids = pos_id_string.split(" ");
+				for (String hit:pos_ids)
 					posHits.add(Integer.valueOf(hit));
 			}
 
-			String f9 = f[9].trim();
-			if (!f9.equals("")){
-				String[] f9f = f9.split(" ");
-				for (String hit:f9f)
+			String neg_id_string = f[9].trim();
+			if (!neg_id_string.equals("-1")){
+				String[] neg_ids = neg_id_string.split(" ");
+				for (String hit:neg_ids)
 					negHits.add(Integer.valueOf(hit));
 			}
 		}
+		else if (f.length==9){
+			String pos_id_string = f[7].trim();
+			if (!pos_id_string.equals("-1")){
+				String[] pos_ids = pos_id_string.split(" ");
+				for (String hit:pos_ids)
+					posHits.add(Integer.valueOf(hit));
+			}
+
+			String neg_id_string = f[8].trim();
+			if (!neg_id_string.equals("-1")){
+				String[] neg_ids = neg_id_string.split(" ");
+				for (String hit:neg_ids)
+					negHits.add(Integer.valueOf(hit));
+			}
+		}
+		
 		Kmer kmer = new Kmer(f0f[0], posHits);	
 		kmer.clusterId = Integer.parseInt(f[1]);
 		kmer.kmerStartOffset = Integer.parseInt(f[2]);
@@ -291,8 +307,14 @@ public class Kmer implements Comparable<Kmer>{
 		}
 		CommonUtils.writeFile(String.format("%s_kmer_k%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
 	}
+	
+	/**
+	 * If the set of ids is empty (no negative hits), return "-1"
+	 */
 	private static String hits2string(HashSet<Integer> ids){
 		StringBuilder sb = new StringBuilder();
+		if (ids.isEmpty())
+			return "-1";
 		TreeSet<Integer> sorted = new TreeSet<Integer>(ids);
 		for (int id:sorted)
 			sb.append(id).append(" ");

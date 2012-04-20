@@ -173,36 +173,18 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     	/* *********************************
     	 * Load Kmer list
     	 ***********************************/
-//    	String kmerFile = Args.parseString(args, "kf", null);
-//    	if (kmerFile!=null){
-//    		kmerPreDefined = true;
-//			File kFile = new File(kmerFile);
-//			if(kFile.isFile()){
-//				try {
-//					ArrayList<Kmer> kmers = new ArrayList<Kmer>(); 
-//					BufferedReader reader = new BufferedReader(new FileReader(kFile.getName()));
-//			        String line;
-//			        while ((line = reader.readLine()) != null) {
-//			            line = line.trim();
-//			            String[] words = line.split("\\s+");
-//			            try {
-//				            Kmer kmer = new Kmer(words[0], 0);		// TODO
-//				            kmers.add(kmer);
-//		            	}
-//		            	catch (NumberFormatException nfe) {	// ignore if not a number, such as header
-//		            		continue;
-//		            	}
-//			        }
-//			        if (!kmers.isEmpty()){
-////			        	kEngine = new KmerEngine(kmers, outName);
-//			        }
-//				} catch (FileNotFoundException e) {
-//					e.printStackTrace();
-//				} catch (IOException e) {
-//					e.printStackTrace();
-//				}
-//			}
-//    	}
+    	String kmerFile = Args.parseString(args, "kf", null);
+    	if (kmerFile!=null){
+    		kmerPreDefined = true;
+			File kFile = new File(kmerFile);
+			if(kFile.isFile()){
+				ArrayList<Kmer> kmers = Kmer.loadKmers(kFile); 
+		        if (!kmers.isEmpty()){
+		        	kmf = new KmerMotifFinder(kmers, outName);
+		        }
+			}
+    	}
+    	
 		/* ***************************************************
 		 * Print out command line options
 		 * ***************************************************/

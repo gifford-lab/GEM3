@@ -177,7 +177,7 @@ public class Config {
         use_kmer_mismatch = !flags.contains("no_kmm");
         use_seed_family = !flags.contains("no_seed_family");
         use_ksm = !flags.contains("no_ksm");
-        kpp_use_kmer = !flags.contains("kpp_pwm");
+        kpp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         use_weight = !flags.contains("no_weight");
         use_weighted_kmer = !flags.contains("no_weighted_kmer");
