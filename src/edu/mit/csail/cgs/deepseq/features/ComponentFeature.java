@@ -51,7 +51,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void setEnrichedKmerHGPLog10(double enrichedKmerHGP) {
 		this.enrichedKmerHGPLog10 = enrichedKmerHGP;
 	}
-	public void setKmerMatches(KmerGroup kmer) { this.kmerGroup = kmer;}
 	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
 	public String getBoundSequence(){return boundSequence;}
 	public void setBoundSequence(String boundSequence){this.boundSequence = boundSequence;}
@@ -187,13 +186,21 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	
 	// The following methods can be called from creating a new Comparator.
 	// See benjaminiHochbergCorrection() in BindingMixture for example use
-	/* 
+	/** 
 	 * sort componentFeatures in decreasing binding strength
 	 */
 	public int compareByTotalResponsibility(ComponentFeature f) {
 		if(totalSumResponsibility>f.getTotalEventStrength()){return(-1);}
 		else if(totalSumResponsibility<f.getTotalEventStrength()){return(1);}
 		else return(0);
+	}
+	/** 
+	 * sort componentFeatures first by having a k-mer group match, then by decreasing binding strength
+	 */
+	public int compareByTotalResponsibilityWithKmerMatch(ComponentFeature f) {
+		if(kmerGroup!=null && f.getKmerGroup()==null){return(-1);}
+		else if(kmerGroup==null && f.getKmerGroup()!=null){return(1);}
+		else return compareByTotalResponsibility(f);
 	}
 	public int compareByCondResponsibility(ComponentFeature f) {
 		if(condSumResponsibility[sortingCondition]>f.getCondSumResponsibility(sortingCondition)){return(-1);}

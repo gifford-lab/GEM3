@@ -48,7 +48,6 @@ import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
-import edu.mit.csail.cgs.deepseq.discovery.KPPMixture;
 
 public class KmerMotifFinder {
 	private final int RC=100000;		// extra bp add to indicate negative strand match of kmer
@@ -286,11 +285,13 @@ public class KmerMotifFinder {
     	bg[3]=bg[0];
 	}
 	
-	public KmerMotifFinder(Genome g, boolean useCache, String genomePath){
+	public KmerMotifFinder(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
 //		setUseKmerWeight();
 
 		genome = g;
 		seqgen = new SequenceGenerator<Region>();
+    	if (use_db_genome)
+    		seqgen.useLocalFiles(false);
 		if (useCache)
 			seqgen.useCache(true);	
 		seqgen.setGenomePath(genomePath);

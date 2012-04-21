@@ -32,7 +32,6 @@ import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.SetTools;
 import edu.mit.csail.cgs.utils.Utils;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.models.data.DataFrame;
@@ -40,7 +39,6 @@ import edu.mit.csail.cgs.utils.models.data.DataRegression;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
-import edu.mit.csail.cgs.utils.strings.StringUtils;
 
 public class KPPMixture extends MultiConditionFeatureFinder {
 	private final char[] LETTERS = {'A','C','G','T'};
@@ -2644,7 +2642,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		Collections.sort(cfs, new Comparator<ComponentFeature>(){
                 public int compare(ComponentFeature o1, ComponentFeature o2) {
-                    return o1.compareByTotalResponsibility(o2);
+                    return o1.compareByTotalResponsibilityWithKmerMatch(o2);
                 }
             });
 		
@@ -3326,7 +3324,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		return -1;
 		
     	System.out.println("Loading genome sequences ...");
-		kmf = new KmerMotifFinder(gen, config.cache_genome, config.genome_path);
+		kmf = new KmerMotifFinder(gen, config.cache_genome, config.use_db_genome, config.genome_path);
 		long tic = System.currentTimeMillis();
 
 		// setup lightweight genome cache
@@ -3629,6 +3627,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         public void run() {
         	
         	SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+        	if (config.use_db_genome)
+        		seqgen.useLocalFiles(false);
         	if (config.cache_genome)
         		seqgen.useCache(true);
             while (!regions.isEmpty()) {

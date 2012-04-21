@@ -87,6 +87,7 @@ public class Config {
 //    public boolean k_select_seed = false;
     public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
     public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
+    public boolean use_db_genome = false;// stringent: binomial and poisson, relax: binomial only
     public boolean mask_by_pwm = false;
     
     public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
@@ -159,7 +160,8 @@ public class Config {
         print_bound_seqs = flags.contains("print_bound_seqs");
         re_train = flags.contains("re_train");
         refine_pwm = flags.contains("refine_pwm");
-        print_pwm_fdr = flags.contains("print_pwm_fdr");            
+        print_pwm_fdr = flags.contains("print_pwm_fdr");      
+        use_db_genome = flags.contains("use_db_genome");
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
