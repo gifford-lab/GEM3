@@ -126,6 +126,10 @@ public class PairedHit implements Comparable<PairedHit> {
     		return leftChrom > rightChrom ? leftStrand : rightStrand;
     	}
     }
+    
+    public PairedHit flippedCopy() {
+    	return new PairedHit(rightChrom, rightPos, rightStrand, rightLength, leftChrom, leftPos, leftStrand, leftLength, weight);
+    }
 
 	public void flipSides() {
         int x = leftChrom;
