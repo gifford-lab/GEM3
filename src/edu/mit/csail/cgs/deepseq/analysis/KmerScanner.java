@@ -111,13 +111,14 @@ public class KmerScanner {
 		}
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(true);		
-		
+		seqgen.useLocalFiles(!flags.contains("use_db_genome"));
 		StringBuilder sb = new StringBuilder();
 		ArrayList<Region> posRegions = new ArrayList<Region>();
 		for(int i=0;i<gpsPeaks.size();i++){
 			GPSPeak p = gpsPeaks.get(i);
 			posRegions.add(p.expand(windowSize));
 		}
+				
 		int width = windowSize*2+1;
 		TreeMap<Region, Region> reg2reg = new TreeMap<Region, Region>();
 		each_event: for(int i=0;i<gpsPeaks.size();i++){
@@ -139,18 +140,22 @@ public class KmerScanner {
 		ArrayList<Double> ksm_scores = new ArrayList<Double>();
 		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 		
-
 		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
 		
 		for (Region r:reg2reg.keySet()){
 			String seq = seqgen.execute(r).toUpperCase();
-			Region rN = reg2reg.get(r);
 			
+			String name_N = "----";
 			String seqN;
 			if (flags.contains("shuffle"))
 				seqN = SequenceUtils.shuffle(seq, randObj);
-			else
+			if (flags.contains("di-shuffle"))
+				seqN = SequenceUtils.dinu_shuffle(seq, randObj);
+			else{
+				Region rN = reg2reg.get(r);
 				seqN = seqgen.execute(rN).toUpperCase();
+				name_N = rN.toString();
+			}
 			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
 			pwm_scores.add(pwm);
 			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
@@ -159,27 +164,27 @@ public class KmerScanner {
 			KmerGroup kgN = scanner.getBestKG(seqN);
 			ksm_scores.add(kg==null?0:-kg.getHgp());
 			ksmN_scores.add(kgN==null?0:-kgN.getHgp());
-			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), rN.toString(), pwm, pwmN, kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp()));
+			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), name_N, pwm, pwmN, kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp()));
 		}
 		
 		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
 		System.out.println(outName+"_w"+width+"_scores.txt");
 		
-
-		ArrayList<ScoreEnrichment> pwm_se = computeScoreEnrichments(pwm_scores, pwmN_scores);
-		sb = new StringBuilder();
-		for (ScoreEnrichment se: pwm_se){
-			sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+		if (flags.contains("compute_enrichment")){
+			ArrayList<ScoreEnrichment> pwm_se = computeScoreEnrichments(pwm_scores, pwmN_scores);
+			sb = new StringBuilder();
+			for (ScoreEnrichment se: pwm_se){
+				sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+			}
+			CommonUtils.writeFile(outName+"_w"+width+"_pwm_enrichment.txt", sb.toString());
+			
+			ArrayList<ScoreEnrichment> ksm_se = computeScoreEnrichments(ksm_scores, ksmN_scores);
+			sb = new StringBuilder();
+			for (ScoreEnrichment se: ksm_se){
+				sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+			}
+			CommonUtils.writeFile(outName+"_w"+width+"_ksm_enrichment.txt", sb.toString());
 		}
-		CommonUtils.writeFile(outName+"_w"+width+"_pwm_enrichment.txt", sb.toString());
-		
-		ArrayList<ScoreEnrichment> ksm_se = computeScoreEnrichments(ksm_scores, ksmN_scores);
-		sb = new StringBuilder();
-		for (ScoreEnrichment se: ksm_se){
-			sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
-		}
-		CommonUtils.writeFile(outName+"_w"+width+"_ksm_enrichment.txt", sb.toString());
-		
 //		KmerGroup[] kgs = scanner.query("TATTTACATGCAGTGTCCGGAAGACGCCAGAAGAGGGCAGTAGATGCCCTAGTAGTGGAGC");
 //		for (KmerGroup kg:kgs){
 //			System.out.println(kg.toString());

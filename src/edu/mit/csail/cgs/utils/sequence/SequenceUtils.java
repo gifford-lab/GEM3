@@ -211,6 +211,12 @@ public class SequenceUtils {
 		}
 		return new String(chars);
 	}
+	/**
+	 * Single nucleotide shuffle
+	 * @param str
+	 * @param randObj
+	 * @return
+	 */
 	public static String shuffle(String str, Random randObj){
 		if (str.length()<=1)
 		    return str;
@@ -225,5 +231,21 @@ public class SequenceUtils {
 		else 
 		    return temp2 + temp1;
 	}
+	/**
+	 * Di-nucleotide shuffle
+	 * @param str
+	 * @param randObj
+	 * @return
+	 */
+	public static String dinu_shuffle(String str, Random randObj){
+		if (str.length()<=1)
+		    return str;
 
+		char[] result = new char[str.length()];
+		UShuffle sf = new UShuffle();
+		sf.set_randfunc(randObj);
+		sf.shuffle(str.toCharArray(), result, str.length(), 2);
+		
+		return new String(result);
+	}
 }

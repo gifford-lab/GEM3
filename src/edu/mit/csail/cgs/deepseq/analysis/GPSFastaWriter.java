@@ -60,6 +60,8 @@ public class GPSFastaWriter{
     
     SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	seqgen.useCache(!flags.contains("no_cache"));
+	seqgen.useLocalFiles(!flags.contains("use_db_genome"));
+	
 	boolean skip_repeat = flags.contains("no_repeat");
 	
 	List<String> names = new ArrayList<String>();
