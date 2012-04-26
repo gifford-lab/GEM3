@@ -1,6 +1,7 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,12 +62,41 @@ public class KmerScanner {
 			}
 		return best;
 	}	
+	public static String getFileName(String path, String type){
+		File pathAll = new File(path);
+		String name = pathAll.getName();
+		File dir = pathAll.getParentFile();
+		
+		final String suffix = name + type;
+		File[] files = dir.listFiles(new FilenameFilter(){
+			public boolean accept(File arg0, String arg1) {
+				if (arg1.startsWith(suffix))
+					return true;
+				else
+					return false;
+			}
+		});
+		if (files.length==0){
+			System.out.println(name+" does not have a "+type+" file.");
+			return null;
+		}
+		else{				// if we have valid file
+			return files[0].getAbsolutePath();
+		}
+	}
 	public static void main(String[] args){
 		// k-mer group info
 		String outName= Args.parseString(args, "out", "out");
-		File file = new File(Args.parseString(args, "kmer", null));
+		String path = Args.parseString(args, "path", null);
+		String kmer=null, pfm=null, event=null;
+		if (path!=null){
+			kmer = getFileName(path, "_kmer_");
+			pfm = getFileName(path, "_PFM_");
+			event = path+"_GEM_events.txt";
+		}
+		File file = new File(Args.parseString(args, "kmer", kmer));
 		ArrayList<Kmer> kmers = Kmer.loadKmers(file);
-		int clusterId = Args.parseInteger(args, "cluster", 0);
+		int clusterId = Args.parseInteger(args, "class", 0);
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		for (Kmer km:kmers)
 			if (km.getClusterId()!=clusterId)
@@ -98,10 +128,10 @@ public class KmerScanner {
 //		WeightMatrix motif = wm.car();
 //		double motifThreshold = wm.cdr();
 	    	    
-	    WeightMatrix motif = loadPWM(new File(Args.parseString(args, "pfm", null)), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+	    WeightMatrix motif = loadPWM(new File(Args.parseString(args, "pfm", pfm)), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
 		// event locations
 		int windowSize = Args.parseInteger(args, "win", 50);
-		String eventFile = Args.parseString(args, "event", null);
+		String eventFile = Args.parseString(args, "event", event);
 		List<GPSPeak> gpsPeaks = null;
 		try{
 			gpsPeaks = GPSParser.parseGPSOutput(eventFile, genome);
