@@ -38,7 +38,7 @@ import java.awt.event.*;
 import java.util.Date;
 import java.util.Random;
 
-public class UShuffle extends Applet implements ActionListener {
+public class UShuffle {
 
 	public static String title = "uShuffle: a useful tool for shuffling biological sequences while preserving the k-let counts";
 
@@ -326,95 +326,4 @@ public class UShuffle extends Applet implements ActionListener {
 		shuffle2(t);
 	}
 
-	/* Applet-related stuff */
-
-	private TextArea ta_input, ta_output;
-	private TextField tf_k, tf_n;
-	private Panel controls;
-
-	public void init() {
-		Frame window = new Frame("uShuffle");
-		window.addWindowListener(new WindowAdapter() {
-				public void windowClosing(WindowEvent e) {
-				e.getWindow().dispose(); }});
-		window.setLayout(new BorderLayout());
-
-		/* input and controls */
-		Panel p = new Panel(new BorderLayout());
-		ta_input = new TextArea(title, 10, 81,
-				TextArea.SCROLLBARS_VERTICAL_ONLY);
-		Font monospaced = new Font("Monospaced", Font.PLAIN, 12);
-		ta_input.setFont(monospaced);
-		p.add(new Label("Input sequence:"), BorderLayout.NORTH);
-		p.add(ta_input, BorderLayout.CENTER);
-
-		controls = new Panel(new FlowLayout());
-		controls.add(new Label("k-let size:"));
-		tf_k = new TextField("2", 3);
-		controls.add(tf_k);
-		controls.add(new Label("    number of output sequences:"));
-		tf_n = new TextField("1", 7);
-		controls.add(tf_n);
-		controls.add(new Label("     "));
-		Button button = new Button("Shuffle");
-		button.addActionListener(this);
-		controls.add(button);
-		p.add(controls, BorderLayout.SOUTH);
-
-		window.add(p, BorderLayout.NORTH);
-
-		/* output */
-		p = new Panel(new BorderLayout());
-		ta_output = new TextArea("", 20, 81,
-				TextArea.SCROLLBARS_VERTICAL_ONLY);
-		ta_output.setFont(monospaced);
-		p.add(new Label("Output sequences:"), BorderLayout.NORTH);
-		p.add(ta_output, BorderLayout.CENTER);
-		window.add(p, BorderLayout.CENTER);
-
-		window.pack();
-		window.setVisible(true);
-	}
-
-	public synchronized void actionPerformed(ActionEvent e) {
-		controls.setEnabled(false);
-		ta_output.setText("");
-
-		String input = ta_input.getText();
-		input = input.replaceAll("\\s*", "");		/* remove whitespaces */
-
-		int k = 0, n = 0;
-		try {
-			k = Integer.parseInt(tf_k.getText());
-			n = Integer.parseInt(tf_n.getText());
-		} catch (NumberFormatException nfe) {
-			ta_output.setText("Error: invalid parameters!");
-			controls.setEnabled(true);
-			return;
-		}
-		if (n <= 0) {
-			ta_output.setText("Error: invalid parameters!");
-			controls.setEnabled(true);
-			return;
-		}
-
-		char[] s = input.toCharArray();
-		char[] t = new char[s.length];
-		StringBuffer buffer = new StringBuffer((s.length + 10) * n);
-
-		shuffle1(s, s.length, k);
-		if (n == 1) {
-			shuffle2(t);
-			buffer.append(t);
-			buffer.append("\n");
-		} else
-			for (int i = 1; i <= n; i++) {
-				shuffle2(t);
-				buffer.append(">" + i + "\n");	/* fasta format */
-				buffer.append(t);
-				buffer.append("\n");
-			}
-		ta_output.setText(new String(buffer));
-		controls.setEnabled(true);
-	}
 }
