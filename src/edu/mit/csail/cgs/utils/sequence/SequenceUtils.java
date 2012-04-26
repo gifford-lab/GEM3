@@ -242,6 +242,7 @@ public class SequenceUtils {
 		    return str;
 
 		char[] result = new char[str.length()];
+		System.setProperty("java.awt.headless", "true"); 
 		UShuffle sf = new UShuffle();
 		sf.set_randfunc(randObj);
 		sf.shuffle(str.toCharArray(), result, str.length(), 2);
