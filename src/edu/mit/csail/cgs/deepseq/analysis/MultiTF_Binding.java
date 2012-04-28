@@ -304,6 +304,141 @@ public class MultiTF_Binding {
 		}
 	}
 	
+	private void printAllTFs2SingleSiteOffsets(String inputTableName){
+		// input table has 3 columns: Name:Events[:Motifs]
+		// if motif is present, snap to nearest motif
+		// otherwise, use event positions directly, either GEM or GPS or list motif instances
+		
+		// classify sites by chrom
+		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
+		for (ArrayList<Site> sites:all_sites){
+			for (Site s:sites){
+				String chr = s.bs.getChrom();
+				if (!chrom2sites.containsKey(chr))
+					chrom2sites.put(chr, new ArrayList<Site>());
+				chrom2sites.get(chr).add(s);
+			}
+		}
+		// sort and index sites in each chrom
+		for (String chr: chrom2sites.keySet()){
+			ArrayList<Site> sites = chrom2sites.get(chr);
+			Collections.sort(sites);
+			for (int i=0;i<sites.size();i++)
+				sites.get(i).id = i;
+		}
+		int range = 400;
+		int seqRange = 20;
+		// for each TF as anchor point
+		for (int i=0;i<names.size();i++){
+			ArrayList<float[]> profiles = new ArrayList<float[]>();
+			for (int n=0;n<names.size();n++){
+				profiles.add(new float[range*2+1]);
+			}
+			System.out.println(names.get(i));
+			ArrayList<Site> sites_TF = all_sites.get(i);		// all sites of this TF
+			WeightMatrix wm = pwms.get(i);
+			WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+			StringBuilder site_sb = new StringBuilder("Site    \torient\t");
+			for (int n=0;n<names.size();n++){
+				site_sb.append(names.get(n).substring(3)+"\t");
+			}
+			site_sb.deleteCharAt(site_sb.length()-1).append("\n");
+			for (Site s:sites_TF){
+				int id = s.id;			// id of this TF binding in all binding sites in the chrom
+				int b = s.bs.getLocation();
+				// figure out the direction of TF binding based on sequence motif match
+				int direction = 0;		// not sure, because no PWM, or no PWM match
+				if (wm!=null){
+					String seq = seqgen.execute(s.bs.expand(seqRange)).toUpperCase();
+					Pair<Integer, Double> hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, seqRange, wm.getMaxScore()*wm_factor);
+					if (hit.car()!=-999){
+						if (hit.car()>=0)
+							direction = 1;
+						else
+							direction = -1;
+					}
+				}
+				site_sb.append(s.bs.toString()).append("\t").append(direction).append("\t");
+				
+				int[] offsets = new int[names.size()];
+				for (int n=0;n<offsets.length;n++){
+					offsets[n]=999;
+				}
+				
+				// count the nearby binding calls in upstream and downstream direction
+				ArrayList<Site> chromSites = chrom2sites.get(s.bs.getChrom());
+				for(int p=id;p<chromSites.size();p++){		// downstream (including same BS)
+					Site s2 = chromSites.get(p);
+					int offset = s2.bs.getLocation()-b;
+					if (offset>range)
+						break;
+					float[] profile = profiles.get(s2.tf_id);
+					switch(direction){
+						case 0: profile[offset+range]+=0.5;profile[-offset+range]+=0.5;break;
+						case 1: profile[offset+range]++;break;
+						case -1: profile[-offset+range]++;break;
+					}
+					if (offsets[s2.tf_id]==999){
+						if (s2.tf_id==i && offset==0)	// skip this binding site itself
+							continue;
+						if (direction==0){
+							offsets[s2.tf_id]=offset;
+						}
+						else
+							offsets[s2.tf_id]=offset*direction;
+					}
+				}
+				// upstream is separated to search outwards, starting from BS position
+				for(int p=id-1;p>=0;p--){					// upstream
+					Site s2 = chromSites.get(p);
+					int offset = s2.bs.getLocation()-b;
+					if (offset<-range)
+						break;
+					float[] profile = profiles.get(s2.tf_id);
+					switch(direction){
+						case 0: profile[offset+range]+=0.5;profile[-offset+range]+=0.5;break;
+						case 1: profile[offset+range]++;break;
+						case -1: profile[-offset+range]++;break;
+					}
+					if (offsets[s2.tf_id]==999){
+						if (s2.tf_id==i && offset==0)	// skip this binding site itself
+							continue;
+						if (direction==0){
+							offsets[s2.tf_id]=offset;
+						}
+						else
+							offsets[s2.tf_id]=offset*direction;
+					}
+				}
+				for (int n=0;n<offsets.length;n++){
+					site_sb.append(offsets[n]).append("\t");
+				}
+				site_sb.deleteCharAt(site_sb.length()-1).append("\n");
+			} // for each site
+			
+			// output
+			String filename1 = names.get(i)+(round==2?"":("_"+round))+"_site_offsets.txt";
+			CommonUtils.writeFile(new File(dir, filename1).getAbsolutePath(), site_sb.toString());			
+			
+			StringBuilder sb = new StringBuilder(names.get(i).substring(prefix)+"\t");
+			for (int n=0;n<names.size();n++){
+				sb.append(names.get(n).substring(prefix)+"\t");
+			}
+			sb.deleteCharAt(sb.length()-1).append("\n");
+			
+			for (int p=-range;p<=range;p++){
+				sb.append(p).append("\t");
+				for (int n=0;n<names.size();n++){
+					float[] profile = profiles.get(n);
+						sb.append(String.format("%.0f\t", profile[p+range]));
+				}
+				sb.deleteCharAt(sb.length()-1).append("\n");
+			}
+			String filename = names.get(i)+(round==2?"":("_"+round))+"_profiles.txt";
+			CommonUtils.writeFile(new File(dir, filename).getAbsolutePath(), sb.toString());
+		}
+	}
+	
 	/** For each binding event of A, scan with all motif, compute the offset between A and all others */
 	private void printMotifOffsets(){
 		// classify sites by chrom
