@@ -239,6 +239,12 @@ public class KmerMotifFinder {
 			for (int i=0;i<seqNum;i++)
 				seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
 		}
+		else if (config.k_neg_dinu_shuffle){
+			System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
+			Random randObj = new Random();
+			for (int i=0;i<seqNum;i++)
+				seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+		}
 		else{
 			if (neg_seqs.size()>seqNum)
 				for (int i=0;i<seqNum;i++)
@@ -5922,7 +5928,7 @@ public class KmerMotifFinder {
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);
 //        }
-        System.out.println(String.format("%d input positive sequences, use %d to find motif ...", pos_seqs.size(), kmf.seqs.length));
+        System.out.println(String.format("%d input positive sequences, use top %d to find motif ...", pos_seqs.size(), kmf.seqs.length));
         if (k==-1)
         	k = kmf.selectK(k_min, k_max);
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
