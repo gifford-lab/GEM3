@@ -417,25 +417,25 @@ public class MultiTF_Binding {
 			} // for each site
 			
 			// output
-			String filename1 = names.get(i)+(round==2?"":("_"+round))+"_site_offsets.txt";
-			CommonUtils.writeFile(new File(dir, filename1).getAbsolutePath(), site_sb.toString());			
-			
-			StringBuilder sb = new StringBuilder(names.get(i).substring(prefix)+"\t");
-			for (int n=0;n<names.size();n++){
-				sb.append(names.get(n).substring(prefix)+"\t");
-			}
-			sb.deleteCharAt(sb.length()-1).append("\n");
-			
-			for (int p=-range;p<=range;p++){
-				sb.append(p).append("\t");
-				for (int n=0;n<names.size();n++){
-					float[] profile = profiles.get(n);
-						sb.append(String.format("%.0f\t", profile[p+range]));
-				}
-				sb.deleteCharAt(sb.length()-1).append("\n");
-			}
-			String filename = names.get(i)+(round==2?"":("_"+round))+"_profiles.txt";
-			CommonUtils.writeFile(new File(dir, filename).getAbsolutePath(), sb.toString());
+//			String filename1 = names.get(i)+(round==2?"":("_"+round))+"_site_offsets.txt";
+//			CommonUtils.writeFile(new File(dir, filename1).getAbsolutePath(), site_sb.toString());			
+//			
+//			StringBuilder sb = new StringBuilder(names.get(i).substring(prefix)+"\t");
+//			for (int n=0;n<names.size();n++){
+//				sb.append(names.get(n).substring(prefix)+"\t");
+//			}
+//			sb.deleteCharAt(sb.length()-1).append("\n");
+//			
+//			for (int p=-range;p<=range;p++){
+//				sb.append(p).append("\t");
+//				for (int n=0;n<names.size();n++){
+//					float[] profile = profiles.get(n);
+//						sb.append(String.format("%.0f\t", profile[p+range]));
+//				}
+//				sb.deleteCharAt(sb.length()-1).append("\n");
+//			}
+//			String filename = names.get(i)+(round==2?"":("_"+round))+"_profiles.txt";
+//			CommonUtils.writeFile(new File(dir, filename).getAbsolutePath(), sb.toString());
 		}
 	}
 	
