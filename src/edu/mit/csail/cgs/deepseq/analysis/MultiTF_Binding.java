@@ -5,12 +5,14 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
@@ -304,10 +306,25 @@ public class MultiTF_Binding {
 		}
 	}
 	
-	private void printAllTFs2SingleSiteOffsets(String inputTableName){
+	private void printAllTFs2SingleSiteOffsets(String siteListFile, String inputTableName){
 		// input table has 3 columns: Name:Events[:Motifs]
 		// if motif is present, snap to nearest motif
 		// otherwise, use event positions directly, either GEM or GPS or list motif instances
+		
+		// load the list of sites
+		ArrayList<StrandedPoint> points = StrandedPoint.fromFile(genome, siteListFile);
+		
+		// load the input table
+		ArrayList<String> rows = CommonUtils.readTextFile(inputTableName);
+		HashMap<String, String> name2event = new HashMap<String, String>();
+		HashMap<String, String> name2motif = new HashMap<String, String>();
+		for (String row: rows){
+			String[] f = row.split("\t");
+			name2event.put(f[0], f[1]);
+			if (f.length==3)
+				name2motif.put(f[0], f[2]);
+		}
+		
 		
 		// classify sites by chrom
 		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
@@ -415,28 +432,8 @@ public class MultiTF_Binding {
 				}
 				site_sb.deleteCharAt(site_sb.length()-1).append("\n");
 			} // for each site
-			
-			// output
-			String filename1 = names.get(i)+(round==2?"":("_"+round))+"_site_offsets.txt";
-			CommonUtils.writeFile(new File(dir, filename1).getAbsolutePath(), site_sb.toString());			
-			
-			StringBuilder sb = new StringBuilder(names.get(i).substring(prefix)+"\t");
-			for (int n=0;n<names.size();n++){
-				sb.append(names.get(n).substring(prefix)+"\t");
-			}
-			sb.deleteCharAt(sb.length()-1).append("\n");
-			
-			for (int p=-range;p<=range;p++){
-				sb.append(p).append("\t");
-				for (int n=0;n<names.size();n++){
-					float[] profile = profiles.get(n);
-						sb.append(String.format("%.0f\t", profile[p+range]));
-				}
-				sb.deleteCharAt(sb.length()-1).append("\n");
-			}
-			String filename = names.get(i)+(round==2?"":("_"+round))+"_profiles.txt";
-			CommonUtils.writeFile(new File(dir, filename).getAbsolutePath(), sb.toString());
 		}
+
 	}
 	
 	/** For each binding event of A, scan with all motif, compute the offset between A and all others */
