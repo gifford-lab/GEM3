@@ -432,6 +432,7 @@ public class MultiTF_Binding {
 				}
 				site_sb.deleteCharAt(site_sb.length()-1).append("\n");
 			} // for each site
+
 		}
 
 	}
