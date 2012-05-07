@@ -287,9 +287,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			double totalReadCount=0;
 			for(int i=0; i<numConditions; i++)
 				totalReadCount += caches.get(i).car().getHitCount();	
-			int expectedHitCount = calcExpectedHitCount(totalReadCount, config.p_alpha, modelWidth);
+			int expectedHitCount = calcExpectedHitCount(totalReadCount, config.poisson_alpha, modelWidth);
 			config.sparseness = expectedHitCount;
-			log(2, String.format("\nAt Poisson p-value %.1e, expect %d reads in a %dbp window.", config.p_alpha, expectedHitCount, modelWidth));
+			log(2, String.format("\nAt Poisson p-value %.1e, expect %d reads in a %dbp window.", config.poisson_alpha, expectedHitCount, modelWidth));
 		}
 		
 		// estimate ratio and segment genome into regions
@@ -4036,6 +4036,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                        	p_alpha[i]=maxPP;
 	                        }
                         }
+                        else{
+                        	for (int i=0;i<numComp;i++){
+                        		p_alpha[i]=0;
+                        	}
+                        }
                         // EM learning, components list will only contains non-zero components
                         result = EMTrain(signals, alpha, p_alpha);
                         // mixture.log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
@@ -4373,6 +4378,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                                                         double[] p_alpha) {
             ArrayList<EM_State> models = new  ArrayList<EM_State> ();
 
+            boolean hasPP = false;
+            for (double p_a:p_alpha){
+            	if (p_a!=0){
+            		hasPP = true;
+            		break;
+            	}
+            }
             double lastLAP=0, LAP=0; // log posterior prob
             int t=0;
             double currAlpha = alpha/config.gentle_elimination_factor;
@@ -4632,7 +4644,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         // BIC model selection to decide which solution is better
                         // 1. save the state
                         EM_State state = new EM_State(this.mixture.numConditions);
-                        state.LL = LAP;		//TODO: LL or LAP?
+                        state.LAP = LAP;		// LAP for penalized likelihood
                         state.numComponent = nonZeroComponentNum;
                         for (int c=0;c<mixture.numConditions;c++){
                             double[][]rc = r[c];
@@ -4646,7 +4658,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             state.beta[c]=b[c].clone();
                         }
                         state.pi = pi.clone();
-                        state.alpha = currAlpha;
 
                         models.add(state);
                         //2. more than one component left, raise alpha, continue EM
@@ -4671,9 +4682,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 }
 
                 int best = 0;
-                double bestBIC = models.get(0).BIC(totalBaseCount);
+                double bestBIC = models.get(0).BIC(totalBaseCount, hasPP);
                 for (int i=1;i<models.size();i++){
-                    double bic = models.get(i).BIC(totalBaseCount);
+                    double bic = models.get(i).BIC(totalBaseCount, hasPP);
                     //				System.out.println(String.format("%.3f\t%.3f\t", bestBIC, bic)+models.get(i).toString());
                     if (bestBIC <= bic){
                         best = i;
@@ -4700,6 +4711,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 nonZeroComponentNum = nzComps.size();
                 //			System.out.println();
             }
+            
             // normalize responsibilities here
             for(int c=0; c<mixture.numConditions; c++){
                 double[][] rc = r[c];
@@ -4976,24 +4988,26 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             double[][][] resp;
             double[][]beta;
             double[] pi;
-            double alpha;
 
-            double LL;
+            double LAP;
             double numComponent;
             EM_State(int numCond){
                 resp=new double[numCond][][];
                 beta=new double[numCond][];
             }
-            // BIC=LL-#param/2*ln(n)
-            // # param: Each component has 2 parameters, mixing prob and position, thus "*2";
+            // BIC=LAP-#param/2*ln(n)
+            // # param: GPS: Each component has 2 parameters, mixing prob and position, thus "*2";
             // "-1" comes from the fact that total mix prob sum to 1.
             // for multi-condition, # of beta variables is (mixture.numConditions-1)*numComponents
-            // n: is the number of data point, i.e. the base positions.
-            double BIC(double n){
-                return LL - (numComponent*2-1 + (mixture.numConditions-1)*numComponent )/2*Math.log(n);
+            // n: is the number of data point, i.e. the base positions of reads.
+
+            // BIC_GEM
+            // Each component has 3 parameters, position prior, mixing prob and position, thus "*3";
+            double BIC(double n, boolean hasPP){
+                return LAP - (numComponent*(hasPP?3:2)-1 + (mixture.numConditions-1)*numComponent )/2*Math.log(n);
             }
             public String toString(){
-                return String.format("%.3f\t%.0f", LL, numComponent);
+                return String.format("%.3f\t%.0f", LAP, numComponent);
             }
         }
     }
