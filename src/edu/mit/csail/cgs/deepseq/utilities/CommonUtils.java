@@ -222,6 +222,14 @@ public class CommonUtils {
         output.append(String.format("%.2f",array[array.length-1]));
         return output.toString();
 	}
+	public static String arrayToString(double[] array, String format){
+        StringBuilder output = new StringBuilder();
+        for (int i=0;i<array.length-1;i++){
+        	output.append(String.format(format+"\t",array[i]));
+        }
+        output.append(String.format(format,array[array.length-1]));
+        return output.toString();
+	}
 	public static String arrayToString(double[] array, int digit){
         StringBuilder output = new StringBuilder();
         for (int i=0;i<array.length-1;i++){

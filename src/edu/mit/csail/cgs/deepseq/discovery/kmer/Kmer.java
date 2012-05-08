@@ -281,7 +281,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 
 	
-	public static void printKmers(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount,
+	public static void printKmers(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits){
 		if (kmers==null || kmers.isEmpty())
 			return;
@@ -290,6 +290,7 @@ public class Kmer implements Comparable<Kmer>{
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append(String.format("#%d/%d\n", posSeqCount, negSeqCount));
+		sb.append(String.format("#%.2f\n", score));
 		if (printShortFormat)
 			sb.append(Kmer.toShortHeader(kmers.get(0).getK()));
 		else

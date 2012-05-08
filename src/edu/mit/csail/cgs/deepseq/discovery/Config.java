@@ -6,6 +6,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 
 public class Config {
 	public boolean trim_simple=false;
+	public boolean print_PI = false;
 	public boolean do_model_selection=false;
 	public boolean classify_events = false;
     public boolean use_joint_event = false;
@@ -102,9 +103,9 @@ public class Config {
     public int smooth_step = 30;
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
-    public double mappable_genome_length = -1; // defalut is to compute
+    public double mappable_genome_length = -1; // default is to compute
     public double sparseness=-1;
-    public double poisson_alpha=1e-4; 				// the poisson p-value for estimating alpha
+    public double poisson_alpha=1e-4; 				// the Poisson p-value for estimating alpha
     public double fold = 2.5;
     public double kl_ic = -2.0;
     public double shapeDeviation;
@@ -134,6 +135,7 @@ public class Config {
         Set<String> flags = Args.parseFlags(args);
         // default as false, need the flag to turn it on
         classify_events = flags.contains("classify");
+        print_PI = flags.contains("print_PI");
         sort_by_location = flags.contains("sl");
         use_joint_event = flags.contains("refine_using_joint_event");
         post_artifact_filter = flags.contains("post_artifact_filter");

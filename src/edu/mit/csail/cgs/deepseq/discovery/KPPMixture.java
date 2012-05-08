@@ -21,6 +21,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerClass;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder;
@@ -46,7 +47,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
 	private final int STRAND = 1000;		// extra bp add to indicate negative strand match of kmer
 	private final int UNALIGNED = 999;		// the special shift for unaligned kmer
-
 	
     private Config config;
     private GPSConstants constants;
@@ -126,6 +126,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	/** Kmer motif engine */
 	private KmerMotifFinder kmf;
 	private boolean kmerPreDefined = false;
+	private double kcm_threshold = -1;
 	
 	public KPPMixture(Genome g, 
                       ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
@@ -168,20 +169,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 		
-    	/* *********************************
-    	 * Load Kmer list
-    	 ***********************************/
-    	String kmerFile = Args.parseString(args, "kf", null);
-    	if (kmerFile!=null){
-    		kmerPreDefined = true;
-			File kFile = new File(kmerFile);
-			if(kFile.isFile()){
-				ArrayList<Kmer> kmers = Kmer.loadKmers(kFile); 
-		        if (!kmers.isEmpty()){
-		        	kmf = new KmerMotifFinder(kmers, outName);
-		        }
-			}
-    	}
     	
 		/* ***************************************************
 		 * Print out command line options
@@ -222,6 +209,23 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		System.err.println("\nThe second control region width (w3) has to be more than " + config.second_lambda_region_width + " bp.");
 			cleanUpDataLoader();
 			System.exit(-1);
+    	}
+    	
+
+    	/* *********************************
+    	 * Load Kmer list
+    	 ***********************************/
+    	String kmerFile = Args.parseString(args, "kf", null);
+    	if (kmerFile!=null){
+    		kmerPreDefined = true;
+			File kFile = new File(kmerFile);
+			if(kFile.isFile()){
+				KmerClass kc = new KmerClass(kFile);
+	        	kmf = new KmerMotifFinder(kc.getKmers(0), outName);
+	        	kmf.setTotalSeqCounts(kc.posSeqCount, kc.negSeqCount);
+	        	kmf.setConfig(config, outName);
+	        	kcm_threshold = kc.kcmThreshold;
+			}
     	}
     	
     	/* *********************************
@@ -3295,8 +3299,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	public void refineRegions(){
 		ArrayList<Feature> events = new ArrayList<Feature>();
 		events.addAll(signalFeatures);
-		events.addAll(insignificantFeatures);
-		events.addAll(filteredFeatures);
+		if (insignificantFeatures!=null)
+			events.addAll(insignificantFeatures);
+		if (filteredFeatures!=null)
+			events.addAll(filteredFeatures);
 		ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
 		for (Feature f : events){
 			ComponentFeature cf = (ComponentFeature) f;
@@ -3481,6 +3487,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			if (km.getClusterId()==0)
 				primaryKmers.add(km);
 		kmf.updateEngine(primaryKmers);		
+		this.kcm_threshold = kmf.getPrimaryCluster().ksmThreshold.score;
 		return 0;
     }
     	
@@ -3925,14 +3932,15 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
                 		if (config.kpp_use_kmer){		// use k-mer match to set KPP
 	                		KmerGroup[] matchPositions = kmf.query(seq);
-		                		
+		                	if (config.print_PI)	
+		                		System.out.println(seq);
 		                	// Effectively, the top kmers will dominate, because we normalize the pp value
 		                	for (KmerGroup g: matchPositions){
 		                		// the posBS is the expected binding position
 		                		int bindingPos = g.getPosBS();
 		                		if (bindingPos>=pp.length || bindingPos<0)
 		                			continue;
-		                		if (g.getHgp()> -kmf.getPrimaryCluster().ksmThreshold.score)		// must past ksm threshold
+		                		if (g.getHgp()> -kcm_threshold)	// must past ksm threshold
 		                			continue;
 	
 		                		double kmerCountSum = 0;
@@ -3949,6 +3957,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                		else if (config.kpp_mode==10)
 		                			pp[bindingPos] = kmerCountSum==0?0:Math.log10(kmerCountSum);
 		                		pp_kmer[bindingPos] = g;
+		                		if (config.print_PI)	
+			                		System.out.println(bindingPos+"\t"+g.getBestKmer().getKmerString());
 		                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), g, pp[bindingPos]));
 		                	}
                 		}
@@ -4385,6 +4395,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             		break;
             	}
             }
+            if (config.print_PI)
+            	System.out.println(alpha+"\t"+CommonUtils.arrayToString(p_alpha, "%.4f"));
+            
             double lastLAP=0, LAP=0; // log posterior prob
             int t=0;
             double currAlpha = alpha/config.gentle_elimination_factor;
@@ -4554,6 +4567,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         pi[j]=pi[j]/totalPi;
                     }
                 }
+                if (config.print_PI)
+                	System.out.println(t+"\t"+CommonUtils.arrayToString(pi, "%.4f"));
 
                 //Beta parameters
                 if(mixture.numConditions>1){
