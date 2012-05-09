@@ -96,7 +96,6 @@ public class KmerMotifFinder {
 	private boolean use_KSM;;
 	private String startingKmer;
 	
-	private double kmer_aligned_fraction; 
 	private boolean print_aligned_seqs; 
 	private boolean re_train; 
 	private int maxCluster;
@@ -171,7 +170,6 @@ public class KmerMotifFinder {
 	    this.use_weight = config.use_weight;
 	    this.allow_single_family = config.allow_single_family;
 	    this.kmer_remove_mode = config.kmer_remove_mode;
-	    this.kmer_aligned_fraction = config.kmer_aligned_fraction;
 	    this.print_aligned_seqs = config.print_aligned_seqs;
 	    this.re_train = config.re_train;
 	    this.maxCluster = config.max_cluster;
@@ -1577,7 +1575,7 @@ public class KmerMotifFinder {
 				}
 			}
 	    	if (use_KSM){
-		    	cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+		    	cluster.alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
 				if (cluster.alignedKmers.isEmpty()){
 					kmers.remove(seed);
 					quick_restart = true;
@@ -1631,7 +1629,7 @@ public class KmerMotifFinder {
 	    		if (cluster.pwmPosHitCount>cluster.total_aligned_seqs)
 	    			cluster.total_aligned_seqs = cluster.pwmPosHitCount;
 	    	}
-	    	ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+	    	ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
 	    	
 			int shift_remove = 0;
 			switch(kmer_remove_mode){
@@ -1764,7 +1762,7 @@ public class KmerMotifFinder {
 				sb = null;
 		    	
 				// get Aligned Kmers either from PWM or seed family alignement
-				ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+				ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
 			    	
 				/** store aligned kmers in the cluster */
 				ArrayList<Kmer> copy = new ArrayList<Kmer>();
@@ -1862,7 +1860,7 @@ public class KmerMotifFinder {
 			StringBuilder sb = new StringBuilder();
 			if (cluster.wm!=null){			    	
 				alignSequencesUsingPWM(seqList, cluster);
-				cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+				cluster.alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
 				updateEngine(cluster.alignedKmers);
 				cluster.ksmThreshold = optimizeKsmThreshold("", false);
 			}
@@ -2513,7 +2511,7 @@ public class KmerMotifFinder {
 					alignSequencesUsingPWMmm(seqList, cluster);
 				}
 				if (use_KSM){
-					cluster.alignedKmers = getAlignedKmers (seqList, seed_range, kmer_aligned_fraction, new ArrayList<Kmer>());
+					cluster.alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
 					if (cluster.alignedKmers.isEmpty())
 						break;
 					alignSequencesUsingKSM(seqList, cluster);
@@ -3979,7 +3977,7 @@ public class KmerMotifFinder {
 	 * @param kmer_aligned_fraction
 	 * @return
 	 */
-	private ArrayList<Kmer> getAlignedKmers (ArrayList<Sequence> seqList, int seed_range, double kmer_aligned_fraction, ArrayList<Kmer> excludes){
+	private ArrayList<Kmer> getAlignedKmers (ArrayList<Sequence> seqList, int seed_range, ArrayList<Kmer> excludes){
 
     	/** set kmer consensus position */
 		HashMap<Kmer, ArrayList<Integer>> kmer2pos = new HashMap<Kmer, ArrayList<Integer>>();
@@ -4013,7 +4011,7 @@ public class KmerMotifFinder {
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmer2pos.keySet()){
 			ArrayList<Integer> posKmer = kmer2pos.get(km);
-			if (posKmer==null || posKmer.size()<km.getPosHitCount()*kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/2 of total hit
+			if (posKmer==null || posKmer.size()<km.getPosHitCount()*config.kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/2 of total hit
 				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
 			}	
@@ -4022,7 +4020,7 @@ public class KmerMotifFinder {
 			int counts[] = sorted.cdr();
 			int posSorted[] = sorted.car();
 			int maxCount = counts[counts.length-1];
-			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * kmer_aligned_fraction)	// for palindromic kmer, posKmer>hitCount
+			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_aligned_fraction)	// for palindromic kmer, posKmer>hitCount
 				continue;
 			ArrayList<Integer> maxPos = new ArrayList<Integer>();
 			for (int i=counts.length-1;i>=0;i--){
