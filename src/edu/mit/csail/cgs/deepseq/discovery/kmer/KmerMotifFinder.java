@@ -1592,8 +1592,14 @@ public class KmerMotifFinder {
 	    	
 			// compare pwm Hgp to primary cluster Hgp, so that the primary cluster will have the best Hgp
 			if (cluster.wm!=null){
+				double current_cluster_hgp = cluster.pwmThresholdHGP;
+				double primary_cluster_hgp = clusters.get(0).pwmThresholdHGP;
+				if (config.evaluate_by_kcm){
+					current_cluster_hgp = cluster.ksmThreshold.hgp;
+					primary_cluster_hgp = clusters.get(0).ksmThreshold.hgp;
+				}
 				if (allow_seed_reset && clusterID!=0 && 
-						cluster.pwmThresholdHGP<clusters.get(0).pwmThresholdHGP*seedOverrideScoreDifference && 
+						current_cluster_hgp<primary_cluster_hgp*seedOverrideScoreDifference && 
 						!primarySeed_is_immutable){		// this pwm is better, and primary seed is allow to change
 					// reset sequences, kmers, to start over with this new bestSeed
 					seqs = pos_seq_backup.clone();
@@ -1618,7 +1624,7 @@ public class KmerMotifFinder {
 					primarySeed = seed;
 					if (verbose>1)
 						System.out.println("**** Secondary motif is more enriched than primary motif, start over with seed="+seed.getKmerString());
-					primarySeed_is_immutable=true;							// marked as "reset", only once, avoid potential infinite loop
+					primarySeed_is_immutable=true;					// marked as "reset", only once, avoid potential infinite loop
 					continue;										// start over with new seed
 				}
 			}

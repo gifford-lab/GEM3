@@ -4700,7 +4700,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 double bestBIC = models.get(0).BIC(totalBaseCount, hasPP);
                 for (int i=1;i<models.size();i++){
                     double bic = models.get(i).BIC(totalBaseCount, hasPP);
-                    //				System.out.println(String.format("%.3f\t%.3f\t", bestBIC, bic)+models.get(i).toString());
+//                   System.out.println(String.format("%.3f\t%.3f\t", bestBIC, bic)+models.get(i).toString());
                     if (bestBIC <= bic){
                         best = i;
                         bestBIC = bic;
@@ -5019,7 +5019,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             // BIC_GEM
             // Each component has 3 parameters, position prior, mixing prob and position, thus "*3";
             double BIC(double n, boolean hasPP){
-                return LAP - (numComponent*(hasPP?3:2)-1 + (mixture.numConditions-1)*numComponent )/2*Math.log(n);
+//                return LAP - (numComponent*(hasPP?3:2)-1 + (mixture.numConditions-1)*numComponent )/2*Math.log(n);
+                return LAP - (numComponent*(hasPP?3:2)-1 + (mixture.numConditions-1)*numComponent ); // AIC
             }
             public String toString(){
                 return String.format("%.3f\t%.0f", LAP, numComponent);

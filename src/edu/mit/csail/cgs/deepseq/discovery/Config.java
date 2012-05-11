@@ -81,6 +81,7 @@ public class Config {
     public boolean re_train = false;
 	public boolean refine_pwm = false;
     public boolean print_pwm_fdr = false;
+    public boolean evaluate_by_kcm = false;		// whether to use K-mer class model to evaluate improvement of new cluster, default to use PWM
     public boolean use_weight = true;
     public boolean allow_single_family =true;	// allow the kmer family only contains seed, i.e. no mismatch kmers
     public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
@@ -123,7 +124,7 @@ public class Config {
     
     public int verbose=1;		// BindingMixture verbose mode
     public int base_reset_threshold = 200;	// threshold to set a base read count to 1
-    public int windowSize;			// size for EM sliding window for splitting long regions
+    public int windowSize;			// size for EM sliding window for splitting long regions, set modelWidth * config.window_size_factor in KPPMixture
     //Run EM up until <tt>ML_ITER</tt> without using sparse prior
     public int ML_ITER=10;
     // the range to scan a peak if we know position from EM result
@@ -166,6 +167,7 @@ public class Config {
         refine_pwm = flags.contains("refine_pwm");
         print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
+        evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
