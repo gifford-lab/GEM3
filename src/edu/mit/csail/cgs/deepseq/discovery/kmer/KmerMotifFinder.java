@@ -1660,8 +1660,12 @@ public class KmerMotifFinder {
 			if (cluster.wm!=null){				
 		        if (cluster.pwmGoodQuality){			// if PWM quality is not too bad, mask
 			        WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
-			        int left = Math.round(cluster.wm.length()*(1-k_mask_f)/2);
-			        int right = Math.round(cluster.wm.length()*(1-(1-k_mask_f)/2));
+			        int left = Math.round(cluster.wm.length()/2); // mask center base
+			        int right = left+1;
+			        if (!config.k_mask_1base){		// mask whole PWM
+			        	left = Math.round(cluster.wm.length()*(1-k_mask_f)/2);
+				        right = Math.round(cluster.wm.length()*(1-(1-k_mask_f)/2));
+			        }
 			        for (Sequence s : seqList){
 						if (s.pos==UNALIGNED)
 							continue;
@@ -1673,6 +1677,10 @@ public class KmerMotifFinder {
 								break;
 							found = true;
 							int start = Math.abs(hit.car());// if match on rc strand, the start coordinate is the same, as implemented in WeightMatrixScorer.score()
+							if (seq.substring(start+left, start+right).contains("N")){
+								found = false;
+								break;				// this site has been masked, avoid infinite loop because the masked site still pass PWM threshold
+							}
 							// replace with N
 							seq=seq.substring(0, start+left)
 									.concat(CommonUtils.padding(right-left, 'N'))
@@ -1693,6 +1701,10 @@ public class KmerMotifFinder {
 								break;
 							found = true;
 							int start = Math.abs(hit.car());// if match on rc strand, the start coordinate is the same, as implemented in WeightMatrixScorer.score()
+							if (seq.substring(start+left, start+right).contains("N")){
+								found = false;
+								break;				// this site has been masked, avoid infinite loop because the masked site still pass PWM threshold
+							}
 							// replace with N
 							seq=seq.substring(0, start+left)
 									.concat(CommonUtils.padding(right-left, 'N'))

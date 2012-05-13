@@ -90,8 +90,8 @@ public class Config {
 //    public boolean k_select_seed = false;
     public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
     public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
-    public boolean use_db_genome = false;// stringent: binomial and poisson, relax: binomial only
-    public boolean mask_by_pwm = false;
+    public boolean use_db_genome = false;// get the sequence from database, not from file
+    public boolean k_mask_1base = false;
     
     public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
     public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -158,7 +158,6 @@ public class Config {
         k_neg_shuffle = flags.contains("k_neg_shuffle");
         k_neg_dinu_shuffle = flags.contains("k_neg_dinu_shuffle");
         re_align_kmer = flags.contains("rak");
-        mask_by_pwm = flags.contains("mask_by_pwm");
         print_aligned_seqs = flags.contains("print_aligned_seqs");
         print_input_seqs = flags.contains("print_input_seqs");
         print_all_kmers = flags.contains("print_all_kmers");
@@ -168,6 +167,7 @@ public class Config {
         print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
+        k_mask_1base = flags.contains("k_mask_1base");
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
