@@ -5958,6 +5958,15 @@ public class KmerMotifFinder {
 		ArrayList<String> pos_seqs = new ArrayList<String>();
 		ArrayList<Double> seq_w = new ArrayList<Double>();
 
+        Config config = new Config();
+        try{
+			config.parseArgs(args);   
+		}
+		catch (Exception e){
+			e.printStackTrace();
+    		System.exit(-1);
+		}  
+		
 		String name = Args.parseString(args, "out_name", null);
 		File outFolder = new File(name+"_outputs");
 		outFolder.mkdir();
@@ -5965,17 +5974,13 @@ public class KmerMotifFinder {
 		
 		String pos_file = Args.parseString(args, "pos_seq", null);
 		String neg_file = Args.parseString(args, "neg_seq", null);
-		int k = Args.parseInteger(args, "k", -1);
-        int k_min = Args.parseInteger(args, "k_min", -1);
-        int k_max = Args.parseInteger(args, "k_max", -1);
-		String seed = Args.parseString(args, "seed", null);
-		if (pos_file==null || neg_file==null || (k==-1&&k_min==-1)){
-			System.err.println("Usage: KmerMotifFinder --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta --neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta --k_min 5 --k_max 8 --out_name cMyc_cMyc --seed CACGTG");
+		if (pos_file==null || neg_file==null || (config.k==-1&&config.k_min==-1)){
+			System.err.println("Example: KmerMotifFinder --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta --neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta --k_min 5 --k_max 8 --out_name cMyc_cMyc --seed CACGTG");
 			System.exit(-1);
 		}
-		if (seed!=null){
-			k=seed.length();
-			System.out.println("Starting seed k-mer is "+seed+".\n");
+		if (config.seed!=null){
+			config.k=config.seed.length();
+			System.out.println("Starting seed k-mer is "+config.seed+".\n");
 		}
 		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
         String[]f = null;
@@ -5987,26 +5992,27 @@ public class KmerMotifFinder {
 	            else
 	            	seq_w.add(1.0);
         	}
-        	else
-        		pos_seqs.add(line.toUpperCase());
+        	else{
+        		int left = line.length()/2-config.k_win/2;
+        		if (left<0)
+        			continue;
+        		pos_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+        	}
 		}
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		strs = CommonUtils.readTextFile(neg_file);
 		for (String line: strs){
-            if (!line.startsWith(">"))
-            	neg_seqs.add(line.toUpperCase());
+            if (!line.startsWith(">")){
+        		int left = line.length()/2-config.k_win/2;
+        		if (left<0)
+        			continue;
+        		neg_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+        	}
 		}
         
         KmerMotifFinder kmf = new KmerMotifFinder();
-        Config config = new Config();
-        try{
-			config.parseArgs(args);   
-		}
-		catch (Exception e){
-			e.printStackTrace();
-    		System.exit(-1);
-		}  
+
         
 //        kmf.setParameters(-3, 3, 0.005, 0.05, 0.6, 0, true, true, true, name, true, 2, 0.5, false, false, 200, 0, 
 //        		true, true, noiseRatio, use_seed_family, use_KSM, true, 99, seed);
@@ -6016,14 +6022,14 @@ public class KmerMotifFinder {
 //        for (double n=0;n<1;n+=0.1){
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);
 //        }
-        System.out.println(String.format("%d input positive sequences, use top %d to find motif ...", pos_seqs.size(), kmf.seqs.length));
-        if (k==-1){
+        System.out.println(String.format("%d input positive sequences, use top %d center sequences (%dbp) to find motif ...", pos_seqs.size(), kmf.seqs.length, config.k_win));
+        if (config.k==-1){
         	if (config.selectK_byTopKmer)
-        		k = kmf.selectK_byTopKmer(k_min, k_max);
+        		config.k = kmf.selectK_byTopKmer(config.k_min, config.k_max);
         	else
-        		k = kmf.selectK(k_min, k_max);
+        		config.k = kmf.selectK(config.k_min, config.k_max);
         }
-        ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
+        ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(config.k);
         kmf.findMotif_HybridAlignment(kmers, -1, null);
 	}
 }

@@ -34,8 +34,8 @@ public class Config {
     public int k_max= -1;		// the maximum value of k        
     public String seed = null;
     public int k_seqs = 10000;	// the top number of event to get underlying sequences for initial Kmer learning 
-    public int k_win = 60;		// the window around binding event to search for kmers
-    public int k_win2 = 100;	// the window around binding event to search for motifs (in later rounds)
+    public int k_win = 61;		// the window around binding event to search for kmers
+    public int k_win2 = 101;	// the window around binding event to search for motifs (in later rounds)
     public int k_win_f = 4;		// k_win = k_win_f * k
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
