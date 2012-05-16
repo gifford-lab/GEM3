@@ -614,6 +614,74 @@ public class KmerMotifFinder {
 	}
 	
 	/** 
+	 * Select the value of k <br>
+	 * using the seed family hgp
+	 */
+	public int selectK_byTopKmer(int k_min, int k_max){
+		if (k_min==k_max)
+			return k_min;
+		
+		String[] pos_seq_backup = seqs.clone();
+		String[] neg_seqs_backup = new String[seqsNegList.size()];
+		seqsNegList.toArray(neg_seqs_backup);
+		
+		// compare different values of k to select most enriched k value
+		int bestK = 0;
+		double bestAllHGP = 0;
+		ArrayList<KmerCluster> kClusters = new ArrayList<KmerCluster>();
+		StringBuilder sb = new StringBuilder("\n------------------- "+ new File(outName).getName() +" ----------------------\n");
+		for (int i=0;i<k_max-k_min+1;i++){
+			int k = i+k_min;
+			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
+			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
+			findMotif_HybridAlignment(kmers, 2, null);
+			double bestclusterHGP = 0;
+			KmerCluster bestCluster=null;
+			for (KmerCluster c:clusters){
+				if (bestclusterHGP>c.seedKmer.familyHgp && c.pwmThresholdHGP<0){		// use the seed family hgp to select k, also require to have PWM
+					bestclusterHGP=c.seedKmer.familyHgp;
+					bestCluster = c;
+				}
+			}
+			if (bestCluster!=null){
+				sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, 
+						bestCluster.seedKmer.familyHgp, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
+				kClusters.add(bestCluster);
+				
+				if (bestAllHGP>bestCluster.seedKmer.familyHgp)
+					bestAllHGP=bestCluster.seedKmer.familyHgp;
+			}
+			else
+				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
+			
+			// reload non-masked sequences
+			seqs = pos_seq_backup.clone();
+			seqsNegList.clear();
+			for (String s:neg_seqs_backup)
+				seqsNegList.add(s);
+		}
+		if (kClusters.isEmpty()){
+			System.out.println("\n----------------------------------------------\nNone of the k values form a PWM, stop here!\n");
+			return 0;
+		}
+		
+		
+		KmerCluster bestCluster=null;
+		for (KmerCluster c : kClusters){
+			if (bestAllHGP==c.seedKmer.familyHgp){
+				bestCluster = c;
+				break;
+			}
+		}
+		bestK = bestCluster.seedKmer.getK();
+		System.out.print(sb.toString());
+		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f.\n----------------------------------------------\n", 
+				bestK, bestCluster.pwmPosHitCount, bestCluster.seedKmer.familyHgp));
+		return bestK;
+	}
+	
+	
+	/** 
 	 * Select the value of k by the coverage of enriched k-mers<br>
 	 * Count the exact base of coverage from every sequence
 	 * @param k_min
@@ -1538,6 +1606,8 @@ public class KmerMotifFinder {
 			seed.setAlignString(seed.getKmerString());
 			if (use_seed_family){
 				seedFamily.addAll(getMMKmers(kmers, seed.getKmerString(), 0));
+				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
+				seed.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 				// if this seed do not match other kmers, stop here
 				if (!allow_single_family && seedFamily.size()==1){
 					kmers.remove(seed);
@@ -5947,8 +6017,12 @@ public class KmerMotifFinder {
 //        	kmf.selectK(8, 8, n, use_seed_family, use_KSM);
 //        }
         System.out.println(String.format("%d input positive sequences, use top %d to find motif ...", pos_seqs.size(), kmf.seqs.length));
-        if (k==-1)
-        	k = kmf.selectK(k_min, k_max);
+        if (k==-1){
+        	if (config.selectK_byTopKmer)
+        		k = kmf.selectK_byTopKmer(k_min, k_max);
+        	else
+        		k = kmf.selectK(k_min, k_max);
+        }
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(k);
         kmf.findMotif_HybridAlignment(kmers, -1, null);
 	}

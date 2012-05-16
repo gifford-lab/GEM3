@@ -92,6 +92,7 @@ public class Config {
     public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
     public boolean use_db_genome = false;// get the sequence from database, not from file
     public boolean k_mask_1base = false;
+    public boolean selectK_byTopKmer = false;
     
     public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
     public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -168,12 +169,13 @@ public class Config {
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
+        selectK_byTopKmer = flags.contains("selectK_byTopKmer");
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
         use_betaEM = ! flags.contains("poolEM");
-        filterEvents = !flags.contains("nf");	// not filtering of predicted events
+        filterEvents = !flags.contains("nf");	// no filtering for predicted events
         filterDupReads = !flags.contains("nrf");	// no read filtering of duplicate reads
         TF_binding = ! flags.contains("br");	// broad region, not TF data, is histone or pol II
         if (!TF_binding){
