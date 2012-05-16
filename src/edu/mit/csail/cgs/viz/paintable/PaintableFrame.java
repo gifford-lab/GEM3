@@ -31,7 +31,7 @@ extends JFrame {
         Container c = (Container)getContentPane();
         c.setLayout(new BorderLayout());
         c.add(fPanel, BorderLayout.CENTER);
-        fPanel.setPreferredSize(new Dimension(500, 500));
+        fPanel.setPreferredSize(new Dimension(1000, 500));
         
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setJMenuBar(createDefaultJMenuBar());

@@ -41,6 +41,7 @@ public class MetaMaker {
 			double lineMax = Args.parseDouble(args,"linemax", 100);
 			int lineThick = Args.parseInteger(args,"linethick", 1);
 			double pbMax = Args.parseDouble(args,"pbMax", 100);
+			char strand = Args.parseString(args, "strand", "/").charAt(0);
 			boolean drawColorBar = !Args.parseFlags(args).contains("nocolorbar");
 			String profilerType = Args.parseString(args, "profiler", "simplechipseq");	
 			List<String> expts = (List<String>) Args.parseStrings(args,"expt");
@@ -74,7 +75,7 @@ public class MetaMaker {
 				System.out.println("Loading data...");
 				if(profilerType.equals("fiveprime"))
 					readExt = -1;
-				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, pbMax);
+				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, pbMax,strand);
 			}else if(profilerType.equals("chipseq5prime")){
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
@@ -190,6 +191,7 @@ public class MetaMaker {
 				"--expt <experiment names> --back <control experiment names (only applies to chipseq)> \n" +
 				"--peaks <peaks file name> --out <output root name> \n" +
 				"--color <red/green/blue> \n" +
+				"--strand <+-/>\n" +
 				"--cluster [flag to cluster in batch mode] \n" +
 				"--batch [a flag to run without displaying the window]\n" +
 				"--nocolorbar [flag to turn off colorbar in batch mode]\n");

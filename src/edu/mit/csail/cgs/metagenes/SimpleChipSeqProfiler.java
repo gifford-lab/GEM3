@@ -18,11 +18,12 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 	private int extension; 
 	private double perBaseMax=100;
 	private boolean useFivePrime = false;
+	private char readStrand ='/';
 	
 	public SimpleChipSeqProfiler(BinningParameters ps, ChipSeqExpander exp) { 
-		this(ps, exp, 175, 100);
+		this(ps, exp, 175, 100, '/');
 	}
-	public SimpleChipSeqProfiler(BinningParameters ps, ChipSeqExpander exp, int ext, double pbMax) {
+	public SimpleChipSeqProfiler(BinningParameters ps, ChipSeqExpander exp, int ext, double pbMax, char strand) {
 		params = ps;
 		expanders = new ArrayList<ChipSeqExpander>(); 
 		expanders.add(exp);
@@ -30,14 +31,16 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		if(extension==-1)
 			useFivePrime=true;
 		perBaseMax = pbMax;
+		readStrand = strand;
 	}
-	public SimpleChipSeqProfiler(BinningParameters ps, List<ChipSeqExpander> exps, int ext, double pbMax) {
+	public SimpleChipSeqProfiler(BinningParameters ps, List<ChipSeqExpander> exps, int ext, double pbMax, char strand) {
 		params = ps;
 		expanders = exps;
 		extension=ext;
 		if(extension==-1)
 			useFivePrime=true;
 		perBaseMax=pbMax;
+		readStrand = strand;
 	}
 
 	public BinningParameters getBinningParameters() {
@@ -73,7 +76,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 					hit = hits.next().fivePrime();
 				else
 					hit = hits.next().extendHit(extension);
-				if(hit.overlaps(query)){
+				if(hit.overlaps(query) && (readStrand=='/' || hit.getStrand()==readStrand)){
 					if(!readFilter.containsKey(hit))
 						readFilter.put(hit, hit.getWeight());
 					else
