@@ -1605,9 +1605,9 @@ public class KmerMotifFinder {
 			seed.setShift(0);
 			seed.setAlignString(seed.getKmerString());
 			if (use_seed_family){
-				seedFamily.addAll(getMMKmers(kmers, seed.getKmerString(), 0));
+				seedFamily.addAll(getMMKmers(kmers, cluster.seedKmer.getKmerString(), 0));
 				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
-				seed.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+				cluster.seedKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 				// if this seed do not match other kmers, stop here
 				if (!allow_single_family && seedFamily.size()==1){
 					kmers.remove(seed);
