@@ -169,7 +169,6 @@ public class Config {
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
-        selectK_byTopKmer = flags.contains("selectK_byTopKmer");
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -194,6 +193,9 @@ public class Config {
         use_grid_search = !flags.contains("no_grid_search");
         allow_single_family = !flags.contains("no_single_family");
         allow_seed_reset = !flags.contains("no_seed_reset");
+        selectK_byTopKmer = flags.contains("selectK_byTopKmer");	
+        if (selectK_byTopKmer)														// overwrite allow_seed_reset
+        	allow_seed_reset = false;
         allow_seed_inheritance = !flags.contains("no_seed_inheritance");
         pwm_align_new = !flags.contains("pwm_align_all");
         filter_pwm_seq = !flags.contains("pwm_seq_asIs");
@@ -238,7 +240,7 @@ public class Config {
         repeat_fraction = Args.parseDouble(args, "repeat_fraction", repeat_fraction);
         seed_range = Args.parseInteger(args, "seed_range", seed_range);
         kmer_remove_mode = Args.parseInteger(args, "kmer_shift_remove", kmer_remove_mode);
-        
+               
         ip_ctrl_ratio = Args.parseDouble(args, "icr", ip_ctrl_ratio);
         maxThreads = Args.parseInteger(args,"t",java.lang.Runtime.getRuntime().availableProcessors());	// default to the # processors
         q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value

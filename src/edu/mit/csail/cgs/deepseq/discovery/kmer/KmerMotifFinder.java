@@ -87,7 +87,6 @@ public class KmerMotifFinder {
 	private double k_fold;
 	private double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer
 	private boolean allow_single_family =false;
-	private boolean allow_seed_reset=true;
 	private boolean allow_seed_inheritance=true;
 	private double seedOverrideScoreDifference=1.1;
 	private Kmer primarySeed = null;;
@@ -173,7 +172,6 @@ public class KmerMotifFinder {
 	    this.print_aligned_seqs = config.print_aligned_seqs;
 	    this.re_train = config.re_train;
 	    this.maxCluster = config.max_cluster;
-	    this.allow_seed_reset = config.allow_seed_reset;
 	    this.allow_seed_inheritance = config.allow_seed_inheritance;
 	    this.noiseRatio = config.noise;
 	    this.use_seed_family = config.use_seed_family;
@@ -519,7 +517,7 @@ public class KmerMotifFinder {
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			findMotif_HybridAlignment(kmers, 2, null);
+			findMotif_HybridAlignment(kmers, 2, false, null);
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -634,25 +632,24 @@ public class KmerMotifFinder {
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			findMotif_HybridAlignment(kmers, 2, null);
+			findMotif_HybridAlignment(kmers, 2, true, null);	// seed kmer only
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
-				if (bestclusterHGP>c.seedKmer.familyHgp && c.pwmThresholdHGP<0){		// use the seed family hgp to select k, also require to have PWM
+				if (bestclusterHGP>c.seedKmer.familyHgp){		// use the seed family hgp to select k
 					bestclusterHGP=c.seedKmer.familyHgp;
 					bestCluster = c;
 				}
 			}
 			if (bestCluster!=null){
-				sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, 
-						bestCluster.seedKmer.familyHgp, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
+				sb.append(String.format("k=%d\thgp=1e%.1f\tseed=%s.\n", k, bestCluster.seedKmer.familyHgp, bestCluster.seedKmer.getKmerString()));
 				kClusters.add(bestCluster);
 				
 				if (bestAllHGP>bestCluster.seedKmer.familyHgp)
 					bestAllHGP=bestCluster.seedKmer.familyHgp;
 			}
 			else
-				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
+				sb.append(String.format("k=%d\tcan not form a seed family.\n", k));
 			
 			// reload non-masked sequences
 			seqs = pos_seq_backup.clone();
@@ -661,7 +658,7 @@ public class KmerMotifFinder {
 				seqsNegList.add(s);
 		}
 		if (kClusters.isEmpty()){
-			System.out.println("\n----------------------------------------------\nNone of the k values form a PWM, stop here!\n");
+			System.out.println("\n----------------------------------------------\nNone of the k values form a seed family, stop here!\n");
 			return 0;
 		}
 		
@@ -1458,7 +1455,7 @@ public class KmerMotifFinder {
 //		return processClusters();
 //	}
 	
-	public ArrayList<Kmer> findMotif_HybridAlignment (ArrayList<Kmer> kmers_in, int topCluster, int[] eventCounts){
+	public ArrayList<Kmer> findMotif_HybridAlignment (ArrayList<Kmer> kmers_in, int topCluster, boolean only_seed_kmer, int[] eventCounts){
 		int seed_range = k;
 		String[] pos_seq_backup = seqs.clone();
 		String[] neg_seq_backup = new String[seqsNegList.size()];
@@ -1598,7 +1595,7 @@ public class KmerMotifFinder {
 			
 			cluster.seedKmer = seed;
 			
-			/** seed family is derived from seed kmer, but adding mismatch k-mers, order by #mm */
+			/** seed family is derived from seed kmer, by adding mismatch k-mers, order by #mm */
 			ArrayList<Kmer> seedFamily = new ArrayList<Kmer>();
 			seedFamily.add(seed);
 			kmers.remove(seed);
@@ -1608,6 +1605,9 @@ public class KmerMotifFinder {
 				seedFamily.addAll(getMMKmers(kmers, cluster.seedKmer.getKmerString(), 0));
 				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
 				cluster.seedKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+				if (verbose>1)
+					System.out.println(CommonUtils.timeElapsed(tic)+": Seed family hgp = "+cluster.seedKmer.familyHgp);
+				
 				// if this seed do not match other kmers, stop here
 				if (!allow_single_family && seedFamily.size()==1){
 					kmers.remove(seed);
@@ -1618,6 +1618,8 @@ public class KmerMotifFinder {
 					continue;
 				}
 			}
+			if (only_seed_kmer)
+				return kmers;
 			
 			/** align sequences using seedFamily kmer positions */
 	    	for (Sequence s : seqList){
@@ -1668,7 +1670,7 @@ public class KmerMotifFinder {
 					current_cluster_hgp = cluster.ksmThreshold.hgp;
 					primary_cluster_hgp = clusters.get(0).ksmThreshold.hgp;
 				}
-				if (allow_seed_reset && clusterID!=0 && 
+				if (config.allow_seed_reset && clusterID!=0 && 
 						current_cluster_hgp<primary_cluster_hgp*seedOverrideScoreDifference && 
 						!primarySeed_is_immutable){		// this pwm is better, and primary seed is allow to change
 					// reset sequences, kmers, to start over with this new bestSeed
@@ -6030,7 +6032,7 @@ public class KmerMotifFinder {
         		config.k = kmf.selectK(config.k_min, config.k_max);
         }
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(config.k);
-        kmf.findMotif_HybridAlignment(kmers, -1, null);
+        kmf.findMotif_HybridAlignment(kmers, -1, false, null);
 	}
 }
 

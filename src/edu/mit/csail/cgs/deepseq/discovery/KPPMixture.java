@@ -3459,7 +3459,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			int bestK = kmf.selectK(config.k_min, config.k_max);
+			int bestK = config.selectK_byTopKmer?kmf.selectK_byTopKmer(config.k_min, config.k_max):kmf.selectK(config.k_min, config.k_max);
 			if (bestK!=0){
 				config.k = bestK;
 				if (config.allow_seed_inheritance){
@@ -3479,7 +3479,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
-		kmers = kmf.findMotif_HybridAlignment(kmers, -1, eventCounts);
+		kmers = kmf.findMotif_HybridAlignment(kmers, -1, false, eventCounts);
 			
 		// use only primary cluster k-mers for search
 		ArrayList<Kmer> primaryKmers = new ArrayList<Kmer>();
