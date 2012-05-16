@@ -186,7 +186,7 @@ public class PairedStorage {
 		return subset;
 	}
 
-	public void initializeFromSet(Set<PairedHit> set) {
+	public void initializeFromSet(Collection<PairedHit> set) {
 		leftset = new TreeSet<PairedHit>(new Comparator<PairedHit>() {
 
 			public int compare(PairedHit arg0, PairedHit arg1) {
