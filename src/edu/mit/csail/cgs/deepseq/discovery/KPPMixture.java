@@ -464,6 +464,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		profile_minus_sum = new double[modelWidth];
 		
 		// if we have predicted events from previous round, setup the restrictRegions
+		// use all regions because previous filtered events might be because the generic read distribution do not match the data
 		// because when we update the model, the model range might changed.
 		if (config.refine_regions){
 			if (allFeatures!=null && (!allFeatures.isEmpty())){
@@ -696,20 +697,33 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				for (int cond=0; cond<numConditions; cond++){
 					// if one condition is good event, this position is GOOD
 					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
-					if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
-						if (!controlDataExist){
+//					if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
+//						if (!controlDataExist){
+//							notFiltered = true;
+//							break;
+//						}
+//						else{
+//							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
+//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
+//								notFiltered = true;
+//								break;
+//							}
+//						}						
+//					}
+					// relax fold change requirement for event with good shape
+					if (!controlDataExist){
+						if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
 							notFiltered = true;
 							break;
 						}
-						else{
-							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
-							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-//							if (ratio>=config.fold){
-								notFiltered = true;
-								break;
-							}
-						}						
+					}
+					else{
+						double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
+						if ((ratio>=config.fold && cf.getShapeDeviation(cond)<=config.shapeDeviation) || 
+								(ratio>=2 && cf.getShapeDeviation(cond)<=-0.5)){
+							notFiltered = true;
+							break;
+						}					
 					}
 				}
 			}

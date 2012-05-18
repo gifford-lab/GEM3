@@ -213,6 +213,7 @@ public class KmerMotifFinder {
 //	    this.startingKmer = startingKmer;
 //	}
 	
+	// called by standalone main() method
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
 		int seqNum = Math.min(pos_seqs.size(), topSeqNum);
 		seqs = new String[seqNum];	
@@ -436,7 +437,7 @@ public class KmerMotifFinder {
 						events.size(), posSeqCount, events.size()-posSeqCount, 100-100.0*posSeqCount/events.size()));
 		    
 		    updateSequenceInfo();			
-	
+		    
 	//		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 	//		ArrayList<String> negSeqList = new ArrayList<String>();
 	//		for(int i=0;i<eventCount;i++){
