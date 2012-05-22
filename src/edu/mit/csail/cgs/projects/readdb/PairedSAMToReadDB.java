@@ -167,8 +167,7 @@ public class PairedSAMToReadDB {
             } else {
                 leftbuffer.clear();
             }
-            System.err.println(String.format("loop %d, left %d, right %d",
-                                             loop++, leftbuffer.size(), rightbuffer.size()));
+            //System.err.println(String.format("loop %d, left %d, right %d", loop++, leftbuffer.size(), rightbuffer.size()));
         }
     }
 
