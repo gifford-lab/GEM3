@@ -408,7 +408,7 @@ public class KmerMotifFinder {
 				Region.filterOverlapRegions(negRegions, posImpactRegion);	// make sure negative region is not within negRegionDistance of positive regions.
 				int negCount = 0;
 				for (Region r:negRegions){
-					String seq = seqsNeg[neg_region_map.get(r)].substring(0, winSize+1);
+					String seq = seqsNeg[neg_region_map.get(r)].substring(0, winSize/2*2+1);
 					if (config.repeat_fraction<1){
 						int count = 0;
 						for (char c:seq.toCharArray())
@@ -5985,33 +5985,48 @@ public class KmerMotifFinder {
 			config.k=config.seed.length();
 			System.out.println("Starting seed k-mer is "+config.seed+".\n");
 		}
+		String format = Args.parseString(args, "format", "fasta");
 		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
         String[]f = null;
 		for (String line: strs){
-            if (line.startsWith(">")){
-        		f = line.split(" ");
-        		if (f.length>1)
+			if (format.equals("fasta")){
+	            if (line.startsWith(">")){
+	        		f = line.split(" ");
+	        		if (f.length>1)
+		            	seq_w.add(Double.parseDouble(f[1]));
+		            else
+		            	seq_w.add(1.0);
+	        	}
+	        	else{
+	        		int left = line.length()/2-config.k_win/2;
+	        		if (left<0)
+	        			continue;
+	        		pos_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+	        	}
+			}
+			else{
+				f = line.split("\t");
+        		if (f.length>1){
 	            	seq_w.add(Double.parseDouble(f[1]));
-	            else
-	            	seq_w.add(1.0);
-        	}
-        	else{
-        		int left = line.length()/2-config.k_win/2;
-        		if (left<0)
-        			continue;
-        		pos_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
-        	}
+	            	pos_seqs.add(f[0].toUpperCase());
+	            }
+			}
 		}
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		strs = CommonUtils.readTextFile(neg_file);
 		for (String line: strs){
-            if (!line.startsWith(">")){
-        		int left = line.length()/2-config.k_win/2;
-        		if (left<0)
-        			continue;
-        		neg_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
-        	}
+			if (format.equals("fasta")){
+				if (!line.startsWith(">")){
+	        		int left = line.length()/2-config.k_win/2;
+	        		if (left<0)
+	        			continue;
+	        		neg_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+        		}
+			}
+			else{
+	            	neg_seqs.add(line.substring(0,config.k_win).toUpperCase());
+			}
 		}
         
         KmerMotifFinder kmf = new KmerMotifFinder();
