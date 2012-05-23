@@ -33,14 +33,14 @@ public class Config {
     public int k_min = -1;		// the minimum value of k
     public int k_max= -1;		// the maximum value of k        
     public String seed = null;
-    public int k_seqs = 10000;	// the top number of event to get underlying sequences for initial Kmer learning 
+    public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for motifs (in later rounds)
     public int k_win_f = 4;		// k_win = k_win_f * k
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
-    public int max_cluster = 100;
+    public int max_cluster = 50;
 //    public int k_overlap = 7;	// the number of overlapped bases to assemble kmers into PWM    
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
@@ -193,7 +193,7 @@ public class Config {
         use_grid_search = !flags.contains("no_grid_search");
         allow_single_family = !flags.contains("no_single_family");
         allow_seed_reset = !flags.contains("no_seed_reset");
-        selectK_byTopKmer = flags.contains("selectK_byTopKmer");	
+        selectK_byTopKmer = !flags.contains("selectK_byPWM");	
         if (selectK_byTopKmer)														// overwrite allow_seed_reset
         	allow_seed_reset = false;
         allow_seed_inheritance = !flags.contains("no_seed_inheritance");
