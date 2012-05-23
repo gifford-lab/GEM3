@@ -100,7 +100,8 @@ public class InteractionArcPainter extends RegionPaintable {
 				}
 				tmpweight = Math.abs(tmpweight);
 				g.setStroke(new BasicStroke(tmpweight));
-				g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/25f)));
+				//g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/25f)));
+				g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, props.Alpha.floatValue())));
 				QuadCurve2D loop = new QuadCurve2D.Float(leftx, halfy, midx, midy, rightx, halfy);
 				g.draw(loop);
 			}
@@ -119,8 +120,8 @@ public class InteractionArcPainter extends RegionPaintable {
 				if (tmpweight>0.0f) {
 					g.setStroke(new BasicStroke(tmpweight/15f));
 					tmpweight = Math.max(0.0f, tmpweight);
-					g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/100f)));
-					//g.setColor(new Color(0.0f, 0.0f, 0.0f, 0.02f));
+					//g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/100f)));
+					g.setColor(new Color(0.0f, 0.0f, 0.0f, props.Alpha.floatValue()));
 					QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
 					g.draw(loop);
 				}
