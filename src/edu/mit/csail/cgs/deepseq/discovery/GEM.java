@@ -207,7 +207,7 @@ public class GEM {
 		        mixture.printFeatures(round);
 		        mixture.printFilteredFeatures(round);
 		        mixture.printInsignificantFeatures(round);
-		        mixture.runKMF(Args.parseInteger(args,"k_win", 60));// Note: KPPMixture also has args parsing, keep default value the same
+		        mixture.runKMF(Args.parseInteger(args,"k_win", 61));// Note: KPPMixture also has args parsing, keep default value the same
             }
             int winSize = Args.parseInteger(args,"k_win2", -1);
             if (winSize!=-1){
