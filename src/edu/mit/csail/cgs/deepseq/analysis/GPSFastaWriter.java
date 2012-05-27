@@ -65,8 +65,8 @@ public class GPSFastaWriter{
 	boolean skip_repeat = flags.contains("no_repeat");
 	
 	List<String> names = new ArrayList<String>();
-	File dir = new File(Args.parseString(args, "root", null));
-    if (!dir.exists()){
+	File root = new File(Args.parseString(args, "root", null));
+    if (!root.exists()){
       System.err.println("Please provide root of GEM/GPS analysis folders, '--root root_path' ");
       System.exit(0);
     }	
@@ -91,7 +91,7 @@ public class GPSFastaWriter{
 		}
     }
     else{		// if no expt name file, try all sub-folders
-		File[] children = dir.listFiles();
+		File[] children = root.listFiles();
 		for (int i=0;i<children.length;i++){
 			File child = children[i];
 			if (child.isDirectory())
@@ -102,7 +102,7 @@ public class GPSFastaWriter{
     // load GPS results
 	for (String exptName : names){
 		System.out.print("Processing sequences and related info for "+exptName+", ");
-		File folder = new File(new File(dir, exptName), exptName+"_outputs");
+		File folder = new File(new File(root, exptName), exptName+"_outputs");
 	    File gpsFile = new File(folder, exptName+"_1_GEM_events.txt");
 	    if (!gpsFile.exists()){
 	    	System.err.println("GPS file not exist: "+gpsFile.getAbsolutePath());
@@ -121,7 +121,7 @@ public class GPSFastaWriter{
 	    DeepSeqExpt chipSeq = null;
 	    if (wantHMS || wantChIPMunk){
 	    	ArrayList<String> readDbStrings = new ArrayList<String>();
-		    File reportFile = new File(new File(exptName), exptName+".report.txt");
+		    File reportFile = new File(new File(root, exptName), exptName+".report.txt");
 		    if (!reportFile.exists()){
 		    	System.err.println("Report file not exist: "+reportFile.getAbsolutePath());
 		        continue;
