@@ -73,7 +73,7 @@ public class GPSFastaWriter{
     
     String expts_file = Args.parseString(args, "expts", null);
     if (expts_file!=null){		// read expt names from a file
-    	File listFile = new File(dir, expts_file);
+    	File listFile = new File(expts_file);
 	    if (!listFile.exists()){
 	    	System.err.println("Expt list file not exist: "+listFile.getAbsolutePath());
 	    	System.exit(0);
@@ -102,7 +102,7 @@ public class GPSFastaWriter{
     // load GPS results
 	for (String exptName : names){
 		System.out.print("Processing sequences and related info for "+exptName+", ");
-		File folder = new File(new File(exptName), exptName+"_outputs");
+		File folder = new File(new File(dir, exptName), exptName+"_outputs");
 	    File gpsFile = new File(folder, exptName+"_1_GEM_events.txt");
 	    if (!gpsFile.exists()){
 	    	System.err.println("GPS file not exist: "+gpsFile.getAbsolutePath());
