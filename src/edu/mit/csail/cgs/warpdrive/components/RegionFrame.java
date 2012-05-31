@@ -79,6 +79,7 @@ public class RegionFrame extends JFrame {
                 System.out.println("WindowClosing: " + arg0.toString());
                 unregisterRegionFrame(RegionFrame.this);
                 panel.handleWindowClosing();
+                System.exit(0);
             }
         });
     }
