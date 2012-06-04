@@ -235,16 +235,13 @@ public class WarpOptionsPane
         genome.addItemListener(this);        
         
         // chipChip tab
-        
         //exptSelect = new ExptTreeSelectPanel(null);
         exptSelect = new ExptSelectPanel(null);
-
         chipChipPanel.setLayout(new BorderLayout());
         chipChipPanel.add(exptSelect, BorderLayout.CENTER);
         
         // expression tab
         exprSelect = new ExprExperimentSelectPanel();
-        
         exprPanel.setLayout(new BorderLayout());
         exprPanel.add(exprSelect, BorderLayout.CENTER);
         
@@ -343,24 +340,23 @@ public class WarpOptionsPane
         dummy.add(speciesLocationPanel);
         dummy.add(new JPanel());
         addTab("Species & Location",new JScrollPane(dummy));
-        
-        //dummy = new JPanel();  dummy.add(chipChipPanel); dummy.add(new JPanel());
-        addTab("ChIP-Chip Data",chipChipPanel);
-
-        addTab("Peaks",peakPanel);
-        addTab("Expression", exprPanel);
-        
-        dummy = new JPanel(); dummy.add(chiapettracks); dummy.add(new JPanel());
-        addTab("ChIA-PET",new JScrollPane(dummy));
-        
-        addTab("ChIP-Seq", chipSeqPanel);
-        addTab("Paired ChIP-Seq", pairedChipSeqPanel);
-        addTab("ChIA-PET Arcs", chiaPetArcPanel);
-        addTab("ChipSeq Analysis", chipSeqAnalysisPanel);
-
 
         dummy = new JPanel();  dummy.add(annotationsPanel); dummy.add(new JPanel());
         addTab("Annotations",new JScrollPane(dummy));
+
+        addTab("Seq Data", chipSeqPanel);
+        addTab("Paired Seq", pairedChipSeqPanel);
+        addTab("ChIA-PET Arcs", chiaPetArcPanel);
+        
+        
+        dummy = new JPanel(); dummy.add(chiapettracks); dummy.add(new JPanel());
+        addTab("Sprout",new JScrollPane(dummy));
+        addTab("ChipSeq Analysis", chipSeqAnalysisPanel);
+        
+        //addTab("Expression", exprPanel);
+        //addTab("Peaks",peakPanel);
+        //dummy = new JPanel();  dummy.add(chipChipPanel); dummy.add(new JPanel());
+        addTab("ChIP-Chip Data",chipChipPanel);
 
         dummy = new JPanel();  dummy.add(filetracks); dummy.add(new JPanel());
         addTab("File Tracks",new JScrollPane(dummy));

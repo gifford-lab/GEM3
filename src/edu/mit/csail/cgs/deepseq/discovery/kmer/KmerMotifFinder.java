@@ -4239,121 +4239,7 @@ public class KmerMotifFinder {
 			return String.format("%d\t%d\t%s\t%d\t%s", id, maxCount, isForward?"F":"R", pos, isForward?seq:rc);
 		}
 	}
-	private void alignSequencesByCoOccurence(ArrayList<Kmer> kmers){
-		/* Initialization, setup sequence list, and update kmers */
-		// build the kmer search tree
-		AhoCorasick oks = new AhoCorasick();
-		HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
-		for (Kmer km: kmers){
-			str2kmer.put(km.getKmerString(), km);
-			oks.add(km.getKmerString().getBytes(), km);
-	    }
-		oks.prepare();
-		
-		// index kmer->seq, seq->kmer
-		ArrayList<Sequence> seqList = new ArrayList<Sequence>();
-		HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
-		for (int i=0;i<seqs.length;i++){
-			String seq = seqs[i];
-			Sequence s = new Sequence(seq, i+1);
-			seqList.add(s);
-			HashSet<Kmer> results = KmerEngine.queryTree (seq, oks);
-			if (!results.isEmpty()){
-				for (Kmer km: results){		
-					if (!kmer2seq.containsKey(km)){
-						kmer2seq.put(km, new HashSet<Integer>());
-					}
-					kmer2seq.get(km).add(i);
 
-					// forward strand
-					ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
-					for (int p:pos){
-						if (!s.fPos.containsKey(km))
-							s.fPos.put(km, new HashSet<Integer>());
-						s.fPos.get(km).add(p);
-					}
-					pos = StringUtils.findAllOccurences(seq, km.getKmerRC());
-					for (int p:pos){
-						if (!s.fPos.containsKey(km))
-							s.fPos.put(km, new HashSet<Integer>());
-						s.fPos.get(km).add(getRcCoor(p)+RC);					// 5' end if sequence is RC
-					}
-					// reverse strand
-					pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
-					for (int p:pos){
-						if (!s.rPos.containsKey(km))
-							s.rPos.put(km, new HashSet<Integer>());
-						s.rPos.get(km).add(p);
-					}
-					pos = StringUtils.findAllOccurences(s.rc, km.getKmerRC());
-					for (int p:pos){
-						if (!s.rPos.containsKey(km))
-							s.rPos.put(km, new HashSet<Integer>());
-						s.rPos.get(km).add(getRcCoor(p)+RC);					// 5' end if sequence is RC
-					}
-					s.setCount();
-				}
-			}
-		}
-		// update kmerCount, and hgp()
-		ArrayList<Kmer> zeroCount = new ArrayList<Kmer>();
-		for (Kmer km:kmers){
-			if (kmer2seq.containsKey(km)){
-				km.setPosHits(kmer2seq.get(km));
-				km.setHgp(computeHGP(km.getPosHitCount(), km.getNegHitCount()));
-			}
-			else{
-				zeroCount.add(km);
-			}
-		}
-		kmers.removeAll(zeroCount);
-		
-		Collections.sort(seqList);
-		
-		ArrayList<Sequence> seqAligned = new ArrayList<Sequence>();
-		ArrayList<Sequence> seqBadScore = new ArrayList<Sequence>();
-		Sequence top = seqList.get(0);
-		top.pos = 0;
-		seqAligned.add(top);
-		seqList.remove(0);
-		
-		eachSeq: while(!seqList.isEmpty()){
-			top = seqList.get(0);
-			if (top.id==396)
-				top.getKmerPosCount();
-			Pair<Double, Integer> max = findBestPosition(top, seqAligned);
-			if (max.car()<=0){
-				seqBadScore.add(top);
-				seqList.remove(0);
-				continue eachSeq;
-			}
-			top.score = max.car();
-			if (max.cdr()>RC/2){
-				top.pos = max.cdr()-RC;
-				top.isForward = false;
-			}
-			else{
-				top.pos = max.cdr();
-				top.isForward = true;
-			}
-			seqAligned.add(top);
-			seqList.remove(0);
-		}
-
-    	int leftmost = Integer.MAX_VALUE;
-		for (int i=0;i<seqAligned.size();i++){
-			int pos = seqAligned.get(i).pos;
-			if (pos < leftmost )
-				leftmost = pos;		
-		}
-
-		StringBuilder sb = new StringBuilder();
-		for (int i=0;i<seqAligned.size();i++){
-			Sequence s = seqAligned.get(i);
-			sb.append(String.format("%d\t%.1f\t%d\t%s\t%s%s\n", s.id, s.score, s.pos, s.isForward?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getSeq()));
-		}
-		CommonUtils.writeFile("seqs_aligned.txt", sb.toString());
-	}
 	private int getRcCoor(int original){
 		return numPos-1-original;
 	}
@@ -5556,27 +5442,27 @@ public class KmerMotifFinder {
 	    KmerMotifFinder kmf = new KmerMotifFinder();
 	    kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
 	}
-	public static void main0(String[] args){
-		Genome g = null;
-		ArgParser ap = new ArgParser(args);
-	    try {
-		      Pair<Organism, Genome> pair = Args.parseGenome(args);
-		      if(pair==null){
-		        if(ap.hasKey("geninfo")){
-		          g = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-		        }else{
-	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");System.exit(1);
-	            }
-		      }else{
-		        g = pair.cdr();
-		      }
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }
-	    KmerEngine kEngine = new KmerEngine(g, false);
-	    List<File> files = Args.parseFileHandles(args, "kmers_file");
-	    kEngine.indexKmers(files);
-	}
+//	public static void main0(String[] args){
+//		Genome g = null;
+//		ArgParser ap = new ArgParser(args);
+//	    try {
+//		      Pair<Organism, Genome> pair = Args.parseGenome(args);
+//		      if(pair==null){
+//		        if(ap.hasKey("geninfo")){
+//		          g = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+//		        }else{
+//	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");System.exit(1);
+//	            }
+//		      }else{
+//		        g = pair.cdr();
+//		      }
+//	    } catch (NotFoundException e) {
+//	      e.printStackTrace();
+//	    }
+//	    KmerMotifFinder kEngine = new KmerMotifFinder(g, false);
+//	    List<File> files = Args.parseFileHandles(args, "kmers_file");
+//	    kEngine.indexKmers(files);
+//	}
 	
 	// options cMyc_cMyc cMyc_HeLa_61bp_GEM.fasta cMyc_HeLa_61bp_GEM_neg.fasta 5 8 CCACGTG
 	public static void main(String[] args){

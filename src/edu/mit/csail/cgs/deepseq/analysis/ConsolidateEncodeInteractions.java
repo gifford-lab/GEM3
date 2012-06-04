@@ -92,7 +92,7 @@ public class ConsolidateEncodeInteractions {
 				int[] elements = StatUtil.sortByOccurences(positions).car();
 				System.out.print(elements[elements.length-1]+"\t");
 				for (int position:positions)
-					System.out.print(position+",");
+					System.out.print(position+" ");
 				System.out.print('\n');
 			}
 			System.out.println("----------------------------------");

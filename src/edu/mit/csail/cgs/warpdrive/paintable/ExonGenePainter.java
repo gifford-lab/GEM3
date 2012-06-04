@@ -27,7 +27,7 @@ public class ExonGenePainter extends RegionPaintable {
     private GeneModel model;
     private NonOverlappingLayout<Gene> layout;
 
-    private FunctionLoader funcLoader;
+    private FunctionLoader funcLoader=null;
     private GOAnnotationPanel.Frame goFrame;    
     private GeneProperties props;
     private DynamicAttribute attrib;
@@ -45,7 +45,7 @@ public class ExonGenePainter extends RegionPaintable {
         goFrame = null;
         props = new GeneProperties();
         initLabels();
-
+/* I don't think anyone uses the GO annotations now. 
         try {
             funcLoader = new GOFunctionLoader("go_200904");			
         } catch (SQLException e) {
@@ -57,6 +57,7 @@ public class ExonGenePainter extends RegionPaintable {
             if(funcLoader != null) { funcLoader.close(); }
             funcLoader = null;
         }
+*/
     }
 
     public GeneProperties getProperties() {
@@ -91,7 +92,8 @@ public class ExonGenePainter extends RegionPaintable {
     public void cleanup() { 
         super.cleanup();
         model.removeEventListener(this);
-        funcLoader.close();
+        if(funcLoader != null)
+        	funcLoader.close();
     }
 
     public void removeEventListener(Listener<EventObject> l) {
