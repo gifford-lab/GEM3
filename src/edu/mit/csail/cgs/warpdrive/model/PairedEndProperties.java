@@ -9,5 +9,6 @@ public class PairedEndProperties extends ModelProperties {
     public Boolean ShowSelfLigation = true;
     public Boolean RightFlipped = true;
     public Integer SelfLigationCutoff = 10000;
+    public Boolean Cluster = true;
 
 }

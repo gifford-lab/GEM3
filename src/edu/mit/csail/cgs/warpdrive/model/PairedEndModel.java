@@ -2,6 +2,13 @@ package edu.mit.csail.cgs.warpdrive.model;
 
 import java.io.IOException;
 import java.util.*;
+
+import edu.mit.csail.cgs.clustering.Cluster;
+import edu.mit.csail.cgs.clustering.hierarchical.ClusterNode;
+import edu.mit.csail.cgs.clustering.hierarchical.HierarchicalClustering;
+import edu.mit.csail.cgs.clustering.pairedhitcluster.PairedHitClusterRepresentative;
+import edu.mit.csail.cgs.clustering.pairedhitcluster.PairedHitClusterable;
+import edu.mit.csail.cgs.clustering.vectorcluster.EuclideanDistance;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.projects.readdb.Client;
@@ -21,6 +28,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
     private List<PairedHit> results, otherchrom;
     private Comparator<PairedHit> comparator;
     private PairedEndProperties props;
+    private HierarchicalClustering<PairedHitClusterable> clustering;
 
     public PairedEndModel (Collection<ChipSeqAlignment> alignments) throws IOException, ClientException{
         client = new Client();
@@ -34,6 +42,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
         results = null;
         otherchrom = null;
         props = new PairedEndProperties();
+        clustering = new HierarchicalClustering<PairedHitClusterable>(new PairedHitClusterRepresentative(), new EuclideanDistance<PairedHitClusterable>());
     }
     public PairedEndProperties getProperties() {return props;}
 
@@ -130,6 +139,17 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                         }
                         Collections.sort(results, comparator);
                     }
+                    if (props.Cluster) {
+                    	Vector<PairedHitClusterable> clusterables = new Vector<PairedHitClusterable>();
+                    	for (PairedHit hit : results) {
+                    		clusterables.add(new PairedHitClusterable(hit, region.getGenome()));
+                    	}
+                    	Collection<Cluster<PairedHitClusterable>> clustertree = clustering.clusterElements(clusterables);
+                    	results = new ArrayList<PairedHit>();
+                    	for(Cluster<PairedHitClusterable> tree : clustertree) { 
+                			appendIndices(results, tree);
+                		}
+                    }
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     // assign empty output.  This is useful because Client
@@ -142,7 +162,24 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
             }
         }
         client.close();
-    }                     
+    }
+    
+    private void appendIndices(List<PairedHit> hits, Cluster<PairedHitClusterable> tree) {
+    	if(tree instanceof ClusterNode) { 
+			ClusterNode<PairedHitClusterable> treeNode = (ClusterNode<PairedHitClusterable>)tree;
+			appendIndices(hits, treeNode.getLeft());
+			appendIndices(hits, treeNode.getRight());
+		} else { 
+			for(PairedHitClusterable pc : tree.getElements()) { 
+				PairedHit hit = pc.getHit();
+				if(hit != null) { 
+					hits.add(hit);
+				} else { 
+					System.err.println("Null hit encountered...");
+				}
+			}
+		}
+    }
 
     public boolean isSelfLigation(PairedHit p) {
     	if (getProperties().RightFlipped) {
