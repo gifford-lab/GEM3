@@ -7,7 +7,9 @@ import java.awt.Stroke;
 import java.awt.geom.QuadCurve2D;
 import java.io.File;
 import java.util.EventObject;
+import java.util.HashMap;
 
+import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.projects.readdb.PairedHit;
 import edu.mit.csail.cgs.utils.Listener;
 import edu.mit.csail.cgs.viz.DynamicAttribute;
@@ -106,28 +108,36 @@ public class InteractionArcPainter extends RegionPaintable {
 				g.draw(loop);
 			}
 		} else {
+			HashMap<PairedHit, Float> pairedReadCounter = new HashMap<PairedHit, Float>();
 			for (int i = 0; i < hits.size(); i++) {
 				PairedHit hit = hits.get(i);
-				int leftx = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
-				int rightx = getXPos(hit.rightPos, regionStart, regionEnd, x1, x2);
-				int midx = (leftx+rightx)/2;
-				int midy = y2 - (int)(((double)(rightx-leftx)/(double)width) * 2*height);
-				g.setColor(Color.BLACK);
-				float tmpweight = hit.weight;
-				if (tmpweight>maxweight) {
-					maxweight = tmpweight;
+				if(pairedReadCounter.containsKey(hit))
+					pairedReadCounter.put(hit, pairedReadCounter.get(hit)+hit.weight);
+				else
+					pairedReadCounter.put(hit, hit.weight);
+				
+				//If under the de-duplicate limit, draw the arc
+				if(pairedReadCounter.get(hit)<= props.DeDuplicate.floatValue()){
+					int leftx = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
+					int rightx = getXPos(hit.rightPos, regionStart, regionEnd, x1, x2);
+					int midx = (leftx+rightx)/2;
+					int midy = y2 - (int)(((double)(rightx-leftx)/(double)width) * 2*height);
+					g.setColor(Color.BLACK);
+					float tmpweight = hit.weight;
+					if (tmpweight>maxweight) {
+						maxweight = tmpweight;
+					}
+					if (tmpweight>0.0f) {
+						g.setStroke(new BasicStroke(tmpweight/15f));
+						tmpweight = Math.max(0.0f, tmpweight);
+						//g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/100f)));
+						g.setColor(new Color(0.4f, 0.4f, 0.4f, props.Alpha.floatValue()));
+						QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
+						g.draw(loop);
+					}
 				}
-				if (tmpweight>0.0f) {
-					g.setStroke(new BasicStroke(tmpweight/15f));
-					tmpweight = Math.max(0.0f, tmpweight);
-					//g.setColor(new Color(0.0f, 0.0f, 0.0f, Math.min(1.0f, tmpweight/100f)));
-					g.setColor(new Color(0.0f, 0.0f, 0.0f, props.Alpha.floatValue()));
-					QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
-					g.draw(loop);
-				}
-
 			}
-			System.err.println("maxweight: "+maxweight);
+			//System.err.println("maxweight: "+maxweight);
 		}
 		g.setStroke(oldStroke);
 	}
