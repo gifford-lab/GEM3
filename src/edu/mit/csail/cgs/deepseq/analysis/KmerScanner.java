@@ -20,8 +20,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerEngine.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -37,14 +36,14 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 public class KmerScanner {
 	public static char[] letters = {'A','C','T','G'};
 	private ArrayList<Kmer> kmers;
-	private KmerEngine kEngine;
+	private KmerMotifFinder kEngine;
 	// each element in the list is for one ChIP-Seq method
 	private ArrayList<String> methodNames = new ArrayList<String>();
 	private ArrayList<ArrayList<Point>> events = new ArrayList<ArrayList<Point>>();
 	
 	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount){
 		this.kmers = kmers;
-		kEngine = new KmerEngine(kmers, null, false);
+		kEngine = new KmerMotifFinder(kmers, null);
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 	}
 	

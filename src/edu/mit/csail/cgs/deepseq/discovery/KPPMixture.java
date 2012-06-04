@@ -3958,7 +3958,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                			continue;
 	
 		                		double kmerCountSum = 0;
-		                		if (config.use_kmer_strength)
+		                		if (config.use_weighted_kmer)
 		                			kmerCountSum = g.getWeightedKmerStrength();
 		                		else
 		                			kmerCountSum = g.getGroupHitCount();
@@ -4174,7 +4174,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         }//end of initSpacing method
 
         /**
-         * Initializes the components. Spaces them evenly along the region for now.
+         * Initializes the components. Set event spacing evenly.
          *
          * @param currReg
          * @param signals
