@@ -245,7 +245,7 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
 			HashMap<Integer,Double> plotXVals = new HashMap<Integer,Double>();
 			g.setColor(Color.GRAY);
 			for (int pos : plus.keySet()) {
-				if (!model.getProperties().ShowInteractionHistogram || !pvals.containsKey(pos)) {
+				if (true/*!model.getProperties().ShowInteractionHistogram || !pvals.containsKey(pos)*/) {
 					double val = plus.get(pos);
 					if (minus.containsKey(pos)) {
 						val += minus.get(pos);
@@ -276,7 +276,7 @@ public class ChipSeqHistogramPainter extends RegionPaintable {
 			plotXVals = new HashMap<Integer,Double>();
 			g.setColor(Color.RED);
 			for (int pos : plus.keySet()) {
-				if (model.getProperties().ShowInteractionHistogram && pvals.containsKey(pos)) {
+				if (false/*model.getProperties().ShowInteractionHistogram && pvals.containsKey(pos)*/) {
 					double val = plus.get(pos);
 					if (minus.containsKey(pos)) {
 						val += minus.get(pos);

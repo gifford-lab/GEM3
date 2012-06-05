@@ -8,7 +8,6 @@ import edu.mit.csail.cgs.projects.readdb.PairedHit;
 public class PairedHitClusterRepresentative implements
 		ClusterRepresentative<PairedHitClusterable> {
 
-	@Override
 	public PairedHitClusterable getRepresentative(
 			Cluster<PairedHitClusterable> c) {
 		int leftchrom = 0;

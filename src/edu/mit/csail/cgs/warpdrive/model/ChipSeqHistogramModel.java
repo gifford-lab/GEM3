@@ -105,15 +105,15 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     resultsPlus = null;
                     resultsMinus = null;
                     resultsPval = null;
-                    if (props.ShowInteractionKernel) {
-                    	resultsPlus = getForwardInteractionKernel();
-                    	resultsMinus = getReverseInteractionKernel();
-                    } else if (props.ShowInteractionHistogram) {
-                    	resultsPlus = getInteractionProbability();
-                    	resultsMinus = new TreeMap<Integer,Float>();
-                    } else if (props.ShowInteractionProfile) {
-                    	resultsPlus = getInteractionProfile();
-                    	resultsMinus = new TreeMap<Integer,Float>();
+                    if (false/*props.ShowInteractionKernel*/) {
+                    	//resultsPlus = getForwardInteractionKernel();
+                    	//resultsMinus = getReverseInteractionKernel();
+                    } else if (false/*props.ShowInteractionHistogram*/) {
+                    	//resultsPlus = getInteractionProbability();
+                    	//resultsMinus = new TreeMap<Integer,Float>();
+                    } else if (false) {
+                    	//resultsPlus = getInteractionProfile();
+                    	//resultsMinus = new TreeMap<Integer,Float>();
                     } else if (props.ShowSelfLigationOverlap) {
                     	resultsPlus = getSelfHistogram();
                     	resultsMinus = new TreeMap<Integer,Float>();
@@ -273,6 +273,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 		return tor;
 	}
     
+    /*
     public TreeMap<Integer,Float> getInteractionProbability() throws IOException, ClientException {
     	resultsPval = new TreeMap<Integer,Float>();
     	Region anchor = Region.fromString(region.getGenome(), props.Anchor);
@@ -334,7 +335,9 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
     	}
     	return tor;
     }
+    */
     
+    /*
     private double interactionPValue(Region r1, Region r2, int count) throws IOException, ClientException {
     	int count1 = 0;
 		int chrom1 = r1.getGenome().getChromID(r1.getChrom());
@@ -415,6 +418,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 		}
 		return tor;
 	}
+	*/
     
     public double[] getReverseProfile(Region r) throws IOException, ClientException {
     	int halfkern = kernel.length/2;
@@ -440,6 +444,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 		return tor;
 	}
     
+    /*
     public TreeMap<Integer,Float> getInteractionProfile() throws IOException, ClientException {
     	if (readdist==null) {
     		double[] readdista = readDoubleList(props.ReadDistribution);
@@ -525,6 +530,7 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
 		}
 		return output;
     }
+    */
     
     public TreeMap<Integer,Float> getSelfHistogram() throws IOException, ClientException {
     	int[] profile = new int[region.getWidth()];

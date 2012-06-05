@@ -97,7 +97,7 @@ public class HierarchicalClustering<X> implements ClusteringMethod<X> {
             clusters.set(mini,node);
             reps.set(mini,repr.getRepresentative(node));
             nclusters--;
-            System.out.println("# Clusters: " + nclusters + "(" + mindist + ")");
+            //System.out.println("# Clusters: " + nclusters + "(" + mindist + ")");
         }
         Vector<Cluster<X>> output = new Vector<Cluster<X>>();
         for (int i = 0; i < clusters.size(); i++) {

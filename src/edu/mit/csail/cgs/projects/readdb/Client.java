@@ -840,7 +840,27 @@ public class Client implements ReadOnlyClient {
                         output.put(k,o.get(k));
                     }
                 }
-            }            
+            }    
+            
+            o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand,false);
+            for (int k : o.keySet()) {
+                if ((k - start - binsize / 2) % binsize != 0 ) {
+                    System.err.println(String.format("Bad key %d for binsize %d and start %d in %s,%d",
+                                                     k, binsize, start, alignid,chromid));
+                }
+            }
+
+            if (output == null) {
+                output = o;
+            } else {
+                for (int k : o.keySet()) {
+                    if (output.containsKey(k)) {
+                        output.put(k, output.get(k) + o.get(k));
+                    } else {
+                        output.put(k,o.get(k));
+                    }
+                }
+            }    
         }
         return output;
     }
