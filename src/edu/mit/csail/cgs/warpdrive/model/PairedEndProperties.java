@@ -10,5 +10,6 @@ public class PairedEndProperties extends ModelProperties {
     public Boolean RightFlipped = true;
     public Integer SelfLigationCutoff = 10000;
     public Boolean Cluster = false;
+    public Double MaxClusterDistance = -1d;
 
 }
