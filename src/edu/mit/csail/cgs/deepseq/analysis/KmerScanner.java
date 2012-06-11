@@ -140,7 +140,7 @@ public class KmerScanner {
 			e.printStackTrace();
 		}
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
-		seqgen.useCache(true);		
+		seqgen.useCache(!flags.contains("no_cache"));		
 		seqgen.useLocalFiles(!flags.contains("use_db_genome"));
 		StringBuilder sb = new StringBuilder();
 		ArrayList<Region> posRegions = new ArrayList<Region>();

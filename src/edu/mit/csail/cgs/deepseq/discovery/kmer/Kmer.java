@@ -226,22 +226,7 @@ public class Kmer implements Comparable<Kmer>{
 		String[] f0f = f[0].split("/");
 		HashSet<Integer> posHits = new HashSet<Integer>();
 		HashSet<Integer> negHits = new HashSet<Integer>();
-		if (f.length==10){
-			String pos_id_string = f[8].trim();
-			if (!pos_id_string.equals("-1")){
-				String[] pos_ids = pos_id_string.split(" ");
-				for (String hit:pos_ids)
-					posHits.add(Integer.valueOf(hit));
-			}
-
-			String neg_id_string = f[9].trim();
-			if (!neg_id_string.equals("-1")){
-				String[] neg_ids = neg_id_string.split(" ");
-				for (String hit:neg_ids)
-					negHits.add(Integer.valueOf(hit));
-			}
-		}
-		else if (f.length==9){
+		if (f.length==9){
 			String pos_id_string = f[7].trim();
 			if (!pos_id_string.equals("-1")){
 				String[] pos_ids = pos_id_string.split(" ");
@@ -256,13 +241,32 @@ public class Kmer implements Comparable<Kmer>{
 					negHits.add(Integer.valueOf(hit));
 			}
 		}
+		else if (f.length==8){ // no wPos field
+			String pos_id_string = f[6].trim();
+			if (!pos_id_string.equals("-1")){
+				String[] pos_ids = pos_id_string.split(" ");
+				for (String hit:pos_ids)
+					posHits.add(Integer.valueOf(hit));
+			}
+
+			String neg_id_string = f[7].trim();
+			if (!neg_id_string.equals("-1")){
+				String[] neg_ids = neg_id_string.split(" ");
+				for (String hit:neg_ids)
+					negHits.add(Integer.valueOf(hit));
+			}
+		}
 		
 		Kmer kmer = new Kmer(f0f[0], posHits);	
 		kmer.clusterId = Integer.parseInt(f[1]);
 		kmer.kmerStartOffset = Integer.parseInt(f[2]);
-		kmer.hgp_lg10 = Double.parseDouble(f[5]);
-		kmer.strength = Double.parseDouble(f[6]);
 		kmer.setNegHits(negHits);
+		if (f.length==9){
+			kmer.hgp_lg10 = Double.parseDouble(f[6]);
+		}
+		else if (f.length==8){		// no wPos field
+			kmer.hgp_lg10 = Double.parseDouble(f[5]);
+		}
 
 		return kmer;
 	}
