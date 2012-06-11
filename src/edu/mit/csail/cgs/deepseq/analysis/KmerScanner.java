@@ -87,6 +87,7 @@ public class KmerScanner {
 		// k-mer group info
 		String outName= Args.parseString(args, "out", "out");
 		String path = Args.parseString(args, "path", null);
+		System.out.println(path);
 		String kmer=null, pfm=null, event=null;
 		if (path!=null){
 			kmer = getFileName(path, "_kmer_");
@@ -170,7 +171,7 @@ public class KmerScanner {
 		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 		
 		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
-		
+		System.out.println("Total "+reg2reg.keySet()+" regions.");
 		for (Region r:reg2reg.keySet()){
 			String seq = seqgen.execute(r).toUpperCase();
 			
