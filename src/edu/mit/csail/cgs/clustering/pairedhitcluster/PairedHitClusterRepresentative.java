@@ -11,10 +11,10 @@ public class PairedHitClusterRepresentative implements
 	public PairedHitClusterable getRepresentative(
 			Cluster<PairedHitClusterable> c) {
 		int leftchrom = 0;
-		int leftpos = 0;
+		long leftpos = 0;
 		short leftlen = 0;
 		int rightchrom = 0;
-		int rightpos = 0;
+		long rightpos = 0;
 		short rightlen = 0;
 		float weight = 0f;
 		Genome g = null;
@@ -29,10 +29,11 @@ public class PairedHitClusterRepresentative implements
 			weight = hit.weight;
 			g = phc.getGenome();
 		}
-		leftpos /= c.size();
-		rightpos /= c.size();
-		// TODO Auto-generated method stub
-		return new PairedHitClusterable(new PairedHit(leftchrom, leftpos, true, leftlen, rightchrom, rightpos, true, rightlen, weight),g);
+		int avgleftpos = (int)(leftpos / c.size());
+		int avgrightpos = (int)(rightpos / c.size());
+		//leftpos /= c.size();
+		//rightpos /= c.size();
+		return new PairedHitClusterable(new PairedHit(leftchrom, avgleftpos, true, leftlen, rightchrom, avgrightpos, true, rightlen, c.getElements().size()),g);
 	}
 
 }

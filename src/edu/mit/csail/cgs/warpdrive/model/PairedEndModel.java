@@ -8,7 +8,7 @@ import edu.mit.csail.cgs.clustering.hierarchical.ClusterNode;
 import edu.mit.csail.cgs.clustering.hierarchical.HierarchicalClustering;
 import edu.mit.csail.cgs.clustering.pairedhitcluster.PairedHitClusterRepresentative;
 import edu.mit.csail.cgs.clustering.pairedhitcluster.PairedHitClusterable;
-import edu.mit.csail.cgs.clustering.vectorcluster.EuclideanDistance;
+import edu.mit.csail.cgs.clustering.vectorcluster.ChebyshevDistance;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.projects.readdb.Client;
@@ -29,6 +29,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
     private Comparator<PairedHit> comparator;
     private PairedEndProperties props;
     private HierarchicalClustering<PairedHitClusterable> clustering;
+    private PairedHitClusterRepresentative repr = new PairedHitClusterRepresentative();
 
     public PairedEndModel (Collection<ChipSeqAlignment> alignments) throws IOException, ClientException{
         client = new Client();
@@ -42,7 +43,7 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
         results = null;
         otherchrom = null;
         props = new PairedEndProperties();
-        clustering = new HierarchicalClustering<PairedHitClusterable>(new PairedHitClusterRepresentative(), new EuclideanDistance<PairedHitClusterable>());
+        clustering = new HierarchicalClustering<PairedHitClusterable>(repr, new ChebyshevDistance<PairedHitClusterable>());
     }
     public PairedEndProperties getProperties() {return props;}
 
@@ -144,10 +145,25 @@ public class PairedEndModel extends WarpModel implements RegionModel, Runnable {
                     	for (PairedHit hit : results) {
                     		clusterables.add(new PairedHitClusterable(hit, region.getGenome()));
                     	}
+                    	if (props.MaxClusterDistance>=0) {
+                    		clustering.setMaxDistanceToAccept(props.MaxClusterDistance);
+                    	}
                     	Collection<Cluster<PairedHitClusterable>> clustertree = clustering.clusterElements(clusterables);
                     	results = new ArrayList<PairedHit>();
-                    	for(Cluster<PairedHitClusterable> tree : clustertree) { 
-                			appendIndices(results, tree);
+                    	for(Cluster<PairedHitClusterable> tree : clustertree) {
+                    		if (props.MaxClusterDistance>=0) {
+                    			PairedHit tmphit = repr.getRepresentative(tree).getHit();
+                    			if (tmphit.leftPos<0 || tmphit.rightPos<0) {
+                    				System.err.println(tmphit);
+                    				for (PairedHitClusterable phc : tree.getElements()) {
+                    					System.err.println("\t"+phc.getHit());
+                    				}
+                    			}
+                    			results.add(tmphit);
+                    		} else {
+                    			appendIndices(results, tree);
+                    		}
+                    		
                 		}
                     }
                 } catch (Exception ex) {

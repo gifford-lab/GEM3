@@ -777,9 +777,9 @@ public class Client implements ReadOnlyClient {
         return output;
     }
     public TreeMap<Integer,Float> getWeightHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
-        return getWeightHistogram(alignid, chromid, paired, doReadExtension, binsize, 0, start,stop,minWeight,plusStrand);
+        return getWeightHistogram(alignid, chromid, paired, doReadExtension, binsize, 0, start,stop,minWeight,plusStrand, true);
     }
-    public TreeMap<Integer,Float> getWeightHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, int dedup, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
+    public TreeMap<Integer,Float> getWeightHistogram(String alignid, int chromid, boolean paired, boolean doReadExtension, int binsize, int dedup, Integer start, Integer stop, Float minWeight, Boolean plusStrand, boolean isLeft) throws IOException, ClientException {
         request.clear();
         request.type="weighthistogram";
         request.alignid=alignid;
@@ -788,6 +788,7 @@ public class Client implements ReadOnlyClient {
         request.end = stop;
         request.minWeight = minWeight;
         request.isPlusStrand = plusStrand;
+        request.isLeft = isLeft;
         request.isPaired = paired;
         request.map.put("binsize",Integer.toString(binsize));
         if (dedup > 0) {
@@ -823,27 +824,9 @@ public class Client implements ReadOnlyClient {
         TreeMap<Integer,Integer> output = null;
         for (String alignid : alignids) {
             TreeMap<Integer,Integer> o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand,true);
-            for (int k : o.keySet()) {
-                if ((k - start - binsize / 2) % binsize != 0 ) {
-                    System.err.println(String.format("Bad key %d for binsize %d and start %d in %s,%d",
-                                                     k, binsize, start, alignid,chromid));
-                }
-            }
-
-            if (output == null) {
-                output = o;
-            } else {
-                for (int k : o.keySet()) {
-                    if (output.containsKey(k)) {
-                        output.put(k, output.get(k) + o.get(k));
-                    } else {
-                        output.put(k,o.get(k));
-                    }
-                }
-            }    
-            
-            o = getHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand,false);
-            for (int k : o.keySet()) {
+            if(paired) //run for isLeft =true & false
+            	o.putAll(getHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand,false));
+            for (int k : o.keySet()) { 
                 if ((k - start - binsize / 2) % binsize != 0 ) {
                     System.err.println(String.format("Bad key %d for binsize %d and start %d in %s,%d",
                                                      k, binsize, start, alignid,chromid));
@@ -870,7 +853,9 @@ public class Client implements ReadOnlyClient {
     public TreeMap<Integer,Float> getWeightHistogram(Collection<String> alignids, int chromid, boolean paired, boolean doReadExtension, int binsize, int dedup, Integer start, Integer stop, Float minWeight, Boolean plusStrand) throws IOException, ClientException {
         TreeMap<Integer,Float> output = null;
         for (String alignid : alignids) {
-            TreeMap<Integer,Float> o = getWeightHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand);
+            TreeMap<Integer,Float> o = getWeightHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand, true);
+            if(paired) //run for isLeft =true & false
+            	o.putAll(getWeightHistogram(alignid,chromid,paired,doReadExtension,binsize,dedup,start,stop,minWeight,plusStrand, false));
             if (output == null) {
                 output = o;
             } else {
