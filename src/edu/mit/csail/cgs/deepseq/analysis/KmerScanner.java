@@ -87,6 +87,7 @@ public class KmerScanner {
 		// k-mer group info
 		String outName= Args.parseString(args, "out", "out");
 		String path = Args.parseString(args, "path", null);
+		System.out.println(path);
 		String kmer=null, pfm=null, event=null;
 		if (path!=null){
 			kmer = getFileName(path, "_kmer_");
@@ -139,7 +140,7 @@ public class KmerScanner {
 			e.printStackTrace();
 		}
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
-		seqgen.useCache(true);		
+		seqgen.useCache(!flags.contains("no_cache"));		
 		seqgen.useLocalFiles(!flags.contains("use_db_genome"));
 		StringBuilder sb = new StringBuilder();
 		ArrayList<Region> posRegions = new ArrayList<Region>();
@@ -170,7 +171,7 @@ public class KmerScanner {
 		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 		
 		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
-		
+		System.out.println("Scanning "+reg2reg.keySet().size()+" regions ...");
 		for (Region r:reg2reg.keySet()){
 			String seq = seqgen.execute(r).toUpperCase();
 			
@@ -193,7 +194,8 @@ public class KmerScanner {
 			KmerGroup kgN = scanner.getBestKG(seqN);
 			ksm_scores.add(kg==null?0:-kg.getHgp());
 			ksmN_scores.add(kgN==null?0:-kgN.getHgp());
-			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), name_N, pwm, pwmN, kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp()));
+			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), name_N, pwm, pwmN, 
+					kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp(), kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp()));
 		}
 		
 		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
