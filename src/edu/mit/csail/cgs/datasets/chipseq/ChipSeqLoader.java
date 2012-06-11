@@ -427,7 +427,8 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
         }
 		return output;
 	}
-    
+	
+	    
     /* if Region is a StrandedRegion, then the positions returned are only for that strand */
     public List<Integer> positionsByRegion(List<ChipSeqAlignment> alignments, Region r) throws IOException, ClientException {
 		if (alignments.size() < 1) {
