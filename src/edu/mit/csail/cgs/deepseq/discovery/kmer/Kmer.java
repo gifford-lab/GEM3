@@ -222,7 +222,7 @@ public class Kmer implements Comparable<Kmer>{
 			return firstField+"\tPosCt\tNegCt\tHGP_10";
 	}
 	public static Kmer fromString(String str){
-		String[] f = str.split("\t");
+		String[] f = str.trim().split("\t");
 		String[] f0f = f[0].split("/");
 		HashSet<Integer> posHits = new HashSet<Integer>();
 		HashSet<Integer> negHits = new HashSet<Integer>();
