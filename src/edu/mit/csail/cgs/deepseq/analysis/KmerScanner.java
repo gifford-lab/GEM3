@@ -171,7 +171,7 @@ public class KmerScanner {
 		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 		
 		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
-		System.out.println("Total "+reg2reg.keySet()+" regions.");
+		System.out.println("Total "+reg2reg.keySet().size()+" regions.");
 		for (Region r:reg2reg.keySet()){
 			String seq = seqgen.execute(r).toUpperCase();
 			
