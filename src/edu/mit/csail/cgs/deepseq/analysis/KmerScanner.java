@@ -193,7 +193,8 @@ public class KmerScanner {
 			KmerGroup kgN = scanner.getBestKG(seqN);
 			ksm_scores.add(kg==null?0:-kg.getHgp());
 			ksmN_scores.add(kgN==null?0:-kgN.getHgp());
-			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), name_N, pwm, pwmN, kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp()));
+			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), name_N, pwm, pwmN, 
+					kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp(), kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp()));
 		}
 		
 		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
