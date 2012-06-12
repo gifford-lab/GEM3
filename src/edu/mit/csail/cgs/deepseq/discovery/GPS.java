@@ -117,7 +117,8 @@ public class GPS {
         	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
         	boolean nonUnique = flags.contains("nonunique") ? true : false;
             String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
-
+            boolean sigPairedReads = flags.contains("sigpaired");
+            boolean ctrlPairedReads = flags.contains("ctrlpaired");
             if(expts.size()>0 && rdbexpts.size()==0){
                 int readLength = -1;	// For file, read length will be obtained from the data
                 DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
@@ -130,6 +131,8 @@ public class GPS {
                 experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
                 exptHitCount+=e.getHitCount();
                 ctrlHitCount+=c.getHitCount();
+                e.setPairedEnd(sigPairedReads);
+                c.setPairedEnd(ctrlPairedReads);
             } else if(rdbexpts.size()>0 && expts.size() == 0){
                 if(genome==null){
                     System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); 

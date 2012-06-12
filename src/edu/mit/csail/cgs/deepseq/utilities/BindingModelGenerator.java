@@ -35,7 +35,7 @@ public class BindingModelGenerator {
 	private Genome gen =null;
 	private List<EnrichedFeature> peaks=null;
 	private int window=1000;
-	private int min=-2000, max=2000;
+	private int min=-3000, max=3000;
 	private double overrepFilter=5;
 	private double pFilter=0.01;
 	private DeepSeqExpt IP=null;
@@ -241,7 +241,7 @@ public class BindingModelGenerator {
 			if(smooth){
 				double tot=0; double num=0;
 				for(int v=w-(smoothWin/binSize); v<=w+(smoothWin/binSize); v++){
-					if(v>=0 && v<winLen){
+					if(v>=0 && v<=numBins){
 						tot+=(forward[v]+reverse[v]);
 						num++;
 					}
