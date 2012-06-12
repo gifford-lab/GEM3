@@ -37,11 +37,11 @@ public class DBReadLoader extends ReadLoader{
 	private List<ChipSeqLoader> loaders =new ArrayList<ChipSeqLoader>();
 	private HashMap<ChipSeqLoader, List<ChipSeqAlignment>> loaderAligns = new HashMap<ChipSeqLoader, List<ChipSeqAlignment>>();
 	
-	
-	public DBReadLoader(Genome g, List<ChipSeqLocator> locs, int rLen) throws NotFoundException, SQLException {
+	public DBReadLoader(Genome g, List<ChipSeqLocator> locs, int rLen) throws NotFoundException, SQLException {this(g, locs, rLen, false);}
+	public DBReadLoader(Genome g, List<ChipSeqLocator> locs, int rLen, boolean pairedEnd) throws NotFoundException, SQLException {
 		super(g, rLen);
 		try {
-			
+			this.pairedEnd =pairedEnd;
 			//Initialize
 			for(ChipSeqLocator locator : locs){
 				String exptName = locator.getExptName(); exptNames.add(exptName);

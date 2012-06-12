@@ -820,16 +820,17 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	protected void trimPeaks(ArrayList<EnrichedFeature> curr, ArrayList<ReadHit> ipHits, char str){
 		for(EnrichedFeature peak : curr){
 			ArrayList<ReadHit> winHits = overlappingHits(ipHits, peak.coords,str);
-			StrandedRegion min=winHits.get(0);
-			StrandedRegion max=winHits.get(0);
-			for(StrandedRegion sr : winHits){
-				if(sr.getStart()<min.getStart()){min=sr;}
-				if(sr.getEnd()>max.getEnd()){max=sr;}
+			if(winHits.size()>0){
+				StrandedRegion min=winHits.get(0);
+				StrandedRegion max=winHits.get(0);
+				for(StrandedRegion sr : winHits){
+					if(sr.getStart()<min.getStart()){min=sr;}
+					if(sr.getEnd()>max.getEnd()){max=sr;}
+				}
+				int startOff = peak.coords.getStart()-min.getStart()<0 ? peak.coords.getStart()-min.getStart(): 0;
+				int endOff = max.getEnd()-peak.coords.getEnd()<0 ? max.getEnd()-peak.coords.getEnd():0;
+				peak.coords = peak.coords.expand(startOff, endOff);
 			}
-			int startOff = peak.coords.getStart()-min.getStart()<0 ? peak.coords.getStart()-min.getStart(): 0;
-			int endOff = max.getEnd()-peak.coords.getEnd()<0 ? max.getEnd()-peak.coords.getEnd():0;
-
-			peak.coords = peak.coords.expand(startOff, endOff);
 		}
 	}
 	/* Find the exact peak locations based on maximum overlapping read counts. 

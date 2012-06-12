@@ -129,17 +129,21 @@ public class GPS {
                     c.setGenome(genome);
                 }
                 experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
-                exptHitCount+=e.getHitCount();
-                ctrlHitCount+=c.getHitCount();
                 e.setPairedEnd(sigPairedReads);
                 c.setPairedEnd(ctrlPairedReads);
+                exptHitCount+=e.getHitCount();
+                ctrlHitCount+=c.getHitCount();
             } else if(rdbexpts.size()>0 && expts.size() == 0){
                 if(genome==null){
                     System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); 
                     System.exit(1);
                 }
                 int readLength = -1;
-                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, rdbexpts, "readdb", readLength),new DeepSeqExpt(genome, rdbctrls, "readdb", readLength)));
+                DeepSeqExpt e = new DeepSeqExpt(genome, rdbexpts, "readdb", readLength);
+                e.setPairedEnd(sigPairedReads);
+                DeepSeqExpt c = new DeepSeqExpt(genome, rdbctrls, "readdb", readLength);
+                c.setPairedEnd(ctrlPairedReads);
+                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
             } else{
                 System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
                 printError();

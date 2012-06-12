@@ -47,10 +47,12 @@ public class DeepSeqExpt {
 	protected boolean pairedEndData = false;
 	
 	
-	public DeepSeqExpt(Genome g, List<ChipSeqLocator> locs, String db, int readLen){
+	public DeepSeqExpt(Genome g, List<ChipSeqLocator> locs, String db, int readLen){this(g,locs,db,readLen,false);}
+	public DeepSeqExpt(Genome g, List<ChipSeqLocator> locs, String db, int readLen, boolean pairedEnd){
 		if(g==null){
 			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
 		}
+		pairedEndData = pairedEnd;
 		rLen = readLen;
 		gen = g;
 		try {
