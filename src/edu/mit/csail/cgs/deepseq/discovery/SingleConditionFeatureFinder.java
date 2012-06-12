@@ -59,6 +59,8 @@ public abstract class SingleConditionFeatureFinder extends FeatureFinder {
     List<File> expts = Args.parseFileHandles(args, "expt");
     List<File> ctrls = Args.parseFileHandles(args, "ctrl");
     boolean nonUnique = ap.hasKey("nonunique") ? true : false;
+    boolean sigPairedEnd = ap.hasKey("sigpaired");
+    boolean ctrlPairedEnd = ap.hasKey("ctrlpaired");
     String fileFormat = Args.parseString(args, "format", "ELAND");
         if(expts.size()>0 && dbexpts.size() == 0 && rdbexpts.size()==0){
       signal = new DeepSeqExpt(gen, expts, nonUnique, fileFormat, (int)readLength);
@@ -76,19 +78,23 @@ public abstract class SingleConditionFeatureFinder extends FeatureFinder {
       printError();
       System.exit(1);
     }
+   	signal.setPairedEnd(sigPairedEnd);
     if (ctrls.size() > 0 && dbctrls.size() == 0 && rdbctrls.size() == 0) {
       control = new DeepSeqExpt(gen, ctrls, nonUnique, fileFormat, (int)readLength);
       noControl = false;
+      control.setPairedEnd(ctrlPairedEnd);
     }
     else if (dbctrls.size() > 0 && ctrls.size() == 0) {
       control = new DeepSeqExpt(gen, dbctrls, "db", (int)readLength);
       noControl = false;
       dbconnected = true;
+      control.setPairedEnd(ctrlPairedEnd);
     } 
     else if (rdbctrls.size()>0 && ctrls.size() == 0) {
       control = new DeepSeqExpt(gen, rdbctrls, "readdb", (int)readLength); 
       noControl=false;
       dbconnected=true;
+  	  control.setPairedEnd(ctrlPairedEnd);
     } 
     else {
       if (dbctrls.size() > 0 && ctrls.size() > 0) {

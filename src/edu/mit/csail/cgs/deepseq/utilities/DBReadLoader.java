@@ -22,6 +22,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.ExtReadHit;
 import edu.mit.csail.cgs.deepseq.ReadHit;
+import edu.mit.csail.cgs.projects.readdb.PairedHit;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
@@ -161,6 +162,12 @@ public class DBReadLoader extends ReadLoader{
 	//Load paired reads from our files
 	public List<ReadHit> loadPairs(Region r) {
 		ArrayList<ReadHit> hits = new ArrayList<ReadHit>();
+		//TODO: NOT YET IMPLEMENTED FOR DB LOADER
+		return hits;
+	}
+	//Load paired reads from our files
+	public List<PairedHit> loadPairsAsPairs(Region r) {
+		ArrayList<PairedHit> hits = new ArrayList<PairedHit>();
 		//TODO: NOT YET IMPLEMENTED FOR DB LOADER
 		return hits;
 	}

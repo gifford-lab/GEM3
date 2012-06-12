@@ -236,6 +236,34 @@ public class ReadDBReadLoader extends ReadLoader{
 		return total;
 	}
 
+	//Load pairs in a region
+	public List<PairedHit> loadPairsAsPairs(Region r) {
+		ArrayList<PairedHit> total = new ArrayList<PairedHit>();
+		try {
+			for(ChipSeqAlignment alignment : aligns) {
+				if(pairedEnd){
+					for (PairedHit h : client.getPairedHits(Integer.toString(alignment.getDBID()),
+							r.getGenome().getChromID(r.getChrom()),
+							true,
+							r.getStart(),
+							r.getEnd(),
+							null,
+							null)) {
+							total.add(h);
+					}
+				}
+			}
+			return total;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClientException e) {
+			//Do nothing here; ClientException could be thrown because a chromosome doesn't contain any hits
+			return(total);
+		}
+		return total;
+	}
+
 	/* load paired read hit 5' coordinates (sorted) and counts
 	 * 
 	 */

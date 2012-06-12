@@ -20,6 +20,7 @@ import edu.mit.csail.cgs.deepseq.ExtReadHit;
 import edu.mit.csail.cgs.deepseq.Read;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.projects.readdb.ClientException;
+import edu.mit.csail.cgs.projects.readdb.PairedHit;
 import edu.mit.csail.cgs.utils.Pair;
 
 /**
@@ -128,6 +129,12 @@ public class FileReadLoader extends ReadLoader{
 	//Load paired reads from our files
 	public List<ReadHit> loadPairs(Region r) {
 		ArrayList<ReadHit> hits = new ArrayList<ReadHit>();
+		//TODO: NOT YET IMPLEMENTED FOR FILES
+		return hits;
+	}
+	//Load paired reads from our files
+	public List<PairedHit> loadPairsAsPairs(Region r) {
+		ArrayList<PairedHit> hits = new ArrayList<PairedHit>();
 		//TODO: NOT YET IMPLEMENTED FOR FILES
 		return hits;
 	}

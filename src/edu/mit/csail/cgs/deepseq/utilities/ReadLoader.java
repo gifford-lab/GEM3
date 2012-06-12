@@ -7,6 +7,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.ExtReadHit;
 import edu.mit.csail.cgs.deepseq.ReadHit;
+import edu.mit.csail.cgs.projects.readdb.PairedHit;
 
 /**
  * Loads reads. Where those reads are sourced from is implementation-specific. 
@@ -57,6 +58,7 @@ public abstract class ReadLoader {
 	public abstract List<ReadHit> loadHits(Region r);
 	public abstract List<ExtReadHit> loadExtHits(Region r, int startShift, int fivePrimeExt, int threePrimeExt);
 	public abstract List<ReadHit> loadPairs(Region r);
+	public abstract List<PairedHit> loadPairsAsPairs(Region r);
 	public abstract int countHits (Region r);
 	public abstract double sumWeights (Region r);
 	public abstract void cleanup();
