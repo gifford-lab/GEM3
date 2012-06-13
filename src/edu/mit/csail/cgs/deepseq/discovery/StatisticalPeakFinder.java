@@ -118,7 +118,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
         	setModelPeaks(Args.parseArgs(args).contains("modelpeak"));
         	loadBindingModel(Args.parseString(args,"model",null));
         	buildModel(Args.parseFlags(args).contains("buildmodel"));
-        	if(bindingModel != null){
+        	if(Args.parseFlags(args).contains("extfrommodel") && bindingModel != null){
 			    //readShift = (double)bindingModel.maxShift();
 			    //read5PrimeExt = (double)bindingModel.maxShift()-(readLength/2);
 			    //read3PrimeExt = (double)bindingModel.maxShift()-(readLength/2);
@@ -960,6 +960,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                 "  --modelpeak [place peaks with model (model reqd)] \n" +
                 "  --model <binding model file>\n" +
                 "  --buildmodel [re-build the binding model] \n" +
+                "  --extfrommodel [flag to estimate read extensions from the model]\n" +
                 "  --allowtowers [don't filter towers] \n" +
                 "  --allowneedles [don't filter needles] \n" +
                 "  --stranded [search each strand separately] \n" +
