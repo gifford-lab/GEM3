@@ -189,7 +189,9 @@ public class CommonUtils {
 				String.format("%.1fh",sec/3600):
 				sec>60?
 					String.format("%.1fm",sec/60):
-					String.format("%.1fs",sec);
+					sec>1?
+						String.format("%.1fs",sec):
+						String.format("%dmils",length)	;
 	}
 	public static String getDateTime() {
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");

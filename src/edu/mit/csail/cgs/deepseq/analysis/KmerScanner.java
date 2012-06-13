@@ -94,6 +94,7 @@ public class KmerScanner {
 			pfm = getFileName(path, "_PFM_");
 			event = path+"_GEM_events.txt";
 		}
+		long t1 = System.currentTimeMillis();
 		File file = new File(Args.parseString(args, "kmer", kmer));
 		ArrayList<Kmer> kmers = Kmer.loadKmers(file);
 		int clusterId = Args.parseInteger(args, "class", 0);
@@ -105,7 +106,7 @@ public class KmerScanner {
 		kmers.trimToSize();
 		Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
 		KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr());
-		
+		System.out.println("KCM loading:\t"+CommonUtils.timeElapsed(t1));
 		// genome info and binding events
 		Genome genome=null;
 		Organism org=null;
@@ -128,7 +129,10 @@ public class KmerScanner {
 //		WeightMatrix motif = wm.car();
 //		double motifThreshold = wm.cdr();
 	    	    
+	    long t = System.currentTimeMillis();
 	    WeightMatrix motif = loadPWM(new File(Args.parseString(args, "pfm", pfm)), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+	    System.out.println("PWM loading:\t"+CommonUtils.timeElapsed(t));
+	    
 		// event locations
 		int windowSize = Args.parseInteger(args, "win", 50);
 		String eventFile = Args.parseString(args, "event", event);
@@ -172,6 +176,8 @@ public class KmerScanner {
 		
 		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
 		System.out.println("Scanning "+reg2reg.keySet().size()+" regions ...");
+		int PWM_time = 0;
+		int KCM_time = 0;
 		for (Region r:reg2reg.keySet()){
 			String seq = seqgen.execute(r).toUpperCase();
 			
@@ -186,17 +192,25 @@ public class KmerScanner {
 				seqN = seqgen.execute(rN).toUpperCase();
 				name_N = rN.toString();
 			}
+			long pwm_t = System.currentTimeMillis();
 			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
 			pwm_scores.add(pwm);
 			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
 			pwmN_scores.add(pwmN);
+			PWM_time += System.currentTimeMillis() - pwm_t;
+			
+			long kcm_t = System.currentTimeMillis();
 			KmerGroup kg = scanner.getBestKG(seq);
 			KmerGroup kgN = scanner.getBestKG(seqN);
 			ksm_scores.add(kg==null?0:-kg.getHgp());
 			ksmN_scores.add(kgN==null?0:-kgN.getHgp());
+			KCM_time += System.currentTimeMillis() - kcm_t;
 			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n", r.toString(), name_N, pwm, pwmN, 
 					kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp(), kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp()));
 		}
+		
+		System.out.println("Total PWM scanning time:" + PWM_time);
+		System.out.println("Total KCM scanning time:" + KCM_time);
 		
 		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
 		System.out.println(outName+"_w"+width+"_scores.txt");
