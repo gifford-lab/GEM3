@@ -89,9 +89,10 @@ public class PairedEndPainter extends RegionPaintable {
 
 		for (int i = 0; i < hits.size(); i++) {
 			PairedHit hit = hits.get(i);
+			if (clusterrepr && hit.weight<props.MinClusterSizeToDraw) continue;
 			if (clusterrepr) {
-				linewidth = Math.min(50,(int)hit.weight);
-				g.setStroke(new BasicStroke((float)linewidth));
+				linewidth = hit.weight >= props.MinClusterSizeToDraw ? Math.min(50,(int)hit.weight) : 0;
+				g.setStroke(new BasicStroke((float)linewidth, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
 			}
 
 			int leftx1 = getXPos(hit.leftPos, regionStart, regionEnd, x1, x2);
