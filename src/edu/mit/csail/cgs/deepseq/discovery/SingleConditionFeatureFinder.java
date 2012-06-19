@@ -18,8 +18,6 @@ import edu.mit.csail.cgs.utils.ArgParser;
  */
 public abstract class SingleConditionFeatureFinder extends FeatureFinder {
 
-  private static final Logger logger = Logger.getLogger(SingleConditionFeatureFinder.class);
-  
   protected DeepSeqExpt signal=null;
 
   protected DeepSeqExpt control=null;
@@ -59,40 +57,45 @@ public abstract class SingleConditionFeatureFinder extends FeatureFinder {
     List<File> expts = Args.parseFileHandles(args, "expt");
     List<File> ctrls = Args.parseFileHandles(args, "ctrl");
     boolean nonUnique = ap.hasKey("nonunique") ? true : false;
+    boolean sigPairedEnd = ap.hasKey("sigpaired");
+    boolean ctrlPairedEnd = ap.hasKey("ctrlpaired");
     String fileFormat = Args.parseString(args, "format", "ELAND");
         if(expts.size()>0 && dbexpts.size() == 0 && rdbexpts.size()==0){
       signal = new DeepSeqExpt(gen, expts, nonUnique, fileFormat, (int)readLength);
     }
     else if (dbexpts.size() > 0 && expts.size() == 0) {
-      signal = new DeepSeqExpt(gen, dbexpts, "db", (int)readLength);
+      signal = new DeepSeqExpt(gen, dbexpts, "db", (int)readLength, sigPairedEnd);
       dbconnected = true;
     }
     else if (rdbexpts.size()>0 && expts.size() == 0){
-        	signal = new DeepSeqExpt(gen, rdbexpts, "readdb", (int)readLength);
+        	signal = new DeepSeqExpt(gen, rdbexpts, "readdb", (int)readLength, sigPairedEnd);
         	dbconnected=true;
     }
     else {
-      logger.error("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
+      System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
       printError();
       System.exit(1);
     }
     if (ctrls.size() > 0 && dbctrls.size() == 0 && rdbctrls.size() == 0) {
       control = new DeepSeqExpt(gen, ctrls, nonUnique, fileFormat, (int)readLength);
       noControl = false;
+      control.setPairedEnd(ctrlPairedEnd);
     }
     else if (dbctrls.size() > 0 && ctrls.size() == 0) {
       control = new DeepSeqExpt(gen, dbctrls, "db", (int)readLength);
       noControl = false;
       dbconnected = true;
+      control.setPairedEnd(ctrlPairedEnd);
     } 
     else if (rdbctrls.size()>0 && ctrls.size() == 0) {
       control = new DeepSeqExpt(gen, rdbctrls, "readdb", (int)readLength); 
       noControl=false;
       dbconnected=true;
+  	  control.setPairedEnd(ctrlPairedEnd);
     } 
     else {
       if (dbctrls.size() > 0 && ctrls.size() > 0) {
-        logger.error("Cannot mix files and db loading yet...");
+    	  System.err.println("Cannot mix files and db loading yet...");
         printError();
         System.exit(1);
       }
@@ -104,12 +107,12 @@ public abstract class SingleConditionFeatureFinder extends FeatureFinder {
 
 
     // Print some info
-    logger.info("Signal hit count: " + (int) signal.getHitCount() + ", weight: " + (int) signal.getWeightTotal());
+    System.err.println("Signal hit count: " + (int) signal.getHitCount() + ", weight: " + (int) signal.getWeightTotal());
     if (!noControl) {
-      logger.info("Control hit count: " + (int) control.getHitCount() + ", weight: "
+    	System.err.println("Control hit count: " + (int) control.getHitCount() + ", weight: "
           + (int) control.getWeightTotal());
     }
-    logger.info("Genome size: " + genomeLen);
+    System.err.println("Genome size: " + genomeLen);
 
   }
 

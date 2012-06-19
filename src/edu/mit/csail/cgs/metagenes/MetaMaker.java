@@ -83,7 +83,7 @@ public class MetaMaker {
 					exptexps.add(new ChipSeqExpander(loc));
 				}
 				System.out.println("Loading data...");
-				profiler = new ChipSeq5PrimeProfiler(params, exptexps, '-');
+				profiler = new ChipSeq5PrimeProfiler(params, exptexps, strand);
 			}else if(profilerType.equals("chipseq")){
 				normalizeProfile=true;
 				ArrayList<ChipSeqLocator> exptlocs = (ArrayList<ChipSeqLocator>) Args.parseChipSeq(args,"expt");

@@ -22,6 +22,7 @@ import edu.mit.csail.cgs.deepseq.utilities.FileReadLoader;
 import edu.mit.csail.cgs.deepseq.utilities.ReadDBReadLoader;
 import edu.mit.csail.cgs.deepseq.utilities.ReadLoader;
 import edu.mit.csail.cgs.ewok.verbs.RegionParser;
+import edu.mit.csail.cgs.projects.readdb.PairedHit;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -46,17 +47,19 @@ public class DeepSeqExpt {
 	protected boolean pairedEndData = false;
 	
 	
-	public DeepSeqExpt(Genome g, List<ChipSeqLocator> locs, String db, int readLen){
+	public DeepSeqExpt(Genome g, List<ChipSeqLocator> locs, String db, int readLen){this(g,locs,db,readLen,false);}
+	public DeepSeqExpt(Genome g, List<ChipSeqLocator> locs, String db, int readLen, boolean pairedEnd){
 		if(g==null){
 			System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB"); System.exit(1);
 		}
+		pairedEndData = pairedEnd;
 		rLen = readLen;
 		gen = g;
 		try {
 			if(db.equals("db"))
-				loader = new DBReadLoader(gen, locs, rLen);
+				loader = new DBReadLoader(gen, locs, rLen, pairedEndData);
 			else if(db.equals("readdb"))
-				loader = new ReadDBReadLoader(gen, locs, rLen);
+				loader = new ReadDBReadLoader(gen, locs, rLen, pairedEndData);
 			else{
 				System.err.println("Database tyep must be \"db\" or \"readdb\"");System.exit(1);
 			}
@@ -94,7 +97,8 @@ public class DeepSeqExpt {
 	public double getStrandedWeightTotal(char strand){return loader.getStrandedWeight(strand);}
 	public double getScalingFactor(){return scalingFactor;}
 	public List<ReadHit> loadHits(Region r){return(loader.loadHits(r));}
-	public List<ReadHit> loadPairs(Region r){return(loader.loadPairs(r));}
+	public List<ReadHit> loadPairsAsSingle(Region r){return(loader.loadPairs(r));}
+	public List<PairedHit> loadPairsAsPairs(Region r){return(loader.loadPairsAsPairs(r));}
 	public List<ExtReadHit> loadExtHits(Region r){return(loader.loadExtHits(r, startShift, fivePrimeExt, threePrimeExt));}
 	public int countHits(Region r){return(loader.countHits(r));}
 	public double sumWeights(Region r){return(loader.sumWeights(r));}
@@ -103,6 +107,7 @@ public class DeepSeqExpt {
 	public void setThreePrimeExt(int e){threePrimeExt=e;}
 	public void setScalingFactor(double sf){scalingFactor=sf;}
 	public void setPairedEnd(boolean pe){pairedEndData=pe; loader.setPairedEnd(pe);}
+	public boolean isPairedEnd(){return pairedEndData;}
 	public boolean isFromDB(){
 		return loader instanceof DBReadLoader;
 	}

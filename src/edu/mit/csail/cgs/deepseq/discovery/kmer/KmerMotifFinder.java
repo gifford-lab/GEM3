@@ -5303,10 +5303,17 @@ public class KmerMotifFinder {
     		for (int i=0;i<kmers.size();i++){
         		allPosHits.addAll(kmers.get(i).getPosHits());
     		}
-    		double weight=0;
-    		for (int i: allPosHits)
-    			weight+=weights[i];
-    		posHitGroupCount = (int)(weight);
+    		
+    		if (weights==null){
+        		posHitGroupCount = allPosHits.size();
+    		}
+    		else{
+	    		double weight=0;
+	    		for (int i: allPosHits)
+	    			weight+=weights[i];
+	    		posHitGroupCount = (int)(weight);
+    		}
+    		
     		
     		HashSet<Integer> allNegHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){

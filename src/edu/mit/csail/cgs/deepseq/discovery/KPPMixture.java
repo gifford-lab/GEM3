@@ -5,7 +5,6 @@ import java.util.*;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -17,7 +16,6 @@ import cern.jet.random.engine.DRand;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
@@ -42,12 +40,6 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KPPMixture extends MultiConditionFeatureFinder {
-	private final char[] LETTERS = {'A','C','G','T'};
-	private final int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
-            Math.max(Math.max('a','c'),Math.max('t','g'))) + 1;
-	private final int STRAND = 1000;		// extra bp add to indicate negative strand match of kmer
-	private final int UNALIGNED = 999;		// the special shift for unaligned kmer
-	
     private Config config;
     private GPSConstants constants;
 

@@ -22,6 +22,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.ExtReadHit;
 import edu.mit.csail.cgs.deepseq.ReadHit;
+import edu.mit.csail.cgs.projects.readdb.PairedHit;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
@@ -36,11 +37,11 @@ public class DBReadLoader extends ReadLoader{
 	private List<ChipSeqLoader> loaders =new ArrayList<ChipSeqLoader>();
 	private HashMap<ChipSeqLoader, List<ChipSeqAlignment>> loaderAligns = new HashMap<ChipSeqLoader, List<ChipSeqAlignment>>();
 	
-	
-	public DBReadLoader(Genome g, List<ChipSeqLocator> locs, int rLen) throws NotFoundException, SQLException {
+	public DBReadLoader(Genome g, List<ChipSeqLocator> locs, int rLen) throws NotFoundException, SQLException {this(g, locs, rLen, false);}
+	public DBReadLoader(Genome g, List<ChipSeqLocator> locs, int rLen, boolean pairedEnd) throws NotFoundException, SQLException {
 		super(g, rLen);
 		try {
-			
+			this.pairedEnd =pairedEnd;
 			//Initialize
 			for(ChipSeqLocator locator : locs){
 				String exptName = locator.getExptName(); exptNames.add(exptName);
@@ -161,6 +162,12 @@ public class DBReadLoader extends ReadLoader{
 	//Load paired reads from our files
 	public List<ReadHit> loadPairs(Region r) {
 		ArrayList<ReadHit> hits = new ArrayList<ReadHit>();
+		//TODO: NOT YET IMPLEMENTED FOR DB LOADER
+		return hits;
+	}
+	//Load paired reads from our files
+	public List<PairedHit> loadPairsAsPairs(Region r) {
+		ArrayList<PairedHit> hits = new ArrayList<PairedHit>();
 		//TODO: NOT YET IMPLEMENTED FOR DB LOADER
 		return hits;
 	}

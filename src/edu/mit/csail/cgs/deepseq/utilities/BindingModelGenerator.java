@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
@@ -23,6 +24,7 @@ import edu.mit.csail.cgs.deepseq.features.EnrichedFeature;
 import edu.mit.csail.cgs.deepseq.features.EnrichedFeatureFileReader;
 import edu.mit.csail.cgs.ewok.verbs.PointParser;
 import edu.mit.csail.cgs.ewok.verbs.RegionParser;
+import edu.mit.csail.cgs.projects.readdb.PairedHit;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -33,27 +35,26 @@ public class BindingModelGenerator {
 	private Genome gen =null;
 	private List<EnrichedFeature> peaks=null;
 	private int window=1000;
-	private int min=-200, max=500;
+	private int min=-3000, max=3000;
 	private double overrepFilter=5;
 	private double pFilter=0.01;
 	private DeepSeqExpt IP=null;
-	private int readLength=32;
 	private List<EnrichedFeature> towers = new ArrayList<EnrichedFeature>();
-	private boolean smooth=false; 
+	private boolean smooth=true; 
 	private int smoothWin=5;//10bp smoothing
 	private int binSize=5; //size of bin to take 
 	
 	public static void main(String[] args) {
 		ArgParser ap = new ArgParser(args);
-        if(!ap.hasKey("species") ||(!ap.hasKey("expt")&&!ap.hasKey("dbexpt")) || !ap.hasKey("peaks")) { 
+        if(!ap.hasKey("species") ||(!ap.hasKey("expt")&&!ap.hasKey("rdbexpt")) || !ap.hasKey("peaks")) { 
             System.err.println("Usage:\n " +
                    "BindingModelGenerator \n" +
                    " Required: \n" +
                    "  --species <species;genome> \n" +
-                   "  --dbexpt <IP expt names> \n" +
+                   "  --rdbexpt <IP expt names> \n" +
                    "  OR \n" +
                    "  --expt <alignment file> AND --format <ELAND/NOVO/BOWTIE>\n" +
-                   "  --readlen <length>\n" +
+                   "  --paired [flag for paired-end data]\n" +
                    "  --nonunique [use the non-unique hits]\n" +
                    "  --peaks <file containing coordinates of peaks in Shaun's format> \n" +
                    "  --out <output file name>\n" +
@@ -80,6 +81,7 @@ public class BindingModelGenerator {
         boolean splineSmooth = ap.hasKey("splinesmooth") ? true : false;
         String towerFile = ap.hasKey("towers") ? ap.getKeyValue("towers") : null;
     	int rL = Args.parseInteger(args,"readlen",32);
+    	boolean pairedEnd = ap.hasKey("paired"); 
     	
         try {
         	Pair<Organism, Genome> pair = Args.parseGenome(args);
@@ -91,14 +93,15 @@ public class BindingModelGenerator {
 	        }else if(rdbexpts.size()>0 && expts.size() == 0){
 	        	signal = new DeepSeqExpt(pair.cdr(), rdbexpts, "readdb", rL);	        	
 	        }else{System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");System.exit(1);}
-
+        	signal.setPairedEnd(pairedEnd);
+        	
 			//initialize
-			BindingModelGenerator generator = new BindingModelGenerator(pair.cdr(), signal, peaksFile);
+			BindingModelGenerator generator = new BindingModelGenerator(pair.cdr(), signal);
 			generator.setBinSize(bin);
 			generator.setWindow(win);
-			generator.setReadLen(rL);
 			generator.setPFilter(p);
 			generator.setOverRepFilter(or);
+			generator.initPeaks(peaksFile);
 			if(towerFile != null)
 				generator.loadTowers(towerFile);
 			
@@ -117,11 +120,9 @@ public class BindingModelGenerator {
 		}
 	}
 	
-	public BindingModelGenerator(Genome g, DeepSeqExpt sig, String fname){
+	public BindingModelGenerator(Genome g, DeepSeqExpt sig){
 		IP=sig;
 		gen=g;
-		peaks = loadPeaks(fname);
-		System.out.println("BindingModel generating from "+peaks.size()+" peaks.");
 	}
 	public BindingModelGenerator(Genome g, DeepSeqExpt sig, List<EnrichedFeature> p){this(g, sig, p, null);}
 	public BindingModelGenerator(Genome g, DeepSeqExpt sig, List<EnrichedFeature> p, List<EnrichedFeature> t){
@@ -132,9 +133,12 @@ public class BindingModelGenerator {
 		System.out.println("BindingModel generating from "+peaks.size()+" peaks.");
 	}
 
+	public void initPeaks(String fname){
+		peaks = loadPeaks(fname);
+		System.out.println("BindingModel generating from "+peaks.size()+" peaks.");
+	}
 	//Accessor
 	public void setWindow(int w){window=w;}
-	public void setReadLen(int l){readLength = l;}
 	public void setBinSize(int b){binSize=b;}
 	public void setPFilter(double p){pFilter=p;}
 	public void setOverRepFilter(double o){overrepFilter=o;}
@@ -158,12 +162,30 @@ public class BindingModelGenerator {
 		System.out.println("Binding model gen filters: p<="+pFilter+" overRep>="+overrepFilter);
 		//Load the hits
 		int numProc=0;
-		int peaksUsed=0;
+		int peaksUsed=0, readsUsed=0;
 		for(EnrichedFeature p : peaks){
 			if(p.score<=pFilter && (p.overrep==-1 || p.overrep >=overrepFilter)){
 				peaksUsed++;
-				//System.out.print(".");
-				List<ReadHit> hits = IP.loadHits(p.coords);
+				List<ReadHit> hits =null;
+				if(!IP.isPairedEnd())
+					hits = IP.loadHits(p.coords);
+				else{
+					hits = new ArrayList<ReadHit>();
+					List<PairedHit> phits = IP.loadPairsAsPairs(p.coords);
+					HashMap<PairedHit, Double> pairFilter = new HashMap<PairedHit,Double>();
+					//Filter for valid pairs
+					for(PairedHit ph : phits){
+						//Hard filter for any pairs that share both coordinates
+						if(!pairFilter.containsKey(ph)){
+							if(gen.getChromName(ph.leftChrom).equals(p.coords.getChrom()) && gen.getChromName(ph.rightChrom).equals(p.coords.getChrom()) && 
+									!ph.lesserStrand() && ph.greaterStrand()){
+								hits.add(convertToReadHit(gen, -1, ph, true));
+								hits.add(convertToReadHit(gen, -1, ph, false));
+							}
+						}
+						pairFilter.put(ph, new Double(ph.weight));
+					}
+				}
 				ArrayList<Region> currTowers = new ArrayList<Region>();
 				for(EnrichedFeature t : towers)
 					if(p.coords.overlaps(t.coords))
@@ -172,6 +194,7 @@ public class BindingModelGenerator {
 				for(int i=0; i<=p.coords.getWidth(); i++){counts[i]=0;}
 				
 				for(ReadHit h : hits){
+					readsUsed++;
 					boolean inTower=false;
 					for(Region t : currTowers)
 						if(p.coords.overlaps(t))
@@ -182,8 +205,8 @@ public class BindingModelGenerator {
 							offset=p.coords.getWidth();
 						counts[offset]++;
 						if(counts[offset] <= perBaseMax){
-							int dist = h.getStrand()=='+' ? p.peak.getLocation()-h.getFivePrime() : h.getFivePrime()-p.peak.getLocation();
-							if(dist>=min && dist+h.getWidth()<=max){
+							int dist = h.getStrand()=='+' ? h.getFivePrime()-p.peak.getLocation() : p.peak.getLocation()-h.getFivePrime();
+							if(dist>=min && dist<=max){
 								if(h.getStrand()=='+')
 									forward[(dist-min)/binSize]++;
 								else
@@ -197,7 +220,7 @@ public class BindingModelGenerator {
 			//if(numProc%100==0)
 			//	System.out.print("\n");
 		}//System.out.print("\n");
-		System.out.println(peaksUsed+" peaks used to generate binding model");
+		System.out.println(peaksUsed+" peaks and "+readsUsed+" reads used to generate binding model");
 		
 		//Print the distribs & find maxes
 		double maxFor=0, maxRev=0;
@@ -218,7 +241,7 @@ public class BindingModelGenerator {
 			if(smooth){
 				double tot=0; double num=0;
 				for(int v=w-(smoothWin/binSize); v<=w+(smoothWin/binSize); v++){
-					if(v>=0 && v<=winLen){
+					if(v>=0 && v<=numBins){
 						tot+=(forward[v]+reverse[v]);
 						num++;
 					}
@@ -243,7 +266,7 @@ public class BindingModelGenerator {
 	            line = line.trim();
 	            String[] words = line.split("\\s+");
 	            	            
-	            if(words.length>=7 && window!=-1){	//Shaun's format
+	            if(words.length>=8 && window!=-1){	//Shaun's format
 	            	RegionParser parser = new RegionParser(gen);
 	            	Region reg = parser.execute(words[0]);
 	                PointParser pparser = new PointParser(gen);
@@ -263,11 +286,14 @@ public class BindingModelGenerator {
 	            	}
                 }else if(words.length>=1){ 			//Regions only
 	            	RegionParser parser = new RegionParser(gen);
-	            	Region r = parser.execute(words[0]);
-	            	Point p = new Point(r.getGenome(), r.getChrom(), (r.getStart()+r.getEnd())/2);
-	            	if(r!=null){
+	            	Region reg = parser.execute(words[0]);
+	            	Point p = new Point(reg.getGenome(), reg.getChrom(), (reg.getStart()+reg.getEnd())/2);
+	            	if(reg!=null){
+	            		int rstart = p.getLocation()-(window/2)<1 ? 1:p.getLocation()-(window/2);
+	                	int rend = p.getLocation()+(window/2)>gen.getChromLength(p.getChrom()) ? gen.getChromLength(p.getChrom()):p.getLocation()+(window/2)-1;
+	                	Region r = new Region(p.getGenome(), p.getChrom(), rstart, rend);
 	            		EnrichedFeature peak = new EnrichedFeature(r);
-                		peak.peak=p;
+	                	peak.peak=p;
                 		pset.add(peak);
                 	}	            	
 	            }
@@ -295,4 +321,12 @@ public class BindingModelGenerator {
 		model.printToFile(outFile);		
 	}
 	
+	//Convert a PairedHit
+	public ReadHit convertToReadHit(Genome g, int id, PairedHit h, boolean left) {
+		if(left)
+			return new ReadHit(g, id, g.getChromName(h.leftChrom), (h.leftStrand ? h.leftPos : (h.leftPos-h.leftLength+1)), (h.leftStrand ? (h.leftPos+h.leftLength-1) : h.leftPos), h.leftStrand ? '+' : '-', h.weight);
+		else
+			return new ReadHit(g, id, g.getChromName(h.rightChrom), (h.rightStrand ? h.rightPos : (h.rightPos-h.rightLength+1)), (h.rightStrand ? (h.rightPos+h.rightLength-1) : h.rightPos), h.rightStrand ? '+' : '-', h.weight);
+	}
+
 }

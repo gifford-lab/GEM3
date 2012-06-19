@@ -118,7 +118,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
         	setModelPeaks(Args.parseArgs(args).contains("modelpeak"));
         	loadBindingModel(Args.parseString(args,"model",null));
         	buildModel(Args.parseFlags(args).contains("buildmodel"));
-        	if(bindingModel != null){
+        	if(Args.parseFlags(args).contains("extfrommodel") && bindingModel != null){
 			    //readShift = (double)bindingModel.maxShift();
 			    //read5PrimeExt = (double)bindingModel.maxShift()-(readLength/2);
 			    //read3PrimeExt = (double)bindingModel.maxShift()-(readLength/2);
@@ -820,16 +820,17 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
 	protected void trimPeaks(ArrayList<EnrichedFeature> curr, ArrayList<ReadHit> ipHits, char str){
 		for(EnrichedFeature peak : curr){
 			ArrayList<ReadHit> winHits = overlappingHits(ipHits, peak.coords,str);
-			StrandedRegion min=winHits.get(0);
-			StrandedRegion max=winHits.get(0);
-			for(StrandedRegion sr : winHits){
-				if(sr.getStart()<min.getStart()){min=sr;}
-				if(sr.getEnd()>max.getEnd()){max=sr;}
+			if(winHits.size()>0){
+				StrandedRegion min=winHits.get(0);
+				StrandedRegion max=winHits.get(0);
+				for(StrandedRegion sr : winHits){
+					if(sr.getStart()<min.getStart()){min=sr;}
+					if(sr.getEnd()>max.getEnd()){max=sr;}
+				}
+				int startOff = peak.coords.getStart()-min.getStart()<0 ? peak.coords.getStart()-min.getStart(): 0;
+				int endOff = max.getEnd()-peak.coords.getEnd()<0 ? max.getEnd()-peak.coords.getEnd():0;
+				peak.coords = peak.coords.expand(startOff, endOff);
 			}
-			int startOff = peak.coords.getStart()-min.getStart()<0 ? peak.coords.getStart()-min.getStart(): 0;
-			int endOff = max.getEnd()-peak.coords.getEnd()<0 ? max.getEnd()-peak.coords.getEnd():0;
-
-			peak.coords = peak.coords.expand(startOff, endOff);
 		}
 	}
 	/* Find the exact peak locations based on maximum overlapping read counts. 
@@ -959,6 +960,7 @@ public abstract class StatisticalPeakFinder extends SingleConditionFeatureFinder
                 "  --modelpeak [place peaks with model (model reqd)] \n" +
                 "  --model <binding model file>\n" +
                 "  --buildmodel [re-build the binding model] \n" +
+                "  --extfrommodel [flag to estimate read extensions from the model]\n" +
                 "  --allowtowers [don't filter towers] \n" +
                 "  --allowneedles [don't filter needles] \n" +
                 "  --stranded [search each strand separately] \n" +

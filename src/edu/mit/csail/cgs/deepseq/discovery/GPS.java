@@ -117,7 +117,8 @@ public class GPS {
         	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
         	boolean nonUnique = flags.contains("nonunique") ? true : false;
             String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
-
+            boolean sigPairedReads = flags.contains("sigpaired");
+            boolean ctrlPairedReads = flags.contains("ctrlpaired");
             if(expts.size()>0 && rdbexpts.size()==0){
                 int readLength = -1;	// For file, read length will be obtained from the data
                 DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
@@ -128,6 +129,8 @@ public class GPS {
                     c.setGenome(genome);
                 }
                 experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
+                e.setPairedEnd(sigPairedReads);
+                c.setPairedEnd(ctrlPairedReads);
                 exptHitCount+=e.getHitCount();
                 ctrlHitCount+=c.getHitCount();
             } else if(rdbexpts.size()>0 && expts.size() == 0){
@@ -136,7 +139,11 @@ public class GPS {
                     System.exit(1);
                 }
                 int readLength = -1;
-                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(genome, rdbexpts, "readdb", readLength),new DeepSeqExpt(genome, rdbctrls, "readdb", readLength)));
+                DeepSeqExpt e = new DeepSeqExpt(genome, rdbexpts, "readdb", readLength);
+                e.setPairedEnd(sigPairedReads);
+                DeepSeqExpt c = new DeepSeqExpt(genome, rdbctrls, "readdb", readLength);
+                c.setPairedEnd(ctrlPairedReads);
+                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
             } else{
                 System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
                 printError();
