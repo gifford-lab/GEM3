@@ -57,9 +57,9 @@ public class DeepSeqExpt {
 		gen = g;
 		try {
 			if(db.equals("db"))
-				loader = new DBReadLoader(gen, locs, rLen);
+				loader = new DBReadLoader(gen, locs, rLen, pairedEndData);
 			else if(db.equals("readdb"))
-				loader = new ReadDBReadLoader(gen, locs, rLen);
+				loader = new ReadDBReadLoader(gen, locs, rLen, pairedEndData);
 			else{
 				System.err.println("Database tyep must be \"db\" or \"readdb\"");System.exit(1);
 			}

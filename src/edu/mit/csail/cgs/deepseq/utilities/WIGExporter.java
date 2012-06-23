@@ -122,7 +122,7 @@ public class WIGExporter {
 	    	expt = new DeepSeqExpt(gen, dbexpts, "db", (int)readLength);
 	    	dbconnected = true;
 	    }else if (rdbexpts.size()>0 && expts.size() == 0){
-	    	expt = new DeepSeqExpt(gen, rdbexpts, "readdb", (int)readLength);
+	    	expt = new DeepSeqExpt(gen, rdbexpts, "readdb", -1);
 	    	dbconnected=true;
 	    }else {
 	      logger.error("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
