@@ -208,7 +208,7 @@ public class KmerScanner {
 			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d\n", r.toString(), name_N, pwm, pwmN, 
 					kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp(), 
 					kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
-					kg==null?0:-kg.getBestKmer().getPosHitCount(), kgN==null?0:-kgN.getBestKmer().getPosHitCount()));
+					kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount()));
 		}
 		
 		System.out.println("Total PWM scanning time:" + PWM_time);
