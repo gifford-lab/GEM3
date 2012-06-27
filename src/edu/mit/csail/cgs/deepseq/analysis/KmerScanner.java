@@ -61,6 +61,9 @@ public class KmerScanner {
 			}
 		return best;
 	}	
+	/**
+	 * Find the file in path that match the type string
+	 */
 	public static String getFileName(String path, String type){
 		File pathAll = new File(path);
 		String name = pathAll.getName();
@@ -130,7 +133,7 @@ public class KmerScanner {
 //		double motifThreshold = wm.cdr();
 	    	    
 	    long t = System.currentTimeMillis();
-	    WeightMatrix motif = loadPWM(new File(Args.parseString(args, "pfm", pfm)), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+	    WeightMatrix motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", pfm), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
 	    System.out.println("PWM loading:\t"+CommonUtils.timeElapsed(t));
 	    
 		// event locations

@@ -399,6 +399,43 @@ public class CommonUtils {
 			return null;
 		}
     }
+	public static WeightMatrix loadPWM(String pfmFile, double gc ){
+		WeightMatrix wm;
+		try{
+			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(pfmFile, "file");
+			if (wms.isEmpty()){
+				wm=null;
+				System.out.println(pfmFile+" is not a valid motif file.");
+			}
+			else{		// if we have valid PFM, convert it to PWM
+				wm = wms.get(0);		// only get primary motif
+				float[][] matrix = wm.matrix;
+				// normalize
+		        for (int position = 0; position < matrix.length; position++) {
+		            double sum = 0;
+		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+		                sum += matrix[position][WeightMatrix.letters[j]];
+		            }
+		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+		                matrix[position][WeightMatrix.letters[j]] = (float)(matrix[position][WeightMatrix.letters[j]] / sum);
+		            }
+		        }
+		        // log-odds
+		        for (int pos = 0; pos < matrix.length; pos++) {
+		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+		                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
+		                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
+		            }
+		        } 
+			}
+		}
+		catch (IOException e){
+			System.out.println(pfmFile+" motif PFM file reading error!!!");
+			wm = null;
+		}
+		return wm;
+	}
+    
 	/**
 	 *  Scan the sequence for best match to the weight matrix
 	 *  @return  Pair of values, the lower coordinate of highest scoring PWM hit and the score
@@ -620,6 +657,20 @@ public class CommonUtils {
 		System.out.println(findKey(new double[]{0,1,1,1,2,4,6}, 7));
 	}
 	
+	public static void main1(String[] args){
+		// --seqFile Y:\Tools\GPS\Multi_TFs\ESTF-Jan10\Sox2_Klf4_Tcfcp2I1_sites_MSA.fasta.txt
+//	    String inName = Args.parseString(args, "seqFile", null);
+//	    ArrayList<String> strs = readTextFile(inName);
+//	    if (strs.isEmpty())
+//	    	return;
+//	    String[] ss = new String[strs.size()];
+//	    strs.toArray(ss);
+//	    int width = Args.parseInteger(args, "w", 5);
+//	    int height = Args.parseInteger(args, "h", 3);
+//	    visualizeSequences(ss, width, height, new File(inName+".png"));
+	    
+	}
+	
     // --species "Mus musculus;mm8" --motif "CTCF" --version "090828" --windowSize 100 --motifThreshold 11.52
     public static void main(String args[]){
 		// load motif
@@ -644,20 +695,19 @@ public class CommonUtils {
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
-		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-		motif = wm.car();		
-		CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
-		
-		// --seqFile Y:\Tools\GPS\Multi_TFs\ESTF-Jan10\Sox2_Klf4_Tcfcp2I1_sites_MSA.fasta.txt
-//	    String inName = Args.parseString(args, "seqFile", null);
-//	    ArrayList<String> strs = readTextFile(inName);
-//	    if (strs.isEmpty())
-//	    	return;
-//	    String[] ss = new String[strs.size()];
-//	    strs.toArray(ss);
-//	    int width = Args.parseInteger(args, "w", 5);
-//	    int height = Args.parseInteger(args, "h", 3);
-//	    visualizeSequences(ss, width, height, new File(inName+".png"));
 	    
+		if (Args.parseString(args, "pfm", null)==null){
+			Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+			motif = wm.car();
+//			CommonUtils.printMotifLogo(motif, new File("test.png"), 150);	
+		}
+		else{
+			motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+//			CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
+		}
+
+		System.out.println(WeightMatrix.printMatrix(motif));
+		
+		System.out.println(motif.getMaxScore());
     }
 }
