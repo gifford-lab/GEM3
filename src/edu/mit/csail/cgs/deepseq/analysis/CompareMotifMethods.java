@@ -341,9 +341,13 @@ public class CompareMotifMethods {
 			    if (line.length()>0)
 			    	lines.add(line);
 			}
+			if (bin != null) {
+	            bin.close();
+	        }
 		} catch (IOException e) {
 			e.printStackTrace();
 		} 
+		
 		String[] text = new String[lines.size()];
 		lines.toArray(text);
 		return text;
