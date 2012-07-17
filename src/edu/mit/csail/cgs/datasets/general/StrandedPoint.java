@@ -9,6 +9,15 @@ import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 public class StrandedPoint extends Point implements Stranded {
 	
 	private char strand;
+	
+	public int compareToStranded(StrandedPoint p) {
+		int compare = this.compareTo(p);
+		if (compare==0) {
+			return this.strand - p.strand;
+		} else {
+			return compare;
+		}
+	}
 
 	public StrandedPoint(Genome g, String chrom, int start, char str) {
 		super(g, chrom, start);
