@@ -46,12 +46,14 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.general.ScoredRegion;
 import edu.mit.csail.cgs.datasets.general.ScoredStrandedRegion;
 import edu.mit.csail.cgs.datasets.general.SpottedProbe;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.general.StrandedRegion;
 import edu.mit.csail.cgs.datasets.locators.ChipChipDifferenceLocator;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.datasets.species.Gene;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.datasets.general.Point;
 
 /* this is all for saveImage() */
 import org.apache.batik.svggen.SVGGraphics2D;
@@ -61,6 +63,8 @@ import org.w3c.dom.DOMImplementation;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.Writer;
 import java.io.FileOutputStream;
@@ -338,12 +342,37 @@ Listener<EventObject>, PainterContainer, MouseListener {
 		if (opts.chiapetExpts.size() > 0) {
 			try {
 				for (String k : opts.chiapetExpts.keySet()) {
-					List<Double> kernel = new ArrayList<Double>();
-					PairedStorage storage = new PairedStorage(genome, 0, 0, null, kernel, kernel, 0, 0);
-					System.err.println("reading "+opts.chiapetExpts.get(k)+" from file");
-					storage.initializeFromAnnotatedDirectory(k);
-					RegionModel m = new InteractionLikelihoodModel(genome,storage);
-					RegionPaintable p = new InteractionLikelihoodPainter((InteractionLikelihoodModel)m);
+					SortedMap<Pair<Point,Point>,Float> interactions = new TreeMap<Pair<Point,Point>,Float>(new Comparator<Pair<Point,Point>>() {
+
+						public int compare(Pair<Point,Point> arg0,
+								Pair<Point, Point> arg1) {
+							int tor = arg0.car().compareTo(arg1.car());
+							if (tor==0) {
+								return arg0.cdr().compareTo(arg1.cdr());
+							} else {
+								return tor;
+							}
+						}
+
+					});
+					System.err.println("parsing "+k);
+					BufferedReader r = new BufferedReader(new FileReader(k));
+					String s;
+					String[] split;
+					r.readLine();
+					while ((s = r.readLine()) != null) {
+						split = s.split("\t");
+						if (!(split[0].equals("noise") || split[1].equals("noise"))) {
+							try {
+								interactions.put(new Pair<Point,Point>(Point.fromString(genome, split[0]), Point.fromString(genome, split[1])),Float.valueOf(split[2]));
+							} catch (Exception e) {
+								System.err.println(s);
+								throw e;
+							}
+						}
+					}
+					RegionModel m = new InteractionAnalysisModel(new TreeMap<Point,Float>(), interactions);
+					RegionPaintable p = new InteractionAnalysisPainter((InteractionAnalysisModel)m);
 					addModel(m);
 					Thread t = new Thread((Runnable)m); t.start();
 					p.setLabel(k);
