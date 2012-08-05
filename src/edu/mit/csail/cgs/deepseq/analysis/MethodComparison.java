@@ -103,23 +103,6 @@ public class MethodComparison {
 		truePointPath = Args.parseString(args,"truePoints",truePointPath);
 		sortByStrength = flags.contains("ss");	// only for GPS
 		isPreSorted = flags.contains("sorted");
-		
-		// load motif
-//		if (Args.parseString(args, "pfm", null)==null){
-//			Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-//			motif = wm.car();
-//			motifThreshold = wm.cdr();		
-//		}
-//		else{
-//			double pwm_ratio = Args.parseDouble(args, "pwm_ratio", 0.6);
-//			motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
-//			motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
-//			if (motifThreshold==-1){				
-//    			motifThreshold = motif.getMaxScore()*pwm_ratio;
-//    			System.err.println("No motif threshold was provided, use "+pwm_ratio+"*max_score = "+motifThreshold);
-//    		}  
-//		}
-
 	}
 	
 	// This method print three text files
@@ -173,16 +156,15 @@ public class MethodComparison {
 		}
 		System.out.println(CommonUtils.timeElapsed(tic));
 				
-		// get all the strong motifs in these regions
-		Collections.sort(allRegions);		// sort regions, the motifs should be sorted
+		// get all the hits in these regions
 		ArrayList<Point> allPoints = readTruePoints(truePointPath);
 		
 		SetTools<Point> setTools = new SetTools<Point>();
 		
 		System.out.printf("%n%d true hits (in %d regions).%n%n", allPoints.size(), allRegions.size());
 
-		// Get the set of motif matches for all peak calls		
-		System.out.printf("Events within a %d bp window to a motif:/n", windowSize);
+		// Get the set of hits for all peak calls		
+		System.out.printf("Events within a %d bp window to a hit:%n", windowSize);
 		for (int i=0;i<events.size();i++){
 			System.out.printf("%s \t#events: ", methodNames.get(i));
 			HashMap<Point, TrueHit> event2trueHits = getNearestPoint(events.get(i), allPoints);
@@ -192,19 +174,19 @@ public class MethodComparison {
 		}
 		System.out.println(CommonUtils.timeElapsed(tic));
 		
-		System.out.printf("\nMotifs covered by an event:\n");
+		System.out.printf("\nHits covered by an event:\n");
 		for(int i = 0; i < methodNames.size(); i++)
 			System.out.printf("%s\t%d/%d (%.1f%%)\n", methodNames.get(i), maps.get(i).size(), allPoints.size(), 100.0*((double)maps.get(i).size())/(double)allPoints.size());
 				
-		// get the intersection (motifs shared by all methods, upto top rank)
+		// get the intersection (hits shared by all methods, upto top rank)
 		System.out.print("\nRunning Spatial Resolution analysis ...\n");
-		Set<Point> motifs_shared =  getHighRankSites(0);
+		Set<Point> hits_shared =  getHighRankSites(0);
 		for (int i=1;i<maps.size();i++){
-			Set<Point> motifs_new =  getHighRankSites(i);
-			motifs_shared = setTools.intersection(motifs_shared,motifs_new);
+			Set<Point> hits_new =  getHighRankSites(i);
+			hits_shared = setTools.intersection(hits_shared,hits_new);
 		}
-		msg = String.format("Motif score cutoff=%.2f, window size=%d, %d shared motifs in top %d events.",
-				motifThreshold, windowSize, motifs_shared.size(), rank);
+		msg = String.format("Window size=%d, %d shared hits in top %d events.",
+				windowSize, hits_shared.size(), rank);
 		System.out.println(msg);
 		
 		StringBuilder args_sb = new StringBuilder();
@@ -216,16 +198,16 @@ public class MethodComparison {
 		// output results, the spatial resolution (offset) 
 		StringBuilder sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
-		sb.append("MotifHit\tChrom");
+		sb.append("TrueHit\tChrom");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append("\t"+methodNames.get(i));
 		}
 		sb.append("\n");
-		for(Point motif:motifs_shared){
-			sb.append(motif.toString()+"\t");
-			sb.append(motif.getChrom()+"\t");
+		for(Point hit:hits_shared){
+			sb.append(hit.toString()+"\t");
+			sb.append(hit.getChrom()+"\t");
 			for (int i=0;i<maps.size();i++){
-				sb.append(maps.get(i).get(motif).offset);
+				sb.append(maps.get(i).get(hit).offset);
 				if (i==maps.size()-1)
 					sb.append("\n");
 				else
@@ -233,38 +215,37 @@ public class MethodComparison {
 			}
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_sharedPointOffsets_"
-				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
 // ************************************************************************************
 // ************************************************************************************
 		
-		// get the union (motifs at least by one of all methods)
-		Set<Point> motifs_union = maps.get(0).keySet();
+		// get the union (hits at least by one of all methods)
+		Set<Point> hits_union = maps.get(0).keySet();
 		for (int i=1;i<maps.size();i++){
-			Set<Point> motifs_new = maps.get(i).keySet();
-			motifs_union = setTools.union(motifs_union,motifs_new);
+			Set<Point> hits_new = maps.get(i).keySet();
+			hits_union = setTools.union(hits_union,hits_new);
 		}
-		msg = String.format("Total %d motifs from all methods.", motifs_union.size());
+		msg = String.format("Total %d hits from all methods.", hits_union.size());
 		System.out.println(msg);
 		
 		// output results, the spatial resolution (offset) 
 		sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
-		sb.append("MotifHit\tChrom\t");
+		sb.append("TrueHit\tChrom\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"_offset\t");
 			sb.append(methodNames.get(i)+"_rank\t");
 		}
 		sb.append("\n");
-		for(Point motif:motifs_union){
-			sb.append(motif.toString()+"\t");
-			sb.append(motif.getChrom()+"\t");
+		for(Point hit:hits_union){
+			sb.append(hit.toString()+"\t");
+			sb.append(hit.getChrom()+"\t");
 			for (int i=0;i<maps.size();i++){
 				HashMap<Point, TrueHit> m = maps.get(i);
-				if (m.containsKey(motif)){
-					sb.append(m.get(motif).offset).append("\t");
-					sb.append(m.get(motif).rank);
+				if (m.containsKey(hit)){
+					sb.append(m.get(hit).offset).append("\t");
+					sb.append(m.get(hit).rank);
 				}
 				else{
 					sb.append(NOHIT_OFFSET).append("\t");
@@ -277,7 +258,6 @@ public class MethodComparison {
 			}
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_allPointOffsets_"
-				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		
 		System.out.println();
@@ -289,11 +269,11 @@ public class MethodComparison {
 		// if no motif hit, offset=NOHIT=999
 		// print out the offset, for Matlab processing and plotting
 		
-		System.out.println("Get ranked peak-motif offset list ... ");
+		System.out.println("Get ranked peak-hit offset list ... ");
 		
 		ArrayList<HashMap<Point, Integer>> allPeakOffsets = new ArrayList<HashMap<Point, Integer>>();
 		for (int i=0; i<methodNames.size();i++){
-			allPeakOffsets.add(peak2MotifOffset(events.get(i), allPoints));
+			allPeakOffsets.add(peak2HitOffset(events.get(i), allPoints));
 		}
 		
 		// output results
@@ -321,7 +301,6 @@ public class MethodComparison {
 			}
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_rankedPointOffsets_"
-				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
 		System.out.println("Done! " + CommonUtils.timeElapsed(tic));
 	}
@@ -513,7 +492,7 @@ public class MethodComparison {
 	
 	// get the nearest motif offset in the region (windowSize) around each peak in the list
 	// this is peak-centered, all peaks will have a offset, NOHIT_OFFSET for no motif found.
-	private HashMap<Point, Integer> peak2MotifOffset(ArrayList<Point> peaks, ArrayList<Point> allMotifs){
+	private HashMap<Point, Integer> peak2HitOffset(ArrayList<Point> peaks, ArrayList<Point> allMotifs){
 		// make a copy of the list and sort
 		ArrayList<Point> ps = (ArrayList<Point>) peaks.clone();
 		Collections.sort(ps);
