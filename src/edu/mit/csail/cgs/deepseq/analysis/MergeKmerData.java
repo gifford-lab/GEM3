@@ -46,7 +46,7 @@ public class MergeKmerData {
 			int firstRow=0;
 			boolean gem = false;
 			if (format.endsWith("GEM")){
-				firstRow=1;
+				firstRow=2;
 				gem = true;
 			}
 			
