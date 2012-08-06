@@ -122,9 +122,15 @@ public class PairedEndPainter extends RegionPaintable {
 			if (leftx2 < rightx1) {
 				//g.setColor(hit.leftStrand ? (hit.rightStrand ? plusplus : plusminus) : (hit.rightStrand ? minusplus : minusminus));
 				g.drawLine(leftx2, y1+h, rightx1, y1+h);
+				if (props.DrawClusterSize) {
+					g.drawString(""+((int)hit.weight),rightx1 + 1,y1 + h);
+				}
 			} else {
 				//g.setColor(hit.rightStrand ? (hit.leftStrand ? plusplus : plusminus) : (hit.leftStrand ? minusplus : minusminus));
 				g.drawLine(rightx2, y1+h, leftx1, y1+h);
+				if (props.DrawClusterSize) {
+					g.drawString(""+((int)hit.weight),leftx1 + 1,y1 + h);
+				}
 			}
 
 			if (!clusterrepr) {

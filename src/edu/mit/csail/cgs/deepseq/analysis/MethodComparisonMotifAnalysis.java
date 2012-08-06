@@ -1,8 +1,6 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,13 +13,9 @@ import java.util.Vector;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
-import edu.mit.csail.cgs.datasets.general.StrandedRegion;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.analysis.KnnAnalysis.KnnPoint;
-import edu.mit.csail.cgs.deepseq.discovery.BindingMixture;
-import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils.SISSRS_Event;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
@@ -35,7 +29,6 @@ import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.SetTools;
-import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class MethodComparisonMotifAnalysis {
 	private final int NOHIT_OFFSET = 999;
@@ -611,6 +604,7 @@ public class MethodComparisonMotifAnalysis {
 				+windowSize+".txt", sb3.toString());	
 	}
 	
+	// print the pairwise overlap percentage of different set of binding calls 
 	private void printOverlapTable() throws IOException{
 		int overlapWindowSize = windowSize;
 		long tic = System.currentTimeMillis();
@@ -927,6 +921,7 @@ public class MethodComparisonMotifAnalysis {
 				+windowSize+".txt", sb.toString());
 		
 	}
+	
 	// merge the overlapped regions 
 	// if "toExpandRegion"=true, expand each region on both side to leave enough space, 
 	// to include every potential reads, then merge
@@ -952,6 +947,7 @@ public class MethodComparisonMotifAnalysis {
 		return mergedRegions;
 	}//end of mergeRegions method
 	
+	// get the top ranking sites of a set of calls
 	private Set<Point> getHighRankSites(int method){
 		HashMap<Point, MotifHit> m = maps.get(method);
 		Set<Point> motifs = m.keySet();
@@ -996,6 +992,7 @@ public class MethodComparisonMotifAnalysis {
 		}
 		return motifs;
 	}
+	
 	// get the nearest motif hit in the region (windowSize) around each peak in the list
 	// this is motif-centered, some peak may associate with a motif by then took away by other peaks
 	// if a motif have more than one peaks nearby, associate it with the nearest peak
