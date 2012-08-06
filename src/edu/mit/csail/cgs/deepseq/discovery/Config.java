@@ -82,7 +82,8 @@ public class Config {
 	public boolean refine_pwm = false;
     public boolean print_pwm_fdr = false;
     public boolean evaluate_by_kcm = false;		// whether to use K-mer class model to evaluate improvement of new cluster, default to use PWM
-    public boolean use_weight = true;
+    public boolean use_strength_weight = true;	// use binding event strength to weight 
+    public boolean use_pos_weight = true;		// use binding position profile to weight motif site
     public boolean allow_single_family =true;	// allow the kmer family only contains seed, i.e. no mismatch kmers
     public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
     public boolean allow_seed_inheritance=true;	// allow primary seed k-mer to pass on to the next round of GEM
@@ -188,7 +189,8 @@ public class Config {
         use_ksm = !flags.contains("no_ksm");
         kpp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
-        use_weight = !flags.contains("no_weight");
+        use_strength_weight = !flags.contains("no_weight");
+        use_pos_weight = !flags.contains("no_pos_weight");
         use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_grid_search = !flags.contains("no_grid_search");
         allow_single_family = !flags.contains("no_single_family");

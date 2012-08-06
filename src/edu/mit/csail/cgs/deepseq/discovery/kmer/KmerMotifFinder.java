@@ -2723,14 +2723,13 @@ public class KmerMotifFinder {
 			  if (maxScoringStrand =='-')
 				  ss= SequenceUtils.reverseComplement(ss);
 			  hit.str = ss;
-			  if (config.use_weight){
-				  if (hit.clusterId==0)
-					  hit.weight = seq_weights[hit.seqId]*profile[(hit.end+hit.start)/2];
-				  else
-					  hit.weight = seq_weights[hit.seqId];
-			  }
-			  else
-				  hit.weight = 1.0;
+			  
+			  hit.weight = 1.0;
+			  if (config.use_strength_weight)
+				  hit.weight *= seq_weights[hit.seqId];
+			  if (hit.clusterId==0 && config.use_pos_weight)
+				  hit.weight *= profile[(hit.end+hit.start)/2];
+			  
 			  seq2hits.put(i, hit);
 	      }
 	    }	// each sequence
@@ -3539,20 +3538,20 @@ public class KmerMotifFinder {
 				continue;
  			String s = startPadding+seq.getSeq().substring(start, end)+endPadding;
  			alignedSeqs.add(s);
- 			if (config.use_weight){
- 				double weight = seq_weights[seq.id];
- 				if (cluster.clusterId==0){				// if this motif is primary, also use the positional weight based on the distance between binding site and motif
-		 			int prof_pos = k/2-seq.pos;
-		 			if (prof_pos<0)
-		 				prof_pos = 0;
-		 			else if (prof_pos>seqLen-1)
-		 				prof_pos = seqLen-1;
-		 			weight *=profile[prof_pos];
- 				}
-	 			weights.add(weight);
- 			}
- 			else
- 				weights.add(1.0);
+ 			
+ 			// determine the weight for the sequence
+ 			double weight = 1.0;
+			if (config.use_strength_weight)
+				weight *= seq_weights[seq.id];
+			if (cluster.clusterId==0 && config.use_pos_weight){
+				int prof_pos = k/2-seq.pos;
+				if (prof_pos<0)
+					prof_pos = 0;
+				else if (prof_pos>seqLen-1)
+					prof_pos = seqLen-1;
+				weight *=profile[prof_pos];
+			}
+			weights.add(weight);
     	}
 		if (alignedSeqs.size()<seqs.length*config.motif_hit_factor){
 			if (verbose>1)
@@ -3564,6 +3563,7 @@ public class KmerMotifFinder {
 		
     	return bestLeft;
     }
+	
 	public int buildPWMfromHits(ArrayList<Sequence> seqList, KmerCluster cluster, Iterator<PWMHit> hits){
 		ArrayList<String> alignedSeqs = new ArrayList<String>();
 		ArrayList<Double> weights = new ArrayList<Double>();
@@ -4027,7 +4027,7 @@ public class KmerMotifFinder {
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmer2pos.keySet()){
 			ArrayList<Integer> posKmer = kmer2pos.get(km);
-			if (posKmer==null || posKmer.size()<km.getPosHitCount()*config.kmer_aligned_fraction){			// The kmer hit in 2k region should be at least 1/2 of total hit
+			if (posKmer==null || posKmer.size()<km.getPosHitCount()*config.kmer_aligned_fraction){			// The kmer hit in the 2*k region should be at least 1/2 of total hit
 				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
 			}	
