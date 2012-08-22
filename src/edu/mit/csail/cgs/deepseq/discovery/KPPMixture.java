@@ -19,10 +19,10 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerClass;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.KmerGroup;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.MotifThreshold;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerSet;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
@@ -116,7 +116,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private File outputFolder = null;
 
 	/** Kmer motif engine */
-	private KmerMotifFinder kmf;
+	private KMAC kmf;
 	private boolean kmerPreDefined = false;
 	private double kcm_threshold = -1;
 	
@@ -212,11 +212,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		kmerPreDefined = true;
 			File kFile = new File(kmerFile);
 			if(kFile.isFile()){
-				KmerClass kc = new KmerClass(kFile);
-	        	kmf = new KmerMotifFinder(kc.getKmers(0), outName);
+				KmerSet kc = new KmerSet(kFile);
+	        	kmf = new KMAC(kc.getKmers(0), outName);
 	        	kmf.setTotalSeqCounts(kc.posSeqCount, kc.negSeqCount);
 	        	kmf.setConfig(config, outName);
-	        	kcm_threshold = kc.kcmThreshold;
+	        	kcm_threshold = kc.ksmThreshold;
 			}
     	}
     	
@@ -592,7 +592,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		 * ********************************************************/
 		postEMProcessing(compFeatures);
 		
-		log(1, "Finish prediction: "+CommonUtils.timeElapsed(tic)+"\n");
+		log(1, "Finish binding event prediction: "+CommonUtils.timeElapsed(tic)+"\n");
 
 		return signalFeatures;
 	}// end of execute method
@@ -3326,17 +3326,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	}
 		
 	/**
-     * Initalize the kmer engine, then run KMF<br>
+     * Initalize the kmer engine, then run KMAC<br>
      * This is called only once for initial setup.<br>
      * It compact the cached sequence data and build the KMF<br>
      * If the return value is -1, KMF is not successful, should exit the program.
      */
-    public int initKMF(){
+    public int initKMAC(){
     	if (config.k==-1 && config.k_min==-1)
     		return -1;
 		
     	System.out.println("Loading genome sequences ...");
-		kmf = new KmerMotifFinder(gen, config.cache_genome, config.use_db_genome, config.genome_path);
+		kmf = new KMAC(gen, config.cache_genome, config.use_db_genome, config.genome_path);
 		long tic = System.currentTimeMillis();
 
 		// setup lightweight genome cache
@@ -3352,20 +3352,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			// get negative regions
 			ArrayList<Region> negativeRegions = new ArrayList<Region>();
-// Random genome-wide
-//			cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
-//			for (Feature f:signalFeatures){
-//				String chr = f.getPeak().getChrom();
-//				int length = gen.getChromLength(chr)-config.k_win-1;
-//				// for each event, get random negative regions from the same chromosome
-//				for (int i=0;i<config.negative_ratio;i++){
-//					double rand = randomEngine.nextDouble();
-//					int start = (int)(rand*length);
-//					Region r = new Region(gen, chr, start, start+config.k_win);
-//					negativeRegions.add(r);
-//				}
-//			}
-//			negativeRegions = Region.filterOverlapRegions(negativeRegions, expandedRegions);
+
 			// In proximal regions, but excluding binding regions
 			int winSize = Math.max(config.k_win, config.k_win2); 
 			for (Feature f:signalFeatures){
@@ -3400,7 +3387,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println(String.format("GC content=%.2f\n", config.gc));
 		}
 		
-		return runKMF(config.k_win);		
+		return runKMAC(config.k_win);		
     }
     
     private ArrayList<ComponentFeature> getEvents(){
@@ -3445,15 +3432,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     
     /**
      * Run the K-mer motif discovery procedure <br>
-     * If the return value is -1, KMF is not successful, should exit the program.
+     * If the return value is -1, KMAC is not successful, should exit the program.
      */
-    public int runKMF( int winSize){
+    public int runKMAC( int winSize){
     	// set the parameters
-//    	kmf.setParameters(config.hgp, config.k_fold, config.motif_hit_factor, config.motif_hit_factor_report, 
-//    			config.wm_factor, config.kmer_remove_mode, config.use_grid_search, config.use_weight, config.allow_single_family,
-//    			outName, config.refine_pwm, config.verbose, config.kmer_aligned_fraction, config.print_aligned_seqs, config.re_train, config.max_cluster,
-//				 config.repeat_fraction, config.allow_seed_reset, config.allow_seed_inheritance, config.noise, config.use_seed_family, 
-//				 config.use_ksm, config.estimate_ksm_threshold, config.maxThreads, config.seed);
     	kmf.setConfig(config, outName);
     	
     	// load sequence from binding event positions
@@ -3485,7 +3467,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
-		kmers = kmf.findMotif_HybridAlignment(kmers, -1, false, eventCounts);
+		kmers = kmf.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
 			
 		// use only primary cluster k-mers for search
 		ArrayList<Kmer> primaryKmers = new ArrayList<Kmer>();
@@ -3969,7 +3951,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                	}
                 		}
                 		else {			// use PWM to set KPP
-                			KmerMotifFinder.KmerCluster cluster = kmf.getPrimaryCluster();
+                			KMAC.KmerCluster cluster = kmf.getPrimaryCluster();
                 			if (cluster!=null){
                 				WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
                 				WeightMatrixScoreProfile profiler = scorer.execute(seq);

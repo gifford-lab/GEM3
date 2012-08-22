@@ -7,13 +7,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 
-public class KmerClass{
+public class KmerSet{
 	private ArrayList<Kmer> kmers;
 	public int posSeqCount=-1;
 	public int negSeqCount=-1;
-	public double kcmThreshold=0;
+	public double ksmThreshold=0;
 	
-	public KmerClass (File file){
+	public KmerSet (File file){
 		kmers = new ArrayList<Kmer>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
@@ -25,7 +25,7 @@ public class KmerClass{
 	        
 	        line = bin.readLine().trim();							// 2nd line, KCM threshold
 	        line = line.substring(1,line.length());			//remove # sign
-	        kcmThreshold = Double.parseDouble(line);
+	        ksmThreshold = Double.parseDouble(line);
 
 	        while((line = bin.readLine()) != null) { 
 	        	if (line.startsWith("#"))
@@ -54,7 +54,7 @@ public class KmerClass{
 	}
 	
 	public static void main0(String[] args){
-		KmerClass kc = new KmerClass(new File(args[0]));
+		KmerSet kc = new KmerSet(new File(args[0]));
 		return;
 	}
 }

@@ -286,7 +286,7 @@ public class Kmer implements Comparable<Kmer>{
 
 	
 	public static void printKmers(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double score, 
-			String filePrefix, boolean printShortFormat, boolean print_kmer_hits){
+			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
 			return;
 		
@@ -310,7 +310,10 @@ public class Kmer implements Comparable<Kmer>{
 				sb.append("\n");
 			}
 		}
-		CommonUtils.writeFile(String.format("%s_kmer_k%d.txt",filePrefix, kmers.get(0).getK()), sb.toString());
+		if (printKmersAtK)
+			CommonUtils.writeFile(String.format("%s_kmers_k%d.txt", filePrefix, kmers.get(0).getK()), sb.toString());
+		else
+			CommonUtils.writeFile(String.format("%s_KSM.txt", filePrefix), sb.toString());
 	}
 	
 	/**
