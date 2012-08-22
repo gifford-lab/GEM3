@@ -837,8 +837,26 @@ public class KMAC {
 				kmer.setWeightedPosHitCount();
 			}
 			kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
-			if (kmer.getHgp()>config.hgp)
+			if (kmer.getHgp()>config.hgp){
 				highHgpKmers.add(kmer);		
+				continue;
+			}
+//			if (config.use_pos_kmer){
+//				double weight = 0;
+//				for (int i: kmer.getPosHits()){
+//					ArrayList<Integer> pos = StringUtils.findAllOccurences(seqs[i], kmer.getKmerString());
+//					pos.addAll(StringUtils.findAllOccurences(seqs[i], kmer.getKmerRC()));
+//					double[] pos_w = new double[pos.size()];
+//					for (int j=0;j<pos.size();j++)
+//						pos_w[j] = profile[pos.get(i)+k/2];
+//					double maxW = 0;
+//					for (double w:pos_w)
+//						if (maxW<w)
+//							maxW=w;
+//					weight+=seq_weights[i];
+//				}
+//				kmer.setWeightedPosHitCount();
+//			}
 		}
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);

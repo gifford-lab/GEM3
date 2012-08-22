@@ -62,7 +62,8 @@ public class Config {
     public boolean use_grid_search = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
-    public boolean use_weighted_kmer = true;
+    public boolean use_weighted_kmer = true;		// strength weighted k-mer count
+    public boolean use_pos_kmer = true;				// position weighted k-mer count
     public boolean k_neg_shuffle = false;
     public boolean k_neg_dinu_shuffle = false;		// di-nuleotide shuffle
    	public boolean re_align_kmer = false;
@@ -192,6 +193,7 @@ public class Config {
         use_strength_weight = !flags.contains("no_weight");
         use_pos_weight = !flags.contains("no_pos_weight");
         use_weighted_kmer = !flags.contains("no_weighted_kmer");
+        use_pos_kmer = !flags.contains("no_pos_kmer");
         use_grid_search = !flags.contains("no_grid_search");
         allow_single_family = !flags.contains("no_single_family");
         allow_seed_reset = !flags.contains("no_seed_reset");
