@@ -3468,14 +3468,18 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
 		kmers = kmf.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
-			
+		if (kmers.isEmpty()){
+			System.err.print("Not able to find KSM motif, exit here!");
+			System.exit(-1);
+		}
+		
 		// use only primary cluster k-mers for search
 		ArrayList<Kmer> primaryKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmers)
 			if (km.getClusterId()==0)
 				primaryKmers.add(km);
 		kmf.updateEngine(primaryKmers);		
-		this.kcm_threshold = kmf.getPrimaryCluster().ksmThreshold.score;
+		kcm_threshold = kmf.getPrimaryCluster().ksmThreshold==null?0:kmf.getPrimaryCluster().ksmThreshold.score;
 		return 0;
     }
     	
