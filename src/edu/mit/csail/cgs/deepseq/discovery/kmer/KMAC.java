@@ -1911,7 +1911,8 @@ public class KMAC {
 
 		// print the clustered k-mers
 		Collections.sort(kmers);
-		Kmer.printKmers(allAlignedKmers, posSeqCount, negSeqCount, this.getPrimaryCluster().ksmThreshold.score, outName, false, true, false);
+		double score = getPrimaryCluster().ksmThreshold==null?0:getPrimaryCluster().ksmThreshold.score;
+		Kmer.printKmers(allAlignedKmers, posSeqCount, negSeqCount, score, outName, false, true, false);
 		
 		System.out.print("\nFinish KMAC motif discovery, "+CommonUtils.timeElapsed(tic)+"\n");
 		
