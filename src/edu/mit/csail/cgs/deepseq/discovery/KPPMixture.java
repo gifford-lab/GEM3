@@ -5017,8 +5017,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             // BIC_GEM
             // Each component has 3 parameters, position prior, mixing prob and position, thus "*3";
             double BIC(double n, boolean hasPP){
-//                return LAP - (numComponent*(hasPP?3:2)-1 + (mixture.numConditions-1)*numComponent )/2*Math.log(n);
-                return LAP - (numComponent*(hasPP?3:2)-1 + (mixture.numConditions-1)*numComponent ); // AIC
+            	if (config.bic)
+            		return LAP - (numComponent*(hasPP?3:2)-1 + (mixture.numConditions-1)*numComponent )/2*Math.log(n);
+            	else
+            		return LAP - (numComponent*(hasPP?3:2)-1 + (mixture.numConditions-1)*numComponent ); // AIC
             }
             public String toString(){
                 return String.format("%.3f\t%.0f", LAP, numComponent);
