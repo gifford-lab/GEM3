@@ -72,7 +72,7 @@ public class Config {
    	public boolean use_ksm = true;				// align with KSM (together with PWM)
  	public boolean estimate_ksm_threshold = true;
   	public boolean kpp_normalize_max = true;
-  	public boolean kpp_use_kmer = true;
+  	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
   	public double kpp_factor = 0.8;
   	public double noise = 0.0;
     public boolean print_aligned_seqs = false;
@@ -188,7 +188,7 @@ public class Config {
         use_kmer_mismatch = !flags.contains("no_kmm");
         use_seed_family = !flags.contains("no_seed_family");
         use_ksm = !flags.contains("no_ksm");
-        kpp_use_kmer = !flags.contains("pp_pwm");
+        pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         use_strength_weight = !flags.contains("no_weight");
         use_pos_weight = !flags.contains("no_pos_weight");

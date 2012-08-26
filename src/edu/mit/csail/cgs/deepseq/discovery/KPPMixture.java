@@ -3469,8 +3469,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
 		kmers = kmf.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
 		if (kmers.isEmpty()){
-			System.err.print("Not able to find KSM motif, exit here!");
-			System.exit(-1);
+			System.err.print("Not able to find KSM motif, ");
+			if (kmf.getPrimaryCluster().wm!=null){
+				config.pp_use_kmer = false;
+				System.err.println("use PWM as prior!");
+			}else{
+				System.err.println("exit here!");
+				System.exit(-1);
+			}
 		}
 		
 		// use only primary cluster k-mers for search
@@ -3922,7 +3928,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 			seq = kmf.getSequenceUppercase(w);
                 		
                 		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
-                		if (config.kpp_use_kmer){		// use k-mer match to set KPP
+                		if (config.pp_use_kmer){		// use k-mer match to set KPP
 	                		KmerGroup[] matchPositions = kmf.query(seq);
 		                	if (config.print_PI)	
 		                		System.out.println(seq);
@@ -4007,7 +4013,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
 		                		if (pp[j]>0){
 		                			pp[j] = pp[j]/total*(alpha*config.kpp_factor);
-		                			if (config.kpp_use_kmer)
+		                			if (config.pp_use_kmer)
 		                				hits.get(j).pp = pp[j];
 	                			}
 	                		}
@@ -4068,7 +4074,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     components.removeAll(toRemove);
                     
                     setComponentResponsibilities(signals, result.car(), result.cdr());
-                    if (kmf!=null && config.kpp_use_kmer)
+                    if (kmf!=null && config.pp_use_kmer)
                     	setEventKmerGroup(pp_kmer, w.getStart(), seq);
                 } else {
                     // Run MultiIndependentMixture (Temporal Coupling) -- PoolEM
