@@ -71,9 +71,9 @@ public class Kmer implements Comparable<Kmer>{
 			weight+=seq_weights[i];
 		weightedPosHitCount = (int)weight;
 	}
-//	public int getWeightedHitCount(){
-//		return weightedPosHitCount;
-//	}
+	public int getWeightedHitCount(){
+		return weightedPosHitCount;
+	}
 	public double familyHgp;
 	
 	private double top;

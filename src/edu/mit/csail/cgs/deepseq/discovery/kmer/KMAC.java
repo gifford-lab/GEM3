@@ -4528,7 +4528,7 @@ public class KMAC {
 	    	km.setPosHits(posHits.get(i));
 	    	km.setNegHits(negHits.get(i));
 			km.setHgp( computeHGP(km.getPosHitCount(), km.getNegHitCount()));
-//			km.setStrength(kmerStrength[i]);
+			km.setStrength(seq_weights[i]);
 	    }
 	}
 	
@@ -5335,12 +5335,13 @@ public class KMAC {
     		return total;
 		}	
 		/** Get the weighted kmer strength<cr>
-		 *  The weight is 1 for top kmer, 1/k for other kmer */
+		 *  The weight is 1 for top kmer, 1/k for other kmer 
+		 *  Note: this is only approximate */
 		public double getWeightedKmerStrength(){
-    		double total = kmers.get(0).getStrength();
+    		double total = kmers.get(0).getWeightedHitCount();
     		double k = kmers.get(0).getK();
     		for (int i=1;i<kmers.size();i++){
-    			total+=kmers.get(i).getStrength()/k;	
+    			total+=kmers.get(i).getWeightedHitCount()/k;	
     		}
     		return total;
 		}			

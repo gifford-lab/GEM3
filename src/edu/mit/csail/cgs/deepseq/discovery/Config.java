@@ -118,7 +118,7 @@ public class Config {
     public int first_lambda_region_width  =  1000;
     public int second_lambda_region_width =  5000;
     public int third_lambda_region_width  = 10000;
-    public boolean bic = true;				// use BIC or AIC for model selection
+    public boolean bic = false;				// use BIC or AIC for model selection
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
@@ -172,10 +172,10 @@ public class Config {
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
+        bic = flags.contains("bic"); 					// BIC or AIC
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
-        bic = !flags.contains("aic"); 					// BIC or AIC
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
         use_betaEM = ! flags.contains("poolEM");
         filterEvents = !flags.contains("nf");	// no filtering for predicted events
