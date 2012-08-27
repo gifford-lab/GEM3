@@ -3469,12 +3469,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
 		kmers = kmf.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
 		if (kmers.isEmpty()){
-			System.err.print("Not able to find KSM motif, ");
+			System.err.print("Not able to find KSM motif");
 			if (kmf.getPrimaryCluster().wm!=null){
 				config.pp_use_kmer = false;
-				System.err.println("use PWM as prior!");
+				System.err.println(" , use PWM as prior!");
 			}else{
-				System.err.println("exit here!");
+				System.err.println(" and PWM motif, exit here!");
 				System.exit(-1);
 			}
 		}

@@ -268,13 +268,13 @@ public class GEM {
                          "   Required parameters:\n" +
                          "      --d <read distribution file>\n" +
                          "      --exptX <aligned reads file for expt (X is condition name)>\n" +
-                         "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
                          "   Required GEM parameters, optional for GPS-only analysis:\n" +
                          "      --k <length of the k-mer for motif finding, use --k or (--kmin & --kmax)>\n" +
                          "      --kmin <min value of k, e.g. 6>\n" +
                          "      --kmax <max value of k, e.g. 13>\n" +
                          "      --genome <the path to the genome sequence directory, for motif finding>\n" +
                          "   Optional parameters:\n" +
+                         "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
                          "      --f <read file format, BED/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --g <genome info file with chr name/length pairs>\n" +
                          "      --s <size of mappable genome in bp (default is estimated from genome info)>\n" +
