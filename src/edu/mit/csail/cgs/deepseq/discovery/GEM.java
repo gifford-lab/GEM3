@@ -278,7 +278,6 @@ public class GEM {
                          "      --f <read file format, BED/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --g <genome info file with chr name/length pairs>\n" +
                          "      --s <size of mappable genome in bp (default is estimated from genome info)>\n" +
-//                         "      --r <max rounds to refine read distribution (default=2)>\n" +
                          "      --a <minimum alpha value for sparse prior (default=6)>\n" +
                          "      --q <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)>\n" +
                          "      --t <maximum number of threads to run GPS in paralell, (default=#CPU)>\n" +
@@ -286,16 +285,16 @@ public class GEM {
                          "   Optional flags: \n" +
                          "      --fa use a fixed user-specified alpha value for all the regions\n" +
                          "      --help print this help information and exit\n" +
-                         "\n   Output format:\n" +
-                         "      The output file contains eight fields in a tab-delimited file:\n" +
-                         "        - Binding event coordinate\n" +
-                         "        - IP read count\n" +
-                         "        - Control read count\n" +
-                         "        - Fold enrichment (IP/Control)\n" +                
-                         "        - P-value\n" +
-                         "        - Q-value (multiple hypothesis corrected)\n"+
-                         "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
-                         "        - Shape deviation between IP vs Control (log10(KL))\n" +
+//                         "\n   Output format:\n" +
+//                         "      The output file contains eight fields in a tab-delimited file:\n" +
+//                         "        - Binding event coordinate\n" +
+//                         "        - IP read count\n" +
+//                         "        - Control read count\n" +
+//                         "        - Fold enrichment (IP/Control)\n" +                
+//                         "        - P-value\n" +
+//                         "        - Q-value (multiple hypothesis corrected)\n"+
+//                         "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
+//                         "        - Shape deviation between IP vs Control (log10(KL))\n" +
                          "\n");	
     }
     public void printError() {

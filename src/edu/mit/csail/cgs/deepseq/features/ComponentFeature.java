@@ -429,7 +429,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append("\t");
         }
         if (boundSequence!=null){
-	        header.append("Kmer       \t").append("KG_hgp\t").append("Strand\t").append("BoundSequence"); 
+	        header.append("Kmer       \t").append("KG_hgp\t").append("Strand"); 
         }
         header.append("\n");
         return header.toString();
