@@ -278,7 +278,7 @@ public class GEM {
                          "      --f <read file format, BED/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --g <genome info file with chr name/length pairs>\n" +
                          "      --s <size of mappable genome in bp (default is estimated from genome info)>\n" +
-                         "      --a <minimum alpha value for sparse prior (default=6)>\n" +
+                         "      --a <minimum alpha value for sparse prior (default is esitmated from whole dataset coverage)>\n" +
                          "      --q <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)>\n" +
                          "      --t <maximum number of threads to run GPS in paralell, (default=#CPU)>\n" +
                          "      --out <output file name prefix>\n" +

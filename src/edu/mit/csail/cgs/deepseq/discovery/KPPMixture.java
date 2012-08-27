@@ -285,7 +285,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				totalReadCount += caches.get(i).car().getHitCount();	
 			int expectedHitCount = calcExpectedHitCount(totalReadCount, config.poisson_alpha, modelWidth);
 			config.sparseness = expectedHitCount;
-			log(2, String.format("\nAt Poisson p-value %.1e, expect %d reads in a %dbp window.", config.poisson_alpha, expectedHitCount, modelWidth));
+			log(1, String.format("\nAt Poisson p-value %.1e, in a %dbp window, expect %d reads (minimum alpha value, can be overridden with --a option).\n", 
+					config.poisson_alpha, modelWidth, expectedHitCount));
 		}
 		
 		// estimate ratio and segment genome into regions
@@ -2386,7 +2387,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private void applyPoissonFilter(boolean printFilterMsg){
 		// Filtering/reset bases
 		if (printFilterMsg)
-			System.out.println("\nApply Poisson filter for duplicate reads.");
+			System.out.println("\nFilter duplicate reads.");
 		for(int c = 0; c < numConditions; c++) {
 			caches.get(c).car().applyPoissonGaussianFilter(10e-3, 20);
 			if(controlDataExist) {
