@@ -83,7 +83,7 @@ public class CountKmers {
 			Region r = points[i].expand(window/2);
 			if (r.getWidth()!=2*(window/2)+1)		// if at the end of chromosome, skip
 				continue;
-			String seq = seqgen.execute(r);
+			String seq = seqgen.execute(r).toUpperCase();
 			seqs[i]=seq;
 			HashSet<String> uniqueKmers = new HashSet<String>();	// only count repeated kmer once in a sequence
 			for (int j=0;j<seq.length()-k;j++){
@@ -151,7 +151,7 @@ public class CountKmers {
 			kmerWeights[i] = values;
 			sb.append(km.getKmerString()+"\t"+km.getPosHitCount()+"\t"+CommonUtils.arrayToString(values, 1)).append("\n");
 		}
-		CommonUtils.writeFile(Args.parseString(args, "out", "out")+"_kmer_weights.txt", sb.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "out")+"_win"+window+"_kmer_weights.txt", sb.toString());
 	}
 
 }
