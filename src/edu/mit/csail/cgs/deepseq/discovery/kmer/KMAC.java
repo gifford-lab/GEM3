@@ -821,6 +821,7 @@ public class KMAC {
 		// score the kmers, hypergeometric p-value
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
+		int offset_factor = k/2-k_win/2;
 		for (Kmer kmer:kms){
 			if (kmer.getPosHits().size()<=1){
 				toRemove.add(kmer);	
@@ -841,21 +842,42 @@ public class KMAC {
 				highHgpKmers.add(kmer);		
 				continue;
 			}
-//			if (config.use_pos_kmer){
-//				double weight = 0;
+//			if (config.use_pos_kmer && kmer.getKmerString().equals("TGAGTCA")){
+//				int offset_factor_neg = offset_factor;
+//				if (kmer.getKmerString().equals(kmer.getKmerRC()) && k%2==0)	// palindrome k-mer and k is even value
+//					offset_factor_neg -= 1;
+//				double[] histogram = new double[profile.length];
 //				for (int i: kmer.getPosHits()){
+//					int min_offset = 10000;
 //					ArrayList<Integer> pos = StringUtils.findAllOccurences(seqs[i], kmer.getKmerString());
-//					pos.addAll(StringUtils.findAllOccurences(seqs[i], kmer.getKmerRC()));
-//					double[] pos_w = new double[pos.size()];
-//					for (int j=0;j<pos.size();j++)
-//						pos_w[j] = profile[pos.get(i)+k/2];
-//					double maxW = 0;
-//					for (double w:pos_w)
-//						if (maxW<w)
-//							maxW=w;
-//					weight+=seq_weights[i];
+//					for (int p:pos){
+//						// compute the offset from center position of k-mer to the binding position (center of sequence) 
+//						int p_offset = p+offset_factor;	
+//						if (Math.abs(min_offset)>Math.abs(p_offset))
+//							min_offset = p_offset;
+//					}
+//					if (min_offset==0)
+//						continue;
+//					// reverse strand
+//					pos.clear();
+//					pos.addAll(StringUtils.findAllOccurences(SequenceUtils.reverseComplement(seqs[i]), kmer.getKmerString()));
+//					for (int p:pos){
+//						// compute the offset from center position of k-mer to the binding position (center of sequence) 
+//						int p_offset = p+offset_factor_neg;	
+//						if (Math.abs(min_offset)>Math.abs(p_offset))
+//							min_offset = p_offset;
+//					}
+//					if (min_offset!=10000){
+////						System.out.print(min_offset+"\t");
+//						histogram[min_offset+k_win/2]++;
+//					}
 //				}
-//				kmer.setWeightedPosHitCount();
+//				StatUtil.normalize(histogram);
+//				System.out.println(CommonUtils.arrayToString(histogram, "%.4f"));
+//				histogram = StatUtil.gaussianSmoother(histogram, 4);
+//				System.out.println(CommonUtils.arrayToString(histogram, "%.4f"));
+//				System.out.println(CommonUtils.arrayToString(profile, "%.4f"));
+////				System.exit(0);
 //			}
 		}
 		// remove un-enriched kmers		
