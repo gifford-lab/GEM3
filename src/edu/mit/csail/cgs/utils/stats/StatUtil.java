@@ -137,6 +137,30 @@ public class StatUtil {
 		}
 	}
 	
+	/**
+	 * Returns the median of this array
+	 * @param x array of type <tt>double</tt>
+	 * @return
+	 */
+	public static float median(float[] x) {
+		if (x.length == 1) {
+			return x[0];
+		}
+		
+		float[] y = new float[x.length];
+		System.arraycopy(x,0,y,0,x.length);
+		Arrays.sort(y);
+		int n = x.length;
+		float m = ((float) n)/2.0f;
+		if (Math.floor(m) == m) {
+			n = n / 2;
+			return (y[n] + y[n-1])/2.0f;
+		} else {
+			n = (n-1)/2;
+			return y[n];
+		}
+	}
+	
 	/** 
 	 * Count occurences of the elements
 	 */
