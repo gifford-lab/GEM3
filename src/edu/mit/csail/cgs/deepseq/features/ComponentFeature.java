@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerMotifFinder.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.utils.Pair;
@@ -429,7 +429,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append("\t");
         }
         if (boundSequence!=null){
-	        header.append("Kmer       \t").append("KG_hgp\t").append("Strand\t").append("BoundSequence"); 
+	        header.append("Kmer       \t").append("KG_hgp\t").append("Strand"); 
         }
         header.append("\n");
         return header.toString();

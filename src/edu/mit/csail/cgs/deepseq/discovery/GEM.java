@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GEM {
-	public final static String GEM_VERSION = "0.9";
+	public final static String GEM_VERSION = "1.0";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -187,11 +187,11 @@ public class GEM {
         }
         
         /**
-         ** GPS2 event finding with kmer positional prior (KPP)
+         ** GEM event finding with kmer positional prior (KPP)
          **/   
         if (run_gem){
         	// initialize first set of kmers from GPS result
-	        int returnValue = mixture.initKMF();	
+	        int returnValue = mixture.initKMAC();	
 	        if (returnValue == -1){					// this could happen if no k value can be found to give good motif
 	        	mixture.plotAllReadDistributions();
 	            mixture.closeLogFile();
@@ -207,13 +207,13 @@ public class GEM {
 		        mixture.printFeatures(round);
 		        mixture.printFilteredFeatures(round);
 		        mixture.printInsignificantFeatures(round);
-		        mixture.runKMF(Args.parseInteger(args,"k_win", 61));// Note: KPPMixture also has args parsing, keep default value the same
+		        mixture.runKMAC(Args.parseInteger(args,"k_win", 61));// Note: KPPMixture also has args parsing, keep default value the same
             }
             int winSize = Args.parseInteger(args,"k_win2", -1);
             if (winSize!=-1){
 	            System.out.println("\n============== Finding motif for "+prefix+"_"+(round+1)+", large window size="+winSize+" =============\n");
 	            mixture.setOutName(filePrefix+"_"+(round+1));
-		        mixture.runKMF(winSize);	// Note: KPPMixture also has args parsing, keep default value the same
+		        mixture.runKMAC(winSize);	// Note: KPPMixture also has args parsing, keep default value the same
             }
         }
         
@@ -227,9 +227,13 @@ public class GEM {
         if (run_gem){
 	        System.out.println("\nFinished! GEM analysis results are printed to:\n"+
 	        		path+"_GEM_events.txt\n"+
+	        		path+"_KSM.txt\n"+
+	        		path+"_PFM.txt\n"+
 	        		path+"_result.htm\n" +
-	        		path+"_outputs (folder)\n");
+	        		path+"_outputs (folder with all other files)\n");
 	        CommonUtils.copyFile(filePrefix+"_"+GPS_round+"_GEM_events.txt", path+"_GEM_events.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+GPS_round+"_PFM.txt", path+"_PFM.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+GPS_round+"_KSM.txt", path+"_KSM.txt");
 	        String htmName = prefix+"_outputs/"+prefix+"_"+GPS_round+"_result.htm";
 	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 	        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
@@ -239,7 +243,7 @@ public class GEM {
         else{
             System.out.println("\nFinished! GPS analysis results are printed to:\n"+
             		path+"_GPS_events.txt\n"+
-	        		path+"_outputs (folder)\n");
+	        		path+"_outputs (folder with all other files)\n");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
         }
     }
@@ -247,6 +251,7 @@ public class GEM {
     public static void main(String[] args) throws Exception {
         long tic = System.currentTimeMillis();
         System.out.println("\nWelcome to GEM (version "+GEM_VERSION+")!");
+        System.out.println("\nPlease cite: \nYuchun Guo, Shaun Mahony, David K. Gifford (2012) PLoS Computational Biology 8(8): e1002638. \nHigh Resolution Genome Wide Binding Event Finding and Motif Discovery Reveals Transcription Factor Spatial Binding Constraints. \ndoi:10.1371/journal.pcbi.1002638\n");
         System.out.println("Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gem/).\n");
         GEM gps = new GEM(args);
         gps.runMixtureModel();
@@ -259,38 +264,37 @@ public class GEM {
      */
     public static void printHelp() {
         System.err.print("" +
-                         "GPS Usage                      (more at http://cgs.csail.mit.edu/gps/)\n" +
-                         //                "   Using with Gifford Lab DB:\n" +
-                         //                "      --species <organism name;genome version>\n"+
-                         //                "      --dbexptX <IP expt (X is condition name)>\n" +
-                         //                "      --dbctrlX <background expt (X is condition name)>\n" +
-                         //                "      --readlen <read length>\n" +
+                         "GEM command line options (more at our website)\n" +
                          "   Required parameters:\n" +
                          "      --d <read distribution file>\n" +
                          "      --exptX <aligned reads file for expt (X is condition name)>\n" +
-                         "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
+                         "   Required GEM parameters, optional for GPS-only analysis:\n" +
+                         "      --k <length of the k-mer for motif finding, use --k or (--kmin & --kmax)>\n" +
+                         "      --kmin <min value of k, e.g. 6>\n" +
+                         "      --kmax <max value of k, e.g. 13>\n" +
+                         "      --genome <the path to the genome sequence directory, for motif finding>\n" +
                          "   Optional parameters:\n" +
+                         "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
                          "      --f <read file format, BED/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --g <genome info file with chr name/length pairs>\n" +
                          "      --s <size of mappable genome in bp (default is estimated from genome info)>\n" +
-                         "      --r <max rounds to refine read distribution (default=3)>\n" +
-                         "      --a <minimum alpha value for sparse prior (default=6)>\n" +
+                         "      --a <minimum alpha value for sparse prior (default is esitmated from whole dataset coverage)>\n" +
                          "      --q <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)>\n" +
                          "      --t <maximum number of threads to run GPS in paralell, (default=#CPU)>\n" +
-                         "      --out <output file base name>\n" +
+                         "      --out <output file name prefix>\n" +
                          "   Optional flags: \n" +
                          "      --fa use a fixed user-specified alpha value for all the regions\n" +
-                         "      --help print help information and exit\n" +
-                         "\n   Output format:\n" +
-                         "      The output file contains eight fields in a tab-delimited file:\n" +
-                         "        - Binding event coordinate\n" +
-                         "        - IP read count\n" +
-                         "        - Control read count\n" +
-                         "        - Fold enrichment (IP/Control)\n" +                
-                         "        - P-value\n" +
-                         "        - Q-value (multiple hypothesis corrected)\n"+
-                         "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
-                         "        - Shape deviation between IP vs Control (log10(KL))\n" +
+                         "      --help print this help information and exit\n" +
+//                         "\n   Output format:\n" +
+//                         "      The output file contains eight fields in a tab-delimited file:\n" +
+//                         "        - Binding event coordinate\n" +
+//                         "        - IP read count\n" +
+//                         "        - Control read count\n" +
+//                         "        - Fold enrichment (IP/Control)\n" +                
+//                         "        - P-value\n" +
+//                         "        - Q-value (multiple hypothesis corrected)\n"+
+//                         "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
+//                         "        - Shape deviation between IP vs Control (log10(KL))\n" +
                          "\n");	
     }
     public void printError() {

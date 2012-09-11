@@ -72,7 +72,7 @@ public class Config {
    	public boolean use_ksm = true;				// align with KSM (together with PWM)
  	public boolean estimate_ksm_threshold = true;
   	public boolean kpp_normalize_max = true;
-  	public boolean kpp_use_kmer = true;
+  	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
   	public double kpp_factor = 0.8;
   	public double noise = 0.0;
     public boolean print_aligned_seqs = false;
@@ -118,6 +118,7 @@ public class Config {
     public int first_lambda_region_width  =  1000;
     public int second_lambda_region_width =  5000;
     public int third_lambda_region_width  = 10000;
+    public boolean bic = false;				// use BIC or AIC for model selection
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
@@ -171,6 +172,7 @@ public class Config {
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
+        bic = flags.contains("bic"); 					// BIC or AIC
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -188,7 +190,7 @@ public class Config {
         use_kmer_mismatch = !flags.contains("no_kmm");
         use_seed_family = !flags.contains("no_seed_family");
         use_ksm = !flags.contains("no_ksm");
-        kpp_use_kmer = !flags.contains("pp_pwm");
+        pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         use_strength_weight = !flags.contains("no_weight");
         use_pos_weight = !flags.contains("no_pos_weight");

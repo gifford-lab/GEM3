@@ -1444,7 +1444,14 @@ public class StatUtil {
 	public static double binomialPValue(double k, double n){
         return binomialPValue(k,n,.5);
     }
-	// Uses COLT binomial test
+	/**
+	 * Binomial test (COLT lib)
+	 * @param k 
+	 * @param n	Total
+	 * @param p	Prob
+	 * @return
+	 */
+	
     public static double binomialPValue(double k, double n, double p){
 		if (n==0)
 			return Double.NaN;
