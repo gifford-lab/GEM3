@@ -140,7 +140,7 @@ public class GEM {
 	
     public void runMixtureModel() {		
     	boolean run_gem = false;
-    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1
+    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1 || Args.parseInteger(args,"kmin", -1)!=-1
     			|| Args.parseString(args, "seed", null)!=null)
     		run_gem = true;
         double kl=10;
@@ -270,8 +270,8 @@ public class GEM {
                          "      --exptX <aligned reads file for expt (X is condition name)>\n" +
                          "   Required GEM parameters, optional for GPS-only analysis:\n" +
                          "      --k <length of the k-mer for motif finding, use --k or (--kmin & --kmax)>\n" +
-                         "      --kmin <min value of k, e.g. 6>\n" +
-                         "      --kmax <max value of k, e.g. 13>\n" +
+                         "      --k_min <min value of k, e.g. 6>\n" +
+                         "      --k_max <max value of k, e.g. 13>\n" +
                          "      --genome <the path to the genome sequence directory, for motif finding>\n" +
                          "   Optional parameters:\n" +
                          "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
