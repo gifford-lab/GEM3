@@ -1,6 +1,10 @@
 package edu.mit.csail.cgs.tools.sequence;
 
 import java.io.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import edu.mit.csail.cgs.ewok.verbs.RegionParser;
 import edu.mit.csail.cgs.ewok.verbs.FastaWriter;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -21,14 +25,28 @@ public class RegionsToFasta {
 
     public static void main(String args[]) {
         try {
+        	String outfile = Args.parseString(args, "outfile", "");
+        	String infile = Args.parseString(args, "infile", "");
             Pair<Organism,Genome> pair = Args.parseGenome(args);
             Organism organism = pair.car();
             Genome genome = pair.cdr();
-            FastaWriter writer = new FastaWriter(System.out);
+            FastaWriter writer;
+            if (!outfile.equals("")) {
+            	writer = new FastaWriter(new PrintStream(outfile));
+            } else {
+            	writer = new FastaWriter(System.out);
+            }
             writer.useCache(Args.parseFlags(args).contains("cache"));
             int expand = Args.parseInteger(args,"expand",0);
+            DateFormat dfm = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            int count = 0;
             String line;
-            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            BufferedReader reader;
+            if (!infile.equals("")) {
+            	reader = new BufferedReader(new FileReader(infile));
+            } else {
+            	reader = new BufferedReader(new InputStreamReader(System.in));
+            }
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 StrandedRegion sr = StrandedRegion.fromString(genome, line);
@@ -41,6 +59,10 @@ public class RegionsToFasta {
                 } else {
                     Region r = Region.fromString(genome,line);
                     writer.consume(r.expand(expand,expand));   
+                }
+                count++;
+                if (count % 100 == 0) {
+                	System.err.println(count+" "+dfm.format(new Date()));
                 }
             }
 
