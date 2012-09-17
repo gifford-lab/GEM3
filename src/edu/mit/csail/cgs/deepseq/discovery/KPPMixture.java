@@ -116,7 +116,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private File outputFolder = null;
 
 	/** Kmer motif engine */
-	private KMAC kmf;
+	private KMAC kmac;
 	private boolean kmerPreDefined = false;
 	private double kcm_threshold = -1;
 	
@@ -213,9 +213,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			File kFile = new File(kmerFile);
 			if(kFile.isFile()){
 				KmerSet kc = new KmerSet(kFile);
-	        	kmf = new KMAC(kc.getKmers(0), outName);
-	        	kmf.setTotalSeqCounts(kc.posSeqCount, kc.negSeqCount);
-	        	kmf.setConfig(config, outName);
+	        	kmac = new KMAC(kc.getKmers(0), outName);
+	        	kmac.setTotalSeqCounts(kc.posSeqCount, kc.negSeqCount);
+	        	kmac.setConfig(config, outName);
 	        	kcm_threshold = kc.ksmThreshold;
 			}
     	}
@@ -485,7 +485,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		reportTriggers.add(1000);
 		reportTriggers.add(10000);
 		
-		if (kmf!=null && kmf.isInitialized()){
+		if (kmac!=null && kmac.isInitialized()){
 			System.out.println("\nRunning EM with k-mer motif positional prior ...\n");
 		}
 		
@@ -3337,7 +3337,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		return -1;
 		
     	System.out.println("Loading genome sequences ...");
-		kmf = new KMAC(gen, config.cache_genome, config.use_db_genome, config.genome_path);
+		kmac = new KMAC(gen, config.cache_genome, config.use_db_genome, config.genome_path);
 		long tic = System.currentTimeMillis();
 
 		// setup lightweight genome cache
@@ -3376,7 +3376,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			negativeRegions.removeAll(toRemove);
 			
-			double gc = kmf.setupRegionCache(expandedRegions, negativeRegions, config.k_neg_dist);
+			double gc = kmac.setupRegionCache(expandedRegions, negativeRegions, config.k_neg_dist);
 			if (config.gc==-1){
 				config.setGC(gc);
 			}
@@ -3437,18 +3437,18 @@ public class KPPMixture extends MultiConditionFeatureFinder {
      */
     public int runKMAC( int winSize){
     	// set the parameters
-    	kmf.setConfig(config, outName);
+    	kmac.setConfig(config, outName);
     	
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();
-    	kmf.loadTestSequences(events, winSize);
+    	kmac.loadTestSequences(events, winSize);
     	if (config.print_input_seqs)
-    		kmf.printInputSequences(outName);
+    		kmac.printInputSequences(outName);
     	
     	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			int bestK = config.selectK_byTopKmer?kmf.selectK_byTopKmer(config.k_min, config.k_max):kmf.selectK(config.k_min, config.k_max);
+			int bestK = config.selectK_byTopKmer?kmac.selectK_byTopKmer(config.k_min, config.k_max):kmac.selectK(config.k_min, config.k_max);
 			if (bestK!=0){
 				config.k = bestK;
 				if (config.allow_seed_inheritance){
@@ -3466,12 +3466,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}	
 		
 		// select enriched k-mers, cluster and align
-		ArrayList<Kmer> kmers = kmf.selectEnrichedKmers(config.k);
+		ArrayList<Kmer> kmers = kmac.selectEnrichedKmers(config.k);
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
-		kmers = kmf.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
+		kmers = kmac.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
 		if (kmers.isEmpty()){
 			System.err.print("Not able to find KSM motif");
-			if (kmf.getPrimaryCluster().wm!=null){
+			if (kmac.getPrimaryCluster().wm!=null){
 				config.pp_use_kmer = false;
 				System.err.println(" , use PWM as prior!");
 			}else{
@@ -3485,22 +3485,22 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		for (Kmer km:kmers)
 			if (km.getClusterId()==0)
 				primaryKmers.add(km);
-		kmf.updateEngine(primaryKmers);		
-		kcm_threshold = kmf.getPrimaryCluster().ksmThreshold==null?0:kmf.getPrimaryCluster().ksmThreshold.score;
+		kmac.updateEngine(primaryKmers);		
+		kcm_threshold = kmac.getPrimaryCluster().ksmThreshold==null?0:kmac.getPrimaryCluster().ksmThreshold.score;
 		return 0;
     }
     	
 	public MotifThreshold estimateClusterKgsThreshold(ArrayList<Kmer> clusterKmers){
-		kmf.updateEngine(clusterKmers);
-		return kmf.optimizeKsmThreshold(outName, false);
+		kmac.updateEngine(clusterKmers);
+		return kmac.optimizeKsmThreshold(outName, false);
 
 	}
 	
 	public void estimateOverallKgsThreshold(){
-		if (! kmf.isInitialized())
+		if (! kmac.isInitialized())
 			return;
 		
-		MotifThreshold t = kmf.optimizeKsmThreshold(outName, true);
+		MotifThreshold t = kmac.optimizeKsmThreshold(outName, true);
 		if (t!=null)
 			System.out.println(String.format("%.2f\t%d\t%d\t%.1f\n", t.score, t.posHit, t.negHit, t.hgp ));
 	}
@@ -3794,7 +3794,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     /* ****************************************************************
                      * if we have positional prior, use the EM result directly
                      * ****************************************************************/
-                    if (kmf!=null){
+                    if (kmac!=null){
                     	compFeatures.addAll(mixture.callFeatures(comps));
                     }
                     /* ****************************************************************
@@ -3922,15 +3922,15 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 	double[] pp = new double[w.getWidth()+1];
                 	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
                 	String seq = null;
-                	if (kmf!=null && kmf.isInitialized()){
+                	if (kmac!=null && kmac.isInitialized()){
                 		if (kmerPreDefined)		// if kmer is loaded from other sources, get fresh sequence 
                 			seq = seqgen.execute(w).toUpperCase();
                 		else					// otherwise, we have run KMF, get the cached sequences
-                			seq = kmf.getSequenceUppercase(w);
+                			seq = kmac.getSequenceUppercase(w);
                 		
                 		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
                 		if (config.pp_use_kmer){		// use k-mer match to set KPP
-	                		KmerGroup[] matchPositions = kmf.query(seq);
+	                		KmerGroup[] matchPositions = kmac.query(seq);
 		                	if (config.print_PI)	
 		                		System.out.println(seq);
 		                	// Effectively, the top kmers will dominate, because we normalize the pp value
@@ -3962,7 +3962,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                	}
                 		}
                 		else {			// use PWM to set KPP
-                			KMAC.KmerCluster cluster = kmf.getPrimaryCluster();
+                			KMAC.KmerCluster cluster = kmac.getPrimaryCluster();
                 			if (cluster!=null){
                 				WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
                 				WeightMatrixScoreProfile profiler = scorer.execute(seq);
@@ -4031,7 +4031,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     while(nonZeroComponentNum>0){                        
                         int numComp = components.size();
                         double[] p_alpha = new double[numComp];						// positional alpha
-                        if (kmf!=null){
+                        if (kmac!=null){
 	                        for (int i=0;i<numComp;i++){
 	                        	BindingComponent b = components.get(i);
 	                        	int bIdx = b.getLocation().getLocation()-w.getStart();
@@ -4075,7 +4075,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     components.removeAll(toRemove);
                     
                     setComponentResponsibilities(signals, result.car(), result.cdr());
-                    if (kmf!=null && config.pp_use_kmer)
+                    if (kmac!=null && config.pp_use_kmer)
                     	setEventKmerGroup(pp_kmer, w.getStart(), seq);
                 } else {
                     // Run MultiIndependentMixture (Temporal Coupling) -- PoolEM

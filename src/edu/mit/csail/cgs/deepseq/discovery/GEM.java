@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GEM {
-	public final static String GEM_VERSION = "1.0";
+	public final static String GEM_VERSION = "1.1";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -138,14 +138,10 @@ public class GEM {
         }
     } //end of GPS constructor
 	
-    public void runMixtureModel() {		
-    	boolean run_gem = false;
-    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1
-    			|| Args.parseString(args, "seed", null)!=null)
-    		run_gem = true;
+    public void runMixtureModel(boolean run_gem) {		
+    	
         double kl=10;
-		
-//        run_gem = false;		// DO NOT RUN GEM, for GPS v1.1 release
+        
         Set<String> flags = Args.parseFlags(args);
         int GPS_round = Args.parseInteger(args,"r_gps", 2);
         int GEM_round = Args.parseInteger(args,"r_gem", 2);
@@ -250,12 +246,23 @@ public class GEM {
     	
     public static void main(String[] args) throws Exception {
         long tic = System.currentTimeMillis();
+        
         System.out.println("\nWelcome to GEM (version "+GEM_VERSION+")!");
         System.out.println("\nPlease cite: \nYuchun Guo, Shaun Mahony, David K. Gifford (2012) PLoS Computational Biology 8(8): e1002638. \nHigh Resolution Genome Wide Binding Event Finding and Motif Discovery Reveals Transcription Factor Spatial Binding Constraints. \ndoi:10.1371/journal.pcbi.1002638\n");
         System.out.println("Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gem/).\n");
+    	
+        boolean run_gem = false;
+    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1 || Args.parseInteger(args,"kmin", -1)!=-1
+    			|| Args.parseString(args, "seed", null)!=null)
+    		run_gem = true;
+    	else
+    		System.err.println("Warning: GEM did not see options (--k, --k_min & --k_max, or --seed) to run motif discovery. It will run GPS and stop!");
+
         GEM gps = new GEM(args);
-        gps.runMixtureModel();
+        
+        gps.runMixtureModel(run_gem);
         gps.close();
+        
         System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
     }
 
@@ -270,8 +277,8 @@ public class GEM {
                          "      --exptX <aligned reads file for expt (X is condition name)>\n" +
                          "   Required GEM parameters, optional for GPS-only analysis:\n" +
                          "      --k <length of the k-mer for motif finding, use --k or (--kmin & --kmax)>\n" +
-                         "      --kmin <min value of k, e.g. 6>\n" +
-                         "      --kmax <max value of k, e.g. 13>\n" +
+                         "      --k_min <min value of k, e.g. 6>\n" +
+                         "      --k_max <max value of k, e.g. 13>\n" +
                          "      --genome <the path to the genome sequence directory, for motif finding>\n" +
                          "   Optional parameters:\n" +
                          "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +

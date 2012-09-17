@@ -214,6 +214,8 @@ public class Config {
         k = Args.parseInteger(args, "k", k);
         k_min = Args.parseInteger(args, "k_min", k_min);
         k_max = Args.parseInteger(args, "k_max", k_max);
+        k_min = Args.parseInteger(args, "kmin", k_min);				// fail-safe
+        k_max = Args.parseInteger(args, "kmax", k_max);
         seed = Args.parseString(args, "seed", null);
         if (seed!=null){
         	k = seed.length();

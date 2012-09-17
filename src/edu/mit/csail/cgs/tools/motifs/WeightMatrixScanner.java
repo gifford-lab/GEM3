@@ -2,8 +2,11 @@ package edu.mit.csail.cgs.tools.motifs;
 
 import java.io.*;
 import java.util.*;
+import java.util.Date;
 import java.sql.*;
+import java.text.DateFormat;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
@@ -49,6 +52,7 @@ public class WeightMatrixScanner {
     private String loadfile, scanname;
     private boolean print;
     private WMConsumer consumer;
+    private String outfile;
 
     public static void main(String args[]) throws Exception {
         WeightMatrixScanner scanner = new WeightMatrixScanner();
@@ -74,6 +78,7 @@ public class WeightMatrixScanner {
         }
         core.close();
         cxn.close();
+        consumer.close();
     }
     public void parseArgs(String args[]) throws Exception {
         boolean scan = true;
@@ -88,6 +93,7 @@ public class WeightMatrixScanner {
         fastafiles.addAll(Args.parseStrings(args,"fasta"));
         print = Args.parseFlags(args).contains("print");
         regions = Args.parseRegionsOrDefault(args);
+        outfile = Args.parseString(args, "outfile", "");
 
         if (!print) {            
             if (scanname == null) {
@@ -140,14 +146,25 @@ public class WeightMatrixScanner {
             ex.printStackTrace();
         }
     } 
-    public void scanMatrices() throws SQLException {
+    public void scanMatrices() throws SQLException, FileNotFoundException {
+    	DateFormat dfm = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    	if (print) {
+    		if (!outfile.equals("")) {
+    			consumer = new PrintConsumer(genome, null, outfile);
+    		}
+    	}
+    	int count = 0;
         for (WeightMatrix matrix : matrices) {
             int scanid;
             float cutoffscore =(float) (matrix.getMaxScore() * cutoff);
 
             if (print) {
                 scanid = -1;
-                consumer = new PrintConsumer(genome, matrix);
+                if (outfile.equals("")) {
+                	consumer = new PrintConsumer(genome, matrix);
+                } else {
+                	consumer.setMatrix(matrix);
+                }
             } else {
                 scanid = getScanID(matrix.dbid,scanname,cutoffscore);
                 System.err.println("SCAN ID is " + scanid);
@@ -191,6 +208,10 @@ public class WeightMatrixScanner {
             }
             if (!print) {
                 storeRegionList(genome,scanid,regions);
+            }
+            count++;
+            if (count % (matrices.size()/100)==0) {
+            	System.err.println(count+" "+dfm.format(new Date()));
             }
         }
     }
@@ -348,9 +369,17 @@ public class WeightMatrixScanner {
                 if(name.startsWith("chr")) { name = name.substring(3, name.length()); }
                 Matcher m = p.matcher(name);
                 if (m.matches()) {
-                    name = m.group(0);
-                    offset = Integer.parseInt(m.group(1));
-                    end = Integer.parseInt(m.group(2));
+                    try {
+                    	Region tmp = Region.fromString(genome, name);
+                    	name = tmp.getChrom();
+                    	offset = tmp.getStart();
+                    	end = tmp.getEnd();
+						//name = m.group(0);
+						//offset = Integer.parseInt(m.group(1));
+						//end = Integer.parseInt(m.group(2));
+					} catch (Exception e) {
+						System.err.println(name);
+					}
                 }
                 try {
                     if (genome != null) {
@@ -400,8 +429,8 @@ public class WeightMatrixScanner {
             System.err.println(ex.toString());
             ex.printStackTrace();
         } catch (Exception ex) {
-            System.err.println(ex.toString());
-            ex.printStackTrace();
+            //System.err.println(ex.toString());
+            //ex.printStackTrace();
         }
         return new ArrayList<WMHit>();
     }
@@ -569,16 +598,34 @@ abstract class WMConsumer implements Sink<WMHit> {
         consume(hits.iterator());
         finish();
     }
+    
+    public abstract void close();
+    public abstract void setMatrix(WeightMatrix m);
 }
 
 class PrintConsumer extends WMConsumer {
     
     private Genome genome;
     private WeightMatrix matrix;
+    private PrintStream out;
+    private boolean fileout;
     
     public PrintConsumer(Genome g, WeightMatrix m) {
         this.genome = g;
         this.matrix = m;
+        this.out = System.out;
+        this.fileout = false;
+    }
+    
+    public PrintConsumer(Genome g, WeightMatrix m, String outfile) throws FileNotFoundException {
+    	this.genome = g;
+    	this.matrix = m;
+    	this.out = new PrintStream(outfile);
+    	this.fileout = true;
+    }
+    
+    public void setMatrix(WeightMatrix m) {
+    	this.matrix = m;
     }
     
     public void consume(WMHit hit) { 
@@ -593,7 +640,7 @@ class PrintConsumer extends WMConsumer {
             }
         }
 
-        System.out.println(matrix.toString() + "\t" + 
+        out.println(matrix.toString() + "\t" + 
                            chromname + "\t" +
                            hit.start + "\t" + 
                            hit.end + "\t" + 
@@ -606,6 +653,14 @@ class PrintConsumer extends WMConsumer {
     }
 
     public void finish() {
+    	
+    }
+    
+    public void close() {
+    	if (fileout) {
+    		out.flush();
+    		out.close();
+    	}
     }
 
     public void init() {
@@ -659,6 +714,14 @@ class StoreConsumer extends WMConsumer {
 
     public void init() {
         done = 0;
+    }
+    
+    public void close() {
+    	
+    }
+    
+    public void setMatrix(WeightMatrix m) {
+    	
     }
 }
 
