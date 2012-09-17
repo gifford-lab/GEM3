@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
@@ -15,7 +16,7 @@ public class MergeKmerData {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		ArrayList<String> texts = CommonUtils.readTextFile(args[0]);
+		ArrayList<String> texts = CommonUtils.readTextFile(Args.parseString(args, "design", "design.txt"));
 		// count number of data columns
 		int count = 0;
 		for (String line:texts){
@@ -99,7 +100,7 @@ public class MergeKmerData {
 			}
 			out.append("\n");
 		}
-		CommonUtils.writeFile(args[1], out.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "design.txt"), out.toString());
 
 	}
 
