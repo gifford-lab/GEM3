@@ -39,25 +39,28 @@ public class MergeKmerData {
 			String fileName = f[0];
 			String format = f[1];
 			String[] cols = f[2].split(",");
-			int[] ids = new int[cols.length];
+			int[] ids = new int[cols.length];			// column ids to be output
 			for (int i=0;i<cols.length;i++){
 				ids[i]=Integer.parseInt(cols[i]);
 			}
 			
-			int firstRow=0;
-			boolean gem = false;
+			int headerRows=0;
 			if (format.endsWith("GEM")){
-				firstRow=2;
-				gem = true;
+				headerRows=3;
+			} 
+			else if (format.endsWith("PBM")){
+				headerRows=1;
 			}
 			
 			ArrayList<String> data = CommonUtils.readTextFile(fileName);
-			String g1 = data.get(firstRow);
-			String[] df = g1.split("\t");
+			String header = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
+			if (headerRows!=0)
+				header = data.get(headerRows-1);
+			String[] hf = header.split("\t");		// header field
 			for (int id: ids)
-				out.append(df[id]+"\t");
-			for (int i=firstRow+1;i<data.size();i++){
-				df = data.get(i).split("\t");
+				out.append(hf[id]+"\t");
+			for (int i=headerRows;i<data.size();i++){
+				String[] df = data.get(i).split("\t");	// data field
 				String kmer = df[0];
 				
 				if (kmer.contains("."))			// ignore PBM gapped k-mers
@@ -100,7 +103,7 @@ public class MergeKmerData {
 			}
 			out.append("\n");
 		}
-		CommonUtils.writeFile(Args.parseString(args, "out", "design.txt"), out.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "out.txt"), out.toString());
 
 	}
 
