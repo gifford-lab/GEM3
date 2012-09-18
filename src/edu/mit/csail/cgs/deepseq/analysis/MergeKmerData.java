@@ -22,6 +22,8 @@ public class MergeKmerData {
 		for (String line:texts){
 			if (line.length()==0)
 				continue;
+			if (line.startsWith("#"))
+				continue;
 			String[] f = line.split("\t");
 			String[] cols = f[2].split(",");
 			count += cols.length;
@@ -35,30 +37,26 @@ public class MergeKmerData {
 		for (String line:texts){
 			if (line.length()==0)
 				continue;
+			if (line.startsWith("#"))
+				continue;
 			String[] f = line.split("\t");
 			String fileName = f[0];
-			String format = f[1];
+			int headerRows = Integer.parseInt(f[1]);
 			String[] cols = f[2].split(",");
 			int[] ids = new int[cols.length];			// column ids to be output
 			for (int i=0;i<cols.length;i++){
 				ids[i]=Integer.parseInt(cols[i]);
 			}
-			
-			int headerRows=0;
-			if (format.endsWith("GEM")){
-				headerRows=3;
-			} 
-			else if (format.endsWith("PBM")){
-				headerRows=1;
-			}
-			
+						
 			ArrayList<String> data = CommonUtils.readTextFile(fileName);
-			String header = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
+			String header = "";
 			if (headerRows!=0)
 				header = data.get(headerRows-1);
 			String[] hf = header.split("\t");		// header field
-			for (int id: ids)
-				out.append(hf[id]+"\t");
+			for (int id: ids){
+				if (headerRows!=0)
+					out.append(hf[id]+"\t");
+			}
 			for (int i=headerRows;i<data.size();i++){
 				String[] df = data.get(i).split("\t");	// data field
 				String kmer = df[0];
@@ -66,7 +64,7 @@ public class MergeKmerData {
 				if (kmer.contains("."))			// ignore PBM gapped k-mers
 					continue;
 				
-				if (kmer.contains("/")){
+				if (kmer.contains("/")){		// if has both strings: k-mer and kmer-rc
 					String[] kf=kmer.split("/");
 					if (kmer2data.containsKey(kf[0]))
 						kmer = kf[0];
@@ -75,9 +73,9 @@ public class MergeKmerData {
 					else	// if new k-mer
 						kmer = kf[0];
 				}
-				else {
+				else {							// if has only one string, use kmer-rc if it is matched
 					String kmer_rc = SequenceUtils.reverseComplement(kmer);
-					if (kmer2data.containsKey(kmer_rc))
+					if (kmer2data.containsKey(kmer_rc))		// if kmer-rc is matched
 						kmer = kmer_rc;
 				}
 				if (!kmer2data.containsKey(kmer))
@@ -92,7 +90,7 @@ public class MergeKmerData {
 		}
 		out.append("\n");
 		
-		// output
+		// output data rows
 		for (String kmer : kmer2data.keySet()){
 			String[] data = kmer2data.get(kmer);
 			out.append(kmer+"\t");
