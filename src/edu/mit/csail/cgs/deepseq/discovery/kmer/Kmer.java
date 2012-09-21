@@ -172,10 +172,13 @@ public class Kmer implements Comparable<Kmer>{
 		double diff = o.hgp_lg10-hgp_lg10;
 		return diff==0?this.compareTo(o):(diff<0)?1:-1;  // ascending HGP, descending seqHitCount
 	}	
-	// default, sort kmer by posHitCount
+	// default, sort kmer by posHitCount, then by clusterID, then by sequence
 	public int compareTo(Kmer o) {
 		double diff = o.getPosHitCount()-getPosHitCount();
-		return diff==0?kmerString.compareTo(o.kmerString):(diff<0)?-1:1; // descending
+		double diff_id = o.clusterId-clusterId;
+		return diff==0 ? 
+				(diff_id==0? kmerString.compareTo(o.kmerString) : (diff<0)?1:-1) : 	// ascending clusterID
+				((diff<0)?-1:1); // descending posHitCount
 	}
 	// sort kmer by cluster ID then by HGP
 	public int compareByClusterAndHGP(Kmer o) {
