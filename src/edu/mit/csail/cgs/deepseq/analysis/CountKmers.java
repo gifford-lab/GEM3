@@ -39,7 +39,7 @@ public class CountKmers {
 	        if(ap.hasKey("geninfo")){
 	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
 	            }else{
-	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
+	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");System.exit(1);
 	            }
 	      }else{
 	        genome = pair.cdr();

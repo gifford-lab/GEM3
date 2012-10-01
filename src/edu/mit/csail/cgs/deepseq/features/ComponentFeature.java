@@ -418,12 +418,12 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IP\t");
         	}
         	header.append(name+"Control\t")
-  		  		  .append(name+"   Fold\t")
+  		  		  .append(name+(numConditions==1?"   ":"")+"Fold\t")
         	      .append(name+"Expectd\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
   	      		  .append(name+"P_poiss\t")
-  	      		  .append("IPvsEMP\t")
+  	      		  .append(name+"IPvsEMP\t")
   	      		  .append(name+"IPvsCTR\t");
         	if (c<numConditions-1)
         		header.append("\t");

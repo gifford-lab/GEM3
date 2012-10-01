@@ -146,7 +146,7 @@ public class Point implements Comparable<Point> {
   }
 
 
-  /*
+  /**
    *  Offset relative to another point (offset = this-p)
    */
   public int offset(Point p) {

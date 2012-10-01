@@ -611,7 +611,7 @@ public class MethodComparisonMotifAnalysis {
 		readPeakLists();
 		
 		int numMethods = events.size();
-		double[][] overlaps = new double[numMethods][numMethods];	//percentage
+		double[][] overlaps = new double[numMethods][numMethods];	//percentage of i are covered by j
 		for (int i=0;i<numMethods;i++){
 			for (int j=0;j<numMethods;j++){
 				if (i==j)
@@ -623,7 +623,7 @@ public class MethodComparisonMotifAnalysis {
 			}
 		}
 		StringBuilder sb = new StringBuilder();
-		
+		sb.append("\nPercentage of events in rows that are covered by events in column.\n");
 		sb.append(" ").append("\t");
 		for (int i=0;i<methodNames.size()-1;i++){
 			sb.append(methodNames.get(i)).append("\t");
@@ -642,7 +642,12 @@ public class MethodComparisonMotifAnalysis {
 		System.out.println(sb.toString());
 	}
 	
-	// report number of events in list1 that is found within DISTNACE bp window of peaks in list 2
+	/** report number of events in list1 that is found within DISTNACE bp window of peaks in list 2
+	 * @param list1
+	 * @param list2
+	 * @param windowSize
+	 * @return
+	 */
 	private int countOverlaps(ArrayList<Point> list1, ArrayList<Point> list2, int windowSize){
 		int overlap=0;
 		ArrayList<Point> a = (ArrayList<Point> )list1.clone();
@@ -654,7 +659,7 @@ public class MethodComparisonMotifAnalysis {
 		// this will be use as start search position of the inner loop
 		for(int i=0;i<a.size();i++){
 			Point pa =a.get(i);
-			// search for the position, not iterate everyone
+			// search for the match b event, if found, stop
 			for(int j=nextSearchIndex;j<b.size();j++){
 				Point pb =b.get(j);
 				if (pa.getChrom().equalsIgnoreCase(pb.getChrom())){
