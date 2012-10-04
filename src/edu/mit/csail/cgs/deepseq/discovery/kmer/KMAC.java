@@ -5494,8 +5494,8 @@ public class KMAC {
 		
 		String pos_file = Args.parseString(args, "pos_seq", null);
 		String neg_file = Args.parseString(args, "neg_seq", null);
-		if (pos_file==null || neg_file==null || (config.k==-1&&config.k_min==-1)){
-			System.err.println("Example: KmerMotifFinder --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta --neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta --k_min 5 --k_max 8 --out_name cMyc_cMyc --seed CACGTG");
+		if (pos_file==null || (config.k==-1&&config.k_min==-1)){
+			System.err.println("Example: KMAC --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta [--neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta] --k_min 5 --k_max 8 --out_name cMyc_cMyc --seed CACGTG");
 			System.exit(-1);
 		}
 		if (config.seed!=null){
@@ -5531,18 +5531,20 @@ public class KMAC {
 		}
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
-		strs = CommonUtils.readTextFile(neg_file);
-		for (String line: strs){
-			if (format.equals("fasta")){
-				if (!line.startsWith(">")){
-	        		int left = line.length()/2-config.k_win/2;
-	        		if (left<0)
-	        			continue;
-	        		neg_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
-        		}
-			}
-			else{
-	            	neg_seqs.add(line.substring(0,config.k_win).toUpperCase());
+		if (neg_file!=null){
+			strs = CommonUtils.readTextFile(neg_file);
+			for (String line: strs){
+				if (format.equals("fasta")){
+					if (!line.startsWith(">")){
+		        		int left = line.length()/2-config.k_win/2;
+		        		if (left<0)
+		        			continue;
+		        		neg_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+	        		}
+				}
+				else{
+		            	neg_seqs.add(line.substring(0,config.k_win).toUpperCase());
+				}
 			}
 		}
         
