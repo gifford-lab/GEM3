@@ -61,12 +61,15 @@ public class KmerInMultiSets {
         int[][] kmerHits = new int[kmers.size()][setNames.size()];
         int[] kmerSetHits = new int[setNames.size()];					// the collective hit count of all k-mers
         int[] setSizes = new int[setNames.size()];
+        ArrayList<ArrayList<String>> hitSites = new ArrayList<ArrayList<String>>();
         // count k-mers in each set
         for (int j =0;j<setNames.size();j++){
         	String s = setNames.get(j);
         	String filename = Args.parseString(args, "--set"+s, null);
         	ArrayList<String> ps = readPointStrings(filename);
         	setSizes[j] = ps.size();
+        	ArrayList<String> hit_ps = new ArrayList<String>();
+        	hitSites.add(hit_ps);
         	for (String p:ps){
         		boolean isHit = false;		// if the sequence is hit by any k-mer
         		if (!p2seqs.containsKey(p)){
@@ -90,8 +93,10 @@ public class KmerInMultiSets {
             			}
         			}
         		}
-    			if (isHit)
+    			if (isHit){
     				kmerSetHits[j]++;
+    				hit_ps.add(p);
+    			}
         	}
         }
         
@@ -125,7 +130,17 @@ public class KmerInMultiSets {
 		}
         sb.append("\n");
         System.out.println(sb.toString());
-        CommonUtils.writeFile(Args.parseString(args, "out", null), sb.toString());
+        String outName = Args.parseString(args, "out", null);
+        CommonUtils.writeFile(outName, sb.toString());
+        
+        for (int j =0;j<setNames.size();j++){
+        	sb = new StringBuilder();
+        	ArrayList<String> hits = hitSites.get(j);
+        	for (int h=0;h<hits.size();h++)
+        		sb.append(hits.get(h)).append("\n");
+        	System.out.println(setNames.get(j)+"\n"+sb.toString()+"\n");
+        	CommonUtils.writeFile(outName+"_"+setNames.get(j)+"_"+hits.size()+".txt", sb.toString());
+        }
 	}
 
 	private static ArrayList<String> readPointStrings(String filename){
