@@ -486,7 +486,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		reportTriggers.add(10000);
 		
 		if (kmac!=null && kmac.isInitialized()){
-			System.out.println("\nRunning EM with k-mer motif positional prior ...\n");
+			log(1,"Running EM with motif positional prior ...");
 		}
 		
 		// create threads and run EM algorithms
@@ -3185,7 +3185,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
 	// show the message in STDOUT and log file
 	// depending on "verbose" setting in property file
-	private void log(int mode, String msg){
+	public void log(int mode, String msg){
 		if (constants.LOG_ALL)
 			log_all_msg.append(msg);
 		if ( config.verbose>=mode){
@@ -3440,8 +3440,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     	kmac.setConfig(config, outName);
     	
     	// load sequence from binding event positions
-    	ArrayList<ComponentFeature> events = getEvents();
+    	ArrayList<ComponentFeature> events = getEvents();    	
     	kmac.loadTestSequences(events, winSize);
+    	log(1, String.format("Running KMAC motif discovery with %d+/%d- sequences.\n", kmac.getPositiveSeqs().length, kmac.getNegSeqCount()));
     	if (config.print_input_seqs)
     		kmac.printInputSequences(outName);
     	
