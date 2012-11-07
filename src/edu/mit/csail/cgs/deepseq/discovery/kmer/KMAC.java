@@ -842,12 +842,13 @@ public class KMAC {
 				highHgpKmers.add(kmer);		
 				continue;
 			}
-//			if (config.use_pos_kmer && kmer.getKmerString().equals("TGAGTCA")){
+//			if (config.use_pos_kmer && kmer.getKmerString().equals("TTTCAGTT")){
 //				int offset_factor_neg = offset_factor;
 //				if (kmer.getKmerString().equals(kmer.getKmerRC()) && k%2==0)	// palindrome k-mer and k is even value
 //					offset_factor_neg -= 1;
 //				double[] histogram = new double[profile.length];
 //				for (int i: kmer.getPosHits()){
+//					// for each hit sequence, find the best (most central) offset
 //					int min_offset = 10000;
 //					ArrayList<Integer> pos = StringUtils.findAllOccurences(seqs[i], kmer.getKmerString());
 //					for (int p:pos){
@@ -872,6 +873,8 @@ public class KMAC {
 //						histogram[min_offset+k_win/2]++;
 //					}
 //				}
+//				double std = StatUtil.std(histogram);
+//				System.out.println(String.format("STD=%.2f", std));
 //				StatUtil.normalize(histogram);
 //				System.out.println(CommonUtils.arrayToString(histogram, "%.4f"));
 //				histogram = StatUtil.gaussianSmoother(histogram, 4);
@@ -1432,7 +1435,7 @@ public class KMAC {
 		tic = System.currentTimeMillis();
 		if (kmers_in.size()==0)
 			return kmers_in;
-		System.out.println("\nRunning KMAC motif discovery ...");
+//		System.out.println("\nRunning KMAC motif discovery ...");
 //		boolean bestSeed_is_reset = false;					
 		// clone to modify locally
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
@@ -1530,12 +1533,12 @@ public class KMAC {
 							seed = selectBestKmer(kmers);
 							if (verbose>1)
 								System.out.println(CommonUtils.timeElapsed(tic)+
-										": Preivous seed is not found, pick top k-mer: "+seed.toShortString());
+										": Previous seed is not found, pick top k-mer: "+seed.toShortString());
 						}
 						else
 							if (verbose>1)
 								System.out.println(CommonUtils.timeElapsed(tic)+
-										": Use seed k-mer from preivous round: "+primarySeed.getKmerString()+"/"+primarySeed.getKmerRC());
+										": Use seed k-mer from previous round: "+primarySeed.getKmerString()+"/"+primarySeed.getKmerRC());
 					}
 					else{	// no previously saved seed k-mer
 						seed = selectBestKmer(kmers);
@@ -5509,8 +5512,13 @@ public class KMAC {
 			if (format.equals("fasta")){
 	            if (line.startsWith(">")){
 	        		f = line.split(" ");
-	        		if (f.length>1)
-		            	seq_w.add(Double.parseDouble(f[1]));
+	        		if (f.length>1){
+	        			try{
+	        				seq_w.add(Double.parseDouble(f[1]));
+	        			}catch(NumberFormatException nfe){
+	        				seq_w.add(1.0);
+	        			}
+	        		}
 		            else
 		            	seq_w.add(1.0);
 	        	}
