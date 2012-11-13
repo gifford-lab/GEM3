@@ -1506,6 +1506,8 @@ public class KMAC {
 					for (Kmer km:kmers){
 						if (km.getKmerString().equals(config.seed)||
 								km.getKmerString().equals(rc)){
+							if (km.getKmerString().equals(rc))
+								km.RC();
 							seed = km;
 							primarySeed_is_immutable = true;		
 							System.out.println("\nUse specified seed k-mer: "+seed.toShortString());
