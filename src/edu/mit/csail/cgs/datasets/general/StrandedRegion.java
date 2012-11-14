@@ -108,4 +108,21 @@ public class StrandedRegion extends Region implements Stranded {
         code += strand; code *= 37;
         return code; 
     }
+    
+    /**
+     * Returns the <i>super-region</i> that contains both regions <tt>this</tt>
+     * and <tt>o</tt>.
+     * 
+     * @param o
+     * @return
+     */
+    public StrandedRegion combine(Region o) {
+      if (!getChrom().equals(o.getChrom())) {
+        throw new IllegalArgumentException(getChrom() + " != " + o.getChrom());
+      }
+      int ns = Math.min(getStart(), o.getStart());
+      int ne = Math.max(getEnd(), o.getEnd());
+      return new StrandedRegion(getGenome(), getChrom(), ns, ne, strand);
+    }
+    
 }
