@@ -93,8 +93,10 @@ public class KmerScanner {
 		System.out.println(path);
 		String kmer=null, pfm=null, event=null;
 		if (path!=null){
-			kmer = getFileName(path, "_kmer_");
-			pfm = getFileName(path, "_PFM_");
+			kmer = getFileName(path, "_kmer_");			// old file name format
+			if (kmer==null)
+				kmer = getFileName(path, "_KSM");		// new file name format, since May 2012
+			pfm = getFileName(path, "_PFM");
 			event = path+"_GEM_events.txt";
 		}
 		long t1 = System.currentTimeMillis();
@@ -109,7 +111,7 @@ public class KmerScanner {
 		kmers.trimToSize();
 		Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
 		KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr());
-		System.out.println("KCM loading:\t"+CommonUtils.timeElapsed(t1));
+		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 		// genome info and binding events
 		Genome genome=null;
 		Organism org=null;
@@ -180,7 +182,7 @@ public class KmerScanner {
 		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
 		System.out.println("Scanning "+reg2reg.keySet().size()+" regions ...");
 		int PWM_time = 0;
-		int KCM_time = 0;
+		int KSM_time = 0;
 		for (Region r:reg2reg.keySet()){
 			String seq = seqgen.execute(r).toUpperCase();
 			
@@ -202,12 +204,12 @@ public class KmerScanner {
 			pwmN_scores.add(pwmN);
 			PWM_time += System.currentTimeMillis() - pwm_t;
 			
-			long kcm_t = System.currentTimeMillis();
+			long ksm_t = System.currentTimeMillis();
 			KmerGroup kg = scanner.getBestKG(seq);
 			KmerGroup kgN = scanner.getBestKG(seqN);
 			ksm_scores.add(kg==null?0:-kg.getHgp());
 			ksmN_scores.add(kgN==null?0:-kgN.getHgp());
-			KCM_time += System.currentTimeMillis() - kcm_t;
+			KSM_time += System.currentTimeMillis() - ksm_t;
 			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d\n", r.toString(), name_N, pwm, pwmN, 
 					kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp(), 
 					kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
@@ -215,7 +217,7 @@ public class KmerScanner {
 		}
 		
 		System.out.println("Total PWM scanning time:" + PWM_time);
-		System.out.println("Total KCM scanning time:" + KCM_time);
+		System.out.println("Total KSM scanning time:" + KSM_time);
 		
 		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
 		System.out.println(outName+"_w"+width+"_scores.txt");

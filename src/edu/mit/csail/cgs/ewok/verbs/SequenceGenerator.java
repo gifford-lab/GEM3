@@ -49,7 +49,8 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     
     /** cache the whole chromosome of this region */
     private void cache(X region) throws SQLException, IOException {
-        int chromid = region.getGenome().getChromID(region.getChrom());
+    	String chr = region.getChrom();
+        int chromid = region.getGenome().getChromID(chr);
         synchronized(cache) {
             if (cache.containsKey(chromid)) {
                 return;
@@ -59,16 +60,16 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         if (useLocalFiles) {
         	if (genomePath==null)
         		genomePath = "/scratch/" + region.getGenome().getVersion();
-            File f = new File( genomePath + "/chr" + region.getChrom() + ".fa");
+            File f = new File( genomePath + "/chr" + chr + ".fa");
             if (!f.exists()) {
-                f = new File( genomePath+ "/chr" + region.getChrom() + ".fasta");
+                f = new File( genomePath+ "/chr" + chr + ".fasta");
             }
             if (f.exists()) {
                 FASTAStream stream = new FASTAStream(f);
                 while (stream.hasNext()) {
                     Pair<String,String> pair = stream.next();
                     String pairchrom = pair.car().replaceFirst("^chr","");
-                    if (pairchrom.equals(region.getChrom())) {
+                    if (pairchrom.equals(chr)) {
                         chromseq = pair.cdr();
                         break;
                     }                    
@@ -76,10 +77,9 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                 stream.close();                
             }
             else{
-            	System.out.print("Genome is not found at "+genomePath+". \n");
+            	System.err.print("chr"+chr+".fa file is not found at "+genomePath+".\n");
             	System.exit(-1);
             }
-            
         }
         if (chromseq == null) {
             java.sql.Connection cxn = DatabaseFactory.getConnection("core");
