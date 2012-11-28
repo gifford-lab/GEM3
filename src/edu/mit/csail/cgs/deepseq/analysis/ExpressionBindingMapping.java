@@ -6,16 +6,12 @@ import java.util.HashMap;
 import java.util.TreeMap;
 
 import edu.mit.csail.cgs.datasets.general.Point;
-import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.analysis.MultiTF_Binding.Site;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
-import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class ExpressionBindingMapping {
 
@@ -95,7 +91,7 @@ public class ExpressionBindingMapping {
 			boolean isPlusString = f[1].equals("+");
 			if (chrom2sites.containsKey(t.getChrom())){
 				ArrayList<Point> sites = chrom2sites.get(t.getChrom());
-				ArrayList<Point> results = getPointsWithinWindow(sites, t, win);
+				ArrayList<Point> results = CommonUtils.getPointsWithinWindow(sites, t, win);
 				for (Point p:results){
 					int offset = isPlusString?p.offset(t):p.offset(t)*-1;			// binding - tss
 					out.append(g).append("\t").append(t.toString()).append("\t").append(isPlusString?"+":"-").append("\t");
@@ -108,28 +104,5 @@ public class ExpressionBindingMapping {
 
 	}
 
-	static private ArrayList<Point> getPointsWithinWindow(ArrayList<Point> sites, Point anchor, int win){
-		ArrayList<Point> results = new ArrayList<Point>();
-		Region r = anchor.expand(win);
-		Point start = r.startPoint();
-		Point end = r.endPoint();
-		int startIndex = -1;
-		int endIndex = -1;
-		int i = Collections.binarySearch(sites, start);
-		if (i<0)
-			startIndex=-i-1;		// -index-1, the insertion point
-		else
-			startIndex = i;
-		i = Collections.binarySearch(sites, end);
-		if (i<0)
-			endIndex=-i-2;			// -index-1-1, the point before the insertion point
-		else
-			endIndex = i;
-		if (startIndex<=endIndex){
-			for (int j=startIndex;j<=endIndex;j++){
-				results.add(sites.get(j));
-			}
-		}
-		return results;
-	}
+
 }

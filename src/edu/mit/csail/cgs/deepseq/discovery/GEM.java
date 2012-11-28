@@ -282,13 +282,14 @@ public class GEM {
                          "      --genome <the path to the genome sequence directory, for motif finding>\n" +
                          "   Optional parameters:\n" +
                          "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
-                         "      --f <read file format, BED/BOWTIE/ELAND/NOVO (default BED)>\n" +
+                         "      --f <read file format, BED/SAM/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --g <genome info file with chr name/length pairs>\n" +
                          "      --s <size of mappable genome in bp (default is estimated from genome info)>\n" +
                          "      --a <minimum alpha value for sparse prior (default is esitmated from whole dataset coverage)>\n" +
-                         "      --q <significance level for q-value, specify as -log10(q-value), (default=2, q-value=0.01)>\n" +
-                         "      --t <maximum number of threads to run GPS in paralell, (default=#CPU)>\n" +
+                         "      --q <significance level for q-value, specify as -log10(q-value) (default=2, q-value=0.01)>\n" +
+                         "      --t <maximum number of threads to run GPS in paralell (default=#CPU)>\n" +
                          "      --out <output file name prefix>\n" +
+                         "      --k_seqs <number of binding events to use for motif discovery (default=5000)>\n" +
                          "   Optional flags: \n" +
                          "      --fa use a fixed user-specified alpha value for all the regions\n" +
                          "      --help print this help information and exit\n" +

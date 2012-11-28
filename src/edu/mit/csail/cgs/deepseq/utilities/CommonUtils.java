@@ -653,6 +653,39 @@ public class CommonUtils {
 		}
 	}
 	
+	/**
+	 * Get a list of points that are within the window of the anchor point<br>
+	 * Assuming the sites list is sorted
+	 * @param sites	a list of points
+	 * @param anchor the anchor point
+	 * @param win the window size
+	 * @return
+	 */
+	static public ArrayList<Point> getPointsWithinWindow(ArrayList<Point> sites, Point anchor, int win){
+		ArrayList<Point> results = new ArrayList<Point>();
+		Region r = anchor.expand(win);
+		Point start = r.startPoint();
+		Point end = r.endPoint();
+		int startIndex = -1;
+		int endIndex = -1;
+		int i = Collections.binarySearch(sites, start);
+		if (i<0)
+			startIndex=-i-1;		// -index-1, the insertion point
+		else
+			startIndex = i;
+		i = Collections.binarySearch(sites, end);
+		if (i<0)
+			endIndex=-i-2;			// -index-1-1, the point before the insertion point
+		else
+			endIndex = i;
+		if (startIndex<=endIndex){
+			for (int j=startIndex;j<=endIndex;j++){
+				results.add(sites.get(j));
+			}
+		}
+		return results;
+	}
+	
 	public static void main0(String[] args){
 		System.out.println(findKey(new double[]{0,1,1,1,2,4,6}, 7));
 	}
