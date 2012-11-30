@@ -39,13 +39,15 @@ public class MultiTF_Binding {
 	private SequenceGenerator<Region> seqgen;
 
 	// command line option:  (the folder contains GEM result folders) 
-	// Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 50 --no_cache --old_format --pwm_factor 0.6
+	// --dir Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format] 
 	public static void main(String[] args) {
 		MultiTF_Binding mtb = new MultiTF_Binding(args);
 		int round = Args.parseInteger(args, "r", 2);
 		int prefix = Args.parseInteger(args, "prefix", 0);
 		switch(round){
-		case 2:	mtb.loadEventAndMotifs(2);		// GEM
+		case 2:
+		case 3:
+		case 4:mtb.loadEventAndMotifs(2);		// GEM
 				mtb.printBindingOffsets(2, prefix);
 				break;
 		case 1:	mtb.loadEventAndMotifs(1);		// GPS
@@ -101,7 +103,7 @@ public class MultiTF_Binding {
 			File dir2= new File(dir, name);
 			if (!oldFormat)
 				dir2= new File(dir2, name+"_outputs");
-			final String suffix = name+"_"+ (round==2?2:1) +"_PFM";
+			final String suffix = name+"_"+ (round>=2?round:1) +"_PFM";
 			File[] files = dir2.listFiles(new FilenameFilter(){
 				public boolean accept(File arg0, String arg1) {
 					if (arg1.startsWith(suffix))
@@ -120,7 +122,7 @@ public class MultiTF_Binding {
 			}
 			
 			// load binding event files 
-			File gpsFile = new File(dir2, name+"_"+ (round==2?2:1) +
+			File gpsFile = new File(dir2, name+"_"+ (round>=2?round:1) +
 					(oldFormat?"_GPS_significant.txt":"_GEM_events.txt"));
 			String filePath = gpsFile.getAbsolutePath();
 			WeightMatrixScorer scorer = null;
@@ -162,10 +164,9 @@ public class MultiTF_Binding {
 				System.out.println(name+" does not have valid GPS/GEM event call file.");
 				System.exit(1);
 			}
-			
-
 		}
 	}
+	
 	class Site implements Comparable<Site>{
 		int tf_id;
 		Point bs;
@@ -207,7 +208,7 @@ public class MultiTF_Binding {
 			WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
 			StringBuilder site_sb = new StringBuilder("Site    \torient\t");
 			for (int n=0;n<names.size();n++){
-				site_sb.append(names.get(n).substring(3)+"\t");
+				site_sb.append(names.get(n)+"\t");
 			}
 			site_sb.deleteCharAt(site_sb.length()-1).append("\n");
 			for (Site s:sites_TF){
