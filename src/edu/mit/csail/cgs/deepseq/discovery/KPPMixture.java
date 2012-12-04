@@ -3438,7 +3438,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     public int runKMAC( int winSize){
     	// set the parameters
     	kmac.setConfig(config, outName);
-    	
+		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
+   	
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();    	
     	kmac.loadTestSequences(events, winSize);
@@ -3449,7 +3450,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     	// select best k value
 		if (config.k_min!=-1){
 			// compare different values of k to select most enriched k value
-			int bestK = config.selectK_byTopKmer?kmac.selectK_byTopKmer(config.k_min, config.k_max):kmac.selectK(config.k_min, config.k_max);
+			int bestK = config.selectK_byTopKmer?kmac.selectK_byTopKmer(config.k_min, config.k_max, eventCounts):kmac.selectK(config.k_min, config.k_max, eventCounts);
 			if (bestK!=0){
 				config.k = bestK;
 				if (config.allow_seed_inheritance){
@@ -3468,7 +3469,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmac.selectEnrichedKmers(config.k);
-		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
 		kmers = kmac.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
 		if (kmers.isEmpty()){
 			System.err.print("Not able to find KSM motif");

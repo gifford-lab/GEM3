@@ -185,12 +185,27 @@ public class GEM {
         /**
          ** GEM event finding with kmer positional prior (KPP)
          **/   
+    	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
+    	String path = new File(currentFolder, prefix).getAbsolutePath();
+    	
         if (run_gem){
         	// initialize first set of kmers from GPS result
 	        int returnValue = mixture.initKMAC();	
 	        if (returnValue == -1){					// this could happen if no k value can be found to give good motif
 	        	mixture.plotAllReadDistributions();
 	            mixture.closeLogFile();
+	            
+	            System.out.println("\nMotif can not be found!! \nGPS analysis results are printed to:\n"+
+	            		path+"_GPS_events.txt\n"+
+		        		path+"_result.htm\n" +
+		        		path+"_outputs (folder with all other files)\n");
+		        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
+		        
+		        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
+		        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
+		        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
+		        	htmName+"'>click here for PGS Result</a>.</BODY></HTML>";
+		        CommonUtils.writeFile(path+"_result.htm", html);
 	            return;
 	        }
 	        	
@@ -207,7 +222,7 @@ public class GEM {
             }
             int winSize = Args.parseInteger(args,"k_win2", -1);
             if (winSize!=-1){
-	            System.out.println("\n============== Finding motif for "+prefix+"_"+(round+1)+", large window size="+winSize+" =============\n");
+	            System.out.println("\n============== Finding motif for "+prefix+"_"+(round+1)+", window size="+winSize+" =============\n");
 	            mixture.setOutName(filePrefix+"_"+(round+1));
 		        mixture.runKMAC(winSize);	// Note: KPPMixture also has args parsing, keep default value the same
             }
@@ -216,10 +231,7 @@ public class GEM {
         mixture.plotAllReadDistributions();
         mixture.closeLogFile();
         
-//        round --;
 
-    	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
-    	String path = new File(currentFolder, prefix).getAbsolutePath();
         if (run_gem){
 	        System.out.println("\nFinished! GEM analysis results are printed to:\n"+
 	        		path+"_GEM_events.txt\n"+
@@ -227,10 +239,10 @@ public class GEM {
 	        		path+"_PFM.txt\n"+
 	        		path+"_result.htm\n" +
 	        		path+"_outputs (folder with all other files)\n");
-	        CommonUtils.copyFile(filePrefix+"_"+GPS_round+"_GEM_events.txt", path+"_GEM_events.txt");
-	        CommonUtils.copyFile(filePrefix+"_"+GPS_round+"_PFM.txt", path+"_PFM.txt");
-	        CommonUtils.copyFile(filePrefix+"_"+GPS_round+"_KSM.txt", path+"_KSM.txt");
-	        String htmName = prefix+"_outputs/"+prefix+"_"+GPS_round+"_result.htm";
+	        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GEM_events.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+round+"_PFM.txt", path+"_PFM.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+round+"_KSM.txt", path+"_KSM.txt");
+	        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
 	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 	        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
 	        	htmName+"'>click here for GEM Result</a>.</BODY></HTML>";
@@ -258,10 +270,10 @@ public class GEM {
     	else
     		System.err.println("Warning: GEM did not see options (--k, --k_min & --k_max, or --seed) to run motif discovery. It will run GPS and stop!");
 
-        GEM gps = new GEM(args);
+        GEM gem = new GEM(args);
         
-        gps.runMixtureModel(run_gem);
-        gps.close();
+        gem.runMixtureModel(run_gem);
+        gem.close();
         
         System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
     }

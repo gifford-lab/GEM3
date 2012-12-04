@@ -426,7 +426,7 @@ public class KMAC {
 	 * Select the value of k <br>
 	 * that forms cluster with largest hit count and at least 90% of the best HGP
 	 */
-	public int selectK(int k_min, int k_max){
+	public int selectK(int k_min, int k_max, int[] eventCounts){
 		if (k_min==k_max)
 			return k_min;
 		
@@ -470,7 +470,22 @@ public class KMAC {
 				seqsNegList.add(s);
 		}
 		if (kClusters.isEmpty()){
-			System.out.println("\n----------------------------------------------\nNone of the k values form a PWM, stop here!\n");
+			System.out.println("\n----------------------------------------------\nNone of the k values form an enriched PWM, stop here!\n");
+			File f = new File(outName);
+			String name = f.getName();
+			StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
+			html.append("<script language='javascript' type='text/javascript'><!--\nfunction popitup(url) {	newwindow=window.open(url,'name','height=75,width=400');	if (window.focus) {newwindow.focus()}	return false;}// --></script>");
+			html.append("<table><th bgcolor='#A8CFFF'><font size='5'>");
+			html.append(name).append("</font></th>");
+			html.append("<tr><td valign='top' width='500'><br>");
+			if (!this.standalone && eventCounts!=null){
+				html.append("<a href='"+name+"_GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
+				html.append("<br><a href='"+name+"_GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
+				html.append("<br><a href='"+name+"_GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
+			}
+			html.append("<p><p>Motif can not be found!<p>");
+			html.append("</td></tr></table>");
+			CommonUtils.writeFile(outName+"_result.htm", html.toString());
 			return 0;
 		}
 		
@@ -541,7 +556,7 @@ public class KMAC {
 	 * Select the value of k <br>
 	 * using the seed family hgp
 	 */
-	public int selectK_byTopKmer(int k_min, int k_max){
+	public int selectK_byTopKmer(int k_min, int k_max, int[] eventCounts){
 		if (k_min==k_max)
 			return k_min;
 		
@@ -584,7 +599,23 @@ public class KMAC {
 				seqsNegList.add(s);
 		}
 		if (kClusters.isEmpty()){
-			System.out.println("\n----------------------------------------------\nNone of the k values form a seed family, stop here!\n");
+			System.out.println("\n----------------------------------------------\nNone of the k values form an enriched seed family, stop here!\n");
+			File f = new File(outName);
+			String name = f.getName();
+			StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
+			html.append("<script language='javascript' type='text/javascript'><!--\nfunction popitup(url) {	newwindow=window.open(url,'name','height=75,width=400');	if (window.focus) {newwindow.focus()}	return false;}// --></script>");
+			html.append("<table><th bgcolor='#A8CFFF'><font size='5'>");
+			html.append(name).append("</font></th>");
+			html.append("<tr><td valign='top' width='500'><br>");
+			if (!this.standalone && eventCounts!=null){
+				html.append("<a href='"+name+"_GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
+				html.append("<br><a href='"+name+"_GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
+				html.append("<br><a href='"+name+"_GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
+			}
+			html.append("<p><p>Motif can not be found!<p>");
+			html.append("</td></tr></table>");
+			CommonUtils.writeFile(outName+"_result.htm", html.toString());
+			
 			return 0;
 		}
 		
@@ -5567,9 +5598,9 @@ public class KMAC {
         System.out.println(String.format("%d input positive sequences, use top %d center sequences (%dbp) to find motif ...", pos_seqs.size(), kmf.seqs.length, config.k_win));
         if (config.k==-1){
         	if (config.selectK_byTopKmer)
-        		config.k = kmf.selectK_byTopKmer(config.k_min, config.k_max);
+        		config.k = kmf.selectK_byTopKmer(config.k_min, config.k_max, null);
         	else
-        		config.k = kmf.selectK(config.k_min, config.k_max);
+        		config.k = kmf.selectK(config.k_min, config.k_max, null);
         }
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(config.k);
         kmf.KmerMotifAlignmentClustering(kmers, -1, false, null);
