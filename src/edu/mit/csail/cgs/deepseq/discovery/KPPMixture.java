@@ -1296,9 +1296,20 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
 		if (experiments.isEmpty()){		// special case, loading RSC file
 			for (int i=0;i<numConditions;i++){
-				try {
-					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
-					ipCache.readRSC(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
+				
+					ReadCache ipCache=null;
+					try {
+//					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
+//					ipCache.readRSC(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
+					ObjectInputStream obj = new ObjectInputStream(new BufferedInputStream(
+					          new FileInputStream("test.obj")));
+					try {
+						ipCache = (ReadCache) obj.readObject();
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
 					ReadCache ctrlCache = null;
 					String ctrlFile = Args.parseString(args, "--rfctrl"+conditionNames.get(i), null);
 					if (ctrlFile!=null){
@@ -1307,11 +1318,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			    		controlDataExist = true;
 					}
 					this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
+					
+//					ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(
+//					          new FileOutputStream("test.obj")));
+//					out.writeObject(ipCache);
+					
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
 			wholeGenomeDataLoaded = true;
+			
 			return;
 		}
 		
@@ -3470,6 +3487,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmac.selectEnrichedKmers(config.k);
 		kmers = kmac.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
+		if (kmers ==null)		// No motif found, exit here!
+			return -1;
 		if (kmers.isEmpty()){
 			System.err.print("Not able to find KSM motif");
 			if (kmac.getPrimaryCluster().wm!=null){
@@ -3477,7 +3496,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				System.err.println(" , use PWM as prior!");
 			}else{
 				System.err.println(" and PWM motif, exit here!");
-				System.exit(-1);
+				return -1;
 			}
 		}
 		

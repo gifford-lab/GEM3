@@ -98,6 +98,8 @@ public class GEM {
 	        	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
 	        	boolean nonUnique = flags.contains("nonunique");
 	            String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
+	            if (fileFormat.equals("BAM"))
+	            	fileFormat = "SAM";
 	
 	            if(expts.size()>0 && rdbexpts.size()==0){
 	                int readLength = -1;	// For file, read length will be obtained from the data

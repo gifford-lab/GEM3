@@ -1970,9 +1970,9 @@ public class KMAC {
 		// print the clustered k-mers
 		Collections.sort(kmers);
 		KmerCluster pCluster = getPrimaryCluster();
-		if (pCluster==null){
+		if (pCluster==null){			
 			System.out.println("No motif found, exit here! "+CommonUtils.timeElapsed(tic));
-			System.exit(-1);
+			return null;
 		}
 		double score = pCluster.ksmThreshold==null?0:pCluster.ksmThreshold.score;
 		Kmer.printKmers(allAlignedKmers, posSeqCount, negSeqCount, score, outName, false, true, false);
