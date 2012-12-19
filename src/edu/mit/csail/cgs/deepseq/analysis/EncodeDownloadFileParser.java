@@ -13,7 +13,7 @@ import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 public class EncodeDownloadFileParser {
 
 	/**
-	 * This java class is to parse the file.txt from ENCODE USCS download folder.
+	 * This java class is to parse the files.txt from ENCODE USCS download folder.
 	 * 1. remove lines with "objStatus=revoked or objStatus=replaced"
 	 * 
 	 */
@@ -52,7 +52,7 @@ public class EncodeDownloadFileParser {
 		sb.append("\n");
 		// data
 //		String subtype = "table";
-		String subtype = "fastq_5celltype_toLoad";
+		String subtype = "fastq_toLoad";
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		Date lastLoadingDate = null;
 		try {
@@ -85,10 +85,10 @@ public class EncodeDownloadFileParser {
 					e.printStackTrace();
 				}
 				
-				// limit by cell type H1-hESC
-				String cell = info.get("cell");
-				if (!(cell.equals("K562")||cell.equals("GM12878")||cell.equals("H1-hESC")||cell.equals("HepG2")||cell.equals("HeLa-S3")))
-					continue;
+//				// limit by cell type H1-hESC
+//				String cell = info.get("cell");
+//				if (!(cell.equals("K562")||cell.equals("GM12878")||cell.equals("H1-hESC")||cell.equals("HepG2")||cell.equals("HeLa-S3")))
+//					continue;
 				
 				sb.append(names.get(i));			
 				for (String key:sortedFields){
