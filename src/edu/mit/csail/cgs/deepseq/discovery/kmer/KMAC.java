@@ -146,8 +146,11 @@ public class KMAC {
 		
 		seq_weights = new double[seqNum];
 		totalWeight=0;
-		for (int i=0;i<seq_weights.length;i++){
-			seq_weights[i]=pos_w.get(i);
+		for (int i=0;i<seqNum;i++){
+			if (config.use_event_rank)
+				seq_weights[i]=seqNum-i;
+			else
+				seq_weights[i]=pos_w.get(i);
 			totalWeight += seq_weights[i];
 		}
 		for (int i=0;i<seq_weights.length;i++){
@@ -270,7 +273,7 @@ public class KMAC {
 	}
 	/**
 		 * Load pos/neg test sequences based on event positions<br>
-		 * Skip repeat masked sequences if it is more than half of the sequence, otherwise convert repeat characters into 'N'
+		 * Skip repeat masked sequences according to config.repeat_fraction, otherwise convert repeat characters into 'N'
 		 * 
 		 * @param events
 		 * @param winSize
@@ -288,7 +291,7 @@ public class KMAC {
 				if (config.repeat_fraction<1){
 					int count = 0;
 					for (char c:seq.toCharArray())
-						if (Character.isLowerCase(c) || c=='N')
+						if (Character.isLowerCase(c) || c=='N')				// assuming lower case sequences are repeats
 							count++;
 					if (count>seq.length()*config.repeat_fraction)			// if repeat fraction in sequence is too high, skip
 						continue;
@@ -301,7 +304,10 @@ public class KMAC {
 					}
 				}
 				posSeqs.add(seq.toUpperCase());		// if repeat_fraction>=1, allow all repeats, convert to upper case
-				posSeqWeights.add(events.get(i).getTotalEventStrength());
+				if (config.use_event_rank)
+					posSeqWeights.add((double)(eventCount-i));		// use event rank as weight
+				else
+					posSeqWeights.add(events.get(i).getTotalEventStrength());		// use event strength as weight
 				posImpactRegion.add(events.get(i).getPeak().expand(negRegionDistance));
 			}
 			seqs = new String[posSeqs.size()];	// DNA sequences around binding sites
@@ -873,7 +879,7 @@ public class KMAC {
 				highHgpKmers.add(kmer);		
 				continue;
 			}
-//			if (config.use_pos_kmer && kmer.getKmerString().equals("TTTCAGTT")){
+//			if (config.use_pos_kmer && kmer.getKmerString().equals("CACGTGGC")){
 //				int offset_factor_neg = offset_factor;
 //				if (kmer.getKmerString().equals(kmer.getKmerRC()) && k%2==0)	// palindrome k-mer and k is even value
 //					offset_factor_neg -= 1;
@@ -911,7 +917,7 @@ public class KMAC {
 //				histogram = StatUtil.gaussianSmoother(histogram, 4);
 //				System.out.println(CommonUtils.arrayToString(histogram, "%.4f"));
 //				System.out.println(CommonUtils.arrayToString(profile, "%.4f"));
-////				System.exit(0);
+//				System.exit(0);
 //			}
 		}
 		// remove un-enriched kmers		

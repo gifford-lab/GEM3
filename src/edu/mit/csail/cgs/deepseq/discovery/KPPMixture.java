@@ -348,7 +348,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 		log(1, "\nThe genome is segmented into "+restrictRegions.size()+" regions for analysis.");
 
-        
+        if (restrictRegions.isEmpty())
+        	System.exit(-1);
         
         // exclude regions?
         //        if (excludedRegions!=null){
