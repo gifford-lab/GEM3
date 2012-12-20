@@ -1296,20 +1296,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		System.out.println("\nGetting 5' positions of all reads...");
 
 		if (experiments.isEmpty()){		// special case, loading RSC file
-			for (int i=0;i<numConditions;i++){
-				
-					ReadCache ipCache=null;
-					try {
-//					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
-//					ipCache.readRSC(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
-					ObjectInputStream obj = new ObjectInputStream(new BufferedInputStream(
-					          new FileInputStream("test.obj")));
-					try {
-						ipCache = (ReadCache) obj.readObject();
-					} catch (ClassNotFoundException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+			for (int i=0;i<numConditions;i++){				
+				try {
+					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
+					ipCache.readRSC(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
 					
 					ReadCache ctrlCache = null;
 					String ctrlFile = Args.parseString(args, "--rfctrl"+conditionNames.get(i), null);
@@ -1319,11 +1309,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			    		controlDataExist = true;
 					}
 					this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
-					
-//					ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(
-//					          new FileOutputStream("test.obj")));
-//					out.writeObject(ipCache);
-					
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -2808,7 +2793,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		    	g2.drawLine(x1, y1, x2, y2);	    
 		    }
 		    g2.setFont(new Font("Arial",Font.PLAIN,20));
-		    g2.drawString(new File(rounds.get(i)).getName(), w-300, i*25+margin+25);
+		    g2.drawString(new File(rounds.get(i)).getName(), w-480, i*25+margin+25);
 	    }
 
 	    try{

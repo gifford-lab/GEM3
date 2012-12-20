@@ -74,10 +74,14 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                         break;
                     }                    
                 }
-                stream.close();                
+                stream.close(); 
+                if (chromseq == null) {
+                	System.err.println("\nchr"+chr+".fa file is not in correct FASTA format.\n");
+                	System.exit(-1);
+                }
             }
             else{
-            	System.err.print("chr"+chr+".fa file is not found at "+genomePath+".\n");
+            	System.err.println("\nchr"+chr+".fa file is not found at "+genomePath+".\n");
             	System.exit(-1);
             }
         }
