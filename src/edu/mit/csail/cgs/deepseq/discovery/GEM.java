@@ -317,7 +317,7 @@ public class GEM {
 //                         "        - Q-value (multiple hypothesis corrected)\n"+
 //                         "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
 //                         "        - Shape deviation between IP vs Control (log10(KL))\n" +
-                         "\n"+"Example: java -Xmx10G -jar gem.jar --d Read_Distribution_default.txt --g mm8.info --genome your_path/mm8 --s 2000000000 --expt SRX000540_mES_CTCF.bed --ctrl SRX000543_mES_GFP.bed --f BED --out mouseCTCF --k_min 6 --k_max 13");	
+                         "\n"+"Example: java -Xmx10G -jar gem.jar --d Read_Distribution_default.txt --g mm8.info --genome your_path/mm8 --s 2000000000 --expt SRX000540_mES_CTCF.bed --ctrl SRX000543_mES_GFP.bed --f BED --out mouseCTCF --k_min 6 --k_max 13\n");	
     }
     public void printError() {
         printHelp();

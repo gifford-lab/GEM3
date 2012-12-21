@@ -97,6 +97,8 @@ public class MultiTF_Binding {
 
 		for (int tf=0;tf<names.size();tf++){
 			String name = names.get(tf);
+
+			System.out.println(String.format("TF#%d: loading %s", tf, name));
 			
 			// load motif files
 			WeightMatrix wm = null;
@@ -133,7 +135,6 @@ public class MultiTF_Binding {
 				negShift = wm.length()-1-wm.length()/2;
 			}
 			try{
-				System.out.println(String.format("TF#%d: loading %s", tf, gpsFile.getName()));
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
 				for (GPSPeak p:gpsPeaks){
