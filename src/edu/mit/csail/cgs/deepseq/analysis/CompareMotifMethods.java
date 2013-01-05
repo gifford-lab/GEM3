@@ -60,13 +60,13 @@ public class CompareMotifMethods {
 	
 		// load  STAMP file for each expt_method pair
 		HashMap<String, Integer> performances = new HashMap<String, Integer>();
-		File dir = new File(args[3]);
+		File stamp_result_dir = new File(args[3]);
 		for (String expt: expts){
 			String tf = expt2tf.get(expt);
 			if (tf2db.containsKey(tf)){
 				each_method: for (String method: methods){
-					String pair = expt+"."+method;
-					File f = new File(dir, pair+"_match_pairs.txt");
+					String expt_method = expt+"."+method;
+					File f = new File(stamp_result_dir, expt_method+"_match_pairs.txt");
 					if (!f.exists())
 						continue;
 					String[] sls = readSmallTextFile(f.getAbsolutePath());	// stampe lines
@@ -79,7 +79,7 @@ public class CompareMotifMethods {
 							if (tf2db.get(tf).contains(entry)){
 								double p = Double.parseDouble(sl_fs[1]);
 								if (p<stamp_p_value){
-									performances.put(pair, rank);
+									performances.put(expt_method, rank);
 									continue each_method;
 								}
 							}
@@ -87,6 +87,10 @@ public class CompareMotifMethods {
 					}
 				}
 			}
+			else {
+				System.err.println(tf + " is not in the TF_2_DB list: " + args[0]);
+			}
+			
 		}
 		
 		// print out results
