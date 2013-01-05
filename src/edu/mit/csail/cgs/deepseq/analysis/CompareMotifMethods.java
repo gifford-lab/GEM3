@@ -83,6 +83,9 @@ public class CompareMotifMethods {
 									continue each_method;
 								}
 							}
+							else {
+								System.err.println(tf + " has no DB motif PWM entry.");
+							}
 						}
 					}
 				}
