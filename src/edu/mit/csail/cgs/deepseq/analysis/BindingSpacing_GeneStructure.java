@@ -129,7 +129,7 @@ public class BindingSpacing_GeneStructure {
 						}							
 						
 					}
-					if (!type_e.equals("exon")||j==(texts.size()-1)){
+					if (type_e.equals("transcript")||j==(texts.size()-1)){	// next transcript, or end of file
 						if(isPlus){
 							first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), '+', i+1));
 							if (exon_starts.size()>2){
