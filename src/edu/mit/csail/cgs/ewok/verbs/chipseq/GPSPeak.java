@@ -4,6 +4,7 @@ import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.species.Genome;
 
 public class GPSPeak extends Point{
+	public static char UNKNOWN_STRAND = '*';
 	double strength;
 	double controlStrength;
 	double expectedStrength;
@@ -18,7 +19,7 @@ public class GPSPeak extends Point{
 	Point EM_position;
 	String kmer;
 	int kmerGroupCount;
-	char kmerStrand;
+	char kmerStrand = UNKNOWN_STRAND;
 	double kmerStrength;
 	String boundSequence;
 	public String getKmer() {return kmer;}
