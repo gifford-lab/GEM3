@@ -172,6 +172,10 @@ public class BindingSpacing_GeneStructure {
 		annotation_names.add("GENCODE_LAST_EXON_ENDS");
 		
 		System.out.println("# of TSS is " + tss.size());
+		System.out.println("# of FIRST_EXON_STARTS is " + first_exon_starts.size());
+		System.out.println("# of INTERNAL_EXON_STARTS is " + internal_exon_starts.size());
+		System.out.println("# of INTERNAL_EXON_ENDS is " + internal_exon_ends.size());
+		System.out.println("# of LAST_EXON_ENDS is " + last_exon_ends.size());
 	}
 	
 	// remove duplicate sites (same coord and strand) and sort
