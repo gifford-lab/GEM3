@@ -54,23 +54,36 @@ public class SequenceWriter {
 		int range = Args.parseInteger(args, "range", 201);
 		String coorFile = Args.parseString(args, "coords", null);
 		ArrayList<String> coorStrs = CommonUtils.readTextFile(coorFile);
+		
 		String indexFile = Args.parseString(args, "index", null);
-		ArrayList<String> idxStrs = CommonUtils.readTextFile(indexFile);
+		ArrayList<Integer> ids = new ArrayList<Integer>();
+		if (indexFile!=null){
+			ArrayList<String> idxStrs = CommonUtils.readTextFile(indexFile);
+			for (String id: idxStrs){
+				if (id.length()==0)
+					continue;
+				ids.add(Integer.parseInt(id));
+			}
+		}
+		else{
+			System.out.println("No index file. Use all the sites.");
+			for (int i=0;i<coorStrs.size();i++){
+				ids.add(i);
+			}
+		}			
+		
 		StringBuilder sb = new StringBuilder();
 		StringBuilder sb2 = new StringBuilder();
 		StringBuilder sb3 = new StringBuilder();
 		ArrayList<String> seqs = new ArrayList<String>();
-		for (String idx: idxStrs){
-			if (idx.length()==0)
-				continue;
-			int i = Integer.parseInt(idx);
+		for (int i: ids){
 			String[] fs = coorStrs.get(i).split("\t");
 			if (fs.length==0)
 				continue;
 			Region r = Point.fromString(genome, fs[0]).expand(range/2);
 //			String seq = "AACCTTTG";
 			String seq = seqgen.execute(r);
-			boolean isMinus = fs[1].equals("-1");
+			boolean isMinus = fs[1].equals("-1")||fs[1].equals("-");
 			if (isMinus)
 				seq = SequenceUtils.reverseComplement(seq);
 			sb.append(">").append(r.toString()).append("\t").append(isMinus?"-":"+").append("\n");
@@ -80,14 +93,14 @@ public class SequenceWriter {
 			sb3.append(String.format("chr%s\t%d\t%d\t%s\t0\t%s\n", r.getChrom(), r.getMidpoint().getLocation(),r.getMidpoint().getLocation(), r.getMidpoint().toString(), isMinus?"-":"+"));
 			seqs.add(seq);
 		}
-		CommonUtils.writeFile(indexFile+".fasta.txt", sb.toString());
-		CommonUtils.writeFile(indexFile+".coords.txt", sb2.toString());
-		CommonUtils.writeFile(indexFile+".bed", sb3.toString());
+		CommonUtils.writeFile(coorFile+".fasta.txt", sb.toString());
+//		CommonUtils.writeFile(indexFile+".coords.txt", sb2.toString());
+//		CommonUtils.writeFile(indexFile+".bed", sb3.toString());
 		
 		String[] ss = new String[seqs.size()];
 		seqs.toArray(ss);
 		int width = Args.parseInteger(args, "width", 3);
 		int height = Args.parseInteger(args, "height", 3);
-		CommonUtils.visualizeSequences(ss, width, height, new File(indexFile+".png"));
+		CommonUtils.visualizeSequences(ss, width, height, new File(coorFile+".png"));
 	}
 }
