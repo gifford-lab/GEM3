@@ -79,7 +79,14 @@ public class MultiTF_Binding {
 		Set<String> flags = Args.parseFlags(args);
 		oldFormat = flags.contains("old_format");
 		dir = new File(Args.parseString(args, "dir", "."));
-		names = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+		names = new ArrayList<String>();
+		ArrayList<String> info = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+		for (String txt: info){
+			if (!txt.isEmpty()){
+				String[] f = txt.split("\t");
+				names.add(f[0]);
+			}
+		}
 //		File[] children = dir.listFiles();
 //		for (int i=0;i<children.length;i++){
 //			File child = children[i];

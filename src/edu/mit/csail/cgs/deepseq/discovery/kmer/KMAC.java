@@ -1962,7 +1962,7 @@ public class KMAC {
 		ArrayList<Kmer> allAlignedKmers = new ArrayList<Kmer>();		// each kmer in diff cluster has been clone, would not overwrite
 		for (KmerCluster c:clusters)
 			allAlignedKmers.addAll(c.alignedKmers);
-		Collections.sort(allAlignedKmers, new Comparator<Kmer>(){
+			Collections.sort(allAlignedKmers, new Comparator<Kmer>(){
 		    public int compare(Kmer o1, Kmer o2) {
 		    	return o1.compareByHGP(o2);
 		    }
