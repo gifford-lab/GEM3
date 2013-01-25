@@ -87,12 +87,19 @@ public class BindingSpacing_GeneStructure {
 		Set<String> flags = Args.parseFlags(args);
 		oldFormat = flags.contains("old_format");
 		dir = new File(Args.parseString(args, "dir", "."));
-		tf_names = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
 		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
 		gc = Args.parseDouble(args, "gc", gc);
 		seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(!flags.contains("no_cache"));
-		
+
+		tf_names = new ArrayList<String>();
+		ArrayList<String> info = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+		for (String txt: info){
+			if (!txt.isEmpty()){
+				String[] f = txt.split("\t");
+				tf_names.add(f[0]);
+			}
+		}
 		// load gene annotation file
 		System.out.println("Loading GENCODE annotations ... ");
 		String anno_file = Args.parseString(args, "gene_anno", null);
