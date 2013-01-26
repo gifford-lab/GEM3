@@ -127,8 +127,15 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                         return null;
                     }
                     chromString = cache.get(chromid);
+                    if (chromString.length()<genome.getChromLength(chromname))
+                    	System.err.println("Warning: the sequence length of chromosome "+chromname+" is shorter than the length in the genome info file.");
                 }
-                result = chromString.substring(region.getStart(), region.getEnd() + 1);
+                int end  = region.getEnd()+1;
+                if (end > chromString.length()){
+                	end = chromString.length();
+                	System.err.println("Warning: the end of region "+region.toString()+" is reset to match chromosome length.");
+                }
+                result = chromString.substring(region.getStart(), end);
             }
             if (result == null) {
                 java.sql.Connection cxn =
