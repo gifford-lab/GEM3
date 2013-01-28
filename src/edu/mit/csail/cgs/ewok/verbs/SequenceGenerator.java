@@ -100,6 +100,9 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         if (chromseq == null) {
             return;
         }
+        if (chromseq.length()<region.getGenome().getChromLength(chr))
+        	System.err.println("Warning: the sequence length of chromosome "+chr+" is shorter than the length in the genome info file.");
+        
         synchronized(cache) {
             if (!cache.containsKey(chromid)) {
                 cache.put(chromid, chromseq);
@@ -126,9 +129,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                     if (!cache.containsKey(chromid)) {
                         return null;
                     }
-                    chromString = cache.get(chromid);
-                    if (chromString.length()<genome.getChromLength(chromname))
-                    	System.err.println("Warning: the sequence length of chromosome "+chromname+" is shorter than the length in the genome info file.");
+                    chromString = cache.get(chromid);                    
                 }
                 int end  = region.getEnd()+1;
                 if (end > chromString.length()){

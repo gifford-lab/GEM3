@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GEM {
-	public final static String GEM_VERSION = "1.2";
+	public final static String GEM_VERSION = "1.3";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
