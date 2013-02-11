@@ -320,7 +320,8 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 			Collections.sort(regionList);			// sort the regions in order
     	}
     	
-    	Set<String> allChroms = chr2crs.keySet();
+    	Set<String> allChroms = new HashSet<String>();
+    	allChroms.addAll(chr2crs.keySet());
     	allChroms.addAll(chr2rs.keySet());
     	if (cache!=null){							
     		for (String chr: allChroms){			// for each chrom
