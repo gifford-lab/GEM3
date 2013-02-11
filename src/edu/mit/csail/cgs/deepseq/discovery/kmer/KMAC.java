@@ -244,14 +244,14 @@ public class KMAC {
 	}
 	/**
 	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
-	 * At the same time, retrieve negative sequences (for only once)
+	 * At the same time, retrieve negative sequences (for only once, no caching)
 	 * @param regions
 	 */
 	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions, int negRegionDistance){
 		this.negRegionDistance = negRegionDistance;
 		double gcRatio=0;
 		if (!seqgen.isRegionCached()){
-			seqsNeg = seqgen.setupRegionCache(cacheRegions, negativeRegions);
+			seqsNeg = seqgen.setupRegionCache_new(cacheRegions, negativeRegions);
 			neg_region_map = new TreeMap<Region, Integer>();
 			for (int i=0;i<negativeRegions.size();i++){
 				neg_region_map.put(negativeRegions.get(i), i);

@@ -900,7 +900,8 @@ public class Region implements Comparable<Region>, Saveable {
 	    return results;
   }
 	/**
-	 * Merge the overlapped regions
+	 * Merge the overlapped regions<br>
+	 * The regions will be sorted
 	 * @param regions
 	 * @return
 	 */

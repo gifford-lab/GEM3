@@ -1618,9 +1618,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		restrictRegions = mergeRegions(rset, toExpandRegion);
 	}
 
-	// merge the overlapped regions
-	// if "toExpandRegion"=true, expand each region on both side to leave enough space,
-	// to include every potential reads, then merge
+	/** merge the overlapped regions<br>
+	 * if "toExpandRegion"=true, expand each region on both side to leave enough space,
+	 * to include every potential reads, then merge
+	 */
 	private ArrayList<Region> mergeRegions(ArrayList<Region> regions, 
                                              boolean toExpandRegion){
 		if (toExpandRegion){
@@ -3345,13 +3346,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
 		// setup lightweight genome cache
 		if (!kmerPreDefined){
-			ArrayList<Region> expandedRegions = new ArrayList<Region>();
+			ArrayList<Region> posituveRegions = new ArrayList<Region>();
 			for (Region r: restrictRegions){
-				expandedRegions.add(r.expand(config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
+				posituveRegions.add(r.expand(config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
 			}
-			expandedRegions = this.mergeRegions(expandedRegions, false);
+			posituveRegions = Region.mergeRegions(posituveRegions);
 			int totalLength=0;
-			for (Region r: expandedRegions){
+			for (Region r: posituveRegions){
 				totalLength+=r.getWidth();
 			}
 			// get negative regions
@@ -3379,7 +3380,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			negativeRegions.removeAll(toRemove);
 			
-			double gc = kmac.setupRegionCache(expandedRegions, negativeRegions, config.k_neg_dist);
+			double gc = kmac.setupRegionCache(posituveRegions, negativeRegions, config.k_neg_dist);
 			if (config.gc==-1){
 				config.setGC(gc);
 			}
