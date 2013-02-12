@@ -157,22 +157,39 @@ public class KmerScanner {
 			GPSPeak p = gpsPeaks.get(i);
 			posRegions.add(p.expand(windowSize));
 		}
-				
 		int width = windowSize*2+1;
-		TreeMap<Region, Region> reg2reg = new TreeMap<Region, Region>();
-		each_event: for(int i=0;i<gpsPeaks.size();i++){
-			GPSPeak p = gpsPeaks.get(i);
-			if (p.getLocation()<1000+windowSize)
-				continue each_event;
-			Region rNeg = new Point(genome, p.getChrom(), p.getLocation()-1000).expand(windowSize);
-			if (posRegions.get(i).getWidth()==width && rNeg.getWidth()==width){
-				for(Region r:posRegions){
-					if (rNeg.overlaps(r))
-						continue each_event;
+		int top = Args.parseInteger(args, "top", 5000);
+		TreeMap<Region, Region> reg2reg = new TreeMap<Region, Region>();		
+		if (!flags.contains("di-shuffle")){
+			int count = 0;
+			
+			each_event: for(int i=0;i<gpsPeaks.size();i++){
+				GPSPeak p = gpsPeaks.get(i);
+				if (p.getLocation()<1000+windowSize)
+					continue each_event;
+				Region rNeg = new Point(genome, p.getChrom(), p.getLocation()-1000).expand(windowSize);
+				if (posRegions.get(i).getWidth()==width && rNeg.getWidth()==width){
+					for(Region r:posRegions){
+						if (rNeg.overlaps(r))
+							continue each_event;
+					}
+					reg2reg.put(posRegions.get(i), rNeg);
+					count++;
+					if (count==5000)
+						break;
 				}
-				reg2reg.put(posRegions.get(i), rNeg);
+			}
+			posRegions.clear();
+			posRegions.addAll(reg2reg.keySet());
+		}
+		else{
+			for (int i=5000;i<posRegions.size();i++){
+				posRegions.remove(i);
 			}
 		}
+		posRegions.trimToSize();
+		Collections.sort(posRegions);
+		System.out.println("Got regions:\t"+CommonUtils.timeElapsed(t));
 		
 		ArrayList<Double> pwm_scores = new ArrayList<Double>();
 		ArrayList<Double> pwmN_scores = new ArrayList<Double>();
@@ -180,16 +197,16 @@ public class KmerScanner {
 		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 		
 		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
-		System.out.println("Scanning "+reg2reg.keySet().size()+" regions ...");
+		System.out.println("Scanning "+posRegions.size()+" regions ...");
 		int PWM_time = 0;
 		int KSM_time = 0;
-		for (Region r:reg2reg.keySet()){
+		for (Region r:posRegions){
 			String seq = seqgen.execute(r).toUpperCase();
 			
 			String name_N = "----";
 			String seqN;
-			if (flags.contains("shuffle"))
-				seqN = SequenceUtils.shuffle(seq, randObj);
+//			if (flags.contains("shuffle"))
+//				seqN = SequenceUtils.shuffle(seq, randObj);
 			if (flags.contains("di-shuffle"))
 				seqN = SequenceUtils.dinu_shuffle(seq, randObj);
 			else{
