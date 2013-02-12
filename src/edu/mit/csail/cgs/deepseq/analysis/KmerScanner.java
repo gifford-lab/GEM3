@@ -183,9 +183,13 @@ public class KmerScanner {
 			posRegions.addAll(reg2reg.keySet());
 		}
 		else{
-			for (int i=5000;i<posRegions.size();i++){
-				posRegions.remove(i);
+			ArrayList<Region> tmp = new ArrayList<Region>();
+			int num = top>posRegions.size()?posRegions.size():top;
+			for (int i=0;i<num;i++){
+				tmp.add(posRegions.get(i));
 			}
+			posRegions = tmp;
+			tmp = null;
 		}
 		posRegions.trimToSize();
 		Collections.sort(posRegions);
