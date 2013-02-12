@@ -550,7 +550,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		ipCtrl_logKL_plus = null;
 		ipCtrl_logKL_minus = null;
 		shapeDeviation = null;
-		condSumResponsibility = null;
 		kmerGroup = null;		
 	}
 	
