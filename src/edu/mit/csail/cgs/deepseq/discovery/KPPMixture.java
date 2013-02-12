@@ -2640,7 +2640,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     }//end of calcSlope method
 
 	
-	double updateBindingModel(int left, int right){
+	double updateBindingModel(int left, int right, String roundLable){
 		if (signalFeatures.size()<config.min_event_count){
 			System.err.println("\nWarning: The read distribution is not updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
 			return -100;
@@ -2730,13 +2730,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 
 		double[] oldModel = model.getProbabilities();
-		String oldName = model.getFileName();
 		model = new BindingModel(dist);
-		model.setFileName(oldName);
-		model.printToFile(outName+"_Read_distribution.txt");
+		model.printToFile(roundLable+"_Read_distribution.txt");
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
-		allModels.put(outName, model);
+		allModels.put(roundLable, model);
 
 		double logKL = 0;
 		if (oldModel.length==modelWidth)
@@ -3124,6 +3122,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			fw.close();
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+	public void releaseMemory(){
+		for (Feature f:signalFeatures){
+			ComponentFeature cf = (ComponentFeature)f;
+			cf.releaseMemory();
 		}
 	}
 	private void printNoneZeroRegions(boolean initial){

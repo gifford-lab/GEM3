@@ -82,7 +82,7 @@ public class MultiTF_Binding {
 		names = new ArrayList<String>();
 		ArrayList<String> info = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
 		for (String txt: info){
-			if (!txt.isEmpty()){
+			if (!txt.equals("")){
 				String[] f = txt.split("\t");
 				names.add(f[0]);
 			}

@@ -542,6 +542,17 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         header.append("\n");
         return header.toString();
 	}
+	public void releaseMemory(){
+		boundSequence = null;
+		conditionBeta = null;
+		logKL_plus = null;
+		logKL_minus = null;
+		ipCtrl_logKL_plus = null;
+		ipCtrl_logKL_minus = null;
+		shapeDeviation = null;
+		condSumResponsibility = null;
+		kmerGroup = null;		
+	}
 	
 	public static void setNon_specific_ratio(double[] non_specific_ratio) {
 		ComponentFeature.non_specific_ratio = non_specific_ratio;
