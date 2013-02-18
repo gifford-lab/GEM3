@@ -147,8 +147,8 @@ public class KMAC {
 		seq_weights = new double[seqNum];
 		totalWeight=0;
 		for (int i=0;i<seqNum;i++){
-			if (config.use_event_rank)
-				seq_weights[i]=seqNum-i;
+			if (config.weight_by_sqrt_strength)
+				seq_weights[i]=Math.sqrt(pos_w.get(i));
 			else
 				seq_weights[i]=pos_w.get(i);
 			totalWeight += seq_weights[i];
