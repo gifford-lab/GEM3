@@ -1618,16 +1618,6 @@ public class KMAC {
 				cluster.seedKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 				if (verbose>1)
 					System.out.println(CommonUtils.timeElapsed(tic)+": Seed family hgp = "+cluster.seedKmer.familyHgp);
-				
-				// if this seed do not match other kmers, stop here
-				if (!config.allow_single_family && seedFamily.size()==1){
-					kmers.remove(seed);
-					quick_restart = true;
-					if (clusterID==0)
-						primarySeed = null;		
-					clusterID++;
-					continue;
-				}
 			}
 			if (only_seed_kmer)
 				return kmers;
