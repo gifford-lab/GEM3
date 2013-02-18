@@ -23,7 +23,7 @@ public class Config {
     public boolean exclude_unenriched = true;
     public boolean dump_regression = false;
     public boolean use_event_strength = false;
-    public boolean use_event_rank = false;
+    public boolean weight_by_sqrt_strength = false;
     public boolean use_kmer_strength = false;
     public boolean print_kmer_bPos = false;
   	public int KL_smooth_width = 0;
@@ -154,7 +154,7 @@ public class Config {
         	System.err.println("testP is " + testPValues);
         dump_regression = flags.contains("dump_regression");
         use_event_strength = flags.contains("use_event_strength");
-        use_event_rank = flags.contains("use_event_rank");
+        weight_by_sqrt_strength = flags.contains("weight_by_sqrt_strength");
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
         select_seed = flags.contains("select_seed");

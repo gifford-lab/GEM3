@@ -304,8 +304,8 @@ public class KMAC {
 					}
 				}
 				posSeqs.add(seq.toUpperCase());		// if repeat_fraction>=1, allow all repeats, convert to upper case
-				if (config.use_event_rank)
-					posSeqWeights.add((double)(eventCount-i));		// use event rank as weight
+				if (config.weight_by_sqrt_strength)
+					posSeqWeights.add(Math.sqrt(events.get(i).getTotalEventStrength()));	// use sq root of event strength as weight
 				else
 					posSeqWeights.add(events.get(i).getTotalEventStrength());		// use event strength as weight
 				posImpactRegion.add(events.get(i).getPeak().expand(negRegionDistance));
