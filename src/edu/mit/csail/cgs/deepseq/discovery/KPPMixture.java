@@ -2792,7 +2792,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		    	g2.drawLine(x1, y1, x2, y2);	    
 		    }
 		    g2.setFont(new Font("Arial",Font.PLAIN,20));
-		    g2.drawString(new File(rounds.get(i)).getName(), w-480, i*25+margin+25);
+		    g2.drawString(new File(rounds.get(i)).getName(), w/2+50, i*25+margin+25);
 	    }
 
 	    try{
