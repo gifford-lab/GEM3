@@ -4466,7 +4466,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     }
                 }
 
-
                 //////////
                 //M-step
                 //////////
@@ -4573,24 +4572,45 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     }
                 }
 
-                // update component count, normalize pi
+                // normalize pi
                 double totalPi=0;
-                nzComps.clear();
                 for(int j=0;j<pi.length;j++){
                     if (pi[j]!=0){
                         totalPi+=pi[j];
+                    }
+                }            	
+                if (totalPi!=0){
+                    for(int j:nzComps){
+                        pi[j]=pi[j]/totalPi;
+                    }
+                }
+                
+                // EM speed up, eliminate components with probability less than initial avg prob.
+                double minProb = 1.0/(pi.length+1);		// length+1 to make sure it is smaller than 1/m
+                if (t<=config.ML_ITER){
+                	for (int j=0;j<pi.length;j++){
+                		if (pi[j]<minProb){
+                			// eliminate component, clear responsibility
+                			pi[j]=0;
+                			for(int c=0; c<mixture.numConditions; c++){
+                                for(int i=0; i<c2b[c][j].length;i++)
+                                    r[c][j][i] = 0;
+                            }
+                		}
+                	}
+                }
+                
+                // update component count
+                nzComps.clear();
+                for(int j=0;j<pi.length;j++){
+                    if (pi[j]!=0){
                         nzComps.add(j);
                     }
                 }
                 nonZeroComponentNum = nzComps.size();
                 if (nonZeroComponentNum==0)
                     return new Pair<double[][][], int[][][]>(r, c2b);
-            	
-                if (totalPi!=0){
-                    for(int j:nzComps){
-                        pi[j]=pi[j]/totalPi;
-                    }
-                }
+                
                 if (config.print_PI)
                 	System.out.println(t+"\t"+CommonUtils.arrayToString(pi, "%.4f"));
 
