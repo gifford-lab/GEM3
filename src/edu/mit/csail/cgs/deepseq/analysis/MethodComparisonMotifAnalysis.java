@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
-import edu.mit.csail.cgs.deepseq.utilities.CommonUtils.SISSRS_Event;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils.*;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
@@ -107,7 +107,7 @@ public class MethodComparisonMotifAnalysis {
 	    }
 	    	    
 		// some parameters
-		windowSize = Args.parseInteger(args, "windowSize", 50);
+		windowSize = Args.parseInteger(args, "windowSize", 100);
 		rank = Args.parseInteger(args, "rank", 0);
 		outName = Args.parseString(args,"out",outName);
 		sortByStrength = flags.contains("ss");	// only for GPS
@@ -372,7 +372,14 @@ public class MethodComparisonMotifAnalysis {
         	String name = methodNames.get(i);
         	String filePath = peakFiles.get(i).getAbsolutePath();
 			ArrayList<Point> peakPoints = new ArrayList<Point>(); 
-        	if (name.contains("GPS")||name.contains("GEM")){
+			if (name.contains("ZZZ")){		// ENCODE narrow peak format
+        		ArrayList<NarrowPeak> narrowPeaks = CommonUtils.load_narrowPeak(genome, filePath);
+        		for (NarrowPeak np: narrowPeaks){
+        			peakPoints.add(np.summit);
+        		}
+        		methodNames.set(i,name.replace("ZZZ", ""));
+			}
+			else if (name.contains("GPS")||name.contains("GEM")){
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				// sort by descending pValue (-log P-value)
 				if (!isPreSorted){
@@ -1140,7 +1147,7 @@ public class MethodComparisonMotifAnalysis {
 		System.out.print("\nGetting motifs from "+count+" regions ...\n");
 		for(int i=0; i<count; i++){
 			if (i % 1000==0)
-				System.out.println(i);
+				System.out.print(i+" ");
 			Region r= regions.get(i);
 			WeightMatrixScoreProfile profiler = scorer.execute(r);
 			//search for whole region
@@ -1155,6 +1162,7 @@ public class MethodComparisonMotifAnalysis {
 				}
 			}
 		}
+		System.out.println();
 		return new Pair<ArrayList<Point>, ArrayList<Double>>(allMotifs, scores);
 	}
 	

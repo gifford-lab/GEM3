@@ -105,6 +105,54 @@ public class CommonUtils {
 		return rset;
 	}
 	
+	/**
+	 * Load ENCODE narrow Peak format
+	 * 
+	 *  Col1: chromosome name 
+		Col2: start position of peak region (0-based)
+		Col3: stop position of peak region (1-based)
+		Col4: peak name (any string)
+		Col5: peak score (any scoring/ranking measure for the peaks)
+		Col6: Strand (Always a '.' i.e. no orientation)
+		Col7: signalValue (any scoring/ranking measure for the peaks)
+		Col8: -log10(pValue) if the peak caller does not provide a pValue set this Column to -1
+		Col9: -log10(qValue) if	the peak caller	does not provide a qValue set this Column to -1
+		Col10: peak summit (0-based offset from start i.e. col2) single base best prediction of binding event/peak summit
+	 * @param genome
+	 * @param filename
+	 * @return
+	 */
+	static public ArrayList<NarrowPeak> load_narrowPeak(Genome genome, String filename) {
+		CommonUtils util = new CommonUtils();
+		ArrayList<NarrowPeak> results = new ArrayList<NarrowPeak>();
+		ArrayList<String> txt = readTextFile(filename);
+		for (String s:txt){
+			String[] f = s.split("\t");
+			NarrowPeak p = util.new NarrowPeak(genome, f[0], Integer.parseInt(f[1]), Integer.parseInt(f[2]), Double.parseDouble(f[4]), Double.parseDouble(f[6]), Double.parseDouble(f[7]), Double.parseDouble(f[8]), Integer.parseInt(f[9]));
+			results.add(p);
+		}
+		results.trimToSize();
+		return results;
+	}
+	
+	public class NarrowPeak{
+		public Region region;
+		public Point summit;
+		public double score;
+		public double signal;
+		public double pvalue;
+		public double qvalue;
+		public NarrowPeak(Genome genome, String chrom, int start, int end, double score, double signal, double pvalue, double qvalue, int summitOffset){
+			String chr = chrom.replace("chr", "").replace("Chr", "");
+			region = new Region(genome, chr, start, end);
+			summit = new Point(genome, chr, start+summitOffset);
+			this.score = score;
+			this.signal = signal;
+			this.pvalue = pvalue;
+			this.qvalue = qvalue;
+		}
+	}
+	
 	/** load text file in SISSRS output BED format, then sort by p-value
 	 * 	Chr		cStart	cEnd	NumTags	Fold	p-value
 		---		------	----	-------	----	-------
