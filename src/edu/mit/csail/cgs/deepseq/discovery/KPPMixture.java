@@ -1839,6 +1839,21 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 		log(3, "selectEnrichedRegions(): " + CommonUtils.timeElapsed(tic));
 		regions.trimToSize();
+		
+		// display stats of enriched regions
+		int[] binMins = {0,500,1000,2000,5000,10000};
+		int[] counts = new int[binMins.length];
+		for (Region r:regions){
+			for (int i=binMins.length-1;i>=0;i--){
+				if (r.getWidth()>binMins[i]){
+					counts[i]++;
+					break;
+				}
+			}
+		}
+		for (int i=0;i<binMins.length;i++){
+			System.out.println("> " + binMins+"\t"+counts[i]);
+		}
 		return regions;
 	}//end of selectEnrichedRegions method
 
