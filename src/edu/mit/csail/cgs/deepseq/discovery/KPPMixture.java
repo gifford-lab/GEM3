@@ -4588,7 +4588,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 // EM speed up, eliminate components with probability less than initial avg prob.
                 double minProb = 1.0/(pi.length*2);		// length*2 to make sure it is smaller than 1/m
                 if (t<=config.ML_ITER){
-                	for (int j=0;j<pi.length;j++){
+                	for (int j:nzComps){
                 		if (pi[j]<minProb){
                 			// eliminate component, clear responsibility
                 			pi[j]=0;
@@ -4598,6 +4598,18 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             }
                 		}
                 	}
+                	 // normalize pi here again
+                    totalPi=0;
+                    for(int j:nzComps){
+                        if (pi[j]!=0){
+                            totalPi+=pi[j];
+                        }
+                    }            	
+                    if (totalPi!=0){
+                        for(int j:nzComps){
+                            pi[j]=pi[j]/totalPi;
+                        }
+                    }
                 }
                 
                 // update component count
