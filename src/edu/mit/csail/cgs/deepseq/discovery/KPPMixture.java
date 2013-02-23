@@ -330,9 +330,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
      	String subsetFormat = Args.parseString(args, "subFormat", "");
     	// if not provided region list, directly segment genome into enrichedRegions
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
+			setRegions(selectEnrichedRegions(subsetRegions, true));
      		// ip/ctrl ratio by regression on non-enriched regions
 			if (config.ip_ctrl_ratio==-1){
-     			setRegions(selectEnrichedRegions(subsetRegions, true));
      			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
      			temp.addAll(excludedRegions);
     			calcIpCtrlRatio(mergeRegions(temp, false));
@@ -341,7 +341,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     					System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
     			}
     		}
-			setRegions(selectEnrichedRegions(subsetRegions, true));
 		} else{
 			setRegions(subsetRegions);
 		}
@@ -1585,17 +1584,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		return condFeats;
 	}//end of condPostFiltering method
 
-	/* 
+	/** 
 	 * Calc the ratio of IP vs Control channel, exlcluding the specific regions
 	 */
-	private void calcIpCtrlRatio(ArrayList<Region> specificRegions) {
+	private void calcIpCtrlRatio(ArrayList<Region> excludedRegions) {
 		// linear regression to get the IP/control ratio
 		// now we do not require whole genome data, because partial data could be run on 1 chrom, still enough data to esitmates
 		if(controlDataExist) {
 			if (config.ip_ctrl_ratio==-1){		// regression using non-specific regions
 				ratio_non_specific_total = new double[numConditions];
 				for(int t = 0; t < numConditions; t++){
-					ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", specificRegions);
+					ratio_non_specific_total[t] = getSlope(t, t, "IP/CTRL", excludedRegions);
 				}
 			}
 			ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
@@ -1852,7 +1851,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 		for (int i=0;i<binMins.length;i++){
-			System.out.println("> " + binMins+"\t"+counts[i]);
+			System.out.println("> " + binMins[i]+"\t"+counts[i]);
 		}
 		return regions;
 	}//end of selectEnrichedRegions method
