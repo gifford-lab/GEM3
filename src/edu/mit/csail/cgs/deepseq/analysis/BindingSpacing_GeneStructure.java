@@ -104,7 +104,7 @@ public class BindingSpacing_GeneStructure {
 		System.out.println("Loading GENCODE annotations ... ");
 		String anno_file = Args.parseString(args, "gene_anno", null);
 		ArrayList<String> texts = CommonUtils.readTextFile(anno_file);
-		boolean isPlus = false;
+		char strand = '*';
 		ArrayList<Site> tss = new ArrayList<Site>();					// -1
 		ArrayList<Site> first_exon_starts = new ArrayList<Site>();		// -2
 		ArrayList<Site> internal_exon_starts = new ArrayList<Site>();		// -3
@@ -116,47 +116,35 @@ public class BindingSpacing_GeneStructure {
 				continue;
 			String f[] = t.split("\t");
 			String type = f[2];
-			if (type.equals("transcript")){
+			if (type.equals("transcript")){		// only look for transcript
 				String chr = f[0].replace("chr", "");
-				isPlus = f[6].charAt(0)=='+';
-				tss.add(new Site(-1, new Point(genome, chr, Integer.parseInt(f[isPlus?3:4])), isPlus?'+':'-', i));
+				strand = f[6].charAt(0);
+				tss.add(new Site(-1, new Point(genome, chr, Integer.parseInt(f[strand=='+'?3:4])), strand, i));
 				ArrayList<Integer> exon_starts = new ArrayList<Integer>();
 				ArrayList<Integer> exon_ends = new ArrayList<Integer>();
+				// for lines after transcript, should be exons until the next transcript
 				for (int j=i+1;j<texts.size();j++){
 					String t_e = texts.get(j);
 					String f_e[] = t_e.split("\t");
 					String type_e = f_e[2];
 					if (type_e.equals("exon")){
-						if(isPlus){
+						if(strand=='+'){
 							exon_starts.add(Integer.parseInt(f_e[3]));
 							exon_ends.add(Integer.parseInt(f_e[4]));
 						}else{
 							exon_starts.add(Integer.parseInt(f_e[4]));
 							exon_ends.add(Integer.parseInt(f_e[3]));
-						}							
-						
+						}
 					}
 					if (type_e.equals("transcript")||j==(texts.size()-1)){	// next transcript, or end of file
-						if(isPlus){
-							first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), '+', i+1));
-							if (exon_starts.size()>2){
-								for (int k=1;k<exon_starts.size();k++)
-									internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), '+', i+k+1));
-								for (int k=0;k<exon_starts.size()-1;k++)
-									internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), '+', i+k+1));
-							}
-							last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(exon_ends.size()-1)), '+', i+exon_starts.size()));
-							
-						}else{
-							first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(exon_starts.size()-1)), '-', i+exon_starts.size()));
-							if (exon_starts.size()>2){
-								for (int k=0;k<exon_starts.size()-1;k++)
-									internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), '-', i+k+1));
-								for (int k=1;k<exon_starts.size();k++)
-									internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), '-', i+k+1));
-							}
-							last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(0)), '-', i+1));							
+						first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), strand, i+1));
+						if (exon_starts.size()>2){
+							for (int k=1;k<exon_starts.size();k++)
+								internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), strand, i+k+1));
+							for (int k=0;k<exon_ends.size()-1;k++)
+								internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), strand, i+k+1));
 						}
+						last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(exon_ends.size()-1)), strand, i+exon_ends.size()));							
 						break;
 					}
 				}
