@@ -7,25 +7,28 @@ import edu.mit.csail.cgs.tools.utils.Args;
 public class Config {
 	public boolean trim_simple=false;
 	public boolean print_PI = false;
-	public boolean do_model_selection=false;
 	public boolean classify_events = false;
     public boolean use_joint_event = false;
-    public boolean TF_binding = true;
     public boolean outputBED = false;
     public boolean write_RSC_file = false;
     public boolean kmer_print_hits = false;
     public boolean testPValues = false;
     public boolean post_artifact_filter=false;
-    public boolean filterEvents=true;
-    public boolean filterDupReads=true;
     public boolean kl_count_adjusted = false;
     public boolean sort_by_location=false;
-    public boolean exclude_unenriched = true;
     public boolean dump_regression = false;
     public boolean use_event_strength = false;
     public boolean weight_by_sqrt_strength = false;
     public boolean use_kmer_strength = false;
     public boolean print_kmer_bPos = false;
+    
+    public boolean discard_subAlpha_components=true;			// discard the component whose strength is less than alpha    
+    public boolean TF_binding = true;
+    public boolean exclude_unenriched = true;
+    public boolean filterEvents=true;
+    public boolean filterDupReads=true;
+	public boolean do_model_selection=true;
+
   	public int KL_smooth_width = 0;
     public int max_hit_per_bp = -1;
     public int maxThreads;		// default to #CPU
@@ -186,6 +189,7 @@ public class Config {
             use_joint_event = true;
             sort_by_location = true;
         }
+        discard_subAlpha_components = ! flags.contains("sub_alpha");
         use_scanPeak = ! flags.contains("no_scanPeak");
         do_model_selection = !flags.contains("no_model_selection");
         use_kmer_mismatch = !flags.contains("no_kmm");

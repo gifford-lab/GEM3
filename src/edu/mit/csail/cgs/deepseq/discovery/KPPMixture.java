@@ -4093,12 +4093,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     	return null;
                     
                     // discard components with less than alpha reads
-                    ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
-                    for (BindingComponent c: components)
-                    	if (c.getTotalSumResponsibility()<alpha)
-                    		toRemove.add(c);
-                    components.removeAll(toRemove);
-                    
+                    if (config.discard_subAlpha_components){
+	                    ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+	                    for (BindingComponent c: components)
+	                    	if (c.getTotalSumResponsibility()<alpha)
+	                    		toRemove.add(c);
+	                    components.removeAll(toRemove);
+                    }
                     setComponentResponsibilities(signals, result.car(), result.cdr());
                     if (kmac!=null && config.pp_use_kmer)
                     	setEventKmerGroup(pp_kmer, w.getStart(), seq);
