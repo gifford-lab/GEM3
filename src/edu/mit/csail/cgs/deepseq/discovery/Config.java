@@ -124,6 +124,7 @@ public class Config {
     public int third_lambda_region_width  = 10000;
     public boolean bic = false;				// use BIC or AIC for model selection
     public boolean model_noise = false;		// have a noise component for background reads
+    public boolean ML_speedup = false;		// have a noise component for background reads
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
@@ -180,6 +181,7 @@ public class Config {
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         model_noise = flags.contains("model_noise");
+        ML_speedup = flags.contains("ML_speedup");
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
