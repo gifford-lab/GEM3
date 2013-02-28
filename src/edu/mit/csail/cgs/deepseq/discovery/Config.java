@@ -111,6 +111,7 @@ public class Config {
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
     public double mappable_genome_length = -1; // default is to compute
+    public double background_proportion = 0.3;
     public double sparseness=-1;
     public double poisson_alpha=1e-4; 				// the Poisson p-value for estimating alpha
     public double fold = 2.5;
@@ -122,6 +123,7 @@ public class Config {
     public int second_lambda_region_width =  5000;
     public int third_lambda_region_width  = 10000;
     public boolean bic = false;				// use BIC or AIC for model selection
+    public boolean model_noise = false;		// have a noise component for background reads
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
@@ -177,6 +179,7 @@ public class Config {
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
+        model_noise = flags.contains("model_noise");
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -212,7 +215,8 @@ public class Config {
         strigent_event_pvalue = !flags.contains("relax");
 
         mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
-       
+        background_proportion = Args.parseDouble(args, "pi_bg", background_proportion);	// proportion of background read signal
+        
         // Optional input parameter
         genome_path = Args.parseString(args, "genome", genome_path);
         k = Args.parseInteger(args, "k", k);
