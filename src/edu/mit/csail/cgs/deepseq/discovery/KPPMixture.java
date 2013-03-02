@@ -4624,7 +4624,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                                }
 	                            }
 	                            else
-	                            	pi[nzComps.get(jnz)]=r_sum[jnz];	// not normailzed yet
+	                            	pi[nzComps.get(jnz)]=r_sum[jnz]-currAlpha;	// not normailzed yet
                         	}
                             // keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
                             // give EM some time to stabilize before eliminating the next components
