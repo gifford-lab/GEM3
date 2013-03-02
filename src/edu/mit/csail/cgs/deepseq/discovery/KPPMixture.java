@@ -545,6 +545,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             }
         }
         System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        if (compFeatures.isEmpty()){
+        	log(1, "No valid binding event was found.");
+        	return signalFeatures;
+        }
         processRegionCount.clear();
         compFeatures.trimToSize();
         
@@ -790,35 +794,37 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                	cf.setPValue_w_ctrl(1, cond);
 	                	continue;
 	                }
-	                try{
-	                    assert (totalIPCount[cond] > 0);
-	                    assert (ipCount <= totalIPCount[cond]);
-	                    double p = controlCount / totalControlCount[cond];
-	                    if (p <= 0) {
-	                        p = 1.0/totalControlCount[cond];
-	                    } else if (p >= 1) {
-	                        System.err.println(String.format("p>=1 at evaluateConfidence from %f/%f", controlCount, totalControlCount[cond]));
-	                        p = 1.0 - 1.0/totalControlCount[cond];
-	                    } 
-	                    binomial.setNandP((int)totalIPCount[cond],p);
-	                    pValueControl = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-	
-	                    p = modelWidth / config.mappable_genome_length;
-	                    binomial.setNandP((int)totalIPCount[cond],p);
-	                    pValueUniform = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-	
-	                    binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
-	                    pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-	
-	                    poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
-	                    pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
-	                } catch(Exception err){
-	                    err.printStackTrace();
-	                    System.err.println(cf.toString());
-	                    throw new RuntimeException(err.toString(), err);
-	                }
-	                if (config.testPValues)
+	                if (config.testPValues){
+		                try{
+		                    assert (totalIPCount[cond] > 0);
+		                    assert (ipCount <= totalIPCount[cond]);
+		                    double p = controlCount / totalControlCount[cond];
+		                    if (p <= 0) {
+		                        p = 1.0/totalControlCount[cond];
+		                    } else if (p >= 1) {
+		                        System.err.println(String.format("p>=1 at evaluateConfidence from %f/%f", controlCount, totalControlCount[cond]));
+		                        p = 1.0 - 1.0/totalControlCount[cond];
+		                    } 
+		                    binomial.setNandP((int)totalIPCount[cond],p);
+		                    pValueControl = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+		
+		                    p = modelWidth / config.mappable_genome_length;
+		                    binomial.setNandP((int)totalIPCount[cond],p);
+		                    pValueUniform = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+		
+		                    binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
+		                    pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
+		
+		                    poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
+		                    pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
+		                } catch(Exception err){
+		                    err.printStackTrace();
+		                    System.err.println(cf.toString());
+		                    throw new RuntimeException(err.toString(), err);
+		                }
+
 	                	cf.setPValue_w_ctrl(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
+	                }
 	                else
 	                	cf.setPValue_w_ctrl(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
 				}
@@ -2300,7 +2306,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			signals.add(bases_p);
 		} // for loop
 
-		if (signals==null||totalHitCounts==0) // check for empty read region
+		if (totalHitCounts==0) // check for empty read region
 			return null;
 
 		return scanPeak(signals, scanRegion);
@@ -4417,6 +4423,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
          * @param pi Mixing probability of event
          * @param alpha Sparse prior (uniform negative Dirichlet prior)
          * @param pos_alpha Positional prior (positive count per event position)
+         * @param prob_bg Initial probability of background component
          * @return
          */
         private Pair<double[][][], int[][][]> EM_MAP(  	double[][]   counts,
@@ -4624,7 +4631,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                                }
 	                            }
 	                            else
-	                            	pi[nzComps.get(jnz)]=r_sum[jnz]-currAlpha;	// not normailzed yet
+	                            	pi[nzComps.get(jnz)]=r_sum[jnz]-worst.car();	// not normailzed yet
                         	}
                             // keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
                             // give EM some time to stabilize before eliminating the next components
