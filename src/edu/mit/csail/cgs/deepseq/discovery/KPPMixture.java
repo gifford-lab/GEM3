@@ -4620,7 +4620,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             //                     	System.out.println(t+":\t"+currAlpha+"\t iterating");
                         }else{
                             // eliminate worst case components, could be 1 or multiple components
-                            // redistribute responsibilities in next E step
+                            // not apply alpha here, redistribute responsibilities in next E step
                         	for(int jnz=0;jnz<r_sum.length;jnz++){
 	                            if (worst.cdr().contains(jnz)){
 	                                pi[nzComps.get(jnz)]=0;                        	
@@ -4631,7 +4631,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                                }
 	                            }
 	                            else
-	                            	pi[nzComps.get(jnz)]=r_sum[jnz]-worst.car();	// not normailzed yet
+	                            	pi[nzComps.get(jnz)]=r_sum[jnz];	// not normailzed, not apply alpha
                         	}
                             // keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
                             // give EM some time to stabilize before eliminating the next components

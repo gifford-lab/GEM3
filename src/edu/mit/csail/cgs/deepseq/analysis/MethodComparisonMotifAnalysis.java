@@ -510,6 +510,18 @@ public class MethodComparisonMotifAnalysis {
 		StringBuilder sb = new StringBuilder();
 		StringBuilder sb2 = new StringBuilder();
 		StringBuilder sb3 = new StringBuilder();
+		sb.append("Region\t#Motif");
+		sb2.append("Region\t#Motif");
+		sb3.append("Region\t#Motif");
+		for (String n:methodNames){
+			sb.append("\t").append(n);
+			sb2.append("\t").append(n);
+			sb3.append("\t").append(n);
+		}
+		sb.append("\n");
+		sb2.append("\n");
+		sb3.append("\n");
+		
 		for (String chrom: genome.getChromList()){
 			ArrayList<ArrayList<Point>> motifClusters = new ArrayList<ArrayList<Point>>();
 			
