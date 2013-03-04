@@ -192,30 +192,33 @@ public class MethodComparisonMotifAnalysis {
 		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
+		System.out.println("Sorting regions ...");
 		Collections.sort(allRegions);		// sort regions, the motifs should be sorted
+		System.out.println(CommonUtils.timeElapsed(tic));
+		
+		System.out.println("\nSearching motifs in "+allRegions.size()+" regions ...");
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(CommonUtils.timeElapsed(tic));
 		System.out.printf("%n%d motifs (in %d regions).%n%n", allMotifs.size(), allRegions.size());
+		System.out.println(CommonUtils.timeElapsed(tic));
 
 		// Get the set of motif matches for all peak calls		
+		System.out.println("Matching binding events with motifs ...");
 		System.out.printf("Events within a %d bp window to a motif:%n", windowSize);
 		for (int i=0;i<events.size();i++){
 			System.out.printf("%s \t#events: ", methodNames.get(i));
 			HashMap<Point, MotifHit> motifs = getNearestMotif2(events.get(i), allMotifs, allMotifScores);
 			maps.add(motifs);
-			System.out.printf("\t#motifs: %d", motifs.keySet().size());
-			System.out.println();
-		}
-		System.out.println(CommonUtils.timeElapsed(tic));
-		
+			System.out.printf("\t#motifs: %d%n", motifs.keySet().size());
+		}		
 		System.out.printf("\nMotifs covered by an event:\n");
 		for(int i = 0; i < methodNames.size(); i++)
 			System.out.printf("%s\t%d/%d (%.1f%%)\n", methodNames.get(i), maps.get(i).size(), allMotifs.size(), 100.0*((double)maps.get(i).size())/(double)allMotifs.size());
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get the intersection (motifs shared by all methods, upto top rank)
-		System.out.print("\nRunning Spatial Resolution analysis ...\n");
+		System.out.print("\nRunning Spatial Resolution analysis (shared motifs)...\n");
 		SetTools<Point> setTools = new SetTools<Point>();
 		Set<Point> motifs_shared =  getHighRankSites(0);
 		for (int i=1;i<maps.size();i++){
@@ -254,10 +257,11 @@ public class MethodComparisonMotifAnalysis {
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_sharedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 // ************************************************************************************
 // ************************************************************************************
-		
+		System.out.println("Get all peak-motif offset list ... ");
 		// get the union (motifs at least by one of all methods)
 		Set<Point> motifs_union = maps.get(0).keySet();
 		for (int i=1;i<maps.size();i++){
@@ -300,6 +304,7 @@ public class MethodComparisonMotifAnalysis {
 				+windowSize+".txt", sb.toString());
 		
 		System.out.println();
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 // ************************************************************************************
 // ************************************************************************************
@@ -1153,10 +1158,9 @@ public class MethodComparisonMotifAnalysis {
 	private Pair<ArrayList<Point>, ArrayList<Double>> getAllMotifs(ArrayList<Region> regions, double threshold){
 		ArrayList<Point> allMotifs = new ArrayList<Point>();
 		ArrayList<Double> scores = new ArrayList<Double>();
-		WeightMatrixScorer scorer = new WeightMatrixScorer(motif);
+		WeightMatrixScorer scorer = new WeightMatrixScorer(motif, true);
 		int length = motif.length();
 		int count = regions.size();
-		System.out.print("\nGetting motifs from "+count+" regions ...\n");
 		for(int i=0; i<count; i++){
 			if (i % 1000==0)
 				System.out.print(i+" ");
