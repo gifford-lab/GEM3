@@ -4061,7 +4061,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     int countIters = 0;
                     while(nonZeroComponentNum>0){                        
                         int numComp = components.size();
-                        double[] p_alpha = new double[numComp];						// positional alpha
+                        double[] pos_alpha = new double[numComp];						// positional alpha
                         if (kmac!=null){
 	                        for (int i=0;i<numComp;i++){
 	                        	BindingComponent b = components.get(i);
@@ -4073,16 +4073,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                        			idx = pp.length-1;
 	                        		maxPP = Math.max(maxPP,pp[idx]);
 	                        	}
-	                        	p_alpha[i]=maxPP;
+	                        	pos_alpha[i]=maxPP;
 	                        }
                         }
                         else{
                         	for (int i=0;i<numComp;i++){
-                        		p_alpha[i]=0;
+                        		pos_alpha[i]=0;
                         	}
                         }
                         // EM learning, components list will only contains non-zero components
-                        result = EMTrain(signals, alpha, p_alpha);
+                        result = EMTrain(signals, alpha, pos_alpha);
                         // mixture.log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
 
                         countIters++;
@@ -4235,7 +4235,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
          * purely matrix/array operations
          * After EM training, components list will only contains non-zero components
          */
-        private Pair<double[][][], int[][][]>  EMTrain(ArrayList<List<StrandedBase>> signals, double alpha, double[] p_alpha){
+        private Pair<double[][][], int[][][]>  EMTrain(ArrayList<List<StrandedBase>> signals, double alpha, double[] pos_alpha){
             int numComp = components.size();
             // H function and responsibility will be stored using an indirect indexing method
             // Because only the components within modelRange matters, we only store those components around the reads
@@ -4366,9 +4366,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             //////////
             // Run EM steps
             //////////
-            Pair<double[][][], int[][][]> result = EM_MAP(counts, h, r, b, c2b, pi, alpha, p_alpha, prob_bg);
+            Pair<double[][][], Double> result = EM_MAP(counts, h, r, b, c2b, pi, alpha, pos_alpha, prob_bg);
             r = result.car();
-		
+            double noiseProb = result.cdr();
             //////////
             // re-assign EM result back to the component objects
             //////////
@@ -4382,6 +4382,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     BindingComponent comp = components.get(j);
                     comp.setMixProb(pi[j]);
                     comp.setAlpha(alpha);
+                    comp.setNoiseFraction(noiseProb);
                     for(int c=0; c<mixture.numConditions; c++){
                         double[] bc = b[c];
                         comp.setConditionBeta(c, bc[j]);
@@ -4425,7 +4426,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
          * @param prob_bg Initial probability of background component
          * @return
          */
-        private Pair<double[][][], int[][][]> EM_MAP(  	double[][]   counts,
+        private Pair<double[][][], Double> EM_MAP(  	double[][]   counts,
                                                         double[][][] h,
                                                         double[][][] r,
                                                         double[][]   b,
@@ -4445,7 +4446,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
             // variable for bg (noise) component
             double[] b_bg = new double[mixture.numConditions];
-            double pi_bg = config.background_proportion;
+            double pi_bg = 0;
+            if (config.model_noise)
+            	pi_bg = config.background_proportion;
             double pi_signal=1-pi_bg;
             double [][] r_bg = new double[mixture.numConditions][];	// [cond][base]
             for(int c=0; c<mixture.numConditions; c++){
@@ -4485,6 +4488,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             double lastLAP=0, LAP=0; // log posterior prob
             int t=0;
             double currAlpha = alpha/config.gentle_elimination_factor;
+            double effectiveAlpha = 0;	// the real Alpha applied to compute pi (may be different from currAlpha because of the dynamic elimination schedule)
             
             double minProb = 1.0/(pi.length*2);		// in ML speedup, threshold to eliminate ML components, length*2 to make sure it is smaller than 1/m
             double maxMinProb = currAlpha / totalCounts;		// the max minProb is bound by alpha
@@ -4526,7 +4530,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         for(int i=0;i<baseIdx.length;i++)
                             totalResp[baseIdx[i]] += rc[j][i];
                     }
-                    if (config.model_noise){
+                    if (config.model_noise && pi_bg!=0){
 	                    for(int i=0;i<numBases;i++){
 	                    	totalResp[i] += r_bg[c][i];
 	                    }
@@ -4539,7 +4543,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             if (totalResp[baseIdx[i]]>0)
                                 rc[j][i] = rc[j][i]/totalResp[baseIdx[i]];
                     }
-                    if (config.model_noise){
+                    if (config.model_noise && pi_bg!=0){
 	                    for(int i=0;i<numBases;i++){
 	                    	r_bg[c][i] = r_bg[c][i]/totalResp[i];
 	                    }
@@ -4580,6 +4584,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         // 		 at the initial EM runs (has not reached proper assignment)
                         // 		 when pi[j] is too small (too many components)
                         // 		 That is the reason of having the annealing cycles.
+                        effectiveAlpha = currAlpha;
                         for(int j:nzComps){
                             double r_sum=0;
                             for(int c=0; c<mixture.numConditions; c++){
@@ -4630,6 +4635,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             // stop Smallest cases elimination, only eliminate min from now on
                             minElimination = true;
                             gentleCounts ++;
+                            effectiveAlpha = currAlpha;
                             //                     	System.out.println(t+":\t"+currAlpha+"\t iterating");
                         }else{
                             // eliminate worst case components, could be 1 or multiple components
@@ -4646,6 +4652,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                            else
 	                            	pi[nzComps.get(jnz)]=r_sum[jnz];	// not normailzed, not apply alpha
                         	}
+                        	effectiveAlpha = 0;
                             // keep iterating on this Alpha value, until converge, then we raise it up to eliminate next one
                             // give EM some time to stabilize before eliminating the next components
                             //                    	System.out.println(t+":\t"+currAlpha+"\t elimination");
@@ -4655,15 +4662,19 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         }
                     }
                 }
-                
+                if (t==54)
+                	t=54;
                 // BG component computation is the same for either ML or MAP
-                if (config.model_noise){
+                if (config.model_noise && pi_bg!=0){
                 	double r_bg_sum=0;
                 	for(int c=0; c<mixture.numConditions; c++){
                 		for(int i=0;i<r_bg[c].length;i++)
                 			r_bg_sum += r_bg[c][i]*counts[c][i];
                 	}
-                	pi_bg = r_bg_sum;
+//                	pi_bg = r_bg_sum;
+                	pi_bg = r_bg_sum-effectiveAlpha;
+                	if (pi_bg<0)
+                		pi_bg = 0;
                 }
 //                if (config.print_PI)
 //                	System.out.println(t+"Resp\t"+CommonUtils.arrayToString(pi, "%.4f")+
@@ -4675,18 +4686,20 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         totalPi+=pi[j];
                     }
                 }      
-                if (config.model_noise){
+                if (config.model_noise && pi_bg!=0){
                 	totalPi+=pi_bg;
                 }
                 if (totalPi!=0){
                     for(int j:nzComps){
                         pi[j]=pi[j]/totalPi;
+                    }                
+                    if (config.model_noise && pi_bg!=0){
+                    	pi_bg/=totalPi;
                     }
+
                 }
-                if (config.model_noise){
-                	pi_bg/=totalPi;
-                }
-                
+                if (t==54)
+                	t=54;
                 // EM speed up, eliminate components with probability less than initial avg prob.
                 // Only do this for coase spacing, which has more components
                 
@@ -4718,9 +4731,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                        for(int j:nzComps){
 	                            pi[j]=pi[j]/totalPi;
 	                        }
-	                    }
-	                    if (config.model_noise){
-	                    	pi_bg/=totalPi;
+		                    if (config.model_noise){
+		                    	pi_bg/=totalPi;
+		                    }
 	                    }
                 	}
                 	else{	// not eliminated, double minProb
@@ -4738,7 +4751,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 }
                 nonZeroComponentNum = nzComps.size();
                 if (nonZeroComponentNum==0)
-                    return new Pair<double[][][], int[][][]>(r, c2b);
+                    return new Pair<double[][][], Double>(r, pi_bg);
                 
                 if (config.print_PI)
                 	System.out.println(t+"\t"+CommonUtils.arrayToString(pi, "%.4f")+
@@ -4765,7 +4778,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             }
                         }
                     } 
-                    if (config.model_noise){
+                    if (config.model_noise && pi_bg!=0){
                     	double r_bg_sum=0;
                     	for(int c=0; c<mixture.numConditions; c++){
                     		double b_bg_c = 0;
@@ -4793,7 +4806,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             r[c][j][i] = pi[j]*b[c][j]*h[c][j][i];
                     }
                 }
-                if (config.model_noise){
+                if (config.model_noise && pi_bg!=0){
 	            	for(int c=0; c<mixture.numConditions; c++){
 	            		for(int i=0;i<r_bg[c].length;i++)
 	            			r_bg[c][i] = prob_bg * pi_bg * b_bg[c];
@@ -4822,7 +4835,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             if (!found)
                                 j_sum += pi[j]*b[c][j]*baselineProb;
                         }
-                        if (config.model_noise){
+                        if (config.model_noise && pi_bg!=0){
                         	j_sum += r_bg[c][i];
                         }
                         if (j_sum!=0)
@@ -4934,6 +4947,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     //				System.out.print(String.format("%.2f ", pi[j]));
                 }
                 nonZeroComponentNum = nzComps.size();
+                if (config.model_noise){
+                	for (int c=0;c<mixture.numConditions;c++){
+                		r_bg[c]=bestModel.resp_bg[c];
+                	}
+                    b_bg = bestModel.beta_bg;
+                    pi_bg = bestModel.pi_bg;
+                }
                 //			System.out.println();
             }
             
@@ -4946,12 +4966,18 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 for(int i=0;i<numBases;i++){
                     totalResp[i] = 0;
                 }
-                // sum
+                // sum                
                 for(int j:nzComps){
                     int[] baseIdx = c2b[c][j];
                     for(int i=0;i<baseIdx.length;i++)
                         totalResp[baseIdx[i]] += rc[j][i];
                 }
+                if (config.model_noise){
+                    for(int i=0;i<numBases;i++){
+                    	totalResp[i] += r_bg[c][i];
+                    }
+            	}
+                
                 // normalize
                 for(int j:nzComps){
                     int[] baseIdx = c2b[c][j];
@@ -4959,13 +4985,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         if (totalResp[baseIdx[i]]>0)
                             rc[j][i] = rc[j][i]/totalResp[baseIdx[i]];
                 }
+                if (config.model_noise){
+                    for(int i=0;i<numBases;i++){
+                    	r_bg[c][i] = r_bg[c][i]/totalResp[i];
+                    }
+            	}
             }
 
             mixture.log(4, "EM_MAP(): "+"\tt="+t+"\t"+
                         String.format("%.6f",LAP)+"\t("+(int)nonZeroComponentNum+" events)");
 
-            // TODO: remove returning c2b??
-            return new Pair<double[][][], int[][][]>(r, c2b);
+            return new Pair<double[][][], Double>(r, pi_bg);
         }//end of EM_MAP method
 
         //Update the resolution of the components

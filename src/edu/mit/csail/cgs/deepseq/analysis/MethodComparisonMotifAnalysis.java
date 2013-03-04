@@ -192,7 +192,7 @@ public class MethodComparisonMotifAnalysis {
 		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
-		System.out.println("Sorting regions ...");
+		System.out.println("\nSorting regions ...");
 		Collections.sort(allRegions);		// sort regions, the motifs should be sorted
 		System.out.println(CommonUtils.timeElapsed(tic));
 		
@@ -204,7 +204,7 @@ public class MethodComparisonMotifAnalysis {
 		System.out.println(CommonUtils.timeElapsed(tic));
 
 		// Get the set of motif matches for all peak calls		
-		System.out.println("Matching binding events with motifs ...");
+		System.out.println("\nMatching binding events with motifs ...");
 		System.out.printf("Events within a %d bp window to a motif:%n", windowSize);
 		for (int i=0;i<events.size();i++){
 			System.out.printf("%s \t#events: ", methodNames.get(i));
@@ -261,7 +261,7 @@ public class MethodComparisonMotifAnalysis {
 		
 // ************************************************************************************
 // ************************************************************************************
-		System.out.println("Get all peak-motif offset list ... ");
+		System.out.println("\nGet all peak-motif offset list ... ");
 		// get the union (motifs at least by one of all methods)
 		Set<Point> motifs_union = maps.get(0).keySet();
 		for (int i=1;i<maps.size();i++){
@@ -302,8 +302,6 @@ public class MethodComparisonMotifAnalysis {
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_allMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
-		
-		System.out.println();
 		System.out.println(CommonUtils.timeElapsed(tic));
 		
 // ************************************************************************************
@@ -313,7 +311,7 @@ public class MethodComparisonMotifAnalysis {
 		// if no motif hit, offset=NOHIT=999
 		// print out the offset, for Matlab processing and plotting
 		
-		System.out.println("Get ranked peak-motif offset list ... ");
+		System.out.println("\nGet ranked peak-motif offset list ... ");
 		
 		ArrayList<HashMap<Point, Integer>> allPeakOffsets = new ArrayList<HashMap<Point, Integer>>();
 		for (int i=0; i<methodNames.size();i++){

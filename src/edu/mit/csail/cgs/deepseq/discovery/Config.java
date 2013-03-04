@@ -103,7 +103,7 @@ public class Config {
     public double q_value_threshold = 2.0;	// -log10 value of q-value
     public double q_refine = -1;
     public double joint_event_distance = 500;
-    public double alpha_factor = 3.0;
+    public double alpha_factor = 4.0;
     public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
     public int top_events = 2000;
     public int min_event_count = 500;	// minimum num of events to update read distribution

@@ -39,6 +39,13 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected double q_value_log10[];
 	protected Point EM_position;		//  EM result
 	protected double alpha;
+	protected double noiseFraction;
+	public double getNoiseFraction() {
+		return noiseFraction;
+	}
+	public void setNoiseFraction(double noiseFraction) {	// store the noise fraction of the region
+		this.noiseFraction = noiseFraction;
+	}
 	
 	protected KmerGroup kmerGroup;
 	public KmerGroup getKmerGroup() { return kmerGroup; }
@@ -77,6 +84,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		p_values_wo_ctrl = new double[numConditions];
 		q_value_log10 = new double[numConditions];
 		EM_position = b.getEMPosition();
+		noiseFraction = b.getNoiseFraction();
 		alpha = b.getAlpha();
 		kmerGroup = b.getKmerGroup();
 		kmerStrand = b.getKmerStrand();
@@ -424,7 +432,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
   	      		  .append(name+"P_-lg10\t")
   	      		  .append(name+"P_poiss\t")
   	      		  .append(name+"IPvsEMP\t")
-  	      		  .append(name+"IPvsCTR\t");
+  	      		  .append(name+"Noise\t");
         	if (c<numConditions-1)
         		header.append("\t");
         }
@@ -480,11 +488,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		p_lg2= 999;
         	result.append(String.format("%7.2f\t", p_lg2)); 
 
-    		result.append(String.format("%7.2f\t", getShapeDeviation(c)));    		
-        	if(unScaledControlCounts!=null)
-        		result.append(String.format("%7.2f\t", getAverageIpCtrlLogKL()));
-        	else
-        		result.append("NaN\t");
+    		result.append(String.format("%7.2f\t", getShapeDeviation(c))); 
+    		result.append(String.format("%7.2f\t", getNoiseFraction()));
         	if (c<numConditions-1)
         		result.append("\t");
         }
