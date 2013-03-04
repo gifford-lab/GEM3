@@ -4237,7 +4237,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
          */
         private Pair<double[][][], int[][][]>  EMTrain(ArrayList<List<StrandedBase>> signals, double alpha, double[] p_alpha){
             int numComp = components.size();
-
             // H function and responsibility will be stored using an indirect indexing method
             // Because only the components within modelRange matters, we only store those components around the reads
             // and use a mapping array to keep track of the component index
@@ -4435,7 +4434,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                                                         double alpha,
                                                         double[] pos_alpha, 
                                                         double prob_bg) {
+        	double totalCounts = 0;
+        	for (int i=0;i<counts.length;i++){
+        		for (int j=0;j<counts[i].length;j++)
+        			totalCounts += counts[i][j];
+        	}
         	
+            long tic=System.currentTimeMillis();
             ArrayList<EM_State> models = new  ArrayList<EM_State> ();
 
             // variable for bg (noise) component
@@ -4480,6 +4485,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             double lastLAP=0, LAP=0; // log posterior prob
             int t=0;
             double currAlpha = alpha/config.gentle_elimination_factor;
+            
+            double minProb = 1.0/(pi.length*2);		// in ML speedup, threshold to eliminate ML components, length*2 to make sure it is smaller than 1/m
+            double maxMinProb = currAlpha / totalCounts;		// the max minProb is bound by alpha
+            
             boolean minElimination = false;
             int gentleCounts = 0; 	// count the iterations that we run on gentle mode after last elimination
             // when reach the threshold, increase currAlpha value
@@ -4488,10 +4497,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             for (int j=0;j<pi.length;j++){
                 nzComps.add(j);
             }
-            mixture.log(5, (int)nonZeroComponentNum+" ");
-            //Run EM while not converged
+            mixture.log(5, (int)nonZeroComponentNum+" ");            
+            
+            //Run EM
+            System.out.println("maxMinProb="+maxMinProb);
             for(t=0; t<constants.MAX_EM_ITER ; t++){
-
+//            	long toc = System.currentTimeMillis();
+//            	System.out.println("t="+t+"\t"+minProb+"\t"+(toc-tic)+"\t"+nzComps.size());
+//            	tic = toc;
                 lastLAP=LAP;
 
                 //////////
@@ -4676,7 +4689,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 
                 // EM speed up, eliminate components with probability less than initial avg prob.
                 // Only do this for coase spacing, which has more components
-                double minProb = 1.0/(pi.length*2);		// length*2 to make sure it is smaller than 1/m
+                
                 if (t<=config.ML_ITER && componentSpacing!=1 && config.ML_speedup){
                 	boolean eliminated = false;
                 	for (int j:nzComps){
@@ -4709,6 +4722,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                    if (config.model_noise){
 	                    	pi_bg/=totalPi;
 	                    }
+                	}
+                	else{	// not eliminated, double minProb
+                		if (minProb*2<maxMinProb)
+                			minProb *= 2;
                 	}
                 }
                 
