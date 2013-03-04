@@ -1846,7 +1846,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		regions.trimToSize();
 		
 		// display stats of enriched regions
-		int[] binMins = {0,500,1000,2000,5000,10000};
+		int[] binMins = {0,500,1000,2000,3000,5000};
 		int[] counts = new int[binMins.length];
 		for (Region r:regions){
 			for (int i=binMins.length-1;i>=0;i--){
@@ -1857,7 +1857,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 		for (int i=0;i<binMins.length;i++){
-			System.out.println("> " + binMins[i]+"\t"+counts[i]);
+			log(2, "[" + binMins[i] + " - " + (i==binMins.length-1?"...":binMins[i+1]) + "]\t" + counts[i]);
 		}
 		return regions;
 	}//end of selectEnrichedRegions method
@@ -4500,7 +4500,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             mixture.log(5, (int)nonZeroComponentNum+" ");            
             
             //Run EM
-            System.out.println("maxMinProb="+maxMinProb);
+//            System.out.println("maxMinProb="+maxMinProb);
             for(t=0; t<constants.MAX_EM_ITER ; t++){
 //            	long toc = System.currentTimeMillis();
 //            	System.out.println("t="+t+"\t"+minProb+"\t"+(toc-tic)+"\t"+nzComps.size());
