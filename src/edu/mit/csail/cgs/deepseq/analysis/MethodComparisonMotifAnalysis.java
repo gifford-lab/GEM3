@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
-import edu.mit.csail.cgs.deepseq.utilities.CommonUtils.SISSRS_Event;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils.*;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.MACSParser;
@@ -107,7 +107,7 @@ public class MethodComparisonMotifAnalysis {
 	    }
 	    	    
 		// some parameters
-		windowSize = Args.parseInteger(args, "windowSize", 50);
+		windowSize = Args.parseInteger(args, "windowSize", 100);
 		rank = Args.parseInteger(args, "rank", 0);
 		outName = Args.parseString(args,"out",outName);
 		sortByStrength = flags.contains("ss");	// only for GPS
@@ -192,30 +192,33 @@ public class MethodComparisonMotifAnalysis {
 		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get all the strong motifs in these regions
+		System.out.println("\nSorting regions ...");
 		Collections.sort(allRegions);		// sort regions, the motifs should be sorted
+		System.out.println(CommonUtils.timeElapsed(tic));
+		
+		System.out.println("\nSearching motifs in "+allRegions.size()+" regions ...");
 		Pair<ArrayList<Point>, ArrayList<Double>> results = getAllMotifs(allRegions, motifThreshold);
 		ArrayList<Point> allMotifs = results.car();
 		ArrayList<Double> allMotifScores = results.cdr();
-		System.out.println(CommonUtils.timeElapsed(tic));
 		System.out.printf("%n%d motifs (in %d regions).%n%n", allMotifs.size(), allRegions.size());
+		System.out.println(CommonUtils.timeElapsed(tic));
 
 		// Get the set of motif matches for all peak calls		
+		System.out.println("\nMatching binding events with motifs ...");
 		System.out.printf("Events within a %d bp window to a motif:%n", windowSize);
 		for (int i=0;i<events.size();i++){
 			System.out.printf("%s \t#events: ", methodNames.get(i));
 			HashMap<Point, MotifHit> motifs = getNearestMotif2(events.get(i), allMotifs, allMotifScores);
 			maps.add(motifs);
-			System.out.printf("\t#motifs: %d", motifs.keySet().size());
-			System.out.println();
-		}
-		System.out.println(CommonUtils.timeElapsed(tic));
-		
+			System.out.printf("\t#motifs: %d%n", motifs.keySet().size());
+		}		
 		System.out.printf("\nMotifs covered by an event:\n");
 		for(int i = 0; i < methodNames.size(); i++)
 			System.out.printf("%s\t%d/%d (%.1f%%)\n", methodNames.get(i), maps.get(i).size(), allMotifs.size(), 100.0*((double)maps.get(i).size())/(double)allMotifs.size());
+		System.out.println(CommonUtils.timeElapsed(tic));
 				
 		// get the intersection (motifs shared by all methods, upto top rank)
-		System.out.print("\nRunning Spatial Resolution analysis ...\n");
+		System.out.print("\nRunning Spatial Resolution analysis (shared motifs)...\n");
 		SetTools<Point> setTools = new SetTools<Point>();
 		Set<Point> motifs_shared =  getHighRankSites(0);
 		for (int i=1;i<maps.size();i++){
@@ -254,10 +257,11 @@ public class MethodComparisonMotifAnalysis {
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_sharedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 // ************************************************************************************
 // ************************************************************************************
-		
+		System.out.println("\nGet all peak-motif offset list ... ");
 		// get the union (motifs at least by one of all methods)
 		Set<Point> motifs_union = maps.get(0).keySet();
 		for (int i=1;i<maps.size();i++){
@@ -298,8 +302,7 @@ public class MethodComparisonMotifAnalysis {
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_allMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
 				+windowSize+".txt", sb.toString());
-		
-		System.out.println();
+		System.out.println(CommonUtils.timeElapsed(tic));
 		
 // ************************************************************************************
 // ************************************************************************************
@@ -308,7 +311,7 @@ public class MethodComparisonMotifAnalysis {
 		// if no motif hit, offset=NOHIT=999
 		// print out the offset, for Matlab processing and plotting
 		
-		System.out.println("Get ranked peak-motif offset list ... ");
+		System.out.println("\nGet ranked peak-motif offset list ... ");
 		
 		ArrayList<HashMap<Point, Integer>> allPeakOffsets = new ArrayList<HashMap<Point, Integer>>();
 		for (int i=0; i<methodNames.size();i++){
@@ -372,7 +375,14 @@ public class MethodComparisonMotifAnalysis {
         	String name = methodNames.get(i);
         	String filePath = peakFiles.get(i).getAbsolutePath();
 			ArrayList<Point> peakPoints = new ArrayList<Point>(); 
-        	if (name.contains("GPS")||name.contains("GEM")){
+			if (name.contains("ZZZ")){		// ENCODE narrow peak format
+        		ArrayList<NarrowPeak> narrowPeaks = CommonUtils.load_narrowPeak(genome, filePath);
+        		for (NarrowPeak np: narrowPeaks){
+        			peakPoints.add(np.summit);
+        		}
+        		methodNames.set(i,name.replace("ZZZ", ""));
+			}
+			else if (name.contains("GPS")||name.contains("GEM")){
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				// sort by descending pValue (-log P-value)
 				if (!isPreSorted){
@@ -503,6 +513,18 @@ public class MethodComparisonMotifAnalysis {
 		StringBuilder sb = new StringBuilder();
 		StringBuilder sb2 = new StringBuilder();
 		StringBuilder sb3 = new StringBuilder();
+		sb.append("Region\t#Motif");
+		sb2.append("Region\t#Motif");
+		sb3.append("Region\t#Motif");
+		for (String n:methodNames){
+			sb.append("\t").append(n);
+			sb2.append("\t").append(n);
+			sb3.append("\t").append(n);
+		}
+		sb.append("\n");
+		sb2.append("\n");
+		sb3.append("\n");
+		
 		for (String chrom: genome.getChromList()){
 			ArrayList<ArrayList<Point>> motifClusters = new ArrayList<ArrayList<Point>>();
 			
@@ -1134,13 +1156,12 @@ public class MethodComparisonMotifAnalysis {
 	private Pair<ArrayList<Point>, ArrayList<Double>> getAllMotifs(ArrayList<Region> regions, double threshold){
 		ArrayList<Point> allMotifs = new ArrayList<Point>();
 		ArrayList<Double> scores = new ArrayList<Double>();
-		WeightMatrixScorer scorer = new WeightMatrixScorer(motif);
+		WeightMatrixScorer scorer = new WeightMatrixScorer(motif, true);
 		int length = motif.length();
 		int count = regions.size();
-		System.out.print("\nGetting motifs from "+count+" regions ...\n");
 		for(int i=0; i<count; i++){
 			if (i % 1000==0)
-				System.out.println(i);
+				System.out.print(i+" ");
 			Region r= regions.get(i);
 			WeightMatrixScoreProfile profiler = scorer.execute(r);
 			//search for whole region
@@ -1155,6 +1176,7 @@ public class MethodComparisonMotifAnalysis {
 				}
 			}
 		}
+		System.out.println();
 		return new Pair<ArrayList<Point>, ArrayList<Double>>(allMotifs, scores);
 	}
 	

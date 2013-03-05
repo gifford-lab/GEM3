@@ -60,6 +60,8 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         if (useLocalFiles) {
         	if (genomePath==null)
         		genomePath = "/scratch/" + region.getGenome().getVersion();
+        	if (!new File( genomePath).exists())
+        		genomePath = "/scratch/" + region.getGenome().getVersion() + "_chrfa_only";
             File f = new File( genomePath + "/chr" + chr + ".fa");
             if (!f.exists()) {
                 f = new File( genomePath+ "/chr" + chr + ".fasta");
@@ -182,14 +184,13 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
      * Setup light-weight region cache of genome sequences, cover only the specified regions<br>
      * So that it does not cache the whole chromosome, save memory space. <br>
      * At the same time, retrieve some one-time sequences in rs.
-     * @param regions sorted, non-overlapping regions for cache
+     * @param regions sorted, non-overlapping regions for regionCache
      * @param rs regions for one-time sequence retrieval
      */
     public String[] setupRegionCache(List<Region> regions, List<Region> rs){
     	ArrayList<String> seqs = new ArrayList<String>();
     	if (regions==null||regions.isEmpty())
     		return null;    	
-    	Collections.sort(regions);
     	
 		// group one-time regions by chrom
 		Map<String, ArrayList<Region>> chr2rs = new HashMap<String, ArrayList<Region>>();
@@ -199,7 +200,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 				chr2rs.put(chrom, new ArrayList<Region>());
 			chr2rs.get(chrom).add(r);
 		}
-    	
+
     	useCache(true);
     	regionCache = new HashMap<String, String[]>();
     	regionStarts = new HashMap<String, int[]>();
@@ -272,6 +273,89 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 	    	System.gc();
     	}
     	
+    	regionIsCached = true;
+    	String[] result = new String[seqs.size()];
+    	for (int i=0;i<result.length;i++)
+    		result[i]=seqs.get(i);
+    	return result;
+    }
+    
+    /**
+     * Setup light-weight region cache of genome sequences, cover only the specified regions<br>
+     * So that it does not cache the whole chromosome, save memory space. <br>
+     * At the same time, retrieve some one-time sequences in rs.
+     * @param regions sorted, non-overlapping regions for regionCache
+     * @param rs regions for one-time sequence retrieval
+     */
+    public String[] setupRegionCache_new(List<Region> regions, List<Region> rs){
+    	ArrayList<String> seqs = new ArrayList<String>();
+    	if (regions==null||regions.isEmpty())
+    		return null;    	
+    	
+		// group cache regions by chrom
+		Map<String, ArrayList<Region>> chr2crs = new HashMap<String, ArrayList<Region>>();  // cached regions
+		for(Region r:regions) {
+			String chrom = r.getChrom();
+			if(!chr2crs.containsKey(chrom))
+				chr2crs.put(chrom, new ArrayList<Region>());
+			chr2crs.get(chrom).add(r);
+		}		
+		// group one-time regions by chrom
+		Map<String, ArrayList<Region>> chr2rs = new HashMap<String, ArrayList<Region>>();
+		for(Region r:rs) {
+			String chrom = r.getChrom();
+			if(!chr2rs.containsKey(chrom))
+				chr2rs.put(chrom, new ArrayList<Region>());
+			chr2rs.get(chrom).add(r);
+		}
+		
+		// setup the cache region space
+    	useCache(true);
+    	regionCache = new HashMap<String, String[]>();
+    	regionStarts = new HashMap<String, int[]>();
+    	Genome g = regions.get(0).getGenome();
+    	for (String chr: chr2crs.keySet()){
+    		regionCache.put(chr, new String[chr2crs.get(chr).size()]);
+			regionStarts.put(chr, new int[chr2crs.get(chr).size()]);
+			ArrayList<Region> regionList = chr2crs.get(chr);
+			regionList.trimToSize();
+			Collections.sort(regionList);			// sort the regions in order
+    	}
+    	
+    	Set<String> allChroms = new HashSet<String>();
+    	allChroms.addAll(chr2crs.keySet());
+    	allChroms.addAll(chr2rs.keySet());
+    	if (cache!=null){							
+    		for (String chr: allChroms){			// for each chrom
+    			// cache regions using the default cache
+    			if (chr2crs.containsKey(chr)){
+	    			ArrayList<Region> regionList = chr2crs.get(chr);
+	    	    	for (int i=0;i<regionList.size();i++){
+	    	    		Region r = regionList.get(i);
+	    	    		synchronized(regionCache) {
+	    	    			regionStarts.get(chr)[i]=r.getStart(); 
+	    	        		regionCache.get(chr)[i]=execute((X)r);    			
+	    	    		} 
+	    	    	}
+    			}
+    	    	// piggy-back to retrieve one-time sequences
+    	    	if (chr2rs.containsKey(chr)){			
+					for (Region r1:chr2rs.get(chr))
+						seqs.add(execute((X)r1));
+				}
+    	    	// clean default cache for this chrom
+				int id = g.getChromID(chr);
+    			synchronized(cache) {
+    				if (cache.containsKey(id)){
+	    				cache.put(id, null);
+	    				cache.remove(id);	
+    				}
+    			}
+    	    	System.gc();
+			}
+    	}
+    	
+    	cache=null;System.gc();
     	regionIsCached = true;
     	String[] result = new String[seqs.size()];
     	for (int i=0;i<result.length;i++)

@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GEM {
-	public final static String GEM_VERSION = "1.3";
+	public final static String GEM_VERSION = "1.4";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -158,30 +158,28 @@ public class GEM {
         mixture.setOutName(filePrefix+"_"+round);
         System.out.println("\n============================ Round "+round+" ============================");
         mixture.execute();
+        boolean noChange = Args.parseFlags(args).contains("constant_model_range");
+        if (!noChange){
+            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
+            kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), filePrefix+"_"+(round+1));
+        }
+        else
+            kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
         mixture.printFeatures(round);
         mixture.printFilteredFeatures(round);
         mixture.printInsignificantFeatures(round);
+        mixture.releaseMemory();
         mixture.refineRegions();
-        
         while (round+1<GPS_round){
             round++;
             System.out.println("\n============================ Round "+round+" ============================");
             mixture.setOutName(filePrefix+"_"+round);
-            if (round==1){            	
-                boolean noChange = Args.parseFlags(args).contains("constant_model_range");
-                if (!noChange){
-                    Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
-                    kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr());
-                }
-                else
-                    kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
-            }
-            else
-                kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
             mixture.execute();
+            kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
             mixture.printFeatures(round);
             mixture.printFilteredFeatures(round);
             mixture.printInsignificantFeatures(round);
+	        mixture.releaseMemory();
         }
         
         /**
@@ -215,11 +213,12 @@ public class GEM {
 				round++;			
 	            System.out.println("\n============================ Round "+round+" ============================");
 	            mixture.setOutName(filePrefix+"_"+round);
-	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax());
 	            mixture.execute();   
+	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
 		        mixture.printFeatures(round);
 		        mixture.printFilteredFeatures(round);
 		        mixture.printInsignificantFeatures(round);
+		        mixture.releaseMemory();
 		        mixture.runKMAC(Args.parseInteger(args,"k_win", 61));// Note: KPPMixture also has args parsing, keep default value the same
             }
             int winSize = Args.parseInteger(args,"k_win2", -1);
@@ -231,8 +230,7 @@ public class GEM {
         }
         
         mixture.plotAllReadDistributions();
-        mixture.closeLogFile();
-        
+        mixture.closeLogFile();        
 
         if (run_gem){
 	        System.out.println("\nFinished! GEM analysis results are printed to:\n"+

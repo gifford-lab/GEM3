@@ -147,8 +147,8 @@ public class KMAC {
 		seq_weights = new double[seqNum];
 		totalWeight=0;
 		for (int i=0;i<seqNum;i++){
-			if (config.use_event_rank)
-				seq_weights[i]=seqNum-i;
+			if (config.weight_by_sqrt_strength)
+				seq_weights[i]=Math.sqrt(pos_w.get(i));
 			else
 				seq_weights[i]=pos_w.get(i);
 			totalWeight += seq_weights[i];
@@ -244,14 +244,14 @@ public class KMAC {
 	}
 	/**
 	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
-	 * At the same time, retrieve negative sequences (for only once)
+	 * At the same time, retrieve negative sequences (for only once, no caching)
 	 * @param regions
 	 */
 	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions, int negRegionDistance){
 		this.negRegionDistance = negRegionDistance;
 		double gcRatio=0;
 		if (!seqgen.isRegionCached()){
-			seqsNeg = seqgen.setupRegionCache(cacheRegions, negativeRegions);
+			seqsNeg = seqgen.setupRegionCache_new(cacheRegions, negativeRegions);
 			neg_region_map = new TreeMap<Region, Integer>();
 			for (int i=0;i<negativeRegions.size();i++){
 				neg_region_map.put(negativeRegions.get(i), i);
@@ -304,8 +304,8 @@ public class KMAC {
 					}
 				}
 				posSeqs.add(seq.toUpperCase());		// if repeat_fraction>=1, allow all repeats, convert to upper case
-				if (config.use_event_rank)
-					posSeqWeights.add((double)(eventCount-i));		// use event rank as weight
+				if (config.weight_by_sqrt_strength)
+					posSeqWeights.add(Math.sqrt(events.get(i).getTotalEventStrength()));	// use sq root of event strength as weight
 				else
 					posSeqWeights.add(events.get(i).getTotalEventStrength());		// use event strength as weight
 				posImpactRegion.add(events.get(i).getPeak().expand(negRegionDistance));
@@ -1618,16 +1618,6 @@ public class KMAC {
 				cluster.seedKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 				if (verbose>1)
 					System.out.println(CommonUtils.timeElapsed(tic)+": Seed family hgp = "+cluster.seedKmer.familyHgp);
-				
-				// if this seed do not match other kmers, stop here
-				if (!config.allow_single_family && seedFamily.size()==1){
-					kmers.remove(seed);
-					quick_restart = true;
-					if (clusterID==0)
-						primarySeed = null;		
-					clusterID++;
-					continue;
-				}
 			}
 			if (only_seed_kmer)
 				return kmers;

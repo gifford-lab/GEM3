@@ -8,9 +8,10 @@ public class GPSPeak extends Point{
 	double strength;
 	double controlStrength;
 	double expectedStrength;
-	double qvalue;
+	double qv_lg10;
+	double pv_lg10;
 	double pvalue;
-	double pois_pvalue;
+	double pois_pv_lg10;
 	double IPvsEMP;
 	double IPvsCTR;
 	private boolean jointEvent;		// 1 for joint event, 0 for unary, etc
@@ -30,107 +31,20 @@ public class GPSPeak extends Point{
 	public String getBoundSequence() {return boundSequence;}
 	public void setBoundSequence(String bs) {boundSequence=bs;}
 
-	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
-			double controlStrength, double qvalue, double pvalue, double IPvsEMP, 
-			int joint, String nearestGene, int distance){
-		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = ipStrength;
-		this.controlStrength = controlStrength;
-		this.qvalue = qvalue;
-		this.pvalue = pvalue;
-		this.IPvsEMP = IPvsEMP;
-		this.IPvsCTR = 0;
-		this.jointEvent = joint==1;
-		this.nearestGene = nearestGene;
-		this.distance = distance;
-		this.EM_position = this;
-	}
 
-	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
-			double controlStrength, double qvalue, double pvalue, double IPvsEMP, double IPvsCTR, 
-			int joint, String nearestGene, int distance){
-		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = ipStrength;
-		this.controlStrength = controlStrength;
-		this.qvalue = qvalue;
-		this.pvalue = pvalue;
-		this.IPvsEMP = IPvsEMP;
-		this.IPvsCTR = IPvsCTR;
-		this.jointEvent = joint==1;
-		this.nearestGene = nearestGene;
-		this.distance = distance;
-		this.EM_position = this;
-	}
-	
-	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
-			double ctrlStrength, double qvalue, double pvalue, double IPvsEMP){
-		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = ipStrength;
-		this.controlStrength = ctrlStrength;
-		this.qvalue = qvalue;
-		this.pvalue = pvalue;
-		this.IPvsEMP = IPvsEMP;
-		this.IPvsCTR = 0;
-		this.EM_position = this;
-	}
-	// GPS output format 2010-11-10	
-	// Position	   IP	Control	   Fold	Q_-lg10	P_-lg10	IPvsEMP	IPvsCTR
-	public GPSPeak(Genome g, String chr, int pos, double ipStrength, 
-			double ctrlStrength, double qvalue, double pvalue, double IPvsEMP, double IPvsCTR){
-		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = ipStrength;
-		this.controlStrength = ctrlStrength;
-		this.qvalue = qvalue;
-		this.pvalue = pvalue;
-		this.IPvsEMP = IPvsEMP;
-		this.IPvsCTR = IPvsCTR;
-		this.EM_position = this;
-	}
-	// GPS output format 2011-01-30	
-	// Position	     IP	Control	   Fold	Q_-lg10	P_-lg10	IPvsEMP	IPvsCTR	Kmer	KmerCount	KmerStrength	BoundSequence
-	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double ctrlStrength, 
-			double qvalue, double pvalue, double IPvsEMP, double IPvsCTR, 
-			String kmer, int kmerCount, double kmerStrength, String boundSequence){
-		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = ipStrength;
-		this.controlStrength = ctrlStrength;
-		this.qvalue = qvalue;
-		this.pvalue = pvalue;
-		this.IPvsEMP = IPvsEMP;
-		this.IPvsCTR = IPvsCTR;
-		this.EM_position = this;
-		this.kmer = kmer;
-		this.kmerGroupCount = kmerCount;
-		this.kmerStrength = kmerStrength;
-		this.boundSequence = boundSequence;
-	}
-	// GPS output format 2011-07-25	
-	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	
-	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double expectedStrength,
-			double ctrlStrength, double qvalue, double pvalue, double pois_pvalue, double IPvsEMP, double IPvsCTR){
-		super(g, chr.replaceFirst("chr", ""), pos);
-		this.strength = ipStrength;
-		this.controlStrength = ctrlStrength;
-		this.expectedStrength = expectedStrength;
-		this.qvalue = qvalue;
-		this.pvalue = pvalue;
-		this.pois_pvalue = pois_pvalue;
-		this.IPvsEMP = IPvsEMP;
-		this.IPvsCTR = IPvsCTR;
-		this.EM_position = this;
-	}
 	// GPS output format 2011-07-25	
 	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	Kmer	Count	Strength	BoundSequence	EnrichedHGP
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double ctrlStrength, double expectedStrength,
-			double qvalue, double pvalue, double pois_pvalue, double IPvsEMP, double IPvsCTR, 
+			double qv_lg10, double pvalue, double pv_lg10, double pois_pvalue, double IPvsEMP, double IPvsCTR, 
 			String kmer, int kmerCount, char kmerStrand, String boundSequence){
 		super(g, chr.replaceFirst("chr", ""), pos);
 		this.strength = ipStrength;
 		this.controlStrength = ctrlStrength;
 		this.expectedStrength = expectedStrength;
-		this.qvalue = qvalue;
+		this.qv_lg10 = qv_lg10;
 		this.pvalue = pvalue;
-		this.pois_pvalue = pois_pvalue;
+		this.pv_lg10 = pv_lg10;
+		this.pois_pv_lg10 = pois_pvalue;
 		this.IPvsEMP = IPvsEMP;
 		this.IPvsCTR = IPvsCTR;
 		this.EM_position = this;
@@ -154,10 +68,13 @@ public class GPSPeak extends Point{
 		return EM_position;
 	}
 	public double getQvalue() {
-		return qvalue;
+		return qv_lg10;
 	}
 	public double getPvalue() {
-		return pvalue;
+		return pv_lg10;
+	}
+	public double getPV_lg10() {
+		return pv_lg10;
 	}
 	public double getShape() {
 		return IPvsEMP;
@@ -175,7 +92,7 @@ public class GPSPeak extends Point{
 		EM_position = em_position;
 	}
 	public void setQvalue(double qvalue) {
-		this.qvalue = qvalue;
+		this.qv_lg10 = qvalue;
 	}
 	public void setShape(double shape) {
 		this.IPvsEMP = shape;
@@ -202,7 +119,7 @@ public class GPSPeak extends Point{
 		return	diff==0?0:(diff<0)?1:-1;	//ip strength: descending
 	}
 	public String toGPS(){
-		return toString()+"\t"+strength+"\t"+controlStrength+"\t"+qvalue+"\t"+pvalue
+		return toString()+"\t"+strength+"\t"+controlStrength+"\t"+qv_lg10+"\t"+pv_lg10
 		+"\t"+IPvsEMP+"\t"+jointEvent+"\t"+nearestGene+"\t"+distance;
 	}
 	
@@ -214,7 +131,7 @@ public class GPSPeak extends Point{
 	public String toGPS_short(){
 		double fold = controlStrength==0 ? 9999:strength/controlStrength;
 		String out = String.format("%s\t%.1f\t%.1f\t%.1f\t%.3f\t%.3f\t%.3f", 
-				toString(), strength, controlStrength, fold, qvalue, pvalue, IPvsEMP);
+				toString(), strength, controlStrength, fold, qv_lg10, pv_lg10, IPvsEMP);
 		return out;
 	}
 	
@@ -225,5 +142,14 @@ public class GPSPeak extends Point{
 	public String toGPS_motifShort(){
 	  return toString()+"\t"+nearestGene+"\t"+distance+"\t"+strength+"\t"
 	  +controlStrength;//+"\t"+qvalue+"\t"+shape+"\t"+shapeZ;
+	}
+	/** 
+	 * Output ENCODE narrow peak format<br>
+	 * The score is based on q-value (corrected from the larger p-value from binomial p-value (IP vs Control) and Poisson p-value (IP only)
+	 * @return
+	 */
+	public String toNarrowPeak(double score){
+		return "chr"+getChrom()+"\t"+(getLocation()-100)+"\t"+(getLocation()+101)+"\tpeak\t"+score+"\t"+"."+"\t"+strength+"\t"+(pv_lg10>pois_pv_lg10?pois_pv_lg10:pv_lg10)+"\t"+qv_lg10
+		+"\t"+100;
 	}
 }
