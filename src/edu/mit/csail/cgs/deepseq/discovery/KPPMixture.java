@@ -2672,8 +2672,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		int width = left+right+1;
 		
+		int skipTopPeaks = (int) (0.01 * signalFeatures.size());
 		ArrayList<ComponentFeature> cfs = new ArrayList<ComponentFeature>();
 		for (Feature f: signalFeatures){
+			if (skipTopPeaks>0){
+				skipTopPeaks--;
+				continue;
+			}
 			ComponentFeature cf = (ComponentFeature)f;
 			// the events that are used to refine read distribution should be
 			// having strength and shape at the upper half ranking
@@ -4368,7 +4373,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             }
             mixture.log(5, "\n"+componentSpacing+" bp:\t");            
 
-            int range = Math.max(maxPlus-minPlus, maxMinus-minMinus);
+            int range = Math.max(Math.max(maxPlus-minPlus, maxMinus-minMinus), model.getRange());
             double prob_bg = 1.0/range;
             
             //////////

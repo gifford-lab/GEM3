@@ -432,7 +432,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
   	      		  .append(name+"P_-lg10\t")
   	      		  .append(name+"P_poiss\t")
   	      		  .append(name+"IPvsEMP\t")
-  	      		  .append(name+"Noise\t");
+  	      		  .append(name+"  Noise\t");
         	if (c<numConditions-1)
         		header.append("\t");
         }
