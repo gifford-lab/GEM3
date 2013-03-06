@@ -169,7 +169,8 @@ public class GEM {
         mixture.printFilteredFeatures(round);
         mixture.printInsignificantFeatures(round);
         mixture.releaseMemory();
-        mixture.refineRegions();
+        if (!Args.parseFlags(args).contains("not_refine_regions"))
+        	mixture.refineRegions();
         while (round+1<GPS_round){
             round++;
             System.out.println("\n============================ Round "+round+" ============================");

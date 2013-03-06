@@ -111,9 +111,9 @@ public class Config {
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
     public double mappable_genome_length = -1; // default is to compute
-    public double background_proportion = 0.3;
+    public double background_proportion = -1;	// default is to compute
     public double sparseness=-1;
-    public double poisson_alpha=1e-4; 				// the Poisson p-value for estimating alpha
+    public double poisson_alpha=1e-3; 				// the Poisson p-value for estimating alpha
     public double fold = 2.5;
     public double kl_ic = -2.0;
     public double shapeDeviation;
@@ -128,7 +128,7 @@ public class Config {
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
-    public boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
+    public boolean refine_regions = true;		// refine the enrichedRegions for next round using EM results
     public boolean cache_genome = true;			// cache the genome sequence
     public String genome_path = null;
     
@@ -151,7 +151,6 @@ public class Config {
         use_joint_event = flags.contains("refine_using_joint_event");
         post_artifact_filter = flags.contains("post_artifact_filter");
         kl_count_adjusted = flags.contains("adjust_kl");
-        refine_regions = flags.contains("refine_regions");
         outputBED = flags.contains("outBED");
         write_RSC_file = flags.contains("writeRSC");
         testPValues = flags.contains("testP");
@@ -184,6 +183,7 @@ public class Config {
         ML_speedup = flags.contains("ML_speedup");
         
         // default as true, need the opposite flag to turn it off
+        refine_regions = !flags.contains("not_refine_regions");
         exclude_unenriched = !flags.contains("not_ex_unenriched");
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
         use_betaEM = ! flags.contains("poolEM");
@@ -265,7 +265,7 @@ public class Config {
         q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
         q_refine = Args.parseDouble(args, "q2", q_refine);	// q-value for refine regions
         if (q_refine==-1)
-        	q_refine = q_value_threshold*0.75;
+        	q_refine = q_value_threshold*0.5;
         else{
         	if (q_refine>q_value_threshold){
         		System.err.println("q2>q");
