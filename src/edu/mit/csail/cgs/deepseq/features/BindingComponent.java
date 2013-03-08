@@ -24,6 +24,7 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	private Point EM_position;		// EM result
 	private int old_index;
 	private double alpha;
+	private double noiseFraction;
 	private KmerGroup kmerGroup;
 	public KmerGroup getKmerGroup() { return kmerGroup; }
 	public void setKmerGroup(KmerGroup kmer) { this.kmerGroup = kmer;}
@@ -39,6 +40,12 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	}
 	public void setOld_index(int old_index) {	// store the original index as initialized
 		this.old_index = old_index;
+	}
+	public double getNoiseFraction() {
+		return noiseFraction;
+	}
+	public void setNoiseFraction(double noiseFraction) {	// store the noise fraction of the region
+		this.noiseFraction = noiseFraction;
 	}
 	public Point getEMPosition() {
 		if (EM_position==null)

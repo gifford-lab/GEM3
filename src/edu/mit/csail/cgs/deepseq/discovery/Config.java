@@ -7,25 +7,28 @@ import edu.mit.csail.cgs.tools.utils.Args;
 public class Config {
 	public boolean trim_simple=false;
 	public boolean print_PI = false;
-	public boolean do_model_selection=false;
 	public boolean classify_events = false;
     public boolean use_joint_event = false;
-    public boolean TF_binding = true;
     public boolean outputBED = false;
     public boolean write_RSC_file = false;
     public boolean kmer_print_hits = false;
     public boolean testPValues = false;
     public boolean post_artifact_filter=false;
-    public boolean filterEvents=true;
-    public boolean filterDupReads=true;
     public boolean kl_count_adjusted = false;
     public boolean sort_by_location=false;
-    public boolean exclude_unenriched = true;
     public boolean dump_regression = false;
     public boolean use_event_strength = false;
-    public boolean use_event_rank = false;
+    public boolean weight_by_sqrt_strength = false;
     public boolean use_kmer_strength = false;
     public boolean print_kmer_bPos = false;
+    
+    public boolean discard_subAlpha_components=true;			// discard the component whose strength is less than alpha    
+    public boolean TF_binding = true;
+    public boolean exclude_unenriched = true;
+    public boolean filterEvents=true;
+    public boolean filterDupReads=true;
+	public boolean do_model_selection=true;
+
   	public int KL_smooth_width = 0;
     public int max_hit_per_bp = -1;
     public int maxThreads;		// default to #CPU
@@ -86,7 +89,6 @@ public class Config {
     public boolean evaluate_by_kcm = false;		// whether to use K-mer class model to evaluate improvement of new cluster, default to use PWM
     public boolean use_strength_weight = true;	// use binding event strength to weight 
     public boolean use_pos_weight = true;		// use binding position profile to weight motif site
-    public boolean allow_single_family =true;	// allow the kmer family only contains seed, i.e. no mismatch kmers
     public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
     public boolean allow_seed_inheritance=true;	// allow primary seed k-mer to pass on to the next round of GEM
     public boolean filter_pwm_seq = true;
@@ -101,7 +103,7 @@ public class Config {
     public double q_value_threshold = 2.0;	// -log10 value of q-value
     public double q_refine = -1;
     public double joint_event_distance = 500;
-    public double alpha_factor = 3.0;
+    public double alpha_factor = 4.0;
     public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
     public int top_events = 2000;
     public int min_event_count = 500;	// minimum num of events to update read distribution
@@ -109,8 +111,9 @@ public class Config {
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
     public double mappable_genome_length = -1; // default is to compute
+    public double background_proportion = -1;	// default is to compute
     public double sparseness=-1;
-    public double poisson_alpha=1e-4; 				// the Poisson p-value for estimating alpha
+    public double poisson_alpha=1e-3; 				// the Poisson p-value for estimating alpha
     public double fold = 2.5;
     public double kl_ic = -2.0;
     public double shapeDeviation;
@@ -120,10 +123,12 @@ public class Config {
     public int second_lambda_region_width =  5000;
     public int third_lambda_region_width  = 10000;
     public boolean bic = false;				// use BIC or AIC for model selection
+    public boolean model_noise = false;		// have a noise component for background reads
+    public boolean ML_speedup = false;		// have a noise component for background reads
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
-    public boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
+    public boolean refine_regions = true;		// refine the enrichedRegions for next round using EM results
     public boolean cache_genome = true;			// cache the genome sequence
     public String genome_path = null;
     
@@ -146,7 +151,6 @@ public class Config {
         use_joint_event = flags.contains("refine_using_joint_event");
         post_artifact_filter = flags.contains("post_artifact_filter");
         kl_count_adjusted = flags.contains("adjust_kl");
-        refine_regions = flags.contains("refine_regions");
         outputBED = flags.contains("outBED");
         write_RSC_file = flags.contains("writeRSC");
         testPValues = flags.contains("testP");
@@ -154,7 +158,7 @@ public class Config {
         	System.err.println("testP is " + testPValues);
         dump_regression = flags.contains("dump_regression");
         use_event_strength = flags.contains("use_event_strength");
-        use_event_rank = flags.contains("use_event_rank");
+        weight_by_sqrt_strength = flags.contains("weight_by_sqrt_strength");
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
         select_seed = flags.contains("select_seed");
@@ -175,8 +179,11 @@ public class Config {
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
+        model_noise = flags.contains("model_noise");
+        ML_speedup = flags.contains("ML_speedup");
         
         // default as true, need the opposite flag to turn it off
+        refine_regions = !flags.contains("not_refine_regions");
         exclude_unenriched = !flags.contains("not_ex_unenriched");
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
         use_betaEM = ! flags.contains("poolEM");
@@ -187,6 +194,7 @@ public class Config {
             use_joint_event = true;
             sort_by_location = true;
         }
+        discard_subAlpha_components = ! flags.contains("sub_alpha");
         use_scanPeak = ! flags.contains("no_scanPeak");
         do_model_selection = !flags.contains("no_model_selection");
         use_kmer_mismatch = !flags.contains("no_kmm");
@@ -199,9 +207,8 @@ public class Config {
         use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_pos_kmer = !flags.contains("no_pos_kmer");
         use_grid_search = !flags.contains("no_grid_search");
-        allow_single_family = !flags.contains("no_single_family");
         allow_seed_reset = !flags.contains("no_seed_reset");
-        selectK_byTopKmer = !flags.contains("selectK_byPWM");	
+        selectK_byTopKmer = flags.contains("selectK_byTopKmer");	
         if (selectK_byTopKmer)														// overwrite allow_seed_reset
         	allow_seed_reset = false;
         allow_seed_inheritance = !flags.contains("no_seed_inheritance");
@@ -210,7 +217,8 @@ public class Config {
         strigent_event_pvalue = !flags.contains("relax");
 
         mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
-       
+        background_proportion = Args.parseDouble(args, "pi_bg", background_proportion);	// proportion of background read signal
+        
         // Optional input parameter
         genome_path = Args.parseString(args, "genome", genome_path);
         k = Args.parseInteger(args, "k", k);
@@ -257,7 +265,7 @@ public class Config {
         q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
         q_refine = Args.parseDouble(args, "q2", q_refine);	// q-value for refine regions
         if (q_refine==-1)
-        	q_refine = q_value_threshold*0.75;
+        	q_refine = q_value_threshold*0.5;
         else{
         	if (q_refine>q_value_threshold){
         		System.err.println("q2>q");
