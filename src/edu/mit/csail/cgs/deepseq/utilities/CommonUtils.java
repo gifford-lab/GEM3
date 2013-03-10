@@ -128,6 +128,10 @@ public class CommonUtils {
 		ArrayList<String> txt = readTextFile(filename);
 		for (String s:txt){
 			String[] f = s.split("\t");
+			for (int i=0;i<f.length;i++){
+				if (f[i].equalsIgnoreCase("Inf"))
+					f[i]="999";
+			}
 			NarrowPeak p = util.new NarrowPeak(genome, f[0], Integer.parseInt(f[1]), Integer.parseInt(f[2]), Double.parseDouble(f[4]), Double.parseDouble(f[6]), Double.parseDouble(f[7]), Double.parseDouble(f[8]), Integer.parseInt(f[9]));
 			results.add(p);
 		}
