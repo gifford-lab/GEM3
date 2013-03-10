@@ -48,6 +48,10 @@ public class StrandedRegion extends Region implements Stranded {
         }
     }
     
+    public Point getFivePrimePoint() {
+    	return new Point(this.getGenome(),this.getChrom(),this.getFivePrime());
+    }
+    
     public String toString() { 
         return getLocationString() + ":" + strand;
     }
