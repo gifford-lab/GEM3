@@ -28,6 +28,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
+import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -106,7 +107,7 @@ public class CommonUtils {
 	}
 	
 	/**
-	 * Load ENCODE narrow Peak format
+	 * Load ENCODE narrow Peak format, sorted by score, then by signal<br>
 	 * 
 	 *  Col1: chromosome name 
 		Col2: start position of peak region (0-based)
@@ -136,10 +137,11 @@ public class CommonUtils {
 			results.add(p);
 		}
 		results.trimToSize();
+		Collections.sort(results);
 		return results;
 	}
 	
-	public class NarrowPeak{
+	public class NarrowPeak implements Comparable<NarrowPeak> {
 		public Region region;
 		public Point summit;
 		public double score;
@@ -154,6 +156,17 @@ public class CommonUtils {
 			this.signal = signal;
 			this.pvalue = pvalue;
 			this.qvalue = qvalue;
+		}
+		@Override
+		public int compareTo(NarrowPeak f) {
+			if(score>f.score){return(-1);}
+			else if(score<f.score){return(1);}
+			else return(0);
+		}
+		public int compareToBySignal(NarrowPeak f) {
+			if(signal>f.signal){return(-1);}
+			else if(signal<f.signal){return(1);}
+			else return(0);
 		}
 	}
 	
