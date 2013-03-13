@@ -18,7 +18,7 @@ public class Config {
     public boolean sort_by_location=false;
     public boolean dump_regression = false;
     public boolean use_event_strength = false;
-    public boolean weight_by_sqrt_strength = false;
+    public boolean weight_by_sqrt_strength;
     public boolean use_kmer_strength = false;
     public boolean print_kmer_bPos = false;
     
@@ -158,7 +158,7 @@ public class Config {
         	System.err.println("testP is " + testPValues);
         dump_regression = flags.contains("dump_regression");
         use_event_strength = flags.contains("use_event_strength");
-        weight_by_sqrt_strength = flags.contains("weight_by_sqrt_strength");
+        weight_by_sqrt_strength = !flags.contains("weight_by_strength");
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
         select_seed = flags.contains("select_seed");
@@ -180,7 +180,6 @@ public class Config {
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         model_noise = flags.contains("model_noise");
-        ML_speedup = flags.contains("ML_speedup");
         
         // default as true, need the opposite flag to turn it off
         refine_regions = !flags.contains("not_refine_regions");
@@ -195,6 +194,7 @@ public class Config {
             sort_by_location = true;
         }
         discard_subAlpha_components = ! flags.contains("sub_alpha");
+        ML_speedup = !flags.contains("no_fast_ML");
         use_scanPeak = ! flags.contains("no_scanPeak");
         do_model_selection = !flags.contains("no_model_selection");
         use_kmer_mismatch = !flags.contains("no_kmm");
