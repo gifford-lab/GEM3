@@ -58,6 +58,8 @@ public class CommonUtils {
 			String line;
 			while((line = bin.readLine()) != null) { 
 				line = line.trim();
+				if (line.startsWith("#"))
+					continue;
 				Region point = Region.fromString(genome, line);
 				if (point!=null)
 					points.add(new Point(genome, point.getChrom(),point.getStart()));
@@ -92,6 +94,8 @@ public class CommonUtils {
 	        String line;
 	        while ((line = reader.readLine()) != null) {
 	            line = line.trim();
+	            if (line.startsWith("#"))
+					continue;
 	            String[] words = line.split("\\s+");
             	Region r = Region.fromString(gen, words[0]);
             	if (r!=null)
@@ -128,6 +132,8 @@ public class CommonUtils {
 		ArrayList<NarrowPeak> results = new ArrayList<NarrowPeak>();
 		ArrayList<String> txt = readTextFile(filename);
 		for (String s:txt){
+			if (s.startsWith("#"))
+				continue;
 			String[] f = s.split("\t");
 			for (int i=0;i<f.length;i++){
 				if (f[i].equalsIgnoreCase("Inf"))
