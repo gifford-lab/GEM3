@@ -192,12 +192,16 @@ public class GEM {
         if (run_gem){
         	// initialize first set of kmers from GPS result
 	        int returnValue = mixture.initKMAC();	
-	        if (returnValue == -1){					// this could happen if no k value can be found to give good motif
+	        if (returnValue < 0){					// this could happen if no k value can be found to give good motif
 	        	mixture.plotAllReadDistributions();
 	            mixture.closeLogFile();
 	            
-	            System.out.println("\nMotif can not be found!! \nGPS analysis results are printed to:\n"+
-	            		path+"_GPS_events.txt\n"+
+	            if (returnValue == -1)
+	            	System.out.println("\nMotif can not be found!! \nGPS analysis results are printed to:");
+	            else if (returnValue == -2)
+	            	System.out.println("\nBinding event can not be found!! \nGPS analysis results are printed to:");
+	            
+	            System.out.println(path+"_GPS_events.txt\n"+
 		        		path+"_result.htm\n" +
 		        		path+"_outputs (folder with all other files)\n");
 		        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
@@ -205,7 +209,7 @@ public class GEM {
 		        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
 		        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 		        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
-		        	htmName+"'>click here for PGS Result</a>.</BODY></HTML>";
+		        	htmName+"'>click here for GPS Result</a>.</BODY></HTML>";
 		        CommonUtils.writeFile(path+"_result.htm", html);
 	            return;
 	        }
