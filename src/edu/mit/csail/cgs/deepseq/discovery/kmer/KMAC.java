@@ -475,7 +475,26 @@ public class KMAC {
 			for (String s:neg_seqs_backup)
 				seqsNegList.add(s);
 		}
+		
+		boolean failToFindK = false;
+		KmerCluster bestCluster=null;
 		if (kClusters.isEmpty()){
+			failToFindK = true;
+		}
+		else{
+			// find the k value with largest hit count and at least 90% of the best HGP
+			int bestHitCount = 0;
+			for (KmerCluster c : kClusters){
+				if (c.pwmPosHitCount>bestHitCount && c.pwmThresholdHGP<bestAllHGP*0.9){
+					bestHitCount = c.pwmPosHitCount;
+					bestCluster = c;
+				}
+			}
+			if (bestCluster==null)
+				failToFindK = true;			// failed to find motif for all k-values
+		}
+		
+		if (failToFindK){
 			System.out.println("\n----------------------------------------------\nNone of the k values form an enriched PWM, stop here!\n");
 			File f = new File(outName);
 			String name = f.getName();
@@ -495,9 +514,9 @@ public class KMAC {
 			return 0;
 		}
 		
+
 		// find the k value with the best HGP
 		int bestHitCount = 0;
-		KmerCluster bestCluster=null;
 		for (KmerCluster c : kClusters){
 			if (c.pwmThresholdHGP==bestAllHGP){
 				bestHitCount = c.pwmPosHitCount;
@@ -505,6 +524,7 @@ public class KMAC {
 				break;
 			}
 		}
+		
 		bestK = bestCluster.seedKmer.getK();
 		System.out.print(sb.toString());
 		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f.\n----------------------------------------------\n", 
