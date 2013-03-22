@@ -482,12 +482,13 @@ public class KMAC {
 			failToFindK = true;
 		}
 		else{
-			// find the k value with largest hit count and at least 90% of the best HGP
+			// find the k value with the best HGP
 			int bestHitCount = 0;
 			for (KmerCluster c : kClusters){
-				if (c.pwmPosHitCount>bestHitCount && c.pwmThresholdHGP<bestAllHGP*0.9){
+				if (c.pwmThresholdHGP==bestAllHGP){
 					bestHitCount = c.pwmPosHitCount;
 					bestCluster = c;
+					break;
 				}
 			}
 			if (bestCluster==null)
@@ -512,17 +513,6 @@ public class KMAC {
 			html.append("</td></tr></table>");
 			CommonUtils.writeFile(outName+"_result.htm", html.toString());
 			return 0;
-		}
-		
-
-		// find the k value with the best HGP
-		int bestHitCount = 0;
-		for (KmerCluster c : kClusters){
-			if (c.pwmThresholdHGP==bestAllHGP){
-				bestHitCount = c.pwmPosHitCount;
-				bestCluster = c;
-				break;
-			}
 		}
 		
 		bestK = bestCluster.seedKmer.getK();
