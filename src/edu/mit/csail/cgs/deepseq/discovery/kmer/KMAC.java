@@ -430,7 +430,7 @@ public class KMAC {
 	
 	/** 
 	 * Select the value of k <br>
-	 * that forms cluster with largest hit count and at least 90% of the best HGP
+	 * that forms cluster with the best HGP
 	 */
 	public int selectK(int k_min, int k_max, int[] eventCounts){
 		if (k_min==k_max)
@@ -495,13 +495,14 @@ public class KMAC {
 			return 0;
 		}
 		
-		// find the k value with largest hit count and at least 90% of the best HGP
+		// find the k value with the best HGP
 		int bestHitCount = 0;
 		KmerCluster bestCluster=null;
 		for (KmerCluster c : kClusters){
-			if (c.pwmPosHitCount>bestHitCount && c.pwmThresholdHGP<bestAllHGP*0.9){
+			if (c.pwmThresholdHGP==bestAllHGP){
 				bestHitCount = c.pwmPosHitCount;
 				bestCluster = c;
+				break;
 			}
 		}
 		bestK = bestCluster.seedKmer.getK();
