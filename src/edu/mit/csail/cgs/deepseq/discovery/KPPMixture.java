@@ -285,7 +285,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				totalReadCount += caches.get(i).car().getHitCount();	
 			int expectedHitCount = calcExpectedHitCount(totalReadCount, config.poisson_alpha, modelWidth);
 			config.sparseness = expectedHitCount;
-			log(1, String.format("\nAt Poisson p-value %.1e, in a %dbp window, expect %d reads (minimum alpha value, can be overridden with --a option).\n", 
+			log(1, String.format("\nAt Poisson p-value %.1e, in a %dbp window, expect %d reads.\n", 
 					config.poisson_alpha, modelWidth, expectedHitCount));
 		}
 		
@@ -681,16 +681,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			// The read count test is for each condition
 		
 			for (int cond=0; cond<numConditions; cond++){
-				if(cf.getEventReadCounts(cond)>config.sparseness){	// first pass read count test
-					if (config.TF_binding){	// single event IP/ctrl only applies to TF
-						if (cf.getQValueLog10(cond)>=config.q_value_threshold){
-							significant = true;
-							break;
-						}
-					}
-					else		//TODO: if histone data, need to test as a set of events
+				if (config.TF_binding){	// single event IP/ctrl only applies to TF
+					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
 						significant = true;
+						break;
+					}
 				}
+				else		//TODO: if histone data, need to test as a set of events
+					significant = true;
 			}
 
 			boolean notFiltered = false;
@@ -3381,13 +3379,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
 		// setup lightweight genome cache
 		if (!kmerPreDefined){
-			ArrayList<Region> positiveRegions = new ArrayList<Region>();
+			ArrayList<Region> posituveRegions = new ArrayList<Region>();
 			for (Region r: restrictRegions){
-				positiveRegions.add(r.expand(config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
+				posituveRegions.add(r.expand(config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
 			}
-			positiveRegions = Region.mergeRegions(positiveRegions);
+			posituveRegions = Region.mergeRegions(posituveRegions);
 			int totalLength=0;
-			for (Region r: positiveRegions){
+			for (Region r: posituveRegions){
 				totalLength+=r.getWidth();
 			}
 			// get negative regions
@@ -3415,7 +3413,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			negativeRegions.removeAll(toRemove);
 			
-			double gc = kmac.setupRegionCache(positiveRegions, negativeRegions, config.k_neg_dist);
+			double gc = kmac.setupRegionCache(posituveRegions, negativeRegions, config.k_neg_dist);
 			if (config.gc==-1){
 				config.setGC(gc);
 			}
@@ -3952,9 +3950,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             // If after first round, we are sure the region contains unary event, we will just scan for peak
             if (!singleEventRegions.containsKey(w)) {
                 // dynamically determine an alpha value for this sliding window
+            	// when having a noies component, reduce alpha value to half
                 double alpha = config.sparseness;
                 if (config.use_dynamic_sparseness)
-                    alpha = Math.max(mixture.estimateAlpha(w, signals), config.sparseness);
+                    alpha = Math.max(mixture.estimateAlpha(w, signals), config.model_noise?config.sparseness/2.0:config.sparseness);
 
                 Pair<double[][][], int[][][]> result = null;
 
