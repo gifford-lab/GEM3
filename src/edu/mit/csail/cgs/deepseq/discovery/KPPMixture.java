@@ -3950,10 +3950,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             // If after first round, we are sure the region contains unary event, we will just scan for peak
             if (!singleEventRegions.containsKey(w)) {
                 // dynamically determine an alpha value for this sliding window
-            	// when having a noies component, reduce alpha value to half
+            	// when having a noies component, reduce alpha value further
                 double alpha = config.sparseness;
-                if (config.use_dynamic_sparseness)
-                    alpha = Math.max(mixture.estimateAlpha(w, signals), config.model_noise?config.sparseness/2.0:config.sparseness);
+                if (config.use_dynamic_sparseness){
+                    alpha = Math.max(mixture.estimateAlpha(w, signals), config.sparseness);
+                    if (config.model_noise)		
+                    	alpha /= config.alpha_fine_factor;
+                }
 
                 Pair<double[][][], int[][][]> result = null;
 

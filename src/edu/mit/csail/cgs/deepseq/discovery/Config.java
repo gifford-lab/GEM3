@@ -103,7 +103,8 @@ public class Config {
     public double q_value_threshold = 2.0;	// -log10 value of q-value
     public double q_refine = -1;
     public double joint_event_distance = 500;
-    public double alpha_factor = 4.0;
+    public double alpha_factor = 3.0;
+    public double alpha_fine_factor = 2.0;
     public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
     public int top_events = 2000;
     public int min_event_count = 500;	// minimum num of events to update read distribution
@@ -275,7 +276,8 @@ public class Config {
         	
         sparseness = Args.parseDouble(args, "a", sparseness);	// minimum alpha parameter for sparse prior
         poisson_alpha = Args.parseDouble(args, "pa", poisson_alpha);	
-        alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value
+        alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value from read count in the region
+        alpha_fine_factor = Args.parseDouble(args, "aff", alpha_fine_factor); // Divider in calculating alpha value when having a noise component
         fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
         shapeDeviation =  TF_binding?-0.3:-0.2;		// set default according to filter type    		
         shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
