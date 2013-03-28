@@ -113,6 +113,7 @@ public class Config {
     public int min_region_width = 50;	//minimum width for select enriched region
     public double mappable_genome_length = -1; // default is to compute
     public double background_proportion = -1;	// default is to compute
+    public double pi_bg_r0 = 0.03;
     public double sparseness=-1;
     public double poisson_alpha=1e-3; 				// the Poisson p-value for estimating alpha
     public double fold = 2.5;
@@ -125,7 +126,7 @@ public class Config {
     public int third_lambda_region_width  = 10000;
     public boolean bic = false;				// use BIC or AIC for model selection
     public boolean model_noise = false;		// have a noise component for background reads
-    public boolean ML_speedup = false;		// have a noise component for background reads
+    public boolean ML_speedup = false;		
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
@@ -219,6 +220,7 @@ public class Config {
 
         mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
         background_proportion = Args.parseDouble(args, "pi_bg", background_proportion);	// proportion of background read signal
+        pi_bg_r0 = Args.parseDouble(args, "pi_bg_r0", pi_bg_r0);	// proportion of background read signal for round 0
         
         // Optional input parameter
         genome_path = Args.parseString(args, "genome", genome_path);

@@ -74,7 +74,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private boolean hasIpCtrlRatio = false;
 	private double[] ratio_total;
 	private double[] ratio_non_specific_total;
-	private double background_proportion;			//background read proportion in the candidate regions
+	private double background_proportion = -1;			//background read proportion in the candidate regions
 	/****************
 	 * Prediction
 	 ****************/
@@ -451,26 +451,31 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		int totalRegionCount = restrictRegions.size();
 		if (totalRegionCount==0)
 			return new ArrayList<Feature>();
-		
 		// Compute the total length and read counts of enriched regions
 		if (config.background_proportion==-1){
-			int length=0;
-			int selectedReadCount=0;
-			int totalReadCount=0;
-			for (Region r: restrictRegions){
-				length+= r.getWidth();
-				selectedReadCount+=this.countIpReads(r);
+			if (background_proportion == -1){	// first round, do not estimate from candidate regions
+				background_proportion = config.pi_bg_r0;
+				log(2,String.format("Default initial noise proportion in the candidate regions = %.3f%n", background_proportion));
 			}
-			for(int i=0; i<numConditions; i++){
-				totalReadCount += caches.get(i).car().getHitCount();
+			else{
+				int length=0;
+				int selectedReadCount=0;
+				int totalReadCount=0;
+				for (Region r: restrictRegions){
+					length+= r.getWidth();
+					selectedReadCount+=this.countIpReads(r);
+				}
+				for(int i=0; i<numConditions; i++){
+					totalReadCount += caches.get(i).car().getHitCount();
+				}
+				background_proportion = 1.0*(totalReadCount-selectedReadCount)/(config.mappable_genome_length-length)*length/selectedReadCount;
+				log(2,String.format("Estimated noise proportion in the candidate regions = %.3f%n", background_proportion));
 			}
-			background_proportion = 1.0*(totalReadCount-selectedReadCount)/(config.mappable_genome_length-length)*length/selectedReadCount;
-			log(2,String.format("Estimated noise proportion in the candidate regions = %.3f%n", background_proportion));
 		}
 		else{
 			background_proportion = config.background_proportion;
+			log(2,String.format("Pre-specified noise proportion in the candidate regions = %.3f%n", background_proportion));
 		}
-		
 		// refresh the total profile sums every round
 		profile_plus_sum = new double[modelWidth];
 		profile_minus_sum = new double[modelWidth];
