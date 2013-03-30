@@ -396,7 +396,7 @@ public class MethodComparisonMotifAnalysis {
 					else{
 						Collections.sort(gpsPeaks, new Comparator<GPSPeak>(){
 						    public int compare(GPSPeak o1, GPSPeak o2) {
-						        return o1.compareByPValue(o2);
+						        return o1.compareByPV_lg10(o2);
 						    }
 						});
 					}

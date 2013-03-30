@@ -110,9 +110,12 @@ public class GPSPeak extends Point{
 	public void setDistance(int distance) {
 		this.distance = distance;
 	}
-	public int compareByPValue(GPSPeak p) {
-		double diff = getPvalue()- p.getPvalue();
-		return	diff==0?0:(diff<0)?-1:1;	//p-value: ascending
+	/**
+	 * compare method, descending p-value (-lg10), i.e. most significant first
+	 */
+	public int compareByPV_lg10(GPSPeak p) {
+		double diff = getPV_lg10()- p.getPV_lg10();
+		return	diff==0?0:(diff<0)?1:-1;	//p-value -log10: descending
 	}
 	public int compareByIPStrength(GPSPeak p) {
 		double diff = getStrength()- p.getStrength();
