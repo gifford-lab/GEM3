@@ -34,7 +34,7 @@ public class MethodComparisonMotifAnalysis {
 	private final int NOHIT_OFFSET = 999;
 	
 	private boolean isPreSorted = false;	
-	private int windowSize = 50;	
+	private int windowSize = 100;	
 	private int rank = 0;
 	private List<Region> restrictRegions;
 	private boolean sortByStrength = false;
@@ -108,7 +108,7 @@ public class MethodComparisonMotifAnalysis {
 	    }
 	    	    
 		// some parameters
-		windowSize = Args.parseInteger(args, "windowSize", 100);
+		windowSize = Args.parseInteger(args, "windowSize", windowSize);
 		rank = Args.parseInteger(args, "rank", 0);
 		outName = Args.parseString(args,"out",outName);
 		sortByStrength = flags.contains("ss");	// only for GPS
@@ -121,21 +121,22 @@ public class MethodComparisonMotifAnalysis {
 		}
 		
 		// load motif
-		if (Args.parseString(args, "pfm", null)==null){
-			Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-			motif = wm.car();
-			motifThreshold = wm.cdr();		
+		if (Args.parseInteger(args, "analysisType", 0)>=4){
+			if (Args.parseString(args, "pfm", null)==null){
+				Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+				motif = wm.car();
+				motifThreshold = wm.cdr();		
+			}
+			else{
+				double pwm_ratio = Args.parseDouble(args, "pwm_ratio", 0.6);
+				motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+				motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
+				if (motifThreshold==-1){				
+	    			motifThreshold = motif.getMaxScore()*pwm_ratio;
+	    			System.err.println("No motif threshold was provided, use "+pwm_ratio+"*max_score = "+motifThreshold);
+	    		}  
+			}
 		}
-		else{
-			double pwm_ratio = Args.parseDouble(args, "pwm_ratio", 0.6);
-			motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
-			motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
-			if (motifThreshold==-1){				
-    			motifThreshold = motif.getMaxScore()*pwm_ratio;
-    			System.err.println("No motif threshold was provided, use "+pwm_ratio+"*max_score = "+motifThreshold);
-    		}  
-		}
-		
 
 	}
 	
