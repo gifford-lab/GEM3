@@ -80,7 +80,8 @@ public class MethodComparisonMotifAnalysis {
 		case 1:analysis.proximalEventAnalysis();break;
 		case 2:analysis.getUnaryEventList();break;
 		case 3:analysis.singleMotifEventAnalysis();break;
-		case 4:analysis.printOverlapTable();break;
+		case 4:analysis.printOverlapTable(false);break;
+		case 5:analysis.printOverlapTable(true);break;
 		default: System.err.println("Unrecognize analysis type: "+type);
 		}
 	}
@@ -626,8 +627,11 @@ public class MethodComparisonMotifAnalysis {
 				+windowSize+".txt", sb3.toString());	
 	}
 	
-	// print the pairwise overlap percentage of different set of binding calls 
-	private void printOverlapTable() throws IOException{
+	/** print the pairwise overlap percentage of different set of binding calls 
+	 * 
+	 * @throws IOException
+	 */
+	private void printOverlapTable(boolean printOverlapEventList) throws IOException{
 		int overlapWindowSize = windowSize;
 		long tic = System.currentTimeMillis();
 		readPeakLists();
@@ -639,8 +643,19 @@ public class MethodComparisonMotifAnalysis {
 				if (i==j)
 					overlaps[i][j]=100;
 				else{
-					int count = countOverlaps(events.get(i), events.get(j), overlapWindowSize);
-					overlaps[i][j] = 100*count/(double)events.get(i).size();
+					ArrayList<Point> eventsI = events.get(i);
+					ArrayList<Point> eventsJ = events.get(j);
+					ArrayList<AlignedEventPair> pairs = getEventOverlaps(eventsI, eventsJ, overlapWindowSize);
+					int count = pairs.size();
+					overlaps[i][j] = 100*count/(double)eventsI.size();
+					if (printOverlapEventList){
+						StringBuilder shared_sb = new StringBuilder();
+						for (AlignedEventPair pair: pairs){
+							shared_sb.append(String.format("%s\t%s|t%d", pair.event1.toString(), pair.event2.toString(), pair.offset));
+						}
+						String fileName = "sharedEvents_"+methodNames.get(i)+"_in_"+methodNames.get(j)+".txt";
+						CommonUtils.writeFile(fileName, shared_sb.toString());
+					}
 				}
 			}
 		}
@@ -670,12 +685,13 @@ public class MethodComparisonMotifAnalysis {
 	 * @param windowSize
 	 * @return
 	 */
-	private int countOverlaps(ArrayList<Point> list1, ArrayList<Point> list2, int windowSize){
-		int overlap=0;
+	private ArrayList<AlignedEventPair> getEventOverlaps (ArrayList<Point> list1, ArrayList<Point> list2, int windowSize){
 		ArrayList<Point> a = (ArrayList<Point> )list1.clone();
 		ArrayList<Point> b = (ArrayList<Point> )list2.clone();
 		Collections.sort(a);
 		Collections.sort(b);
+		
+		ArrayList<AlignedEventPair> pairs = new ArrayList<AlignedEventPair>();
 		
 		int nextSearchIndex = 0;		// the index of first b match for previous peak in a
 		// this will be use as start search position of the inner loop
@@ -692,7 +708,7 @@ public class MethodComparisonMotifAnalysis {
 						break;
 					}
 					else{					// match found, next a
-						overlap++;
+						pairs.add(new AlignedEventPair(pa,pb,offset));
 						nextSearchIndex=j;
 						break;
 					}
@@ -703,9 +719,19 @@ public class MethodComparisonMotifAnalysis {
 				}
 			}
 		}
-		return overlap;
+		return pairs;
 	}
 
+	private class AlignedEventPair{
+		AlignedEventPair(Point event1, Point event2, int offset){
+			this.event1 = event1;
+			this.event2 = event2;
+			this.offset = offset;
+		}
+		Point event1;
+		Point event2;
+		int offset;
+	}
 	// counting number of event calls in the regions with SINGLE motif 
 	// this is to check the false positives of joint event calls
 	private void singleMotifEventAnalysis() throws IOException {
