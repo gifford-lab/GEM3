@@ -121,7 +121,7 @@ public class MethodComparisonMotifAnalysis {
 		}
 		
 		// load motif
-		if (Args.parseInteger(args, "analysisType", 0)>=4){
+		if (Args.parseInteger(args, "analysisType", 0)<4){
 			if (Args.parseString(args, "pfm", null)==null){
 				Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
 				motif = wm.car();
