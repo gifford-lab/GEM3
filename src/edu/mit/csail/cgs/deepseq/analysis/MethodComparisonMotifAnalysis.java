@@ -652,7 +652,7 @@ public class MethodComparisonMotifAnalysis {
 					if (printOverlapEventList){
 						StringBuilder shared_sb = new StringBuilder();
 						for (AlignedEventPair pair: pairs){
-							shared_sb.append(String.format("%s\t%s|t%d", pair.event1.toString(), pair.event2.toString(), pair.offset));
+							shared_sb.append(String.format("%s\t%s\t%d\n", pair.event1.toString(), pair.event2.toString(), pair.offset));
 						}
 						String fileName = "sharedEvents_"+methodNames.get(i)+"_in_"+methodNames.get(j)+".txt";
 						CommonUtils.writeFile(fileName, shared_sb.toString());
