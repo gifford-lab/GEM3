@@ -182,13 +182,14 @@ public class GEM {
             mixture.printInsignificantFeatures(round);
 	        mixture.releaseMemory();
         }
-        
-        /**
-         ** GEM event finding with kmer positional prior (KPP)
-         **/   
+
     	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
     	String path = new File(currentFolder, prefix).getAbsolutePath();
-    	
+        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
+         
+        /**
+         ** GEM event finding with kmer motif positional prior (KPP)
+         **/    	
         if (run_gem){
         	// initialize first set of kmers from GPS result
 	        int returnValue = mixture.initKMAC();	
@@ -204,7 +205,6 @@ public class GEM {
 	            System.out.println(path+"_GPS_events.txt\n"+
 		        		path+"_result.htm\n" +
 		        		path+"_outputs (folder with all other files)\n");
-		        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
 		        
 		        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
 		        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+

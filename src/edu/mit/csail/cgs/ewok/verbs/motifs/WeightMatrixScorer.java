@@ -29,7 +29,21 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
         seqgen = new SequenceGenerator();
         seqgen.useCache(cacheSequence);
     }
-    
+
+    /**
+     * Constructor that will cache the genome sequence, useful for batch motif search in many regions
+     * @param m	motif 
+     * @param cacheSequence to use sequence caching or not
+     * @param genomePath the file path to the genome dir
+     */
+    public WeightMatrixScorer(WeightMatrix m, boolean cacheSequence, String genomePath) {
+    	matrix = m;
+        seqgen = new SequenceGenerator();
+        seqgen.useCache(cacheSequence);
+        seqgen.setGenomePath(genomePath);
+        seqgen.useLocalFiles(true);
+    }
+
     public WeightMatrixScoreProfile execute(Region r) { 
         String seq = seqgen.execute(r);
         seq = seq.toUpperCase();

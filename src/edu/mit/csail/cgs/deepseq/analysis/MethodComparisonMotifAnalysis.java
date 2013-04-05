@@ -40,6 +40,7 @@ public class MethodComparisonMotifAnalysis {
 	private boolean sortByStrength = false;
 	
 	private Genome genome;
+	private String genomePath;
 	private Organism org;
 	private String[] args;
 	private WeightMatrix motif = null;
@@ -94,8 +95,8 @@ public class MethodComparisonMotifAnalysis {
 	      Pair<Organism, Genome> pair = Args.parseGenome(args);
 	      if(pair==null){
 	        //Make fake genome... chr lengths provided???
-	        if(ap.hasKey("geninfo")){
-	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+	        if(ap.hasKey("g")){
+	          genome = new Genome("Genome", new File(ap.getKeyValue("g")));
 	            }else{
 	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
 	            }
@@ -106,20 +107,21 @@ public class MethodComparisonMotifAnalysis {
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
-	    	    
+	    genomePath = Args.parseString(args,"genome",genomePath);
 		// some parameters
 		windowSize = Args.parseInteger(args, "windowSize", windowSize);
 		rank = Args.parseInteger(args, "rank", 0);
 		outName = Args.parseString(args,"out",outName);
 		sortByStrength = flags.contains("ss");	// only for GPS
 		isPreSorted = flags.contains("sorted");
-		try{
-			restrictRegions = Args.parseRegions(args);
-		}
-		catch (NotFoundException e){
-			// do nothing
-		}
-		
+		if (Args.parseString(args,"region",null)!=null){
+			try{
+				restrictRegions = Args.parseRegions(args);
+			}
+			catch (NotFoundException e){
+				// do nothing
+			}
+		}		
 		// load motif
 		if (Args.parseInteger(args, "analysisType", 0)<4){
 			if (Args.parseString(args, "pfm", null)==null){
@@ -1183,7 +1185,11 @@ public class MethodComparisonMotifAnalysis {
 	private Pair<ArrayList<Point>, ArrayList<Double>> getAllMotifs(ArrayList<Region> regions, double threshold){
 		ArrayList<Point> allMotifs = new ArrayList<Point>();
 		ArrayList<Double> scores = new ArrayList<Double>();
-		WeightMatrixScorer scorer = new WeightMatrixScorer(motif, true);
+		WeightMatrixScorer scorer;
+		if (genomePath!=null)
+			scorer = new WeightMatrixScorer(motif, true, genomePath);
+		else
+			scorer = new WeightMatrixScorer(motif, true);
 		int length = motif.length();
 		int count = regions.size();
 		for(int i=0; i<count; i++){
