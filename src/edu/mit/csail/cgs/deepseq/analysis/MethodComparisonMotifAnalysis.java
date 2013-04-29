@@ -34,12 +34,13 @@ public class MethodComparisonMotifAnalysis {
 	private final int NOHIT_OFFSET = 999;
 	
 	private boolean isPreSorted = false;	
-	private int windowSize = 50;	
+	private int windowSize = 100;	
 	private int rank = 0;
 	private List<Region> restrictRegions;
 	private boolean sortByStrength = false;
 	
 	private Genome genome;
+	private String genomePath;
 	private Organism org;
 	private String[] args;
 	private WeightMatrix motif = null;
@@ -80,7 +81,8 @@ public class MethodComparisonMotifAnalysis {
 		case 1:analysis.proximalEventAnalysis();break;
 		case 2:analysis.getUnaryEventList();break;
 		case 3:analysis.singleMotifEventAnalysis();break;
-		case 4:analysis.printOverlapTable();break;
+		case 4:analysis.printOverlapTable(false);break;
+		case 5:analysis.printOverlapTable(true);break;
 		default: System.err.println("Unrecognize analysis type: "+type);
 		}
 	}
@@ -93,8 +95,8 @@ public class MethodComparisonMotifAnalysis {
 	      Pair<Organism, Genome> pair = Args.parseGenome(args);
 	      if(pair==null){
 	        //Make fake genome... chr lengths provided???
-	        if(ap.hasKey("geninfo")){
-	          genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+	        if(ap.hasKey("g")){
+	          genome = new Genome("Genome", new File(ap.getKeyValue("g")));
 	            }else{
 	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
 	            }
@@ -105,36 +107,38 @@ public class MethodComparisonMotifAnalysis {
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
-	    	    
+	    genomePath = Args.parseString(args,"genome",genomePath);
 		// some parameters
-		windowSize = Args.parseInteger(args, "windowSize", 100);
+		windowSize = Args.parseInteger(args, "windowSize", windowSize);
 		rank = Args.parseInteger(args, "rank", 0);
 		outName = Args.parseString(args,"out",outName);
 		sortByStrength = flags.contains("ss");	// only for GPS
 		isPreSorted = flags.contains("sorted");
-		try{
-			restrictRegions = Args.parseRegions(args);
-		}
-		catch (NotFoundException e){
-			// do nothing
-		}
-		
+		if (Args.parseString(args,"region",null)!=null){
+			try{
+				restrictRegions = Args.parseRegions(args);
+			}
+			catch (NotFoundException e){
+				// do nothing
+			}
+		}		
 		// load motif
-		if (Args.parseString(args, "pfm", null)==null){
-			Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-			motif = wm.car();
-			motifThreshold = wm.cdr();		
+		if (Args.parseInteger(args, "analysisType", 0)<4){
+			if (Args.parseString(args, "pfm", null)==null){
+				Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+				motif = wm.car();
+				motifThreshold = wm.cdr();		
+			}
+			else{
+				double pwm_ratio = Args.parseDouble(args, "pwm_ratio", 0.6);
+				motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+				motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
+				if (motifThreshold==-1){				
+	    			motifThreshold = motif.getMaxScore()*pwm_ratio;
+	    			System.err.println("No motif threshold was provided, use "+pwm_ratio+"*max_score = "+motifThreshold);
+	    		}  
+			}
 		}
-		else{
-			double pwm_ratio = Args.parseDouble(args, "pwm_ratio", 0.6);
-			motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
-			motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
-			if (motifThreshold==-1){				
-    			motifThreshold = motif.getMaxScore()*pwm_ratio;
-    			System.err.println("No motif threshold was provided, use "+pwm_ratio+"*max_score = "+motifThreshold);
-    		}  
-		}
-		
 
 	}
 	
@@ -626,8 +630,11 @@ public class MethodComparisonMotifAnalysis {
 				+windowSize+".txt", sb3.toString());	
 	}
 	
-	// print the pairwise overlap percentage of different set of binding calls 
-	private void printOverlapTable() throws IOException{
+	/** print the pairwise overlap percentage of different set of binding calls 
+	 * 
+	 * @throws IOException
+	 */
+	private void printOverlapTable(boolean printOverlapEventList) throws IOException{
 		int overlapWindowSize = windowSize;
 		long tic = System.currentTimeMillis();
 		readPeakLists();
@@ -639,8 +646,19 @@ public class MethodComparisonMotifAnalysis {
 				if (i==j)
 					overlaps[i][j]=100;
 				else{
-					int count = countOverlaps(events.get(i), events.get(j), overlapWindowSize);
-					overlaps[i][j] = 100*count/(double)events.get(i).size();
+					ArrayList<Point> eventsI = events.get(i);
+					ArrayList<Point> eventsJ = events.get(j);
+					ArrayList<AlignedEventPair> pairs = getEventOverlaps(eventsI, eventsJ, overlapWindowSize);
+					int count = pairs.size();
+					overlaps[i][j] = 100*count/(double)eventsI.size();
+					if (printOverlapEventList){
+						StringBuilder shared_sb = new StringBuilder();
+						for (AlignedEventPair pair: pairs){
+							shared_sb.append(String.format("%s\t%s\t%d\n", pair.event1.toString(), pair.event2.toString(), pair.offset));
+						}
+						String fileName = "sharedEvents_"+methodNames.get(i)+"_in_"+methodNames.get(j)+".txt";
+						CommonUtils.writeFile(fileName, shared_sb.toString());
+					}
 				}
 			}
 		}
@@ -670,12 +688,13 @@ public class MethodComparisonMotifAnalysis {
 	 * @param windowSize
 	 * @return
 	 */
-	private int countOverlaps(ArrayList<Point> list1, ArrayList<Point> list2, int windowSize){
-		int overlap=0;
+	private ArrayList<AlignedEventPair> getEventOverlaps (ArrayList<Point> list1, ArrayList<Point> list2, int windowSize){
 		ArrayList<Point> a = (ArrayList<Point> )list1.clone();
 		ArrayList<Point> b = (ArrayList<Point> )list2.clone();
 		Collections.sort(a);
 		Collections.sort(b);
+		
+		ArrayList<AlignedEventPair> pairs = new ArrayList<AlignedEventPair>();
 		
 		int nextSearchIndex = 0;		// the index of first b match for previous peak in a
 		// this will be use as start search position of the inner loop
@@ -692,7 +711,7 @@ public class MethodComparisonMotifAnalysis {
 						break;
 					}
 					else{					// match found, next a
-						overlap++;
+						pairs.add(new AlignedEventPair(pa,pb,offset));
 						nextSearchIndex=j;
 						break;
 					}
@@ -703,9 +722,19 @@ public class MethodComparisonMotifAnalysis {
 				}
 			}
 		}
-		return overlap;
+		return pairs;
 	}
 
+	private class AlignedEventPair{
+		AlignedEventPair(Point event1, Point event2, int offset){
+			this.event1 = event1;
+			this.event2 = event2;
+			this.offset = offset;
+		}
+		Point event1;
+		Point event2;
+		int offset;
+	}
 	// counting number of event calls in the regions with SINGLE motif 
 	// this is to check the false positives of joint event calls
 	private void singleMotifEventAnalysis() throws IOException {
@@ -1156,7 +1185,11 @@ public class MethodComparisonMotifAnalysis {
 	private Pair<ArrayList<Point>, ArrayList<Double>> getAllMotifs(ArrayList<Region> regions, double threshold){
 		ArrayList<Point> allMotifs = new ArrayList<Point>();
 		ArrayList<Double> scores = new ArrayList<Double>();
-		WeightMatrixScorer scorer = new WeightMatrixScorer(motif, true);
+		WeightMatrixScorer scorer;
+		if (genomePath!=null)
+			scorer = new WeightMatrixScorer(motif, true, genomePath);
+		else
+			scorer = new WeightMatrixScorer(motif, true);
 		int length = motif.length();
 		int count = regions.size();
 		for(int i=0; i<count; i++){

@@ -111,6 +111,8 @@ public class Config {
     public int smooth_step = 30;
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
+    public int noise_distribution = 0;	// the read distribution for noise component, 0 NO, 1 UNIFORM, 2 SMOOTHED CTRL
+    
     public double mappable_genome_length = -1; // default is to compute
     public double background_proportion = -1;	// default is to compute
     public double pi_bg_r0 = 0.02;
@@ -125,7 +127,7 @@ public class Config {
     public int second_lambda_region_width =  5000;
     public int third_lambda_region_width  = 10000;
     public boolean bic = false;				// use BIC or AIC for model selection
-    public boolean model_noise = false;		// have a noise component for background reads
+//    public boolean model_noise = false;		// have a noise component for background reads
     public boolean ML_speedup = false;		
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
@@ -181,7 +183,7 @@ public class Config {
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
-        model_noise = flags.contains("model_noise");
+//        model_noise = flags.contains("model_noise");
         
         // default as true, need the opposite flag to turn it off
         refine_regions = !flags.contains("not_refine_regions");
@@ -280,6 +282,8 @@ public class Config {
         poisson_alpha = Args.parseDouble(args, "pa", poisson_alpha);	
         alpha_factor = Args.parseDouble(args, "af", alpha_factor); // denominator in calculating alpha value from read count in the region
         alpha_fine_factor = Args.parseDouble(args, "aff", alpha_fine_factor); // Divider in calculating alpha value when having a noise component
+        noise_distribution = Args.parseInteger(args, "nd", noise_distribution);
+        
         fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
         shapeDeviation =  TF_binding?-0.3:-0.2;		// set default according to filter type    		
         shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering

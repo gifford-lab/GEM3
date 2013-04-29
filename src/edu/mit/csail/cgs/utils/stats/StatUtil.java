@@ -1362,7 +1362,7 @@ public class StatUtil {
 	}
 	
 	// take a prob. density dist., smooth it using Gaussian kernel density
-	// assume X is evenly spaced.
+	// assume Y is evenly spaced.
 	//TODO: boundary effect
 	public static double[] gaussianSmoother( double[]Y, double width){
 		int length = Y.length;
@@ -1388,9 +1388,12 @@ public class StatUtil {
 		}
 		return yy;
 	}
-	// take a prob. density dist., smooth it using specified kernel density
-	// assume kernel density is symmetrical (e.g. Gaussian).
-	// assume X is evenly spaced.
+	/** take a prob. density dist., smooth it using specified kernel density
+	 * 
+	 * @param Y should be evenly spaced.
+	 * @param kernel kernel density should be symmetrical (e.g. Gaussian).
+	 * @return normalized smooth prob. density dist.
+	 */
 	public static double[] symmetricKernelSmoother( double[]Y, double[]kernel){
 		int length = Y.length;
 		int kernel_length = kernel.length;
