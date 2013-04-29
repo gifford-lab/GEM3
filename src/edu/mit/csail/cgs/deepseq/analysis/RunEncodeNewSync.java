@@ -53,7 +53,7 @@ public class RunEncodeNewSync {
 	            }
 	            String rep = f[8];
 	            String cell = f[9];
-	            if (!cell.equals("H1-hESC"))
+	            if (!cell.equals("K562"))
 	            	continue;
 	            String control = lab+"_"+pi+"_"+f[10];	// add lab+PI name to distinguish inputs for the same cell from different labs
 	            String ei = f[11];		// exp identifier: exp or input
