@@ -2653,7 +2653,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         else{
         	selectedPairs = scalePairs;
         }
-        
+
+		if (selectedPairs.size()<2){
+			return 1;
+		}
         if (dumpRegression){
         	for (PairedCountData p:selectedPairs)
         		System.out.println(p.x+"\t"+p.y);
