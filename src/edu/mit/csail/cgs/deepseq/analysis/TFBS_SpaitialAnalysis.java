@@ -372,59 +372,6 @@ public class TFBS_SpaitialAnalysis {
 				String[] f = t.split("\t");
 				all_TSS.add(Point.fromString(genome, f[0]));
 			}
-			
-			// classify tss by chrom
-			TreeMap<String, ArrayList<Point>> chrom2sites = new TreeMap<String, ArrayList<Point>>();
-			for (Point s:all_TSS){
-				String chr = s.getChrom();
-				if (!chrom2sites.containsKey(chr))
-					chrom2sites.put(chr, new ArrayList<Point>());
-				chrom2sites.get(chr).add(s);
-			}
-			
-			// sort tss and form clusters
-			ArrayList<ArrayList<Point>> clusters = new ArrayList<ArrayList<Point>>();		
-			ArrayList<Point> cluster = new ArrayList<Point>();
-			for (String chr: chrom2sites.keySet()){
-				ArrayList<Point> sites = chrom2sites.get(chr);
-				Collections.sort(sites);
-
-				cluster.add(sites.get(0));
-				for (int i=1;i<sites.size();i++){
-					Point s = sites.get(i);
-					Point p = cluster.get(cluster.size()-1);		//previous
-					if (s.getLocation()-p.getLocation()<distance)
-						cluster.add(s);
-					else{
-						cluster.trimToSize();
-						clusters.add(cluster);
-						cluster = new ArrayList<Point>();
-						cluster.add(s);
-					}					
-				}
-				// finish the chromosome
-				cluster.trimToSize();
-				clusters.add(cluster);
-				cluster = new ArrayList<Point>();
-			}
-			// finish all the sites
-			cluster.trimToSize();
-			clusters.add(cluster);
-
-			// merge multi-tss in a cluster into one point
-			ArrayList<Region> merged = new ArrayList<Region>();			
-			for (ArrayList<Point> c:clusters){
-				Region r = null;
-				if (c.size()==1)
-					r = c.get(0).expand(0);
-				else
-					r = new Region(genome, c.get(0).getChrom(), c.get(0).getLocation(), c.get(c.size()-1).getLocation());
-				merged.add(r);
-			}
-			// output
-			StringBuilder sb = new StringBuilder();
-			for (Region r:merged)
-				sb.append(r.getMidpoint().toString()+"\t"+r.getWidth()+"\n");
 		}
 		
 		if (cluster_file != null){
