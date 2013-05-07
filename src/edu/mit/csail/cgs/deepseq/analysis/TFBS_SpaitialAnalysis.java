@@ -76,6 +76,9 @@ public class TFBS_SpaitialAnalysis {
 			mtb.loadClusterAndTSS();
 			mtb.computeCorrelations();
 			break;
+		case -1:
+			mtb.mergedTSS();
+			break;
 		}
 		
 	}
@@ -293,6 +296,73 @@ public class TFBS_SpaitialAnalysis {
 
 		CommonUtils.writeFile("TF_clusters.txt", sb.toString());	
 	}
+	private void mergedTSS(){
+		
+		if (tss_file != null){
+			ArrayList<Point> tsss = new ArrayList<Point>();
+			ArrayList<String> text = CommonUtils.readTextFile(tss_file);
+			for (String t: text){
+				String[] f = t.split("\t");
+				tsss.add(Point.fromString(genome, f[0]));
+			}
+			
+			// classify tss by chrom
+			TreeMap<String, ArrayList<Point>> chrom2sites = new TreeMap<String, ArrayList<Point>>();
+			for (Point s:tsss){
+				String chr = s.getChrom();
+				if (!chrom2sites.containsKey(chr))
+					chrom2sites.put(chr, new ArrayList<Point>());
+				chrom2sites.get(chr).add(s);
+			}
+			
+			// sort tss and form clusters
+			ArrayList<ArrayList<Point>> clusters = new ArrayList<ArrayList<Point>>();		
+			ArrayList<Point> cluster = new ArrayList<Point>();
+			for (String chr: chrom2sites.keySet()){
+				ArrayList<Point> sites = chrom2sites.get(chr);
+				Collections.sort(sites);
+
+				cluster.add(sites.get(0));
+				for (int i=1;i<sites.size();i++){
+					Point s = sites.get(i);
+					Point p = cluster.get(cluster.size()-1);		//previous
+					if (s.getLocation()-p.getLocation()<distance)
+						cluster.add(s);
+					else{
+						cluster.trimToSize();
+						clusters.add(cluster);
+						cluster = new ArrayList<Point>();
+						cluster.add(s);
+					}					
+				}
+				// finish the chromosome
+				cluster.trimToSize();
+				clusters.add(cluster);
+				cluster = new ArrayList<Point>();
+			}
+			// finish all the sites
+			cluster.trimToSize();
+			clusters.add(cluster);
+
+			// merge multi-tss in a cluster into one point
+			ArrayList<Region> merged = new ArrayList<Region>();			
+			for (ArrayList<Point> c:clusters){
+				if (c.isEmpty())
+					continue;
+				Region r = null;
+				if (c.size()==1)
+					r = c.get(0).expand(0);
+				else
+					r = new Region(genome, c.get(0).getChrom(), c.get(0).getLocation(), c.get(c.size()-1).getLocation());
+				merged.add(r);
+			}
+			// output
+			StringBuilder sb = new StringBuilder();
+			for (Region r:merged)
+				sb.append(r.getMidpoint().toString()+"\t"+r.getWidth()+"\n");
+			CommonUtils.writeFile("mergedTSS.txt", sb.toString());
+		}
+	}
 	
 	private void loadClusterAndTSS(){
 		if (tss_file != null){
@@ -302,6 +372,59 @@ public class TFBS_SpaitialAnalysis {
 				String[] f = t.split("\t");
 				all_TSS.add(Point.fromString(genome, f[0]));
 			}
+			
+			// classify tss by chrom
+			TreeMap<String, ArrayList<Point>> chrom2sites = new TreeMap<String, ArrayList<Point>>();
+			for (Point s:all_TSS){
+				String chr = s.getChrom();
+				if (!chrom2sites.containsKey(chr))
+					chrom2sites.put(chr, new ArrayList<Point>());
+				chrom2sites.get(chr).add(s);
+			}
+			
+			// sort tss and form clusters
+			ArrayList<ArrayList<Point>> clusters = new ArrayList<ArrayList<Point>>();		
+			ArrayList<Point> cluster = new ArrayList<Point>();
+			for (String chr: chrom2sites.keySet()){
+				ArrayList<Point> sites = chrom2sites.get(chr);
+				Collections.sort(sites);
+
+				cluster.add(sites.get(0));
+				for (int i=1;i<sites.size();i++){
+					Point s = sites.get(i);
+					Point p = cluster.get(cluster.size()-1);		//previous
+					if (s.getLocation()-p.getLocation()<distance)
+						cluster.add(s);
+					else{
+						cluster.trimToSize();
+						clusters.add(cluster);
+						cluster = new ArrayList<Point>();
+						cluster.add(s);
+					}					
+				}
+				// finish the chromosome
+				cluster.trimToSize();
+				clusters.add(cluster);
+				cluster = new ArrayList<Point>();
+			}
+			// finish all the sites
+			cluster.trimToSize();
+			clusters.add(cluster);
+
+			// merge multi-tss in a cluster into one point
+			ArrayList<Region> merged = new ArrayList<Region>();			
+			for (ArrayList<Point> c:clusters){
+				Region r = null;
+				if (c.size()==1)
+					r = c.get(0).expand(0);
+				else
+					r = new Region(genome, c.get(0).getChrom(), c.get(0).getLocation(), c.get(c.size()-1).getLocation());
+				merged.add(r);
+			}
+			// output
+			StringBuilder sb = new StringBuilder();
+			for (Region r:merged)
+				sb.append(r.getMidpoint().toString()+"\t"+r.getWidth()+"\n");
 		}
 		
 		if (cluster_file != null){
@@ -344,33 +467,40 @@ public class TFBS_SpaitialAnalysis {
 		}
 		
 		for (Cluster c: all_clusters){
-			System.out.println("=================================\n"+c.region.toString());
+			
 			Point anchor = c.region.getMidpoint();
 			ArrayList<Point> targets = CommonUtils.getPointsWithinWindow(all_TSS, anchor, range);
 			ArrayList<Site_target_corr> list = new ArrayList<Site_target_corr>();
-			for (Point p:targets){
-				// get unique TF IDs for consideration
-				HashSet<Integer> TF_IDs = new HashSet<Integer>();
-				for (int i=0;i<c.TF_hasMotifs.size();i++){
-					if ( !useDirectBindingOnly || c.TF_hasMotifs.get(i) ){
-						TF_IDs.add(c.TFIDs.get(i));	
-					}			
-				}
-				Integer[] TFIDs = new Integer[TF_IDs.size()];
-				TF_IDs.toArray(TFIDs);
-				if (TFIDs.length<=2)
-					continue;
-				
-				// get signals at anchor site
-				List<Double> signals = new ArrayList<Double>();
-				for (int i=0;i<TFIDs.length;i++){
-					int total = 0;
-					for (int j=0;j<c.TFIDs.size();j++)
-						if (c.TFIDs.get(j)==TFIDs[i])
-							total += c.TF_Signals.get(j);
-					signals.add(i, (double)total);
-				}
-				
+			
+			// get unique TF IDs for consideration
+			HashSet<Integer> TF_IDs = new HashSet<Integer>();
+			for (int i=0;i<c.TF_hasMotifs.size();i++){
+				if ( !useDirectBindingOnly || c.TF_hasMotifs.get(i) ){
+					TF_IDs.add(c.TFIDs.get(i));	
+				}			
+			}
+			Integer[] TFIDs = new Integer[TF_IDs.size()];
+			TF_IDs.toArray(TFIDs);
+			if (TFIDs.length<=2)
+				continue;
+			
+			// get signals at anchor site
+			List<Double> signals = new ArrayList<Double>();
+			for (int i=0;i<TFIDs.length;i++){
+				int total = 0;
+				for (int j=0;j<c.TFIDs.size();j++)
+					if (c.TFIDs.get(j)==TFIDs[i])
+						total += c.TF_Signals.get(j);
+				signals.add(i, (double)total);
+			}
+			
+			StringBuilder sb1 = new StringBuilder();
+			for (int id : TFIDs)
+				sb1.append(names.get(id)).append("\t");
+			System.out.println("=================================\nchr"+c.region.toString());
+			System.out.println(sb1.toString());
+			
+			for (Point p:targets){				
 				// get corresponding signals at the target sites
 				List<Double> target_signals = new ArrayList<Double>();
 				for (int i=0;i<TFIDs.length;i++){
@@ -391,7 +521,7 @@ public class TFBS_SpaitialAnalysis {
 			Collections.sort(list);
 			for (Site_target_corr t:list){
 
-				System.out.println(anchor.toString()+"-"+t.target.getLocation()+"\t"+t.target.offset(anchor)+"\t"
+				System.out.println("chr"+anchor.toString()+"-"+t.target.getLocation()+"\t"+t.target.offset(anchor)+"\t"
 						+t.signals.size()+"\t"+String.format("%.2f", t.corr));
 				StringBuilder sb = new StringBuilder();
 				for (double s: t.signals){
