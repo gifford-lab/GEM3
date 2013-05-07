@@ -51,6 +51,7 @@ public class TFBS_SpaitialAnalysis {
 	int distance = 50;		// distance between TFBS within a cluster
 	int range = 1000;		// the range around anchor site to search for targets
 	double wm_factor = 0.6;	// PWM threshold, as fraction of max score
+	double cutoff = 0.3;	// corr score cutoff
 	File dir;
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
@@ -114,6 +115,7 @@ public class TFBS_SpaitialAnalysis {
 		distance = Args.parseInteger(args, "distance", distance);
 		range = Args.parseInteger(args, "range", range);
 		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
+		cutoff = Args.parseDouble(args, "cutoff", cutoff);
 		gc = Args.parseDouble(args, "gc", gc);
 		seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(!flags.contains("no_cache"));
@@ -345,6 +347,7 @@ public class TFBS_SpaitialAnalysis {
 			System.out.println("=================================\n"+c.region.toString());
 			Point anchor = c.region.getMidpoint();
 			ArrayList<Point> targets = CommonUtils.getPointsWithinWindow(all_TSS, anchor, range);
+			ArrayList<Site_target_corr> list = new ArrayList<Site_target_corr>();
 			for (Point p:targets){
 				// get unique TF IDs for consideration
 				HashSet<Integer> TF_IDs = new HashSet<Integer>();
@@ -376,14 +379,45 @@ public class TFBS_SpaitialAnalysis {
 				
 				// compute correlation
 				double corr = CorrelationSimilarity.computeSimilarity2(signals, target_signals);
-				System.out.println(anchor.toString()+"-"+p.getLocation()+"\t"+p.offset(anchor)+"\t"
-						+TFIDs.length+"\t"+String.format("%.2f", corr));
+				Site_target_corr t = new Site_target_corr();
+				t.target = p;
+				t.signals = signals;
+				t.target_signals = target_signals;
+				t.corr = corr;
+				if (t.corr>=cutoff)
+					list.add(t);
+			}
+			
+			Collections.sort(list);
+			for (Site_target_corr t:list){
+
+				System.out.println(anchor.toString()+"-"+t.target.getLocation()+"\t"+t.target.offset(anchor)+"\t"
+						+t.signals.size()+"\t"+String.format("%.2f", t.corr));
+				StringBuilder sb = new StringBuilder();
+				for (double s: t.signals){
+					sb.append(s).append("\t");
+				}
+				sb.append("\n");
+				for (double s: t.target_signals){
+					sb.append(s).append("\t");
+				}
+				System.out.println(sb.toString());
 			}
 		}
 		
 		// clean up
 		for (DeepSeqExpt e: chipseqs){
 			e.closeLoaders();
+		}
+	}
+	
+	class Site_target_corr implements Comparable<Site_target_corr>{
+		Point target;
+		List<Double> signals;
+		List<Double> target_signals;
+		double corr;
+		public int compareTo(Site_target_corr t) {					// descending corr
+			return corr>t.corr?-1:corr==t.corr?0:1;
 		}
 	}
 }
