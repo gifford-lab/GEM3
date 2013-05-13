@@ -1865,7 +1865,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 		for (int i=0;i<binMins.length;i++){
-			log(2, "[" + binMins[i] + " - " + (i==binMins.length-1?"...":binMins[i+1]) + "]\t" + counts[i]);
+			log(2, "[" + binMins[i] + " - " + (i==binMins.length-1?"Inf":binMins[i+1]) + "]\t" + counts[i]);
 		}
 		return regions;
 	}//end of selectEnrichedRegions method
@@ -2653,7 +2653,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         else{
         	selectedPairs = scalePairs;
         }
-        
+
+		if (selectedPairs.size()<2){
+			return 1;
+		}
         if (dumpRegression){
         	for (PairedCountData p:selectedPairs)
         		System.out.println(p.x+"\t"+p.y);
@@ -3516,7 +3519,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			return -1;
 		if (kmers.isEmpty()){
 			System.err.print("Not able to find KSM motif");
-			if (kmac.getPrimaryCluster().wm!=null){
+			if (kmac.getPrimaryCluster()!=null && kmac.getPrimaryCluster().wm!=null){
 				config.pp_use_kmer = false;
 				System.err.println(" , use PWM as prior!");
 			}else{
