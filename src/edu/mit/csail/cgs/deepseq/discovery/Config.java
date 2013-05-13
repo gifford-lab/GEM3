@@ -20,9 +20,9 @@ public class Config {
     public boolean use_event_strength = false;
     public boolean weight_by_sqrt_strength;
     public boolean use_kmer_strength = false;
-    public boolean print_kmer_bPos = false;
+    public boolean print_kmer_bPos = false;    
+    public boolean discard_subAlpha_components=false;			// discard the component whose strength is less than alpha    
     
-    public boolean discard_subAlpha_components=true;			// discard the component whose strength is less than alpha    
     public boolean TF_binding = true;
     public boolean exclude_unenriched = true;
     public boolean filterEvents=true;
@@ -111,7 +111,7 @@ public class Config {
     public int smooth_step = 30;
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
-    public int noise_distribution = 0;	// the read distribution for noise component, 0 NO, 1 UNIFORM, 2 SMOOTHED CTRL
+    public int noise_distribution = 1;	// the read distribution for noise component, 0 NO, 1 UNIFORM, 2 SMOOTHED CTRL
     
     public double mappable_genome_length = -1; // default is to compute
     public double background_proportion = -1;	// default is to compute
@@ -183,8 +183,8 @@ public class Config {
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
-//        model_noise = flags.contains("model_noise");
-        
+        discard_subAlpha_components = flags.contains("no_sub_alpha");
+                
         // default as true, need the opposite flag to turn it off
         refine_regions = !flags.contains("not_refine_regions");
         exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -197,7 +197,6 @@ public class Config {
             use_joint_event = true;
             sort_by_location = true;
         }
-        discard_subAlpha_components = ! flags.contains("sub_alpha");
         ML_speedup = !flags.contains("no_fast_ML");
         use_scanPeak = ! flags.contains("no_scanPeak");
         do_model_selection = !flags.contains("no_model_selection");
