@@ -21,7 +21,7 @@ public class CompareMotifMethods {
 //		parseSTAMP(args);		// JTUX.motifs top_encode_PFM.txt out_match_pairs.txt
 //		parseENCODETest(args);	// C:\Data\ENCODE\MotifCompare\info\known-match-ranks-merged_sorted.txt  C:\Data\ENCODE\MotifCompare\info\ENCODE_name_mapping_Pouya.txt C:\Data\ENCODE\MotifCompare\encode_PFM_2_mapping.txt Yuchun-run2
 //		compareStampResults(args); // motifCompare\encode_public_tf2db.txt motifCompare\encode_public_expts_tfs.txt motifCompare\methods.txt motifCompare\stamp
-		compareTFStampResults(args); // motifCompare\encode_public_tf2db.txt motifCompare\encode_public_expts_tfs.txt motifCompare\methods.txt motifCompare\stamp
+		compareTFStampResults(args); // h1.expt_motif.txt motifCompare\methods.txt motifCompare\stamp 1e-5
 	}
 	
 	/** 
@@ -29,41 +29,41 @@ public class CompareMotifMethods {
 	 */
 	private static void compareTFStampResults(String[] args){
 		final int  TOP_MOTIF_RANK = 9;
-		double stamp_p_value=Double.parseDouble(args[4]);
+		double stamp_p_value=Double.parseDouble(args[3]);
 		
 		// load the mapping file between tf and known motif db entries
-		String[] lines = readSmallTextFile(args[0]);
-		HashMap<String, HashSet<String>> tf2db = new HashMap<String, HashSet<String>>();
-		for (int i=0;i<lines.length;i++){	
-			String[] fs = lines[i].split("\t");
-			if (fs.length<=1)
-				continue;
-			String tf = fs[0];
-			HashSet<String> entries = new HashSet<String>();
-			for (int j=1;j<fs.length;j++){
-				String entry = fs[j].trim();
-				if (entry.length()>=1)
-					entries.add(entry);
-			}
-			tf2db.put(tf, entries);
-		}
+//		String[] lines = readSmallTextFile(args[0]);
+//		HashMap<String, HashSet<String>> tf2db = new HashMap<String, HashSet<String>>();
+//		for (int i=0;i<lines.length;i++){	
+//			String[] fs = lines[i].split("\t");
+//			if (fs.length<=1)
+//				continue;
+//			String tf = fs[0];
+//			HashSet<String> entries = new HashSet<String>();
+//			for (int j=1;j<fs.length;j++){
+//				String entry = fs[j].trim();
+//				if (entry.length()>=1)
+//					entries.add(entry);
+//			}
+//			tf2db.put(tf, entries);
+//		}
 		
 		// load encode expts, and motif methods
-		String[] expts = readSmallTextFile(args[1]);		// read expt/tf pairs
+		String[] expts = readSmallTextFile(args[0]);		// read expt/tf pairs
 		HashMap<String, String> expt2tf = new HashMap<String, String>();
 		for (int i=0;i<expts.length;i++){
 			String[] fs = expts[i].split("\t");
 			expt2tf.put(fs[0].trim(), fs[1].trim());
 			expts[i]=fs[0].trim();							// replace with expt only
 		}
-		String[] methods = readSmallTextFile(args[2]);
+		String[] methods = readSmallTextFile(args[1]);
 	
 		// load  STAMP file for each expt_method pair
 		HashMap<String, Integer> performances = new HashMap<String, Integer>();
-		File stamp_result_dir = new File(args[3]);
+		File stamp_result_dir = new File(args[2]);
 		for (String expt: expts){
-			String tf = expt2tf.get(expt);
-			if (tf2db.containsKey(tf)){
+//			String tf = expt2tf.get(expt);
+//			if (tf2db.containsKey(tf)){
 				each_method: for (String method: methods){
 					String expt_method = expt+"."+method;
 					File f = new File(stamp_result_dir, expt_method+"_match_pairs.txt");
@@ -75,24 +75,19 @@ public class CompareMotifMethods {
 							int rank = i/2;				// motif rank in this expt
 							// only check the top match to TF.jtux
 							String[] sl_fs = sls[i+1].split("\t");
-							String entry = sl_fs[0].trim();
-							if (tf2db.get(tf).contains(entry)){
+//							String entry = sl_fs[0].trim();
 								double p = Double.parseDouble(sl_fs[1]);
-								if (p<stamp_p_value){
-									performances.put(expt_method, rank);
-									continue each_method;
-								}
-							}
-							else {
-								System.err.println(tf + " has no DB motif PWM entry.");
+							if (p<stamp_p_value){
+								performances.put(expt_method, rank);
+								continue each_method;
 							}
 						}
 					}
 				}
-			}
-			else {
-				System.err.println(tf + " is not in the TF_2_DB list: " + args[0]);
-			}
+//			}
+//			else {
+//				System.err.println(tf + " is not in the TF_2_DB list: " + args[0]);
+//			}
 			
 		}
 		
@@ -105,8 +100,8 @@ public class CompareMotifMethods {
 		HashMap<String, Integer> tf2count = new HashMap<String, Integer>();
 		for (String expt: expts){
 			String tf = expt2tf.get(expt);
-			if (!tf2db.containsKey(tf))						// only count annotated expts/tfs with public known motif
-				continue;
+//			if (!tf2db.containsKey(tf))						// only count annotated expts/tfs with public known motif
+//				continue;
 			if (tf2count.containsKey(tf))
 				tf2count.put(tf, tf2count.get(tf)+1);
 			else
