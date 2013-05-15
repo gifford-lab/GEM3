@@ -177,8 +177,9 @@ public class Kmer implements Comparable<Kmer>{
 		double diff = o.getPosHitCount()-getPosHitCount();
 		double diff_id = o.clusterId-clusterId;
 		return diff==0 ? 
-				(diff_id==0? kmerString.compareTo(o.kmerString) : (diff<0)?1:-1) : 	// ascending clusterID
+				(diff_id==0? kmerString.compareTo(o.kmerString) : (diff_id<0)?1:-1) : 	// ascending clusterID
 				((diff<0)?-1:1); // descending posHitCount
+//		return diff==0 ? (diff_id==0? 0 : (diff<0)?1:-1): ((diff<0)?-1:1); // descending posHitCount
 	}
 	// sort kmer by cluster ID then by HGP
 	public int compareByClusterAndHGP(Kmer o) {

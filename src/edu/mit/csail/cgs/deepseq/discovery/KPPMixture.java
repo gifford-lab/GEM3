@@ -774,6 +774,30 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			"Events discovered \nSignificant:\t"+signalFeatures.size()+
             "\nInsignificant:\t"+insignificantFeatures.size()+
             "\nFiltered:\t"+filteredFeatures.size()+"\n");
+		
+		if (kmac!=null){
+			int bin = (int)Math.ceil(signalFeatures.size()/10.0);
+			StringBuilder sb = new StringBuilder();
+			sb.append("Percentage of events with a k-mer match in 10 "+bin+"bp bins:\n");
+			for (int i=0;i<signalFeatures.size();i+=bin){
+				int count=0, motif=0;
+				for (int j=i;j<Math.min(signalFeatures.size(), i+bin);j++){
+					count++;
+					if (((ComponentFeature)signalFeatures.get(j)).getKmerGroup()!=null)
+						motif++;
+				}
+				sb.append((motif*100)/count).append(" ");
+			}
+			System.out.println(sb.toString()+"\n");
+		}
+		
+		int jointCount = 0;
+		for (int i=0;i<signalFeatures.size()-1;i++){
+			ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+			if (cf.isJointEvent())
+				jointCount++;
+		}
+		System.out.println("Total "+jointCount+" homotypic events (within "+config.joint_event_distance+"bp of other events).\n");
 	}//end of post EM Processing
 
 	/**

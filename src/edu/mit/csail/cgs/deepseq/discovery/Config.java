@@ -62,7 +62,6 @@ public class Config {
     public int kmer_remove_mode = 0;
     public int seed_range = 3;
     public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
-    public boolean select_seed = false;
     public boolean use_grid_search = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
@@ -102,10 +101,10 @@ public class Config {
     public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
     public double q_value_threshold = 2.0;	// -log10 value of q-value
     public double q_refine = -1;
-    public double joint_event_distance = 500;
     public double alpha_factor = 3.0;
     public double alpha_fine_factor = 2.0;
     public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
+    public int joint_event_distance = 500;
     public int top_events = 2000;
     public int min_event_count = 500;	// minimum num of events to update read distribution
     public int smooth_step = 30;
@@ -165,7 +164,6 @@ public class Config {
         weight_by_sqrt_strength = !flags.contains("weight_by_strength");
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
-        select_seed = flags.contains("select_seed");
         kmer_use_insig = flags.contains("kmer_use_insig");
         kmer_use_filtered = flags.contains("kmer_use_filtered");
 
@@ -235,6 +233,7 @@ public class Config {
         	k = seed.length();
         	k_min = -1;
         	k_max = -1;
+        	allow_seed_reset = false;
         }
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
         k_win = Args.parseInteger(args, "k_win", k_win);
@@ -290,7 +289,7 @@ public class Config {
         window_size_factor = Args.parseInteger(args, "wsf", 3);
         second_lambda_region_width = Args.parseInteger(args, "w2", second_lambda_region_width);
         third_lambda_region_width = Args.parseInteger(args, "w3", third_lambda_region_width);
-        joint_event_distance = Args.parseInteger(args, "j", 10000);		// max distance of joint events
+        joint_event_distance = Args.parseInteger(args, "j", joint_event_distance);		// max distance of joint events
         top_events = Args.parseInteger(args, "top", top_events);
         min_event_count = Args.parseInteger(args, "min", min_event_count);
         base_reset_threshold = Args.parseInteger(args, "reset", base_reset_threshold);
