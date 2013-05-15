@@ -108,8 +108,8 @@ public class TFBS_SpaitialAnalysis {
 			if (!txt.equals("")){
 				String[] f = txt.split("\t");
 				expts.add(f[0]);
-				names.add(f[1]);
-				readdb_names.add(f[2]);
+				names.add(f[2]);
+				readdb_names.add(f[4]);
 			}
 		}
 		tss_file = Args.parseString(args, "tss", null);
