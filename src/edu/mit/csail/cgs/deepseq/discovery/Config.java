@@ -10,6 +10,7 @@ public class Config {
 	public boolean classify_events = false;
     public boolean use_joint_event = false;
     public boolean outputBED = false;
+    public boolean outputNarrowPeak = false;
     public boolean write_RSC_file = false;
     public boolean kmer_print_hits = false;
     public boolean testPValues = false;
@@ -155,6 +156,7 @@ public class Config {
         post_artifact_filter = flags.contains("post_artifact_filter");
         kl_count_adjusted = flags.contains("adjust_kl");
         outputBED = flags.contains("outBED");
+        outputNarrowPeak = flags.contains("outNP");
         write_RSC_file = flags.contains("writeRSC");
         testPValues = flags.contains("testP");
         if (testPValues)

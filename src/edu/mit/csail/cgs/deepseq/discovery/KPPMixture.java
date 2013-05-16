@@ -28,6 +28,7 @@ import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -3152,6 +3153,29 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				fw.write(f.toString_v1());
 			}
 			fw.close();
+			
+			// NarrowPeak format
+			if(config.outputNarrowPeak){
+				String fn=fname.replaceAll("txt", "narrowPeak");
+				fw = new FileWriter(fn);
+		    	int count=0;
+		    	for(ComponentFeature f : fs){
+		    		count++;
+		    		if (f.getQValueLog10(0)<999)
+		    			break;
+		    	}
+
+		    	for (int i=0;i<fs.size();i++){
+		    		ComponentFeature f = fs.get(i);
+		    		double score = f.getQValueLog10(0);
+		    		if (score>999)
+		    			score = 500+((count-i)*500.0/count);
+		    		else
+		    			score = score/2.5+100;
+		    		fw.write(f.toNarrowPeak((int)score));
+		    	}
+				fw.close();
+			}	
 			
 			// BED format
 			if(config.outputBED){
