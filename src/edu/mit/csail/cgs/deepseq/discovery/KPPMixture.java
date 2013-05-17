@@ -3157,25 +3157,31 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			// NarrowPeak format
 			if(config.outputNarrowPeak){
 				String fn=fname.replaceAll("txt", "narrowPeak");
-				fw = new FileWriter(fn);
-		    	int count=0;
-		    	for(ComponentFeature f : fs){
-		    		count++;
-		    		if (f.getQValueLog10(0)<999)
-		    			break;
-		    	}
-		    	double max = fs.get(0).getQValueLog10(0);
-		    	if (max>=999)
-		    		max = 999;
+				fw = new FileWriter(fn);		    	
+		    	double max = fs.get(0).getTotalEventStrength();
 		    	for (int i=0;i<fs.size();i++){
 		    		ComponentFeature f = fs.get(i);
-		    		double score = f.getQValueLog10(0);
-		    		if (score>=999)
-		    			score = 900+((count-i)*100.0/count);
-		    		else
-		    			score = score*800/max+100;
-		    		fw.write(f.toNarrowPeak((int)score));
+		    		double score = f.getTotalEventStrength()*900/max+100;
+		    		fw.write(f.toNarrowPeak((int)(score>=1000?1000:score)));
 		    	}
+//		    	int count=0;
+//		    	for(ComponentFeature f : fs){
+//		    		count++;
+//		    		if (f.getQValueLog10(0)<999)
+//		    			break;
+//		    	}
+//		    	double max = fs.get(0).getQValueLog10(0);
+//		    	if (max>=999)
+//		    		max = 999;
+//		    	for (int i=0;i<fs.size();i++){
+//		    		ComponentFeature f = fs.get(i);
+//		    		double score = f.getQValueLog10(0);
+//		    		if (score>=999)
+//		    			score = 900+((count-i)*100.0/count);
+//		    		else
+//		    			score = score*800/max+100;
+//		    		fw.write(f.toNarrowPeak((int)score));
+//		    	}
 				fw.close();
 			}	
 			
