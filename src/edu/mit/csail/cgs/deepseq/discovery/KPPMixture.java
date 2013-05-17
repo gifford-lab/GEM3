@@ -3164,14 +3164,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		    		if (f.getQValueLog10(0)<999)
 		    			break;
 		    	}
-
+		    	double max = fs.get(0).getQValueLog10(0);
+		    	if (max>=999)
+		    		max = 999;
 		    	for (int i=0;i<fs.size();i++){
 		    		ComponentFeature f = fs.get(i);
 		    		double score = f.getQValueLog10(0);
-		    		if (score>999)
-		    			score = 500+((count-i)*500.0/count);
+		    		if (score>=999)
+		    			score = 900+((count-i)*100.0/count);
 		    		else
-		    			score = score/2.5+100;
+		    			score = score*800/max+100;
 		    		fw.write(f.toNarrowPeak((int)score));
 		    	}
 				fw.close();
