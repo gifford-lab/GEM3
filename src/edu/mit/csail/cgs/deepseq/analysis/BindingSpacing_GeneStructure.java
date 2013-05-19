@@ -385,7 +385,11 @@ public class BindingSpacing_GeneStructure {
 				sb.append(tf_names.get(n).substring(prefix)+"\t");
 			}
 			sb.deleteCharAt(sb.length()-1).append("\n");
-			
+			sb.append("Total\t");
+			for (int n=0;n<tf_names.size();n++){
+				sb.append(all_TF_sites.get(n).size()+"\t");
+			}
+			sb.deleteCharAt(sb.length()-1).append("\n");
 			for (int p=-range;p<=range;p++){
 				sb.append(p).append("\t");
 				for (int n=0;n<tf_names.size();n++){

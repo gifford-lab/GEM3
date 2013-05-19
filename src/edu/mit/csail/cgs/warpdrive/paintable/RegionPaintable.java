@@ -38,6 +38,16 @@ public abstract class RegionPaintable extends WarpPaintable {
         if (pos > end) {return rightx;}
         return (int)((((float)(pos - start))/((float)(end - start))) * (rightx - leftx) + leftx);
     }
+    public int getXPos(double val, double minval, double maxval, int minx, int maxx) {
+    	if (val < minval) {return minx;}
+    	if (val > maxval) {return maxx;}
+    	return (int)(((val - minval)/(maxval - minval)) * ((double)(maxx - minx)));
+    }
+    public int getYPos(int pos, int start, int end, int topy, int bottomy) {
+    	if (pos < start) {return topy;}
+    	if (pos > end) {return bottomy;}
+    	return (int)((((float)(pos-start))/((float)(end-start))) * (bottomy-topy) + topy);
+    }
     public int getYPos(double val, double minval, double maxval, int miny, int maxy, boolean logScale) {
         if (logScale) {
             return getYPosLog(val,minval,maxval,miny,maxy);

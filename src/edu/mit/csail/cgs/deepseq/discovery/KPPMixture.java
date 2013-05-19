@@ -28,6 +28,7 @@ import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -774,6 +775,30 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			"Events discovered \nSignificant:\t"+signalFeatures.size()+
             "\nInsignificant:\t"+insignificantFeatures.size()+
             "\nFiltered:\t"+filteredFeatures.size()+"\n");
+		
+		if (kmac!=null){
+			int bin = (int)Math.ceil(signalFeatures.size()/10.0);
+			StringBuilder sb = new StringBuilder();
+			sb.append("Percentage of events with a k-mer match in 10 "+bin+"bp bins:\n");
+			for (int i=0;i<signalFeatures.size();i+=bin){
+				int count=0, motif=0;
+				for (int j=i;j<Math.min(signalFeatures.size(), i+bin);j++){
+					count++;
+					if (((ComponentFeature)signalFeatures.get(j)).getKmerGroup()!=null)
+						motif++;
+				}
+				sb.append((motif*100)/count).append(" ");
+			}
+			System.out.println(sb.toString()+"\n");
+		}
+		
+		int jointCount = 0;
+		for (int i=0;i<signalFeatures.size()-1;i++){
+			ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+			if (cf.isJointEvent())
+				jointCount++;
+		}
+		System.out.println("Total "+jointCount+" homotypic events (within "+config.joint_event_distance+"bp of other events).\n");
 	}//end of post EM Processing
 
 	/**
@@ -1865,7 +1890,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 		for (int i=0;i<binMins.length;i++){
-			log(2, "[" + binMins[i] + " - " + (i==binMins.length-1?"...":binMins[i+1]) + "]\t" + counts[i]);
+			log(2, "[" + binMins[i] + " - " + (i==binMins.length-1?"Inf":binMins[i+1]) + "]\t" + counts[i]);
 		}
 		return regions;
 	}//end of selectEnrichedRegions method
@@ -2653,7 +2678,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         else{
         	selectedPairs = scalePairs;
         }
-        
+
+		if (selectedPairs.size()<2){
+			return 1;
+		}
         if (dumpRegression){
         	for (PairedCountData p:selectedPairs)
         		System.out.println(p.x+"\t"+p.y);
@@ -3126,6 +3154,37 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			fw.close();
 			
+			// NarrowPeak format
+			if(config.outputNarrowPeak){
+				String fn=fname.replaceAll("txt", "narrowPeak");
+				fw = new FileWriter(fn);		    	
+		    	double max = fs.get(0).getTotalEventStrength();
+		    	for (int i=0;i<fs.size();i++){
+		    		ComponentFeature f = fs.get(i);
+		    		double score = f.getTotalEventStrength()*900/max+100;
+		    		fw.write(f.toNarrowPeak((int)(score>=1000?1000:score)));
+		    	}
+//		    	int count=0;
+//		    	for(ComponentFeature f : fs){
+//		    		count++;
+//		    		if (f.getQValueLog10(0)<999)
+//		    			break;
+//		    	}
+//		    	double max = fs.get(0).getQValueLog10(0);
+//		    	if (max>=999)
+//		    		max = 999;
+//		    	for (int i=0;i<fs.size();i++){
+//		    		ComponentFeature f = fs.get(i);
+//		    		double score = f.getQValueLog10(0);
+//		    		if (score>=999)
+//		    			score = 900+((count-i)*100.0/count);
+//		    		else
+//		    			score = score*800/max+100;
+//		    		fw.write(f.toNarrowPeak((int)score));
+//		    	}
+				fw.close();
+			}	
+			
 			// BED format
 			if(config.outputBED){
 				fname=fname.replaceAll("txt", "bed");
@@ -3516,7 +3575,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			return -1;
 		if (kmers.isEmpty()){
 			System.err.print("Not able to find KSM motif");
-			if (kmac.getPrimaryCluster().wm!=null){
+			if (kmac.getPrimaryCluster()!=null && kmac.getPrimaryCluster().wm!=null){
 				config.pp_use_kmer = false;
 				System.err.println(" , use PWM as prior!");
 			}else{

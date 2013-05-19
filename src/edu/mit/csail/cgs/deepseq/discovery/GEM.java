@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GEM {
-	public final static String GEM_VERSION = "1.4";
+	public final static String GEM_VERSION = "2.0";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -186,7 +186,9 @@ public class GEM {
     	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
     	String path = new File(currentFolder, prefix).getAbsolutePath();
         CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
-         
+        if (Args.parseFlags(args).contains("outNP"))
+        	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GPS_events.narrowPeak");
+        
         /**
          ** GEM event finding with kmer motif positional prior (KPP)
          **/    	
@@ -198,9 +200,9 @@ public class GEM {
 	            mixture.closeLogFile();
 	            
 	            if (returnValue == -1)
-	            	System.out.println("\nMotif can not be found!! \nGPS analysis results are printed to:");
+	            	System.out.println("\nMotif can not be found!\n\nGPS analysis results are printed to:");
 	            else if (returnValue == -2)
-	            	System.out.println("\nBinding event can not be found!! \nGPS analysis results are printed to:");
+	            	System.out.println("\nBinding event can not be found!\n\nGPS analysis results are printed to:");
 	            
 	            System.out.println(path+"_GPS_events.txt\n"+
 		        		path+"_result.htm\n" +
@@ -245,6 +247,8 @@ public class GEM {
 	        		path+"_result.htm\n" +
 	        		path+"_outputs (folder with all other files)\n");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GEM_events.txt");
+	        if (Args.parseFlags(args).contains("outNP"))
+	        	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GEM_events.narrowPeak");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_PFM.txt", path+"_PFM.txt");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_KSM.txt", path+"_KSM.txt");
 	        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
@@ -258,6 +262,8 @@ public class GEM {
             		path+"_GPS_events.txt\n"+
 	        		path+"_outputs (folder with all other files)\n");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
+	        if (Args.parseFlags(args).contains("outNP"))
+	        	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GPS_events.narrowPeak");
         }
     }
     	

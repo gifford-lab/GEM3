@@ -10,6 +10,7 @@ public class Config {
 	public boolean classify_events = false;
     public boolean use_joint_event = false;
     public boolean outputBED = false;
+    public boolean outputNarrowPeak = false;
     public boolean write_RSC_file = false;
     public boolean kmer_print_hits = false;
     public boolean testPValues = false;
@@ -20,9 +21,9 @@ public class Config {
     public boolean use_event_strength = false;
     public boolean weight_by_sqrt_strength;
     public boolean use_kmer_strength = false;
-    public boolean print_kmer_bPos = false;
+    public boolean print_kmer_bPos = false;    
+    public boolean discard_subAlpha_components=false;			// discard the component whose strength is less than alpha    
     
-    public boolean discard_subAlpha_components=true;			// discard the component whose strength is less than alpha    
     public boolean TF_binding = true;
     public boolean exclude_unenriched = true;
     public boolean filterEvents=true;
@@ -62,7 +63,6 @@ public class Config {
     public int kmer_remove_mode = 0;
     public int seed_range = 3;
     public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
-    public boolean select_seed = false;
     public boolean use_grid_search = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
@@ -102,16 +102,16 @@ public class Config {
     public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
     public double q_value_threshold = 2.0;	// -log10 value of q-value
     public double q_refine = -1;
-    public double joint_event_distance = 500;
     public double alpha_factor = 3.0;
     public double alpha_fine_factor = 2.0;
     public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
+    public int joint_event_distance = 500;
     public int top_events = 2000;
     public int min_event_count = 500;	// minimum num of events to update read distribution
     public int smooth_step = 30;
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
-    public int noise_distribution = 0;	// the read distribution for noise component, 0 NO, 1 UNIFORM, 2 SMOOTHED CTRL
+    public int noise_distribution = 1;	// the read distribution for noise component, 0 NO, 1 UNIFORM, 2 SMOOTHED CTRL
     
     public double mappable_genome_length = -1; // default is to compute
     public double background_proportion = -1;	// default is to compute
@@ -156,6 +156,7 @@ public class Config {
         post_artifact_filter = flags.contains("post_artifact_filter");
         kl_count_adjusted = flags.contains("adjust_kl");
         outputBED = flags.contains("outBED");
+        outputNarrowPeak = flags.contains("outNP");
         write_RSC_file = flags.contains("writeRSC");
         testPValues = flags.contains("testP");
         if (testPValues)
@@ -165,7 +166,6 @@ public class Config {
         weight_by_sqrt_strength = !flags.contains("weight_by_strength");
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
-        select_seed = flags.contains("select_seed");
         kmer_use_insig = flags.contains("kmer_use_insig");
         kmer_use_filtered = flags.contains("kmer_use_filtered");
 
@@ -183,8 +183,8 @@ public class Config {
         evaluate_by_kcm = flags.contains("evaluate_by_kcm");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
-//        model_noise = flags.contains("model_noise");
-        
+        discard_subAlpha_components = flags.contains("no_sub_alpha");
+                
         // default as true, need the opposite flag to turn it off
         refine_regions = !flags.contains("not_refine_regions");
         exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -197,7 +197,6 @@ public class Config {
             use_joint_event = true;
             sort_by_location = true;
         }
-        discard_subAlpha_components = ! flags.contains("sub_alpha");
         ML_speedup = !flags.contains("no_fast_ML");
         use_scanPeak = ! flags.contains("no_scanPeak");
         do_model_selection = !flags.contains("no_model_selection");
@@ -236,6 +235,7 @@ public class Config {
         	k = seed.length();
         	k_min = -1;
         	k_max = -1;
+        	allow_seed_reset = false;
         }
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
         k_win = Args.parseInteger(args, "k_win", k_win);
@@ -291,7 +291,7 @@ public class Config {
         window_size_factor = Args.parseInteger(args, "wsf", 3);
         second_lambda_region_width = Args.parseInteger(args, "w2", second_lambda_region_width);
         third_lambda_region_width = Args.parseInteger(args, "w3", third_lambda_region_width);
-        joint_event_distance = Args.parseInteger(args, "j", 10000);		// max distance of joint events
+        joint_event_distance = Args.parseInteger(args, "j", joint_event_distance);		// max distance of joint events
         top_events = Args.parseInteger(args, "top", top_events);
         min_event_count = Args.parseInteger(args, "min", min_event_count);
         base_reset_threshold = Args.parseInteger(args, "reset", base_reset_threshold);
