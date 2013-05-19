@@ -53,7 +53,7 @@ public class RunEncodeNewSync {
 	            }
 	            String rep = f[8];
 	            String cell = f[9];
-	            if (!cell.equals("K562"))
+	            if (!cell.equals("H1-hESC"))
 	            	continue;
 	            String control = lab+"_"+pi+"_"+f[10];	// add lab+PI name to distinguish inputs for the same cell from different labs
 	            String ei = f[11];		// exp identifier: exp or input
@@ -62,7 +62,7 @@ public class RunEncodeNewSync {
 	            String size = f[14];
 	            String id = String.format("ENCh-%s-%s %s %s %s", lab, pi, cond, expt, cell);		//TF ID
 	            if (ei.equals("exp")){
-	            	if (tf.startsWith("H2")||tf.startsWith("H3")||tf.startsWith("H4")||tf.startsWith("Control")||tf.startsWith("Pol2"))
+	            	if (tf.startsWith("H2")||tf.startsWith("H3")||tf.startsWith("H4")||tf.startsWith("Control"))
 	            		continue;
 	            	if (tfid2expt.containsKey(id))
 	            		tfid2expt.get(id).addRep(rep);
