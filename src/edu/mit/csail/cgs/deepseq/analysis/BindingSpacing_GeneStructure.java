@@ -200,7 +200,9 @@ public class BindingSpacing_GeneStructure {
 		Collections.sort(sites);
 		ArrayList<Site> toRemove = new ArrayList<Site>();
 		for (int i=1;i<sites.size();i++){
-			if (Math.abs(sites.get(i).coord.offset(sites.get(i-1).coord)) < range){
+			Site s1 = sites.get(i-1);
+			Site s2 = sites.get(i);
+			if (s1.coord.getChrom()==s1.coord.getChrom() && Math.abs(s1.coord.offset(s2.coord)) < range){
 				toRemove.add(sites.get(i-1));
 				toRemove.add(sites.get(i));
 			}
