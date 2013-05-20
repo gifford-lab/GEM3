@@ -46,24 +46,23 @@ public class BindingSpacing_GeneStructure {
 	private SequenceGenerator<Region> seqgen;
 
 	// command line option:  (the folder contains GEM result folders) 
-	// --dir Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format] 
+	// --dir Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format --no_overlap] 
 	public static void main(String[] args) {
 		BindingSpacing_GeneStructure bsgs = new BindingSpacing_GeneStructure(args);
 		int round = Args.parseInteger(args, "r", 2);
-		int prefix = Args.parseInteger(args, "prefix", 0);		// # of letters to remove from the expt name, such as 3 for "ES_".
+		int prefix_toremove = Args.parseInteger(args, "prefix", 0);		// # of letters to remove from the expt name, such as 3 for "ES_".
 		switch(round){
 		case 2:
 		case 3:bsgs.loadEvents(round);		// GEM
-				bsgs.printBindingOffsets(round, prefix);
+				bsgs.printBindingOffsets(round, prefix_toremove);
 				break;
 		case 1:	bsgs.loadEvents(1);		// GPS
-				bsgs.printBindingOffsets(1, prefix);
+				bsgs.printBindingOffsets(1, prefix_toremove);
 				break;
 		default:bsgs.loadEvents(round);		// Fake GPS calls, but snap to nearest PSSM within 50bp 
-				bsgs.printBindingOffsets(round, prefix);
+				bsgs.printBindingOffsets(round, prefix_toremove);
 				break;
-		}
-		
+		}		
 	}
 	
 	public BindingSpacing_GeneStructure(String[] args){
@@ -151,20 +150,33 @@ public class BindingSpacing_GeneStructure {
 			}
 		}
 		removeDuplicateSites(tss);
-		all_ANNO_sites.add(tss);
-		annotation_names.add("GENCODE_TSS");
 		removeDuplicateSites(first_exon_starts);
-		all_ANNO_sites.add(first_exon_starts);
-		annotation_names.add("GENCODE_FIRST_EXON_STARTS");
 		removeDuplicateSites(internal_exon_starts);
-		all_ANNO_sites.add(internal_exon_starts);
-		annotation_names.add("GENCODE_INTERNAL_EXON_STARTS");
 		removeDuplicateSites(internal_exon_ends);
-		all_ANNO_sites.add(internal_exon_ends);
-		annotation_names.add("GENCODE_INTERNAL_EXON_ENDS");
 		removeDuplicateSites(last_exon_ends);
+		// remove overlapping sites: 
+		// this is to deal with the issue of overlapping annotation. because we do not know which annotation site matters,
+		// the compromise is to exclude everything overlapped. by comparing with the whole set, 
+		// we can know how much of the results we see is due to overlapping annotation
+		String NO_flag="";
+		if (flags.contains("no_overlap")){
+			NO_flag = "_NO";
+			removeOverlapSites(tss, 400);
+			removeOverlapSites(first_exon_starts, 400);
+			removeOverlapSites(internal_exon_starts, 400);
+			removeOverlapSites(internal_exon_ends, 400);
+			removeOverlapSites(last_exon_ends, 400);
+		}
+		all_ANNO_sites.add(tss);
+		annotation_names.add("GENCODE_TSS"+NO_flag);
+		all_ANNO_sites.add(first_exon_starts);
+		annotation_names.add("GENCODE_FIRST_EXON_STARTS"+NO_flag);
+		all_ANNO_sites.add(internal_exon_starts);
+		annotation_names.add("GENCODE_INTERNAL_EXON_STARTS"+NO_flag);
+		all_ANNO_sites.add(internal_exon_ends);
+		annotation_names.add("GENCODE_INTERNAL_EXON_ENDS"+NO_flag);
 		all_ANNO_sites.add(last_exon_ends);
-		annotation_names.add("GENCODE_LAST_EXON_ENDS");
+		annotation_names.add("GENCODE_LAST_EXON_ENDS"+NO_flag);
 		
 		System.out.println("# of TSS is " + tss.size());
 		System.out.println("# of FIRST_EXON_STARTS is " + first_exon_starts.size());
@@ -182,7 +194,20 @@ public class BindingSpacing_GeneStructure {
 		sites.addAll(maps.values());
 		Collections.sort(sites);
 	}
-	
+
+	// remove overlapping sites
+	private void removeOverlapSites(ArrayList<Site> sites, int range){
+		Collections.sort(sites);
+		ArrayList<Site> toRemove = new ArrayList<Site>();
+		for (int i=1;i<sites.size();i++){
+			if (Math.abs(sites.get(i).coord.offset(sites.get(i-1).coord)) < range){
+				toRemove.add(sites.get(i-1));
+				toRemove.add(sites.get(i));
+			}
+		}
+		sites.removeAll(toRemove);
+	}
+
 	private void loadEvents(int round){
 
 		for (int tf=0;tf<tf_names.size();tf++){
@@ -230,25 +255,25 @@ public class BindingSpacing_GeneStructure {
 				for (GPSPeak p:gpsPeaks){
 					Site site = new Site();
 					site.type_id = tf;
-					//TODO: if use motif, set the strand 
-					if (round>3 && wm!=null){		// use nearest motif as binding site
-						Region region = p.expand(round);
-						String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
-						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*wm_factor).car();
-						if (hit!=-999){
-							if (hit>=0)
-								site.coord = new Point(p.getGenome(), p.getChrom(), region.getStart()+hit+posShift);
-							else
-								site.coord = new Point(p.getGenome(), p.getChrom(), region.getStart()-hit+negShift);
-						}
-						else{
-							site.coord = (Point)p;		// no motif found, still use original GPS call
-						}
-					}
-					else{								// do not use motif, use GEM/GPS call
+//					//TODO: if use motif, set the strand 
+//					if (round>3 && wm!=null){		// use nearest motif as binding site
+//						Region region = p.expand(round);
+//						String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
+//						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*wm_factor).car();
+//						if (hit!=-999){
+//							if (hit>=0)
+//								site.coord = new Point(p.getGenome(), p.getChrom(), region.getStart()+hit+posShift);
+//							else
+//								site.coord = new Point(p.getGenome(), p.getChrom(), region.getStart()-hit+negShift);
+//						}
+//						else{
+//							site.coord = (Point)p;		// no motif found, still use original GPS call
+//						}
+//					}
+//					else{								// do not use motif, use GEM/GPS call
 						site.coord = (Point)p;
 						site.strand = p.getKmerStrand();
-					}
+//					}
 					
 					sites.add(site);
 				}
