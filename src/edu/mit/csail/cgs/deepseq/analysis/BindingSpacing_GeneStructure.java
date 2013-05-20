@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
@@ -159,13 +160,14 @@ public class BindingSpacing_GeneStructure {
 		// the compromise is to exclude everything overlapped. by comparing with the whole set, 
 		// we can know how much of the results we see is due to overlapping annotation
 		String NO_flag="";
-		if (flags.contains("no_overlap")){
+		int overlap_range = Args.parseInteger(args, "overlap_range", -1);
+		if (overlap_range!=-1){
 			NO_flag = "_NO";
-			removeOverlapSites(tss, 400);
-			removeOverlapSites(first_exon_starts, 400);
-			removeOverlapSites(internal_exon_starts, 400);
-			removeOverlapSites(internal_exon_ends, 400);
-			removeOverlapSites(last_exon_ends, 400);
+			removeOverlapSites(tss, overlap_range);
+			removeOverlapSites(first_exon_starts, overlap_range);
+			removeOverlapSites(internal_exon_starts, overlap_range);
+			removeOverlapSites(internal_exon_ends, overlap_range);
+			removeOverlapSites(last_exon_ends, overlap_range);
 		}
 		all_ANNO_sites.add(tss);
 		annotation_names.add("GENCODE_TSS"+NO_flag);
@@ -192,22 +194,24 @@ public class BindingSpacing_GeneStructure {
 			maps.put(s.coord.toString()+s.strand, s);
 		sites.clear();
 		sites.addAll(maps.values());
+		sites.trimToSize();
 		Collections.sort(sites);
 	}
 
 	// remove overlapping sites
 	private void removeOverlapSites(ArrayList<Site> sites, int range){
 		Collections.sort(sites);
-		ArrayList<Site> toRemove = new ArrayList<Site>();
+		HashSet<Site> toRemove = new HashSet<Site>();
 		for (int i=1;i<sites.size();i++){
 			Site s1 = sites.get(i-1);
 			Site s2 = sites.get(i);
-			if (s1.coord.getChrom()==s2.coord.getChrom() && Math.abs(s1.coord.offset(s2.coord)) < range){
+			if (s1.coord.getChrom().equals(s2.coord.getChrom()) && Math.abs(s1.coord.offset(s2.coord)) <= range){
 				toRemove.add(sites.get(i-1));
 				toRemove.add(sites.get(i));
 			}
 		}
 		sites.removeAll(toRemove);
+		sites.trimToSize();
 	}
 
 	private void loadEvents(int round){
