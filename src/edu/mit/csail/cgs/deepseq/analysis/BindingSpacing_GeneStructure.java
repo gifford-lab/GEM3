@@ -100,9 +100,19 @@ public class BindingSpacing_GeneStructure {
 				tf_names.add(f[0]);
 			}
 		}
+
+		int overlap_range = Args.parseInteger(args, "overlap_range", -1);
+		String anno_gtf = Args.parseString(args, "gene_gtf", null);
+		if (anno_gtf!=null)
+			load_gene_annotation(true, anno_gtf, overlap_range);
+		String anno_tab = Args.parseString(args, "gene_tab", null);
+		if (anno_tab!=null)
+			load_gene_annotation(false, anno_tab, overlap_range);		
+	}
+	
+	private void load_gene_annotation(boolean isGTF, String anno_file, int overlap_range){
 		// load gene annotation file
 		System.out.println("Loading GENCODE annotations ... ");
-		String anno_file = Args.parseString(args, "gene_anno", null);
 		ArrayList<String> texts = CommonUtils.readTextFile(anno_file);
 		char strand = '*';
 		ArrayList<Site> tss = new ArrayList<Site>();					// -1
@@ -110,44 +120,85 @@ public class BindingSpacing_GeneStructure {
 		ArrayList<Site> internal_exon_starts = new ArrayList<Site>();		// -3
 		ArrayList<Site> internal_exon_ends = new ArrayList<Site>();			// -4
 		ArrayList<Site> last_exon_ends = new ArrayList<Site>();			// -5
-		for (int i=0;i<texts.size();i++){
-			String t = texts.get(i);
-			if (t.startsWith("#"))
-				continue;
-			String f[] = t.split("\t");
-			String type = f[2];
-			if (type.equals("transcript")){		// only look for transcript
-				String chr = f[0].replace("chr", "");
-				strand = f[6].charAt(0);
+		if (isGTF){			// GTF file format
+			for (int i=0;i<texts.size();i++){
+				String t = texts.get(i);
+				if (t.startsWith("#"))
+					continue;
+				String f[] = t.split("\t");
+				String type = f[2];
+				if (type.equals("transcript")){		// only look for transcript
+					String chr = f[0].replace("chr", "");
+					strand = f[6].charAt(0);
+					tss.add(new Site(-1, new Point(genome, chr, Integer.parseInt(f[strand=='+'?3:4])), strand, i));
+					ArrayList<Integer> exon_starts = new ArrayList<Integer>();
+					ArrayList<Integer> exon_ends = new ArrayList<Integer>();
+					// for lines after transcript, should be exons until the next transcript
+					for (int j=i+1;j<texts.size();j++){
+						String t_e = texts.get(j);
+						String f_e[] = t_e.split("\t");
+						String type_e = f_e[2];
+						if (type_e.equals("exon")){
+							if(strand=='+'){
+								exon_starts.add(Integer.parseInt(f_e[3]));
+								exon_ends.add(Integer.parseInt(f_e[4]));
+							}else{
+								exon_starts.add(Integer.parseInt(f_e[4]));
+								exon_ends.add(Integer.parseInt(f_e[3]));
+							}
+						}
+						if (type_e.equals("transcript")||j==(texts.size()-1)){	// next transcript, or end of file
+							first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), strand, i+1));
+							if (exon_starts.size()>2){
+								for (int k=1;k<exon_starts.size();k++)
+									internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), strand, i+k+1));
+								for (int k=0;k<exon_ends.size()-1;k++)
+									internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), strand, i+k+1));
+							}
+							last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(exon_ends.size()-1)), strand, i+exon_ends.size()));							
+							break;
+						}
+					}
+				}
+			}
+		}
+		else{		// in Table format : 
+			// #name	chrom	strand	txStart	txEnd	cdsStart	cdsEnd	exonCount	exonStarts	exonEnds	name2
+			// #name	chrom	strand	txStart	txEnd	cdsStart	cdsEnd	exonCount	exonStarts	exonEnds	geneSymbol	refseq	description
+			for (int i=0;i<texts.size();i++){
+				String t = texts.get(i);
+				if (t.startsWith("#"))
+					continue;
+				String f[] = t.split("\t");
+				String chr = f[1].replace("chr", "");
+				strand = f[2].charAt(0);
 				tss.add(new Site(-1, new Point(genome, chr, Integer.parseInt(f[strand=='+'?3:4])), strand, i));
 				ArrayList<Integer> exon_starts = new ArrayList<Integer>();
 				ArrayList<Integer> exon_ends = new ArrayList<Integer>();
-				// for lines after transcript, should be exons until the next transcript
-				for (int j=i+1;j<texts.size();j++){
-					String t_e = texts.get(j);
-					String f_e[] = t_e.split("\t");
-					String type_e = f_e[2];
-					if (type_e.equals("exon")){
-						if(strand=='+'){
-							exon_starts.add(Integer.parseInt(f_e[3]));
-							exon_ends.add(Integer.parseInt(f_e[4]));
-						}else{
-							exon_starts.add(Integer.parseInt(f_e[4]));
-							exon_ends.add(Integer.parseInt(f_e[3]));
-						}
-					}
-					if (type_e.equals("transcript")||j==(texts.size()-1)){	// next transcript, or end of file
-						first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), strand, i+1));
-						if (exon_starts.size()>2){
-							for (int k=1;k<exon_starts.size();k++)
-								internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), strand, i+k+1));
-							for (int k=0;k<exon_ends.size()-1;k++)
-								internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), strand, i+k+1));
-						}
-						last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(exon_ends.size()-1)), strand, i+exon_ends.size()));							
-						break;
-					}
+				
+				String starts[] = f[strand=='+'?8:9].split(",");
+				String ends[] = f[strand=='+'?9:8].split(",");
+				if (strand=='+'){
+					for (String s: starts)
+							exon_starts.add(Integer.parseInt(s));
+					for (String s: ends)
+							exon_ends.add(Integer.parseInt(s));		
 				}
+				else{
+					for (int j=starts.length-1;j>=0;j--)
+						exon_starts.add(Integer.parseInt(starts[j]));
+					for (int j=ends.length-1;j>=0;j--)
+						exon_ends.add(Integer.parseInt(ends[j]));
+				}
+
+				first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), strand, i));
+				if (exon_starts.size()>2){
+					for (int k=1;k<exon_starts.size();k++)
+						internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), strand, i));
+					for (int k=0;k<exon_ends.size()-1;k++)
+						internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), strand, i));
+				}
+				last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(exon_ends.size()-1)), strand, i));							
 			}
 		}
 		removeDuplicateSites(tss);
@@ -160,7 +211,6 @@ public class BindingSpacing_GeneStructure {
 		// the compromise is to exclude everything overlapped. by comparing with the whole set, 
 		// we can know how much of the results we see is due to overlapping annotation
 		String NO_flag="";
-		int overlap_range = Args.parseInteger(args, "overlap_range", -1);
 		if (overlap_range!=-1){
 			NO_flag = "_NO";
 			removeOverlapSites(tss, overlap_range);

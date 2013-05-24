@@ -27,6 +27,10 @@ public class GPSPeak extends Point{
 	public void setKmer(String km) {kmer=km;}
 	public int getKmerGroupCount() {	return kmerGroupCount;}
 	public double getKmerStrength() {return kmerStrength;}
+	/**
+	 * Get the strand information if this site has a k-mer match
+	 * @return '+', '-' or '*'
+	 */
 	public char getKmerStrand() {return kmerStrand;}
 	public String getBoundSequence() {return boundSequence;}
 	public void setBoundSequence(String bs) {boundSequence=bs;}
