@@ -117,13 +117,13 @@ public class MethodComparisonMotifAnalysis {
 		if (Args.parseString(args,"region",null)!=null){
 			try{
 				restrictRegions = Args.parseRegions(args);
-				if (restrictRegions==null)
-					restrictRegions = new ArrayList<Region>();
 			}
 			catch (NotFoundException e){
 				// do nothing
 			}
-		}		
+		}	
+		if (restrictRegions==null)
+			restrictRegions = new ArrayList<Region>();
 		// load motif
 		if (Args.parseInteger(args, "analysisType", 0)<4){
 			if (Args.parseString(args, "pfm", null)==null){
