@@ -36,6 +36,7 @@ public class MultiTF_Binding {
 	double wm_factor = 0.6;	// PWM threshold, as fraction of max score
 	File dir;
 	boolean oldFormat =  false;
+	boolean useKmerStrand = false;
 	private SequenceGenerator<Region> seqgen;
 
 	// command line option:  (the folder contains GEM result folders) 
@@ -78,6 +79,7 @@ public class MultiTF_Binding {
 
 		Set<String> flags = Args.parseFlags(args);
 		oldFormat = flags.contains("old_format");
+		useKmerStrand = flags.contains("kmer_strand");
 		dir = new File(Args.parseString(args, "dir", "."));
 		names = new ArrayList<String>();
 		ArrayList<String> info = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
@@ -87,13 +89,6 @@ public class MultiTF_Binding {
 				names.add(f[0]);
 			}
 		}
-//		File[] children = dir.listFiles();
-//		for (int i=0;i<children.length;i++){
-//			File child = children[i];
-//			if (child.isDirectory())
-//				names.add(child.getName());
-//		}
-//		Collections.sort(names);
 		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
 		gc = Args.parseDouble(args, "gc", gc);
 		seqgen = new SequenceGenerator<Region>();
@@ -147,7 +142,7 @@ public class MultiTF_Binding {
 				for (GPSPeak p:gpsPeaks){
 					Site site = new Site();
 					site.tf_id = tf;
-					
+					site.strand = p.getKmerStrand();
 					if (round!=1&&round!=2&&round!=9&&wm!=null){		// use nearest motif as binding site
 						Region region = p.expand(round);
 						String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
@@ -179,6 +174,7 @@ public class MultiTF_Binding {
 		int tf_id;
 		Point bs;
 		int id;
+		char strand;
 		public int compareTo(Site s) {					// descending score
 			return(bs.compareTo(s.bs));
 		}
@@ -224,6 +220,8 @@ public class MultiTF_Binding {
 				int b = s.bs.getLocation();
 				// figure out the direction of TF binding based on sequence motif match
 				int direction = 0;		// not sure, because no PWM, or no PWM match
+				if (useKmerStrand && round!=1)
+					direction = s.strand=='*'?0:(s.strand=='+'?1:-1);
 				if (wm!=null){
 					String seq = seqgen.execute(s.bs.expand(seqRange)).toUpperCase();
 					Pair<Integer, Double> hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, seqRange, wm.getMaxScore()*wm_factor);
