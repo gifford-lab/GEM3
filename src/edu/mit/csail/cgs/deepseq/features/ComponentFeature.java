@@ -511,8 +511,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public String toBED() {
 		StringBuilder bed = new StringBuilder();
 		bed.append("chr"+position.getChrom()).append("\t");
-		bed.append(position.getLocation()-5).append("\t");
-		bed.append(position.getLocation()+5).append("\t");
+		Region r = position.expand(100);
+		bed.append(r.getStart()).append("\t");
+		bed.append(r.getEnd()).append("\t");
 		bed.append(position.getLocationString()).append("\t");
 		bed.append(String.format("%7.1f\t", totalSumResponsibility));
         bed.append("\n");

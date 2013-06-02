@@ -77,6 +77,7 @@ public class Config {
  	public boolean estimate_ksm_threshold = true;
   	public boolean kpp_normalize_max = true;
   	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
+  	public boolean progressive_PWM_trim = true;
   	public double kpp_factor = 0.8;
   	public double noise = 0.0;
     public boolean print_aligned_seqs = false;
@@ -164,10 +165,10 @@ public class Config {
         dump_regression = flags.contains("dump_regression");
         use_event_strength = flags.contains("use_event_strength");
         weight_by_sqrt_strength = !flags.contains("weight_by_strength");
+        progressive_PWM_trim = !flags.contains("npt");		// no progressive trimming of PWM
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
-        kmer_use_filtered = flags.contains("kmer_use_filtered");
 
         k_neg_shuffle = flags.contains("k_neg_shuffle");
         k_neg_dinu_shuffle = flags.contains("k_neg_dinu_shuffle");

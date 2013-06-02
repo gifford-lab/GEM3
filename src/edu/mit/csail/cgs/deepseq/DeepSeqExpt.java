@@ -117,16 +117,7 @@ public class DeepSeqExpt {
 	public boolean isFromReadDB(){
 		return loader instanceof ReadDBReadLoader;
 	}
-	public int[] getStartCoords(String chrom){
-		if (loader instanceof FileReadLoader){
-			return ((FileReadLoader)loader).getStartCoords(chrom);
-		}
-		if (loader instanceof DBReadLoader){
-			return ((DBReadLoader)loader).getStartCoords(chrom);
-		}
-		else
-			return null;
-	}
+
 	
 	// load paired base coordinates (sorted) and counts
 	public Pair<ArrayList<Integer>,ArrayList<Float>> loadStrandedBaseCounts(Region r, char strand){
@@ -144,9 +135,9 @@ public class DeepSeqExpt {
 			return ((ReadDBReadLoader)loader).getBED_StrandedReads(r, strand, probability);
 		}
 		else
-			return null;
-		
+			return null;		
 	}
+	
 	// load all start coordinates (unsorted if multiple conditions)
 	public ArrayList<int [][][]> getAllStarts(){
 		if (loader instanceof FileReadLoader){

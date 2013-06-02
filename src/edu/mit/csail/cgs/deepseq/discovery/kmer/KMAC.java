@@ -338,8 +338,12 @@ public class KMAC {
 				negRegions.addAll(neg_region_map.keySet());
 				Region.filterOverlapRegions(negRegions, posImpactRegion);	// make sure negative region is not within negRegionDistance of positive regions.
 				int negCount = 0;
+				int len = winSize/2*2+1;
 				for (Region r:negRegions){
-					String seq = seqsNeg[neg_region_map.get(r)].substring(0, winSize/2*2+1);
+					String seq_retrieved = seqsNeg[neg_region_map.get(r)];
+					if (seq_retrieved.length()<len)
+						continue;
+					String seq = seq_retrieved.substring(0, len);
 					if (config.repeat_fraction<1){
 						int count = 0;
 						for (char c:seq.toCharArray())
@@ -362,6 +366,7 @@ public class KMAC {
 				}
 			}
 			posSeqCount = seqs.length;
+			seqsNegList.trimToSize();
 		    negSeqCount = seqsNegList.size();
 		    if (verbose>1 || config.repeat_fraction!=1)
 				System.out.println(String.format("From %d events, loaded %d positive sequences, skipped %d(%.1f%%) repeat sequences\n", 
@@ -3227,18 +3232,19 @@ public class KMAC {
 		}
 		
 		/* try all pwm length with the most IC-rich columns, find the best PWM */
+//TODO:		if (progressive_PWM_trim){
 		int[] left, right;
-		int toShort = k-2;
+		int tooShort = k-2;
 		if (k<=7)
-			toShort = k-1;
-		if (rightIdx-leftIdx+1>toShort){		// length > k-1
-			left=new int[rightIdx-leftIdx+1-toShort];
-			right=new int[rightIdx-leftIdx+1-toShort];
+			tooShort = k-1;
+		if (rightIdx-leftIdx+1>tooShort){		// length > k-1
+			left=new int[rightIdx-leftIdx+1-tooShort];
+			right=new int[rightIdx-leftIdx+1-tooShort];
 			for (int i=0;i<left.length;i++){
 				int bestLeft = -1;
 				double bestSumIC = 0;
-				for(int p=leftIdx;p<=rightIdx-toShort-i;p++){
-					int end = toShort+i+p;
+				for(int p=leftIdx;p<=rightIdx-tooShort-i;p++){
+					int end = tooShort+i+p;
 					if (ic[p]<ic_trim || ic[end]<ic_trim)			// if the ends have low ic, skip
 						continue;
 					double sumIC=0; 
@@ -3252,7 +3258,7 @@ public class KMAC {
 					}
 				}
 				left[i]=bestLeft;
-				right[i]=bestLeft+toShort+i;
+				right[i]=bestLeft+tooShort+i;
 			}
 		}
 		else{				// if it is not very long

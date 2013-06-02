@@ -58,9 +58,9 @@ public abstract class AlignmentFileReader {
 	 * Second dimension represents the strand. 0 for '+', 1 for '-' <br>
 	 * Third dimension contains the starts of the hits
 	 */
-	protected int[][][] starts=null;
+	protected int[][][] fivePrimes=null;
 	
-	protected ArrayList<Integer>[][] startsList = null;
+	protected ArrayList<Integer>[][] fivePrimeList = null;
 	
 	/**
 	 * Number of hits that corresponds to the <tt>Read</tt> of each <tt>ReadHit</tt>
@@ -116,12 +116,12 @@ public abstract class AlignmentFileReader {
 		}
 	
 		//Initialize the data structures
-		starts    = new int[numChroms][2][];
+		fivePrimes    = new int[numChroms][2][];
 		hitCounts = new int[numChroms][2][];
 		hitIDs    = new int[numChroms][2][];
 		
-		startsList    = new ArrayList[numChroms][2];
-		for(i = 0; i < startsList.length; i++) { for(int j = 0; j < startsList[i].length; j++) { startsList[i][j] = new ArrayList<Integer>(); } }
+		fivePrimeList    = new ArrayList[numChroms][2];
+		for(i = 0; i < fivePrimeList.length; i++) { for(int j = 0; j < fivePrimeList[i].length; j++) { fivePrimeList[i][j] = new ArrayList<Integer>(); } }
 		
 		hitCountsList = new ArrayList[numChroms][2];
 		for(i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Integer>(); } }
@@ -152,7 +152,7 @@ public abstract class AlignmentFileReader {
 			for(int j = 0; j <= 1; j++) {
 				
 				//assumes tempStarts is sorted
-				int[] tempStarts = starts[chrID][j];
+				int[] tempStarts = fivePrimes[chrID][j];
 				
 				if(tempStarts.length != 0) {
 					int start_ind = Arrays.binarySearch(tempStarts, coords.getStart());
@@ -167,7 +167,10 @@ public abstract class AlignmentFileReader {
 					char str = j == 0 ? '+' : '-';			
 					for(int k = start_ind; k <= end_ind; k++) {
 						double weight = 1/(double)hitCounts[chrID][j][k];
-						hits.add(new ReadHit(gen, hitIDs[chrID][j][k], chr, tempStarts[k], tempStarts[k]+readLength-1, str, weight ));
+						if (j==0)
+							hits.add(new ReadHit(gen, hitIDs[chrID][j][k], chr, tempStarts[k], tempStarts[k]+readLength-1, str, weight ));
+						else
+							hits.add(new ReadHit(gen, hitIDs[chrID][j][k], chr, tempStarts[k]-readLength+1, tempStarts[k], str, weight ));
 					}	
 				}						
 			}
@@ -183,24 +186,24 @@ public abstract class AlignmentFileReader {
 		if(chrom2ID.containsKey(chr)){
 			int chrID = chrom2ID.get(chr);
 			int j = strand == '+'?0:1;	// j = 0 <=> strand = '+', j = 1 <=> strand = '-'
-			int shift = strand=='+'?0:readLength-1; 		// shift for minus strand
-			int[] tempStarts = starts[chrID][j];	//assumes tempStarts is sorted	
-			if(tempStarts.length != 0) {
-				int start_ind = Arrays.binarySearch(tempStarts, coords.getStart()-shift);
-				int end_ind   = Arrays.binarySearch(tempStarts, coords.getEnd()-shift);
+			int[] tmp5Primes = fivePrimes[chrID][j];	//assumes tempStarts is sorted	
+			if(tmp5Primes.length != 0) {
+				int start_ind = Arrays.binarySearch(tmp5Primes, coords.getStart());
+				int end_ind   = Arrays.binarySearch(tmp5Primes, coords.getEnd());
 				if( start_ind < 0 ) { start_ind = -start_ind - 1; }
 				if( end_ind < 0 )   { end_ind   = -end_ind - 1; }
-				start_ind = StatUtil.searchFrom(tempStarts, ">=", coords.getStart()-shift, start_ind);
-				end_ind   = StatUtil.searchFrom(tempStarts, "<=",   coords.getEnd()-shift, end_ind);
+				start_ind = StatUtil.searchFrom(tmp5Primes, ">=", coords.getStart(), start_ind);
+				end_ind   = StatUtil.searchFrom(tmp5Primes, "<=",   coords.getEnd(), end_ind);
 					
 				for(int k = start_ind; k <= end_ind; k++) {
-					hits.add(tempStarts[k]+shift);
+					hits.add(tmp5Primes[k]);
 					counts.add((float)hitCounts[chrID][j][k]);
 				}
 			}
 		}
 		return new Pair<ArrayList<Integer>,ArrayList<Float>>(hits, counts);
 	}
+	
 	/**
 	 * Count total reads & weight
 	 */
@@ -239,7 +242,7 @@ public abstract class AlignmentFileReader {
 			char strand = h.getStrand();
 			int strandInd = strand == '+' ? 0 : 1;
 			//System.out.println(h.getChrom()+"\t"+h.getStart()+"\t"+h.getStrand());
-			startsList[chrID][strandInd].add(strand == '+' ?h.getStart():h.getEnd());
+			fivePrimeList[chrID][strandInd].add(strand == '+' ?h.getStart():h.getEnd());
 			hitIDsList[chrID][strandInd].add(h.getID());
 			hitCountsList[chrID][strandInd].add(numHits);
 			totalHits++;
@@ -253,12 +256,12 @@ public abstract class AlignmentFileReader {
 	 */
 	protected void populateArrays() {
 		
-		for(int i = 0; i < startsList.length; i++)
-			for(int j = 0; j < startsList[i].length; j++)
-				starts[i][j] = list2int(startsList[i][j]);
+		for(int i = 0; i < fivePrimeList.length; i++)
+			for(int j = 0; j < fivePrimeList[i].length; j++)
+				fivePrimes[i][j] = list2int(fivePrimeList[i][j]);
 		
-		for(int i = 0; i < startsList.length; i++) { for(int j = 0; j < startsList[i].length; j++) { startsList[i][j].clear(); } }
-		startsList = null;
+		for(int i = 0; i < fivePrimeList.length; i++) { for(int j = 0; j < fivePrimeList[i].length; j++) { fivePrimeList[i][j].clear(); } }
+		fivePrimeList = null;
 
 		////////////////////////////////////////////////////////////////////////
 
@@ -280,9 +283,9 @@ public abstract class AlignmentFileReader {
 		
 		////////////////////////////////////////////////////////////////////////
 		
-		for(int i = 0; i < starts.length; i++) {  // chr
-			for(int j = 0; j < starts[i].length; j++) { // strand
-				int[] inds = StatUtil.findSort(starts[i][j]);
+		for(int i = 0; i < fivePrimes.length; i++) {  // chr
+			for(int j = 0; j < fivePrimes[i].length; j++) { // strand
+				int[] inds = StatUtil.findSort(fivePrimes[i][j]);
 				hitIDs[i][j] = StatUtil.permute(hitIDs[i][j], inds);
 				hitCounts[i][j] = StatUtil.permute(hitCounts[i][j], inds);
 			}
@@ -338,46 +341,18 @@ public abstract class AlignmentFileReader {
 	}//end of countMaxHits method
 	
 	/**
-	 * get all the start positions
+	 * get all the 5 prime positions
 	 * clean the memory space
 	 * @return
 	 */
-	public int[][][] getStarts(){
+	public int[][][] getFivePrimes(){
 		hitIDs = null;
 		hitCounts = null;
 		System.gc();
-		return starts;
-	}//end of getStarts method
+		return fivePrimes;
+	}
 	
-	/**
-	 * Get sorted start positions of all reads (regardless of strand) in one chrom
-	 */
-	public int[] getStartCoords(String chrom){
-		if(chrom2ID.containsKey(chrom)){
-			int chromID = chrom2ID.get(chrom);
-			int[] watsonReads = starts[chromID][0];
-			int[] crickReads = starts[chromID][0];
-			int[] allReads = new int[watsonReads.length+crickReads.length];
-			int watson_idx=0; 
-			int crick_idx=0;
-			for (int i=0;i<allReads.length;i++){
-				if (watsonReads[watson_idx]>crickReads[crick_idx]){
-					allReads[i]=crickReads[crick_idx];
-					if (crick_idx<crickReads.length-1)
-						crick_idx++;
-				}
-				else{
-					allReads[i]=watsonReads[watson_idx];
-					if (watson_idx<watsonReads.length-1)
-						watson_idx++;
-				}
-			}
-			return allReads;
-		}else{
-			return null;
-		}
-	}//end of getStartCoords method
-		
+
 	private int[] list2int(List<Integer> list) {
 		int[] out = new int[list.size()];
 		for(int i = 0; i < out.length; i++)
@@ -387,7 +362,7 @@ public abstract class AlignmentFileReader {
 	}//end of list2int method
 
 	public void cleanup(){
-		starts=null;
+		fivePrimes=null;
 		hitCounts=null;
 		hitIDs=null;
 	}

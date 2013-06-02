@@ -133,7 +133,7 @@ public class ChipSeqHMMAnalyzer {
         logger.fatal("Cannot estimate restrict regions from DB.");
         System.exit(1);
       }
-      selectedRegions = ChipSeqAnalysisUtils.selectEnrichedRegions(genome, model.getWidth(), model.getRange(), minReads, signal, control);
+//      selectedRegions = ChipSeqAnalysisUtils.selectEnrichedRegions(genome, model.getWidth(), model.getRange(), minReads, signal, control);
       ChipSeqAnalysisUtils.saveRestrictRegions(selectedRegions, true);
     }
     else if (regionFormat.equals("MACS")) {

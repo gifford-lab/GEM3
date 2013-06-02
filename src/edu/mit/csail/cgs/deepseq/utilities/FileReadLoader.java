@@ -143,7 +143,7 @@ public class FileReadLoader extends ReadLoader{
 	public ArrayList<int [][][]> getAllStarts(){
 		ArrayList<int [][][]> allStarts = new ArrayList<int [][][]>();
 		for(AlignmentFileReader a : fileReaders){
-			allStarts.add(a.getStarts());
+			allStarts.add(a.getFivePrimes());
 		}
 		return allStarts;
 	}
@@ -172,22 +172,6 @@ public class FileReadLoader extends ReadLoader{
 		return new Pair<ArrayList<Integer>,ArrayList<Float>>(coords, counts);
 	}
 
-	public int[] getStartCoords(String chrom){
-		ArrayList<Integer> list = new ArrayList<Integer>();
-		for(AlignmentFileReader r : fileReaders){
-			int [] starts = r.getStartCoords(chrom);
-			for(int i=0; i<starts.length; i++){
-				list.add(starts[i]);
-			}
-		}Collections.sort(list);
-		int [] arr = new int[list.size()];
-		int c=0;
-		for(Integer x : list){
-			arr[c]=x.intValue();
-			c++;
-		}
-		return arr;
-	}
 	
 	//Load the extended reads from our files
 	public List<ExtReadHit> loadExtHits(Region r, int startShift, int fivePrimeExt, int threePrimeExt) {
