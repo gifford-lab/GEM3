@@ -21,7 +21,9 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
+import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
@@ -56,6 +58,8 @@ public class TFBS_SpaitialAnalysis {
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
 	private SequenceGenerator<Region> seqgen;
+	boolean dev = false;
+	
 	String tss_file;
 	String cluster_file;
 
@@ -64,7 +68,6 @@ public class TFBS_SpaitialAnalysis {
 	public static void main(String[] args) {
 		TFBS_SpaitialAnalysis mtb = new TFBS_SpaitialAnalysis(args);
 		int round = Args.parseInteger(args, "r", 2);
-		int prefix = Args.parseInteger(args, "prefix", 0);
 		int type = Args.parseInteger(args, "type", 0);
 		switch(type){
 		case 0:
@@ -78,6 +81,9 @@ public class TFBS_SpaitialAnalysis {
 			break;
 		case -1:
 			mtb.mergedTSS();
+			break;
+		case -2:
+			mtb.printTssSignal();
 			break;
 		}
 		
@@ -98,6 +104,7 @@ public class TFBS_SpaitialAnalysis {
 	    }
 
 		Set<String> flags = Args.parseFlags(args);
+		dev = flags.contains("dev");
 		oldFormat = flags.contains("old_format");
 		useDirectBindingOnly = flags.contains("direct");
 		dir = new File(Args.parseString(args, "dir", "."));
@@ -172,7 +179,7 @@ public class TFBS_SpaitialAnalysis {
 					Site site = new Site();
 					site.tf_id = tf;
 					site.signal = p.getStrength();
-					site.hasMotif = !p.getKmer().contains("------");
+					site.motifStrand = p.getKmerStrand();
 					
 					if (round!=1&&round!=2&&round!=9&&wm!=null){		// use nearest motif as binding site
 						Region region = p.expand(round);
@@ -207,7 +214,7 @@ public class TFBS_SpaitialAnalysis {
 		Point bs;
 		int id;
 		double signal;
-		boolean hasMotif;
+		char motifStrand;								// motif match strand
 		public int compareTo(Site s) {					// ascending coordinate
 			return(bs.compareTo(s.bs));
 		}
@@ -263,7 +270,7 @@ public class TFBS_SpaitialAnalysis {
 
 		// output
 		StringBuilder sb = new StringBuilder();
-		sb.append("#Region\tLength\t#Sites\tTFs\tTFIDs\tSignals\tMotifs\t#Motif\n");
+		sb.append("#Region\tLength\t#Sites\tTFs\tTFIDs\tSignals\tPos\tMotifs\t#Motif\n");
 		for (ArrayList<Site> c:clusters){
 			int numSite = c.size();
 			if (c.isEmpty())
@@ -272,25 +279,28 @@ public class TFBS_SpaitialAnalysis {
 			StringBuilder sb_tfs = new StringBuilder();
 			StringBuilder sb_tfids = new StringBuilder();
 			StringBuilder sb_tf_signals = new StringBuilder();
+			StringBuilder sb_tf_positions = new StringBuilder();
 			StringBuilder sb_tf_motifs = new StringBuilder();
 			int totalMotifs = 0;
 			for (Site s:c){
 				sb_tfs.append(names.get(s.tf_id)).append(",");
 				sb_tfids.append(s.tf_id).append(",");
 				sb_tf_signals.append(String.format("%d", Math.round(s.signal))).append(",");
-				sb_tf_motifs.append(s.hasMotif?1:0).append(",");
-				totalMotifs += s.hasMotif?1:0;
+				sb_tf_positions.append(s.bs.getLocation()-r.getStart()).append(",");
+				sb_tf_motifs.append(s.motifStrand).append(",");
+				totalMotifs += s.motifStrand=='*'?0:1;
 			}
 			if (sb_tfs.length()!=0){
 				sb_tfs.deleteCharAt(sb_tfs.length()-1);
 				sb_tfids.deleteCharAt(sb_tfids.length()-1);
 				sb_tf_signals.deleteCharAt(sb_tf_signals.length()-1);
+				sb_tf_positions.deleteCharAt(sb_tf_positions.length()-1);
 				sb_tf_motifs.deleteCharAt(sb_tf_motifs.length()-1);
 			}
 			sb.append(r.toString()).append("\t").append(r.getWidth()).append("\t").append(numSite).append("\t").
 			append(sb_tfs.toString()).append("\t").append(sb_tfids.toString()).append("\t").
-			append(sb_tf_signals.toString()).append("\t").append(sb_tf_motifs.toString()).append("\t").
-			append(totalMotifs)
+			append(sb_tf_signals.toString()).append("\t").append(sb_tf_positions.toString()).append("\t").
+			append(sb_tf_motifs.toString()).append("\t").append(totalMotifs)
 			.append("\n");
 		}
 
@@ -363,6 +373,100 @@ public class TFBS_SpaitialAnalysis {
 			CommonUtils.writeFile("mergedTSS.txt", sb.toString());
 		}
 	}
+	private void printTssSignal(){
+
+		final int MAXREAD = 1000000;
+		
+		if (tss_file != null){
+			all_TSS = new ArrayList<Point>();
+			ArrayList<String> text = CommonUtils.readTextFile(tss_file);
+			for (String t: text){
+				String[] f = t.split("\t");
+				all_TSS.add(Point.fromString(genome, f[0]));
+			}
+			all_TSS.trimToSize();
+		}
+		int[][]signals = new int[all_TSS.size()][expts.size()];
+		for (int i=0;i<expts.size();i++){
+			String readdb_name = readdb_names.get(i);
+			List<ChipSeqLocator> rdbexpts = new ArrayList<ChipSeqLocator>();
+			String[] pieces = readdb_name.trim().split(";");
+            if (pieces.length == 2) {
+            	rdbexpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
+            } else if (pieces.length == 3) {
+            	rdbexpts.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
+            } else {
+                throw new RuntimeException("Couldn't parse a ChipSeqLocator from " + readdb_name);
+            }
+            DeepSeqExpt ip = new DeepSeqExpt(genome, rdbexpts, "readdb", -1);
+            ReadCache ipCache = new ReadCache(genome, expts.get(i));
+            
+			// cache sorted start positions and counts of all positions
+			long tic = System.currentTimeMillis();
+			System.out.print("Loading "+ipCache.getName()+" data from ReadDB ... \t");
+			List<String> chroms = genome.getChromList();
+			if (dev){
+				chroms = new ArrayList<String>();
+				chroms.add("19");
+			}
+			for (String chrom: chroms ){
+				// load  data for this chromosome.
+				int length = genome.getChromLength(chrom);
+				Region wholeChrom = new Region(genome, chrom, 0, length-1);
+				int count = ip.countHits(wholeChrom);
+				ArrayList<Region> chunks = new ArrayList<Region>();
+				// if there are too many reads in a chrom, read smaller chunks
+				if (count>MAXREAD){
+					int chunkNum = count/MAXREAD*2+1;
+					int chunkLength = length/chunkNum;
+					int start = 0;
+					while (start<=length){
+						int end = Math.min(length, start+chunkLength-1);
+						Region r = new Region(genome, chrom, start, end);
+						start = end+1;
+						chunks.add(r);
+					}
+				}else
+					chunks.add(wholeChrom);
+
+				for (Region chunk: chunks){
+					Pair<ArrayList<Integer>,ArrayList<Float>> hits = ip.loadStrandedBaseCounts(chunk, '+');
+					ipCache.addHits(chrom, '+', hits.car(), hits.cdr());
+					hits = ip.loadStrandedBaseCounts(chunk, '-');
+					ipCache.addHits(chrom, '-', hits.car(), hits.cdr());
+				}
+			} // for each chrom
+
+			ipCache.populateArrays(true);
+			ip.closeLoaders();
+			ip=null;
+			System.gc();
+			ipCache.displayStats();
+			System.out.println(CommonUtils.timeElapsed(tic));
+            
+			// now get the data from the cache
+            for (int j=0;j<all_TSS.size();j++){
+            	Region region = all_TSS.get(j).expand(TARGET_WIDTH);
+            	List<StrandedBase> bases = ipCache.getStrandedBases(region, '+');
+            	bases.addAll(ipCache.getStrandedBases(region, '-'));
+            	signals[j][i] = (int)StrandedBase.countBaseHits(bases);
+            }
+		}
+		StringBuilder sb = new StringBuilder("#Site\t");
+		for (int i=0;i<expts.size();i++){
+			sb.append(expts.get(i)).append("\t");
+		}
+		CommonUtils.replaceEnd(sb, '\n');
+		for (int j=0;j<all_TSS.size();j++){
+			sb.append(all_TSS.get(j).toString()).append("\t");
+			for (int i=0;i<expts.size();i++){
+				sb.append(signals[j][i]).append("\t");
+			}
+			CommonUtils.replaceEnd(sb, '\n');
+		}
+		CommonUtils.writeFile("TSS_signals.txt", sb.toString());
+	}
+	
 	
 	private void loadClusterAndTSS(){
 		if (tss_file != null){
