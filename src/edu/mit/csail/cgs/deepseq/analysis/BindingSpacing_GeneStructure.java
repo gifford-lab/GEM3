@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
@@ -46,24 +47,23 @@ public class BindingSpacing_GeneStructure {
 	private SequenceGenerator<Region> seqgen;
 
 	// command line option:  (the folder contains GEM result folders) 
-	// --dir Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format] 
+	// --dir Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format --no_overlap] 
 	public static void main(String[] args) {
 		BindingSpacing_GeneStructure bsgs = new BindingSpacing_GeneStructure(args);
 		int round = Args.parseInteger(args, "r", 2);
-		int prefix = Args.parseInteger(args, "prefix", 0);		// # of letters to remove from the expt name, such as 3 for "ES_".
+		int prefix_toremove = Args.parseInteger(args, "prefix", 0);		// # of letters to remove from the expt name, such as 3 for "ES_".
 		switch(round){
 		case 2:
 		case 3:bsgs.loadEvents(round);		// GEM
-				bsgs.printBindingOffsets(round, prefix);
+				bsgs.printBindingOffsets(round, prefix_toremove);
 				break;
 		case 1:	bsgs.loadEvents(1);		// GPS
-				bsgs.printBindingOffsets(1, prefix);
+				bsgs.printBindingOffsets(1, prefix_toremove);
 				break;
 		default:bsgs.loadEvents(round);		// Fake GPS calls, but snap to nearest PSSM within 50bp 
-				bsgs.printBindingOffsets(round, prefix);
+				bsgs.printBindingOffsets(round, prefix_toremove);
 				break;
-		}
-		
+		}		
 	}
 	
 	public BindingSpacing_GeneStructure(String[] args){
@@ -100,9 +100,19 @@ public class BindingSpacing_GeneStructure {
 				tf_names.add(f[0]);
 			}
 		}
+
+		int overlap_range = Args.parseInteger(args, "overlap_range", -1);
+		String anno_gtf = Args.parseString(args, "gene_gtf", null);
+		if (anno_gtf!=null)
+			load_gene_annotation(true, anno_gtf, overlap_range);
+		String anno_tab = Args.parseString(args, "gene_tab", null);
+		if (anno_tab!=null)
+			load_gene_annotation(false, anno_tab, overlap_range);		
+	}
+	
+	private void load_gene_annotation(boolean isGTF, String anno_file, int overlap_range){
 		// load gene annotation file
 		System.out.println("Loading GENCODE annotations ... ");
-		String anno_file = Args.parseString(args, "gene_anno", null);
 		ArrayList<String> texts = CommonUtils.readTextFile(anno_file);
 		char strand = '*';
 		ArrayList<Site> tss = new ArrayList<Site>();					// -1
@@ -110,61 +120,115 @@ public class BindingSpacing_GeneStructure {
 		ArrayList<Site> internal_exon_starts = new ArrayList<Site>();		// -3
 		ArrayList<Site> internal_exon_ends = new ArrayList<Site>();			// -4
 		ArrayList<Site> last_exon_ends = new ArrayList<Site>();			// -5
-		for (int i=0;i<texts.size();i++){
-			String t = texts.get(i);
-			if (t.startsWith("#"))
-				continue;
-			String f[] = t.split("\t");
-			String type = f[2];
-			if (type.equals("transcript")){		// only look for transcript
-				String chr = f[0].replace("chr", "");
-				strand = f[6].charAt(0);
-				tss.add(new Site(-1, new Point(genome, chr, Integer.parseInt(f[strand=='+'?3:4])), strand, i));
-				ArrayList<Integer> exon_starts = new ArrayList<Integer>();
-				ArrayList<Integer> exon_ends = new ArrayList<Integer>();
-				// for lines after transcript, should be exons until the next transcript
-				for (int j=i+1;j<texts.size();j++){
-					String t_e = texts.get(j);
-					String f_e[] = t_e.split("\t");
-					String type_e = f_e[2];
-					if (type_e.equals("exon")){
-						if(strand=='+'){
-							exon_starts.add(Integer.parseInt(f_e[3]));
-							exon_ends.add(Integer.parseInt(f_e[4]));
-						}else{
-							exon_starts.add(Integer.parseInt(f_e[4]));
-							exon_ends.add(Integer.parseInt(f_e[3]));
+		if (isGTF){			// GTF file format
+			for (int i=0;i<texts.size();i++){
+				String t = texts.get(i);
+				if (t.startsWith("#"))
+					continue;
+				String f[] = t.split("\t");
+				String type = f[2];
+				if (type.equals("transcript")){		// only look for transcript
+					String chr = f[0].replace("chr", "");
+					strand = f[6].charAt(0);
+					tss.add(new Site(-1, new Point(genome, chr, Integer.parseInt(f[strand=='+'?3:4])), strand, i));
+					ArrayList<Integer> exon_starts = new ArrayList<Integer>();
+					ArrayList<Integer> exon_ends = new ArrayList<Integer>();
+					// for lines after transcript, should be exons until the next transcript
+					for (int j=i+1;j<texts.size();j++){
+						String t_e = texts.get(j);
+						String f_e[] = t_e.split("\t");
+						String type_e = f_e[2];
+						if (type_e.equals("exon")){
+							if(strand=='+'){
+								exon_starts.add(Integer.parseInt(f_e[3]));
+								exon_ends.add(Integer.parseInt(f_e[4]));
+							}else{
+								exon_starts.add(Integer.parseInt(f_e[4]));
+								exon_ends.add(Integer.parseInt(f_e[3]));
+							}
 						}
-					}
-					if (type_e.equals("transcript")||j==(texts.size()-1)){	// next transcript, or end of file
-						first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), strand, i+1));
-						if (exon_starts.size()>2){
-							for (int k=1;k<exon_starts.size();k++)
-								internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), strand, i+k+1));
-							for (int k=0;k<exon_ends.size()-1;k++)
-								internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), strand, i+k+1));
+						if (type_e.equals("transcript")||j==(texts.size()-1)){	// next transcript, or end of file
+							first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), strand, i+1));
+							if (exon_starts.size()>2){
+								for (int k=1;k<exon_starts.size();k++)
+									internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), strand, i+k+1));
+								for (int k=0;k<exon_ends.size()-1;k++)
+									internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), strand, i+k+1));
+							}
+							last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(exon_ends.size()-1)), strand, i+exon_ends.size()));							
+							break;
 						}
-						last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(exon_ends.size()-1)), strand, i+exon_ends.size()));							
-						break;
 					}
 				}
 			}
 		}
+		else{		// in Table format : 
+			// #name	chrom	strand	txStart	txEnd	cdsStart	cdsEnd	exonCount	exonStarts	exonEnds	name2
+			// #name	chrom	strand	txStart	txEnd	cdsStart	cdsEnd	exonCount	exonStarts	exonEnds	geneSymbol	refseq	description
+			for (int i=0;i<texts.size();i++){
+				String t = texts.get(i);
+				if (t.startsWith("#"))
+					continue;
+				String f[] = t.split("\t");
+				String chr = f[1].replace("chr", "");
+				strand = f[2].charAt(0);
+				tss.add(new Site(-1, new Point(genome, chr, Integer.parseInt(f[strand=='+'?3:4])), strand, i));
+				ArrayList<Integer> exon_starts = new ArrayList<Integer>();
+				ArrayList<Integer> exon_ends = new ArrayList<Integer>();
+				
+				String starts[] = f[strand=='+'?8:9].split(",");
+				String ends[] = f[strand=='+'?9:8].split(",");
+				if (strand=='+'){
+					for (String s: starts)
+							exon_starts.add(Integer.parseInt(s));
+					for (String s: ends)
+							exon_ends.add(Integer.parseInt(s));		
+				}
+				else{
+					for (int j=starts.length-1;j>=0;j--)
+						exon_starts.add(Integer.parseInt(starts[j]));
+					for (int j=ends.length-1;j>=0;j--)
+						exon_ends.add(Integer.parseInt(ends[j]));
+				}
+
+				first_exon_starts.add(new Site(-2, new Point(genome, chr, exon_starts.get(0)), strand, i));
+				if (exon_starts.size()>2){
+					for (int k=1;k<exon_starts.size();k++)
+						internal_exon_starts.add(new Site(-3, new Point(genome, chr, exon_starts.get(k)), strand, i));
+					for (int k=0;k<exon_ends.size()-1;k++)
+						internal_exon_ends.add(new Site(-4, new Point(genome, chr, exon_ends.get(k)), strand, i));
+				}
+				last_exon_ends.add(new Site(-5, new Point(genome, chr, exon_ends.get(exon_ends.size()-1)), strand, i));							
+			}
+		}
 		removeDuplicateSites(tss);
-		all_ANNO_sites.add(tss);
-		annotation_names.add("GENCODE_TSS");
 		removeDuplicateSites(first_exon_starts);
-		all_ANNO_sites.add(first_exon_starts);
-		annotation_names.add("GENCODE_FIRST_EXON_STARTS");
 		removeDuplicateSites(internal_exon_starts);
-		all_ANNO_sites.add(internal_exon_starts);
-		annotation_names.add("GENCODE_INTERNAL_EXON_STARTS");
 		removeDuplicateSites(internal_exon_ends);
-		all_ANNO_sites.add(internal_exon_ends);
-		annotation_names.add("GENCODE_INTERNAL_EXON_ENDS");
 		removeDuplicateSites(last_exon_ends);
+		// remove overlapping sites: 
+		// this is to deal with the issue of overlapping annotation. because we do not know which annotation site matters,
+		// the compromise is to exclude everything overlapped. by comparing with the whole set, 
+		// we can know how much of the results we see is due to overlapping annotation
+		String NO_flag="";
+		if (overlap_range!=-1){
+			NO_flag = "_NO";
+			removeOverlapSites(tss, overlap_range);
+			removeOverlapSites(first_exon_starts, overlap_range);
+			removeOverlapSites(internal_exon_starts, overlap_range);
+			removeOverlapSites(internal_exon_ends, overlap_range);
+			removeOverlapSites(last_exon_ends, overlap_range);
+		}
+		all_ANNO_sites.add(tss);
+		annotation_names.add("GENCODE_TSS"+NO_flag);
+		all_ANNO_sites.add(first_exon_starts);
+		annotation_names.add("GENCODE_FIRST_EXON_STARTS"+NO_flag);
+		all_ANNO_sites.add(internal_exon_starts);
+		annotation_names.add("GENCODE_INTERNAL_EXON_STARTS"+NO_flag);
+		all_ANNO_sites.add(internal_exon_ends);
+		annotation_names.add("GENCODE_INTERNAL_EXON_ENDS"+NO_flag);
 		all_ANNO_sites.add(last_exon_ends);
-		annotation_names.add("GENCODE_LAST_EXON_ENDS");
+		annotation_names.add("GENCODE_LAST_EXON_ENDS"+NO_flag);
 		
 		System.out.println("# of TSS is " + tss.size());
 		System.out.println("# of FIRST_EXON_STARTS is " + first_exon_starts.size());
@@ -180,9 +244,26 @@ public class BindingSpacing_GeneStructure {
 			maps.put(s.coord.toString()+s.strand, s);
 		sites.clear();
 		sites.addAll(maps.values());
+		sites.trimToSize();
 		Collections.sort(sites);
 	}
-	
+
+	// remove overlapping sites
+	private void removeOverlapSites(ArrayList<Site> sites, int range){
+		Collections.sort(sites);
+		HashSet<Site> toRemove = new HashSet<Site>();
+		for (int i=1;i<sites.size();i++){
+			Site s1 = sites.get(i-1);
+			Site s2 = sites.get(i);
+			if (s1.coord.getChrom().equals(s2.coord.getChrom()) && Math.abs(s1.coord.offset(s2.coord)) <= range){
+				toRemove.add(sites.get(i-1));
+				toRemove.add(sites.get(i));
+			}
+		}
+		sites.removeAll(toRemove);
+		sites.trimToSize();
+	}
+
 	private void loadEvents(int round){
 
 		for (int tf=0;tf<tf_names.size();tf++){
@@ -230,25 +311,25 @@ public class BindingSpacing_GeneStructure {
 				for (GPSPeak p:gpsPeaks){
 					Site site = new Site();
 					site.type_id = tf;
-					//TODO: if use motif, set the strand 
-					if (round>3 && wm!=null){		// use nearest motif as binding site
-						Region region = p.expand(round);
-						String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
-						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*wm_factor).car();
-						if (hit!=-999){
-							if (hit>=0)
-								site.coord = new Point(p.getGenome(), p.getChrom(), region.getStart()+hit+posShift);
-							else
-								site.coord = new Point(p.getGenome(), p.getChrom(), region.getStart()-hit+negShift);
-						}
-						else{
-							site.coord = (Point)p;		// no motif found, still use original GPS call
-						}
-					}
-					else{								// do not use motif, use GEM/GPS call
+//					//TODO: if use motif, set the strand 
+//					if (round>3 && wm!=null){		// use nearest motif as binding site
+//						Region region = p.expand(round);
+//						String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
+//						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*wm_factor).car();
+//						if (hit!=-999){
+//							if (hit>=0)
+//								site.coord = new Point(p.getGenome(), p.getChrom(), region.getStart()+hit+posShift);
+//							else
+//								site.coord = new Point(p.getGenome(), p.getChrom(), region.getStart()-hit+negShift);
+//						}
+//						else{
+//							site.coord = (Point)p;		// no motif found, still use original GPS call
+//						}
+//					}
+//					else{								// do not use motif, use GEM/GPS call
 						site.coord = (Point)p;
 						site.strand = p.getKmerStrand();
-					}
+//					}
 					
 					sites.add(site);
 				}
@@ -385,7 +466,11 @@ public class BindingSpacing_GeneStructure {
 				sb.append(tf_names.get(n).substring(prefix)+"\t");
 			}
 			sb.deleteCharAt(sb.length()-1).append("\n");
-			
+			sb.append("Total\t");
+			for (int n=0;n<tf_names.size();n++){
+				sb.append(all_TF_sites.get(n).size()+"\t");
+			}
+			sb.deleteCharAt(sb.length()-1).append("\n");
 			for (int p=-range;p<=range;p++){
 				sb.append(p).append("\t");
 				for (int n=0;n<tf_names.size();n++){

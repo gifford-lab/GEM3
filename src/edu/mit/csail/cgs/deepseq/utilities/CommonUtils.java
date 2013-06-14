@@ -320,6 +320,9 @@ public class CommonUtils {
         }
         return output.toString();
 	}
+	public static void replaceEnd(StringBuilder sb, char newChar){
+		sb.deleteCharAt(sb.length()-1).append(newChar);
+	}
 	
 	public static void writeFile(String fileName, String text){
 		try{

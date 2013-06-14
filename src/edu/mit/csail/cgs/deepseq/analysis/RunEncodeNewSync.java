@@ -62,7 +62,7 @@ public class RunEncodeNewSync {
 	            String size = f[14];
 	            String id = String.format("ENCh-%s-%s %s %s %s", lab, pi, cond, expt, cell);		//TF ID
 	            if (ei.equals("exp")){
-	            	if (tf.startsWith("H2")||tf.startsWith("H3")||tf.startsWith("H4")||tf.startsWith("Control")||tf.startsWith("Pol2"))
+	            	if (tf.startsWith("H2")||tf.startsWith("H3")||tf.startsWith("H4")||tf.startsWith("Control"))
 	            		continue;
 	            	if (tfid2expt.containsKey(id))
 	            		tfid2expt.get(id).addRep(rep);

@@ -7,6 +7,7 @@ import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
@@ -510,12 +511,37 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public String toBED() {
 		StringBuilder bed = new StringBuilder();
 		bed.append("chr"+position.getChrom()).append("\t");
-		bed.append(position.getLocation()-5).append("\t");
-		bed.append(position.getLocation()+5).append("\t");
+		Region r = position.expand(100);
+		bed.append(r.getStart()).append("\t");
+		bed.append(r.getEnd()).append("\t");
 		bed.append(position.getLocationString()).append("\t");
 		bed.append(String.format("%7.1f\t", totalSumResponsibility));
         bed.append("\n");
 		return bed.toString();
+	}
+	
+	/** 
+	 * Output ENCODE narrowPeak format<br>
+	 * starting from GEM release v2.0<br>
+	 * The score is based on q-value (corrected from the larger p-value from binomial p-value (IP vs Control) and Poisson p-value (IP only)
+	 * @return
+	 */
+	public String toNarrowPeak(int score){
+		double q_lg = getQValueLog10(0);
+		if (q_lg==Double.POSITIVE_INFINITY)
+			q_lg= 999;   
+		double p_lg1=0;
+		if(unScaledControlCounts!=null){
+        	p_lg1 = -Math.log10(getPValue_w_ctrl(0));
+        	if (p_lg1==Double.POSITIVE_INFINITY)
+    			p_lg1= 999;
+    	}
+    	double p_lg2 = -Math.log10(getPValue_wo_ctrl(0));
+    	if (p_lg2==Double.POSITIVE_INFINITY)
+    		p_lg2= 999;
+		return "chr"+position.getChrom()+"\t"+(position.getLocation()-100)+"\t"+(position.getLocation()+101)+"\t"+
+    				position.toString()+"\t"+score+"\t"+"."+"\t"+String.format("%.1f",totalSumResponsibility)+"\t"+
+    				String.format("%.2f", p_lg1>p_lg2?p_lg2:p_lg1)+"\t"+String.format("%.2f", q_lg)+"\t"+100+"\n";
 	}
 	
 	//generate Header String for BED file, each field should match BED() output

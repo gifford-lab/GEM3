@@ -28,6 +28,7 @@ import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -3153,17 +3154,45 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			fw.close();
 			
+			// NarrowPeak format
+			if(config.outputNarrowPeak){
+				int fn_len = fname.length();
+				String fn= fname.substring(0, fn_len-4).concat(".narrowPeak");
+				fw = new FileWriter(fn);		    	
+		    	double max = fs.get(0).getTotalEventStrength();
+		    	for (int i=0;i<fs.size();i++){
+		    		ComponentFeature f = fs.get(i);
+		    		double score = f.getTotalEventStrength()*900/max+100;
+		    		fw.write(f.toNarrowPeak((int)(score>=1000?1000:score)));
+		    	}
+//		    	int count=0;
+//		    	for(ComponentFeature f : fs){
+//		    		count++;
+//		    		if (f.getQValueLog10(0)<999)
+//		    			break;
+//		    	}
+//		    	double max = fs.get(0).getQValueLog10(0);
+//		    	if (max>=999)
+//		    		max = 999;
+//		    	for (int i=0;i<fs.size();i++){
+//		    		ComponentFeature f = fs.get(i);
+//		    		double score = f.getQValueLog10(0);
+//		    		if (score>=999)
+//		    			score = 900+((count-i)*100.0/count);
+//		    		else
+//		    			score = score*800/max+100;
+//		    		fw.write(f.toNarrowPeak((int)score));
+//		    	}
+				fw.close();
+			}	
+			
 			// BED format
 			if(config.outputBED){
-				fname=fname.replaceAll("txt", "bed");
+				int fn_len = fname.length();
+				String fn= fname.substring(0, fn_len-4).concat(".bed");
 				fw = new FileWriter(fname);
-				first=true;
+				fw.write("track name=GEM_"+outName+" description=\"GEM Event Call\"\n");
 				for(ComponentFeature f : fs){
-					if(first){
-						fw.write("track name=GEM_"+outName+" description=\"GEM Event Call\"\n");
-                        //					fw.write(f.headString_BED());
-						first=false;
-					}
 					fw.write(f.toBED());
 				}
 				fw.close();
@@ -3478,14 +3507,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				events.add(cf);
 			}
 		}
-		if (config.kmer_use_filtered || significantCount<2000 ){			
-			for(Feature f : filteredFeatures){
-				if(count++>config.k_seqs)
-					break;
-				ComponentFeature cf = (ComponentFeature)f;
-				events.add(cf);
-			}
-		}	
 		events.trimToSize();
 		
 		Collections.sort(events, new Comparator<ComponentFeature>(){

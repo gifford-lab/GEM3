@@ -43,68 +43,6 @@ public class ChipSeqAnalysisUtils {
   }
   
   /**
-   * alternate signature for single condition analysis
-   * 
-   * @param gen
-   * @param model
-   * @param properties
-   * @param signal
-   * @param control
-   * @return
-   */
-  public static ArrayList<Region> selectEnrichedRegions(Genome gen, int modelWidth, int modelRange,
-      double minimumReads, DeepSeqExpt signal, DeepSeqExpt control) {
-    ArrayList<Pair<DeepSeqExpt, DeepSeqExpt>> expts = new ArrayList<Pair<DeepSeqExpt, DeepSeqExpt>>();
-    Pair<DeepSeqExpt, DeepSeqExpt> exptPair = new Pair<DeepSeqExpt, DeepSeqExpt>(signal, control);
-    expts.add(exptPair);
-    return selectEnrichedRegions(gen, modelWidth, modelRange, minimumReads, expts);
-  }
-
-
-  /**
-   * get the list of regions directly from data
-   * 
-   * @param gen
-   * @param model
-   * @param properties
-   * @param experiments
-   * @return
-   */
-  public static ArrayList<Region> selectEnrichedRegions(Genome gen, int modelWidth, int modelRange,
-      double minimumReads, ArrayList<Pair<DeepSeqExpt, DeepSeqExpt>> experiments) {
-    long startTime = System.currentTimeMillis();
-
-    ArrayList<Region> regions = new ArrayList<Region>();
-    int width = modelWidth;
-
-    for (String chrom : gen.getChromList()) {
-      ArrayList<Region> rs = new ArrayList<Region>();
-      for (Pair<DeepSeqExpt, DeepSeqExpt> pair : experiments) {
-        // get sorted start positions of all reads
-        int[] c = pair.car().getStartCoords(chrom);
-        int start = 0;
-        for (int i = 1; i < c.length; i++) {
-          int distance = c[i] - c[i - 1];
-          if (distance > width) {
-            // only select region with read count larger than minimum count
-            if (i - 1 - start >= minimumReads) {
-              Region r = new Region(gen, chrom, c[start], c[i - 1]);
-              rs.add(r);
-            }
-            start = i;
-          }
-        }
-      }
-      if (!rs.isEmpty())
-        regions.addAll(mergeRegions(modelRange, rs));
-    }
-    long elapsedSecs = (System.currentTimeMillis() - startTime) / 1000;
-    logger.debug("selectEnrichedRegions(): " + elapsedSecs);
-    return regions;
-  }
-
-
-  /**
    * Loads a set of regions from a MACS peak file. <br>
    * For the proper function of the method, regions contained in the MACS file
    * should be sorted, something done inside the method's body.
