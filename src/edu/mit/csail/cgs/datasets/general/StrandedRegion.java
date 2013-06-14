@@ -52,6 +52,16 @@ public class StrandedRegion extends Region implements Stranded {
     	return new Point(this.getGenome(),this.getChrom(),this.getFivePrime());
     }
     
+    public Region getFivePrimeRegion() {
+    	if (strand=='+') {
+    		return new Region(this.getGenome(), this.getChrom(), this.getFivePrime(), this.getFivePrime()+1);
+    	} else if (strand=='-') {
+    		return new Region(this.getGenome(), this.getChrom(), this.getFivePrime()-1, this.getFivePrime());
+    	} else {
+    		throw new IllegalArgumentException("Unknown strand "+getStrand());
+    	}
+    }
+    
     public String toString() { 
         return getLocationString() + ":" + strand;
     }
