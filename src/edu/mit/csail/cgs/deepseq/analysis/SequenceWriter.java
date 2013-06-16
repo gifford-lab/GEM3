@@ -4,14 +4,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Set;
 
-import net.sf.samtools.util.SequenceUtil;
-
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.analysis.MultiTF_Binding.Site;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.tools.utils.Args;

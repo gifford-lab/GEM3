@@ -26,7 +26,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
-public class MultiTF_Binding {
+public class MultiTF_Binding_Spacing {
 
 	Genome genome=null;
 	ArrayList<String> names = new ArrayList<String>();
@@ -42,7 +42,7 @@ public class MultiTF_Binding {
 	// command line option:  (the folder contains GEM result folders) 
 	// --dir Y:\Tools\GPS\Multi_TFs\oct18_GEM --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format] 
 	public static void main(String[] args) {
-		MultiTF_Binding mtb = new MultiTF_Binding(args);
+		MultiTF_Binding_Spacing mtb = new MultiTF_Binding_Spacing(args);
 		int round = Args.parseInteger(args, "r", 2);
 		int prefix = Args.parseInteger(args, "prefix", 0);
 		switch(round){
@@ -63,7 +63,7 @@ public class MultiTF_Binding {
 		
 	}
 	
-	public MultiTF_Binding(String[] args){
+	public MultiTF_Binding_Spacing(String[] args){
 				
 	    try {
 	    	Pair<Organism, Genome> pair = Args.parseGenome(args);

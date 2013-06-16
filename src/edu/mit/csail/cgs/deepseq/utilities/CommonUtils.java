@@ -730,7 +730,7 @@ public class CommonUtils {
 	/**
 	 * Get a list of points that are within the window of the anchor point<br>
 	 * Assuming the sites list is sorted
-	 * @param sites	a list of points
+	 * @param sites	a list of sorted points
 	 * @param anchor the anchor point
 	 * @param win the window size
 	 * @return
