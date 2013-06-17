@@ -127,7 +127,7 @@ public class CommonUtils {
 	 * @param filename
 	 * @return
 	 */
-	static public ArrayList<NarrowPeak> load_narrowPeak(Genome genome, String filename) {
+	static public ArrayList<NarrowPeak> load_narrowPeak(Genome genome, String filename, boolean isSorted) {
 		CommonUtils util = new CommonUtils();
 		ArrayList<NarrowPeak> results = new ArrayList<NarrowPeak>();
 		ArrayList<String> txt = readTextFile(filename);
@@ -143,7 +143,8 @@ public class CommonUtils {
 			results.add(p);
 		}
 		results.trimToSize();
-		Collections.sort(results);
+		if (!isSorted)
+			Collections.sort(results);
 		return results;
 	}
 	

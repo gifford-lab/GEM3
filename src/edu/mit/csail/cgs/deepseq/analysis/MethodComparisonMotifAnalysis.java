@@ -382,7 +382,7 @@ public class MethodComparisonMotifAnalysis {
         	String filePath = peakFiles.get(i).getAbsolutePath();
 			ArrayList<Point> peakPoints = new ArrayList<Point>(); 
 			if (name.contains("ZZZ")){		// ENCODE narrow peak format
-        		ArrayList<NarrowPeak> narrowPeaks = CommonUtils.load_narrowPeak(genome, filePath);
+        		ArrayList<NarrowPeak> narrowPeaks = CommonUtils.load_narrowPeak(genome, filePath, isPreSorted);
         		for (NarrowPeak np: narrowPeaks){
         			peakPoints.add(np.summit);
         		}
