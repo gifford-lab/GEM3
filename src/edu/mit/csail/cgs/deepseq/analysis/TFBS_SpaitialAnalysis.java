@@ -48,10 +48,12 @@ public class TFBS_SpaitialAnalysis {
 	ArrayList<ArrayList<Site>> all_sites = new ArrayList<ArrayList<Site>>();
 	ArrayList<Point> all_TSS;
 	ArrayList<Cluster> all_clusters;
+	int[][]tss_signals = null;
 	
 	double gc = 0.42;//mouse		gc=0.41 for human
 	int distance = 50;		// distance between TFBS within a cluster
 	int range = 1000;		// the range around anchor site to search for targets
+	int exclude_range = 500;		// the range around anchor site to exclude same site
 	double wm_factor = 0.6;	// PWM threshold, as fraction of max score
 	double cutoff = 0.3;	// corr score cutoff
 	File dir;
@@ -61,6 +63,7 @@ public class TFBS_SpaitialAnalysis {
 	boolean dev = false;
 	
 	String tss_file;
+	String tss_signal_file;
 	String cluster_file;
 
 	// command line option:  (the folder contains GEM result folders) 
@@ -75,11 +78,13 @@ public class TFBS_SpaitialAnalysis {
 			mtb.findTfbsClusters();
 			break;
 		case 1:
-//			mtb.loadEventAndMotifs(round);
-			mtb.loadClusterAndTSS();
+			mtb.loadClusterAndTssSignals();
 			mtb.computeCorrelations();
 			break;
-		case -1:
+		case 11:	// old code
+			mtb.loadClusterAndTSS();
+			mtb.computeCorrelations_db();
+			break;		case -1:
 			mtb.mergedTSS();
 			break;
 		case -2:
@@ -120,10 +125,12 @@ public class TFBS_SpaitialAnalysis {
 			}
 		}
 		tss_file = Args.parseString(args, "tss", null);
+		tss_signal_file = Args.parseString(args, "tss_signal", null);
 		cluster_file = Args.parseString(args, "cluster", null);
 		
 		distance = Args.parseInteger(args, "distance", distance);
 		range = Args.parseInteger(args, "range", range);
+		exclude_range = Args.parseInteger(args, "exclude", exclude_range);
 		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
 		cutoff = Args.parseDouble(args, "cutoff", cutoff);
 		gc = Args.parseDouble(args, "gc", gc);
@@ -452,7 +459,7 @@ public class TFBS_SpaitialAnalysis {
             	signals[j][i] = (int)StrandedBase.countBaseHits(bases);
             }
 		}
-		StringBuilder sb = new StringBuilder("#Site\t");
+		StringBuilder sb = new StringBuilder("#TSS\t");
 		for (int i=0;i<expts.size();i++){
 			sb.append(expts.get(i)).append("\t");
 		}
@@ -501,7 +508,135 @@ public class TFBS_SpaitialAnalysis {
 		}
 		
 	}
+	private void loadClusterAndTssSignals(){
+		if (tss_signal_file != null){
+			all_TSS = new ArrayList<Point>();
+			ArrayList<String> text = CommonUtils.readTextFile(tss_signal_file);
+			for (String t: text){
+				if (t.charAt(0)=='#')
+					continue;
+				String[] f = t.split("\t");
+				all_TSS.add(Point.fromString(genome, f[0]));
+			}
+			all_TSS.trimToSize();
+			
+			String[] fs = text.get(0).split("\t");
+			tss_signals = new int[all_TSS.size()][fs.length-1];
+			int idx = 0;
+			for (String t: text){
+				if (t.charAt(0)=='#')
+					continue;
+				String[] f = t.split("\t");
+				for (int i=0;i<f.length-1;i++)
+					tss_signals[idx][i]=Integer.parseInt(f[i+1]);
+				idx++;
+			}
+		}
+		
+		if (cluster_file != null){
+			all_clusters = new ArrayList<Cluster>();
+			ArrayList<String> text = CommonUtils.readTextFile(cluster_file);
+			for (String t: text){
+				if (t.startsWith("#"))
+					continue;
+				String[] f = t.split("\t");
+				Cluster c = new Cluster();
+				all_clusters.add(c);
+				c.region = Region.fromString(genome, f[0]);
+				String[] f_id = f[4].split(",");
+				for (String s: f_id)
+					c.TFIDs.add(Integer.parseInt(s));
+				String[] f_signal = f[5].split(",");
+				for (String s: f_signal)
+					c.TF_Signals.add(Double.parseDouble(s));
+				String[] f_motif = f[7].split(",");
+				for (String s: f_motif)
+					c.TF_hasMotifs.add(s.charAt(0)!='*');
+			}
+		}
+	}
+
 	private void computeCorrelations(){
+
+		StringBuilder sb = new StringBuilder();
+		for (Cluster c: all_clusters){
+			
+			Point anchor = c.region.getMidpoint();
+			ArrayList<Point> targets = CommonUtils.getPointsWithinWindow(all_TSS, anchor, range);
+			if (exclude_range!=0){
+				ArrayList<Point> nearNeighbors = CommonUtils.getPointsWithinWindow(all_TSS, anchor, exclude_range);
+				targets.removeAll(nearNeighbors);
+			}
+			ArrayList<Site_target_corr> list = new ArrayList<Site_target_corr>();
+			
+			// get unique TF IDs for consideration
+			HashSet<Integer> TF_IDs = new HashSet<Integer>();
+			for (int i=0;i<c.TF_hasMotifs.size();i++){
+				if ( !useDirectBindingOnly || c.TF_hasMotifs.get(i) ){
+					TF_IDs.add(c.TFIDs.get(i));	
+				}			
+			}
+			Integer[] TFIDs = new Integer[TF_IDs.size()];
+			TF_IDs.toArray(TFIDs);
+			if (TFIDs.length<=2)
+				continue;
+			
+			// get signals at anchor site
+			List<Double> signals = new ArrayList<Double>();
+			for (int i=0;i<TFIDs.length;i++){
+				int total = 0;
+				for (int j=0;j<c.TFIDs.size();j++)
+					if (c.TFIDs.get(j)==TFIDs[i])
+						total += c.TF_Signals.get(j);
+				signals.add(i, (double)total);
+			}
+			
+			StringBuilder sb1 = new StringBuilder();
+			for (int id : TFIDs)
+				sb1.append(names.get(id)).append("\t");
+			CommonUtils.replaceEnd(sb1, '\t');
+			sb.append("#=================================\n#chr"+c.region.toString()+"\t|\t");
+			sb.append(sb1.toString()+"|\t");
+
+			for (double s: signals){
+				sb.append(s).append("\t");
+			}
+			CommonUtils.replaceEnd(sb, '\n');
+			
+			for (Point p:targets){				
+				// get corresponding signals at the target sites
+				List<Double> target_signals = new ArrayList<Double>();
+				int index = Collections.binarySearch(all_TSS, p);
+				for (int i=0;i<TFIDs.length;i++){
+					target_signals.add(i, (double)tss_signals[index][TFIDs[i]]);
+				}
+				
+				// compute correlation
+				double corr = CorrelationSimilarity.computeSimilarity2(signals, target_signals);
+				Site_target_corr t = new Site_target_corr();
+				t.target = p;
+				t.signals = signals;
+				t.target_signals = target_signals;
+				t.corr = corr;
+				if (t.corr>=cutoff)
+					list.add(t);
+			}
+			
+			Collections.sort(list);
+			for (Site_target_corr t:list){
+				sb.append("chr"+anchor.toString()+"-"+t.target.getLocation()+"\t"+t.target.offset(anchor)+"\t"
+						+t.signals.size()+"\t"+String.format("%.2f", t.corr)).append("\t|\t");
+				for (double s: t.target_signals){
+					sb.append(s).append("\t");
+				}
+				CommonUtils.replaceEnd(sb, '\n');
+			}
+		}
+		System.out.println(sb.toString());
+		CommonUtils.writeFile("tfbs2target_result.txt", sb.toString());
+	}
+
+	private void computeCorrelations_db(){
 		// prepare connections to readdb
 		ArrayList<DeepSeqExpt> chipseqs = new ArrayList<DeepSeqExpt>();
 		for (String readdb_str : readdb_names){
