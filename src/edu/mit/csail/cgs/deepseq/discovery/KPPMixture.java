@@ -779,7 +779,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		if (kmac!=null){
 			int bin = (int)Math.ceil(signalFeatures.size()/10.0);
 			StringBuilder sb = new StringBuilder();
-			sb.append("Percentage of events with a k-mer match in 10 "+bin+"bp bins:\n");
+			sb.append("Percentage of events with a k-mer match in 10 bins ("+bin+"events per bin):\n");
 			for (int i=0;i<signalFeatures.size();i+=bin){
 				int count=0, motif=0;
 				for (int j=i;j<Math.min(signalFeatures.size(), i+bin);j++){
@@ -3490,18 +3490,21 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     }
     
     private ArrayList<ComponentFeature> getEvents(){
-		ArrayList<ComponentFeature> events = new ArrayList<ComponentFeature>();
+		ArrayList<ComponentFeature> events = new ArrayList<ComponentFeature>();		
+		int significantCount = signalFeatures.size();
 		int count = 1;
+		int k_seqs = config.k_seqs==-1 ? significantCount : config.k_seqs;
 		for(Feature f : signalFeatures){
-			if(count++>config.k_seqs)
+			if(count++>k_seqs)
 				break;
 			ComponentFeature cf = (ComponentFeature)f;
 			events.add(cf);
 		}
-		int significantCount = signalFeatures.size();
 		if (config.kmer_use_insig || significantCount<2000 ){
+			if (config.k_seqs==-1)
+				k_seqs += insignificantFeatures.size();
 			for(Feature f : insignificantFeatures){
-				if(count++>config.k_seqs)
+				if(count++>k_seqs)
 					break;
 				ComponentFeature cf = (ComponentFeature)f;
 				events.add(cf);
