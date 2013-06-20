@@ -253,12 +253,9 @@ public class MethodComparisonMotifAnalysis {
 			sb.append(motif.toString()+"\t");
 			sb.append(motif.getChrom()+"\t");
 			for (int i=0;i<maps.size();i++){
-				sb.append(maps.get(i).get(motif).offset);
-				if (i==maps.size()-1)
-					sb.append("\n");
-				else
-					sb.append("\t");
+				sb.append(maps.get(i).get(motif).offset).append("\t");
 			}
+			CommonUtils.replaceEnd(sb, '\n');
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_sharedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
@@ -299,11 +296,9 @@ public class MethodComparisonMotifAnalysis {
 					sb.append(NOHIT_OFFSET).append("\t");
 					sb.append(-1);
 				}
-				if (i==maps.size()-1)
-					sb.append("\n");
-				else
-					sb.append("\t");
+				sb.append("\t");
 			}
+			CommonUtils.replaceEnd(sb, '\n');
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_allMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
@@ -321,7 +316,7 @@ public class MethodComparisonMotifAnalysis {
 		
 		ArrayList<HashMap<Point, Integer>> allPeakOffsets = new ArrayList<HashMap<Point, Integer>>();
 		for (int i=0; i<methodNames.size();i++){
-			allPeakOffsets.add(peak2MotifOffset(events.get(i), allMotifs));
+			allPeakOffsets.add(peak2MotifOffset(events.get(i), allMotifs, allMotifScores));
 		}
 		
 		// output results
@@ -341,12 +336,9 @@ public class MethodComparisonMotifAnalysis {
 				}
 				else
 					sb.append(NOHIT_OFFSET);
-				
-				if (i==allPeakOffsets.size()-1)
-					sb.append("\n");
-				else
-					sb.append("\t");
+				sb.append("\t");
 			}
+			CommonUtils.replaceEnd(sb, '\n');
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_rankedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
@@ -1109,7 +1101,7 @@ public class MethodComparisonMotifAnalysis {
 	}
 	// get the nearest motif offset in the region (windowSize) around each peak in the list
 	// this is peak-centered, all peaks will have a offset, NOHIT_OFFSET for no motif found.
-	private HashMap<Point, Integer> peak2MotifOffset(ArrayList<Point> peaks, ArrayList<Point> allMotifs){
+	private HashMap<Point, Integer> peak2MotifOffset(ArrayList<Point> peaks, ArrayList<Point> allMotifs, ArrayList<Double> allMotifScores){
 		// make a copy of the list and sort
 		ArrayList<Point> ps = (ArrayList<Point>) peaks.clone();
 		Collections.sort(ps);
@@ -1145,7 +1137,8 @@ public class MethodComparisonMotifAnalysis {
 			
 			if (nearestIndex !=-1){			// motif hit is within the window
 				Point nearestMotif = allMotifs.get(nearestIndex);
-				peaksOffsets.put(peak, peak.offset(nearestMotif));
+				boolean isForwardStrand = allMotifScores.get(nearestIndex)>0;
+				peaksOffsets.put(peak, isForwardStrand?peak.offset(nearestMotif):-peak.offset(nearestMotif));
 			}
 		}
 		return peaksOffsets;
