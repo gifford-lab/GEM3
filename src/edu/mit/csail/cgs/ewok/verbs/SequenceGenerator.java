@@ -59,9 +59,9 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         String chromseq = null;
         if (useLocalFiles) {
         	if (genomePath==null)
-        		genomePath = "/scratch/" + region.getGenome().getVersion();
+        		genomePath = "/cluster/genomes/" + region.getGenome().getVersion();
         	if (!new File( genomePath).exists())
-        		genomePath = "/scratch/" + region.getGenome().getVersion() + "_chrfa_only";
+        		genomePath = "/cluster/genomes/" + region.getGenome().getVersion() + "_chrfa_only";
             File f = new File( genomePath + "/chr" + chr + ".fa");
             if (!f.exists()) {
                 f = new File( genomePath+ "/chr" + chr + ".fasta");
