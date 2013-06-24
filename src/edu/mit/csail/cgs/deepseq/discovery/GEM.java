@@ -157,6 +157,7 @@ public class GEM {
         String prefix = new File(filePrefix).getName();
         mixture.setOutName(filePrefix+"_"+round);
         System.out.println("\n============================ Round "+round+" ============================");
+        
         mixture.execute();
         boolean noChange = Args.parseFlags(args).contains("constant_model_range");
         if (!noChange){
@@ -171,6 +172,8 @@ public class GEM {
         mixture.releaseMemory();
         if (!Args.parseFlags(args).contains("not_refine_regions"))
         	mixture.refineRegions();
+        mixture.setProcessAllRegions(true);
+        
         while (round+1<GPS_round){
             round++;
             System.out.println("\n============================ Round "+round+" ============================");

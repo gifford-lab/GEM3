@@ -62,6 +62,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private double[] gaussian;
 	private boolean doScanning=true;
 	
+	private boolean processAllRegions = false;
+	
 	/****************
 	 * Data
 	 ****************/
@@ -619,13 +621,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	 * @param compFeatures
 	 */
 	private void postEMProcessing(List<ComponentFeature> compFeatures) {
-		// use the refined regions to count non-specific reads
-        /* don't do this any more.  all it does is set ratio_non_specific_total, which
-           we no longer want to update because we compute it at the beginning of the run
-           using the whole genome rather than just the unenriched regions
-        */
-//			countNonSpecificReads(compFeatures);
-		
 		// collect enriched regions to exclude to define non-specific region
 		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
                 public int compare(ComponentFeature o1, ComponentFeature o2) {
@@ -2923,75 +2918,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
 	}//end of createChromStats method
 
-	/**
-	 * Count non-specific reads  (all the reads not in the refinedRegions)
-	 * for scaling experiment and control reads.
-	 * Because the signal (specific peak region) can vary a lot in different conditions,
-	 * the non-specific regions are a fair estimate for noise.
-	 * We assume the noise in expt and control should be comparable, can be used to scale reads.
-	 */
-	private void countNonSpecificReads(List<ComponentFeature> compFeatures){
-		if (!wholeGenomeDataLoaded){	
-			ratio_non_specific_total=ratio_total;
-			ComponentFeature.setNon_specific_ratio(ratio_total);
-			return;
-		}
-        //		System.out.println("\nCounting non-specific read numbers ...\n");
-
-		// construct the refined specific binding regions
-		ArrayList<Region> refinedRegions = new ArrayList<Region>();
-		for (ComponentFeature cf:compFeatures){
-			refinedRegions.add(cf.getPosition().expand(0));
-		}
-		refinedRegions = mergeRegions(refinedRegions, true);
-		
-		//Count the specific read numbers
-		int expt_test_region_total[]=new int[numConditions];
-		int crtl_test_region_total[]=new int[numConditions];
-		int expt_non_specific_total[]=new int[numConditions];
-		int crtl_non_specific_total[]=new int[numConditions];
-		int totalLength=0;	// total length of non-overlapping peak regions
-		for(Region r : refinedRegions){
-			totalLength += r.getWidth();
-			for(int i=0; i<caches.size(); i++){
-				Pair<ReadCache,ReadCache> e = caches.get(i);
-				expt_test_region_total[i] += e.car().countHits(r);
-				if(controlDataExist)
-					crtl_test_region_total[i] += e.cdr().countHits(r);
-			}
-		}
-		log(1, "\nTotal length of specific binding regions: "+totalLength);
-
-		// non-specific = total - specific
-		for(int i=0; i<numConditions; i++){
-			Pair<ReadCache,ReadCache> e = caches.get(i);
-			expt_non_specific_total[i]=(int)e.car().getHitCount()-expt_test_region_total[i];
-			if(controlDataExist) {
-				crtl_non_specific_total[i]=(int)e.cdr().getHitCount()-crtl_test_region_total[i];
-				ratio_non_specific_total[i] = (double)expt_non_specific_total[i]/crtl_non_specific_total[i];
-			}
-
-	    	double noiseReadNum_per_kbp = (double) expt_non_specific_total[i] * 1000
-	    		/ (config.mappable_genome_length - totalLength);
-
-	    	StringBuilder sb = new StringBuilder();
-	    	sb.append(conditionNames.get(i)+" data summary:\n");
-	    	sb.append("\tIP total   \t\t" +(int)e.car().getHitCount());
-	    	if (controlDataExist){
-	    		sb.append("\n\tControl total\t\t" + (int)e.cdr().getHitCount() );
-	    	    sb.append("\n\tIP/Control  \t\t" +String.format("%.3f", e.car().getHitCount()/e.cdr().getHitCount() ));
-	    	    sb.append("\n\tIP non-specific\t\t" +expt_non_specific_total[i]);
-	    	    sb.append("\n\tControl non-specific\t" +crtl_non_specific_total[i]);
-                //	    	    sb.append("\nRatio non-specific\t" +String.format("%.3f",ratio_non_specific_total[i])+
-	    	}
-	    	sb.append("\n\tNoise reads per 1000bp\t" +String.format("%.2f",noiseReadNum_per_kbp)+"\n");
-	    	log(1, sb.toString());
-		}
-		ComponentFeature.setNon_specific_ratio(ratio_non_specific_total);
-
-        //		log(1, "countNonSpecificReads(): "+timeElapsed(tic));
-	}
-
 	private void addConfigString(String name, boolean value){
 		configsb.append(name).append("\t").append(new Boolean(value).toString()).append("\n");
 	}
@@ -3612,7 +3538,15 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 	}
 
-    class GPSConstants {
+    public boolean isProcessAllRegions() {
+		return processAllRegions;
+	}
+
+	public void setProcessAllRegions(boolean processAllRegions) {
+		this.processAllRegions = processAllRegions;
+	}
+
+	class GPSConstants {
 
         /****************************
          * Constants
