@@ -454,7 +454,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		int totalRegionCount = restrictRegions.size();
 		if (totalRegionCount==0)
 			return new ArrayList<Feature>();
+		
 		// Compute the total length and read counts of enriched regions
+		double[] enrichedRegionReadCounts = new double[totalRegionCount];
+		for (int i=0;i<totalRegionCount;i++){
+			Region r = restrictRegions.get(i);
+			enrichedRegionReadCounts[i]=this.countIpReads(r);
+		}
 		if (config.background_proportion==-1){
 			if (background_proportion == -1){	// first round, do not estimate from candidate regions
 				background_proportion = config.pi_bg_r0;
@@ -464,9 +470,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				int length=0;
 				int selectedReadCount=0;
 				int totalReadCount=0;
-				for (Region r: restrictRegions){
+				for (int i=0;i<restrictRegions.size();i++){
+					Region r = restrictRegions.get(i);
 					length+= r.getWidth();
-					selectedReadCount+=this.countIpReads(r);
+					selectedReadCount+=enrichedRegionReadCounts[i];
 				}
 				for(int i=0; i<numConditions; i++){
 					totalReadCount += caches.get(i).car().getHitCount();
@@ -485,10 +492,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
 		signalFeatures.clear();
         Vector<ComponentFeature> compFeatures = new Vector<ComponentFeature>();
+        Vector<ComponentFeature> goodFeatures = new Vector<ComponentFeature>();
 		Vector<KmerPP> allKmerHits = new Vector<KmerPP>();
 		
         // prepare for progress reporting
-        Vector<Integer> processRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
+        Vector<Integer> processedRegionCount = new Vector<Integer>();		// for counting how many regions are processed by all threads
 		int displayStep = (int) Math.pow(10, (int) (Math.log10(totalRegionCount)));
 		TreeSet<Integer> reportTriggers = new TreeSet<Integer>();
 		for (int i=1;i<=totalRegionCount/displayStep; i++){
@@ -507,14 +515,26 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         Thread[] threads = new Thread[config.maxThreads];
         log(1,String.format("Running with %d threads ...", config.maxThreads));
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
+        
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
-        TreeSet<Region> regionsToRun = new TreeSet<Region>();
-        regionsToRun.addAll(restrictRegions);
+        ArrayList<Region> regionsToRun = new ArrayList<Region>();
+        if (!processAllRegions){		// first round, only process some of the region, sort to put the strong regions on top
+        	int[] idx = StatUtil.findSort(enrichedRegionReadCounts);
+        	int twoPctIdx = (int)Math.round(totalRegionCount * 0.98);		// avoid top 2 percent (may be artifacts)
+        	for (int i=twoPctIdx;i>=0;i--)
+        		regionsToRun.add(restrictRegions.get(idx[i]));
+        	for (int i=twoPctIdx+1;i<totalRegionCount;i++)
+        		regionsToRun.add(restrictRegions.get(idx[i]));
+        }
+        else
+        	regionsToRun.addAll(restrictRegions);
+        Iterator<Region> iterator = regionsToRun.iterator();
         for (int i = 0 ; i < threads.length; i++) {
-            Thread t = new Thread(new GPS2Thread(regionsToRun,
-            									processRegionCount,
+            Thread t = new Thread(new GPS2Thread(iterator,
+            									processedRegionCount,
             									regionsRunning,
                                                 compFeatures,
+                                                goodFeatures,
                                                 allKmerHits,
                                                 this,
                                                 constants,
@@ -534,7 +554,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             for (int i = 0; i < threads.length; i++) {
                 if (threads[i].isAlive()) {
                     anyrunning = true;
-                    if (count == processRegionCount.size()){
+                    if (count == processedRegionCount.size()){
                     	try{
 	                    	heavyRegions.addAll(regionsRunning);
 	                    	if (config.verbose>1 && !regionsRunning.isEmpty())
@@ -547,7 +567,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     break;
                 }
             }    
-            count = processRegionCount.size();
+            count = processedRegionCount.size();
 //            System.out.println(count);
             int trigger = totalRegionCount;
             if (!reportTriggers.isEmpty())
@@ -556,61 +576,77 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				System.out.println(trigger+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 				reportTriggers.remove(reportTriggers.first());
             }
-        }
-        System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        } // while tread running loop
+        
+        if (processAllRegions)
+        	System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        else
+        	System.out.println(processedRegionCount.size()+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        
         if (compFeatures.isEmpty()){
         	log(1, "No valid binding event was found.");
         	return signalFeatures;
         }
-        processRegionCount.clear();
-        compFeatures.trimToSize();
-        
+        processedRegionCount.clear();
         log(3,String.format("%d threads have finished running", config.maxThreads));
-        
-        // print out the heavy regions
-        if (!heavyRegions.isEmpty()){
-        	ArrayList<Region> rs = new ArrayList<Region>();
-        	rs.addAll(heavyRegions);
-        	Collections.sort(rs);
-        	StringBuilder sb0 = new StringBuilder();
-        	for (Region r:rs)	
-	        	sb0.append(r.toString()).append("\n");
-	        CommonUtils.writeFile(outName+"_zzzzz_heavyRegions.txt", sb0.toString());
+        if (processAllRegions || goodFeatures.size()<config.top_events*2){
+	        compFeatures.trimToSize();
+	        
+	        // print out the heavy regions
+	        if (!heavyRegions.isEmpty()){
+	        	ArrayList<Region> rs = new ArrayList<Region>();
+	        	rs.addAll(heavyRegions);
+	        	Collections.sort(rs);
+	        	StringBuilder sb0 = new StringBuilder();
+	        	for (Region r:rs)	
+		        	sb0.append(r.toString()).append("\n");
+		        CommonUtils.writeFile(outName+"_zzzzz_heavyRegions.txt", sb0.toString());
+	        }
+	        
+	        // print out kmer hit list
+	        if (config.kmer_print_hits){
+		        Collections.sort(allKmerHits);
+		        StringBuilder sb = new StringBuilder();
+		        sb.append("Position\tKmer\tCount\tWeight\tpp\n");
+		        for (KmerPP h:allKmerHits)
+		        	sb.append(h.toString()).append("\n");
+		        CommonUtils.writeFile(outName+"_Kmer_Hits.txt", sb.toString());
+		        sb = null;
+	        }
+	        
+			log(2, "Finish predicting events: "+CommonUtils.timeElapsed(tic)+"\n");
+	
+			/* ********************************************************
+			 * post EM processing
+			 * ********************************************************/
+			postEMProcessing(compFeatures);
+			
+			log(1, "Finish binding event prediction: "+CommonUtils.timeElapsed(tic)+"\n");
         }
-        
-        // print out kmer hit list
-        if (config.kmer_print_hits){
-	        Collections.sort(allKmerHits);
-	        StringBuilder sb = new StringBuilder();
-	        sb.append("Position\tKmer\tCount\tWeight\tpp\n");
-	        for (KmerPP h:allKmerHits)
-	        	sb.append(h.toString()).append("\n");
-	        CommonUtils.writeFile(outName+"_Kmer_Hits.txt", sb.toString());
-	        sb = null;
+        else{	// simplified processing for partial results
+        	
+        	for (ComponentFeature cf: goodFeatures)
+        		signalFeatures.add(cf);
+    		// set joint event flag in the events
+    		if (signalFeatures.size()>=2){
+    			for (int i=0;i<signalFeatures.size();i++){
+    				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+    				cf.setJointEvent(false);		// clean the mark first
+    			}
+    			Collections.sort(goodFeatures);		// sort by location
+    			for (int i=0;i<signalFeatures.size()-1;i++){
+    				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+    				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
+    				if (cf.onSameChrom(cf2)){
+    					if (cf.getPosition().distance(cf2.getPosition())<=config.joint_event_distance){
+    						cf.setJointEvent(true);
+    						cf2.setJointEvent(true);
+    					}
+    				}
+    			}
+    		}
+    		log(1, "\nFinish sampling events to estimate read distribution: "+CommonUtils.timeElapsed(tic)+"\n");
         }
-        
-		/* ********************************************************
-		 * refine the bound regions that contain binding events
-		 * ********************************************************/
-		if (config.refine_regions){
-			Collections.sort(compFeatures);
-			ArrayList<Region> refinedRegions = new ArrayList<Region>();
-			for (ComponentFeature cf:compFeatures){
-				refinedRegions.add(cf.getPosition().expand(0));
-			}
-			refinedRegions.trimToSize();
-			// expand with modelRange, and merge overlapped regions ==> Refined enriched regions
-			this.restrictRegions=mergeRegions(refinedRegions, true);
-		}
-
-		log(2, "Finish predicting events: "+CommonUtils.timeElapsed(tic)+"\n");
-
-		/* ********************************************************
-		 * post EM processing
-		 * ********************************************************/
-		postEMProcessing(compFeatures);
-		
-		log(1, "Finish binding event prediction: "+CommonUtils.timeElapsed(tic)+"\n");
 
 		return signalFeatures;
 	}// end of execute method
@@ -670,7 +706,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		 */
 		evaluateSignificance(compFeatures);
 
-		// sort features for final output, by location
+		// sort features for final output
 		Collections.sort(compFeatures);
 		allFeatures = compFeatures;
 
@@ -898,6 +934,65 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 //		setQValueCutoff(compFeatures);
 	}//end of evaluateConfidence method
 
+	/**
+	 *  evaluate significance of each called events (simplified version for estimating read distribution)
+	 */
+	private void evaluateSignificance_simplified(List<ComponentFeature> compFeatures) {
+		Poisson poisson = new Poisson(1, new DRand());
+	    double totalIPCount[] = new double[caches.size()];
+	    double totalControlCount[] = new double[caches.size()];
+	    for (int i = 0; i < caches.size(); i++) {
+	        totalIPCount[i] += caches.get(i).car().getHitCount();
+	    }
+		if(controlDataExist) {
+	        for (int i = 0; i < caches.size(); i++) {
+	            totalControlCount[i] += caches.get(i).cdr().getHitCount();
+	        }
+			for (ComponentFeature cf: compFeatures){
+				for(int cond=0; cond<caches.size(); cond++){
+					// scale control read count by non-specific read count ratio
+	                double scaledControlCount = cf.getScaledControlCounts(cond);
+	                int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
+	                if (ipCount==0){			// if one of the condition does not have reads, set p-value=1
+	                	cf.setPValue_w_ctrl(1, cond);
+	                	continue;
+	                }
+	                cf.setPValue_w_ctrl(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
+				}
+			}
+		} 
+		/** compute Poisson p-value from IP only (similar to MACS) */
+		if( (!controlDataExist) || (controlDataExist && config.strigent_event_pvalue)) {
+			Collections.sort(compFeatures);				// sort by location
+			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
+			for(int i = 0; i < compFeatures.size(); i++) {
+				for(int c = 0; c < numConditions; c++) {	
+					double thirdLambda = computeLambda(compFeatures, i, c, config.third_lambda_region_width);
+					double secondLambda = computeLambda(compFeatures, i, c, config.second_lambda_region_width);					
+					double local_lambda = Math.max(secondLambda,  thirdLambda);
+					ComponentFeature cf = compFeatures.get(i); 
+					cf.setExpectedCounts(local_lambda, c);                        
+					poisson.setMean(local_lambda);
+                    int count = (int)Math.ceil(cf.getEventReadCounts(c));
+                    double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
+					cf.setPValue_wo_ctrl(pValue, c);
+				}				
+			}
+		}
+		
+		// calculate q-values, Bonferroni correction for multiple testing
+		for (int cond=0; cond<conditionNames.size(); cond++){
+			for(ComponentFeature cf : compFeatures){
+				if(controlDataExist) 
+					cf.setQValueLog10( -Math.log10(cf.getPValue(cond)*restrictRegions.size()), cond);
+				else
+					cf.setQValueLog10( -Math.log10(cf.getPValue_wo_ctrl(cond)*restrictRegions.size()), cond);
+			}
+		}
+		
+		// find q-value cutoff by k-mer occurence
+//		setQValueCutoff(compFeatures);
+	}//end of evaluateConfidence method
 	/** compute local lambda around event i, excluding nearby events */
 	private double computeLambda(List<ComponentFeature> compFeatures, int i, int c, int length){
 		ComponentFeature cf = compFeatures.get(i); 
@@ -993,6 +1088,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private Vector<ComponentFeature> predictEventsInControlData(){
 		ArrayList<Region> regions = this.selectEnrichedRegions(new ArrayList<Region>(), false);
         Vector<ComponentFeature> ctrlFeatures = new Vector<ComponentFeature>();
+        Vector<ComponentFeature> goodFeatures = new Vector<ComponentFeature>();
 		long tic = System.currentTimeMillis();
 		int totalRegionCount = regions.size();
 		if (totalRegionCount==0)
@@ -1027,10 +1123,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 //            for (int j = i*regionsPerThread; j < nextStartIndex; j++) {
 //                threadRegions.add(regions.get(j));
 //            }
-            Thread t = new Thread(new GPS2Thread(regionsToRun,
+            Thread t = new Thread(new GPS2Thread(regionsToRun.iterator(),
             									processRegionCount,
             									regionsRunning,
                                                 ctrlFeatures,
+                                                goodFeatures,
                                                 allKmerHits,
                                                 this,
                                                 constants,
@@ -1576,18 +1673,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		double alphaEstimate = Math.sqrt(maxCount)/config.alpha_factor;
 		return alphaEstimate;
 	}
-
-	/**
-	 * Calls EM training on the Mixture Model.
-	 * This is called by SimulatedReadAnalysis for batch analysis in a region
-	 */
-	public ArrayList<ComponentFeature> simpleExecute(List<StrandedBase> bases, Region r) {
-		totalSigCount=StrandedBase.countBaseHits(bases);
-        ArrayList<ComponentFeature> out = new ArrayList<ComponentFeature>();
-        GPS2Thread t = new GPS2Thread(null, null, null, out, null, this, constants,config, true);
-        t.simpleRun(bases,r);
-        return out;
-	}// end of simpleExecute method
 
 	/*
 	 * TODO: purpose of this method is to set significance for each condition
@@ -3591,10 +3676,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         private KPPMixture mixture;
         private GPSConstants constants;
         private Config config;
-        private TreeSet<Region> regions;
+        private Iterator<Region> iterator;
+        private int totalRegionCount = 0;
         private Collection<Integer> processedRegionCount;
         private Collection<Region> regionsRunning;
-        private Collection<ComponentFeature> compFeatures;
+        private Collection<ComponentFeature> compFeatures;		// all the features from EM
+        private Collection<ComponentFeature> goodFeatures;		// features that pass p-value test
         private Collection<KmerPP> allKmerHits;
         private boolean isIP;
         
@@ -3616,22 +3703,24 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         // Maximum number of components determined by the data
         private int componentMax;
 
-        public GPS2Thread (TreeSet<Region> regions,
+        public GPS2Thread (Iterator<Region> iterator,
         				  Collection<Integer> processedRegionCount,
         				  Collection<Region> regionsRunning,
                           Collection<ComponentFeature> compFeatures,
+                          Collection<ComponentFeature> goodFeatures,
                           Collection<KmerPP> allKmerHits,
                           KPPMixture mixture,
                           GPSConstants constants,
                           Config config,
                           boolean isIP) {
-            this.regions = regions;
+            this.iterator = iterator;
             this.processedRegionCount = processedRegionCount;
             this.regionsRunning = regionsRunning;
             this.mixture = mixture;
             this.constants = constants;
             this.config = config;
             this.compFeatures = compFeatures;
+            this.goodFeatures = goodFeatures;            
             this.allKmerHits = allKmerHits;
             this.isIP = isIP;
         }
@@ -3667,12 +3756,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         		seqgen.useLocalFiles(false);
         	if (config.cache_genome)
         		seqgen.useCache(true);
-            while (!regions.isEmpty()) {
+            while (iterator.hasNext()) {
             	Region rr = null;
-            	synchronized (regions){
-	            	if (!regions.isEmpty()){
-	            		rr = regions.first();
-	            		regions.remove(rr);
+            	synchronized (iterator){
+	            	if (iterator.hasNext()){
+	            		rr = iterator.next();
             		}
 	            	else
 	            		break;
@@ -3825,7 +3913,27 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                      * if we have positional prior, use the EM result directly
                      * ****************************************************************/
                     if (kmac!=null){
-                    	compFeatures.addAll(mixture.callFeatures(comps));
+                    	// NOTE: this code is also used below, updates should be in sync
+                    	ArrayList<ComponentFeature> cfs = mixture.callFeatures(comps);
+                    	compFeatures.addAll(cfs);
+                    	if (!mixture.processAllRegions){
+	                    	mixture.evaluateSignificance(cfs);
+	                    	boolean significant = false;	            			            		
+	                    	for (ComponentFeature cf:cfs){
+	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
+	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
+		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
+		            						significant = true;
+		            						break;
+		            					}
+		            				}
+		            				else		//TODO: if histone data, need to test as a set of events
+		            					significant = true;
+		                    	}
+	            				if (significant)
+		                    		goodFeatures.add(cf);
+	            			}
+                    	}
                     }
                     /* ****************************************************************
                      * if not positional prior, refine unary events by scanEvent()
@@ -3915,7 +4023,27 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                                 }
                                 bs.removeAll(toRemove);
                             }
-                            compFeatures.addAll(mixture.callFeatures(bs));
+                        	// NOTE: this code is also used above, updates should be in sync
+                        	ArrayList<ComponentFeature> cfs = mixture.callFeatures(comps);
+                        	compFeatures.addAll(cfs);
+                        	if (!mixture.processAllRegions){
+    	                    	mixture.evaluateSignificance_simplified(cfs);
+    	                    	boolean significant = false;	            			            		
+    	                    	for (ComponentFeature cf:cfs){
+    	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
+    	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
+    		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
+    		            						significant = true;
+    		            						break;
+    		            					}
+    		            				}
+    		            				else		//TODO: if histone data, need to test as a set of events
+    		            					significant = true;
+    		                    	}
+    	            				if (significant)
+    		                    		goodFeatures.add(cf);
+    	            			}
+                        	} // if only process partial data
                         }
                     }
                     processedRegionCount.add(1); 
@@ -3927,6 +4055,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 } finally{
                 	regionsRunning.remove(rr);
                 }
+                if ((!mixture.processAllRegions) && goodFeatures.size()>=config.top_events*2)
+                	break;
             }
         }
 

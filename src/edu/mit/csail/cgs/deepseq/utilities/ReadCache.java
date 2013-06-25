@@ -193,9 +193,15 @@ public class ReadCache {
 		return bases;
 	}//end of getStrandedBases method
 	
+	/**
+	 * Count hits in the region, both strands
+	 * @param r
+	 * @return
+	 */	
 	public float countHits(Region r) {
-		return StrandedBase.countBaseHits(getUnstrandedBases(r));
+		return countStrandedBases(r,'+')+countStrandedBases(r,'-');
 	}
+	
     public float countStrandedBases(Region r, char strand) {
 		String chr = r.getChrom();
 		int chrID = chrom2ID.get(chr);

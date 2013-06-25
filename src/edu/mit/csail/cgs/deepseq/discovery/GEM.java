@@ -166,13 +166,17 @@ public class GEM {
         }
         else
             kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
-        mixture.printFeatures(round);
-        mixture.printFilteredFeatures(round);
-        mixture.printInsignificantFeatures(round);
+        if (!mixture.isProcessAllRegions()){
+	        mixture.setProcessAllRegions(true);
+        }
+        else{
+	        mixture.printFeatures(round);
+	        mixture.printFilteredFeatures(round);
+	        mixture.printInsignificantFeatures(round);	        
+        	if (!Args.parseFlags(args).contains("not_refine_regions"))
+            	mixture.refineRegions();
+        }
         mixture.releaseMemory();
-        if (!Args.parseFlags(args).contains("not_refine_regions"))
-        	mixture.refineRegions();
-        mixture.setProcessAllRegions(true);
         
         while (round+1<GPS_round){
             round++;

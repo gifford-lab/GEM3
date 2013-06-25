@@ -233,7 +233,7 @@ public class StatUtil {
 	 * Sorts the double array and returns the positions of the original array corresponding
 	 * to the ordered elements
 	 * @param a double array to be sorted
-	 * @return
+	 * @return positions of the original array corresponding to the ordered elements
 	 */
 	public static int[] findSort(double[] a) {
 		int[] sortedInds = new int[a.length];
