@@ -50,6 +50,7 @@ public class PairBindingAnalysis {
 				continue;
 			String[] f = line.split("\\s+");		// match one or more white space
 			Point p = Point.fromString(genome, f[0]);
+			tf1_pts.add(p);
 			String chr = p.getChrom();
 			if (!chrom2sites.containsKey(chr))
 				chrom2sites.put(chr, new ArrayList<Point>());
