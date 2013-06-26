@@ -109,6 +109,7 @@ public class Config {
     public int joint_event_distance = 500;
     public int top_events = 2000;
     public int min_event_count = 500;	// minimum num of events to update read distribution
+    public double skip_top_fraction = 0.01;		// fraction of top events to skip for updating read distribution
     public int smooth_step = 30;
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
@@ -295,6 +296,7 @@ public class Config {
         joint_event_distance = Args.parseInteger(args, "j", joint_event_distance);		// max distance of joint events
         top_events = Args.parseInteger(args, "top", top_events);
         min_event_count = Args.parseInteger(args, "min", min_event_count);
+        skip_top_fraction = Args.parseDouble(args, "min", skip_top_fraction);
         base_reset_threshold = Args.parseInteger(args, "reset", base_reset_threshold);
         min_region_width = Args.parseInteger(args, "min_region_width", 50);
         verbose = Args.parseInteger(args, "v", verbose);
