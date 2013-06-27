@@ -173,7 +173,7 @@ public class GEM {
 	        mixture.printFeatures(round);
 	        mixture.printFilteredFeatures(round);
 	        mixture.printInsignificantFeatures(round);	        
-        	if (!Args.parseFlags(args).contains("not_refine_regions"))
+        	if (Args.parseFlags(args).contains("refine_regions"))
             	mixture.refineRegions();
         }
         mixture.releaseMemory();
@@ -203,7 +203,7 @@ public class GEM {
         	// initialize first set of kmers from GPS result
 	        int returnValue = mixture.initKMAC();	
 	        if (returnValue < 0){					// this could happen if no k value can be found to give good motif
-	        	mixture.plotAllReadDistributions();
+	        	mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
 	            mixture.closeLogFile();
 	            
 	            if (returnValue == -1)
@@ -243,7 +243,7 @@ public class GEM {
             }
         }
         
-        mixture.plotAllReadDistributions();
+        mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
         mixture.closeLogFile();        
 
         if (run_gem){

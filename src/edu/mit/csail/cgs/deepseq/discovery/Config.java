@@ -134,7 +134,8 @@ public class Config {
     public boolean use_dynamic_sparseness = true;
     public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
-    public boolean refine_regions = true;		// refine the enrichedRegions for next round using EM results
+    public boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
+    public boolean print_stranded_read_distribution = false;	
     public boolean cache_genome = true;			// cache the genome sequence
     public String genome_path = null;
     
@@ -150,6 +151,7 @@ public class Config {
 
     public void parseArgs(String args[]) throws Exception {
         Set<String> flags = Args.parseFlags(args);
+        
         // default as false, need the flag to turn it on
         classify_events = flags.contains("classify");
         print_PI = flags.contains("print_PI");
@@ -170,7 +172,6 @@ public class Config {
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
-
         k_neg_shuffle = flags.contains("k_neg_shuffle");
         k_neg_dinu_shuffle = flags.contains("k_neg_dinu_shuffle");
         re_align_kmer = flags.contains("rak");
@@ -186,9 +187,10 @@ public class Config {
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         discard_subAlpha_components = flags.contains("no_sub_alpha");
+        refine_regions = flags.contains("refine_regions");
+        print_stranded_read_distribution = flags.contains("print_stranded_read_distribution");
                 
         // default as true, need the opposite flag to turn it off
-        refine_regions = !flags.contains("not_refine_regions");
         exclude_unenriched = !flags.contains("not_ex_unenriched");
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
         use_betaEM = ! flags.contains("poolEM");

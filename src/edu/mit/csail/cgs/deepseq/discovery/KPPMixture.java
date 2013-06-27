@@ -53,7 +53,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private double[] profile_plus_sum;
 	private double[] profile_minus_sum;
 	
-	private HashMap<String, BindingModel> allModels = new HashMap<String, BindingModel>();
+	HashMap<String, BindingModel> allModels = new HashMap<String, BindingModel>();
 	
 	// Max number of reads on a base position, to filter out towers and needles.
 	private int max_HitCount_per_base = 3;
@@ -2870,6 +2870,30 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		modelRange = model.getRange();
 		modelWidth = model.getWidth();
 		allModels.put(roundLable, model);
+		
+		if (config.print_stranded_read_distribution){
+			HashMap<String, BindingModel> bothModels = new HashMap<String, BindingModel>();
+			// plus strand
+			dist.clear();
+			for (int i=0;i<width;i++){
+				Pair<Integer, Double> p = new Pair<Integer, Double>(i-left, model_plus[i]>=0?model_plus[i]:2.0E-300);
+				dist.add(p);
+			}
+			BindingModel plusModel = new BindingModel(dist);
+			plusModel.printToFile(roundLable+"_Read_distribution_plus.txt");
+			bothModels.put(roundLable+"_plus", plusModel);
+			// minus strand
+			dist.clear();
+			for (int i=0;i<width;i++){
+				Pair<Integer, Double> p = new Pair<Integer, Double>(i-left, model_minus[i]>=0?model_minus[i]:2.0E-300);
+				dist.add(p);
+			}
+			BindingModel minusModel = new BindingModel(dist);
+			minusModel.printToFile(roundLable+"_Read_distribution_minus.txt");
+			bothModels.put(roundLable+"_minus", minusModel);
+			
+			plotAllReadDistributions(bothModels, roundLable+"_stranded__");
+		}
 
 		double logKL = 0;
 		if (oldModel.length==modelWidth)
@@ -2883,7 +2907,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		return model;
 	}
 
-	public void plotAllReadDistributions(){
+	public void plotAllReadDistributions(HashMap<String, BindingModel> allModels, String outName){
 		Color[] colors = {Color.black, Color.red, Color.blue, Color.green, Color.cyan, Color.orange};
 		String filename = outName.substring(0, outName.length()-2) + "_All_Read_Distributions.png";
 		File f = new File(filename);
