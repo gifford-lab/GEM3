@@ -167,10 +167,7 @@ public class GEM {
         else
             kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
         
-        if (!Args.parseFlags(args).contains("process_all_regions")){
-	        mixture.setProcessAllRegions();
-        }
-        else{
+        if (Args.parseFlags(args).contains("process_all_regions")){
 	        mixture.printFeatures(round);
 	        mixture.printFilteredFeatures(round);
 	        mixture.printInsignificantFeatures(round);	        

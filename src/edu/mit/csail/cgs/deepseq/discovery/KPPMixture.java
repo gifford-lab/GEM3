@@ -459,27 +459,54 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		double[] enrichedRegionReadCounts = new double[totalRegionCount];
 		for (int i=0;i<totalRegionCount;i++){
 			Region r = restrictRegions.get(i);
-			enrichedRegionReadCounts[i]=this.countIpReads(r);
+			enrichedRegionReadCounts[i]=countIpReads(r);
 		}
 		if (config.background_proportion==-1){
 			if (background_proportion == -1){	// first round, do not estimate from candidate regions
 				background_proportion = config.pi_bg_r0;
 				log(2,String.format("Default initial noise proportion in the candidate regions = %.3f%n", background_proportion));
 			}
-			else{
+			else if (config.process_all_regions){ // second round, if process all regions, use signal regions to estimate
 				int length=0;
 				int selectedReadCount=0;
 				int totalReadCount=0;
-				for (int i=0;i<restrictRegions.size();i++){
-					Region r = restrictRegions.get(i);
+				
+				// use the refined regions
+				ArrayList<Feature> events = new ArrayList<Feature>();
+				events.addAll(signalFeatures);
+				if (insignificantFeatures!=null)
+					events.addAll(insignificantFeatures);
+				if (filteredFeatures!=null)
+					events.addAll(filteredFeatures);
+				ArrayList<ComponentFeature> compFeatures = new ArrayList<ComponentFeature>();
+				for (Feature f : events){
+					ComponentFeature cf = (ComponentFeature) f;
+					for (int c=0;c<this.numConditions;c++){
+						if (cf.getQValueLog10(c)> config.q_refine)		// relax to include more potential regions
+							compFeatures.add(cf);
+					}
+				}
+				Collections.sort(compFeatures);
+				ArrayList<Region> refinedRegions = new ArrayList<Region>();
+				for (ComponentFeature cf:compFeatures){
+					refinedRegions.add(cf.getPosition().expand(0));
+				}
+				refinedRegions = mergeRegions(refinedRegions, true);
+				
+				for (int i=0;i<refinedRegions.size();i++){
+					Region r = refinedRegions.get(i);
 					length+= r.getWidth();
-					selectedReadCount+=enrichedRegionReadCounts[i];
+					selectedReadCount += countIpReads(r);
 				}
 				for(int i=0; i<numConditions; i++){
 					totalReadCount += caches.get(i).car().getHitCount();
 				}
 				background_proportion = 1.0*(totalReadCount-selectedReadCount)/(config.mappable_genome_length-length)*length/selectedReadCount;
 				log(2,String.format("Estimated noise proportion in the candidate regions = %.3f%n", background_proportion));
+			}
+			else{	// second round, if not processed all regions, set to true, still use config.pi_bg_r0
+				config.process_all_regions = true;
+				log(2,String.format("Default initial noise proportion in the candidate regions = %.3f%n", background_proportion));
 			}
 		}
 		else{
@@ -3630,10 +3657,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	    	for (int k=config.k;k<config.k+5;k++){
 			String name = outName+"_";//OK_win"+ (config.k*2);
 		}
-	}
-
-	public void setProcessAllRegions() {
-		config.process_all_regions = true;
 	}
 
 	class GPSConstants {
