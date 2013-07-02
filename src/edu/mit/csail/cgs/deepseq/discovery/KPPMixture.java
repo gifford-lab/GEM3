@@ -62,7 +62,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private double[] gaussian;
 	private boolean doScanning=true;
 	
-	private boolean processAllRegions = false;
+//	private boolean processAllRegions = false;
 	
 	/****************
 	 * Data
@@ -518,7 +518,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         ArrayList<Region> regionsToRun = new ArrayList<Region>();
-        if (!processAllRegions){		// first round, only process some of the region, sort to put the strong regions on top
+        if (!config.process_all_regions){		// first round, only process some of the region, sort to put the strong regions on top
         	int[] idx = StatUtil.findSort(enrichedRegionReadCounts);
         	int skipIdx = (int)Math.round(totalRegionCount * (1-config.skip_top_fraction));		// skip top fractoin (may be artifacts)
         	for (int i=skipIdx;i>=0;i--)
@@ -575,7 +575,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             }
         } // while tread running loop
         
-        if (processAllRegions)
+        if (config.process_all_regions)
         	System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
         else
         	System.out.println(processedRegionCount.size()+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
@@ -586,7 +586,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         }
         processedRegionCount.clear();
         log(3,String.format("%d threads have finished running", config.maxThreads));
-        if (processAllRegions || goodFeatures.size()<config.top_events*2){
+        if (config.process_all_regions || goodFeatures.size()<config.top_events*2){
 	        compFeatures.trimToSize();
 	        
 	        // print out the heavy regions
@@ -1536,10 +1536,19 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			System.gc();
 			if (config.write_RSC_file){
 				ipCache.writeRSC();
-				ctrlCache.writeRSC();
+				if (controlDataExist)
+					ctrlCache.writeRSC();
+			}
+			if (config.write_genetrack_file){
+				ipCache.writeGeneTrack();
+				if (controlDataExist)
+					ctrlCache.writeGeneTrack();
 			}
 		} // for each condition
-
+		if (config.write_genetrack_file){
+			System.out.println("\nGenetrack files has been written!");
+			System.exit(0);
+		}
 		if (fromReadDB){
 			System.out.println("Finish loading data from ReadDB, " + CommonUtils.timeElapsed(tic));
 			System.out.println();
@@ -3623,12 +3632,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 	}
 
-    public boolean isProcessAllRegions() {
-		return processAllRegions;
-	}
-
-	public void setProcessAllRegions(boolean processAllRegions) {
-		this.processAllRegions = processAllRegions;
+	public void setProcessAllRegions() {
+		config.process_all_regions = true;
 	}
 
 	class GPSConstants {
@@ -3906,7 +3911,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     	// NOTE: this code is also used below, updates should be in sync
                     	ArrayList<ComponentFeature> cfs = callFeatures(comps);
                     	compFeatures.addAll(cfs);
-                    	if (!processAllRegions){
+                    	if (!config.process_all_regions){
 	                    	evaluateSignificance(cfs);
 	                    	boolean significant = false;	            			            		
 	                    	for (ComponentFeature cf:cfs){
@@ -4016,7 +4021,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         	// NOTE: this code is also used above, updates should be in sync
                         	ArrayList<ComponentFeature> cfs = callFeatures(comps);
                         	compFeatures.addAll(cfs);
-                        	if (!processAllRegions){
+                        	if (!config.process_all_regions){
     	                    	evaluateSignificance_simplified(cfs);
     	                    	boolean significant = false;	            			            		
     	                    	for (ComponentFeature cf:cfs){
@@ -4045,7 +4050,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 } finally{
                 	regionsRunning.remove(rr);
                 }
-                if ((!processAllRegions) && goodFeatures.size()>=config.top_events*2)
+                if ((!config.process_all_regions) && goodFeatures.size()>=config.top_events*2)
                 	break;
             }
         }

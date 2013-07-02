@@ -12,6 +12,7 @@ public class Config {
     public boolean outputBED = false;
     public boolean outputNarrowPeak = false;
     public boolean write_RSC_file = false;
+    public boolean write_genetrack_file = false;
     public boolean kmer_print_hits = false;
     public boolean testPValues = false;
     public boolean post_artifact_filter=false;
@@ -23,6 +24,7 @@ public class Config {
     public boolean use_kmer_strength = false;
     public boolean print_kmer_bPos = false;    
     public boolean discard_subAlpha_components=false;			// discard the component whose strength is less than alpha    
+    public boolean process_all_regions = false;
     
     public boolean TF_binding = true;
     public boolean exclude_unenriched = true;
@@ -162,6 +164,7 @@ public class Config {
         outputBED = flags.contains("outBED");
         outputNarrowPeak = flags.contains("outNP");
         write_RSC_file = flags.contains("writeRSC");
+        write_genetrack_file = flags.contains("write_genetrack_file");
         testPValues = flags.contains("testP");
         if (testPValues)
         	System.err.println("testP is " + testPValues);
@@ -189,6 +192,7 @@ public class Config {
         discard_subAlpha_components = flags.contains("no_sub_alpha");
         refine_regions = flags.contains("refine_regions");
         print_stranded_read_distribution = flags.contains("print_stranded_read_distribution");
+        process_all_regions = flags.contains("process_all_regions");
                 
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");

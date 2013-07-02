@@ -102,9 +102,11 @@ public class PairBindingAnalysis {
 		for (Point p: tf2_only_pts)
 			tf2_only.append(p.toString()).append("\n");
 		
-		CommonUtils.writeFile(Args.parseString(args, "out", "TF12_shared.txt"), out.toString());
-		CommonUtils.writeFile("TF1_only.txt", tf1_only.toString());
-		CommonUtils.writeFile("TF2_only.txt", tf2_only.toString());
+		String name1 = Args.parseString(args, "name1", "TF1");
+		String name2 = Args.parseString(args, "name2", "TF2");
+		CommonUtils.writeFile(name1+"_"+name2+"_shared.txt", out.toString());
+		CommonUtils.writeFile(name1+"_only_vs_"+name2+".txt", tf1_only.toString());
+		CommonUtils.writeFile(name2+"_only_vs_"+name1+".txt", tf2_only.toString());
 	}
 
 
