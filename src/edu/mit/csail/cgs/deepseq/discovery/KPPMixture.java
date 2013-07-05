@@ -834,7 +834,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		if (kmac!=null){
 			int bin = (int)Math.ceil(signalFeatures.size()/10.0);
 			StringBuilder sb = new StringBuilder();
-			sb.append("Percentage of events with a k-mer match in 10 bins ("+bin+"events per bin):\n");
+			sb.append("Percentage of events with a k-mer match in 10 bins (~"+bin+" events per bin):\n");
 			for (int i=0;i<signalFeatures.size();i+=bin){
 				int count=0, motif=0;
 				for (int j=i;j<Math.min(signalFeatures.size(), i+bin);j++){
@@ -3948,7 +3948,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		            				else		//TODO: if histone data, need to test as a set of events
 		            					significant = true;
 		                    	}
-	            				if (significant)
+	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
 		                    		goodFeatures.add(cf);
 	            			}
                     	}
@@ -3963,18 +3963,18 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         Collections.sort(comps);
                         // The whole region can be divided into subRegions with gap >= modelWidth
                         ArrayList<ArrayList<Region>> subRegions = new ArrayList<ArrayList<Region>>();
-                        ArrayList<Region> rs = new ArrayList<Region>();
-                        rs.add(comps.get(0).getLocation().expand(0));
-                        subRegions.add(rs);
+                        ArrayList<Region> subRegionList = new ArrayList<Region>();
+                        subRegionList.add(comps.get(0).getLocation().expand(0));
+                        subRegions.add(subRegionList);
                         if (comps.size()>1){
                             for (int i=1;i<comps.size();i++){
                                 if (comps.get(i).getLocation().distance(comps.get(i-1).getLocation())>modelWidth){
-                                    rs = new ArrayList<Region>();
-                                    subRegions.add(rs);
-                                    rs.add(comps.get(i).getLocation().expand(0));
+                                    subRegionList = new ArrayList<Region>();	// start a new region list when having a large enough gap
+                                    subRegions.add(subRegionList);
+                                    subRegionList.add(comps.get(i).getLocation().expand(0));
                                 }
-                                else	// in same subregions
-                                    rs.add(comps.get(i).getLocation().expand(0));
+                                else	// in same subregion, more than 1 event in this region list
+                                    subRegionList.add(comps.get(i).getLocation().expand(0));
                             }
                         }
                         for (ArrayList<Region> subr : subRegions){	// for each independent regions (may have multiple events)
@@ -4014,13 +4014,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                                         for(int k = 0; k < compStrength.length; k++) { compStrength[k] = bl.get(k).getMixProb(); }
                                         Pair<Double, TreeSet<Integer>> max_maxCompIdx = StatUtil.findMax(compStrength);
                                         b = bl.get(max_maxCompIdx.cdr().first());
+                                        b.setMixProb(1);		// set it as non-joint event
                                     }
                                 }
                                 bs.add(b);
                                 singleEventRegions.put(subr.get(0), b.getLocation());
                             } else {	// for joint events
-                                rs=mergeRegions(subr, true);
-                                for (Region r:rs){
+                                subRegionList=mergeRegions(subr, true);
+                                for (Region r:subRegionList){
                                     for (BindingComponent m:comps){
                                         if (r.overlaps(m.getLocation().expand(0)))
                                             bs.add(m);
@@ -4058,7 +4059,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		            				else		//TODO: if histone data, need to test as a set of events
     		            					significant = true;
     		                    	}
-    	            				if (significant)
+    	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
     		                    		goodFeatures.add(cf);
     	            			}
                         	} // if only process partial data
