@@ -119,7 +119,7 @@ public class Config {
     
     public double mappable_genome_length = -1; // default is to compute
     public double background_proportion = -1;	// default is to compute
-    public double pi_bg_r0 = 0.05;
+    public double pi_bg_r0 = 0.02;
     public double sparseness=-1;
     public double poisson_alpha=1e-3; 				// the Poisson p-value for estimating alpha
     public double fold = 2.5;
