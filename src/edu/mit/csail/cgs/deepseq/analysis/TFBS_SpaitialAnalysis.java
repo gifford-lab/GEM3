@@ -81,6 +81,10 @@ public class TFBS_SpaitialAnalysis {
 			mtb.loadClusterAndTssSignals();
 			mtb.computeCorrelations();
 			break;
+		case 2:
+			mtb.loadEventAndMotifs(round);
+			mtb.computeTfbsSpacingDistribution();
+			break;
 		case 11:	// old code
 			mtb.loadClusterAndTSS();
 			mtb.computeCorrelations_db();
@@ -313,6 +317,35 @@ public class TFBS_SpaitialAnalysis {
 
 		CommonUtils.writeFile("TF_clusters.txt", sb.toString());	
 	}
+	
+	private void computeTfbsSpacingDistribution(){
+		// classify sites by chrom
+		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
+		for (ArrayList<Site> sites:all_sites){
+			for (Site s:sites){
+				String chr = s.bs.getChrom();
+				if (!chrom2sites.containsKey(chr))
+					chrom2sites.put(chr, new ArrayList<Site>());
+				chrom2sites.get(chr).add(s);
+			}
+		}
+		
+		// sort sites and compute TFBS spacings
+		int[] counts = new int[2001];
+		for (String chr: chrom2sites.keySet()){
+			ArrayList<Site> sites = chrom2sites.get(chr);
+			Collections.sort(sites);
+			for (int i=1;i<sites.size();i++){	
+				int spacing = sites.get(i).bs.getLocation()-sites.get(i-1).bs.getLocation();
+				if (spacing<=2000)
+					counts[spacing]++;
+			}
+		}
+		for (int i=0;i<counts.length;i++){
+			System.out.println(i+"\t"+counts[i]);
+		}
+	}
+	
 	private void mergedTSS(){
 		
 		if (tss_file != null){
