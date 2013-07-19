@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -35,6 +37,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 /**
  * @author Yuchun Guo
@@ -345,6 +348,26 @@ public class CommonUtils {
 	        while((line = bin.readLine()) != null) { 
 	            line = line.trim();
 	            if (line.length()!=0)
+	            	strs.add(line);
+	        }			
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+fileName);
+            e.printStackTrace(System.err);
+        }   
+        return strs;
+	}
+	
+	public static ArrayList<String> readFastaFile(String fileName){
+		ArrayList<String> strs = new ArrayList<String>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileName))));
+	        String line;
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            if (!line.startsWith(">") && line.length()!=0)
 	            	strs.add(line);
 	        }			
 	        if (bin != null) {
@@ -759,6 +782,69 @@ public class CommonUtils {
 			}
 		}
 		return results;
+	}
+	
+	/**
+	 * Count the number of occurences of k-mers in the sequences
+	 * @return
+	 */
+	public static HashMap<String, Integer> countKmers(int k, String seqs[]){
+		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
+		long tic = System.currentTimeMillis();
+		
+		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
+		for (int seqId=0;seqId<seqs.length;seqId++){
+			String seq = seqs[seqId].toUpperCase();
+			int numPos = seq.length()-k+1;
+			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
+			 
+			for (int i=0;i<numPos;i++){
+				if ((i+k)>seq.length()) // endIndex of substring is exclusive
+					break;
+				String kstring = seq.substring(i, i+k);
+				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
+					continue;
+				uniqueKmers.add(kstring);
+			}
+			for (String s: uniqueKmers){
+				if (!kmerstr2seqs.containsKey(s)){
+					 kmerstr2seqs.put(s, new HashSet<Integer>());
+				}
+				kmerstr2seqs.get(s).add(seqId);
+			}
+		}
+		
+		// Merge kmer and its reverse compliment (RC)	
+		ArrayList<String> kmerStrings = new ArrayList<String>();
+		kmerStrings.addAll(kmerstr2seqs.keySet());
+		
+		// create kmers from its and RC's counts
+		for (String key:kmerStrings){
+			if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
+				continue;
+			// consolidate kmer and its reverseComplment kmer
+			String key_rc = SequenceUtils.reverseComplement(key);				
+			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
+				if (kmerstr2seqs.containsKey(key_rc)){
+					int kCount = kmerstr2seqs.get(key).size();
+					int rcCount = kmerstr2seqs.get(key_rc).size();
+					String winner = kCount>=rcCount?key:key_rc;
+					String loser = kCount>=rcCount?key_rc:key;
+					kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner take all
+					kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
+				}
+			}
+		}
+
+		HashMap<String, Integer> kmerCounts = new HashMap<String, Integer>();
+		for (String key:kmerstr2seqs.keySet()){	
+			kmerCounts.put(key, kmerstr2seqs.get(key).size());
+		}
+		kmerstr2seqs=null;
+		System.gc();
+		
+		return kmerCounts;
+				
 	}
 	
 	public static void main0(String[] args){

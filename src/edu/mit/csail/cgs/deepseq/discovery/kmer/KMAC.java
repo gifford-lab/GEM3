@@ -775,10 +775,10 @@ public class KMAC {
 	 * */
 	public ArrayList<Kmer> selectEnrichedKmers(int k){
 		this.k = k;
-		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
+		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
 		numPos = k_win-k+1;
-		int expectedCount = (int) Math.round(seqs.length*(seqs[0].length()-k+1) / Math.pow(4, k));
+		int expectedCount = (int) Math.round(seqs.length*2*(seqs[0].length()-k+1) / Math.pow(4, k));
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];

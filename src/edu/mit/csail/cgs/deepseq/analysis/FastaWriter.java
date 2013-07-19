@@ -23,7 +23,7 @@ import edu.mit.csail.cgs.utils.Pair;
  *
  */
 public class FastaWriter{  
-	// --species "Homo sapiens;hg19" --coords /your/path --win 200 --no_cache  
+	// --species "Homo sapiens;hg19" --coords /your/path [ --win 100 --no_cache --use_db_genome --out name --genome genome_path ]
   public static void main(String[] args){
     ArgParser ap = new ArgParser(args);
     Set<String> flags = Args.parseFlags(args);
@@ -35,9 +35,9 @@ public class FastaWriter{
         //Make fake genome... chr lengths provided???
         if(ap.hasKey("geninfo")){
           genome = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-            }else{
+        }else{
               System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-            }
+        }
       }else{
         genome = pair.cdr();
       }  
@@ -48,12 +48,19 @@ public class FastaWriter{
 //    boolean wantHMS = flags.contains("hms");
 //    boolean wantChIPMunk = flags.contains("chipmunk");
     
-    int window = Args.parseInteger(args, "win", -1);
+    int window = Args.parseInteger(args, "win", 100);
     
     SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	seqgen.useCache(!flags.contains("no_cache"));
-	seqgen.useLocalFiles(!flags.contains("use_db_genome"));
-	
+	if (flags.contains("use_db_genome")){
+		seqgen.useLocalFiles(false);
+	}
+	else{
+		String genomePath = Args.parseString(args, "genome", null);
+		if (genomePath!=null){
+			seqgen.setGenomePath(genomePath);
+		}
+	}
 	
     // load coordinates
 	ArrayList<Region> regions = new ArrayList<Region>();
@@ -74,7 +81,7 @@ public class FastaWriter{
     	sb.append(seq).append("\n");
     	count++;
     }
-    CommonUtils.writeFile(Args.parseString(args, "out", null)+"_"+window+"bp.fasta", sb.toString());
+    CommonUtils.writeFile(Args.parseString(args, "out", "noname")+"_"+window+"bp.fasta", sb.toString());
     
   }
   

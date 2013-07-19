@@ -9,22 +9,27 @@ import java.util.TreeMap;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class PairBindingAnalysis {
 
-	/**
-	 * Report the relationship between a pair of binding calls: 
-	 * <ol>
-	 * <li> The distance between binding calls
-	 * <li> The percentages of intersection relative the whole sets
-	 * </ol>
-	 * example: --species "Mus musculus;mm9" --TF1 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_2_GEM_events.txt" --TF2 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_1_GEM_events.txt" --win 100 --out TF1_vs_TF2.txt
-	 */
 	public static void main(String[] args) {
+	
+		int type = Args.parseInteger(args, "type", 1);
+		switch(type){
+			case 1: diffBinding(args, parseGenome(args)); break;
+			case 2: diffKmer(args); break;
+		}
+		
+	}
+	
+	public static Genome parseGenome(String[] args) {
 		Genome genome = null;
 		try {
 	    	Pair<Organism, Genome> pair = Args.parseGenome(args);
@@ -37,6 +42,18 @@ public class PairBindingAnalysis {
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
+		return genome;
+	}
+	
+	/**
+	 * Report the relationship between a pair of binding calls: 
+	 * <ol>
+	 * <li> The distance between binding calls
+	 * <li> The percentages of intersection relative the whole sets
+	 * </ol>
+	 * example: --species "Mus musculus;mm9" --TF1 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_2_GEM_events.txt" --TF2 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_1_GEM_events.txt" --win 100 --out TF1_vs_TF2.txt
+	 */
+	public static void diffBinding(String[] args, Genome genome){
 	    	
 		// load binding sites (TF1)
 	    ArrayList<String> texts = CommonUtils.readTextFile(Args.parseString(args, "TF1", null));
@@ -109,5 +126,58 @@ public class PairBindingAnalysis {
 		CommonUtils.writeFile(name2+"_only_vs_"+name1+".txt", tf2_only.toString());
 	}
 
-
+	public static void diffKmer(String[] args){
+	    int k_min = Args.parseInteger(args, "k_min", 5);
+	    int k_max = Args.parseInteger(args, "k_max", 15);
+	    double p = Args.parseDouble(args, "p", -3);
+	    
+	    ArrayList<String> texts = CommonUtils.readFastaFile(Args.parseString(args, "fasta1", null));
+	    String[] seqs = new String[texts.size()];
+	    texts.toArray(seqs);	    
+	    int t1 = seqs.length;
+	    
+	    texts = CommonUtils.readFastaFile(Args.parseString(args, "fasta2", null));
+	    String[] seqs2 = new String[texts.size()];
+	    texts.toArray(seqs2);	  
+	    texts = null;
+	    int t2 = seqs2.length;
+	    
+	    StringBuilder sb = new StringBuilder();
+	    for (int k=k_min;k<=k_max;k++){	    	
+		    HashMap<String, Integer> m1 = CommonUtils.countKmers(k, seqs);
+		    HashMap<String, Integer> m2 = CommonUtils.countKmers(k, seqs2);
+		    for (String key:m1.keySet()){
+		    	int c1 = m1.get(key);
+		    	int c2 = 0;
+		    	if (m2.containsKey(key)){
+		    		c2 = m2.get(key);
+		    		m2.remove(key);
+		    	}
+		    	else{
+		    		key = SequenceUtils.reverseComplement(key);
+		    		if (m2.containsKey(key)){
+			    		c2 = m2.get(key);
+			    		m2.remove(key);
+			    	}
+		    	}
+		    	double hgp = KMAC.computeHGP(t1, t2, c1, c2);
+		    	if (hgp<p)
+		    		sb.append(String.format("%s\t%d\t%d\t%.1f\t1\n", key, c1, c2, hgp));	  
+		    	else{
+		    		hgp = KMAC.computeHGP(t2, t1, c2, c1);
+			    	if (hgp<p)
+			    		sb.append(String.format("%s\t%d\t%d\t%.1f\t2\n", key, c1, c2, hgp));	 
+		    	}
+		    		
+		    }
+		    for (String key:m2.keySet()){
+		    	int c2 = m2.get(key);
+		    	double hgp = KMAC.computeHGP(t2, t1, c2, 0);
+		    	if (hgp<p)
+		    		sb.append(String.format("%s\t%d\t%d\t%.1f\t2\n", key, 0, c2, hgp));	
+		    }
+	    }
+//		    System.out.print(sb.toString());
+	    CommonUtils.writeFile("diff_kmer.txt", sb.toString());
+	}
 }

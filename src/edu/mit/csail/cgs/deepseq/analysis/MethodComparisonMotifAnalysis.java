@@ -208,6 +208,12 @@ public class MethodComparisonMotifAnalysis {
 		ArrayList<Double> allMotifScores = results.cdr();
 		System.out.printf("%n%d motifs (in %d regions).%n%n", allMotifs.size(), allRegions.size());
 		System.out.println(CommonUtils.timeElapsed(tic));
+		
+		// store the motif info in a map
+		HashMap<Point, Double> allMotifMap = new HashMap<Point, Double>();
+		for (int i=0;i<allMotifs.size();i++){
+			allMotifMap.put(allMotifs.get(i), allMotifScores.get(i));
+		}
 
 		// Get the set of motif matches for all peak calls		
 		System.out.println("\nMatching binding events with motifs ...");
@@ -244,14 +250,14 @@ public class MethodComparisonMotifAnalysis {
 		// output results, the spatial resolution (offset) 
 		StringBuilder sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
-		sb.append("MotifHit\tChrom");
+		sb.append("MotifHit\tStrand");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append("\t"+methodNames.get(i));
 		}
 		sb.append("\n");
 		for(Point motif:motifs_shared){
 			sb.append(motif.toString()+"\t");
-			sb.append(motif.getChrom()+"\t");
+			sb.append((allMotifMap.get(motif)>0?"+":"-")+"\t");
 			for (int i=0;i<maps.size();i++){
 				sb.append(maps.get(i).get(motif).offset).append("\t");
 			}
@@ -277,7 +283,7 @@ public class MethodComparisonMotifAnalysis {
 		// output results, the spatial resolution (offset) 
 		sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
-		sb.append("MotifHit\tChrom\t");
+		sb.append("MotifHit\tStrand\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"_offset\t");
 			sb.append(methodNames.get(i)+"_rank\t");
@@ -285,7 +291,7 @@ public class MethodComparisonMotifAnalysis {
 		sb.append("\n");
 		for(Point motif:motifs_union){
 			sb.append(motif.toString()+"\t");
-			sb.append(motif.getChrom()+"\t");
+			sb.append((allMotifMap.get(motif)>0?"+":"-")+"\t");
 			for (int i=0;i<maps.size();i++){
 				HashMap<Point, MotifHit> m = maps.get(i);
 				if (m.containsKey(motif)){
