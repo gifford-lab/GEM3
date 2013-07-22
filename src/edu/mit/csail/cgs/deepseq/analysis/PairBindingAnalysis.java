@@ -143,6 +143,9 @@ public class PairBindingAnalysis {
 	    int t2 = seqs2.length;
 	    
 	    StringBuilder sb = new StringBuilder();
+	    sb.append("#Fasta1:\t"+Args.parseString(args, "fasta1", null)+"\n");
+	    sb.append("#Fasta2:\t"+Args.parseString(args, "fasta2", null)+"\n");
+	    sb.append("#Total\t"+t1+"\t"+t2+"\n");
 	    for (int k=k_min;k<=k_max;k++){	    	
 		    HashMap<String, Integer> m1 = CommonUtils.countKmers(k, seqs);
 		    HashMap<String, Integer> m2 = CommonUtils.countKmers(k, seqs2);
