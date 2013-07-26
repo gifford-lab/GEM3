@@ -133,7 +133,7 @@ public class MethodComparisonMotifAnalysis {
 			}
 			else{
 				double pwm_ratio = Args.parseDouble(args, "pwm_ratio", 0.6);
-				motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+				motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
 				motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
 				if (motifThreshold==-1){				
 	    			motifThreshold = motif.getMaxScore()*pwm_ratio;

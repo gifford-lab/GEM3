@@ -463,7 +463,12 @@ public class CommonUtils {
           }  
   		  return pair;
     }
-    
+    /**
+     * Load one PWM from PFM files
+     * @param pfmFile	PFM file in STAMP format (simplified TRANSFAC format)
+     * @param gc	expected gc fraction
+     * @return
+     */
     public static WeightMatrix loadPWM_PFM_file(String pfmFile, double gc){
 		try{
 			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(pfmFile, "file");
@@ -486,7 +491,7 @@ public class CommonUtils {
 		        // log-odds
 		        for (int pos = 0; pos < matrix.length; pos++) {
 		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-		                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .000001) / 
+		                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
 		                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
 		            }
 		        } 
@@ -497,43 +502,49 @@ public class CommonUtils {
 			return null;
 		}
     }
-	public static WeightMatrix loadPWM(String pfmFile, double gc ){
-		WeightMatrix wm;
+ 
+    /**
+     * Load multiple PWMs from PFM files
+     * @param pfmFile	PFM file in STAMP format (simplified TRANSFAC format)
+     * @param gc	expected gc fraction
+     * @return
+     */
+    public static List<WeightMatrix> loadPWMs_PFM_file(String pfmFile, double gc){
 		try{
 			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(pfmFile, "file");
 			if (wms.isEmpty()){
-				wm=null;
-				System.out.println(pfmFile+" is not a valid motif file.");
+				return null;
 			}
-			else{		// if we have valid PFM, convert it to PWM
-				wm = wms.get(0);		// only get primary motif
-				float[][] matrix = wm.matrix;
-				// normalize
-		        for (int position = 0; position < matrix.length; position++) {
-		            double sum = 0;
-		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-		                sum += matrix[position][WeightMatrix.letters[j]];
-		            }
-		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-		                matrix[position][WeightMatrix.letters[j]] = (float)(matrix[position][WeightMatrix.letters[j]] / sum);
-		            }
-		        }
-		        // log-odds
-		        for (int pos = 0; pos < matrix.length; pos++) {
-		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-		                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
-		                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
-		            }
-		        } 
+			else{		// if we have valid PFM
+				for (int i=0;i<wms.size();i++){
+					WeightMatrix wm = wms.get(i);
+					float[][] matrix = wm.matrix;
+					// normalize
+			        for (int position = 0; position < matrix.length; position++) {
+			            double sum = 0;
+			            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+			                sum += matrix[position][WeightMatrix.letters[j]];
+			            }
+			            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+			                matrix[position][WeightMatrix.letters[j]] = (float)(matrix[position][WeightMatrix.letters[j]] / sum);
+			            }
+			        }
+			        // log-odds
+			        for (int pos = 0; pos < matrix.length; pos++) {
+			            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+			                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
+			                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
+			            }
+			        } 
+				}
+		        return wms;
 			}
 		}
 		catch (IOException e){
-			System.out.println(pfmFile+" motif PFM file reading error!!!");
-			wm = null;
+			return null;
 		}
-		return wm;
-	}
-    
+    }
+   
 	/**
 	 *  Scan the sequence for best match to the weight matrix
 	 *  @return  Pair of values, the lower coordinate of highest scoring PWM hit and the score
@@ -896,7 +907,7 @@ public class CommonUtils {
 //			CommonUtils.printMotifLogo(motif, new File("test.png"), 150);	
 		}
 		else{
-			motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+			motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
 //			CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
 		}
 
