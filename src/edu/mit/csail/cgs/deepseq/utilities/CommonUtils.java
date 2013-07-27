@@ -71,7 +71,7 @@ public class CommonUtils {
 			}
 		}
 		catch(IOException ioex) {
-			//logger.error("Error parsing file", ioex);
+			ioex.printStackTrace();
 		}
 		finally {
 			try {
