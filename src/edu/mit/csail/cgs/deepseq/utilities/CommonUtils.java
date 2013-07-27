@@ -60,10 +60,12 @@ public class CommonUtils {
 			bin = new BufferedReader(in);
 			String line;
 			while((line = bin.readLine()) != null) { 
-				line = line.trim();
-				if (line.startsWith("#"))
+				String f[] = line.trim().split("\t");
+				if (f[0].startsWith("#"))
 					continue;
-				Region point = Region.fromString(genome, line);
+				if (f[0].startsWith("Position"))		// to be compatible with GPS/GEM event file
+					continue;
+				Region point = Region.fromString(genome, f[0]);
 				if (point!=null)
 					points.add(new Point(genome, point.getChrom(),point.getStart()));
 			}
