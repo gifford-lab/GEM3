@@ -13,6 +13,7 @@ import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.general.StrandedPoint;
+import edu.mit.csail.cgs.datasets.general.StrandedRegion;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
@@ -64,7 +65,7 @@ public class GPS_ReadDistribution {
 			if(pair==null){
 				//Make fake genome... chr lengths provided???
 				if(ap.hasKey("g")){
-					genome = new Genome("Genome", new File(ap.getKeyValue("g")));
+					genome = new Genome("Genome", new File(ap.getKeyValue("g")), true);
 	        	}else{
 	        		System.err.println("No genome information provided."); 
 	        		System.exit(1);
@@ -269,8 +270,14 @@ public class GPS_ReadDistribution {
 					break;
 				line = line.trim();
 				Region point = Region.fromString(genome, line);
-				if (point!=null)
-					points.add(new Point(genome, point.getChrom(),point.getStart()));
+				if (point!=null){
+					if (point instanceof StrandedRegion){
+						StrandedRegion sr = (StrandedRegion)point;
+						points.add(new StrandedPoint(genome, point.getChrom(),point.getStart(),sr.getStrand()));
+					}
+					else
+						points.add(new Point(genome, point.getChrom(),point.getStart()));
+				}
 			}
 		}
 		catch(IOException ioex) {

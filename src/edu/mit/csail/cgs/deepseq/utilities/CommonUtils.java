@@ -18,6 +18,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
@@ -798,7 +799,9 @@ public class CommonUtils {
 	}
 	
 	/**
-	 * Count the number of occurences of k-mers in the sequences
+	 * Count the hit count of k-mers in the sequences<br>
+	 * - only count repeated kmers once in one sequence, i.e. hit count<br>
+	 * - a kmer and its reverse compliment are counted as one, same for palidromic kmer 
 	 * @return
 	 */
 	public static HashMap<String, Integer> countKmers(int k, String seqs[]){
@@ -856,8 +859,24 @@ public class CommonUtils {
 		kmerstr2seqs=null;
 		System.gc();
 		
-		return kmerCounts;
-				
+		return kmerCounts;				
+	}
+	public static void printGenomeInfo (String[] args) {
+		Genome genome = null;
+		try {
+	    	Pair<Organism, Genome> pair = Args.parseGenome(args);
+	    	if(pair==null){
+	    	  System.err.println("No genome provided; provide a Gifford lab DB genome name");
+	    	  System.exit(1);
+	    	}else{
+	    		genome = pair.cdr();
+	    	}
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+		Map<String, Integer> map = genome.getChromLengthMap();
+		for (String chr: map.keySet())
+			System.out.println(chr+"\t"+map.get(chr));
 	}
 	
 	public static void main0(String[] args){

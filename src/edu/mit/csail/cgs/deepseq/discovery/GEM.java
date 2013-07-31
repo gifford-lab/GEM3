@@ -38,7 +38,7 @@ public class GEM {
         } else {
             String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
             if(genomeString != null){
-                genome = new Genome("Genome", new File(genomeString));
+                genome = new Genome("Genome", new File(genomeString), true);
             } else{
                 genome=null;
             }

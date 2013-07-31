@@ -96,7 +96,7 @@ public class MethodComparisonMotifAnalysis {
 	      if(pair==null){
 	        //Make fake genome... chr lengths provided???
 	        if(ap.hasKey("g")){
-	          genome = new Genome("Genome", new File(ap.getKeyValue("g")));
+	          genome = new Genome("Genome", new File(ap.getKeyValue("g")), true);
 	            }else{
 	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
 	            }
