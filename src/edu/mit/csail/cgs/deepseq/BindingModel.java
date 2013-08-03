@@ -405,15 +405,25 @@ public class BindingModel {
 
 		return new Pair<Integer, Integer>(left, right);
 	}
-	
 	// shift two array elements to give best KL-divergence
 	// it will mutate the two input arrays.
 	// assume a and b have same length
 	public static int minKL_Shift (double[] a, double[] b){
+		return minKL_Shift (a,b,20);
+	}
+	/** Shift two array elements to give best KL-divergence
+	 * it will mutate the two input arrays.
+	 * assume a and b have same length
+	 * 
+	 * @param a
+	 * @param b
+	 * @param range the range to shift
+	 * @return
+	 */
+	public static int minKL_Shift (double[] a, double[] b, int range){
 		if (a.length!=b.length)
 			return 0;
 		int length = a.length;
-		int range=20;
 		double minKL=Double.MAX_VALUE;
 		int shift=0;
 		double[] a_new = new double[length];

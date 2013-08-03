@@ -38,7 +38,7 @@ public class GPS_ReadDistribution {
 	private ArrayList<Point> points = new ArrayList<Point>(); 
 	private String GPSfileName;
 	private int strength=40;
-	private int mrc = 10;
+	private int mrc = 100;
 
 	// build empirical distribution
 	private DeepSeqExpt chipSeqExpt = null;
@@ -51,6 +51,8 @@ public class GPS_ReadDistribution {
 	
 	private String name = null;
 	private String motif_strand = null;
+	private boolean print_4_orientations;
+	private boolean isDNase;
 	
 	public static void main(String[] args) throws IOException {
 		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
@@ -59,7 +61,11 @@ public class GPS_ReadDistribution {
 	
 	public GPS_ReadDistribution(String[] args) throws IOException {
 		ArgParser ap = new ArgParser(args);
-		
+		Set<String> flags = Args.parseFlags(args);
+		print_4_orientations = flags.contains("p4");
+		isDNase = flags.contains("dnase");
+		if (isDNase)
+			System.out.println("Running DNase-Seq mode ... ");
 		try {
 			Pair<Organism, Genome> pair = Args.parseGenome(args);
 			if(pair==null){
@@ -160,9 +166,8 @@ public class GPS_ReadDistribution {
 						strand = profiler.getMaxStrand(MOTIF_DISTANCE-z);
 					}
 					if(position > -Integer.MAX_VALUE){
-						Set<String> flags = Args.parseFlags(args);
 						Point motifPos = null;
-						if (flags.contains("stranded"))
+						if (!flags.contains("unstranded"))
 							motifPos = new StrandedPoint(genome, p.getChrom(), p.getLocation()+position, strand);
 						else if (motif_strand==null || (motif_strand.equalsIgnoreCase("F")&& strand=='+')||(motif_strand.equalsIgnoreCase("R")&& strand=='-'))
 							motifPos = new Point(genome, p.getChrom(), p.getLocation()+position);
@@ -176,28 +181,28 @@ public class GPS_ReadDistribution {
 			else
 				points.add(p);
 		}	// each point
-		System.out.println(points.size()+" coordinates are used.");
+		System.out.println("Computing profiles using "+points.size()+" coordinates ...");
 	}
 
 	private void printEmpiricalDistribution(ArrayList<Point> points){
-		BindingModel model_plus = getStrandedDistribution (points, '+');
-		model_plus.printToFile(String.format("Read_Distribution_%s_%d_plus.txt", name, points.size()));
-		BindingModel model_minus = getStrandedDistribution (points, '-');
-		model_minus.printToFile(String.format("Read_Distribution_%s_%d_minus.txt", name, points.size()));
-		
-		double[] prob_plus = model_plus.getProbabilities();
-		double[] prob_minus = model_minus.getProbabilities();
-		BindingModel.minKL_Shift(prob_plus, prob_minus);
-		
-		ArrayList<Pair<Integer, Double>> dist = new ArrayList<Pair<Integer, Double>>();
-		for(int i=model_plus.getMin();i<=model_plus.getMax();i++){
-			int index = i-model_plus.getMin();
-			dist.add(new Pair<Integer, Double>(i, prob_plus[index]+prob_minus[index]));
-		}
-		BindingModel model=new BindingModel(dist);
-		String outFile = String.format("Read_Distribution_%s_%d.txt", name, points.size());
+//		BindingModel model_plus = getStrandedDistribution (points, '+');
+//		model_plus.printToFile(String.format("Read_Distribution_%s_%d_plus.txt", name, points.size()));
+//		BindingModel model_minus = getStrandedDistribution (points, '-');
+//		model_minus.printToFile(String.format("Read_Distribution_%s_%d_minus.txt", name, points.size()));
+//		
+//		double[] prob_plus = model_plus.getProbabilities();
+//		double[] prob_minus = model_minus.getProbabilities();
+//		BindingModel.minKL_Shift(prob_plus, prob_minus);
+//		
+//		ArrayList<Pair<Integer, Double>> dist = new ArrayList<Pair<Integer, Double>>();
+//		for(int i=model_plus.getMin();i<=model_plus.getMax();i++){
+//			int index = i-model_plus.getMin();
+//			dist.add(new Pair<Integer, Double>(i, prob_plus[index]+prob_minus[index]));
+//		}
+		BindingModel model=getDistribution(points);
+		String outFile = String.format("Read_Distribution_%s.txt", name);
 		model.printToFile(outFile);
-		System.out.println(outFile+" is written.");
+		System.out.println(outFile+" has been written.");
 	}	
 	
 	private BindingModel getStrandedDistribution (ArrayList<Point> points, char strand){
@@ -245,6 +250,166 @@ public class GPS_ReadDistribution {
 				int pos = i-sum.length/2;
 				dist.add(new Pair<Integer, Double>(pos, (double)sum[i]));
 			}
+		BindingModel model=new BindingModel(dist);
+		if (smooth_step>0)
+			model.smooth(smooth_step, smooth_step);
+		return model;
+	}
+	
+	// Either to negate the offset of minus strand depends on the type of data
+	// ChIP-Seq data is point-symmetry (i.e. 180 degree rotation, the sequenced ends are from different ends of the pulled down fragment)
+	// DNase-Seq data is mirror-symmetry (i.e. the sequenced ends are from the same cut)
+	private BindingModel getDistribution (ArrayList<Point> points){
+		Map<String,Integer> chromLengthMap = genome.getChromLengthMap();
+		int length = range*2+1;
+		double[] pp = new double[length];		// motif/point and DNA are all on plus strand
+		double[] pm = new double[length];		// motif/point: plus,  DNA: minus
+		double[] mp = new double[length];
+		double[] mm = new double[length];
+		Pair<ArrayList<Integer>,ArrayList<Float>> pair = null;
+		for (Point p:points){
+			int pos = p.getLocation();
+			if (!chromLengthMap.containsKey(p.getChrom()) || pos>chromLengthMap.get(p.getChrom()))
+				continue;
+			if (p instanceof StrandedPoint){
+				char point_strand = ((StrandedPoint) p).getStrand();
+				
+				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), '+');
+				ArrayList<Integer> coords = pair.car();
+				for (int i=0;i<coords.size();i++){
+					int offset = coords.get(i)-pos;		// convert absolute coordinates to relative offset
+					if (point_strand=='-'){
+						if (isDNase)
+							offset = -offset;
+						mp[offset+range] += Math.min(pair.cdr().get(i), mrc);
+					}
+					else{
+						pp[offset+range] += Math.min(pair.cdr().get(i), mrc);
+					}
+				}
+				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), '-');
+				coords = pair.car();
+				for (int i=0;i<coords.size();i++){
+					int offset = coords.get(i)-pos;		// convert absolute coordinates to relative offset
+					if (point_strand=='-'){
+						offset = -offset;
+						mm[offset+range] += Math.min(pair.cdr().get(i), mrc);
+					}
+					else{
+						if (!isDNase)
+							offset = -offset;
+						pm[offset+range] += Math.min(pair.cdr().get(i), mrc);
+					}
+				}
+			}
+			else{	// unstranded
+				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), '+');
+				ArrayList<Integer> coords = pair.car();
+				for (int i=0;i<coords.size();i++){
+					int offset = coords.get(i)-pos;		// convert absolute coordinates to relative offset
+					pp[offset+range] += Math.min(pair.cdr().get(i), mrc);
+				}
+				pair = chipSeqExpt.loadStrandedBaseCounts(p.expand(range), '-');
+				coords = pair.car();
+				for (int i=0;i<coords.size();i++){
+					int offset = coords.get(i)-pos;		// convert absolute coordinates to relative offset
+					mm[offset+range] += Math.min(pair.cdr().get(i), mrc);
+				}
+			}
+		}
+
+		// combine data from plus and minus strand
+		ArrayList<Pair<Integer, Double>> dist = new ArrayList<Pair<Integer, Double>>();	
+		if (points.get(0) instanceof StrandedPoint){
+			if (print_4_orientations){
+				ArrayList<Pair<Integer, Double>> one_orientation = new ArrayList<Pair<Integer, Double>>();		// reads on the plus strand 
+				for (int i=0;i<length;i++){
+					one_orientation.add(new Pair<Integer, Double>(i-range, pp[i]));
+				}
+				BindingModel model_one_orientation=new BindingModel(one_orientation);
+				if (smooth_step>0)
+					model_one_orientation.smooth(smooth_step, smooth_step);
+				model_one_orientation.printToFile(String.format("Read_Distribution_%s_pp.txt", name));
+				
+				one_orientation.clear();
+				for (int i=0;i<length;i++){
+					one_orientation.add(new Pair<Integer, Double>(i-range, mm[i]));
+				}
+				model_one_orientation=new BindingModel(one_orientation);
+				if (smooth_step>0)
+					model_one_orientation.smooth(smooth_step, smooth_step);
+				model_one_orientation.printToFile(String.format("Read_Distribution_%s_mm.txt", name));
+				
+				one_orientation.clear();
+				for (int i=0;i<length;i++){
+					one_orientation.add(new Pair<Integer, Double>(i-range, mp[i]));
+				}
+				model_one_orientation=new BindingModel(one_orientation);
+				if (smooth_step>0)
+					model_one_orientation.smooth(smooth_step, smooth_step);
+				model_one_orientation.printToFile(String.format("Read_Distribution_%s_mp.txt", name));
+				
+				one_orientation.clear();
+				for (int i=0;i<length;i++){
+					one_orientation.add(new Pair<Integer, Double>(i-range, pm[i]));
+				}
+				model_one_orientation=new BindingModel(one_orientation);
+				if (smooth_step>0)
+					model_one_orientation.smooth(smooth_step, smooth_step);
+				model_one_orientation.printToFile(String.format("Read_Distribution_%s_pm.txt", name));
+			}
+			
+			BindingModel.minKL_Shift(pp, mm, 5);
+			BindingModel.minKL_Shift(mp, pm, 5);
+			ArrayList<Pair<Integer, Double>> same = new ArrayList<Pair<Integer, Double>>();		// reads on the same strand as motif
+			for (int i=0;i<length;i++){
+				pp[i]+=mm[i];		// store in pp
+				mp[i]+=pm[i];		// store in mp
+			}
+			for (int i=0;i<length;i++){
+				same.add(new Pair<Integer, Double>(i-range, pp[i]));
+			}
+			BindingModel model_same=new BindingModel(same);
+			if (smooth_step>0)
+				model_same.smooth(smooth_step, smooth_step);
+			model_same.printToFile(String.format("Read_Distribution_%s_same.txt", name));
+			ArrayList<Pair<Integer, Double>> diff = new ArrayList<Pair<Integer, Double>>();		// on diff strand
+			for (int i=0;i<length;i++){
+				diff.add(new Pair<Integer, Double>(i-range, mp[i]));
+			}
+			BindingModel model_diff=new BindingModel(diff);
+			if (smooth_step>0)
+				model_diff.smooth(smooth_step, smooth_step);
+			model_diff.printToFile(String.format("Read_Distribution_%s_diff.txt", name));
+			BindingModel.minKL_Shift(pp, mp, 5);
+			for (int i=0;i<length;i++){
+				dist.add(new Pair<Integer, Double>(i-range, pp[i]+mp[i]));
+			}
+		}
+		else{
+			ArrayList<Pair<Integer, Double>> plus = new ArrayList<Pair<Integer, Double>>();		// reads on the plus strand 
+			for (int i=0;i<length;i++){
+				plus.add(new Pair<Integer, Double>(i-range, pp[i]));
+			}
+			BindingModel model_plus=new BindingModel(plus);
+			if (smooth_step>0)
+				model_plus.smooth(smooth_step, smooth_step);
+			model_plus.printToFile(String.format("Read_Distribution_%s_plus.txt", name));
+			ArrayList<Pair<Integer, Double>> minus = new ArrayList<Pair<Integer, Double>>();		// on minus strand
+			for (int i=0;i<length;i++){
+				minus.add(new Pair<Integer, Double>(i-range, mm[i]));
+			}
+			BindingModel model_minus=new BindingModel(minus);
+			if (smooth_step>0)
+				model_minus.smooth(smooth_step, smooth_step);
+			model_minus.printToFile(String.format("Read_Distribution_%s_minus.txt", name));
+
+			BindingModel.minKL_Shift(pp, mm, 5);
+			for (int i=0;i<length;i++){
+				dist.add(new Pair<Integer, Double>(i-range, pp[i]+mm[i]));
+			}
+		}
+
 		BindingModel model=new BindingModel(dist);
 		if (smooth_step>0)
 			model.smooth(smooth_step, smooth_step);
