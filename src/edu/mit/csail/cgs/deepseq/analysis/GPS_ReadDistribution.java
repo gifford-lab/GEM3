@@ -52,7 +52,7 @@ public class GPS_ReadDistribution {
 	private String name = null;
 	private String motif_strand = null;
 	private boolean print_4_orientations;
-	private boolean isDNase;
+	private boolean isMirrorSymmetry;
 	
 	public static void main(String[] args) throws IOException {
 		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
@@ -63,9 +63,9 @@ public class GPS_ReadDistribution {
 		ArgParser ap = new ArgParser(args);
 		Set<String> flags = Args.parseFlags(args);
 		print_4_orientations = flags.contains("p4");
-		isDNase = flags.contains("dnase");
-		if (isDNase)
-			System.out.println("Running DNase-Seq mode ... ");
+		isMirrorSymmetry = flags.contains("mirrow");
+		if (isMirrorSymmetry)
+			System.out.println("Running MirrorSymmetry mode ... ");
 		try {
 			Pair<Organism, Genome> pair = Args.parseGenome(args);
 			if(pair==null){
@@ -279,8 +279,8 @@ public class GPS_ReadDistribution {
 				for (int i=0;i<coords.size();i++){
 					int offset = coords.get(i)-pos;		// convert absolute coordinates to relative offset
 					if (point_strand=='-'){
-						if (isDNase)
-							offset = -offset;
+//						if (isDNase)
+//							offset = -offset;
 						mp[offset+range] += Math.min(pair.cdr().get(i), mrc);
 					}
 					else{
@@ -292,12 +292,12 @@ public class GPS_ReadDistribution {
 				for (int i=0;i<coords.size();i++){
 					int offset = coords.get(i)-pos;		// convert absolute coordinates to relative offset
 					if (point_strand=='-'){
-						offset = -offset;
+//						offset = -offset;
 						mm[offset+range] += Math.min(pair.cdr().get(i), mrc);
 					}
 					else{
-						if (!isDNase)
-							offset = -offset;
+//						if (!isDNase)
+//							offset = -offset;
 						pm[offset+range] += Math.min(pair.cdr().get(i), mrc);
 					}
 				}
@@ -359,6 +359,13 @@ public class GPS_ReadDistribution {
 				model_one_orientation.printToFile(String.format("Read_Distribution_%s_pm.txt", name));
 			}
 			
+			// reverse the positions to merge
+			if (isMirrorSymmetry)
+				mp = reverseArray(mp);
+			if (!isMirrorSymmetry)
+				pm = reverseArray(pm);
+			mm = reverseArray(mm);
+			
 			BindingModel.minKL_Shift(pp, mm, 5);
 			BindingModel.minKL_Shift(mp, pm, 5);
 			ArrayList<Pair<Integer, Double>> same = new ArrayList<Pair<Integer, Double>>();		// reads on the same strand as motif
@@ -416,6 +423,12 @@ public class GPS_ReadDistribution {
 		return model;
 	}
 	
+	private double[] reverseArray(double[] a){
+		double[] b = new double[a.length];
+		for (int i=0;i<a.length;i++)
+			b[i]=a[a.length-1-i];
+		return b;
+	}
 	private ArrayList<Point> loadCgsPointFile(String filename, int ptCount) {
 
 		File file = new File(filename);
