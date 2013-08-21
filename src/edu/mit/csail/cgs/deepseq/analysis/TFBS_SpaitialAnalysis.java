@@ -54,13 +54,16 @@ public class TFBS_SpaitialAnalysis {
 	int distance = 50;		// distance between TFBS within a cluster
 	int range = 1000;		// the range around anchor site to search for targets
 	int exclude_range = 500;		// the range around anchor site to exclude same site
+	int min_site = 1;				// the minimum number of sites for the cluster to be printed out
 	double wm_factor = 0.6;	// PWM threshold, as fraction of max score
 	double cutoff = 0.3;	// corr score cutoff
 	File dir;
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
+	boolean print_uci_matlab_format = false;
 	private SequenceGenerator<Region> seqgen;
 	boolean dev = false;
+	boolean zero_or_one = false;	// for each TF, zero or one site per cluster, no multiple sites
 	
 	String tss_file;
 	String tss_signal_file;
@@ -75,7 +78,7 @@ public class TFBS_SpaitialAnalysis {
 		switch(type){
 		case 0:
 			mtb.loadEventAndMotifs(round);
-			mtb.findTfbsClusters();
+			mtb.mergeTfbsClusters();
 			break;
 		case 1:
 			mtb.loadClusterAndTssSignals();
@@ -88,7 +91,8 @@ public class TFBS_SpaitialAnalysis {
 		case 11:	// old code
 			mtb.loadClusterAndTSS();
 			mtb.computeCorrelations_db();
-			break;		case -1:
+			break;		
+		case -1:
 			mtb.mergedTSS();
 			break;
 		case -2:
@@ -113,9 +117,11 @@ public class TFBS_SpaitialAnalysis {
 	    }
 
 		Set<String> flags = Args.parseFlags(args);
+		zero_or_one = flags.contains("zoo");
 		dev = flags.contains("dev");
 		oldFormat = flags.contains("old_format");
 		useDirectBindingOnly = flags.contains("direct");
+		print_uci_matlab_format = flags.contains("uci_matlab");
 		dir = new File(Args.parseString(args, "dir", "."));
 		expts = new ArrayList<String>();
 		names = new ArrayList<String>();
@@ -135,6 +141,7 @@ public class TFBS_SpaitialAnalysis {
 		distance = Args.parseInteger(args, "distance", distance);
 		range = Args.parseInteger(args, "range", range);
 		exclude_range = Args.parseInteger(args, "exclude", exclude_range);
+		min_site = Args.parseInteger(args, "min_site", min_site);
 		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
 		cutoff = Args.parseDouble(args, "cutoff", cutoff);
 		gc = Args.parseDouble(args, "gc", gc);
@@ -238,7 +245,7 @@ public class TFBS_SpaitialAnalysis {
 		ArrayList<Boolean> TF_hasMotifs = new ArrayList<Boolean>();
 	}
 	
-	private void findTfbsClusters(){
+	private void mergeTfbsClusters(){
 		// classify sites by chrom
 		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
 		for (ArrayList<Site> sites:all_sites){
@@ -280,42 +287,70 @@ public class TFBS_SpaitialAnalysis {
 		clusters.add(cluster);
 
 		// output
-		StringBuilder sb = new StringBuilder();
-		sb.append("#Region\tLength\t#Sites\tTFs\tTFIDs\tSignals\tPos\tMotifs\t#Motif\n");
-		for (ArrayList<Site> c:clusters){
-			int numSite = c.size();
-			if (c.isEmpty())
-				continue;
-			Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(c.size()-1).bs.getLocation());
-			StringBuilder sb_tfs = new StringBuilder();
-			StringBuilder sb_tfids = new StringBuilder();
-			StringBuilder sb_tf_signals = new StringBuilder();
-			StringBuilder sb_tf_positions = new StringBuilder();
-			StringBuilder sb_tf_motifs = new StringBuilder();
-			int totalMotifs = 0;
-			for (Site s:c){
-				sb_tfs.append(names.get(s.tf_id)).append(",");
-				sb_tfids.append(s.tf_id).append(",");
-				sb_tf_signals.append(String.format("%d", Math.round(s.signal))).append(",");
-				sb_tf_positions.append(s.bs.getLocation()-r.getStart()).append(",");
-				sb_tf_motifs.append(s.motifStrand).append(",");
-				totalMotifs += s.motifStrand=='*'?0:1;
+		if (!print_uci_matlab_format){
+			StringBuilder sb = new StringBuilder();
+			sb.append("#Region\tLength\t#Sites\tTFs\tTFIDs\tSignals\tPos\tMotifs\t#Motif\n");
+			for (ArrayList<Site> c:clusters){
+				if (c.size()<min_site)				// skip if less than min_site cutoff
+					continue;
+				int numSite = c.size();
+				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+				StringBuilder sb_tfs = new StringBuilder();
+				StringBuilder sb_tfids = new StringBuilder();
+				StringBuilder sb_tf_signals = new StringBuilder();
+				StringBuilder sb_tf_positions = new StringBuilder();
+				StringBuilder sb_tf_motifs = new StringBuilder();
+				int totalMotifs = 0;
+				for (Site s:c){
+					sb_tfs.append(names.get(s.tf_id)).append(",");
+					sb_tfids.append(s.tf_id).append(",");
+					sb_tf_signals.append(String.format("%d", Math.round(s.signal))).append(",");
+					sb_tf_positions.append(s.bs.getLocation()-r.getStart()).append(",");
+					sb_tf_motifs.append(s.motifStrand).append(",");
+					totalMotifs += s.motifStrand=='*'?0:1;
+				}
+				if (sb_tfs.length()!=0){
+					sb_tfs.deleteCharAt(sb_tfs.length()-1);
+					sb_tfids.deleteCharAt(sb_tfids.length()-1);
+					sb_tf_signals.deleteCharAt(sb_tf_signals.length()-1);
+					sb_tf_positions.deleteCharAt(sb_tf_positions.length()-1);
+					sb_tf_motifs.deleteCharAt(sb_tf_motifs.length()-1);
+				}
+				sb.append(r.toString()).append("\t").append(r.getWidth()).append("\t").append(numSite).append("\t").
+				append(sb_tfs.toString()).append("\t").append(sb_tfids.toString()).append("\t").
+				append(sb_tf_signals.toString()).append("\t").append(sb_tf_positions.toString()).append("\t").
+				append(sb_tf_motifs.toString()).append("\t").append(totalMotifs)
+				.append("\n");
 			}
-			if (sb_tfs.length()!=0){
-				sb_tfs.deleteCharAt(sb_tfs.length()-1);
-				sb_tfids.deleteCharAt(sb_tfids.length()-1);
-				sb_tf_signals.deleteCharAt(sb_tf_signals.length()-1);
-				sb_tf_positions.deleteCharAt(sb_tf_positions.length()-1);
-				sb_tf_motifs.deleteCharAt(sb_tf_motifs.length()-1);
-			}
-			sb.append(r.toString()).append("\t").append(r.getWidth()).append("\t").append(numSite).append("\t").
-			append(sb_tfs.toString()).append("\t").append(sb_tfids.toString()).append("\t").
-			append(sb_tf_signals.toString()).append("\t").append(sb_tf_positions.toString()).append("\t").
-			append(sb_tf_motifs.toString()).append("\t").append(totalMotifs)
-			.append("\n");
+	
+			CommonUtils.writeFile("TF_clusters.txt", sb.toString());
 		}
+		else{	// UCI Matlab Topic Modeling Toolbox 1.4 format
+			StringBuilder sb = new StringBuilder();
+			int[] factorSiteCount = new int[expts.size()];
 
-		CommonUtils.writeFile("TF_clusters.txt", sb.toString());	
+			int docID = 1;
+			for (ArrayList<Site> c :clusters){
+				if (c.size()<min_site)				// skip if less than min_site cutoff
+					continue;
+				for (int s=0;s<c.size();s++){
+					Site site = c.get(s);
+					factorSiteCount[site.tf_id]++;
+				}
+				for (int f=0;f<factorSiteCount.length;f++){
+					if (factorSiteCount[f]>0){
+						sb.append(docID).append(" ").append(f+1).append(" ").append(factorSiteCount[f]).append("\n");
+						factorSiteCount[f]=0;// reset to 0 for next cluster
+					}
+				}
+				docID++;
+			}
+			CommonUtils.writeFile("TFBS_DOC_UCI.txt", sb.toString());
+			sb = new StringBuilder();
+			for (int i=0;i<names.size();i++)
+				sb.append(names.get(i)).append("\n");
+			CommonUtils.writeFile("TFBS_DICT_UCI.txt", sb.toString());
+		}
 	}
 	
 	private void computeTfbsSpacingDistribution(){
@@ -335,8 +370,11 @@ public class TFBS_SpaitialAnalysis {
 		for (String chr: chrom2sites.keySet()){
 			ArrayList<Site> sites = chrom2sites.get(chr);
 			Collections.sort(sites);
+//			int previousSpacing = Integer.MAX_VALUE;
 			for (int i=1;i<sites.size();i++){	
 				int spacing = sites.get(i).bs.getLocation()-sites.get(i-1).bs.getLocation();
+//				int minSpacing = Math.min(spacing, previousSpacing);
+//				previousSpacing = spacing;
 				if (spacing<=2000)
 					counts[spacing]++;
 			}
