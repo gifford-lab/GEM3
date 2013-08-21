@@ -64,7 +64,7 @@ public class TFBS_SpaitialAnalysis {
 	private SequenceGenerator<Region> seqgen;
 	boolean dev = false;
 	boolean zero_or_one = false;	// for each TF, zero or one site per cluster, no multiple sites
-	
+	String outPrefix = "out";
 	String tss_file;
 	String tss_signal_file;
 	String cluster_file;
@@ -117,6 +117,7 @@ public class TFBS_SpaitialAnalysis {
 	    }
 
 		Set<String> flags = Args.parseFlags(args);
+		outPrefix = Args.parseString(args, "out", outPrefix);
 		zero_or_one = flags.contains("zoo");
 		dev = flags.contains("dev");
 		oldFormat = flags.contains("old_format");
@@ -154,7 +155,7 @@ public class TFBS_SpaitialAnalysis {
 		for (int tf=0;tf<names.size();tf++){
 			String expt = expts.get(tf);
 
-			System.out.print(String.format("TF#%d: loading %s", tf, expt));
+			System.err.print(String.format("TF#%d: loading %s", tf, expt));
 			
 			// load motif files
 			WeightMatrix wm = null;
@@ -217,7 +218,7 @@ public class TFBS_SpaitialAnalysis {
 					
 					sites.add(site);
 				}
-				System.out.println(", n="+sites.size());
+				System.err.println(", n="+sites.size());
 				all_sites.add(sites);
 			}
 			catch (IOException e){
@@ -323,7 +324,7 @@ public class TFBS_SpaitialAnalysis {
 				.append("\n");
 			}
 	
-			CommonUtils.writeFile("TF_clusters.txt", sb.toString());
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".txt", sb.toString());
 		}
 		else{	// UCI Matlab Topic Modeling Toolbox 1.4 format
 			StringBuilder sb = new StringBuilder();
@@ -345,11 +346,11 @@ public class TFBS_SpaitialAnalysis {
 				}
 				docID++;
 			}
-			CommonUtils.writeFile("TFBS_DOC_UCI.txt", sb.toString());
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".UCI.txt", sb.toString());
 			sb = new StringBuilder();
 			for (int i=0;i<names.size();i++)
 				sb.append(names.get(i)).append("\n");
-			CommonUtils.writeFile("TFBS_DICT_UCI.txt", sb.toString());
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".UCI.DICT.txt", sb.toString());
 		}
 	}
 	
@@ -448,7 +449,7 @@ public class TFBS_SpaitialAnalysis {
 			StringBuilder sb = new StringBuilder();
 			for (Region r:merged)
 				sb.append(r.getMidpoint().toString()+"\t"+r.getWidth()+"\n");
-			CommonUtils.writeFile("mergedTSS.txt", sb.toString());
+			CommonUtils.writeFile("0_mergedTSS.txt", sb.toString());
 		}
 	}
 	private void printTssSignal(){
@@ -481,7 +482,7 @@ public class TFBS_SpaitialAnalysis {
             
 			// cache sorted start positions and counts of all positions
 			long tic = System.currentTimeMillis();
-			System.out.print("Loading "+ipCache.getName()+" data from ReadDB ... \t");
+			System.err.print("Loading "+ipCache.getName()+" data from ReadDB ... \t");
 			List<String> chroms = genome.getChromList();
 			if (dev){
 				chroms = new ArrayList<String>();
@@ -542,7 +543,7 @@ public class TFBS_SpaitialAnalysis {
 			}
 			CommonUtils.replaceEnd(sb, '\n');
 		}
-		CommonUtils.writeFile("TSS_signals.txt", sb.toString());
+		CommonUtils.writeFile("0_TSS_signals."+outPrefix+".txt", sb.toString());
 	}
 	
 	
@@ -704,7 +705,7 @@ public class TFBS_SpaitialAnalysis {
 			}
 		}
 		System.out.println(sb.toString());
-		CommonUtils.writeFile("tfbs2target_result.txt", sb.toString());
+		CommonUtils.writeFile("0_tfbs2target."+outPrefix+".txt", sb.toString());
 	}
 
 	private void computeCorrelations_db(){
