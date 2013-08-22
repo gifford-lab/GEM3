@@ -3926,7 +3926,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             }
                         }
                     }// END: fix sliding window boundary effect
-
+                    
                     /* ****************************************************************
                      * if we have positional prior, use the EM result directly
                      * ****************************************************************/
@@ -4043,7 +4043,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                                 bs.removeAll(toRemove);
                             }
                         	// NOTE: this code is also used above, updates should be in sync
-                        	ArrayList<ComponentFeature> cfs = callFeatures(comps);
+                        	ArrayList<ComponentFeature> cfs = callFeatures(bs);	
                         	compFeatures.addAll(cfs);
                         	if (!config.process_all_regions){
     	                    	evaluateSignificance_simplified(cfs);
@@ -4335,6 +4335,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             		toRemove.add(c);
             }
             components.removeAll(toRemove);
+            
+//            // check duplicate comp
+//            Collections.sort(components);
+//            if (components.size()>=2){
+//            	for (int i=1;i<components.size();i++)
+//            		if (components.get(i-1).getLocation().distance(components.get(i).getLocation())==0)
+//            			System.err.println("Duplicate component "+ components.get(i).getLocation().toString());
+//            }
 
             return components;
         }//end of analyzeWindow method
