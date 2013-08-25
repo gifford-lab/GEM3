@@ -61,6 +61,7 @@ public class TFBS_SpaitialAnalysis {
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
 	boolean print_uci_matlab_format = false;
+	boolean print_matrix = false;
 	boolean print_full_format = false;
 	boolean print_TMT_format = false;
 	private SequenceGenerator<Region> seqgen;
@@ -125,6 +126,7 @@ public class TFBS_SpaitialAnalysis {
 		oldFormat = flags.contains("old_format");
 		useDirectBindingOnly = flags.contains("direct");
 		print_uci_matlab_format = flags.contains("uci_matlab");
+		print_matrix = flags.contains("matrix");
 		print_full_format = flags.contains("full");
 		print_TMT_format = flags.contains("TMT");
 		dir = new File(Args.parseString(args, "dir", "."));
@@ -379,6 +381,30 @@ public class TFBS_SpaitialAnalysis {
 				sb.append(names.get(i)).append("\n");
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".UCI.DICT.txt", sb.toString());
 		}
+		if (print_matrix){	// Print region-tfCount matrix, can be used for clustering analysis
+			StringBuilder sb = new StringBuilder();
+			int[] factorSiteCount = new int[expts.size()];
+			sb.append("#Region    ").append("\t");
+			for (int i=0;i<names.size();i++)
+				sb.append(names.get(i)).append("\t");
+			CommonUtils.replaceEnd(sb, '\n');
+			
+			for (ArrayList<Site> c :clusters){
+				int numSite = c.size();
+				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+				sb.append(r.toString()).append("\t");
+				for (int s=0;s<c.size();s++){
+					Site site = c.get(s);
+					factorSiteCount[site.tf_id]++;
+				}
+				for (int f=0;f<factorSiteCount.length;f++){
+					sb.append(factorSiteCount[f]).append("\t");
+					factorSiteCount[f]=0;// reset to 0 for next cluster
+				}
+				CommonUtils.replaceEnd(sb, '\n');
+			}
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".factorCount_matrix.txt", sb.toString());
+		}
 	}
 	
 	private void computeTfbsSpacingDistribution(){
@@ -427,7 +453,7 @@ public class TFBS_SpaitialAnalysis {
 				sum += Region.mergeRegions(rs).size();
 			}
 			sb.append(2*mLen+"\t"+sum).append("\n");
-			System.out.println(2*mLen);
+			System.err.print(2*mLen+" ");
 		}
 		CommonUtils.writeFile("0_BS_mergeLength_clusterCount."+outPrefix+".txt", sb.toString());
 	}
