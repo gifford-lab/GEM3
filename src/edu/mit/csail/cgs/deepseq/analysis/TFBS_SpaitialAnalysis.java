@@ -61,6 +61,8 @@ public class TFBS_SpaitialAnalysis {
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
 	boolean print_uci_matlab_format = false;
+	boolean print_full_format = false;
+	boolean print_TMT_format = false;
 	private SequenceGenerator<Region> seqgen;
 	boolean dev = false;
 	boolean zero_or_one = false;	// for each TF, zero or one site per cluster, no multiple sites
@@ -123,6 +125,8 @@ public class TFBS_SpaitialAnalysis {
 		oldFormat = flags.contains("old_format");
 		useDirectBindingOnly = flags.contains("direct");
 		print_uci_matlab_format = flags.contains("uci_matlab");
+		print_full_format = flags.contains("full");
+		print_TMT_format = flags.contains("TMT");
 		dir = new File(Args.parseString(args, "dir", "."));
 		expts = new ArrayList<String>();
 		names = new ArrayList<String>();
@@ -288,12 +292,20 @@ public class TFBS_SpaitialAnalysis {
 		clusters.add(cluster);
 
 		// output
-		if (!print_uci_matlab_format){
+		
+		// remove if less than min_site cutoff
+		ArrayList<ArrayList<Site>> newClusters = new ArrayList<ArrayList<Site>>();	
+		for (ArrayList<Site> c :clusters){
+			if (c.size()>=min_site)				
+				newClusters.add(c);
+		}
+		clusters.clear();
+		clusters = newClusters;
+			
+		if (print_full_format){
 			StringBuilder sb = new StringBuilder();
 			sb.append("#Region\tLength\t#Sites\tTFs\tTFIDs\tSignals\tPos\tMotifs\t#Motif\n");
 			for (ArrayList<Site> c:clusters){
-				if (c.size()<min_site)				// skip if less than min_site cutoff
-					continue;
 				int numSite = c.size();
 				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
 				StringBuilder sb_tfs = new StringBuilder();
@@ -326,14 +338,29 @@ public class TFBS_SpaitialAnalysis {
 	
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".txt", sb.toString());
 		}
-		else{	// UCI Matlab Topic Modeling Toolbox 1.4 format
+		if (print_TMT_format){	// Stanford TMT format
+			StringBuilder sb = new StringBuilder();
+			for (ArrayList<Site> c:clusters){
+				int numSite = c.size();
+				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+				StringBuilder sb_tfs = new StringBuilder().append(r.toString()).append("\t");
+				for (Site s:c){
+					sb_tfs.append(names.get(s.tf_id)).append(" ");
+				}
+				if (sb_tfs.length()!=0){
+					sb_tfs.deleteCharAt(sb_tfs.length()-1);
+				}
+				sb.append(sb_tfs.toString()).append("\n");
+			}
+	
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".TMT.txt", sb.toString());
+		}
+		if (print_uci_matlab_format){	// UCI Matlab Topic Modeling Toolbox 1.4 format
 			StringBuilder sb = new StringBuilder();
 			int[] factorSiteCount = new int[expts.size()];
 
 			int docID = 1;
 			for (ArrayList<Site> c :clusters){
-				if (c.size()<min_site)				// skip if less than min_site cutoff
-					continue;
 				for (int s=0;s<c.size();s++){
 					Site site = c.get(s);
 					factorSiteCount[site.tf_id]++;
@@ -380,9 +407,29 @@ public class TFBS_SpaitialAnalysis {
 					counts[spacing]++;
 			}
 		}
+		
+		// output spacing distributions
+		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<counts.length;i++){
-			System.out.println(i+"\t"+counts[i]);
+			sb.append(i+"\t"+counts[i]).append("\n");
 		}
+		CommonUtils.writeFile("0_BS_spacing_histrogram."+outPrefix+".txt", sb.toString());
+		
+		sb = new StringBuilder();
+		for (int mLen=0;mLen<2500;mLen+=5){
+			int sum=0;
+			for (String chr: chrom2sites.keySet()){
+				ArrayList<Site> sites = chrom2sites.get(chr);
+				ArrayList<Region> rs = new ArrayList<Region>();
+				for (Site s:sites){
+					rs.add(s.bs.expand(mLen));
+				}
+				sum += Region.mergeRegions(rs).size();
+			}
+			sb.append(2*mLen+"\t"+sum).append("\n");
+			System.out.println(2*mLen);
+		}
+		CommonUtils.writeFile("0_BS_mergeLength_clusterCount."+outPrefix+".txt", sb.toString());
 	}
 	
 	private void mergedTSS(){
