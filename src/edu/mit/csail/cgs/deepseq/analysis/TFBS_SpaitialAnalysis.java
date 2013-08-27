@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -225,6 +226,7 @@ public class TFBS_SpaitialAnalysis {
 					sites.add(site);
 				}
 				System.err.println(", n="+sites.size());
+				Collections.sort(sites);
 				all_sites.add(sites);
 			}
 			catch (IOException e){
@@ -338,7 +340,7 @@ public class TFBS_SpaitialAnalysis {
 				.append("\n");
 			}
 	
-			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".txt", sb.toString());
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".full.txt", sb.toString());
 		}
 		if (print_TMT_format){	// Stanford TMT format
 			StringBuilder sb = new StringBuilder();
@@ -355,7 +357,7 @@ public class TFBS_SpaitialAnalysis {
 				sb.append(sb_tfs.toString()).append("\n");
 			}
 	
-			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".TMT.txt", sb.toString());
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".TMT.txt", sb.toString());
 		}
 		if (print_uci_matlab_format){	// UCI Matlab Topic Modeling Toolbox 1.4 format
 			StringBuilder sb = new StringBuilder();
@@ -375,7 +377,7 @@ public class TFBS_SpaitialAnalysis {
 				}
 				docID++;
 			}
-			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".UCI.txt", sb.toString());
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".UCI.txt", sb.toString());
 			sb = new StringBuilder();
 			for (int i=0;i<names.size();i++)
 				sb.append(names.get(i)).append("\n");
@@ -403,7 +405,7 @@ public class TFBS_SpaitialAnalysis {
 				}
 				CommonUtils.replaceEnd(sb, '\n');
 			}
-			CommonUtils.writeFile("0_BS_clusters."+outPrefix+"."+distance+".factorCount_matrix.txt", sb.toString());
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".factorCount_matrix.txt", sb.toString());
 		}
 	}
 	
@@ -441,21 +443,81 @@ public class TFBS_SpaitialAnalysis {
 		}
 		CommonUtils.writeFile("0_BS_spacing_histrogram."+outPrefix+".txt", sb.toString());
 		
-		sb = new StringBuilder();
-		for (int mLen=0;mLen<2500;mLen+=5){
-			int sum=0;
-			for (String chr: chrom2sites.keySet()){
-				ArrayList<Site> sites = chrom2sites.get(chr);
-				ArrayList<Region> rs = new ArrayList<Region>();
-				for (Site s:sites){
-					rs.add(s.bs.expand(mLen));
-				}
-				sum += Region.mergeRegions(rs).size();
+//		sb = new StringBuilder();
+//		for (int mLen=0;mLen<2500;mLen+=5){
+//			int sum=0;
+//			for (String chr: chrom2sites.keySet()){
+//				ArrayList<Site> sites = chrom2sites.get(chr);
+//				ArrayList<Region> rs = new ArrayList<Region>();
+//				for (Site s:sites){
+//					rs.add(s.bs.expand(mLen));
+//				}
+//				sum += Region.mergeRegions(rs).size();
+//			}
+//			sb.append(2*mLen+"\t"+sum).append("\n");
+//			System.err.print(2*mLen+" ");
+//		}
+//		CommonUtils.writeFile("0_BS_mergeLength_clusterCount."+outPrefix+".txt", sb.toString());
+//		
+		
+		// each site - nearest sites from all other TF data, distance distribution (Yan ... Taipale, 2013, Cell, Cohesin Memory)
+		ArrayList<TreeMap<String, int[]>> TF_chrom_coord = new ArrayList<TreeMap<String, int[]>>();
+		for (ArrayList<Site> sites:all_sites){
+			TreeMap<String, ArrayList<Integer>> chrom_coord = new TreeMap<String, ArrayList<Integer>>();
+			for (Site s:sites){
+				String chr = s.bs.getChrom();
+				if (!chrom_coord.containsKey(chr))
+					chrom_coord.put(chr, new ArrayList<Integer>());
+				chrom_coord.get(chr).add(s.bs.getLocation());
 			}
-			sb.append(2*mLen+"\t"+sum).append("\n");
-			System.err.print(2*mLen+" ");
+			TreeMap<String, int[]> chrom_coord2 = new TreeMap<String, int[]>();
+			for (String key: chrom_coord.keySet()){
+				ArrayList<Integer> coords = chrom_coord.get(key);
+				int[] coords2 = new int[coords.size()];
+				for (int i=0;i<coords.size();i++)
+					coords2[i]=coords.get(i);
+				chrom_coord2.put(key, coords2);
+			}
+			TF_chrom_coord.add(chrom_coord2);
 		}
-		CommonUtils.writeFile("0_BS_mergeLength_clusterCount."+outPrefix+".txt", sb.toString());
+		TreeMap<Integer, Integer> distanceHistogram = new TreeMap<Integer, Integer>();
+		for (int i=0;i<all_sites.size();i++){
+			ArrayList<Site> sites = all_sites.get(i);
+			for (Site s: sites){
+				for (int j=0;j<TF_chrom_coord.size();j++){		// each TF, not including TF itself
+					if (i==j)
+						continue;
+					int distance = 0;
+					String chr = s.bs.getChrom();
+					int coord = s.bs.getLocation();
+					TreeMap<String, int[]> chrom_coord = TF_chrom_coord.get(j);
+					if (chrom_coord.containsKey(chr)){
+						int[] coords = chrom_coord.get(chr);
+						int idx = Arrays.binarySearch(coords, coord);
+						if (idx>=0){	// found the same coord
+							distance = 0;
+						}
+						else{
+							idx = -idx-1;
+							if (idx==coords.length)	// all less
+								distance = Math.abs(coord-coords[idx-1]);
+							else if (idx==0)
+								distance = Math.abs(coord-coords[idx]);
+							else
+								distance = Math.min(Math.abs(coord-coords[idx-1]),Math.abs(coord-coords[idx]));
+						}
+						if (!distanceHistogram.containsKey(distance)){
+							distanceHistogram.put(distance, 0);
+						}
+						distanceHistogram.put(distance, distanceHistogram.get(distance)+1);
+					}
+				}
+			}
+		}
+		sb = new StringBuilder();
+		for (int d: distanceHistogram.keySet())
+			sb.append(d).append("\t").append(distanceHistogram.get(d)).append("\n");
+		CommonUtils.writeFile("0_BS_pairwiseTF_distanceHistogram."+outPrefix+".txt", sb.toString());
 	}
 	
 	private void mergedTSS(){
