@@ -347,7 +347,7 @@ public class TFBS_SpaitialAnalysis {
 			for (ArrayList<Site> c:clusters){
 				int numSite = c.size();
 				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
-				StringBuilder sb_tfs = new StringBuilder().append(r.toString()).append("\t");
+				StringBuilder sb_tfs = new StringBuilder().append(r.toString()).append("\t").append(numSite).append("\t");
 				for (Site s:c){
 					sb_tfs.append(names.get(s.tf_id)).append(" ");
 				}
@@ -443,22 +443,25 @@ public class TFBS_SpaitialAnalysis {
 		}
 		CommonUtils.writeFile("0_BS_spacing_histrogram."+outPrefix+".txt", sb.toString());
 		
-//		sb = new StringBuilder();
-//		for (int mLen=0;mLen<2500;mLen+=5){
-//			int sum=0;
-//			for (String chr: chrom2sites.keySet()){
-//				ArrayList<Site> sites = chrom2sites.get(chr);
-//				ArrayList<Region> rs = new ArrayList<Region>();
-//				for (Site s:sites){
-//					rs.add(s.bs.expand(mLen));
-//				}
-//				sum += Region.mergeRegions(rs).size();
-//			}
-//			sb.append(2*mLen+"\t"+sum).append("\n");
-//			System.err.print(2*mLen+" ");
-//		}
-//		CommonUtils.writeFile("0_BS_mergeLength_clusterCount."+outPrefix+".txt", sb.toString());
-//		
+		sb = new StringBuilder();
+		for (int mLen=0;mLen<2500;mLen+=5){
+			int sum=0;
+			int sum_length=0;
+			for (String chr: chrom2sites.keySet()){
+				ArrayList<Site> sites = chrom2sites.get(chr);
+				ArrayList<Region> rs = new ArrayList<Region>();
+				for (Site s:sites){
+					rs.add(s.bs.expand(mLen));
+				}
+				rs = Region.mergeRegions(rs);;
+				sum += rs.size();
+				for (Region r:rs)
+					sum_length+=r.getWidth()-2*mLen;		// subtract the expanded length, border with TF sites
+			}
+			sb.append(2*mLen+"\t"+sum+"\t"+sum_length).append("\n");
+			System.err.print(2*mLen+" ");
+		}
+		CommonUtils.writeFile("0_BS_mergeLength_stats."+outPrefix+".txt", sb.toString());		
 		
 		// each site - nearest sites from all other TF data, distance distribution (Yan ... Taipale, 2013, Cell, Cohesin Memory)
 		ArrayList<TreeMap<String, int[]>> TF_chrom_coord = new ArrayList<TreeMap<String, int[]>>();
