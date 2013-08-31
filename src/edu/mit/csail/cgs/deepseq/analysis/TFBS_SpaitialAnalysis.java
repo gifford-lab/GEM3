@@ -62,6 +62,7 @@ public class TFBS_SpaitialAnalysis {
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
 	boolean print_uci_matlab_format = false;
+	boolean print_hdp_format = false;
 	boolean print_matrix = false;
 	boolean print_full_format = false;
 	boolean print_TMT_format = false;
@@ -72,6 +73,7 @@ public class TFBS_SpaitialAnalysis {
 	String tss_file;
 	String tss_signal_file;
 	String cluster_file;
+	String exclude_sites_file;
 
 	// command line option:  (the folder contains GEM result folders) 
 	// --dir C:\Data\workspace\gse\TFBS_clusters --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format] 
@@ -127,6 +129,7 @@ public class TFBS_SpaitialAnalysis {
 		oldFormat = flags.contains("old_format");
 		useDirectBindingOnly = flags.contains("direct");
 		print_uci_matlab_format = flags.contains("uci_matlab");
+		print_hdp_format = flags.contains("hdp");
 		print_matrix = flags.contains("matrix");
 		print_full_format = flags.contains("full");
 		print_TMT_format = flags.contains("TMT");
@@ -145,7 +148,7 @@ public class TFBS_SpaitialAnalysis {
 		tss_file = Args.parseString(args, "tss", null);
 		tss_signal_file = Args.parseString(args, "tss_signal", null);
 		cluster_file = Args.parseString(args, "cluster", null);
-		
+		exclude_sites_file = Args.parseString(args, "ex", null);
 		distance = Args.parseInteger(args, "distance", distance);
 		range = Args.parseInteger(args, "range", range);
 		exclude_range = Args.parseInteger(args, "exclude", exclude_range);
@@ -158,7 +161,10 @@ public class TFBS_SpaitialAnalysis {
 	}
 	
 	private void loadEventAndMotifs(int round){
-
+		ArrayList<Region> ex_regions = new ArrayList<Region>();
+		if(exclude_sites_file!=null){
+			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
+		}
 		for (int tf=0;tf<names.size();tf++){
 			String expt = expts.get(tf);
 
@@ -201,7 +207,7 @@ public class TFBS_SpaitialAnalysis {
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
-				for (GPSPeak p:gpsPeaks){
+			eachpeak:	for (GPSPeak p:gpsPeaks){
 					Site site = new Site();
 					site.tf_id = tf;
 					site.signal = p.getStrength();
@@ -223,8 +229,15 @@ public class TFBS_SpaitialAnalysis {
 					else
 						site.bs = (Point)p;
 					
+					// skip site in the ex_regions
+					for (Region r: ex_regions){
+						if (r.contains(site.bs))
+							continue eachpeak;
+					}
+					
 					sites.add(site);
-				}
+				}				
+					
 				System.err.println(", n="+sites.size());
 				Collections.sort(sites);
 				all_sites.add(sites);
@@ -378,10 +391,39 @@ public class TFBS_SpaitialAnalysis {
 				docID++;
 			}
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".UCI.txt", sb.toString());
-			sb = new StringBuilder();
+		}
+		
+		if (print_hdp_format){	// Blei HDP (lda-c) format
+			StringBuilder sb = new StringBuilder();
+			int[] factorSiteCount = new int[expts.size()];
+
+			for (ArrayList<Site> c :clusters){
+				for (int s=0;s<c.size();s++){
+					Site site = c.get(s);
+					factorSiteCount[site.tf_id]++;
+				}
+				int uniqueTermCount=0;
+				for (int count:factorSiteCount){
+					if (count!=0)
+						uniqueTermCount++;
+				}
+				sb.append(uniqueTermCount);
+				for (int f=0;f<factorSiteCount.length;f++){
+					if (factorSiteCount[f]>0){
+						sb.append(" ").append(f+1).append(":").append(factorSiteCount[f]);
+						factorSiteCount[f]=0;// reset to 0 for next cluster
+					}
+				}
+				sb.append("\n");
+			}
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".HDP.txt", sb.toString());
+		}
+		
+		if (print_hdp_format||print_uci_matlab_format){
+			StringBuilder sb = new StringBuilder();
 			for (int i=0;i<names.size();i++)
 				sb.append(names.get(i)).append("\n");
-			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".UCI.DICT.txt", sb.toString());
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".Dictioinary.txt", sb.toString());
 		}
 		if (print_matrix){	// Print region-tfCount matrix, can be used for clustering analysis
 			StringBuilder sb = new StringBuilder();
