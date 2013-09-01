@@ -410,7 +410,7 @@ public class TFBS_SpaitialAnalysis {
 				sb.append(uniqueTermCount);
 				for (int f=0;f<factorSiteCount.length;f++){
 					if (factorSiteCount[f]>0){
-						sb.append(" ").append(f+1).append(":").append(factorSiteCount[f]);
+						sb.append(" ").append(f).append(":").append(factorSiteCount[f]);
 						factorSiteCount[f]=0;// reset to 0 for next cluster
 					}
 				}
