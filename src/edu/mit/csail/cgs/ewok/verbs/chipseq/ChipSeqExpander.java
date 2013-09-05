@@ -27,6 +27,13 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
         alignments = null;
         lastGenome = null;
     }
+    public ChipSeqExpander(ChipSeqLocator loc, boolean ChIA) throws SQLException, IOException {
+        loader = new ChiaPetLoader();
+        closeLoader = true;
+        locator = loc;
+        alignments = null;
+        lastGenome = null;
+    }
     private void getAligns(Genome genome) throws SQLException {
         if (alignments != null && genome.equals(lastGenome)) {
             return;
