@@ -76,6 +76,15 @@ public class MetaMaker {
 				if(profilerType.equals("fiveprime"))
 					readExt = -1;
 				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, pbMax,strand);
+			}else if(profilerType.equals("simplechiapet")) {
+				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
+				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
+				for(ChipSeqLocator loc : exptlocs){
+					System.out.println(loc.getExptName()+"\t"+loc.getAlignName());
+					exptexps.add(new ChipSeqExpander(loc,true));
+				}
+				System.out.println("Loading data...");
+				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, pbMax,strand);
 			}else if(profilerType.equals("chipseq5prime")){
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
