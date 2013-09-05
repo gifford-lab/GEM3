@@ -775,10 +775,10 @@ public class KMAC {
 	 * */
 	public ArrayList<Kmer> selectEnrichedKmers(int k){
 		this.k = k;
-		// expected count of kmer = total possible unique occurence of kmer in sequence / total possible kmer sequence permutation
+		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
 		numPos = k_win-k+1;
-		int expectedCount = (int) Math.round(seqs.length*(seqs[0].length()-k+1) / Math.pow(4, k));
+		int expectedCount = (int) Math.round(seqs.length*2*(seqs[0].length()-k+1) / Math.pow(4, k));
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
@@ -4973,27 +4973,6 @@ public class KMAC {
 	    KMAC kmf = new KMAC();
 	    kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
 	}
-//	public static void main0(String[] args){
-//		Genome g = null;
-//		ArgParser ap = new ArgParser(args);
-//	    try {
-//		      Pair<Organism, Genome> pair = Args.parseGenome(args);
-//		      if(pair==null){
-//		        if(ap.hasKey("geninfo")){
-//		          g = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-//		        }else{
-//	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");System.exit(1);
-//	            }
-//		      }else{
-//		        g = pair.cdr();
-//		      }
-//	    } catch (NotFoundException e) {
-//	      e.printStackTrace();
-//	    }
-//	    KmerMotifFinder kEngine = new KmerMotifFinder(g, false);
-//	    List<File> files = Args.parseFileHandles(args, "kmers_file");
-//	    kEngine.indexKmers(files);
-//	}
 	
 	// options cMyc_cMyc cMyc_HeLa_61bp_GEM.fasta cMyc_HeLa_61bp_GEM_neg.fasta 5 8 CCACGTG
 	public static void main(String[] args){

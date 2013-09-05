@@ -14,7 +14,7 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GEM {
-	public final static String GEM_VERSION = "2.1";
+	public final static String GEM_VERSION = "2.3";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -38,7 +38,7 @@ public class GEM {
         } else {
             String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
             if(genomeString != null){
-                genome = new Genome("Genome", new File(genomeString));
+                genome = new Genome("Genome", new File(genomeString), true);
             } else{
                 genome=null;
             }
@@ -157,6 +157,7 @@ public class GEM {
         String prefix = new File(filePrefix).getName();
         mixture.setOutName(filePrefix+"_"+round);
         System.out.println("\n============================ Round "+round+" ============================");
+        
         mixture.execute();
         boolean noChange = Args.parseFlags(args).contains("constant_model_range");
         if (!noChange){
@@ -165,12 +166,16 @@ public class GEM {
         }
         else
             kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
-        mixture.printFeatures(round);
-        mixture.printFilteredFeatures(round);
-        mixture.printInsignificantFeatures(round);
+        
+        if (Args.parseFlags(args).contains("process_all_regions")){
+	        mixture.printFeatures(round);
+	        mixture.printFilteredFeatures(round);
+	        mixture.printInsignificantFeatures(round);	        
+        	if (Args.parseFlags(args).contains("refine_regions"))
+            	mixture.refineRegions();
+        }
         mixture.releaseMemory();
-        if (!Args.parseFlags(args).contains("not_refine_regions"))
-        	mixture.refineRegions();
+        
         while (round+1<GPS_round){
             round++;
             System.out.println("\n============================ Round "+round+" ============================");
@@ -196,7 +201,7 @@ public class GEM {
         	// initialize first set of kmers from GPS result
 	        int returnValue = mixture.initKMAC();	
 	        if (returnValue < 0){					// this could happen if no k value can be found to give good motif
-	        	mixture.plotAllReadDistributions();
+	        	mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
 	            mixture.closeLogFile();
 	            
 	            if (returnValue == -1)
@@ -236,7 +241,7 @@ public class GEM {
             }
         }
         
-        mixture.plotAllReadDistributions();
+        mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
         mixture.closeLogFile();        
 
         if (run_gem){

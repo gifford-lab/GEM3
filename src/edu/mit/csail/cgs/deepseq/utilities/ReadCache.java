@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -193,9 +194,15 @@ public class ReadCache {
 		return bases;
 	}//end of getStrandedBases method
 	
+	/**
+	 * Count hits in the region, both strands
+	 * @param r
+	 * @return
+	 */	
 	public float countHits(Region r) {
-		return StrandedBase.countBaseHits(getUnstrandedBases(r));
+		return countStrandedBases(r,'+')+countStrandedBases(r,'-');
 	}
+	
     public float countStrandedBases(Region r, char strand) {
 		String chr = r.getChrom();
 		int chrID = chrom2ID.get(chr);
@@ -604,6 +611,48 @@ public class ReadCache {
 			}
 		}
 		CommonUtils.writeFile(name.trim()+".rsc", sb.toString());
+	}
+	/** 
+	 * Write genetrack format file
+	 * # genetrack tab-delimited file lists the gnomic coordinates (chrome and index) of the 5' ends of sequencing tags on the forward and reverse strands.
+# chrome: the name of the chromosome
+# index: the 5' ends position of sequencing tags
+# forward: number of tag counts on the forward (+) strand
+# reverse: number of tag counts on the reverse (-) strand
+# value: the sum of tag counts on both strands
+	 */
+	public void writeGeneTrack(){
+		StringBuilder sb = new StringBuilder();
+		sb.append("#chrom\tindex\tforward\treverse\tvalue\n");
+		for(int i = 0; i < hitCounts.length; i++){
+			String chrom = id2Chrom.get(i);
+			HashMap<Integer, Pair<Integer, Integer>> strandedCounts = new HashMap<Integer, Pair<Integer, Integer>>();
+			for(int j = 0; j < hitCounts[i].length; j++){
+				char strand = j==0?'+':'-';
+				int subCount = hitCounts[i][j].length;
+				if (subCount>0){
+					for(int k = 0; k < subCount; k++){
+						int pos = fivePrimes[i][j][k];
+						if (j==0)
+							strandedCounts.put(pos, new Pair<Integer, Integer>((int)hitCounts[i][j][k],0));
+						else{
+							if (!strandedCounts.containsKey(pos))
+								strandedCounts.put(pos, new Pair<Integer, Integer>(0,(int)hitCounts[i][j][k]));
+							else
+								strandedCounts.put(pos, new Pair<Integer, Integer>(strandedCounts.get(pos).car(),(int)hitCounts[i][j][k]));
+						}
+					}
+				}
+			}
+			ArrayList<Integer> coords = new ArrayList<Integer>();
+			coords.addAll(strandedCounts.keySet());
+			Collections.sort(coords);
+			for(int pos:coords){
+				Pair<Integer, Integer> pair = strandedCounts.get(pos);
+				sb.append(String.format("chr%s\t%d\t%d\t%d\t%d\n", chrom, pos, pair.car(),pair.cdr(),pair.car()+pair.cdr()));
+			}
+		}
+		CommonUtils.writeFile(name.trim()+".genetrack", sb.toString());
 	}
 	/** 
 	 * Read Read Start Count (RSC) file

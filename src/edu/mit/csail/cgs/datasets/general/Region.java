@@ -127,7 +127,7 @@ public class Region implements Comparable<Region>, Saveable {
    */
   public Region(Genome g, String c, int start, int end) {
     if (start > end) {
-      throw new IllegalArgumentException(String.format("Start > End for this region : %d > %d", start, end));
+      throw new IllegalArgumentException(String.format("Start > End for this region (chr %s) : %d > %d", c, start, end));
     }
     if (g == null) {
       throw new NullPointerException("Can't have a null genome");

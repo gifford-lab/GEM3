@@ -96,7 +96,7 @@ public class MethodComparisonMotifAnalysis {
 	      if(pair==null){
 	        //Make fake genome... chr lengths provided???
 	        if(ap.hasKey("g")){
-	          genome = new Genome("Genome", new File(ap.getKeyValue("g")));
+	          genome = new Genome("Genome", new File(ap.getKeyValue("g")), true);
 	            }else{
 	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
 	            }
@@ -133,7 +133,7 @@ public class MethodComparisonMotifAnalysis {
 			}
 			else{
 				double pwm_ratio = Args.parseDouble(args, "pwm_ratio", 0.6);
-				motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+				motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
 				motifThreshold = Args.parseDouble(args, "motifThreshold", -1);
 				if (motifThreshold==-1){				
 	    			motifThreshold = motif.getMaxScore()*pwm_ratio;
@@ -208,6 +208,12 @@ public class MethodComparisonMotifAnalysis {
 		ArrayList<Double> allMotifScores = results.cdr();
 		System.out.printf("%n%d motifs (in %d regions).%n%n", allMotifs.size(), allRegions.size());
 		System.out.println(CommonUtils.timeElapsed(tic));
+		
+		// store the motif info in a map
+		HashMap<Point, Double> allMotifMap = new HashMap<Point, Double>();
+		for (int i=0;i<allMotifs.size();i++){
+			allMotifMap.put(allMotifs.get(i), allMotifScores.get(i));
+		}
 
 		// Get the set of motif matches for all peak calls		
 		System.out.println("\nMatching binding events with motifs ...");
@@ -244,21 +250,18 @@ public class MethodComparisonMotifAnalysis {
 		// output results, the spatial resolution (offset) 
 		StringBuilder sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
-		sb.append("MotifHit\tChrom");
+		sb.append("MotifHit\tStrand");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append("\t"+methodNames.get(i));
 		}
 		sb.append("\n");
 		for(Point motif:motifs_shared){
 			sb.append(motif.toString()+"\t");
-			sb.append(motif.getChrom()+"\t");
+			sb.append((allMotifMap.get(motif)>0?"+":"-")+"\t");
 			for (int i=0;i<maps.size();i++){
-				sb.append(maps.get(i).get(motif).offset);
-				if (i==maps.size()-1)
-					sb.append("\n");
-				else
-					sb.append("\t");
+				sb.append(maps.get(i).get(motif).offset).append("\t");
 			}
+			CommonUtils.replaceEnd(sb, '\n');
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_sharedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
@@ -280,7 +283,7 @@ public class MethodComparisonMotifAnalysis {
 		// output results, the spatial resolution (offset) 
 		sb = new StringBuilder();
 		sb.append(args_str+"\t"+msg+"\n");
-		sb.append("MotifHit\tChrom\t");
+		sb.append("MotifHit\tStrand\t");
 		for (int i=0;i<methodNames.size();i++){
 			sb.append(methodNames.get(i)+"_offset\t");
 			sb.append(methodNames.get(i)+"_rank\t");
@@ -288,7 +291,7 @@ public class MethodComparisonMotifAnalysis {
 		sb.append("\n");
 		for(Point motif:motifs_union){
 			sb.append(motif.toString()+"\t");
-			sb.append(motif.getChrom()+"\t");
+			sb.append((allMotifMap.get(motif)>0?"+":"-")+"\t");
 			for (int i=0;i<maps.size();i++){
 				HashMap<Point, MotifHit> m = maps.get(i);
 				if (m.containsKey(motif)){
@@ -299,11 +302,9 @@ public class MethodComparisonMotifAnalysis {
 					sb.append(NOHIT_OFFSET).append("\t");
 					sb.append(-1);
 				}
-				if (i==maps.size()-1)
-					sb.append("\n");
-				else
-					sb.append("\t");
+				sb.append("\t");
 			}
+			CommonUtils.replaceEnd(sb, '\n');
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_allMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
@@ -321,7 +322,7 @@ public class MethodComparisonMotifAnalysis {
 		
 		ArrayList<HashMap<Point, Integer>> allPeakOffsets = new ArrayList<HashMap<Point, Integer>>();
 		for (int i=0; i<methodNames.size();i++){
-			allPeakOffsets.add(peak2MotifOffset(events.get(i), allMotifs));
+			allPeakOffsets.add(peak2MotifOffset(events.get(i), allMotifs, allMotifScores));
 		}
 		
 		// output results
@@ -341,12 +342,9 @@ public class MethodComparisonMotifAnalysis {
 				}
 				else
 					sb.append(NOHIT_OFFSET);
-				
-				if (i==allPeakOffsets.size()-1)
-					sb.append("\n");
-				else
-					sb.append("\t");
+				sb.append("\t");
 			}
+			CommonUtils.replaceEnd(sb, '\n');
 		}
 		CommonUtils.writeFile(outName+"_"+methodNames.size()+"methods_rankedMotifOffsets_"
 				+String.format("%.2f_",motifThreshold)
@@ -382,7 +380,7 @@ public class MethodComparisonMotifAnalysis {
         	String filePath = peakFiles.get(i).getAbsolutePath();
 			ArrayList<Point> peakPoints = new ArrayList<Point>(); 
 			if (name.contains("ZZZ")){		// ENCODE narrow peak format
-        		ArrayList<NarrowPeak> narrowPeaks = CommonUtils.load_narrowPeak(genome, filePath);
+        		ArrayList<NarrowPeak> narrowPeaks = CommonUtils.load_narrowPeak(genome, filePath, isPreSorted);
         		for (NarrowPeak np: narrowPeaks){
         			peakPoints.add(np.summit);
         		}
@@ -1109,7 +1107,7 @@ public class MethodComparisonMotifAnalysis {
 	}
 	// get the nearest motif offset in the region (windowSize) around each peak in the list
 	// this is peak-centered, all peaks will have a offset, NOHIT_OFFSET for no motif found.
-	private HashMap<Point, Integer> peak2MotifOffset(ArrayList<Point> peaks, ArrayList<Point> allMotifs){
+	private HashMap<Point, Integer> peak2MotifOffset(ArrayList<Point> peaks, ArrayList<Point> allMotifs, ArrayList<Double> allMotifScores){
 		// make a copy of the list and sort
 		ArrayList<Point> ps = (ArrayList<Point>) peaks.clone();
 		Collections.sort(ps);
@@ -1145,7 +1143,8 @@ public class MethodComparisonMotifAnalysis {
 			
 			if (nearestIndex !=-1){			// motif hit is within the window
 				Point nearestMotif = allMotifs.get(nearestIndex);
-				peaksOffsets.put(peak, peak.offset(nearestMotif));
+				boolean isForwardStrand = allMotifScores.get(nearestIndex)>0;
+				peaksOffsets.put(peak, isForwardStrand?peak.offset(nearestMotif):-peak.offset(nearestMotif));
 			}
 		}
 		return peaksOffsets;

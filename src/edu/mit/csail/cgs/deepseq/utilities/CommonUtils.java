@@ -15,7 +15,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.imageio.ImageIO;
@@ -35,6 +38,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 /**
  * @author Yuchun Guo
@@ -57,16 +61,18 @@ public class CommonUtils {
 			bin = new BufferedReader(in);
 			String line;
 			while((line = bin.readLine()) != null) { 
-				line = line.trim();
-				if (line.startsWith("#"))
+				String f[] = line.trim().split("\t");
+				if (f[0].startsWith("#"))
 					continue;
-				Region point = Region.fromString(genome, line);
+				if (f[0].startsWith("Position"))		// to be compatible with GPS/GEM event file
+					continue;
+				Region point = Region.fromString(genome, f[0]);
 				if (point!=null)
 					points.add(new Point(genome, point.getChrom(),point.getStart()));
 			}
 		}
 		catch(IOException ioex) {
-			//logger.error("Error parsing file", ioex);
+			ioex.printStackTrace();
 		}
 		finally {
 			try {
@@ -127,7 +133,7 @@ public class CommonUtils {
 	 * @param filename
 	 * @return
 	 */
-	static public ArrayList<NarrowPeak> load_narrowPeak(Genome genome, String filename) {
+	static public ArrayList<NarrowPeak> load_narrowPeak(Genome genome, String filename, boolean isSorted) {
 		CommonUtils util = new CommonUtils();
 		ArrayList<NarrowPeak> results = new ArrayList<NarrowPeak>();
 		ArrayList<String> txt = readTextFile(filename);
@@ -143,7 +149,8 @@ public class CommonUtils {
 			results.add(p);
 		}
 		results.trimToSize();
-		Collections.sort(results);
+		if (!isSorted)
+			Collections.sort(results);
 		return results;
 	}
 	
@@ -356,6 +363,26 @@ public class CommonUtils {
         return strs;
 	}
 	
+	public static ArrayList<String> readFastaFile(String fileName){
+		ArrayList<String> strs = new ArrayList<String>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileName))));
+	        String line;
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            if (!line.startsWith(">") && line.length()!=0)
+	            	strs.add(line);
+	        }			
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+fileName);
+            e.printStackTrace(System.err);
+        }   
+        return strs;
+	}
+	
 	/** 
 	 * Find the index that gives value larger than or equal to the key
 	 * @param values
@@ -439,7 +466,12 @@ public class CommonUtils {
           }  
   		  return pair;
     }
-    
+    /**
+     * Load one PWM from PFM files
+     * @param pfmFile	PFM file in STAMP format (simplified TRANSFAC format)
+     * @param gc	expected gc fraction
+     * @return
+     */
     public static WeightMatrix loadPWM_PFM_file(String pfmFile, double gc){
 		try{
 			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(pfmFile, "file");
@@ -462,7 +494,7 @@ public class CommonUtils {
 		        // log-odds
 		        for (int pos = 0; pos < matrix.length; pos++) {
 		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-		                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .000001) / 
+		                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
 		                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
 		            }
 		        } 
@@ -473,43 +505,49 @@ public class CommonUtils {
 			return null;
 		}
     }
-	public static WeightMatrix loadPWM(String pfmFile, double gc ){
-		WeightMatrix wm;
+ 
+    /**
+     * Load multiple PWMs from PFM files
+     * @param pfmFile	PFM file in STAMP format (simplified TRANSFAC format)
+     * @param gc	expected gc fraction
+     * @return
+     */
+    public static List<WeightMatrix> loadPWMs_PFM_file(String pfmFile, double gc){
 		try{
 			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(pfmFile, "file");
 			if (wms.isEmpty()){
-				wm=null;
-				System.out.println(pfmFile+" is not a valid motif file.");
+				return null;
 			}
-			else{		// if we have valid PFM, convert it to PWM
-				wm = wms.get(0);		// only get primary motif
-				float[][] matrix = wm.matrix;
-				// normalize
-		        for (int position = 0; position < matrix.length; position++) {
-		            double sum = 0;
-		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-		                sum += matrix[position][WeightMatrix.letters[j]];
-		            }
-		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-		                matrix[position][WeightMatrix.letters[j]] = (float)(matrix[position][WeightMatrix.letters[j]] / sum);
-		            }
-		        }
-		        // log-odds
-		        for (int pos = 0; pos < matrix.length; pos++) {
-		            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-		                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
-		                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
-		            }
-		        } 
+			else{		// if we have valid PFM
+				for (int i=0;i<wms.size();i++){
+					WeightMatrix wm = wms.get(i);
+					float[][] matrix = wm.matrix;
+					// normalize
+			        for (int position = 0; position < matrix.length; position++) {
+			            double sum = 0;
+			            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+			                sum += matrix[position][WeightMatrix.letters[j]];
+			            }
+			            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+			                matrix[position][WeightMatrix.letters[j]] = (float)(matrix[position][WeightMatrix.letters[j]] / sum);
+			            }
+			        }
+			        // log-odds
+			        for (int pos = 0; pos < matrix.length; pos++) {
+			            for (int j = 0; j < WeightMatrix.letters.length; j++) {
+			                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
+			                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
+			            }
+			        } 
+				}
+		        return wms;
 			}
 		}
 		catch (IOException e){
-			System.out.println(pfmFile+" motif PFM file reading error!!!");
-			wm = null;
+			return null;
 		}
-		return wm;
-	}
-    
+    }
+   
 	/**
 	 *  Scan the sequence for best match to the weight matrix
 	 *  @return  Pair of values, the lower coordinate of highest scoring PWM hit and the score
@@ -730,7 +768,7 @@ public class CommonUtils {
 	/**
 	 * Get a list of points that are within the window of the anchor point<br>
 	 * Assuming the sites list is sorted
-	 * @param sites	a list of points
+	 * @param sites	a list of sorted points
 	 * @param anchor the anchor point
 	 * @param win the window size
 	 * @return
@@ -758,6 +796,87 @@ public class CommonUtils {
 			}
 		}
 		return results;
+	}
+	
+	/**
+	 * Count the hit count of k-mers in the sequences<br>
+	 * - only count repeated kmers once in one sequence, i.e. hit count<br>
+	 * - a kmer and its reverse compliment are counted as one, same for palidromic kmer 
+	 * @return
+	 */
+	public static HashMap<String, Integer> countKmers(int k, String seqs[]){
+		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
+		long tic = System.currentTimeMillis();
+		
+		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
+		for (int seqId=0;seqId<seqs.length;seqId++){
+			String seq = seqs[seqId].toUpperCase();
+			int numPos = seq.length()-k+1;
+			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
+			 
+			for (int i=0;i<numPos;i++){
+				if ((i+k)>seq.length()) // endIndex of substring is exclusive
+					break;
+				String kstring = seq.substring(i, i+k);
+				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
+					continue;
+				uniqueKmers.add(kstring);
+			}
+			for (String s: uniqueKmers){
+				if (!kmerstr2seqs.containsKey(s)){
+					 kmerstr2seqs.put(s, new HashSet<Integer>());
+				}
+				kmerstr2seqs.get(s).add(seqId);
+			}
+		}
+		
+		// Merge kmer and its reverse compliment (RC)	
+		ArrayList<String> kmerStrings = new ArrayList<String>();
+		kmerStrings.addAll(kmerstr2seqs.keySet());
+		
+		// create kmers from its and RC's counts
+		for (String key:kmerStrings){
+			if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
+				continue;
+			// consolidate kmer and its reverseComplment kmer
+			String key_rc = SequenceUtils.reverseComplement(key);				
+			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
+				if (kmerstr2seqs.containsKey(key_rc)){
+					int kCount = kmerstr2seqs.get(key).size();
+					int rcCount = kmerstr2seqs.get(key_rc).size();
+					String winner = kCount>=rcCount?key:key_rc;
+					String loser = kCount>=rcCount?key_rc:key;
+					kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner take all
+					kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
+				}
+			}
+		}
+
+		HashMap<String, Integer> kmerCounts = new HashMap<String, Integer>();
+		for (String key:kmerstr2seqs.keySet()){	
+			kmerCounts.put(key, kmerstr2seqs.get(key).size());
+		}
+		kmerstr2seqs=null;
+		System.gc();
+		
+		return kmerCounts;				
+	}
+	public static void printGenomeInfo (String[] args) {
+		Genome genome = null;
+		try {
+	    	Pair<Organism, Genome> pair = Args.parseGenome(args);
+	    	if(pair==null){
+	    	  System.err.println("No genome provided; provide a Gifford lab DB genome name");
+	    	  System.exit(1);
+	    	}else{
+	    		genome = pair.cdr();
+	    	}
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+		Map<String, Integer> map = genome.getChromLengthMap();
+		for (String chr: map.keySet())
+			System.out.println(chr+"\t"+map.get(chr));
 	}
 	
 	public static void main0(String[] args){
@@ -809,7 +928,7 @@ public class CommonUtils {
 //			CommonUtils.printMotifLogo(motif, new File("test.png"), 150);	
 		}
 		else{
-			motif = CommonUtils.loadPWM(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+			motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
 //			CommonUtils.printMotifLogo(motif, new File("test.png"), 150);
 		}
 

@@ -37,7 +37,7 @@ public class ChIPSeqRegionTest{
 			if(pair==null){
 				//Make fake genome... chr lengths provided???
 				if(ap.hasKey("geninfo")){
-					gen = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
+					gen = new Genome("Genome", new File(ap.getKeyValue("geninfo")), true);
 	        	}else{
 	        		System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); printError();System.exit(1);
 	        	}
