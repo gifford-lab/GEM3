@@ -52,7 +52,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 	private MetadataLoader metaLoader;
 	private boolean closeMetaLoader;
 	private java.sql.Connection cxn;
-    private Client client=null;
+    protected Client client=null;
     
     public ChipSeqLoader() throws SQLException, IOException{this(true);}
 	public ChipSeqLoader(boolean openClient) throws SQLException, IOException {
@@ -659,7 +659,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
             throw new IllegalArgumentException(e);
         }
     }
-
+    
     /** Generates a histogram of the total weight of reads mapped to each bin.
      * Output maps bin center to weight centered around that bin.  Each read
      * is summarized by its start position.
