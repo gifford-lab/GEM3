@@ -53,9 +53,15 @@ public class RunEncodeNewSync {
 	            }
 	            String rep = f[8];
 	            String cell = f[9];
-	            if (!cell.equals("H1-hESC"))
+	            if (!cell.equals("GM12878"))
 	            	continue;
 	            String control = lab+"_"+pi+"_"+f[10];	// add lab+PI name to distinguish inputs for the same cell from different labs
+	            if (f[10].equals("wgEncodeEH000625"))
+	            	control = "Yale_Snyder_GM12878/None/Input/std";
+	            if (control.equals("Harvard_Snyder_GM12878/None/Input/IgG-mus"))
+	            	control = "Stanford_Snyder_GM12878/None/Input/IgG-mus";
+	            if (control.contains("Snyder_GM12878/None/Input/std"))
+	            	control = "Yale_Snyder_GM12878/None/Input/std";
 	            String ei = f[11];		// exp identifier: exp or input
 	            String url = f[12];
 	            String file = f[13];

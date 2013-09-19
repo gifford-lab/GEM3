@@ -64,6 +64,8 @@ public class TFBS_SpaitialAnalysis {
 	boolean print_uci_matlab_format = false;
 	boolean print_hdp_format = false;
 	boolean print_matrix = false;
+	boolean print_hdp_rc_format = false;
+	boolean print_matrix_rc = false;
 	boolean print_full_format = false;
 	boolean print_TMT_format = false;
 	private SequenceGenerator<Region> seqgen;
@@ -131,6 +133,8 @@ public class TFBS_SpaitialAnalysis {
 		print_uci_matlab_format = flags.contains("uci_matlab");
 		print_hdp_format = flags.contains("hdp");
 		print_matrix = flags.contains("matrix");
+		print_hdp_rc_format = flags.contains("hdprc");
+		print_matrix_rc = flags.contains("matrixrc");
 		print_full_format = flags.contains("full");
 		print_TMT_format = flags.contains("TMT");
 		dir = new File(Args.parseString(args, "dir", "."));
@@ -393,7 +397,7 @@ public class TFBS_SpaitialAnalysis {
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".UCI.txt", sb.toString());
 		}
 		
-		if (print_hdp_format){	// Blei HDP (lda-c) format
+		if (print_hdp_format){	// Blei HDP (lda-c) format, SITE count for each TF
 			StringBuilder sb = new StringBuilder();
 			int[] factorSiteCount = new int[expts.size()];
 
@@ -419,13 +423,40 @@ public class TFBS_SpaitialAnalysis {
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".HDP.txt", sb.toString());
 		}
 		
+		if (print_hdp_rc_format){	// Blei HDP (lda-c) format, read count for each TF
+			StringBuilder sb = new StringBuilder();
+			double[] factorReadCount = new double[expts.size()];
+
+			for (ArrayList<Site> c :clusters){
+				for (int s=0;s<c.size();s++){
+					Site site = c.get(s);
+					factorReadCount[site.tf_id]+=site.signal;
+				}
+				int uniqueTermCount=0;
+				for (double count:factorReadCount){
+					if (count!=0)
+						uniqueTermCount++;
+				}
+				sb.append(uniqueTermCount);
+				for (int f=0;f<factorReadCount.length;f++){
+					if (factorReadCount[f]>0){
+						sb.append(" ").append(f).append(":").append((int)factorReadCount[f]);
+						factorReadCount[f]=0;// reset to 0 for next cluster
+					}
+				}
+				sb.append("\n");
+			}
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".HDP_RC.txt", sb.toString());
+		}
+		
 		if (print_hdp_format||print_uci_matlab_format){
 			StringBuilder sb = new StringBuilder();
 			for (int i=0;i<names.size();i++)
 				sb.append(names.get(i)).append("\n");
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".Dictioinary.txt", sb.toString());
 		}
-		if (print_matrix){	// Print region-tfCount matrix, can be used for clustering analysis
+		
+		if (print_matrix){	// Print region-tfSiteCount matrix, can be used for clustering analysis
 			StringBuilder sb = new StringBuilder();
 			int[] factorSiteCount = new int[expts.size()];
 			sb.append("#Region    ").append("\t");
@@ -448,6 +479,31 @@ public class TFBS_SpaitialAnalysis {
 				CommonUtils.replaceEnd(sb, '\n');
 			}
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".factorCount_matrix.txt", sb.toString());
+		}
+		
+		if (print_matrix_rc){	// Print region-tfSiteCount matrix, can be used for clustering analysis
+			StringBuilder sb = new StringBuilder();
+			double[] factorReadCount = new double[expts.size()];
+			sb.append("#Region    ").append("\t");
+			for (int i=0;i<names.size();i++)
+				sb.append(names.get(i)).append("\t");
+			CommonUtils.replaceEnd(sb, '\n');
+			
+			for (ArrayList<Site> c :clusters){
+				int numSite = c.size();
+				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+				sb.append(r.toString()).append("\t");
+				for (int s=0;s<c.size();s++){
+					Site site = c.get(s);
+					factorReadCount[site.tf_id]+=site.signal;
+				}
+				for (int f=0;f<factorReadCount.length;f++){
+					sb.append((int)factorReadCount[f]).append("\t");
+					factorReadCount[f]=0;// reset to 0 for next cluster
+				}
+				CommonUtils.replaceEnd(sb, '\n');
+			}
+			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".factorCount_matrix_RC.txt", sb.toString());
 		}
 	}
 	
