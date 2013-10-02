@@ -3492,13 +3492,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
 		// setup lightweight genome cache
 		if (!kmerPreDefined){
-			ArrayList<Region> posituveRegions = new ArrayList<Region>();
+			ArrayList<Region> positiveRegions = new ArrayList<Region>();
 			for (Region r: restrictRegions){
-				posituveRegions.add(r.expand(config.k_win+modelRange, config.k_shift+config.k_win+modelRange));
+				positiveRegions.add(r.expand(config.k_win+modelRange, config.k_win+modelRange));
 			}
-			posituveRegions = Region.mergeRegions(posituveRegions);
+			positiveRegions = Region.mergeRegions(positiveRegions);
 			int totalLength=0;
-			for (Region r: posituveRegions){
+			for (Region r: positiveRegions){
 				totalLength+=r.getWidth();
 			}
 			// get negative regions
@@ -3526,7 +3526,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			negativeRegions.removeAll(toRemove);
 			
-			double gc = kmac.setupRegionCache(posituveRegions, negativeRegions, config.k_neg_dist);
+			double gc = kmac.setupRegionCache(positiveRegions, negativeRegions, config.k_neg_dist);
 			if (config.gc==-1){
 				config.setGC(gc);
 			}

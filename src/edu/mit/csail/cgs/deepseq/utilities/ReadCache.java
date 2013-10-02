@@ -400,8 +400,9 @@ public class ReadCache {
 	}
 	/**
 	 * Reset duplicate reads that pass Poisson threshold. 
-	 * The Poisson lambda parameter is calculated by an Gaussian average
-	 * that puts more weight for nearby bases (same chrom, same strand)
+	 * The Poisson lambda parameter is calculated by an Gaussian Kernel smoothing
+	 * that puts more weight on nearby bases (same chrom, same strand),
+	 * the position being considered is excluded for Guassian Kernel computation
 	 */
 	public void applyPoissonGaussianFilter(double threshold, int width){
         //init the Guassian kernel prob. for smoothing the read profile of called events

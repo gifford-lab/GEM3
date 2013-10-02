@@ -140,15 +140,14 @@ public class GEM {
         }
     } //end of GPS constructor
 	
-    public void runMixtureModel(boolean run_gem) {		
-    	
-        double kl=10;
+    public void runMixtureModel(boolean run_gem) {	    	
         
         Set<String> flags = Args.parseFlags(args);
         int GPS_round = Args.parseInteger(args,"r_gps", 2);
         int GEM_round = Args.parseInteger(args,"r_gem", 2);
         int minLeft = Args.parseInteger(args,"d_l", 300);
         int minRight = Args.parseInteger(args,"d_r", 200);
+        boolean not_update_model = flags.contains("not_update_model");
         /**
          ** Simple GPS1 event finding without sequence information
          **/
@@ -159,14 +158,15 @@ public class GEM {
         System.out.println("\n============================ Round "+round+" ============================");
         
         mixture.execute();
-        boolean noChange = Args.parseFlags(args).contains("constant_model_range");
-        if (!noChange){
-            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
-            kl = mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), filePrefix+"_"+(round+1));
+        if (!not_update_model){
+	        boolean noChange = Args.parseFlags(args).contains("constant_model_range");
+	        if (!noChange){
+	            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
+	            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), filePrefix+"_"+(round+1));
+	        }
+	        else
+	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
         }
-        else
-            kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
-        
         if (Args.parseFlags(args).contains("process_all_regions")){
 	        mixture.printFeatures(round);
 	        mixture.printFilteredFeatures(round);
@@ -181,7 +181,8 @@ public class GEM {
             System.out.println("\n============================ Round "+round+" ============================");
             mixture.setOutName(filePrefix+"_"+round);
             mixture.execute();
-            kl = mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
+            if (!not_update_model)
+            	mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
             mixture.printFeatures(round);
             mixture.printFilteredFeatures(round);
             mixture.printInsignificantFeatures(round);
@@ -226,7 +227,8 @@ public class GEM {
 	            System.out.println("\n============================ Round "+round+" ============================");
 	            mixture.setOutName(filePrefix+"_"+round);
 	            mixture.execute();   
-	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
+	            if (!not_update_model)
+	            	mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
 		        mixture.printFeatures(round);
 		        mixture.printFilteredFeatures(round);
 		        mixture.printInsignificantFeatures(round);
