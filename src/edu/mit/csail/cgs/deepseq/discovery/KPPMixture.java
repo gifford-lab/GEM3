@@ -832,19 +832,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             "\nFiltered:\t"+filteredFeatures.size()+"\n");
 		
 		if (kmac!=null){
-			int bin = (int)Math.ceil(signalFeatures.size()/10.0);
-			StringBuilder sb = new StringBuilder();
-			sb.append("Percentage of events with a k-mer match in 10 bins (~"+bin+" events per bin):\n");
-			for (int i=0;i<signalFeatures.size();i+=bin){
-				int count=0, motif=0;
-				for (int j=i;j<Math.min(signalFeatures.size(), i+bin);j++){
-					count++;
-					if (((ComponentFeature)signalFeatures.get(j)).getKmerGroup()!=null)
-						motif++;
-				}
-				sb.append((motif*100)/count).append(" ");
-			}
-			System.out.println(sb.toString()+"\n");
+			displayKmerCoverage(signalFeatures, "Significant");
+			displayKmerCoverage(insignificantFeatures, "Insignificant");
+			displayKmerCoverage(filteredFeatures, "Filtered");
 		}
 		
 		int jointCount = 0;
@@ -856,6 +846,21 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		System.out.println("Total "+jointCount+" homotypic events (within "+config.joint_event_distance+"bp of other events).\n");
 	}//end of post EM Processing
 
+	private void displayKmerCoverage(List<Feature> bindingCallFeatures, String eventType){ 
+		int bin = (int)Math.ceil(bindingCallFeatures.size()/10.0);
+		StringBuilder sb = new StringBuilder();
+		sb.append("Percentage of "+eventType+" events with a k-mer match in 10 bins (~"+bin+" events per bin):\n");
+		for (int i=0;i<bindingCallFeatures.size();i+=bin){
+			int count=0, motif=0;
+			for (int j=i;j<Math.min(bindingCallFeatures.size(), i+bin);j++){
+				count++;
+				if (((ComponentFeature)bindingCallFeatures.get(j)).getKmerGroup()!=null)
+					motif++;
+			}
+			sb.append((motif*100)/count).append(" ");
+		}
+		System.out.println(sb.toString()+"\n");
+	}
 	/**
 	 *  evaluate significance of each called events, calculate p-value from binomial distribution
 	 */
