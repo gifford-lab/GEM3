@@ -373,6 +373,41 @@ public class StatUtil {
 		
 		return new Pair<Double, TreeSet<Integer>>(maximum, max_index);
 	}//end of findMax method 
+	/**
+	 * Returns the maximum of this double array as well as all the positions in the array
+	 * corresponding to the maximum
+	 * @param x The double array whose maximum is going to be determined
+	 * </br>
+	 * <tt>x</tt> should be a non-empty double array
+	 * @return The maximum of this array as well as the positions where these maximums are found (in ordered form)
+	 */
+	public static Pair<Integer, TreeSet<Integer>> findMax(int[] x)
+	{ 
+		if( x.length == 0 )
+			throw new IndexOutOfBoundsException("Hey dude, you cannot enter an empty array...");
+		
+		Integer maximum = x[0];
+		TreeSet<Integer> max_index = new TreeSet<Integer>();   
+		max_index.add(0);
+		
+		int count = 0;
+		for(Integer el: x)
+		{
+			if(el.compareTo(maximum) > 0)
+			{
+				maximum = el;
+				max_index.clear();
+			    max_index.add(count);
+			}
+			else if(el.compareTo(maximum) == 0)
+			{
+				max_index.add(count);
+			}
+			count++;
+		}
+		
+		return new Pair<Integer, TreeSet<Integer>>(maximum, max_index);
+	}//end of findMax method 
 	
 	/**
 	 * Returns the minimum of this array as well as all the positions in the array

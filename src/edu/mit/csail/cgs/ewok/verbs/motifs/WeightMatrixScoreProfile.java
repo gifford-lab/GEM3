@@ -39,12 +39,27 @@ public class WeightMatrixScoreProfile {
 	}
 	
 	public char getMaxStrand(int i) { 
-		if(forward[i] >= reverse[i]) { 
+		char s = getMaxStrand_both(i);
+		return s=='='?'+':s;
+	}
+	/** 
+	 * Get the strand that gives larger score on position i<br>
+	 * This is a more accurate version of getMaxStrand(i), considering palindromic motif may match on both strands
+	 * @param i position in the sequence
+	 * @return strand, '=' represents matches on both strand have the same scores
+	 */
+	public char getMaxStrand_both(int i) { 
+		if(forward[i] > reverse[i]) { 
 			return '+';
-		} else { 
+		} 
+		else if(forward[i] < reverse[i]) { 
 			return '-';
 		}
+		else{ 
+			return '=';
+		}
 	}
+	
 	/** max score (from 2 strands) at this position */
 	public double getMaxScore(int i) { 
 		return Math.max(forward[i], reverse[i]); 

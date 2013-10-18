@@ -39,6 +39,7 @@ import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
+import edu.mit.csail.cgs.utils.strings.StringUtils;
 
 /**
  * @author Yuchun Guo
@@ -467,7 +468,7 @@ public class CommonUtils {
   		  return pair;
     }
     /**
-     * Load one PWM from PFM files
+     * Load single (first) PWM from PFM files
      * @param pfmFile	PFM file in STAMP format (simplified TRANSFAC format)
      * @param gc	expected gc fraction
      * @return
@@ -577,10 +578,12 @@ public class CommonUtils {
 	}
 
 	/**
-	 *  Scan the sequence to find all matches to the weight matrix<br>
+	 *  Scan the sequence (and reverseComplement) to find all matches to the weight matrix<br>
 	 *  Note: the definition of motif position here is different from scanPWM() method<br>
-	 *  Return  List of positions (middle of motif match) that pass the threshold. <br>
-	 *  The position will be negative if the match is on '-' strand     
+	 *  position represent the match base position of the middle of the motif
+	 *  
+	 *  @return  List of positions (middle of motif match) that pass the threshold. <br>
+	 *  The position will be negative if the match is on the reverseComplement strand     
 	 */
 	public static ArrayList<Integer> getAllPWMHit(String sequence, int wmLen, WeightMatrixScorer scorer, double threshold){
 		ArrayList<Integer> pos = new ArrayList<Integer>();
@@ -591,15 +594,46 @@ public class CommonUtils {
 		for (int i=0;i<profiler.length();i++){
 			double score = profiler.getMaxScore(i);
 			if (score >= threshold){
-				if( profiler.getMaxStrand(i)=='+')
+				char maxScoreStrand = profiler.getMaxStrand_both(i);
+				switch(maxScoreStrand){
+				case '+':
 					pos.add(i+wmLen/2);
-				else
-					pos.add(-i-(wmLen-wmLen/2) );
+					break;
+				case '-':
+					pos.add( - (i+(wmLen-1-wmLen/2)) );			// to ensure that the matching base is the same as the forward motif/strand
+					break;
+				case '=':	// if palindromic motif, may match on the same position in both strands
+					pos.add(i+wmLen/2);
+					pos.add( - (i+(wmLen-1-wmLen/2)) );	
+				}
 			}
 		}
 		return pos;
 	}
-	
+	/**
+	 *  Scan the sequence (and reverseComplement) to find all exact matches to the kmer<br>  
+	 *  @return  List of middle positions of k-mer matches. <br>
+	 *  The position represents the position of the middle of the motif match in the original sequence, <br>
+	 *  mid_index = ceiling((motif length)/2), zero-based index<br>
+	 *  mid_index_rc = motif length-1 - ceiling((motif length)/2), to ensure that the matching base is the same as the forward motif/strand<br>
+	 *  negative position: match is on the reverseComplement strand, or, match of the RC motif on the original strand  
+	 */
+	public static ArrayList<Integer> getAllKmerHit(String sequence, String kmer){
+		ArrayList<Integer> pos = new ArrayList<Integer>();
+		if (sequence==null||kmer==null){
+			return pos;
+		}
+		int offset_mid = kmer.length()/2;		// adjust the position from the start of the k-mer to the middle
+		ArrayList<Integer> starts= new ArrayList<Integer>();
+		starts = StringUtils.findAllOccurences(sequence, kmer);
+		for (int p:starts)
+			pos.add(p+offset_mid);
+		// reverse compliment
+		starts = StringUtils.findAllOccurences(sequence, SequenceUtils.reverseComplement(kmer));
+		for (int p:starts)
+			pos.add( - (p+kmer.length()-1-offset_mid) ); // to ensure that the matching base is the same as the forward motif/strand
+		return pos;
+	}	
 	/**
 	 *  Scan the sequence using weight matrix, outwards from the given point, until a match pass the threshold<br>
 	 *  return  Pair of values, the start position of nearest PWM hit and the score<br>
@@ -898,7 +932,7 @@ public class CommonUtils {
 	}
 	
     // --species "Mus musculus;mm8" --motif "CTCF" --version "090828" --windowSize 100 --motifThreshold 11.52
-    public static void main(String args[]){
+    public static void main3(String args[]){
 		// load motif
     	Genome genome;
     	Organism org=null;
@@ -935,5 +969,34 @@ public class CommonUtils {
 		System.out.println(WeightMatrix.printMatrix(motif));
 		
 		System.out.println(motif.getMaxScore());
+    }
+    
+    // testing getAllKmerHit()
+    public static void main4(String args[]){
+    	String s = "CATTAATTCCGTAAT";
+    	String kmer = "ATTA";
+    	ArrayList<Integer> pos = getAllKmerHit(s,kmer);
+    	
+    	System.out.println(s);
+    	System.out.println(kmer);
+    	for (int p:pos){
+    		System.out.print(p+" ");
+    	}
+    	System.out.println();
+    }
+    
+ // testing getAllPWMHit()
+    public static void main(String args[]){
+    	String s = "TCAGCTGTAAT";
+    	List<WeightMatrix> wms = CommonUtils.loadPWMs_PFM_file("test_pwms.txt", 0.41);
+    	WeightMatrix wm = wms.get(2);
+    	WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
+    	ArrayList<Integer> pos = getAllPWMHit(s, wm.length(), scorer, wm.getMaxScore()*0.6);
+    	System.out.println(s);
+    	System.out.println(WeightMatrix.printMatrixLetters(wm));
+    	for (int p:pos){
+    		System.out.print(p+" ");
+    	}
+    	System.out.println();
     }
 }

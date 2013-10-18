@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import edu.mit.csail.cgs.clustering.affinitypropagation.CorrelationSimilarity;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
@@ -23,6 +24,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
+import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -32,6 +34,8 @@ import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
 /**
  * Compute the spatial relationship among multiple TFs' binding sites<br>
  * Find the clusters of multiTF binding and the relative positions of each TF sites
@@ -40,12 +44,14 @@ import edu.mit.csail.cgs.utils.Pair;
  */
 public class TFBS_SpaitialAnalysis {
 	private final int TARGET_WIDTH = 250;
+	private final int PROFILE_RANGE = 100;
 	Genome genome=null;
 	ArrayList<String> expts = new ArrayList<String>();
 	ArrayList<String> names = new ArrayList<String>();
 	ArrayList<String> readdb_names = new ArrayList<String>();
 	
 	ArrayList<WeightMatrix> pwms = new ArrayList<WeightMatrix>();
+	ArrayList<String> kmers = new ArrayList<String>();
 	ArrayList<ArrayList<Site>> all_sites = new ArrayList<ArrayList<Site>>();
 	ArrayList<Point> all_TSS;
 	ArrayList<Cluster> all_clusters;
@@ -54,6 +60,7 @@ public class TFBS_SpaitialAnalysis {
 	double gc = 0.42;//mouse		gc=0.41 for human
 	int distance = 50;		// distance between TFBS within a cluster
 	int range = 1000;		// the range around anchor site to search for targets
+	int cluster_motif_padding = 100;  // the padding distance added to the cluster range for motif searching
 	int exclude_range = 500;		// the range around anchor site to exclude same site
 	int min_site = 1;				// the minimum number of sites for the cluster to be printed out
 	double wm_factor = 0.6;	// PWM threshold, as fraction of max score
@@ -73,28 +80,42 @@ public class TFBS_SpaitialAnalysis {
 	boolean zero_or_one = false;	// for each TF, zero or one site per cluster, no multiple sites
 	String outPrefix = "out";
 	String tss_file;
+	String pwm_file;
+	String kmer_file;
 	String tss_signal_file;
 	String cluster_file;
 	String exclude_sites_file;
-
+	String anchorString;						// the id of TF to anchor the sites/regions/sequences
+	String sortby;								// the id of TF to sort the sites/regions/sequences according to its offset from anchor
+	
 	// command line option:  (the folder contains GEM result folders) 
 	// --dir C:\Data\workspace\gse\TFBS_clusters --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format] 
 	public static void main(String[] args) {
 		TFBS_SpaitialAnalysis mtb = new TFBS_SpaitialAnalysis(args);
 		int round = Args.parseInteger(args, "r", 2);
 		int type = Args.parseInteger(args, "type", 0);
+		ArrayList<ArrayList<Site>> clusters=null;
 		switch(type){
 		case 0:
-			mtb.loadEventAndMotifs(round);
-			mtb.mergeTfbsClusters();
+			mtb.loadEventsAndMotifs(round);
+			clusters = mtb.mergeTfbsClusters();
+			mtb.outputTFBSclusters(clusters);
 			break;
 		case 1:
 			mtb.loadClusterAndTssSignals();
 			mtb.computeCorrelations();
 			break;
 		case 2:
-			mtb.loadEventAndMotifs(round);
+			mtb.loadEventsAndMotifs(round);
 			mtb.computeTfbsSpacingDistribution();
+			break;
+		case 3:		// to print all the binding sites and motif positions in the clusters for downstream spacing/grammar analysis
+			mtb.loadEventsAndMotifs2(round);
+			clusters = mtb.mergeTfbsClusters();
+			mtb.outputBindingAndMotifSites(clusters);
+			break;
+		case 4:		// spacing/grammar analysis
+			mtb.analyzeBindingAndMotifSites();
 			break;
 		case 11:	// old code
 			mtb.loadClusterAndTSS();
@@ -114,12 +135,16 @@ public class TFBS_SpaitialAnalysis {
 				
 	    try {
 	    	Pair<Organism, Genome> pair = Args.parseGenome(args);
-	    	if(pair==null){
-	    	  System.err.println("No genome provided; provide a Gifford lab DB genome name");
-	    	  System.exit(1);
-	    	}else{
-	    		genome = pair.cdr();
-	    	}
+	        if(pair != null) {
+	            genome = pair.cdr();
+	        } else {
+	            String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
+	            if(genomeString != null){
+	                genome = new Genome("Genome", new File(genomeString), true);
+	            } else{
+	                genome=null;
+	            }
+	        }
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
@@ -140,31 +165,42 @@ public class TFBS_SpaitialAnalysis {
 		dir = new File(Args.parseString(args, "dir", "."));
 		expts = new ArrayList<String>();
 		names = new ArrayList<String>();
-		ArrayList<String> info = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
-		for (String txt: info){
-			if (!txt.equals("")){
-				String[] f = txt.split("\t");
-				expts.add(f[0]);
-				names.add(f[2]);
-				readdb_names.add(f[4]);
+		String expt_file = Args.parseString(args, "expts", null);
+		if (expt_file!=null){
+			ArrayList<String> info = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+			for (String txt: info){
+				if (!txt.equals("")){
+					String[] f = txt.split("\t");
+					expts.add(f[0]);
+					names.add(f[2]);
+					readdb_names.add(f[4]);
+				}
 			}
 		}
+		anchorString = Args.parseString(args, "anchor", anchorString);				// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
+		sortby = Args.parseString(args, "sortby", sortby);							// the id of TF/PWM/Kmer to sort the sites/regions/sequences
 		tss_file = Args.parseString(args, "tss", null);
 		tss_signal_file = Args.parseString(args, "tss_signal", null);
 		cluster_file = Args.parseString(args, "cluster", null);
+		pwm_file = Args.parseString(args, "pwms", null);				// additional pwms
+		kmer_file = Args.parseString(args, "kmers", null);
 		exclude_sites_file = Args.parseString(args, "ex", null);
 		distance = Args.parseInteger(args, "distance", distance);
 		range = Args.parseInteger(args, "range", range);
+		cluster_motif_padding = Args.parseInteger(args, "cluster_motif_padding", cluster_motif_padding);
 		exclude_range = Args.parseInteger(args, "exclude", exclude_range);
 		min_site = Args.parseInteger(args, "min_site", min_site);
 		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
 		cutoff = Args.parseDouble(args, "cutoff", cutoff);
 		gc = Args.parseDouble(args, "gc", gc);
+		String genome_dir = Args.parseString(args, "genome", null);
 		seqgen = new SequenceGenerator<Region>();
+		if (genome_dir!=null)
+			seqgen.setGenomePath(genome_dir);
 		seqgen.useCache(!flags.contains("no_cache"));
 	}
 	
-	private void loadEventAndMotifs(int round){
+	private void loadEventsAndMotifs(int round){
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
 			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
@@ -211,9 +247,11 @@ public class TFBS_SpaitialAnalysis {
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
-			eachpeak:	for (GPSPeak p:gpsPeaks){
+			eachpeak:	for (int i=0;i<gpsPeaks.size();i++){
+					GPSPeak p = gpsPeaks.get(i);
 					Site site = new Site();
 					site.tf_id = tf;
+					site.event_id = i;
 					site.signal = p.getStrength();
 					site.motifStrand = p.getKmerStrand();
 					
@@ -252,11 +290,105 @@ public class TFBS_SpaitialAnalysis {
 			}
 		}
 	}
+	/**
+	 * This is different from the loadEventsAndMotifs method, in that 
+	 * it only loads the event positions, but not nearby motif match positions,
+	 * it loads GEM motif associated with the events by default, but
+	 * it also loads additional motifs specified by --pwms, or --ksms
+	 * @param round
+	 */
+	private void loadEventsAndMotifs2(int round){
+		ArrayList<Region> ex_regions = new ArrayList<Region>();
+		if(exclude_sites_file!=null){
+			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
+		}
+		for (int tf=0;tf<names.size();tf++){
+			String expt = expts.get(tf);
+			File dir2= new File(dir, expt);
+			dir2= new File(dir2, expt+"_outputs");
+			System.err.print(String.format("TF#%d: loading %s", tf, expt));
+			
+			// load binding event files 
+			File gpsFile = new File(dir2, expt+"_"+ (round>=2?round:1) + "_GEM_events.txt");
+			String filePath = gpsFile.getAbsolutePath();
+			try{
+				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
+				ArrayList<Site> sites = new ArrayList<Site>();
+				eachpeak:	for (int i=0;i<gpsPeaks.size();i++){
+					GPSPeak p = gpsPeaks.get(i);
+					Site site = new Site();
+					site.tf_id = tf;
+					site.event_id = i;
+					site.signal = p.getStrength();
+					site.motifStrand = p.getKmerStrand();
+					site.bs = (Point)p;					
+					// skip site in the ex_regions
+					for (Region r: ex_regions){
+						if (r.contains(site.bs))
+							continue eachpeak;
+					}
+					sites.add(site);
+				}				
+					
+				System.err.println(", n="+sites.size());
+				Collections.sort(sites);
+				all_sites.add(sites);
+			}
+			catch (IOException e){
+				System.out.println(expt+" does not have valid GPS/GEM event call file.");
+				System.exit(1);
+			}
+			// load motif files
+			WeightMatrix wm = null;
+			final String suffix = expt+"_"+ (round>=2?round:1) +"_PFM";
+			File[] files = dir2.listFiles(new FilenameFilter(){
+				public boolean accept(File arg0, String arg1) {
+					if (arg1.startsWith(suffix))
+						return true;
+					else
+						return false;
+				}
+			});
+			if (files.length==0){
+				System.out.println(expt+" does not have a motif PFM file.");
+				pwms.add(null);
+			}
+			else{				// if we have valid PFM file
+				wm = CommonUtils.loadPWM_PFM_file(files[0].getAbsolutePath(), gc);
+				pwms.add( wm );
+			}
+		} // for each expt
+		
+		// load additional pwms
+		if (pwm_file!=null){
+			pwms.addAll( CommonUtils.loadPWMs_PFM_file(pwm_file, gc) );
+		}
+		
+		// load kmers
+		if (kmer_file!=null){
+			kmers.addAll( CommonUtils.readTextFile(kmer_file));
+		}
+		
+		System.out.println(String.format("In total, loaded %d GEM files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
+		
+		StringBuilder sb = new StringBuilder();
+		for (int i=0;i<expts.size();i++){
+			sb.append("B"+i+"\t"+expts.get(i)+"\n");
+		}
+		for (int i=0;i<pwms.size();i++){
+			sb.append("M"+i+"\t"+pwms.get(i).getName()+"\n");
+		}
+		for (int i=0;i<kmers.size();i++){
+			sb.append("K"+i+"\t"+kmers.get(i)+"\n");
+		}
+		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+"_keys.txt", sb.toString());
+	}
 	
 	class Site implements Comparable<Site>{
 		int tf_id;
+		int event_id;		// original event id in the list of this TF binding data
 		Point bs;
-		int id;
+		int id;				// global id of all BS
 		double signal;
 		char motifStrand;								// motif match strand
 		public int compareTo(Site s) {					// ascending coordinate
@@ -271,7 +403,12 @@ public class TFBS_SpaitialAnalysis {
 		ArrayList<Boolean> TF_hasMotifs = new ArrayList<Boolean>();
 	}
 	
-	private void mergeTfbsClusters(){
+	/**
+	 * Merge all the sites in all_sites (binding calls or nearest motif match positions)
+	 * into clusters of positions. Organized by chromosomes.
+	 * @return
+	 */
+	private ArrayList<ArrayList<Site>> mergeTfbsClusters(){
 		// classify sites by chrom
 		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
 		for (ArrayList<Site> sites:all_sites){
@@ -322,7 +459,14 @@ public class TFBS_SpaitialAnalysis {
 		}
 		clusters.clear();
 		clusters = newClusters;
-			
+		
+		return clusters;
+	}
+	/** 
+	 * Output all the binding sites in the clusters, for topic modeling analysis or clustering analysis
+	 * @param clusters
+	 */
+	private void outputTFBSclusters(ArrayList<ArrayList<Site>> clusters){
 		if (print_full_format){
 			StringBuilder sb = new StringBuilder();
 			sb.append("#Region\tLength\t#Sites\tTFs\tTFIDs\tSignals\tPos\tMotifs\t#Motif\n");
@@ -505,6 +649,334 @@ public class TFBS_SpaitialAnalysis {
 			}
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".d"+distance+".min"+min_site+".factorCount_matrix_RC.txt", sb.toString());
 		}
+	}
+	
+	/**
+	 * Output all the binding sites, and all the motif matches
+	 * @param clusters
+	 */
+	private void outputBindingAndMotifSites (ArrayList<ArrayList<Site>> clusters){
+		StringBuilder sb = new StringBuilder();
+		sb.append("#Region+Padding\tRegion\tLength\t#Sites\t#PWMs\t#Kmers\tBinding:Positions\tPWM:Positions\tKmer:Positions\tPadded_Sequence\n");
+		ArrayList<WeightMatrixScorer> scorers = new ArrayList<WeightMatrixScorer>();
+		ArrayList<Integer> wmLens = new ArrayList<Integer>();
+		ArrayList<Double> wmThresholds = new ArrayList<Double>();
+		for (WeightMatrix wm: pwms){
+			scorers.add(new WeightMatrixScorer(wm));
+			wmLens.add(wm.length());
+			wmThresholds.add(wm.getMaxScore()*wm_factor);
+		}
+		
+		for (ArrayList<Site> bindingSites:clusters){
+			int numSite = bindingSites.size();
+			Region r = new Region(genome, bindingSites.get(0).bs.getChrom(), bindingSites.get(0).bs.getLocation(), bindingSites.get(numSite-1).bs.getLocation());	
+			// Position 0: the start position of the padded cluster region
+			Region region = r.expand(cluster_motif_padding,cluster_motif_padding);
+			int start = region.getStart();
+			
+			// Binding list
+			ArrayList<Integer> bindingIds = new ArrayList<Integer>();
+			ArrayList<Integer> bindingPos = new ArrayList<Integer>();
+			ArrayList<Integer> eventIds = new ArrayList<Integer>();
+			ArrayList<Character> strands = new ArrayList<Character>();
+			ArrayList<Double> bindingStrength = new ArrayList<Double>();
+			for (Site s:bindingSites){
+				bindingIds.add(s.tf_id);
+				bindingPos.add(s.bs.getLocation()-start);
+				eventIds.add(s.event_id);
+				bindingStrength.add(s.signal);
+				strands.add(s.motifStrand);
+			}
+			
+			// PWM motif matches
+			ArrayList<Integer> pwmMatchIds = new ArrayList<Integer>();
+			ArrayList<Integer> pwmMatchPos = new ArrayList<Integer>();
+			// scan motif matches in the cluster region sequence
+			String seq = seqgen.execute(region).toUpperCase();	
+			for (int i=0;i<pwms.size();i++){
+				ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i));
+				for (int p:matchPos){
+					pwmMatchIds.add(i);
+					pwmMatchPos.add(p);
+				}
+			}
+			
+			// K-mer matches
+			ArrayList<Integer> kmerMatchIds = new ArrayList<Integer>();
+			ArrayList<Integer> kmerMatchPos = new ArrayList<Integer>();
+			for (int i=0;i<kmers.size();i++){
+				String kmer = kmers.get(i);
+				ArrayList<Integer> matchPos = CommonUtils.getAllKmerHit(seq, kmer);
+				for (int p:matchPos){
+					kmerMatchIds.add(i);
+					kmerMatchPos.add(p);
+				}
+			}
+			
+			sb.append(region.toString()).append("\t").append(r.toString()).append("\t").append(r.getWidth()).append("\t").append(numSite).append("\t").
+			append(pwmMatchIds.size()).append("\t").append(kmerMatchIds.size()).append("\t");
+			for (int i=0;i<bindingIds.size();i++)
+				sb.append(String.format("B%d:%d:%d:%s:%.1f ", bindingIds.get(i), bindingPos.get(i), eventIds.get(i), strands.get(i), bindingStrength.get(i)));
+			for (int i=0;i<pwmMatchIds.size();i++)
+				sb.append(String.format("M%d:%d ", pwmMatchIds.get(i), pwmMatchPos.get(i)));
+			for (int i=0;i<kmerMatchIds.size();i++)
+				sb.append(String.format("K%d:%d ", kmerMatchIds.get(i), kmerMatchPos.get(i)));
+			sb.append("\t").append(seq);
+			sb.append("\n");
+		}
+
+		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+".d"+distance+".min"+min_site+".txt", sb.toString());
+	}
+	private void analyzeBindingAndMotifSites(){
+		ArrayList<String> lines = CommonUtils.readTextFile(cluster_file);
+		int cluster_id = 0;
+		ArrayList<BMCluster> clusters = new ArrayList<BMCluster>();
+		TreeMap<String, TreeMap<String, SpacingProfile>> profiles = new TreeMap<String, TreeMap<String, SpacingProfile>>();
+		for (String l:lines){	// each line is a cluster merged from nearby TFBS
+			if (l.startsWith("#"))
+				continue;
+			
+			BMCluster bmc = new BMCluster();
+			bmc.cluster_id = cluster_id;
+			
+			String[] f = l.split("\t");
+			Region r = Region.fromString(genome, f[0]);
+			String[] positions = f[6].split(" ");
+			String seq = f[7];
+			
+			// parse all sites
+			ArrayList<RSite> sites = new ArrayList<RSite>();
+			bmc.sites = sites;
+			for (String ps: positions){
+				String[] bs = ps.split(":");
+				RSite s = new RSite();
+				s.id = Integer.parseInt(bs[0].substring(1));
+				s.type = bs[0].charAt(0);
+				switch (s.type){
+				case 'B':
+					s.pos = Integer.parseInt(bs[1]);
+					s.strand = bs[3].charAt(0);
+					break;
+				case 'M':
+				case 'K':
+					s.pos = Integer.parseInt(bs[1]);
+					if (s.pos<0){				// for PWM and kmer, the strand is encoded as negative pos value
+						s.pos =  -s.pos; 
+						s.strand = '-';
+					}
+					else
+						s.strand = '+';
+					break;
+				}
+				sites.add(s);
+			}
+			
+			// compute all pairwise spacings
+			// anchor is at 0 position, then count the instances of target at each spacing, separate same/opposite strand
+			for (RSite anchor: sites){
+				String ancStr = anchor.type+""+anchor.id;
+				if (!profiles.containsKey(ancStr))
+					profiles.put(ancStr, new TreeMap<String,SpacingProfile>());
+				TreeMap<String,SpacingProfile> profiles_anchor = profiles.get(ancStr);
+				for (RSite target: sites){
+					String tarStr = target.type+""+target.id;
+					if (!profiles_anchor.containsKey(tarStr))
+						profiles_anchor.put(tarStr, new SpacingProfile());
+					SpacingProfile pf = profiles_anchor.get(tarStr);
+					int offset = target.pos - anchor.pos;
+					if (offset>PROFILE_RANGE || offset <-PROFILE_RANGE)			// skip if out of range
+						continue;
+					if(anchor.strand=='-'){
+						offset = -offset;
+						offset += PROFILE_RANGE;		// shift to get positive array idx
+						if (target.strand=='+')
+							pf.profile_diff[offset]+=1;
+						if (target.strand=='-')
+							pf.profile_same[offset]+=1;
+						if (target.strand=='*')
+							pf.profile_unknown[offset]+=1;
+					}
+					if(anchor.strand=='+'){
+						offset += PROFILE_RANGE;		// shift to get positive array idx
+						if (target.strand=='+')
+							pf.profile_same[offset]+=1;
+						if (target.strand=='-')
+							pf.profile_diff[offset]+=1;
+						if (target.strand=='*')
+							pf.profile_unknown[offset]+=1;
+					}
+					if (anchor.strand=='*'){
+						pf.profile_unknown[offset+PROFILE_RANGE]+=1;
+					}
+				}	// each site as target
+			} // each site as anchor
+			bmc.anchoredSequence = seq;		//TODO: use strand and shift
+			
+			if (bmc.anchor==null)// Skip if no anchor binding site is found 
+				continue;
+			
+			// second pass, process all the sites
+
+//			if (sortby.equals(bs[0]))
+//				bmc.sort_idx = s.pos;
+
+			clusters.add(bmc);
+			cluster_id++;
+		}// for each line
+			
+		StringBuilder sb_count = new StringBuilder("Anchor"+"\t");
+		StringBuilder sb_offset = new StringBuilder("Anchor"+"\t");
+		
+		for (String ancStr: profiles.keySet()){
+			sb_count.append(ancStr+"\t");
+			sb_offset.append(ancStr+"\t");
+		}
+		CommonUtils.replaceEnd(sb_count, '\n');
+		CommonUtils.replaceEnd(sb_offset, '\n');
+		
+		for (String ancStr: profiles.keySet()){
+			
+			StringBuilder sb_profiles = new StringBuilder(ancStr+"\t");			
+			for (int i=-PROFILE_RANGE;i<=PROFILE_RANGE;i++)
+				sb_profiles.append(i+"\t");
+			CommonUtils.replaceEnd(sb_profiles, '\n');
+			
+			TreeMap<String,SpacingProfile> profiles_anchor = profiles.get(ancStr);
+			sb_count.append(ancStr+"\t");
+			sb_offset.append(ancStr+"\t");
+			for (String tarStr: profiles.keySet()){
+				SpacingProfile pf = profiles_anchor.get(tarStr);
+				int[] tmp=null;
+				if (ancStr.equals(tarStr)){
+					tmp = pf.profile_same.clone();
+					tmp[100]=0;
+				}
+				else
+					tmp = pf.profile_same;
+				Pair<Integer, TreeSet<Integer>> max_same = StatUtil.findMax(tmp);
+				if (ancStr.equals(tarStr)){
+					tmp = pf.profile_diff.clone();
+					tmp[100]=0;
+				}
+				else
+					tmp = pf.profile_diff;
+				Pair<Integer, TreeSet<Integer>> max_diff = StatUtil.findMax(tmp);
+				if (ancStr.equals(tarStr)){
+					tmp = pf.profile_unknown.clone();
+					tmp[100]=0;
+				}
+				else
+					tmp = pf.profile_unknown;
+				Pair<Integer, TreeSet<Integer>> max_unknown = StatUtil.findMax(tmp);
+				
+				Pair<Integer, TreeSet<Integer>> max_all=null;
+				if (max_same.car()>=max_diff.car())
+					max_all = max_same;
+				else 
+					max_all = max_diff;
+				if (max_all.car()<max_diff.car())
+					max_all = max_unknown;
+				sb_count.append(max_all.car()+"\t");
+				sb_offset.append((max_all.cdr().first()-PROFILE_RANGE)+"\t");
+				
+				sb_profiles.append(tarStr+"_s\t").append(CommonUtils.arrayToString(pf.profile_same)).append("\n");
+				sb_profiles.append(tarStr+"_d\t").append(CommonUtils.arrayToString(pf.profile_diff)).append("\n");
+				sb_profiles.append(tarStr+"_u\t").append(CommonUtils.arrayToString(pf.profile_unknown)).append("\n");
+			}
+			CommonUtils.replaceEnd(sb_count, '\n');	
+			CommonUtils.replaceEnd(sb_offset, '\n');	
+			
+			CommonUtils.writeFile(ancStr+"_profiles.txt", sb_profiles.toString());
+		}
+		System.out.println(sb_count.toString());
+		System.out.println(sb_offset.toString());
+		
+//			// determine strand, sequence and offset based on anchor site
+//			int posOffset = 0;				// offset: to adjust the relative position such at anchor site at 0.
+//			char type = anchorString.charAt(0);
+//			int id = Integer.parseInt(anchorString.substring(1));
+//			for (String s: positions){
+//				String[] bs = s.split(":");
+//				if (bs[0].equals(anchorString)){		// anchor TFBS first match : TODO: what if more than one TFBS for this TF?
+//					int anchorRelative = Integer.parseInt(bs[1]);
+//					bmc.anchor = new Point(r.getGenome(), r.getChrom(), r.getStart()+anchorRelative);
+//					if (type=='B'){
+//						bmc.anchorStrand = bs[2].charAt(0);						
+//					}
+//					else{	// type PWM or kmer
+//						if (anchorRelative<0){
+//							anchorRelative = -anchorRelative;
+//							bmc.anchorStrand='-';
+//						}
+//					}
+//					if (bmc.anchorStrand=='-'){
+//						seq = SequenceUtils.reverseComplement(seq);
+//					}
+//					posOffset = - anchorRelative;
+//					break;
+//				}				
+//			}
+//			
+
+
+		if (clusters.isEmpty()){
+			System.err.println("Anchor "+anchorString+" matched no sites!");
+			System.exit(-1);
+		}
+		Collections.sort(clusters);
+				
+		StringBuilder sb = new StringBuilder();
+		sb.append(clusters.get(0).sites.get(0).getMatlabHeader());
+		for (int i=0;i<clusters.size();i++){
+			BMCluster bmc = clusters.get(i);
+			for (RSite s: bmc.sites){
+				sb.append((s.toMatlabData(i)));
+			}
+		}
+//		CommonUtils.writeFile(cluster_file.replace(".txt", "_matlab.txt"), sb.toString());
+	}
+	/** 
+	 * RSite: relative site<br>
+	 * The position of the site is relative to an anchor point (stranded)
+	 */
+	private class RSite{
+		char type = ' ';		// type=0:binding, 1:pwm, 2:kmer
+		int id=-1;			// id in that type
+		int pos=999;		// position relative to the anchor site
+		char strand;		// binding site or motif match strand on the original DNA sequence
+		public String toString(){
+			return String.format("%d:%s:%s%d ", pos, strand, type, id);
+		}
+		public String toMatlabData(int yValue){
+			return String.format("%d\t%d\t%d\t%d\t%d\n", type=='B'?0:type=='M'?1:2, id, pos, yValue, (int)strand);
+		}
+		public String getMatlabHeader(){
+			return "B-M-K\tTF\tPos\tCluster\tStrand\n";
+		}
+	}
+	/** 
+	 * BMCluster: Binding and Motif Cluster<br>
+	 * Data structure to store a cluster of binding/motif sites
+	 */
+	private class BMCluster implements Comparable<BMCluster> {
+		int cluster_id = -1;
+		int sort_idx = 999;
+		Point anchor = null;
+		char anchorStrand = '*';
+		String anchoredSequence = null;
+		ArrayList<RSite> sites = null;
+		
+		/** Comparable default method, sort by location*/
+		public int compareTo(BMCluster f) {
+			int diff = f.sort_idx - sort_idx;
+			return diff>0?1:diff==0?0:-1;
+		}
+	}
+	
+	private class SpacingProfile{
+		int[] profile_same = new int[PROFILE_RANGE*2+1];		// the anchor site and the subject site are on the same strand (or same orientation of motifs)
+		int[] profile_diff = new int[PROFILE_RANGE*2+1];		// the anchor site and the subject site are on the opposite strand (or opposite orientation of motifs)
+		int[] profile_unknown = new int[PROFILE_RANGE*2+1];	// unknown, because some GEM binding site does not have a k-mer to assgin strand
 	}
 	
 	private void computeTfbsSpacingDistribution(){
