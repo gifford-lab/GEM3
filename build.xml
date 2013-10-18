@@ -15,6 +15,7 @@
         <include name="**/*.jar"/>
       </fileset>
   </path>	
+	<property name="pwset" value="young"/>
 
   <!-- ======================================================================= -->
   <!-- Target: init                                                            -->
@@ -129,6 +130,7 @@
 	<include name="ojdbc/ojdbc14.jar"/>
 	<include name="mysql-connector/mysql-connector-java-3.1.12-bin.jar"/>
 	<include name="log4j/*.jar"/>
+    <include name="colt/colt-1.2.0.jar"/>
       </fileset>
     </unjar>
     <move file="${build.unjar.dir}.tmp" tofile="${build.unjar.dir}" />
