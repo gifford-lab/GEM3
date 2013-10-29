@@ -63,17 +63,17 @@ public abstract class AlignmentFileReader {
 	protected ArrayList<Integer>[][] fivePrimeList = null;
 	
 	/**
-	 * Number of hits that corresponds to the <tt>Read</tt> of each <tt>ReadHit</tt>
+	 * Number of hits that corresponds to the <tt>Read</tt> of each <tt>ReadHit</tt><br>
 	 * First dimension represents the corresponding chromosome ID. <br>
 	 * Second dimension represents the strand. 0 for '+', 1 for '-' <br>
 	 * Third dimension contains the number of hits of the <tt>Read</tt> of each <tt>ReadHit</tt> 
 	 */
-	protected int[][][] hitCounts=null;
+	protected float[][][] hitCounts=null;
 	
-	protected ArrayList<Integer>[][] hitCountsList = null;
+	protected ArrayList<Float>[][] hitCountsList = null;
 	
 	/**
-	 * The IDs of the read hits
+	 * The IDs of the read hits<br>
 	 * First dimension represents the corresponding chromosome ID. <br>
 	 * Second dimension represents the strand. 0 for '+', 1 for '-' <br>
 	 * Third dimension contains the IDs of the read hits
@@ -117,14 +117,14 @@ public abstract class AlignmentFileReader {
 	
 		//Initialize the data structures
 		fivePrimes    = new int[numChroms][2][];
-		hitCounts = new int[numChroms][2][];
+		hitCounts = new float[numChroms][2][];
 		hitIDs    = new int[numChroms][2][];
 		
 		fivePrimeList    = new ArrayList[numChroms][2];
 		for(i = 0; i < fivePrimeList.length; i++) { for(int j = 0; j < fivePrimeList[i].length; j++) { fivePrimeList[i][j] = new ArrayList<Integer>(); } }
 		
 		hitCountsList = new ArrayList[numChroms][2];
-		for(i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Integer>(); } }
+		for(i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
 		
 		hitIDsList    = new ArrayList[numChroms][2];
 		for(i = 0; i < hitIDsList.length; i++) { for(int j = 0; j < hitIDsList[i].length; j++) { hitIDsList[i][j] = new ArrayList<Integer>(); } }
@@ -197,7 +197,7 @@ public abstract class AlignmentFileReader {
 					
 				for(int k = start_ind; k <= end_ind; k++) {
 					hits.add(tmp5Primes[k]);
-					counts.add((float)hitCounts[chrID][j][k]);
+					counts.add(hitCounts[chrID][j][k]);
 				}
 			}
 		}
@@ -223,8 +223,8 @@ public abstract class AlignmentFileReader {
 		int strandInd = strand == '+' ? 0 : 1;
 		double weight = 0;
 		for(int i = 0; i < hitCounts.length; i++) {
-			int[] hitCountsTemp = hitCounts[i][strandInd];
-			for(Integer el:hitCountsTemp)
+			float[] hitCountsTemp = hitCounts[i][strandInd];
+			for(Float el:hitCountsTemp)
 				weight += 1/(double)el;
 		}
 		
@@ -234,7 +234,6 @@ public abstract class AlignmentFileReader {
 	
 	//Add hits to data structure
 	protected void addHits(Read r){
-		int numHits = r.getHits().size();
 		for(ReadHit h : r.getHits()){
 			if (!chrom2ID.containsKey(h.getChrom()))
 				continue;
@@ -244,7 +243,7 @@ public abstract class AlignmentFileReader {
 			//System.out.println(h.getChrom()+"\t"+h.getStart()+"\t"+h.getStrand());
 			fivePrimeList[chrID][strandInd].add(strand == '+' ?h.getStart():h.getEnd());
 			hitIDsList[chrID][strandInd].add(h.getID());
-			hitCountsList[chrID][strandInd].add(numHits);
+			hitCountsList[chrID][strandInd].add((float)h.getWeight());
 			totalHits++;
 		}
 	}//end of addHits method
@@ -276,7 +275,7 @@ public abstract class AlignmentFileReader {
 
 		for(int i = 0; i < hitCountsList.length; i++)
 			for(int j = 0; j < hitCountsList[i].length; j++)
-				hitCounts[i][j] = list2int(hitCountsList[i][j]);
+				hitCounts[i][j] = list2Float(hitCountsList[i][j]);
 		
 		for(int i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j].clear(); } }
 		hitCountsList = null;
@@ -361,6 +360,14 @@ public abstract class AlignmentFileReader {
 		return out;
 	}//end of list2int method
 
+	private float[] list2Float(List<Float> list) {
+		float[] out = new float[list.size()];
+		for(int i = 0; i < out.length; i++)
+			out[i] = list.get(i);
+	   
+		return out;
+	}//end of list2int method
+	
 	public void cleanup(){
 		fivePrimes=null;
 		hitCounts=null;

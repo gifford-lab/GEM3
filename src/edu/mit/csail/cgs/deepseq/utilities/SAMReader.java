@@ -63,7 +63,9 @@ public class SAMReader extends AlignmentFileReader{
 		    if(readLength ==-1)
 		    	readLength = record.getReadLength();
 		    
-		    if (record.getReadUnmappedFlag()) {continue; }
+		    if (record.getReadUnmappedFlag()) {
+		    	continue; 
+		    }
 		    if (lastread == null || !lastread.equals(record.getReadName())) {
 		    	processRead(byRead);
 		    	byRead.clear();
@@ -83,11 +85,26 @@ public class SAMReader extends AlignmentFileReader{
         if (mapcount == 0) {
             return;
         }
-        if (!useNonUnique && mapcount > 1) {
-            return;
+//        if (!useNonUnique && mapcount > 1) {		// old code: this will ignore paired-end reads
+//            return;
+//        }
+        
+        boolean paired = false;
+    	for (SAMRecord record : records) {
+    		if (record.getProperPairFlag()){
+    			paired = true;
+    			break;
+    		}
+    	}        
+    	
+    	if (!useNonUnique) {		// accepting only uniquely-mapped reads 
+        	if (!paired && mapcount > 1)
+        		return;
         }
-	
+        
         float weight = 1 / ((float)mapcount);
+        if (paired)
+        	weight = 1;
         Read currRead = new Read((int)totalWeight);
 		for (SAMRecord record : records) {
 		    int start = record.getAlignmentStart();
@@ -100,9 +117,13 @@ public class SAMReader extends AlignmentFileReader{
 						  weight);
 		    currRead.addHit(currHit);
 		    currID++;
-		}currRead.setNumHits(mapcount);
+		}
+		currRead.setNumHits(mapcount);
 		addHits(currRead);
-		totalWeight++;
+		if (paired)
+			totalWeight+=mapcount;
+		else
+			totalWeight++;
     }//end of processRead
 
 }
