@@ -987,7 +987,7 @@ public class CommonUtils {
     
  // testing getAllPWMHit()
     public static void main(String args[]){
-    	String s = "TCAGCTGTAAT";
+    	String s = "CTGCAGCTT";
     	List<WeightMatrix> wms = CommonUtils.loadPWMs_PFM_file("test_pwms.txt", 0.41);
     	WeightMatrix wm = wms.get(2);
     	WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
