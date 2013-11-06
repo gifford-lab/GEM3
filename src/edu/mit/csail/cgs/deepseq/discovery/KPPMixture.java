@@ -1465,6 +1465,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			    		controlDataExist = true;
 					}
 					this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
+					
+					if (config.write_genetrack_file){
+						ipCache.writeGeneTrack();
+						if (controlDataExist)
+							ctrlCache.writeGeneTrack();
+					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}

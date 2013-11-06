@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeMap;
 
 import cern.jet.random.Poisson;
 import cern.jet.random.engine.DRand;
@@ -88,7 +89,7 @@ public class ReadCache {
 	 */
 	//protected char[][] strands=null;
 	
-	private HashMap<String, Integer> chrom2ID=new HashMap<String,Integer>();
+	private TreeMap<String, Integer> chrom2ID=new TreeMap<String,Integer>();
 	
 	private HashMap<Integer,String> id2Chrom=new HashMap<Integer,String>();
 	
@@ -98,6 +99,7 @@ public class ReadCache {
 		gen=g;
 		List<String> chromList = g.getChromList();
 		numChroms = chromList.size();
+		Collections.sort(chromList);
 		this.name = name;
 		
 		//Initialize the chromosome name lookup tables
