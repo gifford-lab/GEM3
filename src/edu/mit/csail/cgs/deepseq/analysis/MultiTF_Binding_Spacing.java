@@ -459,8 +459,7 @@ public class MultiTF_Binding_Spacing {
 				seqs[j] = seqgen.execute(sites.get(j).bs.expand(seqRange)).toUpperCase();
 			}
 			
-			ArrayList[][] hits = new ArrayList[seqs.length][pwms.size()];
-			
+			ArrayList[][] hits = new ArrayList[seqs.length][pwms.size()];			
 			for (int j=0;j<pwms.size();j++){
 				WeightMatrix pwm = pwms.get(j);
 				if (pwm==null)
@@ -470,6 +469,7 @@ public class MultiTF_Binding_Spacing {
 					hits[s][j]=CommonUtils.getAllPWMHit(seqs[s], pwm.length(), scorer, pwm.getMaxScore()*0.6);
 				}
 			}
+			
 			int seqLen = seqs[0].length();
 			for (int j=0;j<pwms.size();j++){
 				if (pwms.get(j)==null)
@@ -485,22 +485,70 @@ public class MultiTF_Binding_Spacing {
 					if (i==j){		//self comparison
 						for (int a=0;a<hitm.size();a++){
 							int pm = hitm.get(a);
+							boolean isForward_m = true;
+							if (pm<0){
+								pm=-pm;
+								isForward_m = false;
+							}
 							for (int b=a;b<hitm.size();b++){
 								int pj = hitm.get(b);
-								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
-									same[pj-pm+range]++;
-								else
-									diff[-pj-pm+range]++;			// -pj to get the coord on the same strand as pm
+								boolean isForward_j = true;
+								if (pj<0){
+									pj=-pj;
+									isForward_j = false;
+								}
+								int offset = pj-pm;
+								if (Math.abs(offset)>range)
+									continue;
+								if(isForward_m){
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										same[offset]++;
+									else
+										diff[offset]++;
+								}
+								else{
+									offset = -offset;
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										diff[offset]++;
+									else
+										same[offset]++;
+								}
 							}
 						}
 					}
 					else{
 						for (int pm:hitm){
+							boolean isForward_m = true;
+							if (pm<0){
+								pm=-pm;
+								isForward_m = false;
+							}
 							for (int pj:hitj){
-								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
-									same[pj-pm+range]++;
-								else
-									diff[-pj-pm+range]++;			// -pj to get the coord on the same strand as pm
+								boolean isForward_j = true;
+								if (pj<0){
+									pj=-pj;
+									isForward_j = false;
+								}
+								int offset = pj-pm;
+								if (Math.abs(offset)>range)
+									continue;
+								if(isForward_m){
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										same[offset]++;
+									else
+										diff[offset]++;
+								}
+								else{
+									offset = -offset;
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										diff[offset]++;
+									else
+										same[offset]++;
+								}
 							}
 						}
 					}

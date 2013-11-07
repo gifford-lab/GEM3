@@ -2096,6 +2096,8 @@ public class KMAC {
 									isForward_j = false;
 								}
 								int offset = pj-pm;
+								if (Math.abs(offset)>range)
+									continue;
 								if(isForward_m){
 									offset += range;		// shift to get array idx
 									if (isForward_j)
@@ -2128,6 +2130,8 @@ public class KMAC {
 									isForward_j = false;
 								}
 								int offset = pj-pm;
+								if (Math.abs(offset)>range)
+									continue;
 								if(isForward_m){
 									offset += range;		// shift to get array idx
 									if (isForward_j)
