@@ -2096,20 +2096,20 @@ public class KMAC {
 									isForward_j = false;
 								}
 								int offset = pj-pm;
-								if(!isForward_m){
-									offset = -offset;
-									offset += range;		// shift to get array idx
-									if (isForward_j)
-										diff[offset]++;
-									if (!isForward_j)
-										same[offset]++;
-								}
 								if(isForward_m){
 									offset += range;		// shift to get array idx
 									if (isForward_j)
 										same[offset]++;
-									if (!isForward_j)
+									else
 										diff[offset]++;
+								}
+								else{
+									offset = -offset;
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										diff[offset]++;
+									else
+										same[offset]++;
 								}
 							}
 						}
@@ -2128,20 +2128,20 @@ public class KMAC {
 									isForward_j = false;
 								}
 								int offset = pj-pm;
-								if(!isForward_m){
-									offset = -offset;
-									offset += range;		// shift to get array idx
-									if (isForward_j)
-										diff[offset]++;
-									if (!isForward_j)
-										same[offset]++;
-								}
 								if(isForward_m){
 									offset += range;		// shift to get array idx
 									if (isForward_j)
 										same[offset]++;
-									if (!isForward_j)
+									else
 										diff[offset]++;
+								}
+								else{
+									offset = -offset;
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										diff[offset]++;
+									else
+										same[offset]++;
 								}
 							}
 						}
