@@ -595,6 +595,7 @@ public class CommonUtils {
 			double score = profiler.getMaxScore(i);
 			if (score >= threshold){
 				char maxScoreStrand = profiler.getMaxStrand_both(i);
+				// after adjust to the middle of the motif, the match position will not be 0, thus '-pos' will not cause problem.
 				switch(maxScoreStrand){
 				case '+':
 					pos.add(i+wmLen/2);

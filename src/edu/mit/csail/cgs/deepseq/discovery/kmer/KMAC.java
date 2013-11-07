@@ -2083,22 +2083,66 @@ public class KMAC {
 					if (m==j){		//self comparison
 						for (int a=0;a<hitm.size();a++){
 							int pm = hitm.get(a);
+							boolean isForward_m = true;
+							if (pm<0){
+								pm=-pm;
+								isForward_m = false;
+							}
 							for (int b=a;b<hitm.size();b++){
 								int pj = hitm.get(b);
-								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
-									same[pj-pm+range]++;
-								else
-									diff[-pj-pm+range]++;			// -pj to get the coord on the same strand as pm
+								boolean isForward_j = true;
+								if (pj<0){
+									pj=-pj;
+									isForward_j = false;
+								}
+								int offset = pj-pm;
+								if(!isForward_m){
+									offset = -offset;
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										diff[offset]++;
+									if (!isForward_j)
+										same[offset]++;
+								}
+								if(isForward_m){
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										same[offset]++;
+									if (!isForward_j)
+										diff[offset]++;
+								}
 							}
 						}
-					}
+					}	// self
 					else{
 						for (int pm:hitm){
+							boolean isForward_m = true;
+							if (pm<0){
+								pm=-pm;
+								isForward_m = false;
+							}
 							for (int pj:hitj){
-								if ((pm>=0&&pj>=0) || (pm<0&&pj<0))
-									same[pj-pm+range]++;
-								else
-									diff[-pj-pm+range]++;			// -pj to get the coord on the same strand as pm
+								boolean isForward_j = true;
+								if (pj<0){
+									pj=-pj;
+									isForward_j = false;
+								}
+								int offset = pj-pm;
+								if(!isForward_m){
+									offset = -offset;
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										diff[offset]++;
+									if (!isForward_j)
+										same[offset]++;
+								}
+								if(isForward_m){
+									offset += range;		// shift to get array idx
+									if (isForward_j)
+										same[offset]++;
+									if (!isForward_j)
+										diff[offset]++;
+								}
 							}
 						}
 					}
