@@ -180,8 +180,8 @@ public class TFBS_SpaitialAnalysis {
 				if (!txt.equals("")){
 					String[] f = txt.split("\t");
 					expts.add(f[0]);
-					names.add(f[2]);
-					readdb_names.add(f[4]);
+					names.add(f[3]);
+					readdb_names.add(f[5]);
 				}
 			}
 		}
