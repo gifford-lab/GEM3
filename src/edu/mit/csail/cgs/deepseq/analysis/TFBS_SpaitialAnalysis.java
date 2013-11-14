@@ -248,6 +248,7 @@ public class TFBS_SpaitialAnalysis {
 					pwms.add( wm );
 				}
 			}
+			
 			// load binding event files 
 			File gpsFile = new File(dir2, expt+"_"+ (round>=2?round:1) +
 					(oldFormat?"_GPS_significant.txt":"_GEM_events.txt"));
@@ -354,6 +355,8 @@ public class TFBS_SpaitialAnalysis {
 				System.exit(1);
 			}
 			// load motif files
+			if (no_gem_pwm)
+				continue;
 			WeightMatrix wm = null;
 			final String suffix = expt+"_"+ (round>=2?round:1) +"_PFM";
 			File[] files = dir2.listFiles(new FilenameFilter(){
