@@ -68,6 +68,7 @@ public class TFBS_SpaitialAnalysis {
 	double wm_factor = 0.6;	// PWM threshold, as fraction of max score
 	double cutoff = 0.3;	// corr score cutoff
 	File dir;
+	boolean no_gem_pwm = false;
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
 	boolean print_uci_matlab_format = false;
@@ -161,6 +162,7 @@ public class TFBS_SpaitialAnalysis {
 		zero_or_one = flags.contains("zoo");
 		dev = flags.contains("dev");
 		oldFormat = flags.contains("old_format");
+		no_gem_pwm = flags.contains("no_gem_pwm");
 		useDirectBindingOnly = flags.contains("direct");
 		print_uci_matlab_format = flags.contains("uci_matlab");
 		print_hdp_format = flags.contains("hdp");
@@ -222,29 +224,30 @@ public class TFBS_SpaitialAnalysis {
 
 			System.err.print(String.format("TF#%d: loading %s", tf, expt));
 			
-			// load motif files
-			WeightMatrix wm = null;
 			File dir2= new File(dir, expt);
 			if (!oldFormat)
 				dir2= new File(dir2, expt+"_outputs");
-			final String suffix = expt+"_"+ (round>=2?round:1) +"_PFM";
-			File[] files = dir2.listFiles(new FilenameFilter(){
-				public boolean accept(File arg0, String arg1) {
-					if (arg1.startsWith(suffix))
-						return true;
-					else
-						return false;
+			WeightMatrix wm = null;
+			// load motif files
+			if (!no_gem_pwm){				
+				final String suffix = expt+"_"+ (round>=2?round:1) +"_PFM";
+				File[] files = dir2.listFiles(new FilenameFilter(){
+					public boolean accept(File arg0, String arg1) {
+						if (arg1.startsWith(suffix))
+							return true;
+						else
+							return false;
+					}
+				});
+				if (files.length==0){
+					System.out.println(expt+" does not have a motif PFM file.");
+					pwms.add(null);
 				}
-			});
-			if (files.length==0){
-				System.out.println(expt+" does not have a motif PFM file.");
-				pwms.add(null);
+				else{				// if we have valid PFM file
+					wm = CommonUtils.loadPWM_PFM_file(files[0].getAbsolutePath(), gc);
+					pwms.add( wm );
+				}
 			}
-			else{				// if we have valid PFM file
-				wm = CommonUtils.loadPWM_PFM_file(files[0].getAbsolutePath(), gc);
-				pwms.add( wm );
-			}
-			
 			// load binding event files 
 			File gpsFile = new File(dir2, expt+"_"+ (round>=2?round:1) +
 					(oldFormat?"_GPS_significant.txt":"_GEM_events.txt"));
