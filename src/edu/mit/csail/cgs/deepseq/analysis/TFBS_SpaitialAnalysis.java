@@ -175,9 +175,9 @@ public class TFBS_SpaitialAnalysis {
 		dir = new File(Args.parseString(args, "dir", "."));
 		expts = new ArrayList<String>();
 		names = new ArrayList<String>();
-		String expt_file = Args.parseString(args, "expts", null);
-		if (expt_file!=null){
-			ArrayList<String> info = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+		String info_file = Args.parseString(args, "info", null);
+		if (info_file!=null){
+			ArrayList<String> info = CommonUtils.readTextFile(info_file);
 			for (String txt: info){
 				if (!txt.equals("")){
 					String[] f = txt.split("\t");
