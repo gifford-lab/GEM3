@@ -114,6 +114,7 @@ public class CommonUtils {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		rset.trimToSize();
 		return rset;
 	}
 	

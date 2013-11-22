@@ -834,7 +834,26 @@ public class Region implements Comparable<Region>, Saveable {
     }
     return 0;
   }
-  
+ 
+  /**
+   * This is a stricter version of compareTo()<br>
+   * It always checked both start and end coordinates. Regions that overlaps are considered as tied. 
+   * @param r
+   * @return
+   */
+  public int compareToStrict(Region r) {
+    if (!chrom.equals(r.chrom)) {
+      return chrom.compareTo(r.chrom);
+    }
+    if (start < r.start && end < r.end) {
+      return -1;
+    }
+    if (start > r.start && end > r.end) {
+      return 1;
+    }
+    return 0;
+  }
+
   /**
    * Given a list of regions, filter out all the regions that overlaps with any reference regions, return the non-overlap regions
    * @param rs

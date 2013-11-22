@@ -849,7 +849,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private void displayKmerCoverage(List<Feature> bindingCallFeatures, String eventType){ 
 		int bin = (int)Math.ceil(bindingCallFeatures.size()/10.0);
 		StringBuilder sb = new StringBuilder();
-		sb.append("Percentage of "+eventType+" events with a k-mer match in 10 bins (~"+bin+" events per bin):\n");
+		sb.append("Percentage of "+eventType+" events with a k-mer match, divided in 10 bins (~"+bin+" events per bin):\n");
 		for (int i=0;i<bindingCallFeatures.size();i+=bin){
 			int count=0, motif=0;
 			for (int j=i;j<Math.min(bindingCallFeatures.size(), i+bin);j++){
