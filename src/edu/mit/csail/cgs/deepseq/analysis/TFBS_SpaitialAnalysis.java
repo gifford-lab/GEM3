@@ -49,10 +49,13 @@ public class TFBS_SpaitialAnalysis {
 	ArrayList<String> expts = new ArrayList<String>();
 	ArrayList<String> names = new ArrayList<String>();
 	ArrayList<String> readdb_names = new ArrayList<String>();
+	ArrayList<String> indirect_tf_expts = new ArrayList<String>();
+	HashMap<Integer, Integer> directid2indirectid = new HashMap<Integer, Integer>();
 	
 	ArrayList<WeightMatrix> pwms = new ArrayList<WeightMatrix>();
 	ArrayList<String> kmers = new ArrayList<String>();
 	ArrayList<ArrayList<Site>> all_sites = new ArrayList<ArrayList<Site>>();
+	ArrayList<ArrayList<Site>> all_indirect_sites = new ArrayList<ArrayList<Site>>();
 	ArrayList<Point> all_TSS;
 	ArrayList<Cluster> all_clusters;
 	int[][]tss_signals = null;
@@ -69,6 +72,7 @@ public class TFBS_SpaitialAnalysis {
 	double cutoff = 0.3;	// corr score cutoff
 	File dir;
 	boolean no_gem_pwm = false;
+//	boolean indirect_binding = false;				// consider the sites without k-mer strand info as indirect sites
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
 	boolean print_uci_matlab_format = false;
@@ -84,6 +88,7 @@ public class TFBS_SpaitialAnalysis {
 	boolean dev = false;
 	boolean zero_or_one = false;	// for each TF, zero or one site per cluster, no multiple sites
 	String outPrefix = "out";
+	String indirect_tf_file;
 	String tss_file;
 	String pwm_file;
 	String kmer_file;
@@ -163,6 +168,7 @@ public class TFBS_SpaitialAnalysis {
 		dev = flags.contains("dev");
 		oldFormat = flags.contains("old_format");
 		no_gem_pwm = flags.contains("no_gem_pwm");
+//		indirect_binding = flags.contains("indirect_binding");
 		useDirectBindingOnly = flags.contains("direct");
 		print_uci_matlab_format = flags.contains("uci_matlab");
 		print_hdp_format = flags.contains("hdp");
@@ -187,11 +193,27 @@ public class TFBS_SpaitialAnalysis {
 				}
 			}
 		}
+		
 		anchor_string = Args.parseString(args, "anchor", anchor_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
 		sort_string = Args.parseString(args, "sort", sort_string);			// the id of TF/PWM/Kmer to sort the sites/regions/sequences
 
 		width = Args.parseInteger(args, "width", width);
 		height = Args.parseInteger(args, "height", height);
+		
+		indirect_tf_file = Args.parseString(args, "indirect_tf_file", null);
+		if (indirect_tf_file!=null){
+			indirect_tf_expts = CommonUtils.readTextFile(indirect_tf_file);
+			for (int i=0;i<indirect_tf_expts.size();i++){
+				String e = indirect_tf_expts.get(i);
+				int idx = expts.indexOf(e);
+				if (idx>=0){		// add fake expt and iNames for the indirect sites
+					expts.add(e);
+					names.add("i_"+names.get(idx));
+					readdb_names.add(readdb_names.get(idx));
+					directid2indirectid.put(idx, expts.size()-1);
+				}
+			}
+		}
 		
 		tss_file = Args.parseString(args, "tss", null);
 		tss_signal_file = Args.parseString(args, "tss_signal", null);
@@ -220,6 +242,8 @@ public class TFBS_SpaitialAnalysis {
 			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
 		}
 		for (int tf=0;tf<names.size();tf++){
+			if (names.get(tf).startsWith("i_"))
+				continue;
 			String expt = expts.get(tf);
 
 			System.err.print(String.format("TF#%d: loading %s", tf, expt));
@@ -263,6 +287,7 @@ public class TFBS_SpaitialAnalysis {
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
+				ArrayList<Site> indirectSites = new ArrayList<Site>();
 			eachpeak:	for (int i=0;i<gpsPeaks.size();i++){
 					GPSPeak p = gpsPeaks.get(i);
 					Site site = new Site();
@@ -292,19 +317,28 @@ public class TFBS_SpaitialAnalysis {
 						if (r.contains(site.bs))
 							continue eachpeak;
 					}
-					
-					sites.add(site);
+					if (site.motifStrand=='*' && indirect_tf_file!=null){
+						site.tf_id = directid2indirectid.get(site.tf_id);
+						indirectSites.add(site);
+					}
+					else
+						sites.add(site);
 				}				
 					
-				System.err.println(", n="+sites.size());
+				System.err.println(", n="+sites.size()+" , i="+indirectSites.size());
 				Collections.sort(sites);
 				all_sites.add(sites);
+				if (indirect_tf_file!=null){
+					Collections.sort(indirectSites);
+					all_indirect_sites.add(indirectSites);
+				}
 			}
 			catch (IOException e){
 				System.out.println(expt+" does not have valid GPS/GEM event call file.");
 				System.exit(1);
 			}
 		}
+		all_sites.addAll(all_indirect_sites);
 	}
 	/**
 	 * This is different from the loadEventsAndMotifs method, in that 
