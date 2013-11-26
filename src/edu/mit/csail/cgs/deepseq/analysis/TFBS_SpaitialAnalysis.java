@@ -318,17 +318,19 @@ public class TFBS_SpaitialAnalysis {
 							continue eachpeak;
 					}
 					if (site.motifStrand=='*' && indirect_tf_file!=null){
-						site.tf_id = directid2indirectid.get(site.tf_id);
-						indirectSites.add(site);
+						if (directid2indirectid.containsKey(site.tf_id)){		// for factor that are TFSS, thus considering indirect
+							site.tf_id = directid2indirectid.get(site.tf_id);
+							indirectSites.add(site);
+						}
 					}
 					else
 						sites.add(site);
-				}				
+				}
 					
 				System.err.println(", n="+sites.size()+" , i="+indirectSites.size());
 				Collections.sort(sites);
 				all_sites.add(sites);
-				if (indirect_tf_file!=null){
+				if (indirect_tf_file!=null && !indirectSites.isEmpty()){
 					Collections.sort(indirectSites);
 					all_indirect_sites.add(indirectSites);
 				}
