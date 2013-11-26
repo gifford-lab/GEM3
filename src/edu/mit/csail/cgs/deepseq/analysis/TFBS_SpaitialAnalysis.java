@@ -50,6 +50,7 @@ public class TFBS_SpaitialAnalysis {
 	ArrayList<String> names = new ArrayList<String>();
 	ArrayList<String> readdb_names = new ArrayList<String>();
 	ArrayList<String> indirect_tf_expts = new ArrayList<String>();
+	/** Mapping of TFSS(sequence specific) GEM expt ids (from direct binding id to indirect binding id */
 	HashMap<Integer, Integer> directid2indirectid = new HashMap<Integer, Integer>();
 	
 	ArrayList<WeightMatrix> pwms = new ArrayList<WeightMatrix>();
@@ -72,7 +73,6 @@ public class TFBS_SpaitialAnalysis {
 	double cutoff = 0.3;	// corr score cutoff
 	File dir;
 	boolean no_gem_pwm = false;
-//	boolean indirect_binding = false;				// consider the sites without k-mer strand info as indirect sites
 	boolean oldFormat =  false;
 	boolean useDirectBindingOnly = false;
 	boolean print_uci_matlab_format = false;
@@ -88,7 +88,7 @@ public class TFBS_SpaitialAnalysis {
 	boolean dev = false;
 	boolean zero_or_one = false;	// for each TF, zero or one site per cluster, no multiple sites
 	String outPrefix = "out";
-	String indirect_tf_file;
+	String tfss_file;				// Sequence-specific TFs
 	String tss_file;
 	String pwm_file;
 	String kmer_file;
@@ -107,7 +107,7 @@ public class TFBS_SpaitialAnalysis {
 		ArrayList<ArrayList<Site>> clusters=null;
 		switch(type){
 		case 0:
-			mtb.loadEventsAndMotifs(round);
+			mtb.loadEventsAndMotifs();
 			clusters = mtb.mergeTfbsClusters();
 			mtb.outputTFBSclusters(clusters);
 			break;
@@ -116,7 +116,7 @@ public class TFBS_SpaitialAnalysis {
 			mtb.computeCorrelations();
 			break;
 		case 2:
-			mtb.loadEventsAndMotifs(round);
+			mtb.loadEventsAndMotifs();
 			mtb.computeTfbsSpacingDistribution();
 			break;
 		case 3:		// to print all the binding sites and motif positions in the clusters for downstream spacing/grammar analysis
@@ -200,13 +200,13 @@ public class TFBS_SpaitialAnalysis {
 		width = Args.parseInteger(args, "width", width);
 		height = Args.parseInteger(args, "height", height);
 		
-		indirect_tf_file = Args.parseString(args, "indirect_tf_file", null);
-		if (indirect_tf_file!=null){
-			indirect_tf_expts = CommonUtils.readTextFile(indirect_tf_file);
+		tfss_file = Args.parseString(args, "tfss_file", null);
+		if (tfss_file!=null){
+			indirect_tf_expts = CommonUtils.readTextFile(tfss_file);
 			for (int i=0;i<indirect_tf_expts.size();i++){
 				String e = indirect_tf_expts.get(i);
 				int idx = expts.indexOf(e);
-				if (idx>=0){		// add fake expt and iNames for the indirect sites
+				if (idx>=0){		// add fake expt and iNames for the indirect TFSS sites
 					expts.add(e);
 					names.add("i_"+names.get(idx));
 					readdb_names.add(readdb_names.get(idx));
@@ -236,14 +236,17 @@ public class TFBS_SpaitialAnalysis {
 		seqgen.useCache(!flags.contains("no_cache"));
 	}
 	
-	private void loadEventsAndMotifs(int round){
+	private void loadEventsAndMotifs(){
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
 			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
 		}
 		for (int tf=0;tf<names.size();tf++){
-			if (names.get(tf).startsWith("i_"))
+			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
 				continue;
+			boolean tfss = false;
+			if (directid2indirectid.isEmpty() || directid2indirectid.containsKey(tf))
+				tfss = true;
 			String expt = expts.get(tf);
 
 			System.err.print(String.format("TF#%d: loading %s", tf, expt));
@@ -251,39 +254,12 @@ public class TFBS_SpaitialAnalysis {
 			File dir2= new File(dir, expt);
 			if (!oldFormat)
 				dir2= new File(dir2, expt+"_outputs");
-			WeightMatrix wm = null;
-			// load motif files
-			if (!no_gem_pwm){				
-				final String suffix = expt+"_"+ (round>=2?round:1) +"_PFM";
-				File[] files = dir2.listFiles(new FilenameFilter(){
-					public boolean accept(File arg0, String arg1) {
-						if (arg1.startsWith(suffix))
-							return true;
-						else
-							return false;
-					}
-				});
-				if (files.length==0){
-					System.out.println(expt+" does not have a motif PFM file.");
-					pwms.add(null);
-				}
-				else{				// if we have valid PFM file
-					wm = CommonUtils.loadPWM_PFM_file(files[0].getAbsolutePath(), gc);
-					pwms.add( wm );
-				}
-			}
 			
-			// load binding event files 
-			File gpsFile = new File(dir2, expt+"_"+ (round>=2?round:1) +
+			// load binding event files, TFSS use GEM calls, nonTFSS (or don't care) use GPS calls
+			File gpsFile = new File(dir2, expt+"_"+ (tfss?2:1) +
 					(oldFormat?"_GPS_significant.txt":"_GEM_events.txt"));
 			String filePath = gpsFile.getAbsolutePath();
-			WeightMatrixScorer scorer = null;
-			int posShift=0, negShift=0;
-			if (round!=1&&round!=2&&round!=9&&wm!=null){	
-				scorer = new WeightMatrixScorer(wm);
-				posShift = wm.length()/2;				// shift to the middle of motif
-				negShift = wm.length()-1-wm.length()/2;
-			}
+
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
@@ -295,42 +271,29 @@ public class TFBS_SpaitialAnalysis {
 					site.event_id = i;
 					site.signal = p.getStrength();
 					site.motifStrand = p.getKmerStrand();
-					
-					if (round!=1&&round!=2&&round!=9&&wm!=null){		// use nearest motif as binding site
-						Region region = p.expand(round);
-						String seq = seqgen.execute(region).toUpperCase();	// here round is the range of window 
-						int hit = CommonUtils.scanPWMoutwards(seq, wm, scorer, round, wm.getMaxScore()*wm_factor).car();
-						if (hit!=-999){
-							if (hit>=0)
-								site.bs = new Point(p.getGenome(), p.getChrom(), region.getStart()+hit+posShift);
-							else
-								site.bs = new Point(p.getGenome(), p.getChrom(), region.getStart()-hit+negShift);
-						}
-						else
-							site.bs = (Point)p;		// no motif found, still use original GPS call
-					}
-					else
-						site.bs = (Point)p;
+					site.bs = (Point)p;
 					
 					// skip site in the ex_regions
 					for (Region r: ex_regions){
 						if (r.contains(site.bs))
 							continue eachpeak;
 					}
-					if (site.motifStrand=='*' && indirect_tf_file!=null){
-						if (directid2indirectid.containsKey(site.tf_id)){		// for factor that are TFSS, thus considering indirect
-							site.tf_id = directid2indirectid.get(site.tf_id);
-							indirectSites.add(site);
-						}
+					if (tfss && site.motifStrand=='*'){
+						// for factor that are TFSS, thus considering indirect
+						site.tf_id = directid2indirectid.get(site.tf_id);
+						indirectSites.add(site);
 					}
 					else
 						sites.add(site);
 				}
-					
-				System.err.println(", n="+sites.size()+" , i="+indirectSites.size());
+				if (tfss)	
+					System.err.println(",\t d="+sites.size()+",\t i="+indirectSites.size());
+				else
+					System.err.println(",\t n="+sites.size());
+				
 				Collections.sort(sites);
 				all_sites.add(sites);
-				if (indirect_tf_file!=null && !indirectSites.isEmpty()){
+				if (tfss_file!=null && !indirectSites.isEmpty()){
 					Collections.sort(indirectSites);
 					all_indirect_sites.add(indirectSites);
 				}
