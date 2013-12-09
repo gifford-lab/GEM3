@@ -38,6 +38,7 @@ import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
 /**
  * Compute the spatial relationship among multiple TFs' binding sites<br>
  * Find the clusters of multiTF binding and the relative positions of each TF sites
@@ -101,8 +102,11 @@ public class CCC_Analysis {
 		CCC_Analysis mtb = new CCC_Analysis(args);
 		int type = Args.parseInteger(args, "type", 0);
 		switch(type){
-		case 0:		// map regulatory regions to target genes
-			mtb.mapRegions2genes();
+		case 0:		// map regulatory regions enriched in topics to target genes (listed by each topic)
+			mtb.printTopic2genes();
+			break;
+		case 1:		// map regulatory regions to target genes (listed by each region)
+			mtb.printGenesByRegions();
 			break;
 		}		
 	}
@@ -196,22 +200,27 @@ public class CCC_Analysis {
 			if (t.startsWith("#"))
 				continue;
 			String f[] = t.split("\t");
-			String chr = f[2].replace("chr", "");
-			char strand = f[3].charAt(0);
-			tss.add(new Tss(i, new Point(genome, chr, Integer.parseInt(f[strand=='+'?4:5])), strand, f[12]));
+			
+			// UCSC ucsc_hgTables.txt
+			String chr = f[1].replace("chr", "");
+			char strand = f[2].charAt(0);
+			tss.add(new Tss(i, new Point(genome, chr, Integer.parseInt(f[strand=='+'?3:4])), strand, f[10])); // Gene Symbol
+			
+			// GENCODE v17
+//			String chr = f[2].replace("chr", "");
+//			char strand = f[3].charAt(0);
+//			tss.add(new Tss(i, new Point(genome, chr, Integer.parseInt(f[strand=='+'?4:5])), strand, f[12])); // Gene Symbol
 		}
 		tss.trimToSize();
 		Collections.sort(tss);
 	}
 	
-	private void mapRegions2genes(){
-		loadTSS();
+	private void printTopic2genes(){
+		// load all regoins
 		ArrayList<Region> rs = CommonUtils.loadRegionFile(Args.parseString(args, "regions", null), genome);
-		ArrayList<Region> expanded = new ArrayList<Region>(rs.size());
-		for (Region r:rs)
-			expanded.add(r.expand(region_padding, region_padding));
-		rs = expanded;
 		
+		// loadTSS
+		loadTSS();
 		ArrayList<Region> tssRegions = new ArrayList<Region>();
 		for (Tss t: tss){	// tss has been sorted when it is loaded
 			tssRegions.add(t.point.expand(tss_radias));
@@ -223,14 +232,95 @@ public class CCC_Analysis {
             }
         });
 		
-		// Map regions to overlapping (within +-2kb) TSS?
+		// Load HDP assignment file to match topic to regions
+//		d w z t
+//		131779 30 11 1
+//		131779 104 11 0
+		ArrayList<String> texts = CommonUtils.readTextFile(Args.parseString(args, "hdp_assignments", null));
+		TreeMap<Integer, HashSet<Integer>> topic2region = new TreeMap<Integer, HashSet<Integer>>();
+		
+		// associate topic to region
+		TreeMap<Integer, ArrayList<Integer>> region2topics = new TreeMap<Integer, ArrayList<Integer>>();
+		for (String t: texts){
+			if (t.startsWith("d"))
+				continue;
+			String[] f = t.split(" ");
+			int topicId = Integer.parseInt(f[2]);
+			int regionId = Integer.parseInt(f[0]);
+			if (region2topics.containsKey(regionId))
+				region2topics.get(regionId).add(topicId);
+			else{
+				ArrayList<Integer> tids = new ArrayList<Integer>();
+				tids.add(topicId);
+				region2topics.put(regionId, tids);
+			}
+		}
+		
+		for (int regionId:region2topics.keySet()){
+			ArrayList<Integer> tids = region2topics.get(regionId);
+			Pair<int[], int[]> sorted = StatUtil.sortByOccurences(tids); 
+			int[] elements = sorted.car();
+			int[] counts = sorted.cdr();
+			double meanPlusStd = StatUtil.mean(counts)+StatUtil.std(counts);
+//			int maxCount = counts[counts.length-1];
+			for (int i=counts.length-1;i>=0;i--){
+				if (counts[i]<=meanPlusStd)			// only count highly-used topics
+					break;
+				int topicId = elements[i];
+				if (topic2region.containsKey(topicId))
+					topic2region.get(topicId).add(regionId);
+				else{
+					HashSet<Integer> rids = new HashSet<Integer>();
+					rids.add(regionId);
+					topic2region.put(topicId, rids);
+				}
+			}
+		}
+		
+		StringBuilder sb = new StringBuilder();
+		for (int topicId:topic2region.keySet()){
+			HashSet<Integer> rids = topic2region.get(topicId);
+			ArrayList<Region> topicRegions = new ArrayList<Region>();
+			for (int rid:rids)
+				topicRegions.add(rs.get(rid));
+			sb.append(mapRegions2genes(topicRegions, tssRegions, topicId));
+		}
+		CommonUtils.writeFile(outPrefix+"_tfbs2genes_byTopic.txt", sb.toString());
+	}
+	
+	private void printGenesByRegions(){
+		// load all regoins
+		ArrayList<Region> rs = CommonUtils.loadRegionFile(Args.parseString(args, "regions", null), genome);
+		// loadTSS
+		loadTSS();
+		ArrayList<Region> tssRegions = new ArrayList<Region>();
+		for (Tss t: tss){	// tss has been sorted when it is loaded
+			tssRegions.add(t.point.expand(tss_radias));
+		}
+		tssRegions.trimToSize(); 
+		Collections.sort(tssRegions, new Comparator<Region>() {
+            public int compare(Region o1, Region o2) {
+                return o1.compareToStrict(o2);
+            }
+        });		
+		String s = mapRegions2genes(rs, tssRegions, -1);
+		CommonUtils.writeFile(outPrefix+"_tfbs2genes_byRegion.txt", s);
+	}
+	
+	
+	private String mapRegions2genes(ArrayList<Region> unexpandedRegions, ArrayList<Region> tssRegions, int topicId){
+		ArrayList<Region> regions = new ArrayList<Region>(unexpandedRegions.size());
+		for (Region r:unexpandedRegions)
+			regions.add(r.expand(region_padding, region_padding));		
+		
+		// Map regions to overlapping TSS regions
 		ArrayList<TreeSet<String>> tssGenes = new ArrayList<TreeSet<String>>();
-		for (Region r:rs)
+		for (Region r:regions)
 			tssGenes.add(null);
 		tssGenes.trimToSize();
 		
-		for (int j=0;j<rs.size();j++){
-			Region r = rs.get(j);
+		for (int j=0;j<regions.size();j++){
+			Region r = regions.get(j);
 			int idx = Collections.binarySearch(tssRegions, r, new Comparator<Region>() {
 	            public int compare(Region o1, Region o2) {
 	                return o1.compareToStrict(o2);
@@ -253,68 +343,109 @@ public class CCC_Analysis {
 		
 		// Map regions to ChIA-PET linked (two-way) TSS?
 		ArrayList<TreeSet<String>> chiapetGenes = new ArrayList<TreeSet<String>>();
-		for (Region r:rs)
+		for (Region r:regions)
 			chiapetGenes.add(null);
 		chiapetGenes.trimToSize();
 		
 		for (Interaction ir: interactions){
 			Region anchor1 = ir.anchor1;
 			Region anchor2 = ir.anchor2;
+			// one anchor -- TSS of gene
 			ArrayList<Integer> idx1 = getOverlapRegionIndices(anchor1, tssRegions);
 			TreeSet<String> geneSymbols = new TreeSet<String>();
-			for (int i: idx1){
-				geneSymbols.add(tss.get(i).geneSymbol);		
+			for (int t: idx1){
+				geneSymbols.add(tss.get(t).geneSymbol);		
 			}
-			ArrayList<Integer> idx2 = getOverlapRegionIndices(anchor2, rs);
-			for (int i: idx2){
-				TreeSet<String> data = chiapetGenes.get(i);
-				if (data==null)
-					chiapetGenes.set(i, geneSymbols);
+			// the other anchor -- binding region
+			ArrayList<Integer> idx2 = getOverlapRegionIndices(anchor2, regions);
+			for (int r: idx2){
+				TreeSet<String> storedGeneSymbols = chiapetGenes.get(r);
+				if (storedGeneSymbols==null)
+					chiapetGenes.set(r, geneSymbols);
 				else
-					data.addAll(geneSymbols);
+					storedGeneSymbols.addAll(geneSymbols);
 			}
 			
 			idx1 = getOverlapRegionIndices(anchor2, tssRegions);
 			geneSymbols.clear();
-			for (int i: idx1){
-				geneSymbols.add(tss.get(i).geneSymbol);		
+			for (int t: idx1){
+				geneSymbols.add(tss.get(t).geneSymbol);		
 			}
-			idx2 = getOverlapRegionIndices(anchor2, rs);
-			for (int i: idx2){
-				TreeSet<String> storedGeneSymbols = chiapetGenes.get(i);
+			idx2 = getOverlapRegionIndices(anchor2, regions);
+			for (int r: idx2){
+				TreeSet<String> storedGeneSymbols = chiapetGenes.get(r);
 				if (storedGeneSymbols==null)
-					chiapetGenes.set(i, geneSymbols);
+					chiapetGenes.set(r, geneSymbols);
 				else
 					storedGeneSymbols.addAll(geneSymbols);
 			}
 		}
 		
 		// output results
-		StringBuilder sb = new StringBuilder();
-		sb.append("#Region\tTssGenes\tChIA-PetGenes\tAll_Genes\n");
-		for (int i=0;i<rs.size();i++){
-			Region r = rs.get(i);
-			TreeSet<String> tssGeneSymbols = tssGenes.get(i);
-			TreeSet<String> cpGeneSymbols = chiapetGenes.get(i);
+		if (topicId==-1){	// return the genes <-- by regions
+			StringBuilder sb = new StringBuilder();
+			sb.append("#Region\tTSS_Genes\tChIA-PET_Genes\tAll_Genes\n");
+			for (int i=0;i<unexpandedRegions.size();i++){
+				Region r = unexpandedRegions.get(i);
+				TreeSet<String> tssGeneSymbols = tssGenes.get(i);
+				TreeSet<String> cpGeneSymbols = chiapetGenes.get(i);
+				TreeSet<String> allGeneSymbols = new TreeSet<String>();
+				StringBuilder gsb = new StringBuilder();
+				if (tssGeneSymbols!=null){	
+					allGeneSymbols.addAll(tssGeneSymbols);
+					for (String g:tssGeneSymbols)
+						gsb.append(g).append(" ");
+				}
+				StringBuilder cpsb = new StringBuilder();
+				if (cpGeneSymbols!=null){
+					allGeneSymbols.addAll(cpGeneSymbols);
+					for (String g:cpGeneSymbols)
+						cpsb.append(g).append(" ");
+				}
+				StringBuilder allsb = new StringBuilder();
+				for (String g:allGeneSymbols) 
+					allsb.append(g).append(" ");
+				sb.append(String.format("%s\t%s\t%s\t%s\n", r.toString(), gsb.toString(), cpsb.toString(), allsb.toString()));
+			}
+			return sb.toString();
+		}
+		else{		// return the genes <-- regions <-- by topic
+			StringBuilder sb = new StringBuilder();
+			TreeSet<String> tssGeneSymbols = new TreeSet<String>();
+			TreeSet<String> cpGeneSymbols = new TreeSet<String>();
 			TreeSet<String> allGeneSymbols = new TreeSet<String>();
+			for (int i=0;i<unexpandedRegions.size();i++){
+				TreeSet<String> tsg = tssGenes.get(i);
+				if (tsg!=null)
+					tssGeneSymbols.addAll(tsg);
+				TreeSet<String> cpg = chiapetGenes.get(i);
+				if (cpg!=null)
+					cpGeneSymbols.addAll(cpg);			
+			}
+			allGeneSymbols.addAll(tssGeneSymbols);
+			allGeneSymbols.addAll(cpGeneSymbols);
+			
 			StringBuilder gsb = new StringBuilder();
 			if (tssGeneSymbols!=null){	
-				allGeneSymbols.addAll(tssGeneSymbols);
 				for (String g:tssGeneSymbols)
 					gsb.append(g).append(" ");
 			}
 			StringBuilder cpsb = new StringBuilder();
 			if (cpGeneSymbols!=null){
-				allGeneSymbols.addAll(cpGeneSymbols);
 				for (String g:cpGeneSymbols)
 					cpsb.append(g).append(" ");
 			}
 			StringBuilder allsb = new StringBuilder();
-			for (String g:allGeneSymbols) 
-				allsb.append(g).append(" ");
-			sb.append(String.format("%s\t%s\t%s\t%s\n", r.toString(), gsb.toString(), cpsb.toString(), allsb.toString()));
+			if (allGeneSymbols!=null){
+				for (String g:allGeneSymbols) 
+					allsb.append(g).append(" ");
+			}
+			sb.append(String.format("%s\t%s\n", (topicId+1)+"_TSS_genes", gsb.toString()));
+			sb.append(String.format("%s\t%s\n", (topicId+1)+"_ChIA-PET_genes", cpsb.toString()));
+			sb.append(String.format("%s\t%s\n", (topicId+1)+"_ALL_genes", allsb.toString()));
+			
+			return sb.toString();
 		}
-		CommonUtils.writeFile(outPrefix+"_tfbs2genes.txt", sb.toString());
 	}
 	
 	private ArrayList<Integer> getOverlapRegionIndices(Region source, ArrayList<Region> targets){
