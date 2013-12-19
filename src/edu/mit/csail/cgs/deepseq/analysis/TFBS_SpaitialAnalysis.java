@@ -427,6 +427,7 @@ public class TFBS_SpaitialAnalysis {
 	 */
 	private ArrayList<ArrayList<Site>> mergeTfbsClusters(){
 		// classify sites by chrom
+		System.out.println("Merging binding/motif sites into non-overlaping regions (clusters).");
 		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
 		for (ArrayList<Site> sites:all_sites){
 			for (Site s:sites){
@@ -693,11 +694,11 @@ public class TFBS_SpaitialAnalysis {
 			int start = region.getStart();
 			
 			// Binding list
-			ArrayList<Integer> bindingIds = new ArrayList<Integer>();
-			ArrayList<Integer> bindingPos = new ArrayList<Integer>();
-			ArrayList<Integer> eventIds = new ArrayList<Integer>();
-			ArrayList<Character> strands = new ArrayList<Character>();
-			ArrayList<Double> bindingStrength = new ArrayList<Double>();
+			ArrayList<Integer> bindingIds = new ArrayList<Integer>(); 	// binding factor id
+			ArrayList<Integer> bindingPos = new ArrayList<Integer>();	// position in the padded region
+			ArrayList<Integer> eventIds = new ArrayList<Integer>();		// event id in the original site list
+			ArrayList<Character> strands = new ArrayList<Character>();	// strand of site match
+			ArrayList<Double> bindingStrength = new ArrayList<Double>();// binding strength, read count of the event
 			for (Site s:bindingSites){
 				bindingIds.add(s.tf_id);
 				bindingPos.add(s.bs.getLocation()-start);
@@ -744,7 +745,13 @@ public class TFBS_SpaitialAnalysis {
 
 		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+".d"+distance+".min"+min_site+".txt", sb.toString());
 	}
+	
+	/**
+	 * This method output the data for plotting pairwise spacing constraints (histogram and matrix)
+	 */
 	private void printSpacingHistrograms(){
+		// The input file is the output from the type 3 method, outputBindingAndMotifSites()
+		// Some filtering may be done (e.g. grep) to select desired regions/clusters.
 		ArrayList<String> lines = CommonUtils.readTextFile(cluster_file);
 		ArrayList<BMCluster> clusters = new ArrayList<BMCluster>();
 		TreeMap<String, TreeMap<String, SpacingProfile>> profiles = new TreeMap<String, TreeMap<String, SpacingProfile>>();
@@ -818,8 +825,8 @@ public class TFBS_SpaitialAnalysis {
 			clusters.add(bmc);
 		}// for each line
 					
-		StringBuilder sb_count = new StringBuilder("Anchor"+"\t");
-		StringBuilder sb_offset = new StringBuilder("Anchor"+"\t");
+		StringBuilder sb_count = new StringBuilder("Anchor"+"\t"); 		// the count of tallest bar of spacings
+		StringBuilder sb_offset = new StringBuilder("Anchor"+"\t");		// the offset of tallest bar of spacings
 		
 		for (String ancStr: profiles.keySet()){
 			sb_count.append(ancStr+"\t");
@@ -882,6 +889,7 @@ public class TFBS_SpaitialAnalysis {
 			
 			CommonUtils.writeFile(ancStr+"_profiles.txt", sb_profiles.toString());
 		}
+		System.out.println("The following is similar to the pairwise spacing matrix in GEM paper.");
 		System.out.println(sb_count.toString());
 		System.out.println(sb_offset.toString());
 	}

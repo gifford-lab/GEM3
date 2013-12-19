@@ -40,8 +40,8 @@ public class MetaMaker {
 			double lineMin = Args.parseDouble(args,"linemin", 0);
 			double lineMax = Args.parseDouble(args,"linemax", 100);
 			int lineThick = Args.parseInteger(args,"linethick", 1);
-			double pbMax = Args.parseDouble(args,"pbMax", 100);
-			char strand = Args.parseString(args, "strand", "/").charAt(0);
+			double pbMax = Args.parseDouble(args,"pbMax", 100);			// omit (NOT truncate the count) a position if the per base read count is higher 
+			char strand = Args.parseString(args, "strand", "/").charAt(0);		// read strand
 			boolean drawColorBar = !Args.parseFlags(args).contains("nocolorbar");
 			String profilerType = Args.parseString(args, "profiler", "simplechipseq");	
 			List<String> expts = (List<String>) Args.parseStrings(args,"expt");
