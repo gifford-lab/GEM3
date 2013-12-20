@@ -89,7 +89,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 						int startOffset = Math.max(0, hit.getStart()-start);
 						int endOffset = Math.max(0, Math.min(end, hit.getEnd()-1-start)); // -1: hit is end exclusive
 					
-						if(!isPlusStrand) { 
+						if(hit.getStrand()=='-') { 
 							int tmpEnd = window-startOffset;
 							int tmpStart = window-endOffset;
 							startOffset = tmpStart;
