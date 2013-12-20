@@ -55,8 +55,7 @@ public class MetaMaker {
 			if(newCol.equals("red"))
 				c=Color.red;
 			if(newCol.equals("green"))
-				c=Color.green;
-		
+				c=Color.green;		
 			
 			if(gen==null || expts.size()==0){printError();}
 	

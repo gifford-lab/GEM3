@@ -28,8 +28,10 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		expanders = new ArrayList<ChipSeqExpander>(); 
 		expanders.add(exp);
 		extension=ext;
-		if(extension==-1)
+		if(extension==-1){
 			useFivePrime=true;
+			extension = 0;
+		}
 		perBaseMax = pbMax;
 		readStrand = strand;
 	}
@@ -37,8 +39,10 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		params = ps;
 		expanders = exps;
 		extension=ext;
-		if(extension==-1)
+		if(extension==-1){
 			useFivePrime=true;
+			extension = 0;
+		}
 		perBaseMax=pbMax;
 		readStrand = strand;
 	}
@@ -53,9 +57,8 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		int left = window/2;
 		int right = window-left-1;
 		
-		boolean strand = (a instanceof StrandedPoint) ? 
-				((StrandedPoint)a).getStrand() == '+' : true;
-		
+		boolean isPlusStrand = (a instanceof StrandedPoint) ? 
+				((StrandedPoint)a).getStrand() == '+' : true;		// set to true if non-stranded
 		
 		int start = Math.max(0, a.getLocation()-left);
 		int end = Math.min(a.getLocation()+right, a.getGenome().getChromLength(a.getChrom())-1);
@@ -71,7 +74,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 			HashMap<Region, Double> readFilter = new HashMap<Region, Double>();
 			
 			while(hits.hasNext()) {
-				ChipSeqHit hit=null;
+				ChipSeqHit hit=null;		// hit is end exclusive
 				if(useFivePrime)
 					hit = hits.next().fivePrime();
 				else
@@ -82,11 +85,11 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 					else
 						readFilter.put(hit, readFilter.get(hit)+hit.getWeight());
 					
-					if(readFilter.get(hit)<=perBaseMax){
+					if(readFilter.get(hit)<=perBaseMax){			// skip higher count, not truncate
 						int startOffset = Math.max(0, hit.getStart()-start);
-						int endOffset = Math.max(0, Math.min(end, hit.getEnd()-start));
+						int endOffset = Math.max(0, Math.min(end, hit.getEnd()-1-start)); // -1: hit is end exclusive
 					
-						if(!strand) { 
+						if(!isPlusStrand) { 
 							int tmpEnd = window-startOffset;
 							int tmpStart = window-endOffset;
 							startOffset = tmpStart;
