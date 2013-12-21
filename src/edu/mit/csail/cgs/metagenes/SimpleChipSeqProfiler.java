@@ -65,8 +65,8 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		int start = Math.max(0, a.getLocation()-left);
 		int end = Math.min(a.getLocation()+right, a.getGenome().getChromLength(a.getChrom())-1);
 		
-		Region query = new Region(a.getGenome(), a.getChrom(), start, end);
-		Region extQuery = new Region(a.getGenome(), a.getChrom(), start-extension>0 ? start-extension : 1, end+extension < a.getGenome().getChromLength(a.getChrom()) ? end+extension : a.getGenome().getChromLength(a.getChrom()) );
+		Region query = new Region(a.getGenome(), a.getChrom(), start+readShift, end+readShift);
+		Region extQuery = new Region(a.getGenome(), a.getChrom(), start+readShift-extension>0 ? start+readShift-extension : 1, end+readShift+extension < a.getGenome().getChromLength(a.getChrom()) ? end+readShift+extension : a.getGenome().getChromLength(a.getChrom()) );
 		
 		double[] array = new double[params.getNumBins()];
 		for(int i = 0; i < array.length; i++) { array[i] = 0; }
