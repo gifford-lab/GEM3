@@ -57,7 +57,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 	public PointProfile execute(Point a) {
 		int window = params.getWindowSize();
 		int left = window/2;
-		int right = window-left-1;
+		int right = window-left;
 		
 //		boolean isPlusStrand = (a instanceof StrandedPoint) ? 
 //				((StrandedPoint)a).getStrand() == '+' : true;		// set to true if non-stranded
@@ -76,7 +76,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 			HashMap<Region, Double> readFilter = new HashMap<Region, Double>();
 			
 			while(hits.hasNext()) {
-				ChipSeqHit hit=null;		// hit is end exclusive
+				ChipSeqHit hit=null;		// hit is end inclusive
 				if(useFivePrime)
 					hit = hits.next().fivePrime().shiftExtendHit(0, readShift);
 				else
@@ -89,7 +89,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 					
 					if(readFilter.get(hit)<=perBaseMax){			// skip higher count, not truncate
 						int startOffset = Math.max(0, hit.getStart()-start);
-						int endOffset = Math.max(0, Math.min(end, hit.getEnd()-1-start)); // -1: hit is end exclusive
+						int endOffset = Math.max(0, Math.min(end, hit.getEnd()-start)); 
 					
 						if(hit.getStrand()=='-') { 
 							int tmpEnd = window-startOffset;
