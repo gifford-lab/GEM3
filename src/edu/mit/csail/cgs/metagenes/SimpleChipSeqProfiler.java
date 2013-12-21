@@ -65,14 +65,14 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		int start = Math.max(0, a.getLocation()-left);
 		int end = Math.min(a.getLocation()+right, a.getGenome().getChromLength(a.getChrom())-1);
 		
-		Region query = new Region(a.getGenome(), a.getChrom(), start+readShift, end+readShift);
-		Region extQuery = new Region(a.getGenome(), a.getChrom(), start+readShift-extension>0 ? start+readShift-extension : 1, end+readShift+extension < a.getGenome().getChromLength(a.getChrom())-1 ? end+readShift+extension : a.getGenome().getChromLength(a.getChrom())-1 );
+		Region query = new Region(a.getGenome(), a.getChrom(), start, end);
+		Region extQuery = new Region(a.getGenome(), a.getChrom(), start-readShift-extension>0 ? start-readShift-extension : 0, end+readShift+extension < a.getGenome().getChromLength(a.getChrom())-1 ? end+readShift+extension : a.getGenome().getChromLength(a.getChrom())-1 );
 		
 		double[] array = new double[params.getNumBins()];
 		for(int i = 0; i < array.length; i++) { array[i] = 0; }
 		
 		for(ChipSeqExpander expander : expanders){
-			Iterator<ChipSeqHit> hits = expander.execute(extQuery);
+			Iterator<ChipSeqHit> hits = expander.execute(extQuery.expand(readShift, readShift));
 			HashMap<Region, Double> readFilter = new HashMap<Region, Double>();
 			
 			while(hits.hasNext()) {
@@ -87,17 +87,17 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 					else
 						readFilter.put(hit, readFilter.get(hit)+hit.getWeight());
 					
-					if(readFilter.get(hit)<=perBaseMax){			// skip higher count, not truncate
-						int startOffset = Math.max(0, hit.getStart()-start);
-						int endOffset = Math.max(0, Math.min(end, hit.getEnd()-start)); 
-					
-						if(hit.getStrand()=='-') { 
+					if(readFilter.get(hit)<=perBaseMax){			// skip higher count positions, not just truncate read count
+						int startOffset = hit.getStart()-start;
+						int endOffset = hit.getEnd()-start; 					
+						if(hit.getStrand()=='-') { 					// flip the minus read, assuming the reads are symmetric on the anchoring point
 							int tmpEnd = window-startOffset;
 							int tmpStart = window-endOffset;
 							startOffset = tmpStart;
 							endOffset = tmpEnd;
 						}
-						
+						startOffset = Math.min(Math.max(0, startOffset), window);
+						endOffset = Math.min(Math.max(0, endOffset), window);
 						int startbin = params.findBin(startOffset);
 						int endbin = params.findBin(endOffset);
 						
