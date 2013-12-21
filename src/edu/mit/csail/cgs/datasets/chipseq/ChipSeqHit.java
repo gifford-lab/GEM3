@@ -44,8 +44,7 @@ public class ChipSeqHit extends StrandedRegion {
 	    } else { 
 	      return new ChipSeqHit(getGenome(), getChrom(), getEnd()-1, getEnd(), getStrand(), align, weight);
 	    }
-  }
-  
+  }  
   public ChipSeqHit shiftExtendHit(int ext, int shift) { 
     if(getStrand() == '+') { 
       return new ChipSeqHit(getGenome(), getChrom(), getStart()+shift-(ext/2), getEnd()+shift+(ext/2), getStrand(), align, weight);

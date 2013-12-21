@@ -16,6 +16,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 	private BinningParameters params;
 	private List<ChipSeqExpander> expanders;
 	private int extension; 
+	private int readShift=0; 
 	private double perBaseMax=100;
 	private boolean useFivePrime = false;
 	private char readStrand ='/';
@@ -35,7 +36,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		perBaseMax = pbMax;
 		readStrand = strand;
 	}
-	public SimpleChipSeqProfiler(BinningParameters ps, List<ChipSeqExpander> exps, int ext, double pbMax, char strand) {
+	public SimpleChipSeqProfiler(BinningParameters ps, List<ChipSeqExpander> exps, int ext, int shift, double pbMax, char strand) {
 		params = ps;
 		expanders = exps;
 		extension=ext;
@@ -43,6 +44,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 			useFivePrime=true;
 			extension = 0;
 		}
+		readShift = shift;
 		perBaseMax=pbMax;
 		readStrand = strand;
 	}
@@ -57,8 +59,8 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 		int left = window/2;
 		int right = window-left-1;
 		
-		boolean isPlusStrand = (a instanceof StrandedPoint) ? 
-				((StrandedPoint)a).getStrand() == '+' : true;		// set to true if non-stranded
+//		boolean isPlusStrand = (a instanceof StrandedPoint) ? 
+//				((StrandedPoint)a).getStrand() == '+' : true;		// set to true if non-stranded
 		
 		int start = Math.max(0, a.getLocation()-left);
 		int end = Math.min(a.getLocation()+right, a.getGenome().getChromLength(a.getChrom())-1);
@@ -76,9 +78,9 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 			while(hits.hasNext()) {
 				ChipSeqHit hit=null;		// hit is end exclusive
 				if(useFivePrime)
-					hit = hits.next().fivePrime();
+					hit = hits.next().fivePrime().shiftExtendHit(0, readShift);
 				else
-					hit = hits.next().extendHit(extension);
+					hit = hits.next().shiftExtendHit(extension, readShift);
 				if(hit.overlaps(query) && (readStrand=='/' || hit.getStrand()==readStrand)){
 					if(!readFilter.containsKey(hit))
 						readFilter.put(hit, hit.getWeight());
