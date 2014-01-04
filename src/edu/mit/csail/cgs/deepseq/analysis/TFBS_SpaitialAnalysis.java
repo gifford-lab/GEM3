@@ -51,7 +51,7 @@ public class TFBS_SpaitialAnalysis {
 	ArrayList<String> readdb_names = new ArrayList<String>();
 	ArrayList<String> indirect_tf_expts = new ArrayList<String>();
 	/** Mapping of TFSS(sequence specific) GEM expt ids (from direct binding id to indirect binding id */
-	HashMap<Integer, Integer> directid2indirectid = new HashMap<Integer, Integer>();
+	HashMap<Integer, Integer> directid2indirectid = null;
 	
 	ArrayList<WeightMatrix> pwms = new ArrayList<WeightMatrix>();
 	ArrayList<String> kmers = new ArrayList<String>();
@@ -202,6 +202,7 @@ public class TFBS_SpaitialAnalysis {
 		
 		tfss_file = Args.parseString(args, "tfss_file", null);
 		if (tfss_file!=null){
+			directid2indirectid = new HashMap<Integer, Integer>();
 			indirect_tf_expts = CommonUtils.readTextFile(tfss_file);
 			for (int i=0;i<indirect_tf_expts.size();i++){
 				String e = indirect_tf_expts.get(i);
@@ -244,8 +245,8 @@ public class TFBS_SpaitialAnalysis {
 		for (int tf=0;tf<names.size();tf++){
 			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
 				continue;
-			boolean tfss = false;
-			if (directid2indirectid.isEmpty() || directid2indirectid.containsKey(tf))
+			boolean tfss = false;		// this is false for non-tfss factors (e.g. Pol2), or when not considering direct/indirect
+			if (directid2indirectid.containsKey(tf))
 				tfss = true;
 			String expt = expts.get(tf);
 
