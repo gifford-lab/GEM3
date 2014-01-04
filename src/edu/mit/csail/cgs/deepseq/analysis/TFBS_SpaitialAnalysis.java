@@ -246,7 +246,7 @@ public class TFBS_SpaitialAnalysis {
 			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
 				continue;
 			boolean tfss = false;		// this is false for non-tfss factors (e.g. Pol2), or when not considering direct/indirect
-			if (directid2indirectid.containsKey(tf))
+			if (directid2indirectid!=null && directid2indirectid.containsKey(tf))
 				tfss = true;
 			String expt = expts.get(tf);
 
