@@ -34,6 +34,7 @@ public class MetaMaker {
 			
 			Pair<Organism, Genome> pair = Args.parseGenome(args);
 			Genome gen = pair.cdr();
+			double peakMax = Args.parseDouble(args, "peakMax", 1.0);
 			int winLen = Args.parseInteger(args,"win", 10000);
 			int bins = Args.parseInteger(args,"bins", 100);
 			int readExt = Args.parseInteger(args,"readext", 0);
@@ -56,7 +57,18 @@ public class MetaMaker {
 				c=Color.red;
 			if(newCol.equals("green"))
 				c=Color.green;
-		
+			if (newCol.equals("black"))
+				c=Color.black;
+			if (newCol.equals("cyan"))
+				c=Color.cyan;
+			if (newCol.equals("gray"))
+				c=Color.gray;
+			if (newCol.equals("magenta"))
+				c=Color.magenta;
+			if (newCol.equals("orange"))
+				c=Color.orange;
+			if (newCol.equals("pink"))
+				c=Color.pink;
 			
 			if(gen==null || expts.size()==0){printError();}
 	
@@ -66,6 +78,7 @@ public class MetaMaker {
 			PointProfiler profiler=null;
 			boolean normalizeProfile=false;
 			if(profilerType.equals("simplechipseq") || profilerType.equals("fiveprime")){
+				//normalizeProfile=true;
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
 				for(ChipSeqLocator loc : exptlocs){
@@ -123,7 +136,7 @@ public class MetaMaker {
 				System.out.println("Batch running...");
 				
 				if(peakFiles.size()==1 || peakFiles.size()==0){
-					MetaNonFrame nonframe = new MetaNonFrame(gen, params, profiler, normalizeProfile);
+					MetaNonFrame nonframe = new MetaNonFrame(gen, params, profiler, normalizeProfile, peakMax);
 					nonframe.setColor(c);
 					nonframe.setDrawColorBar(drawColorBar);
 					MetaProfileHandler handler = nonframe.getHandler();
