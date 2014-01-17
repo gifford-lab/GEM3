@@ -37,12 +37,13 @@ public class MetaMaker {
 			double peakMax = Args.parseDouble(args, "peakMax", 1.0);
 			int winLen = Args.parseInteger(args,"win", 10000);
 			int bins = Args.parseInteger(args,"bins", 100);
-			int readExt = Args.parseInteger(args,"readext", 0);
-			double lineMin = Args.parseDouble(args,"linemin", 0);
-			double lineMax = Args.parseDouble(args,"linemax", 100);
+			int readExt = Args.parseInteger(args,"readext", 0);			// read extention, -1 for only five prime
+			int readShift = Args.parseInteger(args,"readshift", 0);			// read extention, -1 for only five prime			
+			double lineMin = Args.parseDouble(args,"linemin", 0);		// Min Color Value
+			double lineMax = Args.parseDouble(args,"linemax", 100);		// Max Color Value
 			int lineThick = Args.parseInteger(args,"linethick", 1);
-			double pbMax = Args.parseDouble(args,"pbMax", 100);
-			char strand = Args.parseString(args, "strand", "/").charAt(0);
+			double pbMax = Args.parseDouble(args,"pbMax", 100);			// omit (NOT truncate the count) a position if the per base read count is higher 
+			char strand = Args.parseString(args, "strand", "/").charAt(0);		// read strand
 			boolean drawColorBar = !Args.parseFlags(args).contains("nocolorbar");
 			String profilerType = Args.parseString(args, "profiler", "simplechipseq");	
 			List<String> expts = (List<String>) Args.parseStrings(args,"expt");
@@ -82,13 +83,13 @@ public class MetaMaker {
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
 				for(ChipSeqLocator loc : exptlocs){
-					System.out.println(loc.getExptName()+"\t"+loc.getAlignName());
+					System.out.println(loc.getExptName()+"\t"+loc.getReplicateString()+"\t"+loc.getAlignName());
 					exptexps.add(new ChipSeqExpander(loc));
 				}
 				System.out.println("Loading data...");
 				if(profilerType.equals("fiveprime"))
 					readExt = -1;
-				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, pbMax,strand);
+				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, readShift, pbMax,strand);
 			}else if(profilerType.equals("simplechiapet")) {
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
@@ -97,7 +98,7 @@ public class MetaMaker {
 					exptexps.add(new ChipSeqExpander(loc,true));
 				}
 				System.out.println("Loading data...");
-				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, pbMax,strand);
+				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, readShift, pbMax,strand);
 			}else if(profilerType.equals("chipseq5prime")){
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();

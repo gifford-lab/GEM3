@@ -6,6 +6,7 @@ import java.util.Set;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
@@ -76,10 +77,18 @@ public class SequenceWriter {
 			String[] fs = coorStrs.get(i).split("\t");
 			if (fs.length==0)
 				continue;
-			Region r = Point.fromString(genome, fs[0]).expand(range/2);
-//			String seq = "AACCTTTG";
+			Region r;
+			boolean isMinus=false;
+			if (fs.length==1){
+				StrandedPoint sp = StrandedPoint.fromString(genome, fs[0]);
+				isMinus = sp.getStrand()=='-';
+				r = sp.expand(range/2);
+			}
+			else{
+				r = Point.fromString(genome, fs[0]).expand(range/2);
+				isMinus = fs[1].equals("-1")||fs[1].equals("-");
+			}
 			String seq = seqgen.execute(r);
-			boolean isMinus = fs[1].equals("-1")||fs[1].equals("-");
 			if (isMinus)
 				seq = SequenceUtils.reverseComplement(seq);
 			sb.append(">").append(r.toString()).append("\t").append(isMinus?"-":"+").append("\n");

@@ -51,7 +51,7 @@ public class TFBS_SpaitialAnalysis {
 	ArrayList<String> readdb_names = new ArrayList<String>();
 	ArrayList<String> indirect_tf_expts = new ArrayList<String>();
 	/** Mapping of TFSS(sequence specific) GEM expt ids (from direct binding id to indirect binding id */
-	HashMap<Integer, Integer> directid2indirectid = new HashMap<Integer, Integer>();
+	HashMap<Integer, Integer> directid2indirectid = null;
 	
 	ArrayList<WeightMatrix> pwms = new ArrayList<WeightMatrix>();
 	ArrayList<String> kmers = new ArrayList<String>();
@@ -202,6 +202,7 @@ public class TFBS_SpaitialAnalysis {
 		
 		tfss_file = Args.parseString(args, "tfss_file", null);
 		if (tfss_file!=null){
+			directid2indirectid = new HashMap<Integer, Integer>();
 			indirect_tf_expts = CommonUtils.readTextFile(tfss_file);
 			for (int i=0;i<indirect_tf_expts.size();i++){
 				String e = indirect_tf_expts.get(i);
@@ -244,8 +245,8 @@ public class TFBS_SpaitialAnalysis {
 		for (int tf=0;tf<names.size();tf++){
 			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
 				continue;
-			boolean tfss = false;
-			if (directid2indirectid.isEmpty() || directid2indirectid.containsKey(tf))
+			boolean tfss = false;		// this is false for non-tfss factors (e.g. Pol2), or when not considering direct/indirect
+			if (directid2indirectid!=null && directid2indirectid.containsKey(tf))
 				tfss = true;
 			String expt = expts.get(tf);
 
@@ -427,6 +428,7 @@ public class TFBS_SpaitialAnalysis {
 	 */
 	private ArrayList<ArrayList<Site>> mergeTfbsClusters(){
 		// classify sites by chrom
+		System.out.println("Merging binding/motif sites into non-overlaping regions (clusters).");
 		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
 		for (ArrayList<Site> sites:all_sites){
 			for (Site s:sites){
@@ -693,11 +695,11 @@ public class TFBS_SpaitialAnalysis {
 			int start = region.getStart();
 			
 			// Binding list
-			ArrayList<Integer> bindingIds = new ArrayList<Integer>();
-			ArrayList<Integer> bindingPos = new ArrayList<Integer>();
-			ArrayList<Integer> eventIds = new ArrayList<Integer>();
-			ArrayList<Character> strands = new ArrayList<Character>();
-			ArrayList<Double> bindingStrength = new ArrayList<Double>();
+			ArrayList<Integer> bindingIds = new ArrayList<Integer>(); 	// binding factor id
+			ArrayList<Integer> bindingPos = new ArrayList<Integer>();	// position in the padded region
+			ArrayList<Integer> eventIds = new ArrayList<Integer>();		// event id in the original site list
+			ArrayList<Character> strands = new ArrayList<Character>();	// strand of site match
+			ArrayList<Double> bindingStrength = new ArrayList<Double>();// binding strength, read count of the event
 			for (Site s:bindingSites){
 				bindingIds.add(s.tf_id);
 				bindingPos.add(s.bs.getLocation()-start);
@@ -744,7 +746,13 @@ public class TFBS_SpaitialAnalysis {
 
 		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+".d"+distance+".min"+min_site+".txt", sb.toString());
 	}
+	
+	/**
+	 * This method output the data for plotting pairwise spacing constraints (histogram and matrix)
+	 */
 	private void printSpacingHistrograms(){
+		// The input file is the output from the type 3 method, outputBindingAndMotifSites()
+		// Some filtering may be done (e.g. grep) to select desired regions/clusters.
 		ArrayList<String> lines = CommonUtils.readTextFile(cluster_file);
 		ArrayList<BMCluster> clusters = new ArrayList<BMCluster>();
 		TreeMap<String, TreeMap<String, SpacingProfile>> profiles = new TreeMap<String, TreeMap<String, SpacingProfile>>();
@@ -818,8 +826,8 @@ public class TFBS_SpaitialAnalysis {
 			clusters.add(bmc);
 		}// for each line
 					
-		StringBuilder sb_count = new StringBuilder("Anchor"+"\t");
-		StringBuilder sb_offset = new StringBuilder("Anchor"+"\t");
+		StringBuilder sb_count = new StringBuilder("Anchor"+"\t"); 		// the count of tallest bar of spacings
+		StringBuilder sb_offset = new StringBuilder("Anchor"+"\t");		// the offset of tallest bar of spacings
 		
 		for (String ancStr: profiles.keySet()){
 			sb_count.append(ancStr+"\t");
@@ -882,6 +890,7 @@ public class TFBS_SpaitialAnalysis {
 			
 			CommonUtils.writeFile(ancStr+"_profiles.txt", sb_profiles.toString());
 		}
+		System.out.println("The following is similar to the pairwise spacing matrix in GEM paper.");
 		System.out.println(sb_count.toString());
 		System.out.println(sb_offset.toString());
 	}
