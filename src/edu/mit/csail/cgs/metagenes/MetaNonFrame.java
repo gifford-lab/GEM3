@@ -41,6 +41,20 @@ public class MetaNonFrame{
 		
 		panel = new ProfilePanel(profile, peakScale);
 	}
+	public MetaNonFrame(Genome g, BinningParameters bps, PointProfiler pp, boolean normalizedMeta, double peakMax) {
+		peakScale = new PaintableScale(0.0, peakMax);
+		lineScale = new PaintableScale(0.0, 1.0);
+		
+		genome = g;
+		params = bps;
+		handler = new MetaProfileHandler("MetaProfile", params, pp, normalizedMeta);
+		profile = handler.getProfile();
+		linePanel = new ProfileLinePanel(params, lineScale);
+		profile.addProfileListener(linePanel);
+		utils = new MetaUtils(genome);
+		
+		panel = new ProfilePanel(profile, peakScale);
+	}
 	public void setColor(Color c){
 		panel.updateColor(c);
 		linePanel.updateColor(c);
@@ -54,7 +68,7 @@ public class MetaNonFrame{
 	public void saveImages(String root){
 		try {
 			System.out.println("Saving images with root name: "+root);
-			panel.saveImage(new File(root+"_profile.png"), 1200, 700);
+			panel.saveImage(new File(root+"_profile.png"), 1250, 700);
 			linePanel.saveImage(new File(root+"_lines.png"), linePanel.getPanelWidth(), linePanel.getPanelLength());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
