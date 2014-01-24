@@ -66,6 +66,8 @@ public class Config {
     public int seed_range = 3;
     public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
     public boolean use_grid_search = true;
+    public boolean optimize_pwm_threshold = true;
+    public boolean optimize_kmer_set = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
     public boolean use_weighted_kmer = true;		// strength weighted k-mer count
@@ -75,7 +77,8 @@ public class Config {
    	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
-   	public boolean use_ksm = true;				// align with KSM (together with PWM)
+   	/** Align and cluster motif using KSM */
+   	public boolean use_ksm = true;				
  	public boolean estimate_ksm_threshold = true;
   	public boolean kpp_normalize_max = true;
   	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
@@ -89,7 +92,8 @@ public class Config {
     public boolean re_train = false;
 	public boolean refine_pwm = false;
     public boolean print_pwm_fdr = false;
-    public boolean evaluate_by_kcm = false;		// whether to use K-mer class model to evaluate improvement of new cluster, default to use PWM
+    /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
+    public boolean evaluate_by_ksm = false;		
     public boolean use_strength_weight = true;	// use binding event strength to weight 
     public boolean use_pos_weight = true;		// use binding position profile to weight motif site
     public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
@@ -186,7 +190,7 @@ public class Config {
         refine_pwm = flags.contains("refine_pwm");
         print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
-        evaluate_by_kcm = flags.contains("evaluate_by_kcm");
+        evaluate_by_ksm = flags.contains("evaluate_by_ksm");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         discard_subAlpha_components = flags.contains("no_sub_alpha");
@@ -217,6 +221,8 @@ public class Config {
         use_pos_weight = !flags.contains("no_pos_weight");
         use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_pos_kmer = !flags.contains("no_pos_kmer");
+        optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
+        optimize_kmer_set = !flags.contains("not_optimize_kmer_set");
         use_grid_search = !flags.contains("no_grid_search");
         allow_seed_reset = !flags.contains("no_seed_reset");
         selectK_byTopKmer = flags.contains("selectK_byTopKmer");	

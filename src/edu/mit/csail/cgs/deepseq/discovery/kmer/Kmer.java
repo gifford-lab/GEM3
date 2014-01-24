@@ -167,7 +167,7 @@ public class Kmer implements Comparable<Kmer>{
 		double diff = o.familyHgp-familyHgp;
 		return diff==0?this.compareTo(o):(diff<0)?1:-1;  // ascending HGP, descending seqHitCount
 	}	
-	// sort kmer by hgp
+	/** sort kmer by ascending HGP, descending seqHitCount */
 	public int compareByHGP(Kmer o) {
 		double diff = o.hgp_lg10-hgp_lg10;
 		return diff==0?this.compareTo(o):(diff<0)?1:-1;  // ascending HGP, descending seqHitCount

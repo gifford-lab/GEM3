@@ -845,10 +845,10 @@ public class Region implements Comparable<Region>, Saveable {
     if (!chrom.equals(r.chrom)) {
       return chrom.compareTo(r.chrom);
     }
-    if (start < r.start && end < r.end) {
+    if (end < r.start) {
       return -1;
     }
-    if (start > r.start && end > r.end) {
+    if (start > r.end) {
       return 1;
     }
     return 0;

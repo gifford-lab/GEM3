@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1073,6 +1074,7 @@ public class TFBS_SpaitialAnalysis {
 		}
 		CommonUtils.visualizeSequences(ss, width, height, new File(cluster_file.replace(".txt", analysisName+"sequences.png")));
 	}
+
 
 	/** compute the relative index of target site given the anchor site as 0 position
 	 * 

@@ -90,7 +90,7 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 					if(readFilter.get(hit)<=perBaseMax){			// skip higher count positions, not just truncate read count
 						int startOffset = hit.getStart()-start;
 						int endOffset = hit.getEnd()-start; 					
-						if(hit.getStrand()=='-') { 					// flip the minus read, assuming the reads are symmetric on the anchoring point
+						if(hit.getStrand()=='-' && readStrand=='/') { 	// flip the minus read, assuming the reads are symmetric on the anchoring point
 							int tmpEnd = window-startOffset;
 							int tmpStart = window-endOffset;
 							startOffset = tmpStart;

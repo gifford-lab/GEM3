@@ -1156,7 +1156,7 @@ public class KMAC {
 			if (cluster.wm!=null){
 				double current_cluster_hgp = cluster.pwmThresholdHGP;
 				double primary_cluster_hgp = clusters.get(0).pwmThresholdHGP;
-				if (config.evaluate_by_kcm){
+				if (config.evaluate_by_ksm){
 					current_cluster_hgp = cluster.ksmThreshold.hgp;
 					primary_cluster_hgp = clusters.get(0).ksmThreshold.hgp;
 				}
