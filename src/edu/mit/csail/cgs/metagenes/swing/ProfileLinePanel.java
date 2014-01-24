@@ -41,6 +41,9 @@ public class ProfileLinePanel extends JPanel implements ProfileListener{
 			width=params.getNumBins();				
 		if(width%params.getNumBins()!=0)
 			width = params.getNumBins()*((int)width/params.getNumBins());
+		if (width<params.getNumBins()) {
+			width = params.getNumBins();
+		}
 		setPreferredSize(new Dimension(width, 300));
 	}
 	
