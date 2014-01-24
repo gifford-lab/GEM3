@@ -82,8 +82,10 @@ public class GPSFastaWriter{
 		try{
 	        bin = new BufferedReader(new InputStreamReader(new FileInputStream(listFile)));
 	        String line;
-	        while((line = bin.readLine()) != null) 
-	            names.add(line.trim());
+	        while((line = bin.readLine()) != null) {
+	        	String f[] = line.split("\t");
+	            names.add(f[0]);
+	        }
 		}
 		catch (IOException e){
 			System.err.println("Error in reading expt list file, "+listFile.getAbsolutePath());
