@@ -1825,7 +1825,7 @@ public class KMAC2 {
 			
 			if (use_KSM){
 				NewKSM newKSM = extractKSM (seqList, seed_range, new ArrayList<Kmer>());
-				if (config.evaluate_by_ksm && newKSM.threshold.hgp >= cluster.ksmThreshold.hgp)
+				if (config.evaluate_by_ksm && (newKSM.threshold==null || newKSM.threshold.hgp >= cluster.ksmThreshold.hgp))
 					return;
 				cluster.alignedKmers = newKSM.kmers;
 				cluster.ksmThreshold = newKSM.threshold;
