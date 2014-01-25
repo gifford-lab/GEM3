@@ -437,7 +437,7 @@ public class KMAC2 {
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
-				double clusterHGP = config.evaluate_by_ksm ? c.ksmThreshold.hgp : c.pwmThresholdHGP;
+				double clusterHGP = config.evaluate_by_ksm ? (c.ksmThreshold==null?0:c.ksmThreshold.hgp) : c.pwmThresholdHGP;
 				if (bestclusterHGP>clusterHGP){
 					bestclusterHGP=clusterHGP;
 					bestCluster = c;
@@ -445,7 +445,7 @@ public class KMAC2 {
 			}
 			if (bestCluster!=null){
 				kClusters.add(bestCluster);
-				if (config.evaluate_by_ksm){
+				if (config.evaluate_by_ksm && bestCluster.ksmThreshold==null){
 					sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tTopKmer=%s\n", k, bestCluster.ksmThreshold.posHit, 
 							bestCluster.ksmThreshold.hgp, bestCluster.seedKmer.getKmerString()));
 					if (bestAllHGP>bestCluster.ksmThreshold.hgp)
@@ -477,7 +477,7 @@ public class KMAC2 {
 		else{
 			// find the k value with the best HGP
 			for (KmerCluster c : kClusters){
-				if ((config.evaluate_by_ksm? c.ksmThreshold.hgp : c.pwmThresholdHGP) == bestAllHGP){
+				if ((config.evaluate_by_ksm? (c.ksmThreshold==null?0:c.ksmThreshold.hgp) : c.pwmThresholdHGP) == bestAllHGP){
 					bestCluster = c;
 					break;
 				}
@@ -509,8 +509,8 @@ public class KMAC2 {
 		bestK = bestCluster.seedKmer.getK();
 		System.out.print(sb.toString());
 		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f\n----------------------------------------------\n", 
-				bestK, config.evaluate_by_ksm?bestCluster.ksmThreshold.posHit:bestCluster.pwmPosHitCount, 
-						config.evaluate_by_ksm?bestCluster.ksmThreshold.hgp:bestCluster.pwmThresholdHGP));
+				bestK, config.evaluate_by_ksm&&bestCluster.ksmThreshold!=null?bestCluster.ksmThreshold.posHit:bestCluster.pwmPosHitCount, 
+						config.evaluate_by_ksm&&bestCluster.ksmThreshold!=null?bestCluster.ksmThreshold.hgp:bestCluster.pwmThresholdHGP));
 		return bestK;
 	}
 	
@@ -963,7 +963,7 @@ public class KMAC2 {
 				double primary_cluster_hgp = clusters.get(0).pwmThresholdHGP;
 				if (config.evaluate_by_ksm){
 					current_cluster_hgp = cluster.ksmThreshold.hgp;
-					primary_cluster_hgp = clusters.get(0).ksmThreshold.hgp;
+					primary_cluster_hgp = clusters.get(0).ksmThreshold==null?0:clusters.get(0).ksmThreshold.hgp;
 				}
 				if (config.allow_seed_reset && clusterID!=0 && 
 						current_cluster_hgp<primary_cluster_hgp*seedOverrideScoreDifference && 
