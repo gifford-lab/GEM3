@@ -445,7 +445,7 @@ public class KMAC2 {
 			}
 			if (bestCluster!=null){
 				kClusters.add(bestCluster);
-				if (config.evaluate_by_ksm && bestCluster.ksmThreshold==null){
+				if (config.evaluate_by_ksm && bestCluster.ksmThreshold!=null){
 					sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tTopKmer=%s\n", k, bestCluster.ksmThreshold.posHit, 
 							bestCluster.ksmThreshold.hgp, bestCluster.seedKmer.getKmerString()));
 					if (bestAllHGP>bestCluster.ksmThreshold.hgp)
@@ -453,8 +453,7 @@ public class KMAC2 {
 				}
 				else{
 					sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, 
-							bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
-					
+							bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));		
 					if (bestAllHGP>bestCluster.pwmThresholdHGP)
 						bestAllHGP=bestCluster.pwmThresholdHGP;
 				}
@@ -508,7 +507,7 @@ public class KMAC2 {
 		
 		bestK = bestCluster.seedKmer.getK();
 		System.out.print(sb.toString());
-		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f\n----------------------------------------------\n", 
+		System.out.println(String.format("\nK value is selected: k=%d\thit=%d\thgp=1e%.1f\n----------------------------------------------\n", 
 				bestK, config.evaluate_by_ksm&&bestCluster.ksmThreshold!=null?bestCluster.ksmThreshold.posHit:bestCluster.pwmPosHitCount, 
 						config.evaluate_by_ksm&&bestCluster.ksmThreshold!=null?bestCluster.ksmThreshold.hgp:bestCluster.pwmThresholdHGP));
 		return bestK;
@@ -771,12 +770,13 @@ public class KMAC2 {
 		while (!kmers.isEmpty() && clusterID<=config.max_cluster){
 			
 			if (topCluster!=-1){			// only generate a few clusters to select optimal K
-				int pwmCount = 0;
+				int motifCount = 0;	
 				for (KmerCluster c:clusters){
-					if (c.wm!=null && c.pwmGoodQuality && c.total_aligned_seqs>=seqs.length*config.motif_hit_factor_report)
-						pwmCount++;
+					if ((!config.evaluate_by_ksm && c.wm!=null && c.pwmGoodQuality && c.total_aligned_seqs>=seqs.length*config.motif_hit_factor_report)
+							|| (config.evaluate_by_ksm && c.ksmThreshold!=null && c.total_aligned_seqs>=seqs.length*config.motif_hit_factor_report))
+						motifCount++;
 				}
-				if (pwmCount>=topCluster){
+				if (motifCount>=topCluster){
 					primarySeed = null;		// do not record primary seed here
 					return null;
 				}
@@ -946,7 +946,7 @@ public class KMAC2 {
 				/** Iteratively build PWM and KSM */
 				iteratePWMandKSM (cluster, seqList, seed_range, config.use_ksm);
 				
-				if (config.evaluate_by_ksm){
+				if (config.evaluate_by_ksm && cluster.ksmThreshold!=null){
 					if (cluster.ksmThreshold.posHit>cluster.total_aligned_seqs)
 		    			cluster.total_aligned_seqs = cluster.ksmThreshold.posHit;
 				}
@@ -1005,7 +1005,7 @@ public class KMAC2 {
 		    			cluster.total_aligned_seqs = cluster.pwmPosHitCount;
 		    	}
 		    	NewKSM newKSM = extractKSM (seqList, seed_range, new ArrayList<Kmer>());
-				if (!(newKSM.kmers.isEmpty() || newKSM.threshold.hgp >= cluster.ksmThreshold.hgp)){
+				if (!(newKSM.threshold!=null && newKSM.threshold.hgp <= cluster.ksmThreshold.hgp)){
 					cluster.alignedKmers = newKSM.kmers;
 			    	cluster.ksmThreshold = newKSM.threshold;
 				}
