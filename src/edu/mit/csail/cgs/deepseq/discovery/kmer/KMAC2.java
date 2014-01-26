@@ -1846,15 +1846,25 @@ public class KMAC2 {
 		ArrayList[][] hits = new ArrayList[seqs.length][clusters.size()];
 		for (int j=0;j<clusters.size();j++){
 			KmerCluster c = clusters.get(j);
-			WeightMatrixScorer scorer = new WeightMatrixScorer(c.wm);
-			for (int i=0;i<seqs.length;i++){
-				hits[i][j]=CommonUtils.getAllPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold);
+//			if (c.wm!=null)
+//				System.err.println("Cluster "+j+" PWM length="+c.wm.length());
+			if (c.wm!=null){
+				WeightMatrixScorer scorer = new WeightMatrixScorer(c.wm);
+				for (int i=0;i<seqs.length;i++){
+					hits[i][j]=CommonUtils.getAllPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold);
+				}
 			}
+			else{
+				for (int i=0;i<seqs.length;i++){
+					hits[i][j]=new ArrayList<Integer>();
+				}
+			}
+				
 		}
 		int seqLen = seqs[0].length();
 		for (int m=0;m<1;m++){
 			for (int j=0;j<clusters.size();j++){
-				int range = seqLen - clusters.get(m).wm.length()/2 - clusters.get(j).wm.length()/2;
+				int range = seqLen - clusters.get(m).wm.length()/2 - clusters.get(j).wm.length()/2 + 1;	// add 1 to correct for ceiling effect
 				int[] same = new int[range*2+1];
 				int[] diff = new int[range*2+1];
 				for (int i=0;i<seqs.length;i++){
