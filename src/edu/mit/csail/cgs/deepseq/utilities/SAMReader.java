@@ -91,7 +91,7 @@ public class SAMReader extends AlignmentFileReader{
         
         boolean paired = false;
     	for (SAMRecord record : records) {
-    		if (record.getProperPairFlag()){
+    		if (record.getReadPairedFlag()){
     			paired = true;
     			break;
     		}
