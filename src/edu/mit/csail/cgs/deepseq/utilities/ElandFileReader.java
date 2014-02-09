@@ -13,8 +13,9 @@ import edu.mit.csail.cgs.deepseq.ReadHit;
 
 public class ElandFileReader extends AlignmentFileReader {
 
-	public ElandFileReader(File f, Genome g, int misMatch, boolean useNonUnique, int idStart) {
-		super(f,g,misMatch,useNonUnique, idStart);
+	public ElandFileReader(File f, Genome g, int misMatch, boolean useNonUnique, int idStart,
+			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom) {
+		super(f,g,misMatch,useNonUnique, idStart, chrom2ID, id2Chrom);
 	}
 
 	//Estimate chromosome lengths

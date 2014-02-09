@@ -58,27 +58,27 @@ public class FileReadLoader extends ReadLoader{
 		for(File file : files){
 			if(!file.isFile()){System.err.println("File not found: "+file.getName());System.exit(1);}
 			if(format.equals("SAM")){
-				SAMReader currReader = new SAMReader(file,gen,maxMismatch,useNonUnique, currID);
+				SAMReader currReader = new SAMReader(file,gen,maxMismatch,useNonUnique, currID, chrom2ID, id2Chrom);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
 			}else if(format.equals("TOPSAM")){
-				TophatSAMReader currReader = new TophatSAMReader(file,gen,maxMismatch,useNonUnique, currID);
+				TophatSAMReader currReader = new TophatSAMReader(file,gen,maxMismatch,useNonUnique, currID, chrom2ID, id2Chrom);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
 			}else if(format.equals("ELAND")){
-				ElandFileReader currReader = new ElandFileReader(file,gen,maxMismatch,useNonUnique, currID);
+				ElandFileReader currReader = new ElandFileReader(file,gen,maxMismatch,useNonUnique, currID, chrom2ID, id2Chrom);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
 			}else if(format.equals("NOVO")){
-				NovoFileReader currReader = new NovoFileReader(file,gen,useNonUnique, currID);
+				NovoFileReader currReader = new NovoFileReader(file,gen,useNonUnique, currID, chrom2ID, id2Chrom);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
 			}else if(format.equals("BOWTIE")){
-				BowtieFileReader currReader = new BowtieFileReader(file,gen,useNonUnique, currID);
+				BowtieFileReader currReader = new BowtieFileReader(file,gen,useNonUnique, currID, chrom2ID, id2Chrom);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
 			}else if(format.equals("BED")){
-				BEDFileReader currReader = new BEDFileReader(file,gen,useNonUnique, currID);
+				BEDFileReader currReader = new BEDFileReader(file,gen,useNonUnique, currID, chrom2ID, id2Chrom);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
 			}else{

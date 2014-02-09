@@ -223,7 +223,7 @@ public class EnhancerChromatinAnalysis {
 		
 		this.caches = new ArrayList<ReadCache>();
 		for (int i=0;i<markNames.size();i++){
-			ReadCache ipCache = new ReadCache(genome, markNames.get(i));
+			ReadCache ipCache = new ReadCache(genome, markNames.get(i), null, null);
 			caches.add(ipCache);
 			
 			if (!fromFile){

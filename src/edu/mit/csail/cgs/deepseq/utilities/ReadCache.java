@@ -89,25 +89,27 @@ public class ReadCache {
 	 */
 	//protected char[][] strands=null;
 	
-	private TreeMap<String, Integer> chrom2ID=new TreeMap<String,Integer>();
-	
+	private TreeMap<String, Integer> chrom2ID=new TreeMap<String,Integer>();	
 	private HashMap<Integer,String> id2Chrom=new HashMap<Integer,String>();
 	
-	public ReadCache(Genome g, String name){
+	public ReadCache(Genome g, String name, HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom){
 		totalHits=0;
 		totalBases=0;
 		gen=g;
 		List<String> chromList = g.getChromList();
 		numChroms = chromList.size();
-		Collections.sort(chromList);
 		this.name = name;
-		
-		//Initialize the chromosome name lookup tables
-		int i=0; 
-		for(String c:chromList){
-			chrom2ID.put(c, i);
-			id2Chrom.put(i, c);
-			i++;
+		if (chrom2ID!=null && id2Chrom!=null){
+			this.chrom2ID.putAll(chrom2ID);
+			this.id2Chrom=id2Chrom;
+		}
+		else{
+			int i=0; 
+			for(String c:chromList){
+				this.chrom2ID.put(c, i);
+				this.id2Chrom.put(i, c);
+				i++;
+			}
 		}
 	
 		//Initialize the data structures
@@ -115,10 +117,10 @@ public class ReadCache {
 		hitCounts = new float[numChroms][2][];
 		
 		fivePrimesList = new ArrayList[numChroms][2];
-		for(i = 0; i < fivePrimesList.length; i++) { for(int j = 0; j < fivePrimesList[i].length; j++) { fivePrimesList[i][j] = new ArrayList<Integer>(); } }
+		for(int i = 0; i < fivePrimesList.length; i++) { for(int j = 0; j < fivePrimesList[i].length; j++) { fivePrimesList[i][j] = new ArrayList<Integer>(); } }
 		
 		hitCountsList = new ArrayList[numChroms][2];
-		for(i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
+		for(int i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
 	}//end of ReadCache constructor
 	
 	public List<StrandedBase> getUnstrandedBases(Region r) {

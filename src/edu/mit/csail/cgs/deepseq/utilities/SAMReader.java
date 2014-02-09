@@ -19,8 +19,9 @@ import edu.mit.csail.cgs.deepseq.ReadHit;
 
 public class SAMReader extends AlignmentFileReader{
 
-    public SAMReader(File f, Genome g, int mis, boolean nonUnique, int idSeed) {
-	super(f, g, mis, nonUnique, idSeed);
+    public SAMReader(File f, Genome g, int mis, boolean nonUnique, int idSeed,
+			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom) {
+	super(f, g, mis, nonUnique, idSeed, chrom2ID, id2Chrom);
     }
     
 	protected void estimateGenome() {

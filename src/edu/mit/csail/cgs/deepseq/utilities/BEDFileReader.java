@@ -19,8 +19,9 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class BEDFileReader extends AlignmentFileReader {
 
-	public BEDFileReader(File f, Genome g, boolean useNonUnique, int idStart) {
-		super(f,g,-1,useNonUnique, idStart);
+	public BEDFileReader(File f, Genome g, boolean useNonUnique, int idStart,
+			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom) {
+		super(f,g,-1,useNonUnique, idStart, chrom2ID, id2Chrom);
 	}
 
 	//Estimate chromosome lengths

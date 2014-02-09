@@ -1,5 +1,6 @@
 package edu.mit.csail.cgs.deepseq.utilities;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.TreeMap;
 
@@ -23,12 +24,23 @@ public abstract class ReadLoader {
 	protected double totalForWeight=-1,totalRevWeight=-1;
 	protected int readLength;
 	protected boolean pairedEnd = false; //What to do with this flag is left to the subclass
-	
+	protected HashMap<String, Integer> chrom2ID=new HashMap<String,Integer>();
+	protected HashMap<Integer,String> id2Chrom=new HashMap<Integer,String>();
+
 	public ReadLoader(Genome g, int rLen){
 		gen=g;
 		readLength=rLen;
 		totalHits=0;
 		totalWeight=0;
+		
+		//Initialize the chromosome name lookup tables
+		List<String> chromList = gen.getChromList();
+		int i=0; 
+		for(String c:chromList){
+			chrom2ID.put(c, i);
+			id2Chrom.put(i, c);
+			i++;
+		}
 	}
 	//Accessors
 	public Genome getGenome(){return(gen);}
@@ -50,6 +62,12 @@ public abstract class ReadLoader {
 		//	System.out.print((int)totalRevWeight+"\n");
 			return(totalRevWeight);
 		}
+	}
+	public HashMap<String, Integer> getChrom2ID(){
+		return chrom2ID;
+	}
+	public HashMap<Integer,String> getId2Chrom(){
+		return id2Chrom;
 	}
 	
 	//Abstract methods

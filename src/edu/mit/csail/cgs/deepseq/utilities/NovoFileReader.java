@@ -13,8 +13,9 @@ import edu.mit.csail.cgs.deepseq.ReadHit;
 
 public class NovoFileReader extends AlignmentFileReader {
 
-	public NovoFileReader(File f, Genome g, boolean useNonUnique, int idStart) {
-		super(f,g,-1,useNonUnique, idStart);
+	public NovoFileReader(File f, Genome g, boolean useNonUnique, int idStart,
+			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom) {
+		super(f,g,-1,useNonUnique, idStart, chrom2ID, id2Chrom);
 	}
 
 	//Estimate chromosome lengths

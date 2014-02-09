@@ -1454,13 +1454,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		if (experiments.isEmpty()){		// special case, loading RSC file
 			for (int i=0;i<numConditions;i++){				
 				try {
-					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
+					ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ", null, null);
 					ipCache.readRSC(Args.parseString(args, "--rfexpt"+conditionNames.get(i), ""));
 					
 					ReadCache ctrlCache = null;
 					String ctrlFile = Args.parseString(args, "--rfctrl"+conditionNames.get(i), null);
 					if (ctrlFile!=null){
-						ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
+						ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL", null, null);
 						ctrlCache.readRSC(ctrlFile);
 			    		controlDataExist = true;
 					}
@@ -1488,10 +1488,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			if(ctrl.getHitCount()>0){
 	    		controlDataExist = true;
 	    	}
-			ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
+			ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ", ip.getChrom2ID(),ip.getId2Chrom());
 			ReadCache ctrlCache = null;
-			if (controlDataExist)
-				ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
+			if (controlDataExist){
+				ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL", ctrl.getChrom2ID(), ctrl.getId2Chrom());
+			}
 			this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
 
 			// cache sorted start positions and counts of all positions
@@ -1847,7 +1848,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				allBases.trimToSize();
 				Collections.sort(allBases);	// sort by location
-				
+
 				// cut the pooled reads into independent regions
 				int start=0;
 				for (int i=2;i<allBases.size();i++){
@@ -1888,6 +1889,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 					reg2bases.put(r, bases);
 				}
 
+//				System.err.println(chrom+ "\t" + allBases.size()+ "\t"+ reg2bases.keySet().size());
+				
 				// check regions, exclude un-enriched regions based on control counts.  If a region is too big (bigger
                 // than modelWidth), break it into smaller pieces, keep the region if any of those pieces are enriched
 				ArrayList<Region> toRemove = new ArrayList<Region>();

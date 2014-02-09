@@ -44,7 +44,9 @@ public abstract class AlignmentFileReader {
 	protected int misMatch;
 	protected boolean useNonUnique;
 	protected int numChroms;
-		
+	protected HashMap<String, Integer> chrom2ID=new HashMap<String,Integer>();
+	protected HashMap<Integer,String> id2Chrom=new HashMap<Integer,String>();
+	
 	//Data structures for pre-loading
 	
 	/**
@@ -87,12 +89,11 @@ public abstract class AlignmentFileReader {
 	 */
 	//protected char[][] strands=null;
 	
-	protected HashMap<String, Integer> chrom2ID=new HashMap<String,Integer>();
-	protected HashMap<Integer,String> id2Chrom=new HashMap<Integer,String>();
 	protected int readLength;
 	protected int currID=0;
 	
-	public AlignmentFileReader(File f, Genome g, int mis, boolean nonUnique, int idSeed){
+	public AlignmentFileReader(File f, Genome g, int mis, boolean nonUnique, int idSeed,
+			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom){
 		gen=g;
 		totalHits=0;
 		totalWeight=0;
@@ -102,32 +103,26 @@ public abstract class AlignmentFileReader {
 		currID=idSeed;
 		if(gen==null)
 			estimateGenome();
-		List<String> chromList = gen.getChromList();
-		numChroms = chromList.size();
+		numChroms = gen.getChromList().size();
+		
+		this.chrom2ID=chrom2ID;
+		this.id2Chrom=id2Chrom;
 		
 		System.out.print("Loading reads from: "+f.getName()+" ... ");
 		
-		//Initialize the chromosome name lookup tables
-		int i=0; 
-		for(String c:chromList){
-			chrom2ID.put(c, i);
-			id2Chrom.put(i, c);
-			i++;
-		}
-	
 		//Initialize the data structures
 		fivePrimes    = new int[numChroms][2][];
 		hitCounts = new float[numChroms][2][];
 		hitIDs    = new int[numChroms][2][];
 		
 		fivePrimeList    = new ArrayList[numChroms][2];
-		for(i = 0; i < fivePrimeList.length; i++) { for(int j = 0; j < fivePrimeList[i].length; j++) { fivePrimeList[i][j] = new ArrayList<Integer>(); } }
+		for(int i = 0; i < fivePrimeList.length; i++) { for(int j = 0; j < fivePrimeList[i].length; j++) { fivePrimeList[i][j] = new ArrayList<Integer>(); } }
 		
 		hitCountsList = new ArrayList[numChroms][2];
-		for(i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
+		for(int i = 0; i < hitCountsList.length; i++) { for(int j = 0; j < hitCountsList[i].length; j++) { hitCountsList[i][j] = new ArrayList<Float>(); } }
 		
 		hitIDsList    = new ArrayList[numChroms][2];
-		for(i = 0; i < hitIDsList.length; i++) { for(int j = 0; j < hitIDsList[i].length; j++) { hitIDsList[i][j] = new ArrayList<Integer>(); } }
+		for(int i = 0; i < hitIDsList.length; i++) { for(int j = 0; j < hitIDsList[i].length; j++) { hitIDsList[i][j] = new ArrayList<Integer>(); } }
 		
 		countReads();
 		System.out.println("Loaded");		

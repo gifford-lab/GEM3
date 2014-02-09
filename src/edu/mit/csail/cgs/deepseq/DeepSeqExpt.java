@@ -118,6 +118,12 @@ public class DeepSeqExpt {
 		return loader instanceof ReadDBReadLoader;
 	}
 
+	public HashMap<String, Integer> getChrom2ID(){
+		return loader.getChrom2ID();
+	}
+	public HashMap<Integer,String> getId2Chrom(){
+		return loader.getId2Chrom();
+	}
 	
 	// load paired base coordinates (sorted) and counts
 	public Pair<ArrayList<Integer>,ArrayList<Float>> loadStrandedBaseCounts(Region r, char strand){

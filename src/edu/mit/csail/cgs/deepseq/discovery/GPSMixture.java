@@ -716,10 +716,10 @@ class GPSMixture extends MultiConditionFeatureFinder {
 			if(ctrl.getHitCount()>0){
 	    		controlDataExist = true;
 	    	}
-			ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ");
+			ReadCache ipCache = new ReadCache(gen, conditionNames.get(i)+"_IP  ", null, null);
 			ReadCache ctrlCache = null;
 			if (controlDataExist)
-				ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL");
+				ctrlCache = new ReadCache(gen, conditionNames.get(i)+"_CTRL", null, null);
 			this.caches.add(new Pair<ReadCache, ReadCache>(ipCache, ctrlCache));
 
 			// cache sorted start positions and counts of all positions

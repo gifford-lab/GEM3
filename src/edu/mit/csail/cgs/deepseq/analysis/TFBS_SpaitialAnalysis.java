@@ -1389,7 +1389,7 @@ public class TFBS_SpaitialAnalysis {
                 throw new RuntimeException("Couldn't parse a ChipSeqLocator from " + readdb_name);
             }
             DeepSeqExpt ip = new DeepSeqExpt(genome, rdbexpts, "readdb", -1);
-            ReadCache ipCache = new ReadCache(genome, expts.get(i));
+            ReadCache ipCache = new ReadCache(genome, expts.get(i), null, null);
             
 			// cache sorted start positions and counts of all positions
 			long tic = System.currentTimeMillis();

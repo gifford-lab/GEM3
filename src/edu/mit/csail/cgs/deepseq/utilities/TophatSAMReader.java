@@ -20,8 +20,9 @@ import edu.mit.csail.cgs.deepseq.ReadHit;
 
 public class TophatSAMReader extends AlignmentFileReader{
 
-    public TophatSAMReader(File f, Genome g, int mis, boolean nonUnique, int idSeed) {
-    	super(f, g, mis, nonUnique, idSeed);
+    public TophatSAMReader(File f, Genome g, int mis, boolean nonUnique, int idSeed,
+			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom) {
+    	super(f, g, mis, nonUnique, idSeed, chrom2ID, id2Chrom);
     }
     
 	protected void estimateGenome() {
