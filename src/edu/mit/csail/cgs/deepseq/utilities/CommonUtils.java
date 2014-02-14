@@ -184,6 +184,35 @@ public class CommonUtils {
 			else return(0);
 		}
 	}
+	/**
+	 * Load BED regions<br>
+	 * 
+	 *  Col1: chromosome name 
+		Col2: start position of the region (0-based)
+		Col3: stop position of the region (1-based)
+		Col4: annotation of the region (any string)
+	 * @param genome
+	 * @param filename
+	 * @return
+	 */
+	static public Pair<ArrayList<Region>, ArrayList<String>> load_BED_regions(Genome genome, String filename) {
+		CommonUtils util = new CommonUtils();
+		ArrayList<Region> regions = new ArrayList<Region>();
+		ArrayList<String> annos = new ArrayList<String>();
+		ArrayList<String> txt = readTextFile(filename);
+		for (String s:txt){
+			if (s.startsWith("#"))
+				continue;
+			String[] f = s.split("\t");
+			Region r = new Region(genome, f[0].replace("chr", "").replace("Chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]));
+			regions.add(r);
+			if (f.length>3)
+				annos.add(f[3]);
+		}
+		regions.trimToSize();
+		annos.trimToSize();
+		return new Pair<ArrayList<Region>, ArrayList<String>>(regions, annos);
+	}
 	
 	/** load text file in SISSRS output BED format, then sort by p-value
 	 * 	Chr		cStart	cEnd	NumTags	Fold	p-value
