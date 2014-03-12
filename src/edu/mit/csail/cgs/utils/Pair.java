@@ -23,6 +23,9 @@ public class Pair<FirstClass, LastClass> {
     public FirstClass car() {return first;}
     public LastClass cdr() {return last;}
     
+    public void setCar(FirstClass first) {this.first = first;}
+    public void setCdr(LastClass last) {this.last = last; }
+    
     public String toString() { return "<" + first.toString() + "," + last.toString() + ">"; }
  
     public int hashCode() { 
