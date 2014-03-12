@@ -757,6 +757,8 @@ public class TFBS_SpaitialAnalysis {
 		ArrayList<String> lines = CommonUtils.readTextFile(cluster_file);
 		ArrayList<BMCluster> clusters = new ArrayList<BMCluster>();
 		TreeMap<String, TreeMap<String, SpacingProfile>> profiles = new TreeMap<String, TreeMap<String, SpacingProfile>>();
+		TreeMap<String, TreeMap<String, Integer>> overlaps = new TreeMap<String, TreeMap<String, Integer>>();
+		TreeMap<String,Integer> anchor_counts = new TreeMap<String,Integer>();		// total site count of this anchor
 		for (String l:lines){	// each line is a cluster merged from nearby TFBS
 			if (l.startsWith("#"))
 				continue;
@@ -771,7 +773,7 @@ public class TFBS_SpaitialAnalysis {
 			bmc.anchor = new Point(r.getGenome(), r.getChrom(), r.getStart());
 			
 			// parse all sites
-			ArrayList<RSite> sites = new ArrayList<RSite>();
+			ArrayList<RSite> sites = new ArrayList<RSite>();		// all the sites in this region (cluster/line)
 			bmc.sites = sites;
 			for (String ps: positions){
 				String[] bs = ps.split(":");
@@ -799,11 +801,18 @@ public class TFBS_SpaitialAnalysis {
 			
 			// compute all pairwise spacings
 			// anchor is at 0 position, then count the instances of target at each spacing, separate same/opposite strand
+			HashSet<String> overlap_target_labels = new HashSet<String>();
 			for (RSite anchor: sites){
 				String ancStr = anchor.type+""+anchor.id;
-				if (!profiles.containsKey(ancStr))
+				if (!profiles.containsKey(ancStr)){
 					profiles.put(ancStr, new TreeMap<String,SpacingProfile>());
+					overlaps.put(ancStr, new TreeMap<String,Integer>());
+					anchor_counts.put(ancStr, 0);
+				}
 				TreeMap<String,SpacingProfile> profiles_anchor = profiles.get(ancStr);
+				TreeMap<String,Integer> overlaps_anchor = overlaps.get(ancStr);
+				anchor_counts.put(ancStr, anchor_counts.get(ancStr)+1);
+				
 				for (RSite target: sites){
 					String tarStr = target.type+""+target.id;
 					if (!profiles_anchor.containsKey(tarStr))
@@ -822,20 +831,40 @@ public class TFBS_SpaitialAnalysis {
 					case 'u':
 						pf.profile_unknown[p.cdr()]+=1;
 					}
+					int offset = target.pos - anchor.pos;
+					if (offset<PROFILE_RANGE && offset>-PROFILE_RANGE)			// skip if out of range
+						overlap_target_labels.add(tarStr);						
 				}	// each site as target
+				
+				for (String s:overlap_target_labels){
+					if (!overlaps_anchor.containsKey(s))
+						overlaps_anchor.put(s, 1);
+					else
+						overlaps_anchor.put(s, overlaps_anchor.get(s)+1);
+				}
 			} // each site as anchor
 			clusters.add(bmc);
 		}// for each line
 					
 		StringBuilder sb_count = new StringBuilder("Anchor"+"\t"); 		// the count of tallest bar of spacings
 		StringBuilder sb_offset = new StringBuilder("Anchor"+"\t");		// the offset of tallest bar of spacings
-		
+		StringBuilder sb_overlap = new StringBuilder();
+		sb_overlap.append("\nNumber of events in rows that are covered by events in column.\n");
+		sb_overlap.append("Anchor").append("\t");
+
 		for (String ancStr: profiles.keySet()){
 			sb_count.append(ancStr+"\t");
 			sb_offset.append(ancStr+"\t");
+			sb_overlap.append(ancStr+"\t");
 		}
 		CommonUtils.replaceEnd(sb_count, '\n');
 		CommonUtils.replaceEnd(sb_offset, '\n');
+		CommonUtils.replaceEnd(sb_overlap, '\n');
+		sb_overlap.append("Total").append("\t");
+		for (String ancStr: profiles.keySet()){
+			sb_overlap.append(anchor_counts.get(ancStr)+"\t");
+		}
+		CommonUtils.replaceEnd(sb_overlap, '\n');	
 		
 		for (String ancStr: profiles.keySet()){
 			
@@ -847,6 +876,7 @@ public class TFBS_SpaitialAnalysis {
 			TreeMap<String,SpacingProfile> profiles_anchor = profiles.get(ancStr);
 			sb_count.append(ancStr+"\t");
 			sb_offset.append(ancStr+"\t");
+			sb_overlap.append(ancStr+"\t");
 			for (String tarStr: profiles.keySet()){
 				SpacingProfile pf = profiles_anchor.get(tarStr);
 				int[] tmp=null;
@@ -881,16 +911,19 @@ public class TFBS_SpaitialAnalysis {
 					max_all = max_unknown;
 				sb_count.append(max_all.car()+"\t");
 				sb_offset.append((max_all.cdr().first()-PROFILE_RANGE)+"\t");
+				sb_overlap.append(overlaps.get(ancStr).get(tarStr)+"\t");
 				
 				sb_profiles.append(tarStr+"_s\t").append(CommonUtils.arrayToString(pf.profile_same)).append("\n");
 				sb_profiles.append(tarStr+"_d\t").append(CommonUtils.arrayToString(pf.profile_diff)).append("\n");
 				sb_profiles.append(tarStr+"_u\t").append(CommonUtils.arrayToString(pf.profile_unknown)).append("\n");
 			}
-			CommonUtils.replaceEnd(sb_count, '\n');	
-			CommonUtils.replaceEnd(sb_offset, '\n');	
+			CommonUtils.replaceEnd(sb_count, '\n');
+			CommonUtils.replaceEnd(sb_offset, '\n');
+			CommonUtils.replaceEnd(sb_overlap, '\n');	
 			
-			CommonUtils.writeFile(ancStr+"_profiles.txt", sb_profiles.toString());
+			CommonUtils.writeFile(outPrefix+"_"+ancStr+"_profiles.txt", sb_profiles.toString());
 		}
+		System.out.println(sb_overlap.toString());
 		System.out.println("The following is similar to the pairwise spacing matrix in GEM paper.");
 		System.out.println(sb_count.toString());
 		System.out.println(sb_offset.toString());
