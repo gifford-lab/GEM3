@@ -110,8 +110,8 @@ public class RegionAnnotator {
 					for (String l:annos)
 						labels.add(l);
 					for (String l:labels){
-						System.out.println(id+"_"+l);
-						ids.add(id+"_"+l);
+						System.out.println(id+"-"+l);
+						ids.add(id+"-"+l);
 						ArrayList<Region> annotatedRegions = new ArrayList<Region>();
 						for (int i=0;i<annos.size();i++){
 							if (annos.get(i).equals(l))

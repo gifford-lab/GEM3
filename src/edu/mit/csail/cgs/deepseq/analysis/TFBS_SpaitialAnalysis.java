@@ -832,7 +832,7 @@ public class TFBS_SpaitialAnalysis {
 						pf.profile_unknown[p.cdr()]+=1;
 					}
 					int offset = target.pos - anchor.pos;
-					if (offset<PROFILE_RANGE && offset>-PROFILE_RANGE)			// skip if out of range
+					if (offset<=PROFILE_RANGE && offset>=-PROFILE_RANGE)
 						overlap_target_labels.add(tarStr);						
 				}	// each site as target
 				
