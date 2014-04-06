@@ -391,7 +391,7 @@ public class TFBS_SpaitialAnalysis {
 		System.out.println(String.format("In total, loaded %d GEM files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
 		
 		StringBuilder sb = new StringBuilder();
-		int digits = (int) Math.ceil(Math.log10(expts.size()));
+		int digits = (int) Math.ceil(Math.log10(expts.size()))+1;
 		for (int i=0;i<expts.size();i++){
 			sb.append(String.format("B%0"+digits+"d\t%s\n", i, expts.get(i)));
 		}
@@ -693,6 +693,9 @@ public class TFBS_SpaitialAnalysis {
 			wmLens.add(wm.length());
 			wmThresholds.add(wm.getMaxScore()*wm_factor);
 		}
+		int digits_binding = (int) Math.ceil(Math.log10(expts.size()))+1;
+		int digits_pwm = (int) Math.ceil(Math.log10(pwms.size()));
+		int digits_kmer = (int) Math.ceil(Math.log10(kmers.size()));
 		
 		for (int id=0;id<clusters.size();id++){
 			ArrayList<Site> bindingSites = clusters.get(id);
@@ -743,11 +746,11 @@ public class TFBS_SpaitialAnalysis {
 			sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t", region.toString(), r.toString(),
 					id, r.getWidth(), numSite, pwmMatchIds.size(), kmerMatchIds.size()));
 			for (int i=0;i<bindingIds.size();i++)
-				sb.append(String.format("B%d:%d:%d:%s:%.1f ", bindingIds.get(i), bindingPos.get(i), eventIds.get(i), strands.get(i), bindingStrength.get(i)));
+				sb.append(String.format("B%0"+digits_binding+"d:%d:%d:%s:%.1f ", bindingIds.get(i), bindingPos.get(i), eventIds.get(i), strands.get(i), bindingStrength.get(i)));
 			for (int i=0;i<pwmMatchIds.size();i++)
-				sb.append(String.format("M%d:%d ", pwmMatchIds.get(i), pwmMatchPos.get(i)));
+				sb.append(String.format("M%0"+digits_pwm+"d:%d ", pwmMatchIds.get(i), pwmMatchPos.get(i)));
 			for (int i=0;i<kmerMatchIds.size();i++)
-				sb.append(String.format("K%d:%d ", kmerMatchIds.get(i), kmerMatchPos.get(i)));
+				sb.append(String.format("K%0"+digits_kmer+"d:%d ", kmerMatchIds.get(i), kmerMatchPos.get(i)));
 			sb.append("\t").append(seq);
 			sb.append("\n");
 		}
@@ -787,6 +790,7 @@ public class TFBS_SpaitialAnalysis {
 				RSite s = new RSite();
 				s.id = Integer.parseInt(bs[0].substring(1));
 				s.type = bs[0].charAt(0);
+				s.label = bs[0];
 				switch (s.type){
 				case 'B':
 					s.pos = Integer.parseInt(bs[1]);
@@ -810,7 +814,7 @@ public class TFBS_SpaitialAnalysis {
 			// anchor is at 0 position, then count the instances of target at each spacing, separate same/opposite strand
 			HashSet<String> overlap_target_labels = new HashSet<String>();
 			for (RSite anchor: sites){
-				String ancStr = anchor.type+""+anchor.id;
+				String ancStr = anchor.label;
 				if (!profiles.containsKey(ancStr)){
 					profiles.put(ancStr, new TreeMap<String,SpacingProfile>());
 					overlaps.put(ancStr, new TreeMap<String,Integer>());
@@ -821,7 +825,7 @@ public class TFBS_SpaitialAnalysis {
 				anchor_counts.put(ancStr, anchor_counts.get(ancStr)+1);
 				
 				for (RSite target: sites){
-					String tarStr = target.type+""+target.id;
+					String tarStr = target.label;
 					if (!profiles_anchor.containsKey(tarStr))
 						profiles_anchor.put(tarStr, new SpacingProfile());
 					SpacingProfile pf = profiles_anchor.get(tarStr);
@@ -1153,6 +1157,7 @@ public class TFBS_SpaitialAnalysis {
 	private class RSite implements Cloneable{
 		char type = ' ';		// type=0:binding, 1:pwm, 2:kmer
 		int id=-1;			// id in that type
+		String label="";
 		int pos=999;		// position relative to the anchor site
 		char strand;		// binding site or motif match strand on the original DNA sequence
 		public String toString(){
