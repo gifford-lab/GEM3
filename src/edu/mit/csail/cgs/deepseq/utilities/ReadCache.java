@@ -281,7 +281,7 @@ public class ReadCache {
 						tmp[i][j]=null;
 					}
 					System.gc();
-					if (allPositions.length==0)
+					if (allPositions==null || allPositions.length==0)
 						continue;
 					// consolidate counts of same bp position
 					int count = 1;

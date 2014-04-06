@@ -879,6 +879,8 @@ public class TFBS_SpaitialAnalysis {
 			sb_overlap.append(ancStr+"\t");
 			for (String tarStr: profiles.keySet()){
 				SpacingProfile pf = profiles_anchor.get(tarStr);
+				if (pf==null)
+					pf = new SpacingProfile();
 				int[] tmp=null;
 				if (ancStr.equals(tarStr)){
 					tmp = pf.profile_same.clone();

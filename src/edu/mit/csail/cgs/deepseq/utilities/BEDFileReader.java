@@ -72,50 +72,45 @@ public class BEDFileReader extends AlignmentFileReader {
 	        	line = line.trim();
 	        	if(line.charAt(0)!='#'){
 		            String[] words = line.split("\\s+");
+		            if (words.length<6){
+		            	System.err.println("Line "+(currID+1));
+		            	System.err.println(line+"\nBED format should have at least 6 fields!");
+		            	return;
+		            }
+		            	
 		            String chr="."; char strand = '.';
 		            int start=0, end=0;
 		            
 		            //String ID = words[3]; //No reliable ID for BED format, so treat EVERY hit as a new/unique read
-		            
-		            
-	            	//if(ID.equals(lastID)){
-	            	//	currReadHitCount++;
-	            	//}else{
-	            		if(currRead!=null){
-	            			currRead.setNumHits(currReadHitCount);
-	            			//Add the hits to the data structure
-	            			addHits(currRead);
-	            			currRead=null;
-	            		}
-	            		currReadHitCount=1;            			
-	            	//}
-	            	//String tag = words[3];
-	            	//if(tag.equals("U") || (useNonUnique && words.length>9 && tag.charAt(0)=='R')){
-	            		try{
-	            			chr = words[0];
-	            			String[] tmp = chr.split("\\.");
-	            			chr=tmp[0].replaceFirst("chr", "");
-	            			chr=chr.replaceFirst("^>", "");
-	// http://genome.ucsc.edu/FAQ/FAQformat.html#format1
-	//BED format is half open - The chromEnd base is not included  
-	// For example, the first 100 bases of a chromosome are defined as chromStart=0, chromEnd=100, and span the bases numbered 0-99.
-	            			start = new Integer(words[1]).intValue();
-	            			end = new Integer(words[2]).intValue();
-	            			if(readLength==-1)
-	    	    				readLength = end-start;
-	            			strand = words[5].charAt(0);
-	    					ReadHit currHit = new ReadHit(gen,currID,chr, start, end-1, strand);
-	    					currID++;
-	    					//if(!ID.equals(lastID) || currRead==null){
-	    					currRead = new Read((int)totalWeight);
-	    					totalWeight++;
-	    	            	//}
-	    					currRead.addHit(currHit);
-	            		} catch (NumberFormatException e){
-	            			// skip reading this line for header or comment lines
-	            		}
-	    			//}
-	            	//lastID=ID;
+
+            		if(currRead!=null){
+            			currRead.setNumHits(currReadHitCount);
+            			//Add the hits to the data structure
+            			addHits(currRead);
+            			currRead=null;
+            		}
+            		currReadHitCount=1;            			
+            		try{
+            			chr = words[0];
+            			String[] tmp = chr.split("\\.");
+            			chr=tmp[0].replaceFirst("chr", "");
+            			chr=chr.replaceFirst("^>", "");
+		// http://genome.ucsc.edu/FAQ/FAQformat.html#format1
+		//BED format is half open - The chromEnd base is not included  
+		// For example, the first 100 bases of a chromosome are defined as chromStart=0, chromEnd=100, and span the bases numbered 0-99.
+            			start = new Integer(words[1]).intValue();
+            			end = new Integer(words[2]).intValue();
+            			if(readLength==-1)
+    	    				readLength = end-start;
+            			strand = words[5].charAt(0);
+    					ReadHit currHit = new ReadHit(gen,currID,chr, start, end-1, strand);
+    					currID++;
+    					currRead = new Read((int)totalWeight);
+    					totalWeight++;
+    					currRead.addHit(currHit);
+            		} catch (NumberFormatException e){
+            			// skip reading this line for header or comment lines
+            		}
 	        	}
             }
 	        if(currRead!=null){
