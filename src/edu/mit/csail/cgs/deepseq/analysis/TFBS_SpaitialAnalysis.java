@@ -391,7 +391,7 @@ public class TFBS_SpaitialAnalysis {
 		System.out.println(String.format("In total, loaded %d GEM files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
 		
 		StringBuilder sb = new StringBuilder();
-		int digits = (int) Math.ceil(Math.log10(expts.size()))+1;
+		int digits = (int) Math.ceil(Math.log10(expts.size()));
 		for (int i=0;i<expts.size();i++){
 			sb.append(String.format("B%0"+digits+"d\t%s\n", i, expts.get(i)));
 		}
@@ -693,7 +693,7 @@ public class TFBS_SpaitialAnalysis {
 			wmLens.add(wm.length());
 			wmThresholds.add(wm.getMaxScore()*wm_factor);
 		}
-		int digits_binding = (int) Math.ceil(Math.log10(expts.size()))+1;
+		int digits_binding = (int) Math.ceil(Math.log10(expts.size()));
 		int digits_pwm = (int) Math.ceil(Math.log10(pwms.size()));
 		int digits_kmer = (int) Math.ceil(Math.log10(kmers.size()));
 		
