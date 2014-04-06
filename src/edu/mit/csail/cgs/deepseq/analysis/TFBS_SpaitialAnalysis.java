@@ -391,14 +391,21 @@ public class TFBS_SpaitialAnalysis {
 		System.out.println(String.format("In total, loaded %d GEM files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
 		
 		StringBuilder sb = new StringBuilder();
+		int digits = (int) Math.ceil(Math.log10(expts.size()));
 		for (int i=0;i<expts.size();i++){
-			sb.append("B"+i+"\t"+expts.get(i)+"\n");
+			sb.append(String.format("B%0"+digits+"d\t%s\n", i, expts.get(i)));
 		}
-		for (int i=0;i<pwms.size();i++){
-			sb.append("M"+i+"\t"+pwms.get(i).getName()+"\n");
+		if (!pwms.isEmpty()){
+			digits = (int) Math.ceil(Math.log10(pwms.size()));
+			for (int i=0;i<pwms.size();i++){
+				sb.append(String.format("M%0"+digits+"d\t%s\n", i, pwms.get(i).getName()));
+			}
 		}
-		for (int i=0;i<kmers.size();i++){
-			sb.append("K"+i+"\t"+kmers.get(i)+"\n");
+		if (!kmers.isEmpty()){
+			digits = (int) Math.ceil(Math.log10(kmers.size()));
+			for (int i=0;i<kmers.size();i++){
+				sb.append(String.format("K%0"+digits+"d\t%s\n", i, kmers.get(i)));
+			}
 		}
 		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+"_keys.txt", sb.toString());
 	}
