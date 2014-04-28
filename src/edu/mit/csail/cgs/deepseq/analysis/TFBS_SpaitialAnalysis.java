@@ -168,7 +168,7 @@ public class TFBS_SpaitialAnalysis {
 		zero_or_one = flags.contains("zoo");
 		dev = flags.contains("dev");
 		oldFormat = flags.contains("old_format");
-		no_gem_pwm = flags.contains("no_gem_pwm");
+		no_gem_pwm = !flags.contains("gem_pwm");
 //		indirect_binding = flags.contains("indirect_binding");
 		useDirectBindingOnly = flags.contains("direct");
 		print_uci_matlab_format = flags.contains("uci_matlab");
