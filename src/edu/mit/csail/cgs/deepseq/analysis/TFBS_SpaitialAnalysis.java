@@ -14,6 +14,9 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import cern.jet.random.Poisson;
+import cern.jet.random.engine.DRand;
+
 import edu.mit.csail.cgs.clustering.affinitypropagation.CorrelationSimilarity;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
@@ -45,7 +48,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  */
 public class TFBS_SpaitialAnalysis {
 	private final int TARGET_WIDTH = 250;
-	private final int PROFILE_RANGE = 100;
+	
 	Genome genome=null;
 	ArrayList<String> expts = new ArrayList<String>();
 	ArrayList<String> names = new ArrayList<String>();
@@ -63,6 +66,7 @@ public class TFBS_SpaitialAnalysis {
 	int[][]tss_signals = null;
 	
 	double gc = 0.42;//mouse		gc=0.41 for human
+	int profile_range = 100;		// the range (-x, +x) around 0 spacing position, the cluster distance parameter must be >= this range to have correct result
 	int distance = 50;		// distance between TFBS within a cluster
 	int range = 1000;		// the range around anchor site to search for targets
 	int cluster_motif_padding = 100;  // the padding distance added to the cluster range for motif searching
@@ -121,11 +125,13 @@ public class TFBS_SpaitialAnalysis {
 			mtb.computeTfbsSpacingDistribution();
 			break;
 		case 3:		// to print all the binding sites and motif positions in the clusters for downstream spacing/grammar analysis
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 3 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
 			mtb.loadEventsAndMotifs2(round);
 			clusters = mtb.mergeTfbsClusters();
 			mtb.outputBindingAndMotifSites(clusters);
 			break;
 		case 4:		// spacing histogram
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10" --type 4 --out $analysis --cluster 0_BS_Motif_clusters.${analysis}.d${distance}.min${min}.txt
 			mtb.printSpacingHistrograms();
 			break;
 		case 5:		// anchor/sorted sites for matlab plot and sequences
@@ -200,6 +206,7 @@ public class TFBS_SpaitialAnalysis {
 
 		width = Args.parseInteger(args, "width", width);
 		height = Args.parseInteger(args, "height", height);
+		profile_range = Args.parseInteger(args, "profile_range", profile_range);
 		
 		tfss_file = Args.parseString(args, "tfss_file", null);
 		if (tfss_file!=null){
@@ -773,8 +780,7 @@ public class TFBS_SpaitialAnalysis {
 			if (l.startsWith("#"))
 				continue;
 			
-			BMCluster bmc = new BMCluster();
-			
+			BMCluster bmc = new BMCluster();			
 			String[] f = l.split("\t");
 			Region r = Region.fromString(genome, f[0]);
 			bmc.cluster_id = Integer.parseInt(f[2]);
@@ -843,7 +849,7 @@ public class TFBS_SpaitialAnalysis {
 						pf.profile_unknown[p.cdr()]+=1;
 					}
 					int offset = target.pos - anchor.pos;
-					if (offset<=PROFILE_RANGE && offset>=-PROFILE_RANGE)
+					if (offset<=profile_range && offset>=-profile_range)
 						overlap_target_labels.add(tarStr);						
 				}	// each site as target
 				
@@ -877,10 +883,14 @@ public class TFBS_SpaitialAnalysis {
 		}
 		CommonUtils.replaceEnd(sb_overlap, '\n');	
 		
+		StringBuilder sb_strong_spacings = new StringBuilder("Anchor\tTarget\tOrient\tPositn\tMaxCt\tBgCt\tP-value\n");	
+		double bonferronni_factor = profiles.size()*profiles.size()*profile_range/2;
+		DRand re = new DRand();
+		Poisson poissonEngine = new Poisson(0, re);
 		for (String ancStr: profiles.keySet()){
 			
 			StringBuilder sb_profiles = new StringBuilder(ancStr+"\t");			
-			for (int i=-PROFILE_RANGE;i<=PROFILE_RANGE;i++)
+			for (int i=-profile_range;i<=profile_range;i++)
 				sb_profiles.append(i+"\t");
 			CommonUtils.replaceEnd(sb_profiles, '\n');
 			
@@ -892,38 +902,33 @@ public class TFBS_SpaitialAnalysis {
 				SpacingProfile pf = profiles_anchor.get(tarStr);
 				if (pf==null)
 					pf = new SpacingProfile();
-				int[] tmp=null;
-				if (ancStr.equals(tarStr)){
-					tmp = pf.profile_same.clone();
-					tmp[100]=0;
-				}
-				else
-					tmp = pf.profile_same;
-				Pair<Integer, TreeSet<Integer>> max_same = StatUtil.findMax(tmp);
-				if (ancStr.equals(tarStr)){
-					tmp = pf.profile_diff.clone();
-					tmp[100]=0;
-				}
-				else
-					tmp = pf.profile_diff;
-				Pair<Integer, TreeSet<Integer>> max_diff = StatUtil.findMax(tmp);
-				if (ancStr.equals(tarStr)){
-					tmp = pf.profile_unknown.clone();
-					tmp[100]=0;
-				}
-				else
-					tmp = pf.profile_unknown;
-				Pair<Integer, TreeSet<Integer>> max_unknown = StatUtil.findMax(tmp);
+				ProfileStats stats_same = getProfileStats(pf.profile_same, poissonEngine, ancStr.equals(tarStr));
+				double corrected_pvalue = stats_same.pvalue*bonferronni_factor;
+				if (corrected_pvalue<0.01)
+					sb_strong_spacings.append(String.format("%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\n", ancStr,tarStr,1,stats_same.max_idx.first()-profile_range,stats_same.max,stats_same.gamma,-Math.log10(corrected_pvalue)));
+					
+				ProfileStats stats_diff = getProfileStats(pf.profile_diff, poissonEngine, ancStr.equals(tarStr));
+				corrected_pvalue = stats_diff.pvalue*bonferronni_factor;
+				if (corrected_pvalue<0.01)
+					sb_strong_spacings.append(String.format("%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\n", ancStr,tarStr,-1,stats_diff.max_idx.first()-profile_range,stats_diff.max,stats_diff.gamma,-Math.log10(corrected_pvalue)));
+
+				ProfileStats stats_unknown = getProfileStats(pf.profile_unknown, poissonEngine, ancStr.equals(tarStr));
+				corrected_pvalue = stats_unknown.pvalue*bonferronni_factor;
+				if (corrected_pvalue<0.01)
+					sb_strong_spacings.append(String.format("%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\n", ancStr,tarStr,0,stats_unknown.max_idx.first()-profile_range,stats_unknown.max,stats_unknown.gamma,-Math.log10(corrected_pvalue)));
 				
-				Pair<Integer, TreeSet<Integer>> max_all=null;
-				if (max_same.car()>=max_diff.car())
-					max_all = max_same;
+				ProfileStats max_all=null;
+				if (stats_same.max>=stats_diff.max)
+					max_all = stats_same;
 				else 
-					max_all = max_diff;
-				if (max_all.car()<max_diff.car())
-					max_all = max_unknown;
-				sb_count.append(max_all.car()+"\t");
-				sb_offset.append((max_all.cdr().first()-PROFILE_RANGE)+"\t");
+					max_all = stats_diff;
+				if (max_all.max<stats_diff.max)
+					max_all = stats_unknown;
+				sb_count.append(max_all.max+"\t");
+				for (int idx:max_all.max_idx){
+					sb_offset.append((idx-profile_range)+",");
+				}
+				CommonUtils.replaceEnd(sb_offset, '\t');
 				sb_overlap.append(overlaps.get(ancStr).get(tarStr)+"\t");
 				
 				sb_profiles.append(tarStr+"_s\t").append(CommonUtils.arrayToString(pf.profile_same)).append("\n");
@@ -940,6 +945,37 @@ public class TFBS_SpaitialAnalysis {
 		System.out.println("The following is similar to the pairwise spacing matrix in GEM paper.");
 		System.out.println(sb_count.toString());
 		System.out.println(sb_offset.toString());
+		CommonUtils.writeFile(outPrefix+"_strong_spacings.txt", sb_strong_spacings.toString());
+	}
+	private ProfileStats getProfileStats(int[] profile, Poisson P, boolean self){
+		int[] tmp=null;
+		if (self){
+			tmp = profile.clone();
+			tmp[profile_range]=0;
+		}
+		else
+			tmp = profile;
+		Pair<Integer, TreeSet<Integer>> found = StatUtil.findMax(tmp);
+		ProfileStats stats = new ProfileStats();
+		stats.max = found.car();
+		stats.max_idx = found.cdr();
+		double sum = 0;
+		for (int i=0;i<profile_range/2;i++){
+			sum += profile[i];
+		}
+		for (int i=profile_range+profile_range/2+1;i<profile.length;i++){
+			sum += profile[i];
+		}
+		stats.gamma = sum/profile_range;
+		P.setMean(sum);
+		stats.pvalue=1-P.cdf(stats.max);	//p-value as the tail of Poisson
+		return stats;
+	}
+	private class ProfileStats{
+		int max;
+		TreeSet<Integer> max_idx;
+		double gamma;	// the background per-base spacing count, average from 100-200 positions
+		double pvalue;
 	}
 
 	/**
@@ -1061,7 +1097,7 @@ public class TFBS_SpaitialAnalysis {
 					if (count>bestCount){
 						bestCount = count;
 						bestAnchor = as;
-						bestOffset = p.cdr()-PROFILE_RANGE;
+						bestOffset = p.cdr()-profile_range;
 					}					
 				}
 			}
@@ -1128,25 +1164,25 @@ public class TFBS_SpaitialAnalysis {
 	private Pair<Character, Integer> getProfileIndex(RSite anchor, RSite target){
 		int offset = target.pos - anchor.pos;
 		char type = 'u';
-		if (offset>PROFILE_RANGE || offset <-PROFILE_RANGE)			// skip if out of range
+		if (offset>profile_range || offset <-profile_range)			// skip if out of range
 			return null;
 		if(anchor.strand=='-'){
 			offset = -offset;
-			offset += PROFILE_RANGE;		// shift to get positive array idx
+			offset += profile_range;		// shift to get positive array idx
 			if (target.strand=='+')
 				type = 'd';
 			if (target.strand=='-')
 				type = 's';
 		}
 		if(anchor.strand=='+'){
-			offset += PROFILE_RANGE;		// shift to get positive array idx
+			offset += profile_range;		// shift to get positive array idx
 			if (target.strand=='+')
 				type = 's';
 			if (target.strand=='-')
 				type = 'd';
 		}
 		if(anchor.strand=='*')
-			offset += PROFILE_RANGE;
+			offset += profile_range;
 		return new Pair<Character, Integer>(type, offset);
 	}
 	
@@ -1224,9 +1260,9 @@ public class TFBS_SpaitialAnalysis {
 	}
 	
 	private class SpacingProfile{
-		int[] profile_same = new int[PROFILE_RANGE*2+1];		// the anchor site and the subject site are on the same strand (or same orientation of motifs)
-		int[] profile_diff = new int[PROFILE_RANGE*2+1];		// the anchor site and the subject site are on the opposite strand (or opposite orientation of motifs)
-		int[] profile_unknown = new int[PROFILE_RANGE*2+1];	// unknown, because some GEM binding site does not have a k-mer to assgin strand
+		int[] profile_same = new int[profile_range*2+1];		// the anchor site and the subject site are on the same strand (or same orientation of motifs)
+		int[] profile_diff = new int[profile_range*2+1];		// the anchor site and the subject site are on the opposite strand (or opposite orientation of motifs)
+		int[] profile_unknown = new int[profile_range*2+1];	// unknown, because some GEM binding site does not have a k-mer to assgin strand
 	}
 	
 	private void computeTfbsSpacingDistribution(){
