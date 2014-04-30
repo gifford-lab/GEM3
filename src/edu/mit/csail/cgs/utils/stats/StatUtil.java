@@ -1678,9 +1678,10 @@ public class StatUtil {
 	 public static void main(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));
-//		 Poisson poisson = new Poisson(0/0.0, new DRand());
+		 Poisson poisson = new Poisson(0, new DRand());
+		 poisson.setMean(2.7);System.out.println(1-poisson.cdf(56));
 //		 System.out.println(poisson.pdf(1));
-		System.out.println(hyperGeometricCDF_cache(2,1000,900,2));
+//		System.out.println(hyperGeometricCDF_cache(2,1000,900,2));
 //		System.out.println(hyperGeometricCDF_cache(2405,41690+40506,41690,2405+2));
 //		System.out.println(hyperGeometricCDF(3298,41690+40506,41690,3298+2));
 //		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));

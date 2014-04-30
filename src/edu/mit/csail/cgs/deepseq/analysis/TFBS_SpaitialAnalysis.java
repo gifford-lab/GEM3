@@ -52,6 +52,7 @@ public class TFBS_SpaitialAnalysis {
 	Genome genome=null;
 	ArrayList<String> expts = new ArrayList<String>();
 	ArrayList<String> names = new ArrayList<String>();
+	ArrayList<String> motif_names = new ArrayList<String>();
 	ArrayList<String> readdb_names = new ArrayList<String>();
 	ArrayList<String> indirect_tf_expts = new ArrayList<String>();
 	/** Mapping of TFSS(sequence specific) GEM expt ids (from direct binding id to indirect binding id */
@@ -76,6 +77,7 @@ public class TFBS_SpaitialAnalysis {
 	int height = 3;
 	double wm_factor = 0.6;	// PWM threshold, as fraction of max score
 	double cutoff = 0.3;	// corr score cutoff
+	double spacing_cutoff = 4;	// cutoff for spacing count Poisson p-value (corrected) 
 	File dir;
 	boolean no_gem_pwm = false;
 	boolean oldFormat =  false;
@@ -99,53 +101,56 @@ public class TFBS_SpaitialAnalysis {
 	String kmer_file;
 	String tss_signal_file;
 	String cluster_file;
+	String cluster_key_file;
 	String exclude_sites_file;
 	String anchor_string;	// the id of TF to anchor the sites/regions/sequences
+	String target_string;	// the id of target TF, and its spacing range
 	String sort_string;		// id:left:right, the id of TF to sort the sites/regions/sequences according to its offset from anchor
 	
 	// command line option:  (the folder contains GEM result folders) 
 	// --dir C:\Data\workspace\gse\TFBS_clusters --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format] 
 	public static void main(String[] args) {
-		TFBS_SpaitialAnalysis mtb = new TFBS_SpaitialAnalysis(args);
+		TFBS_SpaitialAnalysis analysis = new TFBS_SpaitialAnalysis(args);
 		int round = Args.parseInteger(args, "r", 2);
 		int type = Args.parseInteger(args, "type", 0);
 		ArrayList<ArrayList<Site>> clusters=null;
 		switch(type){
 		case 0:
-			mtb.loadEventsAndMotifs();
-			clusters = mtb.mergeTfbsClusters();
-			mtb.outputTFBSclusters(clusters);
+			analysis.loadEventsAndMotifs();
+			clusters = analysis.mergeTfbsClusters();
+			analysis.outputTFBSclusters(clusters);
 			break;
 		case 1:
-			mtb.loadClusterAndTssSignals();
-			mtb.computeCorrelations();
+			analysis.loadClusterAndTssSignals();
+			analysis.computeCorrelations();
 			break;
 		case 2:
-			mtb.loadEventsAndMotifs();
-			mtb.computeTfbsSpacingDistribution();
+			analysis.loadEventsAndMotifs();
+			analysis.computeTfbsSpacingDistribution();
 			break;
 		case 3:		// to print all the binding sites and motif positions in the clusters for downstream spacing/grammar analysis
 			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 3 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
-			mtb.loadEventsAndMotifs2(round);
-			clusters = mtb.mergeTfbsClusters();
-			mtb.outputBindingAndMotifSites(clusters);
+			analysis.loadEventsAndMotifs2(round);
+			clusters = analysis.mergeTfbsClusters();
+			analysis.outputBindingAndMotifSites(clusters);
 			break;
 		case 4:		// spacing histogram
-			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10" --type 4 --out $analysis --cluster 0_BS_Motif_clusters.${analysis}.d${distance}.min${min}.txt
-			mtb.printSpacingHistrograms();
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10" --type 4 --out $analysis --cluster 0_BS_Motif_clusters.${analysis}.d${distance}.min${min}.txt --profile_range 200
+			analysis.printSpacingHistrograms();
 			break;
 		case 5:		// anchor/sorted sites for matlab plot and sequences
-			mtb.plotAlignedSites();
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --g C:\Data\workspace\GEM_support\mm10.info  --type 5 --out mES --cluster "C:\Data\workspace\gse\mES_spacing\0_BS_Motif_clusters.mES.d200.min1.txt" --anchor B16:-90:10 --target B04:-26:-26 --sort B03 --height 3
+			analysis.plotAlignedSites();
 			break;
 		case 11:	// old code
-			mtb.loadClusterAndTSS();
-			mtb.computeCorrelations_db();
+			analysis.loadClusterAndTSS();
+			analysis.computeCorrelations_db();
 			break;		
 		case -1:
-			mtb.mergedTSS();
+			analysis.mergedTSS();
 			break;
 		case -2:
-			mtb.printTssSignal();
+			analysis.printTssSignal();
 			break;
 		}
 		
@@ -188,6 +193,7 @@ public class TFBS_SpaitialAnalysis {
 		dir = new File(Args.parseString(args, "dir", "."));
 		expts = new ArrayList<String>();
 		names = new ArrayList<String>();
+		motif_names = new ArrayList<String>();
 		String info_file = Args.parseString(args, "info", null);
 		if (info_file!=null){
 			ArrayList<String> info = CommonUtils.readTextFile(info_file);
@@ -196,12 +202,14 @@ public class TFBS_SpaitialAnalysis {
 					String[] f = txt.split("\t");
 					expts.add(f[0]);
 					names.add(f[3]);
+					motif_names.add(f[4]);
 					readdb_names.add(f[5]);
 				}
 			}
 		}
 		
 		anchor_string = Args.parseString(args, "anchor", anchor_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
+		target_string = Args.parseString(args, "target", target_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
 		sort_string = Args.parseString(args, "sort", sort_string);			// the id of TF/PWM/Kmer to sort the sites/regions/sequences
 
 		width = Args.parseInteger(args, "width", width);
@@ -227,6 +235,7 @@ public class TFBS_SpaitialAnalysis {
 		tss_file = Args.parseString(args, "tss", null);
 		tss_signal_file = Args.parseString(args, "tss_signal", null);
 		cluster_file = Args.parseString(args, "cluster", null);
+		cluster_key_file = Args.parseString(args, "key", null);
 		pwm_file = Args.parseString(args, "pwms", null);				// additional pwms
 		kmer_file = Args.parseString(args, "kmers", null);
 		exclude_sites_file = Args.parseString(args, "ex", null);
@@ -237,6 +246,7 @@ public class TFBS_SpaitialAnalysis {
 		min_site = Args.parseInteger(args, "min_site", min_site);
 		wm_factor = Args.parseDouble(args, "pwm_factor", wm_factor);
 		cutoff = Args.parseDouble(args, "cutoff", cutoff);
+		spacing_cutoff = Args.parseDouble(args, "spacing_cutoff", spacing_cutoff);
 		gc = Args.parseDouble(args, "gc", gc);
 		String genome_dir = Args.parseString(args, "genome", null);
 		seqgen = new SequenceGenerator<Region>();
@@ -400,7 +410,7 @@ public class TFBS_SpaitialAnalysis {
 		StringBuilder sb = new StringBuilder();
 		int digits = (int) Math.ceil(Math.log10(expts.size()));
 		for (int i=0;i<expts.size();i++){
-			sb.append(String.format("B%0"+digits+"d\t%s\n", i, expts.get(i)));
+			sb.append(String.format("B%0"+digits+"d\t%s\t%s\t%s\n", i, expts.get(i), names.get(i), motif_names.get(i)));
 		}
 		if (!pwms.isEmpty()){
 			digits = (int) Math.ceil(Math.log10(pwms.size()));
@@ -771,6 +781,15 @@ public class TFBS_SpaitialAnalysis {
 	private void printSpacingHistrograms(){
 		// The input file is the output from the type 3 method, outputBindingAndMotifSites()
 		// Some filtering may be done (e.g. grep) to select desired regions/clusters.
+		ArrayList<String> lines0 = CommonUtils.readTextFile(cluster_key_file);
+		HashMap<String, String> name_maps = new HashMap<String, String>();
+		HashMap<String, String> motif_maps = new HashMap<String, String>();
+		for (String l:lines0){
+			String[] f = l.split("\t");
+			name_maps.put(f[0], f[2]);
+			motif_maps.put(f[0], f[3]);
+		}
+		
 		ArrayList<String> lines = CommonUtils.readTextFile(cluster_file);
 		ArrayList<BMCluster> clusters = new ArrayList<BMCluster>();
 		TreeMap<String, TreeMap<String, SpacingProfile>> profiles = new TreeMap<String, TreeMap<String, SpacingProfile>>();
@@ -785,7 +804,6 @@ public class TFBS_SpaitialAnalysis {
 			Region r = Region.fromString(genome, f[0]);
 			bmc.cluster_id = Integer.parseInt(f[2]);
 			String[] positions = f[7].split(" ");
-			bmc.anchoredSequence = f[8];		//TODO: use strand and shift
 			bmc.anchor = new Point(r.getGenome(), r.getChrom(), r.getStart());
 			
 			// parse all sites
@@ -870,9 +888,9 @@ public class TFBS_SpaitialAnalysis {
 		sb_overlap.append("Anchor").append("\t");
 
 		for (String ancStr: profiles.keySet()){
-			sb_count.append(ancStr+"\t");
-			sb_offset.append(ancStr+"\t");
-			sb_overlap.append(ancStr+"\t");
+			sb_count.append(name_maps.get(ancStr)+"\t");
+			sb_offset.append(name_maps.get(ancStr)+"\t");
+			sb_overlap.append(name_maps.get(ancStr)+"\t");
 		}
 		CommonUtils.replaceEnd(sb_count, '\n');
 		CommonUtils.replaceEnd(sb_offset, '\n');
@@ -883,39 +901,68 @@ public class TFBS_SpaitialAnalysis {
 		}
 		CommonUtils.replaceEnd(sb_overlap, '\n');	
 		
-		StringBuilder sb_strong_spacings = new StringBuilder("Anchor\tTarget\tOrient\tPositn\tMaxCt\tBgCt\tP-value\n");	
+		StringBuilder sb_strong_spacings = new StringBuilder("A-Code\tT-Code\tAnchor\tTarget\tOrient\tPositn\tMaxCt\tBgCt\tP-value\tFold\n");	
 		double bonferronni_factor = profiles.size()*profiles.size()*profile_range/2;
 		DRand re = new DRand();
 		Poisson poissonEngine = new Poisson(0, re);
 		for (String ancStr: profiles.keySet()){
 			
-			StringBuilder sb_profiles = new StringBuilder(ancStr+"\t");			
+			StringBuilder sb_profiles = new StringBuilder(name_maps.get(ancStr)+"\t");			
 			for (int i=-profile_range;i<=profile_range;i++)
 				sb_profiles.append(i+"\t");
 			CommonUtils.replaceEnd(sb_profiles, '\n');
 			
 			TreeMap<String,SpacingProfile> profiles_anchor = profiles.get(ancStr);
-			sb_count.append(ancStr+"\t");
-			sb_offset.append(ancStr+"\t");
-			sb_overlap.append(ancStr+"\t");
+			sb_count.append(name_maps.get(ancStr)+"\t");
+			sb_offset.append(name_maps.get(ancStr)+"\t");
+			sb_overlap.append(name_maps.get(ancStr)+"\t");
 			for (String tarStr: profiles.keySet()){
 				SpacingProfile pf = profiles_anchor.get(tarStr);
 				if (pf==null)
 					pf = new SpacingProfile();
-				ProfileStats stats_same = getProfileStats(pf.profile_same, poissonEngine, ancStr.equals(tarStr));
-				double corrected_pvalue = stats_same.pvalue*bonferronni_factor;
-				if (corrected_pvalue<0.01)
-					sb_strong_spacings.append(String.format("%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\n", ancStr,tarStr,1,stats_same.max_idx.first()-profile_range,stats_same.max,stats_same.gamma,-Math.log10(corrected_pvalue)));
-					
-				ProfileStats stats_diff = getProfileStats(pf.profile_diff, poissonEngine, ancStr.equals(tarStr));
-				corrected_pvalue = stats_diff.pvalue*bonferronni_factor;
-				if (corrected_pvalue<0.01)
-					sb_strong_spacings.append(String.format("%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\n", ancStr,tarStr,-1,stats_diff.max_idx.first()-profile_range,stats_diff.max,stats_diff.gamma,-Math.log10(corrected_pvalue)));
-
-				ProfileStats stats_unknown = getProfileStats(pf.profile_unknown, poissonEngine, ancStr.equals(tarStr));
-				corrected_pvalue = stats_unknown.pvalue*bonferronni_factor;
-				if (corrected_pvalue<0.01)
-					sb_strong_spacings.append(String.format("%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\n", ancStr,tarStr,0,stats_unknown.max_idx.first()-profile_range,stats_unknown.max,stats_unknown.gamma,-Math.log10(corrected_pvalue)));
+				
+				double sum = 0;
+				for (int i=0;i<profile_range/2;i++){
+					sum += pf.profile_same[i];
+				}
+				for (int i=profile_range+profile_range/2+1;i<pf.profile_same.length;i++){
+					sum += pf.profile_same[i];
+				}
+				for (int i=0;i<profile_range/2;i++){
+					sum += pf.profile_diff[i];
+				}
+				for (int i=profile_range+profile_range/2+1;i<pf.profile_same.length;i++){
+					sum += pf.profile_diff[i];
+				}
+				for (int i=0;i<profile_range/2;i++){
+					sum += pf.profile_unknown[i];
+				}
+				for (int i=profile_range+profile_range/2+1;i<pf.profile_same.length;i++){
+					sum += pf.profile_unknown[i];
+				}
+				double mean = sum/profile_range;	// the background per-base spacing count, average from 100-200 positions
+				poissonEngine.setMean(mean);		
+			
+				boolean has_strong_spacing = false;
+				ProfileStats stats_same = getProfileStats(pf.profile_same, ancStr.equals(tarStr));
+				// p-value as the tail of Poisson, add the pdf term to gain numeric precision
+				double qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_same.max)+poissonEngine.pdf(stats_same.max))*bonferronni_factor);
+				if (qvalue_log10>spacing_cutoff){
+					sb_strong_spacings.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\n", ancStr,tarStr,name_maps.get(ancStr),name_maps.get(tarStr),1,stats_same.max_idx.first()-profile_range,stats_same.max,mean,qvalue_log10,stats_same.max/mean));
+					has_strong_spacing = true;
+				}
+				ProfileStats stats_diff = getProfileStats(pf.profile_diff, ancStr.equals(tarStr));
+				qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_diff.max)+poissonEngine.pdf(stats_diff.max))*bonferronni_factor);
+				if (qvalue_log10>spacing_cutoff){
+					sb_strong_spacings.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\n", ancStr,tarStr,name_maps.get(ancStr),name_maps.get(tarStr),-1,stats_diff.max_idx.first()-profile_range,stats_diff.max,mean,qvalue_log10,stats_diff.max/mean));
+					has_strong_spacing = true;
+				}
+				ProfileStats stats_unknown = getProfileStats(pf.profile_unknown, ancStr.equals(tarStr));
+				qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_unknown.max)+poissonEngine.pdf(stats_unknown.max))*bonferronni_factor);
+				if (qvalue_log10>spacing_cutoff){
+					sb_strong_spacings.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\n", ancStr,tarStr,name_maps.get(ancStr),name_maps.get(tarStr),0,stats_unknown.max_idx.first()-profile_range,stats_unknown.max,mean,qvalue_log10,stats_unknown.max/mean));
+					has_strong_spacing = true;
+				}
 				
 				ProfileStats max_all=null;
 				if (stats_same.max>=stats_diff.max)
@@ -925,15 +972,19 @@ public class TFBS_SpaitialAnalysis {
 				if (max_all.max<stats_diff.max)
 					max_all = stats_unknown;
 				sb_count.append(max_all.max+"\t");
-				for (int idx:max_all.max_idx){
-					sb_offset.append((idx-profile_range)+",");
+				if (has_strong_spacing){
+					for (int idx:max_all.max_idx){
+						sb_offset.append((idx-profile_range)+",");
+					}
+					CommonUtils.replaceEnd(sb_offset, '\t');
 				}
-				CommonUtils.replaceEnd(sb_offset, '\t');
+				else
+					sb_offset.append(".\t");
 				sb_overlap.append(overlaps.get(ancStr).get(tarStr)+"\t");
 				
-				sb_profiles.append(tarStr+"_s\t").append(CommonUtils.arrayToString(pf.profile_same)).append("\n");
-				sb_profiles.append(tarStr+"_d\t").append(CommonUtils.arrayToString(pf.profile_diff)).append("\n");
-				sb_profiles.append(tarStr+"_u\t").append(CommonUtils.arrayToString(pf.profile_unknown)).append("\n");
+				sb_profiles.append(name_maps.get(tarStr)+"_s\t").append(CommonUtils.arrayToString(pf.profile_same)).append("\n");
+				sb_profiles.append(name_maps.get(tarStr)+"_d\t").append(CommonUtils.arrayToString(pf.profile_diff)).append("\n");
+				sb_profiles.append(name_maps.get(tarStr)+"_u\t").append(CommonUtils.arrayToString(pf.profile_unknown)).append("\n");
 			}
 			CommonUtils.replaceEnd(sb_count, '\n');
 			CommonUtils.replaceEnd(sb_offset, '\n');
@@ -947,7 +998,7 @@ public class TFBS_SpaitialAnalysis {
 		System.out.println(sb_offset.toString());
 		CommonUtils.writeFile(outPrefix+"_strong_spacings.txt", sb_strong_spacings.toString());
 	}
-	private ProfileStats getProfileStats(int[] profile, Poisson P, boolean self){
+	private ProfileStats getProfileStats(int[] profile, boolean self){
 		int[] tmp=null;
 		if (self){
 			tmp = profile.clone();
@@ -959,40 +1010,43 @@ public class TFBS_SpaitialAnalysis {
 		ProfileStats stats = new ProfileStats();
 		stats.max = found.car();
 		stats.max_idx = found.cdr();
-		double sum = 0;
-		for (int i=0;i<profile_range/2;i++){
-			sum += profile[i];
-		}
-		for (int i=profile_range+profile_range/2+1;i<profile.length;i++){
-			sum += profile[i];
-		}
-		stats.gamma = sum/profile_range;
-		P.setMean(sum);
-		stats.pvalue=1-P.cdf(stats.max);	//p-value as the tail of Poisson
 		return stats;
 	}
+	
 	private class ProfileStats{
 		int max;
 		TreeSet<Integer> max_idx;
-		double gamma;	// the background per-base spacing count, average from 100-200 positions
-		double pvalue;
 	}
 
 	/**
-	 * Plot the aligned binding sites given the anchor and sorting site label<br>
+	 * Plot the aligned binding sites given the anchor, target and sorting sites<br>
 	 * output matlab data file, anchor site coordinates and corresponding sequence plot
 	 */
 	private void plotAlignedSites(){
-		String fss[] = sort_string.split(":");
-		String sortby = fss[0];
-		int minOffset = Integer.parseInt(fss[1]);
-		int maxOffset = Integer.parseInt(fss[2]);
-		String analysisName = "_a"+anchor_string +"_s"+ sortby +"_";	
-		System.out.println("Anchor: "+anchor_string+"  Sortby: "+sortby);
+		String fas[] = anchor_string.split(":");
+		String anchorLabel = fas[0];
+		int minRange = Integer.parseInt(fas[1]);		// plotting range
+		int maxRange = Integer.parseInt(fas[2]);
+		if (minRange > maxRange){
+			System.err.println("The plotting range is not valid: "+anchor_string);
+			return;
+		}
+
+		String fts[] = target_string.split(":");
+		String targetLabel = fts[0];
+		int minOffset = Integer.parseInt(fts[1]);		// target spacing selection range
+		int maxOffset = Integer.parseInt(fts[2]);
+		if (minOffset > maxOffset){
+			System.err.println("The target offset range is not valid: "+target_string);
+			return;
+		}
+	
+		String anchorTargetPairName = "a"+anchorLabel +"_t"+ targetLabel;	
+		System.out.println("Anchor: "+anchorLabel+ "  Target: "+targetLabel+"  Sortby: "+sort_string);
 
 		ArrayList<String> lines = CommonUtils.readTextFile(cluster_file);
 		ArrayList<BMCluster> clusters = new ArrayList<BMCluster>();
-		SpacingProfile pf = new SpacingProfile();
+		SpacingProfile pf = new SpacingProfile();		// spacing histogram to help find the correct position pair of anchor and target
 		for (String l:lines){	// each line is a cluster merged from nearby TFBS
 			if (l.startsWith("#"))
 				continue;
@@ -1003,7 +1057,7 @@ public class TFBS_SpaitialAnalysis {
 			Region r = Region.fromString(genome, f[0]);
 			bmc.cluster_id = Integer.parseInt(f[2]);
 			String[] positions = f[7].split(" ");
-			bmc.anchoredSequence = f[8];		//TODO: use strand and shift
+			bmc.anchoredSequence = f[8];
 			bmc.anchor = new Point(r.getGenome(), r.getChrom(), r.getStart());
 			
 			// parse all sites
@@ -1014,6 +1068,7 @@ public class TFBS_SpaitialAnalysis {
 				RSite s = new RSite();
 				s.id = Integer.parseInt(bs[0].substring(1));
 				s.type = bs[0].charAt(0);
+				s.label = bs[0];
 				switch (s.type){
 				case 'B':
 					s.pos = Integer.parseInt(bs[1]);
@@ -1033,16 +1088,15 @@ public class TFBS_SpaitialAnalysis {
 				sites.add(s);
 			}
 			
-			// compute all pairwise spacings
+			// compute all pairwise spacings between anchor and target across all regions, make spacing histogram
 			// anchor is at 0 position, then count the instances of target at each spacing, separate same/opposite strand
-			
 			for (RSite anchor: sites){
-				String ancStr = anchor.type+""+anchor.id;
-				if (!anchor_string.equals(ancStr))
+				String ancStr = anchor.label;
+				if (!anchorLabel.equals(ancStr))
 					continue;
 				for (RSite target: sites){
-					String tarStr = target.type+""+target.id;
-					if (!sort_string.equals(tarStr))
+					String tarStr = target.label;
+					if (!targetLabel.equals(tarStr))
 						continue;
 					Pair<Character, Integer> p = getProfileIndex(anchor, target);
 					if (p==null)
@@ -1068,19 +1122,25 @@ public class TFBS_SpaitialAnalysis {
 		ArrayList<BMCluster> outClusters = new ArrayList<BMCluster>();
 		for (BMCluster c:clusters){
 			ArrayList<RSite> anchorSites = new ArrayList<RSite>();
+			ArrayList<RSite> targetSites = new ArrayList<RSite>();
 			ArrayList<RSite> sortbySites = new ArrayList<RSite>();
 			for (RSite s: c.sites){
-				if (anchor_string.equals(s.type+""+s.id))
+				if (anchorLabel.equals(s.label))
 					anchorSites.add(s);
-				if (sortby.equals(s.type+""+s.id))
+				if (targetLabel.equals(s.label))
+					targetSites.add(s);
+				if (sort_string.equals(s.label))
 					sortbySites.add(s);
 			}
+			
+			// test all anchor-target paring, give priority to the sites that shows strong spacing constraint when there are multiple possible combinations)
 			int bestCount=-1;
 			RSite bestAnchor = null;
-			int bestOffset = 0;
+			int bestOffset = 999;
+			int bestSort =999;
 			for (RSite as: anchorSites){
-				for(RSite ss: sortbySites){
-					Pair<Character, Integer> p = getProfileIndex(as, ss);
+				for(RSite ts: targetSites){
+					Pair<Character, Integer> p = getProfileIndex(as, ts);
 					if (p==null)
 						continue;
 					int count = -1;
@@ -1097,7 +1157,16 @@ public class TFBS_SpaitialAnalysis {
 					if (count>bestCount){
 						bestCount = count;
 						bestAnchor = as;
-						bestOffset = p.cdr()-profile_range;
+						bestOffset = getProfileIndex(as, ts).cdr()-profile_range;
+						if (bestOffset>=minOffset && bestOffset<=maxOffset){
+							if (sortbySites.isEmpty())
+								bestSort = 999;			// if the sorting TF is not found in this region, move the region to the end
+							else{
+								Pair<Character, Integer> sort_idx = getProfileIndex(as, sortbySites.get(0)); // just pick one if having 1+ sorting site
+								if (sort_idx!=null)
+									bestSort = sort_idx.cdr()-profile_range;
+							}
+						}
 					}					
 				}
 			}
@@ -1105,18 +1174,19 @@ public class TFBS_SpaitialAnalysis {
 				continue;
 			else{
 				c.updateAnchorSite(bestAnchor);
-				c.sort_idx = bestOffset;
-
+				c.sort_idx = bestSort;
 				if (bestOffset>=minOffset && bestOffset<=maxOffset)
 					outClusters.add(c);
 			}
 //			System.out.println(String.format("Count:\t%d\tOffset: %d\tPos:%d", bestCount, c.sort_idx, bestAnchor.pos));
-
 		}// each cluster
 		
 		if (outClusters.isEmpty()){
 			System.err.println("Anchor "+anchor_string+" matched no sites!");
 			System.exit(-1);
+		}
+		else{
+			System.out.println(anchorTargetPairName+" found "+outClusters.size()+" regions.");
 		}
 		Collections.sort(outClusters);
 				
@@ -1130,31 +1200,34 @@ public class TFBS_SpaitialAnalysis {
 			}
 			sb_coords.append(bmc.getAnchorStrandedPoint()).append("\t").append(bmc.cluster_id).append("\n");
 		}
-		CommonUtils.writeFile(cluster_file.replace(".txt", analysisName+"matlab.txt"), sb.toString());
-		CommonUtils.writeFile(cluster_file.replace(".txt", analysisName+"coords.txt"), sb_coords.toString());
+		CommonUtils.writeFile(cluster_file.replace("txt", anchorTargetPairName+"_matlab.txt"), sb.toString());
+		CommonUtils.writeFile(cluster_file.replace("txt", anchorTargetPairName+"_coords.txt"), sb_coords.toString());
 		
 		String[] ss = new String[outClusters.size()];
 		for (int i=0;i<outClusters.size();i++){
 			BMCluster c = outClusters.get(i);
-			int len = c.anchoredSequence.length();
-			int left = c.anchorSite.pos + minOffset;
+			String anchoredSequence = c.anchoredSequence;
+			int len = anchoredSequence.length();
+			int anchor = c.anchorSite.pos;
+			if (c.anchorSite.strand=='-'){
+				anchoredSequence = SequenceUtils.reverseComplement(anchoredSequence);
+				anchor = len - anchor - 1;
+			}
+			int left = anchor + minRange;
 			int leftPadding = 0;
 			if (left<0){
 				leftPadding = -left;
 				left=0;
 			}
-			int right = c.anchorSite.pos + maxOffset+1;  // add 1 because substring() is end-exclusive
+			int right = anchor + maxRange+1;  // add 1 because substring() is end-exclusive
 			int rightPadding = 0;
 			if (right>len){
 				rightPadding = right-len;
 				right=len;
 			}
-			String seq = CommonUtils.padding(leftPadding, 'N')+c.anchoredSequence.substring(left, right)+CommonUtils.padding(rightPadding, 'N');
-			if (c.anchorSite.strand=='-')
-				seq = SequenceUtils.reverseComplement(seq);
-			ss[i] = seq;
+			ss[i] = CommonUtils.padding(leftPadding, 'N')+anchoredSequence.substring(left, right)+CommonUtils.padding(rightPadding, 'N');
 		}
-		CommonUtils.visualizeSequences(ss, width, height, new File(cluster_file.replace(".txt", analysisName+"sequences.png")));
+		CommonUtils.visualizeSequences(ss, width, height, new File(cluster_file.replace("txt", anchorTargetPairName+"_seqPlot.png")));
 	}
 
 
