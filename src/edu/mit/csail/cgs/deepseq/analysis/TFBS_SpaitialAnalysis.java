@@ -60,6 +60,8 @@ public class TFBS_SpaitialAnalysis {
 	
 	ArrayList<WeightMatrix> pwms = new ArrayList<WeightMatrix>();
 	ArrayList<String> kmers = new ArrayList<String>();
+	ArrayList<Region> annoRegions = new ArrayList<Region>();		// annotation regions that do not use to merge regions, but count overlaps, such as histone mark
+	ArrayList<String> annoLabels = new ArrayList<String>();		// annotation labels, corresponding to the regions
 	ArrayList<ArrayList<Site>> all_sites = new ArrayList<ArrayList<Site>>();
 	ArrayList<ArrayList<Site>> all_indirect_sites = new ArrayList<ArrayList<Site>>();
 	ArrayList<Point> all_TSS;
@@ -99,6 +101,7 @@ public class TFBS_SpaitialAnalysis {
 	String tss_file;
 	String pwm_file;
 	String kmer_file;
+	String anno_region_file;
 	String tss_signal_file;
 	String cluster_file;
 	String cluster_key_file;
@@ -108,15 +111,15 @@ public class TFBS_SpaitialAnalysis {
 	String sort_string;		// id:left:right, the id of TF to sort the sites/regions/sequences according to its offset from anchor
 	
 	// command line option:  (the folder contains GEM result folders) 
-	// --dir C:\Data\workspace\gse\TFBS_clusters --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --expts expt_list.txt [--no_cache --old_format] 
+	// --dir C:\Data\workspace\gse\TFBS_clusters --species "Mus musculus;mm9" --r 2 --pwm_factor 0.6 --info expt.info.txt [--no_cache --old_format] 
 	public static void main(String[] args) {
 		TFBS_SpaitialAnalysis analysis = new TFBS_SpaitialAnalysis(args);
-		int round = Args.parseInteger(args, "r", 2);
+		int round = Args.parseInteger(args, "r", 2); 	//GEM output round (1 for GPS, 2 for GEM)
 		int type = Args.parseInteger(args, "type", 0);
 		ArrayList<ArrayList<Site>> clusters=null;
 		switch(type){
 		case 0:
-			analysis.loadEventsAndMotifs();
+			analysis.loadBindingEvents();
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputTFBSclusters(clusters);
 			break;
@@ -125,12 +128,12 @@ public class TFBS_SpaitialAnalysis {
 			analysis.computeCorrelations();
 			break;
 		case 2:
-			analysis.loadEventsAndMotifs();
+			analysis.loadBindingEvents();
 			analysis.computeTfbsSpacingDistribution();
 			break;
 		case 3:		// to print all the binding sites and motif positions in the clusters for downstream spacing/grammar analysis
 			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 3 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
-			analysis.loadEventsAndMotifs2(round);
+			analysis.loadEventsAndMotifs(round);
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputBindingAndMotifSites(clusters);
 			break;
@@ -238,6 +241,7 @@ public class TFBS_SpaitialAnalysis {
 		cluster_key_file = Args.parseString(args, "key", null);
 		pwm_file = Args.parseString(args, "pwms", null);				// additional pwms
 		kmer_file = Args.parseString(args, "kmers", null);
+		anno_region_file = Args.parseString(args, "anno_regions", null);
 		exclude_sites_file = Args.parseString(args, "ex", null);
 		distance = Args.parseInteger(args, "distance", distance);
 		range = Args.parseInteger(args, "range", range);
@@ -254,8 +258,13 @@ public class TFBS_SpaitialAnalysis {
 			seqgen.setGenomePath(genome_dir);
 		seqgen.useCache(!flags.contains("no_cache"));
 	}
-	
-	private void loadEventsAndMotifs(){
+
+	/**
+	 * This method loads events/region for topic model analysis.<br>
+	 * it also loads annotation regions (for example, histone marks, genome segmentation states), 
+	 * which will not be use for region merging, but used to count overlaps of the merged region with the anno regions
+	 */
+	private void loadBindingEvents(){
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
 			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
@@ -323,15 +332,28 @@ public class TFBS_SpaitialAnalysis {
 			}
 		}
 		all_sites.addAll(all_indirect_sites);
+		
+		// load annotation regions
+		if (anno_region_file!=null){
+			ArrayList<String> lines = CommonUtils.readTextFile(anno_region_file);
+			for (String s:lines){
+				String f[]=s.split("\t");
+				annoLabels.add(f[0]);
+				if (f[1].equalsIgnoreCase("BED"))
+					annoRegions.addAll(CommonUtils.load_BED_regions(genome, f[2]).car());
+				if (f[1].equalsIgnoreCase("CGS"))
+					annoRegions.addAll(CommonUtils.loadRegionFile(f[2], genome));
+			}
+		}
 	}
+	
 	/**
-	 * This is different from the loadEventsAndMotifs method, in that 
-	 * it only loads the event positions, but not nearby motif match positions,
-	 * it loads GEM motif associated with the events by default, but
-	 * it also loads additional motifs specified by --pwms, or --ksms
-	 * @param round
+	 * This method loads events/motifs for spacing analysis.<br>
+	 * it loads the event positions, also loads GEM motifs by option, but
+	 * it also loads additional motifs specified by --pwms, or --kmers
+	 * @param round GEM output round (1 for GPS, 2 for GEM)
 	 */
-	private void loadEventsAndMotifs2(int round){
+	private void loadEventsAndMotifs(int round){
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
 			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
@@ -357,6 +379,7 @@ public class TFBS_SpaitialAnalysis {
 					site.motifStrand = p.getKmerStrand();
 					site.bs = (Point)p;					
 					// skip site in the ex_regions
+					// TODO: this loop can be more efficient
 					for (Region r: ex_regions){
 						if (r.contains(site.bs))
 							continue eachpeak;
@@ -415,13 +438,13 @@ public class TFBS_SpaitialAnalysis {
 		if (!pwms.isEmpty()){
 			digits = (int) Math.ceil(Math.log10(pwms.size()));
 			for (int i=0;i<pwms.size();i++){
-				sb.append(String.format("M%0"+digits+"d\t%s\n", i, pwms.get(i).getName()));
+				sb.append(String.format("M%0"+digits+"d\t%s\t%s\t%s\n", i, pwms.get(i).getName(),pwms.get(i).getName(),pwms.get(i).getName()));
 			}
 		}
 		if (!kmers.isEmpty()){
 			digits = (int) Math.ceil(Math.log10(kmers.size()));
 			for (int i=0;i<kmers.size();i++){
-				sb.append(String.format("K%0"+digits+"d\t%s\n", i, kmers.get(i)));
+				sb.append(String.format("K%0"+digits+"d\t%s\t%s\t%s\n", i, kmers.get(i),kmers.get(i),kmers.get(i)));
 			}
 		}
 		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+"_keys.txt", sb.toString());
@@ -992,10 +1015,10 @@ public class TFBS_SpaitialAnalysis {
 			
 			CommonUtils.writeFile(outPrefix+"_"+ancStr+"_profiles.txt", sb_profiles.toString());
 		}
+		sb_overlap.append("\nThe following tables are similar to the pairwise spacing matrix in GEM paper.\n");
+		sb_overlap.append(sb_count.toString()).append("\n").append(sb_offset.toString());
 		System.out.println(sb_overlap.toString());
-		System.out.println("The following is similar to the pairwise spacing matrix in GEM paper.");
-		System.out.println(sb_count.toString());
-		System.out.println(sb_offset.toString());
+		CommonUtils.writeFile(outPrefix+"_tables.txt", sb_overlap.toString());
 		CommonUtils.writeFile(outPrefix+"_strong_spacings.txt", sb_strong_spacings.toString());
 	}
 	private ProfileStats getProfileStats(int[] profile, boolean self){
