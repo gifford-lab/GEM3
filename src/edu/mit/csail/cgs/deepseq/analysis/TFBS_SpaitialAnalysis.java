@@ -964,24 +964,24 @@ public class TFBS_SpaitialAnalysis {
 					sum += pf.profile_unknown[i];
 				}
 				double mean = sum/profile_range;	// the background per-base spacing count, average from 100-200 positions
-				poissonEngine.setMean(mean);		
+				poissonEngine.setMean(mean+1);		// add 1 as pseudo-count when computing Poisson p-value
 			
 				boolean has_strong_spacing = false;
 				ProfileStats stats_same = getProfileStats(pf.profile_same, ancStr.equals(tarStr));
 				// p-value as the tail of Poisson, add the pdf term to gain numeric precision
-				double qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_same.max)+poissonEngine.pdf(stats_same.max))*bonferronni_factor);
+				double qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_same.max+1)+poissonEngine.pdf(stats_same.max+1))*bonferronni_factor);
 				if (qvalue_log10>spacing_cutoff){
 					sb_strong_spacings.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\n", ancStr,tarStr,name_maps.get(ancStr),name_maps.get(tarStr),1,stats_same.max_idx.first()-profile_range,stats_same.max,mean,qvalue_log10,stats_same.max/mean));
 					has_strong_spacing = true;
 				}
 				ProfileStats stats_diff = getProfileStats(pf.profile_diff, ancStr.equals(tarStr));
-				qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_diff.max)+poissonEngine.pdf(stats_diff.max))*bonferronni_factor);
+				qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_diff.max+1)+poissonEngine.pdf(stats_diff.max+1))*bonferronni_factor);
 				if (qvalue_log10>spacing_cutoff){
 					sb_strong_spacings.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\n", ancStr,tarStr,name_maps.get(ancStr),name_maps.get(tarStr),-1,stats_diff.max_idx.first()-profile_range,stats_diff.max,mean,qvalue_log10,stats_diff.max/mean));
 					has_strong_spacing = true;
 				}
 				ProfileStats stats_unknown = getProfileStats(pf.profile_unknown, ancStr.equals(tarStr));
-				qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_unknown.max)+poissonEngine.pdf(stats_unknown.max))*bonferronni_factor);
+				qvalue_log10 = -Math.log10((1-poissonEngine.cdf(stats_unknown.max+1)+poissonEngine.pdf(stats_unknown.max+1))*bonferronni_factor);
 				if (qvalue_log10>spacing_cutoff){
 					sb_strong_spacings.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\n", ancStr,tarStr,name_maps.get(ancStr),name_maps.get(tarStr),0,stats_unknown.max_idx.first()-profile_range,stats_unknown.max,mean,qvalue_log10,stats_unknown.max/mean));
 					has_strong_spacing = true;
@@ -995,14 +995,14 @@ public class TFBS_SpaitialAnalysis {
 				if (max_all.max<stats_diff.max)
 					max_all = stats_unknown;
 				sb_count.append(max_all.max+"\t");
-				if (has_strong_spacing){
+				if (has_strong_spacing && max_all.max>10){
 					for (int idx:max_all.max_idx){
 						sb_offset.append((idx-profile_range)+",");
 					}
 					CommonUtils.replaceEnd(sb_offset, '\t');
 				}
 				else
-					sb_offset.append(".\t");
+					sb_offset.append("999\t");
 				sb_overlap.append(overlaps.get(ancStr).get(tarStr)+"\t");
 				
 				sb_profiles.append(name_maps.get(tarStr)+"_s\t").append(CommonUtils.arrayToString(pf.profile_same)).append("\n");
@@ -1018,8 +1018,8 @@ public class TFBS_SpaitialAnalysis {
 		sb_overlap.append("\nThe following tables are similar to the pairwise spacing matrix in GEM paper.\n");
 		sb_overlap.append(sb_count.toString()).append("\n").append(sb_offset.toString());
 		System.out.println(sb_overlap.toString());
-		CommonUtils.writeFile(outPrefix+"_tables.txt", sb_overlap.toString());
-		CommonUtils.writeFile(outPrefix+"_strong_spacings.txt", sb_strong_spacings.toString());
+		CommonUtils.writeFile(outPrefix+"_spacing_tables.txt", sb_overlap.toString());
+		CommonUtils.writeFile(outPrefix+"_spacing_lists.txt", sb_strong_spacings.toString());
 	}
 	private ProfileStats getProfileStats(int[] profile, boolean self){
 		int[] tmp=null;
