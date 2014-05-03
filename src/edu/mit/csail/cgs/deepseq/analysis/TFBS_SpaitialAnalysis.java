@@ -532,6 +532,7 @@ public class TFBS_SpaitialAnalysis {
 			for (String s:lines){
 				String f[]=s.split("\t");
 				annoLabels.add(f[0]);
+				System.out.println("Loading "+f[0]+" data ...");
 				ArrayList<Region> rs = null;
 				if (f[1].equalsIgnoreCase("BED"))
 					rs = CommonUtils.load_BED_regions(genome, f[2]).car();					
@@ -564,8 +565,6 @@ public class TFBS_SpaitialAnalysis {
 				}
 			}
 		}
-		
-		ArrayList<ArrayList<Integer>> stats = new ArrayList<ArrayList<Integer>>();
 		
 		if (print_full_format){
 			StringBuilder sb = new StringBuilder();
@@ -622,7 +621,7 @@ public class TFBS_SpaitialAnalysis {
 		}
 		if (print_uci_matlab_format){	// UCI Matlab Topic Modeling Toolbox 1.4 format
 			StringBuilder sb = new StringBuilder();
-			int[] factorSiteCount = new int[expts.size()];
+			int[] factorSiteCount = new int[names.size()];
 
 			int docID = 1;
 			for (ArrayList<Site> c :clusters){
@@ -669,7 +668,7 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (print_hdp_rc_format){	// Blei HDP (lda-c) format, read count for each TF
 			StringBuilder sb = new StringBuilder();
-			double[] factorReadCount = new double[expts.size()];
+			double[] factorReadCount = new double[names.size()];
 
 			for (ArrayList<Site> c :clusters){
 				for (int s=0;s<c.size();s++){
@@ -702,7 +701,7 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (print_matrix){	// Print region-tfSiteCount matrix, can be used for clustering analysis
 			StringBuilder sb = new StringBuilder();
-			int[] factorSiteCount = new int[expts.size()];
+			int[] factorSiteCount = new int[names.size()];
 			sb.append("#Region    ").append("\t");
 			for (int i=0;i<names.size();i++)
 				sb.append(names.get(i)).append("\t");
@@ -727,7 +726,7 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (print_matrix_rc){	// Print region-tfSiteCount matrix, can be used for clustering analysis
 			StringBuilder sb = new StringBuilder();
-			double[] factorReadCount = new double[expts.size()];
+			double[] factorReadCount = new double[names.size()];
 			sb.append("#Region    ").append("\t");
 			for (int i=0;i<names.size();i++)
 				sb.append(names.get(i)).append("\t");
