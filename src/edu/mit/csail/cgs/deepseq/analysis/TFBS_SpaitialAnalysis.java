@@ -60,7 +60,7 @@ public class TFBS_SpaitialAnalysis {
 	
 	ArrayList<WeightMatrix> pwms = new ArrayList<WeightMatrix>();
 	ArrayList<String> kmers = new ArrayList<String>();
-	ArrayList<Region> annoRegions = new ArrayList<Region>();		// annotation regions that do not use to merge regions, but count overlaps, such as histone mark
+	ArrayList<ArrayList<Region>> annoRegions = new ArrayList<ArrayList<Region>>();		// annotation regions that do not use to merge regions, but count overlaps, such as histone mark
 	ArrayList<String> annoLabels = new ArrayList<String>();		// annotation labels, corresponding to the regions
 	ArrayList<ArrayList<Site>> all_sites = new ArrayList<ArrayList<Site>>();
 	ArrayList<ArrayList<Site>> all_indirect_sites = new ArrayList<ArrayList<Site>>();
@@ -261,8 +261,6 @@ public class TFBS_SpaitialAnalysis {
 
 	/**
 	 * This method loads events/region for topic model analysis.<br>
-	 * it also loads annotation regions (for example, histone marks, genome segmentation states), 
-	 * which will not be use for region merging, but used to count overlaps of the merged region with the anno regions
 	 */
 	private void loadBindingEvents(){
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
@@ -332,19 +330,7 @@ public class TFBS_SpaitialAnalysis {
 			}
 		}
 		all_sites.addAll(all_indirect_sites);
-		
-		// load annotation regions
-		if (anno_region_file!=null){
-			ArrayList<String> lines = CommonUtils.readTextFile(anno_region_file);
-			for (String s:lines){
-				String f[]=s.split("\t");
-				annoLabels.add(f[0]);
-				if (f[1].equalsIgnoreCase("BED"))
-					annoRegions.addAll(CommonUtils.load_BED_regions(genome, f[2]).car());
-				if (f[1].equalsIgnoreCase("CGS"))
-					annoRegions.addAll(CommonUtils.loadRegionFile(f[2], genome));
-			}
-		}
+
 	}
 	
 	/**
@@ -449,7 +435,10 @@ public class TFBS_SpaitialAnalysis {
 		}
 		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+"_keys.txt", sb.toString());
 	}
-	
+	/**
+	 * Data structure for a binding site (with absolute genome coordinate and strand)
+	 *
+	 */
 	class Site implements Comparable<Site>{
 		int tf_id;
 		int event_id;		// original event id in the list of this TF binding data
@@ -529,11 +518,55 @@ public class TFBS_SpaitialAnalysis {
 		
 		return clusters;
 	}
+		
 	/** 
 	 * Output all the binding sites in the clusters, for topic modeling analysis or clustering analysis
 	 * @param clusters
 	 */
 	private void outputTFBSclusters(ArrayList<ArrayList<Site>> clusters){
+		
+		// load annotation regions (for example, histone marks, genome segmentation states), 
+		// which will not be use for region merging, but used to count overlaps of the merged region with the anno regions
+		if (anno_region_file!=null){
+			ArrayList<String> lines = CommonUtils.readTextFile(anno_region_file);
+			for (String s:lines){
+				String f[]=s.split("\t");
+				annoLabels.add(f[0]);
+				ArrayList<Region> rs = null;
+				if (f[1].equalsIgnoreCase("BED"))
+					rs = CommonUtils.load_BED_regions(genome, f[2]).car();					
+				if (f[1].equalsIgnoreCase("CGS"))
+					rs = CommonUtils.loadRegionFile(f[2], genome);
+				Collections.sort(rs);		// need to be sorted to use Region.computeOverlapLength();
+				annoRegions.add(rs);
+			}
+		}
+		// update clusters to include annotation info as a pseudo site
+		int tf_count = expts.size();
+		for (String s:annoLabels)
+			names.add(s);
+		
+		for (ArrayList<Site> c:clusters){
+			int numSite = c.size();
+			Point lastSiteCoord = c.get(numSite-1).bs;
+			Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+			for (int i=0;i<annoRegions.size();i++){
+				ArrayList<Region> rs = annoRegions.get(i);
+				int length = Region.computeOverlapLength(r, rs);
+				if (length>0){		// add a pseudo site
+					Site site = new Site();
+					site.tf_id = tf_count+i;
+					site.event_id = 0;
+					site.signal = 0;
+					site.motifStrand = '*';
+					site.bs = lastSiteCoord;
+					c.add(site);
+				}
+			}
+		}
+		
+		ArrayList<ArrayList<Integer>> stats = new ArrayList<ArrayList<Integer>>();
+		
 		if (print_full_format){
 			StringBuilder sb = new StringBuilder();
 			sb.append("#Region\tLength\t#Sites\tTFs\tTFIDs\tSignals\tPos\tMotifs\t#Motif\n");
@@ -610,7 +643,7 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (print_hdp_format){	// Blei HDP (lda-c) format, SITE count for each TF
 			StringBuilder sb = new StringBuilder();
-			int[] factorSiteCount = new int[expts.size()];
+			int[] factorSiteCount = new int[names.size()];
 
 			for (ArrayList<Site> c :clusters){
 				for (int s=0;s<c.size();s++){
@@ -1283,7 +1316,7 @@ public class TFBS_SpaitialAnalysis {
 	}
 	
 	/** 
-	 * RSite: relative site<br>
+	 * RSite: data structure of a binding/motif site relative to an anchor point<br>
 	 * The position of the site is relative to an anchor point (stranded)
 	 */
 	private class RSite implements Cloneable{

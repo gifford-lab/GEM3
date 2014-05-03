@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedList;
@@ -945,5 +946,47 @@ public class Region implements Comparable<Region>, Saveable {
 		mergedRegions.trimToSize();
 		return mergedRegions;
 	}//end of mergeRegions method
-
+	/**
+	 * Compute the size of the queried regions that overlap with the annotated regions<br>
+	 * 
+	 * The query regions are not necessarily sorted<br>
+	 * The annotated regions are assumed to be sorted, non-overlapping<br>
+	 * @return an ArrayList of lengths corresponding to the order of queryRegions
+	 */
+	public static  ArrayList<Integer> computeBatchOverlapLength(ArrayList<Region> queryRegions, ArrayList<Region> annotatedRegions){
+		ArrayList<Integer> lengths = new ArrayList<Integer>(queryRegions.size());
+		for (int i=0;i<queryRegions.size();i++){
+			lengths.add(computeOverlapLength(queryRegions.get(i), annotatedRegions));
+		}
+		return lengths;
+	}
+	
+	/**
+	 * Compute the total length of the the annotated regions that overlap with query region<br>
+	 * 
+	 * The query regions are not necessarily sorted<br>
+	 * The annotated regions are assumed to be sorted, non-overlapping<br>
+	 * @return length of total overlaps
+	 */
+	public static int computeOverlapLength(Region queryRegion, ArrayList<Region> annotatedRegions){
+		int idx = Collections.binarySearch(annotatedRegions, queryRegion, new Comparator<Region>() {
+            public int compare(Region o1, Region o2) {
+                return o1.compareToStrict(o2);
+            }
+        });
+		if (idx<0){	// not match
+			return 0;
+		}
+		else{
+			int overlapLength=0;
+			for (int j=idx;j<annotatedRegions.size();j++){
+				int overlap = queryRegion.getOverlapSize(annotatedRegions.get(j));
+				if (overlap!=0)
+					overlapLength+=overlap;
+				else
+					break;
+			}
+			return overlapLength;
+		}
+	}
 }

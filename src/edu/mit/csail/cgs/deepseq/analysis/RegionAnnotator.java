@@ -99,7 +99,7 @@ public class RegionAnnotator {
 					ArrayList<Region> annotatedRegions = CommonUtils.load_BED_regions(genome, name).car();
 					System.out.println(id);
 					ids.add(id);
-					ArrayList<Integer> stat = computeOverlapLength(queryRegions, annotatedRegions);
+					ArrayList<Integer> stat = Region.computeBatchOverlapLength(queryRegions, annotatedRegions);
 					stats.add(stat);
 				}
 				if (type.equalsIgnoreCase("MS")){	// multiple states, e.g. HMM segmentation
@@ -118,7 +118,7 @@ public class RegionAnnotator {
 								annotatedRegions.add(regions.get(i));
 						}
 						Collections.sort(annotatedRegions);
-						ArrayList<Integer> stat = computeOverlapLength(queryRegions, annotatedRegions);						
+						ArrayList<Integer> stat = Region.computeBatchOverlapLength(queryRegions, annotatedRegions);						
 						stats.add(stat);
 					}
 				}
@@ -142,72 +142,4 @@ public class RegionAnnotator {
 			CommonUtils.writeFile(outPrefix+"_anno_stats.txt", sb.toString());
 		}
 	}
-	
-	/**
-	 * Compute the fractions of the queried regions that overlap with the annotated regions<br>
-	 * 
-	 * The query regions are not necessarily sorted<br>
-	 * The annotated regions are assumed to be sorted, non-overlapping<br>
-	 * @return an ArrayList of fractions corresponding to the order of queryRegions
-	 */
-	private ArrayList<Double> computeOverlapFractions(ArrayList<Region> queryRegions, ArrayList<Region> annotatedRegions){
-		ArrayList<Double> fractions = new ArrayList<Double>(queryRegions.size());
-		for (int i=0;i<queryRegions.size();i++){
-			Region r = queryRegions.get(i);
-			int idx = Collections.binarySearch(annotatedRegions, r, new Comparator<Region>() {
-	            public int compare(Region o1, Region o2) {
-	                return o1.compareToStrict(o2);
-	            }
-	        });
-			if (idx<0){	// not match
-				fractions.add(0.0);
-			}
-			else{
-				int overlapLength=0;
-				for (int j=idx;j<annotatedRegions.size();j++){
-					int overlap = r.getOverlapSize(annotatedRegions.get(j));
-					if (overlap!=0)
-						overlapLength+=overlap;
-					else
-						break;
-				}
-				fractions.add(((double)overlapLength)/r.getWidth());
-			}
-		}
-		return fractions;
-	}	
-	
-	/**
-	 * Compute the size of the queried regions that overlap with the annotated regions<br>
-	 * 
-	 * The query regions are not necessarily sorted<br>
-	 * The annotated regions are assumed to be sorted, non-overlapping<br>
-	 * @return an ArrayList of lengths corresponding to the order of queryRegions
-	 */
-	private ArrayList<Integer> computeOverlapLength(ArrayList<Region> queryRegions, ArrayList<Region> annotatedRegions){
-		ArrayList<Integer> lengths = new ArrayList<Integer>(queryRegions.size());
-		for (int i=0;i<queryRegions.size();i++){
-			Region r = queryRegions.get(i);
-			int idx = Collections.binarySearch(annotatedRegions, r, new Comparator<Region>() {
-	            public int compare(Region o1, Region o2) {
-	                return o1.compareToStrict(o2);
-	            }
-	        });
-			if (idx<0){	// not match
-				lengths.add(0);
-			}
-			else{
-				int overlapLength=0;
-				for (int j=idx;j<annotatedRegions.size();j++){
-					int overlap = r.getOverlapSize(annotatedRegions.get(j));
-					if (overlap!=0)
-						overlapLength+=overlap;
-					else
-						break;
-				}
-				lengths.add(overlapLength);
-			}
-		}
-		return lengths;
-	}	
 }
