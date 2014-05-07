@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Vector;
 
@@ -101,6 +102,7 @@ public class BEDFileWriter{
 				chroms.add(chr);
 			else
 				chroms =gen.getChromList();
+			Collections.sort(chroms);
 			for (String chrom: chroms){
 				System.out.println("Writing Chomosome "+chrom+" ...");
 				// load  data for this chromosome.
