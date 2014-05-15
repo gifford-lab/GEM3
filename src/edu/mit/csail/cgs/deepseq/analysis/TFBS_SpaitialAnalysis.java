@@ -99,6 +99,7 @@ public class TFBS_SpaitialAnalysis {
 	String outPrefix = "out";
 	String tfss_file;				// Sequence-specific TFs
 	String tss_file;
+	String peak_file;				// for peak files other than GEM calls (in PIQ format)
 	String pwm_file;
 	String kmer_file;
 	String anno_region_file;
@@ -239,6 +240,7 @@ public class TFBS_SpaitialAnalysis {
 		tss_signal_file = Args.parseString(args, "tss_signal", null);
 		cluster_file = Args.parseString(args, "cluster", null);
 		cluster_key_file = Args.parseString(args, "key", null);
+		peak_file = Args.parseString(args, "peaks", null);				// additional peaks, e.g. PIQ calls
 		pwm_file = Args.parseString(args, "pwms", null);				// additional pwms
 		kmer_file = Args.parseString(args, "kmers", null);
 		anno_region_file = Args.parseString(args, "anno_regions", null);
@@ -335,7 +337,7 @@ public class TFBS_SpaitialAnalysis {
 	
 	/**
 	 * This method loads events/motifs for spacing analysis.<br>
-	 * it loads the event positions, also loads GEM motifs by option, but
+	 * it loads the event positions, also loads GEM motifs by option, 
 	 * it also loads additional motifs specified by --pwms, or --kmers
 	 * @param round GEM output round (1 for GPS, 2 for GEM)
 	 */
@@ -404,6 +406,60 @@ public class TFBS_SpaitialAnalysis {
 			}
 		} // for each expt
 		
+		// load PIQ calls
+		if (peak_file!=null){
+			ArrayList<String> lines = CommonUtils.readTextFile(peak_file); 
+			int newTFID = expts.size();
+			for (int l=0;l<lines.size();l++){
+				String[] f = lines.get(l).split("\t");
+				expts.add(f[0]);
+				names.add(f[1]);
+				motif_names.add(f[2]);
+
+				System.err.print(String.format("Peak#%d: loading %s", l, f[0]));
+				ArrayList<Site> sites = new ArrayList<Site>();
+				ArrayList<String> piqs = CommonUtils.readTextFile(f[3]);
+				eachpiq:	for (int i=0;i<piqs.size();i++){
+					String line = piqs.get(i);
+					if (!line.contains("score")){
+						String[] q = line.split(",");
+						Site site = new Site();
+						site.tf_id = newTFID+l;
+						site.event_id = i;
+						site.signal = Double.parseDouble(q[5]);
+						site.motifStrand = '+';
+						site.bs = new Point(genome, q[1].replaceAll("\"", "").replaceAll("chr", ""), Integer.parseInt(q[2]));					
+						for (Region r: ex_regions){
+							if (r.contains(site.bs))
+								continue eachpiq;
+						}
+						sites.add(site);					
+					}
+				}		
+				piqs = CommonUtils.readTextFile(f[4]);			// load PIQ calls on minus strand (RC.call)
+				eachpiq2:	for (int i=0;i<piqs.size();i++){
+					String line = piqs.get(i);
+					if (!line.contains("score")){
+						String[] q = line.split(",");
+						Site site = new Site();
+						site.tf_id = newTFID+l;
+						site.event_id = -i;
+						site.signal = Double.parseDouble(q[5]);
+						site.motifStrand = '-';
+						site.bs = new Point(genome, q[1].replaceAll("\"", "").replaceAll("chr", ""), Integer.parseInt(q[2]));					
+						for (Region r: ex_regions){
+							if (r.contains(site.bs))
+								continue eachpiq2;
+						}
+						sites.add(site);					
+					}
+				}	// for
+				System.err.println(", n="+sites.size());
+				Collections.sort(sites);
+				all_sites.add(sites);	
+			}
+		}		
+		
 		// load additional pwms
 		if (pwm_file!=null){
 			pwms.addAll( CommonUtils.loadPWMs_PFM_file(pwm_file, gc) );
@@ -414,7 +470,7 @@ public class TFBS_SpaitialAnalysis {
 			kmers.addAll( CommonUtils.readTextFile(kmer_file));
 		}
 		
-		System.out.println(String.format("In total, loaded %d GEM files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
+		System.out.println(String.format("In total, loaded %d GEM/other peak files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
 		
 		StringBuilder sb = new StringBuilder();
 		int digits = (int) Math.ceil(Math.log10(expts.size()));
@@ -520,7 +576,8 @@ public class TFBS_SpaitialAnalysis {
 	}
 		
 	/** 
-	 * Output all the binding sites in the clusters, for topic modeling analysis or clustering analysis
+	 * Output all the binding sites in the clusters, for topic modeling analysis or clustering analysis<br>
+	 * This method also include pseudo sites from overlapping annotation regions (such as histone mark broad peaks, TSSs, DHS, etc.)
 	 * @param clusters
 	 */
 	private void outputTFBSclusters(ArrayList<ArrayList<Site>> clusters){
@@ -532,12 +589,13 @@ public class TFBS_SpaitialAnalysis {
 			for (String s:lines){
 				String f[]=s.split("\t");
 				annoLabels.add(f[0]);
-				System.out.println("Loading "+f[0]+" data ...");
+				System.out.print("Loading "+f[0]+" data ...");
 				ArrayList<Region> rs = null;
 				if (f[1].equalsIgnoreCase("BED"))
 					rs = CommonUtils.load_BED_regions(genome, f[2]).car();					
 				if (f[1].equalsIgnoreCase("CGS"))
 					rs = CommonUtils.loadRegionFile(f[2], genome);
+				System.out.println("    "+rs.size()+" regions have been loaded.");
 				Collections.sort(rs);		// need to be sorted to use Region.computeOverlapLength();
 				annoRegions.add(rs);
 			}
@@ -765,6 +823,8 @@ public class TFBS_SpaitialAnalysis {
 			wmLens.add(wm.length());
 			wmThresholds.add(wm.getMaxScore()*wm_factor);
 		}
+		boolean hasMotif = !(pwms.isEmpty() && kmers.isEmpty());
+
 		int digits_binding = (int) Math.ceil(Math.log10(expts.size()));
 		int digits_pwm = (int) Math.ceil(Math.log10(pwms.size()));
 		int digits_kmer = (int) Math.ceil(Math.log10(kmers.size()));
@@ -794,25 +854,28 @@ public class TFBS_SpaitialAnalysis {
 			// PWM motif matches
 			ArrayList<Integer> pwmMatchIds = new ArrayList<Integer>();
 			ArrayList<Integer> pwmMatchPos = new ArrayList<Integer>();
-			// scan motif matches in the cluster region sequence
-			String seq = seqgen.execute(region).toUpperCase();	
-			for (int i=0;i<pwms.size();i++){
-				ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i));
-				for (int p:matchPos){
-					pwmMatchIds.add(i);
-					pwmMatchPos.add(p);
-				}
-			}
-			
-			// K-mer matches
 			ArrayList<Integer> kmerMatchIds = new ArrayList<Integer>();
 			ArrayList<Integer> kmerMatchPos = new ArrayList<Integer>();
-			for (int i=0;i<kmers.size();i++){
-				String kmer = kmers.get(i);
-				ArrayList<Integer> matchPos = CommonUtils.getAllKmerHit(seq, kmer);
-				for (int p:matchPos){
-					kmerMatchIds.add(i);
-					kmerMatchPos.add(p);
+			String seq="";
+			if (hasMotif){
+				// scan motif matches in the cluster region sequence
+				seq = seqgen.execute(region).toUpperCase();	
+				for (int i=0;i<pwms.size();i++){
+					ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i));
+					for (int p:matchPos){
+						pwmMatchIds.add(i);
+						pwmMatchPos.add(p);
+					}
+				}
+				
+				// K-mer matches
+				for (int i=0;i<kmers.size();i++){
+					String kmer = kmers.get(i);
+					ArrayList<Integer> matchPos = CommonUtils.getAllKmerHit(seq, kmer);
+					for (int p:matchPos){
+						kmerMatchIds.add(i);
+						kmerMatchPos.add(p);
+					}
 				}
 			}
 			sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t", region.toString(), r.toString(),
