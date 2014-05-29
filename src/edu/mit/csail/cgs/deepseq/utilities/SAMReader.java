@@ -55,6 +55,7 @@ public class SAMReader extends AlignmentFileReader{
 		totalWeight=0;
 		
 		SAMFileReader reader = new SAMFileReader(inFile);
+		reader.setValidationStringency(ValidationStringency.LENIENT);
 		CloseableIterator<SAMRecord> iter = reader.iterator();
 		Collection<SAMRecord> byRead = new ArrayList<SAMRecord>();
 		String lastread = null;
