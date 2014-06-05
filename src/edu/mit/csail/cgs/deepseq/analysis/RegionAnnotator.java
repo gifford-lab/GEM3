@@ -53,11 +53,13 @@ public class RegionAnnotator {
 	// --species "Homo sapiens;hg19"  --region_file region_test.txt --anno_file anno_encode_regions.txt --out k562_hdp
 	public static void main(String[] args) {
 		RegionAnnotator mtb = new RegionAnnotator(args);
-		int round = Args.parseInteger(args, "r", 2);
 		int type = Args.parseInteger(args, "type", 0);
 		switch(type){
 		case 0:  	// print out the overlap percentage of each query region for specified annotated regions
 			mtb.regionAnnotationOverlaps();
+			break;
+		case 1:		// print out the sorted and aligned anchor coordinates for making line plots
+			mtb.sortMetaPlotAnchors();
 			break;
 		}
 		
@@ -141,5 +143,35 @@ public class RegionAnnotator {
 			}
 			CommonUtils.writeFile(outPrefix+"_anno_stats.txt", sb.toString());
 		}
+	}
+	
+	// sort the regions based on the specified data signal
+	private void sortMetaPlotAnchors(){
+		ArrayList<Region> queryRegions = CommonUtils.loadRegionFile(Args.parseString(args, "region_file", region_file), genome);
+		// parameter for building empirical distribution
+		int window = Args.parseInteger(args, "win", -1);
+		
+		DeepSeqExpt chipSeqExpt = null;
+		String chipSeqFile = Args.parseString(args, "expt", null);
+		if (chipSeqFile!=null){
+			String fileFormat = Args.parseString(args, "f", "BED");  
+			List<File> expts = new ArrayList<File>();
+			expts.add(new File(chipSeqFile));
+			chipSeqExpt = new DeepSeqExpt(genome, expts, false, fileFormat, -1);
+		}
+		else{
+			List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdb");
+			chipSeqExpt = new DeepSeqExpt(genome, rdbexpts, "readdb", -1);
+		}
+		int[] signals = new int[queryRegions.size()];
+		for (int i=0;i<queryRegions.size();i++){
+			signals[i] = chipSeqExpt.countHits(queryRegions.get(i).getMidpoint().expand(window/2));
+		}
+		int[] sortedIdx = StatUtil.findSort(signals);
+		StringBuilder sb = new StringBuilder();
+		for (int i=queryRegions.size()-1;i>=0;i--){
+			sb.append(queryRegions.get(sortedIdx[i]).getMidpoint().toString()).append("\n");
+		}
+		CommonUtils.writeFile(outPrefix+".coords.txt", sb.toString());
 	}
 }

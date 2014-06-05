@@ -79,7 +79,7 @@ public class DeepSeqExpt {
 		gen = g;
 		rLen = readLen;
 		useNonUniqueReads=useNonUnique;
-		loader = new FileReadLoader(gen, files, format,maxMismatches,useNonUniqueReads, idStart, rLen);
+		loader = new FileReadLoader(gen, files, format,maxMismatches,useNonUniqueReads, rLen, idStart);
 		if(gen==null)
 			gen = loader.getGenome();
 		rLen = loader.getReadLen();

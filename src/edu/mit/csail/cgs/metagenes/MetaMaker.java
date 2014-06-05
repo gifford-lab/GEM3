@@ -47,8 +47,10 @@ public class MetaMaker {
 			boolean drawColorBar = !Args.parseFlags(args).contains("nocolorbar");
 			String profilerType = Args.parseString(args, "profiler", "simplechipseq");	
 			List<String> expts = (List<String>) Args.parseStrings(args,"expt");
+			List<String> files = (List<String>) Args.parseStrings(args,"file");
 			List<String> backs = (List<String>) Args.parseStrings(args,"back");
 			List<String> peakFiles = (List<String>)Args.parseStrings(args, "peaks");
+			String format = Args.parseString(args, "format", "SAM");
 			String outName = Args.parseString(args, "out", "meta");
 			if(Args.parseFlags(args).contains("batch")){batchRun=true;}
 			if(Args.parseFlags(args).contains("cluster")){cluster=true;}
@@ -71,7 +73,7 @@ public class MetaMaker {
 			if (newCol.equals("pink"))
 				c=Color.pink;
 			
-			if(gen==null || expts.size()==0){printError();}
+			if(gen==null || (expts.size()==0 && files.size()==0)){printError();}
 	
 			BinningParameters params = new BinningParameters(winLen, bins);
 			System.out.println("Binding Parameters:\tWindow size: "+params.getWindowSize()+"\tBins: "+params.getNumBins());
@@ -85,6 +87,12 @@ public class MetaMaker {
 				for(ChipSeqLocator loc : exptlocs){
 					System.out.println(loc.getExptName()+"\t"+loc.getReplicateString()+"\t"+loc.getAlignName());
 					exptexps.add(new ChipSeqExpander(loc));
+				}
+				if (!files.isEmpty()){
+					List<File> fs = new ArrayList<File>();
+					for (String s: files)
+						fs.add(new File(s));
+					exptexps.add(new ChipSeqExpander(pair.cdr(), fs, format));
 				}
 				System.out.println("Loading data...");
 				if(profilerType.equals("fiveprime"))

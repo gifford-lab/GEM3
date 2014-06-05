@@ -7,6 +7,8 @@ import java.io.*;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.deepseq.ReadHit;
+import edu.mit.csail.cgs.deepseq.utilities.FileReadLoader;
 import edu.mit.csail.cgs.ewok.verbs.Expander;
 import edu.mit.csail.cgs.utils.Closeable;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -14,6 +16,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable {
 
     private ChipSeqLoader loader;
+    private FileReadLoader file_loader;
     private Genome lastGenome;
     private LinkedList<ChipSeqAlignment> alignments;
     private ChipSeqLocator locator;
@@ -26,6 +29,12 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
         locator = loc;
         alignments = null;
         lastGenome = null;
+    }
+    public ChipSeqExpander(Genome g, List<File> files, String format) throws SQLException, IOException {
+        lastGenome = g;
+        file_loader = new FileReadLoader(lastGenome, files, format, 5, false, -1, 1);
+        closeLoader = true;
+        alignments = null;
     }
     public ChipSeqExpander(ChipSeqLocator loc, boolean ChIA) throws SQLException, IOException {
         loader = new ChiaPetLoader();
@@ -59,9 +68,19 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
 
     public Iterator<ChipSeqHit> execute(Region a) {
         try {
-            getAligns(a.getGenome());
-            Collection<ChipSeqHit> hits = loader.loadByRegion(alignments, a);
-            return hits.iterator();
+        	Collection<ChipSeqHit> hits = new LinkedList<ChipSeqHit>();
+        	if (loader!=null){
+	            getAligns(a.getGenome());
+	            hits = loader.loadByRegion(alignments, a);
+        	}
+        	if (file_loader!=null){
+        		List<ReadHit> fileHits = file_loader.loadHits(a); 
+        		// convert to ChipSeqHit
+        		for (ReadHit h: fileHits){
+        			hits.add( new ChipSeqHit(lastGenome, h.getChrom(), h.getStart(), h.getEnd(), h.getStrand(), null, 1) );
+        		}
+        	}
+	        return hits.iterator();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -97,7 +116,10 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
 
     public void close() {
         if (closeLoader) {
-            loader.close();
+        	if (loader!=null)
+        		loader.close();
+        	if (file_loader!=null)
+        		file_loader.cleanup();
         }
         loader = null;
         if (alignments != null) {

@@ -56,7 +56,8 @@ public class ChipSeqHit extends StrandedRegion {
   public int hashCode() { 
     int code = 17;
     code += super.hashCode(); code *= 37;
-    code += align.hashCode(); code *= 37;
+    if (align!=null)
+    	code += align.hashCode(); code *= 37;
     return code; 
   }
 
