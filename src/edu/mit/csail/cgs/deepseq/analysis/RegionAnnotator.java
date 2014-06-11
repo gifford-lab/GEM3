@@ -176,9 +176,9 @@ public class RegionAnnotator {
 		}
 		int[] sortedIdx = StatUtil.findSort(signals);
 		StringBuilder sb = new StringBuilder();
-		for (int i=queryRegions.size()-1;i>=0;i--){
-			sb.append(queryRegions.get(sortedIdx[i]).getMidpoint().toString()).append("\n");
+		for (int i=queryRegions.size()-1;i>=0;i--){			// descending order
+			sb.append(queryRegions.get(sortedIdx[i]).getMidpoint().toString()).append("\t").append(queryRegions.get(sortedIdx[i]).toString()).append("\n");
 		}
-		CommonUtils.writeFile(outPrefix+".coords.txt", sb.toString());
+		CommonUtils.writeFile(outPrefix+".coords_regions.txt", sb.toString());
 	}
 }
