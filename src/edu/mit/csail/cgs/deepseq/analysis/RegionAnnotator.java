@@ -147,8 +147,15 @@ public class RegionAnnotator {
 	
 	// sort the regions based on the specified data signal
 	private void sortMetaPlotAnchors(){
-		ArrayList<Region> queryRegions = CommonUtils.loadRegionFile(Args.parseString(args, "region_file", region_file), genome);
-		// parameter for building empirical distribution
+		String regionFileFormat = Args.parseString(args, "rf", "CGS");  
+		ArrayList<Region> queryRegions = null;
+		if (regionFileFormat.equalsIgnoreCase("BED")){
+			Pair<ArrayList<Region>, ArrayList<String>> pair = CommonUtils.load_BED_regions(genome, Args.parseString(args, "region_file", region_file));
+			queryRegions=pair.car();
+		}
+		else
+			queryRegions=CommonUtils.loadRegionFile(Args.parseString(args, "region_file", region_file), genome);
+
 		int window = Args.parseInteger(args, "win", -1);
 		
 		DeepSeqExpt chipSeqExpt = null;
