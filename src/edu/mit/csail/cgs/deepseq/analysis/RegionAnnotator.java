@@ -146,6 +146,8 @@ public class RegionAnnotator {
 	}
 	
 	// sort the regions based on the specified data signal
+	// optionally, use GEM file of a TF to anchor the regions. If a region does not contained TF binding site, 
+	// either skip that region, or just keep the same region middle point
 	private void sortMetaPlotAnchors(){
 		String regionFileFormat = Args.parseString(args, "rf", "CGS");  
 		ArrayList<Region> queryRegions = null;
@@ -155,6 +157,51 @@ public class RegionAnnotator {
 		}
 		else
 			queryRegions=CommonUtils.loadRegionFile(Args.parseString(args, "region_file", region_file), genome);
+
+		String anchor_GEM_file = Args.parseString(args, "anchor_GEM_file", null); // TF GEM file to anchor the region
+		if (anchor_GEM_file !=null){
+			List<GPSPeak> gpsPeaks = null;
+			ArrayList<Point> sites = new ArrayList<Point>();
+			try{
+				gpsPeaks = GPSParser.parseGPSOutput(anchor_GEM_file, genome);
+			}
+			catch (IOException e){
+				System.out.println(anchor_GEM_file+" is not a valid GPS/GEM event file.");
+				System.exit(1);
+			}
+			Collections.sort(gpsPeaks);
+			for (GPSPeak p: gpsPeaks){
+				sites.add((Point)p);
+			}
+			Set<String> flags = Args.parseFlags(args);
+			boolean discardRegion = flags.contains("discardRegion");
+			ArrayList<Region> toRemove = new ArrayList<Region>();
+			for (int i=0;i<queryRegions.size();i++){
+				Region r = queryRegions.get(i);
+				ArrayList<Integer> ids = CommonUtils.getPointsWithinWindow(sites,r);
+				if (ids.isEmpty()){
+					if(discardRegion){
+						toRemove.add(r);
+						continue;
+					}
+				}
+				else{
+					int selected_id = ids.get(0);
+					if (ids.size()>1){
+						double[] signals = new double[ids.size()];
+						for (int j=0;j<ids.size();j++){
+							int id =ids.get(j);
+							signals[j]=gpsPeaks.get(id).getStrength();
+						}
+						Pair<Double, TreeSet<Integer>> max = StatUtil.findMax(signals);
+						selected_id = ids.get(max.cdr().first());		// if tie, just use first site
+					}
+					queryRegions.set(i, gpsPeaks.get(selected_id).expand(r.getWidth()/2));  // set the midPoint to the TF location
+				}
+				
+			}
+			queryRegions.removeAll(toRemove);
+		}
 
 		int window = Args.parseInteger(args, "win", -1);
 		
@@ -177,7 +224,9 @@ public class RegionAnnotator {
 		int[] sortedIdx = StatUtil.findSort(signals);
 		StringBuilder sb = new StringBuilder();
 		for (int i=queryRegions.size()-1;i>=0;i--){			// descending order
-			sb.append(queryRegions.get(sortedIdx[i]).getMidpoint().toString()).append("\t").append(queryRegions.get(sortedIdx[i]).toString()).append("\n");
+			Region r = queryRegions.get(sortedIdx[i]);
+			sb.append(r.getMidpoint().toString()).append("\t")
+			.append(r.toString()).append("\t").append(r.getWidth()).append("\n");
 		}
 		CommonUtils.writeFile(outPrefix+".coords_regions.txt", sb.toString());
 	}

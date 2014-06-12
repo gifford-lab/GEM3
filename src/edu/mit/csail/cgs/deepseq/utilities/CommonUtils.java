@@ -862,13 +862,46 @@ public class CommonUtils {
 		}
 		return results;
 	}
+	
+	/**
+	 * Get a list of points that are within the region<br>
+	 * Assuming the point list is sorted
+	 * @param sites	a list of sorted points
+	 * @param anchor the anchor point
+	 * @param win the window size
+	 * @return a list of index of the points in the region
+	 */
+	static public ArrayList<Integer> getPointsWithinWindow(ArrayList<Point> sites, Region r){
+		ArrayList<Integer> results = new ArrayList<Integer>();
+		Point start = r.startPoint();
+		Point end = r.endPoint();
+		int startIndex = -1;
+		int endIndex = -1;
+		int i = Collections.binarySearch(sites, start);
+		if (i<0)
+			startIndex=-i-1;		// -index-1, the insertion point
+		else
+			startIndex = i;
+		i = Collections.binarySearch(sites, end);
+		if (i<0)
+			endIndex=-i-2;			// -index-1-1, the point before the insertion point
+		else
+			endIndex = i;
+		if (startIndex<=endIndex){
+			for (int j=startIndex;j<=endIndex;j++){
+				results.add(j);
+			}
+		}
+		return results;
+	}
+	
 	/**
 	 * Get a list of regions that are within the window of the anchor region<br>
 	 * Assuming the regions list is sorted
 	 * @param regions	a list of sorted regions
 	 * @param anchor the anchor region
 	 * @param win the window size
-	 * @return
+	 * @return regions that are within the window of the anchor region
 	 */
 	static public ArrayList<Region> getRegionsOverlapsWindow(ArrayList<Region> regions, Region anchor, int win){
 		ArrayList<Point> starts = new ArrayList<Point> ();
