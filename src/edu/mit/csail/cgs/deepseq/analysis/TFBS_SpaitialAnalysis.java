@@ -614,7 +614,10 @@ public class TFBS_SpaitialAnalysis {
 			for (int i=0;i<annoRegions.size();i++){
 				ArrayList<Region> rs = annoRegions.get(i);
 				int length = Region.computeOverlapLength(r, rs);
-				if (length>0){		// add a pseudo site
+				// If not TSS2kb, overlap with the expanded distance
+				// If TSS2kb,  overlap WITHOUT the expanded distance
+				if ((length>0 && !annoLabels.get(i).equalsIgnoreCase("tss2kb")) || length>anno_expand_distance){		
+					// add a pseudo site
 					Site site = new Site();
 					site.tf_id = tf_count+i;
 					site.event_id = 0;
