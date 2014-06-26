@@ -105,7 +105,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
             return;
         }
         if (chromseq.length()<region.getGenome().getChromLength(chr))
-        	System.err.println("Warning: the sequence length of chromosome "+chr+" is shorter than the length in the genome info file.");
+        	System.err.println("Warning: the sequence length of chromosome "+chr+" is shorter than the expected length. You may want to add the --g option with the genome info file.");
         
         synchronized(cache) {
             if (!cache.containsKey(chromid)) {

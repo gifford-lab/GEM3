@@ -71,6 +71,7 @@ public class TFBS_SpaitialAnalysis {
 	double gc = 0.42;//mouse		gc=0.41 for human
 	int profile_range = 100;		// the range (-x, +x) around 0 spacing position, the cluster distance parameter must be >= this range to have correct result
 	int distance = 50;		// distance between TFBS within a cluster
+	int anno_expand_distance = 500;		// the distance to expand a peak cluster when overlapping with annotations
 	int range = 1000;		// the range around anchor site to search for targets
 	int cluster_motif_padding = 100;  // the padding distance added to the cluster range for motif searching
 	int exclude_range = 500;		// the range around anchor site to exclude same site
@@ -246,6 +247,7 @@ public class TFBS_SpaitialAnalysis {
 		anno_region_file = Args.parseString(args, "anno_regions", null);
 		exclude_sites_file = Args.parseString(args, "ex", null);
 		distance = Args.parseInteger(args, "distance", distance);
+		anno_expand_distance = Args.parseInteger(args, "anno_expand_distance", anno_expand_distance);
 		range = Args.parseInteger(args, "range", range);
 		cluster_motif_padding = Args.parseInteger(args, "cluster_motif_padding", cluster_motif_padding);
 		exclude_range = Args.parseInteger(args, "exclude", exclude_range);
@@ -608,7 +610,7 @@ public class TFBS_SpaitialAnalysis {
 		for (ArrayList<Site> c:clusters){
 			int numSite = c.size();
 			Point lastSiteCoord = c.get(numSite-1).bs;
-			Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+			Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 			for (int i=0;i<annoRegions.size();i++){
 				ArrayList<Region> rs = annoRegions.get(i);
 				int length = Region.computeOverlapLength(r, rs);
