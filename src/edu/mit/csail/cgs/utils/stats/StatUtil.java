@@ -1210,6 +1210,10 @@ public class StatUtil {
 	/**
 	 * Returns the hypergeometric cumulative probability
 	 * High precision implementation with BigDecimal, but very slow	
+	 * @param x # observed successes in the sample
+	 * @param N population size
+	 * @param s # of successes in population (e.g., size of positive set in the population)
+	 * @param n sample size
 	 */
 	public static double log10_hyperGeometricCDF_cache(int x, int N, int s, int n) {
 		BigDecimal v = BigDecimal.ZERO;
@@ -1225,7 +1229,12 @@ public class StatUtil {
 	
 	/** Returns the hypergeometric cumulative probability
 	 *  Pretty high precision implementation of log10_hyperGeometricCDF, much faster than BigDecimal version 
-	 *  Summing the PDF on log10 space, avoid losing precision */
+	 *  Summing the PDF on log10 space, avoid losing precision 
+	 * @param x # observed successes in the sample
+	 * @param N population size
+	 * @param s # of successes in population (e.g., size of positive set in the population)
+	 * @param n sample size
+	 **/
 	public static double log10_hyperGeometricCDF_cache_appr(int x, int N, int s, int n) {
 		double Lx = log10_hyperGeometricPDF_cache(x,N,s,n);
 		double sum = 1;
@@ -1270,7 +1279,12 @@ public class StatUtil {
 		double result = Math.exp(kx + mknx - mn);
 		return result;
 	}
-	
+	/**Use BigDecimal to compute hyperGeometric, high precision, but very slow, use for verification
+	 * @param x # observed successes in the sample
+	 * @param N population size
+	 * @param s # of successes in population (e.g., size of positive set in the population)
+	 * @param n sample size
+	 */
 	public static BigDecimal hyperGeometricPDF_cache_BIG (int x, int N, int s, int n) {
 		if (x+N-s-n<0)
 			return BigDecimal.ZERO;
@@ -1678,10 +1692,10 @@ public class StatUtil {
 	 public static void main(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));
-		 Poisson poisson = new Poisson(0, new DRand());
-		 poisson.setMean(2.7);System.out.println(1-poisson.cdf(56));
+//		 Poisson poisson = new Poisson(0, new DRand());
+//		 poisson.setMean(2.7);System.out.println(1-poisson.cdf(56));
 //		 System.out.println(poisson.pdf(1));
-//		System.out.println(hyperGeometricCDF_cache(2,1000,900,2));
+		System.out.println(log10_hyperGeometricCDF_cache_appr(4,10000,5000,4+1));
 //		System.out.println(hyperGeometricCDF_cache(2405,41690+40506,41690,2405+2));
 //		System.out.println(hyperGeometricCDF(3298,41690+40506,41690,3298+2));
 //		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));

@@ -159,8 +159,8 @@ public class GEM {
         
         mixture.execute();
         if (!not_update_model){
-	        boolean noChange = Args.parseFlags(args).contains("constant_model_range");
-	        if (!noChange){
+	        boolean constant_model_range = Args.parseFlags(args).contains("constant_model_range");
+	        if (!constant_model_range){
 	            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
 	            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), filePrefix+"_"+(round+1));
 	        }

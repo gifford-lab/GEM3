@@ -196,12 +196,11 @@ public class CommonUtils {
 	 * @return
 	 */
 	static public Pair<ArrayList<Region>, ArrayList<String>> load_BED_regions(Genome genome, String filename) {
-		CommonUtils util = new CommonUtils();
 		ArrayList<Region> regions = new ArrayList<Region>();
 		ArrayList<String> annos = new ArrayList<String>();
 		ArrayList<String> txt = readTextFile(filename);
 		for (String s:txt){
-			if (s.startsWith("#"))
+			if (s.startsWith("#")||!s.startsWith("chr"))
 				continue;
 			String[] f = s.split("\t");
 			Region r = new Region(genome, f[0].replace("chr", "").replace("Chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]));
@@ -795,7 +794,12 @@ public class CommonUtils {
             ex.printStackTrace();
         }
 	}
-	
+	/**
+	 * Count mismatches in two same-length strings
+	 * @param ref
+	 * @param seq
+	 * @return
+	 */
 	public static int mismatch(String ref, String seq){
 	  if (ref.length()!=seq.length())
 		  return -1;
@@ -805,6 +809,113 @@ public class CommonUtils {
 			  mismatch ++;
 	  }
 	  return mismatch;
+	}
+	/**
+	 * Compute distance between two arbitrary-length strings, limit by a cutoff<br>
+	 * The purpose of the cutoff is to skip unnecessary computation.
+	 * @param cutoff the maximum distance to stop calculation must be smaller to cutoff
+	 * @return
+	 */
+	public static int strMinDistanceWithCutoff(String s1, String s2, int cutoff){
+	  // switch such that s1 is not longer than s2
+	  if (s1.length()>s2.length()){
+		  String tmp = s2;
+		  s2 = s1;
+		  s1 = tmp;
+	  }
+	  int s1Len = s1.length();
+	  int s2Len = s2.length();
+	  int id1=0,id2=0, totalMM = s1Len;
+	  int minDistance = s2Len;
+	  // shift s1
+	  for (int shift1=0;shift1<cutoff;shift1++){
+		  int mismatch = 0;
+		  for (int i=0;i<s1Len;i++){
+			id1 = i+shift1;
+			id2 = i;
+			if (id1<s1Len){ // s1 has not reached the end
+				if (s1.charAt(id1)!=s2.charAt(id2))
+					mismatch ++;
+				totalMM = mismatch+shift1;
+			}
+			else{	// s1 reached the end
+				totalMM = mismatch+shift1+s2Len-1-id2;
+			}
+			if (totalMM>=cutoff)
+				break;
+		  }
+		  if (id1==s1Len-1 && id2<s2Len-1) // if s1 reached the end, but not s2
+			  totalMM = mismatch+shift1+s2Len-1-id2;
+		  if (minDistance>totalMM)
+			  minDistance = totalMM;
+	  }
+	  for (int shift2=1;shift2<cutoff+(s2Len-s1Len);shift2++){
+		  int mismatch = 0;
+		  for (int i=0;i<s1Len;i++){
+			id1 = i;
+			id2 = i+shift2;
+			if (id2<s2Len){ // s2 has not reached the end
+				if (s1.charAt(id1)!=s2.charAt(id2))
+					mismatch ++;
+				totalMM = mismatch+shift2;
+			}
+			else{	// s2 reached the end
+				totalMM = mismatch+shift2+s1Len-1-i;
+			}
+			if (totalMM>=cutoff)
+				break;
+		  }
+		  if (id1==s1Len-1 && id2<s2Len-1) // if s1 reached the end, but not s2
+			  totalMM = mismatch+shift2+s2Len-1-id2;
+		  if (minDistance>totalMM)
+			  minDistance = totalMM;
+	  }
+	  // s1 reverse compliment, all else are the same as above
+	  s1 = SequenceUtils.reverseComplement(s1);
+	  // shift s1
+	  for (int shift1=0;shift1<cutoff;shift1++){
+		  int mismatch = 0;
+		  for (int i=0;i<s1Len;i++){
+			id1 = i+shift1;
+			id2 = i;
+			if (id1<s1Len){ // s1 has not reached the end
+				if (s1.charAt(id1)!=s2.charAt(id2))
+					mismatch ++;
+				totalMM = mismatch+shift1;
+			}
+			else{	// s1 reached the end
+				totalMM = mismatch+shift1+s2Len-1-id2;
+			}
+			if (totalMM>=cutoff)
+				break;
+		  }
+		  if (id1==s1Len-1 && id2<s2Len-1) // if s1 reached the end, but not s2
+			  totalMM = mismatch+shift1+s2Len-1-id2;
+		  if (minDistance>totalMM)
+			  minDistance = totalMM;
+	  }
+	  for (int shift2=1;shift2<cutoff+(s2Len-s1Len);shift2++){
+		  int mismatch = 0;
+		  for (int i=0;i<s1Len;i++){
+			id1 = i;
+			id2 = i+shift2;
+			if (id2<s2Len){ // s2 has not reached the end
+				if (s1.charAt(id1)!=s2.charAt(id2))
+					mismatch ++;
+				totalMM = mismatch+shift2;
+			}
+			else{	// s2 reached the end
+				totalMM = mismatch+shift2+s1Len-1-i;
+			}
+			if (totalMM>=cutoff)
+				break;
+		  }
+		  if (id1==s1Len-1 && id2<s2Len-1) // if s1 reached the end, but not s2
+			  totalMM = mismatch+shift2+s2Len-1-id2;
+		  if (minDistance>totalMM)
+			  minDistance = totalMM;
+	  }
+	  return minDistance;
 	}
 	public static void copyFile(String srFile, String dtFile){
 		try{
@@ -1089,7 +1200,7 @@ public class CommonUtils {
     }
     
  // testing getAllPWMHit()
-    public static void main(String args[]){
+    public static void main5(String args[]){
     	String s = "CTGCAGCTT";
     	List<WeightMatrix> wms = CommonUtils.loadPWMs_PFM_file("test_pwms.txt", 0.41);
     	WeightMatrix wm = wms.get(2);
@@ -1101,5 +1212,11 @@ public class CommonUtils {
     		System.out.print(p+" ");
     	}
     	System.out.println();
+    }
+    
+    public static void main(String args[]){
+    	String s1=null,s2=null;
+    	s1="GGGGAGGG"; s2="GGGTGGGG";
+    	System.out.println(s1+" "+s2+" "+strMinDistanceWithCutoff(s1,s2,7));
     }
 }

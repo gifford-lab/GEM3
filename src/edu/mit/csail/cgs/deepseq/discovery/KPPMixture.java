@@ -547,7 +547,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         ArrayList<Region> regionsToRun = new ArrayList<Region>();
         if (!config.process_all_regions){		// first round, only process some of the region, sort to put the strong regions on top
         	int[] idx = StatUtil.findSort(enrichedRegionReadCounts);
-        	int skipIdx = (int)Math.round(totalRegionCount * (1-config.skip_top_fraction));		// skip top fractoin (may be artifacts)
+        	int skipIdx = (int)Math.round(totalRegionCount * (1-config.top_fract_to_skip));		// skip top fractoin (may be artifacts)
         	for (int i=skipIdx;i>=0;i--)
         		regionsToRun.add(restrictRegions.get(idx[i]));
         	for (int i=skipIdx+1;i<totalRegionCount;i++)
@@ -2827,7 +2827,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		int width = left+right+1;
 		
-		int skipTopPeaks = (int) (config.skip_top_fraction * signalFeatures.size());
+		int skipTopPeaks = (int) (config.top_fract_to_skip * signalFeatures.size());
 		ArrayList<ComponentFeature> cfs = new ArrayList<ComponentFeature>();
 		for (Feature f: signalFeatures){
 			if (skipTopPeaks>0){

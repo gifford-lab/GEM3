@@ -52,7 +52,7 @@ public class Config {
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
     public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
-    public double k_fold = 3;	// the minimum fold of kmer count in positive seqs vs negative seqs
+    public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
     public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
     public double[] bg= new double[4];	// background frequency based on GC content
     public double wm_factor = 0.6;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
@@ -115,7 +115,7 @@ public class Config {
     public int joint_event_distance = 500;
     public int top_events = 2000;
     public int min_event_count = 500;	// minimum num of events to update read distribution
-    public double skip_top_fraction = 0.01;		// fraction of top events to skip for updating read distribution
+    public double top_fract_to_skip = 0.01;		// fraction of top events to skip for updating read distribution
     public int smooth_step = 30;
     public int window_size_factor = 4;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
@@ -310,7 +310,7 @@ public class Config {
         joint_event_distance = Args.parseInteger(args, "j", joint_event_distance);		// max distance of joint events
         top_events = Args.parseInteger(args, "top", top_events);
         min_event_count = Args.parseInteger(args, "min", min_event_count);
-        skip_top_fraction = Args.parseDouble(args, "min", skip_top_fraction);
+        top_fract_to_skip = Args.parseDouble(args, "skip_frac", top_fract_to_skip);
         base_reset_threshold = Args.parseInteger(args, "reset", base_reset_threshold);
         min_region_width = Args.parseInteger(args, "min_region_width", 50);
         verbose = Args.parseInteger(args, "v", verbose);

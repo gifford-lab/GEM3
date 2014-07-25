@@ -699,9 +699,8 @@ public class KMAC2 {
 		// score the kmers, hypergeometric p-value
 		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
-		int offset_factor = k/2-k_win/2;
 		for (Kmer kmer:kms){
-			if (kmer.getPosHits().size()<=1){
+			if (kmer.getPosHits().size()<=1){	// remove low count k-mer
 				toRemove.add(kmer);	
 				continue;
 			}
@@ -724,9 +723,9 @@ public class KMAC2 {
 		// remove un-enriched kmers		
 		kms.removeAll(toRemove);
 		Collections.sort(kms);
+		// print high p-value k-mers, or low fold enrichment k-mers, although remove them for further learning
 		if (config.print_all_kmers)
 			Kmer.printKmers(kms, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
-		
 		kms.removeAll(highHgpKmers);
 		kms.trimToSize();
 		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
@@ -4976,7 +4975,39 @@ public class KMAC2 {
         		config.k = kmf.selectK(config.k_min, config.k_max, null);
         }
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(config.k);
-        kmf.KmerMotifAlignmentClustering(kmers, -1, false, null);
+        Kmer topKmer = kmf.selectTopKmerByDensityClustering(kmers);
+//        kmf.KmerMotifAlignmentClustering(kmers, -1, false, null);
+	}
+	private Kmer selectTopKmerByDensityClustering(ArrayList<Kmer> kmers) {
+		int kmerCount = kmers.size();
+		int[][]distances = new int[kmerCount][kmerCount];
+		for (int i=0;i<kmerCount;i++){
+			for (int j=0;j<=i;j++){
+				distances[i][j]=CommonUtils.strMinDistanceWithCutoff(kmers.get(i).getKmerString(), kmers.get(j).getKmerString(), kmers.get(i).getKmerString().length()/2+1);
+			}
+		}
+		for (int i=0;i<kmerCount;i++){
+			for (int j=i+1;j<kmerCount;j++){
+				distances[i][j]=distances[j][i];
+			}
+		}
+        StringBuilder output = new StringBuilder();
+        for (int j=0;j<kmerCount;j++){
+        	output.append(String.format("%s\t",kmers.get(j).getKmerString()));
+        }
+        CommonUtils.replaceEnd(output, '\n');
+        for (int j=0;j<kmerCount;j++){
+        	output.append(String.format("%d\t",kmers.get(j).getPosHitCount()));
+        }
+        CommonUtils.replaceEnd(output, '\n');
+        for (int j=0;j<kmerCount;j++){
+	        for (int i=0;i<distances[j].length-1;i++){
+	        	output.append(String.format("%d\t",distances[j][i]));
+	        }
+	        output.append(String.format("%d",distances[j][kmerCount-1])).append("\n");
+        }
+        CommonUtils.writeFile(outName+".distance_matrix.txt", output.toString());
+		return null;
 	}
 }
 

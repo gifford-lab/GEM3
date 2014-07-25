@@ -32,7 +32,6 @@ public class FastaWriter{
     try {
       Pair<Organism, Genome> pair = Args.parseGenome(args);
       if(pair==null){
-        //Make fake genome... chr lengths provided???
         if(ap.hasKey("g")){
         	String gname = ap.getKeyValue("g").replaceFirst(".info", "");
           genome = new Genome(gname, new File(ap.getKeyValue("g")), true);
@@ -49,7 +48,7 @@ public class FastaWriter{
 //    boolean wantHMS = flags.contains("hms");
 //    boolean wantChIPMunk = flags.contains("chipmunk");
     
-    int window = Args.parseInteger(args, "win", 100);
+    int window = Args.parseInteger(args, "win", 0);
     
     SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 	seqgen.useCache(!flags.contains("no_cache"));
@@ -65,8 +64,14 @@ public class FastaWriter{
 	
     // load coordinates
 	ArrayList<Region> regions = new ArrayList<Region>();
-	if (window==-1)
-		regions = CommonUtils.loadRegionFile(Args.parseString(args, "regions", null), genome);
+	String regionFile = Args.parseString(args, "regions", null);
+	if (regionFile!=null){
+		regions = CommonUtils.loadRegionFile(regionFile, genome);
+		if (window!=-1){
+			for (int i=0;i>regions.size();i++)
+				regions.set(i, regions.get(i).expand(window/2,window/2));
+		}
+	}
 	else{
 		ArrayList<Point> points = CommonUtils.loadCgsPointFile(Args.parseString(args, "coords", null), genome);
 		for (Point p:points){

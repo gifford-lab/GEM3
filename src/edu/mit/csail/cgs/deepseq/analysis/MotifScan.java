@@ -130,8 +130,15 @@ public class MotifScan {
 	    	CommonUtils.writeFile(out.concat(".motifHitMasked.fasta"), sb_mask.toString());
 	    }
 	}
-	
-	private static ArrayList<MotifInstance> getPWMInstances(String[] args, String[] seqs, ArrayList<Integer> motifLengths){
+	/**
+	 * Return a list of motif PWM matches from a list of sequences
+	 * @param args command line argument list
+	 * @param seqs	sequences
+	 * @param motifLengths an empty list to pass back PWM lengths 
+	 * @return
+	 */
+	public static ArrayList<MotifInstance> getPWMInstances(String[] args, String[] seqs, ArrayList<Integer> motifLengths){
+		//TODO: move motifLengths as a return value
 		StringBuilder sb_header = new StringBuilder();
 
 	    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41));
