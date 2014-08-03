@@ -71,6 +71,7 @@ public class TFBS_SpaitialAnalysis {
 	double gc = 0.42;//mouse		gc=0.41 for human
 	int profile_range = 100;		// the range (-x, +x) around 0 spacing position, the cluster distance parameter must be >= this range to have correct result
 	int distance = 50;		// distance between TFBS within a cluster
+	int top = -1;			// use only number of top ranking events for analysis ( default -1, use all events), this applies to all factors
 	int anno_expand_distance = 500;		// the distance to expand a peak cluster when overlapping with annotations
 	int range = 1000;		// the range around anchor site to search for targets
 	int cluster_motif_padding = 100;  // the padding distance added to the cluster range for motif searching
@@ -212,7 +213,7 @@ public class TFBS_SpaitialAnalysis {
 				}
 			}
 		}
-		
+		top = Args.parseInteger(args, "top", top);
 		anchor_string = Args.parseString(args, "anchor", anchor_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
 		target_string = Args.parseString(args, "target", target_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
 		sort_string = Args.parseString(args, "sort", sort_string);			// the id of TF/PWM/Kmer to sort the sites/regions/sequences
@@ -375,6 +376,9 @@ public class TFBS_SpaitialAnalysis {
 							continue eachpeak;
 					}
 					sites.add(site);
+					if (top!=-1 && sites.size()>top){		// only use top ranking events for analysis
+						break eachpeak;
+					}
 				}				
 					
 				System.err.println(", n="+sites.size());
@@ -585,7 +589,7 @@ public class TFBS_SpaitialAnalysis {
 	private void outputTFBSclusters(ArrayList<ArrayList<Site>> clusters){
 		
 		// load annotation regions (for example, histone marks, genome segmentation states), 
-		// which will not be use for region merging, but used to count overlaps of the merged region with the anno regions
+		// these are not used for region merging, but used to count overlaps of the merged region with the anno regions
 		if (anno_region_file!=null){
 			ArrayList<String> lines = CommonUtils.readTextFile(anno_region_file);
 			for (String s:lines){
@@ -904,6 +908,10 @@ public class TFBS_SpaitialAnalysis {
 	private void printSpacingHistrograms(){
 		// The input file is the output from the type 3 method, outputBindingAndMotifSites()
 		// Some filtering may be done (e.g. grep) to select desired regions/clusters.
+		if (cluster_key_file==null){
+			System.err.println("Please privide the experiment key file.");
+			System.exit(-1);
+		}
 		ArrayList<String> lines0 = CommonUtils.readTextFile(cluster_key_file);
 		HashMap<String, String> name_maps = new HashMap<String, String>();
 		HashMap<String, String> motif_maps = new HashMap<String, String>();
