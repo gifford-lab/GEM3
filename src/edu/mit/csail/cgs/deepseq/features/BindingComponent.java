@@ -1,6 +1,7 @@
 package edu.mit.csail.cgs.deepseq.features;
 
 import edu.mit.csail.cgs.datasets.general.Point;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
@@ -15,6 +16,7 @@ public class BindingComponent implements Comparable<BindingComponent>{
 
 	private BindingModel model;
 	private Point position;
+	private char strand='*';
 	private double mixingProb;
 	private double[] conditionBeta;
 	private int numConditions;	
@@ -34,7 +36,8 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	private char kmerStrand='+';
 	public char getKmerStrand(){return kmerStrand;}
 	public void setKmerStrand(char strand){kmerStrand = strand;}
-	
+	public char getStrand(){return strand;}
+	public void setStrand(char s){strand=s;}
 	public int getOld_index() {
 		return old_index;
 	}
@@ -81,6 +84,7 @@ public class BindingComponent implements Comparable<BindingComponent>{
 		return model.probability(dist);
 	}
 	public Point getLocation(){return position;}
+	
 	public int getNumConditions(){return numConditions;}
 	public double getMixProb(){return mixingProb;}
 

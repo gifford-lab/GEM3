@@ -1,5 +1,9 @@
 package edu.mit.csail.cgs.deepseq.discovery;
-
+/**
+ * Main class for kmer positional prior mixture model
+ * @author Yuchun
+ *
+ */
 import java.io.*;
 import java.util.*;
 import java.awt.BasicStroke;
@@ -722,8 +726,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		/**
 		 * Classify the events into IP-like and control-like groups
 		 */
-		if (config.classify_events)
-			falseDiscoveryTest(compFeatures);
+//		if (config.classify_events)
+//			falseDiscoveryTest(compFeatures);
 		
 		/**
 		 *  calculate p-values with or without control
@@ -1102,17 +1106,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 ////		CommonUtils.writeFile(outName+"_q_cutoff.txt", sb.toString());
 //	}
 
-	private void falseDiscoveryTest(List<ComponentFeature> ipFeatures){
-		Vector<ComponentFeature> ctrlFeatures = predictEventsInControlData();
-		StringBuilder sb = new StringBuilder();
-		for (ComponentFeature cf:ipFeatures){
-			sb.append(1+"\t").append("1:"+cf.getTotalEventStrength()).append("\t2:"+cf.getAverageLogKL());
-		}
-		for (ComponentFeature cf:ipFeatures){
-			sb.append(-1+"\t").append("1:"+cf.getTotalEventStrength()).append("\t2:"+cf.getAverageLogKL());
-		}
-		CommonUtils.writeFile(outName+"_svmTrain.txt", sb.toString());
-	}
+//	private void falseDiscoveryTest(List<ComponentFeature> ipFeatures){
+//		Vector<ComponentFeature> ctrlFeatures = predictEventsInControlData();
+//		StringBuilder sb = new StringBuilder();
+//		for (ComponentFeature cf:ipFeatures){
+//			sb.append(1+"\t").append("1:"+cf.getTotalEventStrength()).append("\t2:"+cf.getAverageLogKL());
+//		}
+//		for (ComponentFeature cf:ipFeatures){
+//			sb.append(-1+"\t").append("1:"+cf.getTotalEventStrength()).append("\t2:"+cf.getAverageLogKL());
+//		}
+//		CommonUtils.writeFile(outName+"_svmTrain.txt", sb.toString());
+//	}
 	// run the same EM-KPP procedure on control data
 	private Vector<ComponentFeature> predictEventsInControlData(){
 		ArrayList<Region> regions = this.selectEnrichedRegions(new ArrayList<Region>(), false);
@@ -1198,6 +1202,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		ArrayList<Region> windows=new ArrayList<Region>();
 		if (r.getWidth()<=windowSize)
 			return windows;
+		
 		List<StrandedBase> allBases = new ArrayList<StrandedBase>();
 		for (int c=0; c<caches.size(); c++){
 			ReadCache cache=null;
@@ -1210,6 +1215,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				continue;
 			allBases.addAll(bases); // pool all conditions
 		}
+		if (allBases.isEmpty())
+			return windows;
+		
 		Collections.sort(allBases);			
 		int[] distances = new int[allBases.size()-1];
 		int[]coords = new int[allBases.size()];
@@ -1235,6 +1243,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	
 	private void split(int[]distances, int coords[], TreeSet<Integer> breakPoints, int windowSize){
 		int[] idx = StatUtil.findSort(distances.clone());
+		if (idx.length==0)
+			return;
 		int breakIdx = idx[idx.length-1];
 		int breakCoor = (coords[breakIdx]+coords[breakIdx+1])/2;
 		breakPoints.add(breakCoor);
@@ -1256,6 +1266,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 	}
 
+	/** 
+	 * Load the read counts for bases in the given region, discard if the reads does not meet basic enrichment criteria
+	 * @param w a region
+	 * @return
+	 */
 	private ArrayList<List<StrandedBase>> loadData_checkEnrichment(Region w){
 		ArrayList<List<StrandedBase>> signals = loadBasesInWindow(w, "IP");
 		if (signals==null || signals.isEmpty())
@@ -1944,7 +1959,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				}
 				rs.removeAll(toRemove);		
 				
-				List<Region> smallRegions = new ArrayList<Region>();
+				List<Region> subRegions = new ArrayList<Region>();
 				for (Region r:rs){
 					int maxSize = 5000;
 					if (config.TF_binding)
@@ -1958,44 +1973,47 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 							profile[b.getCoordinate()-start] = profile[b.getCoordinate()-start]+b.getCount();
 						reg2bases.remove(r);
 						
-						// moving average
-						float[] movingAvg = new float[profile.length];
-						int halfBin = 100;
+						// moving sum
+						float[] movingSum = new float[profile.length];
+						int halfBin = Math.min(100, model.getWidth()/2-1);
+						// fill in the first position (averaging from the first bin = 2*halfBin)
 						for (int p=0;p<=halfBin*2;p++)
-							movingAvg[halfBin]=movingAvg[halfBin]+profile[p];
+							movingSum[halfBin]=movingSum[halfBin]+profile[p];
+						// fill in the later positions by computing the 1-base-off differences.
 						for (int p=halfBin+1;p<profile.length-halfBin;p++){
-							movingAvg[p]=movingAvg[p-1]-profile[p-1-halfBin]+profile[p+halfBin];
+							movingSum[p]=movingSum[p-1]-profile[p-1-halfBin]+profile[p+halfBin];
 						}
 						
-						// for every maxSize region, start from modelWidth, find the lowest movingAvg point to break
-						int subStart = halfBin;
+						// for every over-sized region, start from modelWidth, find the lowest movingAvg point to break
+						int subStart = halfBin;	// sub-region start
 						while( subStart<profile.length-maxSize+halfBin){
 							int subEnd=0;
 							float lowest = Float.MAX_VALUE;
 							for (int p=subStart+modelWidth;p<subStart+maxSize-halfBin;p++){
-								if (movingAvg[p]<lowest){
+								if (movingSum[p]<lowest){
 									subEnd = p;
-									lowest = movingAvg[p];
+									lowest = movingSum[p];
 								}
 							}
-							// if there is a region with same  lowest value, take the middle position
-							int p = subEnd;
-							for (p=subEnd;p<subStart+maxSize-halfBin;p++){
-								if (movingAvg[p]!=lowest)
-									break;
-							}
-							subEnd = (subEnd+p-1)/2;
-							smallRegions.add(new Region(gen, chrom, (subStart==halfBin?0:subStart)+start, subEnd+start));
+							if (subStart==halfBin)
+								subStart=0;
+							if (subEnd==0)
+								subEnd = Math.min(end-start, subStart+maxSize);		
+
+//							System.err.println(String.format("%s: %d - %d, %d<=%d", r.toString(),subStart, subEnd, subEnd+start, end));
+							subRegions.add(new Region(gen, chrom, subStart+start, subEnd+start));
+							if (subEnd+start==end)
+								break;
 							subStart = subEnd+1;
 						}
 						if (subStart+start<end)
-							smallRegions.add(new Region(gen, chrom, subStart+start, end));
+							subRegions.add(new Region(gen, chrom, subStart+start, end));
 					}
 					else
-						smallRegions.add(r);
-				}
-				if (!smallRegions.isEmpty())
-					regions.addAll(smallRegions);
+						subRegions.add(r);
+				} // for each region
+				if (!subRegions.isEmpty())
+					regions.addAll(subRegions);
 			}
 		}
 		
@@ -2006,6 +2024,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		int[] binMins = {0,500,1000,2000,3000,5000};
 		int[] counts = new int[binMins.length];
 		for (Region r:regions){
+			if (r.getWidth()>config.windowSize)
+				System.err.println(r.toString()+"\t"+r.getWidth());
 			for (int i=binMins.length-1;i>=0;i--){
 				if (r.getWidth()>binMins[i]){
 					counts[i]++;
@@ -2307,42 +2327,50 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		return(features);
 	}
 
-	// make componentFeature based on the bindingComponent
+	/** make componentFeature based on the bindingComponent,
+	 * also update the aggreate event profiles with the new component profiles
+	 * @param b
+	 * @return
+	 */
 	private ComponentFeature callFeature(BindingComponent b){
 		ComponentFeature cf = new ComponentFeature(b);
 
 		// KL
-		double[] logKL_plus = new double[numConditions];
-		double[] logKL_minus = new double[numConditions];
+//		double[] logKL_plus = new double[numConditions];
+//		double[] logKL_minus = new double[numConditions];
 		double[] shapeDeviation = new double[numConditions];
 		for (int c=0;c<numConditions;c++){
 			double[] profile_plus = b.getReadProfile_plus(c);
 			double[] profile_minus = b.getReadProfile_minus(c);
-			if (config.kl_count_adjusted){
-				logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
-				logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
+//			if (config.kl_count_adjusted){
+//				logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
+//				logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
+//			}
+//			else{
+//				double count = 0.0;
+//				for(int n = 0; n < profile_plus.length; n++) { 
+//					count += profile_plus[n]+profile_minus[n]; 
+//				}
+//				double width;
+//				if (count>6){
+//					width = 50/Math.log(count);	// TODO: just some empirical formula, no special theory here
+//				}
+//				else{
+//					width=28;
+//				}
+//				logKL_plus[c]  = logKL_profile(profile_plus, width);
+//				logKL_minus[c] = logKL_profile(profile_minus, width);
+//			}
+
+			if (b.getStrand()!='*'){
+				shapeDeviation[c]  = calcSingleStrandNzKL(profile_plus);
 			}
 			else{
-				double count = 0.0;
-				for(int n = 0; n < profile_plus.length; n++) { 
-					count += profile_plus[n]+profile_minus[n]; 
-				}
-				double width;
-				if (count>6){
-					width = 50/Math.log(count);	// just some empirical formula, no special theory here
-				}
-				else{
-					width=28;
-				}
-				logKL_plus[c]  = logKL_profile(profile_plus, width);
-				logKL_minus[c] = logKL_profile(profile_minus, width);
+				if (config.KL_smooth_width!=0)
+					shapeDeviation[c]  = calc2StrandSmoothKL(profile_plus,profile_minus);
+				else
+					shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
 			}
-
-			if (config.KL_smooth_width!=0)
-				shapeDeviation[c]  = calc2StrandSmoothKL(profile_plus,profile_minus);
-			else
-				shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
-
             //			System.err.println(String.format("%.2f\t%.2f\t%.2f\t%s", 
             //					shapeDeviation[c],
             //					calcAbsDiff(profile_plus), 
@@ -2351,22 +2379,23 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			
 			// sum the read profiles (optional)
 			// at this point, we do not have p-value, etc, this is our best guess
-			if (config.use_joint_event && 
-                shapeDeviation[c]<=config.shapeDeviation &&
-                (logKL_plus[c]<0 || logKL_minus[c]<0)){
+			if (config.use_joint_event && shapeDeviation[c]<=config.shapeDeviation ){
+//                &&(logKL_plus[c]<0 || logKL_minus[c]<0)){
 				for (int i=0;i<profile_plus.length;i++){
 					profile_plus_sum[i] += profile_plus[i];
 					profile_minus_sum[i] += profile_minus[i];
 				}
 			}
 		}
-		cf.setProfileLogKL(logKL_plus, logKL_minus);
+//		cf.setProfileLogKL(logKL_plus, logKL_minus);
 		cf.setShapeDeviation(shapeDeviation);
 		return cf;
 	}
-	/*
+	/**
 	 * Calculate logKL for read profile around an event
-	 * Gaussian Width is given
+	 * @param profile
+	 * @param width width for Gaussian smoothing
+	 * @return
 	 */
 	private double logKL_profile(double[]profile, double width){
 		double[] gaus = new double[modelWidth];
@@ -2377,8 +2406,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	}
 
 
-	/*
-	 *   logKL of non-zero discrete profile, concat 2 strands
+	/**
+	 *   logKL of non-zero discrete profile, between the cancat-profiles and the model profile
 	 *   no gaussian density, use only non-zero read counts
 	 */
 	private double calc2StrandNzKL(double[]profile_p, double[]profile_m){
@@ -2389,6 +2418,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		System.arraycopy(profile_p, 0, profile, 0, profile_p.length); 
 		System.arraycopy(profile_m, 0, profile, profile_p.length, profile_m.length); 
 		
+		//TODO: m2 can be moved to as a object variable, build once, use many times
 		double[] m = model.getProbabilities();
 		double[] m2 = new double[profile.length];
 		System.arraycopy(m, 0, m2, 0, m.length); 
@@ -2409,15 +2439,33 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 		double log10KL = StatUtil.log10_KL_Divergence(m_nz, p_nz)+asym_p+asym_m;
 		return Math.max(log10KL, -4);
-	}	
+	}
+	/**
+	 *   logKL of non-zero discrete profile, between the single stranded profile and the model profile
+	 *   no gaussian density, use only non-zero read counts
+	 */
+	private double calcSingleStrandNzKL(double[]profile){		
+		double[] model_profile = model.getProbabilities();
+		ArrayList<Integer> nzPos = new ArrayList<Integer>();
+		for (int i=0;i<profile.length;i++){
+			if (profile[i]!=0){
+				nzPos.add(i);
+			}
+		}
+		double[] m_nz = new double[nzPos.size()];
+		double[] p_nz = new double[nzPos.size()];
+		for (int i=0;i<nzPos.size();i++){
+			m_nz[i] = model_profile[nzPos.get(i)];
+			p_nz[i] = profile[nzPos.get(i)];
+		}		
+		double log10KL = StatUtil.log10_KL_Divergence(m_nz, p_nz);
+		return Math.max(log10KL, -4);
+	}
 
 	/*
 	 *   logKL of smooth gaussian profile, concat 2 strands
 	 */
 	private double calc2StrandSmoothKL(double[]profile_p, double[]profile_m){
-		double asym_p = profile_p.length>2?0:0.2;	// penalty of having too few reads on one strand
-		double asym_m = profile_m.length>2?0:0.2;
-		
 		profile_p = StatUtil.gaussianSmoother(profile_p, config.KL_smooth_width);
 		profile_m = StatUtil.gaussianSmoother(profile_m, config.KL_smooth_width);
 		
@@ -3317,6 +3365,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         return caches.get(cond).car().countStrandedBases(r,'+') + 
             caches.get(cond).car().countStrandedBases(r,'-');
 	}
+	private float countIpReads(Region r, int cond, char strand){
+        return caches.get(cond).car().countStrandedBases(r,strand);
+	}
+
 	private float countCtrlReads(Region r){
 		float count=0;
 		for(Pair<ReadCache,ReadCache> e : caches){
@@ -3328,6 +3380,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private float countCtrlReads(Region r, int cond){
         return caches.get(cond).cdr().countStrandedBases(r,'+') + 
             caches.get(cond).cdr().countStrandedBases(r,'-');
+	}
+	private float countCtrlReads(Region r, int cond, char strand){
+        return caches.get(cond).cdr().countStrandedBases(r,strand);
 	}
 
 
@@ -3701,9 +3756,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         public final int num_top_mfold_feats = 1000;
         public final int maxUpdateIters = 7;
 
-        //	public final double lambda = 0;
-
-        // Max number of reads to load from DB
+         // Max number of reads to load from DB
         public final int MAXREAD = 1000000;
         // true:  eliminated component in batch, as long as matching criteria in EM derivation
         // false: eliminate only the worse case components, re-distribute the reads of eliminated component
@@ -3820,7 +3873,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     /* ****************************************************************
                      * fix sliding window boundary effect (version 1)
                      * ****************************************************************/
-                    if (windows.size()>1 && comps.size()>0){
+                    if (windows.size()>1 && comps.size()>0 &&config.refine_window_boundary){
                         Collections.sort(comps);
                         // The whole region can be divided into subRegions with gap >= modelWidth
                         ArrayList<ArrayList<Region>> subRegions = new ArrayList<ArrayList<Region>>();
@@ -4103,8 +4156,49 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             if (controlDataExist && config.noise_distribution==2){		// if want to use control to set bg dist. 
             	bg_signals = loadBasesInWindow(w, "CTRL");
             }
+            ArrayList<BindingComponent> results = new ArrayList<BindingComponent>();
             
-            // We want to run EM only for potential overlapping regions
+            if (config.strand_type ==0)	// process reads from both strands jointly
+            	results = analyzeWindow(w, signals, bg_signals, seqgen);
+            else{	// process each single strand separately
+            	char[] strands = new char[]{'+','-'};
+            	for (char s:strands){
+            		// get stranded data
+            		ArrayList<List<StrandedBase>> signals_stranded = new ArrayList<List<StrandedBase>>();
+            		for (List<StrandedBase> l:signals){
+            			List<StrandedBase> l_s = new ArrayList<StrandedBase>();
+            			for (StrandedBase b:l)
+            				if (b.getStrand()==s)
+            					l_s.add(b);
+            			signals_stranded.add(l_s);
+            		}
+            		ArrayList<List<StrandedBase>> bg_signals_stranded = null;
+            		if (bg_signals!=null){
+            			bg_signals_stranded = new ArrayList<List<StrandedBase>>();
+	            		for (List<StrandedBase> l:bg_signals){
+	            			List<StrandedBase> l_s = new ArrayList<StrandedBase>();
+	            			for (StrandedBase b:l)
+	            				if (b.getStrand()==s)
+	            					l_s.add(b);
+	            			bg_signals_stranded.add(l_s);
+	            		}
+            		}
+            		
+            		// run EM on stranded data
+            		ArrayList<BindingComponent> results_stranded = analyzeWindow(w, signals_stranded, bg_signals_stranded, seqgen);
+            		if (results_stranded!=null){
+	            		for (BindingComponent b:results_stranded)
+	            			b.setStrand(s);
+	            		results.addAll(results_stranded);
+            		}
+            	}
+            }
+            return results;
+        } 
+        
+        private ArrayList<BindingComponent> analyzeWindow(Region w, ArrayList<List<StrandedBase>> signals,
+        		ArrayList<List<StrandedBase>> bg_signals, SequenceGenerator<Region> seqgen){
+            // We want to run EM only for potential homotypic regions
             // After first round, if we are sure the region contains unary event, we will just scan for peak
             if (!singleEventRegions.containsKey(w)) {
                 // dynamically determine an alpha value for this sliding window
@@ -4361,6 +4455,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             return components;
         }//end of analyzeWindow method
 
+        
         private int initSpacing(Region w) {
             if (w.getWidth()/50 > constants.MAX_NUM_COMPONENTS)
                 System.err.println("Very large region, " + w.toString());
@@ -4420,7 +4515,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         private Pair<double[][][], int[][][]>  EMTrain(ArrayList<List<StrandedBase>> signals, ArrayList<List<StrandedBase>> bg_signals, double alpha, double[] pos_alpha){
             int numComp = components.size();
             // H function and responsibility will be stored using an indirect indexing method
-            // Because only the components within modelRange matters, we only store those components around the reads
+            // Because only the components within the modelRange will have an effect, we only store those components around the reads
             // and use a mapping array to keep track of the component index
             // This will reduce the memory requirement from N*numComp, to NInRange*numComp
             // and should save some running time because we only iterate the effective base-comps
@@ -4442,16 +4537,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             int minPlus=Integer.MAX_VALUE, maxPlus=Integer.MIN_VALUE,minMinus=Integer.MAX_VALUE, maxMinus=Integer.MIN_VALUE;
 
             for(int c=0; c<numConditions; c++){
-                List<StrandedBase> bases_old = signals.get(c);
+                List<StrandedBase> bases_input = signals.get(c);
                 List<StrandedBase> bases = new ArrayList<StrandedBase>();
                 if (componentSpacing==1 || no_data_bin) {
-                    bases = bases_old;
+                    bases = bases_input;
                 } else {		// merge read counts into data bin
-                    if (!bases_old.isEmpty()){
+                    if (!bases_input.isEmpty()){
                         char strand = '+';
-                        int pos = bases_old.get(0).getCoordinate()+componentSpacing/2;
+                        int pos = bases_input.get(0).getCoordinate()+componentSpacing/2;
                         float count = 0;
-                        for (StrandedBase bb:bases_old){
+                        for (StrandedBase bb:bases_input){
                             if (bb.getStrand()!=strand){
                                 if (count!=0)
                                     bases.add(new StrandedBase(strand, pos, count));
@@ -5077,7 +5172,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 for(int j:nzComps)
                     if (pi[j]!=0)
                         LP+=(pos_alpha[j]-currAlpha)*Math.log(pi[j]);		// positional prior and sparse prior
-                //TODO: sparse prior for noise component??
+                //add sparse prior for noise component
                 if (model_noise && pi_bg!=0){
                 	LP += -effectiveAlpha * Math.log(pi_bg);
                 }

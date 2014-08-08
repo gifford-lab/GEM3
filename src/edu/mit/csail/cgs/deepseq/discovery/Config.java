@@ -25,13 +25,20 @@ public class Config {
     public boolean print_kmer_bPos = false;    
     public boolean discard_subAlpha_components=false;			// discard the component whose strength is less than alpha    
     public boolean process_all_regions = false;
-    
+    public boolean refine_window_boundary = false;
+
     public boolean TF_binding = true;
     public boolean exclude_unenriched = true;
     public boolean filterEvents=true;
     public boolean filterDupReads=true;
 	public boolean do_model_selection=true;
-
+	/** strand_type <br>
+	 * run event finding and motif discovery as <br>
+	 * 0) unstranded, for typical ChIP-seq data <br>
+	 * 1) only single strand, for BranchPoint data (Burge Lab), run motif discovery only on event strand, 
+	 * 2) ChIP-exo (if wanting to find peak boundary), run motif discovery on both strands 
+	 */
+    public int strand_type = 0;		
   	public int KL_smooth_width = 0;
     public int max_hit_per_bp = -1;
     public int maxThreads;		// default to #CPU
@@ -42,7 +49,7 @@ public class Config {
     public String seed = null;
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
-    public int k_win2 = 101;	// the window around binding event to search for motifs (in later rounds)
+    public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
     public int k_win_f = 4;		// k_win = k_win_f * k
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
@@ -74,6 +81,7 @@ public class Config {
     public boolean use_pos_kmer = true;				// position weighted k-mer count
     public boolean k_neg_shuffle = false;
     public boolean k_neg_dinu_shuffle = false;		// di-nuleotide shuffle
+    public int shuffle_seed = 0;
    	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
@@ -117,7 +125,7 @@ public class Config {
     public int min_event_count = 500;	// minimum num of events to update read distribution
     public double top_fract_to_skip = 0.01;		// fraction of top events to skip for updating read distribution
     public int smooth_step = 30;
-    public int window_size_factor = 4;	//number of model width per window
+    public int window_size_factor = 3;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
     public int noise_distribution = 1;	// the read distribution for noise component, 0 NO, 1 UNIFORM, 2 SMOOTHED CTRL
     
@@ -147,7 +155,7 @@ public class Config {
     
     public int verbose=1;		// BindingMixture verbose mode
     public int base_reset_threshold = 200;	// threshold to set a base read count to 1
-    public int windowSize;			// size for EM sliding window for splitting long regions, set modelWidth * config.window_size_factor in KPPMixture
+    public int windowSize;	// size for EM window, for splitting long regions, set modelWidth * config.window_size_factor in KPPMixture
     //Run EM up until <tt>ML_ITER</tt> without using sparse prior
     public int ML_ITER=10;
     // the range to scan a peak if we know position from EM result
@@ -162,7 +170,7 @@ public class Config {
         classify_events = flags.contains("classify");
         print_PI = flags.contains("print_PI");
         sort_by_location = flags.contains("sl");
-        use_joint_event = flags.contains("refine_using_joint_event");
+        use_joint_event = flags.contains("use_joint_event");
         post_artifact_filter = flags.contains("post_artifact_filter");
         kl_count_adjusted = flags.contains("adjust_kl");
         outputBED = flags.contains("outBED");
@@ -181,6 +189,7 @@ public class Config {
         kmer_use_insig = flags.contains("kmer_use_insig");
         k_neg_shuffle = flags.contains("k_neg_shuffle");
         k_neg_dinu_shuffle = flags.contains("k_neg_dinu_shuffle");
+        shuffle_seed = Args.parseInteger(args, "random", shuffle_seed);
         re_align_kmer = flags.contains("rak");
         print_aligned_seqs = flags.contains("print_aligned_seqs");
         print_input_seqs = flags.contains("print_input_seqs");
@@ -197,6 +206,7 @@ public class Config {
         refine_regions = flags.contains("refine_regions");
         print_stranded_read_distribution = flags.contains("print_stranded_read_distribution");
         process_all_regions = flags.contains("process_all_regions");
+        refine_window_boundary = flags.contains("refine_window_boundary");
                 
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -304,7 +314,7 @@ public class Config {
         shapeDeviation =  TF_binding?-0.3:-0.2;		// set default according to filter type    		
         shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
         max_hit_per_bp = Args.parseInteger(args, "mrc", 0); //max read count per bp, default -1, estimate from data
-        window_size_factor = Args.parseInteger(args, "wsf", 3);
+        window_size_factor = Args.parseInteger(args, "wsf", window_size_factor);
         second_lambda_region_width = Args.parseInteger(args, "w2", second_lambda_region_width);
         third_lambda_region_width = Args.parseInteger(args, "w3", third_lambda_region_width);
         joint_event_distance = Args.parseInteger(args, "j", joint_event_distance);		// max distance of joint events
@@ -315,6 +325,7 @@ public class Config {
         min_region_width = Args.parseInteger(args, "min_region_width", 50);
         verbose = Args.parseInteger(args, "v", verbose);
         smooth_step = Args.parseInteger(args, "smooth", smooth_step);
+        strand_type = Args.parseInteger(args, "strand_type", strand_type);
         KL_smooth_width = Args.parseInteger(args, "kl_s_w", KL_smooth_width);
         excluded_fraction = Args.parseDouble(args, "excluded_fraction", excluded_fraction);
         kl_ic = Args.parseDouble(args, "kl_ic", kl_ic);

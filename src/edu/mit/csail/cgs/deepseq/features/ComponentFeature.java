@@ -20,6 +20,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	private static int sortingCondition=0;	// the condition to compare p-values
 	
 	protected Point position;
+	private char strand='*';
 	// isJointEvent first set using mixing prob, but later updated 
 	// using inter-event distance (500) only considering significant events
 	protected boolean isJointEvent = false;
@@ -28,8 +29,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected boolean[] condSignificance;
 	protected double[] condSumResponsibility;
 	protected double totalSumResponsibility=0;
-	protected double logKL_plus[];
-	protected double logKL_minus[];
+//	protected double logKL_plus[];
+//	protected double logKL_minus[];
 	protected double ipCtrl_logKL_plus[];
 	protected double ipCtrl_logKL_minus[];
 	protected double shapeDeviation[];
@@ -41,6 +42,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	protected Point EM_position;		//  EM result
 	protected double alpha;
 	protected double noiseFraction;
+	public char getStrand(){return strand;}
+	public void setStrand(char s){strand=s;}
 	public double getNoiseFraction() {
 		return noiseFraction;
 	}
@@ -67,6 +70,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public ComponentFeature(BindingComponent b){
 		super(null);
 		position = b.getLocation();
+		strand = b.getStrand();
 		coords = position.expand(1);
 		if(b.getMixProb()!=1)
 			isJointEvent = true;
@@ -127,10 +131,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void setShapeDeviation(double[] shapeDeviation) {
 		this.shapeDeviation = shapeDeviation;
 	}	
-	public void setProfileLogKL(double[] logKL_plus, double[] logKL_minus){
-		this.logKL_plus = logKL_plus;
-		this.logKL_minus = logKL_minus;
-	}
+//	public void setProfileLogKL(double[] logKL_plus, double[] logKL_minus){
+//		this.logKL_plus = logKL_plus;
+//		this.logKL_minus = logKL_minus;
+//	}
 
 	public void setIpCtrlLogKL(int cond, double logKL_plus, double logKL_minus){
 		ipCtrl_logKL_plus[cond] = logKL_plus;
@@ -155,13 +159,13 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void setCondSignificance(int cond, boolean val) { condSignificance[cond] = val; }
 
 	// overall average logKL
-	public double getAverageLogKL(){
-		double sum=0;
-		for(int c=0; c<numConditions; c++){
-			sum += logKL_plus[c] + logKL_minus[c];
-		}
-		return sum/(2*numConditions);
-	}
+//	public double getAverageLogKL(){
+//		double sum=0;
+//		for(int c=0; c<numConditions; c++){
+//			sum += logKL_plus[c] + logKL_minus[c];
+//		}
+//		return sum/(2*numConditions);
+//	}
 	// overall average logKL for control
 	public double getAverageIpCtrlLogKL(){
 		double sum=0;
@@ -175,10 +179,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	 * @param cond
 	 * @return average logKL and symmetric score
 	 */
-	public Pair<Double, Double> getLogKL(int cond){
-		return new Pair<Double, Double>((logKL_plus[cond] + logKL_minus[cond])/2,
-			Math.abs(logKL_plus[cond] - logKL_minus[cond])/(logKL_plus[cond] + logKL_minus[cond]));
-	}
+//	public Pair<Double, Double> getLogKL(int cond){
+//		return new Pair<Double, Double>((logKL_plus[cond] + logKL_minus[cond])/2,
+//			Math.abs(logKL_plus[cond] - logKL_minus[cond])/(logKL_plus[cond] + logKL_minus[cond]));
+//	}
 	
 	public static void setSortingCondition(int cond){
 		sortingCondition = cond;
@@ -216,10 +220,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		else if(condSumResponsibility[sortingCondition]<f.getCondSumResponsibility(sortingCondition)){return(1);}
 		else return(0);
 	}
-	public int compareBylogKL(ComponentFeature f) {
-		double diff = getAverageLogKL() - f.getAverageLogKL();
-		return diff==0?0:(diff<0)?-1:1; // smaller logKL, more similar distribution
-	}	
+//	public int compareBylogKL(ComponentFeature f) {
+//		double diff = getAverageLogKL() - f.getAverageLogKL();
+//		return diff==0?0:(diff<0)?-1:1; // smaller logKL, more similar distribution
+//	}	
 	public int compareByLocation(ComponentFeature f) {
 		return getPeak().compareTo(f.getPeak());
 	}
@@ -316,8 +320,12 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	//each field should match header String
 	public String toString() {
 		StringBuilder result = new StringBuilder();
-		
-		result.append(position.getLocationString()).append("\t");
+		String strandStr = "";
+		if (strand=='-')
+			strandStr = ":-";
+		else if (strand=='+')
+			strandStr = ":+";
+		result.append(position.getLocationString()).append(strandStr).append("\t");
 		result.append(String.format("%7.1f\t", totalSumResponsibility));
 			
         for(int c=0; c<numConditions; c++){
@@ -448,8 +456,13 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	//each field should match header String
 	public String toString_v1() {
 		StringBuilder result = new StringBuilder();
-		
-		result.append(position.getLocationString()).append("\t");
+		String strandStr = "";
+		if (strand=='-')
+			strandStr = ":-";
+		else if (strand=='+')
+			strandStr = ":+";
+		result.append(position.getLocationString()).append(strandStr).append("\t");
+
 		result.append(String.format("%7.1f\t", totalSumResponsibility));
       
         for(int c=0; c<numConditions; c++){
@@ -516,6 +529,10 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		bed.append(r.getEnd()).append("\t");
 		bed.append(position.getLocationString()).append("\t");
 		bed.append(String.format("%7.1f\t", totalSumResponsibility));
+		if (strand=='-')
+			bed.append("\t-");
+		else if (strand=='+')
+			bed.append("\t+");
         bed.append("\n");
 		return bed.toString();
 	}
@@ -539,8 +556,14 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
     	double p_lg2 = -Math.log10(getPValue_wo_ctrl(0));
     	if (p_lg2==Double.POSITIVE_INFINITY)
     		p_lg2= 999;
+		String strandStr = ".";
+		if (strand=='-')
+			strandStr = "-";
+		else if (strand=='+')
+			strandStr = "+";
+
 		return "chr"+position.getChrom()+"\t"+(position.getLocation()-100)+"\t"+(position.getLocation()+101)+"\t"+
-    				position.toString()+"\t"+score+"\t"+"."+"\t"+String.format("%.1f",totalSumResponsibility)+"\t"+
+    				position.toString()+"\t"+score+"\t"+strandStr+"\t"+String.format("%.1f",totalSumResponsibility)+"\t"+
     				String.format("%.2f", p_lg1>p_lg2?p_lg2:p_lg1)+"\t"+String.format("%.2f", q_lg)+"\t"+100+"\n";
 	}
 	
@@ -576,8 +599,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	public void releaseMemory(){
 		boundSequence = null;
 		conditionBeta = null;
-		logKL_plus = null;
-		logKL_minus = null;
+//		logKL_plus = null;
+//		logKL_minus = null;
 		ipCtrl_logKL_plus = null;
 		ipCtrl_logKL_minus = null;
 		shapeDeviation = null;

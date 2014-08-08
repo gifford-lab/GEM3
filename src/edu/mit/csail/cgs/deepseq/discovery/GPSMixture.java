@@ -1627,7 +1627,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 				}
 			}
 		}
-		cf.setProfileLogKL(logKL_plus, logKL_minus);
+//		cf.setProfileLogKL(logKL_plus, logKL_minus);
 		cf.setShapeDeviation(shapeDeviation);
 		return cf;
 	}
