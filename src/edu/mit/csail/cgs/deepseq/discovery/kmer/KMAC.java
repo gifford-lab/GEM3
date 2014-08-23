@@ -464,7 +464,7 @@ public class KMAC {
 				}
 			}
 			if (bestCluster!=null){
-				sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, 
+				sb.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, bestCluster.pwmNegHitCount, 
 						bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
 				kClusters.add(bestCluster);
 				
@@ -1740,10 +1740,13 @@ public class KMAC {
 		html.append(name).append("</font></th>");
 		html.append("<tr><td valign='top'><br>");
 		if (!this.standalone && eventCounts!=null){
+			html.append("<b>Binding Event Predictions</b>:<p>");
 			html.append("<a href='"+name+"_GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
 			html.append("<br><a href='"+name+"_GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
 			html.append("<br><a href='"+name+"_GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
+			html.append("<p>Read distribution<br><img src='"+name.substring(0,name.length()-2)+"_All_Read_Distributions.png' width='350'><hr>");
 		}
+		html.append("<p><b>Motif Discovery Results</b>:<p>");
 		html.append("<p>Total positive sequences: "+posSeqCount);
 		html.append("<p><ul><li><a href='"+name+"_KSM.txt'>Complete KSM (K-mer Set Motif) file.</a>");
 		html.append("<li><a href='"+name+"_Alignement_k"+k+".txt'>K-mer alignment file.</a>");
@@ -1786,8 +1789,6 @@ public class KMAC {
 		html.append("</td><td valign='top'><br>");
 		html.append("<table border=0 align=center><th>Motif PWM</th><th>Motif spatial distribution (w.r.t. primary PWM)<br>Format: position,motif_occurences</th>");
 		for (KmerCluster c:clusters){
-    		WeightMatrix wm = c.wm;
-    		
     		html.append("<tr><td><img src='"+name+"_"+c.clusterId+"_motif.png"+"'><a href='#' onclick='return popitup(\""+name+"_"+c.clusterId+"_motif_rc.png\")'>rc</a><br>");
     		html.append(String.format("PWM: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
     				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));

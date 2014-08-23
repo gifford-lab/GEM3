@@ -274,7 +274,10 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		ps.close();
 		return align;
 	}
-
+	public ChipSeqAlignment loadAlignment_withoutErrorChecking(int dbid){
+		ChipSeqAlignment align = new ChipSeqAlignment(dbid);
+		return align;
+	}
 
 	public Collection<ChipSeqAlignment> loadAlignments(ChipSeqLocator locator, Genome genome) throws SQLException, NotFoundException {
 		List<ChipSeqAlignment> output = new ArrayList<ChipSeqAlignment>();

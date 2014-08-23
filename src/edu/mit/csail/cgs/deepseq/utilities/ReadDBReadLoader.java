@@ -52,6 +52,10 @@ public class ReadDBReadLoader extends ReadLoader{
 			try{
 				for(ChipSeqLocator locator : locs){
 					String exptName = locator.getExptName(); exptNames.add(exptName);
+					if (CommonUtils.isNumeric(exptName)){		// special workaround without Oracle database
+						aligns.add(loader.loadAlignment_withoutErrorChecking(Integer.parseInt(exptName)));
+						continue;
+					}
 					if (locator.getAlignName() == null) {
 						if(locator.getReplicates().isEmpty()) { //No alignment name, no replicate names
 							Collection<ChipSeqExpt> expts = loader.loadExperiments(locator.getExptName());

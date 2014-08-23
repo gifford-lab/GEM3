@@ -10,6 +10,8 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.text.DateFormat;
+import java.text.NumberFormat;
+import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -183,6 +185,13 @@ public class CommonUtils {
 			else if(signal<f.signal){return(1);}
 			else return(0);
 		}
+	}
+	
+	public static boolean isNumeric(String str)	{
+	  NumberFormat formatter = NumberFormat.getInstance();
+	  ParsePosition pos = new ParsePosition(0);
+	  formatter.parse(str, pos);
+	  return str.length() == pos.getIndex();
 	}
 	/**
 	 * Load BED regions<br>

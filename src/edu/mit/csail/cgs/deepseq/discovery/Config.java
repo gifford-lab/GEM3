@@ -47,6 +47,14 @@ public class Config {
     public int k_min = -1;		// the minimum value of k
     public int k_max= -1;		// the maximum value of k        
     public String seed = null;
+    
+    /** number of top k-mers selected from density clustering to run KMAC */
+    public int k_top = 3;
+    /** kmer distance cutoff, kmers with equal or high distance are consider neighbors when computing local density, in density clustering */
+    public int kd = 2;
+    /** delta value cutoff, k-mers with equal or higher delta values are used for selecting cluster centers */
+    public int delta = 3;
+    
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
@@ -103,7 +111,7 @@ public class Config {
     /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
     public boolean evaluate_by_ksm = false;		
     public boolean use_strength_weight = true;	// use binding event strength to weight 
-    public boolean use_pos_weight = true;		// use binding position profile to weight motif site
+    public boolean use_pos_weight = false;		// use binding position profile to weight motif site
     public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
     public boolean allow_seed_inheritance=true;	// allow primary seed k-mer to pass on to the next round of GEM
     public boolean filter_pwm_seq = true;
@@ -128,6 +136,7 @@ public class Config {
     public int window_size_factor = 3;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
     public int noise_distribution = 1;	// the read distribution for noise component, 0 NO, 1 UNIFORM, 2 SMOOTHED CTRL
+    public String out_name="out";
     
     public double mappable_genome_length = -1; // default is to compute
     public double background_proportion = -1;	// default is to compute
@@ -207,6 +216,7 @@ public class Config {
         print_stranded_read_distribution = flags.contains("print_stranded_read_distribution");
         process_all_regions = flags.contains("process_all_regions");
         refine_window_boundary = flags.contains("refine_window_boundary");
+        use_pos_weight = flags.contains("use_pos_weight");
                 
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
@@ -228,7 +238,6 @@ public class Config {
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         use_strength_weight = !flags.contains("no_weight");
-        use_pos_weight = !flags.contains("no_pos_weight");
         use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_pos_kmer = !flags.contains("no_pos_kmer");
         optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
@@ -249,6 +258,7 @@ public class Config {
         
         // Optional input parameter
         genome_path = Args.parseString(args, "genome", genome_path);
+        out_name = Args.parseString(args, "out_name", out_name);
         k = Args.parseInteger(args, "k", k);
         k_min = Args.parseInteger(args, "k_min", k_min);
         k_max = Args.parseInteger(args, "k_max", k_max);
@@ -263,6 +273,9 @@ public class Config {
         	k_max = -1;
         	allow_seed_reset = false;
         }
+        k_top = Args.parseInteger(args, "k_top", k_top);
+        kd = Args.parseInteger(args, "kd", kd);
+        delta = Args.parseInteger(args, "delta", delta);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
         k_win = Args.parseInteger(args, "k_win", k_win);
         k_win_f = Args.parseInteger(args, "k_win_f", k_win_f);

@@ -6,6 +6,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,8 @@ import cern.jet.random.HyperGeometric;
 import cern.jet.random.engine.DRand;
 
 import java.util.Arrays;
+
+import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 
@@ -408,7 +411,38 @@ public class StatUtil {
 		
 		return new Pair<Integer, TreeSet<Integer>>(maximum, max_index);
 	}//end of findMax method 
-	
+	public static double getMax(double[] x){
+		double max = Double.MIN_VALUE;
+		for (int i=0;i<x.length;i++){
+			if (max<x[i])
+				max = x[i];
+		}
+		return max;
+	}
+	public static int getMax(int[] x){
+		int max = Integer.MIN_VALUE;
+		for (int i=0;i<x.length;i++){
+			if (max<x[i])
+				max = x[i];
+		}
+		return max;
+	}
+	public static double getMin(double[] x){
+		double min = Double.MAX_VALUE;
+		for (int i=0;i<x.length;i++){
+			if (min>x[i])
+				min = x[i];
+		}
+		return min;
+	}
+	public static int getMin(int[] x){
+		int min = Integer.MAX_VALUE;
+		for (int i=0;i<x.length;i++){
+			if (min>x[i])
+				min = x[i];
+		}
+		return min;
+	}
 	/**
 	 * Returns the minimum of this array as well as all the positions in the array
 	 * corresponding to the minimum
@@ -1689,6 +1723,193 @@ public class StatUtil {
 		return sum;		
 	}// end of normalize method
 
+	/** data structure to store the points for density clustering
+	 */
+	public class DensityClusteringPoint implements Comparable<DensityClusteringPoint>{
+		public int id;		// the original id of the data point
+		public double density=0;
+		public double delta=0;
+		public double gamma=0;
+		public int delta_id;
+		
+		public String toString(){
+			return String.format("id=%d\tdensity=%.1f\tdelta=%.1f\tgamma=%.1f\tdelta_id=%d", id, density, delta, gamma, delta_id);
+		}
+		/**
+		 * Sort DensityClusteringPoint by descending density value (default)
+		 */		
+		public int compareTo(DensityClusteringPoint p) {
+			if(density>p.density){return(-1);}
+			else if(density<p.density){return(1);}
+			else return(0);
+		}
+		/**
+		 * Sort DensityClusteringPoint by descending gamma value
+		 */
+		public int compareToByGamma(DensityClusteringPoint p) {
+			if(gamma>p.gamma){return(-1);}
+			else if(gamma<p.gamma){return(1);}
+			else return(0);
+		}
+		/**
+		 * Sort DensityClusteringPoint by ascending id
+		 */
+		public int compareToById(DensityClusteringPoint p) {
+			if(id<p.id){return(-1);}
+			else if(id>p.id){return(1);}
+			else return(0);
+		}
+		
+	}
+	
+	/**
+	 * This implements the clustering method introduced by "Clustering by fast search and find of density peaks, Science. 2014 Jun 27;344(6191):"<br>
+	 * It is extended to incorporate weights for the data points.
+	 * @param distanceMatrix
+	 * @param weights
+	 * @param distanceCutoff kmer distance cutoff, kmers with equal or less distance are consider neighbors when computing local density
+	 * @param deltaCutoff delta value cutoff, kmers with equal or higher delta values are used for selecting cluster centers
+	 * @return
+	 */
+	public static ArrayList<DensityClusteringPoint> weightedDensityClustering(double[][] distanceMatrix, double[] weights, int distanceCutoff, int deltaCutoff){
+		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
+		StatUtil util = new StatUtil();
+		// compute local density for each point
+		for (int i=0;i<distanceMatrix.length;i++){
+			DensityClusteringPoint p = util.new DensityClusteringPoint();
+			p.id = i;
+			double[] distanceVector = distanceMatrix[i];
+			for (int j=0;j<distanceVector.length;j++){
+				if (distanceVector[j] <= distanceCutoff)
+					p.density+=weights[j];				
+			}
+			data.add(p);
+		}
+		data.trimToSize();		
+		Collections.sort(data);
+		
+		// compute the shortest distance to the potential centers
+		// for the top point
+		data.get(0).delta = getMax(distanceMatrix[data.get(0).id]);
+		if (data.get(0).delta <= deltaCutoff)		// in rare situation, at least return the top point
+			data.get(0).delta = deltaCutoff + 1;
+		data.get(0).gamma = data.get(0).delta * data.get(0).density;
+		
+		// for the rest of points
+		for (int i=1;i<data.size();i++){
+			double min = Double.MAX_VALUE;
+			int id = data.get(i).id;
+//			if (id==284)
+//				id=id;
+			for (int j=0;j<i;j++){		// for the points have higher (or equal) density than point i
+//				if (data.get(i).density<data.get(j).density 	// need this comparison because of tied ranking
+				if (min>distanceMatrix[id][data.get(j).id])
+					min = distanceMatrix[id][data.get(j).id];
+			}
+			data.get(i).delta = min;
+			data.get(i).gamma = data.get(i).delta * data.get(i).density;
+		}
+		
+//		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
+//            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+//                return o1.compareToById(o2);
+//            }
+//        });
+//		for (int i=0;i<50;i++){
+//			DensityClusteringPoint p = data.get(i);
+//			System.out.println(String.format("#%d\t%.1f\t%.1f\t%.1f\t%.1f",p.id, weights[p.id], p.density, p.delta, p.gamma));
+//		}
+		
+		// sort results by gamma, excluding points with delta smaller than the cutoff value
+		ArrayList<DensityClusteringPoint> data_small_delta = new ArrayList<DensityClusteringPoint>();
+		for (DensityClusteringPoint p: data){
+			if (p.delta<deltaCutoff)
+				data_small_delta.add(p);
+		}
+		data.removeAll(data_small_delta);
+		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
+            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+                return o1.compareToByGamma(o2);
+            }
+        });
+		data.trimToSize();
+		
+		return data;
+	}
+	/**
+	 * This implements the clustering method introduced by "Clustering by fast search and find of density peaks, Science. 2014 Jun 27;344(6191):"<br>
+	 * It is extended to incorporate weights for the data points. <br>
+	 * This method use total positive hit as weight (e.g. sequence hit by the k-mers)
+	 * @param distanceMatrix
+	 * @param weights
+	 * @param distanceCutoff kmer distance cutoff, kmers with equal or less distance are consider neighbors when computing local density
+	 * @param deltaCutoff delta value cutoff, kmers with equal or higher delta values are used for selecting cluster centers
+	 * @return
+	 */
+	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, ArrayList<HashSet<Integer>> hitList, int distanceCutoff, int deltaCutoff){
+		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
+		StatUtil util = new StatUtil();
+		// compute local density for each point
+		for (int i=0;i<distanceMatrix.length;i++){
+			DensityClusteringPoint p = util.new DensityClusteringPoint();
+			p.id = i;
+			double[] distanceVector = distanceMatrix[i];
+			HashSet<Integer> hits = new HashSet<Integer>();
+			for (int j=0;j<distanceVector.length;j++){
+				if (distanceVector[j] <= distanceCutoff)
+					hits.addAll(hitList.get(j));				
+			}
+			p.density = hits.size();
+			data.add(p);
+		}
+		data.trimToSize();		
+		Collections.sort(data);
+		
+		// compute the shortest distance to the potential centers
+		// for the top point
+		data.get(0).delta = getMax(distanceMatrix[data.get(0).id]);
+		if (data.get(0).delta <= deltaCutoff)		// in rare situation, at least return the top point
+			data.get(0).delta = deltaCutoff + 1;
+		data.get(0).gamma = data.get(0).delta * data.get(0).density;
+		data.get(0).delta_id = 0;
+		
+		// for the rest of points
+		for (int i=1;i<data.size();i++){
+			double min = Double.MAX_VALUE;
+			int id = data.get(i).id;
+//			if (id==91)
+//				id=id;
+			for (int j=0;j<i;j++){		// for the points have higher (or equal) density than point i
+				if (min>distanceMatrix[id][data.get(j).id]){
+					min = distanceMatrix[id][data.get(j).id];
+					data.get(i).delta_id = data.get(j).id;
+				}
+			}
+			data.get(i).delta = min;
+			data.get(i).gamma = data.get(i).delta * data.get(i).density;
+		}
+		for (int i=1;i<data.size();i++){
+			if (data.get(i).delta > distanceCutoff)
+				data.get(i).delta_id = data.get(i).id;
+		}
+			
+		// sort results by gamma, excluding points with delta smaller than the cutoff value
+		ArrayList<DensityClusteringPoint> data_small_delta = new ArrayList<DensityClusteringPoint>();
+		for (DensityClusteringPoint p: data){
+//			System.out.println(p.toString());
+			if (p.delta<deltaCutoff)
+				data_small_delta.add(p);
+		}
+		data.removeAll(data_small_delta);
+		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
+            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+                return o1.compareToByGamma(o2);
+            }
+        });
+		data.trimToSize();
+		
+		return data;
+	}	
 	 public static void main(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));

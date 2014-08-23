@@ -40,21 +40,68 @@ public class FileReadLoader extends ReadLoader{
 
 	protected List<File> files=null;
 	protected String format;
-	//TODO: why do we need a list of file readers?
+	// a list of file readers, each for one file (replicate)
 	protected List<AlignmentFileReader> fileReaders = new ArrayList<AlignmentFileReader>();
 	protected int maxMismatch=0;
 	protected boolean useNonUnique=true;
 	protected int currID=0;
-		
+
+	public FileReadLoader(List<File> f, String format){
+		// estimate genome chrom length by combining all files
+		for(File file : f){
+			if(!file.isFile()){System.err.println("File not found: "+file.getName());System.exit(1);}
+			if(format.equals("SAM")){
+				SAMReader currReader = new SAMReader(file);
+				fileReaders.add(currReader);
+				currID = currReader.getCurrID();
+			}else if(format.equals("TOPSAM")){
+				TophatSAMReader currReader = new TophatSAMReader(file);
+				fileReaders.add(currReader);
+				currID = currReader.getCurrID();
+			}else if(format.equals("ELAND")){
+				ElandFileReader currReader = new ElandFileReader(file);
+				fileReaders.add(currReader);
+				currID = currReader.getCurrID();
+			}else if(format.equals("NOVO")){
+				NovoFileReader currReader = new NovoFileReader(file);
+				fileReaders.add(currReader);
+				currID = currReader.getCurrID();
+			}else if(format.equals("BOWTIE")){
+				BowtieFileReader currReader = new BowtieFileReader(file);
+				fileReaders.add(currReader);
+				currID = currReader.getCurrID();
+			}else if(format.equals("BED")){
+				BEDFileReader currReader = new BEDFileReader(file);
+				fileReaders.add(currReader);
+				currID = currReader.getCurrID();
+			}else{
+			    System.err.println("Unknown file format: "+format);
+			    System.exit(1);
+			}
+		}
+
+		//Combine the chromosome information
+		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
+		for(AlignmentFileReader a : fileReaders){
+			Map<String, Integer> currMap = a.getGenome().getChromLengthMap();
+			for(String s: currMap.keySet()){
+				if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
+					chrLenMap.put(s, currMap.get(s));
+			}
+		}
+		gen = new Genome("Genome", chrLenMap);
+	}
+
 	public FileReadLoader(Genome g, List<File> f, String format, int maxMismatch, boolean useNonUnique, int rLen, int idSeed){
 		super(g, rLen);
+		
 		this.maxMismatch=maxMismatch;
 		this.useNonUnique=useNonUnique;
 		files=f;
 		if(format==null){this.format="BED";}
 		else{this.format=format;}
 		currID = idSeed;
-		
+			
 		for(File file : files){
 			if(!file.isFile()){System.err.println("File not found: "+file.getName());System.exit(1);}
 			if(format.equals("SAM")){
@@ -86,21 +133,7 @@ public class FileReadLoader extends ReadLoader{
 			    System.exit(1);
 			}
 		}
-		
-		if(gen==null){
-			//Combine the chromosome information
-			HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
-			for(AlignmentFileReader a : fileReaders){
-				Map<String, Integer> currMap = a.getGenome().getChromLengthMap();
-				for(String s: currMap.keySet()){
-					if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
-						chrLenMap.put(s, currMap.get(s));
-				}
-			}
-			Genome comboGenome=new Genome("Genome", chrLenMap);
-			this.setGenome(comboGenome);
-		}
-		
+
 		for(AlignmentFileReader a : fileReaders){
 			totalHits+=a.getTotalHits();
 			totalWeight+=a.getTotalWeight();

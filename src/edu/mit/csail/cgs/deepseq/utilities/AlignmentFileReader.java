@@ -91,6 +91,15 @@ public abstract class AlignmentFileReader {
 	
 	protected int readLength;
 	protected int currID=0;
+	/**
+	 * This constructor use the file to initialize genome information
+	 * @param f file	
+	 * @param g genome
+	 */
+	public AlignmentFileReader(File f){
+		estimateGenome(f);
+	}
+
 	
 	public AlignmentFileReader(File f, Genome g, int mis, boolean nonUnique, int idSeed,
 			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom){
@@ -101,14 +110,12 @@ public abstract class AlignmentFileReader {
 		misMatch=mis;
 		useNonUnique = nonUnique;
 		currID=idSeed;
-		if(gen==null)
-			estimateGenome();
 		numChroms = gen.getChromList().size();
 		
 		this.chrom2ID=chrom2ID;
 		this.id2Chrom=id2Chrom;
 		
-		System.out.print("Loading reads from: "+f.getName()+" ... ");
+		System.out.print("    Loading reads from: "+f.getName()+" ... ");
 		
 		//Initialize the data structures
 		fivePrimes    = new int[numChroms][2][];
@@ -207,7 +214,7 @@ public abstract class AlignmentFileReader {
 	/**
 	 * Estimate a fake genome from the observed read coordinates
 	 */
-	protected abstract void estimateGenome();
+	protected abstract void estimateGenome(File f);
 	
 	/**
 	 * Gets the stranded weight of all hits (of all chromosomes) for the specified strand
@@ -246,7 +253,7 @@ public abstract class AlignmentFileReader {
 	/**
 	 * Converts lists of integers to integer arrays, deletes the lists for saving
 	 * memory and permutes all array elements so that they are ordered in terms of
-	 * the array <tt>starts</tt>.
+	 * the array <tt>fivePrimes</tt>.
 	 */
 	protected void populateArrays() {
 		

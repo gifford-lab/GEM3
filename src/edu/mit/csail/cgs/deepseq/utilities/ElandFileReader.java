@@ -12,18 +12,20 @@ import edu.mit.csail.cgs.deepseq.Read;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 
 public class ElandFileReader extends AlignmentFileReader {
-
+	public ElandFileReader(File f){
+		super(f);
+	}
 	public ElandFileReader(File f, Genome g, int misMatch, boolean useNonUnique, int idStart,
 			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom) {
 		super(f,g,misMatch,useNonUnique, idStart, chrom2ID, id2Chrom);
 	}
 
 	//Estimate chromosome lengths
-	protected void estimateGenome() {
+	protected void estimateGenome(File f) {
 		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
 		BufferedReader reader;
 		try {
-			reader = new BufferedReader(new FileReader(inFile));
+			reader = new BufferedReader(new FileReader(f));
 			String line;
 			while ((line = reader.readLine()) != null) {
 	        	line = line.trim();

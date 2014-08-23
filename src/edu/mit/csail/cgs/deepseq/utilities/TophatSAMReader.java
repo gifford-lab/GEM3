@@ -19,15 +19,17 @@ import edu.mit.csail.cgs.deepseq.Read;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 
 public class TophatSAMReader extends AlignmentFileReader{
-
+	public TophatSAMReader(File f){
+		super(f);
+	}
     public TophatSAMReader(File f, Genome g, int mis, boolean nonUnique, int idSeed,
 			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom) {
     	super(f, g, mis, nonUnique, idSeed, chrom2ID, id2Chrom);
     }
     
-	protected void estimateGenome() {
+	protected void estimateGenome(File f) {
 		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
-		SAMFileReader reader = new SAMFileReader(inFile);
+		SAMFileReader reader = new SAMFileReader(f);
 		reader.setValidationStringency(ValidationStringency.SILENT);
 		SAMSequenceDictionary dictionary = reader.getFileHeader().getSequenceDictionary();
 		if(dictionary !=null){

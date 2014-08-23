@@ -61,7 +61,7 @@ public class DeepSeqExpt {
 			else if(db.equals("readdb"))
 				loader = new ReadDBReadLoader(gen, locs, rLen, pairedEndData);
 			else{
-				System.err.println("Database tyep must be \"db\" or \"readdb\"");System.exit(1);
+				System.err.println("Database type must be \"db\" or \"readdb\"");System.exit(1);
 			}
 		} catch (NotFoundException e) {
 			e.printStackTrace();
@@ -74,7 +74,9 @@ public class DeepSeqExpt {
 		fivePrimeExt=0;
 		threePrimeExt=0;
 	}
-	public DeepSeqExpt(Genome g, List<File> files, boolean useNonUnique, String format, int readLen){this(g,files,useNonUnique, format,readLen, 1);}
+	public DeepSeqExpt(Genome g, List<File> files, boolean useNonUnique, String format, int readLen){
+		this(g,files,useNonUnique, format,readLen, 1);
+	}
 	public DeepSeqExpt(Genome g, List<File> files, boolean useNonUnique, String format,int readLen, int idStart){
 		gen = g;
 		rLen = readLen;
@@ -86,6 +88,15 @@ public class DeepSeqExpt {
 		startShift=0;
 		fivePrimeExt=0;
 		threePrimeExt=0;
+	}
+	/**
+	 * This constructor is used for estimating genome chrom sizes
+	 * @param files
+	 * @param format
+	 */
+	public DeepSeqExpt(List<File> files,String format){
+		loader = new FileReadLoader(files, format);
+		gen = loader.getGenome();
 	}
 	
 	//Accessors
@@ -234,22 +245,6 @@ public class DeepSeqExpt {
 	//Clean up the loaders
 	public void closeLoaders(){
 		loader.cleanup();
-	}
-	public static Genome combineFakeGenomes(DeepSeqExpt e, DeepSeqExpt c) {
-		//Combine the chromosome information
-		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
-		Map<String, Integer> currMap = e.getGenome().getChromLengthMap();
-		for(String s: currMap.keySet()){
-			if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
-				chrLenMap.put(s, currMap.get(s)+1000);
-		}
-		currMap = c.getGenome().getChromLengthMap();
-		for(String s: currMap.keySet()){
-			if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
-				chrLenMap.put(s, currMap.get(s));
-		}
-		Genome comboGenome=new Genome("Genome", chrLenMap);
-		return(comboGenome);
 	}
 }
 

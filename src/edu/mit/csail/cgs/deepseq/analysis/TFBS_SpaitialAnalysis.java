@@ -362,7 +362,7 @@ public class TFBS_SpaitialAnalysis {
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(filePath, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();
 				eachpeak:	for (int i=0;i<gpsPeaks.size();i++){
-					if (top!=-1 && sites.size()>top){		// only use top ranking events for analysis
+					if (top!=-1 && sites.size()>=top){		// only use top ranking events for analysis
 						break eachpeak;
 					}
 					GPSPeak p = gpsPeaks.get(i);

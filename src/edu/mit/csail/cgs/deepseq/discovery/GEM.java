@@ -59,8 +59,6 @@ public class GEM {
 		ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> experiments = new ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>>();
 		long loadData_tic = System.currentTimeMillis();
 		ArrayList<String> conditionNames = new ArrayList<String>();
-		int exptHitCount=0;
-		int ctrlHitCount=0;
 		Vector<String> exptTags=new Vector<String>();
 		for(String s : args)
         	if(s.contains("expt"))
@@ -72,6 +70,40 @@ public class GEM {
 		    printError();
 		    System.exit(1);
 		}
+
+		// esitmate chrom sizes for the genome if it is not provided with --g option
+        if(genome==null){
+    		System.out.println("Estimating chromosome sizes from all read files (skip this step by adding a --g option)...\n");
+			HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
+        	// each tag represents a condition
+            for(String tag : exptTags){
+        		if(!tag.startsWith("--rf") && (!tag.startsWith("--rdb"))){
+    	        	String name = tag.replaceFirst("--expt", ""); 
+    	        	List<File> expts = Args.parseFileHandles(args, "expt"+name);
+    	        	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
+    	            String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
+    	            if (fileFormat.equals("BAM"))
+    	            	fileFormat = "SAM";
+    	            if(expts.size()>0){
+    	                DeepSeqExpt e = new DeepSeqExpt(expts, fileFormat);
+    	                DeepSeqExpt c = new DeepSeqExpt(ctrls, fileFormat);
+    	                
+    	    			Map<String, Integer> currMap = e.getGenome().getChromLengthMap();
+    	    			for(String s: currMap.keySet()){
+    	    				if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s)+1000)
+    	    					chrLenMap.put(s, currMap.get(s)+1000);
+    	    			}
+    	    			currMap = c.getGenome().getChromLengthMap();
+    	    			for(String s: currMap.keySet()){
+    	    				if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
+    	    					chrLenMap.put(s, currMap.get(s));
+    	    			}
+    	            }
+        		}
+        	}
+			genome=new Genome("Genome", chrLenMap);
+        }
+		
         // each tag represents a condition
         for(String tag : exptTags){
         	String name="";
@@ -105,14 +137,7 @@ public class GEM {
 	                int readLength = -1;	// For file, read length will be obtained from the data
 	                DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
 	                DeepSeqExpt c = new DeepSeqExpt(genome, ctrls, nonUnique, fileFormat, readLength);
-	                if(genome==null){
-	                    genome = DeepSeqExpt.combineFakeGenomes(e,c);
-	                    e.setGenome(genome);
-	                    c.setGenome(genome);
-	                }
 	                experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(e,c));
-	                exptHitCount+=e.getHitCount();
-	                ctrlHitCount+=c.getHitCount();
 	            } else if(rdbexpts.size()>0 && expts.size() == 0){
 	                if(genome==null){
 	                    System.err.println("Error: the genome must be defined in order to use the Gifford Lab DB."); 

@@ -27,6 +27,8 @@ public abstract class ReadLoader {
 	protected HashMap<String, Integer> chrom2ID=new HashMap<String,Integer>();
 	protected HashMap<Integer,String> id2Chrom=new HashMap<Integer,String>();
 
+	public ReadLoader(){
+	}
 	public ReadLoader(Genome g, int rLen){
 		gen=g;
 		readLength=rLen;

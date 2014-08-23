@@ -52,7 +52,15 @@ public class ChipSeqAlignment {
 			e.printStackTrace();
 		}		
 	}
-	
+	/**
+	 * This is a work around to use readdb id directly, without accessing the Oracle database
+	 * @param readdb_id
+	 * @throws SQLException
+	 */
+	ChipSeqAlignment(int readdb_id){ 
+		dbid = readdb_id;
+	}
+
 	public int getDBID() { return dbid; }
 	public String getName() { return name; }
 	public ChipSeqExpt getExpt() { return expt; }

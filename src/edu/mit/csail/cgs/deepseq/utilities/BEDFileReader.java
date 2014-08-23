@@ -18,18 +18,20 @@ import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class BEDFileReader extends AlignmentFileReader {
-
+	public BEDFileReader(File f){
+		super(f);
+	}
 	public BEDFileReader(File f, Genome g, boolean useNonUnique, int idStart,
 			HashMap<String, Integer> chrom2ID, HashMap<Integer,String> id2Chrom) {
 		super(f,g,-1,useNonUnique, idStart, chrom2ID, id2Chrom);
 	}
 
 	//Estimate chromosome lengths
-	protected void estimateGenome() {
+	protected void estimateGenome(File f) {
 		HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
 		BufferedReader reader;
 		try {
-			reader = new BufferedReader(new FileReader(inFile));
+			reader = new BufferedReader(new FileReader(f));
 			String line;
 			while ((line = reader.readLine()) != null) {
 	        	line = line.trim();

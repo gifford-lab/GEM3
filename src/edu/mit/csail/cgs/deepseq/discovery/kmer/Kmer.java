@@ -95,7 +95,7 @@ public class Kmer implements Comparable<Kmer>{
 	public void incrStrength(double strength){this.strength += strength;}
 	
 	private double hgp_lg10 = 0;
-	/**  get hyper-geometric p-value (log10) of the kmer */
+	/**  get hyper-geometric p-value (log10) of the kmer, this is usually a negative value */
 	public double getHgp() {
 		return hgp_lg10;
 	}
@@ -123,7 +123,7 @@ public class Kmer implements Comparable<Kmer>{
 	public int getKmerStartOffset(){return kmerStartOffset;}
 	/** Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
 	public void setKmerStartOffset(int s){kmerStartOffset=s;}
-	
+	public Kmer(){}
 	public Kmer(String kmerStr, Integer posHit ){
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
@@ -221,9 +221,9 @@ public class Kmer implements Comparable<Kmer>{
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
 		if (use_weighted_hit_count)
-			return firstField+"\tPosCt\twPosCt\tNegCt\tHGP_10";
+			return firstField+"\tPosCt\twPosCt\tNegCt\tHgp_lg10";
 		else
-			return firstField+"\tPosCt\tNegCt\tHGP_10";
+			return firstField+"\tPosCt\tNegCt\tHgp_lg10";
 	}
 	public static Kmer fromString(String str){
 		String[] f = str.trim().split("\t");

@@ -34,6 +34,12 @@ public class ChipSeqLocator implements Comparable<ChipSeqLocator> {
     // available replicates for which the given alignment name is valid.
     private Set<String> reps;
     
+
+    public ChipSeqLocator(String ename) {
+        exptName = ename;
+        reps = new TreeSet<String>();
+    }
+
     public ChipSeqLocator(String ename, String aname) {
         exptName = ename;
         alignName = aname;
