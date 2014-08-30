@@ -165,7 +165,7 @@ public class StatUtil {
 	}
 	
 	/** 
-	 * Count occurences of the elements
+	 * Count occurrences of the elements
 	 */
 	public static HashMap<Integer, Integer> countOccurences (ArrayList<Integer> nums){
 		HashMap<Integer, Integer> map = new HashMap<Integer, Integer>();

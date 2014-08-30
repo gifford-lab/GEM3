@@ -65,7 +65,7 @@ public class KMAC {
 	private Genome genome;
 	private boolean engineInitialized =false;
 	private int k;
-	private int minHitCount = 3;
+	private int minHitCount = 2;
 	private int numPos;
 	private double[] bg= new double[4];	// background frequency based on GC content
 	private double ic_trim = 0.4;
@@ -472,7 +472,7 @@ public class KMAC {
 					bestAllHGP=bestCluster.pwmThresholdHGP;
 			}
 			else
-				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
+				sb.append(String.format("k=%d\tcannot form a PWM.\n", k));
 			
 			// reload non-masked sequences
 			seqs = pos_seq_backup.clone();
@@ -888,10 +888,12 @@ public class KMAC {
 				continue;
 			}
 			if (config.use_weighted_kmer){
-				kmer.setWeightedPosHitCount();
+				kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getWeightedHitCount(), kmer.getNegHitCount()));
 			}
-			kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
-			if (kmer.getHgp()>config.hgp){
+			else{
+				kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
+			}
+			if (kmer.getHgp()>config.kmer_hgp){
 				highHgpKmers.add(kmer);		
 				continue;
 			}
@@ -1532,7 +1534,7 @@ public class KMAC {
 			if (kmer2seq.containsKey(km)){
 				km.setPosHits(kmer2seq.get(km));
 				km.setHgp(computeHGP(km.getPosHitCount(), km.getNegHitCount()));	
-				if (km.getHgp()>config.hgp)
+				if (km.getHgp()>config.kmer_hgp || km.getPosHitCount()==0)
 					unenriched.add(km);
 			}
 			else{
@@ -1669,7 +1671,6 @@ public class KMAC {
 		File f = new File(outName);
 		String name = f.getName();
 		f=null;
-		StringBuilder pfm_sb = new StringBuilder();	
 		
 		// remove clusters with low hit count
 		ArrayList<KmerCluster> toRemove = new ArrayList<KmerCluster>();
@@ -1677,6 +1678,10 @@ public class KMAC {
 			KmerCluster c = clusters.get(i);
 			double hitRatio = (double)c.pwmPosHitCount / posSeqCount;
 			if (i>=10&&hitRatio<config.motif_hit_factor_report || hitRatio<config.motif_hit_factor)
+					toRemove.add(c);
+			if (config.evaluate_by_ksm && c.ksmThreshold.hgp>config.hgp)
+				toRemove.add(c);
+			if (!config.evaluate_by_ksm && c.pwmThresholdHGP>config.hgp)
 					toRemove.add(c);
 		}
 		clusters.removeAll(toRemove);
@@ -1709,6 +1714,10 @@ public class KMAC {
 		
 		// output PWM info
 		System.out.println();
+		StringBuilder pfm_sb = new StringBuilder();		// default TRANSFAC/STAMP format
+		StringBuilder pfm_jasper_sb = new StringBuilder();		// JASPAR format
+		StringBuilder pfm_meme_sb = new StringBuilder();		// MEME format
+		StringBuilder pfm_homer_sb = new StringBuilder();		// HOMER format
 		for (KmerCluster c:clusters){
      		WeightMatrix wm = c.wm;
     		System.out.println(String.format("--------------------------------------------------------------\n%s k-mer cluster #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
@@ -1718,8 +1727,17 @@ public class KMAC {
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
-			pfm_sb.append(makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
-					String.format("DE %s_%d_%d_c%d\n", name, c.clusterId, pos, c.pwmPosHitCount)));
+			pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
+					String.format("DE %s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
+			if (config.outputMEME)
+				pfm_meme_sb.append(CommonUtils.makeMEME (c.pfm, c.pwmPosHitCount, 
+						String.format("%s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
+			if (config.outputJASPAR)
+				pfm_jasper_sb.append(CommonUtils.makeJASPAR (c.pfm, c.pwmPosHitCount, 
+						String.format("%s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
+			if (config.outputHOMER)				
+				pfm_homer_sb.append(CommonUtils.makeHOMER (c.pfm, c.pwmPosHitCount, 
+						String.format("%s\t%s_%d_%d_c%d", WeightMatrix.getMaxLetters(c.wm), name, c.clusterId, pos, c.pwmPosHitCount)));
     		if (config.use_ksm && c.ksmThreshold!=null)
     			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=1e%.1f", c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
 			
@@ -1732,6 +1750,12 @@ public class KMAC {
 			CommonUtils.printMotifLogo(wm_rc, new File(outName+"_"+c.clusterId+"_motif_rc.png"), 75);
 		}
 		CommonUtils.writeFile(outName+"_PFM.txt", pfm_sb.toString());
+		if (config.outputMEME)
+			CommonUtils.writeFile(outName+"_PFM_MEME.txt", pfm_meme_sb.toString());
+		if (config.outputJASPAR)
+			CommonUtils.writeFile(outName+"_PFM_JASPAR.txt", pfm_jasper_sb.toString());
+		if (config.outputHOMER)
+			CommonUtils.writeFile(outName+"_PFM_HOMER.txt", pfm_homer_sb.toString());
 
 		// output HTML report
 		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
@@ -3591,8 +3615,8 @@ public class KMAC {
 
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmer2pos.keySet()){
-			ArrayList<Integer> posKmer = kmer2pos.get(km);
-			if (posKmer==null || posKmer.size()<km.getPosHitCount()*config.kmer_aligned_fraction){			// The kmer hit in the 2*k region should be at least 1/2 of total hit
+			ArrayList<Integer> posKmer = kmer2pos.get(km);		// all in_sequence positions of this kmer
+			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_aligned_fraction){			// The kmer hit in the 2*k region should be at least 1/2 of total hit
 				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
 			}	
@@ -3643,34 +3667,7 @@ public class KMAC {
 		return alignedKmers;
 	}
 
-	/**
-	 * Make TRASFAC PFM string
-	 * @param pfm			PFM matrix
-	 * @param hitCount		total sequence count for building PFM
-	 * @param header		header line
-	 * @return
-	 */
-	private String makeTRANSFAC (float[][] pfm, int hitCount, String header){
-		// make string in TRANSFAC format
-		StringBuilder sb = new StringBuilder();
-		sb.append(header);
-		for (int p=0;p<pfm.length;p++){
-			sb.append(p+1).append(" ");
-			int maxBase = 0;
-			float maxCount=0;
-			for (int b=0;b<LETTERS.length;b++){
-				sb.append(String.format("%d ", (int)Math.round((pfm[p][LETTERS[b]]*hitCount))));
-				if (maxCount<pfm[p][LETTERS[b]]){
-					maxCount=pfm[p][LETTERS[b]];
-					maxBase = b;
-				}
-			}
-			sb.append(LETTERS[maxBase]).append("\n");
-		}
-		sb.append("XX\n\n");
-		return sb.toString();
-	}
-    
+
     class PWMHit implements Comparable<PWMHit>{
     	int clusterId;
     	WeightMatrix wm;

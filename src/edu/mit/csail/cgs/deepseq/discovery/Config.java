@@ -11,6 +11,9 @@ public class Config {
     public boolean use_joint_event = false;
     public boolean outputBED = false;
     public boolean outputNarrowPeak = false;
+    public boolean outputMEME = false;
+    public boolean outputHOMER = false;
+    public boolean outputJASPAR = false;
     public boolean write_RSC_file = false;
     public boolean write_genetrack_file = false;
     public boolean kmer_print_hits = false;
@@ -26,6 +29,7 @@ public class Config {
     public boolean discard_subAlpha_components=false;			// discard the component whose strength is less than alpha    
     public boolean process_all_regions = false;
     public boolean refine_window_boundary = false;
+    public boolean is_branch_point_data = false;
 
     public boolean TF_binding = true;
     public boolean exclude_unenriched = true;
@@ -66,7 +70,8 @@ public class Config {
     public int topKmer_trials = 5;	// the number of initial k-mers to try
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
-    public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
+    public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched motif 
+    public double kmer_hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
     public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
     public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
     public double[] bg= new double[4];	// background frequency based on GC content
@@ -128,7 +133,6 @@ public class Config {
     public double alpha_factor = 3.0;
     public double alpha_fine_factor = 2.0;
     public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
-    public int joint_event_distance = 500;
     public int top_events = 2000;
     public int min_event_count = 500;	// minimum num of events to update read distribution
     public double top_fract_to_skip = 0.01;		// fraction of top events to skip for updating read distribution
@@ -174,7 +178,13 @@ public class Config {
 
     public void parseArgs(String args[]) throws Exception {
         Set<String> flags = Args.parseFlags(args);
-        
+        is_branch_point_data = flags.contains("bp");
+        if (is_branch_point_data){
+        	k_fold = 2;
+        	kmer_hgp = -0.8;
+        	strand_type = 1;	
+        	min_region_width = 1;
+        }
         // default as false, need the flag to turn it on
         classify_events = flags.contains("classify");
         print_PI = flags.contains("print_PI");
@@ -184,6 +194,9 @@ public class Config {
         kl_count_adjusted = flags.contains("adjust_kl");
         outputBED = flags.contains("outBED");
         outputNarrowPeak = flags.contains("outNP");
+        outputMEME = flags.contains("outMEME");
+        outputHOMER = flags.contains("outHOMER");
+        outputJASPAR = flags.contains("outJASPAR");
         write_RSC_file = flags.contains("writeRSC");
         write_genetrack_file = flags.contains("write_genetrack_file");
         testPValues = flags.contains("testP");
@@ -217,7 +230,7 @@ public class Config {
         process_all_regions = flags.contains("process_all_regions");
         refine_window_boundary = flags.contains("refine_window_boundary");
         use_pos_weight = flags.contains("use_pos_weight");
-                
+        
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
@@ -330,12 +343,12 @@ public class Config {
         window_size_factor = Args.parseInteger(args, "wsf", window_size_factor);
         second_lambda_region_width = Args.parseInteger(args, "w2", second_lambda_region_width);
         third_lambda_region_width = Args.parseInteger(args, "w3", third_lambda_region_width);
-        joint_event_distance = Args.parseInteger(args, "j", joint_event_distance);		// max distance of joint events
+//        joint_event_distance = Args.parseInteger(args, "j", joint_event_distance);		// max distance of joint events
         top_events = Args.parseInteger(args, "top", top_events);
         min_event_count = Args.parseInteger(args, "min", min_event_count);
         top_fract_to_skip = Args.parseDouble(args, "skip_frac", top_fract_to_skip);
         base_reset_threshold = Args.parseInteger(args, "reset", base_reset_threshold);
-        min_region_width = Args.parseInteger(args, "min_region_width", 50);
+        min_region_width = Args.parseInteger(args, "min_region_width", min_region_width);
         verbose = Args.parseInteger(args, "v", verbose);
         smooth_step = Args.parseInteger(args, "smooth", smooth_step);
         strand_type = Args.parseInteger(args, "strand_type", strand_type);

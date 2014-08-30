@@ -65,7 +65,7 @@ public class Kmer implements Comparable<Kmer>{
 	public HashSet<Integer> getPosHits(){return posHits;}
 	
 	private int weightedPosHitCount;
-	public void setWeightedPosHitCount(){
+	private void setWeightedPosHitCount(){
 		double weight=0;
 		for (int i: posHits)
 			weight+=seq_weights[i];

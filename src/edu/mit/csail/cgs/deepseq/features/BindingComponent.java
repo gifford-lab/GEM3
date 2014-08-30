@@ -9,8 +9,6 @@ import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
 
 /**
  * BindingComponents are used in mixture models to represent potential binding events.
- * @author shaun
- *
  */
 public class BindingComponent implements Comparable<BindingComponent>{
 

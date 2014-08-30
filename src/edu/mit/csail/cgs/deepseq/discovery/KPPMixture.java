@@ -120,7 +120,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     private StringBuilder configsb = new StringBuilder();
 	private StringBuilder log_all_msg = new StringBuilder();
 	private FileWriter logFileWriter;
-	private File outputFolder = null;
 
 	/** Kmer motif engine */
 	private KMAC kmac;
@@ -150,7 +149,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		commonInit(modelFile);
 		
 		File outFile = new File(outName);
-		outputFolder = outFile.getParentFile();
+		File outputFolder = outFile.getParentFile();
 		File gem_outputs_folder;
 		if (outputFolder!=null){
 			if (!outputFolder.exists()){
@@ -158,11 +157,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				cleanUpDataLoader();
 	    		System.exit(-1);
 			}
-			gem_outputs_folder = new File(outputFolder, outFile.getName()+"_outputs");
+			gem_outputs_folder = new File(outputFolder, outFile.getName());
 		}
-		else
-			gem_outputs_folder = new File(outFile.getName()+"_outputs");
-		gem_outputs_folder.mkdir();
+		else{
+			gem_outputs_folder = new File(outFile.getName());
+		}		
+		gem_outputs_folder.mkdir();		// create xxx folder
+		gem_outputs_folder = new File(gem_outputs_folder, outFile.getName()+"_outputs");
+		gem_outputs_folder.mkdir();		// create xxx/xxx_outputs folder
 		outName = new File(gem_outputs_folder, outFile.getName()).getAbsolutePath();	// re-direct outName prefix to a folder
 		
 		model.printToFile(outName+"_0_Read_distribution.txt");
@@ -337,7 +339,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
      	String subsetFormat = Args.parseString(args, "subFormat", "");
     	// if not provided region list, directly segment genome into enrichedRegions
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
-			setRegions(selectEnrichedRegions(subsetRegions, true));
+			restrictRegions = selectEnrichedRegions(subsetRegions, true);
      		// ip/ctrl ratio by regression on non-enriched regions
 			if (config.ip_ctrl_ratio==-1){
      			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
@@ -349,9 +351,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     			}
     		}
 		} else{
-			setRegions(subsetRegions);
+			restrictRegions = subsetRegions;
 		}
-		
+
 		log(1, "\nThe genome is segmented into "+restrictRegions.size()+" regions for analysis.");
 
         if (restrictRegions.isEmpty())
@@ -546,7 +548,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         Thread[] threads = new Thread[config.maxThreads];
         log(1,String.format("Running with %d threads ...", config.maxThreads));
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
-        
+
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         ArrayList<Region> regionsToRun = new ArrayList<Region>();
         if (!config.process_all_regions){		// first round, only process some of the region, sort to put the strong regions on top
@@ -559,6 +561,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         }
         else
         	regionsToRun.addAll(restrictRegions);
+        
         Iterator<Region> iterator = regionsToRun.iterator();
         for (int i = 0 ; i < threads.length; i++) {
             Thread t = new Thread(new GPS2Thread(iterator,
@@ -666,7 +669,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
     				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
     				if (cf.onSameChrom(cf2)){
-    					if (cf.getPosition().distance(cf2.getPosition())<=config.joint_event_distance){
+    					if (cf.getPosition().distance(cf2.getPosition())<=model.getWidth()){
     						cf.setJointEvent(true);
     						cf2.setJointEvent(true);
     					}
@@ -818,7 +821,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
 				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
 				if (cf.onSameChrom(cf2)){
-					if (cf.getPosition().distance(cf2.getPosition())<=config.joint_event_distance){
+					if (cf.getPosition().distance(cf2.getPosition())<=model.getWidth()){
 						cf.setJointEvent(true);
 						cf2.setJointEvent(true);
 					}
@@ -834,23 +837,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			"Events discovered \nSignificant:\t"+signalFeatures.size()+
             "\nInsignificant:\t"+insignificantFeatures.size()+
             "\nFiltered:\t"+filteredFeatures.size()+"\n");
-		
-		if (kmac!=null){
-			displayKmerCoverage(signalFeatures, "Significant");
-			displayKmerCoverage(insignificantFeatures, "Insignificant");
-			displayKmerCoverage(filteredFeatures, "Filtered");
-		}
-		
+				
 		int jointCount = 0;
 		for (int i=0;i<signalFeatures.size()-1;i++){
 			ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
 			if (cf.isJointEvent())
 				jointCount++;
 		}
-		System.out.println("Total "+jointCount+" homotypic events (within "+config.joint_event_distance+"bp of other events).\n");
+		System.out.println("Total "+jointCount+" homotypic events (within "+model.getWidth()+"bp of other events).\n");
 	}//end of post EM Processing
 
-	private void displayKmerCoverage(List<Feature> bindingCallFeatures, String eventType){ 
+	private void displayKmerCoverage(List<ComponentFeature> bindingCallFeatures, String eventType){ 
 		int bin = (int)Math.ceil(bindingCallFeatures.size()/10.0);
 		StringBuilder sb = new StringBuilder();
 		sb.append("Percentage of "+eventType+" events with a k-mer match, divided in 10 bins (~"+bin+" events per bin):\n");
@@ -858,7 +855,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			int count=0, motif=0;
 			for (int j=i;j<Math.min(bindingCallFeatures.size(), i+bin);j++){
 				count++;
-				if (((ComponentFeature)bindingCallFeatures.get(j)).getKmerGroup()!=null)
+				if (bindingCallFeatures.get(j).getKmerGroup()!=null)
 					motif++;
 			}
 			sb.append((motif*100)/count).append(" ");
@@ -1698,9 +1695,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		return signals;
 	}
 
-	// dynamically determine an alpha value for this sliding window based on IP reads
-	// find a 500bp(modelWidth) region with maximum read counts, set alpha=sqrt(maxCount)/3
-
+	/** dynamically determine an alpha value for this region based on IP reads
+	 * find a sliding window (modelWidth bp) with maximum read counts, set alpha=fn(maxCount)
+	 * @param window
+	 * @param signals
+	 * @return
+	 */
 	private double estimateAlpha(Region window, ArrayList<List<StrandedBase>> signals){
 		float maxCount = 0;
 		int left = Math.abs(model.getMin());
@@ -1727,7 +1727,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				maxCount = count;
 		}
         //		double alphaEstimate = maxCount/ALPHA_FACTOR;
-		double alphaEstimate = Math.sqrt(maxCount)/config.alpha_factor;
+		double alphaEstimate = 0;
+		if (config.is_branch_point_data)
+			alphaEstimate = maxCount/10;
+		else
+			alphaEstimate = Math.sqrt(maxCount)/config.alpha_factor;
 		return alphaEstimate;
 	}
 
@@ -1911,7 +1915,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				ArrayList<Region> toRemove = new ArrayList<Region>();
                 List<Region> toTest = new ArrayList<Region>();
 				for (Region r: rs){
-					if (r.getWidth()<=config.min_region_width){
+		        	// for testing chrXV   506292  506322
+					Region r_test = new Region(r.getGenome(), "IV", 217955, 217985 );
+		        	if (r_test.overlaps(r)){
+		        		config.sparseness += 0;
+		        	}
+					if (r.getWidth()<=Math.min(config.min_region_width, model.getWidth()/10)){
 						toRemove.add(r);
 						continue;
 					}
@@ -1932,8 +1941,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             	readCount = (int)countIpReads(testr,c); 
                             else
                             	readCount = (int)countCtrlReads(testr,c); 
-                            
-                            poisson.setMean(config.minFoldChange * totalConditionCount[c] * testr.getWidth() / config.mappable_genome_length);
+                         // yg: remove config.minFoldChange * 
+                            poisson.setMean( totalConditionCount[c] * testr.getWidth() / config.mappable_genome_length);
                             double pval = 1 - poisson.cdf(readCount) + poisson.pdf(readCount);
                             if (pval <= .01) {
                                 enriched = true;
@@ -1942,7 +1951,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                             
                             if (isIP & controlDataExist) {		
                                 double ctrlreads = countCtrlReads(testr,c);
-                                poisson.setMean(config.minFoldChange * ctrlreads * this.ratio_total[c]);
+                                poisson.setMean(ctrlreads * this.ratio_total[c]); // yg: remove config.minFoldChange * 
                                 pval = 1 - poisson.cdf(readCount) + poisson.pdf(readCount);
                                 if (pval <= .01) {
                                     enriched = true;
@@ -3168,6 +3177,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			Collections.sort(fs);
 		String fname = outName+"_GEM_events.txt";
 		printFeatures(fname, fs);
+		if (kmac!=null){
+			displayKmerCoverage(fs, "significant");
+		}
 	}
 
 	public void printInsignificantFeatures(int round){
@@ -3193,6 +3205,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			Collections.sort(fs);
 		String fname = outName+"_GEM_insignificant.txt";
 		printFeatures(fname, fs);
+		if (kmac!=null && !insignificantFeatures.isEmpty()){
+			displayKmerCoverage(fs, "insignificant");
+		}
+
 	}
 	
 	public void printFilteredFeatures(int round){
@@ -3211,7 +3227,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 			String fname = outName+"_GEM_filtered.txt";
 			printFeatures(fname, fs);
+			
+			if (kmac!=null){
+				displayKmerCoverage(fs, "filtered");
+			}
 		}
+
 	}
 	
 	public void printPsortedCondFeatures(){
@@ -3846,10 +3867,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             	synchronized (iterator){
 	            	if (iterator.hasNext()){
 	            		rr = iterator.next();
+	                	// for testing
+	                	Region r_test = new Region(rr.getGenome(), "V", 239652, 239682 );
+	                	if (r_test.overlaps(rr)){
+	                		config.sparseness += 0;
+	                	}
             		}
 	            	else
 	            		break;
             	}
+
                 log(3, rr.toString());
                 regionsRunning.add(rr);
                 try{
@@ -4058,6 +4085,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                                     b.setEMPosition(p);
                                     for (BindingComponent m:comps){
                                         if (p.getLocation()==m.getLocation().getLocation()) {
+                                        	if (m.getStrand()!='*')
+                                        		b.setStrand(m.getStrand());
                                             b.setAlpha(m.getAlpha());	// inherit alpha value from previous EM component
                                             b.setNoiseFraction(m.getNoiseFraction());
                                             if(!config.use_betaEM) {
@@ -4200,6 +4229,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         		ArrayList<List<StrandedBase>> bg_signals, SequenceGenerator<Region> seqgen){
             // We want to run EM only for potential homotypic regions
             // After first round, if we are sure the region contains unary event, we will just scan for peak
+        	// for testing chrIV   217955  217985
+        	Region r_test = new Region(w.getGenome(), "IV", 217955, 217985 );
+        	if (r_test.overlaps(w)){
+        		config.sparseness += 0;
+        	}
             if (!singleEventRegions.containsKey(w)) {
                 // dynamically determine an alpha value for this sliding window
             	// when having a noies component, reduce alpha value further
@@ -4218,6 +4252,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 	//construct the positional prior for each position in this region
                 	double[] pp = new double[w.getWidth()+1];
                 	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
+                	int[] offset = new int[pp.length];
                 	String seq = null;
                 	if (kmac!=null && kmac.isInitialized()){
                 		if (kmerPreDefined)		// if kmer is loaded from other sources, get fresh sequence 
@@ -4256,6 +4291,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                		if (config.print_PI)	
 			                		System.out.println(bindingPos+"\t"+g.getBestKmer().getKmerString());
 		                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), g, pp[bindingPos]));
+		                	}
+		                	
+		                	//TODO: For branch point data, spread the influence of kmer group to nearby positions
+		                	if (config.is_branch_point_data){
+		                		
 		                	}
                 		}
                 		else {			// use PWM to set KPP

@@ -469,6 +469,107 @@ public class CommonUtils {
 	      }
 	      return sb.toString();
 	}
+	public static final char[] LETTERS = {'A','C','G','T'};
+
+	/**
+	 * Make TRASFAC/STAMP compatible PFM string
+	 * @param pfm			PFM matrix (in frequency)
+	 * @param hitCount		total sequence count for building PFM
+	 * @param header		header line
+	 * @return
+	 */
+	public static String makeTRANSFAC (float[][] pfm, int hitCount, String header){
+		StringBuilder sb = new StringBuilder();
+		sb.append(header).append("\n");
+		for (int p=0;p<pfm.length;p++){
+			sb.append(p+1).append(" ");
+			int maxBase = 0;
+			float maxCount=0;
+			for (int b=0;b<LETTERS.length;b++){
+				sb.append(String.format("%d ", (int)Math.round((pfm[p][LETTERS[b]]*hitCount))));
+				if (maxCount<pfm[p][LETTERS[b]]){
+					maxCount=pfm[p][LETTERS[b]];
+					maxBase = b;
+				}
+			}
+			sb.append(LETTERS[maxBase]).append("\n");
+		}
+		sb.append("XX\n\n");
+		return sb.toString();
+	}
+	/**
+	 * Make MEME compatible PFM string
+	 * letter-probability matrix: alength= 4 w= 15 nsites= 783 E= 8.3e-057 
+ 		0.075351  0.303959  0.039591  0.581098 
+ 		0.735632  0.218391  0.045977  0.000000 
+ 		0.886335  0.111111  0.002554  0.000000 
+	 * @param pfm			PFM matrix (in frequency)
+	 * @param hitCount		total sequence count for building PFM
+	 * @param header		header line
+	 * @return
+	 */
+	public static String makeMEME (float[][] pfm, int hitCount, String header){
+		StringBuilder sb = new StringBuilder();
+		sb.append(">").append(header).append("\n");
+		sb.append(String.format("letter-probability matrix: alength= %d w= %d nsites= %d\n", LETTERS.length, pfm.length, hitCount));
+		for (int p=0;p<pfm.length;p++){
+			for (int b=0;b<LETTERS.length;b++)
+				sb.append(String.format("%.6f\t", pfm[p][LETTERS[b]]));
+			CommonUtils.replaceEnd(sb, '\n');
+		}
+		sb.append("\n");
+		return sb.toString();
+	}
+	/**
+	 * Make HOMER compatible PFM string
+	 * http://homer.salk.edu/homer/ngs/formats.html
+	 * >ASTTCCTCTT     1-ASTTCCTCTT    8.059752        -23791.535714   0       T:17311.0(44 ...
+		0.726   0.002   0.170   0.103
+		0.002   0.494   0.354   0.151
+		0.016   0.017   0.014   0.954
+		0.005   0.006   0.027   0.963
+		0.002   0.995   0.002   0.002
+	 * @param pfm			PFM matrix (in frequency)
+	 * @param hitCount		total sequence count for building PFM
+	 * @param header		header line: name TAB uniqueID TAB logOR TAB p-value
+	 * @return
+	 */
+	public static String makeHOMER (float[][] pfm, int hitCount, String header){
+		StringBuilder sb = new StringBuilder();
+		sb.append(">").append(header).append("\n");
+		for (int p=0;p<pfm.length;p++){
+			for (int b=0;b<LETTERS.length;b++)
+				sb.append(String.format("%.3f\t", pfm[p][LETTERS[b]]));
+			CommonUtils.replaceEnd(sb, '\n');
+		}
+		sb.append("\n");
+		return sb.toString();
+	}	/**
+	 * Make JASPER compatible PFM string
+	 * http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt
+	 * >MA0004.1 Arnt
+		4	19	0	0	0	0
+		16	0	20	0	0	0
+		0	1	0	20	0	20
+		0	0	0	0	20	0
+	 * @param pfm			PFM matrix (in frequency)
+	 * @param hitCount		total sequence count for building PFM
+	 * @param header		header line
+	 * @return
+	 */
+	public static String makeJASPAR (float[][] pfm, int hitCount, String header){
+		StringBuilder sb = new StringBuilder();
+		sb.append(">").append(header).append("\n");;
+		for (int b=0;b<LETTERS.length;b++){
+			for (int p=0;p<pfm.length;p++){			
+				sb.append(String.format("%d\t", (int)Math.round((pfm[p][LETTERS[b]]*hitCount))));
+			}
+			CommonUtils.replaceEnd(sb, '\n');
+		}
+		sb.append("\n");
+		return sb.toString();
+	}
+	
     /*
      * parse motif string, version, threshold, species_id from command line
      */

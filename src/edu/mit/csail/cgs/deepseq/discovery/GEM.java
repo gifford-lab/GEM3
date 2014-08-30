@@ -14,18 +14,12 @@ import edu.mit.csail.cgs.utils.Pair;
 
 
 public class GEM {
-	public final static String GEM_VERSION = "2.4.1";
+	public final static String GEM_VERSION = "2.5";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
 	
 	public GEM(String[] args) throws NotFoundException {
-        init();
-        parseArgs(args);
-    }
-    public void init() {        
-    }
-    public void parseArgs(String[] args) throws NotFoundException {
 		this.args = args;
 		Set<String> flags = Args.parseFlags(args);
         if (flags.contains("help")) {
@@ -174,7 +168,7 @@ public class GEM {
         int minRight = Args.parseInteger(args,"d_r", 200);
         boolean not_update_model = flags.contains("not_update_model");
         /**
-         ** Simple GPS1 event finding without sequence information
+         ** Simple GPS event finding without sequence information
          **/
 	    int round = 0;
         String filePrefix = mixture.getOutName();
@@ -330,19 +324,20 @@ public class GEM {
                          "   Required parameters:\n" +
                          "      --d <read distribution file>\n" +
                          "      --exptX <aligned reads file for expt (X is condition name)>\n" +
-                         "   Required GEM parameters, optional for GPS-only analysis:\n" +
+                         "   Required GEM motif discovery parameters, optional for GPS-only analysis:\n" +
                          "      --k <length of the k-mer for motif finding, use --k or (--kmin & --kmax)>\n" +
                          "      --k_min <min value of k, e.g. 6>\n" +
                          "      --k_max <max value of k, e.g. 13>\n" +
+                         "      --seed <exact k-mer string to jump start k-mer set discovery>\n" +
                          "      --genome <the path to the genome sequence directory, for motif finding>\n" +
                          "   Optional parameters:\n" +
                          "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
-                         "      --f <read file format, BED/SAM/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --g <genome info file with chr name/length pairs>\n" +
+                         "      --f <read file format, BED/SAM/BOWTIE/ELAND/NOVO (default BED)>\n" +
                          "      --s <size of mappable genome in bp (default is estimated from genome info)>\n" +
                          "      --a <minimum alpha value for sparse prior (default is esitmated from whole dataset coverage)>\n" +
                          "      --q <significance level for q-value, specify as -log10(q-value) (default=2, q-value=0.01)>\n" +
-                         "      --t <maximum number of threads to run GPS in paralell (default=#CPU)>\n" +
+                         "      --t <maximum number of threads to run GEM in paralell (default=#CPU)>\n" +
                          "      --out <output file name prefix>\n" +
                          "      --k_seqs <number of binding events to use for motif discovery (default=5000)>\n" +
                          "   Optional flags: \n" +
