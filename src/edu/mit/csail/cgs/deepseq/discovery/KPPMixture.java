@@ -149,23 +149,25 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		commonInit(modelFile);
 		
 		File outFile = new File(outName);
-		File outputFolder = outFile.getParentFile();
+		String outPrefix = outFile.getAbsoluteFile().getName();	
+
+		File parentFolder = outFile.getParentFile();
 		File gem_outputs_folder;
-		if (outputFolder!=null){
-			if (!outputFolder.exists()){
+		if (parentFolder!=null){
+			if (!parentFolder.exists()){
 				System.err.println("\nThe output file path is not correct: "+outFile.getAbsolutePath());
 				cleanUpDataLoader();
 	    		System.exit(-1);
 			}
-			gem_outputs_folder = new File(outputFolder, outFile.getName());
+			gem_outputs_folder = new File(parentFolder, outPrefix);
 		}
 		else{
-			gem_outputs_folder = new File(outFile.getName());
+			gem_outputs_folder = new File(outPrefix);
 		}		
 		gem_outputs_folder.mkdir();		// create xxx folder
-		gem_outputs_folder = new File(gem_outputs_folder, outFile.getName()+"_outputs");
+		gem_outputs_folder = new File(gem_outputs_folder, outPrefix+"_outputs");
 		gem_outputs_folder.mkdir();		// create xxx/xxx_outputs folder
-		outName = new File(gem_outputs_folder, outFile.getName()).getAbsolutePath();	// re-direct outName prefix to a folder
+		outName = new File(gem_outputs_folder, outPrefix).getAbsolutePath();	// re-direct outName prefix to a folder
 		
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
