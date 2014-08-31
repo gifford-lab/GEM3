@@ -320,25 +320,25 @@ public class GEM {
      */
     public static void printHelp() {
         System.err.print("" +
-                         "GEM command line options (more at our website)\n" +
+                         "GEM command line options (see more options at our website)\n" +
                          "   Required parameters:\n" +
-                         "      --d <read distribution file>\n" +
-                         "      --exptX <aligned reads file for expt (X is condition name)>\n" +
+                         "      --d <read spatial distribution file>\n" +
+                         "      --exptX <aligned read file for expt (X is condition name)>\n" +
                          "   Required GEM motif discovery parameters, optional for GPS-only analysis:\n" +
                          "      --k <length of the k-mer for motif finding, use --k or (--kmin & --kmax)>\n" +
                          "      --k_min <min value of k, e.g. 6>\n" +
                          "      --k_max <max value of k, e.g. 13>\n" +
-                         "      --seed <exact k-mer string to jump start k-mer set discovery>\n" +
+                         "      --seed <exact k-mer string to jump start k-mer set motif discovery>\n" +
                          "      --genome <the path to the genome sequence directory, for motif finding>\n" +
                          "   Optional parameters:\n" +
-                         "      --ctrlX <aligned reads file for ctrl (X is condition name)>\n" +
-                         "      --g <genome info file with chr name/length pairs>\n" +
+                         "      --ctrlX <aligned reads file for ctrl (for each condition, ctrlX should match exptX)>\n" +
+                         "      --g <genome chrom.sizes file with chr name/length pairs>\n" +
                          "      --f <read file format, BED/SAM/BOWTIE/ELAND/NOVO (default BED)>\n" +
-                         "      --s <size of mappable genome in bp (default is estimated from genome info)>\n" +
-                         "      --a <minimum alpha value for sparse prior (default is esitmated from whole dataset coverage)>\n" +
+                         "      --s <size of mappable genome in bp (default is estimated from genome chrom sizes)>\n" +
+                         "      --a <minimum alpha value for sparse prior (default is esitmated from the whole dataset coverage)>\n" +
                          "      --q <significance level for q-value, specify as -log10(q-value) (default=2, q-value=0.01)>\n" +
                          "      --t <maximum number of threads to run GEM in paralell (default=#CPU)>\n" +
-                         "      --out <output file name prefix>\n" +
+                         "      --out <output folder name and file name prefix>\n" +
                          "      --k_seqs <number of binding events to use for motif discovery (default=5000)>\n" +
                          "   Optional flags: \n" +
                          "      --fa use a fixed user-specified alpha value for all the regions\n" +
@@ -353,7 +353,7 @@ public class GEM {
 //                         "        - Q-value (multiple hypothesis corrected)\n"+
 //                         "        - Shape deviation from the empirical read distribution (log10(KL))\n" +
 //                         "        - Shape deviation between IP vs Control (log10(KL))\n" +
-                         "\n"+"Example: java -Xmx10G -jar gem.jar --d Read_Distribution_default.txt --g mm8.info --genome your_path/mm8 --s 2000000000 --expt SRX000540_mES_CTCF.bed --ctrl SRX000543_mES_GFP.bed --f BED --out mouseCTCF --k_min 6 --k_max 13\n");	
+                         "\n"+"Example: java -Xmx10G -jar gem.jar --d Read_Distribution_default.txt --g mm8.chrom.sizes --genome your_path/mm8 --s 2000000000 --expt SRX000540_mES_CTCF.bed --ctrl SRX000543_mES_GFP.bed --f BED --out mouseCTCF --k_min 6 --k_max 13\n");	
     }
     public void printError() {
         printHelp();
