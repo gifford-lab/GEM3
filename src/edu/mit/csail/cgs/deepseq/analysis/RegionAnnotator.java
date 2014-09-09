@@ -53,7 +53,7 @@ public class RegionAnnotator {
 	// --species "Homo sapiens;hg19"  --region_file region_test.txt --anno_file anno_encode_regions.txt --out k562_hdp
 	public static void main(String[] args) {
 		RegionAnnotator mtb = new RegionAnnotator(args);
-		int type = Args.parseInteger(args, "type", 0);
+		int type = Args.parseInteger(args, "type", 1);
 		switch(type){
 		case 0:  	// print out the overlap percentage of each query region for specified annotated regions
 			mtb.regionAnnotationOverlaps();

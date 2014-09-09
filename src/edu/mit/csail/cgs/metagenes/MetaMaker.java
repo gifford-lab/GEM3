@@ -144,7 +144,7 @@ public class MetaMaker {
 			if(batchRun){
 				System.out.println("Batch running...");
 				
-				if(peakFiles.size()==1 || peakFiles.size()==0){
+				if(peakFiles.size()>=1){
 					MetaNonFrame nonframe = new MetaNonFrame(gen, params, profiler, normalizeProfile, peakMax);
 					nonframe.setColor(c);
 					nonframe.setDrawColorBar(drawColorBar);
@@ -155,7 +155,7 @@ public class MetaMaker {
 						Vector<Point> points = nonframe.getUtils().loadPoints(new File(peakFile));
 						handler.addPoints(points);
 					}else{
-						System.out.println("All TSS mode...");
+						System.out.println("No --peaks option is found, use All TSS mode...");
 						Iterator<Point> points = nonframe.getUtils().loadTSSs();
 						handler.addPoints(points);
 					}
