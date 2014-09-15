@@ -24,7 +24,9 @@ import cern.jet.random.engine.DRand;
 
 import java.util.Arrays;
 
+import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 
@@ -1731,9 +1733,10 @@ public class StatUtil {
 		public double delta=0;
 		public double gamma=0;
 		public int delta_id;
+		public TreeSet<Integer> members = new TreeSet<Integer>();
 		
 		public String toString(){
-			return String.format("id=%d\tdensity=%.1f\tdelta=%.1f\tgamma=%.1f\tdelta_id=%d", id, density, delta, gamma, delta_id);
+			return String.format("id=%d\tdensity=%.1f\tdelta=%.1f\tgamma=%.1f\tdelta_id=%d\tmembers=%d", id, density, delta, gamma, delta_id, members.size());
 		}
 		/**
 		 * Sort DensityClusteringPoint by descending density value (default)
@@ -1857,7 +1860,7 @@ public class StatUtil {
 			HashSet<Integer> hits = new HashSet<Integer>();
 			for (int j=0;j<distanceVector.length;j++){
 				if (distanceVector[j] <= distanceCutoff)
-					hits.addAll(hitList.get(j));				
+					hits.addAll(hitList.get(j));		
 			}
 			p.density = hits.size();
 			data.add(p);
@@ -1872,6 +1875,7 @@ public class StatUtil {
 			data.get(0).delta = deltaCutoff + 1;
 		data.get(0).gamma = data.get(0).delta * data.get(0).density;
 		data.get(0).delta_id = 0;
+		data.get(0).members.add(data.get(0).id);
 		
 		// for the rest of points
 		for (int i=1;i<data.size();i++){
@@ -1880,36 +1884,61 @@ public class StatUtil {
 //			if (id==91)
 //				id=id;
 			for (int j=0;j<i;j++){		// for the points have higher (or equal) density than point i
-				if (min>distanceMatrix[id][data.get(j).id]){
+				if (distanceMatrix[id][data.get(j).id] < min){
 					min = distanceMatrix[id][data.get(j).id];
 					data.get(i).delta_id = data.get(j).id;
 				}
 			}
+			for (int j=0;j<i;j++){		// mark point i as the members of all stronger points with small distance
+				if (distanceMatrix[id][data.get(j).id] <= distanceCutoff){
+					data.get(j).members.add(id);
+				}
+			}
 			data.get(i).delta = min;
-			data.get(i).gamma = data.get(i).delta * data.get(i).density;
+			data.get(i).gamma = data.get(i).delta * data.get(i).density;			
 		}
-		for (int i=1;i<data.size();i++){
+		for (int i=0;i<data.size();i++){
 			if (data.get(i).delta > distanceCutoff)
 				data.get(i).delta_id = data.get(i).id;
 		}
 			
 		// sort results by gamma, excluding points with delta smaller than the cutoff value
+		ArrayList<DensityClusteringPoint> data_big_delta = new ArrayList<DensityClusteringPoint>();
 		ArrayList<DensityClusteringPoint> data_small_delta = new ArrayList<DensityClusteringPoint>();
 		for (DensityClusteringPoint p: data){
 //			System.out.println(p.toString());
-			if (p.delta<deltaCutoff)
+			if (p.delta >= deltaCutoff)
+				data_big_delta.add(p);
+			else
 				data_small_delta.add(p);
 		}
-		data.removeAll(data_small_delta);
-		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
+		// points with high delta are on the top of the list
+		data_big_delta.trimToSize();
+		Collections.sort(data_big_delta, new Comparator<DensityClusteringPoint>(){
             public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
                 return o1.compareToByGamma(o2);
             }
         });
-		data.trimToSize();
-		
-		return data;
+		// points with low delta may have low delta because of linking to non-center points
+		// rescue those that has large distance from the big_delta center points
+		Collections.sort(data_small_delta, new Comparator<DensityClusteringPoint>(){
+            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+                return o1.compareToByGamma(o2);
+            }
+        });
+		for (DensityClusteringPoint p: data_small_delta){
+			boolean isNotSimilar = true;
+			for (DensityClusteringPoint pb: data_big_delta){
+//				System.out.println(distanceMatrix[id][p.id]+"\t"+CommonUtils.strMinDistanceWithCutoff(kmers.get(id).getKmerString(), kmer.getKmerString(), km.getKmerString().length()));
+				if (distanceMatrix[pb.id][p.id]<deltaCutoff+1)
+					isNotSimilar = false;
+			}
+			if (isNotSimilar)
+				data_big_delta.add(p);
+		}
+		return data_big_delta;
 	}	
+	
 	 public static void main(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));

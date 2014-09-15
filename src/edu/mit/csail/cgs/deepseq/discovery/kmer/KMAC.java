@@ -1382,9 +1382,10 @@ public class KMAC {
 			/** use all aligned sequences to find expected binding sites, set kmer offset */
 	    	// average all the binding positions to decide the expected binding position
 			StringBuilder sb = new StringBuilder();
-			if (cluster.wm!=null){			    	
+			if (cluster.wm!=null){
 				alignSequencesUsingPWM(seqList, cluster);
-				cluster.alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
+				if (config.refine_ksm)
+					cluster.alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
 				updateEngine(cluster.alignedKmers);
 				cluster.ksmThreshold = optimizeKsmThreshold("", false);
 			}

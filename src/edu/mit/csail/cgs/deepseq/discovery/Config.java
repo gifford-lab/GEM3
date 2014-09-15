@@ -54,10 +54,10 @@ public class Config {
     
     /** number of top k-mers selected from density clustering to run KMAC */
     public int k_top = 3;
-    /** kmer distance cutoff, kmers with equal or high distance are consider neighbors when computing local density, in density clustering */
-    public int kd = 2;
+    /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
+    public int dc = 1;
     /** delta value cutoff, k-mers with equal or higher delta values are used for selecting cluster centers */
-    public int delta = 3;
+    public int delta = 2;
     
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
@@ -112,6 +112,7 @@ public class Config {
     public boolean print_bound_seqs = false;
     public boolean re_train = false;
 	public boolean refine_pwm = false;
+	public boolean refine_ksm = false;	// refine the KSM at the end of KMAC using un-masked sequences
     public boolean print_pwm_fdr = false;
     /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
     public boolean evaluate_by_ksm = false;		
@@ -219,6 +220,7 @@ public class Config {
         print_bound_seqs = flags.contains("print_bound_seqs");
         re_train = flags.contains("re_train");
         refine_pwm = flags.contains("refine_pwm");
+        refine_ksm = flags.contains("refine_ksm");
         print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_ksm = flags.contains("evaluate_by_ksm");
@@ -287,7 +289,7 @@ public class Config {
         	allow_seed_reset = false;
         }
         k_top = Args.parseInteger(args, "k_top", k_top);
-        kd = Args.parseInteger(args, "kd", kd);
+        dc = Args.parseInteger(args, "dc", dc);
         delta = Args.parseInteger(args, "delta", delta);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
         k_win = Args.parseInteger(args, "k_win", k_win);
@@ -306,6 +308,7 @@ public class Config {
         wm_factor = Args.parseDouble(args, "wmf", wm_factor);
         ic_trim = Args.parseDouble(args, "ic", ic_trim);
         hgp = Args.parseDouble(args, "hgp", hgp);
+        kmer_hgp = Args.parseDouble(args, "kmer_hgp", kmer_hgp);
         kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
 //        kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
         kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);

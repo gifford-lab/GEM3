@@ -837,17 +837,22 @@ public class KMAC2 {
 		int smallestPosCount;
 		for (smallestPosCount=minHitCount;smallestPosCount<posSeqCount;smallestPosCount++){
 			double hgp = computeHGP(posSeqCount, negSeqCount, smallestPosCount, 0);
-			if (hgp<config.hgp){
+			if (hgp<config.kmer_hgp){
 				break;
 			}
 		}
 		int expectedCount = (int) Math.max( smallestPosCount, Math.round(seqs.length*2*(seqs[0].length()-k+1) / Math.pow(4, k)));
+		// the purpose of expectedCount is to limit kmers to run HGP test, if total kmer number is low, it can be relaxed a little
+		if (kmerstr2seqs.keySet().size()<10000){	
+			expectedCount = Math.min(smallestPosCount, expectedCount);
+		}
 		ArrayList<String> kstrs = new ArrayList<String>();
 		for (String key:kmerstr2seqs.keySet()){	
 			if (kmerstr2seqs.get(key).size()< expectedCount)
 				continue;	// skip low count kmers 
 			kstrs.add(key);
 		}		
+		System.out.println("Expected kmer hit count="+expectedCount + ", kmer numbers="+kstrs.size());
 
 		// create the kmer object
 		for (String s:kstrs){	
@@ -981,21 +986,46 @@ public class KMAC2 {
         }
 		
 //		ArrayList<DensityClusteringPoint> centers = StatUtil.weightedDensityClustering(distanceMatrix, weights, config.kd, config.delta);
-		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, hitList, config.kd, config.delta);
-		
-		System.out.println(String.format("cluster_size=%d, distance_cutoff=%d, delta_cutoff=%d", centers.size(), config.kd, config.delta));
-		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCenter");
+		int dc = k>9?config.dc+1:config.dc;
+		int delta = dc + (k>=12?2:1);
+		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, hitList, dc, delta);
+		ArrayList<Kmer> results = new ArrayList<Kmer>();
+		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
+		for (DensityClusteringPoint p:centers){
+			// find the best representative kmer
+			Kmer km = kmers.get(p.id);
+//			System.out.println(String.format("\n%s    \t%d\t%.1f\t%.1f\t%.1f\t%d", km.toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
+			for (int id : p.members){
+				if (kmers.get(id).getHgp()<km.getHgp()){ 
+//					System.out.println(km.toShortString()+"\t"+kmers.get(id).toShortString());
+					if (results.isEmpty()){
+						km = kmers.get(id);
+					}
+					else{
+						boolean isNotSimilar = true;
+						for (Kmer kmer:results){
+//							System.out.println(distanceMatrix[id][p.id]+"\t"+CommonUtils.strMinDistanceWithCutoff(kmers.get(id).getKmerString(), kmer.getKmerString(), km.getKmerString().length()));
+							if (CommonUtils.strMinDistanceWithCutoff(kmers.get(id).getKmerString(), kmer.getKmerString(), km.getKmerString().length())<dc)
+								isNotSimilar = false;
+						}
+						if (isNotSimilar)
+							km = kmers.get(id);
+					}
+				}
+			}
+			results.add(km);
+
+		}
+
+		System.out.println(String.format("cluster_num=%d, kmer_distance<=%d, delta>=%d", centers.size(), dc, delta));
+		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
 		int displayCount = Math.min(config.k_top, centers.size());
 		for (int i=0;i<displayCount;i++){
 			DensityClusteringPoint p = centers.get(i);
-			System.out.println(String.format("%s:    \t%d\t%.1f\t%.1f\t%.1f\t%d",
-					kmers.get(p.id).toShortString(), p.id, p.density, p.delta, p.gamma, p.delta_id));
+			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
+					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
 		}
 		
-		ArrayList<Kmer> results = new ArrayList<Kmer>();
-		for (DensityClusteringPoint p:centers){
-			results.add(kmers.get(p.id));
-		}
 		
 		System.out.println(CommonUtils.timeElapsed(tic));
 		
