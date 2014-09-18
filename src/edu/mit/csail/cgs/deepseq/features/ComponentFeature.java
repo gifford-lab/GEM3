@@ -446,7 +446,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append("\t");
         }
         if (boundSequence!=null){
-	        header.append("KmerGroup  \t").append("KG_hgp\t").append("Strand"); 
+	        header.append("KmerGroup  \tMotifId\tKG_hgp\tStrand"); 
         }
         header.append("\n");
         return header.toString();
@@ -509,9 +509,9 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         }
         if (boundSequence!=null){
 	        if (kmerGroup!=null)
-	        	result.append(String.format("%s %d/%d\t%.2f\t%s\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getHgp(), kmerStrand, boundSequence));
+	        	result.append(String.format("%s %d/%d\t%d\t%.2f\t%s\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand, boundSequence));
 	        else
-	        	result.append(CommonUtils.padding(8, '-')).append("\t").append(0).append("\t").append("*\t").append(boundSequence);
+	        	result.append(CommonUtils.padding(8, '-')).append("\t-1\t0.00\t*\t").append(boundSequence);
 	        if (getEnrichedKmerHGPLog10()!=99)
 	        	result.append(String.format("\t%.1f", getEnrichedKmerHGPLog10()));
         }

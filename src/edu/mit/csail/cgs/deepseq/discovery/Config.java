@@ -105,6 +105,7 @@ public class Config {
   	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
   	public boolean progressive_PWM_trim = true;
   	public double kpp_factor = 0.8;
+  	public int kpp_nmotifs = 1;	// number of motifs to use for kpp setup
   	public double noise = 0.0;
     public boolean print_aligned_seqs = false;
     public boolean print_input_seqs = false;
@@ -181,11 +182,15 @@ public class Config {
         Set<String> flags = Args.parseFlags(args);
         is_branch_point_data = flags.contains("bp");
         if (is_branch_point_data){
-        	k_fold = 2;
+        	k_fold = 1.5;
         	kmer_hgp = -0.8;
         	strand_type = 1;	
         	min_region_width = 1;
+        	smooth_step = 0;
+        	kmer_aligned_fraction = 0.3;
+        	noise_distribution = 0;
         }
+
         // default as false, need the flag to turn it on
         classify_events = flags.contains("classify");
         print_PI = flags.contains("print_PI");
@@ -312,6 +317,7 @@ public class Config {
         kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
 //        kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
         kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);
+        kpp_nmotifs = Args.parseInteger(args, "kpp_nmotifs", kpp_nmotifs);
         noise = Args.parseDouble(args, "noise", noise);
         motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
         kmer_aligned_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_aligned_fraction);

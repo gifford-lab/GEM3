@@ -20,10 +20,12 @@ import cern.jet.random.engine.DRand;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerSet;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerCluster;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
@@ -852,7 +854,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private void displayKmerCoverage(List<ComponentFeature> bindingCallFeatures, String eventType){ 
 		int bin = (int)Math.ceil(bindingCallFeatures.size()/10.0);
 		StringBuilder sb = new StringBuilder();
-		sb.append("Percentage of "+eventType+" events with a k-mer match, divided in 10 bins (~"+bin+" events per bin):\n");
+		sb.append("Percentage of "+eventType+" events with a motif match, divided in "+(int)Math.round(bindingCallFeatures.size()*1.0/bin)+" bins (~"+bin+" events per bin):\n");
 		for (int i=0;i<bindingCallFeatures.size();i+=bin){
 			int count=0, motif=0;
 			for (int j=i;j<Math.min(bindingCallFeatures.size(), i+bin);j++){
@@ -1917,12 +1919,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				ArrayList<Region> toRemove = new ArrayList<Region>();
                 List<Region> toTest = new ArrayList<Region>();
 				for (Region r: rs){
-		        	// for testing chrXV   506292  506322
-					Region r_test = new Region(r.getGenome(), "IV", 217955, 217985 );
-		        	if (r_test.overlaps(r)){
-		        		config.sparseness += 0;
-		        	}
-					if (r.getWidth()<=Math.min(config.min_region_width, model.getWidth()/10)){
+//		        	// for testing chrXV   506292  506322
+//					Region r_test = new Region(r.getGenome(), "IV", 217955, 217985 );
+//		        	if (r_test.overlaps(r)){
+//		        		config.sparseness += 0;
+//		        	}
+					if (r.getWidth() < Math.min(config.min_region_width, model.getWidth()/10)){
 						toRemove.add(r);
 						continue;
 					}
@@ -1982,7 +1984,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 						float[] profile = new float[end-start+1];
 						for (StrandedBase b: reg2bases.get(r))
 							profile[b.getCoordinate()-start] = profile[b.getCoordinate()-start]+b.getCount();
-						reg2bases.remove(r);
 						
 						// moving sum
 						float[] movingSum = new float[profile.length];
@@ -2023,10 +2024,21 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 					else
 						subRegions.add(r);
 				} // for each region
+				reg2bases = null;
+
 				if (!subRegions.isEmpty())
 					regions.addAll(subRegions);
 			}
 		}
+		// add 15bp padding, such that the width is enough for motif discovery
+		ArrayList<Region> expanded = new ArrayList<Region>();
+		for (Region r:regions){
+			if (r.getWidth()<15)
+				expanded.add(r.expand(15, 15));
+			else
+				expanded.add(r);
+		}
+		regions = mergeRegions(expanded, false);
 		
 		log(3, "selectEnrichedRegions(): " + CommonUtils.timeElapsed(tic));
 		regions.trimToSize();
@@ -4232,10 +4244,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             // We want to run EM only for potential homotypic regions
             // After first round, if we are sure the region contains unary event, we will just scan for peak
         	// for testing chrIV   217955  217985
-        	Region r_test = new Region(w.getGenome(), "IV", 217955, 217985 );
-        	if (r_test.overlaps(w)){
-        		config.sparseness += 0;
-        	}
+//        	Region r_test = new Region(w.getGenome(), "IV", 217955, 217985 );
+//        	if (r_test.overlaps(w)){
+//        		config.sparseness += 0;
+//        	}
             if (!singleEventRegions.containsKey(w)) {
                 // dynamically determine an alpha value for this sliding window
             	// when having a noies component, reduce alpha value further
@@ -4247,24 +4259,33 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 }
 
                 Pair<double[][][], int[][][]> result = null;
-
-                // Choose either Yuchun's beta EM or Giorgos's pool EM methods
-                if(config.use_betaEM) {
-
-                	//construct the positional prior for each position in this region
-                	double[] pp = new double[w.getWidth()+1];
-                	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
-                	int[] offset = new int[pp.length];
-                	String seq = null;
-                	if (kmac!=null && kmac.isInitialized()){
-                		if (kmerPreDefined)		// if kmer is loaded from other sources, get fresh sequence 
-                			seq = seqgen.execute(w).toUpperCase();
-                		else					// otherwise, we have run KMF, get the cached sequences
-                			seq = kmac.getSequenceUppercase(w);
-                		
-                		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
-                		if (config.pp_use_kmer){		// use k-mer match to set KPP
-	                		KmerGroup[] matchPositions = kmac.query(seq);
+                
+            	//construct the positional prior for each position in this region
+            	double[] pp = new double[w.getWidth()+1];
+            	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
+            	String seq = null;
+            	if (kmac!=null && kmac.isInitialized()){ 
+            		if (kmerPreDefined)		// if kmer is loaded from other sources, get fresh sequence 
+            			seq = seqgen.execute(w).toUpperCase();
+            		else					// otherwise, we have run KMAC, get the cached sequences
+            			seq = kmac.getSequenceUppercase(w);
+            		
+            		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
+            		if (config.pp_use_kmer){		// use k-mer match to set KPP
+            			
+            			ArrayList<KmerCluster> clusters = kmac.getMotifClusters();
+            			int kpp_nmotifs = Math.min(clusters.size(), config.kpp_nmotifs);
+            			for (int j=0;j<kpp_nmotifs;j++){
+            				KmerCluster c = clusters.get(j);
+            				if (c.alignedKmers.isEmpty())
+            					continue;
+            				KMAC kmac_local = new KMAC();
+            				kmac_local.setTotalSeqCount(kmac.getPosSeqCount(), kmac.getNegSeqCount());
+            				kmac_local.setSequenceWeights(kmac.getSequenceWeights());
+            				kmac_local.updateEngine(c.alignedKmers);		
+	            			kcm_threshold = c.ksmThreshold==null?0:c.ksmThreshold.score;
+	
+	                		KmerGroup[] matchPositions = kmac_local.query(seq);
 		                	if (config.print_PI)	
 		                		System.out.println(seq);
 		                	// Effectively, the top kmers will dominate, because we normalize the pp value
@@ -4275,7 +4296,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                			continue;
 		                		if (g.getHgp()> -kcm_threshold)	// must past ksm threshold
 		                			continue;
-	
+		                		if (pp_kmer[bindingPos] != null)	// this position has been set using stronger motifs
+		                			continue;
+		                		
+		                		g.setClusterId(j);
 		                		double kmerCountSum = 0;
 		                		if (config.use_weighted_kmer)
 		                			kmerCountSum = g.getWeightedKmerStrength();
@@ -4293,183 +4317,136 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                		if (config.print_PI)	
 			                		System.out.println(bindingPos+"\t"+g.getBestKmer().getKmerString());
 		                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), g, pp[bindingPos]));
-		                	}
-		                	
-		                	//TODO: For branch point data, spread the influence of kmer group to nearby positions
-		                	if (config.is_branch_point_data){
-		                		
-		                	}
+		                	} // add kpp for each motif
+		                }
+	                	
+	                	//TODO: For branch point data, spread the influence of kmer group to nearby positions
+	                	if (config.is_branch_point_data){
+	                		
+	                	}
+            		}
+            		else {			// use PWM to set KPP
+            			ArrayList<KmerCluster> clusters = kmac.getMotifClusters();
+            			int kpp_nmotifs = Math.min(clusters.size(), config.kpp_nmotifs);
+            			for (int j=0;j<kpp_nmotifs;j++){
+	            			KmerCluster cluster = clusters.get(j);
+	            			if (cluster!=null){
+	            				WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
+	            				WeightMatrixScoreProfile profiler = scorer.execute(seq);
+	            				for (int i=0;i<profiler.length();i++){
+	            					double max = profiler.getMaxScore(i);
+	            					if (max<cluster.pwmThreshold/2)
+	            						continue;
+	            					char strand = profiler.getMaxStrand(i);
+	            					int pos = cluster.pos_BS_seed-cluster.pos_pwm_seed;
+	            					if (strand=='+')
+	            						pos = pos + i;
+	            					else
+	            						pos = i + cluster.wm.length()-1 + (-pos);
+	            					if (pos<0||pos>=seq.length())
+	            						continue;
+	            					if (pp_kmer[pos]==null){
+	            						pp[pos] = max;
+		            					ArrayList<Kmer> kms = new ArrayList<Kmer>(); 
+		            					String matchSeq = seq.substring(i,i+cluster.wm.length());
+		            					if (strand=='-')
+		            						matchSeq = SequenceUtils.reverseComplement(matchSeq);
+		            					kms.add(new Kmer(matchSeq,0));
+		            					KmerGroup kg = kmac.new KmerGroup(kms, pos);
+		            					kg.setHgp(max);
+		            					kg.setClusterId(j);
+		            					pp_kmer[pos]=kg;
+	            					}
+	            				}
+	            			}
+            			}
+            		}
+            		
+                	// if kmer hits are 100bp apart, consider them as independent motif hit
+                	// therefore, the pp value are normalized to alpha in local region of 100bp apart
+                	// find all the dividing boundaries
+                	int GAP = 100;
+                	int prevBoundary = 0;
+                	ArrayList<Integer> boundaries=new ArrayList<Integer>() ;
+                	boundaries.add(0);
+                	for (int i=1;i<pp.length;i++){
+                		if (pp[i]>0){					// for non-zero pp
+                			if (i-prevBoundary>GAP){	// a new local
+                				boundaries.add(i);		// this is right exclusive
+                			}
+                			prevBoundary = i;
                 		}
-                		else {			// use PWM to set KPP
-                			KMAC.KmerCluster cluster = kmac.getPrimaryCluster();
-                			if (cluster!=null){
-                				WeightMatrixScorer scorer = new WeightMatrixScorer(cluster.wm);
-                				WeightMatrixScoreProfile profiler = scorer.execute(seq);
-                				for (int i=0;i<profiler.length();i++){
-                					double max = profiler.getMaxScore(i);
-                					if (max<0)
-                						continue;
-                					char strand = profiler.getMaxStrand(i);
-                					int pos = cluster.pos_BS_seed-cluster.pos_pwm_seed;
-                					if (strand=='+')
-                						pos = pos + i;
-                					else
-                						pos = i + cluster.wm.length()-1 + (-pos);
-                					if (pos<0||pos>=seq.length())
-                						continue;
-                					if (max>pp[pos]){
-                						pp[pos] = max;
-                					}
-                				}
+                	}
+                	if (prevBoundary!=pp.length-1)
+                		boundaries.add(pp.length-1);
+                	
+                	for (int i=0;i<boundaries.size()-1;i++){
+                		double total = 0;
+                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
+                			if (config.kpp_normalize_max)
+		                		total = Math.max(total, pp[j]);	// scale so that (largest position prior == sparse prior)
+                			else
+		                		total += pp[j];	// normalize the local region so that total positional prior pseudo-count equal to alpha (sparse prior)
+                		}
+                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
+	                		if (pp[j]>0){
+	                			pp[j] = pp[j]/total*(alpha*config.kpp_factor);
+	                			if (config.pp_use_kmer)
+	                				hits.get(j).pp = pp[j];
                 			}
                 		}
-                		
-	                	// if kmer hits are 100bp apart, consider them as independent motif hit
-	                	// therefore, the pp value are normalized to alpha in local region of 100bp apart
-	                	// find all the dividing boundaries
-	                	int GAP = 100;
-	                	int prevBoundary = 0;
-	                	ArrayList<Integer> boundaries=new ArrayList<Integer>() ;
-	                	boundaries.add(0);
-	                	for (int i=1;i<pp.length;i++){
-	                		if (pp[i]>0){					// for non-zero pp
-	                			if (i-prevBoundary>GAP){	// a new local
-	                				boundaries.add(i);		// this is right exclusive
-	                			}
-	                			prevBoundary = i;
-	                		}
-	                	}
-	                	if (prevBoundary!=pp.length-1)
-	                		boundaries.add(pp.length-1);
-	                	
-	                	for (int i=0;i<boundaries.size()-1;i++){
-	                		double total = 0;
-	                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
-	                			if (config.kpp_normalize_max)
-			                		total = Math.max(total, pp[j]);	// scale so that (largest position prior == sparse prior)
-	                			else
-			                		total += pp[j];	// normalize the local region so that total positional prior pseudo-count equal to alpha (sparse prior)
-	                		}
-	                		for (int j=boundaries.get(i);j<boundaries.get(i+1); j++){
-		                		if (pp[j]>0){
-		                			pp[j] = pp[j]/total*(alpha*config.kpp_factor);
-		                			if (config.pp_use_kmer)
-		                				hits.get(j).pp = pp[j];
-	                			}
-	                		}
-	                	}
-	                	if (config.kmer_print_hits){
-	                		allKmerHits.addAll(hits.values());
-	                		hits.clear();
-	                	}
                 	}
-                	
-                    //Run EM and increase resolution
-                    initializeComponents(w, numConditions);
-                    int countIters = 0;
-                    while(nonZeroComponentNum>0){                        
-                        int numComp = components.size();
-                        double[] pos_alpha = new double[numComp];						// positional alpha
-                        if (kmac!=null){
-	                        for (int i=0;i<numComp;i++){
-	                        	BindingComponent b = components.get(i);
-	                        	int bIdx = b.getLocation().getLocation()-w.getStart();
-	                        	double maxPP = 0;
-	                        	for (int j=0;j<componentSpacing;j++){
-	                        		int idx = bIdx+j;
-	                        		if (idx>=pp.length)
-	                        			idx = pp.length-1;
-	                        		maxPP = Math.max(maxPP,pp[idx]);
-	                        	}
-	                        	pos_alpha[i]=maxPP;
-	                        }
-                        }
-                        else{
-                        	for (int i=0;i<numComp;i++){
-                        		pos_alpha[i]=0;
+                	if (config.kmer_print_hits){
+                		allKmerHits.addAll(hits.values());
+                		hits.clear();
+                	}
+            	}	// done constructing positional prior from motifs
+            	
+                //Run EM and increase resolution
+                initializeComponents(w, numConditions);
+                int countIters = 0;
+                while(nonZeroComponentNum>0){                        
+                    int numComp = components.size();
+                    double[] pos_alpha = new double[numComp];						// positional alpha
+                    if (kmac!=null){
+                        for (int i=0;i<numComp;i++){
+                        	BindingComponent b = components.get(i);
+                        	int bIdx = b.getLocation().getLocation()-w.getStart();
+                        	double maxPP = 0;
+                        	for (int j=0;j<componentSpacing;j++){
+                        		int idx = bIdx+j;
+                        		if (idx>=pp.length)
+                        			idx = pp.length-1;
+                        		maxPP = Math.max(maxPP,pp[idx]);
                         	}
-                        }
-                        // EM learning, components list will only contains non-zero components
-                        result = EMTrain(signals, bg_signals, alpha, pos_alpha);
-                        // log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
-
-                        countIters++;
-                        //					System.out.printf("%s\tupdateIter\t%d\tnumComps\t%d\tnumNonZeroComps\t%d%n", w.toString(), countIters, numAllComps, components.size());
-                        // increase resolution
-                        if (componentSpacing==1)
-                            break;
-                        int lastResolution = componentSpacing;
-                        updateComponentResolution(w, numConditions, componentSpacing);
-                        if(componentSpacing==lastResolution)
-                            break;
-                    } 	// end of while (resolution)
-                    if (nonZeroComponentNum==0)	
-                    	return null;
-                    
-                    setComponentResponsibilities(signals, result.car(), result.cdr());
-                    if (kmac!=null && config.pp_use_kmer)
-                    	setEventKmerGroup(pp_kmer, w.getStart(), seq);
-                } else {
-                    // Run MultiIndependentMixture (Temporal Coupling) -- PoolEM
-                    // Convert data in current region in primitive format
-                    int[][] pos     = new int[numConditions][];  // position is relative to region's start
-                    int[][] count   = new int[numConditions][];
-                    char[][] strand = new char[numConditions][];
-                    for(int t = 0; t < numConditions; t++) {
-                        pos[t]    = new int[signals.get(t).size()];
-                        count[t]  = new int[signals.get(t).size()];
-                        strand[t] = new char[signals.get(t).size()];
-
-                        for(int k = 0; k < signals.get(t).size(); k++) {
-                            pos[t][k]    = signals.get(t).get(k).getCoordinate() - w.getStart();  // position is relative to region's start
-                            count[t][k]  = (int) signals.get(t).get(k).getCount();
-                            strand[t][k] = signals.get(t).get(k).getStrand();
+                        	pos_alpha[i]=maxPP;
                         }
                     }
-
-                    // Create and just initialize the list to pass the while loop for the first time
-                    List<BindingComponent> nonZeroComponents = new ArrayList<BindingComponent>();
-                    nonZeroComponents.add(new BindingComponent(model, new Point(w.getGenome(), w.getChrom(), -1), numConditions));
-                    List<BindingComponent> prevNonZeroComponents = new ArrayList<BindingComponent>(nonZeroComponents);
-                    componentSpacing = initSpacing(w);
-                    int[] compPos = setComponentPositions(w.getWidth(), componentSpacing);
-                    int countUpdates = 0;
-                    boolean hasConverged = false;
-                    boolean compsAreTheSame = false;
-                    double prev_loglik = Double.NEGATIVE_INFINITY;
-                    MultiIndependentMixtureCounts prev_mim = new MultiIndependentMixtureCounts();
-                    MultiIndependentMixtureCounts mim = new MultiIndependentMixtureCounts();
-                    while( nonZeroComponents.size() > 0 && countUpdates < constants.maxUpdateIters ) {
-                        // Set up params for TC to be consistent with those defined in BingingMixture
-                        mim = new MultiIndependentMixtureCounts();
-                        setMultiIndepMixtureParams(mim, alpha);
-                        mim.exec(pos, count, strand, compPos, model);
-
-                        nonZeroComponents.clear(); nonZeroComponents = null;
-                        nonZeroComponents = determineNonZeroComps(w, mim, compPos, alpha);
-                    
-                        if(nonZeroComponents.size() == prevNonZeroComponents.size()) {
-                            hasConverged = mim.convergence_check(mim.get_glob_loglik(), prev_loglik,  1e-5, true, -1e-6);
-                            compsAreTheSame = checkCompExactMatching(nonZeroComponents, prevNonZeroComponents);
-                        }
-
-                        if(hasConverged || compsAreTheSame)
-                            break;
-
-                        countUpdates++;
-                        prevNonZeroComponents = new ArrayList<BindingComponent>(nonZeroComponents);
-                        prev_loglik = mim.get_glob_loglik();
-                        prev_mim = mim;
-                        compPos = updateComps(w, nonZeroComponents);
+                    else{
+                    	for (int i=0;i<numComp;i++){
+                    		pos_alpha[i]=0;
+                    	}
                     }
+                    // EM learning, components list will only contains non-zero components
+                    result = EMTrain(signals, bg_signals, alpha, pos_alpha);
+                    // log(4, componentSpacing+" bp\t"+(int)nonZeroComponents+" components.");
 
-                    HashMap<Integer, double[][]> responsibilities = (HashMap<Integer, double[][]>) prev_mim.get_resp();
-                    components.clear(); components = null;
-                    components = (ArrayList<BindingComponent>) prevNonZeroComponents;
-                    nonZeroComponentNum  = components.size();
-                    if (nonZeroComponentNum==0)	return null;
-                    setComponentResponsibilities(signals, responsibilities);
-                }// end of else condition (running it with MultiIndependentMixture TC)
+                    countIters++;
+                    //					System.out.printf("%s\tupdateIter\t%d\tnumComps\t%d\tnumNonZeroComps\t%d%n", w.toString(), countIters, numAllComps, components.size());
+                    // increase resolution
+                    if (componentSpacing==1)
+                        break;
+                    int lastResolution = componentSpacing;
+                    updateComponentResolution(w, numConditions, componentSpacing);
+                    if(componentSpacing==lastResolution)
+                        break;
+                } 	// end of while (resolution)
+                if (nonZeroComponentNum==0)	
+                	return null;
+                
+                setComponentResponsibilities(signals, result.car(), result.cdr());
+                if (kmac!=null)
+                	setEventKmerGroup(pp_kmer, w.getStart(), seq);
 
             } else{// if single event region, just scan it
                 BindingComponent peak = scanPeak(singleEventRegions.get(w), isIP);
@@ -5417,7 +5394,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         // matched EM resulted binding components with the kmer prior
         //TODO: maybe we should search closest (<k/4) pp_kmer because some position may end up out-competed by nearby positions
         private void setEventKmerGroup(KmerGroup[] pp_kmer, int startPos, String seq){
-        	for (BindingComponent b:components){
+        	ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
+        	for (int i=0;i<components.size();i++){
+        		BindingComponent b = components.get(i);
         		int kIdx = b.getLocation().getLocation()-startPos;
         		b.setKmerGroup(pp_kmer[kIdx]);
         		if (seq!=null){
@@ -5433,6 +5412,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        		// Then we can not assume the middle is binding position
 	        		String bs = seq.substring(left,right+1);
 	        		if (b.getKmerGroup()!=null){
+	        			// merge very nearby components that have no KmerGroup match
+	        			for (int j=Math.max(0, i-3);j<Math.min(components.size(),i+3);j++){
+	        				if (j==i)
+	        					continue;
+	        				BindingComponent candidate = components.get(j);
+	                		int cIdx = candidate.getLocation().getLocation()-startPos;
+	                		if (b.getLocation().distance(candidate.getLocation())<=5 && pp_kmer[cIdx]==null){
+	                			b.addSumResponsibility(candidate.getSumResponsibility());
+	                			toRemove.add(candidate);
+	                		}	                			
+	        			}
 	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString())){
 	        				bs = SequenceUtils.reverseComplement(bs);
 	        				b.setKmerStrand('-');
@@ -5444,6 +5434,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        		}
 	    			b.setBoundSequence(bs);
         		}
+        		components.removeAll(toRemove);
         	}
         }
         

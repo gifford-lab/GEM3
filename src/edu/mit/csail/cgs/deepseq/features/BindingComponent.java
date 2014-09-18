@@ -86,6 +86,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	public int getNumConditions(){return numConditions;}
 	public double getMixProb(){return mixingProb;}
 
+	public double[] getSumResponsibility(){
+		return sum_resp;
+	}
 	public double getSumResponsibility(int cond){
 		return sum_resp[cond];
 	}
@@ -131,7 +134,11 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	//Mutators
 	public void setMixProb(double p){mixingProb=p;}
 	
-	public void setSumResponsibility(double[] sum_resp)              { this.sum_resp = sum_resp;            }
+	public void setSumResponsibility(double[] sum_resp){ this.sum_resp = sum_resp; }
+	public void addSumResponsibility(double[] sum_resp){ 
+		for (int i=0;i<sum_resp.length;i++)
+		this.sum_resp[i] += sum_resp[i]; 
+	}
 	
 	public void setCondSumResponsibility(int cond, double cond_sum_resp) { this.sum_resp[cond] = cond_sum_resp; }
 	

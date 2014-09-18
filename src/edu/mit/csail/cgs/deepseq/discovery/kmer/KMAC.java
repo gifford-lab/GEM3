@@ -81,10 +81,13 @@ public class KMAC {
 	private boolean isMasked;
 	private String[] seqs;			// DNA sequences around binding sites
 	private double[] seq_weights;	// sequence hit count weighted by binding strength, corresponding to the seqs[]
+	public double[] getSequenceWeights(){return seq_weights;}
+	public void setSequenceWeights(double[] w){seq_weights=w;}
 	private double totalWeight;
 	private String[] seqsNeg;		// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
 	public int getNegSeqCount(){return negSeqCount;}
+	public int getPosSeqCount(){return posSeqCount;}
     private int posSeqCount;
     private int negSeqCount;
     public void setTotalSeqCount(int pos, int neg){
@@ -120,6 +123,9 @@ public class KMAC {
 		if (clusters.size()>=1)
 			return clusters.get(0);
 		return null;
+	}
+	public ArrayList<KmerCluster> getMotifClusters(){
+		return clusters;
 	}
 	
 	public KMAC(){
@@ -769,11 +775,166 @@ public class KMAC {
 		System.out.println(String.format("\n------------------------\nSelected k=%d\tcoverage=%d.", bestK, bestKxKmerCount));
 		return bestK;
 	}
-	
 	/** 
 	 * Index k-mers from the positive sequences, select enriched k-mers
 	 * */
 	public ArrayList<Kmer> selectEnrichedKmers(int k){
+		this.k = k;
+		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
+		tic = System.currentTimeMillis();
+		numPos = k_win-k+1;
+
+		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
+		for (int seqId=0;seqId<posSeqCount;seqId++){
+			String seq = seqs[seqId];
+			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
+			for (int i=0;i<numPos;i++){
+				if ((i+k)>seq.length()) // endIndex of substring is exclusive
+					break;
+				String kstring = seq.substring(i, i+k);
+				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
+					continue;
+				uniqueKmers.add(kstring);
+			}
+			for (String s: uniqueKmers){
+				if (!kmerstr2seqs.containsKey(s)){
+					 kmerstr2seqs.put(s, new HashSet<Integer>());
+				}
+				kmerstr2seqs.get(s).add(seqId);
+			}
+		}
+		
+		// Merge kmer and its reverse compliment (RC)	
+		ArrayList<Kmer> kms = new ArrayList<Kmer>();
+		ArrayList<String> kmerStrings = new ArrayList<String>();
+		kmerStrings.addAll(kmerstr2seqs.keySet());
+		
+		// create kmers from its and RC's counts
+		for (String key:kmerStrings){
+			if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
+				continue;
+			// consolidate kmer and its reverseComplment kmer
+			String key_rc = SequenceUtils.reverseComplement(key);				
+			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
+				if (kmerstr2seqs.containsKey(key_rc)){
+					int kCount = kmerstr2seqs.get(key).size();
+					int rcCount = kmerstr2seqs.get(key_rc).size();
+					String winner = kCount>=rcCount?key:key_rc;
+					String loser = kCount>=rcCount?key_rc:key;
+					kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner take all
+					kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
+				}
+			}
+		}
+		System.out.println("k="+k+", mapped "+kmerstr2seqs.keySet().size()+" k-mers, "+CommonUtils.timeElapsed(tic));
+
+		// compute the smallest PosCount needed to be significant, even with negCount=0
+		int smallestPosCount;
+		for (smallestPosCount=minHitCount;smallestPosCount<posSeqCount;smallestPosCount++){
+			double hgp = computeHGP(posSeqCount, negSeqCount, smallestPosCount, 0);
+			if (hgp<config.kmer_hgp){
+				break;
+			}
+		}
+		int expectedCount = (int) Math.max( smallestPosCount, Math.round(seqs.length*2*(seqs[0].length()-k+1) / Math.pow(4, k)));
+		// the purpose of expectedCount is to limit kmers to run HGP test, if total kmer number is low, it can be relaxed a little
+		if (kmerstr2seqs.keySet().size()<10000){	
+			expectedCount = Math.min(smallestPosCount, expectedCount);
+		}
+		ArrayList<String> kstrs = new ArrayList<String>();
+		for (String key:kmerstr2seqs.keySet()){	
+			if (kmerstr2seqs.get(key).size()< expectedCount)
+				continue;	// skip low count kmers 
+			kstrs.add(key);
+		}		
+		System.out.println("Expected kmer hit count="+expectedCount + ", kmer numbers="+kstrs.size());
+
+		// create the kmer object
+		for (String s:kstrs){	
+			Kmer kmer = new Kmer(s, kmerstr2seqs.get(s));
+			kms.add(kmer);
+		}
+		kms.trimToSize();
+		kmerstr2seqs=null;	// clean up
+		System.gc();
+		
+		/**
+		 * Select significantly over-representative kmers 
+		 * Search the kmer counts in the negative sequences, then compare to positive counts
+		 */
+		tic = System.currentTimeMillis();
+		//Aho-Corasick for searching Kmers in negative sequences
+		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+		AhoCorasick tmp = new AhoCorasick();
+		for (String s: kstrs){
+			tmp.add(s.getBytes(), s);
+	    }
+		tmp.prepare();
+		
+		// count hits in the negative sequences
+		HashMap<String, HashSet<Integer>> kmerstr2negSeqs = new HashMap<String, HashSet<Integer>>();
+		for (int negSeqId=0; negSeqId<negSeqCount;negSeqId++){
+			String seq = seqsNegList.get(negSeqId);
+			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
+			Iterator searcher = tmp.search(seq.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerHits.addAll(result.getOutputs());
+			}
+			String seq_rc = SequenceUtils.reverseComplement(seq);
+			searcher = tmp.search(seq_rc.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerHits.addAll(result.getOutputs());
+			}
+			for (Object o: kmerHits){
+				String kmer = (String) o;
+				if (!kmerstr2negSeqs.containsKey(kmer))					
+					kmerstr2negSeqs.put(kmer, new HashSet<Integer>());
+				kmerstr2negSeqs.get(kmer).add(negSeqId);
+			}
+		}
+
+		
+		// score the kmers, hypergeometric p-value
+		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
+		for (Kmer kmer:kms){
+			if (kmerstr2negSeqs.containsKey(kmer.getKmerString())){
+				kmer.setNegHits(kmerstr2negSeqs.get(kmer.getKmerString()));				
+			}
+			if (kmer.getPosHitCount() < kmer.getNegHitCount()/get_NP_ratio() * config.k_fold ){
+				highHgpKmers.add(kmer);	
+				continue;
+			}
+			if (config.use_weighted_kmer){
+//				kmer.setWeightedPosHitCount();		//TODO: check if weight is used
+				kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getWeightedHitCount(), kmer.getNegHitCount()));
+			}
+			else{
+				kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
+			}
+			if (kmer.getHgp()>config.kmer_hgp){
+				highHgpKmers.add(kmer);		
+				continue;
+			}
+		}
+
+		Collections.sort(kms);
+		// print high p-value k-mers, or low fold enrichment k-mers, although remove them for further learning
+		if (config.print_all_kmers)
+			Kmer.printKmers(kms, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+		kms.removeAll(highHgpKmers);
+		kms.trimToSize();
+		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+		
+		return kms;
+	}
+
+	/** 
+	 * Index k-mers from the positive sequences, select enriched k-mers
+	 * */
+	public ArrayList<Kmer> selectEnrichedKmers0(int k){
 		this.k = k;
 		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
@@ -1096,6 +1257,8 @@ public class KMAC {
 					System.out.println(CommonUtils.timeElapsed(tic)+": Seed k-mer: "+seed.toShortString());
 			
 			cluster.seedKmer = seed;
+			
+			System.out.println("Building k-mer cluster "+clusterID+" ...");
 			
 			/** init kmerSet with seed family of seed kmer, by adding mismatch k-mers, order by #mm */
 			ArrayList<Kmer> seedFamily = new ArrayList<Kmer>();
@@ -3918,16 +4081,16 @@ public class KMAC {
 		public int pos_BS_seed;
 		public MotifThreshold ksmThreshold = new MotifThreshold();
 		public WeightMatrix wm;
+		public ArrayList<Kmer> alignedKmers;			// The K-mer set motif, a set of aligned k-mers
 		
 		int clusterId;
 		Kmer seedKmer;
 		float[][] pfm;
 		boolean pwmGoodQuality = false;
-		double pwmThreshold;
-		double pwmThresholdHGP;
-		int pwmNegHitCount;
-		int pwmPosHitCount;
-		ArrayList<Kmer> alignedKmers;			// The K-mer set motif, a set of aligned k-mers
+		public double pwmThreshold;
+		public double pwmThresholdHGP;
+		public int pwmNegHitCount;
+		public int pwmPosHitCount;
 		int total_aligned_seqs;
 		HashMap<Integer, PWMHit> seq2hits = null;
 		double pi;
@@ -3987,6 +4150,8 @@ public class KMAC {
 	 * Compute hgp (log10) using the positive/negative sequences
 	 */	
 	public double computeHGP(int posHitCount, int negHitCount){
+		if (posHitCount==0)
+			return 0;
 		return computeHGP(posSeqCount, negSeqCount, posHitCount, negHitCount);
 	}
 	/**
@@ -4841,6 +5006,7 @@ public class KMAC {
 	 */
 	public class KmerGroup implements Comparable<KmerGroup>{
 		ArrayList<Kmer> kmers;
+		int clusterId = -1;
 		int bs = 999;
 		int posHitGroupCount;
 		int negHitGroupCount;
@@ -4891,6 +5057,8 @@ public class KMAC {
     		}
     		negHitGroupCount = allNegHits.size();
 		}
+		public int getClusterId(){return clusterId;}
+		public void setClusterId(int id){clusterId = id;}
 		
 		/** hgp (log10) using the positive/negative sequences */
 		public double getHgp() {return hgp;	}
@@ -5022,7 +5190,7 @@ public class KMAC {
 	}
 	
 	// options cMyc_cMyc cMyc_HeLa_61bp_GEM.fasta cMyc_HeLa_61bp_GEM_neg.fasta 5 8 CCACGTG
-	public static void main(String[] args){
+	public static void main0(String[] args){
 		ArrayList<String> pos_seqs = new ArrayList<String>();
 		ArrayList<Double> seq_w = new ArrayList<Double>();
 
