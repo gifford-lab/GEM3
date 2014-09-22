@@ -409,7 +409,7 @@ public class BindingModel {
 	// it will mutate the two input arrays.
 	// assume a and b have same length
 	public static int minKL_Shift (double[] a, double[] b){
-		return minKL_Shift (a,b,20);
+		return minKL_Shift (a,b,Math.min(a.length, 20));
 	}
 	/** Shift two array elements to give best KL-divergence
 	 * it will mutate the two input arrays.

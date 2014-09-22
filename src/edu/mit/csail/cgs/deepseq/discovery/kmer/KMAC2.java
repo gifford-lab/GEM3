@@ -181,13 +181,13 @@ public class KMAC2 {
 		
 		if (config.k_neg_shuffle){
 			System.out.println("Use shuffled sequences as negative sequences.\n");
-			Random randObj = new Random();
+			Random randObj = new Random(config.rand_seed);
 			for (int i=0;i<seqNum;i++)
 				seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
 		}
 		else if (config.k_neg_dinu_shuffle){
 			System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
-			Random randObj = new Random(config.shuffle_seed);
+			Random randObj = new Random(config.rand_seed);
 			for (int i=0;i<seqNum;i++)
 				seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
 		}
@@ -365,7 +365,7 @@ public class KMAC2 {
 			seqsNegList.clear();
 			if (config.k_neg_shuffle){
 				System.out.println("Use shuffled sequences as negative sequences.\n");
-				Random randObj = new Random();
+				Random randObj = new Random(config.rand_seed);
 				for (int i=0;i<seqs.length;i++)
 					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
 			}

@@ -66,7 +66,7 @@ public class Config {
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
-    public int max_cluster = 50;
+    public int max_cluster = 20;
     public int topKmer_trials = 5;	// the number of initial k-mers to try
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
@@ -94,7 +94,7 @@ public class Config {
     public boolean use_pos_kmer = true;				// position weighted k-mer count
     public boolean k_neg_shuffle = false;
     public boolean k_neg_dinu_shuffle = false;		// di-nuleotide shuffle
-    public int shuffle_seed = 0;
+    public int rand_seed = 0;
    	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
@@ -154,7 +154,6 @@ public class Config {
     public double shapeDeviation;
     public int gentle_elimination_factor = 2;	// factor to reduce alpha to a gentler pace after eliminating some component
     public int resolution_extend = 2;
-    public int first_lambda_region_width  =  1000;
     public int second_lambda_region_width =  5000;
     public int third_lambda_region_width  = 10000;
     public boolean bic = false;				// use BIC or AIC for model selection
@@ -189,6 +188,11 @@ public class Config {
         	smooth_step = 0;
         	kmer_aligned_fraction = 0.3;
         	noise_distribution = 0;
+        	window_size_factor = 10;
+        	poisson_alpha=0.05;
+        	alpha_factor = 0.7;
+//            second_lambda_region_width =  500;
+//            third_lambda_region_width  = 1000;
         }
 
         // default as false, need the flag to turn it on
@@ -217,7 +221,7 @@ public class Config {
         kmer_use_insig = flags.contains("kmer_use_insig");
         k_neg_shuffle = flags.contains("k_neg_shuffle");
         k_neg_dinu_shuffle = flags.contains("k_neg_dinu_shuffle");
-        shuffle_seed = Args.parseInteger(args, "random", shuffle_seed);
+        rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
         re_align_kmer = flags.contains("rak");
         print_aligned_seqs = flags.contains("print_aligned_seqs");
         print_input_seqs = flags.contains("print_input_seqs");

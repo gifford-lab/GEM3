@@ -832,7 +832,6 @@ public class TFBS_SpaitialAnalysis {
 			wmLens.add(wm.length());
 			wmThresholds.add(wm.getMaxScore()*wm_factor);
 		}
-		boolean hasMotif = !(pwms.isEmpty() && kmers.isEmpty());
 
 		int digits_binding = (int) Math.ceil(Math.log10(expts.size()));
 		int digits_pwm = (int) Math.ceil(Math.log10(pwms.size()));
@@ -865,26 +864,24 @@ public class TFBS_SpaitialAnalysis {
 			ArrayList<Integer> pwmMatchPos = new ArrayList<Integer>();
 			ArrayList<Integer> kmerMatchIds = new ArrayList<Integer>();
 			ArrayList<Integer> kmerMatchPos = new ArrayList<Integer>();
-			String seq="";
-			if (hasMotif){
-				// scan motif matches in the cluster region sequence
-				seq = seqgen.execute(region).toUpperCase();	
-				for (int i=0;i<pwms.size();i++){
-					ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i));
-					for (int p:matchPos){
-						pwmMatchIds.add(i);
-						pwmMatchPos.add(p);
-					}
+			String seq = seqgen.execute(region).toUpperCase();
+			
+			// scan motif matches in the cluster region sequence
+			for (int i=0;i<pwms.size();i++){
+				ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i));
+				for (int p:matchPos){
+					pwmMatchIds.add(i);
+					pwmMatchPos.add(p);
 				}
-				
-				// K-mer matches
-				for (int i=0;i<kmers.size();i++){
-					String kmer = kmers.get(i);
-					ArrayList<Integer> matchPos = CommonUtils.getAllKmerHit(seq, kmer);
-					for (int p:matchPos){
-						kmerMatchIds.add(i);
-						kmerMatchPos.add(p);
-					}
+			}
+			
+			// K-mer matches
+			for (int i=0;i<kmers.size();i++){
+				String kmer = kmers.get(i);
+				ArrayList<Integer> matchPos = CommonUtils.getAllKmerHit(seq, kmer);
+				for (int p:matchPos){
+					kmerMatchIds.add(i);
+					kmerMatchPos.add(p);
 				}
 			}
 			sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t", region.toString(), r.toString(),
