@@ -88,7 +88,12 @@ public class MotifScan {
 	    for (int i=0;i<instances.size();i++){
 	    	MotifInstance mi = instances.get(i);
 	    	String f[] = names[mi.seqID].split(" ");
-	    	Point startPoint = Region.fromString(g, f[1]).startPoint();
+	    	String regionString = null;
+	    	if (f.length>1)
+	    		regionString = f[1];
+	    	else
+	    		regionString = names[mi.seqID];
+	    	Point startPoint = Region.fromString(g, regionString).startPoint();
 	    	int pos = mi.position + motifLengths.get(mi.motifID)/2;		// relative position from the left coord, adjust to motif midpoint
 	    	if (mi.strand=='-')
 	    		pos = mi.position + (motifLengths.get(mi.motifID)-1) - motifLengths.get(mi.motifID)/2;
