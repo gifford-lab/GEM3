@@ -121,7 +121,9 @@ public class KMAC2 {
 			return clusters.get(0);
 		return null;
 	}
-	
+	public ArrayList<KmerCluster> getMotifClusters(){
+		return clusters;
+	}	
 	public KMAC2(){
 	}
 
@@ -489,14 +491,14 @@ public class KMAC2 {
 						bestAllHGP=bestCluster.ksmThreshold.hgp;
 				}
 				else{
-					sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, 
-							bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));		
+					sb.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, bestCluster.pwmPosHitCount, bestCluster.pwmNegHitCount, 
+							bestCluster.pwmThresholdHGP, bestCluster.wm.length(), WeightMatrix.getMaxLetters(bestCluster.wm)));
 					if (bestAllHGP>bestCluster.pwmThresholdHGP)
 						bestAllHGP=bestCluster.pwmThresholdHGP;
 				}
 			}
 			else
-				sb.append(String.format("k=%d\tcan not form a PWM.\n", k));
+				sb.append(String.format("k=%d\tcannot form a PWM.\n", k));
 			
 			// reload non-masked sequences
 			seqs = pos_seq_backup.clone();
@@ -1619,9 +1621,11 @@ public class KMAC2 {
 			StringBuilder sb = new StringBuilder();
 			if (cluster.wm!=null){			    	
 				alignSequencesUsingPWM(seqList, cluster);
-				NewKSM newKSM = extractKSM (seqList, seed_range, new ArrayList<Kmer>());				
-				cluster.alignedKmers = newKSM.kmers;
-				cluster.ksmThreshold = newKSM.threshold;
+				if (config.refine_ksm){						
+					NewKSM newKSM = extractKSM (seqList, seed_range, new ArrayList<Kmer>());				
+					cluster.alignedKmers = newKSM.kmers;
+					cluster.ksmThreshold = newKSM.threshold;
+				}
 			}
 	    	int leftmost = Integer.MAX_VALUE;
 	    	int total_aligned_seqs = 0;
@@ -1644,7 +1648,8 @@ public class KMAC2 {
 				bs[count]=midPos+s.pos;
 				count++;
 			}
-			cluster.pos_BS_seed=StatUtil.round(StatUtil.mean(bs));		// mean BS position relative to seed k-mer start
+			// median BS position relative to seed k-mer start
+			cluster.pos_BS_seed=(int)Math.ceil(StatUtil.median(bs));	
 			if (config.print_aligned_seqs)
 				CommonUtils.writeFile(outName+"_"+clusterID+"_seqs_aligned.txt", sb.toString());
 			sb = null;
@@ -1909,7 +1914,7 @@ public class KMAC2 {
      		WeightMatrix wm = c.wm;
     		System.out.println(String.format("--------------------------------------------------------------\n%s k-mer cluster #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
-    		if (pos>0)
+    		if (pos>=0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
@@ -3791,7 +3796,7 @@ public class KMAC2 {
 		for (Kmer km:kmer2pos.keySet()){
 			ArrayList<Integer> posKmer = kmer2pos.get(km);		// all in_sequence positions of this kmer
 			// The kmer hit in the 2*k region should be at least 1/2 of total hit
-			if (posKmer==null || posKmer.size()<km.getPosHitCount()*config.kmer_aligned_fraction){			
+			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_aligned_fraction){			
 				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
 			}	
@@ -4260,6 +4265,8 @@ public class KMAC2 {
 	 * More negative hgp, more significant p-value
 	 */	
 	public double computeHGP(int posHitCount, int negHitCount){
+		if (posHitCount==0)
+			return 0;
 		return computeHGP(posSeqCount, negSeqCount, posHitCount, negHitCount);
 	}
 	/**
@@ -5128,6 +5135,7 @@ public class KMAC2 {
 	public class KmerGroup implements Comparable<KmerGroup>{
 		ArrayList<Kmer> kmers;
 		int bs = 999;
+		int clusterId = -1;
 		int posHitGroupCount;
 		int negHitGroupCount;
 		/** hgp (log10) using the positive/negative sequences */
@@ -5182,6 +5190,8 @@ public class KMAC2 {
 		public double getHgp() {return hgp;	}
 		/** hgp (log10) using the positive/negative sequences */
 		public void setHgp(double hgp) {this.hgp = hgp;	}
+		public int getClusterId(){return clusterId;}
+		public void setClusterId(int id){clusterId = id;}
 		
 		public ArrayList<Kmer> getKmers(){
 			return kmers;

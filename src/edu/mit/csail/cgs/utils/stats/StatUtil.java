@@ -33,6 +33,8 @@ import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 public class StatUtil {
 	static cern.jet.random.engine.RandomEngine engine = new cern.jet.random.engine.MersenneTwister();
 	static double[] logFactorials;
+	static HashMap<String, Double> HGP_table = new HashMap<String, Double>();
+	static HashMap<String, Double> log10_HGP_table = new HashMap<String, Double>();
 	
 	public static double uniform_rnd() {
 		return Uniform.staticNextDouble();
@@ -1232,16 +1234,22 @@ public class StatUtil {
 	 * @return
 	 */
 	public static double hyperGeometricCDF_cache(int x, int N, int s, int n) {
-		double v = 0.0;
-		int k = 0;
-		for (k=0;k<=x;k++) {
-			double v1= hyperGeometricPDF_cache(k,N,s,n);
-			v += v1;
+		String key = String.format("%d_%d_%d_%d", x, N, s, n);
+		if (HGP_table.containsKey(key))
+			return HGP_table.get(key);
+		else{
+			double v = 0.0;
+			int k = 0;
+			for (k=0;k<=x;k++) {
+				double v1= hyperGeometricPDF_cache(k,N,s,n);
+				v += v1;
+			}
+			
+			if (v > 1.0)
+				v = 1.0;
+			HGP_table.put(key, v);
+			return v;	
 		}
-		
-		if (v > 1.0)
-			v = 1.0;
-		return v;	
 	}
 	/**
 	 * Returns the hypergeometric cumulative probability
@@ -1272,12 +1280,19 @@ public class StatUtil {
 	 * @param n sample size
 	 **/
 	public static double log10_hyperGeometricCDF_cache_appr(int x, int N, int s, int n) {
-		double Lx = log10_hyperGeometricPDF_cache(x,N,s,n);
-		double sum = 1;
-		for (int k=x-1;k>=0;k--) {
-			sum += Math.pow(10, log10_hyperGeometricPDF_cache(k,N,s,n)-Lx);
+		String key = String.format("%d_%d_%d_%d", x, N, s, n);
+		if (log10_HGP_table.containsKey(key))
+			return log10_HGP_table.get(key);
+		else{
+			double Lx = log10_hyperGeometricPDF_cache(x,N,s,n);
+			double sum = 1;
+			for (int k=x-1;k>=0;k--) {
+				sum += Math.pow(10, log10_hyperGeometricPDF_cache(k,N,s,n)-Lx);
+			}
+			Lx += Math.log10(sum);
+			HGP_table.put(key, Lx);
+			return Lx;
 		}
-		return Lx+Math.log10(sum);
 	}
 	/**
 	 * Returns the hypergeometric density probability of number <tt>x</tt> 

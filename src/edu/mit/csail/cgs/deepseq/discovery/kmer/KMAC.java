@@ -1573,7 +1573,19 @@ public class KMAC {
 				bs[count]=midPos+s.pos;
 				count++;
 			}
-			cluster.pos_BS_seed=StatUtil.round(StatUtil.mean(bs));		// mean BS position relative to seed k-mer start
+			
+//			ArrayList<Integer> nums = new ArrayList<Integer>();
+//			for (int j=0;j<count;j++)
+//				nums.add((int)bs[j]);
+//			Pair<int[], int[]> sorted = StatUtil.sortByOccurences (nums);
+//			System.out.println("\nCluster: "+i);
+//			System.out.println("Median: "+StatUtil.median(bs));
+//			System.out.println("Mean:   "+StatUtil.mean(bs));
+//			for (int j=sorted.car().length-1;j>=0;j--)
+//				System.out.println(sorted.car()[j]+"\t"+sorted.cdr()[j]);
+			
+			// median BS position relative to seed k-mer start
+			cluster.pos_BS_seed=(int)Math.ceil(StatUtil.median(bs));		
 			if (config.print_aligned_seqs)
 				CommonUtils.writeFile(outName+"_"+clusterID+"_seqs_aligned.txt", sb.toString());
 			sb = null;
@@ -1886,7 +1898,7 @@ public class KMAC {
      		WeightMatrix wm = c.wm;
     		System.out.println(String.format("--------------------------------------------------------------\n%s k-mer cluster #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
-    		if (pos>0)
+    		if (pos>=0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));

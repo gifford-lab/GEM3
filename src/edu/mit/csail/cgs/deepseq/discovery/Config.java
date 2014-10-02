@@ -188,9 +188,9 @@ public class Config {
         	smooth_step = 0;
         	kmer_aligned_fraction = 0.3;
         	noise_distribution = 0;
-        	window_size_factor = 10;
-        	poisson_alpha=0.05;
-        	alpha_factor = 0.7;
+        	window_size_factor = 10;			//TODO: why 10??
+        	poisson_alpha=0.5;
+        	alpha_factor = 1;
 //            second_lambda_region_width =  500;
 //            third_lambda_region_width  = 1000;
         }

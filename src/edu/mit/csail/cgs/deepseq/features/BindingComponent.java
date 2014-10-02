@@ -173,6 +173,6 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	}
 	
 	public String toString(){
-		return getLocation().getLocationString()+" EM:"+getEMPosition().getLocationString();
+		return getLocation().getLocationString()+((strand=='*')?"":strand)+" EM:"+getEMPosition().getLocationString();
 	}
 }//end of BindingComponent class
