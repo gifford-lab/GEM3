@@ -764,7 +764,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			// only filter high read count events (more likely to be artifacts) 
 			if (config.filterEvents && 
 					(cf.getTotalEventStrength()>quarterStrength || config.is_branch_point_data) && 
-					(cf.getKmerGroup()==null || cf.getKmerGroup().getClusterId()!=0)){
+					cf.getKmerGroup()==null ){
 				for (int cond=0; cond<numConditions; cond++){
 					// if one condition is good event, this position is GOOD
 					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
