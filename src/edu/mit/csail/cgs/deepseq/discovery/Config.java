@@ -5,6 +5,7 @@ import java.util.Set;
 import edu.mit.csail.cgs.tools.utils.Args;
 
 public class Config {
+	public boolean multl_thread_hgp = false;
 	public boolean trim_simple=false;
 	public boolean print_PI = false;
 	public boolean classify_events = false;
@@ -189,8 +190,8 @@ public class Config {
         	kmer_aligned_fraction = 0.3;
         	noise_distribution = 0;
         	window_size_factor = 10;			//TODO: why 10??
-        	poisson_alpha=0.5;
-        	alpha_factor = 1;
+//        	poisson_alpha=0.5;
+        	alpha_factor = 0.7;
 //            second_lambda_region_width =  500;
 //            third_lambda_region_width  = 1000;
         }
@@ -284,17 +285,23 @@ public class Config {
         genome_path = Args.parseString(args, "genome", genome_path);
         out_name = Args.parseString(args, "out_name", out_name);
         k = Args.parseInteger(args, "k", k);
-        k_min = Args.parseInteger(args, "k_min", k_min);
-        k_max = Args.parseInteger(args, "k_max", k_max);
-        k_min = Args.parseInteger(args, "kmin", k_min);				// fail-safe
-        k_max = Args.parseInteger(args, "kmax", k_max);
-        if (k_max<k_min)
-        	System.err.println("\n\nWARNING: k_max value is smaller than k_min !!!\n\n");
+        if (k==-1){
+	        k_min = Args.parseInteger(args, "k_min", k_min);
+	        k_max = Args.parseInteger(args, "k_max", k_max);
+	        k_min = Args.parseInteger(args, "kmin", k_min);				// fail-safe
+	        k_max = Args.parseInteger(args, "kmax", k_max);
+	        if (k_max<k_min)
+	        	System.err.println("\n\nWARNING: k_max value is smaller than k_min !!!\n\n");
+        }
+        else{
+        	k_min = k;
+        	k_max = k;	
+        }
         seed = Args.parseString(args, "seed", null);
         if (seed!=null){
         	k = seed.length();
-        	k_min = -1;
-        	k_max = -1;
+        	k_min = k;
+        	k_max = k;
         	allow_seed_reset = false;
         }
         k_top = Args.parseInteger(args, "k_top", k_top);

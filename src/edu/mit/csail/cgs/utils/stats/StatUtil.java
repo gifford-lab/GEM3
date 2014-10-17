@@ -23,6 +23,7 @@ import cern.jet.random.HyperGeometric;
 import cern.jet.random.engine.DRand;
 
 import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
 
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
@@ -31,10 +32,17 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 
 public class StatUtil {
-	static cern.jet.random.engine.RandomEngine engine = new cern.jet.random.engine.MersenneTwister();
-	static double[] logFactorials;
-	static HashMap<String, Double> HGP_table = new HashMap<String, Double>();
-	static HashMap<String, Double> log10_HGP_table = new HashMap<String, Double>();
+//	static cern.jet.random.engine.RandomEngine engine = new cern.jet.random.engine.MersenneTwister();
+	static private double[] logFactorials;
+	static private ConcurrentHashMap<String, Double> HGP_table = new ConcurrentHashMap<String, Double>();
+	static private ConcurrentHashMap<String, Double> log10_HGP_table = new ConcurrentHashMap<String, Double>();
+	static private ConcurrentHashMap<String, Double> HGPDF_table = new ConcurrentHashMap<String, Double>();
+	static private ConcurrentHashMap<String, Double> log10_HGPDF_table = new ConcurrentHashMap<String, Double>();
+	static public String getCacheSize(){
+		return String.format("HGP_table=%s, log10_HGP_table=%s, HGPDF_table=%s, log10_HGPDF_table=%s", 
+				HGP_table.size(), log10_HGP_table.size(), HGPDF_table.size(), log10_HGPDF_table.size());
+	}
+	static public int cacheAccessCount = 0;
 	
 	public static double uniform_rnd() {
 		return Uniform.staticNextDouble();
@@ -1235,8 +1243,10 @@ public class StatUtil {
 	 */
 	public static double hyperGeometricCDF_cache(int x, int N, int s, int n) {
 		String key = String.format("%d_%d_%d_%d", x, N, s, n);
-		if (HGP_table.containsKey(key))
+		if (HGP_table.containsKey(key)){
+			cacheAccessCount++;
 			return HGP_table.get(key);
+		}
 		else{
 			double v = 0.0;
 			int k = 0;
@@ -1281,8 +1291,10 @@ public class StatUtil {
 	 **/
 	public static double log10_hyperGeometricCDF_cache_appr(int x, int N, int s, int n) {
 		String key = String.format("%d_%d_%d_%d", x, N, s, n);
-		if (log10_HGP_table.containsKey(key))
+		if (log10_HGP_table.containsKey(key)){
+			cacheAccessCount++;
 			return log10_HGP_table.get(key);
+		}
 		else{
 			double Lx = log10_hyperGeometricPDF_cache(x,N,s,n);
 			double sum = 1;
@@ -1309,6 +1321,46 @@ public class StatUtil {
 	public static double hyperGeometricPDF_cache(int x, int N, int s, int n) {
 		if (x+N-s-n<0)
 			return 0;
+		String key = String.format("%d_%d_%d_%d", x, N, s, n);
+		if (HGPDF_table.containsKey(key)){
+			cacheAccessCount++;
+			return HGPDF_table.get(key);
+		}
+		else{
+	
+			// extend the cache if N is large than existing cache
+			int len = (logFactorials==null)?0:logFactorials.length;
+			if (logFactorials==null || logFactorials.length < N+1){
+				double[] old = logFactorials;
+				logFactorials = new double[N+1];
+				if (len!=0)
+					System.arraycopy(old, 0, logFactorials, 0, len);
+				else{
+					logFactorials[0]=0;
+					len++;
+				}
+				for (int i=len;i<=N;i++)
+					logFactorials[i] = logFactorials[i-1]+Math.log(i);
+			}
+			// compute
+			double kx = logFactorials[s]-logFactorials[x]-logFactorials[s-x];
+			double mknx = logFactorials[N-s]-logFactorials[n-x]-logFactorials[N-s-(n-x)];
+			double mn = logFactorials[N]-logFactorials[n]-logFactorials[N-n];
+			double result = Math.exp(kx + mknx - mn);
+			HGPDF_table.put(key, result);
+			return result;
+		}
+	}
+	
+	public static double log10_hyperGeometricPDF_cache (int x, int N, int s, int n) {
+		if (x+N-s-n<0)
+			return Double.NEGATIVE_INFINITY;
+		String key = String.format("%d_%d_%d_%d", x, N, s, n);
+		if (log10_HGPDF_table.containsKey(key)){
+			cacheAccessCount++;
+			return log10_HGPDF_table.get(key);
+		}
+		else{
 		// extend the cache if N is large than existing cache
 		int len = (logFactorials==null)?0:logFactorials.length;
 		if (logFactorials==null || logFactorials.length < N+1){
@@ -1327,9 +1379,13 @@ public class StatUtil {
 		double kx = logFactorials[s]-logFactorials[x]-logFactorials[s-x];
 		double mknx = logFactorials[N-s]-logFactorials[n-x]-logFactorials[N-s-(n-x)];
 		double mn = logFactorials[N]-logFactorials[n]-logFactorials[N-n];
-		double result = Math.exp(kx + mknx - mn);
+		double result = (kx + mknx - mn)*Math.log10(Math.exp(1));
+		log10_HGPDF_table.put(key, result);
+
 		return result;
+		}
 	}
+	
 	/**Use BigDecimal to compute hyperGeometric, high precision, but very slow, use for verification
 	 * @param x # observed successes in the sample
 	 * @param N population size
@@ -1367,30 +1423,7 @@ public class StatUtil {
 		BigDecimal exp = BigDecimal.valueOf(Math.exp(unscaledValue)).pow((int)Math.round(Math.pow(10, p)));
 		return exp;
 	}
-	
-	public static double log10_hyperGeometricPDF_cache (int x, int N, int s, int n) {
-		if (x+N-s-n<0)
-			return Double.NEGATIVE_INFINITY;
-		// extend the cache if N is large than existing cache
-		int len = (logFactorials==null)?0:logFactorials.length;
-		if (logFactorials==null || logFactorials.length < N+1){
-			double[] old = logFactorials;
-			logFactorials = new double[N+1];
-			if (len!=0)
-				System.arraycopy(old, 0, logFactorials, 0, len);
-			else{
-				logFactorials[0]=0;
-				len++;
-			}
-			for (int i=len;i<=N;i++)
-				logFactorials[i] = logFactorials[i-1]+Math.log(i);
-		}
-		// compute
-		double kx = logFactorials[s]-logFactorials[x]-logFactorials[s-x];
-		double mknx = logFactorials[N-s]-logFactorials[n-x]-logFactorials[N-s-(n-x)];
-		double mn = logFactorials[N]-logFactorials[n]-logFactorials[N-n];
-		return (kx + mknx - mn)*Math.log10(Math.exp(1));
-	}
+
 	/**
 	 * 
 	 * @param n
@@ -1976,5 +2009,6 @@ public class StatUtil {
 ////			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+5000));
 //			System.out.println("-----------");
 //		}
+		System.out.println(Long.MAX_VALUE);
 	}
 }//end of StatUtil class 41690 / 40506

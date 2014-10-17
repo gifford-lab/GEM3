@@ -1640,8 +1640,9 @@ public class KMAC {
 		double score = pCluster.ksmThreshold==null?0:pCluster.ksmThreshold.score;
 		Kmer.printKmers(allAlignedKmers, posSeqCount, negSeqCount, score, outName, false, true, false);
 		
-		System.out.print("\nFinish KMAC motif discovery, "+CommonUtils.timeElapsed(tic)+"\n");
-		
+		System.out.println("\nFinish KMAC motif discovery, "+CommonUtils.timeElapsed(tic));
+		System.out.println(StatUtil.cacheAccessCount);
+		System.out.println(StatUtil.getCacheSize());
 		return allAlignedKmers;
 	}
 	
@@ -5115,7 +5116,10 @@ public class KMAC {
     			total+=kmers.get(i).getWeightedHitCount()/k;	
     		}
     		return total;
-		}			
+		}	
+		/** 
+		 * get the expected binding position		
+		 */
 		public int getPosBS(){
 			return bs;
 		}

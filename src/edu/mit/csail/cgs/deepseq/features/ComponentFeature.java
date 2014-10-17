@@ -452,7 +452,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         return header.toString();
 	}
 	//Print the feature
-	// for GPS release v1
 	//each field should match header String
 	public String toString_v1() {
 		StringBuilder result = new StringBuilder();
@@ -509,7 +508,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         }
         if (boundSequence!=null){
 	        if (kmerGroup!=null)
-	        	result.append(String.format("%s %d/%d\t%d\t%.2f\t%s\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand, boundSequence));
+	        	result.append(String.format("%s_%d/%d\t%d\t%.2f\t%s\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand, boundSequence));
 	        else
 	        	result.append(CommonUtils.padding(8, '-')).append("\t-1\t0.00\t*\t").append(boundSequence);
 	        if (getEnrichedKmerHGPLog10()!=99)
@@ -520,7 +519,6 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 	}
 	
 	//Print the feature in BED format
-	// for GPS release v1
 	public String toBED() {
 		StringBuilder bed = new StringBuilder();
 		bed.append("chr"+position.getChrom()).append("\t");
