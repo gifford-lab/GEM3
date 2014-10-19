@@ -355,9 +355,8 @@ public class WeightMatrix {
     	if (matrix[0].length!=other.matrix[0].length)
     		return false;
     	for (int i=0;i<matrix.length;i++){
-    		
     		for (int j=0;j<matrix[0].length;j++){
-    			if (matrix[i][j]!=other.matrix[i][j])
+    			if (Math.abs(matrix[i][j]-other.matrix[i][j]) > 0.001)
     				return false;
     		}
     	}

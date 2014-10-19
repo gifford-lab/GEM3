@@ -82,6 +82,7 @@ public class Config {
     public double motif_hit_factor = 0.005;
     public double motif_hit_factor_report = 0.05;
     public double kmer_set_overlap_ratio = 0.5;
+    public double motif_hit_overlap_ratio = 0.5;
     public double repeat_fraction=1;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
     public int kmer_remove_mode = 0;
     public int seed_range = 3;
