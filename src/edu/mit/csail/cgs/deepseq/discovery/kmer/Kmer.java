@@ -26,18 +26,18 @@ public class Kmer implements Comparable<Kmer>{
 	static void set_seq_weights(double[] weights){
 		seq_weights = weights;
 	}	
-	private String kmerString;
+	protected String kmerString;
 	public String getKmerString() {	return kmerString;}
-	private String kmerRC;
+	protected String kmerRC;
 	public String getKmerRC(){
 		if (kmerRC==null)
 			kmerRC=SequenceUtils.reverseComplement(kmerString);
 		return kmerRC;
 	}
-	private int k;
+	protected int k;
 	public int getK(){return k;}
 	
-	private HashSet<Integer> posHits = new HashSet<Integer>();
+	protected HashSet<Integer> posHits = new HashSet<Integer>();
 	/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
 	 * 	get a weighted version of hit count if use_weighted_hit_count is true
 	 */
@@ -81,7 +81,7 @@ public class Kmer implements Comparable<Kmer>{
 	public double getTop() {return top;	}
 	
 //	int negHitCount;
-	private HashSet<Integer> negHits = new HashSet<Integer>();
+	protected HashSet<Integer> negHits = new HashSet<Integer>();
 	public int getNegHitCount() {return negHits.size();}
 	public void setNegHits(HashSet<Integer> negHits) {
 		this.negHits = negHits;
@@ -152,10 +152,11 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	/** Use reverse compliment to represent the kmer */
-	public void RC(){
+	public Kmer RC(){
 		String tmp = kmerString;
 		kmerString = getKmerRC();
 		kmerRC = tmp;
+		return this;
 	}
 	// sort kmer by strength
 	public int compareByStrength(Kmer o) {
@@ -323,7 +324,7 @@ public class Kmer implements Comparable<Kmer>{
 	/**
 	 * If the set of ids is empty (no negative hits), return "-1"
 	 */
-	private static String hits2string(HashSet<Integer> ids){
+	protected static String hits2string(HashSet<Integer> ids){
 		StringBuilder sb = new StringBuilder();
 		if (ids.isEmpty())
 			return "-1";
@@ -331,6 +332,14 @@ public class Kmer implements Comparable<Kmer>{
 		for (int id:sorted)
 			sb.append(id).append(" ");
 		return sb.toString();
+	}
+	public static ArrayList<Kmer> cloneKmerList(ArrayList<Kmer> kmers_in){
+		// clone to modify locally
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		for (Kmer km:kmers_in)
+			kmers.add(km.clone());
+		kmers.trimToSize();
+		return kmers;
 	}
 	public static ArrayList<Kmer> loadKmers(List<File> files){
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();

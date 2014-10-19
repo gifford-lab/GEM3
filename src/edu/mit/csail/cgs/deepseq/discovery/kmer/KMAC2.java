@@ -15,6 +15,8 @@ import java.util.*;
 
 import javax.imageio.ImageIO;
 
+import com.ctc.wstx.util.StringUtil;
+
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -446,7 +448,8 @@ public class KMAC2 {
 			int k = i+k_min;
 			StringBuilder sb = new StringBuilder("\n------------------------- k = "+ k +" ----------------------------\n");
 			System.out.println("\n----------------------------------------------------------\nTrying k="+k+" ...\n");
-			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
+			ArrayList<Kmer> kmers = generateEnrichedKmers(k);
+//			kmers.addAll(generateEnrichedWildcardKmers(k,1));
 			k2kmers.put(k, kmers);
 	        ArrayList<KmerCluster> tmp = new ArrayList<KmerCluster>();
 			if (!kmers.isEmpty()){
@@ -627,12 +630,10 @@ public class KMAC2 {
 		System.out.print(sb_all.toString());
 	}
 	
-
-	
 	/** 
 	 * Index k-mers from the positive sequences, select enriched k-mers
 	 * */
-	public ArrayList<Kmer> selectEnrichedKmers(int k){
+	public ArrayList<Kmer> generateEnrichedKmers(int k){
 		this.k = k;
 		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
@@ -784,6 +785,194 @@ public class KMAC2 {
 		
 		return kms;
 	}
+	
+	/** 
+	 * Select wildcard k-mers
+	 * */
+	public ArrayList<Kmer> generateEnrichedWildcardKmers(int k, int numWildcard){
+		k += numWildcard;
+		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
+		tic = System.currentTimeMillis();
+		numPos = seqLen-k+1;
+
+		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
+		for (int seqId=0;seqId<posSeqCount;seqId++){
+			String seq = seqs[seqId];
+			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
+			for (int i=0;i<numPos;i++){
+				if ((i+k)>seq.length()) // endIndex of substring is exclusive
+					break;
+				String kstring = seq.substring(i, i+k);
+				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
+					continue;
+				uniqueKmers.add(kstring);
+			}
+			for (String s: uniqueKmers){
+				if (!kmerstr2seqs.containsKey(s)){
+					 kmerstr2seqs.put(s, new HashSet<Integer>());
+				}
+				kmerstr2seqs.get(s).add(seqId);
+			}
+		}
+		
+		// Merge kmer and its reverse compliment (RC)	
+		ArrayList<String> kmerStrings = new ArrayList<String>();
+		kmerStrings.addAll(kmerstr2seqs.keySet());
+		
+		// create kmers from its and RC's counts
+		for (String key:kmerStrings){
+			if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
+				continue;
+			// consolidate kmer and its reverseComplment kmer
+			String key_rc = SequenceUtils.reverseComplement(key);				
+			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
+				if (kmerstr2seqs.containsKey(key_rc)){
+					int kCount = kmerstr2seqs.get(key).size();
+					int rcCount = kmerstr2seqs.get(key_rc).size();
+					String winner = kCount>=rcCount?key:key_rc;
+					String loser = kCount>=rcCount?key_rc:key;
+					kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner take all
+					kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
+				}
+			}
+		}
+		System.out.println("k="+k+", mapped "+kmerstr2seqs.keySet().size()+" k-mers, "+CommonUtils.timeElapsed(tic));
+
+		// create the kmer object
+		HashMap<String, Kmer> kmMap = new HashMap<String, Kmer>();
+		for (String s:kmerstr2seqs.keySet()){	
+			Kmer kmer = new Kmer(s, kmerstr2seqs.get(s));
+			kmMap.put(s,kmer);
+		}
+		kmerstr2seqs=null;	// clean up
+		System.gc();
+		
+		// form wildcard kmers by mutating each non-edge bases of the k-mers
+		HashMap<String, WildcardKmer> wkMap = new HashMap<String, WildcardKmer>();
+		for (String s:kmMap.keySet()){
+			char[] cs = s.toCharArray();
+			if (numWildcard==1){
+				for (int i=1; i<k-1; i++){	// only mutate the non-edge bases
+					WildcardKmer wk = new WildcardKmer(kmMap.get(s),i);
+					char ci = s.charAt(i);
+					// check whether this wildcard has been made
+					cs[i]='N';
+					String t = cs.toString();
+					cs[i]=ci;		// restore position i
+					if (wkMap.containsKey(t)||wkMap.containsKey(SequenceUtils.reverseComplement(t)))
+						continue;	// this wildcard has been made, skip to next position
+						
+					for (char c: LETTERS){
+						if (ci==c)
+							continue;
+						cs[i]=c;
+						String m = cs.toString();
+						if (kmMap.containsKey(m))
+							wk.addKmer(kmMap.get(m));
+						else{
+							String mrc = SequenceUtils.reverseComplement(m);
+							if (kmMap.containsKey(mrc)){
+								wk.addKmer(kmMap.get(mrc).RC()); // it is ok to RC, see comments in WildcardKmer.add().
+							}
+						}
+					}
+					cs[i]=ci;		// restore position i
+					if (wk.make())
+						wkMap.put(wk.getKmerString(), wk);
+				}
+			}
+		}
+		
+		// compute the smallest PosCount needed to be significant, even with negCount=0
+		int smallestPosCount;
+		for (smallestPosCount=minHitCount;smallestPosCount<posSeqCount;smallestPosCount++){
+			double hgp = computeHGP(posSeqCount, negSeqCount, smallestPosCount, 0);
+			if (hgp<config.kmer_hgp){
+				break;
+			}
+		}
+		int expectedCount = (int) Math.max( smallestPosCount, Math.round(seqs.length*2*(seqs[0].length()-k+1) / Math.pow(4, k)));
+		// the purpose of expectedCount is to limit kmers to run HGP test, if total kmer number is low, it can be relaxed a little
+		if (wkMap.keySet().size()<10000){	
+			expectedCount = Math.min(smallestPosCount, expectedCount);
+		}
+		ArrayList<WildcardKmer> kms = new ArrayList<WildcardKmer>();
+		HashSet<Kmer> subKmers = new HashSet<Kmer>();
+		for (String key:wkMap.keySet()){	
+			if (wkMap.get(key).getPosHitCount()< expectedCount)
+				continue;	// skip low count kmers 
+			WildcardKmer wk = wkMap.get(key);
+			kms.add(wk);
+			subKmers.addAll(wk.getKmers());
+		}		
+		System.out.println("Expected kmer hit count="+expectedCount + ", wildcard kmer count="+kms.size()+
+				", sub-kmers count="+subKmers.size());
+		
+		/**
+		 * Select significantly over-representative kmers 
+		 * Search the kmer counts in the negative sequences, then compute hgp using positive/negative hit counts
+		 */
+		tic = System.currentTimeMillis();
+		//Aho-Corasick for searching Kmers in negative sequences
+		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+		AhoCorasick tmp = new AhoCorasick();
+		for (Kmer km: subKmers){
+			String s = km.getKmerString();
+			tmp.add(s.getBytes(), s);
+	    }
+		tmp.prepare();
+		
+		// count hits in the negative sequences
+		HashMap<String, HashSet<Integer>> kmerstr2negSeqs = new HashMap<String, HashSet<Integer>>();
+		for (int negSeqId=0; negSeqId<negSeqCount;negSeqId++){
+			String seq = seqsNegList.get(negSeqId);
+			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
+			Iterator searcher = tmp.search(seq.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerHits.addAll(result.getOutputs());
+			}
+			String seq_rc = SequenceUtils.reverseComplement(seq);
+			searcher = tmp.search(seq_rc.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerHits.addAll(result.getOutputs());
+			}
+			for (Object o: kmerHits){
+				String ks = (String) o;
+				if (!kmerstr2negSeqs.containsKey(ks))					
+					kmerstr2negSeqs.put(ks, new HashSet<Integer>());
+				kmerstr2negSeqs.get(ks).add(negSeqId);
+			}
+		}
+		for (Kmer kmer:subKmers){
+			if (kmerstr2negSeqs.containsKey(kmer.getKmerString())){
+				kmer.setNegHits(kmerstr2negSeqs.get(kmer.getKmerString()));				
+			}
+		}
+		
+		// score the kmers, hypergeometric p-value, select significant k-mers
+		ArrayList<Kmer> results = new ArrayList<Kmer>();
+		for (WildcardKmer kmer:kms){
+			kmer.setNegHits();
+			if (kmer.getPosHitCount() >= kmer.getNegHitCount()/get_NP_ratio() * config.k_fold ){
+				kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
+				if (kmer.getHgp() <= config.kmer_hgp)
+					results.add(kmer);
+			}
+		}
+		results.trimToSize();
+		Collections.sort(results);
+		System.out.println(String.format("k=%d, selected %d wildcard k-mers from %d+/%d- sequences, %s", k, results.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+		
+		if (config.print_all_kmers){
+			Collections.sort(kms);
+			WildcardKmer.printWildcardKmers(kms, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+		}
+		
+		return results;
+	}
 
 	private double[][] computeDistanceMatrix(ArrayList<Kmer> kmers) {
 		boolean print_dist_matrix = false;
@@ -880,14 +1069,7 @@ public class KMAC2 {
 		
 		return results;
 	}
-	private ArrayList<Kmer> cloneKmerList(ArrayList<Kmer> kmers_in){
-		// clone to modify locally
-		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-		for (Kmer km:kmers_in)
-			kmers.add(km.clone());
-		kmers.trimToSize();
-		return kmers;
-	}
+
 	
 	/**
 	 * This is the main method for KMAC2 (density clustering) motif discovery
@@ -903,7 +1085,7 @@ public class KMAC2 {
 			return null;
 
 		// clone to modify locally
-		ArrayList<Kmer> kmers = cloneKmerList(kmers_in);
+		ArrayList<Kmer> kmers = Kmer.cloneKmerList(kmers_in);
 		
 		ArrayList<Sequence> seqList = new ArrayList<Sequence>();
 		for (int i=0;i<seqs.length;i++){
@@ -1439,7 +1621,7 @@ public class KMAC2 {
 						newPWM = buildPWM(seqList_j, cluster2, 0, tic, false);
 						if (newPWM!=null){
 							newPWM.updateClusterPwmInfo(cluster2);
-							indexKmerSequences( cloneKmerList(k2kmers.get(cluster2.seedKmer.getK())), seqList_j);  // need this to get KSM
+							indexKmerSequences( Kmer.cloneKmerList(k2kmers.get(cluster2.seedKmer.getK())), seqList_j);  // need this to get KSM
 							alignedSeqCount = alignSequencesUsingPWM(seqList_j, cluster2);
 							if (config.evaluate_by_ksm){
 								NewKSM newKSM = extractKSM (seqList, seed_range, null);
