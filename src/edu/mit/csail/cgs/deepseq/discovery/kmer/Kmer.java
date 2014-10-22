@@ -336,8 +336,9 @@ public class Kmer implements Comparable<Kmer>{
 	public static ArrayList<Kmer> cloneKmerList(ArrayList<Kmer> kmers_in){
 		// clone to modify locally
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-		for (Kmer km:kmers_in)
+		for (Kmer km:kmers_in){
 			kmers.add(km.clone());
+		}
 		kmers.trimToSize();
 		return kmers;
 	}

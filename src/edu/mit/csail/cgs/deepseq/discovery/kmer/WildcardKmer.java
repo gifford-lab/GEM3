@@ -16,6 +16,11 @@ public class WildcardKmer extends Kmer{
 		this.pos = pos;
 		this.s = kmer.getKmerString().toCharArray();
 	}
+	private WildcardKmer(ArrayList<Kmer> kmers, int pos, char[] s){
+		this.kmers = kmers;
+		this.pos = pos;
+		this.s = s;		
+	}
 	/** 
 	 * add the kmer to the sub-kmers for the wildcard<br>
 	 * it is ok to RC() the kmer after adding it because the kmerString is not used anymore<br>
@@ -32,7 +37,7 @@ public class WildcardKmer extends Kmer{
 		if (kmers.size()==1)
 			return false;
 		s[pos]='N';
-		kmerString = s.toString();
+		kmerString = String.valueOf(s);
 		kmerRC = SequenceUtils.reverseComplement(kmerString);
 		for (Kmer km:kmers)
 			posHits.addAll(km.getPosHits());
@@ -42,7 +47,20 @@ public class WildcardKmer extends Kmer{
 		for (Kmer km:kmers)
 			negHits.addAll(km.getNegHits());
 	}
+	public int getPosHitCount() {
+			return posHits.size();
+	}
 	
+	public WildcardKmer clone(){
+		ArrayList<Kmer> newKmers = new ArrayList<Kmer>();
+		for (Kmer km:kmers)
+			newKmers.add(km.clone());
+		WildcardKmer n = new WildcardKmer(newKmers, pos, s.clone());
+		n.make();
+		n.setNegHits();
+		return n;
+	}
+
 	public static void printWildcardKmers(ArrayList<WildcardKmer> kmers, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())

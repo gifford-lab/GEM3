@@ -487,18 +487,18 @@ public class KMAC2 {
 				for (int j=0;j<tmp.size();j++){
 					tmp.get(j).clusterId = j;
 				}
-				// print all the motifs for k, before merging
-				for (KmerCluster c:tmp){
-					if (config.evaluate_by_ksm){
-						sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tTopKmer=%s\n", k, c.ksmThreshold.posHit, 
-								c.ksmThreshold.hgp, c.seedKmer.getKmerString()));
-					}
-					else if (c.wm!=null){
-						sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, c.pwmPosHitCount, 
-								c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
-					}
-				}
-				sb.append("\n");
+//				// print all the motifs for k, before merging
+//				for (KmerCluster c:tmp){
+//					if (config.evaluate_by_ksm){
+//						sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tTopKmer=%s\n", k, c.ksmThreshold.posHit, 
+//								c.ksmThreshold.hgp, c.seedKmer.getKmerString()));
+//					}
+//					else if (c.wm!=null){
+//						sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, c.pwmPosHitCount, 
+//								c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
+//					}
+//				}
+//				sb.append("\n");
 				clusters = tmp;
 	
 				ArrayList<Sequence> seqList = new ArrayList<Sequence>();
@@ -518,11 +518,11 @@ public class KMAC2 {
 			// print all the motifs for k, after merging
 			for (KmerCluster c:clusters){
 				if (config.evaluate_by_ksm){
-					sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tTopKmer=%s\n", k, c.ksmThreshold.posHit, 
+					sb.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tTopKmer=%s\n", k, c.ksmThreshold.posHit, c.ksmThreshold.negHit,
 							c.ksmThreshold.hgp, c.seedKmer.getKmerString()));
 				}
 				else if (c.wm!=null){
-					sb.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, c.pwmPosHitCount, 
+					sb.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", k, c.pwmPosHitCount, c.pwmNegHitCount,
 							c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
 				}
 			}
@@ -591,11 +591,11 @@ public class KMAC2 {
 		
 		for (KmerCluster c:clusters){
 			if (config.evaluate_by_ksm){
-				sb_all.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tTopKmer=%s\n", c.seedKmer.getK(), c.ksmThreshold.posHit, 
+				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tTopKmer=%s\n", c.seedKmer.getK(), c.ksmThreshold.posHit, c.ksmThreshold.negHit, 
 						c.ksmThreshold.hgp, c.seedKmer.getKmerString()));
 			}
 			else if (c.wm!=null){
-				sb_all.append(String.format("k=%d\thit=%d\thgp=1e%.1f\tW=%d\tPWM=%s.\n", c.seedKmer.getK(), c.pwmPosHitCount, 
+				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", c.seedKmer.getK(), c.pwmPosHitCount,  c.pwmNegHitCount,
 						c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
 			}
 			if (c.wm!=null){
@@ -857,7 +857,7 @@ public class KMAC2 {
 					char ci = s.charAt(i);
 					// check whether this wildcard has been made
 					cs[i]='N';
-					String t = cs.toString();
+					String t = String.valueOf(cs);
 					cs[i]=ci;		// restore position i
 					if (wkMap.containsKey(t)||wkMap.containsKey(SequenceUtils.reverseComplement(t)))
 						continue;	// this wildcard has been made, skip to next position
@@ -866,7 +866,7 @@ public class KMAC2 {
 						if (ci==c)
 							continue;
 						cs[i]=c;
-						String m = cs.toString();
+						String m = String.valueOf(cs);
 						if (kmMap.containsKey(m))
 							wk.addKmer(kmMap.get(m));
 						else{
@@ -968,7 +968,7 @@ public class KMAC2 {
 		
 		if (config.print_all_kmers){
 			Collections.sort(kms);
-			WildcardKmer.printWildcardKmers(kms, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+			WildcardKmer.printWildcardKmers(kms, posSeqCount, negSeqCount, 0, outName+"_wc_all_w"+seqs[0].length(), true, false, true);
 		}
 		
 		return results;
