@@ -1075,7 +1075,7 @@ public class KMAC2 {
 	 * This is the main method for KMAC2 (density clustering) motif discovery
 	 */
 	public KmerCluster KmerMotifAlignmentClustering (ArrayList<Kmer> kmers_in, Kmer seed){
-		if (seed.getKmerString().equals("AGATTA"))
+		if (seed.getKmerString().equals("AAGATGG"))
 			k+=0;
 		tic = System.currentTimeMillis();
 		int seed_range = k;
@@ -1143,7 +1143,7 @@ public class KMAC2 {
 			// extract first KSM
 	    	if (config.use_ksm){
 	    		NewKSM newKSM = extractKSM (seqList, seed_range, null);
-				if (newKSM==null){
+				if (newKSM==null || newKSM.threshold==null){
 					return null;
 				}		    	
 				cluster.alignedKmers = newKSM.kmers;
