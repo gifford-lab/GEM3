@@ -1906,6 +1906,7 @@ public class StatUtil {
 			p.id = i;
 			double[] distanceVector = distanceMatrix[i];
 			HashSet<Integer> hits = new HashSet<Integer>();
+			// sum up to get total hit count of this point and its neighbors
 			for (int j=0;j<distanceVector.length;j++){
 				if (distanceVector[j] <= distanceCutoff)
 					hits.addAll(hitList.get(j));		

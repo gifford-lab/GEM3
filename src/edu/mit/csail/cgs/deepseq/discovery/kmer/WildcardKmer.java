@@ -6,45 +6,41 @@ import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class WildcardKmer extends Kmer{
-	private ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-	private int pos;
-	private char[] s;
+	private HashMap<Kmer,Boolean> subKmers = new HashMap<Kmer,Boolean>();
+	
+	public WildcardKmer(String wkString){
+		k = wkString.length();
+		kmerString = wkString;
+		kmerRC = SequenceUtils.reverseComplement(kmerString);
+	}
 
-	public WildcardKmer(Kmer kmer, int pos){
-		kmers.add(kmer);
-		this.k = kmer.getK();
-		this.pos = pos;
-		this.s = kmer.getKmerString().toCharArray();
-	}
-	private WildcardKmer(ArrayList<Kmer> kmers, int pos, char[] s){
-		this.kmers = kmers;
-		this.pos = pos;
-		this.s = s;		
-	}
 	/** 
 	 * add the kmer to the sub-kmers for the wildcard<br>
-	 * it is ok to RC() the kmer after adding it because the kmerString is not used anymore<br>
-	 * we only care about the pos/neg hits
+	 * it is ok to RC() the sub-kmers after adding it because their kmerStrings are not used anymore<br>
+	 * we only care about the pos/neg hits, and has stored the orientation
 	 * @param kmer
 	 */
-	public void addKmer (Kmer kmer){
-		kmers.add(kmer);
+	public void addSubKmer (Kmer kmer, boolean isSameOrientation){
+		subKmers.put(kmer, isSameOrientation);
 	}
-	public ArrayList<Kmer> getKmers (){
-		return kmers;
+	void linkSubKmers(){
+		for (Kmer km:subKmers.keySet())
+			km.addWildcardKmer(this);
 	}
-	public boolean make(){
-		if (kmers.size()==1)
-			return false;
-		s[pos]='N';
-		kmerString = String.valueOf(s);
-		kmerRC = SequenceUtils.reverseComplement(kmerString);
-		for (Kmer km:kmers)
+	public Set<Kmer> getSubKmers (){
+		return subKmers.keySet();
+	}
+	boolean getSubKmerOrientation(Kmer subkmer){
+		return subKmers.get(subkmer);
+	}
+	public void setPosHits(){
+		posHits.clear();
+		for (Kmer km:subKmers.keySet())
 			posHits.addAll(km.getPosHits());
-		return true;
 	}
 	public void setNegHits(){
-		for (Kmer km:kmers)
+		negHits.clear();
+		for (Kmer km:subKmers.keySet())
 			negHits.addAll(km.getNegHits());
 	}
 	public int getPosHitCount() {
@@ -52,15 +48,19 @@ public class WildcardKmer extends Kmer{
 	}
 	
 	public WildcardKmer clone(){
-		ArrayList<Kmer> newKmers = new ArrayList<Kmer>();
-		for (Kmer km:kmers)
-			newKmers.add(km.clone());
-		WildcardKmer n = new WildcardKmer(newKmers, pos, s.clone());
-		n.make();
+		WildcardKmer n = new WildcardKmer(kmerString);
+		for (Kmer km:subKmers.keySet())
+			n.addSubKmer(km.clone(), subKmers.get(km));
+		n.setPosHits();
 		n.setNegHits();
 		return n;
 	}
-
+	
+	public void register(HashSet<Kmer> reg){
+		for (Kmer km:subKmers.keySet())
+			reg.add(km);
+	}
+	
 	public static void printWildcardKmers(ArrayList<WildcardKmer> kmers, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())

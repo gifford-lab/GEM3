@@ -34,9 +34,21 @@ public class Kmer implements Comparable<Kmer>{
 			kmerRC=SequenceUtils.reverseComplement(kmerString);
 		return kmerRC;
 	}
+	void setKmerString(String kmString){
+		kmerString = kmString;
+		kmerRC=SequenceUtils.reverseComplement(kmerString);
+	}
 	protected int k;
 	public int getK(){return k;}
-	
+	private HashSet<WildcardKmer> wildcardKmers = null;
+	void addWildcardKmer(WildcardKmer wk){
+		if (wildcardKmers == null)
+			wildcardKmers = new HashSet<WildcardKmer>();
+		wildcardKmers.add(wk);	
+	}
+	HashSet<WildcardKmer> getWildcardKmers(){
+		return wildcardKmers;
+	}
 	protected HashSet<Integer> posHits = new HashSet<Integer>();
 	/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
 	 * 	get a weighted version of hit count if use_weighted_hit_count is true
@@ -148,16 +160,20 @@ public class Kmer implements Comparable<Kmer>{
 		n.hgp_lg10 = hgp_lg10;
 		n.alignString = alignString;
 		n.kmerStartOffset = kmerStartOffset;
+		n.wildcardKmers = wildcardKmers;
 		return n;
 	}
-	
-	/** Use reverse compliment to represent the kmer */
-	public Kmer RC(){
-		String tmp = kmerString;
-		kmerString = getKmerRC();
-		kmerRC = tmp;
-		return this;
+	/** Add this kmer into the register set*/
+	public void register(HashSet<Kmer> reg){
+		reg.add(this);
 	}
+//	/** Use reverse compliment to represent the kmer */
+//	public Kmer RC(){
+//		String tmp = kmerString;
+//		kmerString = getKmerRC();
+//		kmerRC = tmp;
+//		return this;
+//	}
 	// sort kmer by strength
 	public int compareByStrength(Kmer o) {
 		double diff = o.strength-strength;
@@ -333,6 +349,11 @@ public class Kmer implements Comparable<Kmer>{
 			sb.append(id).append(" ");
 		return sb.toString();
 	}
+	/**
+	 * Clone the list and clone the kmer elements
+	 * @param kmers_in
+	 * @return
+	 */
 	public static ArrayList<Kmer> cloneKmerList(ArrayList<Kmer> kmers_in){
 		// clone to modify locally
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
@@ -342,6 +363,32 @@ public class Kmer implements Comparable<Kmer>{
 		kmers.trimToSize();
 		return kmers;
 	}
+	/**
+	 * Clone the list and clone the kmer elements
+	 * @param kmers_in
+	 * @return
+	 */
+	public static HashSet<Kmer> cloneKmerSet(HashSet<Kmer> kmers_in){
+		// clone to modify locally
+		HashSet<Kmer> kmers = new HashSet<Kmer>();
+		for (Kmer km:kmers_in){
+			kmers.add(km.clone());
+		}
+		return kmers;
+	}	/**
+	 * Copy the kmer references to a new list<br>
+	 * Do not clone kmer elements
+	 * @param kmers_in
+	 * @return
+	 */
+	public static ArrayList<Kmer> copyKmerList(ArrayList<Kmer> kmers_in){
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		for (Kmer km:kmers_in)
+			kmers.add(km);
+		kmers.trimToSize();
+		return kmers;
+	}
+	
 	public static ArrayList<Kmer> loadKmers(List<File> files){
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (File file: files){

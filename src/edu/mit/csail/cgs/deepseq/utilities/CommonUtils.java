@@ -920,6 +920,59 @@ public class CommonUtils {
 	  }
 	  return mismatch;
 	}
+
+	/** Compute distance between two arbitrary-length strings, allow wildcard, <br>
+	 * do not consider reverse compliment */
+	public static int strMinDistance(String s1, String s2){
+		int length = Math.min(s1.length(), s2.length());
+		int maxOverlap = 0;
+		char[] cs1 = s1.toCharArray();
+		char[] cs2 = s2.toCharArray();
+		for (int i=0;i<cs1.length;i++){
+			for (int j=0;j<cs2.length;j++){
+				int overlap = 0;
+				for (int k=0;k<length;k++){
+					if (k+i==cs1.length || k+j==cs2.length)	// exceeding string length
+						break;
+					else{
+						if (cs1[k+i]==cs2[k+j] && cs1[k+i]!='N')	// position match (wildcard count as mismatch)
+							overlap++;
+					}
+				}
+				if (overlap>maxOverlap)
+					maxOverlap = overlap;
+			}
+		}
+		return length-maxOverlap;
+	}
+	/** Compute distance between two arbitrary-length strings, allow wildcard, <br>
+	 * do not consider reverse compliment <br>
+	 * return shift=s2 relative to s1 */
+	public static Pair<Integer,Integer> strMinDistanceAndShift(String s1, String s2){
+		int length = Math.min(s1.length(), s2.length());
+		int maxOverlap = 0;
+		int maxShift = 0;
+		char[] cs1 = s1.toCharArray();
+		char[] cs2 = s2.toCharArray();
+		for (int i=0;i<cs1.length;i++){
+			for (int j=0;j<cs2.length;j++){
+				int overlap = 0;
+				for (int k=0;k<length;k++){
+					if (k+i==cs1.length || k+j==cs2.length)	// exceeding string length
+						break;
+					else{
+						if (cs1[k+i]==cs2[k+j] && cs1[k+i]!='N')	// position match (wildcard count as mismatch)
+							overlap++;
+					}
+				}
+				if (overlap>maxOverlap){
+					maxOverlap = overlap;
+					maxShift = j - i;
+				}
+			}
+		}
+		return new Pair<Integer,Integer>(length-maxOverlap,maxShift);
+	}
 	/**
 	 * Compute distance between two arbitrary-length strings, limit by a cutoff<br>
 	 * The purpose of the cutoff is to skip unnecessary computation.
@@ -1027,6 +1080,7 @@ public class CommonUtils {
 	  }
 	  return minDistance;
 	}
+	
 	public static void copyFile(String srFile, String dtFile){
 		try{
 		  File f1 = new File(srFile);
@@ -1326,7 +1380,7 @@ public class CommonUtils {
     
     public static void main(String args[]){
     	String s1=null,s2=null;
-    	s1="GGGGAGGG"; s2="GGGTGGGG";
-    	System.out.println(s1+" "+s2+" "+strMinDistanceWithCutoff(s1,s2,7));
+    	s1="GGGGNGC"; s2="GGGGNGG";
+    	System.out.println(s1+" "+s2+" "+strMinDistance(s1,s2));
     }
 }

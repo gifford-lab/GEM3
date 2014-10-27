@@ -1193,10 +1193,9 @@ public class KMAC {
 				if (config.seed!=null){
 					String rc = SequenceUtils.reverseComplement(config.seed);
 					for (Kmer km:kmers){
-						if (km.getKmerString().equals(config.seed)||
-								km.getKmerString().equals(rc)){
+						if (km.getKmerString().equals(config.seed)|| km.getKmerString().equals(rc)){
 							if (km.getKmerString().equals(rc))
-								km.RC();
+								km.setKmerString(config.seed);
 							seed = km;
 							primarySeed_is_immutable = true;		
 							System.out.println("\nUse specified seed k-mer: "+seed.toShortString());
@@ -1601,7 +1600,7 @@ public class KMAC {
 				int shift = km.getShift();
 				if (shift>RC/2){
 					shift-=RC;
-					cp.RC();
+					cp.setKmerString(km.getKmerRC());
 					cp.setShift(shift);
 				}
 				cp.setKmerStartOffset(shift-cluster.pos_BS_seed);
