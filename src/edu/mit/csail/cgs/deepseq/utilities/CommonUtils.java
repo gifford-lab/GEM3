@@ -967,7 +967,7 @@ public class CommonUtils {
 				}
 				if (overlap>maxOverlap){
 					maxOverlap = overlap;
-					maxShift = j - i;
+					maxShift = i - j;
 				}
 			}
 		}

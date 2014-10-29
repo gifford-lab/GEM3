@@ -28,6 +28,7 @@ public class Kmer implements Comparable<Kmer>{
 	}	
 	protected String kmerString;
 	public String getKmerString() {	return kmerString;}
+	public String getKmerStrRC() {	return kmerString+"/"+kmerRC;}
 	protected String kmerRC;
 	public String getKmerRC(){
 		if (kmerRC==null)
@@ -117,9 +118,14 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	private int shift;
-	/** get the position relative to seedKmer, after aligning this kmer to seedKmer */
+	/** get the position relative to seedKmer, after aligning this kmer to seedKmer<br>
+	 * if isSeedOrientation=false, the position is kmerRC relative to seedKmer */
 	public int getShift(){return shift;}
 	public void setShift(int s){shift=s;}
+	private boolean isSeedOrientation=false;
+	/** get whether this kmer is in the same orientation as the seedKmer, after aligning this kmer to seedKmer */
+	public boolean getSeedOrientation(){return isSeedOrientation;}
+	public void setSeedOrientation(boolean so){isSeedOrientation=so;}
 	
 	private int clusterId=-1;
 	public int getClusterId(){return clusterId;}
@@ -161,6 +167,7 @@ public class Kmer implements Comparable<Kmer>{
 		n.alignString = alignString;
 		n.kmerStartOffset = kmerStartOffset;
 		n.wildcardKmers = wildcardKmers;
+		n.isSeedOrientation = isSeedOrientation;
 		return n;
 	}
 	/** Add this kmer into the register set*/
@@ -208,11 +215,11 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public String toString(){
 		if (use_weighted_hit_count)
-			return String.format("%s/%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
-				kmerString, getKmerRC(),clusterId, kmerStartOffset, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%d\t%.1f", 
+				getKmerStrRC(),clusterId, isSeedOrientation, shift, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
 		else
-			return String.format("%s/%s\t%d\t%d\t%d\t%d\t%.1f", 
-				kmerString, getKmerRC(),clusterId, kmerStartOffset, posHits.size(), getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%.1f", 
+				getKmerStrRC(),clusterId, isSeedOrientation, shift, posHits.size(), getNegHitCount(), hgp_lg10);
 	}
 	public static String toHeader(int k){
 		int length=2*k+1;
@@ -226,11 +233,11 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public String toShortString(){
 		if (use_weighted_hit_count)
-			return String.format("%s/%s\t%d\t%d\t%d\t%.1f", 
-				kmerString, getKmerRC(), posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%d\t%d\t%d\t%.1f", 
+					getKmerStrRC(), posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
 		else
-			return String.format("%s/%s\t%d\t%d\t%.1f", 
-				kmerString, getKmerRC(), posHits.size(), getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%d\t%d\t%.1f", 
+					getKmerStrRC(), posHits.size(), getNegHitCount(), hgp_lg10);
 	}
 	public static String toShortHeader(int k){
 		int length=2*k+1;

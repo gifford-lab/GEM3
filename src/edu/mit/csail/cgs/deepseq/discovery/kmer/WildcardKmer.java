@@ -92,4 +92,8 @@ public class WildcardKmer extends Kmer{
 			CommonUtils.writeFile(String.format("%s_KSM.txt", filePrefix), sb.toString());
 	}
 
+	public void remove(Kmer km) {
+		subKmers.remove(km);		
+	}
+
 }
