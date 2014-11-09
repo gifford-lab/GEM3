@@ -53,12 +53,17 @@ public class GappedKmer extends Kmer{
 		}
 	}
 	
+	public void update(){
+		mergePosHits();
+		mergeNegHits();
+		linkSubKmers();
+	}
+	
 	public GappedKmer clone(){
 		GappedKmer n = new GappedKmer(kmerString);
 		for (Kmer km:subKmers.keySet())
 			n.addSubKmer(km.clone(), subKmers.get(km));
-		n.mergePosHits();
-		n.mergeNegHits();
+		n.update();
 		return n;
 	}
 	

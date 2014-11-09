@@ -376,11 +376,13 @@ public class Kmer implements Comparable<Kmer>{
 	 * @return
 	 */
 	public static ArrayList<Kmer> cloneKmerList(ArrayList<Kmer> kmers_in){
-		// clone to modify locally
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (Kmer km:kmers_in){
-			kmers.add(km.clone());
+			if (! (km instanceof GappedKmer))
+				kmers.add(km.clone());
 		}
+		// GappedKmers need special treatment because of the many to many connections between gappedkmers and their subkmers
+		
 		kmers.trimToSize();
 		return kmers;
 	}
