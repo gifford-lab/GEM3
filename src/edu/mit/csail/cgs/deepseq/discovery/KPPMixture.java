@@ -127,7 +127,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	/** Kmer motif engine */
 	private KMAC kmac;
 	private boolean kmerPreDefined = false;
-	private double kcm_threshold = -1;
+	private double ksm_threshold = -1;
 	
 	public KPPMixture(Genome g, 
                       ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
@@ -227,7 +227,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        	kmac = new KMAC(kc.getKmers(0), outName);
 	        	kmac.setTotalSeqCounts(kc.posSeqCount, kc.negSeqCount);
 	        	kmac.setConfig(config, outName);
-	        	kcm_threshold = kc.ksmThreshold;
+	        	ksm_threshold = kc.ksmThreshold;
 			}
     	}
     	
@@ -745,6 +745,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		insignificantFeatures = new ArrayList<Feature>();
 		filteredFeatures = new ArrayList<Feature>();
 		for (ComponentFeature cf:compFeatures){
+			if (config.is_branch_point_data){	// branch ponit is on the oppposite strand of the reads
+				cf.setStrand(cf.getStrand()=='+'?'-':'+');
+			}
 			boolean significant = false;
 			// for multi-condition, at least be significant in one condition
 			// The read count test is for each condition
@@ -767,20 +770,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 					(cf.getKmerGroup()==null || cf.getKmerGroup().getClusterId()!=0)){
 				for (int cond=0; cond<numConditions; cond++){
 					// if one condition is good event, this position is GOOD
-					// logKL of event <= 2.5, and IP/control >= 4 --> good (true)
-//					if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
-//						if (!controlDataExist){
-//							notFiltered = true;
-//							break;
-//						}
-//						else{
-//							double ratio = cf.getEventReadCounts(cond)/cf.getScaledControlCounts(cond);
-//							if ((ratio>=config.fold && cf.getAverageIpCtrlLogKL()>config.kl_ic) || (cf.getAverageIpCtrlLogKL()<config.kl_ic && ratio>=config.fold*2)){
-//								notFiltered = true;
-//								break;
-//							}
-//						}						
-//					}
+
 					// relax fold change requirement for event with good shape
 					if (!controlDataExist){
 						if (cf.getShapeDeviation(cond)<=config.shapeDeviation){
@@ -1731,12 +1721,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			if (maxCount<count)
 				maxCount = count;
 		}
-        //		double alphaEstimate = maxCount/ALPHA_FACTOR;
+        
 		double alphaEstimate = 0;
-//		if (config.is_branch_point_data)
-//			alphaEstimate = maxCount/12;
-//		else
-			alphaEstimate = Math.sqrt(maxCount)/config.alpha_factor;
+		alphaEstimate = Math.sqrt(maxCount)/config.alpha_factor;
 		return alphaEstimate;
 	}
 
@@ -2370,7 +2357,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	}
 
 	/** make componentFeature based on the bindingComponent,
-	 * also update the aggreate event profiles with the new component profiles
+	 * also update the meta-event profiles with the new component profiles
 	 * @param b
 	 * @return
 	 */
@@ -2384,31 +2371,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		for (int c=0;c<numConditions;c++){
 			double[] profile_plus = b.getReadProfile_plus(c);
 			double[] profile_minus = b.getReadProfile_minus(c);
-//			if (config.kl_count_adjusted){
-//				logKL_plus[c]  = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_plus(c), gaussian));
-//				logKL_minus[c] = StatUtil.log_KL_Divergence(model.getProbabilities(), StatUtil.symmetricKernelSmoother(b.getReadProfile_minus(c), gaussian));
-//			}
-//			else{
-//				double count = 0.0;
-//				for(int n = 0; n < profile_plus.length; n++) { 
-//					count += profile_plus[n]+profile_minus[n]; 
-//				}
-//				double width;
-//				if (count>6){
-//					width = 50/Math.log(count);	// TODO: just some empirical formula, no special theory here
-//				}
-//				else{
-//					width=28;
-//				}
-//				logKL_plus[c]  = logKL_profile(profile_plus, width);
-//				logKL_minus[c] = logKL_profile(profile_minus, width);
-//			}
 
 			if (b.getStrand()=='+'){
-				shapeDeviation[c]  = calcSingleStrandNzKL(profile_plus);
+				shapeDeviation[c] = calcSingleStrandCorr(profile_plus);
 			}
 			else if (b.getStrand()=='-'){
-				shapeDeviation[c]  = calcSingleStrandNzKL(profile_minus);
+				shapeDeviation[c]  = calcSingleStrandCorr(profile_minus);
 			}
 			else{
 				if (config.KL_smooth_width!=0)
@@ -2416,16 +2384,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				else
 					shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
 			}
-            //			System.err.println(String.format("%.2f\t%.2f\t%.2f\t%s", 
-            //					shapeDeviation[c],
-            //					calcAbsDiff(profile_plus), 
-            //					calcAbsDiff(profile_minus),
-            //					b.getLocation().toString()));
-			
+
 			// sum the read profiles (optional)
 			// at this point, we do not have p-value, etc, this is our best guess
 			if (config.use_joint_event && shapeDeviation[c]<=config.shapeDeviation ){
-//                &&(logKL_plus[c]<0 || logKL_minus[c]<0)){
 				for (int i=0;i<profile_plus.length;i++){
 					profile_plus_sum[i] += profile_plus[i];
 					profile_minus_sum[i] += profile_minus[i];
@@ -2505,6 +2467,20 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}		
 		double log10KL = StatUtil.log10_KL_Divergence(m_nz, p_nz);
 		return Math.max(log10KL, -4);
+	}
+	/**
+	 *   logKL of the single stranded profile from the model profile
+	 *   no gaussian smoothing, use all the bases
+	 */
+	private double calcSingleStrandKL(double[]profile){		
+		double[] model_profile = model.getProbabilities();
+		double log10KL = StatUtil.log10_KL_Divergence(model_profile, profile);
+		return Math.max(log10KL, -4);
+	}
+	
+	private double calcSingleStrandCorr(double[]profile){		
+		double[] model_profile = model.getProbabilities();
+		return StatUtil.correlation(model_profile, profile);
 	}
 
 	/*
@@ -3438,20 +3414,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         return caches.get(cond).cdr().countStrandedBases(r,'+') + 
             caches.get(cond).cdr().countStrandedBases(r,'-');
 	}
-	private float countCtrlReads(Region r, int cond, char strand){
-        return caches.get(cond).cdr().countStrandedBases(r,strand);
-	}
 
-
-	public void writeDebugFile(){
-		try{
-			FileWriter fw = new FileWriter("Binding Mixture Debug.txt", false); //new file
-			fw.write(log_all_msg.toString());
-			fw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
 
 	// show the message in STDOUT and log file
 	// depending on "verbose" setting in property file
@@ -3502,33 +3465,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-	/*
-	 * Calculate average square distance for read profile 
-	 * 
-	 */
-	private double calcSqDiff(double[]profile){
-		double sqDiff = 0;
-		double[] m = model.getProbabilities();
-		int nzPosCount = 0;
-		double totalCount = 0;
-		double nzProbSum = 0;
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				nzPosCount++;
-				totalCount+=profile[i];
-				nzProbSum += m[i];
-			}
-		}
-		if (nzPosCount==0)
-			return config.shapeDeviation*2*0.75;
-		for (int i=0;i<profile.length;i++){
-			if (profile[i]!=0){
-				double expected = totalCount*m[i]/nzProbSum;
-				sqDiff += (profile[i]-expected)*(profile[i]-expected);
-			}
-		}
-		return sqDiff/totalCount;
 	}
 
 	/**
@@ -3755,7 +3691,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			if (km.getClusterId()==0)
 				primaryKmers.add(km);
 		kmac.updateEngine(primaryKmers);		
-		kcm_threshold = kmac.getPrimaryCluster().ksmThreshold==null?0:kmac.getPrimaryCluster().ksmThreshold.score;
+		ksm_threshold = kmac.getPrimaryCluster().ksmThreshold==null?0:kmac.getPrimaryCluster().ksmThreshold.score;
 		return 0;
     }
     	
@@ -4262,8 +4198,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             		// run EM on stranded data
             		ArrayList<BindingComponent> results_stranded = analyzeWindow(w_padded, signals_stranded, bg_signals_stranded, seqgen);
             		if (results_stranded!=null){
-	            		for (BindingComponent b:results_stranded)
-	            			b.setStrand(s);
+	            		for (BindingComponent b:results_stranded){
+	            			b.setStrand(s);		
+	            		}
 	            		results.addAll(results_stranded);
             		}
             	}
@@ -4321,7 +4258,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             				kmac_local.setTotalSeqCount(kmac.getPosSeqCount(), kmac.getNegSeqCount());
             				kmac_local.setSequenceWeights(kmac.getSequenceWeights());
             				kmac_local.updateEngine(c.alignedKmers);		
-	            			kcm_threshold = c.ksmThreshold==null?0:c.ksmThreshold.score;
+	            			ksm_threshold = c.ksmThreshold==null?0:c.ksmThreshold.score;
 	
 	                		KmerGroup[] matchPositions = kmac_local.query(seq);
 		                	if (config.print_PI)	
@@ -4332,7 +4269,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                		int bindingPos = g.getPosBS();
 		                		if (bindingPos>=pp.length || bindingPos<0)
 		                			continue;
-		                		if (g.getHgp()> -kcm_threshold)	// must past ksm threshold
+		                		if (g.getHgp()> -ksm_threshold)	// must past ksm threshold
 		                			continue;
 		                		int neighbourStart = Math.max(0, bindingPos-g.getBestKmer().getK()/2);
 		                		int neighbourEnd = Math.min(pp_kmer.length, bindingPos+g.getBestKmer().getK()/2+1);
@@ -4363,9 +4300,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                }
 	                	
 	                	//TODO: For branch point data, spread the influence of kmer group to nearby positions
-	                	if (config.is_branch_point_data){
-	                		
-	                	}
+
             		}
             		else {			// use PWM to set KPP
             			ArrayList<KmerCluster> clusters = kmac.getMotifClusters();
@@ -5522,133 +5457,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 }
             }
         }//end of setComponentResponsibilities method
-	
-        // This is for pool EM method
-        private void setComponentResponsibilities(ArrayList<List<StrandedBase>> signals, HashMap<Integer, double[][]> responsibilities) {
-            // Set responsibility profile for each component (for kernel density and KL calculation)
-            for(int j=0;j<components.size();j++){
-                BindingComponent comp = components.get(j);
-                int jr = comp.getOld_index();
-                for(int c=0; c<numConditions; c++){
-                    List<StrandedBase> bases = signals.get(c);
-                    double[][] rc = responsibilities.get(c);
 
-                    // store binding profile (read responsibilities in c condition) of this component
-                    double[] profile_plus = new double[modelWidth];
-                    double[] profile_minus = new double[modelWidth];
-                    for(int i=0;i<bases.size();i++){
-                        StrandedBase base = bases.get(i);
-                        if (rc[i][jr]>0){
-                            try{
-                                if (base.getStrand()=='+')
-                                    profile_plus[base.getCoordinate()-comp.getLocation().getLocation()-model.getMin()]=rc[i][jr]*base.getCount();
-                                else
-                                    profile_minus[comp.getLocation().getLocation()-base.getCoordinate()-model.getMin()]=rc[i][jr]*base.getCount();
-                            }
-                            catch (Exception e){
-                                System.err.println(comp.toString()+"\t"+base.getStrand()+"\t"+base.getCoordinate());
-                                e.printStackTrace(System.err);
-                            }
-                        }
-                    }
-                    comp.setReadProfile(c, profile_plus,  '+');
-                    comp.setReadProfile(c, profile_minus, '-');
-                }
-            }
-        }//end of setComponentResponsibilities method
-
-        // this method is used in Giorgos's PoolEM method
-        private int[] updateComps(Region w, List<BindingComponent> comps) {
-            int[] newComps;
-            int spacing;
-            int window = (int)Math.round(1.0*modelRange/(constants.maxUpdateIters-1));
-            Set<Integer> newCompsSet = new TreeSet<Integer>();
-            List<int[]> compGroupBounds = new ArrayList<int[]>();
-
-            BindingComponent[] comps_arr = comps.toArray(new BindingComponent[0]);
-            int[] compAssigns = new int[comps_arr.length];
-            for(int j = 1; j < comps_arr.length; j++) {
-                if(j != comps_arr.length-1) {
-                    if(Math.abs(comps_arr[j].getLocation().getLocation() - comps_arr[j-1].getLocation().getLocation()) <= Math.abs(comps_arr[j].getLocation().getLocation() - comps_arr[j+1].getLocation().getLocation()))
-                        compAssigns[j] = compAssigns[j-1];
-                    else
-                        compAssigns[j] = compAssigns[j-1]+1;
-                }
-                if(Math.abs(comps_arr[j].getLocation().getLocation() - comps_arr[j-1].getLocation().getLocation()) > 2*window)
-                    compAssigns[j] = compAssigns[j-1]+1;
-
-                if(j == comps_arr.length-1 && Math.abs(comps_arr[j].getLocation().getLocation() - comps_arr[j-1].getLocation().getLocation()) <= 2*window)
-                    compAssigns[j] = compAssigns[j-1];
-            }
-
-            if(compAssigns.length > 0)
-                compGroupBounds.add(new int[]{comps_arr[0].getLocation().getLocation(), comps_arr[0].getLocation().getLocation()});
-
-            for(int j = 1; j < compAssigns.length; j++)
-                if(compAssigns[j] != compAssigns[j-1])
-                    compGroupBounds.add(new int[]{comps_arr[j].getLocation().getLocation(), comps_arr[j].getLocation().getLocation()});
-
-            for(int j = 1; j < compAssigns.length; j++) {
-                int start = compGroupBounds.get(compAssigns[j])[0];
-                int end   = comps_arr[j].getLocation().getLocation();
-                compGroupBounds.set(compAssigns[j], new int[]{start, end});
-            }
-
-            // If there is overlap between the component groups, modify the bounds properly
-            for(int k = 1; k < compGroupBounds.size(); k++) {
-                int start    = compGroupBounds.get(k)[0];
-                int prev_end = compGroupBounds.get(k-1)[1];
-                if(Math.abs(start-prev_end) < 2*window) {
-                    start    += window;
-                    prev_end -= window;
-                    int end   = compGroupBounds.get(k)[1];
-                    int prev_start = compGroupBounds.get(k-1)[0];
-                    start = Math.min(start, end);
-                    prev_end = Math.max(prev_start, prev_end);
-                    compGroupBounds.set(k, new int[]{start, end});
-                    compGroupBounds.set(k-1, new int[]{prev_start, prev_end});
-                }
-            }
-
-            int numCandidBases = 0;
-            for(int[] bounds:compGroupBounds) {
-                int start = bounds[0];
-                int end   = bounds[1];
-                int left_bound  = Math.max(0, start-window-w.getStart());
-                int right_bound = Math.min(w.getWidth()-1, end+window-w.getStart());
-                numCandidBases += right_bound-left_bound+1;
-            }
-            spacing = componentMax >= numCandidBases ? 3 : Math.max(3, (int)Math.round(1.0*numCandidBases/componentMax));
-
-            for(int[] bounds:compGroupBounds) {
-                int start = bounds[0];
-                int end   = bounds[1];
-                for(int v =  Math.max(0, start-window-w.getStart());
-                    v <= Math.min(w.getWidth()-1, end+window-w.getStart());
-                    v += spacing) {
-                    newCompsSet.add(v);
-                }
-                newCompsSet.add(Math.min(w.getWidth()-1, end+window-w.getStart()));
-            }
-
-            newComps = Utils.ref2prim(newCompsSet.toArray(new Integer[0]));
-            return newComps;
-        }//end of updateComps method
-
-        private void setMultiIndepMixtureParams(MultiIndependentMixtureCounts mim, double alpha) {
-            mim.set_trainVersion(1);
-            mim.set_alpha(alpha);
-            mim.set_maxIters(constants.MAX_EM_ITER);
-            mim.set_ML_maxIters(config.ML_ITER);
-            mim.set_anneal_maxIters(200);
-            mim.set_convergence_thres(1e-8);
-            mim.set_decreasing_thres(-1e-6);
-            mim.set_check_increased(true);
-            mim.set_isBatchElimOn(true);
-            //		mim.set_isBatchElimOn(constants.BATCH_ELIMINATION);
-        }//end of setMultiIndepMixtureParams method
-
-        class EM_State{
+        private class EM_State{
             double[][][] resp;
             double[][]beta;
             double[] pi;
@@ -5687,7 +5497,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         }
     }
     
-    class KmerPP implements Comparable<KmerPP>{
+    private class KmerPP implements Comparable<KmerPP>{
     	Point coor;
     	KmerGroup kmerMatches;
     	double pp;

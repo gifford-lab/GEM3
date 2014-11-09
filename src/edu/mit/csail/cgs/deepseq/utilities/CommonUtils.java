@@ -308,7 +308,7 @@ public class CommonUtils {
 					String.format("%.1fm",sec/60):
 					sec>1?
 						String.format("%.1fs",sec):
-						String.format("%dmils",length)	;
+						String.format("%dms",length)	;
 	}
 	public static String getDateTime() {
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
@@ -921,7 +921,7 @@ public class CommonUtils {
 	  return mismatch;
 	}
 
-	/** Compute distance between two arbitrary-length strings, allow wildcard, <br>
+	/** Compute distance between two arbitrary-length strings, support gapped k-mer, <br>
 	 * do not consider reverse compliment */
 	public static int strMinDistance(String s1, String s2){
 		int length = Math.min(s1.length(), s2.length());
@@ -945,7 +945,7 @@ public class CommonUtils {
 		}
 		return length-maxOverlap;
 	}
-	/** Compute distance between two arbitrary-length strings, allow wildcard, <br>
+	/** Compute distance between two arbitrary-length strings, support gapped k-mer, <br>
 	 * do not consider reverse compliment <br>
 	 * return shift=s2 relative to s1 */
 	public static Pair<Integer,Integer> strMinDistanceAndShift(String s1, String s2){
@@ -975,7 +975,8 @@ public class CommonUtils {
 	}
 	/**
 	 * Compute distance between two arbitrary-length strings, limit by a cutoff<br>
-	 * The purpose of the cutoff is to skip unnecessary computation.
+	 * The purpose of the cutoff is to skip unnecessary computation.<br>
+	 * This method supports gapped k-mer,
 	 * @param cutoff the maximum distance to stop calculation must be smaller to cutoff
 	 * @return
 	 */
@@ -1380,7 +1381,7 @@ public class CommonUtils {
     
     public static void main(String args[]){
     	String s1=null,s2=null;
-    	s1="GGGGNGC"; s2="GGGGNGG";
-    	System.out.println(s1+" "+s2+" "+strMinDistance(s1,s2));
+    	s1="GGGGNGC"; s2="GGGGNGC";
+    	System.out.println(s1+" "+s2+" "+strMinDistanceWithCutoff(s1,s2,4));
     }
 }

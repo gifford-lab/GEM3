@@ -4,6 +4,7 @@ import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.Vector;
 
 import cern.jet.random.Binomial;
 import cern.jet.random.Gamma;
@@ -1154,7 +1156,21 @@ public class StatUtil {
 	
 	public static Double std(Integer[] a) { return std(a, mean(a), true); }
 	
-	
+	public static double correlation(double[] x,double[] y) {
+		double v = 0.0;
+		double vx = 0.0;
+		double vy = 0.0;
+		double muX = mean(x);
+		double muY = mean(y);
+		int i = 0;
+		for (i=0;i<x.length;i++) {
+			v += (x[i] - muX)*(y[i] - muY);
+			vx += Math.pow(x[i] - muX,2.0);
+			vy += Math.pow(y[i] - muY,2.0);
+		}
+		v = v/(Math.sqrt(vx)*Math.sqrt(vy));
+		return v;
+	}
 
 	
 	/**
@@ -1571,8 +1587,8 @@ public class StatUtil {
 	public static double log_KL_Divergence( double[]P, double[]Q){
 		return Math.log(KL_Divergence(P,Q));
 	}
-	public static double log10_KL_Divergence( double[]P, double[]Q){
-		return Math.log10(KL_Divergence(P,Q));
+	public static double log10_KL_Divergence( double[]reference, double[]Q){
+		return Math.log10(KL_Divergence(reference,Q));
 	}
 	
 	// Uses COLT binomial test
@@ -1897,7 +1913,8 @@ public class StatUtil {
 	 * @param deltaCutoff delta value cutoff, kmers with equal or higher delta values are used for selecting cluster centers
 	 * @return
 	 */
-	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, ArrayList<HashSet<Integer>> hitList, int distanceCutoff, int deltaCutoff){
+	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, 
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, int distanceCutoff, int deltaCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
@@ -1905,13 +1922,16 @@ public class StatUtil {
 			DensityClusteringPoint p = util.new DensityClusteringPoint();
 			p.id = i;
 			double[] distanceVector = distanceMatrix[i];
-			HashSet<Integer> hits = new HashSet<Integer>();
 			// sum up to get total hit count of this point and its neighbors
+			BitSet b_pos = new BitSet();
+			BitSet b_neg = new BitSet();
 			for (int j=0;j<distanceVector.length;j++){
-				if (distanceVector[j] <= distanceCutoff)
-					hits.addAll(hitList.get(j));		
+				if (distanceVector[j] <= distanceCutoff){
+					b_pos.or(posHitList.get(j));
+					b_neg.or(negHitList.get(j));
+				}
 			}
-			p.density = hits.size();
+			p.density = b_pos.cardinality()-b_neg.cardinality();
 			data.add(p);
 		}
 		data.trimToSize();		
@@ -1994,7 +2014,7 @@ public class StatUtil {
 //		 Poisson poisson = new Poisson(0, new DRand());
 //		 poisson.setMean(2.7);System.out.println(1-poisson.cdf(56));
 //		 System.out.println(poisson.pdf(1));
-		System.out.println(log10_hyperGeometricCDF_cache_appr(4,10000,5000,4+1));
+//		System.out.println(log10_hyperGeometricCDF_cache_appr(4,10000,5000,4+1));
 //		System.out.println(hyperGeometricCDF_cache(2405,41690+40506,41690,2405+2));
 //		System.out.println(hyperGeometricCDF(3298,41690+40506,41690,3298+2));
 //		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));
@@ -2010,6 +2030,7 @@ public class StatUtil {
 ////			System.out.println(log10_hyperGeometricCDF_cache(99,41690+40506,40506,i+5000));
 //			System.out.println("-----------");
 //		}
-		System.out.println(Long.MAX_VALUE);
+//		System.out.println(Long.MAX_VALUE);
+		 System.out.println(correlation(new double[]{1.0, 2,3,4},new double[]{2.0, -5,6,-8}));
 	}
 }//end of StatUtil class 41690 / 40506

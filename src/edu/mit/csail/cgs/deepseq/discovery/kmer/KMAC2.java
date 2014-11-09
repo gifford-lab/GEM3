@@ -827,7 +827,6 @@ public class KMAC2 {
 		int k = kmers.get(0).getK();
 		int kmerCount = kmers.size();
 		
-		double weights[] = new double[kmerCount];
 		ArrayList<HashSet<Integer>> hitList = new ArrayList<HashSet<Integer>>();
 		for (int j=0;j<kmerCount;j++){
 			weights[j]=Math.abs(kmers.get(j).getHgp());

@@ -1896,7 +1896,7 @@ public class KMAC {
 		StringBuilder pfm_homer_sb = new StringBuilder();		// HOMER format
 		for (KmerCluster c:clusters){
      		WeightMatrix wm = c.wm;
-    		System.out.println(String.format("--------------------------------------------------------------\n%s k-mer cluster #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
+    		System.out.println(String.format("--------------------------------------------------------------\n%s k-mer set #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
     		if (pos>=0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));

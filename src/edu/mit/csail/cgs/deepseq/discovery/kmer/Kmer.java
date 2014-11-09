@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -41,16 +42,17 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	protected int k;
 	public int getK(){return k;}
-	private HashSet<WildcardKmer> wildcardKmers = null;
-	void addWildcardKmer(WildcardKmer wk){
-		if (wildcardKmers == null)
-			wildcardKmers = new HashSet<WildcardKmer>();
-		wildcardKmers.add(wk);	
+	private HashSet<GappedKmer> gappedKmers = null;
+	void addGappedKmer(GappedKmer wk){
+		if (gappedKmers == null)
+			gappedKmers = new HashSet<GappedKmer>();
+		gappedKmers.add(wk);	
 	}
-	HashSet<WildcardKmer> getWildcardKmers(){
-		return wildcardKmers;
+	HashSet<GappedKmer> getGappedKmers(){
+		return gappedKmers;
 	}
 	protected HashSet<Integer> posHits = new HashSet<Integer>();
+	BitSet posBits = new BitSet();
 	/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
 	 * 	get a weighted version of hit count if use_weighted_hit_count is true
 	 */
@@ -58,12 +60,10 @@ public class Kmer implements Comparable<Kmer>{
 		if (use_weighted_hit_count)
 			return weightedPosHitCount;
 		else
-			return posHits.size();
+			return posBits.cardinality();
 	}
 	public void setPosHits(HashSet<Integer> posHits) {
 		this.posHits = posHits;
-		if (use_weighted_hit_count)
-			setWeightedPosHitCount();
 		if (posHits.isEmpty())
 			return;
 		double[] ids = new double[posHits.size()];
@@ -74,14 +74,24 @@ public class Kmer implements Comparable<Kmer>{
 		double mean = StatUtil.mean(ids);
 		double median = StatUtil.median(ids);
 		setTop(median-mean);
+		
+		posBits.clear();
+		for (int id:posHits){
+			posBits.set(id);
+		}
+		if (use_weighted_hit_count)
+			setWeightedPosHitCount();
 	}
 	public HashSet<Integer> getPosHits(){return posHits;}
 	
 	private int weightedPosHitCount;
-	private void setWeightedPosHitCount(){
+	protected void setWeightedPosHitCount(){
 		double weight=0;
-		for (int i: posHits)
-			weight+=seq_weights[i];
+//		for (int i: posHits)
+//			weight+=seq_weights[i];
+		for (int i = posBits.nextSetBit(0); i >= 0; i = posBits.nextSetBit(i+1)) {
+			weight+=seq_weights[i];;
+ 		}
 		weightedPosHitCount = (int)weight;
 	}
 	public int getWeightedHitCount(){
@@ -95,10 +105,14 @@ public class Kmer implements Comparable<Kmer>{
 	
 //	int negHitCount;
 	protected HashSet<Integer> negHits = new HashSet<Integer>();
-	public int getNegHitCount() {return negHits.size();}
+	BitSet negBits = new BitSet();
+	public int getNegHitCount() {return negBits.cardinality();}
 	public void setNegHits(HashSet<Integer> negHits) {
 		this.negHits = negHits;
 //		negHitCount = negHits.size();
+		for (int id:negHits){
+			negBits.set(id);
+		}
 	}
 	public HashSet<Integer> getNegHits(){return negHits;}
 	
@@ -124,7 +138,7 @@ public class Kmer implements Comparable<Kmer>{
 	public void setShift(int s){shift=s;}
 	private boolean isSeedOrientation=false;
 	/** get whether this kmer is in the same orientation as the seedKmer, after aligning this kmer to seedKmer */
-	public boolean getSeedOrientation(){return isSeedOrientation;}
+	public boolean isSeedOrientation(){return isSeedOrientation;}
 	public void setSeedOrientation(boolean so){isSeedOrientation=so;}
 	
 	private int clusterId=-1;
@@ -166,12 +180,12 @@ public class Kmer implements Comparable<Kmer>{
 		n.hgp_lg10 = hgp_lg10;
 		n.alignString = alignString;
 		n.kmerStartOffset = kmerStartOffset;
-		n.wildcardKmers = wildcardKmers;
+		n.gappedKmers = gappedKmers;
 		n.isSeedOrientation = isSeedOrientation;
 		return n;
 	}
 	/** Add this kmer into the register set*/
-	public void register(HashSet<Kmer> reg){
+	public void addBasicKmersToSet(HashSet<Kmer> reg){
 		reg.add(this);
 	}
 //	/** Use reverse compliment to represent the kmer */
@@ -462,7 +476,7 @@ public class Kmer implements Comparable<Kmer>{
 		return new Pair<Integer, Integer>(posSeqCount,negSeqCount);
 	}
 	
-	public static void main(String[] args){
+	public static void main0(String[] args){
 		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
 	}
 }
