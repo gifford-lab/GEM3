@@ -453,8 +453,9 @@ public class KMAC2 {
 			k2kmers.put(k, kmers);
 	        ArrayList<KmerCluster> tmp = new ArrayList<KmerCluster>();
 			if (!kmers.isEmpty()){
-				double[][]distanceMatrix = computeDistanceMatrix(kmers);				
-				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix);
+//				double[][]distanceMatrix = computeDistanceMatrix(kmers);				
+//				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix);
+				ArrayList<Kmer> centerKmers = null;
 		        for (int j=0;j<centerKmers.size();j++){	
 		        	Kmer seedKmer = centerKmers.get(j);
 		    		if (config.verbose>1)
@@ -786,100 +787,100 @@ public class KMAC2 {
 		return kms;
 	}
 	
-	private double[][] computeDistanceMatrix(ArrayList<Kmer> kmers) {
-		boolean print_dist_matrix = false;
-		int kmerCount = kmers.size();
-		double[][]distanceMatrix = new double[kmerCount][kmerCount];
-		for (int i=0;i<kmerCount;i++){
-			for (int j=0;j<=i;j++){
-				distanceMatrix[i][j]=CommonUtils.strMinDistanceWithCutoff(kmers.get(i).getKmerString(), kmers.get(j).getKmerString(), kmers.get(i).getKmerString().length()/2+1);
-			}
-		}
-		for (int i=0;i<kmerCount;i++){
-			for (int j=i+1;j<kmerCount;j++){
-				distanceMatrix[i][j]=distanceMatrix[j][i];
-			}
-		}
-		
-		if (print_dist_matrix){
-	        StringBuilder output = new StringBuilder();
-	        for (int j=0;j<kmerCount;j++){
-	        	output.append(String.format("%s\t",kmers.get(j).getKmerString()));
-	        }
-	        CommonUtils.replaceEnd(output, '\n');
-	        for (int j=0;j<kmerCount;j++){
-	        	output.append(String.format("%d\t",kmers.get(j).getPosHitCount()));
-	        }
-	        CommonUtils.replaceEnd(output, '\n');
-	        for (int j=0;j<kmerCount;j++){
-		        for (int i=0;i<distanceMatrix[j].length-1;i++){
-		        	output.append(String.format("%.1f\t",distanceMatrix[j][i]));
-		        }
-		        output.append(String.format("%.1f",distanceMatrix[j][kmerCount-1])).append("\n");
-	        }
-	        CommonUtils.writeFile(outName+".distance_matrix.txt", output.toString());
-		}
-		return distanceMatrix;
-	}
+//	private double[][] computeDistanceMatrix(ArrayList<Kmer> kmers) {
+//		boolean print_dist_matrix = false;
+//		int kmerCount = kmers.size();
+//		double[][]distanceMatrix = new double[kmerCount][kmerCount];
+//		for (int i=0;i<kmerCount;i++){
+//			for (int j=0;j<=i;j++){
+//				distanceMatrix[i][j]=CommonUtils.strMinDistanceWithCutoff(kmers.get(i).getKmerString(), kmers.get(j).getKmerString(), kmers.get(i).getKmerString().length()/2+1);
+//			}
+//		}
+//		for (int i=0;i<kmerCount;i++){
+//			for (int j=i+1;j<kmerCount;j++){
+//				distanceMatrix[i][j]=distanceMatrix[j][i];
+//			}
+//		}
+//		
+//		if (print_dist_matrix){
+//	        StringBuilder output = new StringBuilder();
+//	        for (int j=0;j<kmerCount;j++){
+//	        	output.append(String.format("%s\t",kmers.get(j).getKmerString()));
+//	        }
+//	        CommonUtils.replaceEnd(output, '\n');
+//	        for (int j=0;j<kmerCount;j++){
+//	        	output.append(String.format("%d\t",kmers.get(j).getPosHitCount()));
+//	        }
+//	        CommonUtils.replaceEnd(output, '\n');
+//	        for (int j=0;j<kmerCount;j++){
+//		        for (int i=0;i<distanceMatrix[j].length-1;i++){
+//		        	output.append(String.format("%.1f\t",distanceMatrix[j][i]));
+//		        }
+//		        output.append(String.format("%.1f",distanceMatrix[j][kmerCount-1])).append("\n");
+//	        }
+//	        CommonUtils.writeFile(outName+".distance_matrix.txt", output.toString());
+//		}
+//		return distanceMatrix;
+//	}
 	
-	private ArrayList<Kmer> selectCenterKmersByDensityClustering(ArrayList<Kmer> kmers, double[][]distanceMatrix) {
-		long tic = System.currentTimeMillis();
-		int k = kmers.get(0).getK();
-		int kmerCount = kmers.size();
-		
-		ArrayList<HashSet<Integer>> hitList = new ArrayList<HashSet<Integer>>();
-		for (int j=0;j<kmerCount;j++){
-			weights[j]=Math.abs(kmers.get(j).getHgp());
-//			weights[j]=kmers.get(j).getPosHitCount();
-			hitList.add(kmers.get(j).getPosHits());
-        }
-		
-//		ArrayList<DensityClusteringPoint> centers = StatUtil.weightedDensityClustering(distanceMatrix, weights, config.kd, config.delta);
-		int dc = k>9?config.dc+1:config.dc;
-		int delta = dc + (k>=12?2:1);
-		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, hitList, dc, delta);
-		ArrayList<Kmer> results = new ArrayList<Kmer>();
-		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
-		for (DensityClusteringPoint p:centers){
-			// find the best representative kmer
-			Kmer km = kmers.get(p.id);
-//			System.out.println(String.format("\n%s    \t%d\t%.1f\t%.1f\t%.1f\t%d", km.toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
-			for (int id : p.members){
-				if (kmers.get(id).getHgp()<km.getHgp()){ 
-//					System.out.println(km.toShortString()+"\t"+kmers.get(id).toShortString());
-					if (results.isEmpty()){
-						km = kmers.get(id);
-					}
-					else{
-						boolean isNotSimilar = true;
-						for (Kmer kmer:results){
-//							System.out.println(distanceMatrix[id][p.id]+"\t"+CommonUtils.strMinDistanceWithCutoff(kmers.get(id).getKmerString(), kmer.getKmerString(), km.getKmerString().length()));
-							if (CommonUtils.strMinDistanceWithCutoff(kmers.get(id).getKmerString(), kmer.getKmerString(), km.getKmerString().length())<dc)
-								isNotSimilar = false;
-						}
-						if (isNotSimilar)
-							km = kmers.get(id);
-					}
-				}
-			}
-			results.add(km);
-
-		}
-
-		System.out.println(String.format("cluster_num=%d, kmer_distance<=%d, delta>=%d", centers.size(), dc, delta));
-		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
-		int displayCount = Math.min(config.k_top, centers.size());
-		for (int i=0;i<displayCount;i++){
-			DensityClusteringPoint p = centers.get(i);
-			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
-					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
-		}
-		
-		
-		System.out.println(CommonUtils.timeElapsed(tic));
-		
-		return results;
-	}
+//	private ArrayList<Kmer> selectCenterKmersByDensityClustering(ArrayList<Kmer> kmers, double[][]distanceMatrix) {
+//		long tic = System.currentTimeMillis();
+//		int k = kmers.get(0).getK();
+//		int kmerCount = kmers.size();
+//		
+//		ArrayList<HashSet<Integer>> hitList = new ArrayList<HashSet<Integer>>();
+//		for (int j=0;j<kmerCount;j++){
+//			weights[j]=Math.abs(kmers.get(j).getHgp());
+////			weights[j]=kmers.get(j).getPosHitCount();
+//			hitList.add(kmers.get(j).getPosHits());
+//        }
+//		
+////		ArrayList<DensityClusteringPoint> centers = StatUtil.weightedDensityClustering(distanceMatrix, weights, config.kd, config.delta);
+//		int dc = k>9?config.dc+1:config.dc;
+//		int delta = dc + (k>=12?2:1);
+//		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, hitList, dc, delta);
+//		ArrayList<Kmer> results = new ArrayList<Kmer>();
+//		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
+//		for (DensityClusteringPoint p:centers){
+//			// find the best representative kmer
+//			Kmer km = kmers.get(p.id);
+////			System.out.println(String.format("\n%s    \t%d\t%.1f\t%.1f\t%.1f\t%d", km.toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
+//			for (int id : p.members){
+//				if (kmers.get(id).getHgp()<km.getHgp()){ 
+////					System.out.println(km.toShortString()+"\t"+kmers.get(id).toShortString());
+//					if (results.isEmpty()){
+//						km = kmers.get(id);
+//					}
+//					else{
+//						boolean isNotSimilar = true;
+//						for (Kmer kmer:results){
+////							System.out.println(distanceMatrix[id][p.id]+"\t"+CommonUtils.strMinDistanceWithCutoff(kmers.get(id).getKmerString(), kmer.getKmerString(), km.getKmerString().length()));
+//							if (CommonUtils.strMinDistanceWithCutoff(kmers.get(id).getKmerString(), kmer.getKmerString(), km.getKmerString().length())<dc)
+//								isNotSimilar = false;
+//						}
+//						if (isNotSimilar)
+//							km = kmers.get(id);
+//					}
+//				}
+//			}
+//			results.add(km);
+//
+//		}
+//
+//		System.out.println(String.format("cluster_num=%d, kmer_distance<=%d, delta>=%d", centers.size(), dc, delta));
+//		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
+//		int displayCount = Math.min(config.k_top, centers.size());
+//		for (int i=0;i<displayCount;i++){
+//			DensityClusteringPoint p = centers.get(i);
+//			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
+//					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
+//		}
+//		
+//		
+//		System.out.println(CommonUtils.timeElapsed(tic));
+//		
+//		return results;
+//	}
 
 	
 	/**
