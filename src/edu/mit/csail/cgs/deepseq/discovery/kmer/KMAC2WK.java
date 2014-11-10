@@ -464,7 +464,7 @@ public class KMAC2WK {
 		seqListNeg.trimToSize();
 		
 		// init list to keep track of kmer matches in a sequence
-		negPositionPadding = k_max;
+		negPositionPadding = k_max*2;
 		for (int i=0;i<config.k_win+negPositionPadding*2;i++){
 			forward.add(new ArrayList<Kmer>());
 			reverse.add(new ArrayList<Kmer>());
