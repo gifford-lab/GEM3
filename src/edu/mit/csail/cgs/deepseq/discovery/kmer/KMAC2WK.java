@@ -642,9 +642,9 @@ public class KMAC2WK {
 	    	}
 		}
 		
-		// print all the motifs for k, after merging
+		// show all the motifs for k, after merging
 		sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +" ----------------------------\n");
-		StringBuilder pfm_sb = new StringBuilder();
+//		StringBuilder pfm_sb = new StringBuilder();
 		for (KmerCluster c:clusters){
 			if (config.evaluate_by_ksm){
 				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tTopKmer=%s\n", c.k, c.ksmThreshold.posHit, c.ksmThreshold.negHit, 
@@ -654,15 +654,15 @@ public class KMAC2WK {
 				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", c.k, c.pwmPosHitCount,  c.pwmNegHitCount,
 						c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
 			}
-			if (c.wm!=null){
-				pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
-						String.format("DE %s_%d_k%d_c%d", config.out_name, c.clusterId, c.k, c.pwmPosHitCount)));
-			}
+//			if (c.wm!=null){
+//				pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
+//						String.format("DE %s_%d_k%d_c%d", config.out_name, c.clusterId, c.k, c.pwmPosHitCount)));
+//			}
 		}
 		sb_all.append("\n");
 		System.out.print(sb_all.toString());
 		
-		CommonUtils.writeFile(outName+".PFM.txt", pfm_sb.toString());
+//		CommonUtils.writeFile(outName+".all.PFM.txt", pfm_sb.toString());
 
 		if (clusters.isEmpty()){
 			System.out.println("\n----------------------------------------------\nNone of the k values form an enriched PWM, stop here!\n");
@@ -685,7 +685,7 @@ public class KMAC2WK {
 		}
 		else{
 			// print PWM spatial distribtution
-			printMotifDistanceDistribution(outName);
+			computeMotifDistanceDistribution(outName);
 			outputClusters(eventCounts);
 		}
 	}
@@ -1550,7 +1550,7 @@ public class KMAC2WK {
 			// print aligned k-mers of this cluster
 			ArrayList<Kmer> alignedKmers = c.alignedKmers;
 	    	if (!alignedKmers.isEmpty())
-	    		alignedKmer_sb.append("Cluster #"+c.clusterId+", n="+alignedKmers.size()+"\n");
+	    		alignedKmer_sb.append("Motif m"+c.clusterId+", n="+alignedKmers.size()+"\n");
 	    	// sort for output
 			Collections.sort(alignedKmers, new Comparator<Kmer>(){
 			    public int compare(Kmer o1, Kmer o2) {
@@ -1586,36 +1586,34 @@ public class KMAC2WK {
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
     		pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
-					String.format("DE %s_%d_k%d_c%d", name, c.clusterId, c.k, c.pwmPosHitCount)));
-//    		pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
-//					String.format("DE %s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
+    				String.format("DE %s_m%d_k%d_p%d_c%d", name, c.clusterId, c.k, pos, c.pwmPosHitCount)));
 			if (config.outputMEME)
 				pfm_meme_sb.append(CommonUtils.makeMEME (c.pfm, c.pwmPosHitCount, 
-						String.format("%s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
+						String.format("DE %s_m%d_k%d_p%d_c%d", name, c.clusterId, c.k, pos, c.pwmPosHitCount)));
 			if (config.outputJASPAR)
 				pfm_jasper_sb.append(CommonUtils.makeJASPAR (c.pfm, c.pwmPosHitCount, 
-						String.format("%s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
+						String.format("DE %s_m%d_k%d_p%d_c%d", name, c.clusterId, c.k, pos, c.pwmPosHitCount)));
 			if (config.outputHOMER)				
 				pfm_homer_sb.append(CommonUtils.makeHOMER (c.pfm, c.pwmPosHitCount, 
-						String.format("%s\t%s_%d_%d_c%d", WeightMatrix.getMaxLetters(c.wm), name, c.clusterId, pos, c.pwmPosHitCount)));
+						String.format("DE %s_m%d_k%d_p%d_c%d", name, c.clusterId, c.k, pos, c.pwmPosHitCount)));
     		if (config.use_ksm && c.ksmThreshold!=null)
     			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=1e%.1f", c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
 			
 			// paint motif logo
-			c.wm.setNameVerType(name, "#"+c.clusterId, "");
-			CommonUtils.printMotifLogo(c.wm, new File(outName+"_"+c.clusterId+"_motif.png"), 75);
+			c.wm.setNameVerType(name, "m"+c.clusterId, null);
+			CommonUtils.printMotifLogo(c.wm, new File(outName+".m"+c.clusterId+".PWM.png"), 75);
 			
 			WeightMatrix wm_rc = WeightMatrix.reverseComplement(wm);
-			wm_rc.setNameVerType(name, "#"+c.clusterId, "rc");
-			CommonUtils.printMotifLogo(wm_rc, new File(outName+"_"+c.clusterId+"_motif_rc.png"), 75);
+			wm_rc.setNameVerType(name, "m"+c.clusterId, "rc");
+			CommonUtils.printMotifLogo(wm_rc, new File(outName+".m"+c.clusterId+".PWM_rc.png"), 75);
 		}
-		CommonUtils.writeFile(outName+".PFM.txt", pfm_sb.toString());
+		CommonUtils.writeFile(outName+".all.PFM.txt", pfm_sb.toString());
 		if (config.outputMEME)
-			CommonUtils.writeFile(outName+".PFM_MEME.txt", pfm_meme_sb.toString());
+			CommonUtils.writeFile(outName+".all.PFM_MEME.txt", pfm_meme_sb.toString());
 		if (config.outputJASPAR)
-			CommonUtils.writeFile(outName+".PFM_JASPAR.txt", pfm_jasper_sb.toString());
+			CommonUtils.writeFile(outName+".all.PFM_JASPAR.txt", pfm_jasper_sb.toString());
 		if (config.outputHOMER)
-			CommonUtils.writeFile(outName+".PFM_HOMER.txt", pfm_homer_sb.toString());
+			CommonUtils.writeFile(outName+".all.PFM_HOMER.txt", pfm_homer_sb.toString());
 
 		// output HTML report
 		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
@@ -1632,23 +1630,26 @@ public class KMAC2WK {
 		}
 		html.append("<p><b>Motif Discovery Results</b>:<p>");
 		html.append("<p>Total positive sequences: "+posSeqCount);
-		html.append("<p><ul><li>");
+		html.append("<p><ul>");
 		for (KmerCluster c:clusters)
-			html.append("<li><a href='"+outName+".m"+c.clusterId+".KSM.txt'>Motif #"+c.clusterId+" KSM (K-mer Set Motif) file.</a>");
+			html.append("<li><a href='"+name+".m"+c.clusterId+".KSM.txt'>Motif m"+c.clusterId+" KSM (K-mer Set Motif) file.</a>");
 		html.append("<li><a href='"+name+".Alignement_k"+k+".txt'>K-mer alignment file.</a>");
-		html.append("<li><a href='"+name+".PFM.txt'>All motif PFMs</a></ul>");
-		html.append("<p>K-mers of primary motif<p>");
-		html.append("<table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
+		html.append("<li><a href='"+name+".all.PFM.txt'>All motif PFMs</a></ul>");
+		html.append("<p>K-mers of the motifs<p>");
+		html.append("<table border=1><th>K-mer</th><th>Motif</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 		
     	int leftmost_km = Integer.MAX_VALUE;
     	ArrayList<Kmer> outputs = new ArrayList<Kmer>();		
-    	ArrayList<Kmer> allAlignedKmers = clusters.get(0).alignedKmers;		// each kmer in diff cluster has been clone, would not overwrite
-    	for (int i=0;i<Math.min(20, allAlignedKmers.size());i++){
-    		Kmer km = allAlignedKmers.get(i);
-			if (km.getKmerStartOffset()<leftmost_km)
-				leftmost_km = km.getKmerStartOffset();
-			outputs.add(km);
-		}
+    	for (int j=0;j<clusters.size();j++){
+    		ArrayList<Kmer> alignedKmers = Kmer.cloneKmerList(clusters.get(j).alignedKmers);		// each kmer in diff cluster has been clone, would not overwrite
+	    	for (int i=0;i<Math.min(20, alignedKmers.size());i++){
+	    		Kmer km = alignedKmers.get(i);
+	    		km.setClusterId(i);
+				if (km.getKmerStartOffset()<leftmost_km)
+					leftmost_km = km.getKmerStartOffset();
+				outputs.add(km);
+			}
+    	}
 		Collections.sort(outputs, new Comparator<Kmer>(){
 		    public int compare(Kmer o1, Kmer o2) {
 		    		return o1.compareByClusterAndHGP(o2);
@@ -1659,7 +1660,8 @@ public class KMAC2WK {
 			html.append("<tr><td>");
 			html.append("<b><font size='4' face='Courier New'>");
 			Kmer km = outputs.get(i);
-			char[] kmStr = km.getKmerString().toCharArray();
+			String kmString = km.isSeedOrientation()?km.getKmerString():km.getKmerRC();
+			char[] kmStr = kmString.toCharArray();
 			html.append(CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-'));
 			for (char b:kmStr){
 				switch(b){
@@ -1678,12 +1680,12 @@ public class KMAC2WK {
 		html.append("</td><td valign='top'><br>");
 		html.append("<table border=0 align=center><th>Motif PWM</th><th>Motif spatial distribution (w.r.t. primary PWM)<br>Format: position,motif_occurences</th>");
 		for (KmerCluster c:clusters){
-    		html.append("<tr><td><img src='"+name+"_"+c.clusterId+"_motif.png"+"'><a href='#' onclick='return popitup(\""+name+"_"+c.clusterId+"_motif_rc.png\")'>rc</a><br>");
+    		html.append("<tr><td><img src='"+name+".m"+c.clusterId+".PWM.png"+"'><a href='#' onclick='return popitup(\""+name+".m"+c.clusterId+".PWM_rc.png\")'>rc</a><br>");
     		html.append(String.format("PWM: %.2f/%.2f, hit=%d+/%d-, hgp=1e%.1f<br>", 
     				c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
 //    		html.append(String.format("KSM score: %.2f, \thit=%d+/%d-, hgp=1e%.1f<br><br>", 
 //    				c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
-    		String suffix = name+"_Spatial_dist_0_"+c.clusterId;
+    		String suffix = name+".Spatial_dist.m0_m"+c.clusterId;
     		html.append("</td><td><a href='"+suffix+".txt'>"+"<img src='"+suffix+".png"+"' height='150'></a></td></tr>");
 		}
 		html.append("</table>");
@@ -1998,7 +2000,7 @@ public class KMAC2WK {
 	 * Compute the distance distributions between primary and secondary motifs
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void printMotifDistanceDistribution (String name){		
+	public void computeMotifDistanceDistribution (String name){		
 		System.out.println("\nCompute motif distance distribution ...");
 		
 		ArrayList[][] hits = new ArrayList[seqs.length][clusters.size()];
@@ -2059,13 +2061,14 @@ public class KMAC2WK {
 					x[i]=i-range;
 					sb.append(String.format("%d\t%d\t%d\n", x[i], same[i], diff[i]));
 				}
-				String fileSuffix = name+"_Spatial_dist_"+clusters.get(m).clusterId+"_"+clusters.get(j).clusterId;
+				String fileSuffix = name+".Spatial_dist.m"+clusters.get(m).clusterId+"_m"+clusters.get(j).clusterId;
 				plotMotifDistanceDistribution(x, same, diff, fileSuffix+".png");
 				
 				CommonUtils.writeFile(fileSuffix+".txt", sb.toString());
 			}
 		}
 	}
+	
 	public void plotMotifDistanceDistribution(int[]x, int[]same, int[]diff, String filename){
 		File f = new File(filename);
 		int w = 660;
@@ -3844,17 +3847,19 @@ public class KMAC2WK {
 		tree = new AhoCorasick();
 		str2kmer.clear();
 		for (Kmer km: kmers){
-			int offset = km.getKmerStartOffset();
-			String kmerStr;
-			if (offset>RC/2){
-				offset-=RC;
-				kmerStr=km.getKmerRC();
-				km.setKmerStartOffset(offset);
+			if (km instanceof GappedKmer){
+				GappedKmer gk = (GappedKmer)km;
+				for (Kmer sk: gk.getSubKmers()){
+					String kmerStr = gk.isSeedOrientation()&&gk.getSubKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
+					str2kmer.put(kmerStr, km);
+					tree.add(kmerStr.getBytes(), kmerStr);
+				}
 			}
-			else
-				kmerStr = km.getKmerString();
-			str2kmer.put(kmerStr, km);
-			tree.add(kmerStr.getBytes(), kmerStr);
+			else{
+				String kmerStr = km.isSeedOrientation()?km.kmerString:km.kmerRC;				
+				str2kmer.put(kmerStr, km);
+				tree.add(kmerStr.getBytes(), kmerStr);
+			}
 	    }
 	    tree.prepare();
 	    engineInitialized = true;

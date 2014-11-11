@@ -19,9 +19,10 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
@@ -36,14 +37,14 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 public class KmerScanner {
 	public static char[] letters = {'A','C','T','G'};
 	private ArrayList<Kmer> kmers;
-	private KMAC kEngine;
+	private KMAC2WK kEngine;
 	// each element in the list is for one ChIP-Seq method
 	private ArrayList<String> methodNames = new ArrayList<String>();
 	private ArrayList<ArrayList<Point>> events = new ArrayList<ArrayList<Point>>();
 	
 	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount){
 		this.kmers = kmers;
-		kEngine = new KMAC(kmers, null);
+		kEngine = new KMAC2WK(kmers, null);
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 	}
 	
@@ -93,22 +94,22 @@ public class KmerScanner {
 		System.out.println(path);
 		String kmer=null, pfm=null, event=null;
 		if (path!=null){
-			kmer = getFileName(path, "_kmer_");			// old file name format
+			kmer = getFileName(path, ".m0.KSM");			// old file name format
 			if (kmer==null)
 				kmer = getFileName(path, "_KSM");		// new file name format, since May 2012
-			pfm = getFileName(path, "_PFM");
-			event = path+"_GEM_events.txt";
+			pfm = getFileName(path, ".all.PFM");
+			event = path+"_GPS_events.txt";
 		}
 		long t1 = System.currentTimeMillis();
 		File file = new File(Args.parseString(args, "kmer", kmer));
-		ArrayList<Kmer> kmers = Kmer.loadKmers(file);
-		int clusterId = Args.parseInteger(args, "class", 0);
-		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
-		for (Kmer km:kmers)
-			if (km.getClusterId()!=clusterId)
-				toRemove.add(km);
-		kmers.removeAll(toRemove);
-		kmers.trimToSize();
+		ArrayList<Kmer> kmers = GappedKmer.loadKmers(file);
+//		int clusterId = Args.parseInteger(args, "class", 0);
+//		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+//		for (Kmer km:kmers)
+//			if (km.getClusterId()!=clusterId)
+//				toRemove.add(km);
+//		kmers.removeAll(toRemove);
+//		kmers.trimToSize();
 		Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
 		KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr());
 		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
@@ -151,6 +152,8 @@ public class KmerScanner {
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(!flags.contains("no_cache"));		
 		seqgen.useLocalFiles(!flags.contains("use_db_genome"));
+		if (!flags.contains("use_db_genome"))
+			seqgen.setGenomePath(Args.parseString(args, "genome", ""));
 		StringBuilder sb = new StringBuilder();
 		ArrayList<Region> posRegions = new ArrayList<Region>();
 		for(int i=0;i<gpsPeaks.size();i++){
@@ -200,7 +203,7 @@ public class KmerScanner {
 		ArrayList<Double> ksm_scores = new ArrayList<Double>();
 		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 		
-		Random randObj = new Random(Args.parseInteger(args, "seed", 0));
+		Random randObj = new Random(Args.parseInteger(args, "rand_seed", 0));
 		System.out.println("Scanning "+posRegions.size()+" regions ...");
 		int PWM_time = 0;
 		int KSM_time = 0;
@@ -329,7 +332,7 @@ public class KmerScanner {
 			se.posHit = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, score);
 			se.negHit = negSeqScores.length-index;
-			se.hgp = KMAC.computeHGP(total, total, se.posHit, se.negHit);
+			se.hgp = KMAC2WK.computeHGP(total, total, se.posHit, se.negHit);
 			ses.add(se);
 		}
 		return ses;

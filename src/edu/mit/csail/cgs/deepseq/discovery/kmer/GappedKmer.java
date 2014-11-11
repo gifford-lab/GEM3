@@ -1,5 +1,10 @@
 package edu.mit.csail.cgs.deepseq.discovery.kmer;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.*;
 
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
@@ -130,7 +135,7 @@ public class GappedKmer extends Kmer{
 						sb.append(allSubKmers.get(sk)).append(",");
 					sb.deleteCharAt(sb.length()-1);
 					if (print_kmer_hits)
-						sb.append("\tNA\tNA");	// the real hits are stored in sub-kmers
+						sb.append("\tN.A.\tN.A.");	// the real hits are stored in sub-kmers
 				}
 				else{
 					sb.append("\t").append(-1);
@@ -149,7 +154,7 @@ public class GappedKmer extends Kmer{
 		}
 		
 		if (printKmersAtK)
-			CommonUtils.writeFile(String.format("%s_kmers_k%d.txt", filePrefix, k), sb.toString());
+			CommonUtils.writeFile(String.format("%s.kmers_k%d.txt", filePrefix, k), sb.toString());
 		else
 			CommonUtils.writeFile(String.format("%s.KSM.txt", filePrefix), sb.toString());
 	}
@@ -162,10 +167,7 @@ public class GappedKmer extends Kmer{
 		String firstField = "# k-mer/r.c.";
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
-		if (use_weighted_hit_count)
-			return firstField+"\tOffset\tPosCt\twPosCt\tNegCt\tHGP_10\tCIDs\tPosHits\tNegHits";
-		else
-			return firstField+"\tOffset\tPosCt\tNegCt\tHGP_10\tCIDs\tPosHits\tNegHits";
+		return firstField+"\tOffset\tPosCt\twPosCt\tNegCt\tHgpLg10\tCIDs\tPosHits (base85 encoding)\tNegHits (base85 encoding)";
 	}
 
 	public static String toShortHeader(int k){
@@ -173,59 +175,72 @@ public class GappedKmer extends Kmer{
 		String firstField = "# k-mer/r.c.";
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
-		if (use_weighted_hit_count)
-			return firstField+"\tPosCt\twPosCt\tNegCt\tHgp_lg10\tNumChildren";
-		else
-			return firstField+"\tPosCt\tNegCt\tHgp_lg10\tNumChildren";
+		return firstField+"\tPosCt\twPosCt\tNegCt\tHgpLg10\tNumChildren";
 	}
 	
-//	public static Kmer fromString(String str){
-//		String[] f = str.trim().split("\t");
-//		String[] f0f = f[0].split("/");
-//		HashSet<Integer> posHits = new HashSet<Integer>();
-//		HashSet<Integer> negHits = new HashSet<Integer>();
-//		if (f.length==9){
-//			String pos_id_string = f[7].trim();
-//			if (!pos_id_string.equals("-1")){
-//				String[] pos_ids = pos_id_string.split(" ");
-//				for (String hit:pos_ids)
-//					posHits.add(Integer.valueOf(hit));
-//			}
-//
-//			String neg_id_string = f[8].trim();
-//			if (!neg_id_string.equals("-1")){
-//				String[] neg_ids = neg_id_string.split(" ");
-//				for (String hit:neg_ids)
-//					negHits.add(Integer.valueOf(hit));
-//			}
-//		}
-//		else if (f.length==8){ // no wPos field
-//			String pos_id_string = f[6].trim();
-//			if (!pos_id_string.equals("-1")){
-//				String[] pos_ids = pos_id_string.split(" ");
-//				for (String hit:pos_ids)
-//					posHits.add(Integer.valueOf(hit));
-//			}
-//
-//			String neg_id_string = f[7].trim();
-//			if (!neg_id_string.equals("-1")){
-//				String[] neg_ids = neg_id_string.split(" ");
-//				for (String hit:neg_ids)
-//					negHits.add(Integer.valueOf(hit));
-//			}
-//		}
-//		
-//		Kmer kmer = new Kmer(f0f[0], posHits);	
-//		kmer.clusterId = Integer.parseInt(f[1]);
-//		kmer.kmerStartOffset = Integer.parseInt(f[2]);
-//		kmer.setNegHits(negHits);
-//		if (f.length==9){
-//			kmer.hgp_lg10 = Double.parseDouble(f[6]);
-//		}
-//		else if (f.length==8){		// no wPos field
-//			kmer.hgp_lg10 = Double.parseDouble(f[5]);
-//		}
-//
-//		return kmer;
-//	}
+	public static ArrayList<Kmer> loadKmers(File file){
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		HashMap<String, Kmer> subkmerMap = new HashMap<String, Kmer>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+			bin.readLine();			// skip header line, to be compatible with old file format
+	        String line;
+	        while((line = bin.readLine()) != null) { 
+	        	if (line.startsWith("#"))
+	        		continue;
+	            if (line.equals(""))
+	            	break;
+	            line = line.trim();
+	            Kmer kmer = GappedKmer.fromString(line);
+	            kmers.add(kmer);
+	        }	
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            Kmer kmer = GappedKmer.fromString(line);
+	            subkmerMap.put(kmer.CIDs, kmer);
+	        }	
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+file.getName());
+            e.printStackTrace(System.err);
+        }
+		for (Kmer km:kmers){
+			if (km instanceof GappedKmer){
+				GappedKmer gk = (GappedKmer) km;
+				String[] f = gk.CIDs.split(",");
+				for (String id: f){
+					Kmer sk = subkmerMap.get(id);
+					gk.addSubKmer(sk, CommonUtils.strMinDistance(gk.kmerString, sk.kmerString)==1);
+				}
+				gk.update();
+			}
+			
+		}
+        kmers.trimToSize();
+		return kmers;
+	}
+
+	public static Kmer fromString(String str){
+		String[] f = str.trim().split("\t");
+		String[] f0f = f[0].split("/");
+		String kmerStr = f0f[0];
+		Kmer kmer = null;
+		if (kmerStr.contains("N")){// Gapped kmer
+			kmer = new GappedKmer(kmerStr);
+		}
+		else{
+			BitSet b_pos = BitSet.valueOf(CommonUtils.decodeAscii85StringToBytes(f[7]));
+			kmer = new Kmer(kmerStr, b_pos);
+			kmer.negBits = BitSet.valueOf(CommonUtils.decodeAscii85StringToBytes(f[8]));
+		}
+		kmer.isSeedOrientation = true;
+		kmer.CIDs = f[6];
+		kmer.kmerStartOffset = Integer.parseInt(f[1]);
+		kmer.shift = kmer.kmerStartOffset;
+		kmer.hgp_lg10 = Double.parseDouble(f[5]);
+
+		return kmer;
+	}
 }

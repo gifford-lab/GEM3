@@ -27,6 +27,8 @@ public class Kmer implements Comparable<Kmer>{
 	static void set_seq_weights(double[] weights){
 		seq_weights = weights;
 	}	
+	String CIDs = null;
+
 	protected String kmerString;
 	public String getKmerString() {	return kmerString;}
 	public String getKmerStrRC() {	return kmerString+"/"+kmerRC;}
@@ -122,7 +124,7 @@ public class Kmer implements Comparable<Kmer>{
 	public void setStrength(double strength){this.strength = strength;}
 	public void incrStrength(double strength){this.strength += strength;}
 	
-	private double hgp_lg10 = 0;
+	protected double hgp_lg10 = 0;
 	/**  get hyper-geometric p-value (log10) of the kmer, this is usually a negative value */
 	public double getHgp() {
 		return hgp_lg10;
@@ -132,17 +134,17 @@ public class Kmer implements Comparable<Kmer>{
 		this.hgp_lg10 = hgp;
 	}
 	
-	private int shift;
+	protected int shift;
 	/** get the position relative to seedKmer, after aligning this kmer to seedKmer<br>
 	 * if isSeedOrientation=false, the position is kmerRC relative to seedKmer */
 	public int getShift(){return shift;}
 	public void setShift(int s){shift=s;}
-	private boolean isSeedOrientation=false;
+	protected boolean isSeedOrientation=false;
 	/** get whether this kmer is in the same orientation as the seedKmer, after aligning this kmer to seedKmer */
 	public boolean isSeedOrientation(){return isSeedOrientation;}
 	public void setSeedOrientation(boolean so){isSeedOrientation=so;}
 	
-	private int clusterId=-1;
+	protected int clusterId=-1;
 	public int getClusterId(){return clusterId;}
 	public void setClusterId(int id){clusterId=id;}
 
@@ -151,7 +153,7 @@ public class Kmer implements Comparable<Kmer>{
 	public String getAlignString(){return alignString;}
 	
 	/** The offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
-	private int kmerStartOffset;			
+	protected int kmerStartOffset;			
 	/** Get the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
 	public int getKmerStartOffset(){return kmerStartOffset;}
 	/** Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
@@ -167,6 +169,12 @@ public class Kmer implements Comparable<Kmer>{
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
 		setPosHits(posHits);
+	}
+	public Kmer(String kmerStr, BitSet posBits ){
+		this.kmerString = kmerStr;
+		this.kmerRC = SequenceUtils.reverseComplement(kmerStr);
+		this.k = kmerString.length();
+		this.posBits = posBits;
 	}
 	
 	public Kmer clone(){
@@ -231,10 +239,10 @@ public class Kmer implements Comparable<Kmer>{
 	public String toString(){
 		if (use_weighted_hit_count)
 			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),clusterId, isSeedOrientation, shift, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+				getKmerStrRC(),clusterId, isSeedOrientation, shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
 		else
 			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),clusterId, isSeedOrientation, shift, posHits.size(), getNegHitCount(), hgp_lg10);
+				getKmerStrRC(),clusterId, isSeedOrientation, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
 	}
 	public String toString2(){
 		if (use_weighted_hit_count)
@@ -394,7 +402,7 @@ public class Kmer implements Comparable<Kmer>{
 	public static ArrayList<Kmer> cloneKmerList(ArrayList<Kmer> kmers_in){
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (Kmer km:kmers_in){
-			if (! (km instanceof GappedKmer))
+//			if (! (km instanceof GappedKmer))
 				kmers.add(km.clone());
 		}
 		// GappedKmers need special treatment because of the many to many connections between gappedkmers and their subkmers
