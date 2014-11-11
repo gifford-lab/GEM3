@@ -151,7 +151,7 @@ public class GappedKmer extends Kmer{
 		if (printKmersAtK)
 			CommonUtils.writeFile(String.format("%s_kmers_k%d.txt", filePrefix, k), sb.toString());
 		else
-			CommonUtils.writeFile(String.format("%s_KSM.txt", filePrefix), sb.toString());
+			CommonUtils.writeFile(String.format("%s.KSM.txt", filePrefix), sb.toString());
 	}
 
 	public void removeSubkmers(Kmer km) {
