@@ -30,6 +30,7 @@ public class Kmer implements Comparable<Kmer>{
 	protected String kmerString;
 	public String getKmerString() {	return kmerString;}
 	public String getKmerStrRC() {	return kmerString+"/"+kmerRC;}
+	public String getKmerRCStr() {	return kmerRC+"/"+kmerString;}
 	protected String kmerRC;
 	public String getKmerRC(){
 		if (kmerRC==null)
@@ -235,6 +236,15 @@ public class Kmer implements Comparable<Kmer>{
 			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%.1f", 
 				getKmerStrRC(),clusterId, isSeedOrientation, shift, posHits.size(), getNegHitCount(), hgp_lg10);
 	}
+	public String toString2(){
+		if (use_weighted_hit_count)
+			return String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
+				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+		else
+			return String.format("%s\t%d\t%d\t%d\t%.1f", 
+				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posHits.size(), getNegHitCount(), hgp_lg10);
+	}
+
 	public static String toHeader(int k){
 		int length=2*k+1;
 		String firstField = "# k-mer/r.c.";
@@ -355,7 +365,7 @@ public class Kmer implements Comparable<Kmer>{
 		if (printKmersAtK)
 			CommonUtils.writeFile(String.format("%s_kmers_k%d.txt", filePrefix, kmers.get(0).getK()), sb.toString());
 		else
-			CommonUtils.writeFile(String.format("%s_KSM.txt", filePrefix), sb.toString());
+			CommonUtils.writeFile(String.format("%s.KSM.txt", filePrefix), sb.toString());
 	}
 	
 	/**
@@ -369,6 +379,12 @@ public class Kmer implements Comparable<Kmer>{
 		for (int id:sorted)
 			sb.append(id).append(" ");
 		return sb.toString();
+	}
+	/**
+	 * If the set of ids is empty (no negative hits), return "-1"
+	 */
+	protected static String hitBits2string(BitSet bits){
+		return CommonUtils.encodeBytesToAscii85(bits.toByteArray()).replace("\n", "");
 	}
 	/**
 	 * Clone the list and clone the kmer elements
@@ -478,7 +494,16 @@ public class Kmer implements Comparable<Kmer>{
 		return new Pair<Integer, Integer>(posSeqCount,negSeqCount);
 	}
 	
-	public static void main0(String[] args){
-		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
+	public static void main(String[] args){
+//		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
+	     BitSet bits1 = new BitSet(16);
+	     BitSet bits2 = new BitSet(16);
+	      
+	     // set some bits
+	     for(int i=0; i<16; i++) {
+	        if((i%2) == 0) bits1.set(i);
+	        if((i%5) != 0) bits2.set(i);
+	     }
+	     
 	}
 }

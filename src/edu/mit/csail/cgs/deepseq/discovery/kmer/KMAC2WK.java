@@ -592,29 +592,23 @@ public class KMAC2WK {
 		tic = System.currentTimeMillis();
 		boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// a table indicating whether a pair has been checked
 		mergeOverlapClusters (seqList, checked, config.use_ksm, 0);
-		
-		if (!config.use_ksm){
-			// Did not use KSM to merge motif, Extract final KSM from PWM alignment. if no PWM, it is the seed_family alignment
-			for (KmerCluster cluster: clusters){
-				if (cluster.wm!=null){
-					indexKmerSequences(k2kmers.get(cluster.k), seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
-		    		alignSequencesUsingPWM(seqList, cluster);
-		    		if (cluster.pwmPosHitCount>cluster.total_aligned_seqs)
-		    			cluster.total_aligned_seqs = cluster.pwmPosHitCount;
-			    	NewKSM newKSM = extractKSM (seqList, cluster.seedKmer.getK(), new ArrayList<Kmer>());
-			    	if (newKSM==null)
-			    		continue;
-					if (newKSM.threshold!=null && newKSM.threshold.hgp <= cluster.ksmThreshold.hgp){
-						cluster.alignedKmers = newKSM.kmers;
-				    	cluster.ksmThreshold = newKSM.threshold;
-					}
-		    	}
-			}
-		}
 		if (config.verbose>1)
 			System.out.println("\nFinished merging motifs.\n");
+
+		// remove clusters with low hit count
+		ArrayList<KmerCluster> toRemove = new ArrayList<KmerCluster>();
+		for (int i=0;i<clusters.size();i++){
+			KmerCluster c = clusters.get(i);
+			double hitRatio = (double)c.pwmPosHitCount / posSeqCount;
+			if (i>=10&&hitRatio<config.motif_hit_factor_report || hitRatio<config.motif_hit_factor)
+					toRemove.add(c);
+			if (config.evaluate_by_ksm && c.ksmThreshold.hgp>config.hgp)
+				toRemove.add(c);
+			if (!config.evaluate_by_ksm && c.pwmThresholdHGP>config.hgp)
+					toRemove.add(c);
+		}
+		clusters.removeAll(toRemove);
 		
-		// print all the motifs for k, after merging
 		if (config.evaluate_by_ksm){
 			Collections.sort(clusters, new Comparator<KmerCluster>() {
                 public int compare(KmerCluster o1, KmerCluster o2) {
@@ -628,7 +622,27 @@ public class KMAC2WK {
 		for (int j=0;j<clusters.size();j++){
 			clusters.get(j).clusterId = j;
 		}
-
+		
+		// Extract final KSM from PWM alignment and output KSM (need to output it here, o.w. the k-mers may be overwritten by other motifs
+		// TODO: if no PWM, it is the seed_family alignment
+		for (KmerCluster cluster: clusters){
+			if (cluster.wm!=null){
+				indexKmerSequences(k2kmers.get(cluster.k), seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
+	    		alignSequencesUsingPWM(seqList, cluster);
+	    		if (cluster.pwmPosHitCount>cluster.total_aligned_seqs)
+	    			cluster.total_aligned_seqs = cluster.pwmPosHitCount;
+		    	NewKSM newKSM = extractKSM (seqList, cluster.seedKmer.getK(), new ArrayList<Kmer>());
+		    	if (newKSM==null)
+		    		continue;
+				if (newKSM.threshold!=null && newKSM.threshold.hgp <= cluster.ksmThreshold.hgp){
+					cluster.alignedKmers = newKSM.kmers;
+			    	cluster.ksmThreshold = newKSM.threshold;
+				}
+				GappedKmer.printGappedKmers(cluster.alignedKmers, cluster.k, posSeqCount, negSeqCount, cluster.ksmThreshold.score, outName+".m"+cluster.clusterId, false, true, false);
+	    	}
+		}
+		
+		// print all the motifs for k, after merging
 		sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +" ----------------------------\n");
 		StringBuilder pfm_sb = new StringBuilder();
 		for (KmerCluster c:clusters){
@@ -668,6 +682,11 @@ public class KMAC2WK {
 			html.append("</td></tr></table>");
 			CommonUtils.writeFile(outName+"_result.htm", html.toString());
 			return;
+		}
+		else{
+			// print PWM spatial distribtution
+			printMotifDistanceDistribution(outName);
+			outputClusters(eventCounts);
 		}
 	}
 	
@@ -936,16 +955,16 @@ public class KMAC2WK {
 //		if (gkMap.keySet().size()<10000){
 //			expectedCount = Math.min(smallestPosCount, expectedCount);
 //		}
-		ArrayList<GappedKmer> kms = new ArrayList<GappedKmer>();
+		ArrayList<GappedKmer> gks = new ArrayList<GappedKmer>();
 		HashSet<Kmer> subKmers = new HashSet<Kmer>();
 		for (String key:gkMap.keySet()){	
 			if (gkMap.get(key).getPosHitCount()< expectedCount)
 				continue;	// skip low count kmers 
 			GappedKmer gk = gkMap.get(key);
-			kms.add(gk);
+			gks.add(gk);
 			subKmers.addAll(gk.getSubKmers());
 		}		
-		System.out.println("Expected kmer hit count="+expectedCount + ", gapped kmer count="+kms.size()+
+		System.out.println("Expected kmer hit count="+expectedCount + ", gapped kmer count="+gks.size()+
 				", sub-kmers count="+subKmers.size());
 		
 		/**
@@ -994,7 +1013,7 @@ public class KMAC2WK {
 		
 		// score the kmers, hypergeometric p-value, select significant k-mers
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
-		for (GappedKmer gk:kms){
+		for (GappedKmer gk:gks){
 			gk.mergeNegHits();		// aggregate sub-kmer negative hits to the WC kmer
 			if (gk.getPosHitCount() >= gk.getNegHitCount()/get_NP_ratio() * config.k_fold ){
 				// optimize the subkmers to get best hgp
@@ -1023,6 +1042,9 @@ public class KMAC2WK {
 		Collections.sort(results);
 		System.out.println(String.format("k=%d, selected %d gapped k-mers from %d+/%d- sequences, %s", k-numgapped, results.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
+		ArrayList<Kmer> kms = new ArrayList<Kmer>();
+		for (GappedKmer gk:gks)
+			kms.add(gk);
 		if (config.print_all_kmers){
 			Collections.sort(kms);
 			GappedKmer.printGappedKmers(kms, k-numgapped, posSeqCount, negSeqCount, 0, outName+"_g_all_w"+seqs[0].length(), true, false, true);
@@ -1516,26 +1538,12 @@ public class KMAC2WK {
 		return matches;
 	}
 
-	private void outputClusters(ArrayList<Kmer> allAlignedKmers, int[] eventCounts){
+	private void outputClusters(int[] eventCounts){
 		// output cluster information, PFM, and PWM
 		File f = new File(outName);
 		String name = f.getName();
 		f=null;
-		
-		// remove clusters with low hit count
-		ArrayList<KmerCluster> toRemove = new ArrayList<KmerCluster>();
-		for (int i=0;i<clusters.size();i++){
-			KmerCluster c = clusters.get(i);
-			double hitRatio = (double)c.pwmPosHitCount / posSeqCount;
-			if (i>=10&&hitRatio<config.motif_hit_factor_report || hitRatio<config.motif_hit_factor)
-					toRemove.add(c);
-			if (config.evaluate_by_ksm && c.ksmThreshold.hgp>config.hgp)
-				toRemove.add(c);
-			if (!config.evaluate_by_ksm && c.pwmThresholdHGP>config.hgp)
-					toRemove.add(c);
-		}
-		clusters.removeAll(toRemove);
-		
+			
 		// output kmer alignments
 		StringBuilder alignedKmer_sb = new StringBuilder();
 		for (KmerCluster c:clusters){
@@ -1559,9 +1567,9 @@ public class KMAC2WK {
 						+km.getKmerString()+"\t"+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
 			}
 		}
-		CommonUtils.writeFile(outName+"_Alignement_k"+k+".txt", alignedKmer_sb.toString());
+		CommonUtils.writeFile(outName+".Alignement_k"+k+".txt", alignedKmer_sb.toString());
 		alignedKmer_sb = null;
-		
+
 		// output PWM info
 		System.out.println();
 		StringBuilder pfm_sb = new StringBuilder();		// default TRANSFAC/STAMP format
@@ -1577,8 +1585,10 @@ public class KMAC2WK {
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm));
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
-			pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
-					String.format("DE %s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
+    		pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
+					String.format("DE %s_%d_k%d_c%d", name, c.clusterId, c.k, c.pwmPosHitCount)));
+//    		pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
+//					String.format("DE %s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
 			if (config.outputMEME)
 				pfm_meme_sb.append(CommonUtils.makeMEME (c.pfm, c.pwmPosHitCount, 
 						String.format("%s_%d_%d_c%d", name, c.clusterId, pos, c.pwmPosHitCount)));
@@ -1599,13 +1609,13 @@ public class KMAC2WK {
 			wm_rc.setNameVerType(name, "#"+c.clusterId, "rc");
 			CommonUtils.printMotifLogo(wm_rc, new File(outName+"_"+c.clusterId+"_motif_rc.png"), 75);
 		}
-		CommonUtils.writeFile(outName+"_PFM.txt", pfm_sb.toString());
+		CommonUtils.writeFile(outName+".PFM.txt", pfm_sb.toString());
 		if (config.outputMEME)
-			CommonUtils.writeFile(outName+"_PFM_MEME.txt", pfm_meme_sb.toString());
+			CommonUtils.writeFile(outName+".PFM_MEME.txt", pfm_meme_sb.toString());
 		if (config.outputJASPAR)
-			CommonUtils.writeFile(outName+"_PFM_JASPAR.txt", pfm_jasper_sb.toString());
+			CommonUtils.writeFile(outName+".PFM_JASPAR.txt", pfm_jasper_sb.toString());
 		if (config.outputHOMER)
-			CommonUtils.writeFile(outName+"_PFM_HOMER.txt", pfm_homer_sb.toString());
+			CommonUtils.writeFile(outName+".PFM_HOMER.txt", pfm_homer_sb.toString());
 
 		// output HTML report
 		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
@@ -1622,13 +1632,17 @@ public class KMAC2WK {
 		}
 		html.append("<p><b>Motif Discovery Results</b>:<p>");
 		html.append("<p>Total positive sequences: "+posSeqCount);
-		html.append("<p><ul><li><a href='"+name+"_KSM.txt'>Complete KSM (K-mer Set Motif) file.</a>");
-		html.append("<li><a href='"+name+"_Alignement_k"+k+".txt'>K-mer alignment file.</a>");
-		html.append("<li><a href='"+name+"_PFM.txt'>Motif PFMs</a></ul>");
-		html.append("<p><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
+		html.append("<p><ul><li>");
+		for (KmerCluster c:clusters)
+			html.append("<li><a href='"+outName+".m"+c.clusterId+".KSM.txt'>Motif #"+c.clusterId+" KSM (K-mer Set Motif) file.</a>");
+		html.append("<li><a href='"+name+".Alignement_k"+k+".txt'>K-mer alignment file.</a>");
+		html.append("<li><a href='"+name+".PFM.txt'>All motif PFMs</a></ul>");
+		html.append("<p>K-mers of primary motif<p>");
+		html.append("<table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 		
     	int leftmost_km = Integer.MAX_VALUE;
-    	ArrayList<Kmer> outputs = new ArrayList<Kmer>();
+    	ArrayList<Kmer> outputs = new ArrayList<Kmer>();		
+    	ArrayList<Kmer> allAlignedKmers = clusters.get(0).alignedKmers;		// each kmer in diff cluster has been clone, would not overwrite
     	for (int i=0;i<Math.min(20, allAlignedKmers.size());i++){
     		Kmer km = allAlignedKmers.get(i);
 			if (km.getKmerStartOffset()<leftmost_km)
@@ -1653,6 +1667,7 @@ public class KMAC2WK {
 				case 'C': html.append("<font color='blue'>C</font>");break;
 				case 'G': html.append("<font color='orange'>G</font>");break;
 				case 'T': html.append("<font color='red'>T</font>");break;
+				case 'N': html.append("<font color='grey'>N</font>");break;
 				}
 			}
 			html.append("</font></b></td>");

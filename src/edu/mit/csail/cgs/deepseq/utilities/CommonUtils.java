@@ -1292,6 +1292,52 @@ public class CommonUtils {
 			System.out.println(chr+"\t"+map.get(chr));
 	}
 	
+	public static byte[] decodeAscii85StringToBytes(String ascii85) {
+	    ArrayList<Byte> list = new ArrayList<Byte>();
+	    ByteArrayInputStream in_byte = null;
+	    try {
+	        in_byte = new ByteArrayInputStream(ascii85.getBytes("ascii"));
+	    } catch (UnsupportedEncodingException e) {
+	        e.printStackTrace();
+	    }
+	    ASCII85InputStream in_ascii = new ASCII85InputStream(in_byte);
+	    try {
+	        int r ;
+	        while ((r = in_ascii.read()) != -1) {
+	            list.add((byte) r);
+	        }
+	        in_ascii.close();
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+	    byte[] bytes = new byte[list.size()];
+	    for (int i = 0; i < bytes.length; i++) {
+	        bytes[i] = list.get(i);
+	    }
+	    return bytes;
+	}
+
+
+	public static String encodeBytesToAscii85(byte[] bytes) {
+	    ByteArrayOutputStream out_byte = new ByteArrayOutputStream();
+	    ASCII85OutputStream  out_ascii = new ASCII85OutputStream(out_byte);
+
+	    try {
+	        out_ascii.write(bytes);
+	        out_ascii.flush();
+	        out_ascii.close();
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+	    String res = "";
+	    try {
+	        res = out_byte.toString("ascii");
+	    } catch (UnsupportedEncodingException e) {
+	        e.printStackTrace();
+	    }
+	    return res;
+	}
+	
 	public static void main0(String[] args){
 		System.out.println(findKey(new double[]{0,1,1,1,2,4,6}, 7));
 	}
