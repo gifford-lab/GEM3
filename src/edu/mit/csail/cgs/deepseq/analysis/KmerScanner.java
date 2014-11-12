@@ -112,7 +112,7 @@ public class KmerScanner {
 		
 		// load experiment list
 		String path = Args.parseString(args, "path", "./");
-		ArrayList<String> expts = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+		ArrayList<String> expts = CommonUtils.readTextFile(path+Args.parseString(args, "expts", null));
 		for (String expt: expts){
 			System.out.println("Running "+expt);
 			long tic = System.currentTimeMillis();
@@ -125,7 +125,7 @@ public class KmerScanner {
 				if (kmer==null)
 					kmer = getFileName(path+expt, "_KSM");		// new file name format, since May 2012
 				pfm = getFileName(path+expt, ".all.PFM");
-				event = expt+"_GPS_events.txt";
+				event = path+expt+"_GPS_events.txt";
 			}
 			long t1 = System.currentTimeMillis();
 			File file = new File(Args.parseString(args, "kmer", kmer));

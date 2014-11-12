@@ -3851,6 +3851,7 @@ public class KMAC2WK {
 				GappedKmer gk = (GappedKmer)km;
 				for (Kmer sk: gk.getSubKmers()){
 					String kmerStr = gk.isSeedOrientation()&&gk.getSubKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
+					sk.kmerStartOffset=gk.kmerStartOffset;
 					str2kmer.put(kmerStr, sk);			// use individual sub-kmers
 					tree.add(kmerStr.getBytes(), kmerStr);
 				}
@@ -3895,7 +3896,6 @@ public class KMAC2WK {
 		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
 		// matches on negative strand are combined with matches on positive strand
 		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();
-		String seqRC = SequenceUtils.reverseComplement(seq);
 		for (Object o: kmerFound){
 			String kmerStr = (String) o;
 			Kmer kmer = str2kmer.get(kmerStr);
@@ -3905,15 +3905,18 @@ public class KMAC2WK {
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
+//				System.out.println(String.format("%s\toff=%d\tp=%d\tx=%d", kmerStr, kmer.getKmerStartOffset(), p,x));
 			}
-			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
+			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq_rc, kmerStr);
 			for (int p: pos_rc){
 				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
 				x = seq.length()-1-x;		// convert to position in Seq
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
+//				System.out.println(String.format("%s\toff=%d\tp=%d\tx=%d", kmerStr, kmer.getKmerStartOffset(), p,x));
 			}
+			k=k+0;
 		}
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
