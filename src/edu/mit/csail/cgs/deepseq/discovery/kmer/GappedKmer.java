@@ -203,7 +203,7 @@ public class GappedKmer extends Kmer{
 	            bin.close();
 	        }
         } catch (IOException e) {
-        	System.err.println("Error when processing "+file.getName());
+        	System.err.println("I/O Error when processing "+file.getName());
             e.printStackTrace(System.err);
         }
 		for (Kmer km:kmers){
@@ -233,7 +233,8 @@ public class GappedKmer extends Kmer{
 		else{
 			BitSet b_pos = BitSet.valueOf(CommonUtils.decodeAscii85StringToBytes(f[7]));
 			kmer = new Kmer(kmerStr, b_pos);
-			kmer.negBits = BitSet.valueOf(CommonUtils.decodeAscii85StringToBytes(f[8]));
+			if (f.length>8)
+				kmer.negBits = BitSet.valueOf(CommonUtils.decodeAscii85StringToBytes(f[8]));
 		}
 		kmer.isSeedOrientation = true;
 		kmer.CIDs = f[6];
