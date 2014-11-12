@@ -3851,7 +3851,7 @@ public class KMAC2WK {
 				GappedKmer gk = (GappedKmer)km;
 				for (Kmer sk: gk.getSubKmers()){
 					String kmerStr = gk.isSeedOrientation()&&gk.getSubKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
-					str2kmer.put(kmerStr, km);
+					str2kmer.put(kmerStr, sk);			// use individual sub-kmers
 					tree.add(kmerStr.getBytes(), kmerStr);
 				}
 			}
