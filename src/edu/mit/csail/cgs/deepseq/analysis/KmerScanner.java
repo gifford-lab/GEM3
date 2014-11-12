@@ -88,31 +88,6 @@ public class KmerScanner {
 		}
 	}
 	public static void main(String[] args){
-		// k-mer group info
-		String outName= Args.parseString(args, "out", "out");
-		String path = Args.parseString(args, "path", null);
-		System.out.println(path);
-		String kmer=null, pfm=null, event=null;
-		if (path!=null){
-			kmer = getFileName(path, ".m0.KSM");			// old file name format
-			if (kmer==null)
-				kmer = getFileName(path, "_KSM");		// new file name format, since May 2012
-			pfm = getFileName(path, ".all.PFM");
-			event = path+"_GPS_events.txt";
-		}
-		long t1 = System.currentTimeMillis();
-		File file = new File(Args.parseString(args, "kmer", kmer));
-		ArrayList<Kmer> kmers = GappedKmer.loadKmers(file);
-//		int clusterId = Args.parseInteger(args, "class", 0);
-//		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
-//		for (Kmer km:kmers)
-//			if (km.getClusterId()!=clusterId)
-//				toRemove.add(km);
-//		kmers.removeAll(toRemove);
-//		kmers.trimToSize();
-		Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
-		KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr());
-		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 		// genome info and binding events
 		Genome genome=null;
 		Organism org=null;
@@ -129,137 +104,171 @@ public class KmerScanner {
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
 	    }
-	    
-	    // PWM
-//		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
-//		WeightMatrix motif = wm.car();
-//		double motifThreshold = wm.cdr();
-	    	    
-	    long t = System.currentTimeMillis();
-	    WeightMatrix motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", pfm), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
-	    System.out.println("PWM loading:\t"+CommonUtils.timeElapsed(t));
-	    
-		// event locations
-		int windowSize = Args.parseInteger(args, "win", 50);
-		String eventFile = Args.parseString(args, "event", event);
-		List<GPSPeak> gpsPeaks = null;
-		try{
-			gpsPeaks = GPSParser.parseGPSOutput(eventFile, genome);
-		}
-		catch(IOException e){
-			e.printStackTrace();
-		}
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(!flags.contains("no_cache"));		
 		seqgen.useLocalFiles(!flags.contains("use_db_genome"));
 		if (!flags.contains("use_db_genome"))
 			seqgen.setGenomePath(Args.parseString(args, "genome", ""));
-		StringBuilder sb = new StringBuilder();
-		ArrayList<Region> posRegions = new ArrayList<Region>();
-		for(int i=0;i<gpsPeaks.size();i++){
-			GPSPeak p = gpsPeaks.get(i);
-			posRegions.add(p.expand(windowSize));
-		}
-		int width = windowSize*2+1;
-		int top = Args.parseInteger(args, "top", 5000);
-		TreeMap<Region, Region> reg2reg = new TreeMap<Region, Region>();		
-		if (!flags.contains("di-shuffle")){
-			int count = 0;
-			
-			each_event: for(int i=0;i<gpsPeaks.size();i++){
+		
+		// load experiment list
+		String path = Args.parseString(args, "path", "./");
+		ArrayList<String> expts = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+		for (String expt: expts){
+			System.out.println("Running "+expt);
+			long tic = System.currentTimeMillis();
+			// k-mer group info
+//			String expt= Args.parseString(args, "out", "out");
+//			System.out.println(path);
+			String kmer=null, pfm=null, event=null;
+			if (expt!=null){
+				kmer = getFileName(path+expt, ".m0.KSM");			// old file name format
+				if (kmer==null)
+					kmer = getFileName(path+expt, "_KSM");		// new file name format, since May 2012
+				pfm = getFileName(path+expt, ".all.PFM");
+				event = expt+"_GPS_events.txt";
+			}
+			long t1 = System.currentTimeMillis();
+			File file = new File(Args.parseString(args, "kmer", kmer));
+			ArrayList<Kmer> kmers = GappedKmer.loadKmers(file);
+	//		int clusterId = Args.parseInteger(args, "class", 0);
+	//		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+	//		for (Kmer km:kmers)
+	//			if (km.getClusterId()!=clusterId)
+	//				toRemove.add(km);
+	//		kmers.removeAll(toRemove);
+	//		kmers.trimToSize();
+			Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
+			KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr());
+			System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
+		    
+		    // PWM
+	//		Pair<WeightMatrix, Double> wm = CommonUtils.loadPWM(args, org.getDBID());
+	//		WeightMatrix motif = wm.car();
+	//		double motifThreshold = wm.cdr();
+		    	    
+		    long t = System.currentTimeMillis();
+		    WeightMatrix motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", pfm), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+		    System.out.println("PWM loading:\t"+CommonUtils.timeElapsed(t));
+		    
+			// event locations
+			int windowSize = Args.parseInteger(args, "win", 50);
+			String eventFile = Args.parseString(args, "event", event);
+			List<GPSPeak> gpsPeaks = null;
+			try{
+				gpsPeaks = GPSParser.parseGPSOutput(eventFile, genome);
+			}
+			catch(IOException e){
+				e.printStackTrace();
+			}
+	
+			StringBuilder sb = new StringBuilder();
+			ArrayList<Region> posRegions = new ArrayList<Region>();
+			for(int i=0;i<gpsPeaks.size();i++){
 				GPSPeak p = gpsPeaks.get(i);
-				if (p.getLocation()<1000+windowSize)
-					continue each_event;
-				Region rNeg = new Point(genome, p.getChrom(), p.getLocation()-1000).expand(windowSize);
-				if (posRegions.get(i).getWidth()==width && rNeg.getWidth()==width){
-					for(Region r:posRegions){
-						if (rNeg.overlaps(r))
-							continue each_event;
+				posRegions.add(p.expand(windowSize));
+			}
+			int width = windowSize*2+1;
+			int top = Args.parseInteger(args, "top", 5000);
+			TreeMap<Region, Region> reg2reg = new TreeMap<Region, Region>();		
+			if (!flags.contains("di-shuffle")){
+				int count = 0;
+				
+				each_event: for(int i=0;i<gpsPeaks.size();i++){
+					GPSPeak p = gpsPeaks.get(i);
+					if (p.getLocation()<1000+windowSize)
+						continue each_event;
+					Region rNeg = new Point(genome, p.getChrom(), p.getLocation()-1000).expand(windowSize);
+					if (posRegions.get(i).getWidth()==width && rNeg.getWidth()==width){
+						for(Region r:posRegions){
+							if (rNeg.overlaps(r))
+								continue each_event;
+						}
+						reg2reg.put(posRegions.get(i), rNeg);
+						count++;
+						if (count==5000)
+							break;
 					}
-					reg2reg.put(posRegions.get(i), rNeg);
-					count++;
-					if (count==5000)
-						break;
 				}
+				posRegions.clear();
+				posRegions.addAll(reg2reg.keySet());
 			}
-			posRegions.clear();
-			posRegions.addAll(reg2reg.keySet());
-		}
-		else{
-			ArrayList<Region> tmp = new ArrayList<Region>();
-			int num = top>posRegions.size()?posRegions.size():top;
-			for (int i=0;i<num;i++){
-				tmp.add(posRegions.get(i));
-			}
-			posRegions = tmp;
-			tmp = null;
-		}
-		posRegions.trimToSize();
-		Collections.sort(posRegions);
-		System.out.println("Got regions:\t"+CommonUtils.timeElapsed(t));
-		
-		ArrayList<Double> pwm_scores = new ArrayList<Double>();
-		ArrayList<Double> pwmN_scores = new ArrayList<Double>();
-		ArrayList<Double> ksm_scores = new ArrayList<Double>();
-		ArrayList<Double> ksmN_scores = new ArrayList<Double>();
-		
-		Random randObj = new Random(Args.parseInteger(args, "rand_seed", 0));
-		System.out.println("Scanning "+posRegions.size()+" regions ...");
-		int PWM_time = 0;
-		int KSM_time = 0;
-		for (Region r:posRegions){
-			String seq = seqgen.execute(r).toUpperCase();
-			
-			String name_N = "----";
-			String seqN;
-//			if (flags.contains("shuffle"))
-//				seqN = SequenceUtils.shuffle(seq, randObj);
-			if (flags.contains("di-shuffle"))
-				seqN = SequenceUtils.dinu_shuffle(seq, randObj);
 			else{
-				Region rN = reg2reg.get(r);
-				seqN = seqgen.execute(rN).toUpperCase();
-				name_N = rN.toString();
+				ArrayList<Region> tmp = new ArrayList<Region>();
+				int num = top>posRegions.size()?posRegions.size():top;
+				for (int i=0;i<num;i++){
+					tmp.add(posRegions.get(i));
+				}
+				posRegions = tmp;
+				tmp = null;
 			}
-			long pwm_t = System.currentTimeMillis();
-			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
-			pwm_scores.add(pwm);
-			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
-			pwmN_scores.add(pwmN);
-			PWM_time += System.currentTimeMillis() - pwm_t;
+			posRegions.trimToSize();
+			Collections.sort(posRegions);
+			System.out.println("Got regions:\t"+CommonUtils.timeElapsed(t));
 			
-			long ksm_t = System.currentTimeMillis();
-			KmerGroup kg = scanner.getBestKG(seq);
-			KmerGroup kgN = scanner.getBestKG(seqN);
-			ksm_scores.add(kg==null?0:-kg.getHgp());
-			ksmN_scores.add(kgN==null?0:-kgN.getHgp());
-			KSM_time += System.currentTimeMillis() - ksm_t;
-			sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d\n", r.toString(), name_N, pwm, pwmN, 
-					kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp(), 
-					kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
-					kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount()));
-		}
-		
-		System.out.println("Total PWM scanning time:" + PWM_time);
-		System.out.println("Total KSM scanning time:" + KSM_time);
-		
-		CommonUtils.writeFile(outName+"_w"+width+"_scores.txt", sb.toString());
-		System.out.println(outName+"_w"+width+"_scores.txt");
-		
-		if (flags.contains("compute_enrichment")){
-			ArrayList<ScoreEnrichment> pwm_se = computeScoreEnrichments(pwm_scores, pwmN_scores);
-			sb = new StringBuilder();
-			for (ScoreEnrichment se: pwm_se){
-				sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
-			}
-			CommonUtils.writeFile(outName+"_w"+width+"_pwm_enrichment.txt", sb.toString());
+			ArrayList<Double> pwm_scores = new ArrayList<Double>();
+			ArrayList<Double> pwmN_scores = new ArrayList<Double>();
+			ArrayList<Double> ksm_scores = new ArrayList<Double>();
+			ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 			
-			ArrayList<ScoreEnrichment> ksm_se = computeScoreEnrichments(ksm_scores, ksmN_scores);
-			sb = new StringBuilder();
-			for (ScoreEnrichment se: ksm_se){
-				sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+			Random randObj = new Random(Args.parseInteger(args, "rand_seed", 0));
+			System.out.println("Scanning "+posRegions.size()+" regions ...");
+			int PWM_time = 0;
+			int KSM_time = 0;
+			for (Region r:posRegions){
+				String seq = seqgen.execute(r).toUpperCase();
+				
+				String name_N = "----";
+				String seqN;
+	//			if (flags.contains("shuffle"))
+	//				seqN = SequenceUtils.shuffle(seq, randObj);
+				if (flags.contains("di-shuffle"))
+					seqN = SequenceUtils.dinu_shuffle(seq, randObj);
+				else{
+					Region rN = reg2reg.get(r);
+					seqN = seqgen.execute(rN).toUpperCase();
+					name_N = rN.toString();
+				}
+				long pwm_t = System.currentTimeMillis();
+				double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
+				pwm_scores.add(pwm);
+				double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
+				pwmN_scores.add(pwmN);
+				PWM_time += System.currentTimeMillis() - pwm_t;
+				
+				long ksm_t = System.currentTimeMillis();
+				KmerGroup kg = scanner.getBestKG(seq);
+				KmerGroup kgN = scanner.getBestKG(seqN);
+				ksm_scores.add(kg==null?0:-kg.getHgp());
+				ksmN_scores.add(kgN==null?0:-kgN.getHgp());
+				KSM_time += System.currentTimeMillis() - ksm_t;
+				sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d\n", r.toString(), name_N, pwm, pwmN, 
+						kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp(), 
+						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
+						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount()));
 			}
-			CommonUtils.writeFile(outName+"_w"+width+"_ksm_enrichment.txt", sb.toString());
+			
+			System.out.println("Total PWM scanning time:" + PWM_time);
+			System.out.println("Total KSM scanning time:" + KSM_time);
+			
+			CommonUtils.writeFile(expt+"_w"+width+"_scores.txt", sb.toString());
+			System.out.println(expt+"_w"+width+"_scores.txt");
+			
+			if (flags.contains("compute_enrichment")){
+				ArrayList<ScoreEnrichment> pwm_se = computeScoreEnrichments(pwm_scores, pwmN_scores);
+				sb = new StringBuilder();
+				for (ScoreEnrichment se: pwm_se){
+					sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+				}
+				CommonUtils.writeFile(expt+"_w"+width+"_pwm_enrichment.txt", sb.toString());
+				
+				ArrayList<ScoreEnrichment> ksm_se = computeScoreEnrichments(ksm_scores, ksmN_scores);
+				sb = new StringBuilder();
+				for (ScoreEnrichment se: ksm_se){
+					sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+				}
+				CommonUtils.writeFile(expt+"_w"+width+"_ksm_enrichment.txt", sb.toString());
+			}
+		    System.out.println(expt + " is done:\t"+CommonUtils.timeElapsed(tic));
 		}
 //		KmerGroup[] kgs = scanner.query("TATTTACATGCAGTGTCCGGAAGACGCCAGAAGAGGGCAGTAGATGCCCTAGTAGTGGAGC");
 //		for (KmerGroup kg:kgs){
