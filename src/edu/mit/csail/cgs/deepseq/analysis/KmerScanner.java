@@ -112,7 +112,7 @@ public class KmerScanner {
 		
 		// load experiment list
 		String path = Args.parseString(args, "path", "./");
-		ArrayList<String> expts = CommonUtils.readTextFile(path+Args.parseString(args, "expts", null));
+		ArrayList<String> expts = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
 		for (String expt: expts){
 			System.out.println("Running "+expt);
 			long tic = System.currentTimeMillis();
