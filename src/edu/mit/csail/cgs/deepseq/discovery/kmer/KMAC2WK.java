@@ -4165,7 +4165,7 @@ public class KMAC2WK {
      			b_neg.or(km.negBits);
     		}
      		posHitGroupCount = b_pos.cardinality();
-    		negHitGroupCount = b_pos.cardinality();
+    		negHitGroupCount = b_neg.cardinality();
 		}		
 		public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights){
 			this.bs = bs;
