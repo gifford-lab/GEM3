@@ -64,11 +64,21 @@ public class GappedKmer extends Kmer{
 		linkSubKmers();
 	}
 	
+	/**
+	 * Clone for output only. It does not set up correct GK-SK linkages.
+	 */
 	public GappedKmer clone(){
-		GappedKmer n = new GappedKmer(kmerString);
+		GappedKmer n = new GappedKmer(getKmerString());
+		n.clusterId = clusterId;
+		n.shift = shift;
+		n.setNegHits((HashSet<Integer>)negHits.clone());
+		n.setPosHits((HashSet<Integer>)posHits.clone());
+		n.hgp_lg10 = hgp_lg10;
+		n.kmerStartOffset = kmerStartOffset;
+		n.isSeedOrientation = isSeedOrientation;
 		for (Kmer km:subKmers.keySet())
 			n.addSubKmer(km.clone(), subKmers.get(km));
-		n.update();
+//		n.update();
 		return n;
 	}
 	

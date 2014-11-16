@@ -2,7 +2,6 @@ package edu.mit.csail.cgs.deepseq.utilities;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
@@ -22,8 +21,6 @@ import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.datasets.general.Point;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 /**
  * Modify from AlignmentFileReader.java
  * 
@@ -408,14 +405,14 @@ public class ReadCache {
 	 * that puts more weight on nearby bases (same chrom, same strand),
 	 * the position being considered is excluded for Guassian Kernel computation
 	 */
-	public void applyPoissonGaussianFilter(double threshold, int width){
+	public void applyPoissonGaussianFilter(double threshold, int width, int rand_seed){
         //init the Guassian kernel prob. for smoothing the read profile of called events
 		double g[] = new double[width*4+1];
 		NormalDistribution gaussianDist = new NormalDistribution(0, width*width);
 		for (int i=0;i<g.length;i++)
 			g[i]=gaussianDist.calcProbability((double)i);
 		
-		DRand re = new DRand();
+		DRand re = new DRand(rand_seed);
 		Poisson P = new Poisson(0, re);
 			
 		for(int i = 0; i < hitCounts.length; i++)

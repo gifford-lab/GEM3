@@ -42,9 +42,9 @@ public class KmerScanner {
 	private ArrayList<String> methodNames = new ArrayList<String>();
 	private ArrayList<ArrayList<Point>> events = new ArrayList<ArrayList<Point>>();
 	
-	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount){
+	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, boolean use_sub_kmer){
 		this.kmers = kmers;
-		kEngine = new KMAC2WK(kmers, null);
+		kEngine = new KMAC2WK(kmers, null, use_sub_kmer);
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 	}
 	
@@ -138,7 +138,7 @@ public class KmerScanner {
 	//		kmers.removeAll(toRemove);
 	//		kmers.trimToSize();
 			Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
-			KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr());
+			KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr(), !flags.contains("use_sub_kmer"));
 			System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 		    
 		    // PWM

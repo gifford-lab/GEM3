@@ -745,7 +745,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		insignificantFeatures = new ArrayList<Feature>();
 		filteredFeatures = new ArrayList<Feature>();
 		for (ComponentFeature cf:compFeatures){
-			if (config.is_branch_point_data){	// branch ponit is on the oppposite strand of the reads
+			if (config.is_branch_point_data){	// branch point is on the opposite strand of the reads
 				cf.setStrand(cf.getStrand()=='+'?'-':'+');
 			}
 			boolean significant = false;
@@ -2639,9 +2639,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		if (printFilterMsg)
 			System.out.println("\nFilter duplicate reads.");
 		for(int c = 0; c < numConditions; c++) {
-			caches.get(c).car().applyPoissonGaussianFilter(10e-3, 20);
+			caches.get(c).car().applyPoissonGaussianFilter(10e-3, 20, config.rand_seed);
 			if(controlDataExist) {
-				caches.get(c).cdr().applyPoissonGaussianFilter(10e-3, 20);
+				caches.get(c).cdr().applyPoissonGaussianFilter(10e-3, 20, config.rand_seed);
 			}
 		}	 		
 		
@@ -4313,16 +4313,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            				int wmLen = cluster.wm.length();
 	            				EACH_HIT: for (int i=0;i<profiler.length();i++){
 	            					double max = profiler.getMaxScore(i);
-	            					if (max<cluster.pwmThreshold/2)
-	            						continue;
+	            					if (max<cluster.pwmThreshold)		//TODO: want to relax the threshold??
+	            						continue EACH_HIT;
 	            					char strand = profiler.getMaxStrand(i);
 	            					int pos = cluster.pos_BS_seed-cluster.pos_pwm_seed;
 	            					if (strand=='+')
 	            						pos = pos + i;
 	            					else
 	            						pos = i + wmLen -1 + (-pos);
-	            					if (pos<0||pos>=seq.length())
-	            						continue;
+	            					if (pos<0||pos>=seq.length())		// if match falls out of the sequence
+	            						continue EACH_HIT;
 			                		int neighbourStart = Math.max(0, pos-wmLen/2);
 			                		int neighbourEnd = Math.min(pp_kmer.length, pos+wmLen/2+1);
 			                		for (int p=neighbourStart;p<neighbourEnd;p++){

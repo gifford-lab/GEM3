@@ -178,14 +178,11 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	public Kmer clone(){
-		HashSet<Integer> hits = new HashSet<Integer>();
-		hits.addAll(this.posHits);
-		Kmer n = new Kmer(getKmerString(), hits);
+		Kmer n = new Kmer(getKmerString(), (HashSet<Integer>)this.posHits.clone());
 		n.clusterId = clusterId;
 		n.strength = strength;
 		n.shift = shift;
-		n.negHits = new HashSet<Integer>();
-		n.negHits.addAll(negHits);
+		n.setNegHits((HashSet<Integer>)negHits.clone());
 		n.hgp_lg10 = hgp_lg10;
 		n.alignString = alignString;
 		n.kmerStartOffset = kmerStartOffset;
@@ -193,6 +190,7 @@ public class Kmer implements Comparable<Kmer>{
 		n.isSeedOrientation = isSeedOrientation;
 		return n;
 	}
+	
 	/** Add this kmer into the register set*/
 	public void addBasicKmersToSet(HashSet<Kmer> reg){
 		reg.add(this);
