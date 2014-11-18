@@ -537,7 +537,7 @@ public class KMAC2WK {
 				clusters = tmp;
 	
 				if (config.verbose>1)
-					System.out.println("\nMerge overlapping motif clusters ...\n");
+					System.out.println("\nMerge redundant motifs ...");
 				boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// a table indicating whether a pair has been checked
 				
 				tic = System.currentTimeMillis();
@@ -562,63 +562,66 @@ public class KMAC2WK {
 		
 		// merge motifs from all K values
 		// sort clusters, set clusterid
-		Collections.sort(allClusters);
-		for (int j=0;j<allClusters.size();j++){
-			allClusters.get(j).clusterId = j;
-		}
-		clusters = allClusters;
-		
-		if (config.verbose>1)
-			System.out.println("\n---------------------------------------------\nMerge all overlapping motif clusters ...\n");
+		if (allClusters.size()>1){
+			Collections.sort(allClusters);
+			for (int j=0;j<allClusters.size();j++){
+				allClusters.get(j).clusterId = j;
+			}
+			clusters = allClusters;
 
-		StringBuilder sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +" ----------------------------\n");
-		for (KmerCluster c:clusters){
+			StringBuilder sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +" ----------------------------\n");
+			if (config.verbose>1)
+				System.out.println("\n---------------------------------------------\nMotifs from all k values:\n");
+			for (KmerCluster c:clusters){
+				if (config.evaluate_by_ksm){
+					sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tTopKmer=%s\n", c.k, c.ksmThreshold.posHit, c.ksmThreshold.negHit, 
+							c.ksmThreshold.hgp, c.seedKmer.getKmerString()));
+				}
+				else if (c.wm!=null){
+					sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", c.k, c.pwmPosHitCount,  c.pwmNegHitCount,
+							c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
+				}
+	//			if (c.wm!=null){
+	//				pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
+	//						String.format("DE %s_%d_k%d_c%d", config.out_name, c.clusterId, c.k, c.pwmPosHitCount)));
+	//			}
+			}
+			sb_all.append("\n");
+			System.out.print(sb_all.toString());
+			
+			tic = System.currentTimeMillis();
+			boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// a table indicating whether a pair has been checked
+			mergeOverlapMotifs (seqList, checked, config.use_ksm, 0);
+			if (config.verbose>1)
+				System.out.println("\nFinished merging motifs.\n");
+	
+			// remove clusters with low hit count
+			ArrayList<KmerCluster> toRemove = new ArrayList<KmerCluster>();
+			for (int i=0;i<clusters.size();i++){
+				KmerCluster c = clusters.get(i);
+				double hitRatio = (double)c.pwmPosHitCount / posSeqCount;
+				if (i>=10&&hitRatio<config.motif_hit_factor_report || hitRatio<config.motif_hit_factor)
+						toRemove.add(c);
+				if (config.evaluate_by_ksm && c.ksmThreshold.hgp>config.hgp)
+					toRemove.add(c);
+				if (!config.evaluate_by_ksm && c.pwmThresholdHGP>config.hgp)
+						toRemove.add(c);
+			}
+			clusters.removeAll(toRemove);
+			
 			if (config.evaluate_by_ksm){
-				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tTopKmer=%s\n", c.k, c.ksmThreshold.posHit, c.ksmThreshold.negHit, 
-						c.ksmThreshold.hgp, c.seedKmer.getKmerString()));
+				Collections.sort(clusters, new Comparator<KmerCluster>() {
+	                public int compare(KmerCluster o1, KmerCluster o2) {
+	                    return o1.compareToByKsmHGP(o2);
+	                }
+	            });
 			}
-			else if (c.wm!=null){
-				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", c.k, c.pwmPosHitCount,  c.pwmNegHitCount,
-						c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
+			else{
+				Collections.sort(clusters);
 			}
-//			if (c.wm!=null){
-//				pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
-//						String.format("DE %s_%d_k%d_c%d", config.out_name, c.clusterId, c.k, c.pwmPosHitCount)));
-//			}
-		}
-		sb_all.append("\n");
-		System.out.print(sb_all.toString());
-		
-		tic = System.currentTimeMillis();
-		boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// a table indicating whether a pair has been checked
-		mergeOverlapMotifs (seqList, checked, config.use_ksm, 0);
-		if (config.verbose>1)
-			System.out.println("\nFinished merging motifs.\n");
 
-		// remove clusters with low hit count
-		ArrayList<KmerCluster> toRemove = new ArrayList<KmerCluster>();
-		for (int i=0;i<clusters.size();i++){
-			KmerCluster c = clusters.get(i);
-			double hitRatio = (double)c.pwmPosHitCount / posSeqCount;
-			if (i>=10&&hitRatio<config.motif_hit_factor_report || hitRatio<config.motif_hit_factor)
-					toRemove.add(c);
-			if (config.evaluate_by_ksm && c.ksmThreshold.hgp>config.hgp)
-				toRemove.add(c);
-			if (!config.evaluate_by_ksm && c.pwmThresholdHGP>config.hgp)
-					toRemove.add(c);
 		}
-		clusters.removeAll(toRemove);
 		
-		if (config.evaluate_by_ksm){
-			Collections.sort(clusters, new Comparator<KmerCluster>() {
-                public int compare(KmerCluster o1, KmerCluster o2) {
-                    return o1.compareToByKsmHGP(o2);
-                }
-            });
-		}
-		else{
-			Collections.sort(clusters);
-		}
 		for (int j=0;j<clusters.size();j++){
 			clusters.get(j).clusterId = j;
 		}
@@ -643,27 +646,20 @@ public class KMAC2WK {
 		}
 		
 		// show all the motifs for k, after merging
-		sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +" ----------------------------\n");
-//		StringBuilder pfm_sb = new StringBuilder();
-		for (KmerCluster c:clusters){
-			if (config.evaluate_by_ksm){
-				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tTopKmer=%s\n", c.k, c.ksmThreshold.posHit, c.ksmThreshold.negHit, 
-						c.ksmThreshold.hgp, c.seedKmer.getKmerString()));
-			}
-			else if (c.wm!=null){
-				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", c.k, c.pwmPosHitCount,  c.pwmNegHitCount,
-						c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
-			}
-//			if (c.wm!=null){
-//				pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
-//						String.format("DE %s_%d_k%d_c%d", config.out_name, c.clusterId, c.k, c.pwmPosHitCount)));
+//		StringBuilder sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +" ----------------------------\n");
+//		for (KmerCluster c:clusters){
+//			if (config.evaluate_by_ksm){
+//				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tTopKmer=%s\n", c.k, c.ksmThreshold.posHit, c.ksmThreshold.negHit, 
+//						c.ksmThreshold.hgp, c.seedKmer.getKmerString()));
 //			}
-		}
-		sb_all.append("\n");
-		System.out.print(sb_all.toString());
+//			else if (c.wm!=null){
+//				sb_all.append(String.format("k=%d\thit=%d+/%d-\thgp=1e%.1f\tW=%d\tPWM=%s.\n", c.k, c.pwmPosHitCount,  c.pwmNegHitCount,
+//						c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
+//			}
+//		}
+//		sb_all.append("\n");
+//		System.out.print(sb_all.toString());
 		
-//		CommonUtils.writeFile(outName+".all.PFM.txt", pfm_sb.toString());
-
 		if (clusters.isEmpty()){
 			System.out.println("\n----------------------------------------------\nNone of the k values form an enriched PWM, stop here!\n");
 			File f = new File(outName);
@@ -1561,6 +1557,8 @@ public class KMAC2WK {
 		String name = f.getName();
 		f=null;
 			
+		System.out.println("\n------------------------- "+ name +" final motifs----------------------------\n");
+
 		// output kmer alignments
 		StringBuilder alignedKmer_sb = new StringBuilder();
 		for (KmerCluster c:clusters){
@@ -1598,12 +1596,12 @@ public class KMAC2WK {
 		StringBuilder pfm_homer_sb = new StringBuilder();		// HOMER format
 		for (KmerCluster c:clusters){
      		WeightMatrix wm = c.wm;
-    		System.out.println(String.format("--------------------------------------------------------------\n%s k-mer cluster #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
+    		System.out.println(String.format("--------------------------------------------------------------\n%s motif #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
     		if (pos>=0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
     		else
-    			System.out.println(WeightMatrix.printMatrixLetters(wm));
+    			System.out.println(WeightMatrix.printMatrixLetters(wm).trim());
     		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold, c.wm.getMaxScore(), c.pwmPosHitCount, c.pwmNegHitCount, c.pwmThresholdHGP));
     		pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmPosHitCount, 
     				String.format("DE %s_m%d_k%d_p%d_c%d", name, c.clusterId, c.k, pos, c.pwmPosHitCount)));
@@ -1616,9 +1614,10 @@ public class KMAC2WK {
 			if (config.outputHOMER)				
 				pfm_homer_sb.append(CommonUtils.makeHOMER (c.pfm, c.pwmPosHitCount, 
 						String.format("DE %s_m%d_k%d_p%d_c%d", name, c.clusterId, c.k, pos, c.pwmPosHitCount)));
-    		if (config.use_ksm && c.ksmThreshold!=null)
+    		if (config.use_ksm && c.ksmThreshold!=null){
+    			System.out.println(String.format("\nKSM top k-mer: %s, total %d k-mers", c.seedKmer.getKmerStrRC(), c.alignedKmers.size()));    			
     			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=1e%.1f", c.ksmThreshold.score, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.hgp));
-			
+    		}
 			// paint motif logo
 			c.wm.setNameVerType(name, "m"+c.clusterId, null);
 			CommonUtils.printMotifLogo(c.wm, new File(outName+".m"+c.clusterId+".PWM.png"), 75);
@@ -1733,7 +1732,7 @@ public class KMAC2WK {
 		if (recursion>10)
 			return;
 		if (config.verbose>1)
-    		System.out.println("\n"+CommonUtils.timeElapsed(tic)+": Merge overlapping motifs, iteration " + recursion);
+    		System.out.println("\n"+CommonUtils.timeElapsed(tic)+": Merge redundant motifs, iteration " + recursion);
 		boolean isChanged = false;
 		int maxClusterId=0;
 		for (KmerCluster c:clusters)
@@ -1808,7 +1807,7 @@ public class KMAC2WK {
 				
 				if (maxCount>=minHitCount*config.motif_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
 					if (config.verbose>1)
-			    		System.out.println(String.format("\n%s: Motifs to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d %s\t(hit=%d, hgp=1e%.1f)\n#%d %s\t(hit=%d, hgp=1e%.1f)\n", 
+			    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d %s\t(hit=%d, hgp=1e%.1f)\n#%d %s\t(hit=%d, hgp=1e%.1f)\n", 
 			    				CommonUtils.timeElapsed(tic), maxCount, maxDist, isRC?"rc":"", 
 			    				cluster1.clusterId, WeightMatrix.getMaxLetters(cluster1.wm), cluster1.pwmPosHitCount, cluster1.pwmThresholdHGP, 
 			    				cluster2.clusterId, WeightMatrix.getMaxLetters(cluster2.wm), cluster2.pwmPosHitCount, cluster2.pwmThresholdHGP));
@@ -2046,7 +2045,11 @@ public class KMAC2WK {
 		}
 		int seqLen = seqs[0].length();
 		for (int m=0;m<1;m++){
+			if (clusters.get(m).wm==null)
+				continue;
 			for (int j=0;j<clusters.size();j++){
+				if (clusters.get(j).wm==null)
+					continue;
 				int range = seqLen - clusters.get(m).wm.length()/2 - clusters.get(j).wm.length()/2 + 1;	// add 1 to correct for ceiling effect
 				int[] same = new int[range*2+1];
 				int[] diff = new int[range*2+1];
@@ -2864,6 +2867,8 @@ public class KMAC2WK {
 			// find the most frequent kmerPos
 			Pair<int[], int[]> sorted = StatUtil.sortByOccurences(posKmer);
 			int counts[] = sorted.cdr();
+			if (counts.length<1)
+				continue;
 			int posSorted[] = sorted.car();
 			int maxCount = counts[counts.length-1];
 			// posKmer.size() only count in seqs in the alignment, getPosHitCount() count all seqs
