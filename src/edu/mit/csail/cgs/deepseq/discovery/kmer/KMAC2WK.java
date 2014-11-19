@@ -1357,6 +1357,7 @@ public class KMAC2WK {
 			s.removeAllKmers(basicKmers);
 		}
 	}
+	
 	/**
 	 * This is the main method for KMAC2 (density clustering) motif discovery
 	 */
@@ -1911,6 +1912,7 @@ public class KMAC2WK {
 					for (Sequence s:seqList)
 						if (s.pos == UNALIGNED)
 							seqList_j.add(s);
+					indexKmerSequences(k2kmers.get(cluster2.k), seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 					int aligned_seqs_count = alignSequencesUsingPWM(seqList_j, cluster2);
 					
 					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
@@ -2530,7 +2532,7 @@ public class KMAC2WK {
     			if (pwmThresholdHGP==0)
     				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
         		else
-        			System.out.println(String.format("%s: PWM score %.2f/%.2f\tmatch %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), 
+        			System.out.println(String.format("%s: PWM threshold %.2f/%.2f\tmatch %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), 
         					pwmThreshold, wm.getMaxScore(), estimate.posHit, estimate.negHit, pwmThresholdHGP, WeightMatrix.getMaxLetters(wm)));
     		if (pwmThresholdHGP<=bestHGP){
     			bestWM = wm;
@@ -2815,7 +2817,7 @@ public class KMAC2WK {
 			if (threshold==null)
 				return;
 			if (config.verbose>1)
-				System.out.println(String.format("%s: KSM score %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
+				System.out.println(String.format("%s: KSM threshold %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
 						CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
 		}
 	}
