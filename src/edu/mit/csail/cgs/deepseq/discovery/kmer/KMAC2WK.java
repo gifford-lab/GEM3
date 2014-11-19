@@ -1595,6 +1595,8 @@ public class KMAC2WK {
 		StringBuilder pfm_meme_sb = new StringBuilder();		// MEME format
 		StringBuilder pfm_homer_sb = new StringBuilder();		// HOMER format
 		for (KmerCluster c:clusters){
+			if (c.wm==null)
+				continue;
      		WeightMatrix wm = c.wm;
     		System.out.println(String.format("--------------------------------------------------------------\n%s motif #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
@@ -1755,8 +1757,6 @@ public class KMAC2WK {
 		ArrayList<KmerCluster> toRemove = new ArrayList<KmerCluster>();
 		for (int m=0;m<clusters.size();m++){
 			for (int j=m+1;j<clusters.size();j++){
-//				if (m>=clusters.size()||j>=clusters.size())			// removing a cluster may change the cluster index/size
-//					continue;
 				KmerCluster cluster1 = clusters.get(m);
 				KmerCluster cluster2 = clusters.get(j);
 				if (cluster1.pwmThresholdHGP > cluster2.pwmThresholdHGP){
