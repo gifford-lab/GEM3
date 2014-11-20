@@ -631,7 +631,11 @@ public class KMAC2WK {
 		for (KmerCluster cluster: clusters){
 			if (cluster.wm!=null){
 				indexKmerSequences(k2kmers.get(cluster.k), seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
-	    		alignSequencesUsingPWM(seqList, cluster);
+				int pwm_hit_count = alignSequencesUsingPWM(seqList, cluster);
+		    	if (config.verbose>1)
+		    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster.wm)+" align "
+		    				+ pwm_hit_count+" sequences.");
+
 	    		if (cluster.pwmPosHitCount>cluster.total_aligned_seqs)
 	    			cluster.total_aligned_seqs = cluster.pwmPosHitCount;
 		    	NewKSM newKSM = extractKSM (seqList, cluster.seedKmer.getK(), new ArrayList<Kmer>());
@@ -1431,7 +1435,12 @@ public class KMAC2WK {
 
 		return cluster;
 	}
-	
+	/**
+	 * alignSequencesUsingKmers will reset the sequences then align them
+	 * @param kmers
+	 * @param cluster
+	 */
+			
 	private void alignSequencesUsingKmers (ArrayList<Kmer> kmers, KmerCluster cluster){
 
 		HashSet<Kmer> kmerSet = new HashSet<Kmer>();
@@ -1441,6 +1450,7 @@ public class KMAC2WK {
 		for (Kmer km:kmers)
 			kmerLinkedSeqIds.addAll(km.getPosHits());
 		
+		int ksm_hit_count=0;
 		for (Sequence s : seqList){
     		s.resetAlignment();	
 			if (!kmerLinkedSeqIds.contains(s.id))
@@ -1451,6 +1461,7 @@ public class KMAC2WK {
 			Arrays.sort(matches);
 			KmerGroup kg = matches[0];	// take the top kg as match
 			if (kg.hgp<=-cluster.ksmThreshold.score){
+				ksm_hit_count++;
 				s.score = -kg.hgp;		// score = -log10 hgp, becomes positive value
 				if (kg.bs>RC/2){		// match on reverse strand
 					s.RC();
@@ -1460,8 +1471,8 @@ public class KMAC2WK {
 					s.pos = -kg.bs;
 			}
 		}
-//		if (config.verbose>1)
-//			System.out.println(CommonUtils.timeElapsed(tic)+ ": alignSequencesUsingKmers, done scan pos sequences.");
+		if (config.verbose>1)
+			System.out.println(CommonUtils.timeElapsed(tic)+ ": KSM align "+ ksm_hit_count +" equences.");
 	}
 	
 	/** 
@@ -1818,12 +1829,15 @@ public class KMAC2WK {
 					KmerCluster newCluster = cluster1.clone();
 					for (Sequence s:seqList)
 						s.resetAlignment();
-					alignSequencesUsingPWM(seqList, newCluster);	// align with first PWM
-					
+					int count_pwm_aligned = alignSequencesUsingPWM(seqList, newCluster);	// align with first PWM
+			    	if (config.verbose>1)
+			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(newCluster.wm)
+			    				+" align " + count_pwm_aligned+" sequences.");
+
 					// align additional sequences matching second PWM
 					WeightMatrix wm = isRC?WeightMatrix.reverseComplement(cluster2.wm):cluster2.wm;
 			        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);		
-					int count_pwm_aligned=0;
+					count_pwm_aligned=0;
 					for (Sequence s:seqList){
 			    	  String seq = s.getSeq();			// PWM to scan unaligned sequence, and align if pass threshold
 			    	  if (s.pos!=UNALIGNED )
@@ -1872,7 +1886,11 @@ public class KMAC2WK {
 					indexKmerSequences(k2kmers.get(newCluster.k), seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 					if (newPWM!=null){
 						newPWM.updateClusterPwmInfo(newCluster);
-						alignSequencesUsingPWM(seqList, newCluster);
+						count_pwm_aligned = alignSequencesUsingPWM(seqList, newCluster);
+				    	if (config.verbose>1)
+				    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(newCluster.wm)
+				    				+" align " + count_pwm_aligned+" sequences.");
+
 					}
 					
 					// Iteratively improve PWM and sequences alignment
@@ -1907,13 +1925,20 @@ public class KMAC2WK {
 			    			CommonUtils.timeElapsed(tic), cluster2.clusterId));						
 					for (Sequence s:seqList)
 						s.resetAlignment();
-					alignSequencesUsingPWM(seqList, cluster1);
+					count_pwm_aligned = alignSequencesUsingPWM(seqList, cluster1);
+			    	if (config.verbose>1)
+			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster1.wm)
+			    				+" align " + count_pwm_aligned+" sequences.");
+
 					ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
 					for (Sequence s:seqList)
 						if (s.pos == UNALIGNED)
 							seqList_j.add(s);
 					indexKmerSequences(k2kmers.get(cluster2.k), seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 					int aligned_seqs_count = alignSequencesUsingPWM(seqList_j, cluster2);
+			    	if (config.verbose>1)
+			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)
+			    				+" align additional " + aligned_seqs_count+" sequences.");
 					
 					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
 					if (aligned_seqs_count<seqs.length*config.motif_hit_factor || aligned_seqs_count<cluster2.pwmPosHitCount/3){
@@ -2007,8 +2032,11 @@ public class KMAC2WK {
 			}
 			else
 				newPWM.updateClusterPwmInfo(cluster);
-			alignSequencesUsingPWM(seqList, cluster);
-			
+			int pwm_hit_count = alignSequencesUsingPWM(seqList, cluster);
+	    	if (config.verbose>1)
+	    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster.wm)+" align "
+	    				+ (config.evaluate_by_ksm?"additional ":"") + pwm_hit_count+" sequences.");
+
 			if (use_KSM){
 				NewKSM newKSM = extractKSM (seqList, seed_range, null);
 				if (newKSM==null ||newKSM.threshold==null || config.evaluate_by_ksm && (newKSM.threshold.hgp >= cluster.ksmThreshold.hgp))
@@ -2532,7 +2560,7 @@ public class KMAC2WK {
     			if (pwmThresholdHGP==0)
     				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
         		else
-        			System.out.println(String.format("%s: PWM threshold %.2f/%.2f\tmatch %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), 
+        			System.out.println(String.format("%s: PWM %.2f/%.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), 
         					pwmThreshold, wm.getMaxScore(), estimate.posHit, estimate.negHit, pwmThresholdHGP, WeightMatrix.getMaxLetters(wm)));
     		if (pwmThresholdHGP<=bestHGP){
     			bestWM = wm;
@@ -2723,10 +2751,6 @@ public class KMAC2WK {
 	        	  s.pos = UNALIGNED;
 	        }	// each sequence
 
-	    	if (config.verbose>1)
-	    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" align "
-	    				+ (config.evaluate_by_ksm?"additional ":"") + count_pwm_aligned+" sequences.");
-	    	
 	    	return count_pwm_aligned;
 	}
 	
@@ -2817,7 +2841,7 @@ public class KMAC2WK {
 			if (threshold==null)
 				return;
 			if (config.verbose>1)
-				System.out.println(String.format("%s: KSM threshold %.2f\tmatch %d+/%d- seqs\thgp=1e%.1f", 
+				System.out.println(String.format("%s: KSM KG_cutoff %.2f\thit %d+/%d- seqs\thgp=1e%.1f", 
 						CommonUtils.timeElapsed(tic), threshold.score, threshold.posHit, threshold.negHit, threshold.hgp));
 		}
 	}
