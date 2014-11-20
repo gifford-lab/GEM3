@@ -112,8 +112,10 @@ public class KmerScanner {
 		
 		// load experiment list
 		String path = Args.parseString(args, "path", "./");
-		ArrayList<String> expts = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
-		for (String expt: expts){
+		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+		for (String line: lines){
+			String f[] = line.split("\t");
+			String expt = f[0];
 			System.out.println("Running "+expt);
 			long tic = System.currentTimeMillis();
 			// k-mer group info
