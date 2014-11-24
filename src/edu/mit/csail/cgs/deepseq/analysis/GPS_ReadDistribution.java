@@ -153,17 +153,17 @@ public class GPS_ReadDistribution {
 				for(int z=0; z<=r.getWidth()/2; z++){
 					if (MOTIF_DISTANCE+z>=profiler.length())
 						continue;
-					double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
-					double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);	
+					double leftScore= profiler.getHigherScore(MOTIF_DISTANCE-z);
+					double rightScore= profiler.getHigherScore(MOTIF_DISTANCE+z);	
 					int position = -Integer.MAX_VALUE;	// middle of motif, relative to GPS peak
 					char strand = '*';
 					if(rightScore>=motifThreshold){
 						position = z+halfWidth;
-						strand = profiler.getMaxStrand(MOTIF_DISTANCE+z);
+						strand = profiler.getHigherScoreStrand(MOTIF_DISTANCE+z);
 					}
 					if(leftScore>=motifThreshold && leftScore>rightScore){
 						position = -z+halfWidth;
-						strand = profiler.getMaxStrand(MOTIF_DISTANCE-z);
+						strand = profiler.getHigherScoreStrand(MOTIF_DISTANCE-z);
 					}
 					if(position > -Integer.MAX_VALUE){
 						Point motifPos = null;

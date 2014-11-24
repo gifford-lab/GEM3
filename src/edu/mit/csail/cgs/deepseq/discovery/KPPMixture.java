@@ -202,7 +202,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			cleanUpDataLoader();
     		System.exit(-1);
 		}
-     // if mappable_genome_length is not provided, compute as 0.8 of total genome size
+		if (config.SCAN_RANGE > this.modelWidth/6)
+			config.SCAN_RANGE = this.modelWidth/6;
+
+    	// if mappable_genome_length is not provided, compute as 0.8 of total genome size
         if (config.mappable_genome_length<0){		
 	        config.mappable_genome_length = 0.8 * gen.getGenomeSize();
 	        System.out.println(String.format("\nMappable Genome Length is %,d.", (long)config.mappable_genome_length));
@@ -2574,15 +2577,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			maxComp.setCondSumResponsibility(c, hitCounts[c]);
 		}
 		
-		if(config.use_betaEM) {
-			for (int c=0;c<numConditions;c++)
-				maxComp.setConditionBeta(c, hitCounts[c]/totalHitCounts);  //beta is being evaluated for one point across all conditions
-		}
-		else {
-			for(int c=0; c<numConditions; c++)
-				if(maxComp.getSumResponsibility(c) > 0.0)
-					maxComp.setConditionBeta(c, 1.0);   //beta is being evaluated for each condition separately
-		}
+		for (int c=0;c<numConditions;c++)
+			maxComp.setConditionBeta(c, hitCounts[c]/totalHitCounts);  //beta is being evaluated for one point across all conditions
 
 		int coord = maxComp.getLocation().getLocation();
 		for(int c=0; c<numConditions; c++){
@@ -4069,11 +4065,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                                         		b.setStrand(m.getStrand());
                                             b.setAlpha(m.getAlpha());	// inherit alpha value from previous EM component
                                             b.setNoiseFraction(m.getNoiseFraction());
-                                            if(!config.use_betaEM) {
-                                                for(int c = 0; c < numConditions; c++) { 
-                                                    b.setConditionBeta(c, m.getConditionBeta(c)); 
-                                                }
-                                            }
                                             break;   // Once you found a previous component on the same location as b, there is no need to search all the others
                                         }
                                     }
@@ -4312,10 +4303,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            				WeightMatrixScoreProfile profiler = scorer.execute(seq);
 	            				int wmLen = cluster.wm.length();
 	            				EACH_HIT: for (int i=0;i<profiler.length();i++){
-	            					double max = profiler.getMaxScore(i);
-	            					if (max<cluster.pwmThreshold)		//TODO: want to relax the threshold??
+	            					double max = profiler.getHigherScore(i);
+	            					if (max<cluster.pwmThreshold/(config.is_branch_point_data?1:2))		//TODO: want to relax the threshold??
 	            						continue EACH_HIT;
-	            					char strand = profiler.getMaxStrand(i);
+	            					char strand = profiler.getHigherScoreStrand(i);
 	            					int pos = cluster.pos_BS_seed-cluster.pos_pwm_seed;
 	            					if (strand=='+')
 	            						pos = pos + i;
@@ -4709,10 +4700,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     comp.setMixProb(pi[j]);
                     comp.setAlpha(alpha);
                     comp.setNoiseFraction(noiseProb);
+                    comp.setOld_index(j);
                     for(int c=0; c<numConditions; c++){
-                        double[] bc = b[c];
-                        comp.setConditionBeta(c, bc[j]);
-                        comp.setOld_index(j);
+                        comp.setConditionBeta(c, b[c][j]);
                     }
                     nonZeroComponents.add(comp);
                 }
@@ -4721,6 +4711,41 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
             // Assign the summed responsibilities only to non-zero components at 1bp resolution
             if (componentSpacing==1){
+            	// TODO: perhaps merge the nearst two event first if more than two are very close, but this merging is not very principled anyway ...
+            	// if min_event_distance is set, merge events that are too close
+            	if (config.min_event_distance!=1){
+            		while(true){
+	            		boolean merged = false;
+	            		ArrayList<BindingComponent> losers = new ArrayList<BindingComponent>();
+	            		for(int j=1;j<components.size();j++){	
+	            			BindingComponent b1 = components.get(j-1);
+	            			BindingComponent b2 = components.get(j);
+	            			if (pos_alpha[b1.getOld_index()]!=0 ||pos_alpha[b2.getOld_index()]!=0)
+	            				continue;		// skip if one of them have motif match
+	            			if (b1.getLocation().distance(b2.getLocation()) < config.min_event_distance){
+	            				merged = true;
+	            				if (b1.getMixProb()<b2.getMixProb()){	// switch such at b1 is larger
+	            					BindingComponent tmp = b2;
+	            					b2 = b1;
+	            					b1 = tmp;
+	            				}
+	            				// merge b2 into b1
+	            				double totalMixProb = b1.getMixProb()+b2.getMixProb();
+	                            b1.setNoiseFraction((b1.getMixProb()*b1.getNoiseFraction()+b2.getMixProb()*b2.getNoiseFraction())/totalMixProb);
+	                            for(int c=0; c<numConditions; c++){
+	                            	b1.setConditionBeta(c, (b1.getMixProb()*b1.getConditionBeta(c)+b2.getMixProb()*b2.getConditionBeta(c))/totalMixProb);
+	                            }
+	            				b1.setMixProb(totalMixProb);
+	            				losers.add(b2);
+	            				j++;	// skip comparing with the next components
+	            			}
+	            		}
+	            		if (!merged)
+	            			break;
+	            		else
+	            			components.removeAll(losers);
+            		}
+            	}
                 for(int c=0; c<numConditions; c++){
                     for(int j=0;j<components.size();j++){	
                         double sum_resp = 0.0;	

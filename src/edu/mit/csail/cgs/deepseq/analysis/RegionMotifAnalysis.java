@@ -92,7 +92,7 @@ public class RegionMotifAnalysis {
 			boolean motifFound=false;
 			double score=0;
 			for(int z=0; z<r.getWidth(); z++){		
-				score = profiler.getMaxScore(z);
+				score = profiler.getHigherScore(z);
 				if(score >= motifThreshold){
 					motifFound=true;
 					break;

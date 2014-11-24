@@ -316,11 +316,11 @@ public class GPSOutputAnalysis {
         int maxScoringShift = 0;
         char maxScoringStrand = '+';
         for (int i=0;i<profiler.length();i++){
-      	  double score = profiler.getMaxScore(i);
+      	  double score = profiler.getHigherScore(i);
       	  if (maxSeqScore<score){
       		  maxSeqScore = score;
       		  maxScoringShift = i;
-      		  maxScoringStrand = profiler.getMaxStrand(i);
+      		  maxScoringStrand = profiler.getHigherScoreStrand(i);
       	  }
         }
         
@@ -342,11 +342,11 @@ public class GPSOutputAnalysis {
       int maxScoringShift = 0;
       char maxScoringStrand = '+';
       for (int i=0;i<profiler.length();i++){
-    	  double score = profiler.getMaxScore(i);
+    	  double score = profiler.getHigherScore(i);
     	  if (maxSeqScore<score){
     		  maxSeqScore = score;
     		  maxScoringShift = i;
-    		  maxScoringStrand = profiler.getMaxStrand(i);
+    		  maxScoringStrand = profiler.getHigherScoreStrand(i);
     	  }
       }
       if (maxSeqScore >= maxWMScore * wm_factor){
@@ -723,17 +723,17 @@ private int mismatch(String ref, String seq){
           double leftScore = Double.NEGATIVE_INFINITY;
           double rightScore = Double.NEGATIVE_INFINITY;
           if ((motif_window+z) < profiler.length()) {
-            rightScore= profiler.getMaxScore(motif_window+z);        
+            rightScore= profiler.getHigherScore(motif_window+z);        
             if(rightScore>=motifThreshold){
-              motif_offsets[i] = z * (profiler.getMaxStrand(z)=='+'?1:-1);
+              motif_offsets[i] = z * (profiler.getHigherScoreStrand(z)=='+'?1:-1);
               motif_scores[i] = rightScore;
               break;
             }
           }
           if ((motif_window-z) >= 0) {
-            leftScore= profiler.getMaxScore(motif_window-z);
+            leftScore= profiler.getHigherScore(motif_window-z);
             if(leftScore>=motifThreshold){
-              motif_offsets[i] = -z * (profiler.getMaxStrand(z)=='+'?1:-1);
+              motif_offsets[i] = -z * (profiler.getHigherScoreStrand(z)=='+'?1:-1);
               motif_scores[i] = leftScore;
               break;
             }

@@ -233,11 +233,11 @@ public class JointEventAnalysis {
 		WeightMatrixScoreProfile profiler = scorer.execute(region);
 		//search for whole region
 		for(int z=0; z<region.getWidth(); z++){		
-			double score = profiler.getMaxScore(z);
+			double score = profiler.getHigherScore(z);
 			if(score >= motifScoreThreshold){
 				Point motifPos = new Point(genome, region.getChrom(), region.getStart()+z+profiler.getMatrix().length()/2);
 				allMotifs.add(motifPos);
-				scores.add(score * (profiler.getMaxStrand(z)=='+'?1:-1)); // positive score if motif match on '+' strand
+				scores.add(score * (profiler.getHigherScoreStrand(z)=='+'?1:-1)); // positive score if motif match on '+' strand
 			}
 		}
 		return new Pair<ArrayList<Point>, ArrayList<Double>>(allMotifs, scores);

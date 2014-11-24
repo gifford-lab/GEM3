@@ -170,9 +170,9 @@ public class MotifScan {
 		    for (int s=0; s<seqs.length;s++){		    	
 				WeightMatrixScoreProfile profiler = scorer.execute(seqs[s]);
 				for (int i=0;i<profiler.length();i++){
-					double score = profiler.getMaxScore(i);
+					double score = profiler.getHigherScore(i);
 					if (score >= threshold){
-						char strand = profiler.getMaxStrand(i);
+						char strand = profiler.getHigherScoreStrand(i);
 						String instance = null;
 						if (strand=='+')
 							instance = seqs[s].substring(i, i+width);

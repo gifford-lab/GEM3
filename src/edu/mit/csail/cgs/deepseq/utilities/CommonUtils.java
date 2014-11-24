@@ -702,11 +702,11 @@ public class CommonUtils {
 		int maxScoringShift = 0;
 		char maxScoringStrand = '+';
 		for (int i=0;i<profiler.length();i++){
-			double score = profiler.getMaxScore(i);
+			double score = profiler.getHigherScore(i);
 			if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
 				maxSeqScore = score;
 				maxScoringShift = i;
-				maxScoringStrand = profiler.getMaxStrand(i);
+				maxScoringStrand = profiler.getHigherScoreStrand(i);
 			}
 		}
 	
@@ -731,7 +731,7 @@ public class CommonUtils {
 		}
 		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
 		for (int i=0;i<profiler.length();i++){
-			double score = profiler.getMaxScore(i);
+			double score = profiler.getHigherScore(i);
 			if (score >= threshold){
 				char maxScoreStrand = profiler.getMaxStrand_both(i);
 				// after adjust to the middle of the motif, the match position will not be 0, thus '-pos' will not cause problem.
@@ -793,21 +793,21 @@ public class CommonUtils {
 			int idx = middle+i;
 			if (idx<0 || idx>=sequence.length()-wm.length())
 				continue;
-			double score = profiler.getMaxScore(idx);
+			double score = profiler.getHigherScore(idx);
 			if (score>=threshold){
 				goodScore = score;
 				goodScoreShift = idx;
-				goodScoreStrand = profiler.getMaxStrand(idx);
+				goodScoreStrand = profiler.getHigherScoreStrand(idx);
 				break;
 			}
 			idx = middle-i;
 			if (idx<0 || idx>=sequence.length()-wm.length())
 				continue;
-			score = profiler.getMaxScore(idx);
+			score = profiler.getHigherScore(idx);
 			if (score>=threshold){
 				goodScore = score;
 				goodScoreShift = idx;
-				goodScoreStrand = profiler.getMaxStrand(idx);
+				goodScoreStrand = profiler.getHigherScoreStrand(idx);
 				break;
 			}
 		}

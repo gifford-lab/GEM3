@@ -16,8 +16,8 @@ public class WeightMatrixBestHitMapper implements Mapper<Region,WeightMatrixHit>
 
 		WeightMatrixScoreProfile prof = scorer.execute(a);
 		int bestHit = prof.getMaxIndex();
-		char bestStrand = prof.getMaxStrand(bestHit);
-		double score = prof.getMaxScore(bestHit);
+		char bestStrand = prof.getHigherScoreStrand(bestHit);
+		double score = prof.getHigherScore(bestHit);
 		
 		WeightMatrix m = prof.getMatrix();
 	

@@ -58,8 +58,8 @@ public class MotifProfiler implements PointProfiler<Point, Profile>{
 			for(int j=i; j<i+params.getBinSize() && j<query.getEnd(); j++){
 				int offset = j-query.getStart();
 				
-				if(profiler.getMaxScore(offset)>maxScore){
-					maxScore= profiler.getMaxScore(offset); 
+				if(profiler.getHigherScore(offset)>maxScore){
+					maxScore= profiler.getHigherScore(offset); 
 					maxPos=offset;					
 				}
 			}

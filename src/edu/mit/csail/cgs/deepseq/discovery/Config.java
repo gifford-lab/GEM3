@@ -144,6 +144,7 @@ public class Config {
     public int smooth_step = 30;
     public int window_size_factor = 3;	//number of model width per window
     public int min_region_width = 50;	//minimum width for select enriched region
+    public int min_event_distance = 1;		//minimum distance for nearby events (if less, events are merged)
     public int noise_distribution = 1;	// the read distribution for noise component, 0 NO, 1 UNIFORM, 2 SMOOTHED CTRL
     public String out_name="out";
     
@@ -163,7 +164,6 @@ public class Config {
 //    public boolean model_noise = false;		// have a noise component for background reads
     public boolean ML_speedup = false;		
     public boolean use_dynamic_sparseness = true;
-    public boolean use_betaEM = true;
     public boolean use_scanPeak  = true;
     public boolean refine_regions = false;		// refine the enrichedRegions for next round using EM results
     public boolean print_stranded_read_distribution = false;	
@@ -184,18 +184,14 @@ public class Config {
         Set<String> flags = Args.parseFlags(args);
         is_branch_point_data = flags.contains("bp");
         if (is_branch_point_data){
-        	k_fold = 1.5;
-        	kmer_hgp = -0.8;
         	strand_type = 1;	
         	min_region_width = 1;
+        	min_event_distance = 3;
         	smooth_step = 0;
         	kmer_aligned_fraction = 0.3;
         	noise_distribution = 0;
         	window_size_factor = 10;			//TODO: why 10??
-//        	poisson_alpha=0.5;
         	alpha_factor = 0.7;
-//            second_lambda_region_width =  500;
-//            third_lambda_region_width  = 1000;
         }
 
         // default as false, need the flag to turn it on
@@ -248,7 +244,6 @@ public class Config {
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter
-        use_betaEM = ! flags.contains("poolEM");
         filterEvents = !flags.contains("nf");	// no filtering for predicted events
         filterDupReads = !flags.contains("nrf");	// no read filtering of duplicate reads
         TF_binding = ! flags.contains("br");	// broad region, not TF data, is histone or pol II

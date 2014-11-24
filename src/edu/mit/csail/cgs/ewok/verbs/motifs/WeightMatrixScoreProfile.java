@@ -28,17 +28,17 @@ public class WeightMatrixScoreProfile {
 		char str = '+';
 		double maxScore = 0.0;
 		for(int i = 0; i < forward.length; i++) { 
-			double ms = getMaxScore(i);
+			double ms = getHigherScore(i);
 			if(max == -1 || ms > maxScore) { 
 				maxScore= ms; 
 				max = i;
-				str = getMaxStrand(i);
+				str = getHigherScoreStrand(i);
 			}
 		}
 		return str;
 	}
 	
-	public char getMaxStrand(int i) { 
+	public char getHigherScoreStrand(int i) { 
 		char s = getMaxStrand_both(i);
 		return s=='='?'+':s;
 	}
@@ -60,19 +60,19 @@ public class WeightMatrixScoreProfile {
 		}
 	}
 	
-	/** max score (from 2 strands) at this position */
-	public double getMaxScore(int i) { 
+	/** Higher score (from 2 strands) at this position */
+	public double getHigherScore(int i) { 
 		return Math.max(forward[i], reverse[i]); 
 	}
 	/** max score over the whole sequence*/
 	public double getMaxScore(){
-		return(getMaxScore(getMaxIndex()));
+		return(getHigherScore(getMaxIndex()));
 	}
 	public int getMaxIndex() { 
 		int max = -1; 
 		double maxScore = matrix.getMinScore();
 		for(int i = 0; i < forward.length; i++) { 
-			double ms = getMaxScore(i);
+			double ms = getHigherScore(i);
 			if(max == -1 || ms > maxScore) { 
 				maxScore= ms; 
 				max = i;

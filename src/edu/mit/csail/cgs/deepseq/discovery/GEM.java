@@ -276,7 +276,7 @@ public class GEM {
 	        if (Args.parseFlags(args).contains("outNP"))
 	        	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GEM_events.narrowPeak");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_PFM.txt", path+"_PFM.txt");
-	        CommonUtils.copyFile(filePrefix+"_"+round+"_KSM.txt", path+"_KSM.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+round+".KSM.txt", path+".KSM.txt");
 	        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
 	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 	        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+

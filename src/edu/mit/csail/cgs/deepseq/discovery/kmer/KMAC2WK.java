@@ -1848,11 +1848,11 @@ public class KMAC2WK {
 			          int maxScoringShift = 0;
 			          char maxScoringStrand = '+';
 			          for (int p=0;p<profiler.length();p++){
-			        	  double score = profiler.getMaxScore(p);
+			        	  double score = profiler.getHigherScore(p);
 			        	  if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
 			        		  maxSeqScore = score;
 			        		  maxScoringShift = p;
-			        		  maxScoringStrand = profiler.getMaxStrand(p);
+			        		  maxScoringStrand = profiler.getHigherScoreStrand(p);
 			        	  }
 			          }
 			          // if a sequence pass the motif score, align with PWM hit
@@ -2228,11 +2228,11 @@ public class KMAC2WK {
 	      int maxScoringShift = 0;
 	      char maxScoringStrand = '+';
 	      for (int j=0;j<profiler.length();j++){
-	    	  double score = profiler.getMaxScore(j);
+	    	  double score = profiler.getHigherScore(j);
 	    	  if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
 	    		  maxSeqScore = score;
 	    		  maxScoringShift = j;
-	    		  maxScoringStrand = profiler.getMaxStrand(j);
+	    		  maxScoringStrand = profiler.getHigherScoreStrand(j);
 	    	  }
 	      }
 	      // if a sequence pass the motif score, store it
@@ -2730,11 +2730,11 @@ public class KMAC2WK {
 	          int maxScoringShift = 0;
 	          char maxScoringStrand = '+';
 	          for (int j=0;j<profiler.length();j++){
-	        	  double score = profiler.getMaxScore(j);
+	        	  double score = profiler.getHigherScore(j);
 	        	  if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
 	        		  maxSeqScore = score;
 	        		  maxScoringShift = j;
-	        		  maxScoringStrand = profiler.getMaxStrand(j);
+	        		  maxScoringStrand = profiler.getHigherScoreStrand(j);
 	        	  }
 	          }
 	          // if a sequence pass the motif score, align with PWM hit

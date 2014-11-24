@@ -1031,7 +1031,7 @@ public class MethodComparisonMotifAnalysis {
 			WeightMatrixScoreProfile profiler = scorer.execute(r);
 			//search for whole region
 			for(int z=0; z<r.getWidth(); z++){		
-				double score = profiler.getMaxScore(z);
+				double score = profiler.getHigherScore(z);
 				if(score >= threshold){
 					Point motifPos = new Point(genome, peak.getChrom(), r.getStart()+z+profiler.getMatrix().length()/2);
 					MotifHit hit = new MotifHit(motifPos, score, peak, i);
@@ -1200,8 +1200,8 @@ public class MethodComparisonMotifAnalysis {
 			WeightMatrixScoreProfile profiler = scorer.execute(r);
 			//search for whole region
 			for(int z=0; z<r.getWidth(); z++){		
-				double score = profiler.getMaxScore(z);
-				int strand = profiler.getMaxStrand(z)=='+'?1:-1;
+				double score = profiler.getHigherScore(z);
+				int strand = profiler.getHigherScoreStrand(z)=='+'?1:-1;
 				if(score >= threshold){
 					// get the strand-specific middle position of motif
 					Point motifPos = new Point(genome, r.getChrom(), r.getStart()+z+(strand==1?length/2:length-1-length/2));
@@ -1262,8 +1262,8 @@ public class MethodComparisonMotifAnalysis {
 				double threshold = motifThresholds[j];
 				//search from BS outwards
 				for(int z=0; z<=r.getWidth()/2; z++){
-					double leftScore= profiler.getMaxScore(windowSize-z);
-					double rightScore= profiler.getMaxScore(windowSize+z);				
+					double leftScore= profiler.getHigherScore(windowSize-z);
+					double rightScore= profiler.getHigherScore(windowSize+z);				
 					if(rightScore>=threshold){
 						distance[j][i] = z;
 						break;
@@ -1586,7 +1586,7 @@ public class MethodComparisonMotifAnalysis {
 			WeightMatrixScoreProfile profiler = scorer.execute(r);
 			//search for whole region
 			for(int z=0; z<r.getWidth(); z++){		
-				double score = profiler.getMaxScore(z);
+				double score = profiler.getHigherScore(z);
 				if(score >= threshold){
 					Point motifPos = new Point(genome, peak.getChrom(), r.getStart()+z+profiler.getMatrix().length()/2);
 					MotifHit hit = new MotifHit(motifPos, score, peak, i);

@@ -140,7 +140,7 @@ public class KmerScanner {
 	//		kmers.removeAll(toRemove);
 	//		kmers.trimToSize();
 			Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
-			KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr(), !flags.contains("use_sub_kmer"));
+			KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr(), !flags.contains("use_gapped_kmer"));
 			System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 		    
 		    // PWM

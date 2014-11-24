@@ -215,7 +215,7 @@ public class ChipSeqStats {
 			WeightMatrixScoreProfile profiler = scorer.execute(r);
 			double bestScore=0;
 			for(int z=0; z<r.getWidth(); z++){
-				bestScore= Math.max(bestScore, profiler.getMaxScore(z));
+				bestScore= Math.max(bestScore, profiler.getHigherScore(z));
 			}
 			sb.append(bestScore+"\t");
 			sb.append(point2macs.get(p.getPoint()).getPvalue()+"\t");
@@ -428,7 +428,7 @@ public class ChipSeqStats {
 			WeightMatrixScoreProfile profiler = scorer.execute(r);
 			boolean goodMotif=false;
 			for(int z=0; z<r.getWidth(); z++){
-				double currScore= profiler.getMaxScore(z);				
+				double currScore= profiler.getHigherScore(z);				
 				if(currScore>=MOTIF_THRESH){
 //					System.out.println(currScore);
 					numHits++;
@@ -512,8 +512,8 @@ public class ChipSeqStats {
 				double threshold = motifThresholds[j];
 				//search from BS outwards
 				for(int z=0; z<=r.getWidth()/2; z++){
-					double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
-					double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);				
+					double leftScore= profiler.getHigherScore(MOTIF_DISTANCE-z);
+					double rightScore= profiler.getHigherScore(MOTIF_DISTANCE+z);				
 					if(rightScore>=threshold){
 						distance[j][i] = z;
 						break;
@@ -575,8 +575,8 @@ public class ChipSeqStats {
 				double threshold = motifThresholds[j];
 				//search from BS outwards, find the closest match
 				for(int z=0; z<=r.getWidth()/2; z++){
-					double leftScore= profiler.getMaxScore(MOTIF_DISTANCE-z);
-					double rightScore= profiler.getMaxScore(MOTIF_DISTANCE+z);				
+					double leftScore= profiler.getHigherScore(MOTIF_DISTANCE-z);
+					double rightScore= profiler.getHigherScore(MOTIF_DISTANCE+z);				
 					if(rightScore>=threshold){
 						distance[j][i] = z;
 						break;
