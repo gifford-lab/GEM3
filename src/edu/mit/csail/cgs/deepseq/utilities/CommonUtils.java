@@ -675,8 +675,8 @@ public class CommonUtils {
 			        // log-odds
 			        for (int pos = 0; pos < matrix.length; pos++) {
 			            for (int j = 0; j < WeightMatrix.letters.length; j++) {
-			                matrix[pos][WeightMatrix.letters[j]] = (float)Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
-			                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2));
+			                matrix[pos][WeightMatrix.letters[j]] = (float)(Math.log(Math.max(matrix[pos][WeightMatrix.letters[j]], .001) / 
+			                		(WeightMatrix.letters[j]=='G'||WeightMatrix.letters[j]=='C'?gc/2:(1-gc)/2)) / Math.log(2.0));
 			            }
 			        } 
 				}
