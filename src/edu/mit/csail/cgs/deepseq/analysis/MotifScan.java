@@ -98,7 +98,7 @@ public class MotifScan {
 	    	if (mi.strand=='-')
 	    		pos = mi.position + (motifLengths.get(mi.motifID)-1) - motifLengths.get(mi.motifID)/2;
 	    	StrandedPoint coord = new StrandedPoint(g, startPoint.getChrom(), startPoint.getLocation()+pos, mi.strand);
-	    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
+	    	sb.append("m").append(mi.motifID).append("\ts").append(mi.seqID).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
 	    	.append(mi.position).append("\t").append(coord.toString()).append("\t").append(mi.strand).append("\t").append(String.format("%.2f", mi.score)).append("\n");
 	    }	    
 	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
