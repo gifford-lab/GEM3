@@ -83,7 +83,7 @@ public class MotifScan {
 			instances = getKmerInstances(args, seqs, motifLengths);
 		
 	    // output
-		StringBuilder sb = new StringBuilder("#Motif\tSeqID\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n");
+		StringBuilder sb = new StringBuilder("#MotifID\tSeqID\tMotif\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n");
 		Genome g = parseGenome(args);
 	    for (int i=0;i<instances.size();i++){
 	    	MotifInstance mi = instances.get(i);
@@ -93,13 +93,20 @@ public class MotifScan {
 	    		regionString = f[1];
 	    	else
 	    		regionString = names[mi.seqID];
-	    	Point startPoint = Region.fromString(g, regionString).startPoint();
-	    	int pos = mi.position + motifLengths.get(mi.motifID)/2;		// relative position from the left coord, adjust to motif midpoint
-	    	if (mi.strand=='-')
-	    		pos = mi.position + (motifLengths.get(mi.motifID)-1) - motifLengths.get(mi.motifID)/2;
-	    	StrandedPoint coord = new StrandedPoint(g, startPoint.getChrom(), startPoint.getLocation()+pos, mi.strand);
-	    	sb.append("m").append(mi.motifID).append("\ts").append(mi.seqID).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
-	    	.append(mi.position).append("\t").append(coord.toString()).append("\t").append(mi.strand).append("\t").append(String.format("%.2f", mi.score)).append("\n");
+	    	
+	    	String coor_string = null;
+	    	Region region = Region.fromString(g, regionString);
+	    	if (region!=null){
+		    	Point startPoint = region.startPoint();
+		    	int pos = mi.position + motifLengths.get(mi.motifID)/2;		// relative position from the left coord, adjust to motif midpoint
+		    	if (mi.strand=='-')
+		    		pos = mi.position + (motifLengths.get(mi.motifID)-1) - motifLengths.get(mi.motifID)/2;
+		    	coor_string = new StrandedPoint(g, startPoint.getChrom(), startPoint.getLocation()+pos, mi.strand).toString();
+	    	}
+	    	else
+	    		coor_string = null;
+	    	sb.append("m").append(mi.motifID).append("\ts").append(mi.seqID+1).append("\t").append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
+	    	.append(mi.position).append("\t").append(coor_string).append("\t").append(mi.strand).append("\t").append(String.format("%.2f", mi.score)).append("\n");
 	    }	    
 	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
     	CommonUtils.writeFile(out.concat(".motifInstances.txt"), sb.toString());
@@ -147,15 +154,20 @@ public class MotifScan {
 		StringBuilder sb_header = new StringBuilder();
 
 	    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41));
+	    if (pwms.isEmpty()){
+	    	System.out.println("No motif is loaded from \n"+Args.parseString(args, "pfm", null));
+	    	System.exit(-1);
+	    }
 	    double scoreRatio = Args.parseDouble(args, "score_ratio", 0.6);
 	    
 	    sb_header.append("# Motif Information\n");
-	    sb_header.append("#ID\tLetters\tWidth\tMax\tThresh\n");
+	    sb_header.append("#ID\tName\tLetters\tWidth\tMax\tThresh\n");
+	    
 	    for (int m=0; m<pwms.size(); m++){
 	    	WeightMatrix pwm = pwms.get(m);
 	    	motifLengths.add(pwm.length());
 	    	double threshold = pwm.getMaxScore()*scoreRatio;
-	    	sb_header.append("#").append(m).append("\t").append(WeightMatrix.getMaxLetters(pwm)).append("\t").append(pwm.length()).append("\t")
+	    	sb_header.append("#").append(m).append("\t").append(pwm.getName()).append("\t").append(WeightMatrix.getMaxLetters(pwm)).append("\t").append(pwm.length()).append("\t")
 	    	.append(String.format("%.2f", pwm.getMaxScore())).append("\t").append(String.format("%.2f", threshold)).append("\n");
 	    }
 	    sb_header.append("#");
@@ -180,6 +192,7 @@ public class MotifScan {
 							instance = SequenceUtils.reverseComplement(seqs[s].substring(i, i+width));
 						MotifInstance mi = new MotifInstance();
 						mi.motifID = m;
+						mi.motifName = pwm.getName();
 						mi.seqID = s;
 						mi.matchSeq = instance;
 						mi.position = i;
@@ -246,6 +259,7 @@ public class MotifScan {
 
 class MotifInstance{
 	int motifID;
+	String motifName;
 	int seqID;
 	String matchSeq;
 	int position;
