@@ -105,7 +105,7 @@ public class MotifScan {
 	    	}
 	    	else
 	    		coor_string = null;
-	    	sb.append("m").append(mi.motifID).append("\ts").append(mi.seqID+1).append("\t").append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
+	    	sb.append("m").append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
 	    	.append(mi.position).append("\t").append(coor_string).append("\t").append(mi.strand).append("\t").append(String.format("%.2f", mi.score)).append("\n");
 	    }	    
 	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
