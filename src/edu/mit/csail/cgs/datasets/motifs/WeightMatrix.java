@@ -1,8 +1,11 @@
 package edu.mit.csail.cgs.datasets.motifs;
 
 import java.util.*;
+import java.io.IOException;
 import java.sql.*;
 import java.text.DecimalFormat;
+
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.database.DatabaseFactory;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
 import edu.mit.csail.cgs.utils.database.UnknownRoleException;
@@ -716,6 +719,29 @@ public class WeightMatrix {
         output.species = input.species;
         output.type = input.type;
         return output;
+    }
+    public static String convertStampPfmToMEME(String pfmFile, double gc){
+    	StringBuilder sb = new StringBuilder();
+    	sb.append("MEME version 4\n\n");
+    	sb.append("ALPHABET= ACGT\n\n");
+    	sb.append("strands: + -\n\n");
+    	sb.append("Background letter frequencies\n\n");
+    	sb.append(String.format("A %.3f C %.3f G %.3f T %.3f\n\n", (1-gc)/2, gc/2, gc/2, (1-gc)/2));
+
+    	try{
+			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(pfmFile, "file");
+			for (WeightMatrix wm : wms){
+				sb.append(CommonUtils.makeMEME(wm.matrix, 0, wm.name));
+			}			
+		}
+		catch (IOException e){
+			e.printStackTrace(System.err);
+		}
+    	return sb.toString();
+    }
+    
+    public static void main(String args[]){
+    	CommonUtils.writeFile(args[0].replace(".txt",".MEME.txt"), convertStampPfmToMEME(args[0], args.length>=2?Double.parseDouble(args[1]):0.41));
     }
 }
 class WMLetterCmp implements Comparator<Character> {

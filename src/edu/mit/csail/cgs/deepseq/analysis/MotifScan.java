@@ -83,7 +83,7 @@ public class MotifScan {
 			instances = getKmerInstances(args, seqs, motifLengths);
 		
 	    // output
-		StringBuilder sb = new StringBuilder("#MotifID\tSeqID\tMotif\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n");
+		StringBuilder sb = new StringBuilder("#Motif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n");
 		Genome g = parseGenome(args);
 	    for (int i=0;i<instances.size();i++){
 	    	MotifInstance mi = instances.get(i);
@@ -104,7 +104,7 @@ public class MotifScan {
 		    	coor_string = new StrandedPoint(g, startPoint.getChrom(), startPoint.getLocation()+pos, mi.strand).toString();
 	    	}
 	    	else
-	    		coor_string = null;
+	    		coor_string = "N.A.";
 	    	sb.append("m").append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
 	    	.append(mi.position).append("\t").append(coor_string).append("\t").append(mi.strand).append("\t").append(String.format("%.2f", mi.score)).append("\n");
 	    }	    

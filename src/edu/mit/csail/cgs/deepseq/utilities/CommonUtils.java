@@ -499,18 +499,19 @@ public class CommonUtils {
 	}
 	/**
 	 * Make MEME compatible PFM string
+	 * http://meme.nbcr.net/meme/examples/sample-dna-motif.meme-io
 	 * letter-probability matrix: alength= 4 w= 15 nsites= 783 E= 8.3e-057 
  		0.075351  0.303959  0.039591  0.581098 
  		0.735632  0.218391  0.045977  0.000000 
  		0.886335  0.111111  0.002554  0.000000 
 	 * @param pfm			PFM matrix (in frequency)
 	 * @param hitCount		total sequence count for building PFM
-	 * @param header		header line
+	 * @param name		motif name
 	 * @return
 	 */
-	public static String makeMEME (float[][] pfm, int hitCount, String header){
+	public static String makeMEME (float[][] pfm, int hitCount, String name){
 		StringBuilder sb = new StringBuilder();
-		sb.append(">").append(header).append("\n");
+		sb.append("MOTIF ").append(name).append("\n");
 		sb.append(String.format("letter-probability matrix: alength= %d w= %d nsites= %d\n", LETTERS.length, pfm.length, hitCount));
 		for (int p=0;p<pfm.length;p++){
 			for (int b=0;b<LETTERS.length;b++)
