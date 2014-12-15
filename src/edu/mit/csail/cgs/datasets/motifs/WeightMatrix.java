@@ -741,7 +741,15 @@ public class WeightMatrix {
     }
     
     public static void main(String args[]){
-    	CommonUtils.writeFile(args[0].replace(".txt",".MEME.txt"), convertStampPfmToMEME(args[0], args.length>=2?Double.parseDouble(args[1]):0.41));
+    	String inFile = args[0];
+    	String newFile = null;
+    	if (inFile.endsWith(".txt"))
+    		newFile = inFile.replace(".txt",".MEME.txt");
+    	if (inFile.endsWith(".pfm"))
+    		newFile = inFile.replace(".pfm",".MEME.pfm");
+    	if (inFile.endsWith(".PFM"))
+    		newFile = inFile.replace(".PFM",".MEME.PFM");
+    	CommonUtils.writeFile(newFile, convertStampPfmToMEME(inFile, args.length>=2?Double.parseDouble(args[1]):0.41));
     }
 }
 class WMLetterCmp implements Comparator<Character> {
