@@ -741,14 +741,18 @@ public class WeightMatrix {
     }
     
     public static void main(String args[]){
+    	if (args.length==0)
+    		System.out.println("WeightMatrix in_motif_pfm_file [gc_content]");
     	String inFile = args[0];
     	String newFile = null;
     	if (inFile.endsWith(".txt"))
     		newFile = inFile.replace(".txt",".MEME.txt");
-    	if (inFile.endsWith(".pfm"))
+    	else if (inFile.endsWith(".pfm"))
     		newFile = inFile.replace(".pfm",".MEME.pfm");
-    	if (inFile.endsWith(".PFM"))
+    	else if (inFile.endsWith(".PFM"))
     		newFile = inFile.replace(".PFM",".MEME.PFM");
+    	else
+    		newFile = inFile + ".MEME.pfm";
     	CommonUtils.writeFile(newFile, convertStampPfmToMEME(inFile, args.length>=2?Double.parseDouble(args[1]):0.41));
     }
 }
