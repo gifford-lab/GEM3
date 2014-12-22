@@ -49,19 +49,20 @@ public class KmerScanner {
 	}
 	
 	public KmerGroup[] query (String seq){
-		return kEngine.query(seq);
+		return kEngine.findUnstrandedKmerHits(seq);
 	}
+	
 	public KmerGroup getBestKG (String seq){
 		double minScore = 0;
 		KmerGroup best = null;
 		KmerGroup[] kgs = query(seq);
 		for (KmerGroup kg:kgs)
-			if (minScore >= kg.getHgp()){
-				minScore = kg.getHgp();
+			if (minScore >= kg.getScore()){
+				minScore = kg.getScore();
 				best = kg;
 			}
 		return best;
-	}	
+	}
 	/**
 	 * Find the file in path that match the type string
 	 */
@@ -240,11 +241,11 @@ public class KmerScanner {
 				long ksm_t = System.currentTimeMillis();
 				KmerGroup kg = scanner.getBestKG(seq);
 				KmerGroup kgN = scanner.getBestKG(seqN);
-				ksm_scores.add(kg==null?0:-kg.getHgp());
-				ksmN_scores.add(kgN==null?0:-kgN.getHgp());
+				ksm_scores.add(kg==null?0:kg.getScore());
+				ksmN_scores.add(kgN==null?0:kgN.getScore());
 				KSM_time += System.currentTimeMillis() - ksm_t;
 				sb.append(String.format("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d\n", r.toString(), name_N, pwm, pwmN, 
-						kg==null?0:-kg.getHgp(), kgN==null?0:-kgN.getHgp(), 
+						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
 						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
 						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount()));
 			}

@@ -32,6 +32,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
@@ -42,6 +43,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
+import edu.mit.csail.cgs.utils.strings.multipattern.AhoCorasick;
 
 /**
  * @author Yuchun Guo
@@ -751,6 +753,7 @@ public class CommonUtils {
 		}
 		return pos;
 	}
+	
 	/**
 	 *  Scan the sequence (and reverseComplement) to find all exact matches to the kmer<br>  
 	 *  @return  List of middle positions of k-mer matches. <br>

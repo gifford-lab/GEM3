@@ -56,7 +56,7 @@ public class Config {
     /** number of top k-mers selected from density clustering to run KMAC */
     public int k_top = 3;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
-    public int dc = 1;
+    public int dc = 2;
     /** delta value cutoff, k-mers with equal or higher delta values are used for selecting cluster centers */
     public int delta = 2;
     
@@ -77,6 +77,7 @@ public class Config {
     public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
     public double[] bg= new double[4];	// background frequency based on GC content
     public double wm_factor = 0.6;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
+    public double motif_relax_factor = 1;		// A factor to multiply the motif PWM threshold, used for GEM motif positional prior
     public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
     public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
     public double motif_hit_factor = 0.005;
@@ -103,6 +104,7 @@ public class Config {
    	/** Align and cluster motif using KSM */
    	public boolean use_ksm = true;	
    	public boolean use_gapped = true;
+   	public boolean use_sub_kmers = true;
  	public boolean estimate_ksm_threshold = true;
   	public boolean kpp_normalize_max = true;
   	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
@@ -192,6 +194,7 @@ public class Config {
         	noise_distribution = 0;
         	window_size_factor = 10;			//TODO: why 10??
         	alpha_factor = 0.7;
+        	motif_relax_factor = 0.5;		// relax to half of the threshold
         }
 
         // default as false, need the flag to turn it on
@@ -258,6 +261,7 @@ public class Config {
         use_seed_family = !flags.contains("no_seed_family");
         use_ksm = !flags.contains("no_ksm");
         use_gapped = !flags.contains("ng");
+        use_sub_kmers = !flags.contains("ns");
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         use_strength_weight = !flags.contains("no_weight");
@@ -320,6 +324,7 @@ public class Config {
         if (gc>0)
         	setGC(gc);
         wm_factor = Args.parseDouble(args, "wmf", wm_factor);
+        motif_relax_factor = Args.parseDouble(args, "mrf", motif_relax_factor);
         ic_trim = Args.parseDouble(args, "ic", ic_trim);
         hgp = Args.parseDouble(args, "hgp", hgp);
         kmer_hgp = Args.parseDouble(args, "kmer_hgp", kmer_hgp);

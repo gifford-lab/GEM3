@@ -2374,11 +2374,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		for (int c=0;c<numConditions;c++){
 			double[] profile_plus = b.getReadProfile_plus(c);
 			double[] profile_minus = b.getReadProfile_minus(c);
-
+			// TODO: for single strand, compute pearson correlation, for both strands, do the same?
 			if (b.getStrand()=='+'){
+//				double[] profile_pseudo = new double[profile_plus.length];
+//				for (int i=0;i<profile_pseudo.length;i++)
+//					profile_pseudo[i] = profile_plus[i] +1;		// add 1 to every base as pseudo-count
 				shapeDeviation[c] = calcSingleStrandCorr(profile_plus);
 			}
 			else if (b.getStrand()=='-'){
+//				double[] profile_pseudo = new double[profile_minus.length];
+//				for (int i=0;i<profile_pseudo.length;i++)
+//					profile_pseudo[i] = profile_minus[i] +1;
 				shapeDeviation[c]  = calcSingleStrandCorr(profile_minus);
 			}
 			else{
@@ -2389,7 +2395,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 
 			// sum the read profiles (optional)
-			// at this point, we do not have p-value, etc, this is our best guess
+			// at this point, we do not have p-value, etc, this is our best guess of what are real events
 			if (config.use_joint_event && shapeDeviation[c]<=config.shapeDeviation ){
 				for (int i=0;i<profile_plus.length;i++){
 					profile_plus_sum[i] += profile_plus[i];
@@ -4203,6 +4209,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         		ArrayList<List<StrandedBase>> bg_signals, SequenceGenerator<Region> seqgen){
             // We want to run EM only for potential homotypic regions
             // After first round, if we are sure the region contains unary event, we will just scan for peak
+        	
         	// for testing chrIV   217955  217985
         	Region r_test = new Region(w.getGenome(), "V", 433157, 433167 );
         	if (r_test.overlaps(w)){
@@ -4304,7 +4311,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            				int wmLen = cluster.wm.length();
 	            				EACH_HIT: for (int i=0;i<profiler.length();i++){
 	            					double max = profiler.getHigherScore(i);
-	            					if (max<cluster.pwmThreshold/(config.is_branch_point_data?1:2))		//TODO: want to relax the threshold??
+	            					if (max<cluster.pwmThreshold*config.motif_relax_factor)		//TODO: want to relax the threshold??
 	            						continue EACH_HIT;
 	            					char strand = profiler.getHigherScoreStrand(i);
 	            					int pos = cluster.pos_BS_seed-cluster.pos_pwm_seed;

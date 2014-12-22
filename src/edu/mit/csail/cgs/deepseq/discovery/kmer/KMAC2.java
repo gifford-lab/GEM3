@@ -897,7 +897,7 @@ public class KMAC2 {
 			return null;
 
 		// clone to modify locally
-		ArrayList<Kmer> kmers = Kmer.cloneKmerList(kmers_in);
+		ArrayList<Kmer> kmers = Kmer.shallowCloneKmerList(kmers_in);
 		
 		ArrayList<Sequence> seqList = new ArrayList<Sequence>();
 		for (int i=0;i<seqs.length;i++){
@@ -1433,7 +1433,7 @@ public class KMAC2 {
 						newPWM = buildPWM(seqList_j, cluster2, 0, tic, false);
 						if (newPWM!=null){
 							newPWM.updateClusterPwmInfo(cluster2);
-							indexKmerSequences( Kmer.cloneKmerList(k2kmers.get(cluster2.seedKmer.getK())), seqList_j);  // need this to get KSM
+							indexKmerSequences( Kmer.shallowCloneKmerList(k2kmers.get(cluster2.seedKmer.getK())), seqList_j);  // need this to get KSM
 							alignedSeqCount = alignSequencesUsingPWM(seqList_j, cluster2);
 							if (config.evaluate_by_ksm){
 								NewKSM newKSM = extractKSM (seqList, seed_range, null);

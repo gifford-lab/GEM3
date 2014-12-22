@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.TreeSet;
@@ -50,6 +51,9 @@ public class Kmer implements Comparable<Kmer>{
 		if (gappedKmers == null)
 			gappedKmers = new HashSet<GappedKmer>();
 		gappedKmers.add(wk);	
+	}
+	void clearGappedKmers(){
+		gappedKmers.clear();	
 	}
 	HashSet<GappedKmer> getGappedKmers(){
 		return gappedKmers;
@@ -167,6 +171,7 @@ public class Kmer implements Comparable<Kmer>{
 	
 	public Kmer(String kmerStr, HashSet<Integer> posHits ){
 		this.kmerString = kmerStr;
+		this.kmerRC = SequenceUtils.reverseComplement(kmerStr);
 		this.k = kmerString.length();
 		setPosHits(posHits);
 	}
@@ -178,19 +183,29 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	public Kmer clone(){
-		Kmer n = new Kmer(getKmerString(), (HashSet<Integer>)this.posHits.clone());
+		Kmer n = new Kmer(getKmerString(), (BitSet)(posBits.clone()));
+		n.setWeightedPosHitCount();
 		n.clusterId = clusterId;
 		n.strength = strength;
 		n.shift = shift;
-		n.setNegHits((HashSet<Integer>)negHits.clone());
+		n.setNegBits((BitSet)(negBits.clone()));
 		n.hgp_lg10 = hgp_lg10;
 		n.alignString = alignString;
 		n.kmerStartOffset = kmerStartOffset;
-		n.gappedKmers = gappedKmers;
+		if (gappedKmers!=null){
+			n.gappedKmers = new HashSet<GappedKmer>();
+			n.gappedKmers.addAll(gappedKmers);
+		}
 		n.isSeedOrientation = isSeedOrientation;
 		return n;
 	}
 	
+	protected void setNegBits(BitSet bitSet) {
+		negBits = bitSet;
+	}
+	protected void setPosBits(BitSet bitSet) {
+		posBits = bitSet;
+	}
 	/** Add this kmer into the register set*/
 	public void addBasicKmersToSet(HashSet<Kmer> reg){
 		reg.add(this);
@@ -264,10 +279,10 @@ public class Kmer implements Comparable<Kmer>{
 	public String toShortString(){
 		if (use_weighted_hit_count)
 			return String.format("%s\t%d\t%d\t%d\t%.1f", 
-					getKmerStrRC(), posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+					getKmerStrRC(), posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
 		else
 			return String.format("%s\t%d\t%d\t%.1f", 
-					getKmerStrRC(), posHits.size(), getNegHitCount(), hgp_lg10);
+					getKmerStrRC(), posBits.cardinality(), getNegHitCount(), hgp_lg10);
 	}
 	public static String toShortHeader(int k){
 		int length=2*k+1;
@@ -393,34 +408,81 @@ public class Kmer implements Comparable<Kmer>{
 		return CommonUtils.encodeBytesToAscii85(bits.toByteArray()).replace("\n", "");
 	}
 	/**
-	 * Clone the list and clone the kmer elements
+	 * Clone the list and clone the kmer elements, also remember the seedKmer and mapped it to the top<br>
+	 * Deep clone, makes correct linking of gapped kmers and subkmers
+	 * @param kmers_in
+	 * @param seedKmer a kmer in kmers_in to be mapped to the cloned kmers
+	 * @return a list of cloned kmers, with the top kmer being the seedKmer
+	 */
+	public static ArrayList<Kmer> deepCloneKmerList(ArrayList<Kmer> kmers_in, Kmer seedKmer){
+		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		HashMap<Kmer,Kmer> subkmer2subkmer = new HashMap<Kmer,Kmer>(); 
+		Kmer seedKmerClone = null;
+		
+		// clone the distinct subkmers
+		for (Kmer km:kmers_in){
+			if (km instanceof GappedKmer){
+				GappedKmer gk = (GappedKmer) km;
+				for (Kmer sk: gk.getSubKmers()){
+					if (!subkmer2subkmer.containsKey(sk)){
+						Kmer sk2 = sk.clone();
+						sk2.clearGappedKmers();
+						subkmer2subkmer.put(sk, sk2);
+					}
+				}
+			}
+		}
+		// linking gk with sk
+		for (Kmer km:kmers_in){
+			Kmer km2 = null;
+			if (km instanceof GappedKmer){
+				GappedKmer gk = (GappedKmer) km;
+				GappedKmer gk2 = gk.clone();
+				gk2.clearSubKmers();
+				for (Kmer sk: gk.getSubKmers()){
+					gk2.addSubKmer(subkmer2subkmer.get(sk),gk.getSubKmerOrientation(sk));
+				}
+				gk2.update();
+				kmers.add(gk2);
+				km2 = gk2;
+			}
+			else{
+				km2 = km.clone();
+				kmers.add(km2);
+			}
+			if (km == seedKmer)
+				seedKmerClone = km2;
+		}// GappedKmers need special treatment because of the many to many connections between gappedkmers and their subkmers
+		
+		Collections.sort(kmers);
+		
+		// move seedKmerClone to the top
+		ArrayList<Kmer> results = new ArrayList<Kmer>();
+		results.add(seedKmerClone);
+		for (Kmer km: kmers)
+			if (km != seedKmerClone)
+				results.add(km);
+		results.trimToSize();
+		
+		return results;
+	}
+	
+	/**
+	 * Clone the list and clone the kmer elements<br>
+	 * Shallow clone: do not link gappedKmers and their subkmers, copy for output only		
 	 * @param kmers_in
 	 * @return
 	 */
-	public static ArrayList<Kmer> cloneKmerList(ArrayList<Kmer> kmers_in){
+	public static ArrayList<Kmer> shallowCloneKmerList(ArrayList<Kmer> kmers_in){
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (Kmer km:kmers_in){
-//			if (! (km instanceof GappedKmer))
 				kmers.add(km.clone());
 		}
-		// GappedKmers need special treatment because of the many to many connections between gappedkmers and their subkmers
-		
 		kmers.trimToSize();
 		return kmers;
 	}
+	
 	/**
-	 * Clone the list and clone the kmer elements
-	 * @param kmers_in
-	 * @return
-	 */
-	public static HashSet<Kmer> cloneKmerSet(HashSet<Kmer> kmers_in){
-		// clone to modify locally
-		HashSet<Kmer> kmers = new HashSet<Kmer>();
-		for (Kmer km:kmers_in){
-			kmers.add(km.clone());
-		}
-		return kmers;
-	}	/**
 	 * Copy the kmer references to a new list<br>
 	 * Do not clone kmer elements
 	 * @param kmers_in
@@ -480,6 +542,12 @@ public class Kmer implements Comparable<Kmer>{
         kmers.trimToSize();
 		return kmers;
 	}
+	public static void printKmerHashcode(ArrayList<Kmer> kmers){
+		for (Kmer km: kmers)
+			System.err.println(km.toShortString()+"\t"+km.hashCode());
+		System.err.println();
+	}
+
 	public static Pair<Integer, Integer> getTotalCounts(File file){
 		int posSeqCount=-1;
 		int negSeqCount=-1;
@@ -500,7 +568,7 @@ public class Kmer implements Comparable<Kmer>{
 		return new Pair<Integer, Integer>(posSeqCount,negSeqCount);
 	}
 	
-	public static void main(String[] args){
+	public static void main9(String[] args){
 //		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
 	     BitSet bits1 = new BitSet(16);
 	     BitSet bits2 = new BitSet(16);

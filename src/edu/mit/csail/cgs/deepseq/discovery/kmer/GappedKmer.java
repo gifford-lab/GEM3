@@ -32,6 +32,9 @@ public class GappedKmer extends Kmer{
 		for (Kmer km:subKmers.keySet())
 			km.addGappedKmer(this);
 	}
+	void clearSubKmers(){
+		subKmers.clear();
+	}
 	public Set<Kmer> getSubKmers (){
 		return subKmers.keySet();
 	}
@@ -71,14 +74,14 @@ public class GappedKmer extends Kmer{
 		GappedKmer n = new GappedKmer(getKmerString());
 		n.clusterId = clusterId;
 		n.shift = shift;
-		n.setNegHits((HashSet<Integer>)negHits.clone());
-		n.setPosHits((HashSet<Integer>)posHits.clone());
+		n.setNegBits((BitSet)negBits.clone());
+		n.setPosBits((BitSet)posBits.clone());
 		n.hgp_lg10 = hgp_lg10;
 		n.kmerStartOffset = kmerStartOffset;
 		n.isSeedOrientation = isSeedOrientation;
 		for (Kmer km:subKmers.keySet())
-			n.addSubKmer(km.clone(), subKmers.get(km));
-//		n.update();
+			n.addSubKmer(km, subKmers.get(km));
+		n.update();
 		return n;
 	}
 	
