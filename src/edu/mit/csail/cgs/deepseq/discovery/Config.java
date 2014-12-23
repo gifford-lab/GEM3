@@ -23,8 +23,6 @@ public class Config {
     public boolean kl_count_adjusted = false;
     public boolean sort_by_location=false;
     public boolean dump_regression = false;
-    public boolean use_event_strength = false;
-    public boolean weight_by_sqrt_strength;
     public boolean use_kmer_strength = false;
     public boolean print_kmer_bPos = false;    
     public boolean discard_subAlpha_components=false;			// discard the component whose strength is less than alpha    
@@ -52,11 +50,12 @@ public class Config {
     public int k_min = -1;		// the minimum value of k
     public int k_max= -1;		// the maximum value of k        
     public String seed = null;
+    public int seq_weight_type = 3;	// 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
     
     /** number of top k-mers selected from density clustering to run KMAC */
     public int k_top = 3;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
-    public int dc = 2;
+    public int dc = 3;
     /** delta value cutoff, k-mers with equal or higher delta values are used for selecting cluster centers */
     public int delta = 2;
     
@@ -215,8 +214,6 @@ public class Config {
         if (testPValues)
         	System.err.println("testP is " + testPValues);
         dump_regression = flags.contains("dump_regression");
-        use_event_strength = flags.contains("use_event_strength");
-        weight_by_sqrt_strength = !flags.contains("weight_by_strength");
         progressive_PWM_trim = !flags.contains("npt");		// no progressive trimming of PWM
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
@@ -264,7 +261,6 @@ public class Config {
         use_sub_kmers = !flags.contains("ns");
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
-        use_strength_weight = !flags.contains("no_weight");
         use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_pos_kmer = !flags.contains("no_pos_kmer");
         optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
@@ -310,6 +306,7 @@ public class Config {
         dc = Args.parseInteger(args, "dc", dc);
         delta = Args.parseInteger(args, "delta", delta);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
+        seq_weight_type = Args.parseInteger(args, "swt", seq_weight_type);
         k_win = Args.parseInteger(args, "k_win", k_win);
         k_win_f = Args.parseInteger(args, "k_win_f", k_win_f);
         k_neg_dist = Args.parseInteger(args, "k_neg_dist", k_neg_dist);

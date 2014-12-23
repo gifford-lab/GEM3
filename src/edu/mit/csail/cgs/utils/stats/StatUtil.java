@@ -1983,19 +1983,14 @@ public class StatUtil {
         });
 		
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
-		HashSet<DensityClusteringPoint> coveredPointIds = new HashSet<DensityClusteringPoint>();
+		HashSet<DensityClusteringPoint> coveredPoints = new HashSet<DensityClusteringPoint>();
 		while(!data.isEmpty()){
-			Collections.sort(data, new Comparator<DensityClusteringPoint>(){
-	            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
-	                return o1.compareToByGamma(o2);
-	            }
-	        });
 			DensityClusteringPoint p = data.get(0);
 			results.add(p);		// select the best point from the remaining points
-			coveredPointIds.add(p);
+			coveredPoints.add(p);
 			data.remove(p);
 			for (DensityClusteringPoint m: p.members){
-				coveredPointIds.add(m);
+				coveredPoints.add(m);
 				data.remove(m);
 			}
 		}
@@ -2109,7 +2104,7 @@ public class StatUtil {
 //		return data_big_delta;
 //	}	
 	
-	 public static void main(String[] args){
+	 public static void main9(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));
 //		 Poisson poisson = new Poisson(0, new DRand());

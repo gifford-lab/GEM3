@@ -152,10 +152,14 @@ public class KMAC2 {
 		seq_weights = new double[seqNum];
 		totalWeight=0;
 		for (int i=0;i<seqNum;i++){
-			if (config.weight_by_sqrt_strength)
-				seq_weights[i]=Math.sqrt(pos_w.get(i));
-			else
-				seq_weights[i]=pos_w.get(i);
+			switch (config.seq_weight_type){
+			case 0:	seq_weights[i]=1;break;
+			case 1: seq_weights[i]=pos_w.get(i);break;
+			case 2: seq_weights[i]=Math.sqrt(pos_w.get(i));break;
+			case 3: seq_weights[i]=Math.log(pos_w.get(i));break;
+			default: System.err.println("Sequence weighting type is not defined!");System.exit(-1);
+			}
+
 			totalWeight += seq_weights[i];
 		}
 		for (int i=0;i<seq_weights.length;i++){
@@ -325,10 +329,13 @@ public class KMAC2 {
 					}
 				}
 				posSeqs.add(seq.toUpperCase());		// if repeat_fraction>=1, allow all repeats, convert to upper case
-				if (config.weight_by_sqrt_strength)
-					posSeqWeights.add(Math.sqrt(events.get(i).getTotalEventStrength()));	// use sq root of event strength as weight
-				else
-					posSeqWeights.add(events.get(i).getTotalEventStrength());		// use event strength as weight
+				switch (config.seq_weight_type){
+				case 0:	posSeqWeights.add(1.0);break;
+				case 1: posSeqWeights.add(events.get(i).getTotalEventStrength());break;
+				case 2: posSeqWeights.add(Math.sqrt(events.get(i).getTotalEventStrength()));break;
+				case 3: posSeqWeights.add(Math.log(events.get(i).getTotalEventStrength()));break;
+				default: System.err.println("Sequence weighting type is not defined! No weighting.");posSeqWeights.add(1.0);
+				}
 				posImpactRegion.add(events.get(i).getPeak().expand(negRegionDistance));
 			}
 			seqs = new String[posSeqs.size()];	// DNA sequences around binding sites
