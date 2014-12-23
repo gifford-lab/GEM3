@@ -1626,7 +1626,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 				if (checked[cluster1.clusterId][cluster2.clusterId])
 					continue;
 				
-				int range = seqLen ;  // add XX for rounding error
+				int range = seqLen+Math.max(cluster1.k, cluster2.k) ;  // add maxK to avoid shift-array_out_of_bound error
 				int[] same = new int[range*2+1];
 				int[] diff = new int[range*2+1];
 				for (int i=0;i<seqs.length;i++){
@@ -1777,7 +1777,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 						checked[cluster1.clusterId][cluster2.clusterId]=true;
 						checked[cluster2.clusterId][cluster1.clusterId]=true;
 						if (config.verbose>1)
-				    		System.out.println(String.format("%s: Merged PWM is not more enriched, do not merge", CommonUtils.timeElapsed(tic)));
+				    		System.out.println(String.format("%s: Merged PWM is not more enriched, do not merge.", CommonUtils.timeElapsed(tic)));
 					}
 					
 					// No matter successful merging or not, try the other PWM after removing the overlap hits
@@ -2292,8 +2292,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 					s.pos = -kg.bs;		// seq_seed = - seed_seq
 			}
 		}
-		if (config.verbose>1)
-			System.out.println(CommonUtils.timeElapsed(tic)+ ": KSM align "+ ksm_hit_count +" sequences.");
+//		if (config.verbose>1)
+//			System.out.println(CommonUtils.timeElapsed(tic)+ ": KSM align "+ ksm_hit_count +" sequences.");
 	}
 	
 	/** 
@@ -3575,8 +3575,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		protected KmerCluster clone(boolean cloneKmers){
 			KmerCluster cluster = new KmerCluster();
 			cluster.clusterId = clusterId;
-			cluster.pfm = pfm.clone();
-			cluster.wm = wm;
+			if (pfm!=null){
+				cluster.pfm = pfm.clone();
+				cluster.wm = wm;
+			}
 			cluster.ksmThreshold = (MotifThreshold)ksmThreshold.clone();
 			cluster.pwmGoodQuality = pwmGoodQuality;
 			cluster.pwmThreshold = pwmThreshold;
