@@ -4333,7 +4333,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            					String matchSeq = seq.substring(i,i+cluster.wm.length());
 	            					if (strand=='-')
 	            						matchSeq = SequenceUtils.reverseComplement(matchSeq);
-	            					kms.add(new Kmer(matchSeq,0));
+	            					kms.add(new Kmer(matchSeq));
 	            					KmerGroup kg = kmac.new KmerGroup(kms, pos);
 	            					kg.setHgp(max);
 	            					kg.setClusterId(j);

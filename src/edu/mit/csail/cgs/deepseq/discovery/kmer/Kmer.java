@@ -73,14 +73,6 @@ public class Kmer implements Comparable<Kmer>{
 		this.posHits = posHits;
 		if (posHits.isEmpty())
 			return;
-		double[] ids = new double[posHits.size()];
-		int count=0;
-		for (int id:posHits){
-			ids[count++]=id;
-		}
-		double mean = StatUtil.mean(ids);
-		double median = StatUtil.median(ids);
-		setTop(median-mean);
 		
 		posBits.clear();
 		for (int id:posHits){
@@ -105,10 +97,6 @@ public class Kmer implements Comparable<Kmer>{
 		return weightedPosHitCount;
 	}
 	public double familyHgp;
-	
-	private double top;
-	public void setTop(double top) {this.top = top;}
-	public double getTop() {return top;	}
 	
 //	int negHitCount;
 	protected HashSet<Integer> negHits = new HashSet<Integer>();
@@ -163,10 +151,9 @@ public class Kmer implements Comparable<Kmer>{
 	/** Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
 	public void setKmerStartOffset(int s){kmerStartOffset=s;}
 	public Kmer(){}
-	public Kmer(String kmerStr, Integer posHit ){
+	public Kmer(String kmerStr){
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
-		posHits.add(posHit);
 	}
 	
 	public Kmer(String kmerStr, HashSet<Integer> posHits ){
@@ -344,20 +331,6 @@ public class Kmer implements Comparable<Kmer>{
 		return kmer;
 	}
 
-//	public void incrSeqHitCount() {
-//		posHitCount++;
-//	}
-	public void mergeKmer(Kmer newKmer){
-		if (kmerString.equals(newKmer.kmerString)){
-			posHits.addAll(newKmer.posHits);
-			negHits.addAll(newKmer.negHits);
-//			posHitCount = posHits.size();
-//			negHitCount = negHits.size();
-			strength += newKmer.strength;
-		}
-	}
-
-	
 	public static void printKmers(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
@@ -379,7 +352,7 @@ public class Kmer implements Comparable<Kmer>{
 			else{
 				sb.append(kmer.toString());
 				if (print_kmer_hits)
-					sb.append("\t").append(hits2string(kmer.getPosHits())).append("\t").append(hits2string(kmer.getNegHits()));
+					sb.append("\t").append(kmer.posBits.toString()).append("\t").append(hits2string(kmer.getNegHits()));
 				sb.append("\n");
 			}
 		}
