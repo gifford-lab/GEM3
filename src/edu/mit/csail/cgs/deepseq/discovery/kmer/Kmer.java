@@ -94,11 +94,11 @@ public class Kmer implements Comparable<Kmer>{
 	private int weightedPosHitCount;
 	protected void setWeightedPosHitCount(){
 		double weight=0;
-//		for (int i: posHits)
-//			weight+=seq_weights[i];
-		for (int i = posBits.nextSetBit(0); i >= 0; i = posBits.nextSetBit(i+1)) {
-			weight+=seq_weights[i];;
- 		}
+		if (seq_weights!=null){
+			for (int i = posBits.nextSetBit(0); i >= 0; i = posBits.nextSetBit(i+1)) {
+				weight+=seq_weights[i];
+	 		}
+		}
 		weightedPosHitCount = (int)weight;
 	}
 	public int getWeightedHitCount(){

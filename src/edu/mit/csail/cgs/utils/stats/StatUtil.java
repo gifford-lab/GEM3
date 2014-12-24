@@ -48,8 +48,7 @@ public class StatUtil {
 	
 	public static double uniform_rnd() {
 		return Uniform.staticNextDouble();
-	}
-	
+	}	
 	
 	public static double beta_rnd(double a, double b) {
 		return Beta.staticNextDouble(a,b);
