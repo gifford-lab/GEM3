@@ -488,7 +488,7 @@ public class KMAC2WK {
 
 	        ArrayList<KmerCluster> tmp = new ArrayList<KmerCluster>();
 			if (!kmers.isEmpty()){
-				double[][]distanceMatrix = computeDistanceMatrix(kmers);
+				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, true);
 				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix);
 		        for (int j=0;j<centerKmers.size();j++){	
 		        	Kmer seedKmer = centerKmers.get(j);
@@ -1116,9 +1116,8 @@ public class KMAC2WK {
 		}
 		return results;
 	}
-
-	private double[][] computeDistanceMatrix(ArrayList<Kmer> kmers) {
-		boolean print_dist_matrix = false;
+	
+	private double[][] computeDistanceMatrix(ArrayList<Kmer> kmers, boolean print_dist_matrix) {
 		int kmerCount = kmers.size();
 		double[][]distanceMatrix = new double[kmerCount][kmerCount];
 		for (int i=0;i<kmerCount;i++){
@@ -1136,7 +1135,7 @@ public class KMAC2WK {
 				distanceMatrix[i][j]=distanceMatrix[j][i];
 			}
 		}
-		System.out.println("computeDistanceMatrix, "+CommonUtils.timeElapsed(tic));
+//		System.out.println("computeDistanceMatrix, "+CommonUtils.timeElapsed(tic));
 
 		if (print_dist_matrix){
 	        StringBuilder output = new StringBuilder();
@@ -1155,10 +1154,123 @@ public class KMAC2WK {
 		        output.append(String.format("%.1f",distanceMatrix[j][kmerCount-1])).append("\n");
 	        }
 	        CommonUtils.writeFile(outName+".distance_matrix.txt", output.toString());
+	        
+	        // Gephi format
+	        // http://gephi.github.io/users/supported-graph-formats/csv-format/, Matrix
+	        output = new StringBuilder();
+	        // header line
+	        output.append(";");
+	        for (int j=0;j<kmerCount;j++){
+	        	output.append(String.format("%s;",kmers.get(j).getKmerString()));
+	        }
+	        CommonUtils.replaceEnd(output, '\n');
+	        // data lines
+	        for (int j=0;j<kmerCount;j++){
+	        	output.append(kmers.get(j).getKmerString()+";");
+		        for (int i=0;i<distanceMatrix[j].length;i++){
+		        	output.append(String.format("%.1f;",distanceMatrix[j][i]));
+		        }
+		        CommonUtils.replaceEnd(output, '\n');
+	        }
+	        CommonUtils.writeFile(outName+".distance_matrix.csv", output.toString());
 		}
 		return distanceMatrix;
 	}
 	
+	private double[][] computeWeightedDistanceMatrix(ArrayList<Kmer> kmers, boolean print_dist_matrix) {
+		/** basicKmers include the exact kmers and the sub-kmers of the gapped kmers */
+		HashSet<Kmer> basicKmerSet = new HashSet<Kmer>();
+		for (Kmer km: kmers){
+			km.addBasicKmersToSet(basicKmerSet);
+	    }
+		ArrayList<Kmer> basicKmers = new ArrayList<Kmer>();
+		basicKmers.addAll(basicKmerSet);
+		HashMap<Kmer,Integer> basicKmerMap = new HashMap<Kmer,Integer>();
+		for (int i=0;i<basicKmers.size();i++){
+			basicKmerMap.put(basicKmers.get(i), i);
+		}
+		double[][] bDist = computeDistanceMatrix(basicKmers, false);
+		
+		int kmerCount = kmers.size();
+		double[][]distanceMatrix = new double[kmerCount][kmerCount];
+		for (int i=0;i<kmerCount;i++){
+			Kmer km = kmers.get(i);
+			ArrayList<Kmer> sks = new ArrayList<Kmer>();
+			if (km instanceof GappedKmer)
+				sks.addAll( ((GappedKmer)km).getSubKmers() );
+			else
+				sks.add(km);
+					
+			for (int j=0;j<=i;j++){
+				Kmer kmj = kmers.get(j);
+				ArrayList<Kmer> skj = new ArrayList<Kmer>();
+				if (kmj instanceof GappedKmer)
+					skj.addAll( ((GappedKmer)kmj).getSubKmers() );
+				else
+					skj.add(kmj);
+				
+				double distSum = 0;
+				double weightSum = 0;
+				
+				for (Kmer k1:sks)
+					for (Kmer k2: skj){
+						double w2 = k1.getNetHitCount()*k2.getNetHitCount();
+						weightSum += w2;
+						distSum += w2 * bDist[basicKmerMap.get(k1)][basicKmerMap.get(k2)];
+					}
+				distanceMatrix[i][j]=distSum/weightSum;
+			}
+		}
+		for (int i=0;i<kmerCount;i++){
+			for (int j=i+1;j<kmerCount;j++){
+				distanceMatrix[i][j]=distanceMatrix[j][i];
+			}
+		}
+		for (int i=0;i<kmerCount;i++)
+			distanceMatrix[i][i]=0;
+		
+//		System.out.println("computeDistanceMatrix, "+CommonUtils.timeElapsed(tic));
+	
+		if (print_dist_matrix){
+	        StringBuilder output = new StringBuilder();
+	        for (int j=0;j<kmerCount;j++){
+	        	output.append(String.format("%s\t",kmers.get(j).getKmerString()));
+	        }
+	        CommonUtils.replaceEnd(output, '\n');
+	        for (int j=0;j<kmerCount;j++){
+	        	output.append(String.format("%d\t",kmers.get(j).getNetHitCount()));
+	        }
+	        CommonUtils.replaceEnd(output, '\n');
+	        for (int j=0;j<kmerCount;j++){
+		        for (int i=0;i<distanceMatrix[j].length-1;i++){
+		        	output.append(String.format("%.1f\t",distanceMatrix[j][i]));
+		        }
+		        output.append(String.format("%.1f",distanceMatrix[j][kmerCount-1])).append("\n");
+	        }
+	        CommonUtils.writeFile(outName+".weighted_distance_matrix.txt", output.toString());
+	        
+	        // Gephi format
+	        // http://gephi.github.io/users/supported-graph-formats/csv-format/, Matrix
+	        output = new StringBuilder();
+	        output.append("Id,Label,Count\n");
+	        for (int j=0;j<kmerCount;j++){
+	        	output.append(String.format("%d,%s,%d\n",j,kmers.get(j).getKmerString(),kmers.get(j).getNetHitCount()));
+	        }
+	        CommonUtils.writeFile(String.format("%s.k%d.dist.gephi_nodes.csv", outName, k), output.toString());
+	        
+	        output = new StringBuilder();
+	        double dist_cutoff = 1.5;
+	        output.append("Target,Source,Weight,Type,Dist\n");
+	        for (int j=0;j<kmerCount;j++){
+		        for (int i=0;i<distanceMatrix[j].length;i++){
+		        	if (i!=j && distanceMatrix[j][i] <= dist_cutoff)
+		        	output.append(String.format("%d,%d,1,Undirected,%.1f\n",j,i,distanceMatrix[j][i]));
+		        }
+	        }
+	        CommonUtils.writeFile(String.format("%s.k%d.dist%.1f.gephi_edges.csv", outName, k, dist_cutoff), output.toString());
+		}
+		return distanceMatrix;
+	}
 	private ArrayList<Kmer> selectCenterKmersByDensityClustering(ArrayList<Kmer> kmers, double[][]distanceMatrix) {
 		long tic = System.currentTimeMillis();
 		int k = kmers.get(0).getK();

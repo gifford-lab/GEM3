@@ -1982,14 +1982,15 @@ public class StatUtil {
         });
 		
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
-		HashSet<DensityClusteringPoint> coveredPoints = new HashSet<DensityClusteringPoint>();
 		while(!data.isEmpty()){
 			DensityClusteringPoint p = data.get(0);
+			if (p.delta<2){		// skip those points near other high density points
+				data.remove(p);
+				continue;
+			}
 			results.add(p);		// select the best point from the remaining points
-			coveredPoints.add(p);
 			data.remove(p);
 			for (DensityClusteringPoint m: p.members){
-				coveredPoints.add(m);
 				data.remove(m);
 			}
 		}
