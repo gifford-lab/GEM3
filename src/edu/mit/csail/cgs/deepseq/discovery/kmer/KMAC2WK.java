@@ -611,7 +611,6 @@ public class KMAC2WK {
 			
 			if (config.verbose>1)
 				System.out.println("\nFinished merging motifs.\n");
-			
 		}
 		
 		/** Refine final motifs, set binding positions, etc */
@@ -623,14 +622,22 @@ public class KMAC2WK {
 		for (int i=0;i<clusters.size();i++){
 			KmerCluster cluster = clusters.get(i);
 			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
-			if (config.evaluate_by_ksm)
+			if (config.evaluate_by_ksm || cluster.wm != null){
+		    	if (config.verbose>1)
+        			System.out.println(String.format("%s: # %d KSM %.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+        					cluster.ksmThreshold.kg_score, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, cluster.ksmThreshold.motif_hgp, cluster.seedKmer.kmerString));
 				alignSequencesUsingKmers(seqList, cluster.alignedKmers, cluster);
-			else
+			}
+			else{
+		    	if (config.verbose>1)
+        			System.out.println(String.format("%s: # %d PWM %.2f/%.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+        					cluster.pwmThreshold, cluster.wm.getMaxScore(), cluster.pwmPosHitCount, cluster.pwmNegHitCount, cluster.pwmThresholdHGP, WeightMatrix.getMaxLetters(cluster.wm)));
 				alignSequencesUsingPWM(seqList, cluster);
+			}
 			KmerCluster newCluster = cluster.clone(false);
 			newCluster.ksmThreshold.motif_hgp /=2;
 			newCluster.pwmThresholdHGP /=2;
-			iteratePWMandKSM (cluster, seqList, newCluster.k, config.use_ksm);
+			iteratePWMandKSM (newCluster, seqList, newCluster.k, config.use_ksm);
 			if ((config.evaluate_by_ksm && newCluster.ksmThreshold.motif_hgp<cluster.ksmThreshold.motif_hgp) ||
 					!config.evaluate_by_ksm && newCluster.pwmThresholdHGP<cluster.pwmThresholdHGP){
 				clusters.set(i, newCluster);
@@ -640,7 +647,7 @@ public class KMAC2WK {
 			}
 			else{
 				if (config.verbose>1)
-		    		System.out.println(CommonUtils.timeElapsed(tic)+": Motif #"+i+" remained the same.\n");
+		    		System.out.println(CommonUtils.timeElapsed(tic)+": Motif #"+i+" has not been updated.\n");
 			}
 			
 			/** use all aligned sequences to find expected binding sites, set kmer offset */
