@@ -622,15 +622,15 @@ public class KMAC2WK {
 		for (int i=0;i<clusters.size();i++){
 			KmerCluster cluster = clusters.get(i);
 			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
-			if (config.evaluate_by_ksm || cluster.wm != null){
+			if (config.evaluate_by_ksm || cluster.wm == null){
 		    	if (config.verbose>1)
-        			System.out.println(String.format("%s: # %d KSM %.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
         					cluster.ksmThreshold.kg_score, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, cluster.ksmThreshold.motif_hgp, cluster.seedKmer.kmerString));
 				alignSequencesUsingKmers(seqList, cluster.alignedKmers, cluster);
 			}
 			else{
 		    	if (config.verbose>1)
-        			System.out.println(String.format("%s: # %d PWM %.2f/%.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+        			System.out.println(String.format("%s: #%d PWM %.2f/%.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
         					cluster.pwmThreshold, cluster.wm.getMaxScore(), cluster.pwmPosHitCount, cluster.pwmNegHitCount, cluster.pwmThresholdHGP, WeightMatrix.getMaxLetters(cluster.wm)));
 				alignSequencesUsingPWM(seqList, cluster);
 			}
@@ -1515,7 +1515,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 			
 			if (maxCount>=minHitCount*config.motif_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
 				if (config.verbose>1)
-		    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d %s\t(hit=%d, hgp=1e%.1f)\n#%d %s\t(hit=%d, hgp=1e%.1f)\n", 
+		    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d PWM %s\t(hit=%d, hgp=1e%.1f)\n#%d PWM %s\t(hit=%d, hgp=1e%.1f)\n", 
 		    				CommonUtils.timeElapsed(tic), maxCount, maxDist, isRC?"rc":"", 
 		    				cluster1.clusterId, WeightMatrix.getMaxLetters(cluster1.wm), cluster1.pwmPosHitCount, cluster1.pwmThresholdHGP, 
 		    				cluster2.clusterId, WeightMatrix.getMaxLetters(cluster2.wm), cluster2.pwmPosHitCount, cluster2.pwmThresholdHGP));
@@ -1658,11 +1658,11 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 								cluster2.ksmThreshold = newKSM.threshold;
 							}
 							else{	// if no good KSM
+					    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)+" is removed.");
 								cluster2.wm = null;
 								toRemove.add(cluster2);
 								checked[cluster1.clusterId][cluster2.clusterId]=true;
 								checked[cluster2.clusterId][cluster1.clusterId]=true;
-					    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" is removed.");
 								continue;
 							}
 						}
@@ -1793,7 +1793,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 				
 				if (maxCount>=minHitCount*config.motif_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
 					if (config.verbose>1)
-			    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d %s\t(hit=%d, hgp=1e%.1f)\n#%d %s\t(hit=%d, hgp=1e%.1f)\n", 
+			    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d KSM %s\t(hit=%d, hgp=1e%.1f)\n#%d KSM %s\t(hit=%d, hgp=1e%.1f)\n", 
 			    				CommonUtils.timeElapsed(tic), maxCount, maxDist, isRC?"rc":"", 
 			    				cluster1.clusterId, cluster1.seedKmer.kmerString, cluster1.ksmThreshold.posHit, cluster1.ksmThreshold.motif_hgp, 
 			    				cluster2.clusterId, cluster2.seedKmer.kmerString, cluster2.ksmThreshold.posHit, cluster2.ksmThreshold.motif_hgp));
