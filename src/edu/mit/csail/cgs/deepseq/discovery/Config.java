@@ -92,7 +92,7 @@ public class Config {
     public boolean optimize_kmer_set = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
-    public boolean use_weighted_kmer = false;		// strength weighted k-mer count
+    public boolean use_weighted_kmer = true;		// strength weighted k-mer count
     public boolean use_pos_kmer = true;				// position weighted k-mer count
     public boolean k_neg_shuffle = false;
     public boolean k_neg_dinu_shuffle = false;		// di-nuleotide shuffle

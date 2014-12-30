@@ -675,7 +675,18 @@ public class KMAC2WK {
 				bs[count]=midPos+s.pos;
 				count++;
 			}
-			// median BS position relative to seed k-mer start
+			// median BS position relative to seed k-mer start 
+			if (bs.length==0){
+		    	if (config.verbose>1){
+		    		System.out.println("!!! No binding site match !!!");
+        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+        					cluster.ksmThreshold.kg_score, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, cluster.ksmThreshold.motif_hgp, cluster.seedKmer.kmerString));
+        			System.out.println(String.format("%s: #%d PWM %.2f/%.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+        					cluster.pwmThreshold, cluster.wm.getMaxScore(), cluster.pwmPosHitCount, cluster.pwmNegHitCount, cluster.pwmThresholdHGP, WeightMatrix.getMaxLetters(cluster.wm)));
+		    	}
+		    	continue;
+			}
+				
 			cluster.pos_BS_seed=(int)Math.ceil(StatUtil.median(bs));		
 			if (config.print_aligned_seqs)		// Note: the motif id of this seqs_aligned.txt may not be the same as final motif id.
 				CommonUtils.writeFile(outName+"_"+i+"_seqs_aligned.txt", sb.toString());
@@ -875,13 +886,8 @@ public class KMAC2WK {
 				highHgpKmers.add(kmer);	
 				continue;
 			}
-			if (config.use_weighted_kmer){
-//				kmer.setWeightedPosHitCount();		//TODO: check if weight is used
-				kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getWeightedHitCount(), kmer.getNegHitCount()));
-			}
-			else{
-				kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
-			}
+
+			kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
 			if (kmer.getHgp()>config.kmer_hgp){
 				highHgpKmers.add(kmer);		
 				continue;
@@ -3370,6 +3376,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	 * @param alignedKmers
 	 */
 	private void optimizeKSM(ArrayList<Kmer> kmers){
+		ArrayList<Kmer> kmerCopy = Kmer.copyKmerList(kmers);
 		if (kmers.size()<=1)
 			return;
 
@@ -3401,9 +3408,14 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			}
 		}
 		
-		int posHitCount = seq2kmers.size();
+		float posHitCount = 0;	// weighted count
+		for (int id: seq2kmers.keySet())
+			if (config.use_weighted_kmer)
+				posHitCount += seq_weights[id];
+			else
+				posHitCount ++;
 		int negHitCount = seq2kmers_neg.size();
-		double hgp_all = computeHGP(posHitCount, negHitCount);
+		double hgp_all = computeHGP(Math.round(posHitCount), negHitCount);
 		
 		while(changed){
 			changed = false;
@@ -3412,26 +3424,29 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			for (int i=0;i<kmers.size();i++){
 				
 				Kmer km = kmers.get(i);
-				int count_with_single_kmer = 0;
+				float count_with_single_kmer = 0;			// weighted count
 				int count_with_single_kmer_neg = 0;
 				HashSet<Integer> hits_to_remove = new HashSet<Integer>();
 				HashSet<Integer> hits_to_remove_neg = new HashSet<Integer>();
 				HashSet<Integer> hits = km.getPosHits();
 				HashSet<Integer> hits_neg = km.getNegHits();
-				for (int h:hits){
-					if (seq2kmers.get(h).size()==1){
-						count_with_single_kmer++;
-						hits_to_remove.add(h);
+				for (int id:hits){
+					if (seq2kmers.get(id).size()==1){
+						if (config.use_weighted_kmer)
+							count_with_single_kmer += seq_weights[id];
+						else
+							count_with_single_kmer++;
+						hits_to_remove.add(id);
 					}
 				}
-				for (int h:hits_neg){
-					if (seq2kmers_neg.get(h).size()==1){
+				for (int id:hits_neg){
+					if (seq2kmers_neg.get(id).size()==1){
 						count_with_single_kmer_neg++;
-						hits_to_remove_neg.add(h);
+						hits_to_remove_neg.add(id);
 					}
 				}
 				if (count_with_single_kmer_neg>0){
-					double hgp_remove_this = computeHGP(posHitCount-count_with_single_kmer, negHitCount-count_with_single_kmer_neg);
+					double hgp_remove_this = computeHGP( Math.round(posHitCount-count_with_single_kmer), negHitCount-count_with_single_kmer_neg);
 					// test whether removing this k-mer will improve enrichment significance hgp
 					if (hgp_remove_this<hgp_all){
 //						System.err.println(String.format("%s: p%d n%d p-%d n-%d hgp: %.1f-->%.1f", 
@@ -3452,6 +3467,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			kmers.removeAll(kmers_toRemove);
 		}
 		kmers.trimToSize();
+		if (kmers.isEmpty()){
+			for (Kmer km:kmerCopy)
+				System.out.println(km.toShortString());
+		}
 	}
 
     
@@ -3723,98 +3742,6 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		else
 			hgcdf_log10 = StatUtil.log10_hyperGeometricCDF_cache_appr(negHit-1, allSeq, allHit, negSeq);
 		return hgcdf_log10;
-	}
-	
-	/**
-	 * Compute hyper-geometric p-values (log10) for the kmer strings<br>
-	 */
-	public double[] computeHGPs(ArrayList<String> kmerStrings){
-		AhoCorasick tree = new AhoCorasick();
-		for (int i=0;i<kmerStrings.size();i++){
-			tree.add(kmerStrings.get(i).getBytes(), i);
-			tree.add(SequenceUtils.reverseComplement(kmerStrings.get(i)).getBytes(), i);
-	    }
-	    tree.prepare();
-	    int[] posHitCount = new int[kmerStrings.size()];
-	    int[] negHitCount = new int[kmerStrings.size()];
-	    for (String seq: seqs){
-			Iterator searcher = tree.search(seq.getBytes());
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				Set<Integer> idxs = result.getOutputs();
-				for (int idx:idxs)
-					posHitCount[idx]++;
-			}
-	    }
-	    for (String seq: seqsNegList){
-			Iterator searcher = tree.search(seq.getBytes());
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				Set<Integer> idxs = result.getOutputs();
-				for (int idx:idxs)
-					negHitCount[idx]++;
-			}
-	    }
-	    double hgps[] = new double[kmerStrings.size()];
-	    for (int i=0;i<kmerStrings.size();i++){
-			hgps[i] = computeHGP(posSeqCount, negSeqCount, posHitCount[i], negHitCount[i]);
-//	    	hgps[i] = 1-StatUtil.hyperGeometricCDF_cache(posHitCount[i], totalSeqCount, posHitCount[i]+negHitCount[i], posSeqCount);
-	    }
-	    return hgps;
-	}
-	
-	/**
-	 * Update k-mer hit counts and compute hyper-geometric p-values<br>
-	 */
-	public void updateKmerCounts(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
-		AhoCorasick tree = new AhoCorasick();
-		for (int i=0;i<kmers.size();i++){
-			String kmStr = kmers.get(i).getKmerString();
-			tree.add(kmStr.getBytes(), i);
-			tree.add(SequenceUtils.reverseComplement(kmStr).getBytes(), i);
-	    }
-	    tree.prepare();
-	    ArrayList<HashSet<Integer>> posHits = new ArrayList<HashSet<Integer>>(kmers.size());
-	    for (int i=0;i<kmers.size();i++)
-	    	posHits.add(new HashSet<Integer>());
-	    ArrayList<HashSet<Integer>> negHits = new ArrayList<HashSet<Integer>>(kmers.size());
-	    for (int i=0;i<kmers.size();i++)
-	    	negHits.add(new HashSet<Integer>());
-//	    double[] kmerStrength = new double[kmers.size()];		// TODO: ignore kmer Strength for now
-	    for (int i=0;i<posSeqCount;i++){
-	    	String seq = seqs[i];
-			Iterator searcher = tree.search(seq.getBytes());
-			HashSet<Integer> idxs = new HashSet<Integer>();
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				idxs.addAll(result.getOutputs());
-			}
-			//			for (int idx:idxs){
-//				kmerSum += kmers.get(idx).getPosHitCount();
-//			}
-			for (int idx:idxs){
-				posHits.get(idx).add(i);
-//				kmerStrength[idx] += kmerSum==0?0:kmers.get(idx).getPosHitCount()/kmerSum*events.get(i).getTotalEventStrength();
-			}
-	    }
-	    for (int i=0;i<negSeqCount;i++){
-	    	String seq = seqsNegList.get(i);
-			Iterator searcher = tree.search(seq.getBytes());
-			HashSet<Integer> idxs = new HashSet<Integer>();
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				idxs.addAll(result.getOutputs());
-			}
-			for (int idx:idxs)
-				negHits.get(idx).add(i);
-	    }
-	    for (int i=0;i<kmers.size();i++){
-	    	Kmer km = kmers.get(i);
-	    	km.setPosHits(posHits.get(i));
-	    	km.setNegHits(negHits.get(i));
-			km.setHgp( computeHGP(km.getPosHitCount(), km.getNegHitCount()));
-			km.setStrength(seq_weights[i]);
-	    }
 	}
 	
 	/**
