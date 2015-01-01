@@ -399,7 +399,7 @@ public class Kmer implements Comparable<Kmer>{
 		for (Kmer km:kmers_in){
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer) km;
-				for (Kmer sk: gk.getSubKmers()){
+				for (Kmer sk: gk.getBaseKmers()){
 					if (!subkmer2subkmer.containsKey(sk)){
 						Kmer sk2 = sk.clone();
 						sk2.clearGappedKmers();
@@ -414,9 +414,9 @@ public class Kmer implements Comparable<Kmer>{
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer) km;
 				GappedKmer gk2 = gk.clone();
-				gk2.clearSubKmers();
-				for (Kmer sk: gk.getSubKmers()){
-					gk2.addSubKmer(subkmer2subkmer.get(sk),gk.getSubKmerOrientation(sk));
+				gk2.clearBaseKmers();
+				for (Kmer sk: gk.getBaseKmers()){
+					gk2.addBaseKmer(subkmer2subkmer.get(sk),gk.getSubKmerOrientation(sk));
 				}
 				gk2.update();
 				kmers.add(gk2);

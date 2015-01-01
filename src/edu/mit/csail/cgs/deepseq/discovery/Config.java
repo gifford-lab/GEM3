@@ -120,7 +120,9 @@ public class Config {
 	public boolean refine_ksm = false;	// refine the KSM at the end of KMAC using un-masked sequences
     public boolean print_pwm_fdr = false;
     /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
-    public boolean evaluate_by_ksm = false;		
+    public boolean evaluate_by_ksm = false;	
+    public boolean evaluate_by_both = false;	
+    
     public boolean use_strength_weight = true;	// use binding event strength to weight 
     public boolean use_pos_weight = false;		// use binding position profile to weight motif site
     public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
@@ -232,6 +234,7 @@ public class Config {
         print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_ksm = flags.contains("evaluate_by_ksm");
+        evaluate_by_both = flags.contains("evaluate_by_both");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         discard_subAlpha_components = flags.contains("no_sub_alpha");

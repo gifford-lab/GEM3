@@ -11,7 +11,7 @@ import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class GappedKmer extends Kmer{
-	private HashMap<Kmer,Boolean> subKmers = new HashMap<Kmer,Boolean>();
+	private HashMap<Kmer,Boolean> baseKmers = new HashMap<Kmer,Boolean>();
 	
 	public GappedKmer(String wkString){
 		k = wkString.length();
@@ -25,26 +25,26 @@ public class GappedKmer extends Kmer{
 	 * we only care about the pos/neg hits, and has stored the orientation
 	 * @param kmer
 	 */
-	public void addSubKmer (Kmer kmer, boolean isSameOrientation){
-		subKmers.put(kmer, isSameOrientation);
+	public void addBaseKmer (Kmer kmer, boolean isSameOrientation){
+		baseKmers.put(kmer, isSameOrientation);
 	}
-	void linkSubKmers(){
-		for (Kmer km:subKmers.keySet())
+	void linkBaseKmers(){
+		for (Kmer km:baseKmers.keySet())
 			km.addGappedKmer(this);
 	}
-	void clearSubKmers(){
-		subKmers.clear();
+	void clearBaseKmers(){
+		baseKmers.clear();
 	}
-	public Set<Kmer> getSubKmers (){
-		return subKmers.keySet();
+	public Set<Kmer> getBaseKmers (){
+		return baseKmers.keySet();
 	}
 	boolean getSubKmerOrientation(Kmer subkmer){
-		return subKmers.get(subkmer);
+		return baseKmers.get(subkmer);
 	}
 	public void mergePosHits(){
 		posHits.clear();
 		posBits.clear();
-		for (Kmer km:subKmers.keySet()){
+		for (Kmer km:baseKmers.keySet()){
 			posHits.addAll(km.getPosHits());
 			posBits.or(km.posBits);
 		}
@@ -55,7 +55,7 @@ public class GappedKmer extends Kmer{
 	public void mergeNegHits(){
 		negHits.clear();
 		negBits.clear();
-		for (Kmer km:subKmers.keySet()){
+		for (Kmer km:baseKmers.keySet()){
 			negHits.addAll(km.getNegHits());
 			negBits.or(km.negBits);
 		}
@@ -64,7 +64,7 @@ public class GappedKmer extends Kmer{
 	public void update(){
 		mergePosHits();
 		mergeNegHits();
-		linkSubKmers();
+		linkBaseKmers();
 	}
 	
 	/**
@@ -79,14 +79,14 @@ public class GappedKmer extends Kmer{
 		n.hgp_lg10 = hgp_lg10;
 		n.kmerStartOffset = kmerStartOffset;
 		n.isSeedOrientation = isSeedOrientation;
-		for (Kmer km:subKmers.keySet())
-			n.addSubKmer(km, subKmers.get(km));
+		for (Kmer km:baseKmers.keySet())
+			n.addBaseKmer(km, baseKmers.get(km));
 		n.update();
 		return n;
 	}
 	
 	public void addBasicKmersToSet(HashSet<Kmer> reg){
-		for (Kmer km:subKmers.keySet())
+		for (Kmer km:baseKmers.keySet())
 			reg.add(km);
 	}
 	
@@ -114,7 +114,7 @@ public class GappedKmer extends Kmer{
 		HashMap<Kmer,Integer> allSubKmers = new HashMap<Kmer,Integer>();
 		for (Kmer km: kmers){
 			if (km instanceof GappedKmer){
-				for(Kmer sk: ((GappedKmer) km).getSubKmers()){
+				for(Kmer sk: ((GappedKmer) km).getBaseKmers()){
 					if (!allSubKmers.containsKey(sk)){
 						allSubKmers.put(sk,subKmerId);
 						subKmerId++;
@@ -133,7 +133,7 @@ public class GappedKmer extends Kmer{
 			sb.append(GappedKmer.toShortHeader(k)).append("\n");
 			for (Kmer kmer:kmers){
 				if (kmer instanceof GappedKmer)
-					sb.append(kmer.toShortString()).append("\t").append(((GappedKmer) kmer).getSubKmers().size()).append("\n");
+					sb.append(kmer.toShortString()).append("\t").append(((GappedKmer) kmer).getBaseKmers().size()).append("\n");
 				else
 					sb.append(kmer.toShortString()).append("\n");
 			}
@@ -144,7 +144,7 @@ public class GappedKmer extends Kmer{
 				sb.append(kmer.toString2());				
 				if (kmer instanceof GappedKmer){
 					sb.append("\t");
-					for (Kmer sk: ((GappedKmer) kmer).getSubKmers())
+					for (Kmer sk: ((GappedKmer) kmer).getBaseKmers())
 						sb.append(allSubKmers.get(sk)).append(",");
 					sb.deleteCharAt(sb.length()-1);
 					if (print_kmer_hits)
@@ -172,8 +172,8 @@ public class GappedKmer extends Kmer{
 			CommonUtils.writeFile(String.format("%s.KSM.txt", filePrefix), sb.toString());
 	}
 
-	public void removeSubkmers(Kmer km) {
-		subKmers.remove(km);		
+	public void removeBasekmers(Kmer km) {
+		baseKmers.remove(km);		
 	}
 	public static String toHeader(int k){
 		int length=2*k+1;
@@ -193,7 +193,7 @@ public class GappedKmer extends Kmer{
 	
 	public static ArrayList<Kmer> loadKmers(File file){
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-		HashMap<String, Kmer> subkmerMap = new HashMap<String, Kmer>();
+		HashMap<String, Kmer> basekmerMap = new HashMap<String, Kmer>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
 			bin.readLine();			// skip header line, to be compatible with old file format
@@ -210,7 +210,7 @@ public class GappedKmer extends Kmer{
 	        while((line = bin.readLine()) != null) { 
 	            line = line.trim();
 	            Kmer kmer = GappedKmer.fromString(line);
-	            subkmerMap.put(kmer.CIDs, kmer);
+	            basekmerMap.put(kmer.CIDs, kmer);
 	        }	
 	        if (bin != null) {
 	            bin.close();
@@ -224,8 +224,8 @@ public class GappedKmer extends Kmer{
 				GappedKmer gk = (GappedKmer) km;
 				String[] f = gk.CIDs.split(",");
 				for (String id: f){
-					Kmer sk = subkmerMap.get(id);
-					gk.addSubKmer(sk, CommonUtils.strMinDistance(gk.kmerString, sk.kmerString)==1);
+					Kmer sk = basekmerMap.get(id);
+					gk.addBaseKmer(sk, CommonUtils.strMinDistance(gk.kmerString, sk.kmerString)==1);
 				}
 				gk.update();
 			}
