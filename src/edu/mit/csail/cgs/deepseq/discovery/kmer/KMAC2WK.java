@@ -569,7 +569,7 @@ public class KMAC2WK {
 		for (int i=0;i<clusters.size();i++){
 			MotifCluster cluster = clusters.get(i);
 			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
-			if (config.evaluate_by_ksm || config.evaluate_by_both || cluster.wm == null){
+			if (config.evaluate_by_ksm || cluster.wm == null){
 		    	if (config.verbose>1)
         			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
         					cluster.ksmThreshold.kg_score, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, cluster.ksmThreshold.motif_hgp, cluster.seedKmer.kmerString));
@@ -2557,7 +2557,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			
 			// test if we want to accept the new PWM
 			if (config.evaluate_by_both){
-				if  (newPWM.hgp+cluster.ksmThreshold.motif_hgp >= cluster.pwmThresholdHGP+cluster.ksmThreshold.motif_hgp)
+				if  (newPWM.hgp >= cluster.pwmThresholdHGP)
 					return;		// previous pwm+ksm is more enriched, stop here
 			}
 			else{
@@ -2576,7 +2576,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 					return;
 				
 				if (config.evaluate_by_both){
-					if  (newPWM.hgp+cluster.ksmThreshold.motif_hgp >= cluster.pwmThresholdHGP+cluster.ksmThreshold.motif_hgp)
+					if  (newKSM.threshold.motif_hgp >= cluster.ksmThreshold.motif_hgp)
 						return;		// previous pwm+ksm is more enriched, stop here
 				}
 				else{
