@@ -4498,7 +4498,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			else return(0);
 		}
 		public String toString(){
-			return String.format("%s|%b %d: %d+/%d-, hpg=%.2f", getBestKmer().getKmerStrRC(), getBestKmer().isSeedOrientation(), bs, posHitGroupCount, negHitGroupCount, kg_score);
+			return String.format("%s|%b %d: %d+/%d-, kg_score=%.2f", getBestKmer().getKmerStrRC(), getBestKmer().isSeedOrientation(), bs, posHitGroupCount, negHitGroupCount, kg_score);
 		}
 	}
 	class HGPThread implements Runnable {

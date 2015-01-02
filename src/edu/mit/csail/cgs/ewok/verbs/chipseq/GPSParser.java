@@ -20,7 +20,7 @@ import edu.mit.csail.cgs.utils.Pair;
  */
 public class GPSParser {
 	
-	public static void main(String[] args) throws IOException {
+	public static void main0(String[] args) throws IOException {
 		Genome genome=null;
 		ArgParser ap = new ArgParser(args);
 	    try {
@@ -85,12 +85,14 @@ public class GPSParser {
         String line;
         while((line = bin.readLine()) != null) { 
             line = line.trim();
+            if (line.length()==0)
+            	continue;
             String[] f=line.split("\t");
             if (f[0].equals("Position")||f[0].equals("chr")){
                 continue;
             }
             try {
-                GPSPeak hit = GPSParser.parseLine(g, line, 0);
+                GPSPeak hit = GPSParser.parseLine(g, line, count);
                 if (hit!=null) {
                     results.add(hit);
                 }

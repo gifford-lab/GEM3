@@ -53,12 +53,12 @@ public class KmerScanner {
 	}
 	
 	public KmerGroup getBestKG (String seq){
-		double minScore = 0;
+		double bestScore = 0;
 		KmerGroup best = null;
 		KmerGroup[] kgs = query(seq);
 		for (KmerGroup kg:kgs)
-			if (minScore >= kg.getScore()){
-				minScore = kg.getScore();
+			if (bestScore < kg.getScore()){
+				bestScore = kg.getScore();
 				best = kg;
 			}
 		return best;
