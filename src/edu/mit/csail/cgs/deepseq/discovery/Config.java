@@ -76,7 +76,7 @@ public class Config {
     public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
     public double[] bg= new double[4];	// background frequency based on GC content
     public double wm_factor = 0.6;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
-    public double fpr = 0.1;		// The false positive rate for partial ROC
+    public double fpr = 0.15;		// The false positive rate for partial ROC
     public double motif_relax_factor = 1;		// A factor to multiply the motif PWM threshold, used for GEM motif positional prior
     public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
     public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences

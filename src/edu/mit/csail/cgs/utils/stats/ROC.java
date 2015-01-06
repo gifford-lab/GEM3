@@ -56,6 +56,14 @@ public class ROC {
 			tprs[i] = tprs[i-1] + posScoreMap.get(score)/(double)posTotalCount;
 			fprs[i] = fprs[i-1] + negScoreMap.get(score)/(double)negTotalCount;
 		}
+//		
+//		for (int i=1;i<tprs.length;i++){
+//			if (fprs[i]>0.05 && (fprs[i]<0.2 || sortedScores[i-1]>sortedScores[0]*0.5))
+//				System.out.println(String.format("%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f\t%.2f\t\t%.2f", 
+//						sortedScores[i-1], sortedScores[i-1]/sortedScores[0], tprs[i], fprs[i], 
+//						tprs[i]-fprs[i], Math.sqrt((1-tprs[i])*(1-tprs[i])-fprs[i]*fprs[i]),
+//						tprs[i]-fprs[i]-Math.sqrt((1-tprs[i])*(1-tprs[i])-fprs[i]*fprs[i])));
+//		}
 	}
 	
 	/**
