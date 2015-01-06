@@ -15,13 +15,8 @@ import java.util.*;
 
 import javax.imageio.ImageIO;
 
-import com.ctc.wstx.util.StringUtil;
-
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.ArgParser;
-import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.SetTools;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.*;
@@ -29,7 +24,6 @@ import edu.mit.csail.cgs.utils.strings.multipattern.*;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -38,11 +32,7 @@ import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.utils.stats.ROC;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.stats.StatUtil.DensityClusteringPoint;
-import edu.mit.csail.cgs.utils.stats.roc.Curve;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.Sequence;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2.KmerCluster;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2.KmerGroup;
 
 public class KMAC2WK {
 	private static final int RC=100000;		// extra bp add to indicate negative strand match of kmer
