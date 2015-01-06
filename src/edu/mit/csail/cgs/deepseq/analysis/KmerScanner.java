@@ -36,15 +36,11 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class KmerScanner {
 	public static char[] letters = {'A','C','T','G'};
-	private ArrayList<Kmer> kmers;
 	private KMAC2WK kEngine;
 	// each element in the list is for one ChIP-Seq method
-	private ArrayList<String> methodNames = new ArrayList<String>();
-	private ArrayList<ArrayList<Point>> events = new ArrayList<ArrayList<Point>>();
 	
-	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, boolean use_sub_kmer){
-		this.kmers = kmers;
-		kEngine = new KMAC2WK(kmers, null, use_sub_kmer);
+	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, boolean use_base_kmer){
+		kEngine = new KMAC2WK(kmers, null, use_base_kmer);
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 	}
 	
@@ -278,44 +274,7 @@ public class KmerScanner {
 //			System.out.println(kg.toString());
 //		}
 	}
-	
-	private static WeightMatrix loadPWM(File file, double gc ){
-		WeightMatrix wm;
-		try{
-			List<WeightMatrix> wms = WeightMatrixImport.readTRANSFACFreqMatrices(file.getAbsolutePath(), "file");
-			if (wms.isEmpty()){
-				wm=null;
-				System.out.println(file.getName()+" is not a valid motif file.");
-			}
-			else{		// if we have valid PFM, convert it to PWM
-				wm = wms.get(0);		// only get primary motif
-				float[][] matrix = wm.matrix;
-				// normalize
-		        for (int position = 0; position < matrix.length; position++) {
-		            double sum = 0;
-		            for (int j = 0; j < letters.length; j++) {
-		                sum += matrix[position][letters[j]];
-		            }
-		            for (int j = 0; j < letters.length; j++) {
-		                matrix[position][letters[j]] = (float)(matrix[position][letters[j]] / sum);
-		            }
-		        }
-		        // log-odds
-		        for (int pos = 0; pos < matrix.length; pos++) {
-		            for (int j = 0; j < letters.length; j++) {
-		                matrix[pos][letters[j]] = (float)Math.log(Math.max(matrix[pos][letters[j]], .000001) / 
-		                		(letters[j]=='G'||letters[j]=='C'?gc/2:(1-gc)/2));
-		            }
-		        } 
-			}
-		}
-		catch (IOException e){
-			System.out.println(file.getName()+" motif PFM file reading error!!!");
-			wm = null;
-		}
-		return wm;
-	}
-	
+
 	private static ArrayList<ScoreEnrichment> computeScoreEnrichments(ArrayList<Double> posScores, ArrayList<Double> negScores){
 		int total  = posScores.size();		
 		double posSeqScores[] = new double[total];
