@@ -99,8 +99,8 @@ public class ROC {
 	 * @return the optimal score and index for retrieving optimal sensitivity and false positive rate <br><br>
 	 * 
      * Ref: http://www.medicalbiostatistics.com/roccurve.pdf
-     * Youden index (J) that maximizes the vertical distance from line of equality to the point [x, y] as shown in Figure 3. The x represents (1- specificity) and y represents sensitivity. In other words, the Youden index J is the point on the ROC curve which is farthest from line of equality (diagonal line). The main aim of Youden index is to maximize the difference between TPR (sn) and FPR (1 – sp) and little algebra yields J = max[sn+sp]. The value of J for continuous test can be located by doing a search of plausible values where sum of sensitivity and specificity can be maximum. Youden index is more commonly used criterion because this index reflects the intension to maximize the correct classification rate and is easy to calculate. Many authors advocate this criterion.
-	 */
+     * Youden index (J) that maximizes the vertical distance from line of equality to the point [x, y] as shown in Figure 3. The x represents (1-specificity) and y represents sensitivity. In other words, the Youden index J is the point on the ROC curve which is farthest from line of equality (diagonal line). The main aim of Youden index is to maximize the difference between TPR (sn) and FPR (1-sp) and little algebra yields J = max[sn+sp]. The value of J for continuous test can be located by doing a search of plausible values where sum of sensitivity and specificity can be maximum. Youden index is more commonly used criterion because this index reflects the intension to maximize the correct classification rate and is easy to calculate. Many authors advocate this criterion.
+     */
 	public Pair<Double,Integer> partialOptimalPoint (double falsePositiveRate){
 		if (falsePositiveRate > 1)
 			falsePositiveRate = 1;
