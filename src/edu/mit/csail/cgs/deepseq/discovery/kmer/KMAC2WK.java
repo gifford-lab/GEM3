@@ -563,14 +563,14 @@ public class KMAC2WK {
 			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 			if (config.evaluate_by_ksm || cluster.wm == null){
 		    	if (config.verbose>1)
-        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
-        					cluster.ksmThreshold.motif_score, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, cluster.ksmThreshold.motif_significance, cluster.seedKmer.kmerString));
+        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+        					cluster.ksmThreshold.motif_score, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, -cluster.ksmThreshold.motif_significance, cluster.seedKmer.kmerString));
 				alignSequencesUsingKmers(seqList, cluster.alignedKmers, cluster);
 			}
 			else{
 		    	if (config.verbose>1)
-        			System.out.println(String.format("%s: #%d PWM %.2f/%.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), i,
-        					cluster.pwmThreshold, cluster.wm.getMaxScore(), cluster.pwmPosHitCount, cluster.pwmNegHitCount, cluster.pwmThresholdHGP, WeightMatrix.getMaxLetters(cluster.wm)));
+        			System.out.println(String.format("%s: #%d PWM %.2f/%.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+        					cluster.pwmThreshold, cluster.wm.getMaxScore(), cluster.pwmPosHitCount, cluster.pwmNegHitCount, -cluster.pwmThresholdHGP, WeightMatrix.getMaxLetters(cluster.wm)));
 				alignSequencesUsingPWM(seqList, cluster);
 			}
 			MotifCluster newCluster = cluster.clone(false);
@@ -1460,10 +1460,10 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 			
 			if (maxCount>=minHitCount*config.motif_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
 				if (config.verbose>1)
-		    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d PWM %s\t(hit=%d, hgp=1e%.1f)\n#%d PWM %s\t(hit=%d, hgp=1e%.1f)\n", 
+		    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d PWM %s\t(hit=%d, pAUC=%.1f)\n#%d PWM %s\t(hit=%d, pAUC=1e%.1f)\n", 
 		    				CommonUtils.timeElapsed(tic), maxCount, maxDist, isRC?"rc":"", 
-		    				cluster1.clusterId, WeightMatrix.getMaxLetters(cluster1.wm), cluster1.pwmPosHitCount, cluster1.pwmThresholdHGP, 
-		    				cluster2.clusterId, WeightMatrix.getMaxLetters(cluster2.wm), cluster2.pwmPosHitCount, cluster2.pwmThresholdHGP));
+		    				cluster1.clusterId, WeightMatrix.getMaxLetters(cluster1.wm), cluster1.pwmPosHitCount, -cluster1.pwmThresholdHGP, 
+		    				cluster2.clusterId, WeightMatrix.getMaxLetters(cluster2.wm), cluster2.pwmPosHitCount, -cluster2.pwmThresholdHGP));
 				
 				MotifCluster newCluster = cluster1.clone(false);
 				for (Sequence s:seqList)
@@ -1875,16 +1875,25 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 					// use the sequences not matched by motif1 to refine motif2, hopefully get a more different motif
 					ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
 					BitSet unalignedIds = new BitSet();
-					for (Sequence s:seqList)
+					for (Sequence s:seqList){
 						if (s.pos == UNALIGNED){
 							seqList_j.add(s);
 							unalignedIds.set(s.id);
 						}
-
+					}
 					ArrayList<Kmer> inputKmers = new ArrayList<Kmer>();		// use only the k-mers mapped in the un-aligned seqs
 					for (Kmer km: cluster2.inputKmers){
 						if (km.posBits.intersects(unalignedIds))
 							inputKmers.add(km);
+					}
+					if (seqList_j.size()<seqs.length*config.motif_hit_factor || inputKmers.isEmpty()){
+						if (config.verbose>1)
+				    		System.out.println(String.format("%s: Motif #%d has too few possible hits, remove it.", 
+				    			CommonUtils.timeElapsed(tic), cluster2.clusterId, count_aligned));
+						toRemove.add(cluster2);
+						checked[cluster1.clusterId][cluster2.clusterId]=true;
+						checked[cluster2.clusterId][cluster1.clusterId]=true;
+						continue;
 					}
 					indexKmerSequences(inputKmers, seqList_j, seqListNeg, config.kmer_hgp);  // need this to get KSM
 					alignSequencesUsingKmers(seqList_j, cluster2.alignedKmers, cluster2);
@@ -1902,7 +1911,6 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 						if (config.verbose>1)
 				    		System.out.println(String.format("%s: Motif #%d has too few (%d) non-shared hits, remove it.", 
 				    			CommonUtils.timeElapsed(tic), cluster2.clusterId, count_aligned));
-//						cluster2.wm = null;
 						toRemove.add(cluster2);
 						checked[cluster1.clusterId][cluster2.clusterId]=true;
 						checked[cluster2.clusterId][cluster1.clusterId]=true;
@@ -2183,7 +2191,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	}
 	for (Kmer km:kmers){
 		if (km instanceof GappedKmer){	
-			((GappedKmer)km).update();	// the pos hits of the sub-kmers has been updated
+			((GappedKmer)km).update();	// the pos hits of the base-kmers has been updated
 			if (km.getPosHitCount()==0)
 				continue;
 			km.setHgp(computeHGP(totalPosCount, totalNegCount, km.getPosHitCount(), km.getNegHitCount()));	// neg hit count is not change
@@ -2978,7 +2986,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
     			if (pwmThresholdHGP==0)
     				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
         		else
-        			System.out.println(String.format("%s: PWM %.2f/%.2f\thit %d+/%d- seqs\tpAUROC=%.1f\t%s", CommonUtils.timeElapsed(tic), 
+        			System.out.println(String.format("%s: PWM %.2f/%.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), 
         					pwmThreshold, wm.getMaxScore(), estimate.posHit, estimate.negHit, -pwmThresholdHGP, WeightMatrix.getMaxLetters(wm)));
     		if (pwmThresholdHGP<=bestHGP){
     			bestWM = wm;
@@ -3226,8 +3234,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			if (threshold==null)
 				return;
 			if (config.verbose>1)
-				System.out.println(String.format("%s: KSM KG_cutoff %.2f\thit %d+/%d- seqs\tpAUROC=%.1f", 
-					CommonUtils.timeElapsed(tic), threshold.motif_score, threshold.posHit, threshold.negHit, threshold.motif_significance));
+				System.out.println(String.format("%s: KSM KG_cutoff %.2f\thit %d+/%d- seqs\tpAUC=%.1f", 
+					CommonUtils.timeElapsed(tic), threshold.motif_score, threshold.posHit, threshold.negHit, -threshold.motif_significance));
 //			threshold = optimizeKsmThreshold(seqList, seqListNeg, kmers);
 //			if (threshold==null)
 //				return;
@@ -3703,11 +3711,11 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 //				sb.append(String.format("k=%d\tthresh=%.2f\thit=%d\thgp=1e%.1f\tW=%d\tPWM= %s.\n", c.k, c.pwmThreshold,
 //						c.pwmPosHitCount, c.pwmThresholdHGP, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
 //			}
-			sb.append(String.format("k=%d\tKSM= %s \t%.2f, %d, 1e%.1f", c.k, c.seedKmer.getKmerString(), 
-					c.ksmThreshold.motif_score, c.ksmThreshold.posHit, c.ksmThreshold.motif_significance));
+			sb.append(String.format("k=%d\tKSM= %s \t%.2f, %d, pAUC=%.1f", c.k, c.seedKmer.getKmerString(), 
+					c.ksmThreshold.motif_score, c.ksmThreshold.posHit, -c.ksmThreshold.motif_significance));
 			if (c.wm!=null)
-				sb.append(String.format("\tPWM= %s\t%.2f, %d, 1e%.1f\n", 
-						WeightMatrix.getMaxLetters(c.wm), c.pwmThreshold, c.pwmPosHitCount, c.pwmThresholdHGP));
+				sb.append(String.format("\tPWM= %s\t%.2f, %d, pAUC=%.1f\n", 
+						WeightMatrix.getMaxLetters(c.wm), c.pwmThreshold, c.pwmPosHitCount, -c.pwmThresholdHGP));
 			else
 				sb.append("No significant PWM\n");
 		}
