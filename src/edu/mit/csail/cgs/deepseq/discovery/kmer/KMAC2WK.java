@@ -553,55 +553,56 @@ public class KMAC2WK {
 		}
 		
 		/** Refine final motifs, set binding positions, etc */
-    	if (config.verbose>1)
-    		System.out.println(CommonUtils.timeElapsed(tic)+": Refining motifs ...\n");
+    	System.out.println(CommonUtils.timeElapsed(tic)+": Finalizing "+ clusters.size() +" motifs ...\n");
 
 		// turn on KG Kmer_Optimiaztion
 		optimize_KG_kmers = true;
 		for (int i=0;i<clusters.size();i++){
 			MotifCluster cluster = clusters.get(i);
-			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
-			if (config.evaluate_by_ksm || cluster.wm == null){
-		    	if (config.verbose>1)
-        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
-        					cluster.ksmThreshold.motif_cutoff, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, -cluster.ksmThreshold.motif_significance, cluster.seedKmer.kmerString));
-				alignByKSM(seqList, cluster.alignedKmers, cluster);
-			}
-			else{
-		    	if (config.verbose>1)
-        			System.out.println(String.format("%s: #%d PWM %.2f/%.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
-        					cluster.pwmThreshold.motif_cutoff, cluster.wm.getMaxScore(), cluster.pwmThreshold.posHit, cluster.pwmThreshold.negHit, -cluster.pwmThreshold.motif_significance, WeightMatrix.getMaxLetters(cluster.wm)));
-				alignByPWM(seqList, cluster, false);
-			}
-			MotifCluster newCluster = cluster.clone(false);
-			newCluster.ksmThreshold.motif_significance /=2;
-			newCluster.pwmThreshold.motif_significance /=2;
-			iteratePWMKSM (newCluster, seqList, newCluster.k, config.use_ksm);
 			
-			boolean toUpdate = false;			
-			if (config.evaluate_by_ksm){
-				if (newCluster.ksmThreshold.motif_significance<cluster.ksmThreshold.motif_significance)
-					toUpdate = true;
-			}
-			else{
-				if  (newCluster.pwmThreshold.motif_significance+newCluster.ksmThreshold.motif_significance 
-						< cluster.pwmThreshold.motif_significance+cluster.ksmThreshold.motif_significance)
-					toUpdate = true;
-			}
-			if (toUpdate){
-				clusters.set(i, newCluster);
-				cluster = newCluster;
-		    	if (config.verbose>1)
-		    		System.out.println(CommonUtils.timeElapsed(tic)+": Motif #"+i+" has been refined.\n");
-			}
-			else{
-				if (config.verbose>1)
-		    		System.out.println(CommonUtils.timeElapsed(tic)+": Motif #"+i+" has not been updated.\n");
-			}
+//			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
+//			if (config.evaluate_by_ksm || cluster.wm == null){
+//		    	if (config.verbose>1)
+//        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+//        					cluster.ksmThreshold.motif_cutoff, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, -cluster.ksmThreshold.motif_significance, cluster.seedKmer.kmerString));
+//				alignByKSM(seqList, cluster.alignedKmers, cluster);
+//			}
+//			else{
+//		    	if (config.verbose>1)
+//        			System.out.println(String.format("%s: #%d PWM %.2f/%.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
+//        					cluster.pwmThreshold.motif_cutoff, cluster.wm.getMaxScore(), cluster.pwmThreshold.posHit, cluster.pwmThreshold.negHit, -cluster.pwmThreshold.motif_significance, WeightMatrix.getMaxLetters(cluster.wm)));
+//				alignByPWM(seqList, cluster, false);
+//			}
+//			MotifCluster newCluster = cluster.clone(false);
+//			newCluster.ksmThreshold.motif_significance /=2;
+//			newCluster.pwmThreshold.motif_significance /=2;
+//			iteratePWMKSM (newCluster, seqList, newCluster.k, config.use_ksm);
+//			
+//			boolean toUpdate = false;			
+//			if (config.evaluate_by_ksm){
+//				if (newCluster.ksmThreshold.motif_significance<cluster.ksmThreshold.motif_significance)
+//					toUpdate = true;
+//			}
+//			else{
+//				if  (newCluster.pwmThreshold.motif_significance+newCluster.ksmThreshold.motif_significance 
+//						< cluster.pwmThreshold.motif_significance+cluster.ksmThreshold.motif_significance)
+//					toUpdate = true;
+//			}
+//			if (toUpdate){
+//				clusters.set(i, newCluster);
+//				cluster = newCluster;
+//		    	if (config.verbose>1)
+//		    		System.out.println(CommonUtils.timeElapsed(tic)+": Motif #"+i+" has been refined.\n");
+//			}
+//			else{
+//				if (config.verbose>1)
+//		    		System.out.println(CommonUtils.timeElapsed(tic)+": Motif #"+i+" has not been updated.\n");
+//			}
 			
 			/** use all aligned sequences to find expected binding sites, set kmer offset */
 	    	// average all the binding positions to decide the expected binding position
 			StringBuilder sb = new StringBuilder();
+			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 			alignByKSM(seqList, cluster.alignedKmers, cluster);
 	    	int leftmost = Integer.MAX_VALUE;
 	    	int total_aligned_seqs = 0;
