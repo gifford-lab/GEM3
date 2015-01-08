@@ -1914,7 +1914,7 @@ public class StatUtil {
 	 * @return Return points with high delta values, then points that are far from the high delta points
 	 */
 	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, 
-			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, int distanceCutoff){
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double posNegSeqRatio, int distanceCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
@@ -1933,8 +1933,8 @@ public class StatUtil {
 				}
 			}
 			// group hit count * self_density, to down-weight weak kmers from being selected as center
-			p.density = Math.sqrt((b_pos.cardinality()-b_neg.cardinality()) * self_density);
-//			p.density = b_pos.cardinality()-b_neg.cardinality();
+//			p.density = Math.sqrt((b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio) * self_density);
+			p.density = b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio;
 			data.add(p);
 		}
 		data.trimToSize();		
@@ -2103,16 +2103,23 @@ public class StatUtil {
 //		}
 //		return data_big_delta;
 //	}	
-	
-	 public static void main9(String[] args){
+	private static void printHGP(int pos, int neg){
+		System.out.println(String.format("%d/%d\t%.2f", pos, neg, hyperGeometricCDF(pos,10000,5000,pos+neg)));
+	}
+	 public static void main0(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));
 //		 Poisson poisson = new Poisson(0, new DRand());
 //		 poisson.setMean(2.7);System.out.println(1-poisson.cdf(56));
 //		 System.out.println(poisson.pdf(1));
 //		System.out.println(log10_hyperGeometricCDF_cache_appr(4,10000,5000,4+1));
-//		System.out.println(hyperGeometricCDF_cache(2405,41690+40506,41690,2405+2));
-//		System.out.println(hyperGeometricCDF(3298,41690+40506,41690,3298+2));
+//		System.out.println(hyperGeometricCDF_cache(2405,41690+40System.out.println(hyperGeometricCDF(3298,10000,5000,3298+2));506,41690,2405+2));
+		 printHGP(1480,465);
+		 printHGP(1325,328);
+		 printHGP(1360,327);
+		 printHGP(1517,467);
+		 
+
 //		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,3298+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,2405+2));

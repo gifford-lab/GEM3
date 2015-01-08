@@ -111,8 +111,8 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public HashSet<Integer> getNegHits(){return negHits;}
 	
-	public int getNetHitCount() {
-		return getPosHitCount()-getNegHitCount();
+	public int getNetHitCount(double posNegSeqRatio) {
+		return getPosHitCount()-(int)(getNegHitCount()*posNegSeqRatio);
 	}
 	private double strength;	// the total read counts from all events explained by this kmer
 	public double getStrength(){return strength;}
