@@ -561,7 +561,8 @@ public class KMAC2WK {
     	System.out.println(CommonUtils.timeElapsed(tic)+": Finalizing "+ clusters.size() +" motifs ...\n");
 
 		// turn on KG Kmer_Optimiaztion
-		optimize_KG_kmers = true;
+    	if (config.optimize_KG_kmers)
+    		optimize_KG_kmers = true;
 		for (int i=0;i<clusters.size();i++){
 			MotifCluster cluster = clusters.get(i);
 			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
@@ -572,6 +573,8 @@ public class KMAC2WK {
 	        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
 	        					cluster.ksmThreshold.motif_cutoff, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, -cluster.ksmThreshold.motif_significance, cluster.seedKmer.kmerString));
 					alignByKSM(seqList, cluster.alignedKmers, cluster);
+					if (cluster.wm == null)
+						alignByPWM(seqList, cluster, true);
 				}
 				else{
 			    	if (config.verbose>1)
@@ -651,7 +654,8 @@ public class KMAC2WK {
 				km.setKmerStartOffset(km.shift-cluster.pos_BS_seed);
 			}			
 		}
-		optimize_KG_kmers = false;		// turn it off here
+		if (config.optimize_KG_kmers)
+    		optimize_KG_kmers = false;		// turn it off here
 
 		// remove clusters with low hit count
 		// TODO: can be done in refinement step, to skip binding position estimation
