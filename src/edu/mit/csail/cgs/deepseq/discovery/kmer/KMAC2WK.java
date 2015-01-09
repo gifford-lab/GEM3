@@ -575,7 +575,7 @@ public class KMAC2WK {
 	        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
 	        					cluster.ksmThreshold.motif_cutoff, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, -cluster.ksmThreshold.motif_significance, cluster.seedKmer.kmerString));
 					alignByKSM(seqList, cluster.alignedKmers, cluster);
-					if (cluster.wm == null)
+					if (cluster.wm != null)
 						alignByPWM(seqList, cluster, true);
 				}
 				else{
