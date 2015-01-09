@@ -35,6 +35,8 @@ import edu.mit.csail.cgs.utils.stats.StatUtil.DensityClusteringPoint;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 
 public class KMAC2WK {
+	public final static String KMAC_VERSION = "1.0";
+
 	private static final int RC=100000;		// extra bp add to indicate negative strand match of kmer
 	private static final int UNALIGNED=9999;	// the special shift for unaligned kmer
 	public static final char[] LETTERS = {'A','C','G','T'};
@@ -4931,13 +4933,22 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		String pos_file = Args.parseString(args, "pos_seq", null);
 		String neg_file = Args.parseString(args, "neg_seq", null);
 		if (pos_file==null || (config.k==-1&&config.k_min==-1)){
-			System.err.println("Example: KMAC2 --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta [--neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta] --k_min 5 --k_max 8 --out_name cMyc_cMyc --seed CACGTG");
+			System.err.println("Example: KMAC --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta [--neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta] --k_min 5 --k_max 8 --out_name cMyc_cMyc --seed CACGTG");
 			System.exit(-1);
 		}
-		if (config.seed!=null){
-			config.k=config.seed.length();
-			System.out.println("Starting seed k-mer is "+config.seed+".\n");
+		
+        System.out.println("\nWelcome to KMAC (version "+KMAC_VERSION+")!");
+
+		StringBuffer sb = new StringBuffer();
+		sb.append("\nOptions:\n");
+		for (String arg:args){
+			if (arg.trim().indexOf(" ")!=-1)
+				sb.append("\"").append(arg).append("\" ");
+			else
+				sb.append(arg).append(" ");
 		}
+		System.out.println(sb.toString()+"\n");
+		
 		String format = Args.parseString(args, "format", "fasta");
 		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
         String[]f = null;
