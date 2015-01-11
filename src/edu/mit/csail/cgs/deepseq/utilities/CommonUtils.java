@@ -404,6 +404,11 @@ public class CommonUtils {
         return strs;
 	}
 	
+	/**
+	 * Load only the sequences of the fasta file
+	 * @param fileName
+	 * @return
+	 */
 	public static ArrayList<String> readFastaFile(String fileName){
 		ArrayList<String> strs = new ArrayList<String>();
 		try {	

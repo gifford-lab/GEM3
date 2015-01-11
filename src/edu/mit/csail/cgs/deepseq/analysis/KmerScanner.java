@@ -22,6 +22,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -33,6 +34,7 @@ import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
+import edu.mit.csail.cgs.utils.stats.ROC;
 
 public class KmerScanner {
 	public static char[] letters = {'A','C','T','G'};
@@ -109,6 +111,152 @@ public class KmerScanner {
 		
 		// load experiment list
 		String path = Args.parseString(args, "path", "./");
+		String fasta_path = Args.parseString(args, "fasta_path", "./");
+		String fasta_suffix = Args.parseString(args, "fasta_suffix", ".fasta");
+		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
+		for (String line: lines){
+			String f[] = line.split("\t");
+			String expt = f[0];
+			System.out.println("Running "+expt);
+			long tic = System.currentTimeMillis();
+			// k-mer group info
+//			String expt= Args.parseString(args, "out", "out");
+//			System.out.println(path);
+			String kmer=null, pfm=null, fasta_file=null;
+			if (expt!=null){
+				kmer = getFileName(path+expt, ".m0.KSM");			// old file name format
+				if (kmer==null)
+					kmer = getFileName(path+expt, "_KSM");		// new file name format, since May 2012
+				pfm = getFileName(path+expt, ".all.PFM");
+				fasta_file = fasta_path+expt+fasta_suffix;
+			}
+			long t1 = System.currentTimeMillis();
+			File file = new File(Args.parseString(args, "kmer", kmer));
+			ArrayList<Kmer> kmers = GappedKmer.loadKmers(file);
+
+			Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
+			KmerScanner scanner = new KmerScanner(kmers, c.car(), c.cdr(), !flags.contains("use_base_kmer"));
+			System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
+		        	    
+		    long t = System.currentTimeMillis();
+		    WeightMatrix motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", pfm), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
+		    System.out.println("PWM loading:\t"+CommonUtils.timeElapsed(t));
+		    
+			// event locations
+			int windowSize = Args.parseInteger(args, "win", 50);
+			double fpr = Args.parseDouble(args, "fpr", 0.15);
+			
+			StringBuilder sb = new StringBuilder();
+
+			int width = windowSize*2+1;
+			int top = Args.parseInteger(args, "top", 5000);
+			if (top==-1)
+				top = Integer.MAX_VALUE;
+			ArrayList<String> posSeqs = CommonUtils.readFastaFile(fasta_file);
+			int toRun = Math.min(top, posSeqs.size());
+			System.out.println("Scanning "+toRun+" regions ...");
+					
+			ArrayList<Double> pwm_scores = new ArrayList<Double>();
+			ArrayList<Double> pwmN_scores = new ArrayList<Double>();
+			ArrayList<Double> ksm_scores = new ArrayList<Double>();
+			ArrayList<Double> ksmN_scores = new ArrayList<Double>();
+			
+			Random randObj = new Random(Args.parseInteger(args, "rand_seed", 0));
+			int PWM_time = 0;
+			int KSM_time = 0;
+			for (int i=0;i<toRun;i++){
+				String seq = posSeqs.get(i);
+				String seqN;
+				seqN = SequenceUtils.dinu_shuffle(seq, randObj);
+
+				long pwm_t = System.currentTimeMillis();
+				double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
+				String match=WeightMatrixScorer.getMaxScoreSequence(motif, seq, -1000, 0);
+				pwm_scores.add(pwm);
+				double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
+				String matchN=WeightMatrixScorer.getMaxScoreSequence(motif, seqN, -1000, 0);
+				pwmN_scores.add(pwmN);
+				PWM_time += System.currentTimeMillis() - pwm_t;
+				
+				long ksm_t = System.currentTimeMillis();
+				KmerGroup kg = scanner.getBestKG(seq);
+				KmerGroup kgN = scanner.getBestKG(seqN);
+				ksm_scores.add(kg==null?0:kg.getScore());
+				ksmN_scores.add(kgN==null?0:kgN.getScore());
+				KSM_time += System.currentTimeMillis() - ksm_t;
+				sb.append(String.format("%d\t%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d\n", i, match, matchN, pwm, pwmN, 
+						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
+						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
+						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount()));
+			}
+			
+			System.out.println("Total PWM scanning time:" + PWM_time);
+			System.out.println("Total KSM scanning time:" + KSM_time);
+			
+			CommonUtils.writeFile(expt+"_w"+width+"_scores.txt", sb.toString());
+			System.out.println(expt+"_w"+width+"_scores.txt");
+			
+			System.out.println(String.format("%s\tPWM_AUC\t%.2f\t%.2f", expt,evaluateScoreROC(pwm_scores, pwmN_scores, fpr),fpr));
+			System.out.println(String.format("%s\tKSM_AUC\t%.2f\t%.2f", expt,evaluateScoreROC(ksm_scores, ksmN_scores, fpr),fpr));
+			
+			if (flags.contains("compute_enrichment")){
+				ArrayList<ScoreEnrichment> pwm_se = computeScoreEnrichments(pwm_scores, pwmN_scores);
+				sb = new StringBuilder();
+				for (ScoreEnrichment se: pwm_se){
+					sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+				}
+				CommonUtils.writeFile(expt+"_w"+width+"_pwm_enrichment.txt", sb.toString());
+				
+				ArrayList<ScoreEnrichment> ksm_se = computeScoreEnrichments(ksm_scores, ksmN_scores);
+				sb = new StringBuilder();
+				for (ScoreEnrichment se: ksm_se){
+					sb.append(String.format("%.2f\t%d\t%d\t%.2f\n", se.score, se.posHit, se.negHit, se.hgp));
+				}
+				CommonUtils.writeFile(expt+"_w"+width+"_ksm_enrichment.txt", sb.toString());
+			}
+		    System.out.println(expt + " is done:\t"+CommonUtils.timeElapsed(tic));
+		    
+		    
+		} // each expt
+	}
+	private static double evaluateScoreROC(ArrayList<Double> posScores, ArrayList<Double> negScores, double falsePositiveRate){
+		double[] p = new double[posScores.size()];
+		for (int i=0;i<p.length;i++)
+			p[i]=posScores.get(i);
+		double[] n = new double[negScores.size()];
+		for (int i=0;i<n.length;i++)
+			n[i]=negScores.get(i);
+		
+		ROC roc = new ROC(p, n);
+		return roc.partialAUC(falsePositiveRate)/falsePositiveRate*100;
+	}
+	
+	public static void main_old(String[] args){
+		// genome info and binding events
+		Genome genome=null;
+		Organism org=null;
+		ArgParser ap = new ArgParser(args);
+		Set<String> flags = Args.parseFlags(args);		
+	    try {
+	      Pair<Organism, Genome> pair = Args.parseGenome(args);
+	      if(pair==null){
+	        System.err.println("No genome provided; provide a Gifford lab DB genome name.");;System.exit(1);
+	      }else{
+	        genome = pair.cdr();
+	        org = pair.car();
+	      }
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
+		seqgen.useCache(!flags.contains("no_cache"));		
+		seqgen.useLocalFiles(!flags.contains("use_db_genome"));
+		if (!flags.contains("use_db_genome"))
+			seqgen.setGenomePath(Args.parseString(args, "genome", ""));
+		
+		// load experiment list
+		String path = Args.parseString(args, "path", "./");
+		String fasta_path = Args.parseString(args, "fasta_path", "./");
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
 		for (String line: lines){
 			String f[] = line.split("\t");

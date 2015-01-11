@@ -96,7 +96,7 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
     }
 
     /**
-     * Return the maximum motif score of the input sequence (both direction)
+     * Return the maximum motif score of the input sequence (from both directions)
      * @param matrix
      * @param sequence
      * @return
@@ -122,7 +122,6 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
         String seq = seqgen.execute(r.expand(0, length));
         seq = seq.toUpperCase();
         String hit=null;
-
 
         char[] sequence = seq.toCharArray();
         for (int i = 0; i <= sequence.length - length; i++) {
@@ -158,4 +157,48 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
         
         return hit;
     }
+    
+    /**
+     * Return the highest scoring sequence in the region
+     */
+    public static String getMaxScoreSequence(WeightMatrix matrix, String seq, double threshold, int extend){
+        int length = matrix.length();
+        seq = seq.toUpperCase();
+        String hit=null;
+
+        char[] sequence = seq.toCharArray();
+        for (int i = 0; i <= sequence.length - length; i++) {
+            float score = (float)0.0;
+            for (int j = 0; j < length; j++) {
+                score += matrix.matrix[j][sequence[i+j]];
+            }
+            if (score>threshold){
+            	int start = i-extend;
+            	if (start<0) continue;
+            	int end = i+length-1+extend;
+            	if (end>sequence.length - length) continue;
+            	hit = seq.substring(start, end);
+            	threshold = score;
+            }
+        }
+        seq = SequenceUtils.reverseComplement(seq);
+        sequence = seq.toCharArray();
+        for (int i = 0; i <= sequence.length - length; i++) {
+            float score = (float)0.0;
+            for (int j = 0; j < length; j++) {
+                score += matrix.matrix[j][sequence[i+j]];
+            }
+            if (score>threshold){
+            	int start = i-extend;
+            	if (start<0) continue;
+            	int end = i+length-1+extend;
+            	if (end>sequence.length - length) continue;
+            	hit = seq.substring(start, end);
+            	threshold = score;
+            }
+        }
+        
+        return hit;
+    }
+
 }

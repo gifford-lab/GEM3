@@ -260,12 +260,12 @@ public class KMAC2WK {
 	/* 
 	 * Contruct a Kmer Engine from a list of Kmers
 	 */
-	public KMAC2WK(ArrayList<Kmer> kmers, String outPrefix, boolean use_sub_kmer){
+	public KMAC2WK(ArrayList<Kmer> kmers, String outPrefix, boolean use_base_kmer){
 		if (!kmers.isEmpty()){
 			if (outPrefix!=null)
 				updateEngine(kmers, outPrefix);
 			else
-				updateEngine(kmers, use_sub_kmer);
+				updateEngine(kmers, use_base_kmer);
 			k=kmers.get(0).getK();
 		}
 	}
