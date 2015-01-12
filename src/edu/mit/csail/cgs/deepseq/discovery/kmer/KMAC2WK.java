@@ -79,7 +79,7 @@ public class KMAC2WK {
     }
 	private int negRegionDistance;
 	/** region-->index for negative sequences */
-	private TreeMap<Region, Integer> neg_region_map;
+//	private TreeMap<Region, Integer> neg_region_map;
 	public String[] getPositiveSeqs(){return seqs;};
 	public double get_NP_ratio(){return (double)negSeqCount/posSeqCount;}
 	
@@ -95,7 +95,7 @@ public class KMAC2WK {
 	// Pre-processing is to build the tree with all the patters (kmers)
 	// Then each individual search can be done in scan()
 	private AhoCorasick tree;
-	private AhoCorasick tree_negatives;
+//	private AhoCorasick tree_negatives;
 	
 	public boolean isInitialized(){ return engineInitialized;}
 	
@@ -269,35 +269,35 @@ public class KMAC2WK {
 			k=kmers.get(0).getK();
 		}
 	}
-	/**
-	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
-	 * At the same time, retrieve negative sequences (for only once, no caching)
-	 * @param regions
-	 */
-	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions, int negRegionDistance){
-		this.negRegionDistance = negRegionDistance;
-		double gcRatio=0;
-		if (!seqgen.isRegionCached()){
-			seqsNeg = seqgen.setupRegionCache_new(cacheRegions, negativeRegions);
-			neg_region_map = new TreeMap<Region, Integer>();
-			for (int i=0;i<negativeRegions.size();i++){
-				neg_region_map.put(negativeRegions.get(i), i);
-			}
-			// count cg-content
-			int gcCount = 0;
-			for (String s:seqsNeg){
-				for (char c:s.toCharArray())
-					if (c=='C'||c=='G')
-						gcCount ++;
-			}
-			gcRatio = (double)gcCount/seqsNeg.length/seqsNeg[0].length();
-			bg[0]=0.5-gcRatio/2; 
-        	bg[1]=gcRatio/2; 
-        	bg[2]=bg[1]; 
-        	bg[3]=bg[0];
-		}
-		return gcRatio;
-	}
+//	/**
+//	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
+//	 * At the same time, retrieve negative sequences (for only once, no caching)
+//	 * @param regions
+//	 */
+//	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions, int negRegionDistance){
+//		this.negRegionDistance = negRegionDistance;
+//		double gcRatio=0;
+//		if (!seqgen.isRegionCached()){
+//			seqsNeg = seqgen.setupRegionCache_new(cacheRegions, negativeRegions);
+//			neg_region_map = new TreeMap<Region, Integer>();
+//			for (int i=0;i<negativeRegions.size();i++){
+//				neg_region_map.put(negativeRegions.get(i), i);
+//			}
+//			// count cg-content
+//			int gcCount = 0;
+//			for (String s:seqsNeg){
+//				for (char c:s.toCharArray())
+//					if (c=='C'||c=='G')
+//						gcCount ++;
+//			}
+//			gcRatio = (double)gcCount/seqsNeg.length/seqsNeg[0].length();
+//			bg[0]=0.5-gcRatio/2; 
+//        	bg[1]=gcRatio/2; 
+//        	bg[2]=bg[1]; 
+//        	bg[3]=bg[0];
+//		}
+//		return gcRatio;
+//	}
 	/**
 	 * Load pos/neg test sequences based on event positions<br>
 	 * Skip repeat masked sequences according to config.repeat_fraction, otherwise convert repeat characters into 'N'
@@ -362,39 +362,39 @@ public class KMAC2WK {
 			for (int i=0;i<seqs.length;i++)
 				seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
 		}
-		else{
-			/** Negative sequences has been retrieved when setting up region caches */
-			ArrayList<Region> negRegions = new ArrayList<Region>();
-			negRegions.addAll(neg_region_map.keySet());
-			Region.filterOverlapRegions(negRegions, posImpactRegion);	// make sure negative region is not within negRegionDistance of positive regions.
-			int negCount = 0;
-			int len = winSize/2*2+1;
-			for (Region r:negRegions){
-				String seq_retrieved = seqsNeg[neg_region_map.get(r)];
-				if (seq_retrieved.length()<len)
-					continue;
-				String seq = seq_retrieved.substring(0, len);
-				if (config.repeat_fraction<1){
-					int count = 0;
-					for (char c:seq.toCharArray())
-						if (Character.isLowerCase(c) || c=='N')
-							count++;
-					if (count>seq.length()*config.repeat_fraction)			// if repeat fraction in sequence is too high, skip
-						continue;
-					if (count>1){									// convert lower case repeat to N
-						char[] chars = seq.toCharArray();
-						for (int j=0;j<chars.length;j++)
-							if (Character.isLowerCase(chars[j]))
-								chars[j] = 'N';
-						seq = new String(chars);
-					}
-				}
-				seqsNegList.add(seq.toUpperCase());		// if repeat_fraction>=1, allow repeats, convert to upper case
-				negCount++;
-				if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
-					break;
-			}
-		}
+//		else{
+//			/** Negative sequences has been retrieved when setting up region caches */
+//			ArrayList<Region> negRegions = new ArrayList<Region>();
+//			negRegions.addAll(neg_region_map.keySet());
+//			Region.filterOverlapRegions(negRegions, posImpactRegion);	// make sure negative region is not within negRegionDistance of positive regions.
+//			int negCount = 0;
+//			int len = winSize/2*2+1;
+//			for (Region r:negRegions){
+//				String seq_retrieved = seqsNeg[neg_region_map.get(r)];
+//				if (seq_retrieved.length()<len)
+//					continue;
+//				String seq = seq_retrieved.substring(0, len);
+//				if (config.repeat_fraction<1){
+//					int count = 0;
+//					for (char c:seq.toCharArray())
+//						if (Character.isLowerCase(c) || c=='N')
+//							count++;
+//					if (count>seq.length()*config.repeat_fraction)			// if repeat fraction in sequence is too high, skip
+//						continue;
+//					if (count>1){									// convert lower case repeat to N
+//						char[] chars = seq.toCharArray();
+//						for (int j=0;j<chars.length;j++)
+//							if (Character.isLowerCase(chars[j]))
+//								chars[j] = 'N';
+//						seq = new String(chars);
+//					}
+//				}
+//				seqsNegList.add(seq.toUpperCase());		// if repeat_fraction>=1, allow repeats, convert to upper case
+//				negCount++;
+//				if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
+//					break;
+//			}
+//		}
 		posSeqCount = seqs.length;
 		seqsNegList.trimToSize();
 	    negSeqCount = seqsNegList.size();
@@ -484,12 +484,14 @@ public class KMAC2WK {
 			
 			/** Index sequences and kmers, for each k, need to index this only once */
 			indexKmerSequences(kmers, seqList, seqListNeg, config.kmer_hgp);
+			kmers.trimToSize();
 			Collections.sort(kmers);
 
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			if (!kmers.isEmpty()){
 				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, true);
 				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix);
+				distanceMatrix = null;
 		        for (int j=0;j<centerKmers.size();j++){	
 		        	Kmer seedKmer = centerKmers.get(j);
 		    		if (config.verbose>1)
@@ -1279,8 +1281,8 @@ public class KMAC2WK {
 //				}
 //			}
 			results.add(km);
-
 		}
+		results.trimToSize();
 
 //		System.out.println(String.format("cluster_num=%d, kmer_distance<=%d, delta>=%d", centers.size(), dc, delta));
 		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
@@ -1290,7 +1292,6 @@ public class KMAC2WK {
 			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
 					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
 		}
-		
 		
 		System.out.println(CommonUtils.timeElapsed(tic));
 		
@@ -4426,20 +4427,20 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		return score;
 	}
 
-	/**
-	 * Check if a k-mer is a k-mer that was not enriched in positive sets
-	 */
-	public boolean isNegativeKmer(String kmerStr){
-		// is kmer in the negative k-mer set
-		Iterator found = tree_negatives.search(kmerStr.getBytes());
-		if (found.hasNext())
-			return true;
-		// try reverse compliment
-		found = tree_negatives.search(SequenceUtils.reverseComplement(kmerStr).getBytes());
-		if (found.hasNext())
-			return true;
-		return false;
-	}
+//	/**
+//	 * Check if a k-mer is a k-mer that was not enriched in positive sets
+//	 */
+//	public boolean isNegativeKmer(String kmerStr){
+//		// is kmer in the negative k-mer set
+//		Iterator found = tree_negatives.search(kmerStr.getBytes());
+//		if (found.hasNext())
+//			return true;
+//		// try reverse compliment
+//		found = tree_negatives.search(SequenceUtils.reverseComplement(kmerStr).getBytes());
+//		if (found.hasNext())
+//			return true;
+//		return false;
+//	}
 	
 	/** load Kmers and prepare the search Engine, print k-mer list<br>
 	 *  assuming the kmers are unique
@@ -5012,13 +5013,11 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
         
 		// run motif discovery
 		KMAC2WK kmac = new KMAC2WK();
-
+        kmac.setStandalone();
         kmac.setConfig(config, out_prefix);
         kmac.setSequences(pos_seqs, neg_seqs, seq_w);
-        kmac.setStandalone();
-
         System.out.println(String.format("%d input positive sequences, use top %d center sequences (%dbp) to find motif ...", pos_seqs.size(), kmac.seqs.length, config.k_win));
-
+        pos_seqs = null; neg_seqs = null;
         kmac.discoverMotifs(config.k_min, config.k_max, null);
         
 		System.out.println(StatUtil.cacheAccessCount);

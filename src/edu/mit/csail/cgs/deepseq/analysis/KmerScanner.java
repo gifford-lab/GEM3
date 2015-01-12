@@ -113,6 +113,14 @@ public class KmerScanner {
 		String path = Args.parseString(args, "path", "./");
 		String fasta_path = Args.parseString(args, "fasta_path", "./");
 		String fasta_suffix = Args.parseString(args, "fasta_suffix", ".fasta");
+		int windowSize = Args.parseInteger(args, "win", 50);
+		double fpr = Args.parseDouble(args, "fpr", 0.15);
+		int width = windowSize*2+1;
+		int top = Args.parseInteger(args, "top", 5000);
+		if (top==-1)
+			top = Integer.MAX_VALUE;
+		Random randObj = new Random(Args.parseInteger(args, "rand_seed", 0));
+
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
 		for (String line: lines){
 			String f[] = line.split("\t");
@@ -142,16 +150,9 @@ public class KmerScanner {
 		    WeightMatrix motif = CommonUtils.loadPWM_PFM_file(Args.parseString(args, "pfm", pfm), Args.parseDouble(args, "gc", 0.41)); //0.41 human, 0.42 mouse
 		    System.out.println("PWM loading:\t"+CommonUtils.timeElapsed(t));
 		    
-			// event locations
-			int windowSize = Args.parseInteger(args, "win", 50);
-			double fpr = Args.parseDouble(args, "fpr", 0.15);
 			
 			StringBuilder sb = new StringBuilder();
 
-			int width = windowSize*2+1;
-			int top = Args.parseInteger(args, "top", 5000);
-			if (top==-1)
-				top = Integer.MAX_VALUE;
 			ArrayList<String> posSeqs = CommonUtils.readFastaFile(fasta_file);
 			int toRun = Math.min(top, posSeqs.size());
 			System.out.println("Scanning "+toRun+" regions ...");
@@ -161,7 +162,6 @@ public class KmerScanner {
 			ArrayList<Double> ksm_scores = new ArrayList<Double>();
 			ArrayList<Double> ksmN_scores = new ArrayList<Double>();
 			
-			Random randObj = new Random(Args.parseInteger(args, "rand_seed", 0));
 			int PWM_time = 0;
 			int KSM_time = 0;
 			for (int i=0;i<toRun;i++){
