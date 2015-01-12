@@ -196,8 +196,9 @@ public class KmerScanner {
 			CommonUtils.writeFile(expt+"_w"+width+"_scores.txt", sb.toString());
 			System.out.println(expt+"_w"+width+"_scores.txt");
 			
-			System.out.println(String.format("%s\tPWM_AUC\t%.2f\t%.2f", expt,evaluateScoreROC(pwm_scores, pwmN_scores, fpr),fpr));
-			System.out.println(String.format("%s\tKSM_AUC\t%.2f\t%.2f", expt,evaluateScoreROC(ksm_scores, ksmN_scores, fpr),fpr));
+			System.out.println(String.format("%s\tPWM_KSM_FPR\t%.2f\t%.2f\t%.2f", 
+					expt,evaluateScoreROC(pwm_scores, pwmN_scores, fpr),
+					evaluateScoreROC(ksm_scores, ksmN_scores, fpr), fpr));
 			
 			if (flags.contains("compute_enrichment")){
 				ArrayList<ScoreEnrichment> pwm_se = computeScoreEnrichments(pwm_scores, pwmN_scores);
