@@ -2266,202 +2266,251 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	}
 }
 	/** Index k-mers for a set of sequences <br>
-		 * 	record hit sequence id in the k-mers<br>
-		 * 	keep track of the k-mer positions in the sequences so that we can use one to find the other<br>
-		 * 	Sequences are modified to index the kmer match positions, and are set as unaligned.<br>
-		 *  @return returns the mapping of kmer--[sequence ids]
-		 * */
-		private static HashMap <Kmer, HashSet<Integer>> mapBasicKmerSequences(HashSet<Kmer> kmers, ArrayList<Sequence> seqList){
-			/** Next, k-mer search and index is done with basicKmers */
-			// build the kmer search tree
-			AhoCorasick oks = new AhoCorasick();
-			for (Kmer km: kmers){
-				oks.add(km.getKmerString().getBytes(), km);
-		    }
-			oks.prepare();
+	 * 	record hit sequence id in the k-mers<br>
+	 * 	keep track of the k-mer positions in the sequences so that we can use one to find the other<br>
+	 * 	Sequences are modified to index the kmer match positions, and are set as unaligned.<br>
+	 *  @return returns the mapping of kmer--[sequence ids]
+	 * */
+	private static HashMap <Kmer, HashSet<Integer>> mapBasicKmerSequences(HashSet<Kmer> kmers, ArrayList<Sequence> seqList){
+		/** Next, k-mer search and index is done with basicKmers */
+		// build the kmer search tree
+		AhoCorasick oks = new AhoCorasick();
+		for (Kmer km: kmers){
+			oks.add(km.getKmerString().getBytes(), km);
+	    }
+		oks.prepare();
+		
+		// index kmer->seq id, seq->(kmer and position)
+		// it start with the basicKmers, then the sub-kmers will be replaced by the WC-kmers
+		HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
+		ArrayList<HashMap<Kmer, ArrayList<Integer>>> fPosArray = new ArrayList<HashMap<Kmer, ArrayList<Integer>>>();
+		ArrayList<HashMap<Kmer, ArrayList<Integer>>> rPosArray = new ArrayList<HashMap<Kmer, ArrayList<Integer>>>();
+
+		for (Sequence s:seqList){
+			/** forward strand (as the original orientation of input sequence) matches */
+			HashMap<Kmer, ArrayList<Integer>> fPos = new HashMap<Kmer, ArrayList<Integer>>();		// forward
+			/** reverse strand (as the original orientation of input sequence) matches */
+			HashMap<Kmer, ArrayList<Integer>> rPos = new HashMap<Kmer, ArrayList<Integer>>();		// reverse
 			
-			// index kmer->seq id, seq->(kmer and position)
-			// it start with the basicKmers, then the sub-kmers will be replaced by the WC-kmers
-			HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
-			for (Sequence s:seqList){
-				String seq = s.seq;						// get the sequence from original strand
-				s.clearKmerPosIndex();
-				s.resetAlignment();
-				HashSet<Kmer> results = findMatchedKmers (seq, oks);
-				if (!results.isEmpty()){
-					for (Kmer km: results){		
-						if (!kmer2seq.containsKey(km)){
-							kmer2seq.put(km, new HashSet<Integer>());
-						}
-						kmer2seq.get(km).add(s.id);
-	
-						// This is DIFFERENT from alignSequencesByCoOccurence(ArrayList<Kmer>)
-						// forward strand
-						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
-						if (!s.fPos.containsKey(km))
-							s.fPos.put(km, new HashSet<Integer>());
-						for (int p:pos){
-							s.fPos.get(km).add(p);
-						}
-						pos = StringUtils.findAllOccurences(seq, km.getKmerRC());
-						for (int p:pos){
-							s.fPos.get(km).add(p+RC);					// match kmer RC
-						}
-						// reverse strand
-						pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
-						if (!s.rPos.containsKey(km))
-							s.rPos.put(km, new HashSet<Integer>());
-						for (int p:pos){
-							s.rPos.get(km).add(p);
-						}
-						pos = StringUtils.findAllOccurences(s.rc, km.getKmerRC());
-						for (int p:pos){
-							s.rPos.get(km).add(p+RC);					// match kmer RC
-						}
+			String seq = s.seq;						// get the sequence from original strand
+			s.clearKmerPosIndex();
+			s.resetAlignment();
+			HashSet<Kmer> results = findMatchedKmers (seq, oks);
+			if (!results.isEmpty()){
+				for (Kmer km: results){		
+					if (!kmer2seq.containsKey(km)){
+						kmer2seq.put(km, new HashSet<Integer>());
 					}
-				}
+					kmer2seq.get(km).add(s.id);
+
+					// This is DIFFERENT from alignSequencesByCoOccurence(ArrayList<Kmer>)
+					// forward strand
+					ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
+					ArrayList<Integer> posRC = StringUtils.findAllOccurences(seq, km.getKmerRC());
+//						if(pos.isEmpty()&&posRC.isEmpty())
+//							System.err.println("pos.isEmpty()&&posRC.isEmpty()");
+					if (!fPos.containsKey(km))
+						fPos.put(km, new ArrayList<Integer>());
+					for (int p:pos){
+						fPos.get(km).add(p);
+					}
+					for (int p:posRC){
+						fPos.get(km).add(p+RC);					// match kmer RC
+					}
+					// reverse strand
+					pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
+					posRC = StringUtils.findAllOccurences(s.rc, km.getKmerRC());
+					if (!rPos.containsKey(km))
+						rPos.put(km, new ArrayList<Integer>());
+					for (int p:pos){
+						rPos.get(km).add(p);
+					}
+					for (int p:posRC){
+						rPos.get(km).add(p+RC);					// match kmer RC
+					}
+				} // each matched k-mer
 			}
-			
-			// for each sequence, replace the sub-kmer hits with its WC kmers 
-			// sub-kmer to WC-kmer mapping is many to many, need to collect all the positions for each WK, from all sub-kmers, 
-			// then add WK-mers and remove sub-kmers.
-			HashMap<Kmer, HashSet<Integer>> wkPosMap = new HashMap<Kmer, HashSet<Integer>>();
-			HashSet<Kmer> replacedSubKmers = new HashSet<Kmer>();
-			for (Sequence s:seqList){
-				for (Kmer km: s.fPos.keySet()){		
-					if (km.getGappedKmers()!=null){	// only process sub-kmers, ignore exact kmers
-						for (GappedKmer wk: km.getGappedKmers()){
-							if (! wkPosMap.containsKey(wk)){
-								wkPosMap.put(wk, new HashSet<Integer>());
-							}
-							Set<Kmer> sks = wk.getBaseKmers();
-							if (!sks.contains(km)){
-								System.err.println("Inconsistent wk-sk");
-								System.err.println(km.toShortString()+"\t"+km.hashCode()+"\n");
-								for (Kmer sk:sks)
-									System.err.println(sk.toShortString()+"\t"+sk.hashCode());
-							}
-							if (wk.getSubKmerOrientation(km)){		// same orientation, directly copy
-								wkPosMap.get(wk).addAll(s.fPos.get(km));
-							}
-							else{		// diff orientation, reverse strand for the match kmer position
-								for (int pos: s.fPos.get(km)){
-									if (pos>RC/2)
-										wkPosMap.get(wk).add(pos-RC);
-									else
-										wkPosMap.get(wk).add(pos+RC);
-								}
-							}
-						}
-						replacedSubKmers.add(km);
-					}
-				}
-	//			k=k+0;
-				for (Kmer rk:replacedSubKmers)
-					s.fPos.remove(rk);
-				replacedSubKmers.clear(); 	// clear for each sequence
-				for (Kmer wk: wkPosMap.keySet())
-					s.fPos.put(wk, wkPosMap.get(wk));
-				wkPosMap.clear(); 			// clear for each sequence
-				
-				// same for the reverse sequence
-				for (Kmer km: s.rPos.keySet()){		
-					if (km.getGappedKmers()!=null){	// only process sub-kmers, ignore exact kmers
-						for (GappedKmer wk: km.getGappedKmers()){
-							if (! wkPosMap.containsKey(wk)){
-								wkPosMap.put(wk, new HashSet<Integer>());
-							}
-							if (wk.getSubKmerOrientation(km)){		// same orientation, directly copy
-								wkPosMap.get(wk).addAll(s.rPos.get(km));
-							}
-							else{		// diff orientation, reverse strand for the match kmer position
-								for (int pos: s.rPos.get(km)){
-									if (pos>RC/2)
-										wkPosMap.get(wk).add(pos-RC);
-									else
-										wkPosMap.get(wk).add(pos+RC);
-								}
-							}
-						}
-						replacedSubKmers.add(km);
-					}
-				}
-				for (Kmer rk:replacedSubKmers)
-					s.rPos.remove(rk);
-				replacedSubKmers.clear(); 	// clear for each sequence
-				for (Kmer wk: wkPosMap.keySet())
-					s.rPos.put(wk, wkPosMap.get(wk));
-				wkPosMap.clear(); 			// clear for each sequence
-			}
-			return kmer2seq;
+			fPosArray.add(fPos);
+			rPosArray.add(rPos);
 		}
-	//	private void alignSequencesUsingSeedFamily(ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
-	//		ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);	// from all kmers
-	//		
-	//		/** align sequences using kmer positions */
-	//    	for (Sequence s : seqList){						// use all sequences
-	//    		s.reset();
-	//    		for (Kmer km:seedFamily){
-	//				int seed_seq = s.getSeq().indexOf(km.getAlignString());
-	//				if (seed_seq<0){
-	//					s.RC();
-	//					seed_seq = s.getSeq().indexOf(km.getAlignString());
-	//					if (seed_seq<0)
-	//						continue;
-	//				}
-	////				if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
-	////					km.getK();
-	//				s.pos = -seed_seq;
-	//				break;				// seq is aligned, do not try with weaker k-mers
-	//    		}
-	//		}
-	//	}
+		fPosArray.trimToSize();
+		rPosArray.trimToSize();
+		
+		// for each sequence, replace the base-kmer hits with its WC kmers 
+		// sub-kmer to WC-kmer mapping is many to many, need to collect all the positions for each WK, from all base-kmers, 
+		// then add WK-mers and remove base-kmers.
+		HashMap<Kmer, HashSet<Integer>> wkPosMap = new HashMap<Kmer, HashSet<Integer>>();
+		HashSet<Kmer> replacedBaseKmers = new HashSet<Kmer>();
+		for (int i=0;i<seqList.size();i++){
+			Sequence s = seqList.get(i);
+			HashMap<Kmer, ArrayList<Integer>> fPos = fPosArray.get(i);
+			HashMap<Kmer, ArrayList<Integer>> rPos = rPosArray.get(i);
+			for (Kmer km: fPos.keySet()){		
+				if (km.getGappedKmers()!=null){	// only process sub-kmers, ignore exact kmers
+					for (GappedKmer wk: km.getGappedKmers()){
+						if (! wkPosMap.containsKey(wk)){
+							wkPosMap.put(wk, new HashSet<Integer>());
+						}
+						Set<Kmer> sks = wk.getBaseKmers();
+						if (!sks.contains(km)){
+							System.err.println("Inconsistent wk-sk");
+							System.err.println(km.toShortString()+"\t"+km.hashCode()+"\n");
+							for (Kmer sk:sks)
+								System.err.println(sk.toShortString()+"\t"+sk.hashCode());
+						}
+						if (wk.getSubKmerOrientation(km)){		// same orientation, directly copy
+							wkPosMap.get(wk).addAll(fPos.get(km));
+						}
+						else{		// diff orientation, reverse strand for the match kmer position
+							for (int pos: fPos.get(km)){
+								if (pos>RC/2)
+									wkPosMap.get(wk).add(pos-RC);
+								else
+									wkPosMap.get(wk).add(pos+RC);
+							}
+						}
+					}
+					replacedBaseKmers.add(km);
+				}
+			}
+//			k=k+0;
+			for (Kmer rk:replacedBaseKmers)
+				fPos.remove(rk);
+			replacedBaseKmers.clear(); 	// clear for each sequence
+			for (Kmer wk: wkPosMap.keySet()){
+				ArrayList<Integer> newPos = new ArrayList<Integer>();
+				newPos.addAll(wkPosMap.get(wk));
+				fPos.put(wk, newPos);
+			}
+			wkPosMap.clear(); 			// clear for each sequence
+			
+			// same for the reverse sequence
+			for (Kmer km: rPos.keySet()){		
+				if (km.getGappedKmers()!=null){	// only process sub-kmers, ignore exact kmers
+					for (GappedKmer wk: km.getGappedKmers()){
+						if (! wkPosMap.containsKey(wk)){
+							wkPosMap.put(wk, new HashSet<Integer>());
+						}
+						if (wk.getSubKmerOrientation(km)){		// same orientation, directly copy
+							wkPosMap.get(wk).addAll(rPos.get(km));
+						}
+						else{		// diff orientation, reverse strand for the match kmer position
+							for (int pos: rPos.get(km)){
+								if (pos>RC/2)
+									wkPosMap.get(wk).add(pos-RC);
+								else
+									wkPosMap.get(wk).add(pos+RC);
+							}
+						}
+					}
+					replacedBaseKmers.add(km);
+				}
+			}
+			for (Kmer rk:replacedBaseKmers)
+				rPos.remove(rk);
+			replacedBaseKmers.clear(); 	// clear for each sequence
+			
+			for (Kmer wk: wkPosMap.keySet()){
+				ArrayList<Integer> newPos = new ArrayList<Integer>();
+				newPos.addAll(wkPosMap.get(wk));
+				rPos.put(wk, newPos);
+			}
+			wkPosMap.clear(); 			// clear for each sequence
+			
+			// copy the fPos and rPos info into arrays to save space
+			for (Kmer km: fPos.keySet()){
+				s.fPos.put(km, posList2PairArray(fPos.get(km)));
+			}				
+			for (Kmer km: rPos.keySet()){
+				s.rPos.put(km, posList2PairArray(rPos.get(km)));
+			}
+		} // each sequence
+		return kmer2seq;
+	}
 	
-		/**
-		 * Get all the kmers that has k/4 (k>=8) or 1 (k<8) mismatch to the kmerStr<br>
-		 * and set alignString and its shift for the kmers, the shift is wrt the input kmerStr orientation
-		 * @param kmers
-		 * @param kmerStr the length should be the same as kmers
-		 * @param shift
-		 * @return
-		 */
-		private ArrayList<Kmer> findSeedFamily(ArrayList<Kmer> kmers, String kmerStr) {
-			ArrayList<Kmer> family = new ArrayList<Kmer>();
-			if (kmers.isEmpty())
-				return family;
-			ArrayList<Kmer> kmerListCopy = Kmer.copyKmerList(kmers);
-			ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
-			int mm = 1;
+	private static Pair<int[],int[]> posList2PairArray(ArrayList<Integer> ps){
+		ArrayList<Integer> ps_rc = new ArrayList<Integer>();
+		for (int p:ps)
+			if (p>RC/2)
+				ps_rc.add(p);
+		ps.removeAll(ps_rc);
+		int k[] = new int[ps.size()];
+		for (int i=0;i<ps.size();i++)
+			k[i]=ps.get(i);
+		int krc[] = new int[ps_rc.size()];
+		for (int i=0;i<ps_rc.size();i++)
+			krc[i]=ps_rc.get(i);
+		return new Pair<int[],int[]>(k, krc);
+	}
+	
+//	private void alignSequencesUsingSeedFamily(ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
+//		ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);	// from all kmers
+//		
+//		/** align sequences using kmer positions */
+//    	for (Sequence s : seqList){						// use all sequences
+//    		s.reset();
+//    		for (Kmer km:seedFamily){
+//				int seed_seq = s.getSeq().indexOf(km.getAlignString());
+//				if (seed_seq<0){
+//					s.RC();
+//					seed_seq = s.getSeq().indexOf(km.getAlignString());
+//					if (seed_seq<0)
+//						continue;
+//				}
+////				if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
+////					km.getK();
+//				s.pos = -seed_seq;
+//				break;				// seq is aligned, do not try with weaker k-mers
+//    		}
+//		}
+//	}
+
+	/**
+	 * Get all the kmers that has k/4 (k>=8) or 1 (k<8) mismatch to the kmerStr<br>
+	 * and set alignString and its shift for the kmers, the shift is wrt the input kmerStr orientation
+	 * @param kmers
+	 * @param kmerStr the length should be the same as kmers
+	 * @param shift
+	 * @return
+	 */
+	private ArrayList<Kmer> findSeedFamily(ArrayList<Kmer> kmers, String kmerStr) {
+		ArrayList<Kmer> family = new ArrayList<Kmer>();
+		if (kmers.isEmpty())
+			return family;
+		ArrayList<Kmer> kmerListCopy = Kmer.copyKmerList(kmers);
+		ArrayList<Kmer> toRemove = new ArrayList<Kmer>();
+		int mm = 1;
 //			int mm = config.dc;
 //			if (k>=8)
 //				mm = config.dc+1;
-			// progressively allow more mismatch, this will give the more similar kmer priorty for sequence matching
-			for (int i=1;i<=mm;i++){
-				for (Kmer kmer: kmerListCopy){
-			    	if (CommonUtils.strMinDistance(kmerStr, kmer.getKmerString())==i){
-			    		Pair<Integer,Integer> p = CommonUtils.strMinDistanceAndShift(kmerStr, kmer.getKmerString());
-			    		kmer.setAlignString(kmer.getKmerString());
-			    		kmer.setShift(p.cdr());
-			    		kmer.setSeedOrientation(true);
-			    		family.add(kmer);
-				    	toRemove.add(kmer);
-			    	}
-			    	else if (CommonUtils.strMinDistance(kmerStr, kmer.getKmerRC())==i){	
-			    		// do not RC kmer, set RC string as the alignString for alignment, 
-			    		// shift is relative to the input kmerStr orientation
-			    		Pair<Integer,Integer> p = CommonUtils.strMinDistanceAndShift(kmerStr, kmer.getKmerRC());
-			    		kmer.setAlignString(kmer.getKmerRC());
-			    		kmer.setShift(p.cdr());
-			    		kmer.setSeedOrientation(false);
-			    		family.add(kmer);
-				    	toRemove.add(kmer);
-			    	}
-				}
-				kmerListCopy.removeAll(toRemove);
-				toRemove.clear();
+		// progressively allow more mismatch, this will give the more similar kmer priorty for sequence matching
+		for (int i=1;i<=mm;i++){
+			for (Kmer kmer: kmerListCopy){
+		    	if (CommonUtils.strMinDistance(kmerStr, kmer.getKmerString())==i){
+		    		Pair<Integer,Integer> p = CommonUtils.strMinDistanceAndShift(kmerStr, kmer.getKmerString());
+		    		kmer.setAlignString(kmer.getKmerString());
+		    		kmer.setShift(p.cdr());
+		    		kmer.setSeedOrientation(true);
+		    		family.add(kmer);
+			    	toRemove.add(kmer);
+		    	}
+		    	else if (CommonUtils.strMinDistance(kmerStr, kmer.getKmerRC())==i){	
+		    		// do not RC kmer, set RC string as the alignString for alignment, 
+		    		// shift is relative to the input kmerStr orientation
+		    		Pair<Integer,Integer> p = CommonUtils.strMinDistanceAndShift(kmerStr, kmer.getKmerRC());
+		    		kmer.setAlignString(kmer.getKmerRC());
+		    		kmer.setShift(p.cdr());
+		    		kmer.setSeedOrientation(false);
+		    		family.add(kmer);
+			    	toRemove.add(kmer);
+		    	}
 			}
-			return family;
+			kmerListCopy.removeAll(toRemove);
+			toRemove.clear();
 		}
+		return family;
+	}
+	
 	/**
 	 * alignSequencesUsingKmers will reset the sequences then align them
 	 * @param kmers
@@ -2520,33 +2569,25 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 				continue;
 			// the string contains this k-mer
 			if (km.isSeedOrientation()){
-				for (int km_seq: s.fPos.get(km)){
-					if (km_seq<RC/2){		// if string match kmer
-						int seed_seq = km_seq-km.getShift();		// seed_seq = km_seq - km_seed 
-						forward.get(seed_seq+negPositionPadding).add(km);
-					}
+				for (int km_seq: s.fPos.get(km).car()){ // string match kmer
+					int seed_seq = km_seq-km.getShift();		// seed_seq = km_seq - km_seed 
+					forward.get(seed_seq+negPositionPadding).add(km);
 				}
-				for (int km_seq: s.rPos.get(km)){
-					if (km_seq<RC/2){		// if RC string match kmer, use reverse list
-						int seed_seq = km_seq-km.getShift();		// seed_seq = km_seq - km_seed 
-						reverse.get(seed_seq+negPositionPadding).add(km);
-					}
+				for (int km_seq: s.rPos.get(km).car()){// RC string match kmer, use reverse list
+					int seed_seq = km_seq-km.getShift();		// seed_seq = km_seq - km_seed 
+					reverse.get(seed_seq+negPositionPadding).add(km);
 				}
 			}
 			else{
-				for (int km_seq: s.fPos.get(km)){
-					if (km_seq>RC/2){		// if string match kmer RC (seed orientation)
-						km_seq -= RC;		// remove RC_kmer
-						int seed_seq = km_seq-km.getShift();		// seed_seq = km_seq - km_seed 
-						forward.get(seed_seq+negPositionPadding).add(km);
-					}
+				for (int km_seq: s.fPos.get(km).cdr()){ // string match kmer RC (seed orientation)
+					km_seq -= RC;		// remove RC label, set orientation
+					int seed_seq = km_seq-km.getShift();		// seed_seq = km_seq - km_seed 
+					forward.get(seed_seq+negPositionPadding).add(km);
 				}
-				for (int km_seq: s.rPos.get(km)){
-					if (km_seq>RC/2){		// if RC string match kmer RC (seed orientation), use reverse list
-											// no change, use RC_kmer as RC_string
-						int seed_seq = km_seq-km.getShift();		// seed_seq = km_seq - km_seed 
-						reverse.get(seed_seq-RC+negPositionPadding).add(km);
-					}
+				for (int km_seq: s.rPos.get(km).cdr()){  // RC string match kmer RC (seed orientation), use reverse list
+					// no change, use RC_kmer as RC_string
+					int seed_seq = km_seq-km.getShift();		// seed_seq = km_seq - km_seed 
+					reverse.get(seed_seq-RC+negPositionPadding).add(km);
 				}
 			}
 		}
@@ -3387,7 +3428,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			if (threshold==null)
 				return;
 			if (config.verbose>1)
-				System.out.println(String.format("%s: KSM KG_cutoff %.2f\thit %d+/%d- seqs\tpAUC=%.1f", 
+				System.out.println(String.format("%s: KSM cutoff %.2f\thit %d+/%d- seqs\tkAUC=%.1f", 
 					CommonUtils.timeElapsed(tic), threshold.motif_cutoff, threshold.posHit, threshold.negHit, -threshold.motif_significance));
 //			threshold = optimizeKsmThreshold(seqList, seqListNeg, kmers);
 //			if (threshold==null)
@@ -3410,26 +3451,24 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		HashMap<Kmer, ArrayList<Integer>> kmer2pos_seed = new HashMap<Kmer, ArrayList<Integer>>();
 		for (Sequence s:seqList){
 			if (s.pos != UNALIGNED){		// aligned seqs
-				HashMap<Kmer, HashSet<Integer>> kmerPos_seq = s.getKmerPos();	// get from the aligned strand orientation
+				HashMap<Kmer, Pair<int[],int[]>> kmerPos_seq = s.getKmerPos();	// get from the aligned strand orientation
 				for (Kmer km:kmerPos_seq.keySet()){
 					if (excludes!=null && excludes.contains(km))
 						continue;
 					if (!kmer2pos_seed.containsKey(km))
 						kmer2pos_seed.put(km, new ArrayList<Integer>());
-					HashSet<Integer> hits_seq = kmerPos_seq.get(km);
+					Pair<int[],int[]> hits_seq = kmerPos_seq.get(km);
 					if (hits_seq==null)
 						continue;
-					for (int km_seq:hits_seq){
-						if (km_seq>RC/2){		// if it is kmerRC match on the aligned strand
-							int km_seed = (km_seq-RC)+s.pos;	// km_seed = km_seq + seq_seed
-							if (km_seed>=-seed_range && km_seed<=seed_range)
-								kmer2pos_seed.get(km).add(km_seed+RC);		// RC to label that kmer is in opposite orientation of seed kmer
-						}
-						else{
-							int pos = km_seq+s.pos;
-							if (pos>=-seed_range && pos<=seed_range)
-								kmer2pos_seed.get(km).add(pos);		
-						}
+					for (int km_seq:hits_seq.cdr()){	// if it is kmerRC match on the aligned strand
+						int km_seed = (km_seq-RC)+s.pos;	// km_seed = km_seq + seq_seed
+						if (km_seed>=-seed_range && km_seed<=seed_range)
+							kmer2pos_seed.get(km).add(km_seed+RC);		// RC to label that kmer is in opposite orientation of seed kmer
+					}
+					for (int km_seq:hits_seq.car()){
+						int pos = km_seq+s.pos;
+						if (pos>=-seed_range && pos<=seed_range)
+							kmer2pos_seed.get(km).add(pos);	
 					}
 				}
 			}
@@ -3503,10 +3542,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			return null;
 		
 //		if (config.optimize_kmer_set){
-//			int tmp = alignedKmers.size();
-//			optimizeKSM(alignedKmers);
-//			if (config.verbose>1)
-//				System.out.println(String.format("%s: Extract new KSM, optimized %d to %d k-mers.", CommonUtils.timeElapsed(tic), tmp, alignedKmers.size()));
+			int tmp = alignedKmers.size();
+			optimizeKSM(alignedKmers);
+			if (config.verbose>1)
+				System.out.println(String.format("%s: Extract new KSM, optimized %d to %d k-mers.", CommonUtils.timeElapsed(tic), tmp, alignedKmers.size()));
 //		}
 		alignedKmers.trimToSize();
 		return new NewKSM(alignedKmers);
@@ -3669,10 +3708,12 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		/** seq_seed: positin of sequence relative to the seed kmer position, the squence should be RC() to match the seed orientation */
 		int pos=UNALIGNED;
 		private boolean isForward = true;
-		/** forward strand (as the original orientation of input sequence) matches */
-		HashMap<Kmer, HashSet<Integer>> fPos = new HashMap<Kmer, HashSet<Integer>>();		// forward
+		
+		/** forward strand (as the original orientation of input sequence) matches, <br>
+		 * Pair<int[],int[]> stores the positions for kmer and kmerRC, respectively*/
+		HashMap<Kmer, Pair<int[],int[]>> fPos = new HashMap<Kmer, Pair<int[],int[]>>();		// forward
 		/** reverse strand (as the original orientation of input sequence) matches */
-		HashMap<Kmer, HashSet<Integer>> rPos = new HashMap<Kmer, HashSet<Integer>>();		// reverse
+		HashMap<Kmer, Pair<int[],int[]>> rPos = new HashMap<Kmer, Pair<int[],int[]>>();		// reverse
 		int totalCount;
 		int maxCount;
 		
@@ -3706,7 +3747,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			return isForward?seq:rc;
 		}
 
-		private HashMap<Kmer, HashSet<Integer>> getKmerPos(){
+		private HashMap<Kmer, Pair<int[],int[]>> getKmerPos(){
 			return isForward?fPos:rPos;
 		}
 	
@@ -4151,8 +4192,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 					negSeqScores[i]=kgs[0].getScore();
 				}
 			}
-	//		if (config.verbose>1)
-	//			System.out.println(CommonUtils.timeElapsed(tic)+ ": Ksm threshold, done scan neg sequences.");
+//			if (config.verbose>1)
+//				System.out.println(CommonUtils.timeElapsed(tic)+ ": Ksm threshold, done scan neg sequences.");
 			return evaluateScoreROC(posSeqScores, negSeqScores, config.fpr);
 		}
 	/**
@@ -5016,8 +5057,9 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
         kmac.setStandalone();
         kmac.setConfig(config, out_prefix);
         kmac.setSequences(pos_seqs, neg_seqs, seq_w);
-        System.out.println(String.format("%d input positive sequences, use top %d center sequences (%dbp) to find motif ...", pos_seqs.size(), kmac.seqs.length, config.k_win));
-        pos_seqs = null; neg_seqs = null;
+        System.out.println(String.format("Loaded %d input positive sequences.\nUse top %d center sequences (%dbp) and %d negative sequences to find motif ...", 
+        		pos_seqs.size(), kmac.seqs.length, config.k_win, kmac.seqsNegList.size()));
+//        pos_seqs = null; neg_seqs = null;
         kmac.discoverMotifs(config.k_min, config.k_max, null);
         
 		System.out.println(StatUtil.cacheAccessCount);

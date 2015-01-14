@@ -12,7 +12,6 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
-
 public class GEM {
 	public final static String GEM_VERSION = "2.5";
 	private String[] args;

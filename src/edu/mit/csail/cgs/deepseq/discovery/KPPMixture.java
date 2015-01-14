@@ -48,6 +48,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KPPMixture extends MultiConditionFeatureFinder {
     private Config config;
+    private String paramString;
     private GPSConstants constants;
 
 	// Binding model representing the empirical distribution of a binding event
@@ -187,7 +188,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			else
 				sb.append(arg).append(" ");
 		}
-		log(1, sb.toString());
+		paramString = sb.toString();
+		log(1, paramString);
 		
     	/* *********************************
     	 * Load options
@@ -3673,7 +3675,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmac.selectEnrichedKmers(config.k);
-		kmers = kmac.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
+		kmers = kmac.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts, paramString);
 		if (kmers ==null)		// No motif found, exit here!
 			return -1;
 		if (kmers.isEmpty()){

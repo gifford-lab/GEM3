@@ -90,7 +90,7 @@ public class Config {
     public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
     public boolean use_grid_search = true;
     public boolean optimize_pwm_threshold = true;
-    public boolean optimize_kmer_set = false;
+    public boolean optimize_kmer_set = true;
     public boolean kmer_use_insig = false;
     public boolean kmer_use_filtered = false;
     public boolean use_weighted_kmer = true;		// strength weighted k-mer count
@@ -98,7 +98,7 @@ public class Config {
     public boolean k_neg_shuffle = false;
     public boolean k_neg_dinu_shuffle = false;		// di-nuleotide shuffle
     public int rand_seed = 0;
-    public int neg_pos_ratio = 2;
+    public double neg_pos_ratio = 1;					// number of shuffled negative / positive seqs
    	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
@@ -227,7 +227,7 @@ public class Config {
         k_neg_shuffle = flags.contains("k_neg_shuffle");
         k_neg_dinu_shuffle = flags.contains("k_neg_dinu_shuffle");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
-        neg_pos_ratio = Args.parseInteger(args, "neg_pos_ratio", neg_pos_ratio);
+        neg_pos_ratio = Args.parseDouble(args, "neg_pos_ratio", neg_pos_ratio);
         re_align_kmer = flags.contains("rak");
         print_aligned_seqs = flags.contains("print_aligned_seqs");
         print_input_seqs = flags.contains("print_input_seqs");

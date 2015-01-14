@@ -466,7 +466,7 @@ public class KMAC {
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			KmerMotifAlignmentClustering(kmers, 2, false, null);
+			KmerMotifAlignmentClustering(kmers, 2, false, null,"");
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -607,7 +607,7 @@ public class KMAC {
 			int k = i+k_min;
 			System.out.println("\n----------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = selectEnrichedKmers(k);
-			KmerMotifAlignmentClustering(kmers, 2, true, null);	// seed kmer only
+			KmerMotifAlignmentClustering(kmers, 2, true, null, "");	// seed kmer only
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
@@ -1121,7 +1121,7 @@ public class KMAC {
 	/**
 	 * This is the main method for KMAC motif discovery
 	 */
-	public ArrayList<Kmer> KmerMotifAlignmentClustering (ArrayList<Kmer> kmers_in, int topCluster, boolean only_seed_kmer, int[] eventCounts){
+	public ArrayList<Kmer> KmerMotifAlignmentClustering (ArrayList<Kmer> kmers_in, int topCluster, boolean only_seed_kmer, int[] eventCounts, String gemMsg){
 		int seed_range = k;
 		String[] pos_seq_backup = seqs.clone();
 		String[] neg_seq_backup = new String[seqsNegList.size()];
@@ -1633,7 +1633,7 @@ public class KMAC {
 		// print PWM spatial distribtution
 		printMotifDistanceDistribution(outName);
 		
-		outputClusters(allAlignedKmers, eventCounts);
+		outputClusters(allAlignedKmers, eventCounts, gemMsg);
 
 		// print the clustered k-mers
 		Collections.sort(kmers);
@@ -1848,7 +1848,7 @@ public class KMAC {
 		}
 	}
 	
-	private void outputClusters(ArrayList<Kmer> allAlignedKmers, int[] eventCounts){
+	private void outputClusters(ArrayList<Kmer> allAlignedKmers, int[] eventCounts, String gemMsg){
 		// output cluster information, PFM, and PWM
 		File f = new File(outName);
 		String name = f.getName();
@@ -2005,6 +2005,7 @@ public class KMAC {
 		}
 		html.append("</table>");
 		html.append("</td></tr></table>");
+		html.append("<p><p>"+gemMsg);
 		CommonUtils.writeFile(outName+"_result.htm", html.toString());
 		
 //		for (int i=0;i<Math.min(clusters.size(), 20);i++){
@@ -5304,7 +5305,14 @@ public class KMAC {
         		config.k = kmf.selectK(config.k_min, config.k_max, null);
         }
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(config.k);
-        kmf.KmerMotifAlignmentClustering(kmers, -1, false, null);
+        StringBuilder sb=new StringBuilder();
+		for (String arg:args){
+			if (arg.trim().indexOf(" ")!=-1)
+				sb.append("\"").append(arg).append("\" ");
+			else
+				sb.append(arg).append(" ");
+		}
+        kmf.KmerMotifAlignmentClustering(kmers, -1, false, null, sb.toString());
 	}
 }
 
