@@ -1906,7 +1906,7 @@ public class StatUtil {
 	/**
 	 * This implements the clustering method introduced by "Clustering by fast search and find of density peaks, Science. 2014 Jun 27;344(6191):"<br>
 	 * It is extended to incorporate weights for the data points. <br>
-	 * This method use total positive hit as weight (e.g. sequence hit by the k-mers)
+	 * This method use net (positive-negative) hit as weight (e.g. sequence hit by the k-mers)
 	 * @param distanceMatrix
 	 * @param weights
 	 * @param distanceCutoff kmer distance cutoff, kmers with equal or less distance are consider neighbors when computing local density
@@ -1921,7 +1921,7 @@ public class StatUtil {
 		for (int i=0;i<distanceMatrix.length;i++){
 			DensityClusteringPoint p = util.new DensityClusteringPoint();
 			p.id = i;
-			int self_density = posHitList.get(i).cardinality()-negHitList.get(i).cardinality();
+//			int self_density = posHitList.get(i).cardinality()-negHitList.get(i).cardinality()*posNegSeqRatio;
 			double[] distanceVector = distanceMatrix[i];
 			// sum up to get total hit count of this point and its neighbors
 			BitSet b_pos = new BitSet();
@@ -1984,7 +1984,7 @@ public class StatUtil {
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
 		while(!data.isEmpty()){
 			DensityClusteringPoint p = data.get(0);
-			if (p.delta<2){		// skip those points near other high density points
+			if (p.delta<distanceCutoff){		// skip those points near other high density points
 				data.remove(p);
 				continue;
 			}

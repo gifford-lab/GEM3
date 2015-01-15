@@ -1437,7 +1437,8 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 		for (int j=m+1;j<clusters.size();j++){
 			MotifCluster cluster1 = clusters.get(m);
 			MotifCluster cluster2 = clusters.get(j);
-			if (cluster1.pwmThreshold.motif_significance > cluster2.pwmThreshold.motif_significance){
+			if (cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance > 
+			cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
 				cluster1 = clusters.get(j);
 				cluster2 = clusters.get(m);
 			}
@@ -1485,7 +1486,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 			
 			if (maxCount>=minHitCount*config.motif_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
 				if (config.verbose>1)
-		    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d PWM %s\t(hit=%d, pAUC=%.1f)\n#%d PWM %s\t(hit=%d, pAUC=1e%.1f)\n", 
+		    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d PWM %s\t(hit=%d, pAUC=%.1f)\n#%d PWM %s\t(hit=%d, pAUC=%.1f)\n", 
 		    				CommonUtils.timeElapsed(tic), maxCount, maxDist, isRC?"rc":"", 
 		    				cluster1.clusterId, WeightMatrix.getMaxLetters(cluster1.wm), cluster1.pwmThreshold.posHit, -cluster1.pwmThreshold.motif_significance, 
 		    				cluster2.clusterId, WeightMatrix.getMaxLetters(cluster2.wm), cluster2.pwmThreshold.posHit, -cluster2.pwmThreshold.motif_significance));
@@ -1563,7 +1564,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 				iteratePWMKSM (newCluster, seqList, newCluster.seedKmer.getK(), useKSM);
 				
 				// merge if the new PWM is more enriched
-				if ((newCluster.pwmThreshold.motif_significance<cluster1.pwmThreshold.motif_significance)){		
+				if ((newCluster.pwmThreshold.motif_significance+newCluster.ksmThreshold.motif_significance<cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance)){		
 					clusters.set(m, newCluster);
 					isChanged = true;
 					for (int d=0;d<checked.length;d++){
@@ -1572,7 +1573,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 					}
 					cluster1 = newCluster;
 					if (config.verbose>1)
-			    		System.out.println(String.format("\n%s: motif #%d and motif #%d merge to new PWM %s, hgp=1e%.1f", 
+			    		System.out.println(String.format("\n%s: motif #%d and motif #%d merge to new motif %s, pAUC=%.1f", 
 			    				CommonUtils.timeElapsed(tic), cluster1.clusterId, cluster2.clusterId,
 			    				WeightMatrix.getMaxLetters(newCluster.wm), newCluster.pwmThreshold.motif_significance));	
 				}
@@ -2078,7 +2079,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
     		else
     			System.out.println(WeightMatrix.printMatrixLetters(wm).trim());
-    		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, hgp=1e%.1f", c.pwmThreshold.motif_cutoff, c.wm.getMaxScore(), c.pwmThreshold.posHit, c.pwmThreshold.negHit, c.pwmThreshold.motif_significance));
+    		System.out.println(String.format("PWM threshold: %.2f/%.2f, \thit=%d+/%d-, pAUC=%.1f", c.pwmThreshold.motif_cutoff, c.wm.getMaxScore(), c.pwmThreshold.posHit, c.pwmThreshold.negHit, c.pwmThreshold.motif_significance));
     		pfm_sb.append(CommonUtils.makeTRANSFAC (c.pfm, c.pwmThreshold.posHit, 
     				String.format("DE %s_m%d %.2f %d k%d_c%d", name, c.clusterId, c.pwmThreshold.motif_cutoff, pos, c.k, c.pwmThreshold.posHit)));
 			if (config.outputMEME)
@@ -2092,7 +2093,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 						String.format("%s_m%d_p%d_k%d_c%d", name, c.clusterId, pos, c.k, c.pwmThreshold.posHit)));
     		if (config.use_ksm && c.ksmThreshold!=null){
     			System.out.println(String.format("\nKSM top k-mer: %s, total %d k-mers", c.seedKmer.getKmerStrRC(), c.alignedKmers.size()));    			
-    			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, hgp=1e%.1f", c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.motif_significance));
+    			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, kAUC=%.1f", c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.motif_significance));
     		}
 			// paint motif logo
 			c.wm.setNameVerType(name, "m"+c.clusterId, null);
