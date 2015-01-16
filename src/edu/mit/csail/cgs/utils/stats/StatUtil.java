@@ -1792,11 +1792,12 @@ public class StatUtil {
 	 */
 	public class DensityClusteringPoint implements Comparable<DensityClusteringPoint>{
 		public int id;		// the original id of the data point
-		public double density=0;
+		public double density=0;		// density as total count by the neighborhood
+		public double densitySxN=0;		// sqrt (self density * neighborhood density)
 		public double delta=0;
 		public double gamma=0;
 		public int delta_id;
-		public TreeSet<DensityClusteringPoint> members = new TreeSet<DensityClusteringPoint>();
+		public ArrayList<DensityClusteringPoint> members = new ArrayList<DensityClusteringPoint>();
 		public TreeSet<Integer> memberIds = new TreeSet<Integer>();
 		
 		public String toString(){
@@ -1824,6 +1825,13 @@ public class StatUtil {
 		public int compareToById(DensityClusteringPoint p) {
 			if(id<p.id){return(-1);}
 			else if(id>p.id){return(1);}
+			else return(0);
+		}
+		/** Sort DensityClusteringPoint by descending S*N density value
+		 */
+		public int compareToByDensitySxN(DensityClusteringPoint p) {
+			if(densitySxN>p.densitySxN){return(-1);}
+			else if(densitySxN<p.densitySxN){return(1);}
 			else return(0);
 		}
 		
@@ -1921,7 +1929,8 @@ public class StatUtil {
 		for (int i=0;i<distanceMatrix.length;i++){
 			DensityClusteringPoint p = util.new DensityClusteringPoint();
 			p.id = i;
-//			int self_density = posHitList.get(i).cardinality()-negHitList.get(i).cardinality()*posNegSeqRatio;
+			// self_density: individual k-mer hit count
+			double self_density = posHitList.get(i).cardinality()-negHitList.get(i).cardinality()*posNegSeqRatio;
 			double[] distanceVector = distanceMatrix[i];
 			// sum up to get total hit count of this point and its neighbors
 			BitSet b_pos = new BitSet();
@@ -1933,8 +1942,9 @@ public class StatUtil {
 				}
 			}
 			// group hit count * self_density, to down-weight weak kmers from being selected as center
-//			p.density = Math.sqrt((b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio) * self_density);
-			p.density = b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio;
+			p.densitySxN = Math.sqrt((b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio) * self_density);
+			p.density = p.densitySxN;
+//			p.density = b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio;
 			data.add(p);
 		}
 		data.trimToSize();		
@@ -1984,15 +1994,39 @@ public class StatUtil {
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
 		while(!data.isEmpty()){
 			DensityClusteringPoint p = data.get(0);
-			if (p.delta<distanceCutoff){		// skip those points near other high density points
-				data.remove(p);
-				continue;
+//			if (p.delta<distanceCutoff){		// skip those points near other high density points
+//				data.remove(p);
+//				continue;
+//			}
+			// compareToByDensitySxN, to select the high density point with high individual hit count (self density)
+			Collections.sort(p.members, new Comparator<DensityClusteringPoint>(){
+	            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+	                return o1.compareToByDensitySxN(o2);
+	            }
+	        });
+			DensityClusteringPoint selected = null;
+			for (DensityClusteringPoint m:p.members){
+				boolean tooSimilar = false;
+				for (DensityClusteringPoint r:results){
+					if (distanceMatrix[m.id][r.id]<distanceCutoff)
+						tooSimilar = true;
+				}
+				if (!tooSimilar){
+					selected = m;
+					break;
+				}
+				else{
+					data.remove(m);
+				}
 			}
-			results.add(p);		// select the best point from the remaining points
+			if (selected != null){
+				results.add(selected);		// select the best point from the remaining points
+				data.remove(selected);
+			}
 			data.remove(p);
-			for (DensityClusteringPoint m: p.members){
-				data.remove(m);
-			}
+//			for (DensityClusteringPoint m: selected.members){
+//				data.remove(m);
+//			}
 		}
 		return results;
 	}	

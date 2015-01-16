@@ -476,7 +476,8 @@ public class KMAC2WK {
 		
 		for (int i=0;i<k_max-k_min+1;i++){
 			int k = i+k_min;
-			StringBuilder sb = new StringBuilder("\n------------------------- k = "+ k +" ----------------------------\n");
+//			StringBuilder sb = new StringBuilder("\n------------------------- k = "+ k +" ----------------------------\n");
+			StringBuilder sb = new StringBuilder();
 			System.out.println("\n----------------------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = generateEnrichedKmers(k);
 			if (config.use_gapped)
@@ -486,17 +487,18 @@ public class KMAC2WK {
 			indexKmerSequences(kmers, seqList, seqListNeg, config.kmer_hgp);
 			kmers.trimToSize();
 			Collections.sort(kmers);
-
+			
+			System.out.println("\n------------------------- k = "+ k +" ----------------------------\n");
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			if (!kmers.isEmpty()){
 				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, true);
 				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix);
 				distanceMatrix = null;
+				System.out.println();
 		        for (int j=0;j<centerKmers.size();j++){	
 		        	Kmer seedKmer = centerKmers.get(j);
-		    		if (config.verbose>1)
-		    			System.out.println("------------------------------------------------\n"+
-		    					"Aligning k-mers with "+seedKmer.getKmerString()+",   #"+j);
+		    		System.out.println("------------------------------------------------\n"+
+		    					"Aligning k-mers with "+seedKmer.getKmerString()+",   \t#"+j);
 
 		        	MotifCluster c = KmerMotifAlignmentClustering(seqList, kmers, seedKmer);
 		        	if (c!=null){
@@ -509,17 +511,16 @@ public class KMAC2WK {
 			}
 			
 			clusters = tmp;
+			sortMotifClusters(clusters, true);
+			
+			// print all the motifs for k, before merging
+			sb.append("\n");
+			printMotifClusters(clusters, sb);
+			if (config.verbose>1)
+				System.out.println(sb.toString());
 			
 			if (clusters.size()>1){
-				
-				sortMotifClusters(clusters, true);
-				
-				// print all the motifs for k, before merging
-				printMotifClusters(clusters, sb);
-				System.out.println(sb.toString());
-				
-				if (config.verbose>1)
-					System.out.println("\nFinding redundant motifs and merge ...");
+				System.out.println("\nFinding and merging redundant motifs ...");
 				boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// a table indicating whether a pair has been checked
 				
 				tic = System.currentTimeMillis();
@@ -530,6 +531,8 @@ public class KMAC2WK {
 			}
 			
 			// print motifs for k, after merging
+			System.out.println("\n------------------------- k = "+ k +" ----------------------------");
+			sb.append("After merging:\n");
 			printMotifClusters(clusters, sb);
 			System.out.println(sb.toString());
 			
@@ -544,7 +547,7 @@ public class KMAC2WK {
 			
 			sortMotifClusters(clusters, true);
 			
-			StringBuilder sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +" ----------------------------\n");
+			StringBuilder sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +", k = ALL -------------------------\n");
 			if (config.verbose>1)
 				System.out.println("\n---------------------------------------------\nMotifs from all k values:\n");
 			printMotifClusters(clusters, sb_all);
@@ -983,7 +986,7 @@ public class KMAC2WK {
 				HashSet<Integer> neghits = kmerstr2negSeqs.get(kmer.getKmerString());
 				if (kmer.getPosHitCount() > neghits.size() / get_NP_ratio() * config.k_fold*0.7){
 					double hgp = computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), neghits.size());
-					if (hgp < config.hgp*0.7){		// the hgp and fold change here is slightly relaxed for sub-kmers
+					if (hgp < config.hgp*0.7){		// the hgp and fold change here is slightly relaxed for base-kmers
 						kmer.setNegHits(neghits);	
 						kmer.setHgp(hgp);
 					}
@@ -1041,7 +1044,7 @@ public class KMAC2WK {
 			subKmers.addAll(gk.getBaseKmers());
 		}		
 		System.out.println("Expected kmer hit count="+expectedCount + ", gapped kmer count="+gks.size()+
-				", sub-kmers count="+subKmers.size());
+				", base-kmers count="+subKmers.size());
 		
 		// score the kmers, hypergeometric p-value, select significant k-mers
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
@@ -1049,13 +1052,13 @@ public class KMAC2WK {
 			gk.mergeNegHits();		// aggregate sub-kmer negative hits to the WC kmer
 			if (gk.getPosHitCount() >= gk.getNegHitCount()/get_NP_ratio() * config.k_fold ){
 				// optimize the subkmers to get best hgp
-				ArrayList<Kmer> subKmerList = new ArrayList<Kmer>();
-				subKmerList.addAll(gk.getBaseKmers());
+				ArrayList<Kmer> baseKmerList = new ArrayList<Kmer>();
+				baseKmerList.addAll(gk.getBaseKmers());
 				if (config.optimize_kmer_set)
-					optimizeKSM(subKmerList);
+					optimizeKSM(baseKmerList);
 				HashSet<Kmer> toremove = new HashSet<Kmer>();
 				for (Kmer subkm:gk.getBaseKmers())
-					if (!subKmerList.contains(subkm))
+					if (!baseKmerList.contains(subkm))
 						toremove.add(subkm);
 				for (Kmer km: toremove)
 					gk.removeBasekmers(km);
@@ -1146,7 +1149,7 @@ public class KMAC2WK {
 	}
 	
 	private double[][] computeWeightedDistanceMatrix(ArrayList<Kmer> kmers, boolean print_dist_matrix) {
-		/** basicKmers include the exact kmers and the sub-kmers of the gapped kmers */
+		/** basicKmers include the exact kmers and the base-kmers of the gapped kmers */
 		HashSet<Kmer> basicKmerSet = new HashSet<Kmer>();
 		for (Kmer km: kmers){
 			km.addBasicKmersToSet(basicKmerSet);
@@ -1292,8 +1295,8 @@ public class KMAC2WK {
 			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
 					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
 		}
-		
-		System.out.println(CommonUtils.timeElapsed(tic));
+		if (config.verbose>1)
+			System.out.println(CommonUtils.timeElapsed(tic));
 		
 		return results;
 	}
@@ -1309,7 +1312,7 @@ public class KMAC2WK {
  * 		seq_seed = -(seed_seq) = -(seed_kmer - kmer_seq) = kmer_seed + kmer_seq. The start of the sequence relative to the start of the seed k-mer. This is done by linking the position of the matched k-mer group (or simply just a k-mer) to the seed k-mer.<br>
  * 3. Orientation of k-mers and sequences<br>
  * 		Each k-mer is merged with its reverse-compliment k-mer. The k-mer string stores one orientation. In KMAC2WK, we do not flip the k-mer string. Instead, the Kmer object keep track of the orientation as seedOrientation (whether the k-mer is in the orientation consistent with the seed k-mer orientation, i.e. they are extracted from the sequence alignment built from the seed k-mer).<br>
- * 		The subKmers hashTable of a gapped k-mer, stores the info of whether the sub-kmers are the same as the gapped-kmer. Because a basic-kmer could potentially be the sub-kmers of gapped k-mers that has conflicting orientation. Thus needing to store orientation info in each gappedKmer-subKmer pair.<br>
+ * 		The subKmers hashTable of a gapped k-mer, stores the info of whether the base-kmers are the same as the gapped-kmer. Because a basic-kmer could potentially be the base-kmers of gapped k-mers that has conflicting orientation. Thus needing to store orientation info in each gappedKmer-subKmer pair.<br>
  * 		The orientation of a sequence is stored in the Sequence object, to note whether it is in the forward orientation as the original input sequence.
  */
 	public MotifCluster KmerMotifAlignmentClustering (ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
@@ -2209,7 +2212,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		ArrayList<Sequence> seqListNeg, double kmer_hgp){
 
 	/* Initialization, setup sequence list, and update kmers */
-	/** basicKmers include the exact kmers and the sub-kmers of the gapped kmers */
+	/** basicKmers include the exact kmers and the base-kmers of the gapped kmers */
 	HashSet<Kmer> basicKmers = new HashSet<Kmer>();
 	for (Kmer km: kmers){
 		km.addBasicKmersToSet(basicKmers);
@@ -2282,7 +2285,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		oks.prepare();
 		
 		// index kmer->seq id, seq->(kmer and position)
-		// it start with the basicKmers, then the sub-kmers will be replaced by the WC-kmers
+		// it start with the basicKmers, then the base-kmers will be replaced by the WC-kmers
 		HashMap <Kmer, HashSet<Integer>> kmer2seq = new HashMap <Kmer, HashSet<Integer>>();
 		ArrayList<HashMap<Kmer, ArrayList<Integer>>> fPosArray = new ArrayList<HashMap<Kmer, ArrayList<Integer>>>();
 		ArrayList<HashMap<Kmer, ArrayList<Integer>>> rPosArray = new ArrayList<HashMap<Kmer, ArrayList<Integer>>>();
@@ -2347,7 +2350,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			HashMap<Kmer, ArrayList<Integer>> fPos = fPosArray.get(i);
 			HashMap<Kmer, ArrayList<Integer>> rPos = rPosArray.get(i);
 			for (Kmer km: fPos.keySet()){		
-				if (km.getGappedKmers()!=null){	// only process sub-kmers, ignore exact kmers
+				if (km.getGappedKmers()!=null){	// only process base-kmers, ignore exact kmers
 					for (GappedKmer wk: km.getGappedKmers()){
 						if (! wkPosMap.containsKey(wk)){
 							wkPosMap.put(wk, new HashSet<Integer>());
@@ -2387,7 +2390,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			
 			// same for the reverse sequence
 			for (Kmer km: rPos.keySet()){		
-				if (km.getGappedKmers()!=null){	// only process sub-kmers, ignore exact kmers
+				if (km.getGappedKmers()!=null){	// only process base-kmers, ignore exact kmers
 					for (GappedKmer wk: km.getGappedKmers()){
 						if (! wkPosMap.containsKey(wk)){
 							wkPosMap.put(wk, new HashSet<Integer>());
@@ -3480,8 +3483,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		for (Kmer km:kmer2pos_seed.keySet()){
 			ArrayList<Integer> posKmer = kmer2pos_seed.get(km);		// all km_seed positions of this kmer
 			// The kmer hit in the 2*k region should be at least 1/2 of total hit
-			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_aligned_fraction){			
-				km.setAlignString("Too few hit "+posKmer.size());
+			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_inRange_fraction){			
+				km.setAlignString("Too few hit in range "+posKmer.size());
+//				if (config.verbose>1)
+//					System.out.println(String.format("%s\t%d\t%d", km.getKmerRCStr(), km.getPosHitCount(), posKmer.size()));
 				continue;
 			}	
 			// find the most frequent kmerPos
@@ -3491,11 +3496,16 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 				continue;
 			int posSorted[] = sorted.car();
 			int maxCount = counts[counts.length-1];
+			// The number of consistently aligned k-mer should be more than some fraction of the k-mer hits
 			// posKmer.size() only count in seqs in the alignment, getPosHitCount() count all seqs
-			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_aligned_fraction){
+			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_consistent_fraction){
 				km.setAlignString("Low consistent hit count "+maxCount);
+//				if (config.verbose>1)
+//					System.out.println(String.format("%s\t%d\t%d\t%d", km.getKmerRCStr(), km.getPosHitCount(), posKmer.size(), maxCount));
 				continue;
 			}
+			
+			// pass the test, now set the k-mer shift, i.e. position relative to the seed kmer
 			ArrayList<Integer> maxPos = new ArrayList<Integer>();
 			for (int i=counts.length-1;i>=0;i--){
 				if (counts[i]==maxCount){
@@ -3542,12 +3552,12 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		if (alignedKmers.isEmpty())
 			return null;
 		
-//		if (config.optimize_kmer_set){
+		if (config.optimize_kmer_set){
 			int tmp = alignedKmers.size();
 			optimizeKSM(alignedKmers);
 			if (config.verbose>1)
 				System.out.println(String.format("%s: Extract new KSM, optimized %d to %d k-mers.", CommonUtils.timeElapsed(tic), tmp, alignedKmers.size()));
-//		}
+		}
 		alignedKmers.trimToSize();
 		return new NewKSM(alignedKmers);
 	}
@@ -4532,7 +4542,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 					for (Kmer sk: gk.getBaseKmers()){
 						String kmerStr = gk.isSeedOrientation()&&gk.getSubKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
 						sk.kmerStartOffset=gk.kmerStartOffset;
-						str2kmer.put(kmerStr, sk);			// use individual sub-kmers for scoring
+						str2kmer.put(kmerStr, sk);			// use individual base-kmers for scoring
 						tree.add(kmerStr.getBytes(), kmerStr);
 					}
 				else{

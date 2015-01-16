@@ -2305,7 +2305,7 @@ public class KMAC2 {
 		for (Kmer km:kmer2pos.keySet()){
 			ArrayList<Integer> posKmer = kmer2pos.get(km);		// all in_sequence positions of this kmer
 			// The kmer hit in the 2*k region should be at least 1/2 of total hit
-			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_aligned_fraction){			
+			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_inRange_fraction){			
 				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
 			}	
@@ -2315,7 +2315,7 @@ public class KMAC2 {
 			int posSorted[] = sorted.car();
 			int maxCount = counts[counts.length-1];
 			// posKmer.size() only count in seqs in the alignment, getPosHitCount() count all seqs
-			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_aligned_fraction){
+			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_inRange_fraction){
 				km.setAlignString("Low consistent hit count "+maxCount);
 				continue;
 			}

@@ -3762,7 +3762,7 @@ public class KMAC {
 	 * Get aligned kmers within seed_range using the aligned sequences
 	 * @param seqList
 	 * @param seed_range
-	 * @param kmer_aligned_fraction
+	 * @param kmer_inRange_fraction
 	 * @return
 	 */
 	private ArrayList<Kmer> getAlignedKmers (ArrayList<Sequence> seqList, int seed_range, ArrayList<Kmer> excludes){
@@ -3799,7 +3799,7 @@ public class KMAC {
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmer2pos.keySet()){
 			ArrayList<Integer> posKmer = kmer2pos.get(km);		// all in_sequence positions of this kmer
-			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_aligned_fraction){			// The kmer hit in the 2*k region should be at least 1/2 of total hit
+			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_inRange_fraction){			// The kmer hit in the 2*k region should be at least 1/2 of total hit
 				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
 			}	
@@ -3808,7 +3808,7 @@ public class KMAC {
 			int counts[] = sorted.cdr();
 			int posSorted[] = sorted.car();
 			int maxCount = counts[counts.length-1];
-			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_aligned_fraction)	// for palindromic kmer, posKmer>hitCount
+			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_inRange_fraction)	// for palindromic kmer, posKmer>hitCount
 				continue;
 			ArrayList<Integer> maxPos = new ArrayList<Integer>();
 			for (int i=counts.length-1;i>=0;i--){
