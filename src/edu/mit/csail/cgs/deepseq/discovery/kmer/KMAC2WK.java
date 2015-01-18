@@ -182,22 +182,22 @@ public class KMAC2WK {
 		}
 		else if (config.k_neg_dinu_shuffle){
 			System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
-			StringBuilder sb = new StringBuilder();
-			for (int i=0;i<seqNum;i++){
-				sb.append(seqs[i]);
-			}for (int j=0;j<config.neg_pos_ratio;j++){
-				Random randObj = new Random(config.rand_seed+j);
-				String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
-				for (int i=0;i<seqNum;i++){
-					seqsNegList.add(shuffled.substring(i*length,(i+1)*length));
-				}
-			}			
-//			for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
+//			StringBuilder sb = new StringBuilder();
+//			for (int i=0;i<seqNum;i++){
+//				sb.append(seqs[i]);
+//			}for (int j=0;j<config.neg_pos_ratio;j++){
 //				Random randObj = new Random(config.rand_seed+j);
+//				String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
 //				for (int i=0;i<seqNum;i++){
-//					seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+//					seqsNegList.add(shuffled.substring(i*length,(i+1)*length));
 //				}
-//			}
+//			}			
+			for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
+				Random randObj = new Random(config.rand_seed+j);
+				for (int i=0;i<seqNum;i++){
+					seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+				}
+			}
 		}
 		else{	// use the supplied negative sequences
 			if (neg_seqs.size()<seqNum)
@@ -466,7 +466,7 @@ public class KMAC2WK {
 
 		if (seqs.length<500){
 			config.pwm_noise = 0.1;
-			config.kmer_uncorrected_hgp /= 2;
+			config.kmer_uncorrected_hgp = 2;
 		}
 		
 		/** Initialization of the sequences */
