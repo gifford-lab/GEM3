@@ -15,6 +15,7 @@ public class Config {
     public boolean outputMEME = false;
     public boolean outputHOMER = false;
     public boolean outputJASPAR = false;
+    public boolean print_dist_matrix = false;
     public boolean write_RSC_file = false;
     public boolean write_genetrack_file = false;
     public boolean kmer_print_hits = false;
@@ -72,6 +73,7 @@ public class Config {
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
     public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched motif 
     public double kmer_hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
+    public double kmer_uncorrected_hgp = -2.3; 	// p-value threshold of hyper-geometric test for enriched kmer 
     public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
     public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
     public double[] bg= new double[4];	// background frequency based on GC content
@@ -113,7 +115,7 @@ public class Config {
   	public boolean progressive_PWM_trim = true;
   	public double kpp_factor = 0.8;
   	public int kpp_nmotifs = 1;	// number of motifs to use for kpp setup
-  	public double noise = 0.0;
+  	public double pwm_noise = 0.0;
     public boolean print_aligned_seqs = false;
     public boolean print_input_seqs = false;
     public boolean print_all_kmers = false;
@@ -341,7 +343,7 @@ public class Config {
 //        kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
         kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);
         kpp_nmotifs = Args.parseInteger(args, "kpp_nmotifs", kpp_nmotifs);
-        noise = Args.parseDouble(args, "noise", noise);
+        pwm_noise = Args.parseDouble(args, "pwm_noise", pwm_noise);
         motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
         kmer_inRange_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_inRange_fraction);
         kmer_consistent_fraction = Args.parseDouble(args, "kmer_consistent_fraction", kmer_consistent_fraction);

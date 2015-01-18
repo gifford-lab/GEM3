@@ -1298,9 +1298,9 @@ public class KMAC {
 	    	seedFamily = null;
 	    	
 	    	// build first PWM with some noise
-	    	if (verbose>1 && config.noise!=0)
-				System.out.println(CommonUtils.timeElapsed(tic)+ ": PWM noise = " + config.noise);
-			if ( buildPWM(seqList, cluster, config.noise, tic, true) > -1){    	
+	    	if (verbose>1 && config.pwm_noise!=0)
+				System.out.println(CommonUtils.timeElapsed(tic)+ ": PWM noise = " + config.pwm_noise);
+			if ( buildPWM(seqList, cluster, config.pwm_noise, tic, true) > -1){    	
 				alignSequencesUsingPWM(seqList, cluster);
 				if (use_PWM_MM){
 					alignSequencesUsingPWMmm(seqList, cluster);

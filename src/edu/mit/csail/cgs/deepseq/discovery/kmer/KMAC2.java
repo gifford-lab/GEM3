@@ -951,9 +951,9 @@ public class KMAC2 {
     	seedFamily = null;
     	
     	// build first PWM
-    	if (config.verbose>1 && config.noise!=0)
-			System.out.println(CommonUtils.timeElapsed(tic)+ ": PWM noise = " + config.noise);
-    	NewPWM newPWM = buildPWM(seqList, cluster, config.noise, tic, true);	
+    	if (config.verbose>1 && config.pwm_noise!=0)
+			System.out.println(CommonUtils.timeElapsed(tic)+ ": PWM noise = " + config.pwm_noise);
+    	NewPWM newPWM = buildPWM(seqList, cluster, config.pwm_noise, tic, true);	
 		
     	if (newPWM!=null){
 			newPWM.updateClusterPwmInfo(cluster);
