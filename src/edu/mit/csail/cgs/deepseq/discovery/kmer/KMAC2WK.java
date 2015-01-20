@@ -500,9 +500,9 @@ public class KMAC2WK {
 			ArrayList<Kmer> kmers = generateEnrichedKmers(k);
 			if (config.use_gapped){
 				kmers.addAll(generateEnrichedGappedKmers(k,1));
-				if (k>=7)
+//				if (k>=7)
 					kmers.addAll(generateEnrichedGappedKmers(k,2));
-				if (k>=9)
+//				if (k>=9)
 					kmers.addAll(generateEnrichedGappedKmers(k,3));
 			}
 			
@@ -811,7 +811,7 @@ public class KMAC2WK {
 				continue;	// skip low count kmers 
 			kstrs.add(key);
 		}		
-		System.out.println("Expected kmer hit count="+expectedCount + ", kmer numbers="+kstrs.size());
+		System.out.println("k="+k+", expected kmer hit count="+expectedCount + ", kmer numbers="+kstrs.size());
 
 		// create the kmer object
 		for (String s:kstrs){	
@@ -895,7 +895,7 @@ public class KMAC2WK {
 	 * */
 	public ArrayList<Kmer> generateEnrichedGappedKmers(int k, int numGap){
 		double correctedKmerHGP = config.kmer_uncorrected_hgp - bonferroniFactors.get(k);
-
+		int kOrginal = k;
 		k += numGap;
 		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
@@ -916,9 +916,7 @@ public class KMAC2WK {
 				break;
 			}
 		}
-		int expectedCount = (int) Math.max( smallestPosCount, Math.round(seqs.length*2*(seqs[0].length()-k+1) / Math.pow(4, k)));
-		int relaxedExpectedCount = Math.max(2,(int)(expectedCount*divideFactor));
-		
+
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
@@ -938,7 +936,12 @@ public class KMAC2WK {
 				kmerstr2seqs.get(s).add(seqId);
 			}
 		}
-		
+		int expectedGappedKmerCount = (int) Math.max( smallestPosCount, Math.round(seqs.length*2*(seqs[0].length()-kOrginal+1) / Math.pow(4, kOrginal)));
+		if (kmerstr2seqs.keySet().size()<10000){	
+			expectedGappedKmerCount = Math.min(smallestPosCount, expectedGappedKmerCount);
+		}			
+		int relaxedExpectedCount = Math.max(2,(int)(expectedGappedKmerCount*divideFactor));
+
 		// Merge kmer and its reverse compliment (RC)	
 		ArrayList<String> kmerStrings = new ArrayList<String>();
 		kmerStrings.addAll(kmerstr2seqs.keySet());
@@ -969,7 +972,7 @@ public class KMAC2WK {
 				}				
 			}
 		}
-		System.out.println(String.format("k=%d+%d, mapped %d k-mers, %s", k-numGap, numGap, 
+		System.out.println(String.format("k=%d+%d, mapped %d k-mers, %s", kOrginal, numGap, 
 				kmerstr2seqs.keySet().size(), CommonUtils.timeElapsed(tic)));
 
 		/**
@@ -1128,13 +1131,13 @@ public class KMAC2WK {
 		HashSet<Kmer> baseKmers = new HashSet<Kmer>();
 		for (String key:gkMap.keySet()){	
 			GappedKmer gk = gkMap.get(key);
-			if (gk.getPosHitCount()< expectedCount)
+			if (gk.getPosHitCount()< expectedGappedKmerCount)
 				continue;	// skip low count kmers 
 			gks.add(gk);
 			baseKmers.addAll(gk.getBaseKmers());
-		}		
-		System.out.println("Expected kmer hit count="+expectedCount + ", gapped kmer count="+gks.size()+
-				", base-kmers count="+baseKmers.size());
+		}
+		System.out.println(String.format("k=%d+%d, expected kmer hit count=%d, gapped kmer count=%d, base-kmers count=%d", 
+				kOrginal, numGap, expectedGappedKmerCount, gks.size(), baseKmers.size()));
 		
 		// score the kmers, hypergeometric p-value, select significant k-mers
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
@@ -1166,16 +1169,23 @@ public class KMAC2WK {
 		}
 		results.trimToSize();
 		Collections.sort(results);
-		System.out.println(String.format("k=%d, selected %d gapped k-mers from %d+/%d- sequences, %s", k-numGap, results.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+		
+		ArrayList<Kmer> results_final = new ArrayList<Kmer>();
+		int final_count = Math.min(results.size(), 2000);
+		for (int i=0;i<final_count;i++){
+			results_final.add(results.get(i));
+		}
+
+		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers from %d+/%d- sequences, %s", kOrginal, numGap, results_final.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
 		for (GappedKmer gk:gks)
 			kms.add(gk);
 		if (config.print_all_kmers){
 			Collections.sort(kms);
-			GappedKmer.printGappedKmers(kms, k-numGap, posSeqCount, negSeqCount, 0, outName+"_g_all_w"+seqs[0].length(), true, false, true);
+			GappedKmer.printGappedKmers(kms, kOrginal, posSeqCount, negSeqCount, 0, outName+"_g_all_w"+seqs[0].length(), true, false, true);
 		}
-		return results;
+		return results_final;
 	}
 	
 	private double[][] computeDistanceMatrix(ArrayList<Kmer> kmers, boolean print_dist_matrix) {
