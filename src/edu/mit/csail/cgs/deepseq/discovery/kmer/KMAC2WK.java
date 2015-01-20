@@ -498,13 +498,9 @@ public class KMAC2WK {
 			StringBuilder sb = new StringBuilder();
 			System.out.println("\n----------------------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = generateEnrichedKmers(k);
-			if (config.use_gapped){
-				kmers.addAll(generateEnrichedGappedKmers(k,1));
-//				if (k>=7)
-					kmers.addAll(generateEnrichedGappedKmers(k,2));
-//				if (k>=9)
-					kmers.addAll(generateEnrichedGappedKmers(k,3));
-			}
+			if (config.gap>0)
+				for (int g=1;g<=config.gap;g++)
+					kmers.addAll(generateEnrichedGappedKmers(k,g));
 			
 			/** Index sequences and kmers, for each k, need to index this only once */
 			indexKmerSequences(kmers, seqList, seqListNeg, config.kmer_uncorrected_hgp-bonferroniFactors.get(k));
@@ -706,7 +702,7 @@ public class KMAC2WK {
 
 		// print k-mers
 		for (MotifCluster cluster : clusters){
-			GappedKmer.printGappedKmers(cluster.alignedKmers, cluster.k, posSeqCount, negSeqCount, cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
+			GappedKmer.printGappedKmers(cluster.alignedKmers, cluster.k, 0, posSeqCount, negSeqCount, cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
 		}
 		
 		/** final outputs */
@@ -1176,14 +1172,15 @@ public class KMAC2WK {
 			results_final.add(results.get(i));
 		}
 
-		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers from %d+/%d- sequences, %s", kOrginal, numGap, results_final.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers from %d+/%d- sequences, %s", 
+				kOrginal, numGap, results_final.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
 		for (GappedKmer gk:gks)
 			kms.add(gk);
 		if (config.print_all_kmers){
 			Collections.sort(kms);
-			GappedKmer.printGappedKmers(kms, kOrginal, posSeqCount, negSeqCount, 0, outName+"_g_all_w"+seqs[0].length(), true, false, true);
+			GappedKmer.printGappedKmers(kms, kOrginal, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
 		}
 		return results_final;
 	}
@@ -1554,7 +1551,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 			if (cluster1.wm==null||cluster2.wm==null||checked[cluster1.clusterId][cluster2.clusterId])
 				continue;
 			
-			int range = seqLen - cluster1.wm.length()/2 - cluster2.wm.length()/2 + 4;  // add 2 for rounding error
+			int range = seqLen - cluster1.wm.length()/2 - cluster2.wm.length()/2 + 5;  // add 5 for preventing arrayOutofBound
 			int[] same = new int[range*2+1];
 			int[] diff = new int[range*2+1];
 			for (int i=0;i<seqs.length;i++){

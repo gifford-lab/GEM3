@@ -64,6 +64,7 @@ public class Config {
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
     public int k_win_f = 4;		// k_win = k_win_f * k
+   	public int gap = 2;			// max number of gapped bases in the k-mers (i.e. use 1 to gap)
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
@@ -107,7 +108,6 @@ public class Config {
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
    	/** Align and cluster motif using KSM */
    	public boolean use_ksm = true;	
-   	public boolean use_gapped = true;
    	public boolean use_sub_kmers = true;
  	public boolean estimate_ksm_threshold = true;
   	public boolean kpp_normalize_max = true;
@@ -270,7 +270,6 @@ public class Config {
         use_kmer_mismatch = !flags.contains("no_kmm");
         use_seed_family = !flags.contains("no_seed_family");
         use_ksm = !flags.contains("no_ksm");
-        use_gapped = !flags.contains("ng");
         use_sub_kmers = !flags.contains("ns");
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
@@ -316,6 +315,7 @@ public class Config {
         	allow_seed_reset = false;
         }
         k_top = Args.parseInteger(args, "k_top", k_top);
+        gap = Args.parseInteger(args, "gap", gap);
         dc = Args.parseInteger(args, "dc", dc);
         delta = Args.parseInteger(args, "delta", delta);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
