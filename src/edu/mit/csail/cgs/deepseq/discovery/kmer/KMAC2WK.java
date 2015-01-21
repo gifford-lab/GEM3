@@ -498,9 +498,15 @@ public class KMAC2WK {
 			StringBuilder sb = new StringBuilder();
 			System.out.println("\n----------------------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = generateEnrichedKmers(k);
-			if (config.gap>0)
-				for (int g=1;g<=config.gap;g++)
+			if (config.gap>0){
+				int maxGap = config.gap;
+				if (k<=5)
+					maxGap = 1;
+				else if (k<=7)
+					maxGap = 2;
+				for (int g=1;g<=maxGap;g++)
 					kmers.addAll(generateEnrichedGappedKmers(k,g));
+			}
 			
 			/** Index sequences and kmers, for each k, need to index this only once */
 			indexKmerSequences(kmers, seqList, seqListNeg, config.kmer_uncorrected_hgp-bonferroniFactors.get(k));
@@ -1254,6 +1260,8 @@ public class KMAC2WK {
 	 * @return
 	 */
 	private double[][] computeWeightedDistanceMatrix(ArrayList<Kmer> kmers, boolean print_dist_matrix) {
+		long tic=System.currentTimeMillis();
+		
 		/** basicKmers include the exact kmers and the base-kmers of the gapped kmers */
 		HashSet<Kmer> basicKmerSet = new HashSet<Kmer>();
 		for (Kmer km: kmers){
@@ -1345,6 +1353,9 @@ public class KMAC2WK {
 	        }
 	        CommonUtils.writeFile(String.format("%s.k%d.dist%.1f.gephi_edges.csv", outName, k, dist_cutoff), output.toString());
 		}
+		if (config.verbose>1)
+			System.out.println("Distance matrix: " + CommonUtils.timeElapsed(tic));
+		
 		return distanceMatrix;
 	}
 	private ArrayList<Kmer> selectCenterKmersByDensityClustering(ArrayList<Kmer> kmers, double[][]distanceMatrix) {
@@ -1361,7 +1372,9 @@ public class KMAC2WK {
 		
 //		ArrayList<DensityClusteringPoint> centers = StatUtil.weightedDensityClustering(distanceMatrix, weights, config.kd, config.delta);
 
-		int dc = k>=8?config.dc+1:config.dc;
+		int dc = (k>=8) ? (config.dc+1) : config.dc;
+		if (config.verbose>1)
+			System.out.println("dc="+dc);
 //		int delta = dc + (k>=11?2:1);
 		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, posHitList, negHitList, posNegSeqRatio, dc);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
@@ -1410,12 +1423,15 @@ public class KMAC2WK {
  * This is the main method for KMAC2WK (density clustering, with gappedKmer) motif discovery<br>
  * A few important points:<br>
  * 1. Definition of k-mer positions<br>
+ * 		The start of the seed k-mer is the global reference point. All the other positions can be represented as relatve to seed position.<br>
  * 		Shift: kmer_seed = start_of_kmer - start_of_seed. The start of a k-mer relative to the start of the seed k-mer when they are aligned<br>
  * 		StartOffset: kmer_bs = kmer_seed - seed_bs, The start of a k-mer relative to the binding site (BS) position (esitmated by averaging the sequence midpoints)<br>
  * 					During KMAC motif finding, startOffset is set as kmer.Shift in extractKSM(). After the motif is found, it is set to be relative to BS.<br>
  * 2. Definition of the sequence alignment position<br>
  * 		seq_seed = -(seed_seq) = -(seed_kmer - kmer_seq) = kmer_seed + kmer_seq. The start of the sequence relative to the start of the seed k-mer. This is done by linking the position of the matched k-mer group (or simply just a k-mer) to the seed k-mer.<br>
- * 3. Orientation of k-mers and sequences<br>
+ * 3. PWM position:<br>
+ * 		PWM position is the start position of the PWM. Cluster.pos_pwm_seed = pwm - seed, allowing to convert to seed position.
+ * 4. Orientation of k-mers and sequences<br>
  * 		Each k-mer is merged with its reverse-compliment k-mer. The k-mer string stores one orientation. In KMAC2WK, we do not flip the k-mer string. Instead, the Kmer object keep track of the orientation as seedOrientation (whether the k-mer is in the orientation consistent with the seed k-mer orientation, i.e. they are extracted from the sequence alignment built from the seed k-mer).<br>
  * 		The subKmers hashTable of a gapped k-mer, stores the info of whether the base-kmers are the same as the gapped-kmer. Because a basic-kmer could potentially be the base-kmers of gapped k-mers that has conflicting orientation. Thus needing to store orientation info in each gappedKmer-subKmer pair.<br>
  * 		The orientation of a sequence is stored in the Sequence object, to note whether it is in the forward orientation as the original input sequence.
@@ -1712,7 +1728,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 		    				+" align additional " + aligned_seqs_count+" sequences.");
 				
 				// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
-				if (aligned_seqs_count<seqs.length*config.motif_hit_factor || aligned_seqs_count<cluster2.pwmThreshold.posHit/3){
+				if (aligned_seqs_count<seqs.length*config.motif_hit_factor ){ //|| aligned_seqs_count<cluster2.pwmThreshold.posHit/3){
 					if (config.verbose>1)
 			    		System.out.println(String.format("%s: Motif #%d has too few (%d) non-shared hits, remove it.", 
 			    			CommonUtils.timeElapsed(tic), cluster2.clusterId, aligned_seqs_count));
@@ -3063,14 +3079,17 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	    	System.err.println("Error in printing file "+filename);
 	    }
 	}
+	
 	private NewPWM buildPWM(ArrayList<Sequence> seqList, MotifCluster cluster, double noiseRatio, long tic, boolean onlyBetter){	    	
 		ArrayList<String> alignedSeqs = new ArrayList<String>();
 		ArrayList<Double> weights = new ArrayList<Double>();
+		int k = cluster.seedKmer.kmerString.length();
+		
 		for (Sequence seq:seqList){
 			if (seq.pos==UNALIGNED)
 				continue;
 			// align window = k*2+1		
-			int start = k/2-k-seq.pos;
+			int start = k/2-k-seq.pos;		// k/2 is mid_seed (middle of seed k-mer), so start = mid_seed -k - seq_seed = mid_seq -k
 			int end = start+2*k+1;
 			String startPadding = "";
 			String endPadding = "";
@@ -3092,7 +3111,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
  			double weight = 1.0;
 			if (config.use_strength_weight)
 				weight *= seq_weights[seq.id];
-			if (cluster.clusterId==0 && config.use_pos_weight){
+			//TODO: now we apply this to all possible motifs (b.c. don't know which is the primary with KMAC2Gap, is it OK?
+			if (config.use_pos_weight){			
 				int prof_pos = k/2-seq.pos;
 				if (prof_pos<0)
 					prof_pos = 0;
@@ -3113,28 +3133,29 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		return buildPWMfromAlignedSequences(alignedSeqs, weights, cluster, noiseRatio, onlyBetter);
     }
 	
-	public NewPWM buildPWMfromHits(ArrayList<Sequence> seqList, MotifCluster cluster, Iterator<PWMHit> hits){
-		ArrayList<String> alignedSeqs = new ArrayList<String>();
-		ArrayList<Double> weights = new ArrayList<Double>();
-		while(hits.hasNext()){
-			PWMHit hit = hits.next();
-			String seq = seqList.get(hit.seqId).getSeqStrand(true);
-			String s = seq.substring(hit.start, hit.end+1);
-			if (!hit.isForward)
-				s = SequenceUtils.reverseComplement(s);
-			alignedSeqs.add(s);
-			weights.add(hit.weight*hit.responsibility);
-		}
-		// make PWM from aligned sequence segament
-		return buildPWMfromAlignedSequences(alignedSeqs, weights, cluster, 0, true);	
-	}
-	
+//	public NewPWM buildPWMfromHits(ArrayList<Sequence> seqList, MotifCluster cluster, Iterator<PWMHit> hits){
+//		ArrayList<String> alignedSeqs = new ArrayList<String>();
+//		ArrayList<Double> weights = new ArrayList<Double>();
+//		while(hits.hasNext()){
+//			PWMHit hit = hits.next();
+//			String seq = seqList.get(hit.seqId).getSeqStrand(true);
+//			String s = seq.substring(hit.start, hit.end+1);
+//			if (!hit.isForward)
+//				s = SequenceUtils.reverseComplement(s);
+//			alignedSeqs.add(s);
+//			weights.add(hit.weight*hit.responsibility);
+//		}
+//		// make PWM from aligned sequence segament
+//		return buildPWMfromAlignedSequences(alignedSeqs, weights, cluster, 0, true);	
+//	}
+//	
 
 	private NewPWM buildPWMfromAlignedSequences(ArrayList<String> alignedSeqs, ArrayList<Double> weights, 
 		MotifCluster cluster, double noiseRatio, boolean onlyBetter){
 		if (alignedSeqs.isEmpty())
 			return null;
-		double[][] pfm = new double[alignedSeqs.get(0).length()][MAXLETTERVAL];
+		int seqLength = alignedSeqs.get(0).length();
+		double[][] pfm = new double[seqLength][MAXLETTERVAL];  // positions x letters
     	if (config.verbose>1)
     		System.out.println(String.format("%s: %d seqs to build PWM.", CommonUtils.timeElapsed(tic), alignedSeqs.size()));
 		// count base frequencies
@@ -3221,33 +3242,68 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		}
 		
 		/* try all pwm length with the most IC-rich columns, find the best PWM */
-//TODO:		if (progressive_PWM_trim){
 		int[] left, right;
-		int tooShort = k-2;
+		int minLength = k-2;
 		if (k<=7)
-			tooShort = k-1;
-		if (rightIdx-leftIdx+1>tooShort){		// length > k-1
-			left=new int[rightIdx-leftIdx+1-tooShort];
-			right=new int[rightIdx-leftIdx+1-tooShort];
-			for (int i=0;i<left.length;i++){
-				int bestLeft = -1;
-				double bestSumIC = 0;
-				for(int p=leftIdx;p<=rightIdx-tooShort-i;p++){
-					int end = tooShort+i+p;
-					if (ic[p]<ic_trim || ic[end]<ic_trim)			// if the ends have low ic, skip
-						continue;
-					double sumIC=0; 
-					for (int j=p;j<=end;j++)
-						sumIC += ic[j];
-					if(sumIC<1*(end-p+1))							// average IC >= 1
-						continue;
-					if (bestSumIC<sumIC){
-						bestSumIC=sumIC;
-						bestLeft = p;
+			minLength = k-1;
+		int seedLength = cluster.seedKmer.kmerString.length();
+		int seed_start = seqLength/2 - seedLength/2;
+		int seed_end = seed_start + seedLength-1;
+
+		if (rightIdx-leftIdx+1>minLength){		// length > k-1
+			if (config.bestIC_PWM_trim){
+				left=new int[rightIdx-leftIdx+1-minLength];
+				right=new int[rightIdx-leftIdx+1-minLength];
+				for (int i=0;i<left.length;i++){
+					int bestLeft = -1;
+					double bestSumIC = 0;
+					for(int p=leftIdx;p<=rightIdx-minLength-i;p++){
+						int end = minLength+i+p;
+						if (ic[p]<ic_trim || ic[end]<ic_trim)			// if the ends have low ic, skip
+							continue;
+						double sumIC=0; 
+						for (int j=p;j<=end;j++)
+							sumIC += ic[j];
+						if(sumIC<1*(end-p+1))							// average IC >= 1
+							continue;
+						if (bestSumIC<sumIC){
+							bestSumIC=sumIC;
+							bestLeft = p;
+						}
+					}
+					left[i]=bestLeft;
+					right[i]=bestLeft+minLength+i;
+				}
+			}
+			else{	// centered on the seed_middle position
+				ArrayList<Integer> startList = new ArrayList<Integer>();
+				ArrayList<Integer> endList = new ArrayList<Integer>();
+				int width = Math.min(seed_start-leftIdx, rightIdx-seed_end);
+				if (width<-1){
+					for (int i=-1;i<=width;i++){
+						startList.add(seed_start-i);endList.add(seed_end+i);
+						if (seed_start-i-1<leftIdx || seed_end+i+1>rightIdx)
+							continue;
+						if (ic[seed_start-i-1]>ic[seed_end+i+1]){
+							startList.add(seed_start-i-1);endList.add(seed_end+i);
+						}
+						else{
+							startList.add(seed_start-i);endList.add(seed_end+i+1);
+						}
+					}
+					left=new int[startList.size()];
+					right=new int[startList.size()];
+					for (int i=0;i<startList.size();i++){
+						left[i] = startList.get(i);
+						right[i] = endList.get(i);
 					}
 				}
-				left[i]=bestLeft;
-				right[i]=bestLeft+tooShort+i;
+				else{				// if high IC bases have too little overlap with seed bases
+					left=new int[1];
+					right=new int[1];
+					left[0]=leftIdx;
+					right[0]=rightIdx;
+				}
 			}
 		}
 		else{				// if it is not very long
@@ -3355,7 +3411,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		newPWM.pwmPosHitCount = bestEstimate.posHit;
 		newPWM.pwmNegHitCount = bestEstimate.negHit;		
 		newPWM.pfm = pfm_trim;
-		newPWM.pos_pwm_seed = bestLeft-(alignedSeqs.get(0).length()/2-k/2);		// pwm_seed = pwm_seqNew-seed_seqNew
+		newPWM.pos_pwm_seed = bestLeft - seed_start;		// pwm_seed = pwm_start-seed_start
 
     	return newPWM;
 	}
@@ -4041,7 +4097,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 //				sb.append(String.format("k=%d\tthresh=%.2f\thit=%d\thgp=1e%.1f\tW=%d\tPWM= %s.\n", c.k, c.pwmThreshold,
 //						c.pwmThreshold.posHit, c.pwmThreshold.motif_significance, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
 //			}
-			sb.append(String.format("#%d\tk=%d\tKSM= %s \t%.2f, %d, pAUC=%.1f", c.clusterId, c.k, c.seedKmer.getKmerString(), 
+			sb.append(String.format("#%d\tk=%d\tKSM= %s \t%.2f, %d, kAUC=%.1f", c.clusterId, c.k, c.seedKmer.getKmerString(), 
 					c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, -c.ksmThreshold.motif_significance));
 			if (c.wm!=null)
 				sb.append(String.format("\tPWM= %s\t%.2f, %d, pAUC=%.1f\n", 
