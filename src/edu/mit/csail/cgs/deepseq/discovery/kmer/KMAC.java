@@ -28,8 +28,6 @@ import java.util.TreeSet;
 import javax.imageio.ImageIO;
 
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.ArgParser;
-import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.SetTools;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
@@ -39,7 +37,6 @@ import edu.mit.csail.cgs.utils.strings.multipattern.*;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;

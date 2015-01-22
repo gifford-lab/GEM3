@@ -56,9 +56,7 @@ public class Config {
     /** number of top k-mers selected from density clustering to run KMAC */
     public int k_top = 3;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
-    public int dc = 3;
-    /** delta value cutoff, k-mers with equal or higher delta values are used for selecting cluster centers */
-    public int delta = 2;
+    public int dc = -1;
     
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
@@ -317,7 +315,6 @@ public class Config {
         k_top = Args.parseInteger(args, "k_top", k_top);
         gap = Args.parseInteger(args, "gap", gap);
         dc = Args.parseInteger(args, "dc", dc);
-        delta = Args.parseInteger(args, "delta", delta);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
         seq_weight_type = Args.parseInteger(args, "swt", seq_weight_type);
         k_win = Args.parseInteger(args, "k_win", k_win);

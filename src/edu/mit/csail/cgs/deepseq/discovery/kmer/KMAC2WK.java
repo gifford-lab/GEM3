@@ -56,7 +56,7 @@ public class KMAC2WK {
 	private int numPos;
 	private double[] bg= new double[4];	// background frequency based on GC content
 	private double ic_trim = 0.4;
-	private String outName;
+	private String outName, params;
 	private boolean optimize_KG_kmers = false;
 	
 	private int seqLen;
@@ -122,9 +122,10 @@ public class KMAC2WK {
 		this.negSeqCount = negSeqCount;
 	}
 	
-	public void setConfig(Config config, String outName){
+	public void setConfig(Config config, String outName, String params){
 		this.config = config;
 	    this.outName = outName;
+	    this.params = params;
 	    Kmer.set_use_weighted_hit_count(config.use_weighted_kmer);
 	}
 	
@@ -500,9 +501,9 @@ public class KMAC2WK {
 			ArrayList<Kmer> kmers = generateEnrichedKmers(k);
 			int maxGap = config.gap;
 			if (config.gap>0){
-				if (k<=5)
+				if (k<=6)
 					maxGap = 1;
-				else if (k<=7)
+				else if (k<=8)
 					maxGap = 2;
 				for (int g=1;g<=maxGap;g++)
 					kmers.addAll(generateEnrichedGappedKmers(k,g));
@@ -517,9 +518,10 @@ public class KMAC2WK {
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			if (!kmers.isEmpty()){
 				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix);
-				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, maxGap+2);
+				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?(maxGap+2):config.dc);
 				distanceMatrix = null;
 				System.out.println();
+//				centerKmers.clear(); // for testing
 		        for (int j=0;j<centerKmers.size();j++){	
 		        	Kmer seedKmer = centerKmers.get(j);
 		    		System.out.println("------------------------------------------------\n"+
@@ -2320,6 +2322,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 		}
 		html.append("</table>");
 		html.append("</td></tr></table>");
+		html.append("<p>"+params+"<p>");
 		CommonUtils.writeFile(outName+"_result.htm", html.toString());
 		
 //		for (int i=0;i<Math.min(clusters.size(), 20);i++){
@@ -3279,7 +3282,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 				ArrayList<Integer> startList = new ArrayList<Integer>();
 				ArrayList<Integer> endList = new ArrayList<Integer>();
 				int width = Math.min(seed_start-leftIdx, rightIdx-seed_end);
-				if (width<-1){
+				if (width>=-1){
 					for (int i=-1;i<=width;i++){
 						startList.add(seed_start-i);endList.add(seed_end+i);
 						if (seed_start-i-1<leftIdx || seed_end+i+1>rightIdx)
@@ -3301,8 +3304,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 				else{				// if high IC bases have too little overlap with seed bases
 					left=new int[1];
 					right=new int[1];
-					left[0]=leftIdx;
-					right[0]=rightIdx;
+					left[0]=Math.max(seed_start-1, leftIdx);
+					right[0]=Math.min(rightIdx, seed_end+1);
 				}
 			}
 		}
@@ -3334,7 +3337,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	    	// Compare AUROC
 	    	MotifThreshold estimate = null;
 	    	estimate = evaluatePwmROC(wm, config.fpr);
-	    	double motif_score = Math.max(estimate.motif_cutoff, wm.getMaxScore()*config.wm_factor);
+	    	double motif_score = wm.getMaxScore()*config.wm_factor;
 	    	double motif_significance = estimate.motif_significance;
     		if (config.verbose>1)
     			if (motif_significance==0)
@@ -5167,7 +5170,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			else
 				sb.append(arg).append(" ");
 		}
-		System.out.println(sb.toString()+"\n");
+		String params = sb.toString();
+		System.out.println(params+"\n");
 		
 		String format = Args.parseString(args, "format", "fasta");
 		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
@@ -5233,7 +5237,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		// run motif discovery
 		KMAC2WK kmac = new KMAC2WK();
         kmac.setStandalone();
-        kmac.setConfig(config, out_prefix);
+        kmac.setConfig(config, out_prefix, params);
         kmac.setSequences(pos_seqs, neg_seqs, seq_w);
         System.out.println(String.format("Loaded %d input positive sequences.\nUse top %d center sequences (%dbp) and %d negative sequences to find motif ...", 
         		pos_seqs.size(), kmac.seqs.length, config.k_win, kmac.seqsNegList.size()));
