@@ -518,7 +518,7 @@ public class KMAC2WK {
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			if (!kmers.isEmpty()){
 				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix);
-				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?(maxGap+2):config.dc);
+				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?(maxGap+1):config.dc);
 				distanceMatrix = null;
 				System.out.println();
 //				centerKmers.clear(); // for testing
