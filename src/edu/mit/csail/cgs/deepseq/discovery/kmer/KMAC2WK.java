@@ -498,8 +498,8 @@ public class KMAC2WK {
 			StringBuilder sb = new StringBuilder();
 			System.out.println("\n----------------------------------------------------------\nTrying k="+k+" ...\n");
 			ArrayList<Kmer> kmers = generateEnrichedKmers(k);
+			int maxGap = config.gap;
 			if (config.gap>0){
-				int maxGap = config.gap;
 				if (k<=5)
 					maxGap = 1;
 				else if (k<=7)
@@ -517,7 +517,7 @@ public class KMAC2WK {
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			if (!kmers.isEmpty()){
 				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix);
-				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix);
+				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, maxGap+2);
 				distanceMatrix = null;
 				System.out.println();
 		        for (int j=0;j<centerKmers.size();j++){	
@@ -1358,7 +1358,7 @@ public class KMAC2WK {
 		
 		return distanceMatrix;
 	}
-	private ArrayList<Kmer> selectCenterKmersByDensityClustering(ArrayList<Kmer> kmers, double[][]distanceMatrix) {
+	private ArrayList<Kmer> selectCenterKmersByDensityClustering(ArrayList<Kmer> kmers, double[][]distanceMatrix, int distance_cutoff) {
 		long tic = System.currentTimeMillis();
 		int k = kmers.get(0).getK();
 		
@@ -1372,11 +1372,11 @@ public class KMAC2WK {
 		
 //		ArrayList<DensityClusteringPoint> centers = StatUtil.weightedDensityClustering(distanceMatrix, weights, config.kd, config.delta);
 
-		int dc = (k>=8) ? (config.dc+1) : config.dc;
+//		int dc = (k>=8) ? (config.dc+1) : config.dc;
 		if (config.verbose>1)
-			System.out.println("dc="+dc);
+			System.out.println("distance_cutoff="+distance_cutoff);
 //		int delta = dc + (k>=11?2:1);
-		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, posHitList, negHitList, posNegSeqRatio, dc);
+		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, posHitList, negHitList, posNegSeqRatio, distance_cutoff);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
 		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
 		for (DensityClusteringPoint p:centers){
@@ -1567,7 +1567,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 			if (cluster1.wm==null||cluster2.wm==null||checked[cluster1.clusterId][cluster2.clusterId])
 				continue;
 			
-			int range = seqLen - cluster1.wm.length()/2 - cluster2.wm.length()/2 + 5;  // add 5 for preventing arrayOutofBound
+			int range = seqLen - cluster1.wm.length()/2 - cluster2.wm.length()/2 + 10;  // add 10 for preventing arrayOutofBound
 			int[] same = new int[range*2+1];
 			int[] diff = new int[range*2+1];
 			for (int i=0;i<seqs.length;i++){
@@ -1608,7 +1608,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 			
 			if (maxCount>=minHitCount*config.motif_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
 				if (config.verbose>1)
-		    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d PWM %s\t(hit=%d, pAUC=%.1f)\n#%d PWM %s\t(hit=%d, pAUC=%.1f)\n", 
+		    		System.out.println(String.format("\n----------------------------------\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d PWM %s\t(hit=%d, pAUC=%.1f)\n#%d PWM %s\t(hit=%d, pAUC=%.1f)\n", 
 		    				CommonUtils.timeElapsed(tic), maxCount, maxDist, isRC?"rc":"", 
 		    				cluster1.clusterId, WeightMatrix.getMaxLetters(cluster1.wm), cluster1.pwmThreshold.posHit, -cluster1.pwmThreshold.motif_significance, 
 		    				cluster2.clusterId, WeightMatrix.getMaxLetters(cluster2.wm), cluster2.pwmThreshold.posHit, -cluster2.pwmThreshold.motif_significance));
@@ -1728,7 +1728,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 		    				+" align additional " + aligned_seqs_count+" sequences.");
 				
 				// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
-				if (aligned_seqs_count<seqs.length*config.motif_hit_factor ){ //|| aligned_seqs_count<cluster2.pwmThreshold.posHit/3){
+				if (aligned_seqs_count<seqs.length*config.motif_hit_factor || aligned_seqs_count<cluster2.pwmThreshold.posHit/5){
 					if (config.verbose>1)
 			    		System.out.println(String.format("%s: Motif #%d has too few (%d) non-shared hits, remove it.", 
 			    			CommonUtils.timeElapsed(tic), cluster2.clusterId, aligned_seqs_count));
@@ -1912,7 +1912,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 				
 				if (maxCount>=minHitCount*config.motif_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
 					if (config.verbose>1)
-			    		System.out.println(String.format("\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d KSM %s\t(hit=%d, hgp=1e%.1f)\n#%d KSM %s\t(hit=%d, hgp=1e%.1f)\n", 
+			    		System.out.println(String.format("\n----------------------------------\n%s: Motif pair to be merged, %d overlap hits, motif hit distance = %d%s:\n#%d KSM %s\t(hit=%d, hgp=1e%.1f)\n#%d KSM %s\t(hit=%d, hgp=1e%.1f)\n", 
 			    				CommonUtils.timeElapsed(tic), maxCount, maxDist, isRC?"rc":"", 
 			    				cluster1.clusterId, cluster1.seedKmer.kmerString, cluster1.ksmThreshold.posHit, cluster1.ksmThreshold.motif_significance, 
 			    				cluster2.clusterId, cluster2.seedKmer.kmerString, cluster2.ksmThreshold.posHit, cluster2.ksmThreshold.motif_significance));
@@ -3334,7 +3334,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	    	// Compare AUROC
 	    	MotifThreshold estimate = null;
 	    	estimate = evaluatePwmROC(wm, config.fpr);
-	    	double motif_score = estimate.motif_cutoff;
+	    	double motif_score = Math.max(estimate.motif_cutoff, wm.getMaxScore()*config.wm_factor);
 	    	double motif_significance = estimate.motif_significance;
     		if (config.verbose>1)
     			if (motif_significance==0)
