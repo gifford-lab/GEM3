@@ -51,7 +51,7 @@ public class Config {
     public int k_min = -1;		// the minimum value of k
     public int k_max= -1;		// the maximum value of k        
     public String seed = null;
-    public int seq_weight_type = 3;	// 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
+    public int seq_weight_type = 3;	// "swt" - 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
     
     /** number of top k-mers selected from density clustering to run KMAC */
     public int k_top = 3;
@@ -316,6 +316,7 @@ public class Config {
         k_top = Args.parseInteger(args, "k_top", k_top);
         gap = Args.parseInteger(args, "gap", gap);
         dc = Args.parseInteger(args, "dc", dc);
+        dc_gap = Args.parseInteger(args, "dc_gap", dc_gap);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
         seq_weight_type = Args.parseInteger(args, "swt", seq_weight_type);
         k_win = Args.parseInteger(args, "k_win", k_win);

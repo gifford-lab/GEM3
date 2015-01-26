@@ -5001,6 +5001,47 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		public double getScore() {return kg_score;	}
 		/** setScore, log10(hgp) using the positive/negative sequences */
 		public void setScore(double score) {this.kg_score = score;	}
+		
+		/** get the KG match end indices, relative to the sequence*/
+		public Pair<Integer,Integer> getMatchEndIndices(){
+			int leftIdx = 999;
+			int rightIdx = -999;
+			for (Kmer km:kmers){
+				if (km.getKmerStartOffset()<leftIdx)
+					leftIdx = km.getKmerStartOffset();
+				if (km.getKmerStartOffset()+km.kmerString.length()>rightIdx)
+					rightIdx = km.getKmerStartOffset()+km.kmerString.length();
+			}
+			return new Pair<Integer,Integer>(leftIdx+bs, rightIdx+bs);
+		}
+		
+		public String getCoveredSequence(){
+			int maxShift = 0;
+			for (Kmer km:kmers){
+				if (km.getKmerStartOffset()<maxShift)
+					maxShift = km.getKmerStartOffset();
+			}
+			char[] letters = new char[-maxShift+kmers.get(0).k+5];
+			int rightIdx = 0;
+			for (Kmer km:kmers){
+				char[] kChars = km.getKmerString().toCharArray();
+				for (int i=0;i<kChars.length;i++){
+					int idx = i+km.getKmerStartOffset()-maxShift;
+					if (kChars[i]!='N'){
+						letters[idx] = kChars[i];
+						if (rightIdx<idx)
+							rightIdx = idx;							
+					}
+				}
+			}
+			StringBuilder sb = new StringBuilder();
+			for (int i=0;i<rightIdx;i++){
+				if (letters[i]!=0)
+					sb.append(letters[i]);	
+			}
+			return sb.toString();
+		}
+		
 		public int getClusterId(){return clusterId;}
 		public void setClusterId(int id){clusterId = id;}
 		
@@ -5184,11 +5225,11 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	        			try{
 	        				seq_w.add(Double.parseDouble(f[1]));
 	        			}catch(NumberFormatException nfe){
-	        				seq_w.add(1.0);
+	        				seq_w.add(1.1);
 	        			}
 	        		}
 		            else
-		            	seq_w.add(1.0);
+		            	seq_w.add(1.1);
 	        	}
 	        	else{
 	        		if (config.k_win==-1){

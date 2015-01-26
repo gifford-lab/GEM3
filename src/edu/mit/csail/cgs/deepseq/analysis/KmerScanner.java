@@ -165,7 +165,7 @@ public class KmerScanner {
 			int PWM_time = 0;
 			int KSM_time = 0;
 			for (int i=0;i<toRun;i++){
-				String seq = posSeqs.get(i);
+				String seq = posSeqs.get(i).toUpperCase();
 				String seqN;
 				seqN = SequenceUtils.dinu_shuffle(seq, randObj);
 
@@ -181,10 +181,40 @@ public class KmerScanner {
 				long ksm_t = System.currentTimeMillis();
 				KmerGroup kg = scanner.getBestKG(seq);
 				KmerGroup kgN = scanner.getBestKG(seqN);
+				String matchKSM = "ZZ";
+				if (i==31)
+					i+=0;
+				if (kg!=null){
+					Pair<Integer,Integer> ends = kg.getMatchEndIndices();
+					int start=ends.car(), end=ends.cdr();
+					if (start<0)
+						start = 0;
+					if (end>seq.length())
+						end=seq.length();
+					if (start<end){
+						String m = seq.substring(start,end);
+						matchKSM = m+"/"+SequenceUtils.reverseComplement(m);
+					}
+				}
+				String matchNKSM = "ZZ";
+				if (kgN!=null){
+					Pair<Integer,Integer> ends = kgN.getMatchEndIndices();
+					int start=ends.car(), end=ends.cdr();
+					if (start<0)
+						start = 0;
+					if (end>seq.length())
+						end=seq.length();
+					if (start<end){
+						String m = seq.substring(start,end);
+						matchNKSM = m+"/"+SequenceUtils.reverseComplement(m);
+					}
+				}					
+							
 				ksm_scores.add(kg==null?0:kg.getScore());
 				ksmN_scores.add(kgN==null?0:kgN.getScore());
 				KSM_time += System.currentTimeMillis() - ksm_t;
-				sb.append(String.format("%d\t%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d\n", i, match, matchN, pwm, pwmN, 
+				sb.append(String.format("%d\t%s\t%s\t%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d\n", i, match, matchN, 
+						matchKSM, matchNKSM, pwm, pwmN, 
 						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
 						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
 						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount()));
