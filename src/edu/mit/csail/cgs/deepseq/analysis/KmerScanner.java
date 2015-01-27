@@ -191,6 +191,8 @@ public class KmerScanner {
 		int KSM_time = 0;
 		for (int i=0;i<numSeqToRun;i++){
 			String seq = posSeqs.get(i).toUpperCase();
+			int startSeq = seq.length()/2 - width/2; int endSeq =startSeq+width;
+			seq = seq.substring(startSeq,endSeq);
 			String seqN;
 			seqN = SequenceUtils.dinu_shuffle(seq, randObj);
 
