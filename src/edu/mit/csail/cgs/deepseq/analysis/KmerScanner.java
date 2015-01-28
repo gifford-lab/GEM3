@@ -170,7 +170,7 @@ public class KmerScanner {
 		ArrayList<ArrayList<Double>> other_scores = new ArrayList<ArrayList<Double>>();
 		ArrayList<ArrayList<Double>> otherN_scores = new ArrayList<ArrayList<Double>>();
 	    for (int i=0;i<pfm_suffixs.length;i++){
-	    	pfm = getFileName(other_pfm_path+expt, pfm_suffixs[i]);
+	    	pfm = other_pfm_path+expt+pfm_suffixs[i];
 	    	otherPwms[i] = CommonUtils.loadPWM_PFM_file(pfm, gc); 
 	    	other_scores.add(new ArrayList<Double>());
 	    	otherN_scores.add(new ArrayList<Double>());
@@ -250,10 +250,10 @@ public class KmerScanner {
 			StringBuilder sb_other_matchString = new StringBuilder();
 			StringBuilder sb_other_score = new StringBuilder();
 			for (int j=0;j<otherPwms.length;j++){
-				other_matches[j]=WeightMatrixScorer.getMaxScoreSequence(motif, seq, -1000, 0);
+				other_matches[j]=WeightMatrixScorer.getMaxScoreSequence(otherPwms[j], seq, -1000, 0);
 				double score = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seq);
 				other_scores.get(j).add(score);
-				otherN_matches[j]=WeightMatrixScorer.getMaxScoreSequence(motif, seqN, -1000, 0);
+				otherN_matches[j]=WeightMatrixScorer.getMaxScoreSequence(otherPwms[j], seqN, -1000, 0);
 				double scoreN = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seqN);
 				otherN_scores.get(j).add(scoreN);
 				sb_other_matchString.append("\t"+other_matches[j]+"\t"+otherN_matches[j]);
