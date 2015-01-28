@@ -117,7 +117,7 @@ public class KmerScanner {
 		String other_pfm_suffix = Args.parseString(args, "pfm_suffix", "");
 		int windowSize = Args.parseInteger(args, "win", 50);
 		double fpr = Args.parseDouble(args, "fpr", 0.15);
-		double gc = Args.parseDouble(args, "fpr", 0.41);   //0.41 human, 0.42 mouse
+		double gc = Args.parseDouble(args, "gc", 0.41);   //0.41 human, 0.42 mouse
 		int width = windowSize*2+1;
 		int top = Args.parseInteger(args, "top", 5000);
 		if (top==-1)
@@ -133,7 +133,7 @@ public class KmerScanner {
 		for (String line: lines){
 			String f[] = line.split("\t");			
 			scanSeqs(f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
-					!flags.contains("use_base_kmer"), gc, top, randObj, width, fpr);
+					flags.contains("use_base_kmer"), gc, top, randObj, width, fpr);
 		    
 		} // each expt
 	}
@@ -197,8 +197,7 @@ public class KmerScanner {
 			String seq = posSeqs.get(i).toUpperCase();
 			int startSeq = seq.length()/2 - width/2; int endSeq =startSeq+width;
 			seq = seq.substring(startSeq,endSeq);
-			String seqN;
-			seqN = SequenceUtils.dinu_shuffle(seq, randObj);
+			String seqN = SequenceUtils.dinu_shuffle(seq, randObj);
 
 			// PWM
 			long pwm_t = System.currentTimeMillis();
@@ -226,8 +225,7 @@ public class KmerScanner {
 				if (end>seq.length())
 					end=seq.length();
 				if (start<end){
-					String m = seq.substring(start,end);
-					matchKSM = m+"/"+SequenceUtils.reverseComplement(m);
+					matchKSM = seq.substring(start,end)+"|"+SequenceUtils.reverseComplement(seq).substring(start,end);
 				}
 			}
 			String matchNKSM = "ZZ";
@@ -236,11 +234,10 @@ public class KmerScanner {
 				int start=ends.car(), end=ends.cdr();
 				if (start<0)
 					start = 0;
-				if (end>seq.length())
-					end=seq.length();
+				if (end>seqN.length())
+					end=seqN.length();
 				if (start<end){
-					String m = seq.substring(start,end);
-					matchNKSM = m+"/"+SequenceUtils.reverseComplement(m);
+					matchNKSM = seqN.substring(start,end)+"|"+SequenceUtils.reverseComplement(seqN).substring(start,end);
 				}
 			}					
 						
