@@ -155,6 +155,7 @@ public class KmerScanner {
 		
 		long t1 = System.currentTimeMillis();
 		File file = new File(kmer);
+    	System.err.println(kmer);
 		ArrayList<Kmer> kmers = GappedKmer.loadKmers(file);
 		Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
 		
@@ -163,6 +164,7 @@ public class KmerScanner {
 	        	    
 	    long t = System.currentTimeMillis();
 	    WeightMatrix motif = CommonUtils.loadPWM_PFM_file(pfm, gc); 
+    	System.err.println(pfm);
 	    System.out.println("PWM loading:\t"+CommonUtils.timeElapsed(t));
 		
 	    // additional pfms
@@ -171,6 +173,7 @@ public class KmerScanner {
 		ArrayList<ArrayList<Double>> otherN_scores = new ArrayList<ArrayList<Double>>();
 	    for (int i=0;i<pfm_suffixs.length;i++){
 	    	pfm = other_pfm_path+expt+pfm_suffixs[i];
+	    	System.err.println(pfm);
 	    	otherPwms[i] = CommonUtils.loadPWM_PFM_file(pfm, gc); 
 	    	other_scores.add(new ArrayList<Double>());
 	    	otherN_scores.add(new ArrayList<Double>());
@@ -178,6 +181,7 @@ public class KmerScanner {
 	    
 		StringBuilder sb = new StringBuilder();
 
+    	System.err.println(fasta_file);
 		ArrayList<String> posSeqs = CommonUtils.readFastaFile(fasta_file);
 		int numSeqToRun = Math.min(top, posSeqs.size());
 		System.out.println("Scanning "+numSeqToRun+" regions ...");
