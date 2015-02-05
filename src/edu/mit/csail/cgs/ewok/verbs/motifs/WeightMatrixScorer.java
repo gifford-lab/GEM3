@@ -11,7 +11,7 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfile> {
-
+	public static final int RC = 999;
     private WeightMatrix matrix;
     private SequenceGenerator seqgen;
     
@@ -94,7 +94,44 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
         }
         return results;
     }
-
+    /**
+     * Score a sequence that is shorter than the matrix<br>
+     * find the best scoring sub-matrix
+     */
+    public static Pair<Float,Integer> scorePartialMatrix (WeightMatrix matrix, char[] sequence, boolean bothStrand) {
+    	if (matrix.length()<=sequence.length)
+    		return null;
+    	
+        float maxScore = -10000;
+        int maxPos = RC;
+        char[] seqRC = sequence.clone();
+        SequenceUtils.reverseComplement(seqRC);
+//        for (int i=0;i<sequence.length;i++)
+//        	seqRC[i] = sequence[sequence.length-1-i];
+       	
+        for (int j = 0; j <= matrix.length()-sequence.length; j++) {
+            float score = 0;
+            for (int i = 0; i < sequence.length; i++) {
+                score += matrix.matrix[j+i][sequence[i]];
+            }
+            if (maxScore < score){
+            	maxScore = score;
+            	maxPos = j;
+            }
+            if (bothStrand){
+                score = 0;
+                for (int i = 0; i < seqRC.length; i++) {
+                    score += matrix.matrix[j+i][seqRC[i]];
+                }
+                if (maxScore < score){
+                	maxScore = score;
+                	maxPos = -j+RC;
+                }
+            }
+        }
+        return new Pair<Float,Integer>(maxScore, maxPos);
+    }
+    
     /**
      * Return the maximum motif score of the input sequence (from both directions)
      * @param matrix

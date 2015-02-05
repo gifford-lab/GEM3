@@ -197,6 +197,7 @@ public class GPSFastaWriter{
 	    			continue;
 	    	}
 	    	String seq = seqgen.execute(r);
+	    	
 	    	// negative region for GEM
 			// In proximal regions, but excluding binding regions
 			String chr = p.getChrom();
@@ -206,7 +207,8 @@ public class GPSFastaWriter{
 				continue;
 			Region r_neg = new Region(genome, chr, start, start+window);
 			negativeRegions.add(r_neg);
-
+			
+			// check for repeat, i.e. lower case soft masking sequence
 			for (char c:seq.toCharArray())
 				if ((Character.isLowerCase(c) && skip_repeat) || c=='N')
 					continue eachPeak;

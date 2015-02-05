@@ -293,6 +293,30 @@ public class WeightMatrix {
         }
         return maxscore;
     }
+    public double getPartialMaxScore(int start, int endExclusive) {
+        float maxscore = 0;
+        if (start<0 || endExclusive>matrix.length)
+        	return maxscore;
+        
+        for (int i = 0; i < matrix.length; i++) {
+            float max = Float.NEGATIVE_INFINITY;
+            if (matrix[i]['A'] > max) {
+                max = matrix[i]['A'];
+            }
+            if (matrix[i]['C'] > max) {
+                max = matrix[i]['C'];
+            }
+            if (matrix[i]['G'] > max) {
+                max = matrix[i]['G'];
+            }
+            if (matrix[i]['T'] > max) {
+                max = matrix[i]['T'];
+            }
+
+            maxscore += max;
+        }
+        return maxscore;
+    }
     public double getMinScore() {
         float minscore = 0;
         for (int i = 0; i < matrix.length; i++) {

@@ -179,28 +179,47 @@ public class MotifScan {
 	    	WeightMatrixScorer scorer = new WeightMatrixScorer(pwm, true);
 	    	double threshold = pwm.getMaxScore()*scoreRatio;
 	    	int width = pwm.length();
-		    for (int s=0; s<seqs.length;s++){		    	
-				WeightMatrixScoreProfile profiler = scorer.execute(seqs[s]);
-				for (int i=0;i<profiler.length();i++){
-					double score = profiler.getHigherScore(i);
-					if (score >= threshold){
-						char strand = profiler.getHigherScoreStrand(i);
-						String instance = null;
-						if (strand=='+')
-							instance = seqs[s].substring(i, i+width);
-						else
-							instance = SequenceUtils.reverseComplement(seqs[s].substring(i, i+width));
-						MotifInstance mi = new MotifInstance();
-						mi.motifID = m;
-						mi.motifName = pwm.getName();
-						mi.seqID = s;
-						mi.matchSeq = instance;
-						mi.position = i;
-						mi.strand = strand;
-						mi.score = score;
-						instances.add(mi);
+		    for (int s=0; s<seqs.length;s++){
+		    	String str = seqs[s];
+		    	if (str.length()>=width){
+		    		WeightMatrixScoreProfile profiler = scorer.execute(str);
+					for (int i=0;i<profiler.length();i++){
+						double score = profiler.getHigherScore(i);
+						if (score >= threshold){
+							char strand = profiler.getHigherScoreStrand(i);
+							String instance = null;
+							if (strand=='+')
+								instance = str.substring(i, i+width);
+							else
+								instance = SequenceUtils.reverseComplement(str.substring(i, i+width));
+							MotifInstance mi = new MotifInstance();
+							mi.motifID = m;
+							mi.motifName = pwm.getName();
+							mi.seqID = s;
+							mi.matchSeq = instance;
+							mi.position = i;
+							mi.strand = strand;
+							mi.score = score;
+							instances.add(mi);
+						}
 					}
-				}
+		    	}
+		    	else{
+		    		Pair<Float,Integer> partialScore = WeightMatrixScorer.scorePartialMatrix(pwm, str.toCharArray(), true);
+		    		int p = partialScore.cdr()<WeightMatrixScorer.RC/2?partialScore.cdr():(partialScore.cdr()-WeightMatrixScorer.RC);		    		
+		    		double partialThreshold = pwm.getPartialMaxScore(Math.abs(p),Math.abs(p)+str.length())*scoreRatio;
+		    		if (partialScore.car()>=partialThreshold || partialScore.car() >= threshold/2){
+			    		MotifInstance mi = new MotifInstance();
+						mi.motifID = m;
+						mi.strand = partialScore.cdr()<WeightMatrixScorer.RC/2?'+':'-';
+						mi.motifName = pwm.getName()+"_p"+(mi.strand=='+'?partialScore.cdr():(partialScore.cdr()-WeightMatrixScorer.RC));
+						mi.seqID = s;
+						mi.matchSeq = mi.strand=='+'?str:SequenceUtils.reverseComplement(str);
+						mi.position = 0;
+						mi.score = partialScore.car();
+						instances.add(mi);
+		    		}
+		    	}
 		    }
 	    }
 		return instances;
