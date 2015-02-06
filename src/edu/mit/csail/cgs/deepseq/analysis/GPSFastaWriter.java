@@ -285,6 +285,9 @@ public class GPSFastaWriter{
 	    	neg_count++;
 		}
 		
+		if (skip_repeat)
+			exptName += "_rm";		// repeat removed
+		
 	    if (wantHMS || wantChIPMunk){
 			chipSeq.closeLoaders();
 			chipSeq=null;
