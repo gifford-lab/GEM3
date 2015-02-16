@@ -84,6 +84,8 @@ public class Config {
 //    public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
     public double motif_hit_factor = 0.005;
     public double motif_hit_factor_report = 0.05;
+    public double motif_remove_ratio = 0.33;	// The ratio of exclusive match for 2nd motif, lower --> remove during merging
+    
 //    public double kmer_set_overlap_ratio = 0.5;
     public double motif_hit_overlap_ratio = 0.5;
     public double repeat_fraction=1;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
@@ -135,7 +137,7 @@ public class Config {
     public boolean allow_seed_inheritance=true;	// allow primary seed k-mer to pass on to the next round of GEM
     public boolean filter_pwm_seq = true;
 //    public boolean k_select_seed = false;
-    public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
+    public boolean pwm_align_new_only = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
     public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
     public boolean use_db_genome = false;// get the sequence from database, not from file
     public boolean k_mask_1base = false;
@@ -282,7 +284,7 @@ public class Config {
         if (selectK_byTopKmer)														// overwrite allow_seed_reset
         	allow_seed_reset = false;
         allow_seed_inheritance = !flags.contains("no_seed_inheritance");
-        pwm_align_new = !flags.contains("pwm_align_all");
+        pwm_align_new_only = !flags.contains("pwm_align_all");
         filter_pwm_seq = !flags.contains("pwm_seq_asIs");
         strigent_event_pvalue = !flags.contains("relax");
 
@@ -345,6 +347,7 @@ public class Config {
         kpp_nmotifs = Args.parseInteger(args, "kpp_nmotifs", kpp_nmotifs);
         pwm_noise = Args.parseDouble(args, "pwm_noise", pwm_noise);
         motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
+        motif_remove_ratio = Args.parseDouble(args, "motif_remove_ratio", motif_remove_ratio);
         kmer_inRange_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_inRange_fraction);
         kmer_consistent_fraction = Args.parseDouble(args, "kmer_consistent_fraction", kmer_consistent_fraction);
 //        kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);

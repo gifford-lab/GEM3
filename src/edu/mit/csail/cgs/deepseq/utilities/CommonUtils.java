@@ -984,6 +984,7 @@ public class CommonUtils {
 	}
 	/**
 	 * Compute distance between two arbitrary-length strings, limit by a cutoff<br>
+	 * It considers forward and reverse compliment k-mers.<br>
 	 * The purpose of the cutoff is to skip unnecessary computation.<br>
 	 * This method supports gapped k-mer,
 	 * @param cutoff the maximum distance to stop calculation must be smaller to cutoff

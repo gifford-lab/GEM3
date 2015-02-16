@@ -103,7 +103,7 @@ public class GPSFastaWriter{
 	
     // load GPS results
 	for (String exptName : names){
-		System.out.print("Processing sequences and related info for "+exptName+", ");
+		System.out.print("Getting FASTA sequences "+exptName+" ... ");
 		File folder = new File(new File(root, exptName), exptName+"_outputs");
 	    File gpsFile = new File(folder, exptName+"_1_GEM_events.txt");
 	    if (!gpsFile.exists()){
