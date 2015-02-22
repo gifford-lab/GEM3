@@ -2008,8 +2008,10 @@ public class StatUtil {
 			for (DensityClusteringPoint m:p.members){
 				boolean tooSimilar = false;
 				for (DensityClusteringPoint r:results){
-					if (distanceMatrix[m.id][r.id]<distanceCutoff)
+					if (distanceMatrix[m.id][r.id]<distanceCutoff){
 						tooSimilar = true;
+						break;
+					}
 				}
 				if (!tooSimilar){
 					selected = m;

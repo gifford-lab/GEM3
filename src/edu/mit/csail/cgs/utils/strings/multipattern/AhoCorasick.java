@@ -73,20 +73,12 @@ public class AhoCorasick {
     }
 
 
-
-
     /**
        Starts a new search, and returns an Iterator of SearchResults.
      */
     public Iterator search(byte[] bytes) {
 	return new Searcher(this, this.startSearch(bytes));
     }
-
-
-
-
-
-
 
 
     /** DANGER DANGER: dense algorithm code ahead.  Very order

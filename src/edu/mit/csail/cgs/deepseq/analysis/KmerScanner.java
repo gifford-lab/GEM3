@@ -47,6 +47,8 @@ public class KmerScanner {
 	}
 	
 	public KmerGroup[] query (String seq){
+//		KmerGroup[] kg = kEngine.findUnstrandedKmerHits_old(seq);
+//		KmerGroup[] kg2 = kEngine.findUnstrandedKmerHits(seq);
 		return kEngine.findUnstrandedKmerHits(seq);
 	}
 	

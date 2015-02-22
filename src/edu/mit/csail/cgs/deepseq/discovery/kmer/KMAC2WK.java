@@ -502,9 +502,9 @@ public class KMAC2WK {
 			int maxGap = config.gap;
 			if (config.gap>0){
 				if (k<=6)
-					maxGap = 1;
-				else if (k<=8)
-					maxGap = 2;
+					maxGap = Math.min(maxGap, 2);
+//				else if (k<=8)
+//					maxGap = 2;
 				for (int g=1;g<=maxGap;g++)
 					kmers.addAll(generateEnrichedGappedKmers(k,g));
 			}
@@ -524,7 +524,7 @@ public class KMAC2WK {
 			if (!kmers.isEmpty()){
 				int cutoff = k-2;	// maximum kmer distance to be considered as neighbors
 				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff+1);
-				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?(maxGap+config.dc_gap):config.dc);
+				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
 				ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
 				for (int j=0;j<centerKmers.size();j++){	
 					int seedId = kmers.indexOf(centerKmers.get(j));
@@ -537,7 +537,7 @@ public class KMAC2WK {
 				}
 				distanceMatrix = null;
 				System.out.println();
-//				centerKmers.clear(); // for testing
+				centerKmers.clear(); // for testing
 		        for (int j=0;j<centerKmers.size();j++){	
 		        	Kmer seedKmer = centerKmers.get(j);
 		    		System.out.println("------------------------------------------------\n"+
@@ -1278,6 +1278,8 @@ public class KMAC2WK {
 	 */
 	private double[][] computeWeightedDistanceMatrix(ArrayList<Kmer> kmers, boolean print_dist_matrix, int cutoff) {
 		long tic=System.currentTimeMillis();
+		if (config.verbose>1)
+			System.out.print("Computing k-mer distance matrix ... ");
 		
 		/** basicKmers include the exact kmers and the base-kmers of the gapped kmers */
 		HashSet<Kmer> basicKmerSet = new HashSet<Kmer>();
@@ -1371,7 +1373,7 @@ public class KMAC2WK {
 	        CommonUtils.writeFile(String.format("%s.k%d.dist%.1f.gephi_edges.csv", outName, k, dist_cutoff), output.toString());
 		}
 		if (config.verbose>1)
-			System.out.println("Distance matrix: " + CommonUtils.timeElapsed(tic));
+			System.out.println(" " + CommonUtils.timeElapsed(tic));
 		
 		return distanceMatrix;
 	}
@@ -2169,6 +2171,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 			mergeOverlapKsmMotifs (seqList, checked, useKSM, recursion+1);
 		}
 	}
+	
 	private void outputClusters(int[] eventCounts){
 		// output cluster information, PFM, and PWM
 		File f = new File(outName);
@@ -4046,10 +4049,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		 */
 		public int compareTo(MotifCluster c) {					// descending pwmThreshold.motif_significance
 			if(pwmThreshold.motif_significance > c.pwmThreshold.motif_significance){return(-1);}
-			else if(pwmThreshold.motif_significance > c.pwmThreshold.motif_significance){return(+1);}
+			else if(pwmThreshold.motif_significance < c.pwmThreshold.motif_significance){return(+1);}
 			else // if same pwmHGP
 				if(ksmThreshold.motif_significance > c.ksmThreshold.motif_significance){return(-1);}
-				else if(ksmThreshold.motif_significance > c.ksmThreshold.motif_significance){return(+1);}
+				else if(ksmThreshold.motif_significance < c.ksmThreshold.motif_significance){return(+1);}
 				else return(0);
 		}
 		
@@ -4058,10 +4061,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		 */
 		public int compareToByKsmSignificance(MotifCluster c) {					// descending ksmThresholdHGP
 			if(ksmThreshold.motif_significance > c.ksmThreshold.motif_significance){return(-1);}
-			else if(ksmThreshold.motif_significance > c.ksmThreshold.motif_significance){return(+1);}
+			else if(ksmThreshold.motif_significance < c.ksmThreshold.motif_significance){return(+1);}
 			else 	// if same ksmHGP
 				if(pwmThreshold.motif_significance > c.pwmThreshold.motif_significance){return(-1);}
-				else if(pwmThreshold.motif_significance > c.pwmThreshold.motif_significance){return(+1);}
+				else if(pwmThreshold.motif_significance < c.pwmThreshold.motif_significance){return(+1);}
 				else return(0);
 		}
 		
@@ -4069,11 +4072,14 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		 * Sort by PWM+KSM significance, then by KSM significance
 		 */
 		public int compareToByKsmPwmSignificance(MotifCluster c) {					// descending pwmThreshold.motif_significance
-			if(pwmThreshold.motif_significance+ksmThreshold.motif_significance > c.pwmThreshold.motif_significance+c.ksmThreshold.motif_significance){return(-1);}
-			else if(pwmThreshold.motif_significance+ksmThreshold.motif_significance > c.pwmThreshold.motif_significance+c.ksmThreshold.motif_significance){return(+1);}
-			else // if same combined significance
+			if(pwmThreshold.motif_significance+ksmThreshold.motif_significance > c.pwmThreshold.motif_significance+c.ksmThreshold.motif_significance)
+				return(-1);
+			else
+				if(pwmThreshold.motif_significance+ksmThreshold.motif_significance < c.pwmThreshold.motif_significance+c.ksmThreshold.motif_significance)
+					return(+1);
+				else // if same 
 				if(ksmThreshold.motif_significance > c.ksmThreshold.motif_significance){return(-1);}
-				else if(ksmThreshold.motif_significance > c.ksmThreshold.motif_significance){return(+1);}
+				else if(ksmThreshold.motif_significance < c.ksmThreshold.motif_significance){return(+1);}
 				else return(0);
 		}
 
@@ -4775,7 +4781,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	}		
 	
 	/** 
-	 * Search all k-mers (loaded in the AhoCorasick tree) in the sequence, both strand
+	 * Search all k-mers (loaded in the AhoCorasick tree) in the sequence, both strand<br>
+	 * Do not return k-mer positions
 	 * @param seq sequence string to search k-mers
 	 * @return a set of kmers found
 	 */
@@ -4806,11 +4813,58 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	/** 
 	 * Search all k-mers in the sequence
 	 * @param seq sequence string to search k-mers
-	 * @return an array of KmerGroups:<br>
+	 * @return an array of KmerGroups, with match positions, significance, etc:<br>
 	 * Each k-mer group maps to a binding position in the sequence
-	 * Note: matches on negative strand are combined with matches on positive strand
+	 * Note: matches on negative strand are combined with matches on positive strand at the same position
 	 */
 	public KmerGroup[] findUnstrandedKmerHits (String seq){
+		seq = seq.toUpperCase();
+		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
+		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
+		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();
+		
+		Iterator searcher = tree.search(seq.getBytes());
+		while (searcher.hasNext()) {
+			SearchResult sr = (SearchResult) searcher.next();
+			for (Object s: sr.getOutputs()){
+				Kmer km = str2kmer.get(s);		//TODO: cast?
+				int x = sr.getLastIndex() - km.k - km.getKmerStartOffset();	// minus kmerShift to get the motif position
+				if (!result.containsKey(x))
+					result.put(x, new ArrayList<Kmer>());
+				result.get(x).add(km);	
+			}
+		}
+		// the reverse compliment
+		String seq_rc = SequenceUtils.reverseComplement(seq);
+		searcher = tree.search(seq_rc.getBytes());
+		while (searcher.hasNext()) {
+			SearchResult sr = (SearchResult) searcher.next();
+			for (Object s: sr.getOutputs()){
+				Kmer km = str2kmer.get(s);
+				int x = sr.getLastIndex() - km.k - km.getKmerStartOffset();	// minus kmerShift to get the motif position
+				x = seq.length()-1-x;		// convert to position in Seq
+				if (!result.containsKey(x))
+					result.put(x, new ArrayList<Kmer>());
+				result.get(x).add(km);	
+			}
+		}
+		
+		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
+		int idx = 0;
+		for (int p:result.keySet()){
+			ArrayList<Kmer> kmers = result.get(p);
+			if (config.optimize_kmer_set)
+				optimizeKSM(kmers);
+			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
+			matches[idx]=kg;
+			kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+			idx++;
+		}
+		return matches;
+	}
+	public KmerGroup[] findUnstrandedKmerHits_old (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
@@ -4877,8 +4931,55 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	 * Each k-mer group maps to a binding position (using kmer.startOffset, relative to bs ) in the sequence<br>
 	 * Note: the return value is different from query() in that match on RC strand is labeled (pos+RC)
 	 */
-//	public KmerGroup[] queryS (AhoCorasick tree, HashMap<String, Kmer> str2kmer, String seq){
 	public KmerGroup[] findKsmGroupHits (String seq){
+		seq = seq.toUpperCase();
+		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
+		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+
+		// matches on negative strand are combined with matches on positive strand
+		TreeMap<Integer, ArrayList<Kmer>> result = new TreeMap<Integer, ArrayList<Kmer>> ();
+		
+		Iterator searcher = tree.search(seq.getBytes());
+		while (searcher.hasNext()) {
+			SearchResult sr = (SearchResult) searcher.next();
+			for (Object s: sr.getOutputs()){
+				Kmer km = str2kmer.get(s);		//TODO: cast?
+				int x = sr.getLastIndex() - km.k - km.getKmerStartOffset();	// minus kmerShift to get the motif position
+				if (!result.containsKey(x))
+					result.put(x, new ArrayList<Kmer>());
+				result.get(x).add(km);	
+			}
+		}
+		// the reverse compliment
+		String seq_rc = SequenceUtils.reverseComplement(seq);
+		searcher = tree.search(seq_rc.getBytes());
+		while (searcher.hasNext()) {
+			SearchResult sr = (SearchResult) searcher.next();
+			for (Object s: sr.getOutputs()){
+				Kmer km = str2kmer.get(s);
+				int x = sr.getLastIndex() - km.k - km.getKmerStartOffset() + RC;	// minus kmerShift to get the motif position, +RC: "found on RC"
+				if (!result.containsKey(x))
+					result.put(x, new ArrayList<Kmer>());
+				result.get(x).add(km);	
+			}
+		}
+		
+		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
+		int idx = 0;
+		for (int p:result.keySet()){
+			ArrayList<Kmer> kmers = result.get(p);
+			if (config.optimize_kmer_set)
+				optimizeKSM(kmers);
+			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
+			matches[idx]=kg;
+			kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+			idx++;
+		}
+		return matches;
+	}
+
+	public KmerGroup[] findKsmGroupHits_old (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
