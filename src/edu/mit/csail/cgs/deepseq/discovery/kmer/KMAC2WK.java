@@ -537,7 +537,7 @@ public class KMAC2WK {
 				}
 				distanceMatrix = null;
 				System.out.println();
-				centerKmers.clear(); // for testing
+//				centerKmers.clear(); // for testing
 		        for (int j=0;j<centerKmers.size();j++){	
 		        	Kmer seedKmer = centerKmers.get(j);
 		    		System.out.println("------------------------------------------------\n"+
