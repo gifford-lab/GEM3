@@ -2718,6 +2718,145 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		return ksm_hit_count;
 	}
 	
+	//	private void alignSequencesUsingKSM_old(ArrayList<Sequence> seqList, KmerCluster cluster){
+	//		if (cluster==null)
+	//			return;
+	//		
+	//		// scan all sequences, align them using kmer hit results
+	//		for (Sequence s : seqList){
+	//			s.resetAlignment();			
+	//			KmerGroup[] kgs = queryS(s.getSeq());
+	//			//Check if there are matches on the same position from both strand??
+	//			for (int i=0;i<kgs.length-1;i++){
+	//				KmerGroup kg=kgs[i];
+	//				for (int j=i;i<kgs.length;i++){
+	//					KmerGroup other=kgs[j];
+	//					if (Math.abs(other.bs-kg.bs)==RC){	// if so, add all kmers to the stronger kmer
+	//						System.out.println("Kmer match on same position:"+kg.toString()+" "+other.toString()); //TODO: Comment out on release
+	//						if (kg.hgp<other.hgp){
+	//							kg.kmers.addAll(other.kmers);
+	//							kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+	//						}
+	//						else{
+	//							other.kmers.addAll(kg.kmers);
+	//							other.setHgp(computeHGP(other.getGroupHitCount(), other.getGroupNegHitCount()));										
+	//						}
+	//					}
+	//				}
+	//			}
+	//			if (kgs.length!=0){
+	//				Arrays.sort(kgs);
+	//				KmerGroup kg = kgs[0];
+	//				if (kg.hgp<=-cluster.ksmThreshold.score){
+	//					s.score = -kg.hgp;		// score = -log10 hgp, becomes positive value
+	//					if (kg.bs>RC/2){		// match on reverse strand
+	//						s.RC();
+	//						s.pos = -(kg.bs-RC);
+	//					}
+	//					else
+	//						s.pos = -kg.bs;
+	//				}
+	//			}
+	//		}
+	//	}
+	//	
+	//	private void alignSequencesUsingKSM(ArrayList<Sequence> seqList, KmerCluster cluster){
+	//		if (cluster==null)
+	//			return;
+	//		
+	//		// scan all sequences, align them using kmer hit results
+	//		for (Sequence s : seqList){
+	//			s.resetAlignment();			
+	//			KmerGroup[] kgs = queryS(s.getSeq());
+	//			//Check if there are matches on the same position from both strand??
+	//			for (int i=0;i<kgs.length-1;i++){
+	//				KmerGroup kg=kgs[i];
+	//				for (int j=i;i<kgs.length;i++){
+	//					KmerGroup other=kgs[j];
+	//					if (Math.abs(other.bs-kg.bs)==RC){	// if so, add all kmers to the stronger kmer
+	//						System.out.println("Kmer match on same position:"+kg.toString()+" "+other.toString()); //TODO: Comment out on release
+	//						if (kg.hgp<other.hgp){
+	//							kg.kmers.addAll(other.kmers);
+	//							kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+	//						}
+	//						else{
+	//							other.kmers.addAll(kg.kmers);
+	//							other.setHgp(computeHGP(other.getGroupHitCount(), other.getGroupNegHitCount()));										
+	//						}
+	//					}
+	//				}
+	//			}
+	//			if (kgs.length!=0){
+	//				Arrays.sort(kgs);
+	//				KmerGroup kg = kgs[0];
+	//				if (kg.hgp<=-cluster.ksmThreshold.score){
+	//					s.score = -kg.hgp;		// score = -log10 hgp, becomes positive value
+	//					if (kg.bs>RC/2){		// match on reverse strand
+	//						s.RC();
+	//						s.pos = -(kg.bs-RC);
+	//					}
+	//					else
+	//						s.pos = -kg.bs;
+	//				}
+	//			}
+	//		}
+	//	}
+	/** align seqList using a PWM<br>
+	 * sequences that have a PWM hit are aligned according to the hit positions<br>
+	 * if the sequence has been aligned with 
+	 */
+	private int alignByPWM(ArrayList<Sequence> seqList, MotifCluster cluster, boolean relaxAlignedSequences){
+			    	
+		WeightMatrix wm = cluster.wm;
+        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);		
+        double motif_cutoff = cluster.pwmThreshold.motif_cutoff;
+		int count_pwm_aligned=0;
+		int wm_len = wm.length();
+		for (Sequence s:seqList){
+			String seq = s.getSeq();			
+			if (seq.length()<wm_len)
+				continue;
+			
+			if (s.pos!=UNALIGNED && relaxAlignedSequences){
+				int idx = cluster.pos_pwm_seed-s.pos;	// pwm_seq = pwm_seed - seed_pos;
+				if (idx+wm_len<seq.length() && idx>=0){
+					String match = seq.substring(idx, idx+wm_len);
+					WeightMatrixScoreProfile profiler = scorer.execute(match);
+					// The KSM aligned position can be matched by PWM with a relax cutoff, keep it the same
+					if (profiler.getHigherScore(0) >= motif_cutoff * 0.5)
+						continue;
+				}
+			}
+    	  
+			// use PWM to scan if the KSM match is not good, and align if pass threshold    	  
+			WeightMatrixScoreProfile profiler = scorer.execute(seq);
+			double maxSeqScore = Double.NEGATIVE_INFINITY;
+			int maxScoringShift = 0;
+			char maxScoringStrand = '+';
+			for (int j=0;j<profiler.length();j++){
+				double score = profiler.getHigherScore(j);
+				if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
+					maxSeqScore = score;
+					maxScoringShift = j;
+					maxScoringStrand = profiler.getHigherScoreStrand(j);
+				}
+			}
+			// if a sequence pass the motif score, align with PWM hit
+			if (maxSeqScore >= motif_cutoff){
+				if (maxScoringStrand =='-'){
+					maxScoringShift = seqLen-maxScoringShift-wm.length(); // (seq.length()-1)-maxScoringShift-(wm.length()-1);
+					s.RC();
+				}
+				s.pos = cluster.pos_pwm_seed-maxScoringShift;
+				count_pwm_aligned ++;
+			}
+			else		// not match by KSM or PWM
+				s.pos = UNALIGNED;
+		}	// each sequence
+
+		return count_pwm_aligned;
+	}
+	
 	/** 
 	 * Return KmerGroup matches in the indexed sequence<br>
 	 * This implementation is rely on pre-index_seq_kmers.
@@ -3479,143 +3618,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
     	}
 	}
 	
-//	private void alignSequencesUsingKSM_old(ArrayList<Sequence> seqList, KmerCluster cluster){
-//		if (cluster==null)
-//			return;
-//		
-//		// scan all sequences, align them using kmer hit results
-//		for (Sequence s : seqList){
-//			s.resetAlignment();			
-//			KmerGroup[] kgs = queryS(s.getSeq());
-//			//Check if there are matches on the same position from both strand??
-//			for (int i=0;i<kgs.length-1;i++){
-//				KmerGroup kg=kgs[i];
-//				for (int j=i;i<kgs.length;i++){
-//					KmerGroup other=kgs[j];
-//					if (Math.abs(other.bs-kg.bs)==RC){	// if so, add all kmers to the stronger kmer
-//						System.out.println("Kmer match on same position:"+kg.toString()+" "+other.toString()); //TODO: Comment out on release
-//						if (kg.hgp<other.hgp){
-//							kg.kmers.addAll(other.kmers);
-//							kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
-//						}
-//						else{
-//							other.kmers.addAll(kg.kmers);
-//							other.setHgp(computeHGP(other.getGroupHitCount(), other.getGroupNegHitCount()));										
-//						}
-//					}
-//				}
-//			}
-//			if (kgs.length!=0){
-//				Arrays.sort(kgs);
-//				KmerGroup kg = kgs[0];
-//				if (kg.hgp<=-cluster.ksmThreshold.score){
-//					s.score = -kg.hgp;		// score = -log10 hgp, becomes positive value
-//					if (kg.bs>RC/2){		// match on reverse strand
-//						s.RC();
-//						s.pos = -(kg.bs-RC);
-//					}
-//					else
-//						s.pos = -kg.bs;
-//				}
-//			}
-//		}
-//	}
-//	
-//	private void alignSequencesUsingKSM(ArrayList<Sequence> seqList, KmerCluster cluster){
-//		if (cluster==null)
-//			return;
-//		
-//		// scan all sequences, align them using kmer hit results
-//		for (Sequence s : seqList){
-//			s.resetAlignment();			
-//			KmerGroup[] kgs = queryS(s.getSeq());
-//			//Check if there are matches on the same position from both strand??
-//			for (int i=0;i<kgs.length-1;i++){
-//				KmerGroup kg=kgs[i];
-//				for (int j=i;i<kgs.length;i++){
-//					KmerGroup other=kgs[j];
-//					if (Math.abs(other.bs-kg.bs)==RC){	// if so, add all kmers to the stronger kmer
-//						System.out.println("Kmer match on same position:"+kg.toString()+" "+other.toString()); //TODO: Comment out on release
-//						if (kg.hgp<other.hgp){
-//							kg.kmers.addAll(other.kmers);
-//							kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
-//						}
-//						else{
-//							other.kmers.addAll(kg.kmers);
-//							other.setHgp(computeHGP(other.getGroupHitCount(), other.getGroupNegHitCount()));										
-//						}
-//					}
-//				}
-//			}
-//			if (kgs.length!=0){
-//				Arrays.sort(kgs);
-//				KmerGroup kg = kgs[0];
-//				if (kg.hgp<=-cluster.ksmThreshold.score){
-//					s.score = -kg.hgp;		// score = -log10 hgp, becomes positive value
-//					if (kg.bs>RC/2){		// match on reverse strand
-//						s.RC();
-//						s.pos = -(kg.bs-RC);
-//					}
-//					else
-//						s.pos = -kg.bs;
-//				}
-//			}
-//		}
-//	}
-	/** align seqList using a PWM<br>
-	 * sequences that have a PWM hit are aligned according to the hit positions<br>
-	 * if the sequence has been aligned with 
-	 */
-	private int alignByPWM(ArrayList<Sequence> seqList, MotifCluster cluster, boolean relaxAlignedSequences){
-			    	
-		WeightMatrix wm = cluster.wm;
-        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);		
-        double motif_cutoff = cluster.pwmThreshold.motif_cutoff;
-		int count_pwm_aligned=0;
-		for (Sequence s:seqList){
-			String seq = s.getSeq();			
-			if (seq.length()<wm.length())
-				continue;
-    	  
-			// use PWM to scan all sequence, and align if pass threshold    	  
-			WeightMatrixScoreProfile profiler = scorer.execute(seq);
-			double maxSeqScore = Double.NEGATIVE_INFINITY;
-			int maxScoringShift = 0;
-			char maxScoringStrand = '+';
-			for (int j=0;j<profiler.length();j++){
-				double score = profiler.getHigherScore(j);
-				if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
-					maxSeqScore = score;
-					maxScoringShift = j;
-					maxScoringStrand = profiler.getHigherScoreStrand(j);
-				}
-			}
-			// if a sequence pass the motif score, align with PWM hit
-			if (maxSeqScore >= motif_cutoff){
-				if (maxScoringStrand =='-'){
-					maxScoringShift = seqLen-maxScoringShift-wm.length(); // (seq.length()-1)-maxScoringShift-(wm.length()-1);
-					s.RC();
-				}
-				s.pos = cluster.pos_pwm_seed-maxScoringShift;
-				count_pwm_aligned ++;
-			}
-			else if (s.pos!=UNALIGNED && relaxAlignedSequences){	// if seq aligned by KSM, need to pass a relax threshold
-				if (maxSeqScore < motif_cutoff * 0.5)	// not meeting relax cutoff, not aligned
-					s.pos = UNALIGNED;
-				else{
-					// no need to check for (maxScoringStrand =='-'), because if matched by KSM, it should be in the right orientation
-					if (s.pos != cluster.pos_pwm_seed-maxScoringShift)	// not matching on the right position, not aligned
-						s.pos = UNALIGNED;
-					else
-						count_pwm_aligned =+0;
-				}
-			}
-			else		// not match by KSM or PWM
-				s.pos = UNALIGNED;
-		}	// each sequence
 
-		return count_pwm_aligned;
-	}
 	
 //	private void alignSequencesUsingSeedFamily(ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
 //		ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);	// from all kmers
