@@ -507,6 +507,9 @@ public class KMAC2WK {
 				for (int g=1;g<=maxGap;g++)
 					kmers.addAll(generateEnrichedGappedKmers(k,g));
 			}
+			else{	// if NO gap
+				config.dc = 1;
+			}
 			
 			if (kmers.isEmpty()){
 				System.out.println("\nNo enriched k-mer!");
@@ -521,7 +524,9 @@ public class KMAC2WK {
 			System.out.println("\n------------------------- k = "+ k +" ----------------------------\n");
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			if (!kmers.isEmpty()){
-				int cutoff = k-2;	// maximum kmer distance to be considered as neighbors
+				int cutoff = (int)(config.kmer_deviation_factor*k);	// maximum kmer distance to be considered as neighbors
+//				computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff-1);
+//				computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff);
 				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff+1);
 				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
 				ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
@@ -1191,7 +1196,7 @@ public class KMAC2WK {
 		Collections.sort(results);
 		
 		ArrayList<Kmer> results_final = new ArrayList<Kmer>();
-		int final_count = Math.min(results.size(), 2000);
+		int final_count = Math.min(results.size(), config.max_gkmer);
 		for (int i=0;i<final_count;i++){
 			results_final.add(results.get(i));
 		}
@@ -1456,8 +1461,8 @@ public class KMAC2WK {
  * 		The orientation of a sequence is stored in the Sequence object, to note whether it is in the forward orientation as the original input sequence.
  */
 	public MotifCluster KmerMotifAlignmentClustering (ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
-//		if (seed.getKmerString().equals("AGATTA"))
-//			k+=0;
+		if (seed.getKmerString().equals("AGCAGCCAG"))
+			k+=0;
 		tic = System.currentTimeMillis();
 		int seed_range = k;
 		MotifCluster cluster = new MotifCluster();

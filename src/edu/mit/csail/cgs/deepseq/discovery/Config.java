@@ -58,7 +58,7 @@ public class Config {
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
     public int dc = -1;
     public int dc_gap = 2;
-    
+    public int max_gkmer = 1000;
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
@@ -69,6 +69,7 @@ public class Config {
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
     public int max_cluster = 20;
     public int topKmer_trials = 5;	// the number of initial k-mers to try
+    public double kmer_deviation_factor = 0.5;	// hamming dist / k of a k-mer to the seed, to be considered in KSM in KMAC()
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
     public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched motif 
@@ -320,6 +321,8 @@ public class Config {
         dc = Args.parseInteger(args, "dc", dc);
         dc_gap = Args.parseInteger(args, "dc_gap", dc_gap);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
+        max_gkmer = Args.parseInteger(args, "k_max_gkmer", max_gkmer);
+        kmer_deviation_factor = Args.parseDouble(args, "kmer_deviation_factor", kmer_deviation_factor);
         seq_weight_type = Args.parseInteger(args, "swt", seq_weight_type);
         k_win = Args.parseInteger(args, "k_win", k_win);
         k_win_f = Args.parseInteger(args, "k_win_f", k_win_f);
