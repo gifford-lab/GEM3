@@ -33,7 +33,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.stats.StatUtil.DensityClusteringPoint;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 
-public class KMAC2WK {
+public class KMAC1 {
 	public final static String KMAC_VERSION = "1.0";
 
 	private static final int RC=100000;		// extra bp add to indicate negative strand match of kmer
@@ -113,7 +113,7 @@ public class KMAC2WK {
 	public ArrayList<MotifCluster> getMotifClusters(){
 		return clusters;
 	}	
-	public KMAC2WK(){
+	public KMAC1(){
 	}
 
 	public void setTotalSeqCounts(int posSeqCount, int negSeqCount){
@@ -173,30 +173,32 @@ public class KMAC2WK {
 		if (config.use_weighted_kmer)
 			Kmer.set_seq_weights(seq_weights);
 		
-		int length = seqs[0].length();
-		if (config.k_neg_shuffle){
-			System.out.println("!!! Need to update !!!\nUse shuffled sequences as negative sequences.\n");
-			Random randObj = new Random(config.rand_seed);
-			for (int i=0;i<seqNum;i++)
-				seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
-		}
-		else if (config.k_neg_dinu_shuffle){
-			System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
-//			StringBuilder sb = new StringBuilder();
-//			for (int i=0;i<seqNum;i++){
-//				sb.append(seqs[i]);
-//			}for (int j=0;j<config.neg_pos_ratio;j++){
-//				Random randObj = new Random(config.rand_seed+j);
-//				String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
-//				for (int i=0;i<seqNum;i++){
-//					seqsNegList.add(shuffled.substring(i*length,(i+1)*length));
-//				}
-//			}			
-			for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
-				Random randObj = new Random(config.rand_seed+j);
-				for (int i=0;i<seqNum;i++){
-					seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+		// If neg seqs are not provided, use shuffled sequences as negative sequences
+		if (neg_seqs.isEmpty()){
+			if (config.k_neg_dinu_shuffle){
+				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
+	//			StringBuilder sb = new StringBuilder();
+	//			for (int i=0;i<seqNum;i++){
+	//				sb.append(seqs[i]);
+	//			}for (int j=0;j<config.neg_pos_ratio;j++){
+	//				Random randObj = new Random(config.rand_seed+j);
+	//				String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
+	//				for (int i=0;i<seqNum;i++){
+	//					seqsNegList.add(shuffled.substring(i*length,(i+1)*length));
+	//				}
+	//			}			
+				for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
+					Random randObj = new Random(config.rand_seed+j);
+					for (int i=0;i<seqNum;i++){
+						seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+					}
 				}
+			}
+			else{		// single nucleotide shuffling
+				System.out.println("!!! Need to update !!!\nUse shuffled sequences as negative sequences.\n");
+				Random randObj = new Random(config.rand_seed);
+				for (int i=0;i<seqNum;i++)
+					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
 			}
 		}
 		else{	// use the supplied negative sequences
@@ -228,6 +230,7 @@ public class KMAC2WK {
 	    posNegSeqRatio = posSeqCount/(double)negSeqCount;
 	    updateSequenceInfo();
 	}
+	
 	private void updateSequenceInfo(){
 		seqLen = seqs[0].length();
 		
@@ -258,7 +261,7 @@ public class KMAC2WK {
     	bg[3]=bg[0];
 	}
 	
-	public KMAC2WK(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
+	public KMAC1(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
 //		setUseKmerWeight();
 
 		genome = g;
@@ -273,7 +276,7 @@ public class KMAC2WK {
 	/* 
 	 * Contruct a Kmer Engine from a list of Kmers
 	 */
-	public KMAC2WK(ArrayList<Kmer> kmers, String outPrefix, boolean use_base_kmer){
+	public KMAC1(ArrayList<Kmer> kmers, String outPrefix, boolean use_base_kmer){
 		if (!kmers.isEmpty()){
 			if (outPrefix!=null)
 				updateEngine(kmers, outPrefix);
@@ -369,13 +372,14 @@ public class KMAC2WK {
 			Kmer.set_seq_weights(seq_weights);
 		
 		seqsNegList.clear();
-		if (config.k_neg_shuffle){
-			System.out.println("Use shuffled sequences as negative sequences.\n");
+		if (config.k_neg_dinu_shuffle){
+			System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
 			Random randObj = new Random(config.rand_seed);
 			for (int i=0;i<seqs.length;i++)
-				seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
+				seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
 		}
-//		else{
+
+		//		else{
 //			/** Negative sequences has been retrieved when setting up region caches */
 //			ArrayList<Region> negRegions = new ArrayList<Region>();
 //			negRegions.addAll(neg_region_map.keySet());
@@ -5318,7 +5322,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	    	same[i] = same_list.get(i);
 	    for (int i=0;i<x.length;i++)
 	    	diff[i] = diff_list.get(i);
-	    KMAC2WK kmf = new KMAC2WK();
+	    KMAC1 kmf = new KMAC1();
 	    kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
 	}
 	
@@ -5425,7 +5429,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		}
         
 		// run motif discovery
-		KMAC2WK kmac = new KMAC2WK();
+		KMAC1 kmac = new KMAC1();
         kmac.setStandalone();
         kmac.setConfig(config, out_prefix, params);
         kmac.setSequences(pos_seqs, neg_seqs, seq_w);

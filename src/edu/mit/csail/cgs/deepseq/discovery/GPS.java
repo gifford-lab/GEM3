@@ -124,7 +124,7 @@ public class GPS {
                 DeepSeqExpt e = new DeepSeqExpt(genome, expts, nonUnique, fileFormat, readLength);
                 DeepSeqExpt c = new DeepSeqExpt(genome, ctrls, nonUnique, fileFormat, readLength);
                 if(genome==null){
-                    genome = DeepSeqExpt.combineFakeGenomes(e,c);
+//                    genome = DeepSeqExpt.combineFakeGenomes(e,c);
                     e.setGenome(genome);
                     c.setGenome(genome);
                 }

@@ -54,22 +54,21 @@ public class Config {
     public int seq_weight_type = 3;	// "swt" - 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
     
     /** number of top k-mers selected from density clustering to run KMAC */
-    public int k_top = 3;
+    public int k_top = 5;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
-    public int dc = -1;
-    public int dc_gap = 2;
-    public int max_gkmer = 1000;
+    public int dc = 2;
+    public int max_gkmer = 1500;
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
     public int k_win_f = 4;		// k_win = k_win_f * k
-   	public int gap = 2;			// max number of gapped bases in the k-mers (i.e. use 1 to gap)
+   	public int gap = 3;			// max number of gapped bases in the k-mers (i.e. use 1 to gap)
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
     public int max_cluster = 20;
     public int topKmer_trials = 5;	// the number of initial k-mers to try
-    public double kmer_deviation_factor = 0.5;	// hamming dist / k of a k-mer to the seed, to be considered in KSM in KMAC()
+    public double kmer_deviation_factor = 0.5;	// hamming dist / k of a k-mer to the seed, to be considered as neighboring k-mers in KSM in KMAC()
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
     public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched motif 
@@ -101,8 +100,7 @@ public class Config {
     public boolean kmer_use_filtered = false;
     public boolean use_weighted_kmer = true;		// strength weighted k-mer count
     public boolean use_pos_kmer = true;				// position weighted k-mer count
-    public boolean k_neg_shuffle = false;
-    public boolean k_neg_dinu_shuffle = false;		// di-nuleotide shuffle
+    public boolean k_neg_dinu_shuffle = true;		// di-nuleotide shuffle
     public int rand_seed = 0;
     public double neg_pos_ratio = 1;					// number of shuffled negative / positive seqs
    	public boolean re_align_kmer = false;
@@ -229,8 +227,7 @@ public class Config {
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
-        k_neg_shuffle = flags.contains("k_neg_shuffle");
-        k_neg_dinu_shuffle = flags.contains("k_neg_dinu_shuffle");
+        k_neg_dinu_shuffle = !flags.contains("k_neg_shuffle");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
         neg_pos_ratio = Args.parseDouble(args, "neg_pos_ratio", neg_pos_ratio);
         re_align_kmer = flags.contains("rak");
@@ -319,7 +316,6 @@ public class Config {
         k_top = Args.parseInteger(args, "k_top", k_top);
         gap = Args.parseInteger(args, "gap", gap);
         dc = Args.parseInteger(args, "dc", dc);
-        dc_gap = Args.parseInteger(args, "dc_gap", dc_gap);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
         max_gkmer = Args.parseInteger(args, "k_max_gkmer", max_gkmer);
         kmer_deviation_factor = Args.parseDouble(args, "kmer_deviation_factor", kmer_deviation_factor);

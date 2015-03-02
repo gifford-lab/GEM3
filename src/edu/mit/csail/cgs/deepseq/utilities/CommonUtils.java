@@ -32,7 +32,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;

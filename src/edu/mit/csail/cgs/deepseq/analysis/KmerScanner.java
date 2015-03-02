@@ -20,9 +20,9 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK.KmerGroup;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK.MotifThreshold;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -38,11 +38,11 @@ import edu.mit.csail.cgs.utils.stats.ROC;
 
 public class KmerScanner {
 	public static char[] letters = {'A','C','T','G'};
-	private KMAC2WK kEngine;
+	private KMAC1 kEngine;
 	// each element in the list is for one ChIP-Seq method
 	
 	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, boolean use_base_kmer){
-		kEngine = new KMAC2WK(kmers, null, use_base_kmer);
+		kEngine = new KMAC1(kmers, null, use_base_kmer);
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 	}
 	
@@ -518,7 +518,7 @@ public class KmerScanner {
 			se.posHit = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, score);
 			se.negHit = negSeqScores.length-index;
-			se.hgp = KMAC2WK.computeHGP(total, total, se.posHit, se.negHit);
+			se.hgp = KMAC1.computeHGP(total, total, se.posHit, se.negHit);
 			ses.add(se);
 		}
 		return ses;

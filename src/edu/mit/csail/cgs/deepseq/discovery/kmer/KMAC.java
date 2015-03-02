@@ -165,17 +165,19 @@ public class KMAC {
 		if (config.use_weighted_kmer)
 			Kmer.set_seq_weights(seq_weights);
 		
-		if (config.k_neg_shuffle){
-			System.out.println("Use shuffled sequences as negative sequences.\n");
-			Random randObj = new Random(config.rand_seed);
-			for (int i=0;i<seqNum;i++)
-				seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
-		}
-		else if (config.k_neg_dinu_shuffle){
-			System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
-			Random randObj = new Random(config.rand_seed);
-			for (int i=0;i<seqNum;i++)
-				seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+		if (neg_seqs.isEmpty()){
+			if (config.k_neg_dinu_shuffle){
+				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
+				Random randObj = new Random(config.rand_seed);
+				for (int i=0;i<seqNum;i++)
+					seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+			}
+			else{	// single nucleotide shuffling
+				System.out.println("Use shuffled sequences as negative sequences.\n");
+				Random randObj = new Random(config.rand_seed);
+				for (int i=0;i<seqNum;i++)
+					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
+			}
 		}
 		else{
 			if (neg_seqs.size()>seqNum)
@@ -335,11 +337,11 @@ public class KMAC {
 				Kmer.set_seq_weights(seq_weights);
 			
 			seqsNegList.clear();
-			if (config.k_neg_shuffle){
-				System.out.println("Use shuffled sequences as negative sequences.\n");
+			if (config.k_neg_dinu_shuffle){
+				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
 				Random randObj = new Random(config.rand_seed);
 				for (int i=0;i<seqs.length;i++)
-					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
+					seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
 			}
 			else{
 				/** Negative sequences has been retrieved when setting up region caches */
