@@ -118,7 +118,7 @@ public class KmerScanner {
 		String other_pfm_path = Args.parseString(args, "pfm_path", "./");
 		String other_pfm_suffix = Args.parseString(args, "pfm_suffix", "");
 		int windowSize = Args.parseInteger(args, "win", 50);
-		double fpr = Args.parseDouble(args, "fpr", 0.15);
+		double fpr = Args.parseDouble(args, "fpr", 0.1);
 		double gc = Args.parseDouble(args, "gc", 0.41);   //0.41 human, 0.42 mouse
 		int width = windowSize*2+1;
 		int top = Args.parseInteger(args, "top", 5000);

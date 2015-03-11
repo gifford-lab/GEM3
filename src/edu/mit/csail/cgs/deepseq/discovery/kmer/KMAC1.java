@@ -1465,8 +1465,8 @@ public class KMAC1 {
  * 		The orientation of a sequence is stored in the Sequence object, to note whether it is in the forward orientation as the original input sequence.
  */
 	public MotifCluster KmerMotifAlignmentClustering (ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
-		if (seed.getKmerString().equals("AGCAGCCAG"))
-			k+=0;
+//		if (seed.getKmerString().equals("AGCAGCCAG"))
+//			k+=0;
 		tic = System.currentTimeMillis();
 		int seed_range = k;
 		MotifCluster cluster = new MotifCluster();
@@ -2821,14 +2821,15 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			if (seq.length()<wm_len)
 				continue;
 			
+			boolean ksmAlignOK = false;
 			if (s.pos!=UNALIGNED && relaxAlignedSequences){
-				int idx = cluster.pos_pwm_seed-s.pos;	// pwm_seq = pwm_seed - seed_pos;
+				int idx = cluster.pos_pwm_seed-s.pos;	// pwm_seq = pwm_seed - pos_seed;
 				if (idx+wm_len<seq.length() && idx>=0){
 					String match = seq.substring(idx, idx+wm_len);
 					WeightMatrixScoreProfile profiler = scorer.execute(match);
 					// The KSM aligned position can be matched by PWM with a relax cutoff, keep it the same
 					if (profiler.getHigherScore(0) >= motif_cutoff * 0.5)
-						continue;
+						ksmAlignOK = true;
 				}
 			}
     	  
@@ -2854,8 +2855,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 				s.pos = cluster.pos_pwm_seed-maxScoringShift;
 				count_pwm_aligned ++;
 			}
-			else		// not match by KSM or PWM
-				s.pos = UNALIGNED;
+			else{		// not match by PWM
+				if (!ksmAlignOK)			// if not (match by KSM, and by relaxed PWM)
+					s.pos = UNALIGNED;
+			}
 		}	// each sequence
 
 		return count_pwm_aligned;
@@ -3514,10 +3517,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
    	
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative hit counts
 	    	// Compare AUROC
-	    	MotifThreshold estimate = null;
-	    	estimate = evaluatePwmROC(wm, config.fpr);
-	    	double motif_score = wm.getMaxScore()*config.wm_factor;
-	    	double motif_significance = estimate.motif_significance;
+	    	double motif_significance = evaluatePwmROC(wm, config.fpr).motif_significance;
+	    	MotifThreshold estimate = optimizePwmThreshold(wm, "", wm.getMaxScore()*config.wm_factor);
+	    	double motif_score = estimate.motif_cutoff;
+	    	estimate.motif_significance = motif_significance;
     		if (config.verbose>1)
     			if (motif_significance==0)			// TODOTODO
     				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
@@ -3651,9 +3654,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	private class NewKSM{
 		private ArrayList<Kmer> kmers=null;
 		private MotifThreshold threshold = null;
-		NewKSM(ArrayList<Kmer> kmers){
+		private NewKSM(ArrayList<Kmer> kmers){
 			this.kmers = kmers;
-			threshold = evaluateKsmROC(seqList, seqListNeg, kmers);
+			threshold = optimizeKsmThreshold(seqList, seqListNeg, kmers);
+			threshold.motif_significance = evaluateKsmROC(seqList, seqListNeg, kmers).motif_significance;
 			if (threshold==null)
 				return;
 			if (config.verbose>1)
@@ -3788,10 +3792,112 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	}
 
 	/**
-	 * Optimize the kmer set by removing non-essential k-mers to improve the overall HGP
+	 * Optimize the kmer set by removing non-essential k-mers to improve the pAUROC
 	 * @param alignedKmers
 	 */
 	private void optimizeKSM(ArrayList<Kmer> kmers){
+		ArrayList<Kmer> kmerCopy = Kmer.copyKmerList(kmers);
+		if (kmers.size()<=1)
+			return;
+
+		Collections.sort(kmers, new Comparator<Kmer>(){
+		    public int compare(Kmer o1, Kmer o2) {
+		    	return o1.compareByHGP(o2);
+		    }
+		});	
+		Collections.reverse(kmers);		// reverse so that weaker hit are remove before stronger hit
+		boolean changed=true;
+		
+		// mapping from sequence id to kmers
+		HashMap<Integer, HashSet<Kmer>> seq2kmers = new HashMap<Integer, HashSet<Kmer>>();
+		for (Kmer km: kmers){
+			HashSet<Integer> hits = km.getPosHits();
+			for (int h:hits){
+				if (!seq2kmers.containsKey(h))
+					seq2kmers.put(h, new HashSet<Kmer>());
+				seq2kmers.get(h).add(km);
+			}
+		}
+		HashMap<Integer, HashSet<Kmer>> seq2kmers_neg = new HashMap<Integer, HashSet<Kmer>>();
+		for (Kmer km: kmers){
+			HashSet<Integer> hits = km.getNegHits();
+			for (int h:hits){
+				if (!seq2kmers_neg.containsKey(h))
+					seq2kmers_neg.put(h, new HashSet<Kmer>());
+				seq2kmers_neg.get(h).add(km);
+			}
+		}
+		
+		float posHitCount = 0;	// weighted count
+		for (int id: seq2kmers.keySet())
+			if (config.use_weighted_kmer)
+				posHitCount += seq_weights[id];
+			else
+				posHitCount ++;
+		int negHitCount = seq2kmers_neg.size();
+		double hgp_all = computeHGP(Math.round(posHitCount), negHitCount);
+		
+		while(changed){
+			changed = false;
+			ArrayList<Kmer> kmers_toRemove = new ArrayList<Kmer>();
+
+			for (int i=0;i<kmers.size();i++){
+				
+				Kmer km = kmers.get(i);
+				float count_with_single_kmer = 0;			// weighted count
+				int count_with_single_kmer_neg = 0;
+				HashSet<Integer> hits_to_remove = new HashSet<Integer>();
+				HashSet<Integer> hits_to_remove_neg = new HashSet<Integer>();
+				HashSet<Integer> hits = km.getPosHits();
+				HashSet<Integer> hits_neg = km.getNegHits();
+				for (int id:hits){
+					if (seq2kmers.get(id).size()==1){
+						if (config.use_weighted_kmer)
+							count_with_single_kmer += seq_weights[id];
+						else
+							count_with_single_kmer++;
+						hits_to_remove.add(id);
+					}
+				}
+				for (int id:hits_neg){
+					if (seq2kmers_neg.get(id).size()==1){
+						count_with_single_kmer_neg++;
+						hits_to_remove_neg.add(id);
+					}
+				}
+				if (count_with_single_kmer_neg>0){
+					double hgp_remove_this = computeHGP( Math.round(posHitCount-count_with_single_kmer), negHitCount-count_with_single_kmer_neg);
+					// test whether removing this k-mer will improve enrichment significance hgp
+					if (hgp_remove_this<hgp_all){
+//						System.err.println(String.format("%s: p%d n%d p-%d n-%d hgp: %.1f-->%.1f", 
+//								km.toString(), posHitCount, negHitCount, count_with_single_kmer, count_with_single_kmer_neg,
+//								hgp_all, hgp_remove_this));
+						hgp_all = hgp_remove_this;
+						// remove this k-mer 
+						changed = true;
+						kmers_toRemove.add(km);
+						// remove the sequence hit containing only this kmer
+						for (int h: hits_to_remove)
+							seq2kmers.remove(h);
+						for (int h: hits_to_remove_neg)
+							seq2kmers_neg.remove(h);						
+					}
+				}
+			}
+			kmers.removeAll(kmers_toRemove);
+		}
+		kmers.trimToSize();
+		if (kmers.isEmpty()){
+			for (Kmer km:kmerCopy)
+				System.out.println(km.toShortString());
+		}
+	}
+
+	/**
+	 * Optimize the kmer set by removing non-essential k-mers to improve the overall HGP
+	 * @param alignedKmers
+	 */
+	private void optimizeKSM_HGP(ArrayList<Kmer> kmers){
 		ArrayList<Kmer> kmerCopy = Kmer.copyKmerList(kmers);
 		if (kmers.size()<=1)
 			return;
@@ -4382,11 +4488,9 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		return evaluateScoreROC(posSeqScores, negSeqScores, falsePositiveRate);
 	}
 	/**
-		 * Grid search threshold of a Kmer Group Score using the positive/negative sequences<br>
-		 * Compute the hyper-geometric p-value from number of pos/neg sequences that have the scores higher than the considered score.<br>
-		 * The KSM k-mers are assumed to have been loaded into the Engine
-		 * @returns the KSM score gives the most significant p-value.
-		 */
+	 * Compute pAUROC score for the given set of k-mers
+	 * @returns the pAUROC score
+	 */
 		private MotifThreshold evaluateKsmROC(ArrayList<Sequence> seqList, ArrayList<Sequence> seqListNeg, ArrayList<Kmer> kmers){
 	//		if (config.verbose>1)
 	//			System.out.println(CommonUtils.timeElapsed(tic)+ ": Ksm threshold, start.");
@@ -4436,7 +4540,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			return evaluateScoreROC(posSeqScores, negSeqScores, config.fpr);
 		}
 	/**
-	 * Compute the partial AUROC and optimal score given the scores for positive and negative data points
+	 * Compute the partial AUROC given the scores for positive and negative data points<br>
+	 * Do not deterimine the optimal cutoff score
 	 * @param posSeqScores
 	 * @param negSeqScores
 	 * @param falsePositiveRate
@@ -4449,10 +4554,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		ROC roc = new ROC(posSeqScores, negSeqScores);
 		MotifThreshold score = new MotifThreshold();
 		score.motif_significance = roc.partialAUC(falsePositiveRate)/falsePositiveRate*100;
-		score.motif_cutoff = roc.partialOptimalPoint(falsePositiveRate).car();
-		Pair<Integer,Integer> hitCounts = roc.getHitCounts(score.motif_cutoff);
-		score.posHit = hitCounts.car();
-		score.negHit = hitCounts.cdr();
+//		score.motif_cutoff = roc.partialOptimalPoint(falsePositiveRate).car();
+//		Pair<Integer,Integer> hitCounts = roc.getHitCounts(score.motif_cutoff);
+//		score.posHit = hitCounts.car();
+//		score.negHit = hitCounts.cdr();
 		return score;
 	}
 	
@@ -4556,11 +4661,11 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	}
 	
 	public class MotifThreshold{
-		/** k-mer group score,  score = -log10 hgp, becomes positive value, or PWM score */
+		/** motif score cutoff */
 		public double motif_cutoff;
 		public int posHit;
 		public int negHit;
-		/** the significance of the motif_score */
+		/** the significance of the motif, based on pAUROC */
 		public double motif_significance=0;	
 		public MotifThreshold clone(){
 			MotifThreshold thresh = new MotifThreshold();
