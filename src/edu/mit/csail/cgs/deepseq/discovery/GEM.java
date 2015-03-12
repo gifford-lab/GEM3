@@ -32,6 +32,11 @@ public class GEM {
             String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
             if(genomeString != null){
                 genome = new Genome("Genome", new File(genomeString), true);
+                if (genome.getChromLengthMap().isEmpty()){
+                	System.err.println("Your genome chromosome information in --g "+genomeString+" is empty, or has wrong file format.\n");
+        			printError();
+        			System.exit(1);
+                }
             } else{
                 genome=null;
             }

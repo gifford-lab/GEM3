@@ -5209,18 +5209,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		boolean isKmersSorted=false;
 		/** kmerGroup score: -log10(hgp) using the positive/negative sequences */
 		double kg_score;
-//		public KmerGroup(ArrayList<Kmer> kmers, int bs, int old){
-//			this.bs = bs;
-//			this.kmers = kmers;
-//    		HashSet<Integer> allPosHits = new HashSet<Integer>();
-//     		HashSet<Integer> allNegHits = new HashSet<Integer>();
-//     		for (Kmer km:kmers){
-//        		allPosHits.addAll(km.getPosHits());
-//        		allNegHits.addAll(km.getNegHits());
-//    		}
-//    		posHitGroupCount = allPosHits.size();
-//    		negHitGroupCount = allNegHits.size();
-//		}
+
 		public KmerGroup(ArrayList<Kmer> kmers, int bs){
 			this.bs = bs;
 			this.kmers = kmers;
