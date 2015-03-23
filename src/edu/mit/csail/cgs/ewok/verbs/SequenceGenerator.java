@@ -357,7 +357,12 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
 			}
     	}
     	
-    	cache=null;System.gc();
+		
+		// clear the whole genome cache
+		clearCache();
+    	cache=null;
+    	System.gc();
+    	
     	regionIsCached = true;
     	String[] result = new String[seqs.size()];
     	for (int i=0;i<result.length;i++)

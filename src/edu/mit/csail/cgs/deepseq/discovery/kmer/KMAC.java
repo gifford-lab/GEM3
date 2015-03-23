@@ -83,7 +83,7 @@ public class KMAC {
 	public double[] getSequenceWeights(){return seq_weights;}
 	public void setSequenceWeights(double[] w){seq_weights=w;}
 	private double totalWeight;
-	private String[] seqsNeg;		// DNA sequences in negative sets
+	private String[] seqsNeg;		// DNA sequences in negative sets for ALL event regions, but only those in seqsNegList are used for motif discovery
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
 	public int getNegSeqCount(){return negSeqCount;}
 	public int getPosSeqCount(){return posSeqCount;}
@@ -94,7 +94,7 @@ public class KMAC {
     	negSeqCount = neg;
     }
 	private int negRegionDistance;
-	/** region-->index for negative sequences */
+	/** region-->index_seqsNeg for negative sequences */
 	private TreeMap<Region, Integer> neg_region_map;
 	public String[] getPositiveSeqs(){return seqs;};
 	public double get_NP_ratio(){return (double)negSeqCount/posSeqCount;}
@@ -279,6 +279,7 @@ public class KMAC {
         	bg[2]=bg[1]; 
         	bg[3]=bg[0];
 		}
+		
 		return gcRatio;
 	}
 	/**
@@ -1284,7 +1285,7 @@ public class KMAC {
 			seed.setAlignString(seed.getKmerString());
 			if (config.use_seed_family){
 				seedFamily.addAll(getMMKmers(kmers, cluster.seedKmer.getKmerString(), 0));
-				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
+				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(seedFamily, 0, posSeqCount, negSeqCount);
 				cluster.seedKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 				if (verbose>1)
 					System.out.println(CommonUtils.timeElapsed(tic)+": Seed family hgp = "+cluster.seedKmer.familyHgp);
@@ -1793,14 +1794,14 @@ public class KMAC {
 		family1.add(minHgpKmer);
 		family1.addAll(getMMKmers(kmers, minHgpKmer.getKmerString(), 0));
 		// compute KmerGroup hgp for the km family
-		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(family1, 0, seq_weights) : new KmerGroup(family1, 0);
+		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(family1, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(family1, 0, posSeqCount, negSeqCount);
 		minHgpKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		ArrayList<Kmer> family2 = new ArrayList<Kmer>();
 		family2.add(maxCountKmer);
 		family2.addAll(getMMKmers(kmers, maxCountKmer.getKmerString(), 0));
 		// compute KmerGroup hgp for the km family
-		kg = config.use_weighted_kmer ? new KmerGroup(family2, 0, seq_weights) : new KmerGroup(family2, 0);
+		kg = config.use_weighted_kmer ? new KmerGroup(family2, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(family2, 0, posSeqCount, negSeqCount);
 		maxCountKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		if (minHgpKmer.familyHgp<=maxCountKmer.familyHgp)
@@ -4788,7 +4789,7 @@ public class KMAC {
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(result.get(p), p, seq_weights) : new KmerGroup(result.get(p), p);
+			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(result.get(p), p, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(result.get(p), p, posSeqCount, negSeqCount);
 			matches[idx]=kg;
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -4885,7 +4886,7 @@ public class KMAC {
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(result.get(p), p, seq_weights) : new KmerGroup(result.get(p), p);
+			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(result.get(p), p, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(result.get(p), p, posSeqCount, negSeqCount);
 			matches[idx]=kg;
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -5001,246 +5002,7 @@ public class KMAC {
 		return !merged.isEmpty();
 	}
 
-	/**
-	 * This KmerGroup class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
-	 * @author yuchun
-	 */
-	public class KmerGroup implements Comparable<KmerGroup>{
-		ArrayList<Kmer> kmers;
-		int clusterId = -1;
-		int bs = 999;
-		int posHitGroupCount;
-		int negHitGroupCount;
-		/** hgp (log10) using the positive/negative sequences */
-		double hgp;
 
-		public KmerGroup(ArrayList<Kmer> kmers, int bs){
-			this.bs = bs;
-			this.kmers = kmers;
-			Collections.sort(this.kmers);
-			BitSet b_pos = new BitSet(posSeqCount);
-			BitSet b_neg = new BitSet(negSeqCount);
-     		for (Kmer km:kmers){
-     			b_pos.or(km.posBits);
-     			b_neg.or(km.negBits);
-    		}
-     		posHitGroupCount = b_pos.cardinality();
-    		negHitGroupCount = b_neg.cardinality();
-		}		
-		public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights){
-			this.bs = bs;
-			this.kmers = kmers;	
-			Collections.sort(this.kmers);
-			BitSet b_pos = new BitSet(posSeqCount);
-			BitSet b_neg = new BitSet(negSeqCount);
-     		for (Kmer km:kmers){
-     			b_pos.or(km.posBits);
-     			b_neg.or(km.negBits);
-    		}
-
-    		if (weights==null){
-        		posHitGroupCount = b_pos.cardinality();
-    		}
-    		else{
-	    		double weight=0;
-	    		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
-	    			weight+=weights[i];
-	    		posHitGroupCount = (int)(weight);
-    		}
-    		negHitGroupCount = b_neg.cardinality();
-		}
-		public int getClusterId(){return clusterId;}
-		public void setClusterId(int id){clusterId = id;}
-		
-		/** hgp (log10) using the positive/negative sequences */
-		public double getHgp() {return hgp;	}
-		/** hgp (log10) using the positive/negative sequences */
-		public void setHgp(double hgp) {this.hgp = hgp;	}
-		
-		public ArrayList<Kmer> getKmers(){
-			return kmers;
-		}
-		public Kmer getBestKmer(){
-			return kmers.get(0);
-		}
-//		public int getTotalKmerCount(){
-//    		int kmerCountSum = 0;
-//    		for (Kmer kmer:kmers){
-//        		kmerCountSum+=kmer.getPosHitCount();	
-//    		}
-//    		return kmerCountSum;
-//		}
-		/** Get the number of sequences hit by any kmer in the group */
-		public int getGroupHitCount(){
-			return posHitGroupCount;
-		}
-		public int getGroupNegHitCount(){
-			return negHitGroupCount;
-		}
-		public double getTotalKmerStrength(){
-    		double total = 0;
-    		for (Kmer kmer:kmers){
-    			// on first kpp round, kmers do not have strength value, use count here
-    			total+=kmer.getStrength()>1?kmer.getStrength():kmer.getPosHitCount();	
-    		}
-    		return total;
-		}	
-		/** Get the weighted kmer strength<cr>
-		 *  The weight is 1 for top kmer, 1/k for other kmer 
-		 *  Note: this is only approximate */
-		public double getWeightedKmerStrength(){
-    		double total = kmers.get(0).getWeightedHitCount();
-    		double k = kmers.get(0).getK();
-    		for (int i=1;i<kmers.size();i++){
-    			total+=kmers.get(i).getWeightedHitCount()/k;	
-    		}
-    		return total;
-		}	
-		/** 
-		 * get the expected binding position		
-		 */
-		public int getPosBS(){
-			return bs;
-		}
-		public int compareToByPosHitCount(KmerGroup kg) {		// descending pos hit count
-			if(posHitGroupCount>kg.getGroupHitCount()){return(-1);}
-			else if(posHitGroupCount<kg.getGroupHitCount()){return(1);}
-			else return(0);
-		}
-		public int compareTo(KmerGroup kg) {					// ascending hgp
-			if(hgp<kg.getHgp()){return(-1);}
-			else if(hgp>kg.getHgp()){return(1);}
-			else return(0);
-		}
-		public String toString(){
-			return String.format("%s %d: %d+/%d-, hpg=%.2f", getBestKmer().getKmerString(), bs, posHitGroupCount, negHitGroupCount, hgp);
-		}
-	}
-	/**
-	 * This KmerGroup class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
-	 * @author yuchun
-	 */
-	public class KmerGroup_old implements Comparable<KmerGroup>{
-		ArrayList<Kmer> kmers;
-		int clusterId = -1;
-		int bs = 999;
-		int posHitGroupCount;
-		int negHitGroupCount;
-		/** hgp (log10) using the positive/negative sequences */
-		double hgp;
-		public KmerGroup_old(ArrayList<Kmer> kmers, int bs){
-			this.bs = bs;
-			this.kmers = kmers;
-			Collections.sort(this.kmers);
-			
-    		HashSet<Integer> allPosHits = new HashSet<Integer>();
-    		for (int i=0;i<kmers.size();i++){
-        		allPosHits.addAll(kmers.get(i).getPosHits());
-    		}
-    		posHitGroupCount = allPosHits.size();
-    		
-    		HashSet<Integer> allNegHits = new HashSet<Integer>();
-    		for (int i=0;i<kmers.size();i++){
-        		allNegHits.addAll(kmers.get(i).getNegHits());
-    		}
-    		negHitGroupCount = allNegHits.size();
-		}
-		
-		public KmerGroup_old(ArrayList<Kmer> kmers, int bs, double[]weights){
-			this.bs = bs;
-			this.kmers = kmers;
-			Collections.sort(this.kmers);
-			
-    		HashSet<Integer> allPosHits = new HashSet<Integer>();
-    		for (int i=0;i<kmers.size();i++){
-        		allPosHits.addAll(kmers.get(i).getPosHits());
-    		}
-    		
-    		if (weights==null){
-        		posHitGroupCount = allPosHits.size();
-    		}
-    		else{
-	    		double weight=0;
-	    		for (int i: allPosHits)
-	    			weight+=weights[i];
-	    		posHitGroupCount = (int)(weight);
-    		}
-    		
-    		
-    		HashSet<Integer> allNegHits = new HashSet<Integer>();
-    		for (int i=0;i<kmers.size();i++){
-        		allNegHits.addAll(kmers.get(i).getNegHits());
-    		}
-    		negHitGroupCount = allNegHits.size();
-		}
-		public int getClusterId(){return clusterId;}
-		public void setClusterId(int id){clusterId = id;}
-		
-		/** hgp (log10) using the positive/negative sequences */
-		public double getHgp() {return hgp;	}
-		/** hgp (log10) using the positive/negative sequences */
-		public void setHgp(double hgp) {this.hgp = hgp;	}
-		
-		public ArrayList<Kmer> getKmers(){
-			return kmers;
-		}
-		public Kmer getBestKmer(){
-			return kmers.get(0);
-		}
-//		public int getTotalKmerCount(){
-//    		int kmerCountSum = 0;
-//    		for (Kmer kmer:kmers){
-//        		kmerCountSum+=kmer.getPosHitCount();	
-//    		}
-//    		return kmerCountSum;
-//		}
-		/** Get the number of sequences hit by any kmer in the group */
-		public int getGroupHitCount(){
-			return posHitGroupCount;
-		}
-		public int getGroupNegHitCount(){
-			return negHitGroupCount;
-		}
-		public double getTotalKmerStrength(){
-    		double total = 0;
-    		for (Kmer kmer:kmers){
-    			// on first kpp round, kmers do not have strength value, use count here
-    			total+=kmer.getStrength()>1?kmer.getStrength():kmer.getPosHitCount();	
-    		}
-    		return total;
-		}	
-		/** Get the weighted kmer strength<cr>
-		 *  The weight is 1 for top kmer, 1/k for other kmer 
-		 *  Note: this is only approximate */
-		public double getWeightedKmerStrength(){
-    		double total = kmers.get(0).getWeightedHitCount();
-    		double k = kmers.get(0).getK();
-    		for (int i=1;i<kmers.size();i++){
-    			total+=kmers.get(i).getWeightedHitCount()/k;	
-    		}
-    		return total;
-		}	
-		/** 
-		 * get the expected binding position		
-		 */
-		public int getPosBS(){
-			return bs;
-		}
-		public int compareToByPosHitCount(KmerGroup kg) {		// descending pos hit count
-			if(posHitGroupCount>kg.getGroupHitCount()){return(-1);}
-			else if(posHitGroupCount<kg.getGroupHitCount()){return(1);}
-			else return(0);
-		}
-		public int compareTo(KmerGroup kg) {					// ascending hgp
-			if(hgp<kg.getHgp()){return(-1);}
-			else if(hgp>kg.getHgp()){return(1);}
-			else return(0);
-		}
-		public String toString(){
-			return String.format("%s %d: %d+/%d-, hpg=%.2f", getBestKmer().getKmerString(), bs, posHitGroupCount, negHitGroupCount, hgp);
-		}
-	}
-	
 	class HGPThread implements Runnable {
 		ArrayList<Integer> idxs;
 		int posTotal;

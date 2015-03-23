@@ -26,7 +26,7 @@ import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerSet;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerCluster;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.features.*;
@@ -176,7 +176,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 		
-    	
 		/* ***************************************************
 		 * Print out command line options
 		 * ***************************************************/
@@ -613,7 +612,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				System.out.println(trigger+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 				reportTriggers.remove(reportTriggers.first());
             }
-        } // while tread running loop
+        } // while thread running loop
         
         if (config.process_all_regions)
         	System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
@@ -647,6 +646,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		        sb.append("Position\tKmer\tCount\tWeight\tpp\n");
 		        for (KmerPP h:allKmerHits)
 		        	sb.append(h.toString()).append("\n");
+		        allKmerHits.clear();
 		        CommonUtils.writeFile(outName+"_Kmer_Hits.txt", sb.toString());
 		        sb = null;
 	        }
@@ -684,6 +684,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		}
     		log(1, "\nFinish sampling events to estimate read distribution: "+CommonUtils.timeElapsed(tic)+"\n");
         }
+        
+        // clearn up
+        compFeatures.clear();
+        goodFeatures.clear();
 
 		return signalFeatures;
 	}// end of execute method
@@ -3538,9 +3542,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 	/**
      * Initalize the kmer engine, then run KMAC<br>
-     * This is called only once for initial setup.<br>
-     * It compact the cached sequence data and build the KMF<br>
-     * If the return value is -1, KMF is not successful, should exit the program.
+     * This is called only once for initial setup: compact the cached sequence data and init KMAC object<br>
+     * If the return value is -1, KMAC is not successful, should exit the program.
      */
     public int initKMAC(){
     	if (config.k==-1 && config.k_min==-1)
@@ -3588,6 +3591,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			negativeRegions.removeAll(toRemove);
 			
 			double gc = kmac.setupRegionCache(positiveRegions, negativeRegions, config.k_neg_dist);
+			
 			if (config.gc==-1){
 				config.setGC(gc);
 			}
@@ -4213,10 +4217,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             // After first round, if we are sure the region contains unary event, we will just scan for peak
         	
         	// for testing chrIV   217955  217985
-        	Region r_test = new Region(w.getGenome(), "V", 433157, 433167 );
-        	if (r_test.overlaps(w)){
-        		config.sparseness += 0;
-        	}
+//        	Region r_test = new Region(w.getGenome(), "V", 433157, 433167 );
+//        	if (r_test.overlaps(w)){
+//        		config.sparseness += 0;
+//        	}
     		int sum = 0;
     		for (List<StrandedBase> bases: signals)
     			sum += StrandedBase.countBaseHits(bases);
@@ -4345,7 +4349,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            					if (strand=='-')
 	            						matchSeq = SequenceUtils.reverseComplement(matchSeq);
 	            					kms.add(new Kmer(matchSeq));
-	            					KmerGroup kg = kmac.new KmerGroup(kms, pos);
+	            					KmerGroup kg = new KmerGroup(kms, pos, kmac.getPosSeqCount(), kmac.getNegSeqCount());
 	            					kg.setHgp(max);
 	            					kg.setClusterId(j);
 	            					pp_kmer[pos]=kg;
