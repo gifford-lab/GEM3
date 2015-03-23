@@ -43,6 +43,7 @@ import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
+import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile.PwmMatch;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 
@@ -312,6 +313,8 @@ public class KMAC {
 						seq = new String(chars);
 					}
 				}
+				if (config.strand_type==1 && events.get(i).getStrand()=='-')
+					seq = SequenceUtils.reverseComplement(seq);
 				posSeqs.add(seq.toUpperCase());		// if repeat_fraction>=1, allow all repeats, convert to upper case
 				switch (config.seq_weight_type){
 				case 0:	posSeqWeights.add(1.0);break;
@@ -701,7 +704,7 @@ public class KMAC {
 			int negCoverage = 0;
 			for (String seq:seqs){
 				int[] chars = new int[seq.length()];
-				HashSet<Kmer> results = queryTree (seq, oks);
+				HashSet<Kmer> results = queryTree (seq, oks, config.strand_type==1);
 				if (!results.isEmpty()){
 					for (Kmer km: results){		
 						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
@@ -721,7 +724,7 @@ public class KMAC {
 			}
 			for (String seq:seqsNegList){
 				int[] chars = new int[seq.length()];
-				HashSet<Kmer> results = queryTree (seq, oks);
+				HashSet<Kmer> results = queryTree (seq, oks, config.strand_type==1);
 				if (!results.isEmpty()){
 					for (Kmer km: results){		
 						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
@@ -790,6 +793,7 @@ public class KMAC {
 		tic = System.currentTimeMillis();
 		numPos = k_win-k+1;
 
+		// only derive k-mers from forward sequence, will merge kmer and its RC next if consider both strands
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
@@ -810,25 +814,27 @@ public class KMAC {
 			}
 		}
 		
-		// Merge kmer and its reverse compliment (RC)	
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
 		ArrayList<String> kmerStrings = new ArrayList<String>();
 		kmerStrings.addAll(kmerstr2seqs.keySet());
 		
-		// create kmers from its and RC's counts
-		for (String key:kmerStrings){
-			if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
-				continue;
-			// consolidate kmer and its reverseComplment kmer
-			String key_rc = SequenceUtils.reverseComplement(key);				
-			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
-				if (kmerstr2seqs.containsKey(key_rc)){
-					int kCount = kmerstr2seqs.get(key).size();
-					int rcCount = kmerstr2seqs.get(key_rc).size();
-					String winner = kCount>=rcCount?key:key_rc;
-					String loser = kCount>=rcCount?key_rc:key;
-					kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner take all
-					kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
+		// Merge kmer and its reverse compliment (RC)	
+		if (config.strand_type != 1){
+			// create kmers from its and RC's counts
+			for (String key:kmerStrings){
+				if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
+					continue;
+				// consolidate kmer and its reverseComplment kmer
+				String key_rc = SequenceUtils.reverseComplement(key);				
+				if (!key_rc.equals(key)){	// if it is not reverse compliment itself
+					if (kmerstr2seqs.containsKey(key_rc)){
+						int kCount = kmerstr2seqs.get(key).size();
+						int rcCount = kmerstr2seqs.get(key_rc).size();
+						String winner = kCount>=rcCount?key:key_rc;
+						String loser = kCount>=rcCount?key_rc:key;
+						kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner take all
+						kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
+					}
 				}
 			}
 		}
@@ -843,6 +849,9 @@ public class KMAC {
 			}
 		}
 		int expectedCount = (int) Math.max( smallestPosCount, Math.round(seqs.length*2*(seqs[0].length()-k+1) / Math.pow(4, k)));
+		if (config.strand_type == 1){
+			expectedCount /= 2;
+		}
 		// the purpose of expectedCount is to limit kmers to run HGP test, if total kmer number is low, it can be relaxed a little
 		if (kmerstr2seqs.keySet().size()<10000){	
 			expectedCount = Math.min(smallestPosCount, expectedCount);
@@ -861,6 +870,7 @@ public class KMAC {
 			kms.add(kmer);
 		}
 		kms.trimToSize();
+		Collections.sort(kms);
 		kmerstr2seqs=null;	// clean up
 		System.gc();
 		
@@ -888,11 +898,13 @@ public class KMAC {
 				SearchResult result = (SearchResult) searcher.next();
 				kmerHits.addAll(result.getOutputs());
 			}
-			String seq_rc = SequenceUtils.reverseComplement(seq);
-			searcher = tmp.search(seq_rc.getBytes());
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				kmerHits.addAll(result.getOutputs());
+			if (config.strand_type != 1){	// if not want single strand only 
+				String seq_rc = SequenceUtils.reverseComplement(seq);
+				searcher = tmp.search(seq_rc.getBytes());
+				while (searcher.hasNext()) {
+					SearchResult result = (SearchResult) searcher.next();
+					kmerHits.addAll(result.getOutputs());
+				}
 			}
 			for (Object o: kmerHits){
 				String kmer = (String) o;
@@ -901,7 +913,6 @@ public class KMAC {
 				kmerstr2negSeqs.get(kmer).add(negSeqId);
 			}
 		}
-
 		
 		// score the kmers, hypergeometric p-value
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
@@ -1285,12 +1296,14 @@ public class KMAC {
 	    	for (Sequence s : seqList){
 	    		for (Kmer km:seedFamily){
 					int seed_seq = s.getSeq().indexOf(km.getAlignString());
-					if (seed_seq<0){
-						s.RC();
-						seed_seq = s.getSeq().indexOf(km.getAlignString());
-						if (seed_seq<0)
-							continue;
+					if (config.strand_type != 1){	// if not only for single-strand
+						if (seed_seq<0){
+							s.RC();
+							seed_seq = s.getSeq().indexOf(km.getAlignString());
+						}
 					}
+					if (seed_seq<0)
+						continue;
 					s.pos = -seed_seq;
 					break;				// seq is aligned, do not try with weaker k-mers
 	    		}
@@ -1669,7 +1682,7 @@ public class KMAC {
 		for (Sequence s:seqList){
 			String seq = s.seq;						// get the sequence from original strand
 			s.reset();
-			HashSet<Kmer> results = queryTree (seq, oks);
+			HashSet<Kmer> results = queryTree (seq, oks, config.strand_type==1);
 			if (!results.isEmpty()){
 				for (Kmer km: results){		
 					if (!kmer2seq.containsKey(km)){
@@ -1691,20 +1704,21 @@ public class KMAC {
 							s.fPos.put(km, new HashSet<Integer>());
 						s.fPos.get(km).add(p+RC);					// match kmer RC
 					}
-					// reverse strand
-					pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
-					for (int p:pos){
-						if (!s.rPos.containsKey(km))
-							s.rPos.put(km, new HashSet<Integer>());
-						s.rPos.get(km).add(p);
+					if (config.strand_type != 1){
+						// reverse strand
+						pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
+						for (int p:pos){
+							if (!s.rPos.containsKey(km))
+								s.rPos.put(km, new HashSet<Integer>());
+							s.rPos.get(km).add(p);
+						}
+						pos = StringUtils.findAllOccurences(s.rc, km.getKmerRC());
+						for (int p:pos){
+							if (!s.rPos.containsKey(km))
+								s.rPos.put(km, new HashSet<Integer>());
+							s.rPos.get(km).add(p+RC);					// match kmer RC
+						}
 					}
-					pos = StringUtils.findAllOccurences(s.rc, km.getKmerRC());
-					for (int p:pos){
-						if (!s.rPos.containsKey(km))
-							s.rPos.put(km, new HashSet<Integer>());
-						s.rPos.get(km).add(p+RC);					// match kmer RC
-					}
-//					s.setCount();
 				}
 			}
 		}
@@ -2274,7 +2288,7 @@ public class KMAC {
 			KmerCluster c = clusters.get(j);
 			WeightMatrixScorer scorer = new WeightMatrixScorer(c.wm);
 			for (int i=0;i<seqs.length;i++){
-				hits[i][j]=CommonUtils.getAllPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold);
+				hits[i][j]=CommonUtils.getAllForwardPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold);
 			}
 		}
 		int seqLen = seqs[0].length();
@@ -2458,6 +2472,7 @@ public class KMAC {
 	    	System.err.println("Error in printing file "+filename);
 	    }
 	}
+	
 	private HashMap<Integer, PWMHit> findAllPWMHits(ArrayList<Sequence> seqList, KmerCluster cluster, double pwm_factor){
 		
 		WeightMatrix wm = cluster.wm;
@@ -2469,29 +2484,18 @@ public class KMAC {
 		  String seq = s.getSeqStrand(true);			// PWM to scan all sequence
 		      	  
 	      WeightMatrixScoreProfile profiler = scorer.execute(seq);
-	      double maxSeqScore = Double.NEGATIVE_INFINITY;
-	      int maxScoringShift = 0;
-	      char maxScoringStrand = '+';
-	      for (int j=0;j<profiler.length();j++){
-	    	  double score = profiler.getHigherScore(j);
-	    	  if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
-	    		  maxSeqScore = score;
-	    		  maxScoringShift = j;
-	    		  maxScoringStrand = profiler.getHigherScoreStrand(j);
-	    	  }
-	      }
-	      // if a sequence pass the motif score, store it
-//	      if (maxSeqScore > 0){
-	      if (maxSeqScore >= wm.getMaxScore()*pwm_factor){
+	      PwmMatch match = profiler.getBestMatch(config.strand_type);
+	      
+	      if (match.score >= wm.getMaxScore()*pwm_factor){
 	    	  PWMHit hit = new PWMHit();
 	    	  hit.clusterId = cluster.clusterId;
 	    	  hit.wm = wm;
 	    	  hit.seqId = i;
-	    	  hit.start = maxScoringShift;					// start is cordinate on + strand
-	    	  hit.end = maxScoringShift+wm.length()-1;		// end inclusive
-			  hit.isForward = maxScoringStrand =='+';
-			  String ss = seq.substring(maxScoringShift, maxScoringShift+wm.length());
-			  if (maxScoringStrand =='-')
+	    	  hit.start = match.shift;					// start is cordinate on + strand
+	    	  hit.end = match.shift+wm.length()-1;		// end inclusive
+			  hit.isForward = match.strand =='+';
+			  String ss = seq.substring(match.shift, match.shift+wm.length());
+			  if (match.strand =='-')
 				  ss= SequenceUtils.reverseComplement(ss);
 			  hit.str = ss;
 			  
@@ -3669,25 +3673,15 @@ public class KMAC {
 //	    		  continue;
 	    	      	  
 	          WeightMatrixScoreProfile profiler = scorer.execute(seq);
-	          double maxSeqScore = Double.NEGATIVE_INFINITY;
-	          int maxScoringShift = 0;
-	          char maxScoringStrand = '+';
-	          for (int j=0;j<profiler.length();j++){
-	        	  double score = profiler.getHigherScore(j);
-	        	  if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
-	        		  maxSeqScore = score;
-	        		  maxScoringShift = j;
-	        		  maxScoringStrand = profiler.getHigherScoreStrand(j);
-	        	  }
-	          }
+	          PwmMatch match = profiler.getBestMatch(config.strand_type);	          
 	          // if a sequence pass the motif score, align with PWM hit
-	          if (maxSeqScore >= cluster.pwmThreshold){
-				if (maxScoringStrand =='-'){
-					maxScoringShift = k_win-maxScoringShift-wm.length();
+	          if (match.score >= cluster.pwmThreshold){
+				if (match.strand =='-'){
+					match.shift = k_win-match.shift-wm.length();
 					s.RC();
 					// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
 				}
-				s.pos = cluster.pos_pwm_seed-maxScoringShift;
+				s.pos = cluster.pos_pwm_seed-match.shift;
 				count_pwm_aligned ++;
 	          }
 	          else
@@ -3700,28 +3694,6 @@ public class KMAC {
 	    	return count_pwm_aligned;
 	}
 	
-//	private void alignSequencesUsingSeedFamily(ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
-//		ArrayList<Kmer> seedFamily = getSeedKmerFamily(kmers, seed);	// from all kmers
-//		
-//		/** align sequences using kmer positions */
-//    	for (Sequence s : seqList){						// use all sequences
-//    		s.reset();
-//    		for (Kmer km:seedFamily){
-//				int seed_seq = s.getSeq().indexOf(km.getAlignString());
-//				if (seed_seq<0){
-//					s.RC();
-//					seed_seq = s.getSeq().indexOf(km.getAlignString());
-//					if (seed_seq<0)
-//						continue;
-//				}
-////				if (km.getKmerString().equals("CCACGCG")||km.getKmerRC().equals("CCACGCG"))
-////					km.getK();
-//				s.pos = -seed_seq;
-//				break;				// seq is aligned, do not try with weaker k-mers
-//    		}
-//		}
-//	}
-
 	/**
 	 * Get all the kmers that has k/4 (k>=8) or 1 (k<8) mismatch to the kmerStr<br>
 	 * and set shift and alignString for the kmers 
@@ -3745,8 +3717,8 @@ public class KMAC {
 			for (Kmer kmer: copy){
 		    	if (CommonUtils.mismatch(kmerStr, kmer.getKmerString())==i)
 		    		kmer.setAlignString(kmer.getKmerString());
-		    	else if (CommonUtils.mismatch(kmerRC, kmer.getKmerString())==i)	// do not RC kmer, set the string for alignment
-		    		kmer.setAlignString(kmer.getKmerRC());
+		    	else if (config.strand_type!=1 && CommonUtils.mismatch(kmerRC, kmer.getKmerString())==i)	// if not single strand
+		    		kmer.setAlignString(kmer.getKmerRC());		// do not RC kmer, set the string for alignment
 		    	else 
 		    		continue;
 	    		kmer.setShift(0);
@@ -4316,7 +4288,7 @@ public class KMAC {
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
+			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i], config.strand_type==1);
 		}
 //		Arrays.sort(posSeqScores);
 		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
@@ -4325,7 +4297,7 @@ public class KMAC {
 		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
 		
 		for (int i=0;i<negSeqCount;i++){
-			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
+			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i), config.strand_type==1);
 		}
 		Arrays.sort(negSeqScores);
 		
@@ -4413,14 +4385,14 @@ public class KMAC {
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
+			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i], config.strand_type==1);
 		}
 		Arrays.sort(posSeqScores);
 		int startIdx = Arrays.binarySearch(posSeqScores, wmScore);
 		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
 		
 		for (int i=0;i<negSeqCount;i++){
-			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
+			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i), config.strand_type==1);
 		}
 		Arrays.sort(negSeqScores);
 		
@@ -4778,12 +4750,14 @@ public class KMAC {
 			SearchResult result = (SearchResult) searcher.next();
 			kmerFound.addAll(result.getOutputs());
 		}
-		// the reverse compliment
-		String seq_rc = SequenceUtils.reverseComplement(seq);
-		searcher = tree.search(seq_rc.getBytes());
-		while (searcher.hasNext()) {
-			SearchResult result = (SearchResult) searcher.next();
-			kmerFound.addAll(result.getOutputs());
+		if (config.strand_type!=1){
+			// the reverse compliment
+			String seq_rc = SequenceUtils.reverseComplement(seq);
+			searcher = tree.search(seq_rc.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerFound.addAll(result.getOutputs());
+			}
 		}
 		
 		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
@@ -4800,13 +4774,15 @@ public class KMAC {
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
 			}
-			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
-			for (int p: pos_rc){
-				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
-				x = seq.length()-1-x;		// convert to position in Seq
-				if (!result.containsKey(x))
-					result.put(x, new ArrayList<Kmer>());
-				result.get(x).add(kmer);	
+			if (config.strand_type!=1){
+				ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
+				for (int p: pos_rc){
+					int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
+					x = seq.length()-1-x;		// convert to position in Seq
+					if (!result.containsKey(x))
+						result.put(x, new ArrayList<Kmer>());
+					result.get(x).add(kmer);	
+				}
 			}
 		}
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
@@ -4817,6 +4793,7 @@ public class KMAC {
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
 		}
+		Arrays.sort(matches);
 		return matches;
 	}
 	
@@ -4825,7 +4802,7 @@ public class KMAC {
 	 * @param seq sequence string to search k-mers
 	 * @return a set of kmers found
 	 */
-	public static HashSet<Kmer> queryTree (String seq, AhoCorasick tree){
+	public static HashSet<Kmer> queryTree (String seq, AhoCorasick tree, boolean isForwardOnly){
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
@@ -4837,11 +4814,13 @@ public class KMAC {
 			kmerFound.addAll(result.getOutputs());
 		}
 		// the reverse compliment
-		String seq_rc = SequenceUtils.reverseComplement(seq);
-		searcher = tree.search(seq_rc.getBytes());
-		while (searcher.hasNext()) {
-			SearchResult result = (SearchResult) searcher.next();
-			kmerFound.addAll(result.getOutputs());
+		if (!isForwardOnly){
+			String seq_rc = SequenceUtils.reverseComplement(seq);
+			searcher = tree.search(seq_rc.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerFound.addAll(result.getOutputs());
+			}
 		}
 		
 		HashSet<Kmer> result = new HashSet<Kmer>();
@@ -4869,14 +4848,15 @@ public class KMAC {
 			SearchResult result = (SearchResult) searcher.next();
 			kmerFound.addAll(result.getOutputs());
 		}
-		// the reverse compliment
-		String seq_rc = SequenceUtils.reverseComplement(seq);
-		searcher = tree.search(seq_rc.getBytes());
-		while (searcher.hasNext()) {
-			SearchResult result = (SearchResult) searcher.next();
-			kmerFound.addAll(result.getOutputs());
+		if (config.strand_type!=1){
+			// the reverse compliment
+			String seq_rc = SequenceUtils.reverseComplement(seq);
+			searcher = tree.search(seq_rc.getBytes());
+			while (searcher.hasNext()) {
+				SearchResult result = (SearchResult) searcher.next();
+				kmerFound.addAll(result.getOutputs());
+			}
 		}
-		
 		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
 		// matches on negative strand are combined with matches on positive strand
 		TreeMap<Integer, ArrayList<Kmer>> result = new TreeMap<Integer, ArrayList<Kmer>> ();
@@ -4891,13 +4871,15 @@ public class KMAC {
 					result.put(x, new ArrayList<Kmer>());
 				result.get(x).add(kmer);	
 			}
-			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
-			for (int p: pos_rc){
-				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
-				x += RC;									// label it as "found on RC"
-				if (!result.containsKey(x))
-					result.put(x, new ArrayList<Kmer>());
-				result.get(x).add(kmer);	
+			if (config.strand_type!=1){
+				ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
+				for (int p: pos_rc){
+					int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
+					x += RC;									// label it as "found on RC"
+					if (!result.containsKey(x))
+						result.put(x, new ArrayList<Kmer>());
+					result.get(x).add(kmer);	
+				}
 			}
 		}
 		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
@@ -5035,6 +5017,7 @@ public class KMAC {
 		public KmerGroup(ArrayList<Kmer> kmers, int bs){
 			this.bs = bs;
 			this.kmers = kmers;
+			Collections.sort(this.kmers);
 			BitSet b_pos = new BitSet(posSeqCount);
 			BitSet b_neg = new BitSet(negSeqCount);
      		for (Kmer km:kmers){
@@ -5046,7 +5029,8 @@ public class KMAC {
 		}		
 		public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights){
 			this.bs = bs;
-			this.kmers = kmers;			
+			this.kmers = kmers;	
+			Collections.sort(this.kmers);
 			BitSet b_pos = new BitSet(posSeqCount);
 			BitSet b_neg = new BitSet(negSeqCount);
      		for (Kmer km:kmers){

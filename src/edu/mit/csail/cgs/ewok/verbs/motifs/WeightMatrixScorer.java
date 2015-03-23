@@ -133,21 +133,23 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
     }
     
     /**
-     * Return the maximum motif score of the input sequence (from both directions)
+     * Return the maximum motif score of the input sequence (from both directions or only forward direction)
      * @param matrix
      * @param sequence
      * @return
      */
-    public static double getMaxSeqScore(WeightMatrix matrix, String sequence){
+    public static double getMaxSeqScore(WeightMatrix matrix, String sequence, boolean isForwardOnly){
     	if (sequence.length()<matrix.length())
     		return matrix.getMinScore();
     	
     	double[] scores = score(matrix, sequence.toCharArray(), '+');
     	Pair<Double, TreeSet<Integer>> max = StatUtil.findMax(scores);
     	double maxScore = max.car();
-    	scores = score(matrix, SequenceUtils.reverseComplement(sequence).toCharArray(), '-');
-    	max = StatUtil.findMax(scores);
-    	maxScore = Math.max(maxScore, max.car());
+    	if (!isForwardOnly){
+	    	scores = score(matrix, SequenceUtils.reverseComplement(sequence).toCharArray(), '-');
+	    	max = StatUtil.findMax(scores);
+	    	maxScore = Math.max(maxScore, max.car());
+    	}
     	return maxScore;
     }
     

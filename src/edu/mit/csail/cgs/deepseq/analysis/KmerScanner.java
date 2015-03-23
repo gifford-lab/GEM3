@@ -203,10 +203,10 @@ public class KmerScanner {
 
 			// PWM
 			long pwm_t = System.currentTimeMillis();
-			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
+			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq, false);
 			String match=WeightMatrixScorer.getMaxScoreSequence(motif, seq, -1000, 0);
 			pwm_scores.add(pwm);
-			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
+			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN, false);
 			String matchN=WeightMatrixScorer.getMaxScoreSequence(motif, seqN, -1000, 0);
 			pwmN_scores.add(pwmN);
 			PWM_time += System.currentTimeMillis() - pwm_t;
@@ -254,10 +254,10 @@ public class KmerScanner {
 			StringBuilder sb_other_score = new StringBuilder();
 			for (int j=0;j<otherPwms.length;j++){
 				other_matches[j]=WeightMatrixScorer.getMaxScoreSequence(otherPwms[j], seq, -1000, 0);
-				double score = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seq);
+				double score = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seq, false);
 				other_scores.get(j).add(score);
 				otherN_matches[j]=WeightMatrixScorer.getMaxScoreSequence(otherPwms[j], seqN, -1000, 0);
-				double scoreN = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seqN);
+				double scoreN = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seqN, false);
 				otherN_scores.get(j).add(scoreN);
 				sb_other_matchString.append("\t"+other_matches[j]+"\t"+otherN_matches[j]);
 				sb_other_score.append(String.format("\t%.2f\t%.2f", score, scoreN));
@@ -443,9 +443,9 @@ public class KmerScanner {
 					name_N = rN.toString();
 				}
 				long pwm_t = System.currentTimeMillis();
-				double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq);
+				double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq, false);
 				pwm_scores.add(pwm);
-				double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN);
+				double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN, false);
 				pwmN_scores.add(pwmN);
 				PWM_time += System.currentTimeMillis() - pwm_t;
 				

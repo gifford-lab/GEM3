@@ -758,6 +758,27 @@ public class CommonUtils {
 		}
 		return pos;
 	}
+	/**
+	 *  Scan the sequence (forward strand only) to find all matches to the weight matrix<br>
+	 *  Note: the definition of motif position here is different from scanPWM() method<br>
+	 *  position represent the match base position of the middle of the motif
+	 *  
+	 *  @return  List of positions (middle of motif match) that pass the threshold. <br>
+	 *  The position will be negative if the match is on the reverseComplement strand     
+	 */
+	public static ArrayList<Integer> getAllForwardPWMHit(String sequence, int wmLen, WeightMatrixScorer scorer, double threshold){
+		ArrayList<Integer> pos = new ArrayList<Integer>();
+		if (sequence==null||sequence.length()<wmLen-1){
+			return pos;
+		}
+		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
+		for (int i=0;i<profiler.length();i++){
+			double score = profiler.getForwardScore(i);
+			if (score >= threshold)
+				pos.add(i+wmLen/2);
+		}
+		return pos;
+	}
 	
 	/**
 	 *  Scan the sequence (and reverseComplement) to find all exact matches to the kmer<br>  

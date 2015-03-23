@@ -4169,7 +4169,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             Region w_padded = w.expand(modelPadding, modelPadding);
             
             if (config.strand_type ==0)	// process reads from both strands jointly
-            	results = analyzeWindow(w_padded, signals, bg_signals, seqgen);
+            	results = analyzeWindow(w_padded, signals, bg_signals, seqgen, '*');
             else{	// process each single strand separately
             	char[] strands = new char[]{'+','-'};
             	for (char s:strands){
@@ -4195,7 +4195,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             		}
             		
             		// run EM on stranded data
-            		ArrayList<BindingComponent> results_stranded = analyzeWindow(w_padded, signals_stranded, bg_signals_stranded, seqgen);
+            		ArrayList<BindingComponent> results_stranded = analyzeWindow(w_padded, signals_stranded, bg_signals_stranded, seqgen, s);
             		if (results_stranded!=null){
 	            		for (BindingComponent b:results_stranded){
 	            			b.setStrand(s);		
@@ -4208,7 +4208,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         } 
         
         private ArrayList<BindingComponent> analyzeWindow(Region w, ArrayList<List<StrandedBase>> signals,
-        		ArrayList<List<StrandedBase>> bg_signals, SequenceGenerator<Region> seqgen){
+        		ArrayList<List<StrandedBase>> bg_signals, SequenceGenerator<Region> seqgen, char readStrand){
             // We want to run EM only for potential homotypic regions
             // After first round, if we are sure the region contains unary event, we will just scan for peak
         	
@@ -4240,11 +4240,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
             	String seq = null;
             	if (kmac!=null && kmac.isInitialized()){ 
-            		if (kmerPreDefined)		// if kmer is loaded from other sources, get fresh sequence 
+            		if (kmerPreDefined){		// if kmer is loaded from other sources, get fresh sequence 
             			seq = seqgen.execute(w).toUpperCase();
+                		if (config.strand_type==1 && readStrand=='-')
+                			seq = SequenceUtils.reverseComplement(seq);
+            		}
             		else					// otherwise, we have run KMAC, get the cached sequences
             			seq = kmac.getSequenceUppercase(w);
-            		
             		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
             		if (config.pp_use_kmer){		// use k-mer match to set KPP
             			
@@ -4312,10 +4314,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            				WeightMatrixScoreProfile profiler = scorer.execute(seq);
 	            				int wmLen = cluster.wm.length();
 	            				EACH_HIT: for (int i=0;i<profiler.length();i++){
-	            					double max = profiler.getHigherScore(i);
+	            					double max = 0;
+	            					
+	            					if (config.strand_type!=1)	// if both strands
+	            						max = profiler.getHigherScore(i);
+	            					else
+	            						max = profiler.getForwardScore(i);
 	            					if (max<cluster.pwmThreshold*config.motif_relax_factor)		//TODO: want to relax the threshold??
 	            						continue EACH_HIT;
-	            					char strand = profiler.getHigherScoreStrand(i);
+	            					char strand = '+';
+	            					if (config.strand_type!=1)		// if both strands
+	            						strand = profiler.getHigherScoreStrand(i);
 	            					int pos = cluster.pos_BS_seed-cluster.pos_pwm_seed;
 	            					if (strand=='+')
 	            						pos = pos + i;

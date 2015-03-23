@@ -64,9 +64,17 @@ public class WeightMatrixScoreProfile {
 	public double getHigherScore(int i) { 
 		return Math.max(forward[i], reverse[i]); 
 	}
+	/** get score (from forward strand) at this position */
+	public double getForwardScore(int i) { 
+		return forward[i]; 
+	}
 	/** max score over the whole sequence*/
 	public double getMaxScore(){
 		return(getHigherScore(getMaxIndex()));
+	}
+	/** max score over the whole sequence*/
+	public double getMaxForwordScore(){
+		return(getForwardScore(getMaxIndex()));
 	}
 	public int getMaxIndex() { 
 		int max = -1; 
@@ -80,4 +88,58 @@ public class WeightMatrixScoreProfile {
 		}
 		return max;
 	}
+	public int getForwardMaxIndex() { 
+		int max = -1; 
+		double maxScore = matrix.getMinScore();
+		for(int i = 0; i < forward.length; i++) { 
+			double ms = getForwardScore(i);
+			if(max == -1 || ms > maxScore) { 
+				maxScore= ms; 
+				max = i;
+			}
+		}
+		return max;
+	}
+	/**
+	 * Find the best score and position/strand in the sequence
+	 * @param strand_type
+	 * @return
+	 */
+	public PwmMatch getBestMatch(int strand_type){
+	      double maxSeqScore = Double.NEGATIVE_INFINITY;
+	      int maxScoringShift = 0;
+	      char maxScoringStrand = '+';
+	      for (int j=0;j<forward.length;j++){
+	    	  if (strand_type!=1){
+	    		  double score = getHigherScore(j);
+		    	  if (maxSeqScore<score || (maxSeqScore==score && maxScoringStrand=='-')){	// equal score, prefer on '+' strand
+		    		  maxSeqScore = score;
+		    		  maxScoringShift = j;
+		    		  maxScoringStrand = getHigherScoreStrand(j);
+		    	  }
+	    	  }
+	    	  else{
+	    		  double score = getForwardScore(j);
+	    		  if (maxSeqScore<score){
+	    			  maxSeqScore = score;
+		    		  maxScoringShift = j;
+	    		  }
+	    	  }
+	      }
+	      return new PwmMatch(maxSeqScore, maxScoringShift, maxScoringStrand);
+	}
+	
+	public class PwmMatch{
+		public PwmMatch(double score, int shift, char strand){
+			this.score = score;
+			this.shift = shift;
+			this.strand = strand;
+		}
+		public double score;
+		public int shift;
+		public char strand;
+	}
+
 }
+
+

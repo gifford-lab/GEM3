@@ -2834,7 +2834,7 @@ public class KMAC2old {
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
+			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i], config.strand_type==1);
 		}
 //		Arrays.sort(posSeqScores);
 		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
@@ -2843,7 +2843,7 @@ public class KMAC2old {
 		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
 		
 		for (int i=0;i<negSeqCount;i++){
-			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
+			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i), config.strand_type==1);
 		}
 		Arrays.sort(negSeqScores);
 		
@@ -2931,14 +2931,14 @@ public class KMAC2old {
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
+			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i], config.strand_type==1);
 		}
 		Arrays.sort(posSeqScores);
 		int startIdx = Arrays.binarySearch(posSeqScores, wmScore);
 		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
 		
 		for (int i=0;i<negSeqCount;i++){
-			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
+			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i), config.strand_type==1);
 		}
 		Arrays.sort(negSeqScores);
 		

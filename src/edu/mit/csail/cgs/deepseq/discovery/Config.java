@@ -39,7 +39,7 @@ public class Config {
 	/** strand_type <br>
 	 * run event finding and motif discovery as <br>
 	 * 0) unstranded, for typical ChIP-seq data <br>
-	 * 1) only single strand, for BranchPoint data (Burge Lab), run motif discovery only on event strand, 
+	 * 1) only single strand, for Branch-seq, CLIP-seq, RNA-based data, call event only on the same strand as the reads, run motif discovery only on event strand,<br> 
 	 * 2) ChIP-exo (if wanting to find peak boundary), run motif discovery on both strands 
 	 */
     public int strand_type = 0;		
