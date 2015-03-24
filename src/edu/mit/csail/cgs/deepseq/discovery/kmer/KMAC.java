@@ -127,7 +127,14 @@ public class KMAC {
 		return clusters;
 	}
 	
-	public KMAC(){
+	public KMAC(Config config, String outPrefix){
+		setConfig(config, outPrefix);
+	}
+	private void setConfig(Config config, String outPrefix){
+		this.config = config;
+	    this.outName = outPrefix;
+	    this.verbose = config.verbose;
+	    Kmer.set_use_weighted_hit_count(config.use_weighted_kmer);
 	}
 
 	public void setTotalSeqCounts(int posSeqCount, int negSeqCount){
@@ -135,12 +142,6 @@ public class KMAC {
 		this.negSeqCount = negSeqCount;
 	}
 	
-	public void setConfig(Config config, String outName){
-		this.config = config;
-	    this.outName = outName;
-	    this.verbose = config.verbose;
-	    Kmer.set_use_weighted_hit_count(config.use_weighted_kmer);
-	}
 	
 	// called by standalone main() method
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
@@ -228,9 +229,8 @@ public class KMAC {
     	bg[3]=bg[0];
 	}
 	
-	public KMAC(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
-//		setUseKmerWeight();
-
+	public KMAC(Genome g, boolean useCache, boolean use_db_genome, String genomePath, Config config, String outPrefix){
+		setConfig(config, outPrefix);
 		genome = g;
 		seqgen = new SequenceGenerator<Region>();
     	if (use_db_genome)
@@ -243,7 +243,8 @@ public class KMAC {
 	/* 
 	 * Contruct a Kmer Engine from a list of Kmers
 	 */
-	public KMAC(ArrayList<Kmer> kmers, String outPrefix){
+	public KMAC(ArrayList<Kmer> kmers, Config config, String outPrefix){
+		setConfig(config, outName);
 		if (!kmers.isEmpty()){
 			if (outPrefix!=null)
 				updateEngine(kmers, outPrefix);
@@ -4734,7 +4735,7 @@ public class KMAC {
 	
 	/** 
 	 * Search all k-mers in the sequence
-	 * @param seq sequence string to search k-mers
+	 * @param seq sequence string to search k-mers, config.strand_type determines whether to search on RC strand
 	 * @return an array of KmerGroups:<br>
 	 * Each k-mer group maps to a binding position in the sequence
 	 * Note: matches on negative strand are combined with matches on positive strand
@@ -5067,8 +5068,8 @@ public class KMAC {
 	    	same[i] = same_list.get(i);
 	    for (int i=0;i<x.length;i++)
 	    	diff[i] = diff_list.get(i);
-	    KMAC kmf = new KMAC();
-	    kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
+//	    KMAC kmf = new KMAC();
+//	    kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
 	}
 	
 	// options cMyc_cMyc cMyc_HeLa_61bp_GEM.fasta cMyc_HeLa_61bp_GEM_neg.fasta 5 8 CCACGTG
@@ -5151,9 +5152,7 @@ public class KMAC {
 			}
 		}
         
-        KMAC kmf = new KMAC();
-
-        kmf.setConfig(config, name);
+        KMAC kmf = new KMAC(config, name);
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
         kmf.setStandalone();
 
