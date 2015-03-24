@@ -4248,12 +4248,15 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             	String seq = null;
             	if (kmac!=null && kmac.isInitialized()){ 
             		if (kmerPreDefined){		// if kmer is loaded from other sources, get fresh sequence 
-            			seq = seqgen.execute(w).toUpperCase();
-                		if (config.strand_type==1 && readStrand=='-')
-                			seq = SequenceUtils.reverseComplement(seq);
+            			seq = seqgen.execute(w).toUpperCase();                		
             		}
             		else					// otherwise, we have run KMAC, get the cached sequences
             			seq = kmac.getSequenceUppercase(w);
+            		
+            		//TODO: for some reason, not RC branch-seq sequence give much more motif matches on the correct strand
+            		if ( config.strand_type==1 && ((!config.is_branch_point_data) && readStrand=='-') )
+            			seq = SequenceUtils.reverseComplement(seq);
+            		
             		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
             		if (config.pp_use_kmer){		// use k-mer match to set KPP
             			
@@ -5456,9 +5459,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        			if (!bs.contains(ks)){
 	        				b.setKmerGroup(null);
 	        				b.setKmerStrand('0');
+	        				bs = bs.toLowerCase();
 	        			}
-	        			else{	// bs contains best K-mer
-	        				bs.replaceAll(ks, ks.toLowerCase());
+	        			else{	// bs contains best K-mer  
+	        				bs = bs.toLowerCase().replaceAll(ks.toLowerCase(), ks);
 	        			}	        			
 	        		}
 	    			b.setBoundSequence(bs);
