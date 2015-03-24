@@ -551,9 +551,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// create threads and run EM algorithms
 		// the results are put into compFeatures
         Thread[] threads = new Thread[config.maxThreads];
-        log(1,String.format("Running with %d threads ...", config.maxThreads));
+        log(1,String.format("Running with %d threads ...\n", config.maxThreads));
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
 
+        if (config.strand_type ==1)
+        	log(1, "Running in single-strand mode (usually for RNA-based data)\n");
+        
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         ArrayList<Region> regionsToRun = new ArrayList<Region>();
         if (!config.process_all_regions){		// first round, only process some of the region, sort to put the strong regions on top
@@ -4469,18 +4472,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
             return components;
         }//end of analyzeWindow method
-
-        
-        private int initSpacing(Region w) {
-            if (w.getWidth()/50 > constants.MAX_NUM_COMPONENTS)
-                System.err.println("Very large region, " + w.toString());
-            int spacing = 1;
-            componentMax = Math.max(constants.OPTIMAL_NUM_COMPONENTS, w.getWidth()/50);
-            if(componentMax > 0 && constants.SMART_SPACING && w.getWidth() > componentMax)
-                spacing = Math.max(2, (int)Math.round(1.0*w.getWidth()/componentMax));
-            spacing = Math.max(w.getWidth()/constants.MAX_NUM_COMPONENTS, Math.min(spacing, constants.INIT_SPACING));
-            return spacing;
-        }//end of initSpacing method
+       
 
         /**
          * Initializes the components. Set event spacing evenly.
@@ -5456,14 +5448,18 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                		}	 
 //	        				}
 	        			}
-	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString())){
+	        			String ks = b.getKmerGroup().getBestKmer().getKmerString();
+	        			if (!bs.contains(ks)){
 	        				bs = SequenceUtils.reverseComplement(bs);
 	        				b.setKmerStrand('-');
 	        			}
-	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString())){
+	        			if (!bs.contains(ks)){
 	        				b.setKmerGroup(null);
 	        				b.setKmerStrand('0');
 	        			}
+	        			else{	// bs contains best K-mer
+	        				bs.replaceAll(ks, ks.toLowerCase());
+	        			}	        			
 	        		}
 	    			b.setBoundSequence(bs);
         		}
