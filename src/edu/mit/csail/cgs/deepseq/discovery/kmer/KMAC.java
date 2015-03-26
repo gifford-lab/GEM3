@@ -137,6 +137,10 @@ public class KMAC {
 	    Kmer.set_use_weighted_hit_count(config.use_weighted_kmer);
 	}
 
+	public void updateOutPrefix(String outPrefix){
+	    this.outName = outPrefix;
+	}
+	
 	public void setTotalSeqCounts(int posSeqCount, int negSeqCount){
 		this.posSeqCount = posSeqCount;
 		this.negSeqCount = negSeqCount;
@@ -1970,7 +1974,7 @@ public class KMAC {
 		}
 		html.append("<p><b>Motif Discovery Results</b>:<p>");
 		html.append("<p>Total positive sequences: "+posSeqCount);
-		html.append("<p><ul><li><a href='"+name+"_KSM.txt'>Complete KSM (K-mer Set Motif) file.</a>");
+		html.append("<p><ul><li><a href='"+name+".KSM.txt'>Complete KSM (K-mer Set Motif) file.</a>");
 		html.append("<li><a href='"+name+"_Alignement_k"+k+".txt'>K-mer alignment file.</a>");
 		html.append("<li><a href='"+name+"_PFM.txt'>Motif PFMs</a></ul>");
 		html.append("<p><table border=1><th>K-mer</th><th>Cluster</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");

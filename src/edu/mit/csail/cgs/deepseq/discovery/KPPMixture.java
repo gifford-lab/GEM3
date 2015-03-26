@@ -3648,7 +3648,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     public int runKMAC( int winSize){
     	// set the parameters
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
-   	
+		kmac.updateOutPrefix(outName);
+		
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();    	
     	kmac.loadTestSequences(events, winSize);

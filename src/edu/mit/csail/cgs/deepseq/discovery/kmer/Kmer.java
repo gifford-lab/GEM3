@@ -241,19 +241,26 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public String toString(){
 		if (use_weighted_hit_count)
-			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),clusterId, isSeedOrientation, shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
+				getKmerStrRC(),clusterId, shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+				// use posBits.cardinality() instead of getPosHitCount() to get raw pos hit count
 		else
-			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),clusterId, isSeedOrientation, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
+				getKmerStrRC(),clusterId, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
 	}
+	/**
+	 * This method is used in the gapped k-mer printing. 
+	 * <br>In KMAC1, a k-mer may be used in multiple KSM, therefore, the k-mer object store isSeedOrientation flag to make it in consistent orientation with the seed k-mer.
+	 * @return
+	 */
 	public String toString2(){
 		if (use_weighted_hit_count)
 			return String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
-				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+				// use posBits.cardinality() instead of getPosHitCount() to get raw pos hit count
 		else
 			return String.format("%s\t%d\t%d\t%d\t%.1f", 
-				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posHits.size(), getNegHitCount(), hgp_lg10);
+				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
 	}
 
 	public static String toHeader(int k){
@@ -355,14 +362,14 @@ public class Kmer implements Comparable<Kmer>{
 			else{
 				sb.append(kmer.toString());
 				if (print_kmer_hits)
-					sb.append("\t").append(kmer.posBits.toString()).append("\t").append(hits2string(kmer.getNegHits()));
+					sb.append("\t").append(kmer.posBits.toString()).append("\t").append(kmer.negBits.toString());
 				sb.append("\n");
 			}
 		}
 		if (printKmersAtK)
 			CommonUtils.writeFile(String.format("%s_kmers_k%d.txt", filePrefix, kmers.get(0).getK()), sb.toString());
 		else
-			CommonUtils.writeFile(String.format("%s.KSM.txt", filePrefix), sb.toString());
+			CommonUtils.writeFile(String.format("%s_KSM.txt", filePrefix), sb.toString());
 	}
 	
 	/**
