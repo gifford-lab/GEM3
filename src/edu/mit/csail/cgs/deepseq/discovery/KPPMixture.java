@@ -4261,14 +4261,20 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 //            		}
             		
             		// for RNA (Branch-seq), the motif is on the strand opposite to the reads
-            		if ( config.strand_type==1 && config.is_branch_point_data){
-            			if (readStrand=='+'){
-	            			// flip the sequence and strand info
-	            			seq = SequenceUtils.reverseComplement(seq);
-	            			seqStrand = '-';
+            		if ( config.strand_type==1){
+            			if ( config.is_branch_point_data){	// Branch-seq, reads are on the opposite of motif sequence
+	            			if (readStrand=='+'){
+		            			// flip the sequence and strand info
+		            			seq = SequenceUtils.reverseComplement(seq);
+		            			seqStrand = '-';
+	            			}
+	            			else
+	            				seqStrand = '+';
             			}
-            			else
-            				seqStrand = '+';
+            			else{
+            				if (readStrand=='-')	// other RNA data, e.g. CLIP, reads are on the same strand as motifs
+		            			seq = SequenceUtils.reverseComplement(seq); // flip the sequence
+            			}
             		}
             		
             		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
@@ -4294,6 +4300,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                	// Effectively, the top kmers will dominate, because we normalize the pp value
 		                	EACH_KG: for (KmerGroup kg: matchPositions){
 		                		// the posBS() is the expected binding position wrt the sequence
+		                		// but the pp_kmer array are indexed as the forward strand
 		                		int bindingPos = kg.getPosBS();
 		                		if (seqStrand=='-')
 		                			bindingPos = seq.length() - bindingPos - 1;
