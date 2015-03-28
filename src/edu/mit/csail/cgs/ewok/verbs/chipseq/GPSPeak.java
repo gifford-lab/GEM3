@@ -1,9 +1,10 @@
 package edu.mit.csail.cgs.ewok.verbs.chipseq;
 
 import edu.mit.csail.cgs.datasets.general.Point;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.species.Genome;
 
-public class GPSPeak extends Point{
+public class GPSPeak extends StrandedPoint{
 	public static char UNKNOWN_STRAND = '*';
 	double strength;
 	double controlStrength;
@@ -41,7 +42,7 @@ public class GPSPeak extends Point{
 	public GPSPeak(Genome g, String chr, int pos, double ipStrength, double ctrlStrength, double expectedStrength,
 			double qv_lg10, double pvalue, double pv_lg10, double pois_pvalue, double IPvsEMP, double IPvsCTR, 
 			String kmer, int kmerCount, char kmerStrand, String boundSequence){
-		super(g, chr.replaceFirst("chr", ""), pos);
+		super(g, chr.replaceFirst("chr", ""), pos, ' ');
 		this.strength = ipStrength;
 		this.controlStrength = ctrlStrength;
 		this.expectedStrength = expectedStrength;
@@ -57,7 +58,28 @@ public class GPSPeak extends Point{
 		this.kmerStrand = kmerStrand;
 		this.boundSequence = boundSequence;
 	}
-	
+
+	// GEM output format 2015-03-28, using StrandedPoint 	
+	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	Kmer	Count	Strength	BoundSequence	EnrichedHGP
+	public GPSPeak(Genome g, String chr, int pos, char strand, double ipStrength, double ctrlStrength, double expectedStrength,
+			double qv_lg10, double pvalue, double pv_lg10, double pois_pvalue, double IPvsEMP, double IPvsCTR, 
+			String kmer, int kmerCount, char kmerStrand, String boundSequence){
+		super(g, chr.replaceFirst("chr", ""), pos, strand);
+		this.strength = ipStrength;
+		this.controlStrength = ctrlStrength;
+		this.expectedStrength = expectedStrength;
+		this.qv_lg10 = qv_lg10;
+		this.pvalue = pvalue;
+		this.pv_lg10 = pv_lg10;
+		this.pois_pv_lg10 = pois_pvalue;
+		this.IPvsEMP = IPvsEMP;
+		this.IPvsCTR = IPvsCTR;
+		this.EM_position = this;
+		this.kmer = kmer;
+		this.kmerGroupCount = kmerCount;
+		this.kmerStrand = kmerStrand;
+		this.boundSequence = boundSequence;
+	}
 	public boolean isJointEvent() {
 		return jointEvent;
 	}

@@ -25,6 +25,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class GPSFastaWriter{  
 	// --species "Homo sapiens;hg19" --expts expt_done.txt [--root C:\Data\workspace\gse] --window 200 --top -1 --no_cache  
@@ -197,6 +198,8 @@ public class GPSFastaWriter{
 	    			continue;
 	    	}
 	    	String seq = seqgen.execute(r);
+	    	if (p.getStrand()=='-')
+	    		seq = SequenceUtils.reverseComplement(seq);
 	    	
 	    	// negative region for GEM
 			// In proximal regions, but excluding binding regions
