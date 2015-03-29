@@ -1469,6 +1469,13 @@ public class KMAC {
 		        }
 			}		// mask with PWM
 
+			// clone alignedKmers to avoid being modify in the next clustering iteration
+			ArrayList<Kmer> clones = new ArrayList<Kmer>();
+			for (Kmer km:cluster.alignedKmers)
+				clones.add(km.clone());
+			clones.trimToSize();
+			cluster.alignedKmers = clones;
+			
 			clusterID++;
 			quick_restart = false;
 		} // Loop for each cluster
@@ -1539,7 +1546,7 @@ public class KMAC {
 				System.out.println("\nMerge overlapping motif clusters ...\n");
 			boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// whether a pair has been checked
 			mergeOverlapClusters (outName, seqList, seed_range, config.use_ksm, use_PWM_MM, checked, 0);
-		}
+		}	// refine PWMs
 		
 		/** post processing */
 		// remove clusters if it did not form PWM, or PWM hit is too few
@@ -1643,7 +1650,8 @@ public class KMAC {
 		ArrayList<Kmer> allAlignedKmers = new ArrayList<Kmer>();		// each kmer in diff cluster has been clone, would not overwrite
 		for (KmerCluster c:clusters)
 			allAlignedKmers.addAll(c.alignedKmers);
-			Collections.sort(allAlignedKmers, new Comparator<Kmer>(){
+		
+		Collections.sort(allAlignedKmers, new Comparator<Kmer>(){
 		    public int compare(Kmer o1, Kmer o2) {
 		    	return o1.compareByHGP(o2);
 		    }
@@ -5077,7 +5085,7 @@ public class KMAC {
 	}
 	
 	// options cMyc_cMyc cMyc_HeLa_61bp_GEM.fasta cMyc_HeLa_61bp_GEM_neg.fasta 5 8 CCACGTG
-	public static void main0(String[] args){
+	public static void main(String[] args){
 		ArrayList<String> pos_seqs = new ArrayList<String>();
 		ArrayList<Double> seq_w = new ArrayList<Double>();
 

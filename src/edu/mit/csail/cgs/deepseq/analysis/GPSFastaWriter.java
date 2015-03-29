@@ -85,7 +85,8 @@ public class GPSFastaWriter{
 	        String line;
 	        while((line = bin.readLine()) != null) {
 	        	String f[] = line.split("\t");
-	            names.add(f[0]);
+	        	if (!f[0].trim().equals(""))
+	        		names.add(f[0].trim());
 	        }
 		}
 		catch (IOException e){
@@ -104,7 +105,7 @@ public class GPSFastaWriter{
 	
     // load GPS results
 	for (String exptName : names){
-		System.out.print("Getting FASTA sequences "+exptName+" ... ");
+		System.out.print("Getting FASTA sequences for "+exptName+" ... ");
 		File folder = new File(new File(root, exptName), exptName+"_outputs");
 	    File gpsFile = new File(folder, exptName+"_1_GEM_events.txt");
 	    if (!gpsFile.exists()){
