@@ -198,12 +198,21 @@ public class Config {
         	min_region_width = 1;
         	min_event_distance = 3;
         	smooth_step = 0;
-//        	kmer_inRange_fraction = 0.3;
         	noise_distribution = 0;
-        	window_size_factor = 10;			//TODO: why 10??
+        	window_size_factor = 10;	
         	alpha_factor = 0.7;
+        	kpp_nmotifs = 10;
         	motif_relax_factor = 0.5;		// relax to half of the threshold
+        	
+        	// below are the boolean parameters, make sure that they are not reset by the flags parsing code
+        	// therefore, put those flags in the else statements below
+        	use_weighted_kmer = false;
         }
+        else{
+        	// match the boolean parameters above
+            use_weighted_kmer = !flags.contains("no_weighted_kmer");
+        }
+        	
 
         // default as false, need the flag to turn it on
         classify_events = flags.contains("classify");
@@ -272,7 +281,6 @@ public class Config {
         use_sub_kmers = !flags.contains("ns");
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
-        use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_pos_kmer = !flags.contains("no_pos_kmer");
         optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
         optimize_kmer_set = !flags.contains("not_optimize_kmer_set");

@@ -6,12 +6,15 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.TreeSet;
 
 public class KmerSet{
 	private ArrayList<Kmer> kmers;
 	public int posSeqCount=-1;
 	public int negSeqCount=-1;
 	public double ksmThreshold=0;
+	private TreeSet<Integer> clusterIds;
 	
 	public KmerSet (File file){
 		kmers = new ArrayList<Kmer>();
@@ -27,13 +30,15 @@ public class KmerSet{
 	        line = line.substring(1,line.length());			//remove # sign
 	        ksmThreshold = Double.parseDouble(line);
 
+	        clusterIds = new TreeSet<Integer>();
 	        while((line = bin.readLine()) != null) { 
 	        	if (line.startsWith("#"))
 	        		continue;
 	            line = line.trim();
 	            Kmer kmer = Kmer.fromString(line);
 	            kmers.add(kmer);
-	        }			
+	            clusterIds.add(kmer.getClusterId());
+	        }
 	        if (bin != null) {
 	            bin.close();
 	        }
@@ -51,6 +56,9 @@ public class KmerSet{
 				selected.add(km);
 		}
 		return selected;
+	}
+	public Set<Integer> getClusterIds (){
+		return clusterIds;
 	}
 	
 	public static void main0(String[] args){

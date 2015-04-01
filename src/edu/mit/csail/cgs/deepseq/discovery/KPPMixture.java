@@ -126,7 +126,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private FileWriter logFileWriter;
 
 	/** Kmer motif engine */
-	private KMAC kmac;
+	private KMAC kmac = null;
 	private boolean kmerPreDefined = false;
 	
 	public KPPMixture(Genome g, 
@@ -226,9 +226,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		kmerPreDefined = true;
 			File kFile = new File(kmerFile);
 			if(kFile.isFile()){
-				KmerSet kc = new KmerSet(kFile);
-	        	kmac = new KMAC(kc.getKmers(0), config, outName);
-	        	kmac.setTotalSeqCounts(kc.posSeqCount, kc.negSeqCount);
+				KmerSet kmerset = new KmerSet(kFile);
+	        	kmac = new KMAC(kmerset, config, outName);
 			}
     	}
     	
@@ -552,7 +551,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
 
         if (config.strand_type ==1)
-        	log(1, "Running in single-strand mode (usually for RNA-based data)\n");
+        	log(1, "Calling events in single-strand mode (usually for RNA-based data)\n");
         
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         ArrayList<Region> regionsToRun = new ArrayList<Region>();
@@ -1407,9 +1406,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		 * If no file pre-specified, estimate the enrichedRegions after loading the data.
 		 * We do not want to run EM on regions with little number of reads
 		 * **************************************************/
-    	String subset_str = Args.parseString(args, "subs", null);
+    	String subset_str = Args.parseString(args, "subs", null);		// a string, chrom, coords
      	String subsetFormat = Args.parseString(args, "subFormat", "");
-    	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
+    	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }		// a file
     	ArrayList<Region> subsetRegions = new ArrayList<Region>();
      	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
 	    	if (subsetFormat.equals("Points")){	// To expand
@@ -3867,8 +3866,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         comps.addAll(result);
                     }
                     
-//                    // DO NOT need this part, because the selectEnrichedRegions() method has been optimized to set appropirate region sizes
-//                    // Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
+//                    // DO NOT need this part any more, because the selectEnrichedRegions() method has been optimized to set appropirate region sizes
+//                    
+                    // Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
 //                    ArrayList<Region> windows = new ArrayList<Region>();
 //                    if (rr.getWidth()<=config.windowSize)
 //                        windows.add(rr);
@@ -4244,7 +4244,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             	String seq = null;
             	char seqStrand = readStrand;
             	
-            	if (kmac!=null && kmac.isInitialized()){ 
+//            	if (kmac!=null && kmac.isInitialized()){
+                if (kmac!=null){
             		if (kmerPreDefined){		// if kmer is loaded from other sources, get fresh sequence 
             			seq = seqgen.execute(w).toUpperCase();                		
             		}
@@ -4363,10 +4364,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            						strand = profiler.getHigherScoreStrand(i);
 	            					int pos = 0;	// BS_seq
 	            					int BS_pwm = cluster.pos_BS_seed-cluster.pos_pwm_seed;
-	            					if (strand==seqStrand)	// + +; or - -, no need to re-position
-	            						pos = BS_pwm + i;
+	            					if (strand=='+')	// if pwm matches on the fwd of the seq
+	            						pos = BS_pwm + i;	// i: pwm_seq
 	            					else
 	            						pos = i + wmLen -1 + (-BS_pwm);
+			                		if (seqStrand=='-')	// if seq is the rc strand, flip the position, because the kpp is set according to fwd strand coordinate
+			                			pos = seq.length() - pos - 1;
+
 	            					if (pos<0||pos>=seq.length())		// if match falls out of the sequence
 	            						continue EACH_HIT;
 			                		int neighbourStart = Math.max(0, pos-wmLen/2);
@@ -5489,7 +5493,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        			// validate kmer match and label bound sequence with match k-mers
 	        			String ks = b.getKmerGroup().getBestKmer().getKmerString();
 	        			if (!bs.contains(ks)){
-	        				System.err.println(String.format("ERROR: Kmer %s NOT found in BS %s.", ks, bs));
+	        				System.err.println(String.format("ERROR: Kmer %s NOT found in FW %s.", ks, bs));
 	        				bs = SequenceUtils.reverseComplement(bs);
 	        				b.setKmerStrand('-');
 	        			}

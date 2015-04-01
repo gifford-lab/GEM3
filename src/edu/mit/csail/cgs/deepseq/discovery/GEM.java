@@ -170,35 +170,42 @@ public class GEM {
         int GEM_round = Args.parseInteger(args,"r_gem", 2);
         int minLeft = Args.parseInteger(args,"d_l", 300);
         int minRight = Args.parseInteger(args,"d_r", 200);
+        String kf = Args.parseString(args,"kf", null);
         boolean not_update_model = flags.contains("not_update_model");
+        
+        String filePrefix = mixture.getOutName();
+        String prefix = new File(filePrefix).getName();
+        File currentFolder = null;
+        String path = null;
         /**
          ** Simple GPS event finding without sequence information
          **/
-	    int round = 0;
-        String filePrefix = mixture.getOutName();
-        String prefix = new File(filePrefix).getName();
-        mixture.setOutName(filePrefix+"_"+round);
-        System.out.println("\n============================ Round "+round+" ============================");
         
-        mixture.execute();
-        if (!not_update_model){
-	        boolean constant_model_range = Args.parseFlags(args).contains("constant_model_range");
-	        if (!constant_model_range){
-	            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
-	            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), filePrefix+"_"+(round+1));
+ 	    int round = 0;
+ 	    if (kf==null && !not_update_model){
+	 	    mixture.setOutName(filePrefix+"_"+round);
+	        System.out.println("\n============================ Round "+round+" ============================");
+	        
+	        mixture.execute();
+	        if (!not_update_model){
+		        boolean constant_model_range = Args.parseFlags(args).contains("constant_model_range");
+		        if (!constant_model_range){
+		            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
+		            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), filePrefix+"_"+(round+1));
+		        }
+		        else
+		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
 	        }
-	        else
-	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
-        }
-        if (Args.parseFlags(args).contains("process_all_regions")){
-	        mixture.printFeatures(round);
-	        mixture.printFilteredFeatures(round);
-	        mixture.printInsignificantFeatures(round);	        
-        	if (Args.parseFlags(args).contains("refine_regions"))
-            	mixture.refineRegions();
-        }
-        mixture.releaseMemory();
-        
+	        if (Args.parseFlags(args).contains("process_all_regions")){
+		        mixture.printFeatures(round);
+		        mixture.printFilteredFeatures(round);
+		        mixture.printInsignificantFeatures(round);	        
+	        	if (Args.parseFlags(args).contains("refine_regions"))
+	            	mixture.refineRegions();
+	        }
+	        mixture.releaseMemory();
+ 	    }
+
         while (round+1<GPS_round){
             round++;
             System.out.println("\n============================ Round "+round+" ============================");
@@ -212,12 +219,13 @@ public class GEM {
 	        mixture.releaseMemory();
         }
 
-    	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
-    	String path = new File(currentFolder, prefix).getAbsolutePath();
+    	currentFolder = new File(filePrefix).getParentFile().getParentFile();
+    	path = new File(currentFolder, prefix).getAbsolutePath();
         CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
         if (Args.parseFlags(args).contains("outNP"))
         	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GPS_events.narrowPeak");
-        
+
+    
         /**
          ** GEM event finding with kmer motif positional prior (KPP)
          **/    	

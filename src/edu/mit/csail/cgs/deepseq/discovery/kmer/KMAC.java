@@ -257,6 +257,22 @@ public class KMAC {
 			k=kmers.get(0).getK();
 		}
 	}
+	
+	/* 
+	 * Contruct a KMAC object from a list of KSM motif, used in GEM for setting the motif positional prior 
+	 */
+	public KMAC(KmerSet kmerset, Config config, String outPrefix){
+		setConfig(config, outPrefix);
+		setTotalSeqCount(kmerset.posSeqCount, kmerset.negSeqCount);
+		Set<Integer> clusterIds = kmerset.getClusterIds();
+		for (int id: clusterIds){
+			KmerCluster cluster = new KmerCluster();
+			cluster.alignedKmers = kmerset.getKmers(id);
+			cluster.ksmThreshold.score = kmerset.ksmThreshold;
+			clusters.add(cluster);
+		}
+	}
+	
 	/**
 	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
 	 * At the same time, retrieve negative sequences (for only once, no caching)
@@ -5124,11 +5140,11 @@ public class KMAC {
 	        			try{
 	        				seq_w.add(Double.parseDouble(f[1]));
 	        			}catch(NumberFormatException nfe){
-	        				seq_w.add(1.0);
+	        				seq_w.add(10.0);
 	        			}
 	        		}
 		            else
-		            	seq_w.add(1.0);
+		            	seq_w.add(10.0);
 	        	}
 	        	else{
 	        		int left = line.length()/2-config.k_win/2;

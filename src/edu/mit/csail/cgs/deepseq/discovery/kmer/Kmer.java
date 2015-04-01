@@ -90,8 +90,10 @@ public class Kmer implements Comparable<Kmer>{
 			for (int i = posBits.nextSetBit(0); i >= 0; i = posBits.nextSetBit(i+1)) {
 				weight+=seq_weights[i];
 	 		}
+			weightedPosHitCount = (int)weight;
 		}
-		weightedPosHitCount = (int)weight;
+		else
+			weightedPosHitCount = posBits.cardinality();
 	}
 	public int getWeightedHitCount(){
 		return weightedPosHitCount;
@@ -296,48 +298,46 @@ public class Kmer implements Comparable<Kmer>{
 		String[] f0f = f[0].split("/");
 		HashSet<Integer> posHits = new HashSet<Integer>();
 		HashSet<Integer> negHits = new HashSet<Integer>();
-		if (f.length==9){
-			String pos_id_string = f[7].trim();
-			if (!pos_id_string.equals("-1")){
-				String[] pos_ids = pos_id_string.split(" ");
-				for (String hit:pos_ids)
-					posHits.add(Integer.valueOf(hit));
+		
+		int numField = f.length;	// 9 with WPos field, 8 without
+		int posIDIndex = numField-2;
+		int negIDIndex = numField-1;
+		int HgpIndex = numField-3;
+		
+		String pos_id_string = f[posIDIndex].trim();
+		if (!pos_id_string.equals("-1")){
+			String[] pos_ids = null;
+			if (pos_id_string.charAt(0)=='{'){	// new BitSet format
+				pos_id_string = pos_id_string.substring(1,pos_id_string.length()-1);
+				pos_ids = pos_id_string.split(", ");
 			}
-
-			String neg_id_string = f[8].trim();
-			if (!neg_id_string.equals("-1")){
-				String[] neg_ids = neg_id_string.split(" ");
-				for (String hit:neg_ids)
-					negHits.add(Integer.valueOf(hit));
+			else{
+				pos_ids = pos_id_string.split(" ");
 			}
+			for (String hit:pos_ids)
+				posHits.add(Integer.valueOf(hit));
 		}
-		else if (f.length==8){ // no wPos field
-			String pos_id_string = f[6].trim();
-			if (!pos_id_string.equals("-1")){
-				String[] pos_ids = pos_id_string.split(" ");
-				for (String hit:pos_ids)
-					posHits.add(Integer.valueOf(hit));
+		String neg_id_string = f[negIDIndex].trim();
+		if (!neg_id_string.equals("-1")){
+			String[] neg_ids = null;
+			if (neg_id_string.charAt(0)=='{'){	// new BitSet format
+				neg_id_string = neg_id_string.substring(1,neg_id_string.length()-1);
+				neg_ids = neg_id_string.split(", ");
 			}
-
-			String neg_id_string = f[7].trim();
-			if (!neg_id_string.equals("-1")){
-				String[] neg_ids = neg_id_string.split(" ");
-				for (String hit:neg_ids)
-					negHits.add(Integer.valueOf(hit));
+			else{
+				neg_ids = neg_id_string.split(" ");
 			}
+			for (String hit:neg_ids)
+				negHits.add(Integer.valueOf(hit));
 		}
 		
 		Kmer kmer = new Kmer(f0f[0], posHits);	
+		kmer.setNegHits(negHits);
+		kmer.setWeightedPosHitCount();
 		kmer.clusterId = Integer.parseInt(f[1]);
 		kmer.kmerStartOffset = Integer.parseInt(f[2]);
-		kmer.setNegHits(negHits);
-		if (f.length==9){
-			kmer.hgp_lg10 = Double.parseDouble(f[6]);
-		}
-		else if (f.length==8){		// no wPos field
-			kmer.hgp_lg10 = Double.parseDouble(f[5]);
-		}
-
+		kmer.hgp_lg10 = Double.parseDouble(f[HgpIndex]);
+		
 		return kmer;
 	}
 
