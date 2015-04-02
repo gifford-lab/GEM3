@@ -1546,13 +1546,15 @@ public class KMAC {
 							s.fPos.put(km, new HashSet<Integer>());
 						s.fPos.get(km).add(p);
 					}
-					pos = StringUtils.findAllOccurences(seq, km.getKmerRC());
-					for (int p:pos){
-						if (!s.fPos.containsKey(km))
-							s.fPos.put(km, new HashSet<Integer>());
-						s.fPos.get(km).add(p+RC);					// match kmer RC
-					}
+
 					if (config.strand_type != 1){
+						// forward strand but match the kmer RC
+						pos = StringUtils.findAllOccurences(seq, km.getKmerRC());
+						for (int p:pos){
+							if (!s.fPos.containsKey(km))
+								s.fPos.put(km, new HashSet<Integer>());
+							s.fPos.get(km).add(p+RC);					// match kmer RC
+						}
 						// reverse strand
 						pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
 						for (int p:pos){
