@@ -2,6 +2,7 @@ package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -143,7 +144,8 @@ public class CountKmers {
 			double[] values = new double[numCond];
 			for (int c=0;c<numCond;c++){
 				double sum=0;
-				for (int id : km.getPosHits())
+				BitSet bitset = km.getPosBits();
+				for (int id = bitset.nextSetBit(0); id >= 0; id = bitset.nextSetBit(id+1))
 					sum += eventStrength[id][c];
 				values[c]=sum;
 			}

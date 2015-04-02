@@ -53,7 +53,7 @@ public class Config {
     public String seed = null;
     public int seq_weight_type = 3;	// "swt" - 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
     
-    /** number of top k-mers selected from density clustering to run KMAC */
+    /** number of top k-mers (for each k value) selected from density clustering to run KMAC */
     public int k_top = 5;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
     public int dc = 2;

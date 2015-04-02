@@ -58,7 +58,7 @@ public class Kmer implements Comparable<Kmer>{
 	HashSet<GappedKmer> getGappedKmers(){
 		return gappedKmers;
 	}
-	protected HashSet<Integer> posHits = new HashSet<Integer>();
+//	protected HashSet<Integer> posHits = new HashSet<Integer>();
 	BitSet posBits = new BitSet();
 	/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
 	 * 	get a weighted version of hit count if use_weighted_hit_count is true
@@ -69,8 +69,9 @@ public class Kmer implements Comparable<Kmer>{
 		else
 			return posBits.cardinality();
 	}
+	public BitSet getPosBits(){return posBits;}
+	
 	public void setPosHits(HashSet<Integer> posHits) {
-		this.posHits = posHits;
 		if (posHits.isEmpty())
 			return;
 		
@@ -81,19 +82,11 @@ public class Kmer implements Comparable<Kmer>{
 		if (use_weighted_hit_count)
 			setWeightedPosHitCount();
 	}
-	public HashSet<Integer> getPosHits(){return posHits;}
+//	public HashSet<Integer> getPosHits(){return posHits;}
 	
 	private int weightedPosHitCount;
 	protected void setWeightedPosHitCount(){
-		double weight=0;
-		if (seq_weights!=null){
-			for (int i = posBits.nextSetBit(0); i >= 0; i = posBits.nextSetBit(i+1)) {
-				weight+=seq_weights[i];
-	 		}
-			weightedPosHitCount = (int)weight;
-		}
-		else
-			weightedPosHitCount = posBits.cardinality();
+		weightedPosHitCount = CommonUtils.calcWeightedHitCount(posBits, seq_weights);
 	}
 	public int getWeightedHitCount(){
 		return weightedPosHitCount;
@@ -101,17 +94,17 @@ public class Kmer implements Comparable<Kmer>{
 	public double familyHgp;
 	
 //	int negHitCount;
-	protected HashSet<Integer> negHits = new HashSet<Integer>();
+//	protected HashSet<Integer> negHits = new HashSet<Integer>();
 	BitSet negBits = new BitSet();
+	public BitSet getNegBits(){return negBits;}
 	public int getNegHitCount() {return negBits.cardinality();}
 	public void setNegHits(HashSet<Integer> negHits) {
-		this.negHits = negHits;
-//		negHitCount = negHits.size();
+		negBits.clear();
 		for (int id:negHits){
 			negBits.set(id);
 		}
 	}
-	public HashSet<Integer> getNegHits(){return negHits;}
+//	public HashSet<Integer> getNegHits(){return negHits;}
 	
 	public int getNetHitCount(double posNegSeqRatio) {
 		return getPosHitCount()-(int)(getNegHitCount()*posNegSeqRatio);

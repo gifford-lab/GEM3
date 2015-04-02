@@ -15,6 +15,7 @@ import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -476,6 +477,26 @@ public class CommonUtils {
 	      }
 	      return sb.toString();
 	}
+	
+	/**
+	 * Calculate the weighted sequence hit count<br>
+	 * The length of seq_weights should be not less then the highest bit index of bitset
+	 * @param bitset
+	 * @param seq_weights
+	 * @return
+	 */
+	public static int calcWeightedHitCount(BitSet bitset, double[] seq_weights){
+		double weight=0;
+		if (seq_weights!=null){
+			for (int i = bitset.nextSetBit(0); i >= 0; i = bitset.nextSetBit(i+1)) {
+				weight+=seq_weights[i];
+	 		}
+			return (int)weight;
+		}
+		else
+			return bitset.cardinality();
+	}
+	
 	public static final char[] LETTERS = {'A','C','G','T'};
 
 	/**

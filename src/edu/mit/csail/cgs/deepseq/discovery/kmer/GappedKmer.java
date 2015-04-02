@@ -42,10 +42,8 @@ public class GappedKmer extends Kmer{
 		return baseKmers.get(subkmer);
 	}
 	public void mergePosHits(){
-		posHits.clear();
 		posBits.clear();
 		for (Kmer km:baseKmers.keySet()){
-			posHits.addAll(km.getPosHits());
 			posBits.or(km.posBits);
 		}
 		if (use_weighted_hit_count)
@@ -53,10 +51,10 @@ public class GappedKmer extends Kmer{
 	}
 	
 	public void mergeNegHits(){
-		negHits.clear();
+//		negHits.clear();
 		negBits.clear();
 		for (Kmer km:baseKmers.keySet()){
-			negHits.addAll(km.getNegHits());
+//			negHits.addAll(km.getNegHits());
 			negBits.or(km.negBits);
 		}
 	}

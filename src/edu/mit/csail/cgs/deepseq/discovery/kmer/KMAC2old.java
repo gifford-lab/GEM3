@@ -2388,23 +2388,23 @@ public class KMAC2old {
 		
 		// mapping from sequence id to kmers
 		HashMap<Integer, HashSet<Kmer>> seq2kmers = new HashMap<Integer, HashSet<Kmer>>();
-		for (Kmer km: kmers){
-			HashSet<Integer> hits = km.getPosHits();
-			for (int h:hits){
-				if (!seq2kmers.containsKey(h))
-					seq2kmers.put(h, new HashSet<Kmer>());
-				seq2kmers.get(h).add(km);
-			}
-		}
+//		for (Kmer km: kmers){
+//			HashSet<Integer> hits = km.getPosHits();
+//			for (int h:hits){
+//				if (!seq2kmers.containsKey(h))
+//					seq2kmers.put(h, new HashSet<Kmer>());
+//				seq2kmers.get(h).add(km);
+//			}
+//		}
 		HashMap<Integer, HashSet<Kmer>> seq2kmers_neg = new HashMap<Integer, HashSet<Kmer>>();
-		for (Kmer km: kmers){
-			HashSet<Integer> hits = km.getNegHits();
-			for (int h:hits){
-				if (!seq2kmers_neg.containsKey(h))
-					seq2kmers_neg.put(h, new HashSet<Kmer>());
-				seq2kmers_neg.get(h).add(km);
-			}
-		}
+//		for (Kmer km: kmers){
+//			HashSet<Integer> hits = km.getNegHits();
+//			for (int h:hits){
+//				if (!seq2kmers_neg.containsKey(h))
+//					seq2kmers_neg.put(h, new HashSet<Kmer>());
+//				seq2kmers_neg.get(h).add(km);
+//			}
+//		}
 		
 		int posHitCount = seq2kmers.size();
 		int negHitCount = seq2kmers_neg.size();
@@ -2421,8 +2421,8 @@ public class KMAC2old {
 				int count_with_single_kmer_neg = 0;
 				HashSet<Integer> hits_to_remove = new HashSet<Integer>();
 				HashSet<Integer> hits_to_remove_neg = new HashSet<Integer>();
-				HashSet<Integer> hits = km.getPosHits();
-				HashSet<Integer> hits_neg = km.getNegHits();
+				HashSet<Integer> hits = null; //km.getPosHits();
+				HashSet<Integer> hits_neg = null; //km.getNegHits();
 				for (int h:hits){
 					if (seq2kmers.get(h).size()==1){
 						count_with_single_kmer++;
@@ -3588,13 +3588,13 @@ public class KMAC2old {
 			
     		HashSet<Integer> allPosHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
-        		allPosHits.addAll(kmers.get(i).getPosHits());
+//        		allPosHits.addAll(kmers.get(i).getPosHits());
     		}
     		posHitGroupCount = allPosHits.size();
     		
     		HashSet<Integer> allNegHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
-        		allNegHits.addAll(kmers.get(i).getNegHits());
+//        		allNegHits.addAll(kmers.get(i).getNegHits());
     		}
     		negHitGroupCount = allNegHits.size();
 		}
@@ -3606,7 +3606,7 @@ public class KMAC2old {
 			
     		HashSet<Integer> allPosHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
-        		allPosHits.addAll(kmers.get(i).getPosHits());
+//        		allPosHits.addAll(kmers.get(i).getPosHits());
     		}
     		
     		if (weights==null){
@@ -3622,7 +3622,7 @@ public class KMAC2old {
     		
     		HashSet<Integer> allNegHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
-        		allNegHits.addAll(kmers.get(i).getNegHits());
+//        		allNegHits.addAll(kmers.get(i).getNegHits());
     		}
     		negHitGroupCount = allNegHits.size();
 		}

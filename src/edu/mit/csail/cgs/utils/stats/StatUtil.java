@@ -1922,7 +1922,7 @@ public class StatUtil {
 	 * @return Return points with high delta values, then points that are far from the high delta points
 	 */
 	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, 
-			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double posNegSeqRatio, int distanceCutoff){
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
@@ -1930,7 +1930,7 @@ public class StatUtil {
 			DensityClusteringPoint p = util.new DensityClusteringPoint();
 			p.id = i;
 			// self_density: individual k-mer hit count
-			double self_density = posHitList.get(i).cardinality()-negHitList.get(i).cardinality()*posNegSeqRatio;
+			double self_density = CommonUtils.calcWeightedHitCount(posHitList.get(i),seq_weights) - negHitList.get(i).cardinality()*posNegSeqRatio;
 			double[] distanceVector = distanceMatrix[i];
 			// sum up to get total hit count of this point and its neighbors
 			BitSet b_pos = new BitSet();
@@ -1942,12 +1942,14 @@ public class StatUtil {
 				}
 			}
 			// group hit count * self_density, to down-weight weak kmers from being selected as center
-			p.densitySxN = Math.sqrt((b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio) * self_density);
+			p.densitySxN = Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			if (Double.isNaN(p.densitySxN))
+				continue;
 			p.density = p.densitySxN;
 //			p.density = b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio;
 			data.add(p);
 		}
-		data.trimToSize();		
+		data.trimToSize();	
 		Collections.sort(data);
 		
 		// compute the shortest distance to the potential centers
