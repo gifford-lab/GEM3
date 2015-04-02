@@ -312,7 +312,7 @@ public class KMAC {
 		 * @param winShift
 		 */
 		public void loadTestSequences(ArrayList<ComponentFeature> events, int winSize){
-		
+			
 			int eventCount = events.size();
 			ArrayList<Region> posImpactRegion = new ArrayList<Region>();			// to make sure negative region is not within negRegionDistance of positive regions.
 			ArrayList<String> posSeqs = new ArrayList<String>();
@@ -982,8 +982,7 @@ public class KMAC {
 		tic = System.currentTimeMillis();
 		if (kmers_in.size()==0)
 			return kmers_in;
-//		System.out.println("\nRunning KMAC motif discovery ...");
-//		boolean bestSeed_is_reset = false;					
+
 		// clone to modify locally
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		for (Kmer km:kmers_in)
@@ -5002,7 +5001,10 @@ public class KMAC {
         KMAC kmf = new KMAC(config, name);
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
         kmf.setStandalone();
-
+		
+		if (config.strand_type==1)
+			System.out.println("Running single-strand KMAC motif discovery ...\n");
+		
         System.out.println(String.format("%d input positive sequences, use top %d center sequences (%dbp) to find motif ...", pos_seqs.size(), kmf.seqs.length, config.k_win));
         if (config.k==-1){
         	if (config.selectK_byTopKmer)

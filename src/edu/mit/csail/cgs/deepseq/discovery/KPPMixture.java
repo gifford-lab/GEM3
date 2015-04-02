@@ -3652,7 +3652,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();    	
     	kmac.loadTestSequences(events, winSize);
-    	log(1, String.format("Running KMAC motif discovery with %d+/%d- sequences.\n", kmac.getPositiveSeqs().length, kmac.getNegSeqCount()));
+		
+		if (config.strand_type==1)
+			System.out.println("\nRunning single-strand KMAC motif discovery ...");
+		
+    	log(1, String.format("KMAC motif discovery with %d+/%d- sequences.\n", kmac.getPositiveSeqs().length, kmac.getNegSeqCount()));
     	if (config.print_input_seqs)
     		kmac.printInputSequences(outName);
     	
