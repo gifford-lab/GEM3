@@ -4019,24 +4019,24 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     	// NOTE: this code is also used below, updates should be in sync
                     	ArrayList<ComponentFeature> cfs = callFeatures(comps);
                     	compFeatures.addAll(cfs);
-                    	if (!config.process_all_regions){
-	                    	evaluateSignificance(cfs);
-	                    	boolean significant = false;	            			            		
-	                    	for (ComponentFeature cf:cfs){
-	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
-	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
-		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
-		            						significant = true;
-		            						break;
-		            					}
-		            				}
-		            				else		//TODO: if histone data, need to test as a set of events
-		            					significant = true;
-		                    	}
-	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
-		                    		goodFeatures.add(cf);
-	            			}
-                    	}
+//                    	if (!config.process_all_regions){
+//	                    	evaluateSignificance(cfs);
+//	                    	boolean significant = false;	            			            		
+//	                    	for (ComponentFeature cf:cfs){
+//	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
+//	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
+//		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
+//		            						significant = true;
+//		            						break;
+//		            					}
+//		            				}
+//		            				else		//TODO: if histone data, need to test as a set of events
+//		            					significant = true;
+//		                    	}
+//	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
+//		                    		goodFeatures.add(cf);
+//	            			}
+//                    	}
                     }
                     /* ****************************************************************
                      * if not positional prior, refine unary events by scanEvent()
@@ -4127,24 +4127,24 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         	// NOTE: this code is also used above, updates should be in sync
                         	ArrayList<ComponentFeature> cfs = callFeatures(bs);	
                         	compFeatures.addAll(cfs);
-                        	if (!config.process_all_regions){
-    	                    	evaluateSignificance_simplified(cfs);
-    	                    	boolean significant = false;	            			            		
-    	                    	for (ComponentFeature cf:cfs){
-    	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
-    	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
-    		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
-    		            						significant = true;
-    		            						break;
-    		            					}
-    		            				}
-    		            				else		//TODO: if histone data, need to test as a set of events
-    		            					significant = true;
-    		                    	}
-    	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
-    		                    		goodFeatures.add(cf);
-    	            			}
-                        	} // if only process partial data
+//                        	if (!config.process_all_regions){
+//    	                    	evaluateSignificance_simplified(cfs);
+//    	                    	boolean significant = false;	            			            		
+//    	                    	for (ComponentFeature cf:cfs){
+//    	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
+//    	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
+//    		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
+//    		            						significant = true;
+//    		            						break;
+//    		            					}
+//    		            				}
+//    		            				else		//TODO: if histone data, need to test as a set of events
+//    		            					significant = true;
+//    		                    	}
+//    	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
+//    		                    		goodFeatures.add(cf);
+//    	            			}
+//                        	} // if only process partial data
                         }
                     }
                     processedRegionCount.add(1); 
@@ -5497,12 +5497,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        			// validate kmer match and label bound sequence with match k-mers
 	        			String ks = b.getKmerGroup().getBestKmer().getKmerString();
 	        			if (!bs.contains(ks)){
-	        				System.err.println(String.format("ERROR: Kmer %s NOT found in FW %s.", ks, bs));
+	        				if (config.strand_type == 1)
+	        					System.err.println(String.format("ERROR: Kmer %s NOT found at %s\tFW %s.", ks, b.getLocation().toString(), bs));
 	        				bs = SequenceUtils.reverseComplement(bs);
 	        				b.setKmerStrand('-');
 	        			}
 	        			if (!bs.contains(ks)){
-	        				System.err.println(String.format("ERROR: Kmer %s NOT found in RC BS %s.", ks, bs));
+	        				System.err.println(String.format("ERROR: Kmer %s NOT found at %s\tRC BS %s.", ks, b.getLocation().toString(), bs));
 	        				b.setKmerGroup(null);
 	        				b.setKmerStrand('*');
 //	        				bs = bs.toLowerCase();		// comment out, if NOT FOUND, leave it as UPPER Case
