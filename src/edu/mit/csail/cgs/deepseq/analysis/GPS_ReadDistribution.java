@@ -54,6 +54,7 @@ public class GPS_ReadDistribution {
 	private boolean print_4_orientations;
 	private boolean isMirrorSymmetry;
 	private boolean print_value = false;	// print raw read count value, default: false, print probability
+	private boolean do_not_shift = false;	// print raw read count value, default: false, print probability
 	
 	public static void main(String[] args) throws IOException {
 		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
@@ -65,6 +66,7 @@ public class GPS_ReadDistribution {
 		Set<String> flags = Args.parseFlags(args);
 		print_4_orientations = flags.contains("p4");
 		print_value = flags.contains("val");
+		do_not_shift = flags.contains("noshift");
 		isMirrorSymmetry = flags.contains("mirrow");
 		if (isMirrorSymmetry)
 			System.out.println("Running MirrorSymmetry mode ... ");
@@ -368,8 +370,10 @@ public class GPS_ReadDistribution {
 				pm = reverseArray(pm);
 			mm = reverseArray(mm);
 			
-			BindingModel.minKL_Shift(pp, mm, 5);
-			BindingModel.minKL_Shift(mp, pm, 5);
+			if (!do_not_shift){
+				BindingModel.minKL_Shift(pp, mm, 5);
+				BindingModel.minKL_Shift(mp, pm, 5);
+			}
 			ArrayList<Pair<Integer, Double>> same = new ArrayList<Pair<Integer, Double>>();		// reads on the same strand as motif
 			for (int i=0;i<length;i++){
 				pp[i]+=mm[i];		// store in pp
@@ -390,7 +394,8 @@ public class GPS_ReadDistribution {
 			if (smooth_step>0)
 				model_diff.smooth(smooth_step, smooth_step);
 			model_diff.printToFile(String.format("Read_Distribution_%s_diff.txt", name), print_value);
-			BindingModel.minKL_Shift(pp, mp, 5);
+			if (!do_not_shift)
+				BindingModel.minKL_Shift(pp, mp, 5);
 			for (int i=0;i<length;i++){
 				dist.add(new Pair<Integer, Double>(i-range, pp[i]+mp[i]));
 			}
@@ -412,8 +417,8 @@ public class GPS_ReadDistribution {
 			if (smooth_step>0)
 				model_minus.smooth(smooth_step, smooth_step);
 			model_minus.printToFile(String.format("Read_Distribution_%s_minus.txt", name), print_value);
-
-			BindingModel.minKL_Shift(pp, mm, 5);
+			if (!do_not_shift)
+				BindingModel.minKL_Shift(pp, mm, 5);
 			for (int i=0;i<length;i++){
 				dist.add(new Pair<Integer, Double>(i-range, pp[i]+mm[i]));
 			}
