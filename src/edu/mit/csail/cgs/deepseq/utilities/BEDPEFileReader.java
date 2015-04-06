@@ -5,11 +5,16 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.Read;
 import edu.mit.csail.cgs.deepseq.ReadHit;
+
+//for testing
+import java.util.List;
+import edu.mit.csail.cgs.datasets.general.Region;
 
 public class BEDPEFileReader extends PairedAlignmentFileReader {
 
@@ -42,7 +47,7 @@ public class BEDPEFileReader extends PairedAlignmentFileReader {
                     tmp = readTwoChr.split("\\.");
                     readTwoChr=tmp[0].replaceFirst("chr", "");
                     readTwoChr=readOneChr.replaceFirst("^>", "");
-                    if (readOneChr == readTwoChr) {
+                    if (readOneChr.equals(readTwoChr)) {
                         int readOneMax = Math.max(new Integer(words[1]).intValue(), new Integer(words[2]).intValue());
                         int readTwoMax = Math.max(new Integer(words[4]).intValue(), new Integer(words[5]).intValue());
                         int max = Math.max(readOneMax, readTwoMax);
@@ -77,7 +82,8 @@ public class BEDPEFileReader extends PairedAlignmentFileReader {
             BufferedReader reader = new BufferedReader(new FileReader(inFile));
             String line, lastID="";
             double currReadHitCount=0;
-            Read currRead=null;
+            Read currReadOne=null;
+            Read currReadTwo=null;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if(line.charAt(0)!='#'){
@@ -88,46 +94,68 @@ public class BEDPEFileReader extends PairedAlignmentFileReader {
                         return;
                     }
                         
-                    String chr="."; char strand = '.';
+                    String chrOne="."; char strandOne = '.';
+                    String chrTwo="."; char strandTwo = '.';
                     int startOne=0, endOne=0;
                     int startTwo=0, endTwo=0;
                     
                     //String ID = words[3]; //No reliable ID for BED format, so treat EVERY hit as a new/unique read
 
-                    if(currRead!=null){
-                        currRead.setNumHits(currReadHitCount);
+                    if(currReadOne!=null){
+                        currReadOne.setNumHits(currReadHitCount);
                         //Add the hits to the data structure
-                        addHits(currRead);
-                        currRead=null;
+                        addHits(currReadOne, currReadTwo);
+                        currReadOne=null;
                     }
                     currReadHitCount=1;                     
                     try{
-                        chr = words[0];
-                        String[] tmp = chr.split("\\.");
-                        chr=tmp[0].replaceFirst("chr", "");
-                        chr=chr.replaceFirst("^>", "");
+                        chrOne = words[0];
+                        String[] tmp = chrOne.split("\\.");
+                        chrOne=tmp[0].replaceFirst("chr", "");
+                        chrOne=chrOne.replaceFirst("^>", "");
+                        
+                        chrTwo = words[3];
+                        String[] tmp2 = chrTwo.split("\\.");
+                        chrTwo=tmp2[0].replaceFirst("chr", "");
+                        chrTwo=chrTwo.replaceFirst("^>", "");
                         // http://genome.ucsc.edu/FAQ/FAQformat.html#format1
                         //BED format is half open - The chromEnd base is not included  
                         // For example, the first 100 bases of a chromosome are defined as chromStart=0, chromEnd=100, and span the bases numbered 0-99.
                         startOne = new Integer(words[1]).intValue();
                         endOne = new Integer(words[2]).intValue();
+                        
+                        startTwo = new Integer(words[4]).intValue();
+                        endTwo = new Integer(words[5]).intValue();
+                        
                         if(readLengthOne==-1)
                             readLengthOne = endOne-startOne;
-                        strand = words[5].charAt(0);
-                        ReadHit currHit = new ReadHit(gen,currID,chr, startOne, endOne-1, strand);
+                        if(readLengthTwo==-1)
+                            readLengthTwo = endTwo-startTwo;
+                        if(insertLength==-1)
+                            insertLength = startTwo-endOne;
+                        strandOne = words[8].charAt(0);
+                        strandTwo = words[9].charAt(0);
+                        if (!chrOne.matches(chrTwo)||strandOne==strandTwo) {//wrong chr or improper strand pairing
+                            //System.out.println("invalid pair");
+                            continue;
+                        }
+                        ReadHit currHitOne = new ReadHit(gen,currID,chrOne, startOne, endOne-1, strandOne);
                         currID++;
-                        currRead = new Read((int)totalWeight);
+                        ReadHit currHitTwo = new ReadHit(gen, currID, chrTwo, startTwo, startTwo-1, strandTwo);
+                        currReadOne = new Read((int)totalWeight);
+                        currReadTwo = new Read((int)totalWeight);
                         totalWeight++;
-                        currRead.addHit(currHit);
+                        currReadOne.addHit(currHitOne);
+                        currReadTwo.addHit(currHitTwo);
                     } catch (NumberFormatException e){
                         // skip reading this line for header or comment lines
                     }
                 }
             }
-            if(currRead!=null){
-                currRead.setNumHits(currReadHitCount);
+            if(currReadOne!=null){
+                currReadOne.setNumHits(currReadHitCount);
                 //Add the hits to the data structure
-                addHits(currRead);
+                addHits(currReadOne, currReadTwo);
             }
             reader.close();
             populateArrays();
@@ -142,8 +170,34 @@ public class BEDPEFileReader extends PairedAlignmentFileReader {
      * @param args
      */
     public static void main(String[] args) {
+        File notPEfile = new File("/Users/jennylin/Documents/Jenny/UROP/chr1.bed");
         File testFile = new File("/Users/jennylin/Documents/Jenny/UROP/chr1.bedpe");
+        HashMap<String, Integer> c2i = new HashMap<String, Integer>();
+        HashMap<Integer, String> i2c = new HashMap<Integer, String>();
+        System.out.println("Hi world once");
         BEDPEFileReader testReading = new BEDPEFileReader(testFile);
+        System.out.println("Hi world");
+        Genome g = testReading.getGenome();
+        List<String> chromList = g.getChromList();
+        int i=0; 
+        for(String c:chromList){
+            c2i.put(c, i);
+            i2c.put(i, c);
+            i++;
+        }
+        Region testRegion = new Region(g, "1", 24800000, 25000000);
+        List<File> fileList = new ArrayList<File>();
+        fileList.add(notPEfile);
+        
+        //FileReadLoader frl = new FileReadLoader(fileList, "BED");
+        //List<ReadHit> notPEreads = frl.loadHits(testRegion);
+        
+        //BEDFileReader frl = new BEDFileReader(notPEfile, g, false, 1, c2i, i2c);
+        //List<ReadHit> notPEreads = frl.loadHits(testRegion);
+        
+        testReading = new BEDPEFileReader(testFile, g, 5, false, 1, c2i, i2c);
+        List<ReadHit> testReads = testReading.loadHits(testRegion);
+        System.out.println("Done");
     }
 
 }

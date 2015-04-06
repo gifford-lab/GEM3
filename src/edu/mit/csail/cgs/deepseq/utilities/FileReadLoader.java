@@ -125,10 +125,14 @@ public class FileReadLoader extends ReadLoader{
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
 			}else if(format.equals("BED")){
-				BEDFileReader currReader = new BEDFileReader(file,gen,useNonUnique, currID, chrom2ID, id2Chrom);
-				fileReaders.add(currReader);
-				currID = currReader.getCurrID();
-			}else{
+                BEDFileReader currReader = new BEDFileReader(file,gen,useNonUnique, currID, chrom2ID, id2Chrom);
+                fileReaders.add(currReader);
+                currID = currReader.getCurrID();
+            }else if(format.equals("BEDPE")){
+                BEDPEFileReader currReader = new BEDPEFileReader(file,gen, -1, useNonUnique, currID, chrom2ID, id2Chrom);
+                //fileReaders.add(currReader);
+                currID = currReader.getCurrID();
+            }else{
 			    System.err.println("Unknown file format: "+format);
 			    System.exit(1);
 			}

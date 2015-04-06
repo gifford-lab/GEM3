@@ -235,8 +235,11 @@ public abstract class PairedAlignmentFileReader {
     
     
     //Add hits to data structure
-    protected void addHits(Read r){
-        for(ReadHit h : r.getHits()){
+    //assumes same number of hits in each read
+    protected void addHits(Read r1, Read r2){
+        for(int i = 0; i < r1.getHits().size(); i++){
+            ReadHit h = r1.getHits().get(i);
+            ReadHit h2 = r2.getHits().get(i);
             if (!chrom2ID.containsKey(h.getChrom()))
                 continue;
             int chrID   = chrom2ID.get(h.getChrom());
@@ -244,6 +247,7 @@ public abstract class PairedAlignmentFileReader {
             int strandInd = strand == '+' ? 0 : 1;
             //System.out.println(h.getChrom()+"\t"+h.getStart()+"\t"+h.getStrand());
             readOneList[chrID][strandInd].add(strand == '+' ?h.getStart():h.getEnd());
+            readTwoList[chrID][strandInd].add(strand == '+' ?h2.getStart():h2.getEnd());
             hitIDsList[chrID][strandInd].add(h.getID());
             hitCountsList[chrID][strandInd].add((float)h.getWeight());
             totalHits++;
@@ -268,7 +272,7 @@ public abstract class PairedAlignmentFileReader {
 
         for(int i = 0; i < readTwoList.length; i++)
             for(int j = 0; j < readTwoList[i].length; j++)
-                hitIDs[i][j] = list2int(readTwoList[i][j]);
+                readTwo[i][j] = list2int(readTwoList[i][j]);
         
         for(int i = 0; i < readTwoList.length; i++) { for(int j = 0; j < readTwoList[i].length; j++) { readTwoList[i][j].clear(); } }
         readTwoList = null;
