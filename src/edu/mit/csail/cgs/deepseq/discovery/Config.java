@@ -19,6 +19,7 @@ public class Config {
     public boolean write_RSC_file = false;
     public boolean write_genetrack_file = false;
     public boolean kmer_print_hits = false;
+    public boolean print_motif_hits = false;
     public boolean testPValues = false;
     public boolean post_artifact_filter=false;
     public boolean kl_count_adjusted = false;
@@ -235,6 +236,7 @@ public class Config {
         bestIC_PWM_trim = !flags.contains("sc");		// Seed centered PWM positions
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
+        print_motif_hits = flags.contains("print_motif_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
         k_neg_dinu_shuffle = !flags.contains("k_neg_shuffle");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);

@@ -20,7 +20,9 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.*;
+import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
@@ -31,6 +33,8 @@ import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.utils.stats.ROC;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.stats.StatUtil.DensityClusteringPoint;
+import edu.mit.csail.cgs.deepseq.analysis.MotifInstance;
+import edu.mit.csail.cgs.deepseq.analysis.MotifScan;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 
 public class KMAC1 {
@@ -205,9 +209,7 @@ public class KMAC1 {
 			}
 		}
 		else{	// use the supplied negative sequences
-			if (neg_seqs.size()<seqNum)
-				seqNum = neg_seqs.size();
-			for (int i=0;i<seqNum;i++){
+			for (int i=0;i<neg_seqs.size();i++){
 				String seq = neg_seqs.get(i);
 				if (config.repeat_fraction<1){
 					int count = 0;
@@ -738,9 +740,28 @@ public class KMAC1 {
 		
 		sortMotifClusters(clusters, true);
 
-		// print k-mers
+		// print k-mers and motif hits
 		for (MotifCluster cluster : clusters){
 			GappedKmer.printGappedKmers(cluster.alignedKmers, cluster.k, 0, posSeqCount, negSeqCount, cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
+			
+		}
+		if (config.print_motif_hits){
+			ArrayList<WeightMatrix> pwms=new ArrayList<WeightMatrix>();
+			ArrayList<Double> thresholds=new ArrayList<Double>();
+			for (MotifCluster c : clusters){
+				if (c.wm!=null){
+					pwms.add(c.wm);
+					thresholds.add(c.pwmThreshold.motif_cutoff);
+				}
+			}
+			ArrayList<MotifInstance> instances = MotifScan.getPWMInstances(seqs, pwms, thresholds);
+			StringBuilder sb = new StringBuilder("#Motif\tSeqID\tMatch\tSeqPos\tScore\n");
+		    for (int i=0;i<instances.size();i++){
+		    	MotifInstance mi = instances.get(i);
+		    	sb.append("m").append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.matchSeq).append("\t")
+		    	.append(mi.strand=='+'?mi.position:-mi.position).append("\t").append(String.format("%.2f", mi.score)).append("\n");
+		    }
+		    CommonUtils.writeFile(outName+"_motifInstances.txt", sb.toString());
 		}
 		
 		/** final outputs */
@@ -5254,7 +5275,9 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		/** setScore, log10(hgp) using the positive/negative sequences */
 		public void setScore(double score) {this.kg_score = score;	}
 		
-		/** get the KG match end indices, relative to the sequence*/
+		/** get the KG match end indices, relative to the sequence<br>
+		 * 	return the start of the leftmost k-mer, and the end of the rightmost k-mer
+		 * */
 		public Pair<Integer,Integer> getMatchEndIndices(){
 			int leftIdx = 999;
 			int rightIdx = -999;
@@ -5453,7 +5476,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			System.exit(-1);
 		}
 		
-        System.out.println("\nWelcome to KMAC (version "+KMAC_VERSION+")!");
+        System.out.println("\nKMAC (version "+KMAC_VERSION+")");
 
 		StringBuffer sb = new StringBuffer();
 		sb.append("\nOptions:\n");
