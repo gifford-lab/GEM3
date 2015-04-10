@@ -399,7 +399,7 @@ public class CommonUtils {
 	            bin.close();
 	        }
         } catch (IOException e) {
-        	System.err.println("Error when processing "+fileName);
+        	System.err.println("\nError when processing "+fileName);
             e.printStackTrace(System.err);
         }   
         return strs;
