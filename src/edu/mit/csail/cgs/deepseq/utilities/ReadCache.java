@@ -630,7 +630,6 @@ public class ReadCache {
 			String chrom = id2Chrom.get(i);
 			HashMap<Integer, Pair<Integer, Integer>> strandedCounts = new HashMap<Integer, Pair<Integer, Integer>>();
 			for(int j = 0; j < hitCounts[i].length; j++){
-				char strand = j==0?'+':'-';
 				int subCount = hitCounts[i][j].length;
 				if (subCount>0){
 					for(int k = 0; k < subCount; k++){
@@ -653,8 +652,10 @@ public class ReadCache {
 				Pair<Integer, Integer> pair = strandedCounts.get(pos);
 				sb.append(String.format("chr%s\t%d\t%d\t%d\t%d\n", chrom, pos, pair.car(),pair.cdr(),pair.car()+pair.cdr()));
 			}
+			CommonUtils.appendFile(name.trim()+".genetrack", sb.toString());
+			sb = new StringBuilder();
 		}
-		CommonUtils.writeFile(name.trim()+".genetrack", sb.toString());
+		
 	}
 	/** 
 	 * Read Read Start Count (RSC) file

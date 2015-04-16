@@ -382,7 +382,16 @@ public class CommonUtils {
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-//		System.out.println("File was written to "+fileName);
+	}
+	public static void appendFile(String fileName, String text){
+		try{
+			FileWriter fw = new FileWriter(fileName, true); // append
+			fw.write(text);
+			fw.close();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public static ArrayList<String> readTextFile(String fileName){
