@@ -98,6 +98,7 @@ public class TFBS_SpaitialAnalysis {
 	private SequenceGenerator<Region> seqgen;
 	boolean dev = false;
 	boolean zero_or_one = false;	// for each TF, zero or one site per cluster, no multiple sites
+	boolean out_subset = false;		// output the call coords in selective subset of regions
 	String outPrefix = "out";
 	String tfss_file;				// Sequence-specific TFs
 	String tss_file;
@@ -142,7 +143,7 @@ public class TFBS_SpaitialAnalysis {
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputBindingAndMotifSites(clusters);
 			break;
-		case 31:		// to print all the binding sites and motif positions in the clusters for downstream spacing/grammar analysis
+		case 31:		// to print all the binding sites and motif positions in the specified regions for downstream spacing/grammar analysis
 			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 3 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
 			analysis.loadEventsAndMotifs(round);
 			clusters = analysis.addTfbs2Clusters();
@@ -167,7 +168,7 @@ public class TFBS_SpaitialAnalysis {
 			analysis.printTssSignal();
 			break;
 		}
-		
+		System.out.println("Done!");
 	}
 	
 	public TFBS_SpaitialAnalysis(String[] args){
@@ -192,6 +193,7 @@ public class TFBS_SpaitialAnalysis {
 		outPrefix = Args.parseString(args, "out", outPrefix);
 		zero_or_one = flags.contains("zoo");
 		dev = flags.contains("dev");
+		out_subset = flags.contains("out_subset");
 		oldFormat = flags.contains("old_format");
 		no_gem_pwm = !flags.contains("gem_pwm");
 //		indirect_binding = flags.contains("indirect_binding");
@@ -656,7 +658,7 @@ public class TFBS_SpaitialAnalysis {
 	 * @return
 	 */
 	private ArrayList<ArrayList<Site>> addTfbs2Clusters(){
-		System.out.println("Assign binding/motif sites into non-overlaping regions (clusters).");
+		System.out.println("Assign binding/motif sites to specified regions (clusters).");
 		ArrayList<Region> rs = CommonUtils.load_BED_regions(genome, query_region_file).car();
 		
 		// classify sites by chrom, so that the sorting space is smaller
@@ -668,7 +670,6 @@ public class TFBS_SpaitialAnalysis {
 					chrom2sites.put(chr, new ArrayList<Site>());
 				chrom2sites.get(chr).add(s);
 			}
-			rs = rs;
 		}
 		for (String chr: chrom2sites.keySet()){
 			ArrayList<Site> sites = chrom2sites.get(chr);
@@ -676,7 +677,8 @@ public class TFBS_SpaitialAnalysis {
 			Collections.sort(sites);
 		}
 		
-		// sort sites and form clusters
+		// add sites to regions
+		// NOTE: this is not very efficient for large data set, because it just loops over everything in a chromosome
 		ArrayList<ArrayList<Site>> clusters = new ArrayList<ArrayList<Site>>();		
 		for (Region r: rs){
 			ArrayList<Site> sites = chrom2sites.get(r.getChrom());
@@ -693,6 +695,23 @@ public class TFBS_SpaitialAnalysis {
 			clusters.add(cluster);
 		}
 		clusters.trimToSize();
+		
+		if (out_subset){
+			HashMap<Integer,ArrayList<StrandedPoint>> subsets = new HashMap<Integer,ArrayList<StrandedPoint>>();
+			for (ArrayList<Site> c: clusters){
+				for (Site s: c){
+					if (!subsets.containsKey(s.tf_id))
+						subsets.put(s.tf_id, new ArrayList<StrandedPoint>());
+					subsets.get(s.tf_id).add(new StrandedPoint(s.bs, s.motifStrand));
+				}
+			}
+			for (int id: subsets.keySet()){
+				StringBuilder sb = new StringBuilder();
+				for (StrandedPoint p: subsets.get(id))
+					sb.append(p.toString()).append("\n");
+				CommonUtils.writeFile(outPrefix+"."+id+".txt", sb.toString());
+			}
+		}
 		return clusters;
 	}
 		
