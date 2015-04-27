@@ -18,6 +18,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.BindingModel;
+import edu.mit.csail.cgs.deepseq.BindingModel2D;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
@@ -254,6 +255,33 @@ public class GPS_ReadDistribution {
 		if (smooth_step>0)
 			model.smooth(smooth_step, smooth_step);
 		return model;
+	}
+	
+	private BindingModel2D getDistribution2D (ArrayList<Point> points) {
+	    Map<String,Integer> chromLengthMap = genome.getChromLengthMap();
+	    float[][] sum = new float[2*range+1][2*range+1];
+	    Pair<Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>>, ArrayList<ArrayList<Float>>> pair = null;
+	    for (Point p:points) {
+	        int pos = p.getLocation();
+	        if (!chromLengthMap.containsKey(p.getChrom()) || pos>chromLengthMap.get(p.getChrom()))
+                continue;
+	        pair = chipSeqExpt.loadStrandedBaseCountsPaired(p.expand(range), '+');
+	        Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>> coords = pair.car();
+	        ArrayList<Integer> plusCoords = coords.car();
+	        ArrayList<ArrayList<Integer>> minCoords = coords.cdr();
+	        ArrayList<ArrayList<Float>> weight = pair.cdr();
+	        for (int i=0; i<minCoords.size(); i++) {
+	            int upOffset = plusCoords.get(i)-pos;
+	            for (int j=0; j<minCoords.get(i).size(); i++){
+	                int downOffset = minCoords.get(i).get(j)-pos;
+	                if (downOffset <= range) {
+	                    sum[upOffset+range][downOffset+range] += Math.min(weight.get(i).get(j), mrc);
+	                }
+	            }
+	        }
+	    }
+	    ArrayList<Pair<Integer, List<Pair<Integer, Double>>>> dist = new ArrayList<Pair<Integer, List<Pair<Integer, Double>>>>();
+	    return null;
 	}
 	
 	// Either to negate the offset of minus strand depends on the type of data

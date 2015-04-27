@@ -171,6 +171,19 @@ public class AhoCorasick {
 	return null;
     }
 
+    public static void main(String[] args) {
+        AhoCorasick tree = new AhoCorasick();
+        tree.add("hello".getBytes(), "hello");
+        tree.add("world".getBytes(), "world");
+        tree.add("ello".getBytes(), "ello");
+        tree.prepare();
 
+        Iterator searcher = tree.search("hello world hellomyworld".getBytes());
+        while (searcher.hasNext()) {
+            SearchResult result = (SearchResult) searcher.next();
+            System.out.println(result.getOutputs());
+            System.out.println("Found at index: " + result.getLastIndex());
+        }
+    }
 
 }

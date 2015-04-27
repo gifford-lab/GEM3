@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -15,6 +16,7 @@ import edu.mit.csail.cgs.deepseq.ReadHit;
 //for testing
 import java.util.List;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.utils.Pair;
 
 public class BEDPEFileReader extends PairedAlignmentFileReader {
 
@@ -185,7 +187,7 @@ public class BEDPEFileReader extends PairedAlignmentFileReader {
             i2c.put(i, c);
             i++;
         }
-        Region testRegion = new Region(g, "1", 24800000, 25000000);
+        Region testRegion = new Region(g, chromList.get(0), 51338000, 51340000);
         List<File> fileList = new ArrayList<File>();
         fileList.add(notPEfile);
         
@@ -197,6 +199,50 @@ public class BEDPEFileReader extends PairedAlignmentFileReader {
         
         testReading = new BEDPEFileReader(testFile, g, 5, false, 1, c2i, i2c);
         List<ReadHit> testReads = testReading.loadHits(testRegion);
+        Pair<Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>>,ArrayList<ArrayList<Float>>> matrix = 
+                testReading.loadStrandedFivePrimeCounts(testRegion, '+');
+        ArrayList<Integer> fiveEnd = matrix.getFirst().getFirst();
+        ArrayList<ArrayList<Integer>> threeEndMatrix = matrix.getFirst().getLast();
+        ArrayList<ArrayList<Float>> weightMatrix = matrix.getLast();
+        
+        StringBuilder sb = new StringBuilder();
+        //StringBuilder hitsb = new StringBuilder();
+        for (int a = 0; a<fiveEnd.size(); a++) {
+            
+            //hitsb.append(fiveEnd.get(a));
+            //hitsb.append('\t');
+            for (int b = 0; b<threeEndMatrix.get(a).size(); b++) {
+                sb.append(fiveEnd.get(a));
+                sb.append('\t');
+                sb.append(threeEndMatrix.get(a).get(b));
+                sb.append('\t');
+                sb.append(weightMatrix.get(a).get(b));
+                sb.append('\n');
+                //hitsb.append('\n');
+//                if (b<threeEndMatrix.get(a).size()-1) {
+//                    sb.append('\t');
+//                    hitsb.append('\t');
+//                }
+//                else {
+//                    sb.append('\n');
+//                    hitsb.append('\n');
+//                }
+            }
+        }
+        PrintWriter reads;
+        //PrintWriter weights;
+        try {
+            reads = new PrintWriter("/Users/jennylin/Documents/Jenny/UROP/bindResults2.csv");
+            reads.write(sb.toString());
+            reads.close();
+            //weights = new PrintWriter("/Users/jennylin/Documents/Jenny/UROP/weightVect.csv");
+            //weights.write(hitsb.toString());
+            //weights.close();
+        } catch (FileNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
         System.out.println("Done");
     }
 

@@ -42,6 +42,7 @@ public class FileReadLoader extends ReadLoader{
 	protected String format;
 	// a list of file readers, each for one file (replicate)
 	protected List<AlignmentFileReader> fileReaders = new ArrayList<AlignmentFileReader>();
+	protected List<PairedAlignmentFileReader> pairedReaders = new ArrayList<PairedAlignmentFileReader>();
 	protected int maxMismatch=0;
 	protected boolean useNonUnique=true;
 	protected int currID=0;
@@ -74,6 +75,10 @@ public class FileReadLoader extends ReadLoader{
 				BEDFileReader currReader = new BEDFileReader(file);
 				fileReaders.add(currReader);
 				currID = currReader.getCurrID();
+			}else if(format.equals("BEDPE")){
+                BEDPEFileReader currReader = new BEDPEFileReader(file);
+                pairedReaders.add(currReader);
+                currID = currReader.getCurrID();
 			}else{
 			    System.err.println("Unknown file format: "+format);
 			    System.exit(1);
@@ -130,7 +135,7 @@ public class FileReadLoader extends ReadLoader{
                 currID = currReader.getCurrID();
             }else if(format.equals("BEDPE")){
                 BEDPEFileReader currReader = new BEDPEFileReader(file,gen, -1, useNonUnique, currID, chrom2ID, id2Chrom);
-                //fileReaders.add(currReader);
+                pairedReaders.add(currReader);
                 currID = currReader.getCurrID();
             }else{
 			    System.err.println("Unknown file format: "+format);
@@ -209,6 +214,13 @@ public class FileReadLoader extends ReadLoader{
 		return new Pair<ArrayList<Integer>,ArrayList<Float>>(coords, counts);
 	}
 
+	// load coordinates and counts for paired-end data
+	// cheats for now, assumes single file only
+	public Pair<Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>>,ArrayList<ArrayList<Float>>> loadStrandedPairedEndCounts(Region r, char strand){
+	    PairedAlignmentFileReader a = pairedReaders.get(0);
+	    return a.loadStrandedFivePrimeCounts(r, strand);
+
+	}
 	
 	//Load the extended reads from our files
 	public List<ExtReadHit> loadExtHits(Region r, int startShift, int fivePrimeExt, int threePrimeExt) {
@@ -228,6 +240,7 @@ public class FileReadLoader extends ReadLoader{
 		}
 		return hits;
 	}
+	
 	// count number of reads in region
 	public int countHits(Region r) {
 		int count = 0;

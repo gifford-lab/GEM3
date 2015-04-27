@@ -138,6 +138,7 @@ public class DeepSeqExpt {
 	
 	// load paired base coordinates (sorted) and counts
 	public Pair<ArrayList<Integer>,ArrayList<Float>> loadStrandedBaseCounts(Region r, char strand){
+	    //if pairedend throw error
 		if (loader instanceof ReadDBReadLoader){
 			return ((ReadDBReadLoader)loader).loadStrandedBaseCounts(r, strand);
 		}
@@ -147,6 +148,15 @@ public class DeepSeqExpt {
 		else
 			return null;
 	}
+	
+	//load base coordinates for paired end only
+	public Pair<Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>>, ArrayList<ArrayList<Float>>> loadStrandedBaseCountsPaired(Region r, char strand){
+	    if (loader instanceof FileReadLoader){
+            return ((FileReadLoader)loader).loadStrandedPairedEndCounts(r, strand);
+        }
+	    return null;
+	}
+	
 	public String getBED_StrandedReads(Region r, char strand, double probability){
 		if (loader instanceof ReadDBReadLoader){
 			return ((ReadDBReadLoader)loader).getBED_StrandedReads(r, strand, probability);

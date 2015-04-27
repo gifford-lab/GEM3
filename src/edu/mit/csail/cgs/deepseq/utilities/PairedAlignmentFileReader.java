@@ -181,14 +181,16 @@ public abstract class PairedAlignmentFileReader {
     }//end of loadHits method
 
     // load paired read hit 5' coordinates (sorted, can be duplicates) and counts 
-    public Pair<ArrayList<Integer>,ArrayList<Float>> loadStrandedFivePrimeCounts(Region coords , char strand){
-        ArrayList<Integer> hits = new ArrayList<Integer>();
-        ArrayList<Float> counts = new ArrayList<Float>();
+    public Pair<Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>>,ArrayList<ArrayList<Float>>> loadStrandedFivePrimeCounts(Region coords , char strand){
+        ArrayList<Integer> fiveHits = new ArrayList<Integer>();
+        ArrayList<ArrayList<Integer>> threeHits = new ArrayList<ArrayList<Integer>>();
+        ArrayList<ArrayList<Float>> counts = new ArrayList<ArrayList<Float>>();
         String chr = coords.getChrom();
         if(chrom2ID.containsKey(chr)){
             int chrID = chrom2ID.get(chr);
             int j = strand == '+'?0:1;  // j = 0 <=> strand = '+', j = 1 <=> strand = '-'
             int[] tmp5Primes = readOne[chrID][j];    //assumes tempStarts is sorted  
+            int[] tmp3Primes = readTwo[chrID][j];
             if(tmp5Primes.length != 0) {
                 int start_ind = Arrays.binarySearch(tmp5Primes, coords.getStart());
                 int end_ind   = Arrays.binarySearch(tmp5Primes, coords.getEnd());
@@ -196,14 +198,40 @@ public abstract class PairedAlignmentFileReader {
                 if( end_ind < 0 )   { end_ind   = -end_ind - 1; }
                 start_ind = StatUtil.searchFrom(tmp5Primes, ">=", coords.getStart(), start_ind);
                 end_ind   = StatUtil.searchFrom(tmp5Primes, "<=",   coords.getEnd(), end_ind);
-                    
-                for(int k = start_ind; k <= end_ind; k++) {
-                    hits.add(tmp5Primes[k]);
-                    counts.add(hitCounts[chrID][j][k]);
+                  
+                //initializing the matrix
+                int prevHit = tmp5Primes[start_ind];
+                ArrayList<Integer> tempHits = new ArrayList<Integer>();
+                tempHits.add(tmp3Primes[start_ind]);
+                ArrayList<Float> tempCounts = new ArrayList<Float>();
+                tempCounts.add(hitCounts[chrID][j][start_ind]);
+                for(int k = start_ind+1; k <= end_ind; k++) {
+                    if (prevHit != tmp5Primes[k]) {
+                        fiveHits.add(prevHit);
+                        threeHits.add(tempHits);//finish up row in matrix
+                        counts.add(tempCounts);
+                        
+                        tempHits = new ArrayList<Integer>();//start new row in matrix
+                        tempCounts = new ArrayList<Float>();
+                        prevHit = tmp5Primes[k];
+                    }
+                    tempHits.add(tmp3Primes[k]);
+                    tempCounts.add(hitCounts[chrID][j][k]);
+                
+                    //fiveHits.add(tmp5Primes[k]);
+                    //counts.add(hitCounts[chrID][j][k]);
+                }
+                if (tempHits.size() != 0) {
+                    fiveHits.add(prevHit);
+                   threeHits.add(tempHits);
+                   counts.add(tempCounts);
+                   
                 }
             }
         }
-        return new Pair<ArrayList<Integer>,ArrayList<Float>>(hits, counts);
+        Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>> hitMatrix = 
+                new Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>>(fiveHits, threeHits);
+        return new Pair<Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>>,ArrayList<ArrayList<Float>>>(hitMatrix, counts);
     }
     
     /**
