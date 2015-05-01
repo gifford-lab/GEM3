@@ -288,7 +288,7 @@ public class GPS_ReadDistribution {
 	            } else {
 	                for (int i=minCoords.size()-1; i>=0; i--) {
 	                    int upOffset = -1*(plusCoords.get(i)-pos);
-	                    for (int j=minCoords.get(i).size(); j>=0; j--) {
+	                    for (int j=minCoords.get(i).size()-1; j>=0; j--) {
 	                        int downOffset = -1*(minCoords.get(i).get(j)-pos);
 	                        if (downOffset >= -1*range) {
 	                            sum[upOffset+range][downOffset+range] += Math.min(weight.get(i).get(j), mrc);
