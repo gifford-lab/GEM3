@@ -209,6 +209,7 @@ public class BindingModel {
 	
 	public void smooth(int splineStepSize, int avgStepSize){
 		probs=StatUtil.cubicSpline(probs, splineStepSize, avgStepSize);
+		data=StatUtil.cubicSpline(data, splineStepSize, avgStepSize);
 		Pair<Double, TreeSet<Integer>> sorted = StatUtil.findMax(probs);
 		summit = sorted.cdr().first()+min;
 	}
@@ -307,11 +308,14 @@ public class BindingModel {
 	}	
 	
 	//Print probs to a file
-	public void printToFile(String filename){
+	public void printToFile(String filename, boolean printValue){
 		try {
 			FileWriter fout = new FileWriter(filename);
 			for(int i=min; i<=max; i++){
-				fout.write(i+"\t"+probability(i)+"\n");
+				if (printValue)
+					fout.write(i+"\t"+dataVal(i)+"\n");
+				else
+					fout.write(i+"\t"+probability(i)+"\n");
 			}
 			fout.close();
 		} catch (IOException e) {
@@ -319,7 +323,10 @@ public class BindingModel {
 			e.printStackTrace();
 		}
 	}
-	
+	//Print probs to a file
+	public void printToFile(String filename){
+		printToFile(filename, false);
+	}	
 	
 	/**
 	 * Command-line interface to load a BindingModel from a file

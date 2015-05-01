@@ -1792,11 +1792,12 @@ public class StatUtil {
 	 */
 	public class DensityClusteringPoint implements Comparable<DensityClusteringPoint>{
 		public int id;		// the original id of the data point
-		public double density=0;
+		public double density=0;		// density as total count by the neighborhood
+		public double densitySxN=0;		// sqrt (self density * neighborhood density)
 		public double delta=0;
 		public double gamma=0;
 		public int delta_id;
-		public TreeSet<DensityClusteringPoint> members = new TreeSet<DensityClusteringPoint>();
+		public ArrayList<DensityClusteringPoint> members = new ArrayList<DensityClusteringPoint>();
 		public TreeSet<Integer> memberIds = new TreeSet<Integer>();
 		
 		public String toString(){
@@ -1824,6 +1825,13 @@ public class StatUtil {
 		public int compareToById(DensityClusteringPoint p) {
 			if(id<p.id){return(-1);}
 			else if(id>p.id){return(1);}
+			else return(0);
+		}
+		/** Sort DensityClusteringPoint by descending S*N density value
+		 */
+		public int compareToByDensitySxN(DensityClusteringPoint p) {
+			if(densitySxN>p.densitySxN){return(-1);}
+			else if(densitySxN<p.densitySxN){return(1);}
 			else return(0);
 		}
 		
@@ -1906,7 +1914,7 @@ public class StatUtil {
 	/**
 	 * This implements the clustering method introduced by "Clustering by fast search and find of density peaks, Science. 2014 Jun 27;344(6191):"<br>
 	 * It is extended to incorporate weights for the data points. <br>
-	 * This method use total positive hit as weight (e.g. sequence hit by the k-mers)
+	 * This method use net (positive-negative) hit as weight (e.g. sequence hit by the k-mers)
 	 * @param distanceMatrix
 	 * @param weights
 	 * @param distanceCutoff kmer distance cutoff, kmers with equal or less distance are consider neighbors when computing local density
@@ -1914,14 +1922,15 @@ public class StatUtil {
 	 * @return Return points with high delta values, then points that are far from the high delta points
 	 */
 	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, 
-			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, int distanceCutoff){
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
 		for (int i=0;i<distanceMatrix.length;i++){
 			DensityClusteringPoint p = util.new DensityClusteringPoint();
 			p.id = i;
-			int self_density = posHitList.get(i).cardinality()-negHitList.get(i).cardinality();
+			// self_density: individual k-mer hit count
+			double self_density = CommonUtils.calcWeightedHitCount(posHitList.get(i),seq_weights) - negHitList.get(i).cardinality()*posNegSeqRatio;
 			double[] distanceVector = distanceMatrix[i];
 			// sum up to get total hit count of this point and its neighbors
 			BitSet b_pos = new BitSet();
@@ -1933,11 +1942,14 @@ public class StatUtil {
 				}
 			}
 			// group hit count * self_density, to down-weight weak kmers from being selected as center
-			p.density = Math.sqrt((b_pos.cardinality()-b_neg.cardinality()) * self_density);
-//			p.density = b_pos.cardinality()-b_neg.cardinality();
+			p.densitySxN = Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			if (Double.isNaN(p.densitySxN))
+				continue;
+			p.density = p.densitySxN;
+//			p.density = b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio;
 			data.add(p);
 		}
-		data.trimToSize();		
+		data.trimToSize();	
 		Collections.sort(data);
 		
 		// compute the shortest distance to the potential centers
@@ -1984,15 +1996,41 @@ public class StatUtil {
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
 		while(!data.isEmpty()){
 			DensityClusteringPoint p = data.get(0);
-			if (p.delta<2){		// skip those points near other high density points
-				data.remove(p);
-				continue;
+//			if (p.delta<distanceCutoff){		// skip those points near other high density points
+//				data.remove(p);
+//				continue;
+//			}
+			// compareToByDensitySxN, to select the high density point with high individual hit count (self density)
+			Collections.sort(p.members, new Comparator<DensityClusteringPoint>(){
+	            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+	                return o1.compareToByDensitySxN(o2);
+	            }
+	        });
+			DensityClusteringPoint selected = null;
+			for (DensityClusteringPoint m:p.members){
+				boolean tooSimilar = false;
+				for (DensityClusteringPoint r:results){
+					if (distanceMatrix[m.id][r.id]<distanceCutoff){
+						tooSimilar = true;
+						break;
+					}
+				}
+				if (!tooSimilar){
+					selected = m;
+					break;
+				}
+				else{
+					data.remove(m);
+				}
 			}
-			results.add(p);		// select the best point from the remaining points
+			if (selected != null){
+				results.add(selected);		// select the best point from the remaining points
+				data.remove(selected);
+			}
 			data.remove(p);
-			for (DensityClusteringPoint m: p.members){
-				data.remove(m);
-			}
+//			for (DensityClusteringPoint m: selected.members){
+//				data.remove(m);
+//			}
 		}
 		return results;
 	}	
@@ -2103,16 +2141,23 @@ public class StatUtil {
 //		}
 //		return data_big_delta;
 //	}	
-	
-	 public static void main9(String[] args){
+	private static void printHGP(int pos, int neg){
+		System.out.println(String.format("%d/%d\t%.2f", pos, neg, hyperGeometricCDF(pos,10000,5000,pos+neg)));
+	}
+	 public static void main0(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));
 //		 Poisson poisson = new Poisson(0, new DRand());
 //		 poisson.setMean(2.7);System.out.println(1-poisson.cdf(56));
 //		 System.out.println(poisson.pdf(1));
 //		System.out.println(log10_hyperGeometricCDF_cache_appr(4,10000,5000,4+1));
-//		System.out.println(hyperGeometricCDF_cache(2405,41690+40506,41690,2405+2));
-//		System.out.println(hyperGeometricCDF(3298,41690+40506,41690,3298+2));
+//		System.out.println(hyperGeometricCDF_cache(2405,41690+40System.out.println(hyperGeometricCDF(3298,10000,5000,3298+2));506,41690,2405+2));
+		 printHGP(1480,465);
+		 printHGP(1325,328);
+		 printHGP(1360,327);
+		 printHGP(1517,467);
+		 
+
 //		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,3298+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,2405+2));

@@ -15,6 +15,7 @@ import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -32,7 +33,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC2WK;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
@@ -381,7 +382,16 @@ public class CommonUtils {
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-//		System.out.println("File was written to "+fileName);
+	}
+	public static void appendFile(String fileName, String text){
+		try{
+			FileWriter fw = new FileWriter(fileName, true); // append
+			fw.write(text);
+			fw.close();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public static ArrayList<String> readTextFile(String fileName){
@@ -398,12 +408,17 @@ public class CommonUtils {
 	            bin.close();
 	        }
         } catch (IOException e) {
-        	System.err.println("Error when processing "+fileName);
+        	System.err.println("\nError when processing "+fileName);
             e.printStackTrace(System.err);
         }   
         return strs;
 	}
 	
+	/**
+	 * Load only the sequences of the fasta file
+	 * @param fileName
+	 * @return
+	 */
 	public static ArrayList<String> readFastaFile(String fileName){
 		ArrayList<String> strs = new ArrayList<String>();
 		try {	
@@ -471,6 +486,26 @@ public class CommonUtils {
 	      }
 	      return sb.toString();
 	}
+	
+	/**
+	 * Calculate the weighted sequence hit count<br>
+	 * The length of seq_weights should be not less then the highest bit index of bitset
+	 * @param bitset
+	 * @param seq_weights
+	 * @return
+	 */
+	public static int calcWeightedHitCount(BitSet bitset, double[] seq_weights){
+		double weight=0;
+		if (seq_weights!=null){
+			for (int i = bitset.nextSetBit(0); i >= 0; i = bitset.nextSetBit(i+1)) {
+				weight+=seq_weights[i];
+	 		}
+			return (int)weight;
+		}
+		else
+			return bitset.cardinality();
+	}
+	
 	public static final char[] LETTERS = {'A','C','G','T'};
 
 	/**
@@ -753,6 +788,27 @@ public class CommonUtils {
 		}
 		return pos;
 	}
+	/**
+	 *  Scan the sequence (forward strand only) to find all matches to the weight matrix<br>
+	 *  Note: the definition of motif position here is different from scanPWM() method<br>
+	 *  position represent the match base position of the middle of the motif
+	 *  
+	 *  @return  List of positions (middle of motif match) that pass the threshold. <br>
+	 *  The position will be negative if the match is on the reverseComplement strand     
+	 */
+	public static ArrayList<Integer> getAllForwardPWMHit(String sequence, int wmLen, WeightMatrixScorer scorer, double threshold){
+		ArrayList<Integer> pos = new ArrayList<Integer>();
+		if (sequence==null||sequence.length()<wmLen-1){
+			return pos;
+		}
+		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
+		for (int i=0;i<profiler.length();i++){
+			double score = profiler.getForwardScore(i);
+			if (score >= threshold)
+				pos.add(i+wmLen/2);
+		}
+		return pos;
+	}
 	
 	/**
 	 *  Scan the sequence (and reverseComplement) to find all exact matches to the kmer<br>  
@@ -979,6 +1035,7 @@ public class CommonUtils {
 	}
 	/**
 	 * Compute distance between two arbitrary-length strings, limit by a cutoff<br>
+	 * It considers forward and reverse compliment k-mers.<br>
 	 * The purpose of the cutoff is to skip unnecessary computation.<br>
 	 * This method supports gapped k-mer,
 	 * @param cutoff the maximum distance to stop calculation must be smaller to cutoff

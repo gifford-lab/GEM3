@@ -26,7 +26,7 @@ import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerSet;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerCluster;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.features.*;
@@ -48,6 +48,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class KPPMixture extends MultiConditionFeatureFinder {
     private Config config;
+    private String paramString;
     private GPSConstants constants;
 
 	// Binding model representing the empirical distribution of a binding event
@@ -125,9 +126,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private FileWriter logFileWriter;
 
 	/** Kmer motif engine */
-	private KMAC kmac;
+	private KMAC kmac = null;
 	private boolean kmerPreDefined = false;
-	private double ksm_threshold = -1;
 	
 	public KPPMixture(Genome g, 
                       ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
@@ -175,7 +175,6 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		model.printToFile(outName+"_0_Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 		
-    	
 		/* ***************************************************
 		 * Print out command line options
 		 * ***************************************************/
@@ -187,7 +186,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			else
 				sb.append(arg).append(" ");
 		}
-		log(1, sb.toString());
+		paramString = sb.toString();
+		log(1, paramString);
 		
     	/* *********************************
     	 * Load options
@@ -226,11 +226,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		kmerPreDefined = true;
 			File kFile = new File(kmerFile);
 			if(kFile.isFile()){
-				KmerSet kc = new KmerSet(kFile);
-	        	kmac = new KMAC(kc.getKmers(0), outName);
-	        	kmac.setTotalSeqCounts(kc.posSeqCount, kc.negSeqCount);
-	        	kmac.setConfig(config, outName);
-	        	ksm_threshold = kc.ksmThreshold;
+				KmerSet kmerset = new KmerSet(kFile);
+	        	kmac = new KMAC(kmerset, config, outName);
 			}
     	}
     	
@@ -550,9 +547,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// create threads and run EM algorithms
 		// the results are put into compFeatures
         Thread[] threads = new Thread[config.maxThreads];
-        log(1,String.format("Running with %d threads ...", config.maxThreads));
+        log(1,String.format("Running with %d threads ...\n", config.maxThreads));
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
 
+        if (config.strand_type ==1)
+        	log(1, "Calling events in single-strand mode (usually for RNA-based data)\n");
+        
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         ArrayList<Region> regionsToRun = new ArrayList<Region>();
         if (!config.process_all_regions){		// first round, only process some of the region, sort to put the strong regions on top
@@ -611,7 +611,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				System.out.println(trigger+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
 				reportTriggers.remove(reportTriggers.first());
             }
-        } // while tread running loop
+        } // while thread running loop
         
         if (config.process_all_regions)
         	System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
@@ -645,6 +645,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		        sb.append("Position\tKmer\tCount\tWeight\tpp\n");
 		        for (KmerPP h:allKmerHits)
 		        	sb.append(h.toString()).append("\n");
+		        allKmerHits.clear();
 		        CommonUtils.writeFile(outName+"_Kmer_Hits.txt", sb.toString());
 		        sb = null;
 	        }
@@ -682,6 +683,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     		}
     		log(1, "\nFinish sampling events to estimate read distribution: "+CommonUtils.timeElapsed(tic)+"\n");
         }
+        
+        // clearn up
+        compFeatures.clear();
+        goodFeatures.clear();
 
 		return signalFeatures;
 	}// end of execute method
@@ -1401,9 +1406,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		 * If no file pre-specified, estimate the enrichedRegions after loading the data.
 		 * We do not want to run EM on regions with little number of reads
 		 * **************************************************/
-    	String subset_str = Args.parseString(args, "subs", null);
+    	String subset_str = Args.parseString(args, "subs", null);		// a string, chrom, coords
      	String subsetFormat = Args.parseString(args, "subFormat", "");
-    	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }
+    	if(subset_str == null) { subset_str = Args.parseString(args, "subf", null); }		// a file
     	ArrayList<Region> subsetRegions = new ArrayList<Region>();
      	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
 	    	if (subsetFormat.equals("Points")){	// To expand
@@ -3536,9 +3541,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 	/**
      * Initalize the kmer engine, then run KMAC<br>
-     * This is called only once for initial setup.<br>
-     * It compact the cached sequence data and build the KMF<br>
-     * If the return value is -1, KMF is not successful, should exit the program.
+     * This is called only once for initial setup: compact the cached sequence data and init KMAC object<br>
+     * If the return value is -1, KMAC is not successful, should exit the program.
      */
     public int initKMAC(){
     	if (config.k==-1 && config.k_min==-1)
@@ -3546,7 +3550,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		if (signalFeatures.isEmpty())
     		return -2;
     	System.out.println("Loading genome sequences ...");
-		kmac = new KMAC(gen, config.cache_genome, config.use_db_genome, config.genome_path);
+		kmac = new KMAC(gen, config.cache_genome, config.use_db_genome, config.genome_path, config, outName);
 		long tic = System.currentTimeMillis();
 
 		// setup lightweight genome cache
@@ -3586,6 +3590,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			negativeRegions.removeAll(toRemove);
 			
 			double gc = kmac.setupRegionCache(positiveRegions, negativeRegions, config.k_neg_dist);
+			
 			if (config.gc==-1){
 				config.setGC(gc);
 			}
@@ -3641,13 +3646,17 @@ public class KPPMixture extends MultiConditionFeatureFinder {
      */
     public int runKMAC( int winSize){
     	// set the parameters
-    	kmac.setConfig(config, outName);
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
-   	
+		kmac.updateOutPrefix(outName);
+		
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();    	
     	kmac.loadTestSequences(events, winSize);
-    	log(1, String.format("Running KMAC motif discovery with %d+/%d- sequences.\n", kmac.getPositiveSeqs().length, kmac.getNegSeqCount()));
+		
+		if (config.strand_type==1)
+			System.out.println("\nRunning single-strand KMAC motif discovery ...");
+		
+    	log(1, String.format("KMAC motif discovery with %d+/%d- sequences.\n", kmac.getPositiveSeqs().length, kmac.getNegSeqCount()));
     	if (config.print_input_seqs)
     		kmac.printInputSequences(outName);
     	
@@ -3673,7 +3682,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
 		// select enriched k-mers, cluster and align
 		ArrayList<Kmer> kmers = kmac.selectEnrichedKmers(config.k);
-		kmers = kmac.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts);
+		kmers = kmac.KmerMotifAlignmentClustering(kmers, -1, false, eventCounts, paramString);
 		if (kmers ==null)		// No motif found, exit here!
 			return -1;
 		if (kmers.isEmpty()){
@@ -3688,12 +3697,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		
 		// use only primary cluster k-mers for search
-		ArrayList<Kmer> primaryKmers = new ArrayList<Kmer>();
-		for (Kmer km:kmers)
-			if (km.getClusterId()==0)
-				primaryKmers.add(km);
-		kmac.updateEngine(primaryKmers);		
-		ksm_threshold = kmac.getPrimaryCluster().ksmThreshold==null?0:kmac.getPrimaryCluster().ksmThreshold.score;
+//		ArrayList<Kmer> primaryKmers = new ArrayList<Kmer>();
+//		for (Kmer km:kmers)
+//			if (km.getClusterId()==0)
+//				primaryKmers.add(km);
+//		kmac.updateEngine(primaryKmers);
 		return 0;
     }
     	
@@ -3862,8 +3870,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         comps.addAll(result);
                     }
                     
-//                    // DO NOT need this part, because the selectEnrichedRegions() method has been optimized to set appropirate region sizes
-//                    // Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
+//                    // DO NOT need this part any more, because the selectEnrichedRegions() method has been optimized to set appropirate region sizes
+//                    
+                    // Cut long regions into windowSize(1.5kb) sliding window (500bp overlap) to analyze
 //                    ArrayList<Region> windows = new ArrayList<Region>();
 //                    if (rr.getWidth()<=config.windowSize)
 //                        windows.add(rr);
@@ -4010,24 +4019,24 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                     	// NOTE: this code is also used below, updates should be in sync
                     	ArrayList<ComponentFeature> cfs = callFeatures(comps);
                     	compFeatures.addAll(cfs);
-                    	if (!config.process_all_regions){
-	                    	evaluateSignificance(cfs);
-	                    	boolean significant = false;	            			            		
-	                    	for (ComponentFeature cf:cfs){
-	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
-	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
-		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
-		            						significant = true;
-		            						break;
-		            					}
-		            				}
-		            				else		//TODO: if histone data, need to test as a set of events
-		            					significant = true;
-		                    	}
-	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
-		                    		goodFeatures.add(cf);
-	            			}
-                    	}
+//                    	if (!config.process_all_regions){
+//	                    	evaluateSignificance(cfs);
+//	                    	boolean significant = false;	            			            		
+//	                    	for (ComponentFeature cf:cfs){
+//	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
+//	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
+//		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
+//		            						significant = true;
+//		            						break;
+//		            					}
+//		            				}
+//		            				else		//TODO: if histone data, need to test as a set of events
+//		            					significant = true;
+//		                    	}
+//	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
+//		                    		goodFeatures.add(cf);
+//	            			}
+//                    	}
                     }
                     /* ****************************************************************
                      * if not positional prior, refine unary events by scanEvent()
@@ -4118,24 +4127,24 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                         	// NOTE: this code is also used above, updates should be in sync
                         	ArrayList<ComponentFeature> cfs = callFeatures(bs);	
                         	compFeatures.addAll(cfs);
-                        	if (!config.process_all_regions){
-    	                    	evaluateSignificance_simplified(cfs);
-    	                    	boolean significant = false;	            			            		
-    	                    	for (ComponentFeature cf:cfs){
-    	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
-    	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
-    		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
-    		            						significant = true;
-    		            						break;
-    		            					}
-    		            				}
-    		            				else		//TODO: if histone data, need to test as a set of events
-    		            					significant = true;
-    		                    	}
-    	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
-    		                    		goodFeatures.add(cf);
-    	            			}
-                        	} // if only process partial data
+//                        	if (!config.process_all_regions){
+//    	                    	evaluateSignificance_simplified(cfs);
+//    	                    	boolean significant = false;	            			            		
+//    	                    	for (ComponentFeature cf:cfs){
+//    	            				for (int cond=0; cond<numConditions; cond++){// for multi-condition, at least be significant in one condition
+//    	            					if (config.TF_binding){	// single event IP/ctrl only applies to TF
+//    		            					if (cf.getQValueLog10(cond)>=config.q_value_threshold){
+//    		            						significant = true;
+//    		            						break;
+//    		            					}
+//    		            				}
+//    		            				else		//TODO: if histone data, need to test as a set of events
+//    		            					significant = true;
+//    		                    	}
+//    	            				if (significant && (config.use_joint_event || !cf.isJointEvent()))
+//    		                    		goodFeatures.add(cf);
+//    	            			}
+//                        	} // if only process partial data
                         }
                     }
                     processedRegionCount.add(1); 
@@ -4167,7 +4176,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             Region w_padded = w.expand(modelPadding, modelPadding);
             
             if (config.strand_type ==0)	// process reads from both strands jointly
-            	results = analyzeWindow(w_padded, signals, bg_signals, seqgen);
+            	results = analyzeWindow(w_padded, signals, bg_signals, seqgen, '*');
             else{	// process each single strand separately
             	char[] strands = new char[]{'+','-'};
             	for (char s:strands){
@@ -4193,7 +4202,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             		}
             		
             		// run EM on stranded data
-            		ArrayList<BindingComponent> results_stranded = analyzeWindow(w_padded, signals_stranded, bg_signals_stranded, seqgen);
+            		ArrayList<BindingComponent> results_stranded = analyzeWindow(w_padded, signals_stranded, bg_signals_stranded, seqgen, s);
             		if (results_stranded!=null){
 	            		for (BindingComponent b:results_stranded){
 	            			b.setStrand(s);		
@@ -4206,12 +4215,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         } 
         
         private ArrayList<BindingComponent> analyzeWindow(Region w, ArrayList<List<StrandedBase>> signals,
-        		ArrayList<List<StrandedBase>> bg_signals, SequenceGenerator<Region> seqgen){
+        		ArrayList<List<StrandedBase>> bg_signals, SequenceGenerator<Region> seqgen, char readStrand){
             // We want to run EM only for potential homotypic regions
             // After first round, if we are sure the region contains unary event, we will just scan for peak
         	
         	// for testing chrIV   217955  217985
-        	Region r_test = new Region(w.getGenome(), "V", 433157, 433167 );
+        	Region r_test = new Region(w.getGenome(), "II", 407043, 407049 );
         	if (r_test.overlaps(w)){
         		config.sparseness += 0;
         	}
@@ -4237,13 +4246,44 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             	double[] pp = new double[w.getWidth()+1];
             	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
             	String seq = null;
-            	if (kmac!=null && kmac.isInitialized()){ 
-            		if (kmerPreDefined)		// if kmer is loaded from other sources, get fresh sequence 
-            			seq = seqgen.execute(w).toUpperCase();
+            	char seqStrand = readStrand;
+            	
+//            	if (kmac!=null && kmac.isInitialized()){
+                if (kmac!=null){
+            		if (kmerPreDefined){		// if kmer is loaded from other sources, get fresh sequence 
+            			seq = seqgen.execute(w).toUpperCase();                		
+            		}
             		else					// otherwise, we have run KMAC, get the cached sequences
             			seq = kmac.getSequenceUppercase(w);
             		
+//            		if (readStrand=='-'){
+//            			String s = SequenceUtils.reverseComplement(seq);
+//            			System.err.println("Minus read - FW:"+seq.contains("TACTAAC")+"\t\tRC:"+s.contains("TACTAAC"));
+//            		}
+//            		if (readStrand=='+'){
+//            			String s = SequenceUtils.reverseComplement(seq);
+//            			System.out.println("Plus read - FW: "+seq.contains("TACTAAC")+"\t\tRC: "+s.contains("TACTAAC"));
+//            		}
+            		
+            		// for RNA (Branch-seq), the motif is on the strand opposite to the reads
+            		if ( config.strand_type==1){
+            			if ( config.is_branch_point_data){	// Branch-seq, reads are on the opposite of motif sequence
+	            			if (readStrand=='+'){
+		            			// flip the sequence and strand info
+		            			seq = SequenceUtils.reverseComplement(seq);
+		            			seqStrand = '-';
+	            			}
+	            			else
+	            				seqStrand = '+';
+            			}
+            			else{
+            				if (readStrand=='-')	// other RNA data, e.g. CLIP, reads are on the same strand as motifs
+		            			seq = SequenceUtils.reverseComplement(seq); // flip the sequence
+            			}
+            		}
+            		
             		HashMap<Integer, KmerPP> hits = new HashMap<Integer, KmerPP>();
+            		
             		if (config.pp_use_kmer){		// use k-mer match to set KPP
             			
             			ArrayList<KmerCluster> clusters = kmac.getMotifClusters();
@@ -4252,36 +4292,40 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             				KmerCluster c = clusters.get(j);
             				if (c.alignedKmers.isEmpty())
             					continue;
-            				KMAC kmac_local = new KMAC();
+            				KMAC kmac_local = new KMAC(config, outName);
             				kmac_local.setTotalSeqCount(kmac.getPosSeqCount(), kmac.getNegSeqCount());
             				kmac_local.setSequenceWeights(kmac.getSequenceWeights());
-            				kmac_local.updateEngine(c.alignedKmers);		
-	            			ksm_threshold = c.ksmThreshold==null?0:c.ksmThreshold.score;
+            				kmac_local.updateEngine(c.alignedKmers);
+            				
+	            			double ksm_threshold = c.ksmThreshold==null?0:c.ksmThreshold.score;
 	
 	                		KmerGroup[] matchPositions = kmac_local.query(seq);
 		                	if (config.print_PI)	
 		                		System.out.println(seq);
 		                	// Effectively, the top kmers will dominate, because we normalize the pp value
-		                	EACH_KG: for (KmerGroup g: matchPositions){
-		                		// the posBS() is the expected binding position
-		                		int bindingPos = g.getPosBS();
+		                	EACH_KG: for (KmerGroup kg: matchPositions){
+		                		// the posBS() is the expected binding position wrt the sequence
+		                		// but the pp_kmer array are indexed as the forward strand
+		                		int bindingPos = kg.getPosBS();
+		                		if (seqStrand=='-')
+		                			bindingPos = seq.length() - bindingPos - 1;
+		                		if (kg.getHgp() > -ksm_threshold)	// if not past ksm threshold, skip
+		                			continue;
 		                		if (bindingPos>=pp.length || bindingPos<0)
 		                			continue;
-		                		if (g.getHgp()> -ksm_threshold)	// must past ksm threshold
-		                			continue;
-		                		int neighbourStart = Math.max(0, bindingPos-g.getBestKmer().getK()/2);
-		                		int neighbourEnd = Math.min(pp_kmer.length, bindingPos+g.getBestKmer().getK()/2+1);
+		                		int neighbourStart = Math.max(0, bindingPos-kg.getBestKmer().getK()/2);
+		                		int neighbourEnd = Math.min(pp_kmer.length, bindingPos+kg.getBestKmer().getK()/2+1);
 		                		for (int p=neighbourStart;p<neighbourEnd;p++){
-			                		if (pp_kmer[p] != null)	// this position has been set using stronger motifs
+			                		if (pp_kmer[p] != null)	// this position overlaps stronger motifs
 			                			continue EACH_KG;
 		                		}
 		                		
-		                		g.setClusterId(j);
+		                		kg.setClusterId(j);
 		                		double kmerCountSum = 0;
 		                		if (config.use_weighted_kmer)
-		                			kmerCountSum = g.getWeightedKmerStrength();
+		                			kmerCountSum = kg.getWeightedKmerStrength();
 		                		else
-		                			kmerCountSum = g.getGroupHitCount();
+		                			kmerCountSum = kg.getGroupHitCount();
 		                		
 		                		// select the approach to generate pp from kmer count
 		                		if (config.kpp_mode==0)
@@ -4290,10 +4334,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                			pp[bindingPos] = kmerCountSum==0?0:Math.log(kmerCountSum);
 		                		else if (config.kpp_mode==10)
 		                			pp[bindingPos] = kmerCountSum==0?0:Math.log10(kmerCountSum);
-		                		pp_kmer[bindingPos] = g;
+		                		pp_kmer[bindingPos] = kg;
 		                		if (config.print_PI)	
-			                		System.out.println(bindingPos+"\t"+g.getBestKmer().getKmerString());
-		                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), g, pp[bindingPos]));
+			                		System.out.println(bindingPos+"\t"+kg.getBestKmer().getKmerString());
+		                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), kg, pp[bindingPos]));
 		                	} // add kpp for each motif
 		                }
 	                	
@@ -4310,15 +4354,27 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            				WeightMatrixScoreProfile profiler = scorer.execute(seq);
 	            				int wmLen = cluster.wm.length();
 	            				EACH_HIT: for (int i=0;i<profiler.length();i++){
-	            					double max = profiler.getHigherScore(i);
+	            					double max = 0;
+	            					
+	            					if (config.strand_type!=1)	// if both strands
+	            						max = profiler.getHigherScore(i);
+	            					else
+	            						max = profiler.getForwardScore(i);
 	            					if (max<cluster.pwmThreshold*config.motif_relax_factor)		//TODO: want to relax the threshold??
 	            						continue EACH_HIT;
-	            					char strand = profiler.getHigherScoreStrand(i);
-	            					int pos = cluster.pos_BS_seed-cluster.pos_pwm_seed;
-	            					if (strand=='+')
-	            						pos = pos + i;
+	            					
+	            					char strand = '+';		// wrt seq orientation, not genome strand
+	            					if (config.strand_type!=1)		// if both strands
+	            						strand = profiler.getHigherScoreStrand(i);
+	            					int pos = 0;	// BS_seq
+	            					int BS_pwm = cluster.pos_BS_seed-cluster.pos_pwm_seed;
+	            					if (strand=='+')	// if pwm matches on the fwd of the seq
+	            						pos = BS_pwm + i;	// i: pwm_seq
 	            					else
-	            						pos = i + wmLen -1 + (-pos);
+	            						pos = i + wmLen -1 + (-BS_pwm);
+			                		if (seqStrand=='-')	// if seq is the rc strand, flip the position, because the kpp is set according to fwd strand coordinate
+			                			pos = seq.length() - pos - 1;
+
 	            					if (pos<0||pos>=seq.length())		// if match falls out of the sequence
 	            						continue EACH_HIT;
 			                		int neighbourStart = Math.max(0, pos-wmLen/2);
@@ -4329,12 +4385,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			                		}
 
             						pp[pos] = max;
+            						
+            						// make a fake KmerGroup to store the matched kmer sequence
 	            					ArrayList<Kmer> kms = new ArrayList<Kmer>(); 
 	            					String matchSeq = seq.substring(i,i+cluster.wm.length());
 	            					if (strand=='-')
 	            						matchSeq = SequenceUtils.reverseComplement(matchSeq);
 	            					kms.add(new Kmer(matchSeq));
-	            					KmerGroup kg = kmac.new KmerGroup(kms, pos);
+	            					KmerGroup kg = new KmerGroup(kms, pos, kmac.getPosSeqCount(), kmac.getNegSeqCount());
 	            					kg.setHgp(max);
 	            					kg.setClusterId(j);
 	            					pp_kmer[pos]=kg;
@@ -4427,7 +4485,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 
                 setComponentResponsibilities(signals, result.car(), result.cdr());
                 if (kmac!=null)
-                	setEventKmerGroup(pp_kmer, w.getStart(), seq);
+                	setEventKmerGroup(pp_kmer, w.getStart(), seq, seqStrand);
 
             } else{// if single event region, just scan it
                 BindingComponent peak = scanPeak(singleEventRegions.get(w), isIP);
@@ -4454,18 +4512,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
             return components;
         }//end of analyzeWindow method
-
-        
-        private int initSpacing(Region w) {
-            if (w.getWidth()/50 > constants.MAX_NUM_COMPONENTS)
-                System.err.println("Very large region, " + w.toString());
-            int spacing = 1;
-            componentMax = Math.max(constants.OPTIMAL_NUM_COMPONENTS, w.getWidth()/50);
-            if(componentMax > 0 && constants.SMART_SPACING && w.getWidth() > componentMax)
-                spacing = Math.max(2, (int)Math.round(1.0*w.getWidth()/componentMax));
-            spacing = Math.max(w.getWidth()/constants.MAX_NUM_COMPONENTS, Math.min(spacing, constants.INIT_SPACING));
-            return spacing;
-        }//end of initSpacing method
+       
 
         /**
          * Initializes the components. Set event spacing evenly.
@@ -5409,12 +5456,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
         // matched EM resulted binding components with the kmer prior
         //TODO: maybe we should search closest (<k/4) pp_kmer because some position may end up out-competed by nearby positions
-        private void setEventKmerGroup(KmerGroup[] pp_kmer, int startPos, String seq){
+        private void setEventKmerGroup(KmerGroup[] pp_kmer, int startPos, String seq, char seqStrand){
         	ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
         	for (int i=0;i<components.size();i++){
         		BindingComponent b = components.get(i);
         		int kIdx = b.getLocation().getLocation()-startPos;
         		b.setKmerGroup(pp_kmer[kIdx]);
+        		if (seqStrand=='-'){
+        			kIdx = seq.length() - kIdx - 1;
+    				b.setKmerStrand('-');
+        		}
         		if (seq!=null){
 	        		int left = kIdx - config.k_win/2;
 	        		int right = kIdx + config.k_win/2;
@@ -5428,6 +5479,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        		// Then we can not assume the middle is binding position
 	        		String bs = seq.substring(left,right+1);
 	        		if (b.getKmerGroup()!=null){
+	        			
 	        			// merge very nearby components that have no KmerGroup match and that has less reads	        			
 	        			for (int j=Math.max(0, i-3);j<Math.min(components.size(),i+3);j++){
 	        				if (j==i)
@@ -5441,15 +5493,29 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                		}	 
 //	        				}
 	        			}
-	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString())){
+	        			
+	        			// validate kmer match and label bound sequence with match k-mers
+	        			String ks = b.getKmerGroup().getBestKmer().getKmerString();
+	        			if (!bs.contains(ks)){
+	        				if (config.strand_type == 1)
+	        					System.err.println(String.format("ERROR: Kmer %s NOT found at %s\tFW %s.", ks, b.getLocation().toString(), bs));
 	        				bs = SequenceUtils.reverseComplement(bs);
 	        				b.setKmerStrand('-');
 	        			}
-	        			if (!bs.contains(b.getKmerGroup().getBestKmer().getKmerString())){
+	        			if (!bs.contains(ks)){
+	        				System.err.println(String.format("ERROR: Kmer %s NOT found at %s\tRC BS %s.", ks, b.getLocation().toString(), bs));
 	        				b.setKmerGroup(null);
-	        				b.setKmerStrand('0');
+	        				b.setKmerStrand('*');
+//	        				bs = bs.toLowerCase();		// comment out, if NOT FOUND, leave it as UPPER Case
 	        			}
+	        			else{	// bs contains best K-mer  
+//	        				System.err.println(String.format("Kmer %s found in BS %s.", ks, bs));
+	        				bs = bs.toLowerCase().replaceAll(ks.toLowerCase(), ks);
+	        			}	        			
 	        		}
+	        		else
+	        			bs = bs.toLowerCase();
+	        		
 	    			b.setBoundSequence(bs);
         		}
         		components.removeAll(toRemove);

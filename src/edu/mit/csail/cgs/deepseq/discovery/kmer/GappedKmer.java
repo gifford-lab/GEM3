@@ -42,10 +42,8 @@ public class GappedKmer extends Kmer{
 		return baseKmers.get(subkmer);
 	}
 	public void mergePosHits(){
-		posHits.clear();
 		posBits.clear();
 		for (Kmer km:baseKmers.keySet()){
-			posHits.addAll(km.getPosHits());
 			posBits.or(km.posBits);
 		}
 		if (use_weighted_hit_count)
@@ -53,10 +51,10 @@ public class GappedKmer extends Kmer{
 	}
 	
 	public void mergeNegHits(){
-		negHits.clear();
+//		negHits.clear();
 		negBits.clear();
 		for (Kmer km:baseKmers.keySet()){
-			negHits.addAll(km.getNegHits());
+//			negHits.addAll(km.getNegHits());
 			negBits.or(km.negBits);
 		}
 	}
@@ -103,11 +101,12 @@ public class GappedKmer extends Kmer{
 	 * @param print_kmer_hits
 	 * @param printKmersAtK
 	 */
-	public static void printGappedKmers(ArrayList<Kmer> kmers, int k, int posSeqCount, int negSeqCount, double score, 
+	public static void printGappedKmers(ArrayList<Kmer> kmers, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
 			return;
 		
+		int k = kOriginal + gap;
 		Collections.sort(kmers);
 		
 		int subKmerId = 0;
@@ -167,7 +166,7 @@ public class GappedKmer extends Kmer{
 		}
 		
 		if (printKmersAtK)
-			CommonUtils.writeFile(String.format("%s.kmers_k%d.txt", filePrefix, k), sb.toString());
+			CommonUtils.writeFile(String.format("%s_kmers_%d+%d.txt", filePrefix, kOriginal, gap), sb.toString());
 		else
 			CommonUtils.writeFile(String.format("%s.KSM.txt", filePrefix), sb.toString());
 	}

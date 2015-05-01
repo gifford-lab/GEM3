@@ -1,11 +1,10 @@
 package edu.mit.csail.cgs.deepseq.features;
 
 import edu.mit.csail.cgs.datasets.general.Point;
-import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup;
 
 /**
  * BindingComponents are used in mixture models to represent potential binding events.

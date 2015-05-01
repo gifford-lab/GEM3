@@ -39,7 +39,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.stats.StatUtil.DensityClusteringPoint;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 
-public class KMAC2 {
+public class KMAC2old {
 	private final int RC=100000;		// extra bp add to indicate negative strand match of kmer
 	private final int UNALIGNED=9999;	// the special shift for unaligned kmer
 	public static final char[] LETTERS = {'A','C','G','T'};
@@ -108,7 +108,7 @@ public class KMAC2 {
 	public ArrayList<KmerCluster> getMotifClusters(){
 		return clusters;
 	}	
-	public KMAC2(){
+	public KMAC2old(){
 	}
 
 	public void setTotalSeqCounts(int posSeqCount, int negSeqCount){
@@ -168,17 +168,19 @@ public class KMAC2 {
 		if (config.use_weighted_kmer)
 			Kmer.set_seq_weights(seq_weights);
 		
-		if (config.k_neg_shuffle){
-			System.out.println("Use shuffled sequences as negative sequences.\n");
-			Random randObj = new Random(config.rand_seed);
-			for (int i=0;i<seqNum;i++)
-				seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
-		}
-		else if (config.k_neg_dinu_shuffle){
-			System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
-			Random randObj = new Random(config.rand_seed);
-			for (int i=0;i<seqNum;i++)
-				seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+		if (neg_seqs.isEmpty()){
+			if (config.k_neg_dinu_shuffle){
+				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
+				Random randObj = new Random(config.rand_seed);
+				for (int i=0;i<seqNum;i++)
+					seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+			}
+			else{	// single nucleotide shuffling
+				System.out.println("Use shuffled sequences as negative sequences.\n");
+				Random randObj = new Random(config.rand_seed);
+				for (int i=0;i<seqNum;i++)
+					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
+			}
 		}
 		else{
 			if (neg_seqs.size()<seqNum)
@@ -208,6 +210,7 @@ public class KMAC2 {
 	    negSeqCount = seqsNegList.size();
 	    updateSequenceInfo();
 	}
+	
 	private void resetProfile(){
 		for (int i=0; i<profile.length; i++)
 	    	profile[i] = 1;
@@ -243,7 +246,7 @@ public class KMAC2 {
     	bg[3]=bg[0];
 	}
 	
-	public KMAC2(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
+	public KMAC2old(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
 //		setUseKmerWeight();
 
 		genome = g;
@@ -258,7 +261,7 @@ public class KMAC2 {
 	/* 
 	 * Contruct a Kmer Engine from a list of Kmers
 	 */
-	public KMAC2(ArrayList<Kmer> kmers, String outPrefix){
+	public KMAC2old(ArrayList<Kmer> kmers, String outPrefix){
 		if (!kmers.isEmpty()){
 			if (outPrefix!=null)
 				updateEngine(kmers, outPrefix);
@@ -354,11 +357,11 @@ public class KMAC2 {
 				Kmer.set_seq_weights(seq_weights);
 			
 			seqsNegList.clear();
-			if (config.k_neg_shuffle){
-				System.out.println("Use shuffled sequences as negative sequences.\n");
+			if (config.k_neg_dinu_shuffle){
+				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
 				Random randObj = new Random(config.rand_seed);
 				for (int i=0;i<seqs.length;i++)
-					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
+					seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
 			}
 			else{
 				/** Negative sequences has been retrieved when setting up region caches */
@@ -951,9 +954,9 @@ public class KMAC2 {
     	seedFamily = null;
     	
     	// build first PWM
-    	if (config.verbose>1 && config.noise!=0)
-			System.out.println(CommonUtils.timeElapsed(tic)+ ": PWM noise = " + config.noise);
-    	NewPWM newPWM = buildPWM(seqList, cluster, config.noise, tic, true);	
+    	if (config.verbose>1 && config.pwm_noise!=0)
+			System.out.println(CommonUtils.timeElapsed(tic)+ ": PWM noise = " + config.pwm_noise);
+    	NewPWM newPWM = buildPWM(seqList, cluster, config.pwm_noise, tic, true);	
 		
     	if (newPWM!=null){
 			newPWM.updateClusterPwmInfo(cluster);
@@ -2305,7 +2308,7 @@ public class KMAC2 {
 		for (Kmer km:kmer2pos.keySet()){
 			ArrayList<Integer> posKmer = kmer2pos.get(km);		// all in_sequence positions of this kmer
 			// The kmer hit in the 2*k region should be at least 1/2 of total hit
-			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_aligned_fraction){			
+			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_inRange_fraction){			
 				km.setAlignString("Too few hit "+posKmer.size());
 				continue;
 			}	
@@ -2315,7 +2318,7 @@ public class KMAC2 {
 			int posSorted[] = sorted.car();
 			int maxCount = counts[counts.length-1];
 			// posKmer.size() only count in seqs in the alignment, getPosHitCount() count all seqs
-			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_aligned_fraction){
+			if (maxCount < Math.min(posKmer.size(),km.getPosHitCount()) * config.kmer_inRange_fraction){
 				km.setAlignString("Low consistent hit count "+maxCount);
 				continue;
 			}
@@ -2385,23 +2388,23 @@ public class KMAC2 {
 		
 		// mapping from sequence id to kmers
 		HashMap<Integer, HashSet<Kmer>> seq2kmers = new HashMap<Integer, HashSet<Kmer>>();
-		for (Kmer km: kmers){
-			HashSet<Integer> hits = km.getPosHits();
-			for (int h:hits){
-				if (!seq2kmers.containsKey(h))
-					seq2kmers.put(h, new HashSet<Kmer>());
-				seq2kmers.get(h).add(km);
-			}
-		}
+//		for (Kmer km: kmers){
+//			HashSet<Integer> hits = km.getPosHits();
+//			for (int h:hits){
+//				if (!seq2kmers.containsKey(h))
+//					seq2kmers.put(h, new HashSet<Kmer>());
+//				seq2kmers.get(h).add(km);
+//			}
+//		}
 		HashMap<Integer, HashSet<Kmer>> seq2kmers_neg = new HashMap<Integer, HashSet<Kmer>>();
-		for (Kmer km: kmers){
-			HashSet<Integer> hits = km.getNegHits();
-			for (int h:hits){
-				if (!seq2kmers_neg.containsKey(h))
-					seq2kmers_neg.put(h, new HashSet<Kmer>());
-				seq2kmers_neg.get(h).add(km);
-			}
-		}
+//		for (Kmer km: kmers){
+//			HashSet<Integer> hits = km.getNegHits();
+//			for (int h:hits){
+//				if (!seq2kmers_neg.containsKey(h))
+//					seq2kmers_neg.put(h, new HashSet<Kmer>());
+//				seq2kmers_neg.get(h).add(km);
+//			}
+//		}
 		
 		int posHitCount = seq2kmers.size();
 		int negHitCount = seq2kmers_neg.size();
@@ -2418,8 +2421,8 @@ public class KMAC2 {
 				int count_with_single_kmer_neg = 0;
 				HashSet<Integer> hits_to_remove = new HashSet<Integer>();
 				HashSet<Integer> hits_to_remove_neg = new HashSet<Integer>();
-				HashSet<Integer> hits = km.getPosHits();
-				HashSet<Integer> hits_neg = km.getNegHits();
+				HashSet<Integer> hits = null; //km.getPosHits();
+				HashSet<Integer> hits_neg = null; //km.getNegHits();
 				for (int h:hits){
 					if (seq2kmers.get(h).size()==1){
 						count_with_single_kmer++;
@@ -2831,7 +2834,7 @@ public class KMAC2 {
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
+			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i], config.strand_type==1);
 		}
 //		Arrays.sort(posSeqScores);
 		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
@@ -2840,7 +2843,7 @@ public class KMAC2 {
 		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
 		
 		for (int i=0;i<negSeqCount;i++){
-			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
+			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i), config.strand_type==1);
 		}
 		Arrays.sort(negSeqScores);
 		
@@ -2928,14 +2931,14 @@ public class KMAC2 {
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
+			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i], config.strand_type==1);
 		}
 		Arrays.sort(posSeqScores);
 		int startIdx = Arrays.binarySearch(posSeqScores, wmScore);
 		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
 		
 		for (int i=0;i<negSeqCount;i++){
-			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
+			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i), config.strand_type==1);
 		}
 		Arrays.sort(negSeqScores);
 		
@@ -3585,13 +3588,13 @@ public class KMAC2 {
 			
     		HashSet<Integer> allPosHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
-        		allPosHits.addAll(kmers.get(i).getPosHits());
+//        		allPosHits.addAll(kmers.get(i).getPosHits());
     		}
     		posHitGroupCount = allPosHits.size();
     		
     		HashSet<Integer> allNegHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
-        		allNegHits.addAll(kmers.get(i).getNegHits());
+//        		allNegHits.addAll(kmers.get(i).getNegHits());
     		}
     		negHitGroupCount = allNegHits.size();
 		}
@@ -3603,7 +3606,7 @@ public class KMAC2 {
 			
     		HashSet<Integer> allPosHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
-        		allPosHits.addAll(kmers.get(i).getPosHits());
+//        		allPosHits.addAll(kmers.get(i).getPosHits());
     		}
     		
     		if (weights==null){
@@ -3619,7 +3622,7 @@ public class KMAC2 {
     		
     		HashSet<Integer> allNegHits = new HashSet<Integer>();
     		for (int i=0;i<kmers.size();i++){
-        		allNegHits.addAll(kmers.get(i).getNegHits());
+//        		allNegHits.addAll(kmers.get(i).getNegHits());
     		}
     		negHitGroupCount = allNegHits.size();
 		}
@@ -3751,7 +3754,7 @@ public class KMAC2 {
 	    	same[i] = same_list.get(i);
 	    for (int i=0;i<x.length;i++)
 	    	diff[i] = diff_list.get(i);
-	    KMAC2 kmf = new KMAC2();
+	    KMAC2old kmf = new KMAC2old();
 	    kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
 	}
 	
@@ -3848,7 +3851,7 @@ public class KMAC2 {
 		}
         
 		// run motif discovery
-        KMAC2 kmf = new KMAC2();
+        KMAC2old kmf = new KMAC2old();
 
         kmf.setConfig(config, out_prefix);
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);

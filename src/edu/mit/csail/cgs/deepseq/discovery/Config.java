@@ -15,9 +15,11 @@ public class Config {
     public boolean outputMEME = false;
     public boolean outputHOMER = false;
     public boolean outputJASPAR = false;
+    public boolean print_dist_matrix = false;
     public boolean write_RSC_file = false;
     public boolean write_genetrack_file = false;
     public boolean kmer_print_hits = false;
+    public boolean print_motif_hits = false;
     public boolean testPValues = false;
     public boolean post_artifact_filter=false;
     public boolean kl_count_adjusted = false;
@@ -38,7 +40,7 @@ public class Config {
 	/** strand_type <br>
 	 * run event finding and motif discovery as <br>
 	 * 0) unstranded, for typical ChIP-seq data <br>
-	 * 1) only single strand, for BranchPoint data (Burge Lab), run motif discovery only on event strand, 
+	 * 1) only single strand, for Branch-seq, CLIP-seq, RNA-based data, call event only on the same strand as the reads, run motif discovery only on event strand,<br> 
 	 * 2) ChIP-exo (if wanting to find peak boundary), run motif discovery on both strands 
 	 */
     public int strand_type = 0;		
@@ -50,44 +52,48 @@ public class Config {
     public int k_min = -1;		// the minimum value of k
     public int k_max= -1;		// the maximum value of k        
     public String seed = null;
-    public int seq_weight_type = 3;	// 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
+    public int seq_weight_type = 3;	// "swt" - 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
     
-    /** number of top k-mers selected from density clustering to run KMAC */
-    public int k_top = 3;
+    /** number of top k-mers (for each k value) selected from density clustering to run KMAC */
+    public int k_top = 5;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
-    public int dc = 3;
-    /** delta value cutoff, k-mers with equal or higher delta values are used for selecting cluster centers */
-    public int delta = 2;
-    
+    public int dc = 2;
+    public int max_gkmer = 1500;
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
     public int k_win_f = 4;		// k_win = k_win_f * k
+   	public int gap = 3;			// max number of gapped bases in the k-mers (i.e. use 1 to gap)
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
     public int max_cluster = 20;
     public int topKmer_trials = 5;	// the number of initial k-mers to try
+    public double kmer_deviation_factor = 0.5;	// hamming dist / k of a k-mer to the seed, to be considered as neighboring k-mers in KSM in KMAC()
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
     public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched motif 
     public double kmer_hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
+    public double kmer_uncorrected_hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
     public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
     public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
     public double[] bg= new double[4];	// background frequency based on GC content
     public double wm_factor = 0.6;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
-    public double fpr = 0.15;		// The false positive rate for partial ROC
+    public double fpr = 0.1;		// The false positive rate for partial ROC
     public double motif_relax_factor = 1;		// A factor to multiply the motif PWM threshold, used for GEM motif positional prior
     public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
-    public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
+//    public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
     public double motif_hit_factor = 0.005;
     public double motif_hit_factor_report = 0.05;
-    public double kmer_set_overlap_ratio = 0.5;
+    public double motif_remove_ratio = 0.33;	// The ratio of exclusive match for 2nd motif, lower --> remove during merging
+    
+//    public double kmer_set_overlap_ratio = 0.5;
     public double motif_hit_overlap_ratio = 0.5;
     public double repeat_fraction=1;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
     public int kmer_remove_mode = 0;
     public int seed_range = 3;
-    public double kmer_aligned_fraction = 0.5;		// the fraction of kmer in the seed_range
+    public double kmer_inRange_fraction = 0.3;		// the fraction of kmer in the seed_range out of all k-mer hit count
+    public double kmer_consistent_fraction = 0.5;		// the fraction of consistently aligned kmers in the seed_range
     public boolean use_grid_search = true;
     public boolean optimize_pwm_threshold = true;
     public boolean optimize_kmer_set = true;
@@ -95,23 +101,22 @@ public class Config {
     public boolean kmer_use_filtered = false;
     public boolean use_weighted_kmer = true;		// strength weighted k-mer count
     public boolean use_pos_kmer = true;				// position weighted k-mer count
-    public boolean k_neg_shuffle = false;
-    public boolean k_neg_dinu_shuffle = false;		// di-nuleotide shuffle
+    public boolean k_neg_dinu_shuffle = true;		// di-nuleotide shuffle
     public int rand_seed = 0;
+    public double neg_pos_ratio = 1;					// number of shuffled negative / positive seqs
    	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
    	/** Align and cluster motif using KSM */
    	public boolean use_ksm = true;	
-   	public boolean use_gapped = true;
    	public boolean use_sub_kmers = true;
  	public boolean estimate_ksm_threshold = true;
   	public boolean kpp_normalize_max = true;
   	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
-  	public boolean progressive_PWM_trim = true;
+  	public boolean bestIC_PWM_trim = true;
   	public double kpp_factor = 0.8;
   	public int kpp_nmotifs = 1;	// number of motifs to use for kpp setup
-  	public double noise = 0.0;
+  	public double pwm_noise = 0.0;
     public boolean print_aligned_seqs = false;
     public boolean print_input_seqs = false;
     public boolean print_all_kmers = false;
@@ -119,6 +124,8 @@ public class Config {
     public boolean re_train = false;
 	public boolean refine_pwm = false;
 	public boolean refine_ksm = false;	// refine the KSM at the end of KMAC using un-masked sequences
+	public boolean refine_final_motifs = false;	// refine the final motifs
+	public boolean optimize_KG_kmers = false;	
     public boolean print_pwm_fdr = false;
     /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
     public boolean evaluate_by_ksm = false;	
@@ -130,7 +137,7 @@ public class Config {
     public boolean allow_seed_inheritance=true;	// allow primary seed k-mer to pass on to the next round of GEM
     public boolean filter_pwm_seq = true;
 //    public boolean k_select_seed = false;
-    public boolean pwm_align_new = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
+    public boolean pwm_align_new_only = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
     public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
     public boolean use_db_genome = false;// get the sequence from database, not from file
     public boolean k_mask_1base = false;
@@ -192,12 +199,21 @@ public class Config {
         	min_region_width = 1;
         	min_event_distance = 3;
         	smooth_step = 0;
-        	kmer_aligned_fraction = 0.3;
         	noise_distribution = 0;
-        	window_size_factor = 10;			//TODO: why 10??
+        	window_size_factor = 10;	
         	alpha_factor = 0.7;
+        	kpp_nmotifs = 10;
         	motif_relax_factor = 0.5;		// relax to half of the threshold
+        	
+        	// below are the boolean parameters, make sure that they are not reset by the flags parsing code
+        	// therefore, put those flags in the else statements below
+        	use_weighted_kmer = false;
         }
+        else{
+        	// match the boolean parameters above
+            use_weighted_kmer = !flags.contains("no_weighted_kmer");
+        }
+        	
 
         // default as false, need the flag to turn it on
         classify_events = flags.contains("classify");
@@ -217,13 +233,14 @@ public class Config {
         if (testPValues)
         	System.err.println("testP is " + testPValues);
         dump_regression = flags.contains("dump_regression");
-        progressive_PWM_trim = !flags.contains("npt");		// no progressive trimming of PWM
+        bestIC_PWM_trim = !flags.contains("sc");		// Seed centered PWM positions
         use_kmer_strength = flags.contains("use_kmer_strength");
         kmer_print_hits = flags.contains("kmer_print_hits");
+        print_motif_hits = flags.contains("print_motif_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
-        k_neg_shuffle = flags.contains("k_neg_shuffle");
-        k_neg_dinu_shuffle = flags.contains("k_neg_dinu_shuffle");
+        k_neg_dinu_shuffle = !flags.contains("k_neg_shuffle");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
+        neg_pos_ratio = Args.parseDouble(args, "neg_pos_ratio", neg_pos_ratio);
         re_align_kmer = flags.contains("rak");
         print_aligned_seqs = flags.contains("print_aligned_seqs");
         print_input_seqs = flags.contains("print_input_seqs");
@@ -232,6 +249,8 @@ public class Config {
         re_train = flags.contains("re_train");
         refine_pwm = flags.contains("refine_pwm");
         refine_ksm = flags.contains("refine_ksm");
+        refine_final_motifs = flags.contains("refine_final_motifs");
+        optimize_KG_kmers = flags.contains("optimize_KG_kmers");
         print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_ksm = flags.contains("evaluate_by_ksm");
@@ -261,11 +280,9 @@ public class Config {
         use_kmer_mismatch = !flags.contains("no_kmm");
         use_seed_family = !flags.contains("no_seed_family");
         use_ksm = !flags.contains("no_ksm");
-        use_gapped = !flags.contains("ng");
         use_sub_kmers = !flags.contains("ns");
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
-        use_weighted_kmer = !flags.contains("no_weighted_kmer");
         use_pos_kmer = !flags.contains("no_pos_kmer");
         optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
         optimize_kmer_set = !flags.contains("not_optimize_kmer_set");
@@ -275,7 +292,7 @@ public class Config {
         if (selectK_byTopKmer)														// overwrite allow_seed_reset
         	allow_seed_reset = false;
         allow_seed_inheritance = !flags.contains("no_seed_inheritance");
-        pwm_align_new = !flags.contains("pwm_align_all");
+        pwm_align_new_only = !flags.contains("pwm_align_all");
         filter_pwm_seq = !flags.contains("pwm_seq_asIs");
         strigent_event_pvalue = !flags.contains("relax");
 
@@ -307,9 +324,11 @@ public class Config {
         	allow_seed_reset = false;
         }
         k_top = Args.parseInteger(args, "k_top", k_top);
+        gap = Args.parseInteger(args, "gap", gap);
         dc = Args.parseInteger(args, "dc", dc);
-        delta = Args.parseInteger(args, "delta", delta);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
+        max_gkmer = Args.parseInteger(args, "k_max_gkmer", max_gkmer);
+        kmer_deviation_factor = Args.parseDouble(args, "kmer_deviation_factor", kmer_deviation_factor);
         seq_weight_type = Args.parseInteger(args, "swt", seq_weight_type);
         k_win = Args.parseInteger(args, "k_win", k_win);
         k_win_f = Args.parseInteger(args, "k_win_f", k_win_f);
@@ -330,14 +349,17 @@ public class Config {
         ic_trim = Args.parseDouble(args, "ic", ic_trim);
         hgp = Args.parseDouble(args, "hgp", hgp);
         kmer_hgp = Args.parseDouble(args, "kmer_hgp", kmer_hgp);
-        kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
+        kmer_uncorrected_hgp = Args.parseDouble(args, "kmer_uncorrected_hgp", kmer_uncorrected_hgp);
+//        kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
 //        kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
         kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);
         kpp_nmotifs = Args.parseInteger(args, "kpp_nmotifs", kpp_nmotifs);
-        noise = Args.parseDouble(args, "noise", noise);
+        pwm_noise = Args.parseDouble(args, "pwm_noise", pwm_noise);
         motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
-        kmer_aligned_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_aligned_fraction);
-        kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
+        motif_remove_ratio = Args.parseDouble(args, "motif_remove_ratio", motif_remove_ratio);
+        kmer_inRange_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_inRange_fraction);
+        kmer_consistent_fraction = Args.parseDouble(args, "kmer_consistent_fraction", kmer_consistent_fraction);
+//        kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
         repeat_fraction = Args.parseDouble(args, "repeat_fraction", repeat_fraction);
         seed_range = Args.parseInteger(args, "seed_range", seed_range);
         kmer_remove_mode = Args.parseInteger(args, "kmer_shift_remove", kmer_remove_mode);

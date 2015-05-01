@@ -71,7 +71,7 @@ public class ROC {
 	 * @param falsePositiveRate #FP/#negatives, i.e. 1-specificity
 	 * @return
 	 */
-	public double partialROC (double falsePositiveRate){
+	public double partialAUC (double falsePositiveRate){
 		if (falsePositiveRate > 1)
 			falsePositiveRate = 1;
 		
@@ -88,7 +88,41 @@ public class ROC {
 				truePositiveRate = (tprs[i-1]-tprs[i])/(fprs[i-1]-fprs[i])*(falsePositiveRate-fprs[i])+tprs[i];
 				break;
 			}
-			else
+			else 
+				continue;				
+		}
+		
+		double area = 0;
+		for (int i=1;i<fprIdx;i++)
+			area += (tprs[i-1]+tprs[i])*(fprs[i]-fprs[i-1])/2;
+		area += (tprs[fprIdx-1]+truePositiveRate)*(falsePositiveRate-fprs[fprIdx-1])/2;
+		
+		return area;		
+	}
+
+	/**
+	 * Compute partial ROC given a false positive rate
+	 * @param falsePositiveRate #FP/#negatives, i.e. 1-specificity
+	 * @return
+	 */
+	public double partialAUC (double falsePositiveRate, double minScore){
+		if (falsePositiveRate > 1)
+			falsePositiveRate = 1;
+		
+		double truePositiveRate = 0;			// interpolated TPR corresponding to the FPR
+		int fprIdx = 0;			// the index for the smallest point that is larger than falsePositiveRate
+		for (int i=1;i<fprs.length;i++){
+			if (fprs[i]==falsePositiveRate){
+				truePositiveRate=tprs[i];
+				fprIdx = i;
+				break;
+			}
+			else if(fprs[i]>falsePositiveRate){
+				fprIdx = i;
+				truePositiveRate = (tprs[i-1]-tprs[i])/(fprs[i-1]-fprs[i])*(falsePositiveRate-fprs[i])+tprs[i];
+				break;
+			}
+			else 
 				continue;				
 		}
 		
@@ -131,7 +165,28 @@ public class ROC {
     	}
     	return new Pair<Double,Integer>(sortedScores[maxIdx-1], maxIdx);
 	}
-	
+	public Pair<Double,Integer> partialOptimalPoint (double falsePositiveRate, double minScore){
+		if (falsePositiveRate > 1)
+			falsePositiveRate = 1;
+		
+    	double max = 1;
+    	int maxIdx = 0;
+    	for (int i=1;i<fprs.length;i++){
+    		if (fprs[i]>falsePositiveRate || sortedScores[i-1]<minScore){
+    			if (max==1){
+    				max = tprs[i] - fprs[i]+1;
+    				maxIdx = i;
+    			}
+    			break;
+    		}
+    		double J = tprs[i] - fprs[i]+1;
+    		if (J>max){
+    			max = J;
+    			maxIdx = i;
+    		}
+    	}
+    	return new Pair<Double,Integer>(sortedScores[maxIdx-1], maxIdx);
+	}
 	public Pair<Double,Double> getPoint(int index){
 		return new Pair<Double, Double>(tprs[index],fprs[index]);
 	}

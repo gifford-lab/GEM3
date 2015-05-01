@@ -58,7 +58,7 @@ public class Kmer implements Comparable<Kmer>{
 	HashSet<GappedKmer> getGappedKmers(){
 		return gappedKmers;
 	}
-	protected HashSet<Integer> posHits = new HashSet<Integer>();
+//	protected HashSet<Integer> posHits = new HashSet<Integer>();
 	BitSet posBits = new BitSet();
 	/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
 	 * 	get a weighted version of hit count if use_weighted_hit_count is true
@@ -69,8 +69,9 @@ public class Kmer implements Comparable<Kmer>{
 		else
 			return posBits.cardinality();
 	}
+	public BitSet getPosBits(){return posBits;}
+	
 	public void setPosHits(HashSet<Integer> posHits) {
-		this.posHits = posHits;
 		if (posHits.isEmpty())
 			return;
 		
@@ -81,17 +82,11 @@ public class Kmer implements Comparable<Kmer>{
 		if (use_weighted_hit_count)
 			setWeightedPosHitCount();
 	}
-	public HashSet<Integer> getPosHits(){return posHits;}
+//	public HashSet<Integer> getPosHits(){return posHits;}
 	
 	private int weightedPosHitCount;
 	protected void setWeightedPosHitCount(){
-		double weight=0;
-		if (seq_weights!=null){
-			for (int i = posBits.nextSetBit(0); i >= 0; i = posBits.nextSetBit(i+1)) {
-				weight+=seq_weights[i];
-	 		}
-		}
-		weightedPosHitCount = (int)weight;
+		weightedPosHitCount = CommonUtils.calcWeightedHitCount(posBits, seq_weights);
 	}
 	public int getWeightedHitCount(){
 		return weightedPosHitCount;
@@ -99,20 +94,20 @@ public class Kmer implements Comparable<Kmer>{
 	public double familyHgp;
 	
 //	int negHitCount;
-	protected HashSet<Integer> negHits = new HashSet<Integer>();
+//	protected HashSet<Integer> negHits = new HashSet<Integer>();
 	BitSet negBits = new BitSet();
+	public BitSet getNegBits(){return negBits;}
 	public int getNegHitCount() {return negBits.cardinality();}
 	public void setNegHits(HashSet<Integer> negHits) {
-		this.negHits = negHits;
-//		negHitCount = negHits.size();
+		negBits.clear();
 		for (int id:negHits){
 			negBits.set(id);
 		}
 	}
-	public HashSet<Integer> getNegHits(){return negHits;}
+//	public HashSet<Integer> getNegHits(){return negHits;}
 	
-	public int getNetHitCount() {
-		return getPosHitCount()-getNegHitCount();
+	public int getNetHitCount(double posNegSeqRatio) {
+		return getPosHitCount()-(int)(getNegHitCount()*posNegSeqRatio);
 	}
 	private double strength;	// the total read counts from all events explained by this kmer
 	public double getStrength(){return strength;}
@@ -241,19 +236,26 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public String toString(){
 		if (use_weighted_hit_count)
-			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),clusterId, isSeedOrientation, shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
+				getKmerStrRC(),clusterId, shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+				// use posBits.cardinality() instead of getPosHitCount() to get raw pos hit count
 		else
-			return String.format("%s\t%d\t%b\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),clusterId, isSeedOrientation, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
+				getKmerStrRC(),clusterId, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
 	}
+	/**
+	 * This method is used in the gapped k-mer printing. 
+	 * <br>In KMAC1, a k-mer may be used in multiple KSM, therefore, the k-mer object store isSeedOrientation flag to make it in consistent orientation with the seed k-mer.
+	 * @return
+	 */
 	public String toString2(){
 		if (use_weighted_hit_count)
 			return String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
-				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posHits.size(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+				// use posBits.cardinality() instead of getPosHitCount() to get raw pos hit count
 		else
 			return String.format("%s\t%d\t%d\t%d\t%.1f", 
-				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posHits.size(), getNegHitCount(), hgp_lg10);
+				isSeedOrientation?getKmerStrRC():getKmerRCStr(), shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
 	}
 
 	public static String toHeader(int k){
@@ -289,48 +291,46 @@ public class Kmer implements Comparable<Kmer>{
 		String[] f0f = f[0].split("/");
 		HashSet<Integer> posHits = new HashSet<Integer>();
 		HashSet<Integer> negHits = new HashSet<Integer>();
-		if (f.length==9){
-			String pos_id_string = f[7].trim();
-			if (!pos_id_string.equals("-1")){
-				String[] pos_ids = pos_id_string.split(" ");
-				for (String hit:pos_ids)
-					posHits.add(Integer.valueOf(hit));
+		
+		int numField = f.length;	// 9 with WPos field, 8 without
+		int posIDIndex = numField-2;
+		int negIDIndex = numField-1;
+		int HgpIndex = numField-3;
+		
+		String pos_id_string = f[posIDIndex].trim();
+		if (!pos_id_string.equals("-1")){
+			String[] pos_ids = null;
+			if (pos_id_string.charAt(0)=='{'){	// new BitSet format
+				pos_id_string = pos_id_string.substring(1,pos_id_string.length()-1);
+				pos_ids = pos_id_string.split(", ");
 			}
-
-			String neg_id_string = f[8].trim();
-			if (!neg_id_string.equals("-1")){
-				String[] neg_ids = neg_id_string.split(" ");
-				for (String hit:neg_ids)
-					negHits.add(Integer.valueOf(hit));
+			else{
+				pos_ids = pos_id_string.split(" ");
 			}
+			for (String hit:pos_ids)
+				posHits.add(Integer.valueOf(hit));
 		}
-		else if (f.length==8){ // no wPos field
-			String pos_id_string = f[6].trim();
-			if (!pos_id_string.equals("-1")){
-				String[] pos_ids = pos_id_string.split(" ");
-				for (String hit:pos_ids)
-					posHits.add(Integer.valueOf(hit));
+		String neg_id_string = f[negIDIndex].trim();
+		if (!neg_id_string.equals("-1")){
+			String[] neg_ids = null;
+			if (neg_id_string.charAt(0)=='{'){	// new BitSet format
+				neg_id_string = neg_id_string.substring(1,neg_id_string.length()-1);
+				neg_ids = neg_id_string.split(", ");
 			}
-
-			String neg_id_string = f[7].trim();
-			if (!neg_id_string.equals("-1")){
-				String[] neg_ids = neg_id_string.split(" ");
-				for (String hit:neg_ids)
-					negHits.add(Integer.valueOf(hit));
+			else{
+				neg_ids = neg_id_string.split(" ");
 			}
+			for (String hit:neg_ids)
+				negHits.add(Integer.valueOf(hit));
 		}
 		
 		Kmer kmer = new Kmer(f0f[0], posHits);	
+		kmer.setNegHits(negHits);
+		kmer.setWeightedPosHitCount();
 		kmer.clusterId = Integer.parseInt(f[1]);
 		kmer.kmerStartOffset = Integer.parseInt(f[2]);
-		kmer.setNegHits(negHits);
-		if (f.length==9){
-			kmer.hgp_lg10 = Double.parseDouble(f[6]);
-		}
-		else if (f.length==8){		// no wPos field
-			kmer.hgp_lg10 = Double.parseDouble(f[5]);
-		}
-
+		kmer.hgp_lg10 = Double.parseDouble(f[HgpIndex]);
+		
 		return kmer;
 	}
 
@@ -355,14 +355,14 @@ public class Kmer implements Comparable<Kmer>{
 			else{
 				sb.append(kmer.toString());
 				if (print_kmer_hits)
-					sb.append("\t").append(kmer.posBits.toString()).append("\t").append(hits2string(kmer.getNegHits()));
+					sb.append("\t").append(kmer.posBits.toString()).append("\t").append(kmer.negBits.toString());
 				sb.append("\n");
 			}
 		}
 		if (printKmersAtK)
 			CommonUtils.writeFile(String.format("%s_kmers_k%d.txt", filePrefix, kmers.get(0).getK()), sb.toString());
 		else
-			CommonUtils.writeFile(String.format("%s.KSM.txt", filePrefix), sb.toString());
+			CommonUtils.writeFile(String.format("%s_KSM.txt", filePrefix), sb.toString());
 	}
 	
 	/**

@@ -98,13 +98,16 @@ public class TFBS_SpaitialAnalysis {
 	private SequenceGenerator<Region> seqgen;
 	boolean dev = false;
 	boolean zero_or_one = false;	// for each TF, zero or one site per cluster, no multiple sites
+	boolean out_subset = false;		// output the call coords in selective subset of regions
 	String outPrefix = "out";
 	String tfss_file;				// Sequence-specific TFs
 	String tss_file;
-	String peak_file;				// for peak files other than GEM calls (in PIQ format)
+	String piq_file;				// for peak files other than GEM calls (in PIQ format)
+	String point_file;				// for peak/motif files (in CGS format)
 	String pwm_file;
 	String kmer_file;
 	String anno_region_file;
+	String query_region_file;
 	String tss_signal_file;
 	String cluster_file;
 	String cluster_key_file;
@@ -140,6 +143,12 @@ public class TFBS_SpaitialAnalysis {
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputBindingAndMotifSites(clusters);
 			break;
+		case 31:		// to print all the binding sites and motif positions in the specified regions for downstream spacing/grammar analysis
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 3 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
+			analysis.loadEventsAndMotifs(round);
+			clusters = analysis.addTfbs2Clusters();
+			analysis.outputTFBSclusters(clusters);
+			break;
 		case 4:		// spacing histogram
 			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10" --type 4 --out $analysis --cluster 0_BS_Motif_clusters.${analysis}.d${distance}.min${min}.txt --profile_range 200
 			analysis.printSpacingHistrograms();
@@ -159,7 +168,7 @@ public class TFBS_SpaitialAnalysis {
 			analysis.printTssSignal();
 			break;
 		}
-		
+		System.out.println("Done!");
 	}
 	
 	public TFBS_SpaitialAnalysis(String[] args){
@@ -184,6 +193,7 @@ public class TFBS_SpaitialAnalysis {
 		outPrefix = Args.parseString(args, "out", outPrefix);
 		zero_or_one = flags.contains("zoo");
 		dev = flags.contains("dev");
+		out_subset = flags.contains("out_subset");
 		oldFormat = flags.contains("old_format");
 		no_gem_pwm = !flags.contains("gem_pwm");
 //		indirect_binding = flags.contains("indirect_binding");
@@ -200,9 +210,10 @@ public class TFBS_SpaitialAnalysis {
 		expts = new ArrayList<String>();
 		names = new ArrayList<String>();
 		motif_names = new ArrayList<String>();
-		String info_file = Args.parseString(args, "info", null);
-		if (info_file!=null){
-			ArrayList<String> info = CommonUtils.readTextFile(info_file);
+		String gem_info_file = Args.parseString(args, "gem", null);
+		if (gem_info_file!=null){
+			ArrayList<String> info = CommonUtils.readTextFile(gem_info_file);
+			// expt name | short name | factor type | display name | motif | readdb name
 			for (String txt: info){
 				if (!txt.equals("")){
 					String[] f = txt.split("\t");
@@ -242,10 +253,12 @@ public class TFBS_SpaitialAnalysis {
 		tss_signal_file = Args.parseString(args, "tss_signal", null);
 		cluster_file = Args.parseString(args, "cluster", null);
 		cluster_key_file = Args.parseString(args, "key", null);
-		peak_file = Args.parseString(args, "peaks", null);				// additional peaks, e.g. PIQ calls
+		piq_file = Args.parseString(args, "piq", null);				// additional peaks, e.g. PIQ calls
+		point_file = Args.parseString(args, "point", null);				// additional peaks, e.g. PIQ calls
 		pwm_file = Args.parseString(args, "pwms", null);				// additional pwms
 		kmer_file = Args.parseString(args, "kmers", null);
 		anno_region_file = Args.parseString(args, "anno_regions", null);
+		query_region_file = Args.parseString(args, "regions", null);
 		exclude_sites_file = Args.parseString(args, "ex", null);
 		distance = Args.parseInteger(args, "distance", distance);
 		anno_expand_distance = Args.parseInteger(args, "anno_expand_distance", anno_expand_distance);
@@ -345,15 +358,20 @@ public class TFBS_SpaitialAnalysis {
 	 * @param round GEM output round (1 for GPS, 2 for GEM)
 	 */
 	private void loadEventsAndMotifs(int round){
-		ArrayList<Region> ex_regions = new ArrayList<Region>();
+		ArrayList<Region> exclude_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
-			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
+			exclude_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
 		}
+		ArrayList<Region> queryRegions = new ArrayList<Region>();
+		if(query_region_file!=null){
+			queryRegions = CommonUtils.load_BED_regions(genome, query_region_file).car();
+		}
+
 		for (int tf=0;tf<names.size();tf++){
 			String expt = expts.get(tf);
 			File dir2= new File(dir, expt);
 			dir2= new File(dir2, expt+"_outputs");
-			System.err.print(String.format("TF#%d: loading %s", tf, expt));
+			System.err.print(String.format("GEM #%d: loading %s", tf, expt));
 			
 			// load binding event files 
 			File gpsFile = new File(dir2, expt+"_"+ (round>=2?round:1) + "_GEM_events.txt");
@@ -366,18 +384,31 @@ public class TFBS_SpaitialAnalysis {
 						break eachpeak;
 					}
 					GPSPeak p = gpsPeaks.get(i);
+					
+					// skip site in the ex_regions and those not in queryRegion
+					// TODO: this loop can be more efficient
+					if(query_region_file!=null){
+						boolean isPeakInRegion = false;
+						for (Region r:queryRegions){
+							if (r.contains(p)){
+								isPeakInRegion = true;
+								break;
+							}
+						}
+						if (!isPeakInRegion)
+							continue eachpeak;
+					}
+					for (Region r: exclude_regions){
+						if (r.contains(p))
+							continue eachpeak;
+					}
+						
 					Site site = new Site();
 					site.tf_id = tf;
 					site.event_id = i;
 					site.signal = p.getStrength();
 					site.motifStrand = p.getKmerStrand();
 					site.bs = (Point)p;					
-					// skip site in the ex_regions
-					// TODO: this loop can be more efficient
-					for (Region r: ex_regions){
-						if (r.contains(site.bs))
-							continue eachpeak;
-					}
 					sites.add(site);
 				}				
 					
@@ -413,10 +444,12 @@ public class TFBS_SpaitialAnalysis {
 		} // for each expt
 		
 		// load PIQ calls
-		if (peak_file!=null){
-			ArrayList<String> lines = CommonUtils.readTextFile(peak_file); 
+		if (piq_file!=null){
+			ArrayList<String> lines = CommonUtils.readTextFile(piq_file); 
 			int newTFID = expts.size();
 			for (int l=0;l<lines.size();l++){
+				if (lines.get(l).startsWith("#"))
+					continue;
 				String[] f = lines.get(l).split("\t");
 				expts.add(f[0]);
 				names.add(f[1]);
@@ -429,13 +462,33 @@ public class TFBS_SpaitialAnalysis {
 					String line = piqs.get(i);
 					if (!line.contains("score")){
 						String[] q = line.split(",");
+						Point p = new Point(genome, q[1].replaceAll("\"", "").replaceAll("chr", ""), Integer.parseInt(q[2]));
+					
+						// skip site in the ex_regions and those not in queryRegion
+						// TODO: this loop can be more efficient
+						if(query_region_file!=null){
+							boolean isPeakInRegion = false;
+							for (Region r:queryRegions){
+								if (r.contains(p)){
+									isPeakInRegion = true;
+									break;
+								}
+							}
+							if (!isPeakInRegion)
+								continue eachpiq;
+						}
+						for (Region r: exclude_regions){
+							if (r.contains(p))
+								continue eachpiq;
+						}
+
 						Site site = new Site();
 						site.tf_id = newTFID+l;
 						site.event_id = i;
 						site.signal = Double.parseDouble(q[5]);
 						site.motifStrand = '+';
-						site.bs = new Point(genome, q[1].replaceAll("\"", "").replaceAll("chr", ""), Integer.parseInt(q[2]));					
-						for (Region r: ex_regions){
+						site.bs = p;					
+						for (Region r: exclude_regions){
 							if (r.contains(site.bs))
 								continue eachpiq;
 						}
@@ -447,13 +500,32 @@ public class TFBS_SpaitialAnalysis {
 					String line = piqs.get(i);
 					if (!line.contains("score")){
 						String[] q = line.split(",");
+						Point p = new Point(genome, q[1].replaceAll("\"", "").replaceAll("chr", ""), Integer.parseInt(q[2]));
+						
+						// skip site in the ex_regions and those not in queryRegion
+						// TODO: this loop can be more efficient
+						if(query_region_file!=null){
+							boolean isPeakInRegion = false;
+							for (Region r:queryRegions){
+								if (r.contains(p)){
+									isPeakInRegion = true;
+									break;
+								}
+							}
+							if (!isPeakInRegion)
+								continue eachpiq2;
+						}
+						for (Region r: exclude_regions){
+							if (r.contains(p))
+								continue eachpiq2;
+						}
 						Site site = new Site();
 						site.tf_id = newTFID+l;
 						site.event_id = -i;
 						site.signal = Double.parseDouble(q[5]);
 						site.motifStrand = '-';
-						site.bs = new Point(genome, q[1].replaceAll("\"", "").replaceAll("chr", ""), Integer.parseInt(q[2]));					
-						for (Region r: ex_regions){
+						site.bs = p;					
+						for (Region r: exclude_regions){
 							if (r.contains(site.bs))
 								continue eachpiq2;
 						}
@@ -578,6 +650,68 @@ public class TFBS_SpaitialAnalysis {
 		clusters.clear();
 		clusters = newClusters;
 		
+		return clusters;
+	}
+		
+	/**
+	 * Add all the sites/motifs in all_sites that are in the query regions into clusters of positions. 
+	 * @return
+	 */
+	private ArrayList<ArrayList<Site>> addTfbs2Clusters(){
+		System.out.println("Assign binding/motif sites to specified regions (clusters).");
+		ArrayList<Region> rs = CommonUtils.load_BED_regions(genome, query_region_file).car();
+		
+		// classify sites by chrom, so that the sorting space is smaller
+		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
+		for (ArrayList<Site> sites:all_sites){
+			for (Site s:sites){
+				String chr = s.bs.getChrom();
+				if (!chrom2sites.containsKey(chr))
+					chrom2sites.put(chr, new ArrayList<Site>());
+				chrom2sites.get(chr).add(s);
+			}
+		}
+		for (String chr: chrom2sites.keySet()){
+			ArrayList<Site> sites = chrom2sites.get(chr);
+			sites.trimToSize();
+			Collections.sort(sites);
+		}
+		
+		// add sites to regions
+		// NOTE: this is not very efficient for large data set, because it just loops over everything in a chromosome
+		ArrayList<ArrayList<Site>> clusters = new ArrayList<ArrayList<Site>>();		
+		for (Region r: rs){
+			ArrayList<Site> sites = chrom2sites.get(r.getChrom());
+			if (sites==null || sites.isEmpty())
+				continue;
+			ArrayList<Site> cluster = new ArrayList<Site>();
+			for (Site s: sites){
+				if (r.contains(s.bs))
+					cluster.add(s);			
+			}
+			cluster.trimToSize();
+			if (cluster.isEmpty())
+				continue;
+			clusters.add(cluster);
+		}
+		clusters.trimToSize();
+		
+		if (out_subset){
+			HashMap<Integer,ArrayList<StrandedPoint>> subsets = new HashMap<Integer,ArrayList<StrandedPoint>>();
+			for (ArrayList<Site> c: clusters){
+				for (Site s: c){
+					if (!subsets.containsKey(s.tf_id))
+						subsets.put(s.tf_id, new ArrayList<StrandedPoint>());
+					subsets.get(s.tf_id).add(new StrandedPoint(s.bs, s.motifStrand));
+				}
+			}
+			for (int id: subsets.keySet()){
+				StringBuilder sb = new StringBuilder();
+				for (StrandedPoint p: subsets.get(id))
+					sb.append(p.toString()).append("\n");
+				CommonUtils.writeFile(outPrefix+"."+id+".txt", sb.toString());
+			}
+		}
 		return clusters;
 	}
 		

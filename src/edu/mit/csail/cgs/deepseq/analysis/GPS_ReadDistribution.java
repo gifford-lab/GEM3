@@ -56,6 +56,8 @@ public class GPS_ReadDistribution {
 	private String motif_strand = null;
 	private boolean print_4_orientations;
 	private boolean isMirrorSymmetry;
+	private boolean print_value = false;	// print raw read count value, default: false, print probability
+	private boolean do_not_shift = false;	// print raw read count value, default: false, print probability
 	
 	public static void main(String[] args) throws IOException {
 		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
@@ -67,6 +69,8 @@ public class GPS_ReadDistribution {
 		ArgParser ap = new ArgParser(args);
 		Set<String> flags = Args.parseFlags(args);
 		print_4_orientations = flags.contains("p4");
+		print_value = flags.contains("val");
+		do_not_shift = flags.contains("noshift");
 		isMirrorSymmetry = flags.contains("mirrow");
 		if (isMirrorSymmetry)
 			System.out.println("Running MirrorSymmetry mode ... ");
@@ -203,9 +207,9 @@ public class GPS_ReadDistribution {
 //			int index = i-model_plus.getMin();
 //			dist.add(new Pair<Integer, Double>(i, prob_plus[index]+prob_minus[index]));
 //		}
-		BindingModel model=getDistribution(points);
+		BindingModel model=computeReadDistribution(points);
 		String outFile = String.format("Read_Distribution_%s.txt", name);
-		model.printToFile(outFile);
+		model.printToFile(outFile, print_value);
 		System.out.println(outFile+" has been written.");
 	}	
 	
@@ -344,7 +348,7 @@ public class GPS_ReadDistribution {
 	// Either to negate the offset of minus strand depends on the type of data
 	// ChIP-Seq data is point-symmetry (i.e. 180 degree rotation, the sequenced ends are from different ends of the pulled down fragment)
 	// DNase-Seq data is mirror-symmetry (i.e. the sequenced ends are from the same cut)
-	private BindingModel getDistribution (ArrayList<Point> points){
+	private BindingModel computeReadDistribution (ArrayList<Point> points){
 		Map<String,Integer> chromLengthMap = genome.getChromLengthMap();
 		int length = range*2+1;
 		double[] pp = new double[length];		// motif/point and DNA are all on plus strand
@@ -414,7 +418,7 @@ public class GPS_ReadDistribution {
 				BindingModel model_one_orientation=new BindingModel(one_orientation);
 				if (smooth_step>0)
 					model_one_orientation.smooth(smooth_step, smooth_step);
-				model_one_orientation.printToFile(String.format("Read_Distribution_%s_pp.txt", name));
+				model_one_orientation.printToFile(String.format("Read_Distribution_%s_pp.txt", name), print_value);
 				
 				one_orientation.clear();
 				for (int i=0;i<length;i++){
@@ -423,7 +427,7 @@ public class GPS_ReadDistribution {
 				model_one_orientation=new BindingModel(one_orientation);
 				if (smooth_step>0)
 					model_one_orientation.smooth(smooth_step, smooth_step);
-				model_one_orientation.printToFile(String.format("Read_Distribution_%s_mm.txt", name));
+				model_one_orientation.printToFile(String.format("Read_Distribution_%s_mm.txt", name), print_value);
 				
 				one_orientation.clear();
 				for (int i=0;i<length;i++){
@@ -432,7 +436,7 @@ public class GPS_ReadDistribution {
 				model_one_orientation=new BindingModel(one_orientation);
 				if (smooth_step>0)
 					model_one_orientation.smooth(smooth_step, smooth_step);
-				model_one_orientation.printToFile(String.format("Read_Distribution_%s_mp.txt", name));
+				model_one_orientation.printToFile(String.format("Read_Distribution_%s_mp.txt", name), print_value);
 				
 				one_orientation.clear();
 				for (int i=0;i<length;i++){
@@ -441,7 +445,7 @@ public class GPS_ReadDistribution {
 				model_one_orientation=new BindingModel(one_orientation);
 				if (smooth_step>0)
 					model_one_orientation.smooth(smooth_step, smooth_step);
-				model_one_orientation.printToFile(String.format("Read_Distribution_%s_pm.txt", name));
+				model_one_orientation.printToFile(String.format("Read_Distribution_%s_pm.txt", name), print_value);
 			}
 			
 			// reverse the positions to merge
@@ -451,8 +455,10 @@ public class GPS_ReadDistribution {
 				pm = reverseArray(pm);
 			mm = reverseArray(mm);
 			
-			BindingModel.minKL_Shift(pp, mm, 5);
-			BindingModel.minKL_Shift(mp, pm, 5);
+			if (!do_not_shift){
+				BindingModel.minKL_Shift(pp, mm, 5);
+				BindingModel.minKL_Shift(mp, pm, 5);
+			}
 			ArrayList<Pair<Integer, Double>> same = new ArrayList<Pair<Integer, Double>>();		// reads on the same strand as motif
 			for (int i=0;i<length;i++){
 				pp[i]+=mm[i];		// store in pp
@@ -464,7 +470,7 @@ public class GPS_ReadDistribution {
 			BindingModel model_same=new BindingModel(same);
 			if (smooth_step>0)
 				model_same.smooth(smooth_step, smooth_step);
-			model_same.printToFile(String.format("Read_Distribution_%s_same.txt", name));
+			model_same.printToFile(String.format("Read_Distribution_%s_same.txt", name), print_value);
 			ArrayList<Pair<Integer, Double>> diff = new ArrayList<Pair<Integer, Double>>();		// on diff strand
 			for (int i=0;i<length;i++){
 				diff.add(new Pair<Integer, Double>(i-range, mp[i]));
@@ -472,8 +478,9 @@ public class GPS_ReadDistribution {
 			BindingModel model_diff=new BindingModel(diff);
 			if (smooth_step>0)
 				model_diff.smooth(smooth_step, smooth_step);
-			model_diff.printToFile(String.format("Read_Distribution_%s_diff.txt", name));
-			BindingModel.minKL_Shift(pp, mp, 5);
+			model_diff.printToFile(String.format("Read_Distribution_%s_diff.txt", name), print_value);
+			if (!do_not_shift)
+				BindingModel.minKL_Shift(pp, mp, 5);
 			for (int i=0;i<length;i++){
 				dist.add(new Pair<Integer, Double>(i-range, pp[i]+mp[i]));
 			}
@@ -486,7 +493,7 @@ public class GPS_ReadDistribution {
 			BindingModel model_plus=new BindingModel(plus);
 			if (smooth_step>0)
 				model_plus.smooth(smooth_step, smooth_step);
-			model_plus.printToFile(String.format("Read_Distribution_%s_plus.txt", name));
+			model_plus.printToFile(String.format("Read_Distribution_%s_plus.txt", name), print_value);
 			ArrayList<Pair<Integer, Double>> minus = new ArrayList<Pair<Integer, Double>>();		// on minus strand
 			for (int i=0;i<length;i++){
 				minus.add(new Pair<Integer, Double>(i-range, mm[i]));
@@ -494,9 +501,9 @@ public class GPS_ReadDistribution {
 			BindingModel model_minus=new BindingModel(minus);
 			if (smooth_step>0)
 				model_minus.smooth(smooth_step, smooth_step);
-			model_minus.printToFile(String.format("Read_Distribution_%s_minus.txt", name));
-
-			BindingModel.minKL_Shift(pp, mm, 5);
+			model_minus.printToFile(String.format("Read_Distribution_%s_minus.txt", name), print_value);
+			if (!do_not_shift)
+				BindingModel.minKL_Shift(pp, mm, 5);
 			for (int i=0;i<length;i++){
 				dist.add(new Pair<Integer, Double>(i-range, pp[i]+mm[i]));
 			}

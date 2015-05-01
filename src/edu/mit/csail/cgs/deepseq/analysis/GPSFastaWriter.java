@@ -25,6 +25,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 public class GPSFastaWriter{  
 	// --species "Homo sapiens;hg19" --expts expt_done.txt [--root C:\Data\workspace\gse] --window 200 --top -1 --no_cache  
@@ -84,7 +85,8 @@ public class GPSFastaWriter{
 	        String line;
 	        while((line = bin.readLine()) != null) {
 	        	String f[] = line.split("\t");
-	            names.add(f[0]);
+	        	if (!f[0].trim().equals(""))
+	        		names.add(f[0].trim());
 	        }
 		}
 		catch (IOException e){
@@ -103,7 +105,7 @@ public class GPSFastaWriter{
 	
     // load GPS results
 	for (String exptName : names){
-		System.out.print("Processing sequences and related info for "+exptName+", ");
+		System.out.print("Getting FASTA sequences for "+exptName+" ... ");
 		File folder = new File(new File(root, exptName), exptName+"_outputs");
 	    File gpsFile = new File(folder, exptName+"_1_GEM_events.txt");
 	    if (!gpsFile.exists()){
@@ -197,6 +199,9 @@ public class GPSFastaWriter{
 	    			continue;
 	    	}
 	    	String seq = seqgen.execute(r);
+	    	if (p.getStrand()=='-')
+	    		seq = SequenceUtils.reverseComplement(seq);
+	    	
 	    	// negative region for GEM
 			// In proximal regions, but excluding binding regions
 			String chr = p.getChrom();
@@ -206,7 +211,8 @@ public class GPSFastaWriter{
 				continue;
 			Region r_neg = new Region(genome, chr, start, start+window);
 			negativeRegions.add(r_neg);
-
+			
+			// check for repeat, i.e. lower case soft masking sequence
 			for (char c:seq.toCharArray())
 				if ((Character.isLowerCase(c) && skip_repeat) || c=='N')
 					continue eachPeak;
@@ -282,6 +288,9 @@ public class GPSFastaWriter{
 	    	gem_neg_sb.append(neg_seq).append("\n");
 	    	neg_count++;
 		}
+		
+		if (skip_repeat)
+			exptName += "_rm";		// repeat removed
 		
 	    if (wantHMS || wantChIPMunk){
 			chipSeq.closeLoaders();

@@ -12,7 +12,6 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
-
 public class GEM {
 	public final static String GEM_VERSION = "2.5";
 	private String[] args;
@@ -33,6 +32,11 @@ public class GEM {
             String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
             if(genomeString != null){
                 genome = new Genome("Genome", new File(genomeString), true);
+                if (genome.getChromLengthMap().isEmpty()){
+                	System.err.println("Your genome chromosome information in --g "+genomeString+" is empty, or has wrong file format.\n");
+        			printError();
+        			System.exit(1);
+                }
             } else{
                 genome=null;
             }
@@ -166,35 +170,42 @@ public class GEM {
         int GEM_round = Args.parseInteger(args,"r_gem", 2);
         int minLeft = Args.parseInteger(args,"d_l", 300);
         int minRight = Args.parseInteger(args,"d_r", 200);
+        String kf = Args.parseString(args,"kf", null);
         boolean not_update_model = flags.contains("not_update_model");
+        
+        String filePrefix = mixture.getOutName();
+        String prefix = new File(filePrefix).getName();
+        File currentFolder = null;
+        String path = null;
         /**
          ** Simple GPS event finding without sequence information
          **/
-	    int round = 0;
-        String filePrefix = mixture.getOutName();
-        String prefix = new File(filePrefix).getName();
-        mixture.setOutName(filePrefix+"_"+round);
-        System.out.println("\n============================ Round "+round+" ============================");
         
-        mixture.execute();
-        if (!not_update_model){
-	        boolean constant_model_range = Args.parseFlags(args).contains("constant_model_range");
-	        if (!constant_model_range){
-	            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
-	            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), filePrefix+"_"+(round+1));
+ 	    int round = 0;
+ 	    if (kf==null && !not_update_model){
+	 	    mixture.setOutName(filePrefix+"_"+round);
+	        System.out.println("\n============================ Round "+round+" ============================");
+	        
+	        mixture.execute();
+	        if (!not_update_model){
+		        boolean constant_model_range = Args.parseFlags(args).contains("constant_model_range");
+		        if (!constant_model_range){
+		            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
+		            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), filePrefix+"_"+(round+1));
+		        }
+		        else
+		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
 	        }
-	        else
-	            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), filePrefix+"_"+(round+1));
-        }
-        if (Args.parseFlags(args).contains("process_all_regions")){
-	        mixture.printFeatures(round);
-	        mixture.printFilteredFeatures(round);
-	        mixture.printInsignificantFeatures(round);	        
-        	if (Args.parseFlags(args).contains("refine_regions"))
-            	mixture.refineRegions();
-        }
-        mixture.releaseMemory();
-        
+	        if (Args.parseFlags(args).contains("process_all_regions")){
+		        mixture.printFeatures(round);
+		        mixture.printFilteredFeatures(round);
+		        mixture.printInsignificantFeatures(round);	        
+	        	if (Args.parseFlags(args).contains("refine_regions"))
+	            	mixture.refineRegions();
+	        }
+	        mixture.releaseMemory();
+ 	    }
+
         while (round+1<GPS_round){
             round++;
             System.out.println("\n============================ Round "+round+" ============================");
@@ -208,12 +219,13 @@ public class GEM {
 	        mixture.releaseMemory();
         }
 
-    	File currentFolder = new File(filePrefix).getParentFile().getParentFile();
-    	String path = new File(currentFolder, prefix).getAbsolutePath();
+    	currentFolder = new File(filePrefix).getParentFile().getParentFile();
+    	path = new File(currentFolder, prefix).getAbsolutePath();
         CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
         if (Args.parseFlags(args).contains("outNP"))
         	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GPS_events.narrowPeak");
-        
+
+    
         /**
          ** GEM event finding with kmer motif positional prior (KPP)
          **/    	
@@ -276,7 +288,7 @@ public class GEM {
 	        if (Args.parseFlags(args).contains("outNP"))
 	        	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GEM_events.narrowPeak");
 	        CommonUtils.copyFile(filePrefix+"_"+round+"_PFM.txt", path+"_PFM.txt");
-	        CommonUtils.copyFile(filePrefix+"_"+round+".KSM.txt", path+".KSM.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+round+"_KSM.txt", path+"_KSM.txt");
 	        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
 	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 	        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+

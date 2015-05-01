@@ -8,6 +8,7 @@ import java.util.TreeMap;
 import java.util.Vector;
 
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -123,24 +124,24 @@ public class GPSParser {
 		if (t.length == 14 || t.length == 15 ) {		// with kmer info
 	    	// GEM output format 2011-07-25	
 	    	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	Kmer	Count	Strength	BoundSequence	EnrichedHGP
-	    	Region r = Region.fromString(g, t[0]);
-            peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+			StrandedPoint r = StrandedPoint.fromString(g, t[0]);
+            peak = new GPSPeak(g, r.getChrom(), r.getLocation(), r.getStrand(), 
                     Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), Double.parseDouble(t[5]), 
                     Math.pow(10,-1*Double.parseDouble(t[6])), Double.parseDouble(t[6]), Double.parseDouble(t[7]), Double.parseDouble(t[8]), Double.parseDouble(t[9]),
                     t[10], (int)Double.parseDouble(t[11]), t[12].charAt(0), t[13]);
 	    } else if (t.length == 13 ) {		// with kmer info
 	    	// GEM output format 2012-03	
 	    	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	Kmer	Count	Strength	BoundSequence
-	    	Region r = Region.fromString(g, t[0]);
-            peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+	    	StrandedPoint r = StrandedPoint.fromString(g, t[0]);
+            peak = new GPSPeak(g, r.getChrom(), r.getLocation(), r.getStrand(), 
                     Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), Double.parseDouble(t[5]), 
                     Math.pow(10,-1*Double.parseDouble(t[6])), Double.parseDouble(t[6]), Double.parseDouble(t[7]), Double.parseDouble(t[8]), Double.parseDouble(t[9]),
                     t[10], (int)Double.parseDouble(t[11]), t[12].charAt(0), "");
 	    } else if (t.length == 10 ) {		// not with kmer info
 	    	// GPS output format 2011-07-25	
 	    	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	
-	    	Region r = Region.fromString(g, t[0]);
-            peak = new GPSPeak(g, r.getChrom(), r.getStart(), 
+	    	StrandedPoint r = StrandedPoint.fromString(g, t[0]);
+            peak = new GPSPeak(g, r.getChrom(), r.getLocation(), r.getStrand(), 
                    Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), Double.parseDouble(t[5]), 
                    Math.pow(10,-1*Double.parseDouble(t[6])), Double.parseDouble(t[6]), Double.parseDouble(t[7]), Double.parseDouble(t[8]), Double.parseDouble(t[9]),
                    "", 0, '*', "");

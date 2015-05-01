@@ -77,10 +77,49 @@ public class MotifScan {
 	    
 		ArrayList<MotifInstance> instances = null;
 		ArrayList<Integer> motifLengths = new ArrayList<Integer>();
-		if (Args.parseString(args, "pfm", null)!=null)
-			instances = getPWMInstances(args, seqs, motifLengths);
-		if (Args.parseString(args, "kmer", null)!=null)
-			instances = getKmerInstances(args, seqs, motifLengths);
+		ArrayList<Double> motifThresholds = new ArrayList<Double>();
+		if (Args.parseString(args, "pfm", null)!=null){
+			StringBuilder sb_header = new StringBuilder();
+
+		    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41));
+		    if (pwms.isEmpty()){
+		    	System.out.println("No motif is loaded from \n"+Args.parseString(args, "pfm", null));
+		    	System.exit(-1);
+		    }
+		    double scoreRatio = Args.parseDouble(args, "score_ratio", 0.6);
+		    
+		    sb_header.append("# Motif Information\n");
+		    sb_header.append("#ID\tName\tLetters\tWidth\tMax\tThresh\n");
+		    
+		    for (int m=0; m<pwms.size(); m++){
+		    	WeightMatrix pwm = pwms.get(m);
+		    	motifLengths.add(pwm.length());
+		    	double threshold = pwm.getMaxScore()*scoreRatio;
+		    	motifThresholds.add(threshold);
+		    	sb_header.append("#").append(m).append("\t").append(pwm.getName()).append("\t").append(WeightMatrix.getMaxLetters(pwm)).append("\t").append(pwm.length()).append("\t")
+		    	.append(String.format("%.2f", pwm.getMaxScore())).append("\t").append(String.format("%.2f", threshold)).append("\n");
+		    }
+		    sb_header.append("#");
+		    System.out.println(sb_header.toString());
+
+			instances = getPWMInstances(seqs, pwms, motifThresholds);
+		}
+		
+		// search for exact k-mer match
+		if (Args.parseString(args, "kmer", null)!=null){
+			StringBuilder sb_header = new StringBuilder();
+
+		    String kmer = Args.parseString(args, "kmer", null);
+		    motifLengths.add(kmer.length());
+		    
+		    sb_header.append("# Motif Information\n");
+		    sb_header.append("#ID\tLetters\tWidth\n");
+		    sb_header.append("#").append(0).append("\t").append(kmer).append("\t").append(kmer.length()).append("\n");
+		    sb_header.append("#");
+		    System.out.println(sb_header.toString());
+		    
+			instances = getKmerInstances(seqs, kmer);
+		}
 		
 	    // output
 		StringBuilder sb = new StringBuilder("#Motif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n");
@@ -111,6 +150,7 @@ public class MotifScan {
 	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
     	CommonUtils.writeFile(out.concat(".motifInstances.txt"), sb.toString());
 	    
+    	
 	    // skip the matched sequences
 	    if (flags.contains("skip")){
 	    	HashSet<Integer> seqID_matched = new HashSet<Integer>();
@@ -142,81 +182,64 @@ public class MotifScan {
 	    	CommonUtils.writeFile(out.concat(".motifHitMasked.fasta"), sb_mask.toString());
 	    }
 	}
+	
 	/**
 	 * Return a list of motif PWM matches from a list of sequences
-	 * @param args command line argument list
-	 * @param seqs	sequences
-	 * @param motifLengths an empty list to pass back PWM lengths 
-	 * @return
 	 */
-	public static ArrayList<MotifInstance> getPWMInstances(String[] args, String[] seqs, ArrayList<Integer> motifLengths){
-		//TODO: move motifLengths as a return value
-		StringBuilder sb_header = new StringBuilder();
-
-	    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41));
-	    if (pwms.isEmpty()){
-	    	System.out.println("No motif is loaded from \n"+Args.parseString(args, "pfm", null));
-	    	System.exit(-1);
-	    }
-	    double scoreRatio = Args.parseDouble(args, "score_ratio", 0.6);
-	    
-	    sb_header.append("# Motif Information\n");
-	    sb_header.append("#ID\tName\tLetters\tWidth\tMax\tThresh\n");
-	    
-	    for (int m=0; m<pwms.size(); m++){
-	    	WeightMatrix pwm = pwms.get(m);
-	    	motifLengths.add(pwm.length());
-	    	double threshold = pwm.getMaxScore()*scoreRatio;
-	    	sb_header.append("#").append(m).append("\t").append(pwm.getName()).append("\t").append(WeightMatrix.getMaxLetters(pwm)).append("\t").append(pwm.length()).append("\t")
-	    	.append(String.format("%.2f", pwm.getMaxScore())).append("\t").append(String.format("%.2f", threshold)).append("\n");
-	    }
-	    sb_header.append("#");
-	    System.out.println(sb_header.toString());
-	    
+	public static ArrayList<MotifInstance> getPWMInstances(String[] seqs, List<WeightMatrix> pwms, List<Double> motifThresholds){
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
 	    for (int m=0; m<pwms.size(); m++){
 	    	WeightMatrix pwm = pwms.get(m);
 	    	WeightMatrixScorer scorer = new WeightMatrixScorer(pwm, true);
-	    	double threshold = pwm.getMaxScore()*scoreRatio;
+	    	double threshold = motifThresholds.get(m);
 	    	int width = pwm.length();
-		    for (int s=0; s<seqs.length;s++){		    	
-				WeightMatrixScoreProfile profiler = scorer.execute(seqs[s]);
-				for (int i=0;i<profiler.length();i++){
-					double score = profiler.getHigherScore(i);
-					if (score >= threshold){
-						char strand = profiler.getHigherScoreStrand(i);
-						String instance = null;
-						if (strand=='+')
-							instance = seqs[s].substring(i, i+width);
-						else
-							instance = SequenceUtils.reverseComplement(seqs[s].substring(i, i+width));
-						MotifInstance mi = new MotifInstance();
-						mi.motifID = m;
-						mi.motifName = pwm.getName();
-						mi.seqID = s;
-						mi.matchSeq = instance;
-						mi.position = i;
-						mi.strand = strand;
-						mi.score = score;
-						instances.add(mi);
+		    for (int s=0; s<seqs.length;s++){
+		    	String str = seqs[s];
+		    	if (str.length()>=width){
+		    		WeightMatrixScoreProfile profiler = scorer.execute(str);
+					for (int i=0;i<profiler.length();i++){
+						double score = profiler.getHigherScore(i);
+						if (score >= threshold){
+							char strand = profiler.getHigherScoreStrand(i);
+							String instance = null;
+							if (strand=='+')
+								instance = str.substring(i, i+width);
+							else
+								instance = SequenceUtils.reverseComplement(str.substring(i, i+width));
+							MotifInstance mi = new MotifInstance();
+							mi.motifID = m;
+							mi.motifName = pwm.getName();
+							mi.seqID = s;
+							mi.matchSeq = instance;
+							mi.position = i;
+							mi.strand = strand;
+							mi.score = score;
+							instances.add(mi);
+						}
 					}
-				}
+		    	}
+		    	else{
+		    		Pair<Float,Integer> partialScore = WeightMatrixScorer.scorePartialMatrix(pwm, str.toCharArray(), true);
+		    		int p = partialScore.cdr()<WeightMatrixScorer.RC/2?partialScore.cdr():(partialScore.cdr()-WeightMatrixScorer.RC);		    		
+		    		double partialThreshold = pwm.getPartialMaxScore(Math.abs(p),Math.abs(p)+str.length())*threshold/pwm.getMaxScore();
+		    		if (partialScore.car()>=partialThreshold || partialScore.car() >= threshold/2){
+			    		MotifInstance mi = new MotifInstance();
+						mi.motifID = m;
+						mi.strand = partialScore.cdr()<WeightMatrixScorer.RC/2?'+':'-';
+						mi.motifName = pwm.getName()+"_p"+(mi.strand=='+'?partialScore.cdr():(partialScore.cdr()-WeightMatrixScorer.RC));
+						mi.seqID = s;
+						mi.matchSeq = mi.strand=='+'?str:SequenceUtils.reverseComplement(str);
+						mi.position = 0;
+						mi.score = partialScore.car();
+						instances.add(mi);
+		    		}
+		    	}
 		    }
 	    }
 		return instances;
 	}
 	
-	private static ArrayList<MotifInstance> getKmerInstances(String[] args, String[] seqs, ArrayList<Integer> motifLengths){
-		StringBuilder sb_header = new StringBuilder();
-
-	    String kmer = Args.parseString(args, "kmer", null);
-	    motifLengths.add(kmer.length());
-	    
-	    sb_header.append("# Motif Information\n");
-	    sb_header.append("#ID\tLetters\tWidth\n");
-	    sb_header.append("#").append(0).append("\t").append(kmer).append("\t").append(kmer.length()).append("\n");
-	    sb_header.append("#");
-	    System.out.println(sb_header.toString());
+	private static ArrayList<MotifInstance> getKmerInstances(String[] seqs, String kmer){
 	    
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();	    
 	    for (int s=0; s<seqs.length;s++){
@@ -257,12 +280,4 @@ public class MotifScan {
 	}
 }
 
-class MotifInstance{
-	int motifID;
-	String motifName;
-	int seqID;
-	String matchSeq;
-	int position;
-	char strand;
-	double score;
-}
+
