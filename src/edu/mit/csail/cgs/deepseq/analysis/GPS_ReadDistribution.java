@@ -2,8 +2,10 @@ package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +47,7 @@ public class GPS_ReadDistribution {
 	private DeepSeqExpt chipSeqExpt = null;
 	private int range = 250;
 	private int smooth_step = 10;
-	private int top = 1000;
+	private int top = 10000;
 	
 	private WeightMatrix motif = null;
 	private double motifThreshold;
@@ -57,7 +59,8 @@ public class GPS_ReadDistribution {
 	
 	public static void main(String[] args) throws IOException {
 		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
-		analysis.printEmpiricalDistribution(analysis.points);;
+		BindingModel2D model = analysis.getDistribution2D(analysis.points);
+		//analysis.printEmpiricalDistribution(analysis.points);;
 	}
 	
 	public GPS_ReadDistribution(String[] args) throws IOException {
@@ -262,26 +265,80 @@ public class GPS_ReadDistribution {
 	    float[][] sum = new float[2*range+1][2*range+1];
 	    Pair<Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>>, ArrayList<ArrayList<Float>>> pair = null;
 	    for (Point p:points) {
-	        int pos = p.getLocation();
-	        if (!chromLengthMap.containsKey(p.getChrom()) || pos>chromLengthMap.get(p.getChrom()))
-                continue;
-	        pair = chipSeqExpt.loadStrandedBaseCountsPaired(p.expand(range), '+');
-	        Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>> coords = pair.car();
-	        ArrayList<Integer> plusCoords = coords.car();
-	        ArrayList<ArrayList<Integer>> minCoords = coords.cdr();
-	        ArrayList<ArrayList<Float>> weight = pair.cdr();
-	        for (int i=0; i<minCoords.size(); i++) {
-	            int upOffset = plusCoords.get(i)-pos;
-	            for (int j=0; j<minCoords.get(i).size(); i++){
-	                int downOffset = minCoords.get(i).get(j)-pos;
-	                if (downOffset <= range) {
-	                    sum[upOffset+range][downOffset+range] += Math.min(weight.get(i).get(j), mrc);
+	        if (p instanceof StrandedPoint){
+	            int pos = p.getLocation();
+	            char point_strand = ((StrandedPoint) p).getStrand();
+	            if (!chromLengthMap.containsKey(p.getChrom()) || pos>chromLengthMap.get(p.getChrom()))
+	                continue;
+	            pair = chipSeqExpt.loadStrandedBaseCountsPaired(p.expand(range), '+');//ideally upstream read is '+'
+	            Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>> coords = pair.car();
+	            ArrayList<Integer> plusCoords = coords.car();
+	            ArrayList<ArrayList<Integer>> minCoords = coords.cdr();
+	            ArrayList<ArrayList<Float>> weight = pair.cdr();
+	            if (point_strand == '+') {
+	                for (int i=0; i<minCoords.size(); i++) {
+	                    int upOffset = plusCoords.get(i)-pos;
+	                    for (int j=0; j<minCoords.get(i).size(); j++){
+	                        int downOffset = minCoords.get(i).get(j)-pos;
+	                        if (downOffset <= range) {
+	                            sum[upOffset+range][downOffset+range] += Math.min(weight.get(i).get(j), mrc);
+	                        }
+	                    }
+	                }
+	            } else {
+	                for (int i=minCoords.size()-1; i>=0; i--) {
+	                    int upOffset = -1*(plusCoords.get(i)-pos);
+	                    for (int j=minCoords.get(i).size(); j>=0; j--) {
+	                        int downOffset = -1*(minCoords.get(i).get(j)-pos);
+	                        if (downOffset >= -1*range) {
+	                            sum[upOffset+range][downOffset+range] += Math.min(weight.get(i).get(j), mrc);
+	                        }
+	                    }
 	                }
 	            }
 	        }
 	    }
 	    ArrayList<Pair<Integer, List<Pair<Integer, Double>>>> dist = new ArrayList<Pair<Integer, List<Pair<Integer, Double>>>>();
-	    return null;
+	    for (int i=0; i<sum.length; i++) {
+	        List<Pair<Integer, Double>> weights= new ArrayList<Pair<Integer, Double>>();
+	        for (int j=0; j<sum[i].length; j++) {
+	            weights.add(new Pair<Integer, Double>(j+range, (double)sum[i][j]));
+	        }
+	        dist.add(new Pair<Integer, List<Pair<Integer, Double>>>(i+range, weights));
+	    }
+	    BindingModel2D model = new BindingModel2D(dist);
+	    
+	    StringBuilder sb = new StringBuilder();
+        //StringBuilder hitsb = new StringBuilder();
+	    for (int a=0; a<sum.length; a++) {
+	        sb.append(a-range);
+	        sb.append('\t');
+	    }
+	    sb.append('\n');
+        for (int a = 0; a<sum.length; a++) {
+            sb.append(a-range).append('\t');
+            for (int b = 0; b<sum[a].length; b++) {
+                sb.append(sum[a][b]);
+                sb.append('\t');
+            }
+            sb.append('\n');
+        }
+        PrintWriter reads;
+        //PrintWriter weights;
+        try {
+            reads = new PrintWriter("/Users/jennylin/Documents/Jenny/UROP/combindStrandResults.csv");
+            reads.write(sb.toString());
+            reads.close();
+            //weights = new PrintWriter("/Users/jennylin/Documents/Jenny/UROP/weightVect.csv");
+            //weights.write(hitsb.toString());
+            //weights.close();
+        } catch (FileNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
+        System.out.println("Done");
+	    return model;
 	}
 	
 	// Either to negate the offset of minus strand depends on the type of data

@@ -274,8 +274,8 @@ public abstract class PairedAlignmentFileReader {
             char strand = h.getStrand();
             int strandInd = strand == '+' ? 0 : 1;
             //System.out.println(h.getChrom()+"\t"+h.getStart()+"\t"+h.getStrand());
-            readOneList[chrID][strandInd].add(strand == '+' ?h.getStart():h.getEnd());
-            readTwoList[chrID][strandInd].add(strand == '+' ?h2.getStart():h2.getEnd());
+            readOneList[chrID][strandInd].add(h.getStart());
+            readTwoList[chrID][strandInd].add(h2.getEnd());
             hitIDsList[chrID][strandInd].add(h.getID());
             hitCountsList[chrID][strandInd].add((float)h.getWeight());
             totalHits++;
