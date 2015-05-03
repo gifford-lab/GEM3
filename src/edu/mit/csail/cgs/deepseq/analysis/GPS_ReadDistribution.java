@@ -264,6 +264,7 @@ public class GPS_ReadDistribution {
 		return model;
 	}
 	
+	//paired end distribution building
 	private BindingModel2D getDistribution2D (ArrayList<Point> points) {
 	    Map<String,Integer> chromLengthMap = genome.getChromLengthMap();
 	    float[][] sum = new float[2*range+1][2*range+1];
@@ -274,12 +275,12 @@ public class GPS_ReadDistribution {
 	            char point_strand = ((StrandedPoint) p).getStrand();
 	            if (!chromLengthMap.containsKey(p.getChrom()) || pos>chromLengthMap.get(p.getChrom()))
 	                continue;
-	            pair = chipSeqExpt.loadStrandedBaseCountsPaired(p.expand(range), '+');//ideally upstream read is '+'
+	            pair = chipSeqExpt.loadStrandedBaseCountsPaired(p.expand(range), '+');//assume upstream read is '+' for now
 	            Pair<ArrayList<Integer>, ArrayList<ArrayList<Integer>>> coords = pair.car();
 	            ArrayList<Integer> plusCoords = coords.car();
 	            ArrayList<ArrayList<Integer>> minCoords = coords.cdr();
 	            ArrayList<ArrayList<Float>> weight = pair.cdr();
-	            if (point_strand == '+') {
+	            if (point_strand == '+') { 
 	                for (int i=0; i<minCoords.size(); i++) {
 	                    int upOffset = plusCoords.get(i)-pos;
 	                    for (int j=0; j<minCoords.get(i).size(); j++){
@@ -289,7 +290,7 @@ public class GPS_ReadDistribution {
 	                        }
 	                    }
 	                }
-	            } else {
+	            } else { //motif is on opposite strand, flip distribution
 	                for (int i=minCoords.size()-1; i>=0; i--) {
 	                    int upOffset = -1*(plusCoords.get(i)-pos);
 	                    for (int j=minCoords.get(i).size()-1; j>=0; j--) {
@@ -310,10 +311,10 @@ public class GPS_ReadDistribution {
 	        }
 	        dist.add(new Pair<Integer, List<Pair<Integer, Double>>>(i+range, weights));
 	    }
-	    BindingModel2D model = new BindingModel2D(dist);
+	    BindingModel2D model = new BindingModel2D(dist); //returned binding model, empty for now
 	    
+	    //Writes out results to file
 	    StringBuilder sb = new StringBuilder();
-        //StringBuilder hitsb = new StringBuilder();
 	    for (int a=0; a<sum.length; a++) {
 	        sb.append(a-range);
 	        sb.append('\t');
@@ -333,9 +334,6 @@ public class GPS_ReadDistribution {
             reads = new PrintWriter("/Users/jennylin/Documents/Jenny/UROP/combindStrandResults.csv");
             reads.write(sb.toString());
             reads.close();
-            //weights = new PrintWriter("/Users/jennylin/Documents/Jenny/UROP/weightVect.csv");
-            //weights.write(hitsb.toString());
-            //weights.close();
         } catch (FileNotFoundException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
