@@ -551,7 +551,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
 
         if (config.strand_type ==1)
-        	log(1, "Calling events in single-strand mode (usually for RNA-based data)\n");
+        	log(1, "Calling events in single-strand mode ...\n");
         
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         ArrayList<Region> regionsToRun = new ArrayList<Region>();
