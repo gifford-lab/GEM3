@@ -224,6 +224,7 @@ public class TFBS_SpaitialAnalysis {
 				}
 			}
 		}
+		System.out.println("To load "+expts.size()+" datasets");
 		top = Args.parseInteger(args, "top", top);
 		anchor_string = Args.parseString(args, "anchor", anchor_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
 		target_string = Args.parseString(args, "target", target_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences

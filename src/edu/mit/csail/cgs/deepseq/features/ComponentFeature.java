@@ -503,18 +503,16 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 
     		result.append(String.format("%7.2f\t", getShapeDeviation(c))); 
     		result.append(String.format("%7.2f\t", getNoiseFraction()));
-        	if (c<numConditions-1)
-        		result.append("\t");
         }
         if (boundSequence!=null){
 	        if (kmerGroup!=null)
 	        	result.append(String.format("%s_%d/%d\t%d\t%.2f\t%s\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand, boundSequence));
 	        else
 	        	result.append(CommonUtils.padding(8, '-')).append("\t-1\t0.00\t*\t").append(boundSequence);
-	        if (getEnrichedKmerHGPLog10()!=99)
-	        	result.append(String.format("\t%.1f", getEnrichedKmerHGPLog10()));
+	        result.append("\n");
         }
-        result.append("\n");
+        else
+        	CommonUtils.replaceEnd(result, '\n');
 		return result.toString();
 	}
 	

@@ -328,16 +328,8 @@ public class GPS_ReadDistribution {
             }
             sb.append('\n');
         }
-        PrintWriter reads;
-        //PrintWriter weights;
-        try {
-            reads = new PrintWriter("/Users/jennylin/Documents/Jenny/UROP/combindStrandResults.csv");
-            reads.write(sb.toString());
-            reads.close();
-        } catch (FileNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+        
+        CommonUtils.writeFile(this.name+".2D.txt", sb.toString());
         
         System.out.println("Done");
 	    return model;
