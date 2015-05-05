@@ -115,7 +115,7 @@ public class Config {
   	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
   	public boolean bestIC_PWM_trim = true;
   	public double kpp_factor = 0.8;
-  	public int kpp_nmotifs = 1;	// number of motifs to use for kpp setup
+  	public int pp_nmotifs = 1;	// number of motifs to use for kpp setup
   	public double pwm_noise = 0.0;
     public boolean print_aligned_seqs = false;
     public boolean print_input_seqs = false;
@@ -202,7 +202,7 @@ public class Config {
         	noise_distribution = 0;
         	window_size_factor = 10;	
         	alpha_factor = 0.7;
-        	kpp_nmotifs = 10;
+        	pp_nmotifs = 10;
         	motif_relax_factor = 0.5;		// relax to half of the threshold
         	
         	// below are the boolean parameters, make sure that they are not reset by the flags parsing code
@@ -353,7 +353,7 @@ public class Config {
 //        kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
 //        kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
         kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);
-        kpp_nmotifs = Args.parseInteger(args, "kpp_nmotifs", kpp_nmotifs);
+        pp_nmotifs = Args.parseInteger(args, "pp_nmotifs", pp_nmotifs);
         pwm_noise = Args.parseDouble(args, "pwm_noise", pwm_noise);
         motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
         motif_remove_ratio = Args.parseDouble(args, "motif_remove_ratio", motif_remove_ratio);

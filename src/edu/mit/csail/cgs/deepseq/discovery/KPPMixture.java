@@ -4287,7 +4287,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             		if (config.pp_use_kmer){		// use k-mer match to set KPP
             			
             			ArrayList<KmerCluster> clusters = kmac.getMotifClusters();
-            			int kpp_nmotifs = Math.min(clusters.size(), config.kpp_nmotifs);
+            			int kpp_nmotifs = Math.min(clusters.size(), config.pp_nmotifs);
             			for (int j=0;j<kpp_nmotifs;j++){
             				KmerCluster c = clusters.get(j);
             				if (c.alignedKmers.isEmpty())
@@ -4346,7 +4346,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             		}
             		else {			// use PWM to set KPP
             			ArrayList<KmerCluster> clusters = kmac.getMotifClusters();
-            			int kpp_nmotifs = Math.min(clusters.size(), config.kpp_nmotifs);
+            			int kpp_nmotifs = Math.min(clusters.size(), config.pp_nmotifs);
             			for (int j=0;j<kpp_nmotifs;j++){
 	            			KmerCluster cluster = clusters.get(j);
 	            			if (cluster!=null){
