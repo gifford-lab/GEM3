@@ -45,7 +45,7 @@ public class GPS_ReadDistribution {
 
 	// build empirical distribution
 	private DeepSeqExpt chipSeqExpt = null;
-	private int range = 250;
+	private int range = 500;
 	private int smooth_step = 10;
 	private int top = 10000;
 	
@@ -292,10 +292,10 @@ public class GPS_ReadDistribution {
 	                }
 	            } else { //motif is on opposite strand, flip distribution
 	                for (int i=minCoords.size()-1; i>=0; i--) {
-	                    int upOffset = -1*(plusCoords.get(i)-pos);
+	                    int downOffset = -1*(plusCoords.get(i)-pos);
 	                    for (int j=minCoords.get(i).size()-1; j>=0; j--) {
-	                        int downOffset = -1*(minCoords.get(i).get(j)-pos);
-	                        if (downOffset >= -1*range) {
+	                        int upOffset = -1*(minCoords.get(i).get(j)-pos);
+	                        if (upOffset >= -1*range) {
 	                            sum[upOffset+range][downOffset+range] += Math.min(weight.get(i).get(j), mrc);
 	                        }
 	                    }
