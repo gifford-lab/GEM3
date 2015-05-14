@@ -45,6 +45,7 @@ public class GPS_ReadDistribution {
 
 	// build empirical distribution
 	private DeepSeqExpt chipSeqExpt = null;
+	private boolean remove_nonspan = false;
 	private int range = 500;
 	private int smooth_step = 10;
 	private int top = 10000;
@@ -71,6 +72,7 @@ public class GPS_ReadDistribution {
 		print_4_orientations = flags.contains("p4");
 		print_value = flags.contains("val");
 		do_not_shift = flags.contains("noshift");
+		remove_nonspan = flags.contains("nospan");
 		isMirrorSymmetry = flags.contains("mirrow");
 		if (isMirrorSymmetry)
 			System.out.println("Running MirrorSymmetry mode ... ");
@@ -99,6 +101,7 @@ public class GPS_ReadDistribution {
 		
 		// parameter for building empirical distribution
 		String chipSeqFile = Args.parseString(args, "chipseq", null);
+		
 		if (chipSeqFile!=null){
 			String fileFormat = Args.parseString(args, "f", "BED");  
 			List<File> expts = new ArrayList<File>();
@@ -285,6 +288,9 @@ public class GPS_ReadDistribution {
 	                    int upOffset = plusCoords.get(i)-pos;
 	                    for (int j=0; j<minCoords.get(i).size(); j++){
 	                        int downOffset = minCoords.get(i).get(j)-pos;
+	                        if (remove_nonspan && ((upOffset<0) == (downOffset<0))) {
+	                            continue;//skips entirely for now, could try reduced weight?
+	                        }
 	                        if (downOffset <= range) {
 	                            sum[upOffset+range][downOffset+range] += Math.min(weight.get(i).get(j), mrc);
 	                        }
@@ -295,6 +301,9 @@ public class GPS_ReadDistribution {
 	                    int downOffset = -1*(plusCoords.get(i)-pos);
 	                    for (int j=minCoords.get(i).size()-1; j>=0; j--) {
 	                        int upOffset = -1*(minCoords.get(i).get(j)-pos);
+	                        if (remove_nonspan && ((upOffset<0) == (downOffset<0))) {
+                                continue;
+                            }
 	                        if (upOffset >= -1*range) {
 	                            sum[upOffset+range][downOffset+range] += Math.min(weight.get(i).get(j), mrc);
 	                        }
