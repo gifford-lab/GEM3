@@ -61,9 +61,12 @@ public class GPS_ReadDistribution {
 	private boolean do_not_shift = false;	// print raw read count value, default: false, print probability
 	
 	public static void main(String[] args) throws IOException {
-		GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
-		BindingModel2D model = analysis.getDistribution2D(analysis.points);
-		//analysis.printEmpiricalDistribution(analysis.points);;
+		Set<String> flags = Args.parseFlags(args);
+			GPS_ReadDistribution analysis = new GPS_ReadDistribution(args);
+		if (flags.contains("PE"))
+			analysis.getDistribution2D(analysis.points);
+		else
+			analysis.printEmpiricalDistribution(analysis.points);;
 	}
 	
 	public GPS_ReadDistribution(String[] args) throws IOException {
