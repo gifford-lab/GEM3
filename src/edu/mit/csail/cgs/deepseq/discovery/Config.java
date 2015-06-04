@@ -149,7 +149,7 @@ public class Config {
     public double alpha_factor = 3.0;
     public double alpha_fine_factor = 2.0;
     public double excluded_fraction = 0.05;	// top and bottom fraction of region read count to exclude for regression
-    public int top_events = 2000;
+    public int top_events = 2000;		// number of top ranking events for learning read distribution
     public int min_event_count = 500;	// minimum num of events to update read distribution
     public double top_fract_to_skip = 0.01;		// fraction of top events to skip for updating read distribution
     public int smooth_step = 30;

@@ -184,22 +184,24 @@ public class KMAC1 {
 		if (neg_seqs.isEmpty()){
 			if (config.k_neg_dinu_shuffle){
 				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
-	//			StringBuilder sb = new StringBuilder();
-	//			for (int i=0;i<seqNum;i++){
-	//				sb.append(seqs[i]);
-	//			}for (int j=0;j<config.neg_pos_ratio;j++){
-	//				Random randObj = new Random(config.rand_seed+j);
-	//				String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
-	//				for (int i=0;i<seqNum;i++){
-	//					seqsNegList.add(shuffled.substring(i*length,(i+1)*length));
-	//				}
-	//			}			
-				for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
-					Random randObj = new Random(config.rand_seed+j);
-					for (int i=0;i<seqNum;i++){
-						seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
-					}
+				StringBuilder sb = new StringBuilder();
+				for (int i=0;i<seqNum;i++){
+					sb.append(seqs[i]);
 				}
+				int length = seqs[0].length();
+				for (int j=0;j<config.neg_pos_ratio;j++){
+					Random randObj = new Random(config.rand_seed+j);
+					String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
+					for (int i=0;i<seqNum;i++){
+						seqsNegList.add(shuffled.substring(i*length,(i+1)*length));
+					}
+				}			
+//				for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
+//					Random randObj = new Random(config.rand_seed+j);
+//					for (int i=0;i<seqNum;i++){
+//						seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+//					}
+//				}
 			}
 			else{		// single nucleotide shuffling
 				System.out.println("!!! Need to update !!!\nUse shuffled sequences as negative sequences.\n");
@@ -962,7 +964,9 @@ public class KMAC1 {
 			relaxFactor *= 0.7;
 			divideFactor *= 0.5;
 		}
-
+		double relaxed_fold = Math.max(config.k_fold*relaxFactor, 1);
+		double relaxed_hgp = Math.min(relaxFactor*correctedKmerHGP, config.kmer_uncorrected_hgp*0.5);
+		
 		// compute the smallest PosCount needed to be significant, with negCount=0
 		int smallestPosCount;
 		for (smallestPosCount=minHitCount;smallestPosCount<posSeqCount;smallestPosCount++){
@@ -1079,9 +1083,9 @@ public class KMAC1 {
 		for (Kmer kmer:kmMap.values()){
 			if (kmerstr2negSeqs.containsKey(kmer.getKmerString())){
 				HashSet<Integer> neghits = kmerstr2negSeqs.get(kmer.getKmerString());
-				if (kmer.getPosHitCount() > neghits.size() / get_NP_ratio() * config.k_fold*relaxFactor){
+				if (kmer.getPosHitCount() > neghits.size() / get_NP_ratio() * relaxed_fold){
 					double hgp = computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), neghits.size());
-					if (hgp < correctedKmerHGP*relaxFactor){		// the hgp and fold change here is slightly relaxed for base-kmers
+					if (hgp < relaxed_hgp){		// the hgp and fold change here is slightly relaxed for base-kmers
 						kmer.setNegHits(neghits);	
 						kmer.setHgp(hgp);
 					}
@@ -3811,7 +3815,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			int tmp = alignedKmers.size();
 			optimizeKSM(alignedKmers);
 			if (config.verbose>1)
-				System.out.println(String.format("%s: Extract new KSM, optimized %d to %d k-mers.", CommonUtils.timeElapsed(tic), tmp, alignedKmers.size()));
+				System.out.println(String.format("%s: Extract new KSM, optimize %d to %d k-mers.", CommonUtils.timeElapsed(tic), tmp, alignedKmers.size()));
 		}
 		alignedKmers.trimToSize();
 		return new NewKSM(alignedKmers);
