@@ -215,7 +215,7 @@ public class TFBS_SpaitialAnalysis {
 			ArrayList<String> info = CommonUtils.readTextFile(gem_info_file);
 			// expt name | short name | factor type | display name | motif | readdb name
 			for (String txt: info){
-				if (!txt.equals("")){
+				if ( ! (txt.equals("")||txt.startsWith("#")) ){
 					String[] f = txt.split("\t");
 					expts.add(f[0]);
 					names.add(f[3]);
@@ -683,8 +683,10 @@ public class TFBS_SpaitialAnalysis {
 		ArrayList<ArrayList<Site>> clusters = new ArrayList<ArrayList<Site>>();		
 		for (Region r: rs){
 			ArrayList<Site> sites = chrom2sites.get(r.getChrom());
-			if (sites==null || sites.isEmpty())
+			if (sites==null || sites.isEmpty()){
+				clusters.add(new ArrayList<Site>());		// add a empty cluster
 				continue;
+			}
 			ArrayList<Site> cluster = new ArrayList<Site>();
 			for (Site s: sites){
 				if (r.contains(s.bs))
@@ -698,6 +700,7 @@ public class TFBS_SpaitialAnalysis {
 		clusters.trimToSize();
 		
 		if (out_subset){
+			// separate sites by their tf_id
 			HashMap<Integer,ArrayList<StrandedPoint>> subsets = new HashMap<Integer,ArrayList<StrandedPoint>>();
 			for (ArrayList<Site> c: clusters){
 				for (Site s: c){
@@ -718,7 +721,8 @@ public class TFBS_SpaitialAnalysis {
 		
 	/** 
 	 * Output all the binding sites in the clusters, for topic modeling analysis or clustering analysis<br>
-	 * This method also include pseudo sites from overlapping annotation regions (such as histone mark broad peaks, TSSs, DHS, etc.)
+	 * This method also include pseudo sites from overlapping annotation regions (such as histone mark broad peaks, TSSs, DHS, etc.)<br>
+	 * The site clusters may contain empty clusters, neet to check the length of the sites.
 	 * @param clusters
 	 */
 	private void outputTFBSclusters(ArrayList<ArrayList<Site>> clusters){
@@ -746,10 +750,21 @@ public class TFBS_SpaitialAnalysis {
 		for (String s:annoLabels)
 			names.add(s);
 		
-		for (ArrayList<Site> c:clusters){
+		ArrayList<Region> query_regions = null;
+		if (query_region_file!=null)
+			query_regions = CommonUtils.load_BED_regions(genome, query_region_file).car();
+		
+		for (int j=0;j<clusters.size();j++){
+			ArrayList<Site> c = clusters.get(j);
 			int numSite = c.size();
+			if (numSite==0)
+				continue;
+			Region r = null;
+			if (query_regions!=null)
+				r = query_regions.get(j);
+			else
+				r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 			Point lastSiteCoord = c.get(numSite-1).bs;
-			Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 			for (int i=0;i<annoRegions.size();i++){
 				ArrayList<Region> rs = annoRegions.get(i);
 				int length = Region.computeOverlapLength(r, rs);
@@ -771,9 +786,16 @@ public class TFBS_SpaitialAnalysis {
 		if (print_full_format){
 			StringBuilder sb = new StringBuilder();
 			sb.append("#Region\tLength\t#Sites\tTFs\tTFIDs\tSignals\tPos\tMotifs\t#Motif\n");
-			for (ArrayList<Site> c:clusters){
+			for (int j=0;j<clusters.size();j++){
+				ArrayList<Site> c = clusters.get(j);
 				int numSite = c.size();
-				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+				if (numSite==0)
+					continue;
+				Region r = null;
+				if (query_regions!=null)
+					r = query_regions.get(j);
+				else
+					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				StringBuilder sb_tfs = new StringBuilder();
 				StringBuilder sb_tfids = new StringBuilder();
 				StringBuilder sb_tf_signals = new StringBuilder();
@@ -806,9 +828,16 @@ public class TFBS_SpaitialAnalysis {
 		}
 		if (print_TMT_format){	// Stanford TMT format
 			StringBuilder sb = new StringBuilder();
-			for (ArrayList<Site> c:clusters){
+			for (int j=0;j<clusters.size();j++){
+				ArrayList<Site> c = clusters.get(j);
 				int numSite = c.size();
-				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+				if (numSite==0)
+					continue;
+				Region r = null;
+				if (query_regions!=null)
+					r = query_regions.get(j);
+				else
+					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				StringBuilder sb_tfs = new StringBuilder().append(r.toString()).append("\t").append(numSite).append("\t");
 				for (Site s:c){
 					sb_tfs.append(names.get(s.tf_id)).append(" ");
@@ -909,9 +938,16 @@ public class TFBS_SpaitialAnalysis {
 				sb.append(names.get(i)).append("\t");
 			CommonUtils.replaceEnd(sb, '\n');
 			
-			for (ArrayList<Site> c :clusters){
+			for (int j=0;j<clusters.size();j++){
+				ArrayList<Site> c = clusters.get(j);
 				int numSite = c.size();
-				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+				if (numSite==0)
+					continue;
+				Region r = null;
+				if (query_regions!=null)
+					r = query_regions.get(j);
+				else
+					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				sb.append(r.toString()).append("\t");
 				for (int s=0;s<c.size();s++){
 					Site site = c.get(s);
@@ -934,9 +970,16 @@ public class TFBS_SpaitialAnalysis {
 				sb.append(names.get(i)).append("\t");
 			CommonUtils.replaceEnd(sb, '\n');
 			
-			for (ArrayList<Site> c :clusters){
+			for (int j=0;j<clusters.size();j++){
+				ArrayList<Site> c = clusters.get(j);
 				int numSite = c.size();
-				Region r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation());
+				if (numSite==0)
+					continue;
+				Region r = null;
+				if (query_regions!=null)
+					r = query_regions.get(j);
+				else
+					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				sb.append(r.toString()).append("\t");
 				for (int s=0;s<c.size();s++){
 					Site site = c.get(s);
