@@ -11,31 +11,44 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import javax.imageio.ImageIO;
 
-import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.Pair;
-import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
-import edu.mit.csail.cgs.utils.strings.StringUtils;
-import edu.mit.csail.cgs.utils.strings.multipattern.*;
-import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
-import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.deepseq.analysis.MotifInstance;
+import edu.mit.csail.cgs.deepseq.analysis.MotifScan;
+import edu.mit.csail.cgs.deepseq.discovery.Config;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
+import edu.mit.csail.cgs.tools.utils.Args;
+import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.ROC;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.stats.StatUtil.DensityClusteringPoint;
-import edu.mit.csail.cgs.deepseq.analysis.MotifInstance;
-import edu.mit.csail.cgs.deepseq.analysis.MotifScan;
-import edu.mit.csail.cgs.deepseq.discovery.Config;
+import edu.mit.csail.cgs.utils.strings.StringUtils;
+import edu.mit.csail.cgs.utils.strings.multipattern.AhoCorasick;
+import edu.mit.csail.cgs.utils.strings.multipattern.SearchResult;
 
 public class KMAC1 {
 	public final static String KMAC_VERSION = "1.0";
@@ -540,19 +553,18 @@ public class KMAC1 {
 				int cutoff = (int)(config.kmer_deviation_factor*k);	// maximum kmer distance to be considered as neighbors
 //				computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff-1);
 //				computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff);
-				double[][]distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff+1);
-				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
+				MTree dataPoints = MTree.constructTree(kmers, 6, posNegSeqRatio, cutoff);
+				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering2(kmers, dataPoints, config.dc==-1?maxGap:config.dc);
 				ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
 				for (int j=0;j<centerKmers.size();j++){	
 					int seedId = kmers.indexOf(centerKmers.get(j));
 					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
 					for (int id=0;id<kmers.size();id++){
-						if (distanceMatrix[id][seedId] <= cutoff)
+						if (KMAC1.ycDistance(dataPoints.getData().get(id), dataPoints.getData().get(seedId), posNegSeqRatio, cutoff+1) <= cutoff)
 							neighbours.add(kmers.get(id));
 					}
 					neighbourList.add(neighbours);
 				}
-				distanceMatrix = null;
 				System.out.println();
 //				centerKmers.clear(); // for testing
 		        for (int j=0;j<centerKmers.size();j++){	
@@ -1416,6 +1428,36 @@ public class KMAC1 {
 		return distanceMatrix;
 	}
 	
+	public static double ycDistance(Kmer k1, Kmer k2, double posNegRatio, int cutoff) {
+		ArrayList<Kmer> sk1 = new ArrayList<Kmer>();
+		ArrayList<Kmer> sk2 = new ArrayList<Kmer>();
+		if (k1 instanceof GappedKmer) {
+			sk1.addAll(((GappedKmer)k1).getBaseKmers());
+		}
+		else {
+			sk1.add(k1);
+		}
+		if (k2 instanceof GappedKmer) {
+			sk2.addAll(((GappedKmer)k2).getBaseKmers());
+		}
+		else {
+			sk2.add(k2);
+		}
+		
+		double distSum = 0;
+		double weightSum = 0;
+		
+		for (Kmer s1: sk1) {
+			for (Kmer s2: sk2) {
+				double w2 = k1.getNetHitCount(posNegRatio)*k2.getNetHitCount(posNegRatio);
+				weightSum += w2;
+				distSum += w2 * CommonUtils.strMinDistanceWithCutoff(s1.getKmerString(), s2.getKmerString(), cutoff);
+			}
+		}
+		
+		return distSum/weightSum;
+	}
+	
 	private ArrayList<Kmer> selectCenterKmersByDensityClustering(ArrayList<Kmer> kmers, double[][]distanceMatrix, int distance_cutoff) {
 		long tic = System.currentTimeMillis();
 		int k = kmers.get(0).getK();
@@ -1435,6 +1477,67 @@ public class KMAC1 {
 			System.out.println("distance_cutoff="+distance_cutoff);
 //		int delta = dc + (k>=11?2:1);
 		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff);
+		ArrayList<Kmer> results = new ArrayList<Kmer>();
+		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
+		for (DensityClusteringPoint p:centers){
+			// find the best representative kmer
+			Kmer km = kmers.get(p.id);
+////			System.out.println(String.format("\n%s    \t%d\t%.1f\t%.1f\t%.1f\t%d", km.toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
+//			for (int id : p.memberIds){
+//				if (kmers.get(id).getHgp()<km.getHgp()){ 
+//					System.err.println(km.toShortString()+"\t"+kmers.get(id).toShortString());
+//					if (results.isEmpty()){
+//						km = kmers.get(id);
+//					}
+//					else{
+//						boolean isNotSimilar = true;
+//						for (Kmer kmer:results){
+////							System.out.println(distanceMatrix[id][p.id]+"\t"+CommonUtils.strMinDistanceWithCutoff(kmers.get(id).getKmerString(), kmer.getKmerString(), km.getKmerString().length()));
+//							if (CommonUtils.strMinDistance(kmers.get(id).getKmerString(), kmer.getKmerString())<dc)
+//								isNotSimilar = false;
+//						}
+//						if (isNotSimilar)
+//							km = kmers.get(id);
+//					}
+//				}
+//			}
+			results.add(km);
+		}
+		results.trimToSize();
+
+//		System.out.println(String.format("cluster_num=%d, kmer_distance<=%d, delta>=%d", centers.size(), dc, delta));
+		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
+		int displayCount = Math.min(config.k_top, centers.size());
+		for (int i=0;i<displayCount;i++){
+			DensityClusteringPoint p = centers.get(i);
+			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
+					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
+		}
+		if (config.verbose>1)
+			System.out.println(CommonUtils.timeElapsed(tic));
+		
+		return results;
+	}
+	
+	private ArrayList<Kmer> selectCenterKmersByDensityClustering2(ArrayList<Kmer> kmers, MTree dataPoints, int distance_cutoff) {
+		long tic = System.currentTimeMillis();
+		int k = kmers.get(0).getK();
+		
+//		double weights[] = new double[kmerCount];
+		ArrayList<BitSet> posHitList = new ArrayList<BitSet>();
+		ArrayList<BitSet> negHitList = new ArrayList<BitSet>();
+		for (Kmer km:kmers){
+			posHitList.add(km.posBits);
+			negHitList.add(km.negBits);
+        }
+		
+//		ArrayList<DensityClusteringPoint> centers = StatUtil.weightedDensityClustering(distanceMatrix, weights, config.kd, config.delta);
+
+//		int dc = (k>=8) ? (config.dc+1) : config.dc;
+		if (config.verbose>1)
+			System.out.println("distance_cutoff="+distance_cutoff);
+//		int delta = dc + (k>=11?2:1);
+		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering2(dataPoints, posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff, (int)(config.kmer_deviation_factor*k) + 1);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
 		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
 		for (DensityClusteringPoint p:centers){

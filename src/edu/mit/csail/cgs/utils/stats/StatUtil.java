@@ -2,33 +2,27 @@ package edu.mit.csail.cgs.utils.stats;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.Vector;
-
-import cern.jet.random.Binomial;
-import cern.jet.random.Gamma;
-import cern.jet.random.Beta;
-import cern.jet.random.Poisson;
-import cern.jet.random.Uniform;
-import cern.jet.random.HyperGeometric;
-import cern.jet.random.engine.DRand;
-
-import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 
+import cern.jet.random.Beta;
+import cern.jet.random.Binomial;
+import cern.jet.random.Gamma;
+import cern.jet.random.Uniform;
+import cern.jet.random.engine.DRand;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
-import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.probability.NormalDistribution;
@@ -1883,7 +1877,7 @@ public class StatUtil {
 			}
 			data.get(i).delta = min;
 			data.get(i).gamma = data.get(i).delta * data.get(i).density;
-		}
+		}	
 		
 //		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
 //            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
@@ -1911,6 +1905,7 @@ public class StatUtil {
 		
 		return data;
 	}
+	
 	/**
 	 * This implements the clustering method introduced by "Clustering by fast search and find of density peaks, Science. 2014 Jun 27;344(6191):"<br>
 	 * It is extended to incorporate weights for the data points. <br>
@@ -1921,8 +1916,7 @@ public class StatUtil {
 	 * @param deltaCutoff delta value cutoff, kmers with equal or higher delta values are used for selecting cluster centers
 	 * @return Return points with high delta values, then points that are far from the high delta points
 	 */
-	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, 
-			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
+	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
@@ -2011,6 +2005,118 @@ public class StatUtil {
 				boolean tooSimilar = false;
 				for (DensityClusteringPoint r:results){
 					if (distanceMatrix[m.id][r.id]<distanceCutoff){
+						tooSimilar = true;
+						break;
+					}
+				}
+				if (!tooSimilar){
+					selected = m;
+					break;
+				}
+				else{
+					data.remove(m);
+				}
+			}
+			if (selected != null){
+				results.add(selected);		// select the best point from the remaining points
+				data.remove(selected);
+			}
+			data.remove(p);
+//			for (DensityClusteringPoint m: selected.members){
+//				data.remove(m);
+//			}
+		}
+		return results;
+	}	
+	
+	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering2(MTree dataPoints, 
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff, int cutoff){
+		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
+		StatUtil util = new StatUtil();
+		// compute local density for each point
+		for (int i=0;i<dataPoints.getSize();i++){
+			DensityClusteringPoint p = util.new DensityClusteringPoint();
+			p.id = i;
+			// self_density: individual k-mer hit count
+			double self_density = CommonUtils.calcWeightedHitCount(posHitList.get(i),seq_weights) - negHitList.get(i).cardinality()*posNegSeqRatio;
+			ArrayList<Pair<Kmer, Integer>> inRange = dataPoints.rangeSearch(dataPoints.getData().get(i), distanceCutoff);
+			// sum up to get total hit count of this point and its neighbors
+			BitSet b_pos = new BitSet();
+			BitSet b_neg = new BitSet();
+			for (Pair<Kmer, Integer> kmer: inRange) {
+				b_pos.or(posHitList.get(kmer.getLast()));
+				b_neg.or(negHitList.get(kmer.getLast()));
+			}
+			// group hit count * self_density, to down-weight weak kmers from being selected as center
+			p.densitySxN = Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			if (Double.isNaN(p.densitySxN))
+				continue;
+			p.density = p.densitySxN;
+//			p.density = b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio;
+			data.add(p);
+		}
+		data.trimToSize();	
+		Collections.sort(data);
+		
+		// compute the shortest distance to the potential centers
+		// for the top point
+		double maxDist = 0;
+		int topID = data.get(0).id;
+		Kmer topPoint = dataPoints.getData().get(topID);
+		for(int i = 0; i < dataPoints.getSize(); i++) {
+			double compare = KMAC1.ycDistance(dataPoints.getData().get(i), topPoint, posNegSeqRatio, cutoff);
+			if (compare > maxDist) {
+				maxDist = compare;
+			}
+		}
+		data.get(0).delta = maxDist;
+		data.get(0).gamma = data.get(0).delta * data.get(0).density;
+		data.get(0).members.add(data.get(0));
+		data.get(0).memberIds.add(data.get(0).id);
+		
+		// for the rest of points
+		for (int i=1;i<data.size();i++){
+			Kmer dataPoint = dataPoints.getData().get(i);
+			double min = Double.MAX_VALUE;
+			int id = data.get(i).id;
+//			if (id==91)
+//				id=id;
+			// find the nearest stronger point of i, point i to it
+			for (int j=0;j<i;j++){		// for the points j have higher (or equal) density than point i
+				double ijDistance = KMAC1.ycDistance(dataPoint, dataPoints.getData().get(j), posNegSeqRatio, cutoff);
+				min = Math.min(ijDistance, min);
+				if (ijDistance <= distanceCutoff) {
+					data.get(j).members.add(data.get(i));
+				}
+			}
+			data.get(i).delta = min;
+			data.get(i).gamma = data.get(i).delta * data.get(i).density;			
+		}
+		
+		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
+            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+                return o1.compareToByGamma(o2);
+            }
+        });
+		
+		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
+		while(!data.isEmpty()){
+			DensityClusteringPoint p = data.get(0);
+//			if (p.delta<distanceCutoff){		// skip those points near other high density points
+//				data.remove(p);
+//				continue;
+//			}
+			// compareToByDensitySxN, to select the high density point with high individual hit count (self density)
+			Collections.sort(p.members, new Comparator<DensityClusteringPoint>(){
+	            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+	                return o1.compareToByDensitySxN(o2);
+	            }
+	        });
+			DensityClusteringPoint selected = null;
+			for (DensityClusteringPoint m:p.members){
+				boolean tooSimilar = false;
+				for (DensityClusteringPoint r:results){
+					if (KMAC1.ycDistance(dataPoints.getData().get(r.id), dataPoints.getData().get(m.id), posNegSeqRatio, cutoff)<distanceCutoff){
 						tooSimilar = true;
 						break;
 					}
