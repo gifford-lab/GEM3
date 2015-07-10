@@ -1608,51 +1608,51 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			System.out.println();
 		}
 	}
-	private void doBaseFiltering(){
-		//  set max read count for bases to filter PCR artifacts (optional)
-		if (config.max_hit_per_bp==0){
-			// Mandatory base reset for extremely high read counts
-			for(int i=0; i<numConditions; i++){
-				Pair<ReadCache,ReadCache> e = caches.get(i);
-				ArrayList<Pair<Point, Float>> f = e.car().resetHugeBases(config.base_reset_threshold);
-				for (Pair<Point, Float> p:f)
-					System.err.printf("%s IP=%.0f-->1 ",p.car().toString(), p.cdr());
-				if (controlDataExist){
-					f = e.cdr().resetHugeBases(config.base_reset_threshold);
-					for (Pair<Point, Float> p:f)
-						System.err.printf("%s CTRL=%.0f-->1 ",p.car().toString(), p.cdr());
-				}
-			}
-			System.err.println();
-			return;
-		}
-		
-        for(int i=0; i<numConditions; i++){
-			Pair<ReadCache,ReadCache> e = caches.get(i);
-			double ipCount = e.car().getHitCount();
-			// estimate max hit count per BP
-			// if user supply using config.max_hit_per_bp, use it
-			// if not supplied, take the max of default (3) and possion expected count
-			if (config.max_hit_per_bp==-1){
-				int maxPerBP = calcExpectedHitCount(ipCount, 1e-9, 1);
-				max_HitCount_per_base = Math.max(max_HitCount_per_base, maxPerBP);
-			}
-			else
-				max_HitCount_per_base = config.max_hit_per_bp;
-        }
-
-        log(1, "\nFiltering duplicate reads, max read count on each base = "+max_HitCount_per_base+"\n");
-        
-		// Re-scale counts by multiplying each read (in each condition) with the corresponding ratio
-		for(int t = 0; t < numConditions; t++) {
-			ReadCache ipCache = caches.get(t).car();
-			ipCache.filterAllBases(max_HitCount_per_base);
-			if(controlDataExist) {
-				ReadCache ctrlCache = caches.get(t).cdr();
-				ctrlCache.filterAllBases(max_HitCount_per_base);
-			}
-		}
-	}
+//	private void doBaseFiltering(){
+//		//  set max read count for bases to filter PCR artifacts (optional)
+//		if (config.max_hit_per_bp==0){
+//			// Mandatory base reset for extremely high read counts
+//			for(int i=0; i<numConditions; i++){
+//				Pair<ReadCache,ReadCache> e = caches.get(i);
+//				ArrayList<Pair<Point, Float>> f = e.car().resetHugeBases(config.base_reset_threshold);
+//				for (Pair<Point, Float> p:f)
+//					System.err.printf("%s IP=%.0f-->1 ",p.car().toString(), p.cdr());
+//				if (controlDataExist){
+//					f = e.cdr().resetHugeBases(config.base_reset_threshold);
+//					for (Pair<Point, Float> p:f)
+//						System.err.printf("%s CTRL=%.0f-->1 ",p.car().toString(), p.cdr());
+//				}
+//			}
+//			System.err.println();
+//			return;
+//		}
+//		
+//        for(int i=0; i<numConditions; i++){
+//			Pair<ReadCache,ReadCache> e = caches.get(i);
+//			double ipCount = e.car().getHitCount();
+//			// estimate max hit count per BP
+//			// if user supply using config.max_hit_per_bp, use it
+//			// if not supplied, take the max of default (3) and possion expected count
+//			if (config.max_hit_per_bp==-1){
+//				int maxPerBP = calcExpectedHitCount(ipCount, 1e-9, 1);
+//				max_HitCount_per_base = Math.max(max_HitCount_per_base, maxPerBP);
+//			}
+//			else
+//				max_HitCount_per_base = config.max_hit_per_bp;
+//        }
+//
+//        log(1, "\nFiltering duplicate reads, max read count on each base = "+max_HitCount_per_base+"\n");
+//        
+//		// Re-scale counts by multiplying each read (in each condition) with the corresponding ratio
+//		for(int t = 0; t < numConditions; t++) {
+//			ReadCache ipCache = caches.get(t).car();
+//			ipCache.filterAllBases(max_HitCount_per_base);
+//			if(controlDataExist) {
+//				ReadCache ctrlCache = caches.get(t).cdr();
+//				ctrlCache.filterAllBases(max_HitCount_per_base);
+//			}
+//		}
+//	}
 	
 	// compute expected hit count by threshold of Poisson p-value
 	// set average read in given region as lambda parameter for Poisson distribution
