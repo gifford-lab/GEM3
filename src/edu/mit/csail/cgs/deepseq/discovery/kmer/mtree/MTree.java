@@ -499,9 +499,6 @@ public class MTree {
 			}
 		}
 		
-		System.out.println(partition0.size()+"AAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-		System.out.println(partition1.size()+"BBBBBBBBBBBBBBBBBBBBBBBBBBBB");
-		
 		if (promotedChildren1.size() == 0) {
 			System.out.println("XX1");
 			MTreeNode partitionNode1 = new MTreeNode(n.isLeaf(), promoted1);
@@ -576,12 +573,7 @@ public class MTree {
 				promoted1.resetParentDistance();
 			}
 			else {
-				System.out.println("also");
-				if (parentContainer.getObjects().size() != 6) {
-					System.out.println("why oh why " + parentContainer.getObjects().size());
-				}
 				this.split(parentContainer, promoted1);
-				System.out.println("also this");
 			}
 			System.out.println("readd");
 			System.out.println("TYPE 4");
