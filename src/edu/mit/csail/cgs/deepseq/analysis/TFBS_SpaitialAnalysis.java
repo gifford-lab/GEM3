@@ -144,8 +144,20 @@ public class TFBS_SpaitialAnalysis {
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputBindingAndMotifSites(clusters);
 			break;
-		case 31:		// to print all the binding sites and motif positions in the specified regions for downstream spacing/grammar analysis
-			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 3 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
+		case 31:		// to print all the binding sites and motif positions in the SPECIFIED regions for co-binding analysis
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 31 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
+			analysis.loadEventsAndMotifs(round);
+			clusters = analysis.addTfbs2Clusters();
+			analysis.outputTFBSclusters(clusters);
+			break;
+		case 32:		// to print all the binding sites and motif positions in the SPECIFIED regions for spacing/grammar analysis
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 32 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
+			analysis.loadEventsAndMotifs(round);
+			clusters = analysis.addTfbs2Clusters();
+			analysis.outputBindingAndMotifSites(clusters);
+			break;
+		case 33:		// to print all the binding sites and motif positions in the SPECIFIED regions for co-binding/spacing/grammar analysis
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 33 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
 			analysis.loadEventsAndMotifs(round);
 			clusters = analysis.addTfbs2Clusters();
 			analysis.outputTFBSclusters(clusters);
