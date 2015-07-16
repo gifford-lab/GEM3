@@ -201,7 +201,7 @@ public class CommonUtils {
 	 * 
 	 *  Col1: chromosome name 
 		Col2: start position of the region (0-based)
-		Col3: stop position of the region (1-based)
+		Col3: stop position of the region (end exclusive)
 		Col4: annotation of the region (any string)
 	 * @param genome
 	 * @param filename
@@ -215,7 +215,8 @@ public class CommonUtils {
 			if (s.startsWith("#")||!s.startsWith("chr"))
 				continue;
 			String[] f = s.split("\t");
-			Region r = new Region(genome, f[0].replace("chr", "").replace("Chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]));
+			// BED format is end exclusive
+			Region r = new Region(genome, f[0].replace("chr", "").replace("Chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])-1);
 			regions.add(r);
 			if (f.length>3)
 				annos.add(f[3]);

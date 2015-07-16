@@ -66,6 +66,7 @@ public class TFBS_SpaitialAnalysis {
 	ArrayList<ArrayList<Site>> all_indirect_sites = new ArrayList<ArrayList<Site>>();
 	ArrayList<Point> all_TSS;
 	ArrayList<Cluster> all_clusters;
+	ArrayList<Region> rs = null; 		// the user supplied regions
 	int[][]tss_signals = null;
 	
 	double gc = 0.42;//mouse		gc=0.41 for human
@@ -148,9 +149,10 @@ public class TFBS_SpaitialAnalysis {
 			analysis.loadEventsAndMotifs(round);
 			clusters = analysis.addTfbs2Clusters();
 			analysis.outputTFBSclusters(clusters);
+			analysis.outputBindingAndMotifSites(clusters);
 			break;
 		case 4:		// spacing histogram
-			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10" --type 4 --out $analysis --cluster 0_BS_Motif_clusters.${analysis}.d${distance}.min${min}.txt --profile_range 200
+			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10" --type 4 --out $analysis --cluster 0_BS_Motif_clusters.${analysis}.d${distance}.min${min}.txt --key Key_flie --profile_range 200
 			analysis.printSpacingHistrograms();
 			break;
 		case 5:		// anchor/sorted sites for matlab plot and sequences
@@ -168,7 +170,7 @@ public class TFBS_SpaitialAnalysis {
 			analysis.printTssSignal();
 			break;
 		}
-		System.out.println("Done!");
+		System.out.println("\nDone!");
 	}
 	
 	public TFBS_SpaitialAnalysis(String[] args){
@@ -224,7 +226,7 @@ public class TFBS_SpaitialAnalysis {
 				}
 			}
 		}
-		System.out.println("To load "+expts.size()+" datasets");
+		System.out.println("Loading datasets ...");
 		top = Args.parseInteger(args, "top", top);
 		anchor_string = Args.parseString(args, "anchor", anchor_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
 		target_string = Args.parseString(args, "target", target_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
@@ -354,8 +356,9 @@ public class TFBS_SpaitialAnalysis {
 	
 	/**
 	 * This method loads events/motifs for spacing analysis.<br>
-	 * it loads the event positions, also loads GEM motifs by option, 
-	 * it also loads additional motifs specified by --pwms, or --kmers
+	 * it loads the event positions, also loads GEM motifs by option, <br>
+	 * loads PIQ calls/motifs by --piq, <br>
+	 * it also loads additional motifs specified by --pwms, or --kmers<br>
 	 * @param round GEM output round (1 for GPS, 2 for GEM)
 	 */
 	private void loadEventsAndMotifs(int round){
@@ -659,8 +662,8 @@ public class TFBS_SpaitialAnalysis {
 	 * @return
 	 */
 	private ArrayList<ArrayList<Site>> addTfbs2Clusters(){
-		System.out.println("Assign binding/motif sites to specified regions (clusters).");
-		ArrayList<Region> rs = CommonUtils.load_BED_regions(genome, query_region_file).car();
+		rs = CommonUtils.load_BED_regions(genome, query_region_file).car();
+		System.out.println("Assign binding/motif sites to "+rs.size()+" regions (clusters).");
 		
 		// classify sites by chrom, so that the sorting space is smaller
 		TreeMap<String, ArrayList<Site>> chrom2sites = new TreeMap<String, ArrayList<Site>>();
@@ -683,18 +686,16 @@ public class TFBS_SpaitialAnalysis {
 		ArrayList<ArrayList<Site>> clusters = new ArrayList<ArrayList<Site>>();		
 		for (Region r: rs){
 			ArrayList<Site> sites = chrom2sites.get(r.getChrom());
+			ArrayList<Site> cluster = new ArrayList<Site>();
 			if (sites==null || sites.isEmpty()){
-				clusters.add(new ArrayList<Site>());		// add a empty cluster
+				clusters.add(cluster);		// add a empty cluster
 				continue;
 			}
-			ArrayList<Site> cluster = new ArrayList<Site>();
 			for (Site s: sites){
 				if (r.contains(s.bs))
 					cluster.add(s);			
 			}
 			cluster.trimToSize();
-			if (cluster.isEmpty())
-				continue;
 			clusters.add(cluster);
 		}
 		clusters.trimToSize();
@@ -750,21 +751,21 @@ public class TFBS_SpaitialAnalysis {
 		for (String s:annoLabels)
 			names.add(s);
 		
-		ArrayList<Region> query_regions = null;
-		if (query_region_file!=null)
-			query_regions = CommonUtils.load_BED_regions(genome, query_region_file).car();
-		
 		for (int j=0;j<clusters.size();j++){
 			ArrayList<Site> c = clusters.get(j);
 			int numSite = c.size();
-			if (numSite==0)
-				continue;
+//			if (numSite==0)
+//				continue;
 			Region r = null;
-			if (query_regions!=null)
-				r = query_regions.get(j);
-			else
+			Point lastSiteCoord = null;
+			if (rs!=null){
+				r = rs.get(j);
+				lastSiteCoord = new Point(genome, r.getChrom(), r.getEnd());
+			}
+			else{
 				r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
-			Point lastSiteCoord = c.get(numSite-1).bs;
+				lastSiteCoord = c.get(numSite-1).bs;
+			}
 			for (int i=0;i<annoRegions.size();i++){
 				ArrayList<Region> rs = annoRegions.get(i);
 				int length = Region.computeOverlapLength(r, rs);
@@ -789,11 +790,14 @@ public class TFBS_SpaitialAnalysis {
 			for (int j=0;j<clusters.size();j++){
 				ArrayList<Site> c = clusters.get(j);
 				int numSite = c.size();
-				if (numSite==0)
+				if (numSite==0){		// no sites, must be from addTfbs2Clusters(), add a empty line
+					sb.append(rs.get(j).toString()).append("\t").append(rs.get(j).getWidth()).append("\t").
+						append(numSite).append("\t").append("NA\tNA\tNA\tNA\tNA\t0\n");
 					continue;
+				}
 				Region r = null;
-				if (query_regions!=null)
-					r = query_regions.get(j);
+				if (rs!=null)
+					r = rs.get(j);
 				else
 					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				StringBuilder sb_tfs = new StringBuilder();
@@ -834,8 +838,8 @@ public class TFBS_SpaitialAnalysis {
 				if (numSite==0)
 					continue;
 				Region r = null;
-				if (query_regions!=null)
-					r = query_regions.get(j);
+				if (rs!=null)
+					r = rs.get(j);
 				else
 					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				StringBuilder sb_tfs = new StringBuilder().append(r.toString()).append("\t").append(numSite).append("\t");
@@ -941,11 +945,10 @@ public class TFBS_SpaitialAnalysis {
 			for (int j=0;j<clusters.size();j++){
 				ArrayList<Site> c = clusters.get(j);
 				int numSite = c.size();
-				if (numSite==0)
-					continue;
+
 				Region r = null;
-				if (query_regions!=null)
-					r = query_regions.get(j);
+				if (rs!=null)
+					r = rs.get(j);
 				else
 					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				sb.append(r.toString()).append("\t");
@@ -973,11 +976,9 @@ public class TFBS_SpaitialAnalysis {
 			for (int j=0;j<clusters.size();j++){
 				ArrayList<Site> c = clusters.get(j);
 				int numSite = c.size();
-				if (numSite==0)
-					continue;
 				Region r = null;
-				if (query_regions!=null)
-					r = query_regions.get(j);
+				if (rs!=null)
+					r = rs.get(j);
 				else
 					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				sb.append(r.toString()).append("\t");
@@ -1015,10 +1016,15 @@ public class TFBS_SpaitialAnalysis {
 		int digits_pwm = (int) Math.ceil(Math.log10(pwms.size()));
 		int digits_kmer = (int) Math.ceil(Math.log10(kmers.size()));
 		
+		boolean motif_kmer_scan = pwms.size()+kmers.size()>0;
 		for (int id=0;id<clusters.size();id++){
 			ArrayList<Site> bindingSites = clusters.get(id);
 			int numSite = bindingSites.size();
-			Region r = new Region(genome, bindingSites.get(0).bs.getChrom(), bindingSites.get(0).bs.getLocation(), bindingSites.get(numSite-1).bs.getLocation());	
+			Region r = null;
+			if (rs!=null)
+				r = rs.get(id);
+			else
+				r = new Region(genome, bindingSites.get(0).bs.getChrom(), bindingSites.get(0).bs.getLocation(), bindingSites.get(numSite-1).bs.getLocation());	
 			// Position 0: the start position of the padded cluster region
 			Region region = r.expand(cluster_motif_padding,cluster_motif_padding);
 			int start = region.getStart();
@@ -1042,35 +1048,43 @@ public class TFBS_SpaitialAnalysis {
 			ArrayList<Integer> pwmMatchPos = new ArrayList<Integer>();
 			ArrayList<Integer> kmerMatchIds = new ArrayList<Integer>();
 			ArrayList<Integer> kmerMatchPos = new ArrayList<Integer>();
-			String seq = seqgen.execute(region).toUpperCase();
+			String seq = null;
+			if (motif_kmer_scan || numSite>0){
+				seq = seqgen.execute(region).toUpperCase();
 			
-			// scan motif matches in the cluster region sequence
-			for (int i=0;i<pwms.size();i++){
-				ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i));
-				for (int p:matchPos){
-					pwmMatchIds.add(i);
-					pwmMatchPos.add(p);
+				// scan motif matches in the cluster region sequence
+				for (int i=0;i<pwms.size();i++){
+					ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i));
+					for (int p:matchPos){
+						pwmMatchIds.add(i);
+						pwmMatchPos.add(p);
+					}
 				}
-			}
-			
-			// K-mer matches
-			for (int i=0;i<kmers.size();i++){
-				String kmer = kmers.get(i);
-				ArrayList<Integer> matchPos = CommonUtils.getAllKmerHit(seq, kmer);
-				for (int p:matchPos){
-					kmerMatchIds.add(i);
-					kmerMatchPos.add(p);
+				
+				// K-mer matches
+				for (int i=0;i<kmers.size();i++){
+					String kmer = kmers.get(i);
+					ArrayList<Integer> matchPos = CommonUtils.getAllKmerHit(seq, kmer);
+					for (int p:matchPos){
+						kmerMatchIds.add(i);
+						kmerMatchPos.add(p);
+					}
 				}
 			}
 			sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t", region.toString(), r.toString(),
 					id, r.getWidth(), numSite, pwmMatchIds.size(), kmerMatchIds.size()));
-			for (int i=0;i<bindingIds.size();i++)
-				sb.append(String.format("B%0"+digits_binding+"d:%d:%d:%s:%.1f ", bindingIds.get(i), bindingPos.get(i), eventIds.get(i), strands.get(i), bindingStrength.get(i)));
-			for (int i=0;i<pwmMatchIds.size();i++)
-				sb.append(String.format("M%0"+digits_pwm+"d:%d ", pwmMatchIds.get(i), pwmMatchPos.get(i)));
-			for (int i=0;i<kmerMatchIds.size();i++)
-				sb.append(String.format("K%0"+digits_kmer+"d:%d ", kmerMatchIds.get(i), kmerMatchPos.get(i)));
-			sb.append("\t").append(seq);
+			if (bindingIds.size()+pwmMatchIds.size()+kmerMatchIds.size()==0){
+				sb.append("\tNA");
+			}
+			else{
+				for (int i=0;i<bindingIds.size();i++)
+					sb.append(String.format("B%0"+digits_binding+"d:%d:%d:%s:%.1f ", bindingIds.get(i), bindingPos.get(i), eventIds.get(i), strands.get(i), bindingStrength.get(i)));
+				for (int i=0;i<pwmMatchIds.size();i++)
+					sb.append(String.format("M%0"+digits_pwm+"d:%d ", pwmMatchIds.get(i), pwmMatchPos.get(i)));
+				for (int i=0;i<kmerMatchIds.size();i++)
+					sb.append(String.format("K%0"+digits_kmer+"d:%d ", kmerMatchIds.get(i), kmerMatchPos.get(i)));
+				sb.append("\t").append(seq);
+			}
 			sb.append("\n");
 		}
 
@@ -1109,13 +1123,15 @@ public class TFBS_SpaitialAnalysis {
 			String[] f = l.split("\t");
 			Region r = Region.fromString(genome, f[0]);
 			bmc.cluster_id = Integer.parseInt(f[2]);
-			String[] positions = f[7].split(" ");
+			String[] positions = f[7].trim().split(" ");
 			bmc.anchor = new Point(r.getGenome(), r.getChrom(), r.getStart());
 			
 			// parse all sites
 			ArrayList<RSite> sites = new ArrayList<RSite>();		// all the sites in this region (cluster/line)
 			bmc.sites = sites;
 			for (String ps: positions){
+				if (ps.equals(""))
+					continue;
 				String[] bs = ps.split(":");
 				RSite s = new RSite();
 				s.id = Integer.parseInt(bs[0].substring(1));
@@ -1286,7 +1302,8 @@ public class TFBS_SpaitialAnalysis {
 				}
 				else
 					sb_offset.append("999\t");
-				sb_overlap.append(overlaps.get(ancStr).get(tarStr)+"\t");
+				Integer ov = overlaps.get(ancStr).get(tarStr);
+				sb_overlap.append((ov==null?0:ov.intValue())+"\t");
 				
 				sb_profiles.append(name_maps.get(tarStr)+"_s\t").append(CommonUtils.arrayToString(pf.profile_same)).append("\n");
 				sb_profiles.append(name_maps.get(tarStr)+"_d\t").append(CommonUtils.arrayToString(pf.profile_diff)).append("\n");
@@ -1304,6 +1321,7 @@ public class TFBS_SpaitialAnalysis {
 		CommonUtils.writeFile(outPrefix+"_spacing_tables.txt", sb_overlap.toString());
 		CommonUtils.writeFile(outPrefix+"_spacing_lists.txt", sb_strong_spacings.toString());
 	}
+	
 	private ProfileStats getProfileStats(int[] profile, boolean self){
 		int[] tmp=null;
 		if (self){
