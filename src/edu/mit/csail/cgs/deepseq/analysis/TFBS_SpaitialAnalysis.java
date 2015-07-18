@@ -1215,20 +1215,25 @@ public class TFBS_SpaitialAnalysis {
 			clusters.add(bmc);
 		}// for each line
 					
-		StringBuilder sb_count = new StringBuilder("Anchor"+"\t"); 		// the count of tallest bar of spacings
-		StringBuilder sb_offset = new StringBuilder("Anchor"+"\t");		// the offset of tallest bar of spacings
+		StringBuilder sb_count = new StringBuilder(); 		// the count of tallest bar of spacings
+		StringBuilder sb_offset = new StringBuilder("Anchor\t");		// the offset of tallest bar of spacings
 		StringBuilder sb_overlap = new StringBuilder();
-		sb_overlap.append("\nNumber of events in rows that are covered by events in column.\n");
+		StringBuilder sb_overlap_fraction = new StringBuilder("Overlap fraction\nAnchor\t");
+		sb_count.append("\nThe following tables are similar to the pairwise spacing matrix in GEM paper.\n");
+		sb_count.append("Anchor\t");
+		sb_overlap.append("Number of events in rows that are covered by events in column.\n");
 		sb_overlap.append("Anchor").append("\t");
 
 		for (String ancStr: profiles.keySet()){
 			sb_count.append(name_maps.get(ancStr)+"\t");
 			sb_offset.append(name_maps.get(ancStr)+"\t");
 			sb_overlap.append(name_maps.get(ancStr)+"\t");
+			sb_overlap_fraction.append(name_maps.get(ancStr)+"\t");
 		}
 		CommonUtils.replaceEnd(sb_count, '\n');
 		CommonUtils.replaceEnd(sb_offset, '\n');
 		CommonUtils.replaceEnd(sb_overlap, '\n');
+		CommonUtils.replaceEnd(sb_overlap_fraction, '\n');
 		sb_overlap.append("Total").append("\t");
 		for (String ancStr: profiles.keySet()){
 			sb_overlap.append(anchor_counts.get(ancStr)+"\t");
@@ -1250,6 +1255,7 @@ public class TFBS_SpaitialAnalysis {
 			sb_count.append(name_maps.get(ancStr)+"\t");
 			sb_offset.append(name_maps.get(ancStr)+"\t");
 			sb_overlap.append(name_maps.get(ancStr)+"\t");
+			sb_overlap_fraction.append(name_maps.get(ancStr)+"\t");
 			for (String tarStr: profiles.keySet()){
 				SpacingProfile pf = profiles_anchor.get(tarStr);
 				if (pf==null)
@@ -1316,6 +1322,7 @@ public class TFBS_SpaitialAnalysis {
 					sb_offset.append("999\t");
 				Integer ov = overlaps.get(ancStr).get(tarStr);
 				sb_overlap.append((ov==null?0:ov.intValue())+"\t");
+				sb_overlap_fraction.append(String.format("%.1f", (ov==null?0:ov.intValue()*100.0/anchor_counts.get(ancStr)))+"\t");
 				
 				sb_profiles.append(name_maps.get(tarStr)+"_s\t").append(CommonUtils.arrayToString(pf.profile_same)).append("\n");
 				sb_profiles.append(name_maps.get(tarStr)+"_d\t").append(CommonUtils.arrayToString(pf.profile_diff)).append("\n");
@@ -1324,10 +1331,11 @@ public class TFBS_SpaitialAnalysis {
 			CommonUtils.replaceEnd(sb_count, '\n');
 			CommonUtils.replaceEnd(sb_offset, '\n');
 			CommonUtils.replaceEnd(sb_overlap, '\n');	
+			CommonUtils.replaceEnd(sb_overlap_fraction, '\n');
 			
 			CommonUtils.writeFile(outPrefix+"_"+ancStr+"_profiles.txt", sb_profiles.toString());
 		}
-		sb_overlap.append("\nThe following tables are similar to the pairwise spacing matrix in GEM paper.\n");
+		sb_overlap.append("\n").append(sb_overlap_fraction.toString());
 		sb_overlap.append(sb_count.toString()).append("\n").append(sb_offset.toString());
 		System.out.println(sb_overlap.toString());
 		CommonUtils.writeFile(outPrefix+"_spacing_tables.txt", sb_overlap.toString());

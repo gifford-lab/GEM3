@@ -53,7 +53,7 @@ public class ChIAPET_analysis {
 			it.tss = Point.fromString(genome, f[6]);
 			it.geneID = f[7];
 			it.geneSymbol = f[8];
-			if (f.length<=12){
+			if (f.length<=13){
 				it.distal = Region.fromString(genome, f[9]);
 				it.pvalue = Double.parseDouble(f[11]);
 			}
@@ -61,8 +61,11 @@ public class ChIAPET_analysis {
 				it.distal = Region.fromString(genome, f[13]);
 				it.pvalue = Double.parseDouble(f[15]);
 			}
+			
+			// TODO: filter interactions that have distal regions containing the TSS?
+
 			while (r2it.containsKey(it.distal))
-				it.distal = it.distal.expand(1, 1);
+				it.distal = it.distal.expand(-1, -1);
 			r2it.put(it.distal, it);
 			if (!tmp.containsKey(it.tss))
 				tmp.put(it.tss, new ArrayList<Region>() );
@@ -122,6 +125,9 @@ public class ChIAPET_analysis {
 			mergedRegions.trimToSize();
 		}
 		
+		
+		
+		// print out cleaned up data
 		for (Region r:r2it.keySet()){
 			Interaction it = r2it.get(r);
 			System.out.println(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%.2e", it.distal.toBED(), it.tss.expand(2000).toBED(), it.tss.toString(), it.geneID, it.geneSymbol, it.distal.toString(), it.distal.getWidth(), it.pvalue));;
