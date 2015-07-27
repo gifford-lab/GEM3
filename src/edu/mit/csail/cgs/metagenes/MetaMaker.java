@@ -9,8 +9,10 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.Vector;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
@@ -34,6 +36,48 @@ public class MetaMaker {
 			
 			Pair<Organism, Genome> pair = Args.parseGenome(args);
 			Genome gen = pair.cdr();
+			
+			// color of the plots
+			TreeMap<String, Color> map = new TreeMap<String, Color>();
+			map.put("red",Color.red);
+			map.put("darkred",Color.red.darker());
+			map.put("green",Color.green);
+			map.put("darkgreen",Color.green.darker());
+			map.put("black",Color.black);
+			map.put("blue",Color.blue);
+			map.put("darkblue",Color.blue.darker());
+			map.put("cyan",Color.cyan);
+			map.put("darkcyan",Color.cyan.darker());
+			map.put("gray",Color.gray);
+			map.put("magenta",Color.magenta);
+			map.put("darkmagenta",Color.magenta.darker());
+			map.put("orange",Color.orange);
+			map.put("darkorange",Color.orange.darker());
+			map.put("pink",Color.pink);
+			map.put("darkpink",Color.pink.darker());
+			map.put("darkgray",Color.darkGray);
+			if(Args.parseFlags(args).contains("showcolor")){
+				System.out.println("Available colors:");
+				for (String s:map.keySet())
+					System.out.print(s+" ");
+				System.out.println();
+				System.exit(-1);
+			}
+			Color c = Color.blue;
+			String newCol = Args.parseString(args, "color", "notFound");
+			if (map.containsKey(newCol)){
+				c = map.get(newCol);
+			}
+			else{
+				System.out.println("The specified color is not defined!");
+				System.out.println("Available colors:");
+				for (String s:map.keySet())
+					System.out.print(s+" ");
+				System.out.println();
+				System.exit(-1);
+			}
+			
+			
 			double peakMax = Args.parseDouble(args, "peakMax", 1.0);
 			int winLen = Args.parseInteger(args,"win", 10000);
 			int bins = Args.parseInteger(args,"bins", 100);
@@ -54,24 +98,7 @@ public class MetaMaker {
 			String outName = Args.parseString(args, "out", "meta");
 			if(Args.parseFlags(args).contains("batch")){batchRun=true;}
 			if(Args.parseFlags(args).contains("cluster")){cluster=true;}
-			Color c = Color.blue;
-			String newCol = Args.parseString(args, "color", "blue");
-			if(newCol.equals("red"))
-				c=Color.red;
-			if(newCol.equals("green"))
-				c=Color.green;
-			if (newCol.equals("black"))
-				c=Color.black;
-			if (newCol.equals("cyan"))
-				c=Color.cyan;
-			if (newCol.equals("gray"))
-				c=Color.gray;
-			if (newCol.equals("magenta"))
-				c=Color.magenta;
-			if (newCol.equals("orange"))
-				c=Color.orange;
-			if (newCol.equals("pink"))
-				c=Color.pink;
+
 			
 			if(gen==null || (expts.size()==0 && files.size()==0)){printError();}
 	
