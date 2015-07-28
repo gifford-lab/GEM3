@@ -548,7 +548,7 @@ public class Kmer implements Comparable<Kmer>{
 //		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
 	     BitSet bits1 = new BitSet(16);
 	     BitSet bits2 = new BitSet(16);
-	     
+	      
 	     // set some bits
 	     for(int i=0; i<16; i++) {
 	        if((i%2) == 0) bits1.set(i);

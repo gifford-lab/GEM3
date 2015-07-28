@@ -1096,7 +1096,7 @@ public class CommonUtils {
 			  minDistance = totalMM;
 	  }
 	  // s1 reverse compliment, all else are the same as above
-		  s1 = SequenceUtils.reverseComplement(s1);
+	  s1 = SequenceUtils.reverseComplement(s1);
 	  // shift s1
 	  for (int shift1=0;shift1<cutoff;shift1++){
 		  int mismatch = 0;
@@ -1142,7 +1142,6 @@ public class CommonUtils {
 	  }
 	  return minDistance;
 	}
-	
 	
 	public static void copyFile(String srFile, String dtFile){
 		try{

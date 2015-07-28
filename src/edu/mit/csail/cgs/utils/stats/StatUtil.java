@@ -1877,7 +1877,7 @@ public class StatUtil {
 			}
 			data.get(i).delta = min;
 			data.get(i).gamma = data.get(i).delta * data.get(i).density;
-		}	
+		}
 		
 //		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
 //            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
@@ -1905,7 +1905,6 @@ public class StatUtil {
 		
 		return data;
 	}
-	
 	/**
 	 * This implements the clustering method introduced by "Clustering by fast search and find of density peaks, Science. 2014 Jun 27;344(6191):"<br>
 	 * It is extended to incorporate weights for the data points. <br>
@@ -1916,7 +1915,8 @@ public class StatUtil {
 	 * @param deltaCutoff delta value cutoff, kmers with equal or higher delta values are used for selecting cluster centers
 	 * @return Return points with high delta values, then points that are far from the high delta points
 	 */
-	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
+	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, 
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
@@ -2039,7 +2039,7 @@ public class StatUtil {
 			p.id = i;
 			// self_density: individual k-mer hit count
 			double self_density = CommonUtils.calcWeightedHitCount(posHitList.get(i),seq_weights) - negHitList.get(i).cardinality()*posNegSeqRatio;
-			ArrayList<Pair<Kmer, Integer>> inRange = dataPoints.rangeSearch(dataPoints.getData().get(i), distanceCutoff);
+			ArrayList<Pair<Kmer, Integer>> inRange = dataPoints.rangeSearch(dataPoints.getData().get(i), distanceCutoff).getLast();
 			// sum up to get total hit count of this point and its neighbors
 			BitSet b_pos = new BitSet();
 			BitSet b_neg = new BitSet();

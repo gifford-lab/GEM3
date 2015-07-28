@@ -1,6 +1,5 @@
 package edu.mit.csail.cgs.deepseq.discovery.kmer.mtree;
 
-import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -14,6 +13,7 @@ import java.util.LinkedList;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 
 
 public class MTree {
@@ -24,42 +24,45 @@ public class MTree {
 	private int cutoff;
 	private int size;
 	private ArrayList<Kmer> data;
+	private int currentEntry;
 	
 	class MTreeNode {
 		
 		private boolean isLeaf;
 		private ArrayList<TreeObject> nro;
 		private TreeObject parent;
+		private int numObjects;
 		
 		public MTreeNode(boolean l, TreeObject p) {
 			isLeaf = l;
 			parent = p;
 			nro = new ArrayList<TreeObject>();
+			numObjects = 0;
 		}
 		
 		public MTreeNode(boolean l, TreeObject p, ArrayList<TreeObject> objects) {
 			isLeaf = l;
 			parent = p;
 			nro = objects;
+			numObjects = 0;
 		}
 		
 		public void addTO(TreeObject to) {
 			if (to.getContainer() != null) {
 				MTreeNode container = to.getContainer();
-				if (container.getParent() != null) {
-					System.out.println(container.getParent().getData().getLast() + " is the old container");
-				}
 				int containerSize = container.getObjects().size();
 				for (int i = 0; i < containerSize; i++) {
 					if (container.getObjects().get(i).getData().getLast().equals(to.getData().getLast())) {
 						container.getObjects().remove(i);
-						System.out.println("successful");
 						break;
 					}
 				}
 			}
 			nro.add(to);
 			to.setContainer(this);
+			if (this.isLeaf && (to.getChild() != null && to.getChild().getObjects().size() != 0)) {
+				this.setLeaf(false);
+			}
 		}
 		
 		public boolean isLeaf() {
@@ -93,7 +96,11 @@ public class MTree {
 			return data;
 		}
 		
-		public int getNumObjects() {
+		public int getNumObjects() { 
+			return numObjects;
+		}
+		
+		public void setNumObjects() {
 			int total = this.nro.size();
 			if (!this.isLeaf()) {
 				for (TreeObject o: this.nro) {
@@ -102,50 +109,79 @@ public class MTree {
 					}
 				}
 			}
-			return total;
+			numObjects = total;
+		}
+		
+		public void recursiveSetNumObjects() {
+			this.setNumObjects();
+			for (TreeObject o: nro) {
+				if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
+					o.getChild().recursiveSetNumObjects();
+				}
+			}
+		}
+		
+		public void clearTOs() {
+			nro.clear();
+		}
+		
+		public void recursivePrint() {
+			for (TreeObject o: nro) {
+				if (o.getChild() == null || o.getChild().getObjects().size() == 0) {
+					if (this.getParent() == null) {
+						System.out.println(o.getData().getLast() + " child of null" + " has radius " + o.getR());
+					}
+					else {
+						System.out.println(o.getData().getLast() + " child of " + this.getParent().getData().getLast() + " has radius " + o.getR());
+					}
+				}
+				else {
+					o.getChild().recursivePrint();
+					if (this.getParent() == null) {
+						System.out.println(o.getData().getLast() + " child of null" + " has radius " + o.getR());
+					}
+					else {
+						System.out.println(o.getData().getLast() + " child of " + this.getParent().getData().getLast() + " has radius " + o.getR());
+					}
+				}
+			}
 		}
 		
 		public void recursiveRI() {
-			if (this.getParent() == null) {
-				System.out.println("BEGINNING RECURSIVE RI ---------------");
-			}
 			for (TreeObject o: this.getObjects()) {
-				if (o.getChild() != null) {
-					/**
-					if (this.getParent() != null) {
-						if (o.getData().getLast().equals(this.getParent().getData().getLast())) {
-							break;
-						}
-					}
-					**/
+				o.RI();
+				if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
 					o.getChild().recursiveRI();
 				}
-				if (this.getParent() == null) {
-					System.out.println(o.getData().getLast() + " parent: none");
-				}
-				else {
-					System.out.println(o.getData().getLast() + " parent: " + this.getParent().getData().getLast());
-				}
-				o.RI();
 			}
 		}
 		
-		public void splitRecursiveRI() {
-			if (this.getParent() == null) {
-				System.out.println("BEGINNING SPLIT RECURSIVE RI ---------------");
-			}
+		public ArrayList<TreeObject> getLeaves() {
+			ArrayList<TreeObject> leaves = new ArrayList<TreeObject>();
 			for (TreeObject o: this.getObjects()) {
-				if (o.getChild() != null) {
-					o.getChild().recursiveRI();
-				}
-				if (this.getParent() == null) {
-					System.out.println(o.getData().getLast() + " parent: none");
+				if (o.getChild() == null || o.getChild().getObjects().size() == 0) {
+					leaves.add(o);
 				}
 				else {
-					System.out.println(o.getData().getLast() + " parent: " + this.getParent().getData().getLast());
+					leaves.addAll(o.getChild().getLeaves());
 				}
-				o.RI();
 			}
+			return leaves;
+		}
+		
+		public ArrayList<MTreeNode> getLeafNodes() {
+			ArrayList<MTreeNode> leaves = new ArrayList<MTreeNode>();
+			if (this.isLeaf()) {
+				leaves.add(this);
+			}
+			else {
+				for (TreeObject o: this.getObjects()) {
+					if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
+						leaves.addAll(o.getChild().getLeafNodes());
+					}
+				}
+			}
+			return leaves;
 		}
 	}
 	
@@ -157,7 +193,6 @@ public class MTree {
 		private Pair<Kmer, Integer> data;
 		private double pnRatio;
 		private int cut;
-		private double parentDistance;
 		
 		public TreeObject(MTreeNode co, MTreeNode c, Pair<Kmer, Integer> d, double r, double pnr, int cu) {
 			container = co;
@@ -165,15 +200,6 @@ public class MTree {
 			data = d;
 			pnRatio = pnr;
 			cut = cu;
-			if (co == null) {
-				parentDistance = Integer.MAX_VALUE;
-			}
-			else if (co.getParent() != null) {
-				parentDistance = KMAC1.ycDistance(co.getParent().getData().getFirst(), d.getFirst(), pnRatio, cut);
-			}
-			else {
-				parentDistance = Integer.MAX_VALUE;
-			}
 			radius = r;
 		}
 		
@@ -183,31 +209,11 @@ public class MTree {
 			data = d;
 			pnRatio = 1;
 			cut = Integer.MAX_VALUE;
-			if (co.getParent() != null) {
-				parentDistance = KMAC1.ycDistance(co.getParent().getData().getFirst(), d.getFirst(), pnRatio, cut);
-			}
-			else {
-				parentDistance = Integer.MAX_VALUE;
-			}
 			radius = 0;
-		}
-		
-		public void RI() {
-			if (this.child != null) {
-				if (this.child.getObjects().size() == 7) {
-					System.out.println("FIRST INSTANCE OF BAD");
-				}
-			}
 		}
 		
 		public Pair<Kmer, Integer> getData() {
 			return data;
-		}
-		
-		public void resetParentDistance() {
-			if (this.container.getParent() != null) {
-				parentDistance = KMAC1.ycDistance(this.container.getParent().getData().getFirst(), this.data.getFirst(), this.pnRatio, this.cut);
-			}
 		}
 		
 		public void setData(Pair<Kmer, Integer> d) {
@@ -231,10 +237,6 @@ public class MTree {
 			c.setParent(this);
 		}
 		
-		public double getParentDistance() {
-			return parentDistance;
-		}
-		
 		public MTreeNode getContainer() {
 			return container;
 		}
@@ -250,6 +252,42 @@ public class MTree {
 		public int getCutoff() {
 			return this.cut;
 		}
+		
+		public void RI() {
+			if (this.getChild() == null || this.getChild().getObjects().size() == 0) {
+				if (this.getR() != 0) {
+					System.out.println("help");
+				}
+				System.out.println(this.getData().getLast() + " has radius 0, as expected.");
+			}
+			else {
+				if (this.getR() < this.maxR(this.getChild())) {
+					System.out.println("help");
+				}
+				System.out.println(this.getData().getLast() + " has radius " + this.getR() + " which beats " + this.maxR(this.getChild()) + ", as expected.");
+			}
+		}
+		
+		public double maxR(MTreeNode n) {
+			double maxR = 0;
+			for (TreeObject o: n.getObjects()) {
+				maxR = Math.max(maxR, KMAC1.ycDistance(this.getData().getFirst(), o.getData().getFirst(), this.pnRatio, this.cut));
+				if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
+					maxR = Math.max(maxR, this.maxR(o.getChild()));
+				}
+			}
+			return maxR;
+		}
+		
+		public void setParentsR() {
+			MTreeNode currentContainer = this.getContainer();
+			TreeObject currentAncestor = currentContainer.getParent();
+			while (currentAncestor != null) {
+				currentAncestor.setR(Math.max(currentAncestor.getR(), KMAC1.ycDistance(this.getData().getFirst(), currentAncestor.getData().getFirst(), this.getPNR(), this.getCutoff())));
+				currentContainer = currentAncestor.getContainer();
+				currentAncestor = currentContainer.getParent();
+			}
+		}
 	}
 	
 	public MTree(int k, double pNR, int c, int s) {
@@ -262,62 +300,97 @@ public class MTree {
 		for (int i = 0; i < size; i++) {
 			data.add(new Kmer());
 		}
+		currentEntry = -1;
 	}
 	
 	public MTreeNode getRoot() {
 		return root;
 	}
 	
-	public void insertNode(MTreeNode n, TreeObject entry) {
-		System.out.println("inserting id number " + entry.getData().getLast() + " into node child of " + (n.getParent() != null ? n.getParent().getData().getLast() : "null"));
-		this.root.recursiveRI();
-		System.out.println("insertion");
+	public void insertNode2(MTreeNode n, TreeObject entry) {
 		data.add(entry.getData().getLast(), entry.getData().getFirst());
 		if (n.isLeaf()) {
 			entry.setContainer(n);
-			System.out.println("leafinsertion");
 			if (n.getObjects().size() < capacity) {
-				System.out.println("fine");
 				n.addTO(entry);
-				entry.resetParentDistance();
-				entry.RI();
+				if (n.getParent() != null) {
+					System.out.println(KMAC1.ycDistance(n.getParent().getData().getFirst(), entry.getData().getFirst(), this.posNegRatio, this.cutoff) + " is the parent distance at leaf");
+				}
 			}
 			else {
-				if (n.getParent() != null) {
-					System.out.println("entering leaf of " + n.getParent().getData().getLast());
-				}
-				System.out.println("leafsplit");				
-				Pair<TreeObject, TreeObject> splitResult = this.split(n, entry);
-				entry.RI();
+				this.split(n, entry);
 			}
+		}
+		// keeps recursing into the leaf that is best for it
+		else {
+			ArrayList<TreeObject> objects = n.getObjects();
+			double min = Double.MAX_VALUE;
+			TreeObject mo = null; // this will be the object that it will be routed into
+			System.out.println("running through all possiblities");
+			for (TreeObject object: objects) {
+				if (object.getChild() != null && object.getChild().getObjects().size() > 0) { // potential choice for mo
+					double objDist = KMAC1.ycDistance(object.getData().getFirst(), entry.getData().getFirst(), this.posNegRatio, this.cutoff);
+					System.out.println(objDist);
+					if (objDist < min) {
+						min = objDist;
+						mo = object;
+					}
+				}
+			}
+			System.out.println("ran through all possibilities");
+			System.out.println(min + " was the parent distance at an ancestor");
+			this.insertNode(mo.getChild(), entry);
+		}
+	}
+	
+	public void insertNode(MTreeNode n, TreeObject entry) {
+		data.add(entry.getData().getLast(), entry.getData().getFirst());
+		if (this.getRoot().isLeaf()) {
+			this.insertNodeR(n, entry);
 		}
 		else {
-			System.out.println("childfinder");
-			ArrayList<TreeObject> objects = n.getObjects();
-			ArrayList<TreeObject> containers = new ArrayList<TreeObject>();
-			double min = Double.MAX_VALUE;
-			TreeObject mo = null;
-			for (TreeObject object: objects) {
-				double objDist = KMAC1.ycDistance(object.getData().getFirst(), entry.getData().getFirst(), this.posNegRatio, this.cutoff);
-				if (objDist < min) {
-					min = objDist;
-					mo = object;
-				}
-				if (objDist <= object.getR()) {
-					containers.add(object);
-				}
-			}
-			if (containers.isEmpty()) {
-				mo.setR(KMAC1.ycDistance(mo.getData().getFirst(), entry.getData().getFirst(), this.posNegRatio, this.cutoff));
-			}
-			System.out.println("TYPE 1 inserting in " + mo.getData().getLast());
-			this.insertNode(mo.getChild(), entry);
-			entry.RI();
+			this.insertNodeNR(n, entry);
 		}
+	}
+	
+	public void insertNodeR(MTreeNode n, TreeObject entry) {
+		entry.setContainer(n);
+		if (n.getParent() != null) {
+			System.out.println(KMAC1.ycDistance(n.getParent().getData().getFirst(), entry.getData().getFirst(), this.posNegRatio, this.cutoff) + " is the parent distance at leaf");
+		}
+		if (n.getObjects().size() < capacity) {
+			n.addTO(entry);
+		}
+		else {
+			this.split(n, entry);
+		}
+	}
+	
+	// leaves will have non-null parents guaranteed
+	public void insertNodeNR(MTreeNode n, TreeObject entry) {
+		data.add(entry.getData().getLast(), entry.getData().getFirst());
+		double min = Double.MAX_VALUE;
+		MTreeNode mo = null;
+		for (MTreeNode leaf: n.getLeafNodes()) {
+			double objDist = KMAC1.ycDistance(leaf.getParent().getData().getFirst(), entry.getData().getFirst(), this.posNegRatio, this.cutoff);
+			if (objDist < min) {
+				min = objDist;
+				mo = leaf;
+			}
+		}
+		this.insertNodeR(mo, entry);
 	}
 	
 	public int getSize() {
 		return size;
+	}
+	
+	public void setCurrent(int i) {
+		currentEntry = i;
+	}
+	
+	public int getCurrent() {
+		return currentEntry;
 	}
 	
 	class DistanceComparator implements Comparator<Pair<Integer, Double>> {
@@ -327,54 +400,103 @@ public class MTree {
 		}
 	}
 	
-	public ArrayList<TreeObject> splitHelper(ArrayList<TreeObject> entries) {
-		ArrayList<TreeObject> splitResult = new ArrayList<TreeObject>();
+	// Makes a new object with children out of a list of TreeObjects. The returned object is one of the
+	// members of the list (the "central" one), and the children are all the others.
+	
+	public TreeObject centralize(ArrayList<TreeObject> objects) {
+		ArrayList<Double> distances = new ArrayList<Double>();
+		for (int i = 0; i < objects.size(); i++) {
+			distances.add(0.0);
+		}
+		for (int i = 0; i < objects.size(); i++) {
+			for (int j = 0; j < i; j++) {
+				double d = KMAC1.ycDistance(objects.get(i).getData().getFirst(), objects.get(j).getData().getFirst(), this.posNegRatio, this.cutoff);
+				distances.set(i, distances.get(i) + d);
+				distances.set(j, distances.get(j) + d);
+			}
+		}
+		int minIndex = 0;
+		double minDist = distances.get(0);
+		for (int i = 1; i < objects.size(); i++) {
+			if (minDist > distances.get(i)) {
+				minIndex = i;
+				minDist = distances.get(i);
+			}
+		}
+		TreeObject center = objects.get(minIndex);
 		
-		return splitResult;
+		MTreeNode container = center.getContainer();
+		objects.remove(minIndex);
+		
+		// center is now the central object from object, objects is the remaining ones
+		
+		if (center.getChild() == null || center.getChild().getObjects().size() == 0) { // need to make new child node
+			MTreeNode newChild = new MTreeNode(true, center);
+			for (TreeObject o: objects) {
+				o.setContainer(newChild);
+				if (o.getChild() != null) {
+					if (o.getChild().getObjects().size() > 0) {
+						newChild.setLeaf(false);
+					}
+				}
+				newChild.getObjects().add(o);
+			}
+			center.setChild(newChild);
+			container.clearTOs();
+		}
+		else if (center.getChild().getObjects().size() + objects.size() <= capacity) { // put objects in existing child node
+			for (int i = 0; i < objects.size(); i++) {
+				TreeObject o = objects.get(i);
+				if (o.getChild() != null) {
+					if (o.getChild().getObjects().size() > 0) {
+						center.getChild().setLeaf(false);
+					}
+				}
+				center.getChild().getObjects().add(o);
+				o.setContainer(center.getChild());
+			}
+			container.clearTOs();
+		}
+		else { // centralize existing child node, put objects in existing child node which is 
+			// guaranteed to not overflow because it has at most objects as the original node
+			TreeObject returnedCenter = this.centralize(center.getChild().getObjects());
+			objects.add(returnedCenter);
+			MTreeNode newChild = new MTreeNode(true, center);
+			center.setChild(newChild);
+			newChild.setParent(center);
+			for (TreeObject o: objects) {
+				newChild.getObjects().add(o);
+				o.setContainer(newChild);
+				if (o.getChild() != null) {
+					if (o.getChild().getObjects().size() > 0) {
+						center.getChild().setLeaf(false);
+					}
+				}
+			}
+			container.clearTOs();
+		}
+		return center;
 	}
 	
-	public Pair<TreeObject, TreeObject> multiSplit(MTreeNode n, ArrayList<TreeObject> entries) {
-		this.root.splitRecursiveRI();
-		System.out.println("multisplit");
-		
-		//n.addTO(entry);
-		ArrayList<TreeObject> newEntries = n.getObjects();
-		for (TreeObject o: entries) {
-			n.addTO(o);
-		}
-		
-		TreeObject parentObject = null;
-		MTreeNode parentContainer = null;
-		TreeObject reAdd = null; // this is the TreeObject corresponding to parentObject if it exists, replaced by promoted0
-		
-		// if n is not the root
-		
-		if (n.getParent() != null) {
-			parentObject = n.getParent();
-			if (parentObject.getContainer() != null) {
-				parentContainer = parentObject.getContainer();
-			}
-			reAdd = new TreeObject(null, null, parentObject.getData(), 0, this.posNegRatio, this.cutoff);
-		}
-		
+	// Takes in the entries, "newEntries", of a node which needs to be split.
+	// Returns promoted0 and promoted1, which contain as children the other entries in newEntries,
+	// and resets all other entries in newEntries to have the correct parents.
+	
+	public Pair<TreeObject, TreeObject> splitHelper(ArrayList<TreeObject> newEntries) {
 		// allocate new nodes partitionNode0, partitionNode1 with parents promoted0, promoted1
 		
-		ArrayList<TreeObject> promoted = MTree.optimalSplitPolicy(newEntries, this.posNegRatio, this.cutoff);
-		TreeObject promoted0 = promoted.get(0);
+		Pair<TreeObject, TreeObject> promoted = MTree.optimalSplitPolicy(newEntries, this.posNegRatio, this.cutoff);
+		
+		TreeObject promoted0 = promoted.getFirst();
 		ArrayList<TreeObject> promotedChildren0 = new ArrayList<TreeObject>();
 		if (promoted0.getChild() != null) {
 			promotedChildren0 = promoted0.getChild().getObjects();
 		}
-		TreeObject promoted1 = promoted.get(1);
+		TreeObject promoted1 = promoted.getLast();
 		ArrayList<TreeObject> promotedChildren1 = new ArrayList<TreeObject>();
 		if (promoted1.getChild() != null) {
 			promotedChildren1 = promoted1.getChild().getObjects();
 		}
-		
-		// System.out.println(promotedChildren0.size() + promotedChildren1.size() + "GGGGGG");
-		
-		double maxR0 = 0;
-		double maxR1 = 0;
 		
 		ArrayList<TreeObject> partition0 = new ArrayList<TreeObject>();
 		ArrayList<TreeObject> partition1 = new ArrayList<TreeObject>();
@@ -385,30 +507,16 @@ public class MTree {
 		LinkedList<Pair<Integer, Double>> distances1 = new LinkedList<Pair<Integer, Double>>();
 		
 		// if n is a leaf or not
-		
-		if (n.isLeaf()) {
-			for (int i = 0; i < newEntries.size(); i++) {
-				TreeObject o = newEntries.get(i);
-				if (o.getData().getLast() != promoted0.getData().getLast() && o.getData().getLast() != promoted1.getData().getLast()) {
-					double d0 = KMAC1.ycDistance(promoted0.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
-					distances0.add(new Pair<Integer, Double>(i, d0));
-					double d1 = KMAC1.ycDistance(promoted1.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
-					distances1.add(new Pair<Integer, Double>(i, d1));
-				}
-			}			
-		}
-		else {
-			for (int i = 0; i < newEntries.size(); i++) {
-				TreeObject o = newEntries.get(i);
-				double r = o.getR();
-				if (o.getData().getLast() != promoted0.getData().getLast() && o.getData().getLast() != promoted1.getData().getLast()) {
-					double d0 = KMAC1.ycDistance(promoted0.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
-					distances0.add(new Pair<Integer, Double>(i, d0 + r));
-					double d1 = KMAC1.ycDistance(promoted1.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
-					distances1.add(new Pair<Integer, Double>(i, d1 + r));
-				}
-			}	
-		}
+		for (int i = 0; i < newEntries.size(); i++) {
+			TreeObject o = newEntries.get(i);
+			double r = o.getR();
+			if (o.getData().getLast() != promoted0.getData().getLast() && o.getData().getLast() != promoted1.getData().getLast()) {
+				double d0 = KMAC1.ycDistance(promoted0.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
+				distances0.add(new Pair<Integer, Double>(i, d0 + r));
+				double d1 = KMAC1.ycDistance(promoted1.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
+				distances1.add(new Pair<Integer, Double>(i, d1 + r));
+			}
+		}	
 		
 		Collections.sort(distances0, new DistanceComparator());
 		Collections.sort(distances1, new DistanceComparator());
@@ -420,6 +528,7 @@ public class MTree {
 				for (int j = 0; j < distances1.size(); j++) {
 					if (distances1.get(j).getFirst() == index) {
 						distances1.remove(j);
+						break;
 					}
 				}
 			}
@@ -429,6 +538,7 @@ public class MTree {
 				for (int j = 0; j < distances0.size(); j++) {
 					if (distances0.get(j).getFirst() == index) {
 						distances0.remove(j);
+						break;
 					}
 				}
 			}
@@ -436,160 +546,69 @@ public class MTree {
 		
 		Pair<Integer, Double> biggest0 = distances0.pop();
 		partition0.add(newEntries.get(biggest0.getFirst()));
-		for (TreeObject pentry: partition0) {
-			System.out.println(pentry.getData().getLast());
-		}
-		maxR0 = biggest0.getLast();
-		System.out.println("not broken " + promoted0.getData().getLast());
 		for (int j = 0; j < distances1.size(); j++) {
 			if (distances1.get(j).getFirst() == biggest0.getFirst()) {
 				distances1.remove(j);
+				break;
 			}
 		}
 		Pair<Integer, Double> biggest1 = distances1.pop();
 		partition1.add(newEntries.get(biggest1.getFirst()));
-		for (TreeObject pentry: partition1) {
-			System.out.println(pentry.getData().getLast());
-		}
-		maxR1 = biggest1.getLast();
-		System.out.println("not broken pair " + promoted1.getData().getLast());
 		
-		// at this point all elements have been added to partition0 and partition1
-		/**
-		for (TreeObject o: partition0) {
-			o.setContainer(null);
-		}
-		
-		for (TreeObject o: partition1) {
-			o.setContainer(null);
-		}
-		*/
-		
-		// n.getObjects().clear();
-		
+		// make promoted0
 		if (promotedChildren0.size() == 0) {
-			System.out.println("XX0");
-			MTreeNode partitionNode0 = new MTreeNode(n.isLeaf(), promoted0);
+			MTreeNode partitionNode0 = new MTreeNode(true, promoted0);
 			for (TreeObject o: partition0) {
 				partitionNode0.addTO(o);
-				o.resetParentDistance();
 			}
-			promoted0.setR(maxR0);
 			promoted0.setChild(partitionNode0);
-			promoted0.RI();
+			promoted0.getContainer().setLeaf(false);
 		}
 		else {
-			System.out.println("YY0");
-			int alreadyHave = promoted0.getChild().getObjects().size();
-			if (alreadyHave + partition0.size() <= capacity) {
-				for (int i = 0; i < partition0.size(); i++) {
-					promoted0.getChild().addTO(partition0.get(i));
-					System.out.println("normalinsertion0");
-				}
-				maxR0 = 0;
-				for (TreeObject o: promoted0.getChild().getObjects()) {
-					maxR0 = Math.max(KMAC1.ycDistance(promoted0.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff) + o.getR(), maxR0);
-				}
-				promoted0.setR(maxR0);
-				promoted0.RI();
+			if (promotedChildren0.size() + partition0.size() > capacity) {
+				TreeObject center = this.centralize(promoted0.getChild().getObjects());
+				// center is now all of promoted0's children into one node, promoted0's child currently 
+				// is devoid of objects
+				// what is center's current container? its old container, promoted0.getChild()
+				partition0.add(center);
 			}
-			else {
-				this.multiSplit(promoted0.getChild(), partition0);
-				System.out.println("weirdinsertion0");
+			for (TreeObject o: partition0) {
+				promoted0.getChild().addTO(o);
 			}
+			promoted0.getContainer().setLeaf(false);
 		}
 		
+		// make promoted1
 		if (promotedChildren1.size() == 0) {
-			System.out.println("XX1");
-			MTreeNode partitionNode1 = new MTreeNode(n.isLeaf(), promoted1);
+			MTreeNode partitionNode1 = new MTreeNode(true, promoted1);
 			for (TreeObject o: partition1) {
 				partitionNode1.addTO(o);
-				o.resetParentDistance();
 			}
-			promoted1.setR(maxR1);
 			promoted1.setChild(partitionNode1);
-			promoted1.RI();
+			promoted1.getContainer().setLeaf(false);
 		}
 		else {
-			System.out.println("YY1");
-			int alreadyHave = promoted1.getChild().getObjects().size();
-			System.out.println("WE ALREADY HAVE " + alreadyHave);
-			if (alreadyHave + partition1.size() <= capacity) {
-				for (int i = 0; i < partition1.size(); i++) {
-					promoted1.getChild().addTO(partition1.get(i));
-					System.out.println("normalinsertion1");
-				}
-				maxR1 = 0;
-				for (TreeObject o: promoted1.getChild().getObjects()) {
-					System.out.println("which part?1");
-					maxR1 = Math.max(KMAC1.ycDistance(promoted1.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff) + o.getR(), maxR0);
-				}
-				promoted1.setR(maxR1);
-				promoted1.RI();
+			if (promotedChildren1.size() + partition1.size() > capacity) {
+				TreeObject center = this.centralize(promoted1.getChild().getObjects());
+				// center is now all of promoted1's children into one node, promoted1's child currently 
+				// is devoid of objects
+				// what is center's current container? its old container, promoted1.getChild()
+				partition1.add(center);
 			}
-			else {
-				Pair<TreeObject, TreeObject> promotedPair = this.multiSplit(promoted1.getChild(), partition1);
-				System.out.println("weirdinsertion1");
+			for (TreeObject o: partition1) {
+				promoted1.getChild().addTO(o);
 			}
-		}
-		
-		if (n.getParent() == null) {
-			MTreeNode newRoot = new MTreeNode(false, null);
-			this.root = newRoot;
-			newRoot.addTO(promoted0);
-			promoted0.resetParentDistance();
-			newRoot.addTO(promoted1);
-			promoted1.resetParentDistance();
-			
-			System.out.println("ROOT WAS RESET.");
-		}
-		
-		else {
-			//System.out.println("drop");
-			if (parentContainer == null) {
-				System.out.println("break0");
-			}
-			for (int i = 0; i < parentContainer.getObjects().size(); i++) {
-				if (parentContainer.getObjects().get(i).getData().getLast().equals(parentObject.getData().getLast())) {
-					parentContainer.getObjects().remove(i);
-				}
-			}
-			parentContainer.addTO(promoted0);
-			if (promoted1.getContainer() != null) {
-				MTreeNode container = promoted1.getContainer();
-				int containerSize = container.getObjects().size();
-				for (int i = 0; i < containerSize; i++) {
-					if (container.getObjects().get(i).getData().getLast().equals(promoted1.getData().getLast())) {
-						container.getObjects().remove(i);
-						promoted1.setContainer(null);
-						break;
-					}
-				}
-			}
-			
-			promoted0.resetParentDistance();
-			if (parentContainer.getObjects().size() < capacity) {
-				parentContainer.addTO(promoted1);
-				promoted1.resetParentDistance();
-			}
-			else {
-				this.split(parentContainer, promoted1);
-			}
-			System.out.println("readd");
-			System.out.println("TYPE 4");
-			this.insertNode(this.root, reAdd);
+			promoted1.getContainer().setLeaf(false);
 		}
 		
 		return new Pair<TreeObject, TreeObject>(promoted0, promoted1);
 	}
 	
-	public Pair<TreeObject, TreeObject> split(MTreeNode n, TreeObject entry) {
-		this.root.splitRecursiveRI();
-		System.out.println("split");
-		
+	public void split(MTreeNode n, TreeObject entry) {
 		//n.addTO(entry);
 		ArrayList<TreeObject> newEntries = n.getObjects();
 		newEntries.add(entry);
+		entry.setContainer(n);
 		
 		TreeObject parentObject = null;
 		MTreeNode parentContainer = null;
@@ -599,275 +618,44 @@ public class MTree {
 		
 		if (n.getParent() != null) {
 			parentObject = n.getParent();
-			if (parentObject.getContainer() != null) {
+			// need to make new object with parentObject's data to split
+			reAdd = new TreeObject(n, null, parentObject.getData(), 0, this.posNegRatio, this.cutoff); 
+			newEntries.add(reAdd);
+			if (parentObject.getContainer() != null) { // removes parentObject from parentContainer
 				parentContainer = parentObject.getContainer();
-			}
-			reAdd = new TreeObject(null, null, parentObject.getData(), 0, this.posNegRatio, this.cutoff);
-		}
-		
-		// allocate new nodes partitionNode0, partitionNode1 with parents promoted0, promoted1
-		
-		ArrayList<TreeObject> promoted = MTree.optimalSplitPolicy(newEntries, this.posNegRatio, this.cutoff);
-		TreeObject promoted0 = promoted.get(0);
-		ArrayList<TreeObject> promotedChildren0 = new ArrayList<TreeObject>();
-		if (promoted0.getChild() != null) {
-			promotedChildren0 = promoted0.getChild().getObjects();
-		}
-		TreeObject promoted1 = promoted.get(1);
-		ArrayList<TreeObject> promotedChildren1 = new ArrayList<TreeObject>();
-		if (promoted1.getChild() != null) {
-			promotedChildren1 = promoted1.getChild().getObjects();
-		}
-		
-		// System.out.println(promotedChildren0.size() + promotedChildren1.size() + "GGGGGG");
-		
-		double maxR0 = 0;
-		double maxR1 = 0;
-		
-		ArrayList<TreeObject> partition0 = new ArrayList<TreeObject>();
-		ArrayList<TreeObject> partition1 = new ArrayList<TreeObject>();
-		
-		int numEntries = newEntries.size() - 2;
-		
-		LinkedList<Pair<Integer, Double>> distances0 = new LinkedList<Pair<Integer, Double>>();
-		LinkedList<Pair<Integer, Double>> distances1 = new LinkedList<Pair<Integer, Double>>();
-		
-		// if n is a leaf or not
-		
-		if (n.isLeaf()) {
-			for (int i = 0; i < newEntries.size(); i++) {
-				TreeObject o = newEntries.get(i);
-				if (o.getData().getLast() != promoted0.getData().getLast() && o.getData().getLast() != promoted1.getData().getLast()) {
-					double d0 = KMAC1.ycDistance(promoted0.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
-					distances0.add(new Pair<Integer, Double>(i, d0));
-					double d1 = KMAC1.ycDistance(promoted1.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
-					distances1.add(new Pair<Integer, Double>(i, d1));
-				}
-			}			
-		}
-		else {
-			for (int i = 0; i < newEntries.size(); i++) {
-				TreeObject o = newEntries.get(i);
-				double r = o.getR();
-				if (o.getData().getLast() != promoted0.getData().getLast() && o.getData().getLast() != promoted1.getData().getLast()) {
-					double d0 = KMAC1.ycDistance(promoted0.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
-					distances0.add(new Pair<Integer, Double>(i, d0 + r));
-					double d1 = KMAC1.ycDistance(promoted1.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff);
-					distances1.add(new Pair<Integer, Double>(i, d1 + r));
-				}
-			}	
-		}
-		
-		Collections.sort(distances0, new DistanceComparator());
-		Collections.sort(distances1, new DistanceComparator());
-		
-		for (int i = 0; i < numEntries - 2; i++) {
-			if (i % 2 == 0) {
-				int index = distances0.pop().getFirst();
-				partition0.add(newEntries.get(index));
-				for (int j = 0; j < distances1.size(); j++) {
-					if (distances1.get(j).getFirst() == index) {
-						distances1.remove(j);
-					}
-				}
-			}
-			else {
-				int index = distances1.pop().getFirst();
-				partition1.add(newEntries.get(index));
-				for (int j = 0; j < distances0.size(); j++) {
-					if (distances0.get(j).getFirst() == index) {
-						distances0.remove(j);
+				for (int i = 0; i < parentContainer.getObjects().size(); i++) {
+					if (parentContainer.getObjects().get(i).getData().getLast().equals(parentObject.getData().getLast())) {
+						parentContainer.getObjects().remove(i);
+						break;
 					}
 				}
 			}
 		}
-		
-		Pair<Integer, Double> biggest0 = distances0.pop();
-		partition0.add(newEntries.get(biggest0.getFirst()));
-		for (TreeObject pentry: partition0) {
-			System.out.println(pentry.getData().getLast());
-		}
-		maxR0 = biggest0.getLast();
-		System.out.println("not broken " + promoted0.getData().getLast());
-		for (int j = 0; j < distances1.size(); j++) {
-			if (distances1.get(j).getFirst() == biggest0.getFirst()) {
-				distances1.remove(j);
-			}
-		}
-		Pair<Integer, Double> biggest1 = distances1.pop();
-		partition1.add(newEntries.get(biggest1.getFirst()));
-		for (TreeObject pentry: partition1) {
-			System.out.println(pentry.getData().getLast());
-		}
-		maxR1 = biggest1.getLast();
-		System.out.println("not broken pair " + promoted1.getData().getLast());
-		
-		// at this point all elements have been added to partition0 and partition1
-		/**
-		for (TreeObject o: partition0) {
-			o.setContainer(null);
-		}
-		
-		for (TreeObject o: partition1) {
-			o.setContainer(null);
-		}
-		*/
-		
-		// n.getObjects().clear();
-		
-		if (promotedChildren0.size() == 0) {
-			System.out.println("XX0");
-			MTreeNode partitionNode0 = new MTreeNode(n.isLeaf(), promoted0);
-			for (TreeObject o: partition0) {
-				partitionNode0.addTO(o);
-				o.resetParentDistance();
-			}
-			promoted0.setR(maxR0);
-			promoted0.setChild(partitionNode0);
-			promoted0.RI();
-		}
-		else {
-			System.out.println("YY0");
-			int alreadyHave = promoted0.getChild().getObjects().size();
-			System.out.println("WE ALREADY HAVE " + alreadyHave);
-			for (int i = 0; i < Math.min(capacity - alreadyHave, partition0.size()); i++) {
-				promoted0.getChild().addTO(partition0.get(i));
-				System.out.println("normalinsertion0");
-			}
-			for (int i = capacity - alreadyHave; i < partition0.size() - capacity + alreadyHave; i++) {
-				System.out.println("TYPE 2");
-				// trying out new stuff
-				TreeObject addition = partition0.get(i);
-				for (int j = 0; j < newEntries.size(); j++) {
-					if (newEntries.get(j).getData().getLast().equals(addition.getData().getLast())) {
-						newEntries.remove(j);
-					}
-				}
-				addition.setContainer(null);
-				this.insertNode(promoted0.getChild(), addition);
-				// this.insertNode(promoted0.getChild(), partition0.get(i));
-				System.out.println("weirdinsertion0");
-			}
-			/**
-			for (TreeObject o: partition0) {
-				this.insertNode(promoted0.getChild(), o);
-			}
-			**/
-			maxR0 = 0;
-			for (TreeObject o: promoted0.getChild().getObjects()) {
-				System.out.println("which part?0");
-				maxR0 = Math.max(KMAC1.ycDistance(promoted0.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff) + o.getR(), maxR0);
-			}
-			promoted0.setR(maxR0);
-			promoted0.RI();
-		}
-		
-		System.out.println(partition0.size()+"AAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-		System.out.println(partition1.size()+"BBBBBBBBBBBBBBBBBBBBBBBBBBBB");
-		
-		if (promotedChildren1.size() == 0) {
-			System.out.println("XX1");
-			MTreeNode partitionNode1 = new MTreeNode(n.isLeaf(), promoted1);
-			for (TreeObject o: partition1) {
-				partitionNode1.addTO(o);
-				o.resetParentDistance();
-			}
-			promoted1.setR(maxR1);
-			promoted1.setChild(partitionNode1);
-			promoted1.RI();
-		}
-		else {
-			System.out.println("YY1");
-			int alreadyHave = promoted1.getChild().getObjects().size();
-			for (int i = 0; i < Math.min(capacity - alreadyHave, partition1.size()); i++) {
-				promoted1.getChild().addTO(partition1.get(i));
-				System.out.println("normalinsertion1");
-			}
-			for (int i = capacity - alreadyHave; i < partition1.size() - capacity + alreadyHave; i++) {
-				System.out.println("TYPE 3");
-				// trying out new stuff
-				TreeObject addition = partition1.get(i);
-				for (int j = 0; j < newEntries.size(); j++) {
-					if (newEntries.get(j).getData().getLast().equals(addition.getData().getLast())) {
-						newEntries.remove(j);
-					}
-				}
-				addition.setContainer(null);
-				this.insertNode(promoted1.getChild(), addition);
-				// this.insertNode(promoted1.getChild(), partition1.get(i));
-				System.out.println("weirdinsertion1");
-			}
-			/**
-			for (TreeObject o: partition1) {
-				this.insertNode(promoted1.getChild(), o);
-			}
-			**/
-			maxR1 = 0;
-			for (TreeObject o: promoted1.getChild().getObjects()) {
-				maxR1 = Math.max(KMAC1.ycDistance(promoted1.getData().getFirst(), o.getData().getFirst(), this.posNegRatio, this.cutoff) + o.getR(), maxR1);
-			}
-			promoted1.setR(maxR1);
-			promoted1.RI();
-		}
+
+		Pair<TreeObject, TreeObject> promoted = this.splitHelper(newEntries);
+		TreeObject promoted0 = promoted.getFirst(); // its container is still n
+		TreeObject promoted1 = promoted.getLast(); // its container is still n
 		
 		if (n.getParent() == null) {
 			MTreeNode newRoot = new MTreeNode(false, null);
 			this.root = newRoot;
 			newRoot.addTO(promoted0);
-			promoted0.resetParentDistance();
 			newRoot.addTO(promoted1);
-			promoted1.resetParentDistance();
-			
-			System.out.println("ROOT WAS RESET.");
 		}
 		
 		else {
-			//System.out.println("drop");
-			if (parentContainer == null) {
-				System.out.println("break0");
-			}
-			for (int i = 0; i < parentContainer.getObjects().size(); i++) {
-				if (parentContainer.getObjects().get(i).getData().getLast().equals(parentObject.getData().getLast())) {
-					parentContainer.getObjects().remove(i);
-				}
-			}
 			parentContainer.addTO(promoted0);
-			if (promoted1.getContainer() != null) {
-				MTreeNode container = promoted1.getContainer();
-				int containerSize = container.getObjects().size();
-				for (int i = 0; i < containerSize; i++) {
-					if (container.getObjects().get(i).getData().getLast().equals(promoted1.getData().getLast())) {
-						container.getObjects().remove(i);
-						promoted1.setContainer(null);
-						break;
-					}
-				}
-			}
-			
-			promoted0.resetParentDistance();
 			if (parentContainer.getObjects().size() < capacity) {
 				parentContainer.addTO(promoted1);
-				promoted1.resetParentDistance();
 			}
 			else {
-				System.out.println("also");
-				if (parentContainer.getObjects().size() != 6) {
-					System.out.println("why oh why " + parentContainer.getObjects().size());
-				}
 				this.split(parentContainer, promoted1);
-				System.out.println("also this");
 			}
-			System.out.println("readd");
-			System.out.println("TYPE 4");
-			this.insertNode(this.root, reAdd);
 		}
-		
-		return new Pair<TreeObject, TreeObject>(promoted0, promoted1);
 	}
 	
-	// fine, always returns 2 different indices with furtheste possible distance
-	public static ArrayList<TreeObject> optimalSplitPolicy(ArrayList<TreeObject> promote, double pNR, int c) {
-		ArrayList<TreeObject> promoted = new ArrayList<TreeObject>();
+	// fine, always returns 2 different indices with furthest possible distance
+	public static Pair<TreeObject, TreeObject> optimalSplitPolicy(ArrayList<TreeObject> promote, double pNR, int c) {
 		double furthestDist = 0;
 		int k1 = promote.size();
 		int k2 = promote.size();
@@ -881,59 +669,114 @@ public class MTree {
 				}
 			}
 		}
-		promoted.add(promote.get(k1));
-		promoted.add(promote.get(k2));
-		return promoted;
+		return new Pair<TreeObject, TreeObject>(promote.get(k1), promote.get(k2));
 	}
 	
-	public ArrayList<Pair<Kmer, Integer>> rangeSearch(Kmer s, double r) {
-		return this.rangeSearch(s, r, root);
+	public Pair<Integer, ArrayList<Pair<Kmer, Integer>>> rangeSearch(Kmer s, double r) {
+		Pair<Integer, ArrayList<Pair<Kmer, Integer>>> result = this.rangeSearch(s, r, root);
+		/**
+		try {
+			String filename = "rangeSearchPruning.txt";
+			FileWriter fw = new FileWriter(filename, true);
+			fw.write(result.getFirst());
+			fw.close();
+		}
+		catch (IOException ioe) {
+			System.err.println("IOException: " + ioe.getMessage());
+		}
+		System.out.println("Range search has been completed at root.");
+		System.out.println("----------------------------------------");
+		System.out.println("Total number of entries pruned: " + result.getFirst());
+		**/
+		return result;
 	}
 	
-	public ArrayList<Pair<Kmer, Integer>> rangeSearch(Kmer s, double r, MTreeNode n) {
+	public Pair<Integer, ArrayList<Pair<Kmer, Integer>>> rangeSearch(Kmer s, double r, MTreeNode n) {
 		ArrayList<Pair<Kmer, Integer>> inRange = new ArrayList<Pair<Kmer, Integer>>();
+		int pruned = 0;
 		if (!n.isLeaf()) {
 			for (TreeObject o: n.getObjects()) {
-				double objDist = KMAC1.ycDistance(o.getData().getFirst(), s, this.posNegRatio, this.cutoff);
-				if (objDist <= r) {
+				if (KMAC1.ycDistance(o.getData().getFirst(), s, this.posNegRatio, this.cutoff) <= r) {
 					inRange.add(o.getData());
 				}
-				if (Math.abs(o.getParentDistance() - KMAC1.ycDistance(n.getParent().getData().getFirst(), s, this.posNegRatio, this.cutoff)) <= r + o.getR()) {
-					double subDist = KMAC1.ycDistance(o.getData().getFirst(), s, this.posNegRatio, this.cutoff);
-					if (subDist <= r + o.getR()) {
-						inRange.addAll(this.rangeSearch(s, r, o.getChild()));
+				if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
+					if (KMAC1.ycDistance(o.getData().getFirst(), s, this.posNegRatio, this.cutoff) <= r + o.getR())	{
+						Pair<Integer, ArrayList<Pair<Kmer, Integer>>> subRangeSearch = this.rangeSearch(s, r, o.getChild());
+						inRange.addAll(subRangeSearch.getLast());
+						pruned += subRangeSearch.getFirst();
+					}
+					else {
+						//System.out.println("pruned successfully");
+						pruned += o.getChild().getNumObjects();
 					}
 				}
 			}
 		}
 		else {
 			for (TreeObject o: n.getObjects()) {
-				if (Math.abs(o.getParentDistance() - KMAC1.ycDistance(n.getParent().getData().getFirst(), s, this.posNegRatio, this.cutoff)) <= r) {
-					double subDist = KMAC1.ycDistance(o.getData().getFirst(), s, this.posNegRatio, this.cutoff);
-					if (subDist <= r) {
-						inRange.add(o.getData());
-					}
+				if (KMAC1.ycDistance(o.getData().getFirst(), s, this.posNegRatio, this.cutoff) <= r) {
+					inRange.add(o.getData());
 				}
 			}
-			return inRange;
+			return new Pair<Integer, ArrayList<Pair<Kmer, Integer>>>(pruned, inRange);
 		}
-		return inRange;
+		return new Pair<Integer, ArrayList<Pair<Kmer, Integer>>>(pruned, inRange);
 	}
 	
 	public ArrayList<Kmer> getData() {
 		return data;
 	}
 	
+	/**
+	public static MTree constructTree(ArrayList<Kmer> kmers, int c, double pNR, int cu) throws FileNotFoundException, UnsupportedEncodingException {
+		PrintWriter writer = new PrintWriter("testDistribution.txt", "UTF-8");
+		MTree tree = new MTree(c, pNR, cu, kmers.size());
+		ArrayList<Kmer> kmerSet = new ArrayList<Kmer>();
+		for (int i = 0; i < kmers.size(); i++) {
+			System.out.println("beginning analysis of the " + i + " kmer");
+			Kmer kmer = kmers.get(i);
+			if (kmer instanceof GappedKmer) {
+				System.out.println("gapped");
+				for (Kmer k: ((GappedKmer) kmer).getBaseKmers()) {
+					System.out.println(k);
+				}
+			}
+			else {
+				System.out.println("basic");
+				System.out.println(kmer);
+			}
+			kmerSet.add(kmer);
+		}
+		for (int i = 0; i < kmers.size(); i++) {
+			for (int j = 0; j < i; j++) {
+				writer.println(KMAC1.ycDistance(kmerSet.get(i), kmerSet.get(j), pNR, cu));
+			}
+			System.out.println("making progress" + i);
+		}
+		System.out.println("reached");
+		writer.close();
+		return tree;
+	}
+	**/
+	
 	public static MTree constructTree(ArrayList<Kmer> kmers, int c, double pNR, int cu) {
 		MTree tree = new MTree(c, pNR, cu, kmers.size());
+		// for (int i = 0; i < kmers.size(); i++) {
 		for (int i = 0; i < kmers.size(); i++) {
+			tree.setCurrent(i);
 			System.out.println("start"+i);
-			Pair<Kmer, Integer> data = new Pair<Kmer, Integer>(kmers.get(i), i); 
+			Pair<Kmer, Integer> data = new Pair<Kmer, Integer>(kmers.get(i), i);
 			tree.insertNode(tree.getRoot(), tree.new TreeObject(null, null, data, 0, pNR, cu));
 			System.out.println(tree.root.getNumObjects());
 		}
 		System.out.println(kmers.size());
 		System.out.println(tree.root.getNumObjects());
+		for (TreeObject leaf: tree.root.getLeaves()) {
+			leaf.setParentsR();
+		}
+		tree.root.recursiveSetNumObjects();
+		// tree.root.recursiveRI();
+		// tree.root.recursivePrint();
 		return tree;
 	}
 	
@@ -945,7 +788,68 @@ public class MTree {
 		this.root = n;
 	}
 	
+	// pre: s1.length() == s2.length()
+	public static int test1(String s1, String s2, int cutoff) {
+		int mm = 0;
+		for (int i = 0; i < s1.length(); i++) {
+			if (s1.charAt(i) != s2.charAt(i)) {
+				mm++;
+			}
+		}
+		return mm;
+	}
+	
+	public static int test2(String s1, String s2, int cutoff) {
+		if (s1.length() > s2.length()) {
+			return MTree.test2(s2, s1, cutoff);
+		}
+		else {
+			int mm = s2.length();
+			for (int i = 1 - s1.length(); i < s2.length(); i++) {
+				int start2 = Math.max(0, i);
+				int end2 = Math.min(i + s1.length() - 1, s2.length() - 1);
+				int start1 = -1;
+				int end1 = -1;
+				if (start2 == 0) {
+					start1 = s1.length() - 1 - (end2 - start2);
+					end1 = s1.length() - 1;
+				}
+				else if (end2 == s2.length() - 1) {
+					start1 = 0;
+					end1 = end2 - start2;
+				}
+				else {
+					start1 = 0;
+					end1 = s1.length() - 1;
+				}
+				String ss1 = s1.substring(start1, end1 + 1);
+				String ss2 = s2.substring(start2, end2 + 1);
+				mm = Math.min(mm, s2.length() - (end2 - start2 + 1) 
+						+ s1.length() - (end1 - start1 + 1) + MTree.test1(ss1, ss2, cutoff));
+			}
+			return mm;
+		}
+	}
+	
+	public static int testDist(String s1, String s2, int cutoff) {
+		s1 = s1.toUpperCase();
+		s2 = s2.toUpperCase();
+		String s1r = SequenceUtils.reverseComplement(s1);
+		// return Math.min(Math.min(MTree.test2(s1, s2, cutoff), MTree.test2(s1r, s2, cutoff)), cutoff);
+		return Math.min(MTree.test2(s1, s2, cutoff), MTree.test2(s1r, s2, cutoff));
+	}
+	
+	public static int testDistWC(String s1, String s2, int cutoff) {
+		// this one has cutoff
+		s1 = s1.toUpperCase();
+		s2 = s2.toUpperCase();
+		String s1r = SequenceUtils.reverseComplement(s1);
+		return Math.min(Math.min(MTree.test2(s1, s2, cutoff), MTree.test2(s1r, s2, cutoff)), cutoff);
+	}
+	
 	public static void main(String[] args) {
-		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+		System.out.println(MTree.test1("hey", "bey", 1));
+		System.out.println(MTree.test1("hey", "bcy", 1));
+		System.out.println(MTree.test2("substringABCD", "ABCsubs", 3));
 	}
 }
