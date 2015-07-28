@@ -1,6 +1,8 @@
 package edu.mit.csail.cgs.deepseq.discovery;
 
 import java.io.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
@@ -311,7 +313,9 @@ public class GEM {
         System.out.println("\nWelcome to GEM (version "+GEM_VERSION+")!");
         System.out.println("\nPlease cite: \nYuchun Guo, Shaun Mahony, David K. Gifford (2012) PLoS Computational Biology 8(8): e1002638. \nHigh Resolution Genome Wide Binding Event Finding and Motif Discovery Reveals Transcription Factor Spatial Binding Constraints. \ndoi:10.1371/journal.pcbi.1002638\n");
         System.out.println("Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gem/).\n");
-    	
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        System.out.println("----------------------------------\n\nStart time: "+dateFormat.format(new Date())+"\n");
+    	    	
         boolean run_gem = false;
     	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1 || Args.parseInteger(args,"kmin", -1)!=-1
     			|| Args.parseString(args, "seed", null)!=null)
@@ -324,6 +328,7 @@ public class GEM {
         gem.runMixtureModel(run_gem);
         gem.close();
         
+        System.out.println("----------------------------------\n\nEnd time: "+dateFormat.format(new Date()));
         System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
     }
 

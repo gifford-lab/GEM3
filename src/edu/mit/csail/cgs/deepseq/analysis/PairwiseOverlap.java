@@ -18,7 +18,7 @@ import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
-public class PairBindingAnalysis {
+public class PairwiseOverlap{
 
 	public static void main(String[] args) {
 	
@@ -141,12 +141,12 @@ public class PairBindingAnalysis {
 	}
 
 	/**
-	 * Report the relationship between a pair of binding calls: 
+	 * Report the relationship between 2 list of regions: 
 	 * <ol>
 	 * <li> The distance between binding calls
 	 * <li> The percentages of intersection relative the whole sets
 	 * </ol>
-	 * example: --species "Mus musculus;mm9" --RS1 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_2_GEM_events.txt" --RS2 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_1_GEM_events.txt" --win 100 --out TF1_vs_TF2.txt
+	 * example: --type 3 --species "Mus musculus;mm9" --RS1 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_2_GEM_events.txt" --RS2 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_1_GEM_events.txt" --win 100 
 	 */
 	public static void diffRegions(String[] args, Genome genome){
 	    	

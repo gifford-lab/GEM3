@@ -638,6 +638,9 @@ public class Region implements Comparable<Region>, Saveable {
     return getLocationString();
   }
 
+  public String toBED(){
+	  return String.format("ch%s\t%d\t%d", chrom, start, end+1);
+  }
   /**
    * parses the input String into a Region. The Region can either be strict
    * coordinates (eg, chrom/start/stop). Understands abbreviates in the
