@@ -29,7 +29,19 @@ public class Kmer implements Comparable<Kmer>{
 		seq_weights = weights;
 	}	
 	String CIDs = null;
-
+	
+	// for use in indexing in MTree
+	
+	private int treeIndex;
+	
+	public void setIndex(int i) {
+		treeIndex = i;
+	}
+	
+	public int getIndex() {
+		return treeIndex;
+	}
+	
 	protected String kmerString;
 	public String getKmerString() {	return kmerString;}
 	public String getKmerStrRC() {	return kmerString+"/"+kmerRC;}
@@ -152,6 +164,7 @@ public class Kmer implements Comparable<Kmer>{
 	public Kmer(String kmerStr){
 		this.kmerString = kmerStr;
 		this.k = kmerString.length();
+		this.treeIndex = -1;
 	}
 	
 	public Kmer(String kmerStr, HashSet<Integer> posHits ){
@@ -159,12 +172,14 @@ public class Kmer implements Comparable<Kmer>{
 		this.kmerRC = SequenceUtils.reverseComplement(kmerStr);
 		this.k = kmerString.length();
 		setPosHits(posHits);
+		this.treeIndex = -1;
 	}
 	public Kmer(String kmerStr, BitSet posBits ){
 		this.kmerString = kmerStr;
 		this.kmerRC = SequenceUtils.reverseComplement(kmerStr);
 		this.k = kmerString.length();
 		this.posBits = posBits;
+		this.treeIndex = -1;
 	}
 	
 	public Kmer clone(){

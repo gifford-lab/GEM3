@@ -489,7 +489,7 @@ public class KMAC1 {
 	 * @throws UnsupportedEncodingException 
 	 * @throws FileNotFoundException 
 	 */
-	public void discoverMotifs (int k_min, int k_max, int[] eventCounts) throws FileNotFoundException, UnsupportedEncodingException{
+	public void discoverMotifs2 (int k_min, int k_max, int[] eventCounts) throws FileNotFoundException, UnsupportedEncodingException{
 		
 		ArrayList<MotifCluster> allClusters = new ArrayList<MotifCluster>();		
 
@@ -815,7 +815,7 @@ public class KMAC1 {
 	 * @throws UnsupportedEncodingException 
 	 * @throws FileNotFoundException 
 	 */
-	public void discoverMotifs2 (int k_min, int k_max, int[] eventCounts) throws FileNotFoundException, UnsupportedEncodingException{
+	public void discoverMotifs (int k_min, int k_max, int[] eventCounts) throws FileNotFoundException, UnsupportedEncodingException{
 		
 		ArrayList<MotifCluster> allClusters = new ArrayList<MotifCluster>();		
 
@@ -884,14 +884,14 @@ public class KMAC1 {
 				int cutoff = (int)(config.kmer_deviation_factor*k);	// maximum kmer distance to be considered as neighbors
 //				computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff-1);
 //				computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff);
-				MTree dataPoints = MTree.constructTree(kmers, 6, posNegSeqRatio, cutoff);
+				MTree dataPoints = MTree.constructTree(kmers, 6);
 				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering2(kmers, dataPoints, config.dc==-1?maxGap:config.dc);
 				ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
 				for (int j=0;j<centerKmers.size();j++){	
 					int seedId = kmers.indexOf(centerKmers.get(j));
 					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
 					for (int id=0;id<kmers.size();id++){
-						if (KMAC1.ycDistance(dataPoints.getData().get(id), dataPoints.getData().get(seedId), posNegSeqRatio, cutoff+1) <= cutoff)
+						if (KMAC1.ycDistance(dataPoints.getData().get(id), dataPoints.getData().get(seedId)) <= cutoff)
 							neighbours.add(kmers.get(id));
 					}
 					neighbourList.add(neighbours);
@@ -1759,7 +1759,7 @@ public class KMAC1 {
 		return distanceMatrix;
 	}
 	
-	public static double ycDistance(Kmer k1, Kmer k2, double posNegRatio, int cutoff) {
+	public static double ycDistance(Kmer k1, Kmer k2) {
 		int numOperations = 1;
 		ArrayList<Kmer> sk1 = new ArrayList<Kmer>();
 		ArrayList<Kmer> sk2 = new ArrayList<Kmer>();
@@ -1783,9 +1783,9 @@ public class KMAC1 {
 		
 		for (Kmer s1: sk1) {
 			for (Kmer s2: sk2) {
-				double w2 = k1.getNetHitCount(posNegRatio)*k2.getNetHitCount(posNegRatio);
+				double w2 = k1.getPosHitCount()*k2.getPosHitCount();
 				weightSum += w2;
-				distSum += w2 * MTree.testDist(s1.getKmerString(), s2.getKmerString(), cutoff);
+				distSum += w2 * MTree.testDist(s1.getKmerString(), s2.getKmerString());
 				//distSum += w2 * CommonUtils.strMinDistanceWithCutoff(s1.getKmerString(), s2.getKmerString(), cutoff);
 			}
 		}
@@ -1820,7 +1820,7 @@ public class KMAC1 {
 			for (Kmer s2: sk2) {
 				double w2 = k1.getNetHitCount(posNegRatio)*k2.getNetHitCount(posNegRatio);
 				weightSum += w2;
-				distSum += w2 * MTree.testDist(s1.getKmerString(), s2.getKmerString(), cutoff);
+				distSum += w2 * MTree.testDist(s1.getKmerString(), s2.getKmerString());
 				//distSum += w2 * CommonUtils.strMinDistanceWithCutoff(s1.getKmerString(), s2.getKmerString(), cutoff);
 			}
 		}
@@ -1960,15 +1960,15 @@ public class KMAC1 {
 			p.id = i;
 			// self_density: individual k-mer hit count
 			double self_density = CommonUtils.calcWeightedHitCount(posHitList.get(i),seq_weights) - negHitList.get(i).cardinality()*posNegSeqRatio;
-			Pair<Integer, ArrayList<Pair<Kmer, Integer>>> rangeResult = dataPoints.rangeSearch(dataPoints.getData().get(i), distanceCutoff);
-			ArrayList<Pair<Kmer, Integer>> inRange = rangeResult.getLast();
+			Pair<Integer, ArrayList<Kmer>> rangeResult = dataPoints.rangeSearch(dataPoints.getData().get(i), distanceCutoff);
+			ArrayList<Kmer> inRange = rangeResult.getLast();
 			pruned += rangeResult.getFirst();
 			// sum up to get total hit count of this point and its neighbors
 			BitSet b_pos = new BitSet();
 			BitSet b_neg = new BitSet();
-			for (Pair<Kmer, Integer> kmer: inRange) {
-				b_pos.or(posHitList.get(kmer.getLast()));
-				b_neg.or(negHitList.get(kmer.getLast()));
+			for (Kmer kmer: inRange) {
+				b_pos.or(posHitList.get(kmer.getIndex()));
+				b_neg.or(negHitList.get(kmer.getIndex()));
 			}
 			// group hit count * self_density, to down-weight weak kmers from being selected as center
 			p.densitySxN = Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
@@ -1992,11 +1992,14 @@ public class KMAC1 {
 		int topID = data.get(0).id;
 		Kmer topPoint = dataPoints.getData().get(topID);
 		for(int i = 0; i < dataPoints.getSize(); i++) {
-			double compare = KMAC1.ycDistance(dataPoints.getData().get(i), topPoint, posNegSeqRatio, cutoff);
+			double compare = KMAC1.ycDistance(dataPoints.getData().get(i), topPoint);
 			if (compare > maxDist) {
 				maxDist = compare;
 			}
 		}
+		
+		System.out.println("here");
+		
 		data.get(0).delta = maxDist;
 		data.get(0).gamma = data.get(0).delta * data.get(0).density;
 		data.get(0).members.add(data.get(0));
@@ -2004,6 +2007,7 @@ public class KMAC1 {
 		
 		// for the rest of points
 		for (int i=1;i<data.size();i++){
+			System.out.println(i);
 			Kmer dataPoint = dataPoints.getData().get(i);
 			double min = Double.MAX_VALUE;
 			int id = data.get(i).id;
@@ -2011,7 +2015,7 @@ public class KMAC1 {
 //				id=id;
 			// find the nearest stronger point of i, point i to it
 			for (int j=0;j<i;j++){		// for the points j have higher (or equal) density than point i
-				double ijDistance = KMAC1.ycDistance(dataPoint, dataPoints.getData().get(j), posNegSeqRatio, cutoff);
+				double ijDistance = KMAC1.ycDistance(dataPoint, dataPoints.getData().get(j));
 				min = Math.min(ijDistance, min);
 				if (ijDistance <= distanceCutoff) {
 					data.get(j).members.add(data.get(i));
@@ -2026,6 +2030,8 @@ public class KMAC1 {
                 return o1.compareToByGamma(o2);
             }
         });
+		
+		System.out.println("here");
 		
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
 		while(!data.isEmpty()){
@@ -2044,7 +2050,7 @@ public class KMAC1 {
 			for (DensityClusteringPoint m:p.members){
 				boolean tooSimilar = false;
 				for (DensityClusteringPoint r:results){
-					if (KMAC1.ycDistance(dataPoints.getData().get(r.id), dataPoints.getData().get(m.id), posNegSeqRatio, cutoff)<distanceCutoff){
+					if (KMAC1.ycDistance(dataPoints.getData().get(r.id), dataPoints.getData().get(m.id))<distanceCutoff){
 						tooSimilar = true;
 						break;
 					}

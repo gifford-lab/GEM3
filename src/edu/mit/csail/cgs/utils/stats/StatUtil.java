@@ -2039,13 +2039,13 @@ public class StatUtil {
 			p.id = i;
 			// self_density: individual k-mer hit count
 			double self_density = CommonUtils.calcWeightedHitCount(posHitList.get(i),seq_weights) - negHitList.get(i).cardinality()*posNegSeqRatio;
-			ArrayList<Pair<Kmer, Integer>> inRange = dataPoints.rangeSearch(dataPoints.getData().get(i), distanceCutoff).getLast();
+			ArrayList<Kmer> inRange = dataPoints.rangeSearch(dataPoints.getData().get(i), distanceCutoff).getLast();
 			// sum up to get total hit count of this point and its neighbors
 			BitSet b_pos = new BitSet();
 			BitSet b_neg = new BitSet();
-			for (Pair<Kmer, Integer> kmer: inRange) {
-				b_pos.or(posHitList.get(kmer.getLast()));
-				b_neg.or(negHitList.get(kmer.getLast()));
+			for (Kmer kmer: inRange) {
+				b_pos.or(posHitList.get(kmer.getIndex()));
+				b_neg.or(negHitList.get(kmer.getIndex()));
 			}
 			// group hit count * self_density, to down-weight weak kmers from being selected as center
 			p.densitySxN = Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
