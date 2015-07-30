@@ -16,7 +16,6 @@ import java.util.TreeSet;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
-import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class Kmer implements Comparable<Kmer>{
 	static cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
@@ -40,6 +39,17 @@ public class Kmer implements Comparable<Kmer>{
 	
 	public int getIndex() {
 		return treeIndex;
+	}
+	
+	private double[][] matrix =null;
+	public void setMatrix (double[][] m){
+		matrix = m;
+	}
+	public double[][] getMatrix (){
+		return matrix;
+	}
+	public void clearMatrix (){
+		matrix = null;
 	}
 	
 	protected String kmerString;
@@ -431,7 +441,7 @@ public class Kmer implements Comparable<Kmer>{
 				GappedKmer gk2 = gk.clone();
 				gk2.clearBaseKmers();
 				for (Kmer sk: gk.getBaseKmers()){
-					gk2.addBaseKmer(subkmer2subkmer.get(sk),gk.getSubKmerOrientation(sk));
+					gk2.addBaseKmer(subkmer2subkmer.get(sk),gk.getBaseKmerOrientation(sk));
 				}
 				gk2.update();
 				kmers.add(gk2);

@@ -38,7 +38,7 @@ public class GappedKmer extends Kmer{
 	public Set<Kmer> getBaseKmers (){
 		return baseKmers.keySet();
 	}
-	boolean getSubKmerOrientation(Kmer subkmer){
+	boolean getBaseKmerOrientation(Kmer subkmer){
 		return baseKmers.get(subkmer);
 	}
 	public void mergePosHits(){
