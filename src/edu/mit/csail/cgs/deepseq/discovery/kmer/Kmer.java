@@ -590,7 +590,7 @@ public class Kmer implements Comparable<Kmer>{
 		return new Pair<Integer, Integer>(posSeqCount,negSeqCount);
 	}
 	
-	public static void main9(String[] args){
+	public static void main(String[] args){
 //		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
 	     BitSet bits1 = new BitSet(16);
 	     BitSet bits2 = new BitSet(16);

@@ -2030,7 +2030,7 @@ public class StatUtil {
 	}	
 	
 	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering2(MTree dataPoints, 
-			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff, int cutoff){
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
@@ -2064,7 +2064,7 @@ public class StatUtil {
 		int topID = data.get(0).id;
 		Kmer topPoint = dataPoints.getData().get(topID);
 		for(int i = 0; i < dataPoints.getSize(); i++) {
-			double compare = KMAC1.ycDistance(dataPoints.getData().get(i), topPoint, posNegSeqRatio, cutoff);
+			double compare = KMAC1.ycDistance(dataPoints.getData().get(i), topPoint);
 			if (compare > maxDist) {
 				maxDist = compare;
 			}
@@ -2083,7 +2083,7 @@ public class StatUtil {
 //				id=id;
 			// find the nearest stronger point of i, point i to it
 			for (int j=0;j<i;j++){		// for the points j have higher (or equal) density than point i
-				double ijDistance = KMAC1.ycDistance(dataPoint, dataPoints.getData().get(j), posNegSeqRatio, cutoff);
+				double ijDistance = KMAC1.ycDistance(dataPoint, dataPoints.getData().get(j));
 				min = Math.min(ijDistance, min);
 				if (ijDistance <= distanceCutoff) {
 					data.get(j).members.add(data.get(i));
@@ -2116,7 +2116,7 @@ public class StatUtil {
 			for (DensityClusteringPoint m:p.members){
 				boolean tooSimilar = false;
 				for (DensityClusteringPoint r:results){
-					if (KMAC1.ycDistance(dataPoints.getData().get(r.id), dataPoints.getData().get(m.id), posNegSeqRatio, cutoff)<distanceCutoff){
+					if (KMAC1.ycDistance(dataPoints.getData().get(r.id), dataPoints.getData().get(m.id))<distanceCutoff){
 						tooSimilar = true;
 						break;
 					}

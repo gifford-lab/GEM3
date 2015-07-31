@@ -1597,6 +1597,20 @@ public class KMAC1 {
 		return results_final;
 	}
 	
+	private double[][] computeDistanceMatrix2(ArrayList<Kmer> kmers, boolean print_dist_matrix, int cutoff) {
+		int kmerCount = kmers.size();
+		double[][] distanceMatrix = new double[kmerCount][kmerCount];
+		for (int i = 0; i < kmerCount; i++) {
+			System.out.println(i);
+			for (int j = 0; j <= i; j++) {
+				double d = MTree.testDist(kmers.get(i).getKmerString(), kmers.get(j).getKmerString());
+				distanceMatrix[i][j] = d;
+				distanceMatrix[j][i] = d;
+			}
+		}
+		return distanceMatrix;
+	}
+	
 	private double[][] computeDistanceMatrix(ArrayList<Kmer> kmers, boolean print_dist_matrix, int cutoff) {
 		int kmerCount = kmers.size();
 		double[][]distanceMatrix = new double[kmerCount][kmerCount];
@@ -1679,7 +1693,7 @@ public class KMAC1 {
 		for (int i=0;i<basicKmers.size();i++){
 			basicKmerMap.put(basicKmers.get(i), i);
 		}
-		double[][] bDist = computeDistanceMatrix(basicKmers, false, cutoff);
+		double[][] bDist = computeDistanceMatrix2(basicKmers, false, cutoff);
 		
 		int kmerCount = kmers.size();
 		double[][]distanceMatrix = new double[kmerCount][kmerCount];
@@ -1763,6 +1777,11 @@ public class KMAC1 {
 			System.out.println(" " + CommonUtils.timeElapsed(tic));
 		
 		return distanceMatrix;
+	}
+	
+	public static double ktDistance(Kmer k1, Kmer k2) {
+		double dist = 0;
+		return dist;
 	}
 	
 	public static double ycDistance(Kmer k1, Kmer k2) {
@@ -1913,7 +1932,7 @@ public class KMAC1 {
 		if (config.verbose>1)
 			System.out.println("distance_cutoff="+distance_cutoff);
 //		int delta = dc + (k>=11?2:1);
-		ArrayList<DensityClusteringPoint> centers = KMAC1.hitWeightedDensityClustering2(dataPoints, posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff, (int)(config.kmer_deviation_factor*k) + 1);
+		ArrayList<DensityClusteringPoint> centers = KMAC1.hitWeightedDensityClustering2(dataPoints, posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
 		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
 		for (DensityClusteringPoint p:centers){
@@ -1957,7 +1976,7 @@ public class KMAC1 {
 	}	
 	
 	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering2(MTree dataPoints, 
-			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff, int cutoff){
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		int pruned = 0;
@@ -6165,15 +6184,13 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
         System.out.println(String.format("Loaded %d input positive sequences.\nUse top %d center sequences (%dbp) and %d negative sequences to find motif ...", 
         		pos_seqs.size(), kmac.seqs.length, config.k_win, kmac.seqsNegList.size()));
 //        pos_seqs = null; neg_seqs = null;
-        kmac.discoverMotifs(config.k_min, config.k_max, null);
+        kmac.discoverMotifs2(config.k_min, config.k_max, null);
         
 		System.out.println(StatUtil.cacheAccessCount);
 		System.out.println(StatUtil.getCacheSize());
 
         System.out.println("Done: "+CommonUtils.timeElapsed(tic));
 	}
-	
-
-	
+		
 } 
 
