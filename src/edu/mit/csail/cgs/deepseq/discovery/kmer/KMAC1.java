@@ -6184,7 +6184,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
         System.out.println(String.format("Loaded %d input positive sequences.\nUse top %d center sequences (%dbp) and %d negative sequences to find motif ...", 
         		pos_seqs.size(), kmac.seqs.length, config.k_win, kmac.seqsNegList.size()));
 //        pos_seqs = null; neg_seqs = null;
-        kmac.discoverMotifs2(config.k_min, config.k_max, null);
+        kmac.discoverMotifs(config.k_min, config.k_max, null);
         
 		System.out.println(StatUtil.cacheAccessCount);
 		System.out.println(StatUtil.getCacheSize());
