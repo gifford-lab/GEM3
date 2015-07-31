@@ -896,7 +896,7 @@ public class KMAC1 {
 					int seedId = kmers.indexOf(centerKmers.get(j));
 					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
 					for (int id=0;id<kmers.size();id++){
-						if (KMAC1.ycDistance(dataPoints.getData().get(id), dataPoints.getData().get(seedId)) <= cutoff)
+						if (KMAC1.ktDistance(dataPoints.getData().get(id), dataPoints.getData().get(seedId)) <= cutoff)
 							neighbours.add(kmers.get(id));
 					}
 					neighbourList.add(neighbours);
@@ -1693,7 +1693,7 @@ public class KMAC1 {
 		for (int i=0;i<basicKmers.size();i++){
 			basicKmerMap.put(basicKmers.get(i), i);
 		}
-		double[][] bDist = computeDistanceMatrix2(basicKmers, false, cutoff);
+		double[][] bDist = computeDistanceMatrix(basicKmers, false, cutoff);
 		
 		int kmerCount = kmers.size();
 		double[][]distanceMatrix = new double[kmerCount][kmerCount];
@@ -1779,11 +1779,70 @@ public class KMAC1 {
 		return distanceMatrix;
 	}
 	
+	/**
+	 * Makes method ycDistance more efficient by doing exactly 1 comparison instead of
+	 * the product of the number of base kmers number of comparisons, using the generated PWMs
+	 */
 	public static double ktDistance(Kmer k1, Kmer k2) {
-		double dist = 0;
+		if (k1.getKmerString().length() > k2.getKmerString().length()) {
+			return KMAC1.ktDistance(k2, k1);
+		}
+		// k1 is the shorter kmer (or they are equal length)
 		double[][] m1 = k1.getMatrix();
 		double[][] m2 = k2.getMatrix();
-		
+		return KMAC1.ktHelper(m1, m2);
+	}
+	
+	public static double ktHelper(double[][] m1, double[][] m2) {
+		double dist = m1.length + m2.length; // final distance
+		for (int i = 0; i < m1.length + m2.length - 1; i++) {
+			// we slide k1 along k2, where i is the index that k1's max index is aligned with
+			// for example, for i = 0; position m1.length - 1 in m1 is aligned with position 0 in m2
+			double slideDist = 0; // this is the total distance for this given slide of m1 along m2
+			
+			// for each case, we first add the hanging ends as part of the edit distance
+			// next, we compare the overlapping indices to find the dist
+			if (i < m1.length - 1) {
+				slideDist += m1.length + m2.length - 2 * i - 2;
+				for (int j = 0; j < i + 1; j++) {
+					int compare1 = m1.length - 1 - i + j;
+					int compare2 = j;
+					double compareDist = 0;
+					for (int k = 0; k < 4; k++) {
+						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
+					}
+					compareDist /= 2;
+					slideDist += compareDist;
+				}
+			}
+			else if (i > m2.length - 1) {
+				slideDist += 2 * i + 2 - m1.length - m2.length;
+				for (int j = 0; j < m1.length + m2.length - 1 - i; j++) {
+					int compare1 = j;
+					int compare2 = i + 1 - m1.length + j;
+					double compareDist = 0;
+					for (int k = 0; k < 4; k++) {
+						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
+					}
+					compareDist /= 2;
+					slideDist += compareDist;
+				}
+			}
+			else {
+				slideDist += m2.length - m1.length;
+				for (int j = 0; j < m1.length; j++) {
+					int compare1 = j;
+					int compare2 = i - m1.length + 1 + j;
+					double compareDist = 0;
+					for (int k = 0; k < 4; k++) {
+						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
+					}
+					compareDist /= 2;
+					slideDist += compareDist;
+				}
+			}
+			dist = Math.min(slideDist, dist);
+		}
 		return dist;
 	}
 	
@@ -2020,7 +2079,7 @@ public class KMAC1 {
 		int topID = data.get(0).id;
 		Kmer topPoint = dataPoints.getData().get(topID);
 		for(int i = 0; i < dataPoints.getSize(); i++) {
-			double compare = KMAC1.ycDistance(dataPoints.getData().get(i), topPoint);
+			double compare = KMAC1.ktDistance(dataPoints.getData().get(i), topPoint);
 			if (compare > maxDist) {
 				maxDist = compare;
 			}
@@ -2043,7 +2102,7 @@ public class KMAC1 {
 //				id=id;
 			// find the nearest stronger point of i, point i to it
 			for (int j=0;j<i;j++){		// for the points j have higher (or equal) density than point i
-				double ijDistance = KMAC1.ycDistance(dataPoint, dataPoints.getData().get(j));
+				double ijDistance = KMAC1.ktDistance(dataPoint, dataPoints.getData().get(j));
 				min = Math.min(ijDistance, min);
 				if (ijDistance <= distanceCutoff) {
 					data.get(j).members.add(data.get(i));
@@ -2059,7 +2118,7 @@ public class KMAC1 {
             }
         });
 		
-		System.out.println("here");
+		System.out.println("here2");
 		
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
 		while(!data.isEmpty()){
@@ -2078,7 +2137,7 @@ public class KMAC1 {
 			for (DensityClusteringPoint m:p.members){
 				boolean tooSimilar = false;
 				for (DensityClusteringPoint r:results){
-					if (KMAC1.ycDistance(dataPoints.getData().get(r.id), dataPoints.getData().get(m.id))<distanceCutoff){
+					if (KMAC1.ktDistance(dataPoints.getData().get(r.id), dataPoints.getData().get(m.id))<distanceCutoff){
 						tooSimilar = true;
 						break;
 					}
@@ -2100,6 +2159,7 @@ public class KMAC1 {
 //				data.remove(m);
 //			}
 		}
+		System.out.println("here3");
 		return results;
 	}	
 /**

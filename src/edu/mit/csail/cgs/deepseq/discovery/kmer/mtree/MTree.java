@@ -202,15 +202,15 @@ public class MTree {
 		 * doubles as a routing object if it has a child node associated and as a data object which
 		 * contains a Kmer. It has a radius r such that every descendant (of any number of generations)
 		 * of the node lies within the ball of radius r centered at the data point (Kmer) contained by
-		 * the object, measured by ycDistance. 
+		 * the object, measured by ktDistance. 
 		 * 
 		 * @param container this is the containing MTreeNode which this object belongs to.
 		 * @param radius this is the aforementioned covering radius so that the object contains its 
 		 * subtree, if any.
 		 * @param child the root of the tree which this object covers, if any.
 		 * @param data the actual data object stored in this tree, a Kmer.
-		 * @param pnRatio used for the specific data set, calculating ycDistance
-		 * @param cut used for the specific data set, calculating ycDistance
+		 * @param pnRatio used for the specific data set, calculating ktDistance
+		 * @param cut used for the specific data set, calculating ktDistance
 		 */
 		
 		private MTreeNode container;
@@ -283,7 +283,7 @@ public class MTree {
 		public double maxR(MTreeNode n) {
 			double maxR = 0;
 			for (TreeObject o: n.getObjects()) {
-				maxR = Math.max(maxR, KMAC1.ycDistance(this.getData(), o.getData()));
+				maxR = Math.max(maxR, KMAC1.ktDistance(this.getData(), o.getData()));
 				if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
 					maxR = Math.max(maxR, this.maxR(o.getChild()));
 				}
@@ -295,7 +295,7 @@ public class MTree {
 			MTreeNode currentContainer = this.getContainer();
 			TreeObject currentAncestor = currentContainer.getParent();
 			while (currentAncestor != null) {
-				currentAncestor.setR(Math.max(currentAncestor.getR(), KMAC1.ycDistance(this.getData(), currentAncestor.getData())));
+				currentAncestor.setR(Math.max(currentAncestor.getR(), KMAC1.ktDistance(this.getData(), currentAncestor.getData())));
 				currentContainer = currentAncestor.getContainer();
 				currentAncestor = currentContainer.getParent();
 			}
@@ -324,7 +324,7 @@ public class MTree {
 			if (n.getObjects().size() < capacity) {
 				n.addTO(entry);
 				if (n.getParent() != null) {
-					System.out.println(KMAC1.ycDistance(n.getParent().getData(), entry.getData()) + " is the parent distance at leaf");
+					System.out.println(KMAC1.ktDistance(n.getParent().getData(), entry.getData()) + " is the parent distance at leaf");
 				}
 			}
 			else {
@@ -339,7 +339,7 @@ public class MTree {
 			System.out.println("running through all possiblities");
 			for (TreeObject object: objects) {
 				if (object.getChild() != null && object.getChild().getObjects().size() > 0) { // potential choice for mo
-					double objDist = KMAC1.ycDistance(object.getData(), entry.getData());
+					double objDist = KMAC1.ktDistance(object.getData(), entry.getData());
 					System.out.println(objDist);
 					if (objDist < min) {
 						min = objDist;
@@ -366,7 +366,7 @@ public class MTree {
 	public void insertNodeR(MTreeNode n, TreeObject entry) {
 		entry.setContainer(n);
 		if (n.getParent() != null) {
-			System.out.println(KMAC1.ycDistance(n.getParent().getData(), entry.getData()) + " is the parent distance at leaf");
+			System.out.println(KMAC1.ktDistance(n.getParent().getData(), entry.getData()) + " is the parent distance at leaf");
 		}
 		if (n.getObjects().size() < capacity) {
 			n.addTO(entry);
@@ -382,7 +382,7 @@ public class MTree {
 		double min = Double.MAX_VALUE;
 		MTreeNode mo = null;
 		for (MTreeNode leaf: n.getLeafNodes()) {
-			double objDist = KMAC1.ycDistance(leaf.getParent().getData(), entry.getData());
+			double objDist = KMAC1.ktDistance(leaf.getParent().getData(), entry.getData());
 			if (objDist < min) {
 				min = objDist;
 				mo = leaf;
@@ -420,7 +420,7 @@ public class MTree {
 		}
 		for (int i = 0; i < objects.size(); i++) {
 			for (int j = 0; j < i; j++) {
-				double d = KMAC1.ycDistance(objects.get(i).getData(), objects.get(j).getData());
+				double d = KMAC1.ktDistance(objects.get(i).getData(), objects.get(j).getData());
 				distances.set(i, distances.get(i) + d);
 				distances.set(j, distances.get(j) + d);
 			}
@@ -521,9 +521,9 @@ public class MTree {
 			TreeObject o = newEntries.get(i);
 			double r = o.getR();
 			if (o.getData().getIndex() != promoted0.getData().getIndex() && o.getData().getIndex() != promoted1.getData().getIndex()) {
-				double d0 = KMAC1.ycDistance(promoted0.getData(), o.getData());
+				double d0 = KMAC1.ktDistance(promoted0.getData(), o.getData());
 				distances0.add(new Pair<Integer, Double>(i, d0 + r));
-				double d1 = KMAC1.ycDistance(promoted1.getData(), o.getData());
+				double d1 = KMAC1.ktDistance(promoted1.getData(), o.getData());
 				distances1.add(new Pair<Integer, Double>(i, d1 + r));
 			}
 		}	
@@ -671,7 +671,7 @@ public class MTree {
 		int k2 = promote.size();
 		for (int i = 0; i < promote.size(); i++) {
 			for (int j = 0; j < i; j++) {
-				double ijDistance = KMAC1.ycDistance(promote.get(i).getData(), promote.get(j).getData());
+				double ijDistance = KMAC1.ktDistance(promote.get(i).getData(), promote.get(j).getData());
 				if (ijDistance > furthestDist) {
 					k1 = i;
 					k2 = j;
@@ -706,11 +706,11 @@ public class MTree {
 		int pruned = 0;
 		if (!n.isLeaf()) {
 			for (TreeObject o: n.getObjects()) {
-				if (KMAC1.ycDistance(o.getData(), s) <= r) {
+				if (KMAC1.ktDistance(o.getData(), s) <= r) {
 					inRange.add(o.getData());
 				}
 				if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
-					if (KMAC1.ycDistance(o.getData(), s) <= r + o.getR())	{
+					if (KMAC1.ktDistance(o.getData(), s) <= r + o.getR())	{
 						Pair<Integer, ArrayList<Kmer>> subRangeSearch = this.rangeSearch(s, r, o.getChild());
 						inRange.addAll(subRangeSearch.getLast());
 						pruned += subRangeSearch.getFirst();
@@ -724,7 +724,7 @@ public class MTree {
 		}
 		else {
 			for (TreeObject o: n.getObjects()) {
-				if (KMAC1.ycDistance(o.getData(), s) <= r) {
+				if (KMAC1.ktDistance(o.getData(), s) <= r) {
 					inRange.add(o.getData());
 				}
 			}
@@ -759,7 +759,7 @@ public class MTree {
 		}
 		for (int i = 0; i < kmers.size(); i++) {
 			for (int j = 0; j < i; j++) {
-				writer.println(KMAC1.ycDistance(kmerSet.get(i), kmerSet.get(j), pNR, cu));
+				writer.println(KMAC1.ktDistance(kmerSet.get(i), kmerSet.get(j), pNR, cu));
 			}
 			System.out.println("making progress" + i);
 		}
@@ -859,8 +859,8 @@ public class MTree {
 	}
 	
 	public static void main(String[] args) {
-		System.out.println(MTree.test1("hey", "bey"));
-		System.out.println(MTree.test1("hey", "bcy"));
-		System.out.println(MTree.test2("substringABCD", "ABCsubs"));
+		double[][] m1 = {{0.5, 0.5, 0, 0}, {0, 0.5, 0.5, 0}};
+		double[][] m2 = {{1, 0, 0, 0}, {0, 1, 0, 0}};
+		System.out.println(KMAC1.ktHelper(m1, m2));
 	}
 }
