@@ -68,8 +68,7 @@ public class Config {
     public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
     public int max_cluster = 20;
-    public int topKmer_trials = 5;	// the number of initial k-mers to try
-    public double kmer_deviation_factor = 0.5;	// hamming dist / k of a k-mer to the seed, to be considered as neighboring k-mers in KSM in KMAC()
+    public double kmer_deviation_factor = 0.5;	// dist / k of a k-mer to the seed, to be considered as neighboring k-mers in KSM in KMAC()
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
     public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched motif 
@@ -336,7 +335,6 @@ public class Config {
         k_negSeq_ratio = Args.parseInteger(args, "k_neg_ratio", k_negSeq_ratio);
         k_shift = Args.parseInteger(args, "k_shift", k_shift);
         max_cluster = Args.parseInteger(args, "max_cluster", max_cluster);
-        topKmer_trials = Args.parseInteger(args, "topKmer_trials", topKmer_trials);
         k_mask_f = Args.parseFloat(args, "k_mask_f", k_mask_f);
         kpp_mode = Args.parseInteger(args, "kpp_mode", kpp_mode);
         k_fold = Args.parseDouble(args, "k_fold", k_fold);
