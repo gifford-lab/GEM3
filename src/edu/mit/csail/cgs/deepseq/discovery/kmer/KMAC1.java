@@ -878,6 +878,42 @@ public class KMAC1 {
 			kmers.trimToSize();
 			Collections.sort(kmers);
 			
+			// setup the matrix form of gapped-kmer representation, for distance calculation
+			for (Kmer km0:kmers){
+				double[][] matrix = new double[km0.kmerString.length()][LETTERS.length];
+				if (km0 instanceof GappedKmer){
+					GappedKmer gk = (GappedKmer) km0;
+					for (Kmer bk: gk.getBaseKmers()){
+						String ks = gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
+						for (int ii=0;ii<bk.getK();ii++){
+							for (int j=0;j<LETTERS.length;j++){
+								if (ks.charAt(ii) == LETTERS[j])
+									matrix[ii][j] += bk.getPosHitCount();
+							}
+						}
+					}
+					// normalize at each position
+					for (int ii=0;ii<matrix.length;ii++){
+						double sum=0;
+						for (int j=0;j<LETTERS.length;j++)
+							sum += matrix[ii][j];
+						for (int j=0;j<LETTERS.length;j++)
+							matrix[ii][j] /= sum;
+					}
+					gk.setMatrix(matrix);
+				}
+				else{
+					String ks = km0.kmerString;
+					for (int ii=0;ii<km0.getK();ii++){
+						for (int j=0;j<LETTERS.length;j++){
+							if (ks.charAt(ii) == LETTERS[j])
+								matrix[ii][j] += 1;
+						}
+					}
+					km0.setMatrix(matrix);
+				}
+			}
+			
 			System.out.println("\n------------------------- k = "+ k +" ----------------------------\n");
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			if (!kmers.isEmpty()){
@@ -1577,13 +1613,14 @@ public class KMAC1 {
 		for (int i=0;i<final_count;i++){
 			results_final.add(results.get(i));
 		}
-
+		
 		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers from %d+/%d- sequences, %s", 
 				kOrginal, numGap, results_final.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
-		for (GappedKmer gk:gks)
-			kms.add(gk);
+		for (GappedKmer gk:gks){
+			kms.add(gk);			
+		}
 		if (config.print_all_kmers){
 			Collections.sort(kms);
 			GappedKmer.printGappedKmers(kms, kOrginal, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
@@ -3175,7 +3212,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 							for (Kmer sk:sks)
 								System.err.println(sk.toShortString()+"\t"+sk.hashCode());
 						}
-						if (wk.getSubKmerOrientation(km)){		// same orientation, directly copy
+						if (wk.getBaseKmerOrientation(km)){		// same orientation, directly copy
 							wkPosMap.get(wk).addAll(fPos.get(km));
 						}
 						else{		// diff orientation, reverse strand for the match kmer position
@@ -3208,7 +3245,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 						if (! wkPosMap.containsKey(wk)){
 							wkPosMap.put(wk, new HashSet<Integer>());
 						}
-						if (wk.getSubKmerOrientation(km)){		// same orientation, directly copy
+						if (wk.getBaseKmerOrientation(km)){		// same orientation, directly copy
 							wkPosMap.get(wk).addAll(rPos.get(km));
 						}
 						else{		// diff orientation, reverse strand for the match kmer position
@@ -5519,14 +5556,14 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 				GappedKmer gk = (GappedKmer)km;
 				if (use_sub_kmers)
 					for (Kmer sk: gk.getBaseKmers()){
-						String kmerStr = gk.isSeedOrientation()&&gk.getSubKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
+						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
 						sk.kmerStartOffset=gk.kmerStartOffset;
 						str2kmer.put(kmerStr, sk);			// use individual base-kmers for scoring
 						tree.add(kmerStr.getBytes(), kmerStr);
 					}
 				else{
 					for (Kmer sk: gk.getBaseKmers()){
-						String kmerStr = gk.isSeedOrientation()&&gk.getSubKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
+						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
 						str2kmer.put(kmerStr, km);			// use gapped kmers for scoring
 						tree.add(kmerStr.getBytes(), kmerStr);
 					}
