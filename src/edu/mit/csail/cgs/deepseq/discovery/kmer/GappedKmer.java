@@ -65,6 +65,28 @@ public class GappedKmer extends Kmer{
 		linkBaseKmers();
 	}
 	
+	public void setMatrix(){
+		matrix = new double[kmerString.length()][KMAC1.LETTERS.length];
+		for (Kmer bk: getBaseKmers()){
+			String ks = getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
+			for (int ii=0;ii<bk.getK();ii++){
+				for (int j=0;j<KMAC1.LETTERS.length;j++){
+					if (ks.charAt(ii) == KMAC1.LETTERS[j])
+						matrix[ii][j] += bk.getPosHitCount();
+				}
+			}
+		}
+		// normalize at each position
+		for (int ii=0;ii<matrix.length;ii++){
+			double sum=0;
+			for (int j=0;j<KMAC1.LETTERS.length;j++)
+				sum += matrix[ii][j];
+			for (int j=0;j<KMAC1.LETTERS.length;j++)
+				matrix[ii][j] /= sum;
+		}
+		
+		setMatrixRC();
+	}
 	/**
 	 * Clone for output only. It does not set up correct GK-SK linkages.
 	 */

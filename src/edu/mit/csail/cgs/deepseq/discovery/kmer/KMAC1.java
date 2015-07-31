@@ -880,38 +880,7 @@ public class KMAC1 {
 			
 			// setup the matrix form of gapped-kmer representation, for distance calculation
 			for (Kmer km0:kmers){
-				double[][] matrix = new double[km0.kmerString.length()][LETTERS.length];
-				if (km0 instanceof GappedKmer){
-					GappedKmer gk = (GappedKmer) km0;
-					for (Kmer bk: gk.getBaseKmers()){
-						String ks = gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
-						for (int ii=0;ii<bk.getK();ii++){
-							for (int j=0;j<LETTERS.length;j++){
-								if (ks.charAt(ii) == LETTERS[j])
-									matrix[ii][j] += bk.getPosHitCount();
-							}
-						}
-					}
-					// normalize at each position
-					for (int ii=0;ii<matrix.length;ii++){
-						double sum=0;
-						for (int j=0;j<LETTERS.length;j++)
-							sum += matrix[ii][j];
-						for (int j=0;j<LETTERS.length;j++)
-							matrix[ii][j] /= sum;
-					}
-					gk.setMatrix(matrix);
-				}
-				else{
-					String ks = km0.kmerString;
-					for (int ii=0;ii<km0.getK();ii++){
-						for (int j=0;j<LETTERS.length;j++){
-							if (ks.charAt(ii) == LETTERS[j])
-								matrix[ii][j] += 1;
-						}
-					}
-					km0.setMatrix(matrix);
-				}
+				km0.setMatrix();
 			}
 			
 			System.out.println("\n------------------------- k = "+ k +" ----------------------------\n");
