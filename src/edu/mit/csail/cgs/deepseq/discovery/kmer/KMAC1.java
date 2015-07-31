@@ -1812,6 +1812,9 @@ public class KMAC1 {
 	
 	public static double ktDistance(Kmer k1, Kmer k2) {
 		double dist = 0;
+		double[][] m1 = k1.getMatrix();
+		double[][] m2 = k2.getMatrix();
+		
 		return dist;
 	}
 	
