@@ -68,7 +68,7 @@ public class Kmer implements Comparable<Kmer>{
 	public double[][] getMatrixRC (){
 		return matrix_rc;
 	}
-	public void clearMatrix (){
+	public void clearMatrix(){
 		matrix = null;
 		matrix_rc = null;
 	}

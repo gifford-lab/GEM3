@@ -72,16 +72,10 @@ public class GPSParser {
 	 * @return a List of hit objects
 	 */
 	public static List<GPSPeak> parseGPSOutput(String filename, Genome g) throws IOException {
-        return parseGPSOutput(new FileInputStream(filename), g);
-    }
-
-
-	public static List<GPSPeak> parseGPSOutput(InputStream stream, Genome g) throws IOException {
 		ArrayList<GPSPeak> results = new ArrayList<GPSPeak>();
 
-		BufferedReader bin = null;
 		int count = 0;
-        bin = new BufferedReader(new InputStreamReader(stream));
+        BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(filename)));
 		
         String line;
         while((line = bin.readLine()) != null) { 

@@ -16,6 +16,7 @@ public class Config {
     public boolean outputHOMER = false;
     public boolean outputJASPAR = false;
     public boolean print_dist_matrix = false;
+    public boolean use_m_tree = false;
     public boolean write_RSC_file = false;
     public boolean write_genetrack_file = false;
     public boolean kmer_print_hits = false;
@@ -226,6 +227,7 @@ public class Config {
         outputMEME = flags.contains("outMEME");
         outputHOMER = flags.contains("outHOMER");
         outputJASPAR = flags.contains("outJASPAR");
+        use_m_tree = flags.contains("mtree");
         write_RSC_file = flags.contains("writeRSC");
         write_genetrack_file = flags.contains("write_genetrack_file");
         testPValues = flags.contains("testP");
