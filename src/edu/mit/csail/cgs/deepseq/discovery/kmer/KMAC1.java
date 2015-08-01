@@ -552,13 +552,17 @@ public class KMAC1 {
 			kmers.trimToSize();
 			Collections.sort(kmers);
 			
+			for (Kmer km0: kmers) {
+				km0.setMatrix();
+			}
+			
 			System.out.println("\n------------------------- k = "+ k +" ----------------------------\n");
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			if (!kmers.isEmpty()){
 				int cutoff = (int)(config.kmer_deviation_factor*k);	// maximum kmer distance to be considered as neighbors
 //				computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff-1);
 //				computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff);
-				double[][] distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff+1);
+				double[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix, cutoff+1);
 				ArrayList<Kmer> centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
 				ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
 				for (int j=0;j<centerKmers.size();j++){	
@@ -1779,6 +1783,21 @@ public class KMAC1 {
 		return distanceMatrix;
 	}
 	
+	public static double[][] computeWeightedDistanceMatrix2(ArrayList<Kmer> kmers, boolean print_dist_matrix, int cutoff) {
+		int kmerCount = kmers.size();
+		double[][]distanceMatrix = new double[kmerCount][kmerCount];
+		for (int i=0;i<kmerCount;i++){
+			Kmer kmi = kmers.get(i);
+			for (int j = 0; j <= i; j++) {
+				Kmer kmj = kmers.get(j);
+				double dist = KMAC1.ktDistance(kmi, kmj);
+				distanceMatrix[i][j] = dist;
+				distanceMatrix[j][i] = dist;
+			}
+		}
+		return distanceMatrix;
+	}
+	
 	/**
 	 * Makes method ycDistance more efficient by doing exactly 1 comparison instead of
 	 * the product of the number of base kmers number of comparisons, using the generated PWMs
@@ -1790,7 +1809,8 @@ public class KMAC1 {
 		// k1 is the shorter kmer (or they are equal length)
 		double[][] m1 = k1.getMatrix();
 		double[][] m2 = k2.getMatrix();
-		return KMAC1.ktHelper(m1, m2);
+		double[][] m2RC = k2.getMatrixRC();
+		return Math.min(KMAC1.ktHelper(m1, m2), KMAC1.ktHelper(m1, m2RC));
 	}
 	
 	public static double ktHelper(double[][] m1, double[][] m2) {
