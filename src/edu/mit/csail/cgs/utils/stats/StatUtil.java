@@ -1974,7 +1974,7 @@ public class StatUtil {
 				}
 			}
 			data.get(i).delta = min;
-			data.get(i).gamma = data.get(i).delta * data.get(i).density;			
+			data.get(i).gamma = data.get(i).delta * data.get(i).density;	
 		}
 		for (int i=0;i<data.size();i++){
 			if (data.get(i).delta > distanceCutoff)

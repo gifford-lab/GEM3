@@ -193,6 +193,19 @@ public class MTree {
 			}
 			return leaves;
 		}
+		
+		public void setTreeR() {
+			for (TreeObject o: this.getObjects()) {
+				o.setParentsR();
+			}
+			if (!this.isLeaf) {
+				for (TreeObject o: this.getObjects()) {
+					if (o.getChild() != null && o.getChild().getObjects().size() != 0) {
+						o.getChild().setTreeR();
+					}
+				}
+			}
+		}
 	}
 	
 	class TreeObject {
@@ -710,7 +723,7 @@ public class MTree {
 				}
 				MTreeNode childNode = o.getChild();
 				if ( childNode != null && childNode.getObjects().size() > 0) {
-					if (ktd <= r + o.getR())	{
+					if (ktd <= r + o.getR() + 0.00000001)	{
 						Pair<Integer, ArrayList<Kmer>> subRangeSearch = this.rangeSearch(s, r, childNode);
 						inRange.addAll(subRangeSearch.getLast());
 						pruned += subRangeSearch.getFirst();
@@ -737,38 +750,6 @@ public class MTree {
 		return data;
 	}
 	
-	/**
-	public static MTree constructTree(ArrayList<Kmer> kmers, int c, double pNR, int cu) throws FileNotFoundException, UnsupportedEncodingException {
-		PrintWriter writer = new PrintWriter("testDistribution.txt", "UTF-8");
-		MTree tree = new MTree(c, pNR, cu, kmers.size());
-		ArrayList<Kmer> kmerSet = new ArrayList<Kmer>();
-		for (int i = 0; i < kmers.size(); i++) {
-			System.out.println("beginning analysis of the " + i + " kmer");
-			Kmer kmer = kmers.get(i);
-			if (kmer instanceof GappedKmer) {
-				System.out.println("gapped");
-				for (Kmer k: ((GappedKmer) kmer).getBaseKmers()) {
-					System.out.println(k);
-				}
-			}
-			else {
-				System.out.println("basic");
-				System.out.println(kmer);
-			}
-			kmerSet.add(kmer);
-		}
-		for (int i = 0; i < kmers.size(); i++) {
-			for (int j = 0; j < i; j++) {
-				writer.println(KMAC1.ktDistance(kmerSet.get(i), kmerSet.get(j), pNR, cu));
-			}
-			System.out.println("making progress" + i);
-		}
-		System.out.println("reached");
-		writer.close();
-		return tree;
-	}
-	**/
-	
 	public static MTree constructTree(ArrayList<Kmer> kmers, int c) {
 		MTree tree = new MTree(c, kmers.size());
 		// for (int i = 0; i < kmers.size(); i++) {
@@ -781,13 +762,9 @@ public class MTree {
 //			System.out.println(tree.root.getNumObjects());
 		}
 		System.out.println(kmers.size());
-		System.out.println(tree.root.getNumObjects());
-		for (TreeObject leaf: tree.root.getLeaves()) {
-			leaf.setParentsR();
-		}
+		tree.root.setTreeR();
 		tree.root.recursiveSetNumObjects();
 		// tree.root.recursiveRI();
-		// tree.root.recursivePrint();
 		return tree;
 	}
 	
