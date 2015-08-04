@@ -71,13 +71,11 @@ public class KMAC1 {
 	private boolean engineInitialized =false;
 	private int k;
 	private int minHitCount = 2;
-	private int numPos;
 	private double[] bg= new double[4];	// background frequency based on GC content
 	private double ic_trim = 0.4;
 	private String outName, params;
 	private boolean optimize_KG_kmers = false;
 	
-	private int seqLen;
 	private double[] profile;
 	private ArrayList<Sequence> seqList;
 	private ArrayList<Sequence> seqListNeg;
@@ -254,29 +252,33 @@ public class KMAC1 {
 	}
 	
 	private void updateSequenceInfo(){
-		seqLen = seqs[0].length();
 		
-		// logistic distribution to fit the spatial resolution shape, with a more heavy tail than Gaussian
-		// http://en.wikipedia.org/wiki/Logistic_distribution
-		// ctcf_sigma = 9.53; GABP_sigma = 15.98;
-	    profile = new double[seqLen+1];
-	    double sigma = 13;
-	    for (int i=0; i<=seqLen/2; i++){
-	    	double e = Math.exp(-i/sigma);
-	    	profile[seqLen/2-i] = e/(sigma*(1+e)*(1+e));
-	    	profile[seqLen/2+i] = profile[seqLen/2-i];
-	    }
-	    StatUtil.normalize(profile);
-//	   	System.out.println(CommonUtils.arrayToString(profile, "%.4f"));
-	   	
+		if (config.use_pos_weight){
+			int seqLen = seqs[0].length();
+			
+			// logistic distribution to fit the spatial resolution shape, with a more heavy tail than Gaussian
+			// http://en.wikipedia.org/wiki/Logistic_distribution
+			// ctcf_sigma = 9.53; GABP_sigma = 15.98;
+		    profile = new double[seqLen+1];
+		    double sigma = 13;
+		    for (int i=0; i<=seqLen/2; i++){
+		    	double e = Math.exp(-i/sigma);
+		    	profile[seqLen/2-i] = e/(sigma*(1+e)*(1+e));
+		    	profile[seqLen/2+i] = profile[seqLen/2-i];
+		    }
+		    StatUtil.normalize(profile);
+	//	   	System.out.println(CommonUtils.arrayToString(profile, "%.4f"));
+		}
 	    // count cg-content
 		int gcCount = 0;
+		int negLength = 0;
 		for (String seq:seqsNegList){
+			negLength += seq.length();
 			for (char c:seq.toCharArray())
 				if (c=='C'||c=='G')
 					gcCount ++;
 		}
-		double gcRatio = (double)gcCount/negSeqCount/seqLen;
+		double gcRatio = (double)gcCount/negLength;
 		bg[0]=0.5-gcRatio/2; 
     	bg[1]=gcRatio/2; 
     	bg[2]=bg[1]; 
@@ -845,15 +847,13 @@ public class KMAC1 {
 		this.k = k;
 		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
-		numPos = seqLen-k+1;
 
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
+			int numPos = seq.length()-k+1;		// substring() is end exclusive
 			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
 			for (int i=0;i<numPos;i++){
-				if ((i+k)>seq.length()) // endIndex of substring is exclusive
-					break;
 				String kstring = seq.substring(i, i+k);
 				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
 					continue;
@@ -1002,7 +1002,6 @@ public class KMAC1 {
 		k += numGap;
 		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
-		numPos = seqLen-k+1;
 		
 		double relaxFactor = 1;
 		double divideFactor = 1;
@@ -1025,10 +1024,9 @@ public class KMAC1 {
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
+			int numPos = seq.length()-k+1;		// substring() is end exclusive
 			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
 			for (int i=0;i<numPos;i++){
-				if ((i+k)>seq.length()) // endIndex of substring is exclusive
-					break;
 				String kstring = seq.substring(i, i+k);
 				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
 					continue;
@@ -3247,14 +3245,15 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		int count_pwm_aligned=0;
 		int wm_len = wm.length();
 		for (Sequence s:seqList){
-			String seq = s.getSeq();			
-			if (seq.length()<wm_len)
+			String seq = s.getSeq();	
+			int seqLen = seq.length();
+			if (seqLen<wm_len)
 				continue;
 			
 			boolean ksmAlignOK = false;
 			if (s.pos!=UNALIGNED && relaxAlignedSequences){
 				int idx = cluster.pos_pwm_seed-s.pos;	// pwm_seq = pwm_seed - pos_seed;
-				if (idx+wm_len<seq.length() && idx>=0){
+				if (idx+wm_len<seqLen && idx>=0){
 					String match = seq.substring(idx, idx+wm_len);
 					WeightMatrixScoreProfile profiler = scorer.execute(match);
 					// The KSM aligned position can be matched by PWM with a relax cutoff, keep it the same
@@ -5911,7 +5910,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		            	seq_w.add(10.0);
 	        	}
 	        	else{
-	        		if (config.k_win==-1){
+	        		if (config.k_win==-1 || line.length()<=config.k_win){
 	        			pos_seqs.add(line);
 	        		}
 	        		else{
@@ -5937,7 +5936,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			for (String line: strs){
 				if (format.equals("fasta")){
 					if (!line.startsWith(">")){
-						if (config.k_win==-1){
+						if (config.k_win==-1 || line.length()<=config.k_win){
 							neg_seqs.add(line);
 		        		}
 		        		else{
