@@ -362,7 +362,13 @@ public class Region implements Comparable<Region>, Saveable {
    * chromosome, the expansion is limited to that end.
    */
   public Region expand(int dstart, int dend) {
-    int chromLength = g.getChromLength(chrom);
+	  int chromLength = 999999999;
+	  if (g.containsChromName(chrom)){
+		  chromLength = g.getChromLength(chrom);
+	  }
+	  else{
+		  System.err.println(String.format("Warning: Genome chromosome length information can't be found for %s! Can't check range.", chrom));
+	  }
     int ns = start - dstart;
     int ne = end + dend;
     if (ns < 0) {
@@ -639,7 +645,7 @@ public class Region implements Comparable<Region>, Saveable {
   }
 
   public String toBED(){
-	  return String.format("ch%s\t%d\t%d", chrom, start, end+1);
+	  return String.format("chr%s\t%d\t%d", chrom, start, end+1);
   }
   /**
    * parses the input String into a Region. The Region can either be strict

@@ -122,11 +122,16 @@ public class TFBS_SpaitialAnalysis {
 	public static void main(String[] args) {
 		TFBS_SpaitialAnalysis analysis = new TFBS_SpaitialAnalysis(args);
 		int round = Args.parseInteger(args, "r", 2); 	//GEM output round (1 for GPS, 2 for GEM)
-		int type = Args.parseInteger(args, "type", 0);
+		int type = Args.parseInteger(args, "type", 999);
 		ArrayList<ArrayList<Site>> clusters=null;
 		switch(type){
-		case 0:
+		case 999:	// simple file loading for RPD public code
 			analysis.loadBindingEvents();
+			clusters = analysis.mergeTfbsClusters();
+			analysis.outputTFBSclusters(clusters);
+			break;
+		case 0:
+			analysis.loadBindingEvents_old();
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputTFBSclusters(clusters);
 			break;
@@ -135,7 +140,7 @@ public class TFBS_SpaitialAnalysis {
 			analysis.computeCorrelations();
 			break;
 		case 2:
-			analysis.loadBindingEvents();
+			analysis.loadBindingEvents_old();
 			analysis.computeTfbsSpacingDistribution();
 			break;
 		case 3:		// to print all the binding sites and motif positions in the clusters for downstream spacing/grammar analysis
@@ -231,10 +236,16 @@ public class TFBS_SpaitialAnalysis {
 			for (String txt: info){
 				if ( ! (txt.equals("")||txt.startsWith("#")) ){
 					String[] f = txt.split("\t");
-					expts.add(f[0]);
-					names.add(f[3]);
-					motif_names.add(f[4]);
-					readdb_names.add(f[5]);
+					if (f.length == 6){
+						expts.add(f[0]);
+						names.add(f[3]);
+						motif_names.add(f[4]);
+						readdb_names.add(f[5]);
+					}
+					else if (f.length == 2){		// 2 columns, expt.name<TAB>GEM.path
+						expts.add(f[1]);
+						names.add(f[0]);
+					}
 				}
 			}
 		}
@@ -296,6 +307,70 @@ public class TFBS_SpaitialAnalysis {
 	 * This method loads events/region for topic model analysis.<br>
 	 */
 	private void loadBindingEvents(){
+		ArrayList<Region> ex_regions = new ArrayList<Region>();
+		if(exclude_sites_file!=null){
+			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
+		}
+		for (int tf=0;tf<names.size();tf++){
+			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
+				continue;
+			boolean tfss = false;		// this is false for non-tfss factors (e.g. Pol2), or when not considering direct/indirect
+			if (directid2indirectid!=null && directid2indirectid.containsKey(tf))
+				tfss = true;
+			String expt = expts.get(tf);
+
+			System.err.print(String.format("TF#%d: loading %s", tf, expt));
+			
+			try{
+				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(expt, genome);
+				ArrayList<Site> sites = new ArrayList<Site>();
+				ArrayList<Site> indirectSites = new ArrayList<Site>();
+			eachpeak:	for (int i=0;i<gpsPeaks.size();i++){
+					GPSPeak p = gpsPeaks.get(i);
+					Site site = new Site();
+					site.tf_id = tf;
+					site.event_id = i;
+					site.signal = p.getStrength();
+					site.motifStrand = p.getKmerStrand();
+					site.bs = (Point)p;
+					
+					// skip site in the ex_regions
+					for (Region r: ex_regions){
+						if (r.contains(site.bs))
+							continue eachpeak;
+					}
+					if (tfss && site.motifStrand=='*'){
+						// for factor that are TFSS, thus considering indirect
+						site.tf_id = directid2indirectid.get(site.tf_id);
+						indirectSites.add(site);
+					}
+					else
+						sites.add(site);
+				}
+				if (tfss)	
+					System.err.println(",\t d="+sites.size()+",\t i="+indirectSites.size());
+				else
+					System.err.println(",\t n="+sites.size());
+				
+				Collections.sort(sites);
+				all_sites.add(sites);
+				if (tfss_file!=null && !indirectSites.isEmpty()){
+					Collections.sort(indirectSites);
+					all_indirect_sites.add(indirectSites);
+				}
+			}
+			catch (IOException e){
+				System.out.println(expt+" does not have valid GPS/GEM event call file.");
+				System.exit(1);
+			}
+		}
+		all_sites.addAll(all_indirect_sites);
+
+	}
+	/**
+	 * This method loads events/region for topic model analysis.<br>
+	 */
+	private void loadBindingEvents_old(){
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
 			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
@@ -503,6 +578,10 @@ public class TFBS_SpaitialAnalysis {
 						site.event_id = i;
 						site.signal = Double.parseDouble(q[5]);
 						site.motifStrand = '+';
+						if (q.length>7){
+							site.shapeOnlyScore = Double.parseDouble(q[7]);
+							site.readScore = Double.parseDouble(q[8]);
+						}
 						site.bs = p;					
 						for (Region r: exclude_regions){
 							if (r.contains(site.bs))
@@ -540,6 +619,10 @@ public class TFBS_SpaitialAnalysis {
 						site.event_id = -i;
 						site.signal = Double.parseDouble(q[5]);
 						site.motifStrand = '-';
+						if (q.length>7){
+							site.shapeOnlyScore = Double.parseDouble(q[7]);
+							site.readScore = Double.parseDouble(q[8]);
+						}
 						site.bs = p;					
 						for (Region r: exclude_regions){
 							if (r.contains(site.bs))
@@ -596,6 +679,8 @@ public class TFBS_SpaitialAnalysis {
 		int id;				// global id of all BS
 		double signal;
 		char motifStrand;								// motif match strand
+		double shapeOnlyScore;
+		double readScore;
 		public int compareTo(Site s) {					// ascending coordinate
 			return(bs.compareTo(s.bs));
 		}
@@ -714,18 +799,21 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (out_subset){
 			// separate sites by their tf_id
-			HashMap<Integer,ArrayList<StrandedPoint>> subsets = new HashMap<Integer,ArrayList<StrandedPoint>>();
+			HashMap<Integer,ArrayList<Site>> subsets = new HashMap<Integer,ArrayList<Site>>();
 			for (ArrayList<Site> c: clusters){
 				for (Site s: c){
 					if (!subsets.containsKey(s.tf_id))
-						subsets.put(s.tf_id, new ArrayList<StrandedPoint>());
-					subsets.get(s.tf_id).add(new StrandedPoint(s.bs, s.motifStrand));
+						subsets.put(s.tf_id, new ArrayList<Site>());
+					subsets.get(s.tf_id).add(s);
 				}
 			}
 			for (int id: subsets.keySet()){
 				StringBuilder sb = new StringBuilder();
-				for (StrandedPoint p: subsets.get(id))
-					sb.append(p.toString()).append("\n");
+				for (Site s: subsets.get(id)){
+					sb.append(String.format("%s\t%.4f\t%.4f\t%.4f\n", new StrandedPoint(s.bs, s.motifStrand).toString(),
+							s.signal, s.shapeOnlyScore, s.readScore));
+					
+				}
 				CommonUtils.writeFile(outPrefix+"."+id+".txt", sb.toString());
 			}
 		}
