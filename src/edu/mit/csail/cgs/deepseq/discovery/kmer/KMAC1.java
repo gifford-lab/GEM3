@@ -5898,7 +5898,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		for (String line: strs){
 			if (format.equals("fasta")){
 	            if (line.startsWith(">")){
-	        		f = line.split(" ");
+	        		f = line.split("\t");
 	        		if (f.length>1){
 	        			try{
 	        				seq_w.add(Double.parseDouble(f[1]));
@@ -5921,7 +5921,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	        		}
 	        	}
 			}
-			else{
+			else{		// simple format: seq<TAB>weight
 				f = line.split("\t");
         		if (f.length>1){
 	            	seq_w.add(Double.parseDouble(f[1]));
