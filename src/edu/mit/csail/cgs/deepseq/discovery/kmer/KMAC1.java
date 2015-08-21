@@ -176,6 +176,7 @@ public class KMAC1 {
 		totalWeight=0;
 		for (int i=0;i<seqNum;i++){
 			switch (config.seq_weight_type){
+				case -1:	seq_weights[i]=1/pos_w.get(i);break;
 				case 0:	seq_weights[i]=1.0;break;
 				case 1: seq_weights[i]=pos_w.get(i);break;
 				case 2: seq_weights[i]=Math.sqrt(pos_w.get(i));break;
@@ -197,18 +198,20 @@ public class KMAC1 {
 		if (neg_seqs.isEmpty()){
 			if (config.k_neg_dinu_shuffle){
 				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
+				// append all sequences, then shuffle
 				StringBuilder sb = new StringBuilder();
 				for (int i=0;i<seqNum;i++){
 					sb.append(seqs[i]);
 				}
-				int length = seqs[0].length();
 				for (int j=0;j<config.neg_pos_ratio;j++){
 					Random randObj = new Random(config.rand_seed+j);
 					String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
+					int start = 0;
 					for (int i=0;i<seqNum;i++){
-						seqsNegList.add(shuffled.substring(i*length,(i+1)*length));
+						seqsNegList.add(shuffled.substring(start, start+seqs[i].length()));
+						start+=seqs[i].length();
 					}
-				}			
+				}				
 //				for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
 //					Random randObj = new Random(config.rand_seed+j);
 //					for (int i=0;i<seqNum;i++){
@@ -5898,7 +5901,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		for (String line: strs){
 			if (format.equals("fasta")){
 	            if (line.startsWith(">")){
-	        		f = line.split("\t");
+	        		f = line.split("\\s+");
 	        		if (f.length>1){
 	        			try{
 	        				seq_w.add(Double.parseDouble(f[1]));

@@ -420,7 +420,7 @@ public class CommonUtils {
 	 * @param fileName
 	 * @return
 	 */
-	public static ArrayList<String> readFastaFile(String fileName){
+	public static ArrayList<String> loadSeqFromFasta(String fileName){
 		ArrayList<String> strs = new ArrayList<String>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileName))));

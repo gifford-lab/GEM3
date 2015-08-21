@@ -184,7 +184,7 @@ public class KmerScanner {
 		StringBuilder sb = new StringBuilder();
 
     	System.err.println(fasta_file);
-		ArrayList<String> posSeqs = CommonUtils.readFastaFile(fasta_file);
+		ArrayList<String> posSeqs = CommonUtils.loadSeqFromFasta(fasta_file);
 		int numSeqToRun = Math.min(top, posSeqs.size());
 		System.out.println("Scanning "+numSeqToRun+" regions ...");
 				

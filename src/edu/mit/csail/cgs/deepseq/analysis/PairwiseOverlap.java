@@ -229,12 +229,12 @@ public class PairwiseOverlap{
 	    int k_max = Args.parseInteger(args, "k_max", 15);
 	    double p = Args.parseDouble(args, "p", -3);
 	    
-	    ArrayList<String> texts = CommonUtils.readFastaFile(Args.parseString(args, "fasta1", null));
+	    ArrayList<String> texts = CommonUtils.loadSeqFromFasta(Args.parseString(args, "fasta1", null));
 	    String[] seqs = new String[texts.size()];
 	    texts.toArray(seqs);	    
 	    int t1 = seqs.length;
 	    
-	    texts = CommonUtils.readFastaFile(Args.parseString(args, "fasta2", null));
+	    texts = CommonUtils.loadSeqFromFasta(Args.parseString(args, "fasta2", null));
 	    String[] seqs2 = new String[texts.size()];
 	    texts.toArray(seqs2);	  
 	    texts = null;

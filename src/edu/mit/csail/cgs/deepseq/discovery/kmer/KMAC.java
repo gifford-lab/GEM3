@@ -75,7 +75,6 @@ public class KMAC {
 	private double seedOverrideScoreDifference=1.1;
 	private Kmer primarySeed = null;
 	
-	private int k_win;
 	private double[] profile;
 	private boolean isMasked;
 	private String[] seqs;			// DNA sequences around binding sites
@@ -146,23 +145,46 @@ public class KMAC {
 		this.negSeqCount = negSeqCount;
 	}
 	
-	
 	// called by standalone main() method
 	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
+		if (config.k_seqs==-1)
+			config.k_seqs = pos_seqs.size();
 		int seqNum = Math.min(pos_seqs.size(), config.k_seqs);
 		seqs = new String[seqNum];	
-		for (int i=0;i<seqNum;i++)
-			seqs[i] = pos_seqs.get(i);
+		for (int i=0;i<seqNum;i++){
+			String seq = pos_seqs.get(i);
+			if (config.repeat_fraction<1){
+				int count = 0;
+				for (char c:seq.toCharArray())
+					if (Character.isLowerCase(c) || c=='N')				// assuming lower case sequences are repeats
+						count++;
+				if (count>seq.length()*config.repeat_fraction)			// if repeat fraction in sequence is too high, skip
+					continue;
+				if (count>1){									// convert lower case repeat to N
+					char[] chars = seq.toCharArray();
+					for (int j=0;j<chars.length;j++)
+						if (Character.isLowerCase(chars[j]))
+							chars[j] = 'N';
+					seq = new String(chars);
+				}
+			}
+			// if repeat_fraction>=1, allow all repeats, convert to upper case
+			seqs[i] = seq.toUpperCase();
+		}
 		
 		seq_weights = new double[seqNum];
 		totalWeight=0;
 		for (int i=0;i<seqNum;i++){
 			switch (config.seq_weight_type){
-			case 0:	seq_weights[i]=1;break;
-			case 1: seq_weights[i]=pos_w.get(i);break;
-			case 2: seq_weights[i]=Math.sqrt(pos_w.get(i));break;
-			case 3: seq_weights[i]=Math.log(pos_w.get(i));break;
-			default: System.err.println("Sequence weighting type is not defined!");System.exit(-1);
+				case -1:	seq_weights[i]=1/pos_w.get(i);break;
+				case 0:	seq_weights[i]=1.0;break;
+				case 1: seq_weights[i]=pos_w.get(i);break;
+				case 2: seq_weights[i]=Math.sqrt(pos_w.get(i));break;
+				case 3: seq_weights[i]=Math.log(pos_w.get(i));
+					if(seq_weights[i]<=0) 
+						System.err.println("Non-positive sequence weight:"+seq_weights[i]);
+					break;
+				default: System.err.println("Sequence weighting type is not defined!");System.exit(-1);
 			}
 			totalWeight += seq_weights[i];
 		}
@@ -172,38 +194,74 @@ public class KMAC {
 		if (config.use_weighted_kmer)
 			Kmer.set_seq_weights(seq_weights);
 		
+		// If neg seqs are not provided, use shuffled sequences as negative sequences
 		if (neg_seqs.isEmpty()){
 			if (config.k_neg_dinu_shuffle){
 				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
-				Random randObj = new Random(config.rand_seed);
-				for (int i=0;i<seqNum;i++)
-					seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+				// append all sequences, then shuffle
+				StringBuilder sb = new StringBuilder();
+				for (int i=0;i<seqNum;i++){
+					sb.append(seqs[i]);
+				}
+				for (int j=0;j<config.neg_pos_ratio;j++){
+					Random randObj = new Random(config.rand_seed+j);
+					String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
+					int start = 0;
+					for (int i=0;i<seqNum;i++){
+						seqsNegList.add(shuffled.substring(start, start+seqs[i].length()));
+						start+=seqs[i].length();
+					}
+				}			
+//				for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
+//					Random randObj = new Random(config.rand_seed+j);
+//					for (int i=0;i<seqNum;i++){
+//						seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+//					}
+//				}
 			}
-			else{	// single nucleotide shuffling
-				System.out.println("Use shuffled sequences as negative sequences.\n");
+			else{		// single nucleotide shuffling
+				System.out.println("!!! Need to update !!!\nUse shuffled sequences as negative sequences.\n");
 				Random randObj = new Random(config.rand_seed);
 				for (int i=0;i<seqNum;i++)
 					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
 			}
 		}
-		else{
-			if (neg_seqs.size()>seqNum)
-				for (int i=0;i<seqNum;i++)
-					seqsNegList.add(neg_seqs.get(i));
-			else
-				seqsNegList = neg_seqs;
+		else{	// use the supplied negative sequences
+			for (int i=0;i<neg_seqs.size();i++){
+				String seq = neg_seqs.get(i);
+				if (config.repeat_fraction<1){
+					int count = 0;
+					for (char c:seq.toCharArray())
+						if (Character.isLowerCase(c) || c=='N')				// assuming lower case sequences are repeats
+							count++;
+					if (count>seq.length()*config.repeat_fraction)			// if repeat fraction in sequence is too high, skip
+						continue;
+					if (count>1){									// convert lower case repeat to N
+						char[] chars = seq.toCharArray();
+						for (int j=0;j<chars.length;j++)
+							if (Character.isLowerCase(chars[j]))
+								chars[j] = 'N';
+						seq = new String(chars);
+					}
+				}
+				seqsNegList.add(seq.toUpperCase());
+			}
+
 		}
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
 	    updateSequenceInfo();
 	}
+	
+
+	
 	private void resetProfile(){
 		for (int i=0; i<profile.length; i++)
 	    	profile[i] = 1;
 	}
 	
 	private void updateSequenceInfo(){
-		k_win = seqs[0].length();
+		int k_win = seqs[0].length();
 		isMasked = false;
 		
 		// logistic distribution to fit the spatial resolution shape, with a more heavy tail than Gaussian
@@ -221,12 +279,14 @@ public class KMAC {
 	   	
 	    // count cg-content
 		int gcCount = 0;
+		int totalCount = 0;
 		for (String seq:seqsNegList){
+			totalCount += seq.length();
 			for (char c:seq.toCharArray())
 				if (c=='C'||c=='G')
 					gcCount ++;
 		}
-		double gcRatio = (double)gcCount/negSeqCount/k_win;
+		double gcRatio = (double)gcCount/totalCount;
 		bg[0]=0.5-gcRatio/2; 
     	bg[1]=gcRatio/2; 
     	bg[2]=bg[1]; 
@@ -813,13 +873,13 @@ public class KMAC {
 		this.k = k;
 		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
 		tic = System.currentTimeMillis();
-		numPos = k_win-k+1;
 
 		// only derive k-mers from forward sequence, will merge kmer and its RC next if consider both strands
 		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
 		for (int seqId=0;seqId<posSeqCount;seqId++){
 			String seq = seqs[seqId];
 			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
+			int numPos = seq.length()-k+1;
 			for (int i=0;i<numPos;i++){
 				if ((i+k)>seq.length()) // endIndex of substring is exclusive
 					break;
@@ -1429,13 +1489,12 @@ public class KMAC {
 	    	cluster.total_aligned_seqs = total_aligned_seqs;
 	    	double[] bs = new double[total_aligned_seqs];
 	    	int count = 0;
-	    	int midPos=k_win/2;
 			for (Sequence s : seqList){
 				if (s.pos==UNALIGNED)
 					continue;
 				if (config.print_aligned_seqs)
 					sb.append(String.format("%d\t%.1f\t%d\t%s\t%s%s\n", s.id, s.score, s.pos, s.isForward?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getSeq()));
-				bs[count]=midPos+s.pos;
+				bs[count]=s.seq.length()/2+s.pos;
 				count++;
 			}
 			
@@ -1992,7 +2051,7 @@ public class KMAC {
 			          // if a sequence pass the motif score, align with PWM hit
 			          if (maxSeqScore >= cluster_junior.pwmThreshold){
 						if (maxScoringStrand =='-'){
-							maxScoringShift = k_win-maxScoringShift-wm.length();
+							maxScoringShift = seq.length()-maxScoringShift-wm.length();
 							s.RC();
 							// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
 						}
@@ -2447,17 +2506,20 @@ public class KMAC {
 		}
 		
 		double bgHitCount = 0;
+		int totLen = 0;
 		// set up data points: PWM hit groups (overlapping hits are grouped as one data point)
 		ArrayList<ArrayList<PWMHit>> data = new ArrayList<ArrayList<PWMHit>>();
 		for (int i=0;i<seqList.size();i++){
 			// get all hits and sort by starts and ends
+			int len = seqList.get(i).seq.length();
+			totLen += len;
 			ArrayList<PWMHit> hits = new ArrayList<PWMHit>();
 			for (int j=0; j<clusters.size(); j++){
 				if (clusters.get(j).seq2hits.containsKey(i))
 					hits.add(clusters.get(j).seq2hits.get(i));
 			}
 			if (hits.size()<1){
-				bgHitCount += k_win;
+				bgHitCount += len;
 				continue;
 			}
 			Collections.sort(hits, new Comparator<PWMHit>(){
@@ -2500,10 +2562,10 @@ public class KMAC {
 				if (hitGroup.size()>1)
 					conflict++;
 			}
-			bgHitCount += k_win-hitBases;
+			bgHitCount += len-hitBases;
 		}
 		
-		double bg_pi = bgHitCount/(seqList.size()*k_win);
+		double bg_pi = bgHitCount/totLen;
 		for (KmerCluster cluster : clusters){
 			cluster.pi = cluster.pi/totalHitSum*(1-bg_pi);
 		}
@@ -3228,9 +3290,9 @@ public class KMAC {
 				}
 				int endIndex = hit.end+extend+1;		// hit.end is inclusive, endIndex is exclusive
 				int right=0;
-				if (endIndex>k_win){
-					right = endIndex-k_win;
-					endIndex = k_win;
+				if (endIndex>seq.length()){
+					right = endIndex-seq.length();
+					endIndex = seq.length();
 				}
 				String s = CommonUtils.padding(left, 'N')+
 							seq.substring(beginIndex, endIndex)+
@@ -3527,7 +3589,7 @@ public class KMAC {
 	          // if a sequence pass the motif score, align with PWM hit
 	          if (match.score >= cluster.pwmThreshold){
 				if (match.strand =='-'){
-					match.shift = k_win-match.shift-wm.length();
+					match.shift = seq.length()-match.shift-wm.length();
 					s.RC();
 					// i.e.  (seq.length()-1)-maxScoringShift-(wm.length()-1);
 				}
@@ -4967,7 +5029,7 @@ public class KMAC {
 		for (String line: strs){
 			if (format.equals("fasta")){
 	            if (line.startsWith(">")){
-	        		f = line.split("\t");
+	        		f = line.split("\\s+");
 	        		if (f.length>1){
 	        			try{
 	        				seq_w.add(Double.parseDouble(f[1]));
