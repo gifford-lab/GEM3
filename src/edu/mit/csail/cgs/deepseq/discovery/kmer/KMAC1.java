@@ -5881,7 +5881,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		
         System.out.println("\nKMAC (version "+KMAC_VERSION+")");
 
-		StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
 		sb.append("\nOptions:\n");
 		for (String arg:args){
 			if (arg.trim().indexOf(" ")!=-1)
@@ -5921,8 +5921,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	        		}
 	        	}
 			}
-			else{		// simple format: seq<TAB>weight
-				f = line.split("\t");
+			else{		// simple format: seq<TAB or SPACE>weight
+				f = line.split("\\s+");
         		if (f.length>1){
 	            	seq_w.add(Double.parseDouble(f[1]));
 	            	pos_seqs.add(f[0].toUpperCase());

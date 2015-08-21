@@ -4949,13 +4949,25 @@ public class KMAC {
 			config.k=config.seed.length();
 			System.out.println("Starting seed k-mer is "+config.seed+".\n");
 		}
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("\nOptions:\n");
+		for (String arg:args){
+			if (arg.trim().indexOf(" ")!=-1)
+				sb.append("\"").append(arg).append("\" ");
+			else
+				sb.append(arg).append(" ");
+		}
+		String params = sb.toString();
+		System.out.println(params+"\n");
+		
 		String format = Args.parseString(args, "format", "fasta");
 		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
         String[]f = null;
 		for (String line: strs){
 			if (format.equals("fasta")){
 	            if (line.startsWith(">")){
-	        		f = line.split(" ");
+	        		f = line.split("\t");
 	        		if (f.length>1){
 	        			try{
 	        				seq_w.add(Double.parseDouble(f[1]));
@@ -4967,20 +4979,25 @@ public class KMAC {
 		            	seq_w.add(10.0);
 	        	}
 	        	else{
-	        		int left = line.length()/2-config.k_win/2;
-	        		if (left<0)
-	        			continue;
-	        		pos_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+	        		if (config.k_win==-1 || line.length()<=config.k_win){
+	        			pos_seqs.add(line);
+	        		}
+	        		else{
+		        		int left = line.length()/2-config.k_win/2;
+		        		if (left<0)
+		        			continue;
+		        		pos_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+	        		}
 	        	}
 			}
-			else{
-				f = line.split("\t");
+			else{		// simple format: seq<TAB or SPACE>weight
+				f = line.split("\\s+");
         		if (f.length>1){
 	            	seq_w.add(Double.parseDouble(f[1]));
 	            	pos_seqs.add(f[0].toUpperCase());
 	            }
 			}
-		}
+		}		
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		if (neg_file!=null){
@@ -4988,17 +5005,23 @@ public class KMAC {
 			for (String line: strs){
 				if (format.equals("fasta")){
 					if (!line.startsWith(">")){
-		        		int left = line.length()/2-config.k_win/2;
-		        		if (left<0)
-		        			continue;
-		        		neg_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+						if (config.k_win==-1 || line.length()<=config.k_win){
+							neg_seqs.add(line);
+		        		}
+		        		else{
+			        		int left = line.length()/2-config.k_win/2;
+			        		if (left<0)
+			        			continue;
+			        		neg_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+		        		}
 	        		}
 				}
 				else{
-		            	neg_seqs.add(line.substring(0,config.k_win).toUpperCase());
+		            neg_seqs.add(line.substring(0,config.k_win).toUpperCase());
 				}
 			}
 		}
+        
         
         KMAC kmf = new KMAC(config, name);
         kmf.setSequences(pos_seqs, neg_seqs, seq_w);
@@ -5015,7 +5038,7 @@ public class KMAC {
         		config.k = kmf.selectK(config.k_min, config.k_max, null);
         }
         ArrayList<Kmer>kmers = kmf.selectEnrichedKmers(config.k);
-        StringBuilder sb=new StringBuilder();
+        sb=new StringBuilder();
 		for (String arg:args){
 			if (arg.trim().indexOf(" ")!=-1)
 				sb.append("\"").append(arg).append("\" ");
