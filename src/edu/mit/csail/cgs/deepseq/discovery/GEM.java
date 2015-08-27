@@ -9,6 +9,8 @@ import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.*;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -308,28 +310,43 @@ public class GEM {
     }
     	
     public static void main(String[] args) throws Exception {
-        long tic = System.currentTimeMillis();
-        
-        System.out.println("\nWelcome to GEM (version "+GEM_VERSION+")!");
-        System.out.println("\nPlease cite: \nYuchun Guo, Shaun Mahony, David K. Gifford (2012) PLoS Computational Biology 8(8): e1002638. \nHigh Resolution Genome Wide Binding Event Finding and Motif Discovery Reveals Transcription Factor Spatial Binding Constraints. \ndoi:10.1371/journal.pcbi.1002638\n");
-        System.out.println("Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gem/).\n");
-        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-        System.out.println("----------------------------------\n\nStart time: "+dateFormat.format(new Date())+"\n");
-    	    	
-        boolean run_gem = false;
-    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1 || Args.parseInteger(args,"kmin", -1)!=-1
-    			|| Args.parseString(args, "seed", null)!=null)
-    		run_gem = true;
-    	else
-    		System.err.println("Warning: GEM did not see options (--k, --k_min & --k_max, or --seed) to run motif discovery. It will run GPS and stop!");
-
-        GEM gem = new GEM(args);
-        
-        gem.runMixtureModel(run_gem);
-        gem.close();
-        
-        System.out.println("----------------------------------\n\nEnd time: "+dateFormat.format(new Date()));
-        System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
+    	// get the first parameter to branch off to other methods
+    	String s = args[0];
+    	if (s.equalsIgnoreCase("KMAC0"))
+    		KMAC.main(args);
+    	else if (s.equalsIgnoreCase("KMAC"))
+    		KMAC1.main(args);
+    	else if (s.equalsIgnoreCase("RPD"))
+    		edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.main(args);
+    	else if (s.equalsIgnoreCase("get_bed"))
+    		edu.mit.csail.cgs.deepseq.utilities.BEDFileWriter.main(args);
+    	else if (s.equalsIgnoreCase("line_plot"))
+    		edu.mit.csail.cgs.metagenes.MetaMaker.main(args);
+    	else {	
+    		// run GEM
+	        long tic = System.currentTimeMillis();
+	        
+	        System.out.println("\nWelcome to GEM (version "+GEM_VERSION+")!");
+	        System.out.println("\nPlease cite: \nYuchun Guo, Shaun Mahony, David K. Gifford (2012) PLoS Computational Biology 8(8): e1002638. \nHigh Resolution Genome Wide Binding Event Finding and Motif Discovery Reveals Transcription Factor Spatial Binding Constraints. \ndoi:10.1371/journal.pcbi.1002638\n");
+	        System.out.println("Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gem/).\n");
+	        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+	        System.out.println("----------------------------------\n\nStart time: "+dateFormat.format(new Date())+"\n");
+	    	    	
+	        boolean run_gem = false;
+	    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1 || Args.parseInteger(args,"kmin", -1)!=-1
+	    			|| Args.parseString(args, "seed", null)!=null)
+	    		run_gem = true;
+	    	else
+	    		System.err.println("Warning: GEM did not see options (--k, --k_min & --k_max, or --seed) to run motif discovery. It will run GPS and stop!");
+	
+	        GEM gem = new GEM(args);
+	        
+	        gem.runMixtureModel(run_gem);
+	        gem.close();
+	        
+	        System.out.println("----------------------------------\n\nEnd time: "+dateFormat.format(new Date()));
+	        System.out.println("\nTotal running time: "+CommonUtils.timeElapsed(tic)+"\n");
+    	}
     }
 
     /**
