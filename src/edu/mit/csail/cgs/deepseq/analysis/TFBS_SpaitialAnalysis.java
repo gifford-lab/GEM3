@@ -864,6 +864,9 @@ public class TFBS_SpaitialAnalysis {
 				annoRegions.add(rs);
 			}
 		}
+		else{
+			anno_expand_distance = 0;
+		}
 		// update clusters to include annotation info as a pseudo site
 		int tf_count = expts.size();
 		for (String s:annoLabels)
