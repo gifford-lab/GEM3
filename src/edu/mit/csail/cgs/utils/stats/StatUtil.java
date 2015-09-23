@@ -1905,6 +1905,7 @@ public class StatUtil {
 		
 		return data;
 	}
+	
 	/**
 	 * This implements the clustering method introduced by "Clustering by fast search and find of density peaks, Science. 2014 Jun 27;344(6191):"<br>
 	 * It is extended to incorporate weights for the data points. <br>

@@ -125,7 +125,7 @@ public class TFBS_SpaitialAnalysis {
 		int type = Args.parseInteger(args, "type", 999);
 		ArrayList<ArrayList<Site>> clusters=null;
 		switch(type){
-		case 999:	// simple file loading for RPD public code
+		case 999:	// default: simple file loading for RPD public code
 			analysis.loadBindingEvents();
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputTFBSclusters(clusters);
@@ -230,6 +230,14 @@ public class TFBS_SpaitialAnalysis {
 		names = new ArrayList<String>();
 		motif_names = new ArrayList<String>();
 		String gem_info_file = Args.parseString(args, "gem", null);
+		int type = Args.parseInteger(args, "type", 999);
+		
+		if (type==999){		// default for public version
+			gem_info_file = Args.parseString(args, "tf_peak_file", null);
+			print_hdp_format = true;
+			print_matrix = true;
+			print_full_format = true;
+		}
 		if (gem_info_file!=null){
 			ArrayList<String> info = CommonUtils.readTextFile(gem_info_file);
 			// expt name | short name | factor type | display name | motif | readdb name
@@ -265,12 +273,22 @@ public class TFBS_SpaitialAnalysis {
 			indirect_tf_expts = CommonUtils.readTextFile(tfss_file);
 			for (int i=0;i<indirect_tf_expts.size();i++){
 				String e = indirect_tf_expts.get(i);
-				int idx = expts.indexOf(e);
-				if (idx>=0){		// add fake expt and iNames for the indirect TFSS sites
-					expts.add(e);
-					names.add("i_"+names.get(idx));
-					readdb_names.add(readdb_names.get(idx));
-					directid2indirectid.put(idx, expts.size()-1);
+				if (type==999){	//public version
+					int idx = names.indexOf(e);
+					if (idx>=0){		// add fake expt and iNames for the indirect TFSS sites
+						expts.add(expts.get(idx));
+						names.add("i_"+names.get(idx));
+						directid2indirectid.put(idx, expts.size()-1);
+					}
+				}
+				else{
+					int idx = expts.indexOf(e);
+					if (idx>=0){		// add fake expt and iNames for the indirect TFSS sites
+						expts.add(e);
+						names.add("i_"+names.get(idx));
+						readdb_names.add(readdb_names.get(idx));
+						directid2indirectid.put(idx, expts.size()-1);
+					}
 				}
 			}
 		}
