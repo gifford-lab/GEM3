@@ -94,7 +94,7 @@ public class CommonUtils {
 		return points;
 	}
 	
-	public static ArrayList<Region> loadRegionFile(String fname, Genome gen){
+	public static ArrayList<Region> loadCgsRegionFile(String fname, Genome gen){
 		ArrayList<Region> rset = new ArrayList<Region>();
 		try{
 			File rFile = new File(fname);
