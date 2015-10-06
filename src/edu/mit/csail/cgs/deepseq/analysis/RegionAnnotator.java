@@ -25,6 +25,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
+import edu.mit.csail.cgs.deepseq.analysis.BindingSpacing_GeneStructure.Site;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
@@ -52,14 +53,17 @@ public class RegionAnnotator {
 	String annotation_file;
 	// --species "Homo sapiens;hg19"  --region_file region_test.txt --anno_file anno_encode_regions.txt --out k562_hdp
 	public static void main(String[] args) {
-		RegionAnnotator mtb = new RegionAnnotator(args);
+		RegionAnnotator ra = new RegionAnnotator(args);
 		int type = Args.parseInteger(args, "type", 1);
 		switch(type){
 		case 0:  	// print out the overlap percentage of each query region for specified annotated regions
-			mtb.regionAnnotationOverlaps();
+			ra.overlap_regions_with_annotations();
 			break;
 		case 1:		// print out the sorted and aligned anchor coordinates for making line plots
-			mtb.sortMetaPlotAnchors();
+			ra.sort_and_anchor_regions();
+			break;
+		case 2:
+			ra.assign_gene_by_proximity();
 			break;
 		}
 		
@@ -85,8 +89,11 @@ public class RegionAnnotator {
 		outPrefix = Args.parseString(args, "out", outPrefix);
 	}
 	
-	private void regionAnnotationOverlaps(){
-		ArrayList<Region> queryRegions = CommonUtils.loadRegionFile(Args.parseString(args, "region_file", region_file), genome);
+	/**
+	 * Overlap regions with a list of annotations, report the length of overlaps
+	 */
+	private void overlap_regions_with_annotations(){
+		ArrayList<Region> queryRegions = CommonUtils.loadCgsRegionFile(Args.parseString(args, "region_file", region_file), genome);
 		String anno_file = Args.parseString(args, "anno_file", null);
 		if (anno_file!=null){
 			ArrayList<String> ids = new ArrayList<String>();
@@ -145,10 +152,13 @@ public class RegionAnnotator {
 		}
 	}
 	
-	// sort the regions based on the specified data signal
-	// optionally, use GEM file of a TF to anchor the regions. If a region does not contained TF binding site, 
-	// either skip that region, or just keep the same region middle point
-	private void sortMetaPlotAnchors(){
+	/** sort the regions based on the specified data signal,  optionally, use GEM file of a TF to anchor the regions. 
+	 * Useful for sorting regions when making line plot of reads
+	 * If a region does not contained TF binding site, 
+	* either skip that region, or just keep the same region middle point
+	 * 
+	 */
+	private void sort_and_anchor_regions(){
 		String regionFileFormat = Args.parseString(args, "rf", "CGS");  
 		ArrayList<Region> queryRegions = null;
 		if (regionFileFormat.equalsIgnoreCase("BED")){
@@ -156,7 +166,7 @@ public class RegionAnnotator {
 			queryRegions=pair.car();
 		}
 		else
-			queryRegions=CommonUtils.loadRegionFile(Args.parseString(args, "region_file", region_file), genome);
+			queryRegions=CommonUtils.loadCgsRegionFile(Args.parseString(args, "region_file", region_file), genome);
 
 		String anchor_GEM_file = Args.parseString(args, "anchor_GEM_file", null); // TF GEM file to anchor the region
 		if (anchor_GEM_file !=null){
@@ -230,4 +240,109 @@ public class RegionAnnotator {
 		}
 		CommonUtils.writeFile(outPrefix+".coords_regions.txt", sb.toString());
 	}
+
+	/**
+	 * Given a list of coordinates, assign them to the nearest genes, optionally constrained with TAD annotations
+	 */
+	private void assign_gene_by_proximity(){
+		ArrayList<Point> coords = CommonUtils.loadCgsPointFile(Args.parseString(args, "coords", null), genome);
+		String tad_file = Args.parseString(args, "tad", null);
+		ArrayList<Region> tads = new ArrayList<Region>();
+		if (tad_file!=null){
+			tads = CommonUtils.load_BED_regions(genome, tad_file).car();
+			Collections.sort(tads);
+		}
+		HashMap<String, ArrayList<Region>> chr2tads = new HashMap<String, ArrayList<Region>>();
+		for (Region r:tads){
+			String chr = r.getChrom();
+			if (!chr2tads.containsKey(chr))
+				chr2tads.put(chr, new ArrayList<Region>());
+			chr2tads.get(chr).add(r);
+		}
+		
+		ArrayList<String> texts = CommonUtils.readTextFile(Args.parseString(args, "genes", null));
+		TreeMap<StrandedPoint, TreeSet<String>> tss2genes = new TreeMap<StrandedPoint, TreeSet<String>>();
+		for (int i=0;i<texts.size();i++){
+			String t = texts.get(i);
+			if (t.startsWith("#"))
+				continue;
+			String f[] = t.split("\t");
+			String chr = f[2].replace("chr", "");
+			char strand = f[3].charAt(0);
+			StrandedPoint tss = new StrandedPoint(genome, chr, Integer.parseInt(f[strand=='+'?4:5]), strand);
+			String symbol = f[12];
+			if (!tss2genes.containsKey(tss))
+				tss2genes.put(tss, new TreeSet<String>());
+			tss2genes.get(tss).add(symbol);
+		}
+		HashMap<String, ArrayList<StrandedPoint>> chr2tsss = new HashMap<String, ArrayList<StrandedPoint>>();
+		for (StrandedPoint tss: tss2genes.keySet()){
+			String chr = tss.getChrom();
+			if (!chr2tsss.containsKey(chr))
+				chr2tsss.put(chr, new ArrayList<StrandedPoint>());
+			chr2tsss.get(chr).add(tss);			
+		}
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("Region\tGene\tMid\tTSS\tdistance\tisInTAD\n");
+		for (Point p:coords){
+			String chr = p.getChrom();
+			int idx_tss = Collections.binarySearch(chr2tsss.get(chr), p);
+			Point nearestTSS = null;
+			if (idx_tss<0){
+				idx_tss = -(idx_tss+1);
+				// compare distance with points before and after the query point
+				if (idx_tss==0)
+					nearestTSS = chr2tsss.get(chr).get(idx_tss);
+				else{
+					if (idx_tss<chr2tsss.get(chr).size() &&
+							p.distance(chr2tsss.get(chr).get(idx_tss-1)) > p.distance(chr2tsss.get(chr).get(idx_tss)))
+						nearestTSS = chr2tsss.get(chr).get(idx_tss);
+					else
+						nearestTSS = chr2tsss.get(chr).get(idx_tss-1);
+				}
+			}
+			else
+				nearestTSS = chr2tsss.get(chr).get(idx_tss);
+			
+			// if with TAD constraint
+			if (tad_file!=null){
+				int idx = Collections.binarySearch(chr2tads.get(chr), p.expand(0));
+				Region tad = null;
+				if (idx<0){
+					idx = -(idx+1) -1;  // insert point - 1 ==> Previous object
+					tad = chr2tads.get(chr).get(idx);
+					if (!tad.contains(p)){
+						System.err.println(String.format("Point %s is not within any TAD!", p.toString()));
+						continue;
+					}
+					else{
+						// now tad contains the enhancer coord
+						
+						if (tad.contains(nearestTSS)){
+							// the nearest TSS is within the TAD
+							for (String g:tss2genes.get(nearestTSS))
+								sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+1+"\n");
+						}
+						else{ // the nearest TSS is not within the TAD
+							for (String g:tss2genes.get(nearestTSS))
+//								sb.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\n", p.expand(500).toString(), g, p.toString(), nearestTSS.toString(), p.distance(nearestTSS), 0));
+								sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+0+"\n");
+						}
+					}
+				}
+				else{
+					System.err.println(String.format("Point %s matches TAD!", chr2tads.get(chr).get(idx).toString()));
+				}
+			}
+			else{ // if without TAD constraint
+				for (String g:tss2genes.get(nearestTSS))
+					sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+0+"\n");
+			}
+		} // for each coord
+		System.out.print(sb.toString());
+	}
+	
+	
+	
 }
