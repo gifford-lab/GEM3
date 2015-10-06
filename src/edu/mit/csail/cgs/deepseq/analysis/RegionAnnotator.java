@@ -245,6 +245,11 @@ public class RegionAnnotator {
 	 * Given a list of coordinates, assign them to the nearest genes, optionally constrained with TAD annotations
 	 */
 	private void assign_gene_by_proximity(){
+		if(Args.parseFlags(args).contains("help")){
+			String msg = "assign_gene_by_proximity()\nUsage example:\n--species \"Mus musculus;mm10\"  --type 2 --genes mm10.refseq.ucsc_hgTables.txt --coords IL_k27ac.p300_sorted.coords.txt --tad TAD.mm10.bed";
+			System.err.println(msg);
+			return;
+		}
 		ArrayList<Point> coords = CommonUtils.loadCgsPointFile(Args.parseString(args, "coords", null), genome);
 		String tad_file = Args.parseString(args, "tad", null);
 		ArrayList<Region> tads = new ArrayList<Region>();
@@ -284,7 +289,7 @@ public class RegionAnnotator {
 		}
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("Region\tGene\tMid\tTSS\tdistance\tisInTAD\n");
+		sb.append("#Region\tGene\tMidReg\tTSS\tdistance\tisInTAD\n");
 		for (Point p:coords){
 			String chr = p.getChrom();
 			int idx_tss = Collections.binarySearch(chr2tsss.get(chr), p);
@@ -313,8 +318,9 @@ public class RegionAnnotator {
 					idx = -(idx+1) -1;  // insert point - 1 ==> Previous object
 					tad = chr2tads.get(chr).get(idx);
 					if (!tad.contains(p)){
-						System.err.println(String.format("Point %s is not within any TAD!", p.toString()));
-						continue;
+//						System.err.println(String.format("Point %s is not within any TAD!", p.toString()));
+						for (String g:tss2genes.get(nearestTSS))
+							sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+2+"\n");
 					}
 					else{
 						// now tad contains the enhancer coord
