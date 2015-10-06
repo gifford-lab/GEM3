@@ -246,7 +246,8 @@ public class RegionAnnotator {
 	 */
 	private void assign_gene_by_proximity(){
 		if(Args.parseFlags(args).contains("help")){
-			String msg = "assign_gene_by_proximity()\nUsage example:\n--species \"Mus musculus;mm10\"  --type 2 --genes mm10.refseq.ucsc_hgTables.txt --coords IL_k27ac.p300_sorted.coords.txt --tad TAD.mm10.bed";
+			String msg = "assign_gene_by_proximity()\nUsage example:\n--species \"Mus musculus;mm10\"  --type 2 --genes mm10.refseq.ucsc_hgTables.txt --coords IL_k27ac.p300_sorted.coords.txt --tad TAD.mm10.bed\n"+
+					"code for isInTAD, 0: nearest TSS, but no TSS found inside the TAD; 1: absolute nearest TSS, in the same TAD; 2: not absolute nearest, but nearest in TAD;  -9: coord is not in any TAD.";
 			System.err.println(msg);
 			return;
 		}
@@ -290,25 +291,27 @@ public class RegionAnnotator {
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append("#Region\tGene\tMidReg\tTSS\tdistance\tisInTAD\n");
-		for (Point p:coords){
+		for (Point p:coords){			
 			String chr = p.getChrom();
-			int idx_tss = Collections.binarySearch(chr2tsss.get(chr), p);
+			ArrayList<StrandedPoint> tsss_in_chr = chr2tsss.get(chr);
+			int idx_tss = Collections.binarySearch(tsss_in_chr, p);
 			Point nearestTSS = null;
 			if (idx_tss<0){
 				idx_tss = -(idx_tss+1);
 				// compare distance with points before and after the query point
 				if (idx_tss==0)
-					nearestTSS = chr2tsss.get(chr).get(idx_tss);
+					nearestTSS = tsss_in_chr.get(idx_tss);
 				else{
-					if (idx_tss<chr2tsss.get(chr).size() &&
-							p.distance(chr2tsss.get(chr).get(idx_tss-1)) > p.distance(chr2tsss.get(chr).get(idx_tss)))
-						nearestTSS = chr2tsss.get(chr).get(idx_tss);
+					if (idx_tss<tsss_in_chr.size() &&
+							p.distance(tsss_in_chr.get(idx_tss-1)) > p.distance(tsss_in_chr.get(idx_tss))){
+						nearestTSS = tsss_in_chr.get(idx_tss);
+					}
 					else
-						nearestTSS = chr2tsss.get(chr).get(idx_tss-1);
+						nearestTSS = tsss_in_chr.get(idx_tss-1);
 				}
 			}
-			else
-				nearestTSS = chr2tsss.get(chr).get(idx_tss);
+			else // exactly on TSS
+				nearestTSS = tsss_in_chr.get(idx_tss);
 			
 			// if with TAD constraint
 			if (tad_file!=null){
@@ -320,20 +323,41 @@ public class RegionAnnotator {
 					if (!tad.contains(p)){
 //						System.err.println(String.format("Point %s is not within any TAD!", p.toString()));
 						for (String g:tss2genes.get(nearestTSS))
-							sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+2+"\n");
+							sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+-9+"\n");
 					}
 					else{
 						// now tad contains the enhancer coord
-						
 						if (tad.contains(nearestTSS)){
 							// the nearest TSS is within the TAD
 							for (String g:tss2genes.get(nearestTSS))
 								sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+1+"\n");
 						}
 						else{ // the nearest TSS is not within the TAD
-							for (String g:tss2genes.get(nearestTSS))
-//								sb.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\n", p.expand(500).toString(), g, p.toString(), nearestTSS.toString(), p.distance(nearestTSS), 0));
-								sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+0+"\n");
+							// do we have other TSS in TAD?
+							int idx_tad_start = Collections.binarySearch(tsss_in_chr, new Point(genome, chr, tad.getStart()));
+							if (idx_tad_start<0)
+								idx_tad_start = -(idx_tad_start+1);
+							int idx_tad_end = Collections.binarySearch(tsss_in_chr, new Point(genome, chr, tad.getEnd()));
+							if (idx_tad_end<0)
+								idx_tad_end = -(idx_tad_end+1)-1;
+							if (idx_tad_start<=idx_tad_end){	// found TSSs within TAD
+								// either the start or the end should be the nearest in TAD
+								if (p.distance(tsss_in_chr.get(idx_tad_start)) > p.distance(tsss_in_chr.get(idx_tad_end))){
+									nearestTSS = tsss_in_chr.get(idx_tad_end);
+								}
+								else
+									nearestTSS = tsss_in_chr.get(idx_tad_start);
+							}
+							if (tad.contains(nearestTSS)){
+								// the new nearest TSS is within the TAD
+								for (String g:tss2genes.get(nearestTSS))
+									sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+2+"\n");
+							}
+							else{ 							
+								for (String g:tss2genes.get(nearestTSS))
+	//								sb.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\n", p.expand(500).toString(), g, p.toString(), nearestTSS.toString(), p.distance(nearestTSS), 0));
+									sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+0+"\n");
+							}
 						}
 					}
 				}
