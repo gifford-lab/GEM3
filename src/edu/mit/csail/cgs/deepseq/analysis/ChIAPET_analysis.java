@@ -4,12 +4,15 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.TreeMap;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.Site;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -18,6 +21,8 @@ import edu.mit.csail.cgs.utils.Pair;
 public class ChIAPET_analysis {
 	Genome genome;
 	TreeMap<Region, Interaction> r2it = new TreeMap<Region, Interaction>();
+	Set<String> flags;
+	String[] args;
 	
 	public ChIAPET_analysis(String[] args){
 		
@@ -35,21 +40,38 @@ public class ChIAPET_analysis {
 	        }
 	    } catch (NotFoundException e) {
 	      e.printStackTrace();
-	    }
+	    }	    
+
+		flags = Args.parseFlags(args);
+		this.args = args;
 	}
 	
 	public static void main(String args[]){
 		ChIAPET_analysis analysis = new ChIAPET_analysis(args);
-		String fileName = Args.parseString(args, "bedpe", null);		
+		String fileName = Args.parseString(args, "bedpe", null);	
+		int type = Args.parseInteger(args, "type", 0);
 		analysis.loadFile(fileName);
+		analysis.stats(fileName);
+//		switch(type){
+//		case 0:
+//			analysis.loadFile(fileName);
+//			break;
+//		case 1:
+//			analysis.loadFile(fileName);
+//			analysis.stats(fileName);
+//			break;
+//		}
+		
 	}
 	
 	void loadFile(String fileName){
 		ArrayList<String> texts = CommonUtils.readTextFile(fileName);
-		HashMap<Point, ArrayList<Region>> tmp = new HashMap<Point, ArrayList<Region>>();
+		// use tssString as the key to ensure uniqueness, tss Point objects have different references even if from same tss
+		TreeMap<String, ArrayList<Region>> tss2distalRegions = new TreeMap<String, ArrayList<Region>>();
 		for (String line:texts){
 			String f[] = line.trim().split("\t");
 			Interaction it = new Interaction();
+			it.tssString = f[6];
 			it.tss = Point.fromString(genome, f[6]);
 			it.geneID = f[7];
 			it.geneSymbol = f[8];
@@ -62,19 +84,23 @@ public class ChIAPET_analysis {
 				it.pvalue = Double.parseDouble(f[15]);
 			}
 			
-			// TODO: filter interactions that have distal regions containing the TSS?
+			// skip interactions that have distal regions containing the TSS?
+			if (flags.contains("rm_self")){
+				if (it.distal.contains(it.tss))
+					continue;
+			}
 
 			while (r2it.containsKey(it.distal))
-				it.distal = it.distal.expand(-1, -1);
+				it.distal = it.distal.expand(-1, -1);	// if duplicate, shrink 1bp, if connect to same TSS, it will be merged
 			r2it.put(it.distal, it);
-			if (!tmp.containsKey(it.tss))
-				tmp.put(it.tss, new ArrayList<Region>() );
-			tmp.get(it.tss).add(it.distal);
+			if (!tss2distalRegions.containsKey(it.tssString))
+				tss2distalRegions.put(it.tssString, new ArrayList<Region>() );
+			tss2distalRegions.get(it.tssString).add(it.distal);
 		}
 		
 		// for each tss, merge overlapping distal regions (<1kb)
-		for (Point tss: tmp.keySet()){
-			ArrayList<Region> regions = tmp.get(tss);
+		for (String tss: tss2distalRegions.keySet()){
+			ArrayList<Region> regions = tss2distalRegions.get(tss);
 			ArrayList<Region> mergedRegions = new ArrayList<Region>();
 			Collections.sort(regions);
 			Region previous = regions.get(0);
@@ -83,14 +109,13 @@ public class ChIAPET_analysis {
 			
 			for (int i = 1; i < regions.size(); i++) {
 	          Region region = regions.get(i);
-				// if overlaps with previous region, combine the regions
+				// if overlaps with previous region, combine the regions, take the best p-values
 				if (previous.overlaps(region)){
 					previous = previous.combine(region);
 					previousRegions.add(region);
 				} 
 				else{	// not overlap any more, update, then move to next one
 					mergedRegions.add(previous);
-					previous = region;
 					// merge overlapping regions, update interactions
 					if (previousRegions.size()>1){	// merged
 						Interaction it=null;
@@ -106,6 +131,7 @@ public class ChIAPET_analysis {
 					}
 					previousRegions.clear();
 					previousRegions.add(previous);
+					previous = region;
 				}
 			}
 			mergedRegions.add(previous);
@@ -125,16 +151,71 @@ public class ChIAPET_analysis {
 			mergedRegions.trimToSize();
 		}
 		
-		
-		
 		// print out cleaned up data
-		for (Region r:r2it.keySet()){
-			Interaction it = r2it.get(r);
-			System.out.println(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%.2e", it.distal.toBED(), it.tss.expand(2000).toBED(), it.tss.toString(), it.geneID, it.geneSymbol, it.distal.toString(), it.distal.getWidth(), it.pvalue));;
+		if (flags.contains("print_merged")){
+			StringBuilder sb = new StringBuilder();
+			for (Region r:r2it.keySet()){
+				Interaction it = r2it.get(r);
+				sb.append(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%.2e", it.distal.toBED(), it.tss.expand(2000).toBED(), it.tss.toString(), it.geneID, it.geneSymbol, it.distal.toString(), it.distal.getWidth(), it.pvalue)).append("\n");
+			}
+			CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rm_self":"") + ".merged.bedpe"), sb.toString());
 		}
 	}
+	
+	void stats(String fileName){
+		ArrayList<Region> rs = new ArrayList<Region>();
+		rs.addAll(r2it.keySet());
+		Region merged = rs.get(0);
+		ArrayList<Integer> ids = new ArrayList<Integer>();
+		ids.add(0);
+		StringBuilder sb = new StringBuilder("#Merged_region\twidth\tr_id\tgenes\tcount\n");
+
+		for (int i=1;i<rs.size();i++){
+			Region r = rs.get(i);
+			if (merged.getChrom().equals(r.getChrom()) && merged.distance(r)<Args.parseInteger(args, "distance", 1000)){
+				merged = merged.combine(r);
+				ids.add(i);
+			}
+			else{
+				sb.append(merged.toString()).append("\t").append(merged.getWidth()).append("\t");
+				merged = r;
+				HashSet<String> genes = new HashSet<String>();
+				
+				for (int id:ids){
+					sb.append(id).append(",");
+					genes.add(r2it.get(rs.get(id)).geneSymbol);
+				}
+				CommonUtils.replaceEnd(sb, '\t');
+				for (String s:genes)
+					sb.append(s).append(",");
+				CommonUtils.replaceEnd(sb, '\t');
+				sb.append(genes.size()).append("\n");
+				ids.clear();
+				ids.add(i);
+			}
+		}
+		// finish the last merge
+		sb.append(merged.toString()).append("\t").append(merged.getWidth()).append("\t");
+		HashSet<String> genes = new HashSet<String>();
+		
+		for (int id:ids){
+			sb.append(id).append(",");
+			genes.add(r2it.get(rs.get(id)).geneSymbol);
+		}
+		CommonUtils.replaceEnd(sb, '\t');
+		for (String s:genes)
+			sb.append(s).append(",");
+		CommonUtils.replaceEnd(sb, '\t');
+		sb.append(genes.size()).append("\n");
+//		System.out.println(sb.toString());
+		CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rm_self":"") + ".per_region_count.txt"), sb.toString());
+		
+		
+	}
+	
 	class Interaction{
 		Point tss;
+		String tssString;
 		String geneSymbol;
 		String geneID;
 		Region distal;
