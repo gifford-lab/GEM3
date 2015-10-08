@@ -66,7 +66,7 @@ public class FastaWriter{
 	ArrayList<Region> regions = new ArrayList<Region>();
 	String regionFile = Args.parseString(args, "regions", null);
 	if (regionFile!=null){
-		regions = CommonUtils.loadRegionFile(regionFile, genome);
+		regions = CommonUtils.loadCgsRegionFile(regionFile, genome);
 		if (window!=-1){
 			for (int i=0;i>regions.size();i++)
 				regions.set(i, regions.get(i).expand(window/2,window/2));

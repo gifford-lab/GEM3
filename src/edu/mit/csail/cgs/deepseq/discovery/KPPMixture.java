@@ -258,7 +258,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
      	String excludedName = Args.parseString(args, "ex", "yes");
      	int exludedLength = 0;
      	if (!excludedName.equals("yes")){
-     		excludedRegions = mergeRegions(CommonUtils.loadRegionFile(excludedName, gen), false);
+     		excludedRegions = mergeRegions(CommonUtils.loadCgsRegionFile(excludedName, gen), false);
      		log(1, "\nExclude " + excludedRegions.size() + " regions.\n");
 			for(int c = 0; c < numConditions; c++) {
 				caches.get(c).car().excludeRegions(excludedRegions);
@@ -1412,11 +1412,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     	ArrayList<Region> subsetRegions = new ArrayList<Region>();
      	if (subset_str!=null && Args.parseString(args, "subf", null) != null) {
 	    	if (subsetFormat.equals("Points")){	// To expand
-	    		subsetRegions = CommonUtils.loadRegionFile(subset_str, gen);
+	    		subsetRegions = CommonUtils.loadCgsRegionFile(subset_str, gen);
 	    		subsetRegions = mergeRegions(subsetRegions, true);
 	    	}
 	    	else {
-	    		subsetRegions = CommonUtils.loadRegionFile(subset_str, gen);
+	    		subsetRegions = CommonUtils.loadCgsRegionFile(subset_str, gen);
 	    		subsetRegions = mergeRegions(subsetRegions, false);
 	    	}
         } else if (subset_str!=null && Args.parseString(args, "subs", null) != null) {
@@ -1793,7 +1793,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	 * @return
 	 */
 	public void setRegions(String fname, boolean toExpandRegion) {
-		ArrayList<Region> rset = CommonUtils.loadRegionFile(fname, gen);
+		ArrayList<Region> rset = CommonUtils.loadCgsRegionFile(fname, gen);
 		restrictRegions = mergeRegions(rset, toExpandRegion);
 	}
 

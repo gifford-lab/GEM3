@@ -217,7 +217,7 @@ public class CCC_Analysis {
 	
 	private void printTopic2genes(){
 		// load all regoins
-		ArrayList<Region> rs = CommonUtils.loadRegionFile(Args.parseString(args, "regions", null), genome);
+		ArrayList<Region> rs = CommonUtils.loadCgsRegionFile(Args.parseString(args, "regions", null), genome);
 		
 		// loadTSS
 		loadTSS();
@@ -290,7 +290,7 @@ public class CCC_Analysis {
 	
 	private void printGenesByRegions(){
 		// load all regoins
-		ArrayList<Region> rs = CommonUtils.loadRegionFile(Args.parseString(args, "regions", null), genome);
+		ArrayList<Region> rs = CommonUtils.loadCgsRegionFile(Args.parseString(args, "regions", null), genome);
 		// loadTSS
 		loadTSS();
 		ArrayList<Region> tssRegions = new ArrayList<Region>();

@@ -130,8 +130,8 @@ public class ChIAPET_analysis {
 						r2it.put(previous, it);		// add merged region
 					}
 					previousRegions.clear();
-					previousRegions.add(previous);
 					previous = region;
+					previousRegions.add(previous);
 				}
 			}
 			mergedRegions.add(previous);

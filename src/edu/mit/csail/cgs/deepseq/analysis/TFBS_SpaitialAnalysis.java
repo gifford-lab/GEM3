@@ -327,7 +327,7 @@ public class TFBS_SpaitialAnalysis {
 	private void loadBindingEvents(){
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
-			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
+			ex_regions = CommonUtils.loadCgsRegionFile(exclude_sites_file, genome);
 		}
 		for (int tf=0;tf<names.size();tf++){
 			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
@@ -391,7 +391,7 @@ public class TFBS_SpaitialAnalysis {
 	private void loadBindingEvents_old(){
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
-			ex_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
+			ex_regions = CommonUtils.loadCgsRegionFile(exclude_sites_file, genome);
 		}
 		for (int tf=0;tf<names.size();tf++){
 			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
@@ -469,7 +469,7 @@ public class TFBS_SpaitialAnalysis {
 	private void loadEventsAndMotifs(int round){
 		ArrayList<Region> exclude_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
-			exclude_regions = CommonUtils.loadRegionFile(exclude_sites_file, genome);
+			exclude_regions = CommonUtils.loadCgsRegionFile(exclude_sites_file, genome);
 		}
 		ArrayList<Region> queryRegions = new ArrayList<Region>();
 		if(query_region_file!=null){
@@ -858,7 +858,7 @@ public class TFBS_SpaitialAnalysis {
 				if (f[1].equalsIgnoreCase("BED"))
 					rs = CommonUtils.load_BED_regions(genome, f[2]).car();					
 				if (f[1].equalsIgnoreCase("CGS"))
-					rs = CommonUtils.loadRegionFile(f[2], genome);
+					rs = CommonUtils.loadCgsRegionFile(f[2], genome);
 				System.out.println("    "+rs.size()+" regions have been loaded.");
 				Collections.sort(rs);		// need to be sorted to use Region.computeOverlapLength();
 				annoRegions.add(rs);
