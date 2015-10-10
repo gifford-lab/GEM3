@@ -564,7 +564,7 @@ public class KMAC1 {
 			System.out.println("\n------------------------- k = "+ k +" ----------------------------\n");
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 			int cutoff = (int)(config.kmer_deviation_factor*k);	// maximum kmer distance to be considered as neighbors
-			ArrayList<Kmer> centerKmers = null;
+			ArrayList<Kmer> centerKmers = new ArrayList<Kmer> ();
 			ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
 			
 			if (config.use_m_tree){
@@ -588,7 +588,7 @@ public class KMAC1 {
 				if (config.verbose>1)
 					System.out.println("computeWeightedDistanceMatrix2 " + CommonUtils.timeElapsed(tic));
 				
-				centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
+//				centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
 
 				for (int j=0;j<centerKmers.size();j++){	
 					int seedId = kmers.indexOf(centerKmers.get(j));
@@ -1485,7 +1485,8 @@ public class KMAC1 {
 		double[][]distanceMatrix = new double[kmerCount][kmerCount];
 		for (int i=0;i<kmerCount;i++){
 			Kmer kmi = kmers.get(i);
-			for (int j = 0; j <= i; j++) {
+			distanceMatrix[i][i] = 0;
+			for (int j = 0; j < i; j++) {
 				Kmer kmj = kmers.get(j);
 				double dist = KMAC1.editDistance(kmi, kmj);
 				distanceMatrix[i][j] = dist;
@@ -1515,7 +1516,8 @@ public class KMAC1 {
 	
 	/**
 	 * This method computes the edit distance between 2 k-mers<br>
-	 * It is similar to Levenshtein distance, but not considering internal insertion/deletion.
+	 * It is similar to Levenshtein distance, but not considering internal insertion/deletion.<br>
+	 * It takes the min of distances from forward and reverse compliment orientation.
 	 */
 	public static double editDistance(Kmer k1, Kmer k2) {
 		if (k1.getKmerString().length() > k2.getKmerString().length()) {
@@ -1525,7 +1527,11 @@ public class KMAC1 {
 		double[][] m1 = k1.getMatrix();
 		double[][] m2 = k2.getMatrix();
 		double[][] m2RC = k2.getMatrixRC();
-		return Math.min(KMAC1.editDistanceByMatrix(m1, m2), KMAC1.editDistanceByMatrix(m1, m2RC));
+		double forwardDistance = KMAC1.editDistanceByMatrix(m1, m2, m1.length+m2.length);
+		double best = KMAC1.editDistanceByMatrix(m1, m2RC, forwardDistance);
+//		double best = Math.min(KMAC1.editDistanceByMatrix(m1, m2RC), forwardDistance);
+//		assert (best==best2);
+		return best;
 	}
 	
 	/**
@@ -1535,7 +1541,7 @@ public class KMAC1 {
 	public static double editDistanceByMatrix(double[][] m1, double[][] m2) {
 		double dist = m1.length + m2.length; // final distance
 		for (int i = 0; i < m1.length + m2.length - 1; i++) {
-			// we slide k1 along k2, where i is the index that k1's max index is aligned with
+			// we slide m1 along m2, where i is the index at m2 that m1's max index is aligned with
 			// for example, for i = 0; position m1.length - 1 in m1 is aligned with position 0 in m2
 			double slideDist = 0; // this is the total distance for this given slide of m1 along m2
 			
@@ -1584,6 +1590,98 @@ public class KMAC1 {
 		}
 		return dist;
 	}
+	/**
+	 * This method computes the edit distance using matrix representation for gapped k-mers<br>
+	 * It is similar to Levenshtein distance, but not considering internal insertion/deletion.<br>
+	 * It stops if the distance is larger than the cutoff value.
+	 */
+	public static double editDistanceByMatrix(double[][] m1, double[][] m2, double cutoff) {
+		double dist = m1.length + m2.length; // final distance
+		
+		// fill the sliding indexs such that the sliding start from maximum overlap of m1 and m2
+		int[] idxs = new int [m1.length + m2.length-2];
+		int mid = idxs.length/2;
+		for (int i = 0; i < mid; i++){
+			idxs[i*2] = mid+i;
+			if (i*2+1<idxs.length)
+				idxs[i*2+1] = mid-1-i;
+		}
+eachSliding:for (int it = 0; it < idxs.length; it++) {
+			int i = idxs[it];
+			// we slide m1 along m2, where i is the index at m2 that m1's max index is aligned with
+			// for example, for i = 0; position m1.length - 1 in m1 is aligned with position 0 in m2
+			double slideDist = 0; // this is the total distance for this given slide of m1 along m2
+			
+			// for each case, we first add the hanging ends as part of the edit distance
+			// next, we compare the overlapping indices to find the dist
+			if (i < m1.length - 1) {	// if m1 left is hanging
+				slideDist += m1.length + m2.length - 2 * i - 2;
+				if (slideDist>=cutoff){
+					dist = Math.min(cutoff, dist);
+					continue eachSliding;
+				}
+				for (int j = 0; j < i + 1; j++) {
+					int compare1 = m1.length - 1 - i + j;
+					int compare2 = j;
+					double compareDist = 0;
+					for (int k = 0; k < 4; k++) {
+						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
+					}
+					compareDist /= 2;
+					slideDist += compareDist;
+					if (slideDist>=cutoff){
+						dist = Math.min(cutoff, dist);
+						continue eachSliding;
+					}
+				}
+			}
+			else if (i > m2.length - 1) {	// if m1 right is hanging (i.e. slide passed m2)
+				slideDist += 2 * i + 2 - m1.length - m2.length;
+				if (slideDist>=cutoff){
+					dist = Math.min(cutoff, dist);
+					continue eachSliding;
+				}
+				for (int j = 0; j < m1.length + m2.length - 1 - i; j++) {
+					int compare1 = j;
+					int compare2 = i + 1 - m1.length + j;
+					double compareDist = 0;
+					for (int k = 0; k < 4; k++) {
+						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
+					}
+					compareDist /= 2;
+					slideDist += compareDist;
+					if (slideDist>=cutoff){
+						dist = Math.min(cutoff, dist);
+						continue eachSliding;
+					}
+				}
+			}
+			else {	// all m1 positions are aligned with m2 positions
+				slideDist += m2.length - m1.length;
+				if (slideDist>=cutoff){
+					dist = Math.min(cutoff, dist);
+					continue eachSliding;
+				}
+				for (int j = 0; j < m1.length; j++) {
+					int compare1 = j;
+					int compare2 = i - m1.length + 1 + j;
+					double compareDist = 0;
+					for (int k = 0; k < 4; k++) {
+						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
+					}
+					compareDist /= 2;
+					slideDist += compareDist;
+					if (slideDist>=cutoff){
+						dist = Math.min(cutoff, dist);
+						continue eachSliding;
+					}
+				}
+			}
+			dist = Math.min(slideDist, dist);
+			cutoff = dist;
+		}
+		return dist;	
+	}	
 	
 	public static double ycDistance(Kmer k1, Kmer k2) {
 		int numOperations = 1;
