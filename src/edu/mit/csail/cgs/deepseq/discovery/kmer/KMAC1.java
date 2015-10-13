@@ -1529,7 +1529,8 @@ public class KMAC1 {
 		double[][] m2RC = k2.getMatrixRC();
 		double forwardDistance = KMAC1.editDistanceByMatrix(m1, m2, m1.length+m2.length);
 		double best = KMAC1.editDistanceByMatrix(m1, m2RC, forwardDistance);
-//		double best = Math.min(KMAC1.editDistanceByMatrix(m1, m2RC), forwardDistance);
+//		double forwardDistance2 = KMAC1.editDistanceByMatrix(m1, m2);
+//		double best2 = Math.min(KMAC1.editDistanceByMatrix(m1, m2RC), forwardDistance2);
 //		assert (best==best2);
 		return best;
 	}
@@ -1618,7 +1619,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				slideDist += m1.length + m2.length - 2 * i - 2;
 				if (slideDist>=cutoff){
 					dist = Math.min(cutoff, dist);
-					continue eachSliding;
+					break eachSliding;
 				}
 				for (int j = 0; j < i + 1; j++) {
 					int compare1 = m1.length - 1 - i + j;
@@ -1639,7 +1640,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				slideDist += 2 * i + 2 - m1.length - m2.length;
 				if (slideDist>=cutoff){
 					dist = Math.min(cutoff, dist);
-					continue eachSliding;
+					break eachSliding;
 				}
 				for (int j = 0; j < m1.length + m2.length - 1 - i; j++) {
 					int compare1 = j;
@@ -1660,7 +1661,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				slideDist += m2.length - m1.length;
 				if (slideDist>=cutoff){
 					dist = Math.min(cutoff, dist);
-					continue eachSliding;
+					break eachSliding;
 				}
 				for (int j = 0; j < m1.length; j++) {
 					int compare1 = j;

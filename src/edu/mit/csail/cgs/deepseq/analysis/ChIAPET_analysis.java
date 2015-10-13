@@ -21,6 +21,7 @@ import edu.mit.csail.cgs.utils.Pair;
 public class ChIAPET_analysis {
 	Genome genome;
 	TreeMap<Region, Interaction> r2it = new TreeMap<Region, Interaction>();
+	String fileName = null;
 	Set<String> flags;
 	String[] args;
 	
@@ -44,14 +45,16 @@ public class ChIAPET_analysis {
 
 		flags = Args.parseFlags(args);
 		this.args = args;
+		
+		fileName = Args.parseString(args, "bedpe", null);	
 	}
 	
 	public static void main(String args[]){
 		ChIAPET_analysis analysis = new ChIAPET_analysis(args);
-		String fileName = Args.parseString(args, "bedpe", null);	
 		int type = Args.parseInteger(args, "type", 0);
-		analysis.loadFile(fileName);
-		analysis.stats(fileName);
+		analysis.cleanUpOverlaps();
+		analysis.countGenesPerRegion();
+		analysis.StatsTAD();
 //		switch(type){
 //		case 0:
 //			analysis.loadFile(fileName);
@@ -63,8 +66,10 @@ public class ChIAPET_analysis {
 //		}
 		
 	}
-	
-	void loadFile(String fileName){
+	/**
+	 * Clean up data. Merge overlap distal regions if they are connected to the same TSS. Optionally remove distal regions that overlap with the connected TSS
+	 */
+	void cleanUpOverlaps(){
 		ArrayList<String> texts = CommonUtils.readTextFile(fileName);
 		// use tssString as the key to ensure uniqueness, tss Point objects have different references even if from same tss
 		TreeMap<String, ArrayList<Region>> tss2distalRegions = new TreeMap<String, ArrayList<Region>>();
@@ -91,7 +96,7 @@ public class ChIAPET_analysis {
 			}
 
 			while (r2it.containsKey(it.distal))
-				it.distal = it.distal.expand(-1, -1);	// if duplicate, shrink 1bp, if connect to same TSS, it will be merged
+				it.distal = it.distal.expand(-1, -1);	// if duplicate, shrink 1bp to make it uniquie, if connect to same TSS, it will be merged later
 			r2it.put(it.distal, it);
 			if (!tss2distalRegions.containsKey(it.tssString))
 				tss2distalRegions.put(it.tssString, new ArrayList<Region>() );
@@ -125,7 +130,7 @@ public class ChIAPET_analysis {
 							r2it.remove(r);			// remove old one
 							bestPvalue = Math.min(bestPvalue, it.pvalue);
 						}
-						it.distal = previous;
+						it.distal = previous;		// previous has been merged
 						it.pvalue = bestPvalue;
 						r2it.put(previous, it);		// add merged region
 					}
@@ -162,9 +167,13 @@ public class ChIAPET_analysis {
 		}
 	}
 	
-	void stats(String fileName){
+	/**
+	 * Count number of genes connected by each region (overlapping regions are merged).
+	 * @param fileName
+	 */
+	void countGenesPerRegion(){
 		ArrayList<Region> rs = new ArrayList<Region>();
-		rs.addAll(r2it.keySet());
+		rs.addAll(r2it.keySet());		// rs is sorted, r2it is a TreeMap
 		Region merged = rs.get(0);
 		ArrayList<Integer> ids = new ArrayList<Integer>();
 		ids.add(0);
@@ -197,7 +206,6 @@ public class ChIAPET_analysis {
 		// finish the last merge
 		sb.append(merged.toString()).append("\t").append(merged.getWidth()).append("\t");
 		HashSet<String> genes = new HashSet<String>();
-		
 		for (int id:ids){
 			sb.append(id).append(",");
 			genes.add(r2it.get(rs.get(id)).geneSymbol);
@@ -207,11 +215,62 @@ public class ChIAPET_analysis {
 			sb.append(s).append(",");
 		CommonUtils.replaceEnd(sb, '\t');
 		sb.append(genes.size()).append("\n");
+		
 //		System.out.println(sb.toString());
 		CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rm_self":"") + ".per_region_count.txt"), sb.toString());
+	}
+	
+	void StatsTAD(){
+		String tad_file = Args.parseString(args, "tad", null);
+		ArrayList<Region> tads = CommonUtils.load_BED_regions(genome, tad_file).car();
+		Collections.sort(tads);
+		ArrayList<Interaction> itNonTAD = new ArrayList<Interaction>();
+		ArrayList<Interaction> itSameTAD = new ArrayList<Interaction>();
+		ArrayList<Interaction> itCrossTAD = new ArrayList<Interaction>();
 		
+		for (Region r: r2it.keySet()){
+			Region mid = r.getMidpoint().expand(0);
+			int idx = Collections.binarySearch(tads, mid);
+			Region tad = null;
+			if (idx<0){
+				idx = -(idx+1) -1;  // insert point - 1 ==> Previous object
+				tad = tads.get(idx);
+				if (!tad.contains(mid)){
+//					System.err.println(String.format("Point %s is not within any TAD!", p.toString()));
+					itNonTAD.add(r2it.get(r));
+				}
+				else{// now tad contains the distal coord
+					if (tad.contains(r2it.get(r).tss))
+						itSameTAD.add(r2it.get(r));
+					else{	// find the tad that TSS is in
+						Region tss = r2it.get(r).tss.expand(0);
+						idx = Collections.binarySearch(tads, tss);
+						if (idx<0){
+							idx = -(idx+1) -1;  // insert point - 1 ==> Previous object
+							tad = tads.get(idx);
+							if (!tad.contains(tss))	// TSS is not in a TAD
+								itNonTAD.add(r2it.get(r));
+							else	// in TAD, must be another TAD
+								itCrossTAD.add(r2it.get(r));
+						}
+					}
+				}
+			}
+		}
+
+		System.out.println(String.format("In same TAD:\t %d\nCross TAD:\t %d\nNot in TAD:\t %d\n", itSameTAD.size(), itCrossTAD.size(), itNonTAD.size()));
+
+		StringBuilder sb = new StringBuilder("#Interaction\tdistance\tdistal\ttss\tSymbol\tgeneID\tp_-lg10\tTAD_status\n");
+		for (Interaction it: itSameTAD)
+			sb.append(it.toString()).append("\t1\n");
+		for (Interaction it: itCrossTAD)
+			sb.append(it.toString()).append("\t2\n");
+		for (Interaction it: itNonTAD)
+			sb.append(it.toString()).append("\t0\n");
+		CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rm_self":"") + ".StatsTAD.txt"), sb.toString());
 		
 	}
+	
 	
 	class Interaction{
 		Point tss;
@@ -220,5 +279,19 @@ public class ChIAPET_analysis {
 		String geneID;
 		Region distal;
 		double pvalue;
+		
+		public String toString(){
+			int start, end;
+			if (tss.getLocation() < distal.getMidpoint().getLocation()){	// if TSS is upstream
+				start = tss.getLocation();
+				end = distal.getEnd();
+			}
+			else{
+				start = distal.getStart();
+				end = tss.getLocation();
+			}
+			Region it = new Region(genome, tss.getChrom(), start, end).expand(2000, 2000);
+			return String.format("%s\t%d\t%s\t%s\t%s\t%s\t%.2f", it, distal.getMidpoint().distance(tss), distal.toString(), tssString, geneSymbol, geneID, -Math.log10(pvalue));
+		}
 	}
 }
