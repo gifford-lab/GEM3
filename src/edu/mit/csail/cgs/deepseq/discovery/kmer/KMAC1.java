@@ -588,7 +588,7 @@ public class KMAC1 {
 				if (config.verbose>1)
 					System.out.println("computeWeightedDistanceMatrix2 " + CommonUtils.timeElapsed(tic));
 				
-//				centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
+				centerKmers = selectCenterKmersByDensityClustering(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
 
 				for (int j=0;j<centerKmers.size();j++){	
 					int seedId = kmers.indexOf(centerKmers.get(j));

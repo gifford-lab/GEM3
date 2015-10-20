@@ -392,7 +392,7 @@ public class RegionAnnotator {
 			}
 		} // for each coord
 		
-		System.out.print(sb.toString());
+//		System.out.print(sb.toString());
 		CommonUtils.writeFile(coords_file.replace(".txt", (tssRange!=-1?(".tss"+tssRange):"") 
 				+ "."+tad_name + ".geneAssignments.txt"), sb.toString());
 
