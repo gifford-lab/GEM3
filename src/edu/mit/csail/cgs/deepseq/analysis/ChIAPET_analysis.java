@@ -7,9 +7,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.Site;
@@ -163,7 +165,7 @@ public class ChIAPET_analysis {
 				Interaction it = r2it.get(r);
 				sb.append(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%.2e", it.distal.toBED(), it.tss.expand(2000).toBED(), it.tss.toString(), it.geneID, it.geneSymbol, it.distal.toString(), it.distal.getWidth(), it.pvalue)).append("\n");
 			}
-			CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rm_self":"") + ".merged.bedpe"), sb.toString());
+			CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rmSelf":"") + ".mergeDistal.bedpe"), sb.toString());
 		}
 	}
 	
@@ -172,8 +174,62 @@ public class ChIAPET_analysis {
 	 * @param fileName
 	 */
 	void countGenesPerRegion(){
+		// load RefSeq gene annotation
+		int tssRange = Args.parseInteger(args, "tss_range", 100);
+		ArrayList<String> texts = CommonUtils.readTextFile(Args.parseString(args, "genes", null));
+		TreeMap<StrandedPoint, TreeSet<String>> tss2genes = new TreeMap<StrandedPoint, TreeSet<String>>();
+		for (int i=0;i<texts.size();i++){
+			String t = texts.get(i);
+			if (t.startsWith("#"))
+				continue;
+			String f[] = t.split("\t");
+			String chr = f[2].replace("chr", "");
+			char strand = f[3].charAt(0);
+			StrandedPoint tss = new StrandedPoint(genome, chr, Integer.parseInt(f[strand=='+'?4:5]), strand);
+			String symbol = f[12];
+			if (!tss2genes.containsKey(tss))
+				tss2genes.put(tss, new TreeSet<String>());
+			tss2genes.get(tss).add(symbol);
+		}
+		HashMap<String, ArrayList<StrandedPoint>> chr2tsss = new HashMap<String, ArrayList<StrandedPoint>>();
+		for (StrandedPoint tss: tss2genes.keySet()){
+			String chr = tss.getChrom();
+			if (!chr2tsss.containsKey(chr))
+				chr2tsss.put(chr, new ArrayList<StrandedPoint>());
+			chr2tsss.get(chr).add(tss);			
+		}
+		for (String chr:chr2tsss.keySet()){
+			ArrayList<StrandedPoint> tsss = chr2tsss.get(chr);
+			Collections.sort(tsss);
+			// print inter-TSS distances
+//			for (int i=0;i<tsss.size()-1;i++){
+//				System.out.println(tsss.get(i+1).distance(tsss.get(i)));
+//			}
+		}
+		
+		
+		// merge nearby regions, collect genes within tssRange of the TSSs.
+		TreeSet<String> allGenes = new TreeSet<String>();
 		ArrayList<Region> rs = new ArrayList<Region>();
-		rs.addAll(r2it.keySet());		// rs is sorted, r2it is a TreeMap
+		// if coords are provided, only report the subset of distal regions that overlaps
+		String coords_file = Args.parseString(args, "coords", null);
+		String coords_name = Args.parseString(args, "coords_name", null);
+		if (coords_file!=null){
+			TreeSet<Region> allRs = new TreeSet<Region>();
+			ArrayList<Point> coords = CommonUtils.loadCgsPointFile(coords_file, genome);
+			for (Region r:r2it.keySet()){
+				for (Point p: coords){
+					if (!r.getChrom().equalsIgnoreCase(p.getChrom()))
+						continue;
+					if (r.distance(p)<=500)
+						allRs.add(r);
+				}
+			}
+			rs.addAll(allRs);
+		}
+		else		
+			rs.addAll(r2it.keySet());		// add all distal regions, rs is sorted, r2it is a TreeMap
+		
 		Region merged = rs.get(0);
 		ArrayList<Integer> ids = new ArrayList<Integer>();
 		ids.add(0);
@@ -188,11 +244,32 @@ public class ChIAPET_analysis {
 			else{
 				sb.append(merged.toString()).append("\t").append(merged.getWidth()).append("\t");
 				merged = r;
-				HashSet<String> genes = new HashSet<String>();
 				
+				// for each merged region, get all TSS, find refSeq genes within 100bp window
+				TreeSet<String> genes = new TreeSet<String>();
 				for (int id:ids){
 					sb.append(id).append(",");
-					genes.add(r2it.get(rs.get(id)).geneSymbol);
+					Point tss = r2it.get(rs.get(id)).tss;
+					ArrayList<StrandedPoint> tsss = chr2tsss.get(tss.getChrom());
+					if (tsss==null){
+						genes.add(r2it.get(rs.get(id)).geneSymbol);
+						continue;
+					}
+					int idx = Collections.binarySearch(tsss, tss);
+					if (idx<0)
+						idx = -(idx+1);  // insert point 
+					for (int j=idx; j<tsss.size();j++){
+						if (tss.distance(tsss.get(j))>tssRange)
+							break;
+						else
+							genes.addAll(tss2genes.get(tsss.get(j)));
+					}
+					for (int j=idx-1; j>=0;j--){
+						if (tss.distance(tsss.get(j))>tssRange)
+							break;
+						else
+							genes.addAll(tss2genes.get(tsss.get(j)));
+					}	
 				}
 				CommonUtils.replaceEnd(sb, '\t');
 				for (String s:genes)
@@ -201,23 +278,55 @@ public class ChIAPET_analysis {
 				sb.append(genes.size()).append("\n");
 				ids.clear();
 				ids.add(i);
+				allGenes.addAll(genes);
 			}
 		}
 		// finish the last merge
 		sb.append(merged.toString()).append("\t").append(merged.getWidth()).append("\t");
-		HashSet<String> genes = new HashSet<String>();
+		TreeSet<String> genes = new TreeSet<String>();
 		for (int id:ids){
 			sb.append(id).append(",");
-			genes.add(r2it.get(rs.get(id)).geneSymbol);
+			Point tss = r2it.get(rs.get(id)).tss;
+			ArrayList<StrandedPoint> tsss = chr2tsss.get(tss.getChrom());
+			if (tsss==null){
+				genes.add(r2it.get(rs.get(id)).geneSymbol);
+				continue;
+			}
+			int idx = Collections.binarySearch(tsss, tss);
+			if (idx<0)
+				idx = -(idx+1);  // insert point 
+			for (int j=idx; j<tsss.size();j++){
+				if (tss.distance(tsss.get(j))>tssRange)
+					break;
+				else
+					genes.addAll(tss2genes.get(tsss.get(j)));
+			}
+			for (int j=idx-1; j>=0;j--){
+				if (tss.distance(tsss.get(j))>tssRange)
+					break;
+				else
+					genes.addAll(tss2genes.get(tsss.get(j)));
+			}	
 		}
 		CommonUtils.replaceEnd(sb, '\t');
+		if (genes.isEmpty())
+			sb.append("None").append(",");
 		for (String s:genes)
 			sb.append(s).append(",");
 		CommonUtils.replaceEnd(sb, '\t');
 		sb.append(genes.size()).append("\n");
+		allGenes.addAll(genes);
 		
 //		System.out.println(sb.toString());
-		CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rm_self":"") + ".per_region_count.txt"), sb.toString());
+		CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rmSelf":"")
+				 + (coords_file!=null?("."+coords_name):"") + ".tss" + tssRange + ".per_region_count.txt"), sb.toString());
+		
+		// print out all linked genes
+		sb = new StringBuilder();
+		for (String g: allGenes)
+			sb.append(g).append("\n");
+		CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rmSelf":"")
+				 + (coords_file!=null?("."+coords_name):"") + ".tss" + tssRange + ".geneSymbols.txt"), sb.toString());	
 	}
 	
 	void StatsTAD(){
@@ -267,7 +376,7 @@ public class ChIAPET_analysis {
 			sb.append(it.toString()).append("\t2\n");
 		for (Interaction it: itNonTAD)
 			sb.append(it.toString()).append("\t0\n");
-		CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rm_self":"") + ".StatsTAD.txt"), sb.toString());
+		CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rmSelf":"") + ".StatsTAD.txt"), sb.toString());
 		
 	}
 	

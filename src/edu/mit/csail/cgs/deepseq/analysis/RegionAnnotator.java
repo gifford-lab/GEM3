@@ -251,8 +251,10 @@ public class RegionAnnotator {
 			System.err.println(msg);
 			return;
 		}
-		ArrayList<Point> coords = CommonUtils.loadCgsPointFile(Args.parseString(args, "coords", null), genome);
+		String coords_file = Args.parseString(args, "coords", null);
+		ArrayList<Point> coords = CommonUtils.loadCgsPointFile(coords_file, genome);
 		String tad_file = Args.parseString(args, "tad", null);
+		String tad_name = Args.parseString(args, "tad_name", "no_TAD");
 		ArrayList<Region> tads = new ArrayList<Region>();
 		if (tad_file!=null){
 			tads = CommonUtils.load_BED_regions(genome, tad_file).car();
@@ -266,6 +268,8 @@ public class RegionAnnotator {
 			chr2tads.get(chr).add(r);
 		}
 		
+		// load refSeq gene annotation
+		int tssRange = Args.parseInteger(args, "tss_range", -1);
 		ArrayList<String> texts = CommonUtils.readTextFile(Args.parseString(args, "genes", null));
 		TreeMap<StrandedPoint, TreeSet<String>> tss2genes = new TreeMap<StrandedPoint, TreeSet<String>>();
 		for (int i=0;i<texts.size();i++){
@@ -287,6 +291,23 @@ public class RegionAnnotator {
 			if (!chr2tsss.containsKey(chr))
 				chr2tsss.put(chr, new ArrayList<StrandedPoint>());
 			chr2tsss.get(chr).add(tss);			
+		}
+		// for each TSS, add nearby genes (within tssRange) into the TSS
+		if (tssRange!=-1){
+			for (String chr: chr2tsss.keySet()){
+				ArrayList<StrandedPoint> tsss = chr2tsss.get(chr);
+				for (int idx=0;idx<tsss.size();idx++){
+					StrandedPoint tss = tsss.get(idx);
+					for (int j=idx+1; j<tsss.size();j++){
+						if (tss.distance(tsss.get(j))<=tssRange)
+							tss2genes.get(tss).addAll(tss2genes.get(tsss.get(j)));
+					}
+					for (int j=idx-1; j>=0;j--){
+						if (tss.distance(tsss.get(j))<=tssRange)
+							tss2genes.get(tss).addAll(tss2genes.get(tsss.get(j)));
+					}
+				}
+			}
 		}
 		
 		StringBuilder sb = new StringBuilder();
@@ -370,7 +391,11 @@ public class RegionAnnotator {
 					sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+0+"\n");
 			}
 		} // for each coord
+		
 		System.out.print(sb.toString());
+		CommonUtils.writeFile(coords_file.replace(".txt", (tssRange!=-1?(".tss"+tssRange):"") 
+				+ "."+tad_name + ".geneAssignments.txt"), sb.toString());
+
 	}
 	
 	
