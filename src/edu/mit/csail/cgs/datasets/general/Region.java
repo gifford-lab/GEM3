@@ -264,7 +264,7 @@ public class Region implements Comparable<Region>, Saveable {
 
 
   /**
-   * Returns the distance between <code>p</code> and <code>this</code>
+   * Returns the distance between Point <code>p</code> and the nearest edge of <code>this</code> Region
    * 
    * @throws IllegalArgumentException
    *           if <code>p</code> is not on the same chromosome as

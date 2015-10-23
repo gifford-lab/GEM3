@@ -191,6 +191,7 @@ public class ChIAPET_analysis {
 				tss2genes.put(tss, new TreeSet<String>());
 			tss2genes.get(tss).add(symbol);
 		}
+		/** all TSS annotatons organized by chroms */
 		HashMap<String, ArrayList<StrandedPoint>> chr2tsss = new HashMap<String, ArrayList<StrandedPoint>>();
 		for (StrandedPoint tss: tss2genes.keySet()){
 			String chr = tss.getChrom();
@@ -215,17 +216,55 @@ public class ChIAPET_analysis {
 		String coords_file = Args.parseString(args, "coords", null);
 		String coords_name = Args.parseString(args, "coords_name", null);
 		if (coords_file!=null){
-			TreeSet<Region> allRs = new TreeSet<Region>();
 			ArrayList<Point> coords = CommonUtils.loadCgsPointFile(coords_file, genome);
 			for (Region r:r2it.keySet()){
 				for (Point p: coords){
 					if (!r.getChrom().equalsIgnoreCase(p.getChrom()))
 						continue;
-					if (r.distance(p)<=500)
-						allRs.add(r);
+					if (r.distance(p)<=500)	{	// add distal anchor if overlap with enhancer coords
+						rs.add(r);
+						r2it.get(r).overlapCoords.add(p);
+					}
 				}
 			}
-			rs.addAll(allRs);
+			
+			// print the enhancer_coords and the tss_geneSymbol pairs
+			StringBuilder sb1 = new StringBuilder();
+			sb1.append("#Coord\tTSS\tGene\n");
+			for (Region r: rs){
+				Interaction it = r2it.get(r);
+				Point tss = it.tss;
+				ArrayList<StrandedPoint> tsss = chr2tsss.get(tss.getChrom());
+				ArrayList<StrandedPoint> tss_linked = new ArrayList<StrandedPoint> ();
+				if (tsss==null){
+					continue;
+				}
+				int idx = Collections.binarySearch(tsss, tss);
+				if (idx<0)
+					idx = -(idx+1);  // insert point 
+				for (int j=idx; j<tsss.size();j++){
+					if (tss.distance(tsss.get(j))>tssRange)
+						break;
+					else
+						tss_linked.add(tsss.get(j));
+				}
+				for (int j=idx-1; j>=0;j--){
+					if (tss.distance(tsss.get(j))>tssRange)
+						break;
+					else
+						tss_linked.add(tsss.get(j));
+				}
+				for (StrandedPoint t: tss_linked){
+					for (Point p: it.overlapCoords){
+						TreeSet<String> genes = tss2genes.get(t);
+						for (String g: genes)
+							sb1.append(p.toString()).append("\t").append(t.toString()).append("\t").append(g).append("\n");
+					}
+				}
+			}
+			CommonUtils.writeFile(fileName.replace(".bedpe", (flags.contains("rm_self")?".rmSelf":"")
+					 + (coords_file!=null?("."+coords_name):"") + ".tss" + tssRange + ".coord2genes.txt"), sb1.toString());	
+
 		}
 		else		
 			rs.addAll(r2it.keySet());		// add all distal regions, rs is sorted, r2it is a TreeMap
@@ -243,16 +282,16 @@ public class ChIAPET_analysis {
 			}
 			else{
 				sb.append(merged.toString()).append("\t").append(merged.getWidth()).append("\t");
-				merged = r;
 				
 				// for each merged region, get all TSS, find refSeq genes within 100bp window
 				TreeSet<String> genes = new TreeSet<String>();
 				for (int id:ids){
+					Interaction it = r2it.get(rs.get(id));
 					sb.append(id).append(",");
-					Point tss = r2it.get(rs.get(id)).tss;
+					Point tss = it.tss;
 					ArrayList<StrandedPoint> tsss = chr2tsss.get(tss.getChrom());
 					if (tsss==null){
-						genes.add(r2it.get(rs.get(id)).geneSymbol);
+						genes.add(it.geneSymbol);
 						continue;
 					}
 					int idx = Collections.binarySearch(tsss, tss);
@@ -279,6 +318,8 @@ public class ChIAPET_analysis {
 				ids.clear();
 				ids.add(i);
 				allGenes.addAll(genes);
+				
+				merged = r;		// setup for next merge
 			}
 		}
 		// finish the last merge
@@ -388,6 +429,7 @@ public class ChIAPET_analysis {
 		String geneID;
 		Region distal;
 		double pvalue;
+		TreeSet<Point> overlapCoords = new TreeSet<Point>();
 		
 		public String toString(){
 			int start, end;

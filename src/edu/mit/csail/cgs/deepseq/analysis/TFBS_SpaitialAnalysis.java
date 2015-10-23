@@ -451,7 +451,8 @@ public class TFBS_SpaitialAnalysis {
 				}
 			}
 			catch (IOException e){
-				System.out.println(expt+" does not have valid GPS/GEM event call file.");
+				System.out.println(expt+" does not have a valid GPS/GEM event call file.");
+				e.printStackTrace(System.err);
 				System.exit(1);
 			}
 		}
