@@ -1299,7 +1299,7 @@ public class KMAC1 {
 		}
 		
 		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f) from %d+/%d- sequences, %s", 
-				kOrginal, numGap, results_final.size(), results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+				kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
 		
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
 		for (GappedKmer gk:gks){
