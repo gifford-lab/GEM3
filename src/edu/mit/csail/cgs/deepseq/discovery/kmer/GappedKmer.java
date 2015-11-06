@@ -105,13 +105,17 @@ public class GappedKmer extends Kmer{
 		return n;
 	}
 	
-	public void addBasicKmersToSet(HashSet<Kmer> reg){
+	public void addBaseKmersToSet(HashSet<Kmer> reg){
 		for (Kmer km:baseKmers.keySet())
 			reg.add(km);
 	}
 	
+	public void removeBasekmers(Kmer km) {
+		baseKmers.remove(km);		
+	}
+
 	/**
-	 * Print a list of k-mers to a KSM file<br>
+	 * Print a list of k-mers to a KSM file (KMAC1)<br>
 	 * It can print both gapped and ungapped kmers. For gapped kmers, the sub-kmers will also be printed.
 	 * @param kmers
 	 * @param k
@@ -123,7 +127,7 @@ public class GappedKmer extends Kmer{
 	 * @param print_kmer_hits
 	 * @param printKmersAtK
 	 */
-	public static void printGappedKmers(ArrayList<Kmer> kmers, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
+	public static void printGappedKmers(ArrayList<Kmer> kmers, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
 			return;
@@ -159,7 +163,7 @@ public class GappedKmer extends Kmer{
 					sb.append(kmer.toShortString()).append("\n");
 			}
 		}
-		else{
+		else{		// print KSM
 			sb.append(GappedKmer.toHeader(k)).append("\n");
 			for (Kmer kmer:kmers){
 				sb.append(kmer.toString2());				
@@ -178,12 +182,20 @@ public class GappedKmer extends Kmer{
 				}
 				sb.append("\n");
 			}
+			
 			sb.append("\n");	// an empty line to signal that the following are the sub-kmers
+			
 			for (Kmer kmer:subkmerList){
 				sb.append(kmer.toString2()).append("\t").append(allSubKmers.get(kmer));
 				if (print_kmer_hits)
 					sb.append("\t").append(hitBits2string(kmer.posBits)).append("\t").append(hitBits2string(kmer.negBits));
 				sb.append("\n");
+			}
+			
+			if (seq_weights!=null){
+				sb.append("\n");	// an empty line to signal that the following are the sequence weights
+				for (double w: seq_weights)
+					sb.append(String.format("%.4f\n", w));
 			}
 		}
 		
@@ -192,10 +204,8 @@ public class GappedKmer extends Kmer{
 		else
 			CommonUtils.writeFile(String.format("%s.KSM.txt", filePrefix), sb.toString());
 	}
+	
 
-	public void removeBasekmers(Kmer km) {
-		baseKmers.remove(km);		
-	}
 	public static String toHeader(int k){
 		int length=2*k+1;
 		String firstField = "# k-mer/r.c.";
@@ -211,28 +221,57 @@ public class GappedKmer extends Kmer{
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
 		return firstField+"\tPosCt\twPosCt\tNegCt\tHgpLg10\tNumChildren";
 	}
-	
+	/**
+	 * Load KSM file and parse into gapped kmers and weights
+	 * @param file
+	 * @return
+	 */
 	public static ArrayList<Kmer> loadKmers(File file){
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		HashMap<String, Kmer> basekmerMap = new HashMap<String, Kmer>();
 		try {	
+			KsmMotif ksm = new KsmMotif();
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
-			bin.readLine();			// skip header line, to be compatible with old file format
-	        String line;
+			String line = bin.readLine();
+	        line = line.substring(1,line.length());			//remove # sign
+	        String[] f = line.split("/");
+	        ksm.posSeqCount = Integer.parseInt(f[0]);
+	        ksm.negSeqCount = Integer.parseInt(f[1]);
+		       
+	        // threshold
+	        line = bin.readLine();
+	        line = line.substring(1,line.length());			//remove # sign
+	        ksm.score = Double.parseDouble(line);
+	        
+	        //load gapped k-mers
 	        while((line = bin.readLine()) != null) { 
 	        	if (line.startsWith("#"))
 	        		continue;
-	            if (line.equals(""))
+	            if (line.equals(""))	// break at the empty line before the sub-kmers
 	            	break;
 	            line = line.trim();
 	            Kmer kmer = GappedKmer.fromString(line);
 	            kmers.add(kmer);
 	        }	
+	        
+	        //load sub k-mers
 	        while((line = bin.readLine()) != null) { 
 	            line = line.trim();
+	            if (line.equals(""))	// break at the empty line between the sub-kmers and sequence weights
+	            	break;
 	            Kmer kmer = GappedKmer.fromString(line);
-	            basekmerMap.put(kmer.CIDs, kmer);
+	            basekmerMap.put(kmer.CIDs, kmer);		// for sub-kmer, CIDs field is only one id
 	        }	
+
+	        // load sequence weights
+	        ArrayList<Double> weights = new ArrayList<Double>();
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            if (line.equals(""))	// The end of file
+	            	break;
+	            weights.add(Double.parseDouble(line));
+	        }
+	        
 	        if (bin != null) {
 	            bin.close();
 	        }

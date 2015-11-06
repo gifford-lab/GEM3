@@ -33,6 +33,8 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.analysis.KmerScanner;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
@@ -299,6 +301,25 @@ public class CommonUtils {
 			double diff = pvalue-p.pvalue;
 			return diff==0?0:(diff<0)?-1:1;
 		}
+	}
+	public static Genome parseGenome(String[] args){
+		Genome genome = null;
+	    try {
+	    	Pair<Organism, Genome> pair = Args.parseGenome(args);
+	        if(pair != null) {
+	            genome = pair.cdr();
+	        } else {
+	            String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
+	            if(genomeString != null){
+	                genome = new Genome("Genome", new File(genomeString), true);
+	            } else{
+	                genome=null;
+	            }
+	        }
+	    } catch (NotFoundException e) {
+	      e.printStackTrace();
+	    }
+	    return genome;	    
 	}
 	
 	public static String timeElapsed(long tic){
@@ -607,6 +628,17 @@ public class CommonUtils {
 		}
 		sb.append("\n");
 		return sb.toString();
+	}
+	
+	public static KMAC1 loadKsmFile(String ksmFile, boolean use_base_kmer){
+		File file = new File(ksmFile);
+//    	System.err.println(ksmFile);
+		ArrayList<Kmer> kmers = GappedKmer.loadKmers(file);
+		Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
+		KMAC1 kEngine;
+		kEngine = new KMAC1(kmers, null, use_base_kmer);
+		kEngine.setTotalSeqCount(c.car(), c.cdr());
+		return kEngine;
 	}
 	
     /*

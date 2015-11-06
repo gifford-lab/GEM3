@@ -19,6 +19,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.Site;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.KmerGroup;
@@ -89,22 +90,25 @@ public class KmerScanner {
 		}
 	}
 	public static void main(String[] args){
-		// genome info and binding events
-		Genome genome=null;
-		Organism org=null;
-		ArgParser ap = new ArgParser(args);
+//		int round = Args.parseInteger(args, "r", 2); 	//GEM output round (1 for GPS, 2 for GEM)
+//		int type = Args.parseInteger(args, "type", 999);
+//		ArrayList<ArrayList<Site>> clusters=null;
+//		switch(type){
+//		case 999:	// default: simple file loading for RPD public code
+//			analysis.loadBindingEvents();
+//			clusters = analysis.mergeTfbsClusters();
+//			analysis.outputTFBSclusters(clusters);
+//			break;
+//		case 0:
+//			analysis.loadBindingEvents_old();
+//			clusters = analysis.mergeTfbsClusters();
+//			analysis.outputTFBSclusters(clusters);
+//			break;
+//		}
+//	}
+//		
+//	private void scan_KSM_PWM(String[] args){
 		Set<String> flags = Args.parseFlags(args);		
-	    try {
-	      Pair<Organism, Genome> pair = Args.parseGenome(args);
-	      if(pair==null){
-	        System.err.println("No genome provided; provide a Gifford lab DB genome name.");;System.exit(1);
-	      }else{
-	        genome = pair.cdr();
-	        org = pair.car();
-	      }
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(!flags.contains("no_cache"));		
 		seqgen.useLocalFiles(!flags.contains("use_db_genome"));

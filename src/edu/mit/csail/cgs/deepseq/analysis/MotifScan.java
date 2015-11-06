@@ -15,6 +15,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
@@ -30,7 +31,7 @@ public class MotifScan {
 	
 		int type = Args.parseInteger(args, "type", 1);
 		switch(type){
-			case 1: reportMotifMatches(args); break;
+			case 1: findMotifInstances(args); break;
 			case 9: scanWholeGenome(args, parseGenome(args)); break;
 		}
 		
@@ -58,7 +59,7 @@ public class MotifScan {
 	    
 	}
 
-	public static void reportMotifMatches(String[] args){
+	public static void findMotifInstances(String[] args){
 		Set<String> flags = Args.parseFlags(args);
 	    
 		String fasta = Args.parseString(args, "fasta", null);
@@ -67,7 +68,7 @@ public class MotifScan {
 	    ArrayList<String> texts = CommonUtils.readTextFile(fasta);
 	    int lineNum = texts.size();
 	    String[] seqs = new String[lineNum/2];
-	    String[] names = new String[lineNum/2];
+	    String[] names = new String[lineNum/2];		// name is the first field of fasta header
 	    for (int i=0;i<texts.size();i=i+2){
 	    	seqs[i/2] = texts.get(i+1).toUpperCase();
 	    	String s = texts.get(i);
@@ -75,18 +76,21 @@ public class MotifScan {
 	    	names[i/2] = f[0];
 	    }
 	    
+	    // search for PWM motif matches
 		ArrayList<MotifInstance> instances = null;
 		ArrayList<Integer> motifLengths = new ArrayList<Integer>();
 		ArrayList<Double> motifThresholds = new ArrayList<Double>();
-		if (Args.parseString(args, "pfm", null)!=null){
+		
+		String pfm_fle = Args.parseString(args, "pfm", null);
+		if (pfm_fle!=null){		// Load multiple PWMs
 			StringBuilder sb_header = new StringBuilder();
 
-		    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(Args.parseString(args, "pfm", null), Args.parseDouble(args, "gc", 0.41));
+		    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(pfm_fle, Args.parseDouble(args, "gc", 0.41));
 		    if (pwms.isEmpty()){
-		    	System.out.println("No motif is loaded from \n"+Args.parseString(args, "pfm", null));
+		    	System.out.println("No motif is loaded from \n"+pfm_fle);
 		    	System.exit(-1);
 		    }
-		    double scoreRatio = Args.parseDouble(args, "score_ratio", 0.6);
+		    double scoreRatio = Args.parseDouble(args, "pwm_cutoff", 0.6);
 		    
 		    sb_header.append("# Motif Information\n");
 		    sb_header.append("#ID\tName\tLetters\tWidth\tMax\tThresh\n");
@@ -96,13 +100,23 @@ public class MotifScan {
 		    	motifLengths.add(pwm.length());
 		    	double threshold = pwm.getMaxScore()*scoreRatio;
 		    	motifThresholds.add(threshold);
-		    	sb_header.append("#").append(m).append("\t").append(pwm.getName()).append("\t").append(WeightMatrix.getMaxLetters(pwm)).append("\t").append(pwm.length()).append("\t")
-		    	.append(String.format("%.2f", pwm.getMaxScore())).append("\t").append(String.format("%.2f", threshold)).append("\n");
+		    	sb_header.append("#").append(m).append("\t")
+		    	.append(pwm.getName()).append("\t")
+		    	.append(WeightMatrix.getMaxLetters(pwm)).append("\t")
+		    	.append(pwm.length()).append("\t")
+		    	.append(String.format("%.2f", pwm.getMaxScore())).append("\t")
+		    	.append(String.format("%.2f", threshold)).append("\n");
 		    }
 		    sb_header.append("#");
 		    System.out.println(sb_header.toString());
 
 			instances = getPWMInstances(seqs, pwms, motifThresholds);
+		}
+		
+	    // search for KSM motif matches
+		String ksm_fle = Args.parseString(args, "ksm", null);
+		if (ksm_fle!=null){		// Load multiple PWMs
+			KMAC1 kmac=CommonUtils.loadKsmFile(ksm_fle, true);
 		}
 		
 		// search for exact k-mer match
@@ -123,7 +137,7 @@ public class MotifScan {
 		
 	    // output
 		StringBuilder sb = new StringBuilder("#Motif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n");
-		Genome g = parseGenome(args);
+		Genome g = CommonUtils.parseGenome(args);
 	    for (int i=0;i<instances.size();i++){
 	    	MotifInstance mi = instances.get(i);
 	    	String f[] = names[mi.seqID].split(" ");
@@ -184,7 +198,8 @@ public class MotifScan {
 	}
 	
 	/**
-	 * Return a list of motif PWM matches from a list of sequences
+	 * Return a list of motif PWM matches from a list of sequences<br>
+	 * If the sequence is shorter than the PWM, report a partial score
 	 */
 	public static ArrayList<MotifInstance> getPWMInstances(String[] seqs, List<WeightMatrix> pwms, List<Double> motifThresholds){
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
@@ -238,7 +253,12 @@ public class MotifScan {
 	    }
 		return instances;
 	}
-	
+	/**
+	 * Scan the sequences (forward and RC) for EXACT matches of one single k-mer 
+	 * @param seqs
+	 * @param kmer
+	 * @return
+	 */
 	private static ArrayList<MotifInstance> getKmerInstances(String[] seqs, String kmer){
 	    
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();	    

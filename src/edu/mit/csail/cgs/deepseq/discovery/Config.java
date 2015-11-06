@@ -73,8 +73,7 @@ public class Config {
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
     public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched motif 
-    public double kmer_hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
-    public double kmer_uncorrected_hgp = -3; 	// p-value threshold of hyper-geometric test for enriched kmer 
+    public double kmer_hgp = -3; 	// p-value threshold (log10) of hyper-geometric test for enriched kmer 
     public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
     public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
     public double[] bg= new double[4];	// background frequency based on GC content
@@ -349,7 +348,6 @@ public class Config {
         ic_trim = Args.parseDouble(args, "ic", ic_trim);
         hgp = Args.parseDouble(args, "hgp", hgp);
         kmer_hgp = Args.parseDouble(args, "kmer_hgp", kmer_hgp);
-        kmer_uncorrected_hgp = Args.parseDouble(args, "kmer_uncorrected_hgp", kmer_uncorrected_hgp);
 //        kmer_freq_pos_ratio = Args.parseDouble(args, "kmer_freq_pos_ratio", kmer_freq_pos_ratio);
 //        kmer_cluster_seq_count = Args.parseInteger(args, "cluster_seq_count", kmer_cluster_seq_count);
         kpp_factor = Args.parseDouble(args, "kpp_factor", kpp_factor);

@@ -238,7 +238,7 @@ public class Kmer implements Comparable<Kmer>{
 		posBits = bitSet;
 	}
 	/** Add this kmer into the register set*/
-	public void addBasicKmersToSet(HashSet<Kmer> reg){
+	public void addBaseKmersToSet(HashSet<Kmer> reg){
 		reg.add(this);
 	}
 //	/** Use reverse compliment to represent the kmer */
@@ -379,7 +379,17 @@ public class Kmer implements Comparable<Kmer>{
 		
 		return kmer;
 	}
-
+	/**
+	 * Print a list of ungapped k-mers to a KSM file (KMAC0)
+	 * @param kmers
+	 * @param posSeqCount
+	 * @param negSeqCount
+	 * @param score
+	 * @param filePrefix
+	 * @param printShortFormat
+	 * @param print_kmer_hits
+	 * @param printKmersAtK
+	 */
 	public static void printKmers(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())

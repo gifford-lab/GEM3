@@ -104,13 +104,13 @@ public class KMAC1 {
 
 //	private TreeMap<Integer, ArrayList<Kmer>> k2kmers = new TreeMap<Integer, ArrayList<Kmer>>();
 
-	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();
 	
 	// AhoCorasick algorithm for multi-pattern search
 	// Pre-processing is to build the tree with all the patters (kmers)
 	// Then each individual search can be done in scan()
 	private AhoCorasick tree;
-//	private AhoCorasick tree_negatives;
+	// to map the k-mer string from AhoCorasick tree to Kmer Object
+	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();	
 	
 	public boolean isInitialized(){ return engineInitialized;}
 	
@@ -496,7 +496,7 @@ public class KMAC1 {
 
 		if (seqs.length<500){
 			config.pwm_noise = 0.1;
-			config.kmer_uncorrected_hgp = -2;
+			config.kmer_hgp = -2;
 		}
 		
 		/** Initialization of the sequences */
@@ -548,10 +548,10 @@ public class KMAC1 {
 				continue;
 			}
 		
-			
-			
+//			COMMENT block start, to SKIP kmac, only get k-mers
+//			
 			/** Index sequences and kmers, for each k, need to index this only once */
-			indexKmerSequences(kmers, seqList, seqListNeg, config.kmer_uncorrected_hgp);
+			indexKmerSequences(kmers, seqList, seqListNeg, config.kmer_hgp);
 			kmers.trimToSize();
 			Collections.sort(kmers);
 			
@@ -623,6 +623,9 @@ public class KMAC1 {
 			clusters = tmp;
 			sortMotifClusters(clusters, true);
 			
+//			
+//			COMMENT block to SKIP kmac, only get k-mers
+			
 			// print all the motifs for k, before merging
 			sb.append("\n");
 			printMotifClusters(clusters, sb);
@@ -682,7 +685,7 @@ public class KMAC1 {
     		optimize_KG_kmers = true;
 		for (int i=0;i<clusters.size();i++){
 			MotifCluster cluster = clusters.get(i);
-			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_uncorrected_hgp);  // need this to get KSM
+			indexKmerSequences(cluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 			
 			if (config.refine_final_motifs){
 				if (config.evaluate_by_ksm || cluster.wm == null){
@@ -792,9 +795,9 @@ public class KMAC1 {
 		
 		sortMotifClusters(clusters, true);
 
-		// print k-mers and motif hits
+		// print KSM and motif hits
 		for (MotifCluster cluster : clusters){
-			GappedKmer.printGappedKmers(cluster.alignedKmers, cluster.k, 0, posSeqCount, negSeqCount, cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
+			GappedKmer.printGappedKmers(cluster.alignedKmers, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
 			
 		}
 		if (config.print_motif_hits){
@@ -892,13 +895,13 @@ public class KMAC1 {
 			}
 		}
 
-		System.out.println(String.format("k=%d, mapped %d k-mers, HGP=%.1f, %s", k, kmerstr2seqs.keySet().size(), config.kmer_uncorrected_hgp, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("k=%d, mapped %d k-mers, HGP=%.1f, %s", k, kmerstr2seqs.keySet().size(), config.kmer_hgp, CommonUtils.timeElapsed(tic)));
 		
 		// compute the smallest PosCount needed to be significant, even with negCount=0
 		int minSignificantCount;
 		for (minSignificantCount=3;minSignificantCount<posSeqCount;minSignificantCount++){
 			double hgp = computeHGP(posSeqCount, negSeqCount, minSignificantCount, 0);
-			if (hgp<config.kmer_uncorrected_hgp){
+			if (hgp<config.kmer_hgp){
 				break;
 			}
 		}
@@ -979,7 +982,7 @@ public class KMAC1 {
 			}
 
 			kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
-			if (kmer.getHgp() > config.kmer_uncorrected_hgp){
+			if (kmer.getHgp() > config.kmer_hgp){
 				insigHgpKmers.add(kmer);		
 				continue;
 			}
@@ -987,11 +990,15 @@ public class KMAC1 {
 
 		Collections.sort(kms);
 		// print high p-value k-mers, or low fold enrichment k-mers, although remove them for further learning
-		if (config.print_all_kmers)
-			Kmer.printKmers(kms, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+		if (config.print_all_kmers){
+//			OLD method for KMAC0: Kmer.printKmers(kms, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+			GappedKmer.printGappedKmers(kms, null, k, 0, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+
+		}
 		kms.removeAll(insigHgpKmers);
 		kms.trimToSize();
-		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+//		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("k=%d, selected %d k-mers, %s", k, kms.size(), CommonUtils.timeElapsed(tic)));
 		
 		return kms;
 	}
@@ -1009,7 +1016,7 @@ public class KMAC1 {
 		
 		double relaxFactor = 0.6;
 		double relaxed_fold = Math.max(config.k_fold*relaxFactor, 1);
-		double relaxed_hgp = Math.min(relaxFactor*config.kmer_uncorrected_hgp, -1.5);
+		double relaxed_hgp = Math.min(relaxFactor*config.kmer_hgp, -1.3);
 		
 		// compute the smallest PosCount needed to be significant, with negCount=0
 		int minSigBaseKmerCount;
@@ -1022,7 +1029,7 @@ public class KMAC1 {
 		int minSigGappedKmerCount;
 		for (minSigGappedKmerCount=3;minSigGappedKmerCount<posSeqCount;minSigGappedKmerCount++){
 			double hgp = computeHGP(posSeqCount, negSeqCount, minSigGappedKmerCount, 0);
-			if (hgp<config.kmer_uncorrected_hgp){
+			if (hgp<config.kmer_hgp){
 				break;
 			}
 		}
@@ -1255,7 +1262,7 @@ public class KMAC1 {
 			gks.add(gk);
 			baseKmers.addAll(gk.getBaseKmers());
 		}
-		System.out.println(String.format("k=%d+%d, expected gKmer hit =%.0f, gapped kmer count=%d, base-kmers count=%d", 
+		System.out.println(String.format("k=%d+%d, expected gKmer hit=%.0f, gapped kmer=%d, base kmer=%d", 
 				kOrginal, numGap, expectedGappedKmerCount, gks.size(), baseKmers.size()));
 		
 		
@@ -1283,7 +1290,7 @@ public class KMAC1 {
 				gk.mergePosHits();
 				gk.mergeNegHits();
 				gk.setHgp(computeHGP(posSeqCount, negSeqCount, gk.getPosHitCount(), gk.getNegHitCount()));
-				if (gk.getHgp() <= config.kmer_uncorrected_hgp){		// these GK are significant
+				if (gk.getHgp() <= config.kmer_hgp){		// these GK are significant
 					gk.linkBaseKmers();
 					results.add(gk);
 				}
@@ -1298,8 +1305,11 @@ public class KMAC1 {
 			results_final.add(results.get(i));
 		}
 		
-		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f) from %d+/%d- sequences, %s", 
-				kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+//		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f) from %d+/%d- sequences, %s", 
+//				kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f), %s", 
+				kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, CommonUtils.timeElapsed(tic)));
+		
 		
 		ArrayList<Kmer> kms = new ArrayList<Kmer>();
 		for (GappedKmer gk:gks){
@@ -1307,7 +1317,7 @@ public class KMAC1 {
 		}
 		if (config.print_all_kmers){
 			Collections.sort(kms);
-			GappedKmer.printGappedKmers(kms, kOrginal, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+			GappedKmer.printGappedKmers(kms, null, kOrginal, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
 		}
 		return results_final;
 	}
@@ -1400,7 +1410,7 @@ public class KMAC1 {
 		/** basicKmers include the exact kmers and the base-kmers of the gapped kmers */
 		HashSet<Kmer> basicKmerSet = new HashSet<Kmer>();
 		for (Kmer km: kmers){
-			km.addBasicKmersToSet(basicKmerSet);
+			km.addBaseKmersToSet(basicKmerSet);
 	    }
 		ArrayList<Kmer> basicKmers = new ArrayList<Kmer>();
 		basicKmers.addAll(basicKmerSet);
@@ -2024,7 +2034,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			System.out.println(CommonUtils.timeElapsed(tic)+": kmer num = "+kmers.size());
 
 		kmers = Kmer.deepCloneKmerList(kmers, seed);
-		indexKmerSequences(kmers, seqList, seqListNeg, config.kmer_uncorrected_hgp);
+		indexKmerSequences(kmers, seqList, seqListNeg, config.kmer_hgp);
 		seed = kmers.get(0);
 
 		cluster.inputKmers = Kmer.copyKmerList(kmers);
@@ -2249,7 +2259,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 					
 		    	// build PWM
 				NewPWM newPWM = buildPWM(seqList, newCluster, 0, tic, false);
-				indexKmerSequences(newCluster.inputKmers, seqList, seqListNeg, config.kmer_uncorrected_hgp);  // need this to get KSM
+				indexKmerSequences(newCluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 				if (newPWM!=null){
 					newPWM.updateClusterPwmInfo(newCluster);
 					count_pwm_aligned = alignByPWM(seqList, newCluster, false);
@@ -2298,7 +2308,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 				for (Sequence s:seqList)
 					if (s.pos == UNALIGNED)
 						seqList_j.add(s);
-				indexKmerSequences(cluster2.inputKmers, seqList, seqListNeg, config.kmer_uncorrected_hgp);  // need this to get KSM
+				indexKmerSequences(cluster2.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 				int aligned_seqs_count = alignByPWM(seqList_j, cluster2, false);
 		    	if (config.verbose>1)
 		    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)
@@ -2333,7 +2343,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 							if (km.posBits.intersects(unalignedIds))
 								inputKmers.add(km);
 						}
-						indexKmerSequences(inputKmers, seqList_j, seqListNeg, config.kmer_uncorrected_hgp);  // need this to get KSM
+						indexKmerSequences(inputKmers, seqList_j, seqListNeg, config.kmer_hgp);  // need this to get KSM
 						alignedSeqCount = alignByPWM(seqList_j, cluster2, false);
 						if (config.evaluate_by_ksm){
 							NewKSM newKSM = extractKSM (seqList, cluster2.k, null);
@@ -2496,7 +2506,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 					
 					MotifCluster newCluster = cluster1.clone(false);
 					
-					indexKmerSequences(newCluster.inputKmers, seqList, seqListNeg, config.kmer_uncorrected_hgp);  // need this to get KSM
+					indexKmerSequences(newCluster.inputKmers, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 					alignByKSM(seqList, newCluster.alignedKmers, newCluster);
 					
 					ArrayList<Sequence> unalignedSeqs = new ArrayList<Sequence>();
@@ -2642,7 +2652,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 						}
 						continue;
 					}
-					indexKmerSequences(inputKmers, seqList_j, seqListNeg, config.kmer_uncorrected_hgp);  // need this to get KSM
+					indexKmerSequences(inputKmers, seqList_j, seqListNeg, config.kmer_hgp);  // need this to get KSM
 					count_aligned = alignByPWM(seqList_j, cluster2, false);
 			    	if (config.verbose>1)
 			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)
@@ -2928,7 +2938,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	/** basicKmers include the exact kmers and the base-kmers of the gapped kmers */
 	HashSet<Kmer> basicKmers = new HashSet<Kmer>();
 	for (Kmer km: kmers){
-		km.addBasicKmersToSet(basicKmers);
+		km.addBaseKmersToSet(basicKmers);
     }
 	int totalPosCount = seqList.size();
 	int totalNegCount = seqListNeg.size();
@@ -2975,7 +2985,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	// update seqList with GK hits
 	HashSet<Kmer> basicKmersUsed = new HashSet<Kmer>();
 	for (Kmer km: kmers){
-		km.addBasicKmersToSet(basicKmersUsed);
+		km.addBaseKmersToSet(basicKmersUsed);
     }
 	basicKmers.removeAll(basicKmersUsed); // now basicKmers contains all the un-used k-mers
 	for (Sequence s:seqList){
@@ -4861,7 +4871,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	 * Compute hgp using the positive/negative sequences, high precision approximation
 	 * Only use for very small p-value (<MIN_VALUE, 2^-1074)
 	 */
-	private static double computeHGP_TINY(int posSeq, int negSeq, int posHit, int negHit){
+	public static double computeHGP_TINY(int posSeq, int negSeq, int posHit, int negHit){
 		int allHit = posHit + negHit;
 		int allSeq = posSeq + negSeq;
 		// flip the problem, compute cdf of negative count
@@ -5477,7 +5487,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 	 * Search all k-mers in the sequence
 	 * @param seq sequence string to search k-mers
 	 * @return an array of KmerGroups, with match positions, significance, etc:<br>
-	 * Each k-mer group maps to a binding position in the sequence
+	 * Each k-mer group maps to a binding position in the sequence<br>
 	 * Note: matches on negative strand are combined with matches on positive strand at the same position
 	 */
 	public KmerGroup[] findUnstrandedKmerHits (String seq){
@@ -5493,6 +5503,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
 				Kmer km = str2kmer.get(s);		//TODO: cast?
+				// start of k-mer match = sr.getLastIndex() - km.k
 				int x = sr.getLastIndex() - km.k - km.getKmerStartOffset();	// minus kmerShift to get the motif position
 				if (!result.containsKey(x))
 					result.put(x, new ArrayList<Kmer>());
@@ -5527,6 +5538,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, ArrayList<Sequence
 		}
 		return matches;
 	}
+	
 	public KmerGroup[] findUnstrandedKmerHits_old (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
