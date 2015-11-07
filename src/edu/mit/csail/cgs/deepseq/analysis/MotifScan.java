@@ -16,6 +16,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.KmerGroup;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
@@ -115,8 +116,16 @@ public class MotifScan {
 		
 	    // search for KSM motif matches
 		String ksm_fle = Args.parseString(args, "ksm", null);
-		if (ksm_fle!=null){		// Load multiple PWMs
-			KMAC1 kmac=CommonUtils.loadKsmFile(ksm_fle, true);
+		if (ksm_fle!=null){		// Load multiple KSMs
+			ArrayList<String> lines = CommonUtils.readTextFile(ksm_fle);
+			ArrayList<KMAC1> kmacs = new ArrayList<KMAC1>();
+			ArrayList<String> knames = new ArrayList<String>();
+			for (String l:lines){
+				String[] f = l.split("\t");
+				knames.add(f[0]);
+				kmacs.add(CommonUtils.loadKsmFile(f[1], true));
+			}
+			instances = getKSMInstances(seqs, kmacs, knames);
 		}
 		
 		// search for exact k-mer match
@@ -151,9 +160,10 @@ public class MotifScan {
 	    	Region region = Region.fromString(g, regionString);
 	    	if (region!=null){
 		    	Point startPoint = region.startPoint();
-		    	int pos = mi.position + motifLengths.get(mi.motifID)/2;		// relative position from the left coord, adjust to motif midpoint
+		    	int instanceLength = mi.matchSeq.length();
+		    	int pos = mi.position + instanceLength/2;		// relative position from the left coord, adjust to motif midpoint
 		    	if (mi.strand=='-')
-		    		pos = mi.position + (motifLengths.get(mi.motifID)-1) - motifLengths.get(mi.motifID)/2;
+		    		pos = mi.position + (instanceLength-1) - instanceLength/2;
 		    	coor_string = new StrandedPoint(g, startPoint.getChrom(), startPoint.getLocation()+pos, mi.strand).toString();
 	    	}
 	    	else
@@ -197,6 +207,38 @@ public class MotifScan {
 	    }
 	}
 	
+	public static ArrayList<MotifInstance> getKSMInstances(String[] seqs, ArrayList<KMAC1> kmacs, ArrayList<String> knames) {
+		System.out.println("Scanning KSM motifs ...");
+	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
+	    for (int m=0; m<kmacs.size(); m++){
+	    	System.out.println("Scanning "+knames.get(m)+" ...");
+	    	KMAC1 kmac = kmacs.get(m);
+	    	for (int s=0; s<seqs.length;s++){
+	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s]);
+	    		for (int i=0;i<kgs.length;i++){
+	    			KmerGroup kg = kgs[i];
+		    		MotifInstance mi = new MotifInstance();
+		    		mi.motifID = m;
+		    		mi.motifName = knames.get(m);
+		    		mi.score = kg.getScore();
+		    		int pos = kg.getPosBS();
+		    		if (pos > KMAC1.RC){	// minus strand match
+		    			mi.position = pos-KMAC1.RC;	
+		    			mi.strand = '-';
+		    		}
+		    		else{
+		    			mi.position = pos;	
+		    			mi.strand = '+';
+		    		}
+		    		mi.matchSeq = kg.getCoveredSequence();
+		    		mi.seqID = s;
+		    		instances.add(mi);
+	    		}
+	    	}
+	    }
+		return instances;
+	}
+
 	/**
 	 * Return a list of motif PWM matches from a list of sequences<br>
 	 * If the sequence is shorter than the PWM, report a partial score
@@ -259,7 +301,7 @@ public class MotifScan {
 	 * @param kmer
 	 * @return
 	 */
-	private static ArrayList<MotifInstance> getKmerInstances(String[] seqs, String kmer){
+	public static ArrayList<MotifInstance> getKmerInstances(String[] seqs, String kmer){
 	    
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();	    
 	    for (int s=0; s<seqs.length;s++){

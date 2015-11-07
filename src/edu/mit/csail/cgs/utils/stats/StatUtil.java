@@ -1164,6 +1164,22 @@ public class StatUtil {
 		v = v/(Math.sqrt(vx)*Math.sqrt(vy));
 		return v;
 	}
+	
+	/**
+	 * Returns the odds ratio (effect size) of number <tt>x</tt> 
+	 * when the sample size is <tt>n</tt>, the size of the positive set <tt>s</tt>
+	 * and the population size <tt>N</tt>.<br>
+	 * https://en.wikipedia.org/wiki/Effect_size#Odds_ratio
+	 * @param x # observed successes in the sample
+	 * @param N population size
+	 * @param s # of successes in population (e.g., size of positive set in the population)
+	 * @param n sample size
+	 * @return
+	 */
+	public static double odds_ratio(int P, int N, int p, int n, double pseudocount) {
+		double or = (p+pseudocount)/(P-p+pseudocount) / ((n+pseudocount)/(N-n+pseudocount));
+		return or;	
+	}
 
 	
 	/**
@@ -2249,9 +2265,14 @@ public class StatUtil {
 //		return data_big_delta;
 //	}	
 	private static void printHGP(int pos, int neg){
-		System.out.println(String.format("%d/%d\t%.2f", pos, neg, hyperGeometricCDF(pos,10000,5000,pos+neg)));
+		System.out.println(String.format("%d/%d\t%.2f\t%.2f\t%.2f\t%.2f", pos, neg, 
+				log10_hyperGeometricCDF_cache_appr(pos,10000,5000,pos+neg), 
+				KMAC1.computeHGP_TINY(5000, 5000, pos, neg),				 
+				KMAC1.computeHGP(5000, 5000, pos, neg),
+				odds_ratio(5000, 5000, pos, neg, 3)));
 	}
-	 public static void main0(String[] args){
+	
+	 public static void main(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));
 //		 Poisson poisson = new Poisson(0, new DRand());
@@ -2263,9 +2284,11 @@ public class StatUtil {
 		 printHGP(1325,328);
 		 printHGP(1360,327);
 		 printHGP(1517,467);
-		 
+		 for (int i=0;i<=5000;i+=100){
+			 printHGP(i, i/2);
+		 }
 
-//		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));
+		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,3298+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(3,8+7,8,3+2));
@@ -2279,6 +2302,6 @@ public class StatUtil {
 //			System.out.println("-----------");
 //		}
 //		System.out.println(Long.MAX_VALUE);
-		 System.out.println(correlation(new double[]{1.0, 2,3,4},new double[]{2.0, -5,6,-8}));
+//		 System.out.println(correlation(new double[]{1.0, 2,3,4},new double[]{2.0, -5,6,-8}));
 	}
 }//end of StatUtil class 41690 / 40506

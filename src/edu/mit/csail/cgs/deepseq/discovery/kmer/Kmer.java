@@ -23,10 +23,7 @@ public class Kmer implements Comparable<Kmer>{
 	static void set_use_weighted_hit_count(boolean weighted){
 		use_weighted_hit_count = weighted;
 	}
-	static double[] seq_weights;
-	static void set_seq_weights(double[] weights){
-		seq_weights = weights;
-	}	
+
 	String CIDs = null;
 	
 	// for use in indexing in MTree
@@ -114,7 +111,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public BitSet getPosBits(){return posBits;}
 	
-	public void setPosHits(HashSet<Integer> posHits) {
+	public void setPosHits(HashSet<Integer> posHits, double[]seq_weights) {
 		if (posHits.isEmpty())
 			return;
 		
@@ -123,12 +120,12 @@ public class Kmer implements Comparable<Kmer>{
 			posBits.set(id);
 		}
 		if (use_weighted_hit_count)
-			setWeightedPosHitCount();
+			setWeightedPosHitCount(seq_weights);
 	}
 //	public HashSet<Integer> getPosHits(){return posHits;}
 	
 	private int weightedPosHitCount;
-	protected void setWeightedPosHitCount(){
+	protected void setWeightedPosHitCount(double[] seq_weights ){
 		weightedPosHitCount = CommonUtils.calcWeightedHitCount(posBits, seq_weights);
 	}
 	public int getWeightedHitCount(){
@@ -198,11 +195,11 @@ public class Kmer implements Comparable<Kmer>{
 		this.treeIndex = -1;
 	}
 	
-	public Kmer(String kmerStr, HashSet<Integer> posHits ){
+	public Kmer(String kmerStr, HashSet<Integer> posHits, double[] seq_weights ){
 		this.kmerString = kmerStr;
 		this.kmerRC = SequenceUtils.reverseComplement(kmerStr);
 		this.k = kmerString.length();
-		setPosHits(posHits);
+		setPosHits(posHits, seq_weights);
 		this.treeIndex = -1;
 	}
 	public Kmer(String kmerStr, BitSet posBits ){
@@ -215,7 +212,7 @@ public class Kmer implements Comparable<Kmer>{
 	
 	public Kmer clone(){
 		Kmer n = new Kmer(getKmerString(), (BitSet)(posBits.clone()));
-		n.setWeightedPosHitCount();
+		n.setWeightedPosHitCount(null);
 		n.clusterId = clusterId;
 		n.strength = strength;
 		n.shift = shift;
@@ -370,9 +367,9 @@ public class Kmer implements Comparable<Kmer>{
 				negHits.add(Integer.valueOf(hit));
 		}
 		
-		Kmer kmer = new Kmer(f0f[0], posHits);	
+		Kmer kmer = new Kmer(f0f[0], posHits, null);	
 		kmer.setNegHits(negHits);
-		kmer.setWeightedPosHitCount();
+		kmer.setWeightedPosHitCount(null);
 		kmer.clusterId = Integer.parseInt(f[1]);
 		kmer.kmerStartOffset = Integer.parseInt(f[2]);
 		kmer.hgp_lg10 = Double.parseDouble(f[HgpIndex]);
@@ -446,7 +443,7 @@ public class Kmer implements Comparable<Kmer>{
 	 * @param seedKmer a kmer in kmers_in to be mapped to the cloned kmers
 	 * @return a list of cloned kmers, with the top kmer being the seedKmer
 	 */
-	public static ArrayList<Kmer> deepCloneKmerList(ArrayList<Kmer> kmers_in, Kmer seedKmer){
+	public static ArrayList<Kmer> deepCloneKmerList(ArrayList<Kmer> kmers_in, Kmer seedKmer, double[] seq_weights){
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		HashMap<Kmer,Kmer> subkmer2subkmer = new HashMap<Kmer,Kmer>(); 
 		Kmer seedKmerClone = null;
@@ -469,12 +466,12 @@ public class Kmer implements Comparable<Kmer>{
 			Kmer km2 = null;
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer) km;
-				GappedKmer gk2 = gk.clone();
+				GappedKmer gk2 = gk.clone(seq_weights);
 				gk2.clearBaseKmers();
 				for (Kmer sk: gk.getBaseKmers()){
 					gk2.addBaseKmer(subkmer2subkmer.get(sk),gk.getBaseKmerOrientation(sk));
 				}
-				gk2.update();
+				gk2.update(seq_weights);
 				kmers.add(gk2);
 				km2 = gk2;
 			}

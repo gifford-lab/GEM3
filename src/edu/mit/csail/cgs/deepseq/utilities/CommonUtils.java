@@ -37,6 +37,7 @@ import edu.mit.csail.cgs.deepseq.analysis.KmerScanner;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KsmMotif;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
@@ -633,11 +634,11 @@ public class CommonUtils {
 	public static KMAC1 loadKsmFile(String ksmFile, boolean use_base_kmer){
 		File file = new File(ksmFile);
 //    	System.err.println(ksmFile);
-		ArrayList<Kmer> kmers = GappedKmer.loadKmers(file);
-		Pair<Integer, Integer> c = Kmer.getTotalCounts(file);
+		KsmMotif ksm = GappedKmer.loadKSM(file);
 		KMAC1 kEngine;
-		kEngine = new KMAC1(kmers, null, use_base_kmer);
-		kEngine.setTotalSeqCount(c.car(), c.cdr());
+		kEngine = new KMAC1(ksm.kmers, null, use_base_kmer);
+		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
+		kEngine.setSequenceWeights(ksm.seq_weights);
 		return kEngine;
 	}
 	

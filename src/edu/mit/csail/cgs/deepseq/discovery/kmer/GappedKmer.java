@@ -41,13 +41,13 @@ public class GappedKmer extends Kmer{
 	boolean getBaseKmerOrientation(Kmer subkmer){
 		return baseKmers.get(subkmer);
 	}
-	public void mergePosHits(){
+	void mergePosHits(double[] seq_weights ){
 		posBits.clear();
 		for (Kmer km:baseKmers.keySet()){
 			posBits.or(km.posBits);
 		}
 		if (use_weighted_hit_count)
-			setWeightedPosHitCount();
+			setWeightedPosHitCount(seq_weights );
 	}
 	
 	public void mergeNegHits(){
@@ -59,8 +59,8 @@ public class GappedKmer extends Kmer{
 		}
 	}
 	
-	public void update(){
-		mergePosHits();
+	public void update(double[] seq_weights ){
+		mergePosHits(seq_weights);
 		mergeNegHits();
 		linkBaseKmers();
 	}
@@ -90,7 +90,7 @@ public class GappedKmer extends Kmer{
 	/**
 	 * Clone for output only. It does not set up correct GK-SK linkages.
 	 */
-	public GappedKmer clone(){
+	public GappedKmer clone(double[] seq_weights){
 		GappedKmer n = new GappedKmer(getKmerString());
 		n.clusterId = clusterId;
 		n.shift = shift;
@@ -101,7 +101,7 @@ public class GappedKmer extends Kmer{
 		n.isSeedOrientation = isSeedOrientation;
 		for (Kmer km:baseKmers.keySet())
 			n.addBaseKmer(km, baseKmers.get(km));
-		n.update();
+		n.update(seq_weights);
 		return n;
 	}
 	
@@ -226,11 +226,11 @@ public class GappedKmer extends Kmer{
 	 * @param file
 	 * @return
 	 */
-	public static ArrayList<Kmer> loadKmers(File file){
+	public static KsmMotif loadKSM(File file){
+		KsmMotif ksm = new KsmMotif();
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		HashMap<String, Kmer> basekmerMap = new HashMap<String, Kmer>();
 		try {	
-			KsmMotif ksm = new KsmMotif();
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
 			String line = bin.readLine();
 	        line = line.substring(1,line.length());			//remove # sign
@@ -241,7 +241,7 @@ public class GappedKmer extends Kmer{
 	        // threshold
 	        line = bin.readLine();
 	        line = line.substring(1,line.length());			//remove # sign
-	        ksm.score = Double.parseDouble(line);
+	        ksm.cutoff = Double.parseDouble(line);
 	        
 	        //load gapped k-mers
 	        while((line = bin.readLine()) != null) { 
@@ -271,6 +271,10 @@ public class GappedKmer extends Kmer{
 	            	break;
 	            weights.add(Double.parseDouble(line));
 	        }
+	        ksm.seq_weights = new double[weights.size()];
+	        for (int i=0; i<weights.size(); i++){
+	        	ksm.seq_weights[i] = weights.get(i);
+	        }
 	        
 	        if (bin != null) {
 	            bin.close();
@@ -287,13 +291,16 @@ public class GappedKmer extends Kmer{
 					Kmer sk = basekmerMap.get(id);
 					gk.addBaseKmer(sk, CommonUtils.strMinDistance(gk.kmerString, sk.kmerString)==1);
 				}
-				gk.update();
+				gk.update(ksm.seq_weights);
 			}
 			
 		}
         kmers.trimToSize();
-		return kmers;
+        ksm.kmers = kmers;
+        
+		return ksm;
 	}
+	
 
 	public static Kmer fromString(String str){
 		String[] f = str.trim().split("\t");

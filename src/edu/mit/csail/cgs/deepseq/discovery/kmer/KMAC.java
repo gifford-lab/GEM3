@@ -191,8 +191,6 @@ public class KMAC {
 		for (int i=0;i<seq_weights.length;i++){
 			seq_weights[i] = seq_weights[i]*seqs.length/totalWeight;	// scale weights with total sequence count, and total weight
 		}
-		if (config.use_weighted_kmer)
-			Kmer.set_seq_weights(seq_weights);
 		
 		// If neg seqs are not provided, use shuffled sequences as negative sequences
 		if (neg_seqs.isEmpty()){
@@ -363,6 +361,7 @@ public class KMAC {
 		
 		return gcRatio;
 	}
+	
 	/**
 		 * Load pos/neg test sequences based on event positions<br>
 		 * Skip repeat masked sequences according to config.repeat_fraction, otherwise convert repeat characters into 'N'
@@ -419,8 +418,6 @@ public class KMAC {
 			for (int i=0;i<seq_weights.length;i++){
 				seq_weights[i] = seq_weights[i]*seqs.length/totalWeight;	// scale weights with total sequence count, and total weight
 			}
-			if (config.use_weighted_kmer)
-				Kmer.set_seq_weights(seq_weights);
 			
 			seqsNegList.clear();
 			if (config.k_neg_dinu_shuffle){
@@ -948,7 +945,7 @@ public class KMAC {
 
 		// create the kmer object
 		for (String s:kstrs){	
-			Kmer kmer = new Kmer(s, kmerstr2seqs.get(s));
+			Kmer kmer = new Kmer(s, kmerstr2seqs.get(s), null);
 			kms.add(kmer);
 		}
 		kms.trimToSize();
@@ -1637,7 +1634,7 @@ public class KMAC {
 		ArrayList<Kmer> unenriched = new ArrayList<Kmer>();
 		for (Kmer km:kmers){
 			if (kmer2seq.containsKey(km)){
-				km.setPosHits(kmer2seq.get(km));
+				km.setPosHits(kmer2seq.get(km), seq_weights);
 				km.setHgp(computeHGP(km.getPosHitCount(), km.getNegHitCount()));	
 				if (km.getHgp()>config.kmer_hgp || km.getPosHitCount()==0)
 					unenriched.add(km);
@@ -4184,7 +4181,7 @@ public class KMAC {
 	    }
 	    for (int i=0;i<kmers.size();i++){
 	    	Kmer km = kmers.get(i);
-	    	km.setPosHits(posHits.get(i));
+	    	km.setPosHits(posHits.get(i), seq_weights);
 	    	km.setNegHits(negHits.get(i));
 			km.setHgp( computeHGP(km.getPosHitCount(), km.getNegHitCount()));
 			km.setStrength(seq_weights[i]);
