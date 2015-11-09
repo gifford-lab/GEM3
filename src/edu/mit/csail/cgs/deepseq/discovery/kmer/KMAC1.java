@@ -5830,7 +5830,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				if (km.getKmerStartOffset() < leftShift)
 					leftShift = km.getKmerStartOffset();
 			}
-			char[] letters = new char[-leftShift+kmers.get(0).k+10];
+			char[] letters = new char[-leftShift+kmers.get(0).k+20];
 			int rightIdx = 0;
 			for (Kmer km:kmers){
 				char[] kChars = km.getKmerString().toCharArray();

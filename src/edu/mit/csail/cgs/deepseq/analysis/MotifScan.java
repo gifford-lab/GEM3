@@ -212,7 +212,7 @@ public class MotifScan {
 		System.out.println("Scanning KSM motifs ...");
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
 	    for (int m=0; m<kmacs.size(); m++){
-	    	System.out.println("Scanning "+knames.get(m)+" ...");
+	    	System.out.println("  -- "+knames.get(m)+" ...");
 	    	KMAC1 kmac = kmacs.get(m);
 	    	for (int s=0; s<seqs.length;s++){
 	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s]);
