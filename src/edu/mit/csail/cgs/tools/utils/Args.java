@@ -195,7 +195,7 @@ public class Args {
         }
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals(key)) {
-                return args[++i];
+                return args[++i].trim();
             }
         }
         return defaultValue;

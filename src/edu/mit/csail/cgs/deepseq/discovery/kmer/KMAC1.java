@@ -5825,7 +5825,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		}
 		
 		public String getCoveredSequence(){
-			int leftShift = -999;
+			int leftShift = 999;
 			for (Kmer km:kmers){
 				if (km.getKmerStartOffset() < leftShift)
 					leftShift = km.getKmerStartOffset();

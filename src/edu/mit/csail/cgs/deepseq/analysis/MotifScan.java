@@ -66,7 +66,7 @@ public class MotifScan {
 		String fasta = Args.parseString(args, "fasta", null);
 		if (fasta==null)
 			return;
-	    ArrayList<String> texts = CommonUtils.readTextFile(fasta);
+	    ArrayList<String> texts = CommonUtils.readTextFile(fasta.trim());
 	    int lineNum = texts.size();
 	    String[] seqs = new String[lineNum/2];
 	    String[] names = new String[lineNum/2];		// name is the first field of fasta header
@@ -85,7 +85,7 @@ public class MotifScan {
 		String pfm_fle = Args.parseString(args, "pfm", null);
 		if (pfm_fle!=null){		// Load multiple PWMs
 			StringBuilder sb_header = new StringBuilder();
-
+			pfm_fle = pfm_fle.trim();
 		    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(pfm_fle, Args.parseDouble(args, "gc", 0.41));
 		    if (pwms.isEmpty()){
 		    	System.out.println("No motif is loaded from \n"+pfm_fle);
@@ -122,17 +122,18 @@ public class MotifScan {
 			ArrayList<String> knames = new ArrayList<String>();
 			for (String l:lines){
 				String[] f = l.split("\t");
-				knames.add(f[0]);
-				kmacs.add(CommonUtils.loadKsmFile(f[1], true));
+				knames.add(f[0].trim());
+				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), true));
 			}
 			instances = getKSMInstances(seqs, kmacs, knames);
 		}
 		
 		// search for exact k-mer match
-		if (Args.parseString(args, "kmer", null)!=null){
+		String kmer = Args.parseString(args, "kmer", null);
+		if (kmer!=null){
+			kmer = kmer.trim();
 			StringBuilder sb_header = new StringBuilder();
-
-		    String kmer = Args.parseString(args, "kmer", null);
+		    
 		    motifLengths.add(kmer.length());
 		    
 		    sb_header.append("# Motif Information\n");
