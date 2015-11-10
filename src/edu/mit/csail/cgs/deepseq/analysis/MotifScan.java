@@ -169,7 +169,7 @@ public class MotifScan {
 	    	}
 	    	else
 	    		coor_string = "N.A.";
-	    	sb.append("m").append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
+	    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
 	    	.append(mi.position).append("\t").append(coor_string).append("\t").append(mi.strand).append("\t").append(String.format("%.2f", mi.score)).append("\n");
 	    }	    
 	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
@@ -228,7 +228,7 @@ public class MotifScan {
 		    		mi.motifName = knames.get(m);
 		    		mi.score = kg.getScore();
 		    		int pos = kg.getPosBS();
-		    		if (pos > KMAC1.RC){	// minus strand match
+		    		if (pos > KMAC1.RC-seqs[s].length()*2){	// RC strand match
 		    			mi.position = pos-KMAC1.RC;	
 		    			mi.strand = '-';
 		    		}
