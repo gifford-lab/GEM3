@@ -74,6 +74,8 @@ public class KMAC1 {
 	private double ic_trim = 0.4;
 	private String outName, params;
 	private boolean optimize_KG_kmers = false;
+	private boolean isDebugging = false;
+	public void setIsDebugging(){isDebugging = true;}
 	
 	private double[] profile;
 	private ArrayList<Sequence> seqList;
@@ -313,6 +315,7 @@ public class KMAC1 {
 				updateEngine(kmers, use_base_kmer);
 			k=kmers.get(0).getK();
 		}
+//		config.optimize_KG_kmers = false;
 	}
 //	/**
 //	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
@@ -4350,7 +4353,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	}
 
 	/**
-	 * Optimize the kmer set by removing non-essential k-mers to improve the pAUROC
+	 * Optimize the kmer set by removing non-essential k-mers to improve the pAUROC<br>
+	 * optimizeKSM() should not change the state of the individual k-mers, it will only remove k-mers from the kmers list.
 	 * @param alignedKmers
 	 */
 	private void optimizeKSM(ArrayList<Kmer> kmers){
@@ -4376,9 +4380,13 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				seq2kmers.get(i).add(km);
 	 		}
 		}
+		if (isDebugging)
+			System.err.println();
 		HashMap<Integer, HashSet<Kmer>> seq2kmers_neg = new HashMap<Integer, HashSet<Kmer>>();
 		for (Kmer km: kmers){
 			BitSet bitset = km.getNegBits();
+			if (isDebugging)
+				System.err.println(km.toShortString()+" "+bitset.toString());
 			for (int i = bitset.nextSetBit(0); i >= 0; i = bitset.nextSetBit(i+1)) {
 				if (!seq2kmers_neg.containsKey(i))
 					seq2kmers_neg.put(i, new HashSet<Kmer>());
@@ -4386,18 +4394,39 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	 		}
 		}
 		
-		float posHitCount = 0;	// weighted count
-		for (int id: seq2kmers.keySet())
-			if (config.use_weighted_kmer)
-				posHitCount += seq_weights[id];
-			else
-				posHitCount ++;
-		int negHitCount = seq2kmers_neg.size();
-		double hgp_all = computeHGP(Math.round(posHitCount), negHitCount);
 		
+		ArrayList<Kmer> kmers_toRemove = new ArrayList<Kmer>();
 		while(changed){
 			changed = false;
-			ArrayList<Kmer> kmers_toRemove = new ArrayList<Kmer>();
+
+			// If a k-mer is removed, the hit count is changed only when those hit sequences have only this 1 kmer hit.
+			// otherwise, this sequence will still consider a hit because of the other k-mers.
+			// Thus, the reduction in hit count is only those single-kmer sequence hits.
+
+			kmers.removeAll(kmers_toRemove);
+			for (Kmer km: kmers_toRemove){
+				BitSet bitset = km.getPosBits();
+				for (int i = bitset.nextSetBit(0); i >= 0; i = bitset.nextSetBit(i+1)) {
+					if (seq2kmers.get(i)!=null)
+						seq2kmers.get(i).remove(km);
+		 		}
+				bitset = km.getNegBits();
+				for (int i = bitset.nextSetBit(0); i >= 0; i = bitset.nextSetBit(i+1)) {
+					if (seq2kmers_neg.get(i)!=null)
+						seq2kmers_neg.get(i).remove(km);
+		 		}
+			}
+			kmers_toRemove.clear();
+			if (isDebugging)
+				System.err.println("kmers.size() "+kmers.size());
+			float posHitCount = 0;	// weighted count
+			for (int id: seq2kmers.keySet())
+				if (config.use_weighted_kmer)
+					posHitCount += seq_weights[id];
+				else
+					posHitCount ++;
+			int negHitCount = seq2kmers_neg.size();
+			double hgp_all = computeHGP(Math.round(posHitCount), negHitCount);
 
 			for (int i=0;i<kmers.size();i++){
 				
@@ -4408,6 +4437,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				BitSet hits_to_remove_neg = new BitSet();
 				BitSet hits = km.getPosBits();
 				BitSet hits_neg = km.getNegBits();
+				// for all the sequences that has a hit for this k-mer km
 				for (int id = hits.nextSetBit(0); id >= 0; id = hits.nextSetBit(id+1)) {
 					if (seq2kmers.get(id).size()==1){
 						if (config.use_weighted_kmer)
@@ -4423,26 +4453,34 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 						hits_to_remove_neg.set(id);
 					}
 				}
+				// the score can only be improved if we remove the k-mer with stronger effect on negative sequences.
 				if (count_with_single_kmer_neg>0){
-					double hgp_remove_this = computeHGP( Math.round(posHitCount-count_with_single_kmer), negHitCount-count_with_single_kmer_neg);
+					int pos_new = Math.round(posHitCount - count_with_single_kmer);
+					int neg_new = negHitCount - count_with_single_kmer_neg;
+					double hgp_remove_this = computeHGP( pos_new<=0?0:pos_new, neg_new<=0?0:neg_new);
 					// test whether removing this k-mer will improve enrichment significance hgp
 					if (hgp_remove_this<hgp_all){
-//						System.err.println(String.format("%s: p%d n%d p-%d n-%d hgp: %.1f-->%.1f", 
-//								km.toString(), posHitCount, negHitCount, count_with_single_kmer, count_with_single_kmer_neg,
-//								hgp_all, hgp_remove_this));
-						hgp_all = hgp_remove_this;
 						// remove this k-mer 
+						if (isDebugging)
+							System.err.println(String.format("%s: p%.1f n%d p-%.1f n-%d hgp: %.1f-->%.1f", 
+							km.toShortString(), posHitCount, negHitCount, count_with_single_kmer, count_with_single_kmer_neg,
+							hgp_all, hgp_remove_this));
+
 						changed = true;
 						kmers_toRemove.add(km);
 						// remove the sequence hit containing only this kmer
 						for (int id = hits_to_remove.nextSetBit(0); id >= 0; id = hits_to_remove.nextSetBit(id+1)) 
 							seq2kmers.remove(id);
 						for (int id = hits_to_remove_neg.nextSetBit(0); id >= 0; id = hits_to_remove_neg.nextSetBit(id+1)) 
-							seq2kmers_neg.remove(id);						
+							seq2kmers_neg.remove(id);		
+						if (isDebugging){
+							System.err.println(hits_to_remove_neg+" "+hits_to_remove_neg.toString());
+							System.err.println(km.toShortString()+" "+seq2kmers_neg.keySet().toString());
+						}
+						break;	// break the for loop, continue with while loop because changed = true;
 					}
 				}
 			}
-			kmers.removeAll(kmers_toRemove);
 		}
 		kmers.trimToSize();
 		if (kmers.isEmpty()){
@@ -5858,6 +5896,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			return kmers;
 		}
 		public Kmer getBestKmer(){
+			if (kmers.isEmpty())
+				return null;
 			if (!isKmersSorted){
 				Collections.sort(this.kmers);
 				isKmersSorted = true;
@@ -5911,7 +5951,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			else return(0);
 		}
 		public String toString(){
-			return String.format("%s|%b %d: %d+/%d-, kg_score=%.2f", getBestKmer().getKmerStrRC(), getBestKmer().isSeedOrientation(), bs, posHitGroupCount, negHitGroupCount, kg_score);
+			Kmer best = getBestKmer();
+			return String.format("%s|%b %d: %d+/%d-, kg_score=%.2f", best!=null?best.getKmerStrRC():"NULL", best!=null?getBestKmer().isSeedOrientation():false, bs, posHitGroupCount, negHitGroupCount, kg_score);
 		}
 	}
 	class HGPThread implements Runnable {

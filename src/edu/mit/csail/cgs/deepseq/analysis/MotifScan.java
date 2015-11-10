@@ -85,7 +85,6 @@ public class MotifScan {
 		String pfm_fle = Args.parseString(args, "pfm", null);
 		if (pfm_fle!=null){		// Load multiple PWMs
 			StringBuilder sb_header = new StringBuilder();
-			pfm_fle = pfm_fle.trim();
 		    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(pfm_fle, Args.parseDouble(args, "gc", 0.41));
 		    if (pwms.isEmpty()){
 		    	System.out.println("No motif is loaded from \n"+pfm_fle);
@@ -121,6 +120,8 @@ public class MotifScan {
 			ArrayList<KMAC1> kmacs = new ArrayList<KMAC1>();
 			ArrayList<String> knames = new ArrayList<String>();
 			for (String l:lines){
+				if (l.startsWith("#"))
+					continue;
 				String[] f = l.split("\t");
 				knames.add(f[0].trim());
 				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), true));
@@ -131,7 +132,6 @@ public class MotifScan {
 		// search for exact k-mer match
 		String kmer = Args.parseString(args, "kmer", null);
 		if (kmer!=null){
-			kmer = kmer.trim();
 			StringBuilder sb_header = new StringBuilder();
 		    
 		    motifLengths.add(kmer.length());
@@ -212,9 +212,14 @@ public class MotifScan {
 		System.out.println("Scanning KSM motifs ...");
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
 	    for (int m=0; m<kmacs.size(); m++){
-	    	System.out.println("  -- "+knames.get(m)+" ...");
+	    	System.out.println("  ... "+knames.get(m)+" ...");
 	    	KMAC1 kmac = kmacs.get(m);
 	    	for (int s=0; s<seqs.length;s++){
+//	    		System.out.print(s+" ");
+//	    		if (s==874) {
+//	    			kmac.setIsDebugging(); // debug
+//	    			System.out.println();
+//	    		}
 	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s]);
 	    		for (int i=0;i<kgs.length;i++){
 	    			KmerGroup kg = kgs[i];
@@ -231,6 +236,8 @@ public class MotifScan {
 		    			mi.position = pos;	
 		    			mi.strand = '+';
 		    		}
+		    		if (kg.getKmers().isEmpty())
+		    			System.err.println("Empty Kmer group match: "+kg.toString());
 		    		mi.matchSeq = kg.getCoveredSequence();
 		    		mi.seqID = s;
 		    		instances.add(mi);
