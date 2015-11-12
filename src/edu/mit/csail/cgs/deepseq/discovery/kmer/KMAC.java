@@ -693,17 +693,17 @@ public class KMAC {
 			double bestclusterHGP = 0;
 			KmerCluster bestCluster=null;
 			for (KmerCluster c:clusters){
-				if (bestclusterHGP>c.seedKmer.familyHgp){		// use the seed family hgp to select k
-					bestclusterHGP=c.seedKmer.familyHgp;
+				if (bestclusterHGP>c.seedKmer.familyScore){		// use the seed family hgp to select k
+					bestclusterHGP=c.seedKmer.familyScore;
 					bestCluster = c;
 				}
 			}
 			if (bestCluster!=null){
-				sb.append(String.format("k=%d\thgp=1e%.1f\tseed=%s.\n", k, bestCluster.seedKmer.familyHgp, bestCluster.seedKmer.getKmerString()));
+				sb.append(String.format("k=%d\thgp=1e%.1f\tseed=%s.\n", k, bestCluster.seedKmer.familyScore, bestCluster.seedKmer.getKmerString()));
 				kClusters.add(bestCluster);
 				
-				if (bestAllHGP>bestCluster.seedKmer.familyHgp)
-					bestAllHGP=bestCluster.seedKmer.familyHgp;
+				if (bestAllHGP>bestCluster.seedKmer.familyScore)
+					bestAllHGP=bestCluster.seedKmer.familyScore;
 			}
 			else
 				sb.append(String.format("k=%d\tcan not form a seed family.\n", k));
@@ -738,7 +738,7 @@ public class KMAC {
 		
 		KmerCluster bestCluster=null;
 		for (KmerCluster c : kClusters){
-			if (bestAllHGP==c.seedKmer.familyHgp){
+			if (bestAllHGP==c.seedKmer.familyScore){
 				bestCluster = c;
 				break;
 			}
@@ -746,7 +746,7 @@ public class KMAC {
 		bestK = bestCluster.seedKmer.getK();
 		System.out.print(sb.toString());
 		System.out.println(String.format("\nSelected k=%d\thit=%d\thgp=1e%.1f.\n----------------------------------------------\n", 
-				bestK, bestCluster.pwmPosHitCount, bestCluster.seedKmer.familyHgp));
+				bestK, bestCluster.pwmPosHitCount, bestCluster.seedKmer.familyScore));
 		return bestK;
 	}
 	
@@ -1161,9 +1161,9 @@ public class KMAC {
 				System.out.println("\nTop 5 k-mers");
 				System.out.println(Kmer.toShortHeader(k));
 				for (int i=0;i<Math.min(5,kmers.size());i++){
-					System.out.println(kmers.get(i).toShortString()+((verbose<=1)||(isSeedInherited||kmers.get(i).familyHgp==0)?"":String.format("\t%.1f",kmers.get(i).familyHgp)));
+					System.out.println(kmers.get(i).toShortString()+((verbose<=1)||(isSeedInherited||kmers.get(i).familyScore==0)?"":String.format("\t%.1f",kmers.get(i).familyScore)));
 				}
-				System.out.println("Seed k-mer:\n"+seed.toShortString()+((verbose<=1)||(isSeedInherited||seed.familyHgp==0)?"":String.format("\t%.1f",seed.familyHgp))+"\n");
+				System.out.println("Seed k-mer:\n"+seed.toShortString()+((verbose<=1)||(isSeedInherited||seed.familyScore==0)?"":String.format("\t%.1f",seed.familyScore))+"\n");
 			}
 			else
 				if (verbose>1)
@@ -1182,9 +1182,9 @@ public class KMAC {
 			if (config.use_seed_family){
 				seedFamily.addAll(getMMKmers(kmers, cluster.seedKmer.getKmerString(), 0));
 				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(seedFamily, 0, posSeqCount, negSeqCount);
-				cluster.seedKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+				cluster.seedKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 				if (verbose>1)
-					System.out.println(CommonUtils.timeElapsed(tic)+": Seed family hgp = "+cluster.seedKmer.familyHgp);
+					System.out.println(CommonUtils.timeElapsed(tic)+": Seed family hgp = "+cluster.seedKmer.familyScore);
 			}
 			if (only_seed_kmer)
 				return kmers;
@@ -1700,16 +1700,16 @@ public class KMAC {
 		family1.addAll(getMMKmers(kmers, minHgpKmer.getKmerString(), 0));
 		// compute KmerGroup hgp for the km family
 		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(family1, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(family1, 0, posSeqCount, negSeqCount);
-		minHgpKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+		minHgpKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		ArrayList<Kmer> family2 = new ArrayList<Kmer>();
 		family2.add(maxCountKmer);
 		family2.addAll(getMMKmers(kmers, maxCountKmer.getKmerString(), 0));
 		// compute KmerGroup hgp for the km family
 		kg = config.use_weighted_kmer ? new KmerGroup(family2, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(family2, 0, posSeqCount, negSeqCount);
-		maxCountKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+		maxCountKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
-		if (minHgpKmer.familyHgp<=maxCountKmer.familyHgp)
+		if (minHgpKmer.familyScore<=maxCountKmer.familyScore)
 			return minHgpKmer;
 		else
 			return maxCountKmer;

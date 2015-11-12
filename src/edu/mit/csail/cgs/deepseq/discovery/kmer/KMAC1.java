@@ -1275,7 +1275,7 @@ public class KMAC1 {
 		 */
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
 		for (GappedKmer gk:gks){
-			gk.mergeNegHits();		// aggregate sub-kmer negative hits to the WC kmer
+			gk.mergeNegHits();		// aggregate base-kmer negative hits to the gapped kmer
 			if (gk.getPosHitCount() >= gk.getNegHitCount()/get_NP_ratio() * config.k_fold ){
 				// optimize the subkmers to get best hgp
 				ArrayList<Kmer> baseKmerList = new ArrayList<Kmer>();
@@ -2054,9 +2054,12 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		
 		seedFamily.addAll(findSeedFamily(kmers, cluster.seedKmer.getKmerString()));
 		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
-		cluster.seedKmer.familyHgp = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
-		if (config.verbose>1)
-			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family hgp = %.2f", cluster.seedKmer.familyHgp));
+		if (config.verbose>1) {
+			double pAUC = evaluateKsmROC(seqList, seqListNeg, seedFamily).motif_significance;
+			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family motif kAUC = %.2f", pAUC));
+//			double familyScore = computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount());
+//			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family motif score = %.2f", familyScore));
+		}
 		
 		/** get the first sequence aligment using seedFamily kmer positions */
 //		Kmer.printKmerHashcode(seedFamily);	
@@ -3491,7 +3494,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kms, p-negPositionPadding, seq_weights) : new KmerGroup(kms, p-negPositionPadding);
 				matches[idx]=kg;
 //				System.out.println("Made KG "+CommonUtils.timeElapsed(t));
-				kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+				kg.setScore(computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 				idx++;
 //				System.out.println("computeHGP "+CommonUtils.timeElapsed(t));
 				kms.clear();
@@ -4353,7 +4356,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	}
 
 	/**
-	 * Optimize the kmer set by removing non-essential k-mers to improve the pAUROC<br>
+	 * Optimize the HGP of the kmer set by removing non-essential k-mers<br>
 	 * optimizeKSM() should not change the state of the individual k-mers, it will only remove k-mers from the kmers list.
 	 * @param alignedKmers
 	 */
@@ -4367,7 +4370,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		    	return o1.compareByHGP(o2);
 		    }
 		});	
-		Collections.reverse(kmers);		// reverse so that weaker hit are remove before stronger hit
+		Collections.reverse(kmers);		// reverse sort so that weaker hit are remove before stronger hit
 		boolean changed=true;
 		
 		// mapping from sequence id to kmers
@@ -4426,7 +4429,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				else
 					posHitCount ++;
 			int negHitCount = seq2kmers_neg.size();
-			double hgp_all = computeHGP(Math.round(posHitCount), negHitCount);
+			double score_all = computeMotifSignificanceScore(Math.round(posHitCount), negHitCount);
 
 			for (int i=0;i<kmers.size();i++){
 				
@@ -4457,14 +4460,14 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				if (count_with_single_kmer_neg>0){
 					int pos_new = Math.round(posHitCount - count_with_single_kmer);
 					int neg_new = negHitCount - count_with_single_kmer_neg;
-					double hgp_remove_this = computeHGP( pos_new<=0?0:pos_new, neg_new<=0?0:neg_new);
+					double score_remove_this_km = computeMotifSignificanceScore( pos_new<=0?0:pos_new, neg_new<=0?0:neg_new);
 					// test whether removing this k-mer will improve enrichment significance hgp
-					if (hgp_remove_this<hgp_all){
+					if (score_remove_this_km>score_all){
 						// remove this k-mer 
 						if (isDebugging)
-							System.err.println(String.format("%s: p%.1f n%d p-%.1f n-%d hgp: %.1f-->%.1f", 
+							System.err.println(String.format("%s: p%.1f n%d p-%.1f n-%d score: %.1f-->%.1f", 
 							km.toShortString(), posHitCount, negHitCount, count_with_single_kmer, count_with_single_kmer_neg,
-							hgp_all, hgp_remove_this));
+							score_all, score_remove_this_km));
 
 						changed = true;
 						kmers_toRemove.add(km);
@@ -4871,6 +4874,23 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		sb.append("\n");
 	}
 	
+	/**
+	 * Compute motif significance score [ -log10(hgp) ]<br>More significant p-value, higher score
+	 */	
+	public double computeMotifSignificanceScore(int posHitCount, int negHitCount){
+		if (config.use_odds_ratio)
+			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, 3);
+		else
+			return -computeHGP(posHitCount, negHitCount);
+	}
+
+//	/**
+//	 * Compute motif significance score [ odds ratio ]<br>More significant ratio, higher score
+//	 */	
+//	public double computeMotifSignificanceScore(int posHitCount, int negHitCount){
+//		return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, 3);
+//	}
+//	
 	/**
 	 * Compute hgp (log10) using the positive/negative sequences<br>
 	 * More negative hgp, more significant p-value
@@ -5529,7 +5549,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	 * Each k-mer group maps to a binding position in the sequence<br>
 	 * Note: matches on negative strand are combined with matches on positive strand at the same position
 	 */
-	public KmerGroup[] findUnstrandedKmerHits (String seq){
+	public KmerGroup[] findUnstrandedKsmGroupHits (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
@@ -5572,70 +5592,70 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				optimizeKSM(kmers);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
 			matches[idx]=kg;
-			kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+			kg.setScore(computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
 		}
 		return matches;
 	}
 	
-	public KmerGroup[] findUnstrandedKmerHits_old (String seq){
-		seq = seq.toUpperCase();
-		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
-		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
-		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
-		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-
-		Iterator searcher = tree.search(seq.getBytes());
-		while (searcher.hasNext()) {
-			SearchResult result = (SearchResult) searcher.next();
-			kmerFound.addAll(result.getOutputs());
-		}
-		// the reverse compliment
-		String seq_rc = SequenceUtils.reverseComplement(seq);
-		searcher = tree.search(seq_rc.getBytes());
-		while (searcher.hasNext()) {
-			SearchResult result = (SearchResult) searcher.next();
-			kmerFound.addAll(result.getOutputs());
-		}
-		
-		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
-		// matches on negative strand are combined with matches on positive strand
-		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();
-		for (Object o: kmerFound){
-			String kmerStr = (String) o;
-			Kmer kmer = str2kmer.get(kmerStr);
-			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
-			for (int p: pos){
-				int x = p-kmer.getKmerStartOffset();	// minus kmerShift to get the motif position
-				if (!result.containsKey(x))
-					result.put(x, new ArrayList<Kmer>());
-				result.get(x).add(kmer);	
-//				System.out.println(String.format("%s\toff=%d\tp=%d\tx=%d", kmerStr, kmer.getKmerStartOffset(), p,x));
-			}
-			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq_rc, kmerStr);
-			for (int p: pos_rc){
-				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
-				x = seq.length()-1-x;		// convert to position in Seq
-				if (!result.containsKey(x))
-					result.put(x, new ArrayList<Kmer>());
-				result.get(x).add(kmer);	
-//				System.out.println(String.format("%s\toff=%d\tp=%d\tx=%d", kmerStr, kmer.getKmerStartOffset(), p,x));
-			}
-			k=k+0;
-		}
-		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
-		int idx = 0;
-		for (int p:result.keySet()){
-			ArrayList<Kmer> kmers = result.get(p);
-			if (config.optimize_kmer_set)
-				optimizeKSM(kmers);
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
-			matches[idx]=kg;
-			kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
-			idx++;
-		}
-		return matches;
-	}
+//	public KmerGroup[] findUnstrandedKmerHits_old (String seq){
+//		seq = seq.toUpperCase();
+//		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
+//		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
+//		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+//		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+//
+//		Iterator searcher = tree.search(seq.getBytes());
+//		while (searcher.hasNext()) {
+//			SearchResult result = (SearchResult) searcher.next();
+//			kmerFound.addAll(result.getOutputs());
+//		}
+//		// the reverse compliment
+//		String seq_rc = SequenceUtils.reverseComplement(seq);
+//		searcher = tree.search(seq_rc.getBytes());
+//		while (searcher.hasNext()) {
+//			SearchResult result = (SearchResult) searcher.next();
+//			kmerFound.addAll(result.getOutputs());
+//		}
+//		
+//		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
+//		// matches on negative strand are combined with matches on positive strand
+//		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();
+//		for (Object o: kmerFound){
+//			String kmerStr = (String) o;
+//			Kmer kmer = str2kmer.get(kmerStr);
+//			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
+//			for (int p: pos){
+//				int x = p-kmer.getKmerStartOffset();	// minus kmerShift to get the motif position
+//				if (!result.containsKey(x))
+//					result.put(x, new ArrayList<Kmer>());
+//				result.get(x).add(kmer);	
+////				System.out.println(String.format("%s\toff=%d\tp=%d\tx=%d", kmerStr, kmer.getKmerStartOffset(), p,x));
+//			}
+//			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seq_rc, kmerStr);
+//			for (int p: pos_rc){
+//				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
+//				x = seq.length()-1-x;		// convert to position in Seq
+//				if (!result.containsKey(x))
+//					result.put(x, new ArrayList<Kmer>());
+//				result.get(x).add(kmer);	
+////				System.out.println(String.format("%s\toff=%d\tp=%d\tx=%d", kmerStr, kmer.getKmerStartOffset(), p,x));
+//			}
+//			k=k+0;
+//		}
+//		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
+//		int idx = 0;
+//		for (int p:result.keySet()){
+//			ArrayList<Kmer> kmers = result.get(p);
+//			if (config.optimize_kmer_set)
+//				optimizeKSM(kmers);
+//			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
+//			matches[idx]=kg;
+//			kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+//			idx++;
+//		}
+//		return matches;
+//	}
 	
 	/** 
 	 * Search all k-mers in the sequence, strand-specific<br>
@@ -5687,68 +5707,68 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				optimizeKSM(kmers);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
 			matches[idx]=kg;
-			kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+			kg.setScore(computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
 		}
 		return matches;
 	}
 
-	public KmerGroup[] findKsmGroupHits_old (String seq){
-		seq = seq.toUpperCase();
-		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
-		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
-		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
-		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-
-		Iterator searcher = tree.search(seq.getBytes());
-		while (searcher.hasNext()) {
-			SearchResult result = (SearchResult) searcher.next();
-			kmerFound.addAll(result.getOutputs());
-		}
-		// the reverse compliment
-		String seq_rc = SequenceUtils.reverseComplement(seq);
-		searcher = tree.search(seq_rc.getBytes());
-		while (searcher.hasNext()) {
-			SearchResult result = (SearchResult) searcher.next();
-			kmerFound.addAll(result.getOutputs());
-		}
-		
-		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
-		// matches on negative strand are combined with matches on positive strand
-		TreeMap<Integer, ArrayList<Kmer>> result = new TreeMap<Integer, ArrayList<Kmer>> ();
-		String seqRC = SequenceUtils.reverseComplement(seq);
-		for (Object o: kmerFound){
-			String kmerStr = (String) o;
-			Kmer kmer = str2kmer.get(kmerStr);
-			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
-			for (int p: pos){
-				int x = p-kmer.getKmerStartOffset();	// minus kmerShift to get the motif position
-				if (!result.containsKey(x))
-					result.put(x, new ArrayList<Kmer>());
-				result.get(x).add(kmer);	
-			}
-			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
-			for (int p: pos_rc){
-				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
-				x += RC;									// label it as "found on RC"
-				if (!result.containsKey(x))
-					result.put(x, new ArrayList<Kmer>());
-				result.get(x).add(kmer);	
-			}
-		}
-		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
-		int idx = 0;
-		for (int p:result.keySet()){
-			ArrayList<Kmer> kmers = result.get(p);
-			if (config.optimize_kmer_set)
-				optimizeKSM(kmers);
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
-			matches[idx]=kg;
-			kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
-			idx++;
-		}
-		return matches;
-	}
+//	public KmerGroup[] findKsmGroupHits_old (String seq){
+//		seq = seq.toUpperCase();
+//		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
+//		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
+//		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
+//		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
+//
+//		Iterator searcher = tree.search(seq.getBytes());
+//		while (searcher.hasNext()) {
+//			SearchResult result = (SearchResult) searcher.next();
+//			kmerFound.addAll(result.getOutputs());
+//		}
+//		// the reverse compliment
+//		String seq_rc = SequenceUtils.reverseComplement(seq);
+//		searcher = tree.search(seq_rc.getBytes());
+//		while (searcher.hasNext()) {
+//			SearchResult result = (SearchResult) searcher.next();
+//			kmerFound.addAll(result.getOutputs());
+//		}
+//		
+//		// Aho-Corasick only gives the patterns (kmers) matched, need to search for positions
+//		// matches on negative strand are combined with matches on positive strand
+//		TreeMap<Integer, ArrayList<Kmer>> result = new TreeMap<Integer, ArrayList<Kmer>> ();
+//		String seqRC = SequenceUtils.reverseComplement(seq);
+//		for (Object o: kmerFound){
+//			String kmerStr = (String) o;
+//			Kmer kmer = str2kmer.get(kmerStr);
+//			ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, kmerStr);
+//			for (int p: pos){
+//				int x = p-kmer.getKmerStartOffset();	// minus kmerShift to get the motif position
+//				if (!result.containsKey(x))
+//					result.put(x, new ArrayList<Kmer>());
+//				result.get(x).add(kmer);	
+//			}
+//			ArrayList<Integer> pos_rc = StringUtils.findAllOccurences(seqRC, kmerStr);
+//			for (int p: pos_rc){
+//				int x = p-kmer.getKmerStartOffset();	// motif position in seqRC
+//				x += RC;									// label it as "found on RC"
+//				if (!result.containsKey(x))
+//					result.put(x, new ArrayList<Kmer>());
+//				result.get(x).add(kmer);	
+//			}
+//		}
+//		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
+//		int idx = 0;
+//		for (int p:result.keySet()){
+//			ArrayList<Kmer> kmers = result.get(p);
+//			if (config.optimize_kmer_set)
+//				optimizeKSM(kmers);
+//			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
+//			matches[idx]=kg;
+//			kg.setScore(-computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+//			idx++;
+//		}
+//		return matches;
+//	}
 		
 	public String getSequenceUppercase(Region r){
 		return seqgen.execute(r).toUpperCase();

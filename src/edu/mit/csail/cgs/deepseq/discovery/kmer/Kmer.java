@@ -131,7 +131,7 @@ public class Kmer implements Comparable<Kmer>{
 	public int getWeightedHitCount(){
 		return weightedPosHitCount;
 	}
-	public double familyHgp;
+	public double familyScore;
 	
 //	int negHitCount;
 //	protected HashSet<Integer> negHits = new HashSet<Integer>();
@@ -252,7 +252,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	// sort kmer by family kmer-group hgp
 	public int compareByFamilyHGP(Kmer o) {
-		double diff = o.familyHgp-familyHgp;
+		double diff = o.familyScore-familyScore;
 		return diff==0?this.compareTo(o):(diff<0)?1:-1;  // ascending HGP, descending seqHitCount
 	}	
 	/** sort kmer by ascending HGP, descending seqHitCount */

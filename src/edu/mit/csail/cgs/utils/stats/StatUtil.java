@@ -2265,9 +2265,7 @@ public class StatUtil {
 //		return data_big_delta;
 //	}	
 	private static void printHGP(int pos, int neg){
-		System.out.println(String.format("%d/%d\t%.2f\t%.2f\t%.2f\t%.2f", pos, neg, 
-				log10_hyperGeometricCDF_cache_appr(pos,10000,5000,pos+neg), 
-				KMAC1.computeHGP_TINY(5000, 5000, pos, neg),				 
+		System.out.println(String.format("%d\t%d\t%.2f\t%.2f", pos, neg, 		 
 				KMAC1.computeHGP(5000, 5000, pos, neg),
 				odds_ratio(5000, 5000, pos, neg, 3)));
 	}
@@ -2285,10 +2283,12 @@ public class StatUtil {
 		 printHGP(1360,327);
 		 printHGP(1517,467);
 		 for (int i=0;i<=5000;i+=100){
-			 printHGP(i, i/2);
+			 for (int j=0;j<=5000;j+=100){
+				 printHGP(i, j);
+			 }
 		 }
 
-		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));
+//		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,3298+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(3,8+7,8,3+2));

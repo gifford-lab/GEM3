@@ -32,6 +32,7 @@ public class Config {
     public boolean process_all_regions = false;
     public boolean refine_window_boundary = false;
     public boolean is_branch_point_data = false;
+    public boolean use_odds_ratio = false;
 
     public boolean TF_binding = true;
     public boolean exclude_unenriched = true;
@@ -263,6 +264,7 @@ public class Config {
         process_all_regions = flags.contains("process_all_regions");
         refine_window_boundary = flags.contains("refine_window_boundary");
         use_pos_weight = flags.contains("use_pos_weight");
+        use_odds_ratio = flags.contains("or");
         
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
