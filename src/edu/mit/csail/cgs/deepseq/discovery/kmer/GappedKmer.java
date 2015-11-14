@@ -271,9 +271,11 @@ public class GappedKmer extends Kmer{
 	            	break;
 	            weights.add(Double.parseDouble(line));
 	        }
-	        ksm.seq_weights = new double[weights.size()];
-	        for (int i=0; i<weights.size(); i++){
-	        	ksm.seq_weights[i] = weights.get(i);
+	        if (!weights.isEmpty()){
+		        ksm.seq_weights = new double[weights.size()];
+		        for (int i=0; i<weights.size(); i++){
+		        	ksm.seq_weights[i] = weights.get(i);
+		        }
 	        }
 	        
 	        if (bin != null) {

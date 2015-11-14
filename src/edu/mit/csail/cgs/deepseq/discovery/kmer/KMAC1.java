@@ -87,6 +87,8 @@ public class KMAC1 {
 		seq_weights=w;
 		if (seq_weights!=null)
 			config.use_weighted_kmer = true;
+		else
+			config.use_weighted_kmer = false;
 	}
 	
 	private double totalWeight;
@@ -543,9 +545,6 @@ public class KMAC1 {
 				for (int g=1;g<=maxGap;g++)
 					kmers.addAll(generateEnrichedGappedKmers(k,g));
 			}
-			else{	// if NO gap
-				config.dc = 3;
-			}
 			
 			if (kmers.isEmpty()){
 				System.out.println("\nNo enriched k-mer!");
@@ -578,7 +577,7 @@ public class KMAC1 {
 					int seedId = kmers.indexOf(centerKmers.get(j));
 					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
 					for (int id=0;id<kmers.size();id++){
-						if (KMAC1.editDistance(dataPoints.getData().get(id), dataPoints.getData().get(seedId)) <= cutoff + 1)
+						if (KMAC1.editDistance(dataPoints.getData().get(id), dataPoints.getData().get(seedId)) <= cutoff+1)
 							neighbours.add(kmers.get(id));
 					}
 					neighbourList.add(neighbours);
