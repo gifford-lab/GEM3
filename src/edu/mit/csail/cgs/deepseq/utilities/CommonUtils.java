@@ -631,7 +631,7 @@ public class CommonUtils {
 		return sb.toString();
 	}
 	
-	public static KMAC1 loadKsmFile(String ksmFile, boolean use_base_kmer){
+	public static KMAC1 loadKsmFile(String ksmFile, boolean use_base_kmer, boolean use_odds_ratio){
 		File file = new File(ksmFile);
 //    	System.err.println(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
@@ -639,6 +639,7 @@ public class CommonUtils {
 		kEngine = new KMAC1(ksm.kmers, null, use_base_kmer);
 		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
 		kEngine.setSequenceWeights(ksm.seq_weights);
+		kEngine.setUseOddsRatio(use_odds_ratio);
 		return kEngine;
 	}
 	

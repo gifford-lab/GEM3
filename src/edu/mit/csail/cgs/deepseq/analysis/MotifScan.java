@@ -124,7 +124,7 @@ public class MotifScan {
 					continue;
 				String[] f = l.split("\t");
 				knames.add(f[0].trim());
-				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), true));
+				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), true, flags.contains("or")));
 			}
 			instances = getKSMInstances(seqs, kmacs, knames);
 		}

@@ -90,7 +90,9 @@ public class KMAC1 {
 		else
 			config.use_weighted_kmer = false;
 	}
-	
+	public void setUseOddsRatio(boolean b){
+		config.use_odds_ratio = b;
+	}
 	private double totalWeight;
 	private String[] seqsNeg;		// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
@@ -5587,7 +5589,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
-			if (config.optimize_kmer_set)
+			if (config.optimize_kmer_set && kmers.size()>1)
 				optimizeKSM(kmers);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
 			matches[idx]=kg;
