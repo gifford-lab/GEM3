@@ -136,7 +136,7 @@ class GPSMixture extends MultiConditionFeatureFinder {
 		try{
 			logFileWriter = new FileWriter("GPS_Log.txt", true); //append
 			logFileWriter.write("\n==============================================\n");
-			logFileWriter.write(CommonUtils.getDateTime());
+			logFileWriter.write(CommonUtils.getDateTimeString());
 			logFileWriter.flush();
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -545,6 +545,10 @@ public class ReadCache {
 		System.out.println(name+"\tBases: "+totalBases+"\tHitCounts: "+totalHits);
 	}
 	
+	public String getStatsString(){
+		return (name+"\tBases: "+totalBases+"\tHitCounts: "+totalHits);
+	}
+	
 	public void deleteUnenrichedReadData(ArrayList<Region> enrichedRegions){
 		fivePrimesList = new ArrayList[numChroms][2];
 		for(int i = 0; i < fivePrimesList.length; i++) { for(int j = 0; j < fivePrimesList[i].length; j++) { fivePrimesList[i][j] = new ArrayList<Integer>(); } }

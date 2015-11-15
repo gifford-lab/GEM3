@@ -136,9 +136,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		super (args, g, expts);
 
 		try{
-			logFileWriter = new FileWriter("GPS_Log.txt", true); //append
+			File f = new File("GEM_Log.txt");
+			if(f.exists() && f.length()>1e7){
+			      File newName = new File("GEM_log"+CommonUtils.getDateTimeString()+".txt");
+			      if(!f.renameTo(newName)) {
+			         System.out.println("Error in making a new the GEM_log.txt file, keep appending. Note that it is 10MB big now.");
+			      }
+			}
+			logFileWriter = new FileWriter("GEM_Log.txt", true); //append
 			logFileWriter.write("\n==============================================\n");
-			logFileWriter.write(CommonUtils.getDateTime());
+			logFileWriter.write(CommonUtils.getDateTimeString());
 			logFileWriter.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -273,10 +280,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
      	config.mappable_genome_length -= exludedLength;
      	
 		// print initial dataset counts
+     	log(1, "\nOriginal read count stats:");
 		for(int c = 0; c < numConditions; c++) {
-			caches.get(c).car().displayStats();
+			log(1, caches.get(c).car().getStatsString());
 			if(controlDataExist) {
-				caches.get(c).cdr().displayStats();
+				log(1, caches.get(c).cdr().getStatsString());
 			}
 		}
 		
@@ -547,7 +555,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// create threads and run EM algorithms
 		// the results are put into compFeatures
         Thread[] threads = new Thread[config.maxThreads];
-        log(1,String.format("Running with %d threads ...\n", config.maxThreads));
+        log(1,String.format("\nRunning with %d threads ...\n", config.maxThreads));
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
 
         if (config.strand_type ==1)
