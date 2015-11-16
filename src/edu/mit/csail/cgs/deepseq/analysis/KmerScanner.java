@@ -44,7 +44,7 @@ public class KmerScanner {
 	// each element in the list is for one ChIP-Seq method
 	
 	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double[] seq_weights, boolean use_base_kmer, boolean use_odds_ratio){
-		kEngine = new KMAC1(kmers, null, use_base_kmer);
+		kEngine = new KMAC1(kmers, use_base_kmer);
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 		kEngine.setSequenceWeights(seq_weights);
 		kEngine.setUseOddsRatio(use_odds_ratio);
@@ -142,7 +142,7 @@ public class KmerScanner {
 		for (String line: lines){
 			String f[] = line.split("\t");			
 			scanSeqs(f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
-					flags.contains("use_base_kmer"), flags.contains("or"),gc, top, randObj, width, fpr);
+					!flags.contains("no_base_kmer_scoring"), flags.contains("or"), gc, top, randObj, width, fpr);
 		    
 		} // each expt
 	}

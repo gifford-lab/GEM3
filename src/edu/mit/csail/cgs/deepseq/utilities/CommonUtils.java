@@ -636,7 +636,7 @@ public class CommonUtils {
 //    	System.err.println(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
 		KMAC1 kEngine;
-		kEngine = new KMAC1(ksm.kmers, null, use_base_kmer);
+		kEngine = new KMAC1(ksm.kmers, use_base_kmer);
 		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
 		kEngine.setSequenceWeights(ksm.seq_weights);
 		kEngine.setUseOddsRatio(use_odds_ratio);
