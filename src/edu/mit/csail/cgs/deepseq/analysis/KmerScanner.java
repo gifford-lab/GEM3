@@ -43,8 +43,8 @@ public class KmerScanner {
 	private KMAC1 kEngine;
 	// each element in the list is for one ChIP-Seq method
 	
-	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double[] seq_weights, boolean use_base_kmer, boolean use_odds_ratio){
-		kEngine = new KMAC1(kmers, use_base_kmer);
+	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double[] seq_weights, boolean use_odds_ratio){
+		kEngine = new KMAC1(kmers);
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 		kEngine.setSequenceWeights(seq_weights);
 		kEngine.setUseOddsRatio(use_odds_ratio);
@@ -142,13 +142,13 @@ public class KmerScanner {
 		for (String line: lines){
 			String f[] = line.split("\t");			
 			scanSeqs(f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
-					!flags.contains("no_base_kmer_scoring"), flags.contains("or"), gc, top, randObj, width, fpr);
+					flags.contains("or"), gc, top, randObj, width, fpr);
 		    
 		} // each expt
 	}
 	
 	private static void scanSeqs(String expt, String path, String fasta_path, String fasta_suffix,  
-			String other_pfm_path, String[] pfm_suffixs, boolean use_base_kmer, boolean use_odds_ratio, double gc,
+			String other_pfm_path, String[] pfm_suffixs, boolean use_odds_ratio, double gc,
 			int top, Random randObj, int width, double fpr){
 		
 		System.out.println("Running "+expt);
@@ -166,7 +166,7 @@ public class KmerScanner {
 		File file = new File(kmer);
     	System.err.println(kmer);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
-		KmerScanner scanner = new KmerScanner(ksm.kmers, ksm.posSeqCount, ksm.negSeqCount, ksm.seq_weights, use_base_kmer, use_odds_ratio);
+		KmerScanner scanner = new KmerScanner(ksm.kmers, ksm.posSeqCount, ksm.negSeqCount, ksm.seq_weights, use_odds_ratio);
 		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 	        	    
 	    long t = System.currentTimeMillis();

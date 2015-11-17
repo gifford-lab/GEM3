@@ -77,7 +77,7 @@ public class Config {
     public double kmer_hgp = -3; 	// p-value threshold (log10) of hyper-geometric test for enriched kmer 
     public double kmac_iteration_delta = 0.1; 	// the motif_significance score improvement to continue KSM-PWM iteration 
     public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
-    public double gc = -1;	// GC content in the genome			//0.41 for human, 0.42 for mouse
+    public double gc = 0.41;	// GC content in the genome			//0.41 for human, 0.42 for mouse
     public double[] bg= new double[4];	// background frequency based on GC content
     public double wm_factor = 0.6;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
     public double fpr = 0.1;		// The false positive rate for partial ROC
@@ -110,7 +110,6 @@ public class Config {
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
    	/** Align and cluster motif using KSM */
    	public boolean use_ksm = true;	
-   	public boolean use_base_kmers = true;
  	public boolean estimate_ksm_threshold = true;
   	public boolean kpp_normalize_max = true;
   	public boolean pp_use_kmer = true;			// position prior using k-mer(true) or PWM(false)
@@ -126,7 +125,7 @@ public class Config {
 	public boolean refine_pwm = false;
 	public boolean refine_ksm = false;	// refine the KSM at the end of KMAC using un-masked sequences
 	public boolean refine_final_motifs = false;	// refine the final motifs
-	public boolean optimize_KG_kmers = false;	// in KSM motif scanning, do we optimize for best score for the KG (by leaving out some bad k-mers)
+	public boolean optimize_KG_kmers = true;	// in KSM motif scanning, do we optimize for best score for the KG (by leaving out some bad k-mers)
     public boolean print_pwm_fdr = false;
     /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
     public boolean evaluate_by_ksm = false;	
@@ -252,7 +251,7 @@ public class Config {
         refine_pwm = flags.contains("refine_pwm");
         refine_ksm = flags.contains("refine_ksm");
         refine_final_motifs = flags.contains("refine_final_motifs");
-        optimize_KG_kmers = flags.contains("okg");	
+        optimize_KG_kmers = !flags.contains("nokg");	
         print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_ksm = flags.contains("evaluate_by_ksm");
@@ -283,12 +282,11 @@ public class Config {
         use_kmer_mismatch = !flags.contains("no_kmm");
         use_seed_family = !flags.contains("no_seed_family");
         use_ksm = !flags.contains("no_ksm");
-        use_base_kmers = !flags.contains("no_base_kmer_scoring");
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         use_pos_kmer = !flags.contains("no_pos_kmer");
         optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
-        optimize_kmer_set = !flags.contains("not_optimize_kmer_set");
+        optimize_kmer_set = !flags.contains("not_optimize_kmer_set");		// optimize the whole k-mer set, not the KG kmers.
         use_grid_search = !flags.contains("no_grid_search");
         allow_seed_reset = !flags.contains("no_seed_reset");
         selectK_byTopKmer = flags.contains("selectK_byTopKmer");	

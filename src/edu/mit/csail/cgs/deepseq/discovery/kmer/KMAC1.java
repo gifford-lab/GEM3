@@ -280,6 +280,7 @@ public class KMAC1 {
 		    StatUtil.normalize(profile);
 	//	   	System.out.println(CommonUtils.arrayToString(profile, "%.4f"));
 		}
+		
 	    // count cg-content
 		int gcCount = 0;
 		int negLength = 0;
@@ -290,10 +291,21 @@ public class KMAC1 {
 					gcCount ++;
 		}
 		double gcRatio = (double)gcCount/negLength;
-		bg[0]=0.5-gcRatio/2; 
-    	bg[1]=gcRatio/2; 
-    	bg[2]=bg[1]; 
-    	bg[3]=bg[0];
+		System.out.println(String.format("Estimated GC content is %.2f. Set [--gc -1] to use the estimated GC content.", gcRatio/2));
+		if (config.gc>0){
+			System.out.println(String.format("Provided  GC content is %.2f.", config.gc));
+			bg[0]=(1-config.gc)/2; 
+	    	bg[1]=config.gc/2; 
+	    	bg[2]=bg[1]; 
+	    	bg[3]=bg[0];
+		}
+		else{
+			bg[0]=0.5-gcRatio/2; 
+	    	bg[1]=gcRatio/2; 
+	    	bg[2]=bg[1]; 
+	    	bg[3]=bg[0];
+		}
+		System.out.println();
 	}
 	
 	public KMAC1(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
@@ -312,9 +324,9 @@ public class KMAC1 {
 	 * Contruct a Kmer Engine from a list of Kmers.<br>
 	 * This is used for KSM motif scanning outside of KMAC.
 	 */
-	public KMAC1(ArrayList<Kmer> kmers, boolean use_base_kmer){
+	public KMAC1(ArrayList<Kmer> kmers){
 		if (!kmers.isEmpty()){
-				updateEngine(kmers, use_base_kmer);
+				updateEngine(kmers);
 			k=kmers.get(0).getK();
 		}
 //		config.optimize_KG_kmers = false;
@@ -2436,7 +2448,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 		ArrayList[][] hits = new ArrayList[seqs.length][maxClusterId+1];
 		for (int j=0;j<clusters.size();j++){
 			MotifCluster c = clusters.get(j);
-			updateEngine(c.alignedKmers, config.use_base_kmers);
+			updateEngine(c.alignedKmers);
 			for (int i=0;i<seqs.length;i++){
 				KmerGroup[] kgs = findKsmGroupHits(seqs[i]);
 				hits[i][c.clusterId] = new ArrayList<Integer>();
@@ -2529,7 +2541,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 					// align additional sequences matching second KSM
 			    	// need to use kmer search directly, because indexSeqKmers() will reset the aligned positions
 					count_aligned=0;
-					updateEngine(cluster2.alignedKmers, config.use_base_kmers);
+					updateEngine(cluster2.alignedKmers);
 					
 //					System.out.println("-------------------------");
 					for (Sequence s:unalignedSeqs){
