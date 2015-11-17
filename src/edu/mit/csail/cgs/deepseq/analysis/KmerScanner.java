@@ -139,7 +139,9 @@ public class KmerScanner {
 			pfm_suffixs = other_pfm_suffix.split(";");
 		
 		for (String line: lines){
-			String f[] = line.split("\t");			
+			String f[] = line.split("\t");	
+			if (line.startsWith("#"))
+				continue;
 			scanSeqs(f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
 					flags.contains("or"), !flags.contains("use_seq_weights"), gc, top, randObj, windowSize, fpr);
 		    

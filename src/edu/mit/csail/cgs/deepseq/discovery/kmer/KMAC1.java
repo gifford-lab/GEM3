@@ -326,7 +326,7 @@ public class KMAC1 {
 	 */
 	public KMAC1(ArrayList<Kmer> kmers){
 		if (!kmers.isEmpty()){
-				updateEngine(kmers);
+				updateEngine(kmers, false);
 			k=kmers.get(0).getK();
 		}
 //		config.optimize_KG_kmers = false;
