@@ -291,7 +291,7 @@ public class KMAC1 {
 					gcCount ++;
 		}
 		double gcRatio = (double)gcCount/negLength;
-		System.out.println(String.format("Estimated GC content is %.2f. Set [--gc -1] to use the estimated GC content.", gcRatio/2));
+		System.out.println(String.format("Estimated GC content is %.2f. Set [--gc -1] to use the estimated GC content.", gcRatio));
 		if (config.gc>0){
 			System.out.println(String.format("Provided  GC content is %.2f.", config.gc));
 			bg[0]=(1-config.gc)/2; 
@@ -300,7 +300,7 @@ public class KMAC1 {
 	    	bg[3]=bg[0];
 		}
 		else{
-			bg[0]=0.5-gcRatio/2; 
+			bg[0]=(1-gcRatio)/2; 
 	    	bg[1]=gcRatio/2; 
 	    	bg[2]=bg[1]; 
 	    	bg[3]=bg[0];

@@ -124,10 +124,9 @@ public class KmerScanner {
 		String fasta_suffix = Args.parseString(args, "fasta_suffix", ".fasta");
 		String other_pfm_path = Args.parseString(args, "pfm_path", "./");
 		String other_pfm_suffix = Args.parseString(args, "pfm_suffix", "");
-		int windowSize = Args.parseInteger(args, "win", 50);
 		double fpr = Args.parseDouble(args, "fpr", 0.1);
 		double gc = Args.parseDouble(args, "gc", 0.41);   //0.41 human, 0.42 mouse
-		int width = windowSize*2+1;
+		int windowSize = Args.parseInteger(args, "win_size", 101);
 		int top = Args.parseInteger(args, "top", 5000);
 		if (top==-1)
 			top = Integer.MAX_VALUE;
@@ -142,13 +141,13 @@ public class KmerScanner {
 		for (String line: lines){
 			String f[] = line.split("\t");			
 			scanSeqs(f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
-					flags.contains("or"), gc, top, randObj, width, fpr);
+					flags.contains("or"), !flags.contains("use_seq_weights"), gc, top, randObj, windowSize, fpr);
 		    
 		} // each expt
 	}
 	
 	private static void scanSeqs(String expt, String path, String fasta_path, String fasta_suffix,  
-			String other_pfm_path, String[] pfm_suffixs, boolean use_odds_ratio, double gc,
+			String other_pfm_path, String[] pfm_suffixs, boolean use_odds_ratio, boolean ignoreWeights, double gc,
 			int top, Random randObj, int width, double fpr){
 		
 		System.out.println("Running "+expt);
@@ -165,7 +164,7 @@ public class KmerScanner {
 		long t1 = System.currentTimeMillis();
 		File file = new File(kmer);
     	System.err.println(kmer);
-		KsmMotif ksm = GappedKmer.loadKSM(file);
+		KsmMotif ksm = GappedKmer.loadKSM(file, ignoreWeights);
 		KmerScanner scanner = new KmerScanner(ksm.kmers, ksm.posSeqCount, ksm.negSeqCount, ksm.seq_weights, use_odds_ratio);
 		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 	        	    

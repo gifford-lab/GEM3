@@ -226,7 +226,7 @@ public class GappedKmer extends Kmer{
 	 * @param file
 	 * @return
 	 */
-	public static KsmMotif loadKSM(File file){
+	public static KsmMotif loadKSM(File file, boolean ignoreWeights){
 		KsmMotif ksm = new KsmMotif();
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		HashMap<String, Kmer> basekmerMap = new HashMap<String, Kmer>();
@@ -264,20 +264,21 @@ public class GappedKmer extends Kmer{
 	        }	
 
 	        // load sequence weights
-	        ArrayList<Double> weights = new ArrayList<Double>();
-	        while((line = bin.readLine()) != null) { 
-	            line = line.trim();
-	            if (line.equals(""))	// The end of file
-	            	break;
-	            weights.add(Double.parseDouble(line));
-	        }
-	        if (!weights.isEmpty()){
-		        ksm.seq_weights = new double[weights.size()];
-		        for (int i=0; i<weights.size(); i++){
-		        	ksm.seq_weights[i] = weights.get(i);
+	        if (!ignoreWeights){
+		        ArrayList<Double> weights = new ArrayList<Double>();
+		        while((line = bin.readLine()) != null) { 
+		            line = line.trim();
+		            if (line.equals(""))	// The end of file
+		            	break;
+		            weights.add(Double.parseDouble(line));
+		        }
+		        if (!weights.isEmpty()){
+			        ksm.seq_weights = new double[weights.size()];
+			        for (int i=0; i<weights.size(); i++){
+			        	ksm.seq_weights[i] = weights.get(i);
+			        }
 		        }
 	        }
-	        
 	        if (bin != null) {
 	            bin.close();
 	        }
