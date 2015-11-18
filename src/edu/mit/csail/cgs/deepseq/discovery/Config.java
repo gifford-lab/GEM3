@@ -5,7 +5,6 @@ import java.util.Set;
 import edu.mit.csail.cgs.tools.utils.Args;
 
 public class Config {
-	public boolean multl_thread_hgp = false;
 	public boolean trim_simple=false;
 	public boolean print_PI = false;
 	public boolean classify_events = false;
@@ -92,7 +91,6 @@ public class Config {
     public double motif_hit_overlap_ratio = 0.5;
     public double repeat_fraction=1;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
     public int kmer_remove_mode = 0;
-    public int seed_range = 3;
     public double kmer_inRange_fraction = 0.3;		// the fraction of kmer in the seed_range out of all k-mer hit count
     public double kmer_consistent_fraction = 0.5;		// the fraction of consistently aligned kmers in the seed_range
     public boolean use_grid_search = true;
@@ -362,7 +360,6 @@ public class Config {
         kmer_consistent_fraction = Args.parseDouble(args, "kmer_consistent_fraction", kmer_consistent_fraction);
 //        kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
         repeat_fraction = Args.parseDouble(args, "repeat_fraction", repeat_fraction);
-        seed_range = Args.parseInteger(args, "seed_range", seed_range);
         kmer_remove_mode = Args.parseInteger(args, "kmer_shift_remove", kmer_remove_mode);
                
         ip_ctrl_ratio = Args.parseDouble(args, "icr", ip_ctrl_ratio);

@@ -304,44 +304,4 @@ public class KmerScanner {
 		return roc.partialAUC(falsePositiveRate)/falsePositiveRate*100;
 	}
 
-	private static ArrayList<ScoreEnrichment> computeScoreEnrichments(ArrayList<Double> posScores, ArrayList<Double> negScores){
-		int total  = posScores.size();		
-		double posSeqScores[] = new double[total];
-		double negSeqScores[] = new double[total];
-		for (int i=0;i<total;i++){
-			posSeqScores[i]=posScores.get(i);
-			negSeqScores[i]=negScores.get(i);			
-		}
-		ArrayList<ScoreEnrichment> ses = new ArrayList<ScoreEnrichment> ();
-		Arrays.sort(posSeqScores);		
-		Arrays.sort(negSeqScores);
-		
-		// find the threshold motif score
-		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
-		for (double s:posSeqScores)
-			posScoreUnique.add(s);
-		Double[] posScores_u = new Double[posScoreUnique.size()];
-		posScoreUnique.toArray(posScores_u);
-		for (int i=0;i<posScores_u.length;i++){
-			double score = posScores_u[i];
-			if (score<=0)
-				continue;
-			ScoreEnrichment se = new ScoreEnrichment();
-			se.score = score;
-			int index = CommonUtils.findKey(posSeqScores, score);
-			se.posHit = posSeqScores.length-index;
-			index = CommonUtils.findKey(negSeqScores, score);
-			se.negHit = negSeqScores.length-index;
-			se.hgp = KMAC1.computeHGP(total, total, se.posHit, se.negHit);
-			ses.add(se);
-		}
-		return ses;
-	}
-	
-	private static class ScoreEnrichment{
-		double score;
-		int posHit;
-		int negHit;
-		double hgp;
-	}
 }

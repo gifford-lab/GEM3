@@ -825,7 +825,7 @@ public class KMAC1 {
 			StringBuilder sb = new StringBuilder("#Motif\tSeqID\tMatch\tSeqPos\tScore\n");
 		    for (int i=0;i<instances.size();i++){
 		    	MotifInstance mi = instances.get(i);
-		    	sb.append("m").append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.matchSeq).append("\t")
+		    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.matchSeq).append("\t")
 		    	.append(mi.strand=='+'?mi.position:-mi.position).append("\t").append(String.format("%.2f", mi.score)).append("\n");
 		    }
 		    CommonUtils.writeFile(outName+"_motifInstances.txt", sb.toString());
@@ -4284,7 +4284,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmer2pos_seed.keySet()){
 			ArrayList<Integer> posKmer = kmer2pos_seed.get(km);		// all km_seed positions of this kmer
-			// The kmer hit in the 2*k region should be at least 1/2 of total hit
+			// The kmer hit in the 2*k region should be at least 1/3 of total hit (why??)
 			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_inRange_fraction){			
 				km.setAlignString("Too few hit in range "+posKmer.size());
 //				if (config.verbose>1)
@@ -5245,44 +5245,44 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	 * @param idxs	The indices of elements to compute
 	 * @param poshits
 	 * @param neghits
-	 * @param hgps
+	 * @param motifScores
 	 * @return
 	 */
-	private Pair<Double, Integer> findBestScore(ArrayList<Integer> idxs, int[] poshits, int[] neghits, double[] hgps){
-		if (config.multl_thread_hgp){
-			int numThread = Math.min(config.maxThreads, java.lang.Runtime.getRuntime().availableProcessors());
-			Thread[] threads = new Thread[numThread];
-			for (int i=0;i<numThread;i++){
-	            Thread t = new Thread(new HGPThread(idxs, posSeqCount, negSeqCount, poshits, neghits, hgps));
-	            t.start();
-	            threads[i] = t;
-			}
-			boolean anyrunning = true;
-	        while (anyrunning) {
-	            anyrunning = false;
-	            try {
-	                Thread.sleep(100);
-	            } catch (InterruptedException e) { }
-	            for (int i = 0; i < threads.length; i++) {
-	                if (threads[i].isAlive()) {
-	                    anyrunning = true;
-	                    break;
-	                }
-	            }   
-	        }
-		}
-		else{
+	private Pair<Double, Integer> findBestScore(ArrayList<Integer> idxs, int[] poshits, int[] neghits, double[] motifScores){
+//		if (config.multl_thread_hgp){
+//			int numThread = Math.min(config.maxThreads, java.lang.Runtime.getRuntime().availableProcessors());
+//			Thread[] threads = new Thread[numThread];
+//			for (int i=0;i<numThread;i++){
+//	            Thread t = new Thread(new HGPThread(idxs, poshits, neghits, motifScores));
+//	            t.start();
+//	            threads[i] = t;
+//			}
+//			boolean anyrunning = true;
+//	        while (anyrunning) {
+//	            anyrunning = false;
+//	            try {
+//	                Thread.sleep(100);
+//	            } catch (InterruptedException e) { }
+//	            for (int i = 0; i < threads.length; i++) {
+//	                if (threads[i].isAlive()) {
+//	                    anyrunning = true;
+//	                    break;
+//	                }
+//	            }   
+//	        }
+//		}
+//		else{
 			for (int i:idxs){
 				if (i==0 && poshits[0]==posSeqCount)	//why?
-	    			hgps[0]=0;
-				hgps[i]=computeHGP(posSeqCount, negSeqCount, poshits[i], neghits[i]);
+	    			motifScores[0]=0;
+				motifScores[i]= computeMotifSignificanceScore(poshits[i], neghits[i]);
 			}
 				
-		}
-		Pair<Double, TreeSet<Integer>> minHgp = StatUtil.findMin(hgps);
-		int minIdx = minHgp.cdr().last();
+//		}
+		Pair<Double, TreeSet<Integer>> maxScore = StatUtil.findMax(motifScores);
+		int maxIdx = maxScore.cdr().last();
 		
-		return new Pair<Double, Integer>(minHgp.car(),minIdx);
+		return new Pair<Double, Integer>(maxScore.car(),maxIdx);
 	}
 	
 	public class MotifThreshold{
@@ -5304,7 +5304,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	
 	/**
 	 * Find the best score cutoff given the positive scores and negative scores<br>
-	 * This should be applicable to both PWM and KSM
+	 * This is applicable to both PWM and KSM
 	 * @param posSeqScores	motif scanning score of positive sequences, should be in the same order
 	 * @param negSeqScores motif scanning score of negative sequences
 	 * @return
@@ -5319,9 +5319,9 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			posScoreUnique.add(s);
 		Double[] posScores_u = new Double[posScoreUnique.size()];
 		posScoreUnique.toArray(posScores_u);
-		int[] poshits = new int[posScoreUnique.size()];
-		int[] neghits = new int[posScoreUnique.size()];
-		double[] hgps = new double[posScoreUnique.size()];
+		int[] poshits = new int[posScoreUnique.size()];		// #pos_hit given the corresponding score cutoff
+		int[] neghits = new int[posScoreUnique.size()];		// #neg_hit given the corresponding score cutoff
+		double[] motifScores = new double[posScoreUnique.size()];
 		for (int i=0;i<posScores_u.length;i++){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
@@ -5358,7 +5358,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			if (idxCoarse.get(idxCoarse.size()-1)!=idxs.get(idxs.size()-1))
 				idxCoarse.add(idxs.get(idxs.size()-1));
 			
-			best = findBestScore(idxCoarse, poshits, neghits, hgps);
+			best = findBestScore(idxCoarse, poshits, neghits, motifScores);
 			
 			// finer resolution search
 			int bestIdx = idxs.indexOf(best.cdr());
@@ -5369,10 +5369,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				idxFine.add(idxs.get(i));
 			}
 			
-			best = findBestScore(idxFine, poshits, neghits, hgps);
+			best = findBestScore(idxFine, poshits, neghits, motifScores);
 		}
 		else
-			best = findBestScore(idxs, poshits, neghits, hgps);
+			best = findBestScore(idxs, poshits, neghits, motifScores);
 		
 		MotifThreshold score = new MotifThreshold();
 		score.motif_cutoff = posScores_u[best.cdr()];
@@ -5854,18 +5854,14 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	}
 	class HGPThread implements Runnable {
 		ArrayList<Integer> idxs;
-		int posTotal;
-		int negTotal;
 		int[] posHits;
 		int[] negHits;
-		double[] hgps;
-		HGPThread(ArrayList<Integer> idxs, int posTotal, int negTotal, int[] posHits, int[] negHits, double[] hgps){
+		double[] motifScores;
+		HGPThread(ArrayList<Integer> idxs, int[] posHits, int[] negHits, double[] hgps){
 			this.idxs = idxs;
-			this.posTotal = posTotal;
-			this.negTotal = negTotal;
 			this.posHits = posHits;
 			this.negHits = negHits;
-			this.hgps = hgps;
+			this.motifScores = hgps;
 		}
 		public void run() {
 			int i;
@@ -5879,11 +5875,12 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	            		break;
 	        	}		
 				if (i==0 && posHits[0]==posSeqCount)
-	    			hgps[0]=0;
-				hgps[i]=computeHGP(posTotal, negTotal, posHits[i], negHits[i]);
+	    			motifScores[0]=0;
+				motifScores[i]=computeMotifSignificanceScore(posHits[i], negHits[i]);
 			}
 		}
 	}
+	
 	public static void main1(String[] args){
 		ArrayList<Integer> x_list = new ArrayList<Integer>();
 		ArrayList<Integer> same_list = new ArrayList<Integer>();

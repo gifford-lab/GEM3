@@ -1277,24 +1277,26 @@ public class KMAC {
 	    		if (cluster.pwmPosHitCount>cluster.total_aligned_seqs)
 	    			cluster.total_aligned_seqs = cluster.pwmPosHitCount;
 	    	}
-	    	ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
 	    	
-			int shift_remove = 0;
-			switch(config.kmer_remove_mode){
-			case 0: shift_remove = 0; break;
-			case 1: shift_remove = 1; break;
-			case 2: shift_remove = k/2; break;
-			case 3: shift_remove = k; break;
-			case 4: shift_remove = 1; break;		//TODO
-			}
-			
-			for (Kmer km: alignedKmers){	
-				int shift = km.getShift();
-				if (shift>RC/2)
-					shift-=RC;
-				if (Math.abs(shift)<shift_remove)	
-					kmers.remove(km);
-			}	    	
+//	    	ArrayList<Kmer> alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
+//	    	
+//			int shift_remove = 0;
+//			switch(config.kmer_remove_mode){
+//			case 0: shift_remove = 0; break;
+//			case 1: shift_remove = 1; break;
+//			case 2: shift_remove = k/2; break;
+//			case 3: shift_remove = k; break;
+//			case 4: shift_remove = 1; break;		//TODO
+//			}
+//			
+//			for (Kmer km: alignedKmers){	
+//				int shift = km.getShift();
+//				if (shift>RC/2)
+//					shift-=RC;
+//				if (Math.abs(shift)<shift_remove)	
+//					kmers.remove(km);
+//			}	  
+	    	
 			kmers.remove(seed);
 			
 			/** mask aligned sequences */
