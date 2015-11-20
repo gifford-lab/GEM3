@@ -20,9 +20,9 @@ public class GappedKmer extends Kmer{
 	}
 
 	/** 
-	 * add the kmer to the sub-kmers for the gapped kmer<br>
-	 * it is ok to RC() the sub-kmers after adding it because their kmerStrings are not used anymore<br>
-	 * we only care about the pos/neg hits, and has stored the orientation
+	 * Add the base kmer to the base-kmers for the gapped kmer<br>
+	 * SHOULD NOT RC() the base-kmers after adding it because their kmerStrings will be used in KSM output and later KSM scanning<br>
+	 * in KMAC, we only care about the pos/neg hits, and has stored the orientation
 	 * @param kmer
 	 */
 	public void addBaseKmer (Kmer kmer, boolean isSameOrientation){
@@ -116,9 +116,9 @@ public class GappedKmer extends Kmer{
 
 	/**
 	 * Print a list of k-mers to a KSM file (KMAC1)<br>
-	 * It can print both gapped and ungapped kmers. For gapped kmers, the sub-kmers will also be printed.
+	 * It can print both gapped and ungapped kmers. For gapped kmers, the base-kmers will also be printed.
 	 * @param kmers
-	 * @param k
+	 * @param kOriginal
 	 * @param posSeqCount
 	 * @param negSeqCount
 	 * @param score
@@ -127,7 +127,7 @@ public class GappedKmer extends Kmer{
 	 * @param print_kmer_hits
 	 * @param printKmersAtK
 	 */
-	public static void printGappedKmers(ArrayList<Kmer> kmers, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
+	public static void printKSM(ArrayList<Kmer> kmers, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
 			return;
@@ -135,21 +135,21 @@ public class GappedKmer extends Kmer{
 		int k = kOriginal + gap;
 		Collections.sort(kmers);
 		
-		int subKmerId = 0;
-		HashMap<Kmer,Integer> allSubKmers = new HashMap<Kmer,Integer>();
+		int baseKmerId = 0;
+		HashMap<Kmer,Integer> allBaseKmer2ID = new HashMap<Kmer,Integer>();
 		for (Kmer km: kmers){
 			if (km instanceof GappedKmer){
 				for(Kmer sk: ((GappedKmer) km).getBaseKmers()){
-					if (!allSubKmers.containsKey(sk)){
-						allSubKmers.put(sk,subKmerId);
-						subKmerId++;
+					if (!allBaseKmer2ID.containsKey(sk)){
+						allBaseKmer2ID.put(sk,baseKmerId);
+						baseKmerId++;
 					}
 				}
 			}
 	    }
-		Kmer[] subkmerList = new Kmer[allSubKmers.size()];
-		for (Kmer km: allSubKmers.keySet())
-			subkmerList[allSubKmers.get(km)] = km;
+		Kmer[] basekmerList = new Kmer[allBaseKmer2ID.size()];
+		for (Kmer km: allBaseKmer2ID.keySet())
+			basekmerList[allBaseKmer2ID.get(km)] = km;
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append(String.format("#%d/%d\n", posSeqCount, negSeqCount));
@@ -169,14 +169,17 @@ public class GappedKmer extends Kmer{
 				sb.append(kmer.toString2());				
 				if (kmer instanceof GappedKmer){
 					sb.append("\t");
-					for (Kmer sk: ((GappedKmer) kmer).getBaseKmers())
-						sb.append(allSubKmers.get(sk)).append(",");
+					for (Kmer bk: ((GappedKmer)kmer).getBaseKmers()){
+						int id = allBaseKmer2ID.get(bk);
+						// label the base kmer orientation w.r.t the seed orientation, be consistent in the output KSM
+						sb.append(((GappedKmer)kmer).getBaseKmerOrientation(bk)==kmer.isSeedOrientation ? "" : '-').append(id).append(",");
+					}
 					sb.deleteCharAt(sb.length()-1);
 					if (print_kmer_hits)
 						sb.append("\tN.A.\tN.A.");	// the real hits are stored in sub-kmers
 				}
 				else{
-					sb.append("\t").append(-1);
+					sb.append("\t").append('*');
 					if (print_kmer_hits)
 						sb.append("\t").append(hitBits2string(kmer.posBits)).append("\t").append(hitBits2string(kmer.negBits));
 				}
@@ -185,8 +188,8 @@ public class GappedKmer extends Kmer{
 			
 			sb.append("\n");	// an empty line to signal that the following are the sub-kmers
 			
-			for (Kmer kmer:subkmerList){
-				sb.append(kmer.toString2()).append("\t").append(allSubKmers.get(kmer));
+			for (Kmer kmer:basekmerList){
+				sb.append(kmer.toString2()).append("\t").append(allBaseKmer2ID.get(kmer));
 				if (print_kmer_hits)
 					sb.append("\t").append(hitBits2string(kmer.posBits)).append("\t").append(hitBits2string(kmer.negBits));
 				sb.append("\n");
@@ -229,7 +232,7 @@ public class GappedKmer extends Kmer{
 	public static KsmMotif loadKSM(File file, boolean ignoreWeights){
 		KsmMotif ksm = new KsmMotif();
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-		HashMap<String, Kmer> basekmerMap = new HashMap<String, Kmer>();
+		HashMap<Integer, Kmer> id2baseKmerMap = new HashMap<Integer, Kmer>();
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
 			String line = bin.readLine();
@@ -254,13 +257,13 @@ public class GappedKmer extends Kmer{
 	            kmers.add(kmer);
 	        }	
 	        
-	        //load sub k-mers
+	        //load base k-mers
 	        while((line = bin.readLine()) != null) { 
 	            line = line.trim();
 	            if (line.equals(""))	// break at the empty line between the sub-kmers and sequence weights
 	            	break;
 	            Kmer kmer = GappedKmer.fromString(line);
-	            basekmerMap.put(kmer.CIDs, kmer);		// for sub-kmer, CIDs field is only one id
+	            id2baseKmerMap.put(Integer.parseInt(kmer.CIDs), kmer);		// for sub-kmer, CIDs field is only one id
 	        }	
 
 	        // load sequence weights
@@ -291,8 +294,17 @@ public class GappedKmer extends Kmer{
 				GappedKmer gk = (GappedKmer) km;
 				String[] f = gk.CIDs.split(",");
 				for (String id: f){
-					Kmer sk = basekmerMap.get(id);
-					gk.addBaseKmer(sk, CommonUtils.strMinDistance(gk.kmerString, sk.kmerString)==1);
+					int idx = Integer.parseInt(id);
+					boolean isSameStrand = true;
+					if (idx<0){
+						idx = -idx;
+						isSameStrand = false;
+					}
+					else if (idx==0){
+						isSameStrand = id.startsWith("0");		// if "-0", not same strand 
+					}
+					Kmer bk = id2baseKmerMap.get(idx);
+					gk.addBaseKmer(bk, isSameStrand);
 				}
 				gk.update(ksm.seq_weights);
 			}

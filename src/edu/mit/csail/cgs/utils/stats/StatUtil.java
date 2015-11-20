@@ -1176,7 +1176,7 @@ public class StatUtil {
 	 * @param n sample size
 	 * @return
 	 */
-	public static double odds_ratio(int P, int N, int p, int n, double pseudocount) {
+	public static double odds_ratio(int P, int N, double p, double n, double pseudocount) {
 		double or = (p+pseudocount)/(P-p+pseudocount) / ((n+pseudocount)/(N-n+pseudocount));
 		return or;	
 	}

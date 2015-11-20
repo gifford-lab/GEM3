@@ -223,31 +223,11 @@ public class KmerScanner {
 			KmerGroup kg = scanner.getBestKG(seq);
 			KmerGroup kgN = scanner.getBestKG(seqN);
 			String matchKSM = "ZZ";
-			if (i==31)
-				i+=0;
-			if (kg!=null){
-				Pair<Integer,Integer> ends = kg.getMatchEndIndices();
-				int start=ends.car(), end=ends.cdr();
-				if (start<0)
-					start = 0;
-				if (end>seq.length())
-					end=seq.length();
-				if (start<end){
-					matchKSM = seq.substring(start,end)+"|"+SequenceUtils.reverseComplement(seq).substring(start,end);
-				}
-			}
+			if (kg!=null)
+				matchKSM = kg.getCoveredSequence();
 			String matchNKSM = "ZZ";
-			if (kgN!=null){
-				Pair<Integer,Integer> ends = kgN.getMatchEndIndices();
-				int start=ends.car(), end=ends.cdr();
-				if (start<0)
-					start = 0;
-				if (end>seqN.length())
-					end=seqN.length();
-				if (start<end){
-					matchNKSM = seqN.substring(start,end)+"|"+SequenceUtils.reverseComplement(seqN).substring(start,end);
-				}
-			}					
+			if (kgN!=null)
+				matchNKSM = kgN.getCoveredSequence();
 						
 			ksm_scores.add(kg==null?0:kg.getScore());
 			ksmN_scores.add(kgN==null?0:kgN.getScore());

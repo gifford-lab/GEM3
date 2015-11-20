@@ -169,7 +169,7 @@ public class Kmer implements Comparable<Kmer>{
 	 * if isSeedOrientation=false, the position is kmerRC relative to seedKmer */
 	public int getShift(){return shift;}
 	public void setShift(int s){shift=s;}
-	protected boolean isSeedOrientation=false;
+	protected boolean isSeedOrientation=true;
 	/** get whether this kmer is in the same orientation as the seedKmer, after aligning this kmer to seedKmer */
 	public boolean isSeedOrientation(){return isSeedOrientation;}
 	public void setSeedOrientation(boolean so){isSeedOrientation=so;}
@@ -238,13 +238,7 @@ public class Kmer implements Comparable<Kmer>{
 	public void addBaseKmersToSet(HashSet<Kmer> reg){
 		reg.add(this);
 	}
-//	/** Use reverse compliment to represent the kmer */
-//	public Kmer RC(){
-//		String tmp = kmerString;
-//		kmerString = getKmerRC();
-//		kmerRC = tmp;
-//		return this;
-//	}
+
 	// sort kmer by strength
 	public int compareByStrength(Kmer o) {
 		double diff = o.strength-strength;

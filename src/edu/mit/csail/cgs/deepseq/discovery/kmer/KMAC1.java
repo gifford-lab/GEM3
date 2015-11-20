@@ -628,7 +628,7 @@ public class KMAC1 {
 	    		System.out.println("------------------------------------------------\n"+
 	    					"Aligning k-mers with "+seedKmer.getKmerString()+",   \t#"+j);
 
-	        	MotifCluster c = KmerMotifAlignmentClustering(seqList, neighbourList.get(j), seedKmer);
+	        	MotifCluster c = KmerMotifAlignmentClustering(seqList, neighbourList.get(j), seedKmer, k);
 	        	if (c!=null){	
 		        	c.k = k;
 	        		tmp.add(c);
@@ -809,7 +809,7 @@ public class KMAC1 {
 
 		// print KSM and motif hits
 		for (MotifCluster cluster : clusters){
-			GappedKmer.printGappedKmers(cluster.alignedKmers, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
+			GappedKmer.printKSM(cluster.alignedKmers, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
 			
 		}
 		if (config.print_motif_hits){
@@ -1004,7 +1004,7 @@ public class KMAC1 {
 		// print high p-value k-mers, or low fold enrichment k-mers, although remove them for further learning
 		if (config.print_all_kmers){
 //			OLD method for KMAC0: Kmer.printKmers(kms, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
-			GappedKmer.printGappedKmers(kms, null, k, 0, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+			GappedKmer.printKSM(kms, null, k, 0, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
 
 		}
 		kms.removeAll(insigHgpKmers);
@@ -1180,8 +1180,8 @@ public class KMAC1 {
 		 */
 		// prepare the variants
 		HashMap<String, GappedKmer> gkMap = new HashMap<String, GappedKmer>();
-		int numVariants = LETTERS.length;
-		for (int j=0;j<numGap-1;j++){
+		int numVariants = 1;
+		for (int j=0;j<numGap;j++){
 			numVariants *= LETTERS.length;
 		}
 		char[][] variants = new char[numVariants][numGap];
@@ -1229,10 +1229,12 @@ public class KMAC1 {
 				for (int j=0;j<numGap;j++){
 					cs[i+j] = ci[j];
 				}
-				if (gk.getBaseKmers().size()>1){			// ignore if a singleton longer kmer, b/c it will be covered by a basic k-mer
+				if (gk.getBaseKmers().size()>1){	//TODO: Re-think!!! ignore if a singleton longer kmer, b/c it will be covered by a basic k-mer
 					gk.mergePosHits(seq_weights);
 					gkMap.put(gk.getKmerString(), gk);
 				}
+//				else
+//					System.out.print("");
 			}
 
 //			if (numgapped==1){
@@ -1329,7 +1331,7 @@ public class KMAC1 {
 		}
 		if (config.print_all_kmers){
 			Collections.sort(kms);
-			GappedKmer.printGappedKmers(kms, null, kOrginal, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+			GappedKmer.printKSM(kms, null, kOrginal, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
 		}
 		return results_final;
 	}
@@ -2028,11 +2030,11 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
  * 3. PWM position:<br>
  * 		PWM position is the start position of the PWM. Cluster.pos_pwm_seed = pwm - seed, allowing to convert to seed position.
  * 4. Orientation of k-mers and sequences<br>
- * 		Each k-mer is merged with its reverse-compliment k-mer. The k-mer string stores one orientation. In KMAC2WK, we do not flip the k-mer string. Instead, the Kmer object keep track of the orientation as seedOrientation (whether the k-mer is in the orientation consistent with the seed k-mer orientation, i.e. they are extracted from the sequence alignment built from the seed k-mer).<br>
- * 		The subKmers hashTable of a gapped k-mer, stores the info of whether the base-kmers are the same as the gapped-kmer. Because a basic-kmer could potentially be the base-kmers of gapped k-mers that has conflicting orientation. Thus needing to store orientation info in each gappedKmer-subKmer pair.<br>
+ * 		Each k-mer is merged with its reverse-compliment k-mer. The k-mer string stores one orientation. In KMAC1, we do NOT flip the k-mer string. Instead, the Kmer object keep track of the orientation as seedOrientation (whether the k-mer is in the orientation consistent with the seed k-mer orientation, i.e. they are extracted from the sequence alignment built from the seed k-mer).<br>
+ * 		The baseKmers hashTable of a gapped k-mer, stores the info of whether the base-kmers are the same orientationo as the gapped-kmer. Because a base-kmer could potentially be the base-kmers of gapped k-mers that has conflicting orientation. Thus needing to store orientation info in each gappedKmer-baseKmer pair.<br>
  * 		The orientation of a sequence is stored in the Sequence object, to note whether it is in the forward orientation as the original input sequence.
  */
-	public MotifCluster KmerMotifAlignmentClustering (ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed){
+	public MotifCluster KmerMotifAlignmentClustering (ArrayList<Sequence> seqList, ArrayList<Kmer> kmers, Kmer seed, int k){
 //		if (seed.getKmerString().equals("AGCAGCCAG"))
 //			k+=0;
 		tic = System.currentTimeMillis();
@@ -2051,6 +2053,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 
 		cluster.inputKmers = Kmer.copyKmerList(kmers);
 		cluster.seedKmer = seed;
+		cluster.k = k;
 		
 		/** init kmerSet with seed family of seed kmer, by adding mismatch k-mers, order by #mm */
 		ArrayList<Kmer> seedFamily = new ArrayList<Kmer>();
@@ -3502,7 +3505,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kms, p-negPositionPadding, seq_weights) : new KmerGroup(kms, p-negPositionPadding);
 				matches[idx]=kg;
 //				System.out.println("Made KG "+CommonUtils.timeElapsed(t));
-				kg.setScore(computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+				kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 				idx++;
 //				System.out.println("computeHGP "+CommonUtils.timeElapsed(t));
 				kms.clear();
@@ -3965,6 +3968,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
     			ic[p] += f*pwm[p][base];
     		}
     	}
+    	
     	// // trim low ic ends (simple method)
     	int leftIdx=ic.length-1;
     	for (int p=0;p<ic.length;p++){
@@ -4000,9 +4004,9 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		
 		/* try all pwm length with the most IC-rich columns, find the best PWM */
 		int[] left, right;
-		int minLength = k-2;
-		if (k<=7)
-			minLength = k-1;
+		int minLength = cluster.k-2;
+		if (cluster.k<=7)
+			minLength = cluster.k-1;
 		int seedLength = cluster.seedKmer.kmerString.length();
 		int seed_start = seqLength/2 - seedLength/2;
 		int seed_end = seed_start + seedLength-1;
@@ -4070,18 +4074,28 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			right[0]=rightIdx;
 		}
 		
-		MotifThreshold bestEstimate = null;
+		// limit PWM length to k and k+1
+		ArrayList<Integer> newLefts = new ArrayList<Integer>();
+		ArrayList<Integer> newRights = new ArrayList<Integer>();
+		for (int i=0;i<left.length;i++){
+			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.k ||right[i]-left[i]+1==cluster.k+1)) ||
+					!config.k_PWM_trim){
+				newLefts.add(left[i]);
+				newRights.add(right[i]);
+			}
+		}
+		
     	double best_significance = -0.001;
     	WeightMatrix bestWM = null;
     	int bestLeft=0;
     	int bestRight=0;    
-		for (int i=0;i<left.length;i++){
-			if (left[i]==-1)
-				continue;
-	    	float[][] matrix = new float[right[i]-left[i]+1][MAXLETTERVAL];   
-	    	for(int p=left[i];p<=right[i];p++){
+		for (int i=0;i<newLefts.size();i++){
+			int l = newLefts.get(i);
+			int r = newRights.get(i);
+	    	float[][] matrix = new float[r-l+1][MAXLETTERVAL];   
+	    	for(int p=l;p<=r;p++){
 	    		for (char base:LETTERS){							// ignore 'N' count
-	    			matrix[p-left[i]][base]=(float) pwm[p][base];
+	    			matrix[p-l][base]=(float) pwm[p][base];
 	    		}
 	    	}
 
@@ -4090,21 +4104,17 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative hit counts
 	    	// Compare AUROC
 	    	double motif_significance = evaluatePwmROC(wm, config.fpr).motif_significance;
-	    	MotifThreshold estimate = optimizePwmThreshold(wm, "", wm.getMaxScore()*config.wm_factor);
-	    	double motif_score = estimate.motif_cutoff;
-	    	estimate.motif_significance = motif_significance;
     		if (config.verbose>1)
     			if (motif_significance==0)			// TODOTODO
     				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
         		else
-        			System.out.println(String.format("%s: PWM %.2f/%.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), 
-        					motif_score, wm.getMaxScore(), estimate.posHit, estimate.negHit, motif_significance, WeightMatrix.getMaxLetters(wm)));
+        			System.out.println(String.format("%s: PWM %s\tpAUC=%.1f", CommonUtils.timeElapsed(tic), 
+        					WeightMatrix.getMaxLetters(wm), motif_significance));
     		if (motif_significance > best_significance){
     			bestWM = wm;
     			best_significance = motif_significance;
-    			bestEstimate = estimate;
-    			bestLeft=left[i];
-    			bestRight=right[i];
+    			bestLeft=l;
+    			bestRight=r;
     		}
     		
     		// Display to compare only
@@ -4139,10 +4149,21 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 //    			bestRight=right[i];
 //    		}
 		}
-		if (bestEstimate==null) {
+		if (bestWM==null){
 			if (config.verbose>1)
 				System.out.println(CommonUtils.timeElapsed(tic)+": None of PWM is enriched.");
 			return null;
+		}
+		
+    	MotifThreshold estimate = optimizePwmThreshold(bestWM, "", bestWM.getMaxScore()*0.5, bestWM.getMaxScore()*0.7);
+		if (estimate==null) {
+			if (config.verbose>1)
+				System.out.println(CommonUtils.timeElapsed(tic)+": None of PWM is enriched.");
+			return null;
+		}
+		else{
+			System.out.println(String.format("%s: PWM %s\tpAUC=%.1f\t%.2f/%.2f\thit %d+/%d- seqs", CommonUtils.timeElapsed(tic), 
+					WeightMatrix.getMaxLetters(bestWM), best_significance, estimate.motif_cutoff, bestWM.getMaxScore(), estimate.posHit, estimate.negHit));
 		}
 
     	// normailze and store pfm
@@ -4162,11 +4183,11 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 
 		NewPWM newPWM = new NewPWM();
 		newPWM.wm = bestWM;
-		newPWM.pwmGoodQuality = (bestEstimate.posHit>seqs.length*config.motif_hit_factor);
-		newPWM.threshold = bestEstimate.motif_cutoff;
+		newPWM.pwmGoodQuality = (estimate.posHit>seqs.length*config.motif_hit_factor);
+		newPWM.threshold = estimate.motif_cutoff;
 		newPWM.motif_significance = best_significance;
-		newPWM.pwmPosHitCount = bestEstimate.posHit;
-		newPWM.pwmNegHitCount = bestEstimate.negHit;		
+		newPWM.pwmPosHitCount = estimate.posHit;
+		newPWM.pwmNegHitCount = estimate.negHit;		
 		newPWM.pfm = pfm_trim;
 		newPWM.pos_pwm_seed = bestLeft - seed_start;		// pwm_seed = pwm_start-seed_start
 
@@ -4886,11 +4907,21 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	/**
 	 * Compute motif significance score [ -log10(hgp) ]<br>More significant p-value, higher score
 	 */	
-	public double computeMotifSignificanceScore(int posHitCount, int negHitCount){
+	public double computeMotifSignificanceScore(double posHitCount, double negHitCount){
 		if (config.use_odds_ratio)
-			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, 3);
+			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, negSeqCount*0.05);
 		else
-			return -computeHGP(posHitCount, negHitCount);
+			return -computeHGP((int)posHitCount, (int)negHitCount);
+	}
+	
+	/**
+	 * Compute motif significance score [ -log10(hgp) ]<br>More significant p-value, higher score
+	 */	
+	public double computeSiteSignificanceScore(double posHitCount, double negHitCount){
+		if (config.use_odds_ratio)
+			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, 10);
+		else
+			return -computeHGP((int)posHitCount, (int)negHitCount);
 	}
 
 //	/**
@@ -4956,7 +4987,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	 * Option to use multi-thread to compute HGP<br>
 	 * Approximate grid search to find best HGP, to reduce run time
 	 */
-	private MotifThreshold optimizePwmThreshold(WeightMatrix wm, String outName, double startingScore){
+	private MotifThreshold optimizePwmThreshold(WeightMatrix wm, String outName, double startingScore, double endingScore){
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
@@ -4965,90 +4996,93 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		for (int i=0;i<negSeqCount;i++){
 			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i), config.strand_type==1);
 		}
-
-		
-		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
-		
-		int startIdx = Arrays.binarySearch(posSeqScores, startingScore);
-		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
-		
-		Arrays.sort(negSeqScores);
-		
-		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
-		for (int i=startIdx;i<posSeqScores.length;i++)
-			posScoreUnique.add(posSeqScores[i]);
-		if (posScoreUnique.isEmpty()){						// this could happen if all pwm scores are less than 0
-			MotifThreshold score = new MotifThreshold();
-			score.motif_cutoff = 0;
-			score.motif_significance = 0;
-			score.posHit = 0;
-			score.negHit = 0;
-			return score;
-		}
-		
-		// count hits at each score, compute hgp
-		Double[] posScores_u = new Double[posScoreUnique.size()];
-		posScoreUnique.toArray(posScores_u);
-		int[] poshits = new int[posScoreUnique.size()];
-		int[] neghits = new int[posScoreUnique.size()];
-		double[] hgps = new double[posScoreUnique.size()];
-		for (int i=0;i<posScores_u.length;i++){
-			double key = posScores_u[i];
-			int index = CommonUtils.findKey(posSeqScores, key);
-			if (config.use_weighted_kmer){
-				double weightedHit = 0;
-				for (int s=index; s<posSeqScores.length; s++)
-					weightedHit += seq_weights[ posIdx[s] ];
-				poshits[i] = (int) weightedHit;
-			}
-			else
-				poshits[i] = posSeqScores.length-index;
-			index = CommonUtils.findKey(negSeqScores, key);
-			neghits[i] = negSeqScores.length-index;
-		}
-
-		ArrayList<Integer> idxs = new ArrayList<Integer>();			// the score ids to compute HGP
-		for (int i=posScores_u.length-1;i>=0;i--)
-			if (poshits[i]>neghits[i]*2.0*posSeqCount/negSeqCount)	// posHit should be at least 2 fold
-				idxs.add(i);
-		
-		Pair<Double, Integer> best;
-		
-		if (idxs.size()>100 && config.use_grid_search){
-		
-			// coarse search
-			int gridStep = (int)Math.ceil(Math.sqrt((double)idxs.size()/2));
-			ArrayList<Integer> idxCoarse = new ArrayList<Integer>();	
-			for (int i=0;i<idxs.size();i+=gridStep){
-				idxCoarse.add(idxs.get(i));
-			}
-			if (idxCoarse.get(idxCoarse.size()-1)!=idxs.get(idxs.size()-1))
-				idxCoarse.add(idxs.get(idxs.size()-1));
-			
-			best = findBestScore(idxCoarse, poshits, neghits, hgps);
-			
-			// finer resolution search
-			int bestIdx = idxs.indexOf(best.cdr());
-			int start = Math.max(bestIdx-gridStep+1, 0);
-			int end = Math.min(bestIdx+gridStep-1,idxs.size()-1) ;
-			ArrayList<Integer> idxFine = new ArrayList<Integer>();	
-			for (int i=start;i<=end;i++){
-				idxFine.add(idxs.get(i));
-			}
-			
-			best = findBestScore(idxFine, poshits, neghits, hgps);
-		}
-		else
-			best = findBestScore(idxs, poshits, neghits, hgps);
-		
-		MotifThreshold score = new MotifThreshold();
-		score.motif_cutoff = posScores_u[best.cdr()];
-		score.motif_significance = best.car();
-		score.posHit = poshits[best.cdr()];
-		score.negHit = neghits[best.cdr()];
-//		if (printPwmHgp)
-//			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_PwmHgp.txt", sb.toString());
+		MotifThreshold score = optimizeThreshold(posSeqScores, negSeqScores, startingScore, endingScore);
 		return score;
+//		
+//		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
+//		
+//		int startIdx = Arrays.binarySearch(posSeqScores, startingScore);
+//		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
+//		int endIdx = Arrays.binarySearch(posSeqScores, endingScore);
+//		if( endIdx < 0 ) { endIdx = -endIdx; }
+//		
+//		Arrays.sort(negSeqScores);
+//		
+//		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
+//		for (int i=startIdx;i<posSeqScores.length;i++)
+//			posScoreUnique.add(posSeqScores[i]);
+//		if (posScoreUnique.isEmpty()){						// this could happen if all pwm scores are less than 0
+//			MotifThreshold score = new MotifThreshold();
+//			score.motif_cutoff = 0;
+//			score.motif_significance = 0;
+//			score.posHit = 0;
+//			score.negHit = 0;
+//			return score;
+//		}
+//		
+//		// count hits at each score, compute hgp
+//		Double[] posScores_u = new Double[posScoreUnique.size()];
+//		posScoreUnique.toArray(posScores_u);
+//		double[] poshits = new double[posScoreUnique.size()];
+//		double[] neghits = new double[posScoreUnique.size()];
+//		double[] hgps = new double[posScoreUnique.size()];
+//		for (int i=0;i<posScores_u.length;i++){
+//			double key = posScores_u[i];
+//			int index = CommonUtils.findKey(posSeqScores, key);
+//			if (config.use_weighted_kmer){
+//				double weightedHit = 0;
+//				for (int s=index; s<posSeqScores.length; s++)
+//					weightedHit += seq_weights[ posIdx[s] ];
+//				poshits[i] = weightedHit;
+//			}
+//			else
+//				poshits[i] = posSeqScores.length-index;
+//			index = CommonUtils.findKey(negSeqScores, key);
+//			neghits[i] = negSeqScores.length-index;
+//		}
+//
+//		ArrayList<Integer> idxs = new ArrayList<Integer>();			// the score ids to compute the cutoff significance
+//		for (int i=posScores_u.length-1;i>=0;i--)
+//			if (poshits[i]>neghits[i]*1.5*posSeqCount/negSeqCount)	// posHit should be at least 1.5 fold
+//				idxs.add(i);
+//		
+//		Pair<Double, Integer> best;
+//		
+//		if (idxs.size()>100 && config.use_grid_search){
+//		
+//			// coarse search
+//			int gridStep = (int)Math.ceil(Math.sqrt((double)idxs.size()/2));
+//			ArrayList<Integer> idxCoarse = new ArrayList<Integer>();	
+//			for (int i=0;i<idxs.size();i+=gridStep){
+//				idxCoarse.add(idxs.get(i));
+//			}
+//			if (idxCoarse.get(idxCoarse.size()-1)!=idxs.get(idxs.size()-1))
+//				idxCoarse.add(idxs.get(idxs.size()-1));
+//			
+//			best = findBestScore(idxCoarse, poshits, neghits, hgps);
+//			
+//			// finer resolution search
+//			int bestIdx = idxs.indexOf(best.cdr());
+//			int start = Math.max(bestIdx-gridStep+1, 0);
+//			int end = Math.min(bestIdx+gridStep-1,idxs.size()-1) ;
+//			ArrayList<Integer> idxFine = new ArrayList<Integer>();	
+//			for (int i=start;i<=end;i++){
+//				idxFine.add(idxs.get(i));
+//			}
+//			
+//			best = findBestScore(idxFine, poshits, neghits, hgps);
+//		}
+//		else
+//			best = findBestScore(idxs, poshits, neghits, hgps);
+//		
+//		MotifThreshold score = new MotifThreshold();
+//		score.motif_cutoff = posScores_u[best.cdr()];
+//		score.motif_significance = best.car();
+//		score.posHit = (int) Math.round(poshits[best.cdr()]);
+//		score.negHit = (int) Math.round(neghits[best.cdr()]);
+////		if (printPwmHgp)
+////			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_PwmHgp.txt", sb.toString());
+//		return score;
 	}
 //	/**
 //	 * Estimate threshold of a PWM (larger than and closest to wmScore) using the positive/negative sequences<br>
@@ -5248,37 +5282,15 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	 * @param motifScores
 	 * @return
 	 */
-	private Pair<Double, Integer> findBestScore(ArrayList<Integer> idxs, int[] poshits, int[] neghits, double[] motifScores){
-//		if (config.multl_thread_hgp){
-//			int numThread = Math.min(config.maxThreads, java.lang.Runtime.getRuntime().availableProcessors());
-//			Thread[] threads = new Thread[numThread];
-//			for (int i=0;i<numThread;i++){
-//	            Thread t = new Thread(new HGPThread(idxs, poshits, neghits, motifScores));
-//	            t.start();
-//	            threads[i] = t;
-//			}
-//			boolean anyrunning = true;
-//	        while (anyrunning) {
-//	            anyrunning = false;
-//	            try {
-//	                Thread.sleep(100);
-//	            } catch (InterruptedException e) { }
-//	            for (int i = 0; i < threads.length; i++) {
-//	                if (threads[i].isAlive()) {
-//	                    anyrunning = true;
-//	                    break;
-//	                }
-//	            }   
-//	        }
-//		}
-//		else{
-			for (int i:idxs){
-				if (i==0 && poshits[0]==posSeqCount)	//why?
-	    			motifScores[0]=0;
-				motifScores[i]= computeMotifSignificanceScore(poshits[i], neghits[i]);
-			}
-				
-//		}
+	private Pair<Double, Integer> findBestScore(ArrayList<Integer> idxs, double[] poshits, double[] neghits, double[] motifScores){
+		for (int i:idxs){
+			if (i==0 && poshits[0]==posSeqCount)	//why?
+    			motifScores[0]=0;
+			motifScores[i]= computeMotifSignificanceScore(poshits[i], neghits[i]);
+//			System.err.println(String.format("%d\t%.0f\t%.0f\t%.2f\t%.2f", i, poshits[i], neghits[i], 
+//					motifScores[i], -computeHGP((int)poshits[i], (int)neghits[i])));
+		}
+
 		Pair<Double, TreeSet<Integer>> maxScore = StatUtil.findMax(motifScores);
 		int maxIdx = maxScore.cdr().last();
 		
@@ -5309,7 +5321,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	 * @param negSeqScores motif scanning score of negative sequences
 	 * @return
 	 */
-	private MotifThreshold optimizeThreshold(double[] posSeqScores, double[] negSeqScores){
+	private MotifThreshold optimizeThreshold(double[] posSeqScores, double[] negSeqScores, double startingScore, double endingScore){
 		int[] posIdx = StatUtil.findSort(posSeqScores);		
 		Arrays.sort(negSeqScores);
 		
@@ -5319,31 +5331,48 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			posScoreUnique.add(s);
 		Double[] posScores_u = new Double[posScoreUnique.size()];
 		posScoreUnique.toArray(posScores_u);
-		int[] poshits = new int[posScoreUnique.size()];		// #pos_hit given the corresponding score cutoff
-		int[] neghits = new int[posScoreUnique.size()];		// #neg_hit given the corresponding score cutoff
+		double[] poshits = new double[posScoreUnique.size()];		// #pos_hit given the corresponding score cutoff
+		double[] neghits = new double[posScoreUnique.size()];		// #neg_hit given the corresponding score cutoff
 		double[] motifScores = new double[posScoreUnique.size()];
-		for (int i=0;i<posScores_u.length;i++){
+		
+		int startIdx = Arrays.binarySearch(posScores_u, startingScore);
+		if( startIdx < 0 ) { 
+			startIdx = -startIdx-1; 	//insert point
+		}
+		int endIdx = Arrays.binarySearch(posScores_u, endingScore);
+		if( endIdx < 0 ) { 
+			endIdx = -endIdx-1; 		//insert point
+		}
+		
+		for (int i=endIdx-1;i>=startIdx;i--){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
 			if (config.use_weighted_kmer){
 				double weightedHit = 0;
 				for (int s=index; s<posSeqScores.length; s++)
 					weightedHit += seq_weights[ posIdx[s] ];
-				poshits[i] = (int) weightedHit;
+				poshits[i] = weightedHit;
 			}
 			else
 				poshits[i] = posSeqScores.length-index;
 			index = CommonUtils.findKey(negSeqScores, key);
 			neghits[i] = negSeqScores.length-index;
+			if (neghits[i]>negSeqScores.length*config.fpr){		// do not consider cutoff that gives 0.1 false positive rate
+				startIdx = i+1;
+				break;
+			}
+
 		}
 
 		ArrayList<Integer> idxs = new ArrayList<Integer>();			// the score ids to compute HGP
-		for (int i=posScores_u.length-1;i>=0;i--){
-			if (poshits[i]*1.0 >= neghits[i]*1.5*posSeqScores.length/negSeqScores.length)	// posHit should be at least 2 fold
-				idxs.add(i);		
+		for (int i=endIdx-1;i>=startIdx;i--){
+			if (poshits[i]*1.0 >= neghits[i]*1.5*posSeqScores.length/negSeqScores.length){	// posHit should be at least 2 fold
+				idxs.add(i);
+//				System.out.println(String.format("%d\t%.0f\t%.0f\t%.2f", i, poshits[i], neghits[i], posScores_u[i]));
+			}
 		}
 		if (idxs.isEmpty())
-			idxs.add(posScores_u.length-1);
+			idxs.add(endIdx-1);
 		
 		Pair<Double, Integer> best;
 		
@@ -5377,8 +5406,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		MotifThreshold score = new MotifThreshold();
 		score.motif_cutoff = posScores_u[best.cdr()];
 		score.motif_significance = best.car();
-		score.posHit = poshits[best.cdr()];
-		score.negHit = neghits[best.cdr()];
+		score.posHit = (int) Math.round(poshits[best.cdr()]);
+		score.negHit = (int) Math.round(neghits[best.cdr()]);
 		
 		return score;		
 	}
@@ -5433,7 +5462,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		}
 //		if (config.verbose>1)
 //			System.out.println(CommonUtils.timeElapsed(tic)+ ": Ksm threshold, done scan neg sequences.");
-		MotifThreshold score = optimizeThreshold(posSeqScores, negSeqScores);
+		MotifThreshold score = optimizeThreshold(posSeqScores, negSeqScores, 0, Double.POSITIVE_INFINITY);
 		return score;
 	}
 
@@ -5482,10 +5511,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer)km;
 				if (use_base_kmers)
-					for (Kmer sk: gk.getBaseKmers()){
-						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
-						sk.kmerStartOffset=gk.kmerStartOffset;
-						str2kmer.put(kmerStr, sk);			// use base-kmers for scoring
+					for (Kmer bk: gk.getBaseKmers()){
+						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
+						bk.kmerStartOffset=gk.kmerStartOffset;
+						str2kmer.put(kmerStr, bk);			// use base-kmers for scoring
 						tree.add(kmerStr.getBytes(), kmerStr);
 					}
 				else{
@@ -5585,7 +5614,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				optimizeKSM(kmers);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
 			matches[idx]=kg;
-			kg.setScore(computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
 		}
 		return matches;
@@ -5641,7 +5670,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				optimizeKSM(kmers);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(kmers, p, seq_weights) : new KmerGroup(kmers, p);
 			matches[idx]=kg;
-			kg.setScore(computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
 		}
 		return matches;
@@ -5779,9 +5808,11 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				}
 			}
 			StringBuilder sb = new StringBuilder();
-			for (int i=0;i<rightIdx;i++){
+			for (int i=0;i<=rightIdx;i++){
 				if (letters[i]!=0)
-					sb.append(letters[i]);	
+					sb.append(letters[i]);
+				else
+					sb.append('N');
 			}
 			return sb.toString();
 		}
@@ -5850,34 +5881,6 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		public String toString(){
 			Kmer best = getBestKmer();
 			return String.format("%s|%b %d: %d+/%d-, kg_score=%.2f", best!=null?best.getKmerStrRC():"NULL", best!=null?getBestKmer().isSeedOrientation():false, bs, posHitGroupCount, negHitGroupCount, kg_score);
-		}
-	}
-	class HGPThread implements Runnable {
-		ArrayList<Integer> idxs;
-		int[] posHits;
-		int[] negHits;
-		double[] motifScores;
-		HGPThread(ArrayList<Integer> idxs, int[] posHits, int[] negHits, double[] hgps){
-			this.idxs = idxs;
-			this.posHits = posHits;
-			this.negHits = negHits;
-			this.motifScores = hgps;
-		}
-		public void run() {
-			int i;
-			while (!idxs.isEmpty()) {
-				synchronized (idxs){
-	            	if (!idxs.isEmpty()){
-	            		i = idxs.get(0);
-	            		idxs.remove(0);
-	        		}
-	            	else
-	            		break;
-	        	}		
-				if (i==0 && posHits[0]==posSeqCount)
-	    			motifScores[0]=0;
-				motifScores[i]=computeMotifSignificanceScore(posHits[i], negHits[i]);
-			}
 		}
 	}
 	
