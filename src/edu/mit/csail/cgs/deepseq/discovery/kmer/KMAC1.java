@@ -4084,7 +4084,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				newRights.add(right[i]);
 			}
 		}
-		
+		if (newLefts.isEmpty()){
+			newLefts.add(left[0]);
+			newRights.add(right[0]);
+		}
     	double best_significance = -0.001;
     	WeightMatrix bestWM = null;
     	int bestLeft=0;
@@ -4905,7 +4908,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	}
 	
 	/**
-	 * Compute motif significance score [ -log10(hgp) ]<br>More significant p-value, higher score
+	 * Compute motif significance score [ OR or -log10(hgp) ]<br>More significant, higher score
 	 */	
 	public double computeMotifSignificanceScore(double posHitCount, double negHitCount){
 		if (config.use_odds_ratio)
@@ -4915,7 +4918,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	}
 	
 	/**
-	 * Compute motif significance score [ -log10(hgp) ]<br>More significant p-value, higher score
+	 * Compute matched site (KmerGroup) significance score [ OR or -log10(hgp) ]<br>More significant, higher score
 	 */	
 	public double computeSiteSignificanceScore(double posHitCount, double negHitCount){
 		if (config.use_odds_ratio)
@@ -5343,7 +5346,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		if( endIdx < 0 ) { 
 			endIdx = -endIdx-1; 		//insert point
 		}
-		
+		if (endIdx-1<startIdx)		// if all scores are not in the staring-ending range, just take the nearst of starting score
+			endIdx = startIdx+1;
 		for (int i=endIdx-1;i>=startIdx;i--){
 			double key = posScores_u[i];
 			int index = CommonUtils.findKey(posSeqScores, key);
