@@ -316,6 +316,8 @@ public class GEM {
     		KMAC.main(args);
     	else if (s.equalsIgnoreCase("KMAC"))
     		KMAC1.main(args);
+    	else if (s.equalsIgnoreCase("KSM"))
+    		edu.mit.csail.cgs.deepseq.analysis.MotifScan.main(args);
     	else if (s.equalsIgnoreCase("RPD"))
     		edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.main(args);
     	else if (s.equalsIgnoreCase("get_bed"))

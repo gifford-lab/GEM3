@@ -20,6 +20,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.Site;
+import edu.mit.csail.cgs.deepseq.discovery.Config;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.KmerGroup;
@@ -43,17 +44,25 @@ public class KmerScanner {
 	private KMAC1 kEngine;
 	// each element in the list is for one ChIP-Seq method
 	
-	public KmerScanner(ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double[] seq_weights, boolean use_odds_ratio){
+	public KmerScanner(String[] args, ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double[] seq_weights, boolean use_odds_ratio){
 		kEngine = new KMAC1(kmers);
+        Config config = new Config();
+        try{
+			config.parseArgs(args);   
+		}
+		catch (Exception e){
+			e.printStackTrace();
+    		System.exit(-1);
+		}  
+		kEngine.setConfig(config, "", "");
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 		kEngine.setSequenceWeights(seq_weights);
 		kEngine.setUseOddsRatio(use_odds_ratio);
 	}
 	
 	public KmerGroup[] query (String seq){
-//		KmerGroup[] kg = kEngine.findUnstrandedKmerHits_old(seq);
-//		KmerGroup[] kg2 = kEngine.findUnstrandedKmerHits(seq);
-		return kEngine.findUnstrandedKsmGroupHits(seq);
+//		return kEngine.findUnstrandedKsmGroupHits(seq);
+		return kEngine.findKsmGroupHits(seq);
 	}
 	
 	public KmerGroup getBestKG (String seq){
@@ -142,13 +151,13 @@ public class KmerScanner {
 			String f[] = line.split("\t");	
 			if (line.startsWith("#"))
 				continue;
-			scanSeqs(f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
+			scanSeqs(args, f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
 					flags.contains("or"), !flags.contains("use_seq_weights"), gc, top, randObj, windowSize, fpr);
 		    
 		} // each expt
 	}
 	
-	private static void scanSeqs(String expt, String path, String fasta_path, String fasta_suffix,  
+	private static void scanSeqs(String[] args, String expt, String path, String fasta_path, String fasta_suffix,  
 			String other_pfm_path, String[] pfm_suffixs, boolean use_odds_ratio, boolean ignoreWeights, double gc,
 			int top, Random randObj, int width, double fpr){
 		
@@ -167,11 +176,12 @@ public class KmerScanner {
 		File file = new File(kmer);
     	System.err.println(kmer);
 		KsmMotif ksm = GappedKmer.loadKSM(file, ignoreWeights);
-		KmerScanner scanner = new KmerScanner(ksm.kmers, ksm.posSeqCount, ksm.negSeqCount, ksm.seq_weights, use_odds_ratio);
+		KmerScanner scanner = new KmerScanner(args, ksm.kmers, ksm.posSeqCount, ksm.negSeqCount, ksm.seq_weights, use_odds_ratio);
 		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 	        	    
 	    long t = System.currentTimeMillis();
 	    WeightMatrix motif = CommonUtils.loadPWM_PFM_file(pfm, gc); 
+	    double maxPwmScore = motif.getMaxScore();
     	System.err.println(pfm);
 	    System.out.println("PWM loading:\t"+CommonUtils.timeElapsed(t));
 		
@@ -263,9 +273,21 @@ public class KmerScanner {
 		CommonUtils.writeFile(expt+"_w"+width+"_scores.txt", sb.toString());
 		System.out.println(expt+"_w"+width+"_scores.txt");
 		
-		System.out.print(String.format("%s\tPWM_KSM_FPR\t%.2f\t%.2f\t%.2f", 
+		double pwm05 = maxPwmScore * 0.5; double count05=0;	// count of neg scores that pass 0.5*maxScore
+		double pwm06 = maxPwmScore * 0.6; double count06=0;
+		double pwm07 = maxPwmScore * 0.7; double count07=0;
+		for (double s:pwmN_scores){
+			if (s>=pwm05)
+				count05++;
+			if (s>=pwm06)
+				count06++;
+			if (s>=pwm07)
+				count07++;
+		}
+		System.out.print(String.format("%s\tPWM_KSM_FPR_PWM05_PWM06_PWM07\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f", 
 				expt,evaluateScoreROC(pwm_scores, pwmN_scores, fpr),
-				evaluateScoreROC(ksm_scores, ksmN_scores, fpr), fpr));
+				evaluateScoreROC(ksm_scores, ksmN_scores, fpr), fpr,
+				count05/pwmN_scores.size(), count06/pwmN_scores.size(), count07/pwmN_scores.size()));
 		for (int j=0;j<otherPwms.length;j++){
 			System.out.print(String.format("\t%.2f", 
 					evaluateScoreROC(other_scores.get(j), otherN_scores.get(j), fpr)));
