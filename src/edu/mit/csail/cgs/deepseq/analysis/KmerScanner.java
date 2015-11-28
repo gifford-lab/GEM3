@@ -284,7 +284,7 @@ public class KmerScanner {
 			if (s>=pwm07)
 				count07++;
 		}
-		System.out.print(String.format("%s\tPWM_KSM_FPR_PWM05_PWM06_PWM07\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f", 
+		System.out.print(String.format("%s\tPWM_KSM_FPR_PWM05_PWM06_PWM07\t%.2f\t%.2f\t%.3f\t%.3f\t%.3f\t%.3f", 
 				expt,evaluateScoreROC(pwm_scores, pwmN_scores, fpr),
 				evaluateScoreROC(ksm_scores, ksmN_scores, fpr), fpr,
 				count05/pwmN_scores.size(), count06/pwmN_scores.size(), count07/pwmN_scores.size()));

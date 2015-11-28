@@ -1016,6 +1016,22 @@ public class CommonUtils {
 	  return mismatch;
 	}
 
+	/**
+	 * Count mismatches in two same-length strings<br>
+	 * Assuming ref and seq are of same length.
+	 * @param ref
+	 * @param seq
+	 * @return
+	 */
+	public static ArrayList<Integer> getMismatchPositions(String ref, String seq){
+		ArrayList<Integer> diffPos = new ArrayList<Integer>();
+		for (int i=0;i<ref.length();i++){
+			if (ref.charAt(i)!=seq.charAt(i))
+				diffPos.add(i);
+		}
+		return diffPos;
+	}
+	
 	/** Compute distance between two arbitrary-length strings, support gapped k-mer, <br>
 	 * do not consider reverse compliment */
 	public static int strMinDistance(String s1, String s2){
