@@ -2811,7 +2811,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		if (config.verbose>1)
 			System.out.println(CommonUtils.timeElapsed(tic)+": kmer num = "+kmers.size());
 
-		kmers = Kmer.deepCloneKmerList(kmers, seed, seq_weights);
+//		kmers = Kmer.deepCloneKmerList(kmers, seed, seq_weights);
 		indexKmerSequences(kmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);
 		seed = kmers.get(0);
 
@@ -3860,11 +3860,11 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 						if (! wkPosMap.containsKey(wk)){
 							wkPosMap.put(wk, new HashSet<Integer>());
 						}
-						Set<Kmer> sks = wk.getBaseKmers();
-						if (!sks.contains(km)){
+						Set<Kmer> bks = wk.getBaseKmers();
+						if (!bks.contains(km)){
 							System.err.println("Inconsistent wk-sk");
 							System.err.println(km.toShortString()+"\t"+km.hashCode()+"\n");
-							for (Kmer sk:sks)
+							for (Kmer sk:bks)
 								System.err.println(sk.toShortString()+"\t"+sk.hashCode());
 						}
 						if (wk.getBaseKmerOrientation(km)){		// same orientation, directly copy
