@@ -4850,17 +4850,17 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		ArrayList<Integer> newRights = new ArrayList<Integer>();
 		for (int i=0;i<left.length;i++){
 			// limit PWM length to k and k+1
-			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.k ||right[i]-left[i]+1==cluster.k+1)) ||
-					!config.k_PWM_trim){
+//			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.k ||right[i]-left[i]+1==cluster.k+1)) ||
+//					!config.k_PWM_trim){
 			// limit PWM length to seed k-mer length
-//			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.seedKmer.k)) || !config.k_PWM_trim){
+			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.seedKmer.k)) || !config.k_PWM_trim){
 				newLefts.add(left[i]);
 				newRights.add(right[i]);
 			}
 		}
-		if (newLefts.isEmpty()){
-			newLefts.add(left[0]);
-			newRights.add(right[0]);
+		if (newLefts.isEmpty()){	// if not match length requirement, just take the longest PWM
+			newLefts.add(left[left.length-1]);
+			newRights.add(right[right.length-1]);
 		}
     	double best_significance = -0.001;
     	WeightMatrix bestWM = null;
