@@ -1046,7 +1046,8 @@ public class CommonUtils {
 					if (k+i==cs1.length || k+j==cs2.length)	// exceeding string length
 						break;
 					else{
-						if (cs1[k+i]==cs2[k+j] && cs1[k+i]!='N')	// position match (wildcard count as mismatch)
+//						if (cs1[k+i]==cs2[k+j] && cs1[k+i]!='N')	// position match (gap-gap count as mismatch)
+						if (cs1[k+i]==cs2[k+j])	// position match (gap-gap count as match)
 							overlap++;
 					}
 				}
@@ -1072,7 +1073,8 @@ public class CommonUtils {
 					if (k+i==cs1.length || k+j==cs2.length)	// exceeding string length
 						break;
 					else{
-						if (cs1[k+i]==cs2[k+j] && cs1[k+i]!='N')	// position match (wildcard count as mismatch)
+//						if (cs1[k+i]==cs2[k+j] && cs1[k+i]!='N')	// position match (gap-gap count as mismatch)
+						if (cs1[k+i]==cs2[k+j])	// position match (gap-gap count as match)
 							overlap++;
 					}
 				}

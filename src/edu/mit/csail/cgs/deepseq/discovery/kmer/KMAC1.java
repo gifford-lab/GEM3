@@ -2835,7 +2835,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
 		if (config.verbose>1) {
 			double kAUC = evaluateKsmROC(seqList, seqListNeg, seedFamily).motif_significance;
-			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family motif kAUC = %.2f", kAUC));
+			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family %d kmers, motif kAUC = %.2f", seedFamily.size(), kAUC));
 //			double familyScore = computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 //			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family motif score = %.2f", familyScore));
 		}
@@ -4151,6 +4151,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	//			}
 	//		}
 	//	}
+	
 	/** align seqList using a PWM<br>
 	 * sequences that have a PWM hit are aligned according to the hit positions<br>
 	 * if the sequence has been aligned with 
@@ -4849,10 +4850,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		ArrayList<Integer> newRights = new ArrayList<Integer>();
 		for (int i=0;i<left.length;i++){
 			// limit PWM length to k and k+1
-			//			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.k ||right[i]-left[i]+1==cluster.k+1)) ||
-//					!config.k_PWM_trim){
+			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.k ||right[i]-left[i]+1==cluster.k+1)) ||
+					!config.k_PWM_trim){
 			// limit PWM length to seed k-mer length
-			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.seedKmer.k)) || !config.k_PWM_trim){
+//			if ( (config.k_PWM_trim && (right[i]-left[i]+1==cluster.seedKmer.k)) || !config.k_PWM_trim){
 				newLefts.add(left[i]);
 				newRights.add(right[i]);
 			}
@@ -6350,7 +6351,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		return result;
 	}
 	/** 
-	 * Search all k-mers in the sequence
+	 * Search all k-mers in the sequence<br>
+	 * This is used for GEM peak calling
 	 * @param seq sequence string to search k-mers
 	 * @return an array of KmerGroups, with match positions, significance, etc:<br>
 	 * Each k-mer group maps to a binding position in the sequence<br>
@@ -6406,7 +6408,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	
 	/** 
 	 * Search all k-mers in the sequence, strand-specific<br>
-	 * Assuming the "kmer search tree" instance member variable has been constructed.
+	 * Assuming the updateEngine(kmers) method had been called, i.e. "kmer search tree" instance member variable has been constructed.
 	 * @param seq sequence string to search k-mers
 	 * @return an array of KmerGroups:<br>
 	 * Each k-mer group maps to a binding position (using kmer.startOffset, relative to bs ) in the sequence<br>
