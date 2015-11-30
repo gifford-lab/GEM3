@@ -1021,6 +1021,7 @@ public class KMAC1 {
 			allClusters.addAll(clusters);
 		} // for each k
 		
+		allKmerMap = null;
 		clusters = allClusters;
 		allClusters = null;
 		
@@ -1433,8 +1434,10 @@ public class KMAC1 {
 			}
 		}
 		System.out.print(String.format("k=%d, gap patterns: ", k));
-		for (int i=1;i<=config.gap;i++)
+		for (int i=1;i<=config.gap;i++){
+			allPatterns.get(i).trimToSize();
 			System.out.print(String.format("%d+%d(%d) ", k, i, allPatterns.get(i).size())); 
+		}
 		System.out.println(", "+ CommonUtils.timeElapsed(tic));
 		
 		return allPatterns;
@@ -1448,6 +1451,7 @@ public class KMAC1 {
 				kmers.add(kmer);	
 			}
 		}
+		allKmerMap.remove(k);
 		Collections.sort(kmers, new Comparator<Kmer>(){
             public int compare(Kmer o1, Kmer o2) {
                 return o1.compareByHGP(o2);
@@ -1464,6 +1468,7 @@ public class KMAC1 {
 			HashMap<String, GappedKmer> gkMap = new HashMap<String, GappedKmer>();
 			int kFull = k+numGap;
 			ArrayList<char[]> allPatterns = allK_allPatterns.get(kFull).get(numGap);
+			allK_allPatterns.get(kFull).set(numGap, null);		// clean up
 			HashMap<String,Kmer> bkMap = allKmerMap.get(kFull);
 			
 			// prepare the variants
@@ -1520,6 +1525,7 @@ public class KMAC1 {
 					System.err.println(gk.toString());
 				}
 			}// loop all patterns
+			allPatterns = null;
 			
 			ArrayList<GappedKmer> gks = new ArrayList<GappedKmer>();
 			HashSet<Kmer> baseKmers = new HashSet<Kmer>();
@@ -5158,6 +5164,10 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			optimizeKSM(alignedKmers);
 			if (config.verbose>1)
 				System.out.println(String.format("%s: Extract new KSM, optimize %d to %d k-mers.", CommonUtils.timeElapsed(tic), tmp, alignedKmers.size()));
+		}
+		else{
+			if (config.verbose>1)
+				System.out.println(String.format("%s: Extract new KSM, %d k-mers.", CommonUtils.timeElapsed(tic), alignedKmers.size()));
 		}
 		alignedKmers.trimToSize();
 		return new NewKSM(alignedKmers);
