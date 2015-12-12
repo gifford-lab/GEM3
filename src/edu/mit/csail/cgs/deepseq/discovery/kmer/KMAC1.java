@@ -567,7 +567,7 @@ public class KMAC1 {
 //			COMMENT block start, to SKIP kmac, only get k-mers
 //			
 			/** Index sequences and kmers, for each k, need to index this only once */
-			indexKmerSequences(kmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);
+//			indexKmerSequences(kmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);
 			kmers.trimToSize();
 			Collections.sort(kmers);
 			
@@ -699,7 +699,7 @@ public class KMAC1 {
 
 		for (int i=0;i<clusters.size();i++){
 			MotifCluster cluster = clusters.get(i);
-			indexKmerSequences(cluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
+//			indexKmerSequences(cluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 			
 			if (config.refine_final_motifs){
 				if (config.evaluate_by_ksm || cluster.wm == null){
@@ -764,7 +764,7 @@ public class KMAC1 {
 				if (s.pos==UNALIGNED)
 					continue;
 				if (config.print_aligned_seqs)
-					sb.append(String.format("%d\t%d\t%s\t%s%s\n", s.id, s.pos, s.isForward?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getSeq()));
+					sb.append(String.format("%d\t%d\t%s\t%s%s\n", s.id, s.pos, s.isOriginalOrientation?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getAlignedSeq()));
 				bs[count]=midPos+s.pos;
 				count++;
 			}
@@ -919,7 +919,7 @@ public class KMAC1 {
 //			COMMENT block start, to SKIP kmac, only get k-mers
 //			
 			/** Index sequences and kmers, for each k, need to index this only once */
-			indexKmerSequences(kmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);
+//			indexKmerSequences(kmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);
 			kmers.trimToSize();
 			Collections.sort(kmers);
 			
@@ -1052,7 +1052,7 @@ public class KMAC1 {
 
 		for (int i=0;i<clusters.size();i++){
 			MotifCluster cluster = clusters.get(i);
-			indexKmerSequences(cluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
+//			indexKmerSequences(cluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 			
 			if (config.refine_final_motifs){
 				if (config.evaluate_by_ksm || cluster.wm == null){
@@ -1119,7 +1119,7 @@ public class KMAC1 {
 				if (s.pos==UNALIGNED)
 					continue;
 				if (config.print_aligned_seqs)
-					sb.append(String.format("%d\t%d\t%s\t%s%s\n", s.id, s.pos, s.isForward?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getSeq()));
+					sb.append(String.format("%d\t%d\t%s\t%s%s\n", s.id, s.pos, s.isOriginalOrientation?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), s.getAlignedSeq()));
 				bs[count]=midPos+s.pos;
 				count++;
 			}
@@ -2820,7 +2820,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			System.out.println(CommonUtils.timeElapsed(tic)+": kmer num = "+kmers.size());
 
 //		kmers = Kmer.deepCloneKmerList(kmers, seed, seq_weights);
-		indexKmerSequences(kmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);
+//		indexKmerSequences(kmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);
 		seed = kmers.get(0);
 
 		cluster.inputKmers = Kmer.copyKmerList(kmers);
@@ -2880,7 +2880,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 	    	
 			// extract first KSM
 	    	if (config.use_ksm){
-	    		NewKSM newKSM = extractKSM (seqList, seed_range, null);
+	    		NewKSM newKSM = extractKSM (seqList, seed_range);
 				if (newKSM==null){
 					return null;
 				}		    	
@@ -3005,7 +3005,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 		        WeightMatrixScorer scorer = new WeightMatrixScorer(wm);		
 				count_pwm_aligned=0;
 				for (Sequence s:seqList){
-		    	  String seq = s.getSeq();			// PWM to scan unaligned sequence, and align if pass threshold
+		    	  String seq = s.getAlignedSeq();			// PWM to scan unaligned sequence, and align if pass threshold
 		    	  if (s.pos!=UNALIGNED )
 		    		  continue;
 		    	      	  
@@ -3051,7 +3051,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 					
 		    	// build PWM
 				NewPWM newPWM = buildPWM(seqList, newCluster, 0, tic, false);
-				indexKmerSequences(newCluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
+//				indexKmerSequences(newCluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 				if (newPWM!=null){
 					newPWM.updateClusterPwmInfo(newCluster);
 					count_pwm_aligned = alignByPWM(seqList, newCluster, false);
@@ -3100,7 +3100,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 				for (Sequence s:seqList)
 					if (s.pos == UNALIGNED)
 						seqList_j.add(s);
-				indexKmerSequences(cluster2.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
+//				indexKmerSequences(cluster2.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 				int aligned_seqs_count = alignByPWM(seqList_j, cluster2, false);
 		    	if (config.verbose>1)
 		    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)
@@ -3135,10 +3135,10 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 							if (km.posBits.intersects(unalignedIds))
 								inputKmers.add(km);
 						}
-						indexKmerSequences(inputKmers, seq_weights, seqList_j, seqListNeg, config.kmer_hgp);  // need this to get KSM
+//						indexKmerSequences(inputKmers, seq_weights, seqList_j, seqListNeg, config.kmer_hgp);  // need this to get KSM
 						alignedSeqCount = alignByPWM(seqList_j, cluster2, false);
 						if (config.evaluate_by_ksm){
-							NewKSM newKSM = extractKSM (seqList, cluster2.k, null);
+							NewKSM newKSM = extractKSM (seqList, cluster2.k);
 							if (newKSM!=null&&newKSM.threshold!=null){
 								cluster2.alignedKmers = newKSM.kmers;
 								cluster2.ksmThreshold = newKSM.threshold;
@@ -3298,7 +3298,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 					
 					MotifCluster newCluster = cluster1.clone(false);
 					
-					indexKmerSequences(newCluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
+//					indexKmerSequences(newCluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
 					updateEngine(newCluster.alignedKmers);
 					alignByKSM(seqList, newCluster.alignedKmers, newCluster);
 					
@@ -3323,7 +3323,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 					
 //					System.out.println("-------------------------");
 					for (Sequence s:unalignedSeqs){
-			    	  String seq = s.getSeq();
+			    	  String seq = s.getAlignedSeq();
 			    	  KmerGroup[] kgs = findKsmGroupHits(seq);
 			    	  if (kgs.length==0)
 			    		  continue;
@@ -3445,7 +3445,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 						}
 						continue;
 					}
-					indexKmerSequences(inputKmers, seq_weights, seqList_j, seqListNeg, config.kmer_hgp);  // need this to get KSM
+//					indexKmerSequences(inputKmers, seq_weights, seqList_j, seqListNeg, config.kmer_hgp);  // need this to get KSM
 					count_aligned = alignByPWM(seqList_j, cluster2, false);
 			    	if (config.verbose>1)
 			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)
@@ -3473,7 +3473,7 @@ private void mergeOverlapPwmMotifs (ArrayList<Sequence> seqList, boolean[][] che
 //							indexKmerSequences( (ArrayList<Kmer>)(cluster2.alignedKmers.clone()), seqList_j, seqListNeg, config.kmer_hgp);  // need this to get KSM
 							alignedSeqCount = alignByPWM(seqList_j, cluster2, false);
 							if (config.evaluate_by_ksm){
-								NewKSM newKSM = extractKSM (seqList_j, cluster2.k, null);
+								NewKSM newKSM = extractKSM (seqList_j, cluster2.k);
 								if (newKSM!=null && newKSM.threshold!=null){
 									cluster2.alignedKmers = newKSM.kmers;
 									cluster2.ksmThreshold = newKSM.threshold;
@@ -4044,7 +4044,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		HashSet<Kmer> kmerSet = new HashSet<Kmer>();
 		kmerSet.addAll(kmers);
 		
-		BitSet bitSeqWithKmer = new BitSet();
+		BitSet bitSeqWithKmer = new BitSet();		// set all the sequences that contain at least one k-mer
 		for (Kmer km:kmers)
 			bitSeqWithKmer.or(km.posBits);
 		
@@ -4054,7 +4054,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			if (!bitSeqWithKmer.get(s.id))
 				continue;
 //    		KmerGroup[] matches = findIndexedKsmGroupHits(s, kmerSet);
-    		KmerGroup[] matches = findKsmGroupHits(s.seq);
+    		KmerGroup[] matches = findKsmGroupHits(s.getAlignedSeq());
     		if (matches==null)
     			continue;
 			Arrays.sort(matches);
@@ -4170,7 +4170,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		int count_pwm_aligned=0;
 		int wm_len = wm.length();
 		for (Sequence s:seqList){
-			String seq = s.getSeq();	
+			String seq = s.getAlignedSeq();	
 			int seqLen = seq.length();
 			if (seqLen<wm_len)
 				continue;
@@ -4187,7 +4187,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				}
 			}
     	  
-			// use PWM to scan if the KSM match is not good, and align if pass threshold    	  
+			// if the KSM match is not good, use PWM to scan and align using he PWM if pass threshold    	  
 			WeightMatrixScoreProfile profiler = scorer.execute(seq);
 			double maxSeqScore = Double.NEGATIVE_INFINITY;
 			int maxScoringShift = 0;
@@ -4368,7 +4368,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			// build KSM
 			NewKSM newKSM=null;
 			if (use_KSM){
-				newKSM = extractKSM (seqList, seed_range, null);
+				newKSM = extractKSM (seqList, seed_range);
 				if (newKSM==null ||newKSM.threshold==null)
 					return;
 			}
@@ -4634,14 +4634,14 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				startPadding = CommonUtils.padding(-start, "N");
 				start=0;
 			}
-			int seqLen = seq.getSeq().length();
+			int seqLen = seq.getAlignedSeq().length();
 			if (end>seqLen){
 				endPadding = CommonUtils.padding(end-seqLen, "N");
 				end=seqLen;
 			}
 			if (start>=end)
 				continue;
- 			String s = startPadding+seq.getSeq().substring(start, end)+endPadding;
+ 			String s = startPadding+seq.getAlignedSeq().substring(start, end)+endPadding;
  			alignedSeqs.add(s);
  			
  			// determine the weight for the sequence
@@ -5056,34 +5056,64 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	 * @param excludes
 	 * @return
 	 */
-	private NewKSM extractKSM (ArrayList<Sequence> seqList, int seed_range, ArrayList<Kmer> excludes){
+	private NewKSM extractKSM (ArrayList<Sequence> seqList, int seed_range){
 
 		/** kmer2pos: record all the hit positions (in reference to the seed position) of all k-mers in the alignment */
 		HashMap<Kmer, ArrayList<Integer>> kmer2pos_seed = new HashMap<Kmer, ArrayList<Integer>>();
 		for (Sequence s:seqList){
 			if (s.pos != UNALIGNED){		// aligned seqs
-				HashMap<Kmer, Pair<int[],int[]>> kmerPos_seq = s.getKmerPos();	// get from the aligned strand orientation
-				for (Kmer km:kmerPos_seq.keySet()){
-					if (excludes!=null && excludes.contains(km))
-						continue;
-					if (!kmer2pos_seed.containsKey(km))
-						kmer2pos_seed.put(km, new ArrayList<Integer>());
-					Pair<int[],int[]> hits_seq = kmerPos_seq.get(km);
-					if (hits_seq==null)
-						continue;
-					for (int km_seq:hits_seq.cdr()){	// if it is kmerRC match on the aligned strand
-						int km_seed = (km_seq-RC)+s.pos;	// km_seed = km_seq + seq_seed
-						if (km_seed>=-seed_range && km_seed<=seed_range)
-							kmer2pos_seed.get(km).add(km_seed+RC);		// RC to label that kmer is in opposite orientation of seed kmer
+				// find all the k-mers in the sequence, and all of their positions
+				String seq = s.getAlignedSeq();
+				Iterator searcher = tree.search(seq.getBytes());
+				while (searcher.hasNext()) {
+					SearchResult sr = (SearchResult) searcher.next();
+					for (Object m: sr.getOutputs()){
+						Kmer km = str2kmer.get(m);		//TODO: cast?
+						int km_seq = sr.getLastIndex() - km.k;	// minus k to get the k-mer position (i.e. first base of the k-mer)
+						// km_seed = km_seq + seq_seed
+						if (!kmer2pos_seed.containsKey(km))
+							kmer2pos_seed.put(km, new ArrayList<Integer>());
+						kmer2pos_seed.get(km).add(km_seq+s.pos);	
 					}
-					for (int km_seq:hits_seq.car()){
-						int pos = km_seq+s.pos;
-						if (pos>=-seed_range && pos<=seed_range)
-							kmer2pos_seed.get(km).add(pos);	
+				}
+				// the reverse compliment of alignment orientation
+				String seq_rc = s.getAlignedSeqRC();
+				searcher = tree.search(seq_rc.getBytes());
+				while (searcher.hasNext()) {
+					SearchResult sr = (SearchResult) searcher.next();
+					for (Object m: sr.getOutputs()){
+						Kmer km = str2kmer.get(m);
+						int km_seq = sr.getLastIndex() - km.k;	// minus k to get the k-mer position (i.e. first base of the k-mer) 
+						if (!kmer2pos_seed.containsKey(km))
+							kmer2pos_seed.put(km, new ArrayList<Integer>());
+						kmer2pos_seed.get(km).add(km_seq+s.pos + RC);	// +RC: "found on RC strand"
 					}
 				}
 			}
 		}
+		// comment out the method using indexed k-mer
+//		for (Sequence s:seqList){
+//			if (s.pos != UNALIGNED){		// aligned seqs
+//				HashMap<Kmer, Pair<int[],int[]>> kmerPos_seq = s.getKmerPos();	// get from the aligned strand orientation
+//				for (Kmer km:kmerPos_seq.keySet()){
+//					if (!kmer2pos_seed.containsKey(km))
+//						kmer2pos_seed.put(km, new ArrayList<Integer>());
+//					Pair<int[],int[]> hits_seq = kmerPos_seq.get(km);
+//					if (hits_seq==null)
+//						continue;
+//					for (int km_seq:hits_seq.cdr()){	// if it is kmerRC match on the aligned strand
+//						int km_seed = (km_seq-RC)+s.pos;	// km_seed = km_seq + seq_seed
+//						if (km_seed>=-seed_range && km_seed<=seed_range)
+//							kmer2pos_seed.get(km).add(km_seed+RC);		// RC to label that kmer is in opposite orientation of seed kmer
+//					}
+//					for (int km_seq:hits_seq.car()){
+//						int pos = km_seq+s.pos;
+//						if (pos>=-seed_range && pos<=seed_range)
+//							kmer2pos_seed.get(km).add(pos);	
+//					}
+//				}
+//			}
+//		}
 
     	/** find k-mers that are consistently aligned, set kmer consensus position */
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
@@ -5129,7 +5159,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				for (int i=0;i<maxPos.size();i++){
 					int pos = maxPos.get(i);
 					if (pos>RC/2)
-						pos-=RC;
+						pos -= RC;
 					int distance = Math.abs(pos);
 					if (distance<min){
 						minIdx = i;
@@ -5462,11 +5492,12 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
     
     private class Sequence implements Comparable<Sequence>{
 		int id;				// original input id
-		String seq;
-		String rc;
-		/** seq_seed: positin of sequence relative to the seed kmer position, the squence should be RC() to match the seed orientation */
+		String seq;			// original input sequence
+		String rc;			// reverse compliment of the original input sequence
+		/** seq_seed: the position of sequence relative to the seed kmer position, the squence should be RC() to match the seed orientation */
 		int pos=UNALIGNED;
-		private boolean isForward = true;
+		/** is the sequence in the original orientation as the input? */
+		private boolean isOriginalOrientation = true;
 		
 		/** forward strand (as the original orientation of input sequence) matches, <br>
 		 * Pair<int[],int[]> stores the positions for kmer and kmerRC, respectively*/
@@ -5481,16 +5512,25 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			this.seq = seq;
 			this.rc = SequenceUtils.reverseComplement(seq);
 		}
-		
+		/** reverse the sequence orientation to match the seed orientation */
 		private void RC(){
-			isForward = false;
+			isOriginalOrientation = !isOriginalOrientation;
 		}
-		private String getSeq(){
-			return isForward?seq:rc;
+		/**
+		 * Get sequence string in the aligned orientation
+		 */
+		private String getAlignedSeq(){
+			return isOriginalOrientation?seq:rc;
+		}
+		/**
+		 * Get sequence string in the RC of aligned orientation
+		 */
+		private String getAlignedSeqRC(){
+			return isOriginalOrientation?rc:seq;
 		}
 		private void resetAlignment(){
 			pos = UNALIGNED;
-			isForward = true;
+			isOriginalOrientation = true;
 		}
 		private void removeAllKmers(Collection<Kmer> kmers){
 			for (Kmer km:kmers){
@@ -5502,14 +5542,16 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			fPos.clear();
 			rPos.clear();
 		}
-		private String getSeqStrand(boolean isForward){
-			return isForward?seq:rc;
-		}
 
-		private HashMap<Kmer, Pair<int[],int[]>> getKmerPos(){
-			return isForward?fPos:rPos;
-		}
-	
+//		/**
+//		 * Get k-mer positions for this sequence.<br>
+//		 * The return positions are relative to the sequence aligned orientation (isForward)
+//		 * @return
+//		 */
+//		private HashMap<Kmer, Pair<int[],int[]>> getKmerPos(){
+//			return isOriginalOrientation?fPos:rPos;
+//		}
+//	
 		public int compareTo(Sequence s) {					// descending count
 			int max = compareByMaxCount(s);
 			if (max!=0)
@@ -5526,7 +5568,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		}
 		
 		public String toString(){
-			return String.format("%d\t%d\t%s\t%d\t%s", id, maxCount, isForward?"F":"R", pos, isForward?seq:rc);
+			return String.format("%d\t%d\t%s\t%d\t%s", id, maxCount, isOriginalOrientation?"F":"R", pos, isOriginalOrientation?seq:rc);
 		}
 	}
 
