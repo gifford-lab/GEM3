@@ -2842,7 +2842,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
 		if (config.verbose>1) {
 			double kAUC = evaluateKsmROC(seqList, seqListNeg, seedFamily).motif_significance;
-			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family %d kmers, motif kAUC = %.2f", seedFamily.size(), kAUC));
+			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family %d kmers, motif kAUC = %.1f", seedFamily.size(), kAUC));
 //			double familyScore = computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 //			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family motif score = %.2f", familyScore));
 		}
@@ -2853,7 +2853,10 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
     	cluster.alignedKmers = seedFamily;
 //		Kmer.printKmerHashcode(cluster.alignedKmers);	
     	MotifThreshold thresh = new MotifThreshold();
-    	thresh.motif_cutoff = 3;
+    	if (config.use_odds_ratio)
+    		thresh.motif_cutoff = 1;
+    	else
+    		thresh.motif_cutoff = 3;
     	thresh.posHit = kg.getGroupHitCount();
     	thresh.negHit = kg.getGroupNegHitCount();
     	thresh.motif_significance = 0;			// TODOTODO
@@ -6007,7 +6010,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 					continue;
 				}
 //				KmerGroup[] kgs = findIndexedKsmGroupHits(s, kmerSet);
-				KmerGroup[] kgs = findKsmGroupHits(s.seq);
+				KmerGroup[] kgs = findKsmGroupHits(s.seq);		// here only care hit or not, don't care sequence orientation
 				if (kgs==null)
 					posSeqScores[i]=0.0;
 				else{
@@ -6463,7 +6466,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 	}
 	
 	/** 
-	 * Search all k-mers in the sequence, strand-specific<br>
+	 * Report all strand-specific KSM group hits in both orientations of the sequence<br>
 	 * Assuming the updateEngine(kmers) method had been called, i.e. "kmer search tree" instance member variable has been constructed.
 	 * @param seq sequence string to search k-mers
 	 * @return an array of KmerGroups:<br>
