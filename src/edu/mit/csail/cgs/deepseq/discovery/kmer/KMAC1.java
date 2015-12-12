@@ -118,10 +118,11 @@ public class KMAC1 {
 //	private TreeMap<Integer, ArrayList<Kmer>> k2kmers = new TreeMap<Integer, ArrayList<Kmer>>();
 
 	
-	// AhoCorasick algorithm for multi-pattern search
+	// AhoCorasick algorithm tree object for multi-pattern search
+	// if run in parallel, this instance variable should be move to the thread local environment
 	// Pre-processing is to build the tree with all the patters (kmers)
 	// Then each individual search can be done in scan()
-	private AhoCorasick tree;
+	private AhoCorasick treeAhoCorasick;
 	// to map the k-mer string from AhoCorasick tree to Kmer Object
 	private HashMap<String, Kmer> str2kmer = new HashMap<String, Kmer>();	
 	
@@ -4368,6 +4369,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			// build KSM
 			NewKSM newKSM=null;
 			if (use_KSM){
+				updateEngine(cluster.inputKmers);		// update kmer Engine for extracting KSM
+
 				newKSM = extractKSM (seqList, seed_range);
 				if (newKSM==null ||newKSM.threshold==null)
 					return;
@@ -5050,7 +5053,8 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		}
 	}
 	/**
-	 * Get aligned kmers within seed_range using the aligned sequences
+	 * Get aligned kmers within seed_range using the aligned sequences<br>
+	 * Assuming the kEngine has been initialized with appropriate k-mers
 	 * @param seqList
 	 * @param seed_range
 	 * @param excludes
@@ -5064,7 +5068,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 			if (s.pos != UNALIGNED){		// aligned seqs
 				// find all the k-mers in the sequence, and all of their positions
 				String seq = s.getAlignedSeq();
-				Iterator searcher = tree.search(seq.getBytes());
+				Iterator searcher = treeAhoCorasick.search(seq.getBytes());
 				while (searcher.hasNext()) {
 					SearchResult sr = (SearchResult) searcher.next();
 					for (Object m: sr.getOutputs()){
@@ -5078,7 +5082,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 				}
 				// the reverse compliment of alignment orientation
 				String seq_rc = s.getAlignedSeqRC();
-				searcher = tree.search(seq_rc.getBytes());
+				searcher = treeAhoCorasick.search(seq_rc.getBytes());
 				while (searcher.hasNext()) {
 					SearchResult sr = (SearchResult) searcher.next();
 					for (Object m: sr.getOutputs()){
@@ -6342,7 +6346,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		//Init Aho-Corasick alg. for searching multiple Kmers in sequences
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-		tree = new AhoCorasick();
+		treeAhoCorasick = new AhoCorasick();
 		str2kmer.clear();
 		for (Kmer km: kmers){
 			if (km instanceof GappedKmer){
@@ -6352,23 +6356,23 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
 						bk.kmerStartOffset=gk.kmerStartOffset;
 						str2kmer.put(kmerStr, bk);			// use base-kmers for scoring
-						tree.add(kmerStr.getBytes(), kmerStr);
+						treeAhoCorasick.add(kmerStr.getBytes(), kmerStr);
 					}
 				else{
 					for (Kmer sk: gk.getBaseKmers()){
 						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
 						str2kmer.put(kmerStr, km);			// use gapped kmers for scoring
-						tree.add(kmerStr.getBytes(), kmerStr);
+						treeAhoCorasick.add(kmerStr.getBytes(), kmerStr);
 					}
 				}
 			}
 			else{
 				String kmerStr = km.isSeedOrientation()?km.kmerString:km.kmerRC;
 				str2kmer.put(kmerStr, km);
-				tree.add(kmerStr.getBytes(), kmerStr);
+				treeAhoCorasick.add(kmerStr.getBytes(), kmerStr);
 			}
 	    }
-	    tree.prepare();
+	    treeAhoCorasick.prepare();
 	    engineInitialized = true;
 	}		
 	
@@ -6417,7 +6421,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-		Iterator searcher = tree.search(seq.getBytes());
+		Iterator searcher = treeAhoCorasick.search(seq.getBytes());
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
@@ -6431,7 +6435,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		}
 		// the reverse compliment
 		String seq_rc = SequenceUtils.reverseComplement(seq);
-		searcher = tree.search(seq_rc.getBytes());
+		searcher = treeAhoCorasick.search(seq_rc.getBytes());
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
@@ -6475,7 +6479,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		// matches on negative strand are combined with matches on positive strand
 		TreeMap<Integer, ArrayList<Kmer>> result = new TreeMap<Integer, ArrayList<Kmer>> ();
 		
-		Iterator searcher = tree.search(seq.getBytes());
+		Iterator searcher = treeAhoCorasick.search(seq.getBytes());
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
@@ -6488,7 +6492,7 @@ private static void indexKmerSequences(ArrayList<Kmer> kmers, double[]seq_weight
 		}
 		// the reverse compliment
 		String seq_rc = SequenceUtils.reverseComplement(seq);
-		searcher = tree.search(seq_rc.getBytes());
+		searcher = treeAhoCorasick.search(seq_rc.getBytes());
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
