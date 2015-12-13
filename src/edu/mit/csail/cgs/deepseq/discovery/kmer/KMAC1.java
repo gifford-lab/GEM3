@@ -1441,7 +1441,7 @@ public class KMAC1 {
 		System.out.print(String.format("k=%d, gap patterns: ", k));
 		for (int i=1;i<=config.gap;i++){
 			allPatterns.get(i).trimToSize();
-			System.out.print(String.format("%d+%d(%d) ", k, i, allPatterns.get(i).size())); 
+			System.out.print(String.format("%d+%d(%d) ", k-i, i, allPatterns.get(i).size())); 
 		}
 		System.out.println(", "+ CommonUtils.timeElapsed(tic));
 		
@@ -1527,7 +1527,7 @@ public class KMAC1 {
 					}
 				}
 				
-				//TODO: Re-think!!! ignore if a singleton longer kmer, b/c it will be covered by a basic k-mer
+				//TODO: think!!! ignore if a singleton longer kmer, b/c it will be covered by a basic k-mer
 				if (gk.getBaseKmers().size()>1){	
 					gk.mergePosHits(seq_weights);
 					gkMap.put(gk.getKmerString(), gk);
