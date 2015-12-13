@@ -1346,19 +1346,23 @@ public class KMAC1 {
 		// remove k-mers that do not pass the relaxed hgp cutoff
 		HashSet<String> toRemove = new HashSet<String>();
 		for (Kmer kmer:bkMap.values()){
-			if (kmerstr2negSeqs.containsKey(kmer.getKmerString())){
-				HashSet<Integer> neghits = kmerstr2negSeqs.get(kmer.getKmerString());
-				if (kmer.getPosHitCount() > neghits.size() / get_NP_ratio() * relaxed_fold){
-					double hgp = computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), neghits.size());
-					if (hgp < relaxed_hgp){		// the hgp and fold change here is slightly relaxed for base-kmers
-						kmer.setNegHits(neghits);	
-						kmer.setHgp(hgp);
-					}
-					else
-						toRemove.add(kmer.getKmerString());	
+			HashSet<Integer> neghits = kmerstr2negSeqs.get(kmer.getKmerString());
+			if (neghits==null)
+				neghits = new HashSet<Integer>();
+			if (kmer.getPosHitCount() > neghits.size() / get_NP_ratio() * relaxed_fold){
+				double hgp = computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), neghits.size());
+//				System.out.println(kmer.toString());
+				if (hgp < relaxed_hgp){		// the hgp and fold change here is slightly relaxed for base-kmers
+					kmer.setNegHits(neghits);	
+					kmer.setHgp(hgp);
 				}
 				else
-					toRemove.add(kmer.getKmerString());					
+					toRemove.add(kmer.getKmerString());	
+			}
+			else{
+				toRemove.add(kmer.getKmerString());		
+//				System.err.println(kmer.toString());
+
 			}
 		}
 		for (String ks:toRemove)
@@ -1452,6 +1456,12 @@ public class KMAC1 {
 				kmers.add(kmer);	
 			}
 		}
+		if (config.print_all_kmers){
+			ArrayList<Kmer> kmersAll = new ArrayList<Kmer>();
+			kmersAll.addAll(allKmerMap.get(k).values());
+			Collections.sort(kmersAll);
+			GappedKmer.printKSM(kmersAll, null, k, 0, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+		}			
 		allKmerMap.remove(k);
 		Collections.sort(kmers, new Comparator<Kmer>(){
             public int compare(Kmer o1, Kmer o2) {
@@ -1459,7 +1469,7 @@ public class KMAC1 {
             }
         });
 		System.out.println(String.format("k=%d, exact kmers=%d", k, kmers.size()));
-		
+	
 		// gapped k-mers		
 		/**
 		 * Construct gapped k-mers from the significant (relaxed fold change and hgp) base k-mers
