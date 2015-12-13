@@ -752,7 +752,6 @@ public class MTree {
 	
 	public static MTree constructTree(ArrayList<Kmer> kmers, int c) {
 		MTree tree = new MTree(c, kmers.size());
-		// for (int i = 0; i < kmers.size(); i++) {
 		for (int i = 0; i < kmers.size(); i++) {
 			tree.setCurrent(i);
 //			System.out.println("start"+i);
