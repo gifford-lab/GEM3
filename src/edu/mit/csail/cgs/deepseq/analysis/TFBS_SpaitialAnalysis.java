@@ -191,7 +191,7 @@ public class TFBS_SpaitialAnalysis {
 	}
 	
 	public TFBS_SpaitialAnalysis(String[] args){
-		CommonUtils.parseGenome(args);
+		genome = CommonUtils.parseGenome(args);
 
 		Set<String> flags = Args.parseFlags(args);
 		outPrefix = Args.parseString(args, "out", outPrefix);

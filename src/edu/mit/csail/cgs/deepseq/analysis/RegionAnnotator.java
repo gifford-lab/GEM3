@@ -65,6 +65,9 @@ public class RegionAnnotator {
 		case 2:
 			ra.assign_gene_by_proximity();
 			break;
+		case 3: 	// print all pairwise distances between distal enhancers of each gene
+			ra.compute_enhancer_distances();
+			break;
 		}
 		
 	}
@@ -398,6 +401,30 @@ public class RegionAnnotator {
 
 	}
 	
-	
+	private void compute_enhancer_distances(){
+		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "g2e", null));
+		String prev = "";
+		ArrayList<Point> ps = new ArrayList<Point>();
+		for (String l:lines){
+			String f[] = l.split("\t");
+			if (prev.equals(f[0])){		// same gene
+				ps.add(Point.fromString(genome, f[1]));
+			}
+			else{	// different gene, if prev only 1 region, ignore, if more regions, compute distance
+				if (ps.size()>1){		// more than 1 enhancer
+					ArrayList<Integer> distances = new ArrayList<Integer>();
+					for (int i=0;i<ps.size();i++)
+						for (int j=i+1;j<ps.size();j++){
+							int d = ps.get(i).distance(ps.get(j));
+							distances.add(d);
+							System.out.println(d);
+						}
+				}
+				prev = f[0];
+				ps.clear();
+				ps.add(Point.fromString(genome, f[1]));
+			}
+		}
+	}
 	
 }
