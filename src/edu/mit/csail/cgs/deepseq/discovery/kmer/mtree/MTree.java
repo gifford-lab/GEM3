@@ -1,14 +1,12 @@
 package edu.mit.csail.cgs.deepseq.discovery.kmer.mtree;
 
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
 
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
@@ -499,11 +497,93 @@ public class MTree {
 		return center;
 	}
 	
+	public Pair<TreeObject, TreeObject> splitHelperUnbalanced(ArrayList<TreeObject> newEntries) {
+		// allocate new nodes partitionNode0, partitionNode1 with parents promote0, promoted1
+		// try optimalSplitPolicy, convergeKMedoids, directKMedoids
+		Pair<TreeObject, TreeObject> promoted = MTree.convergeKMedoids(newEntries);
+		
+		TreeObject promoted0 = promoted.getFirst();
+		ArrayList<TreeObject> promotedChildren0 = new ArrayList<TreeObject>();
+		if (promoted0.getChild() != null) {
+			promotedChildren0 = promoted0.getChild().getObjects();
+		}
+		TreeObject promoted1 = promoted.getLast();
+		ArrayList<TreeObject> promotedChildren1 = new ArrayList<TreeObject>();
+		if (promoted1.getChild() != null) {
+			promotedChildren1 = promoted1.getChild().getObjects();
+		}
+		
+		ArrayList<TreeObject> partition0 = new ArrayList<TreeObject>();
+		ArrayList<TreeObject> partition1 = new ArrayList<TreeObject>();
+		
+		for (int i = 0; i < newEntries.size(); i++) {
+			TreeObject o = newEntries.get(i);
+			if (o.getData().getIndex() != promoted0.getData().getIndex() && o.getData().getIndex() != promoted1.getData().getIndex()) {
+				// see which set o belongs in
+				if (KMAC1.editDistance(o.getData(), promoted0.getData()) < KMAC1.editDistance(o.getData(), promoted1.getData())) {
+					partition0.add(o);
+				}
+				else {
+					partition1.add(o);
+				}
+			}
+		}
+		
+		// make promoted0
+		if (promotedChildren0.size() == 0) {
+			MTreeNode partitionNode0 = new MTreeNode(true, promoted0);
+			for (TreeObject o: partition0) {
+				partitionNode0.addTO(o);
+			}
+			promoted0.setChild(partitionNode0);
+			promoted0.getContainer().setLeaf(false);
+		}
+		else {
+			if (promotedChildren0.size() + partition0.size() > capacity) {
+				TreeObject center = this.centralize(promoted0.getChild().getObjects());
+				// center is now all of promoted0's children into one node, promoted0's child currently 
+				// is devoid of objects
+				// what is center's current container? its old container, promoted0.getChild()
+				partition0.add(center);
+			}
+			for (TreeObject o: partition0) {
+				promoted0.getChild().addTO(o);
+			}
+			promoted0.getContainer().setLeaf(false);
+		}
+		
+		// make promoted1
+		if (promotedChildren1.size() == 0) {
+			MTreeNode partitionNode1 = new MTreeNode(true, promoted1);
+			for (TreeObject o: partition1) {
+				partitionNode1.addTO(o);
+			}
+			promoted1.setChild(partitionNode1);
+			promoted1.getContainer().setLeaf(false);
+		}
+		else {
+			if (promotedChildren1.size() + partition1.size() > capacity) {
+				TreeObject center = this.centralize(promoted1.getChild().getObjects());
+				// center is now all of promoted1's children into one node, promoted1's child currently 
+				// is devoid of objects
+				// what is center's current container? its old container, promoted1.getChild()
+				partition1.add(center);
+			}
+			for (TreeObject o: partition1) {
+				promoted1.getChild().addTO(o);
+			}
+			promoted1.getContainer().setLeaf(false);
+		}
+		
+		return new Pair<TreeObject, TreeObject>(promoted0, promoted1);
+		
+	}
+	
 	// Takes in the entries, "newEntries", of a node which needs to be split.
 	// Returns promoted0 and promoted1, which contain as children the other entries in newEntries,
 	// and resets all other entries in newEntries to have the correct parents.
 	
-	public Pair<TreeObject, TreeObject> splitHelper(ArrayList<TreeObject> newEntries) {
+	public Pair<TreeObject, TreeObject> splitHelperBalanced(ArrayList<TreeObject> newEntries) {
 		// allocate new nodes partitionNode0, partitionNode1 with parents promoted0, promoted1
 		
 		Pair<TreeObject, TreeObject> promoted = MTree.optimalSplitPolicy(newEntries);
@@ -542,7 +622,7 @@ public class MTree {
 		Collections.sort(distances0, new DistanceComparator());
 		Collections.sort(distances1, new DistanceComparator());
 		
-		for (int i = 0; i < numEntries - 2; i++) {
+		for (int i = 0; i < numEntries; i++) {
 			if (i % 2 == 0) {
 				int index = distances0.pop().getFirst();
 				partition0.add(newEntries.get(index));
@@ -564,17 +644,6 @@ public class MTree {
 				}
 			}
 		}
-		
-		Pair<Integer, Double> biggest0 = distances0.pop();
-		partition0.add(newEntries.get(biggest0.getFirst()));
-		for (int j = 0; j < distances1.size(); j++) {
-			if (distances1.get(j).getFirst() == biggest0.getFirst()) {
-				distances1.remove(j);
-				break;
-			}
-		}
-		Pair<Integer, Double> biggest1 = distances1.pop();
-		partition1.add(newEntries.get(biggest1.getFirst()));
 		
 		// make promoted0
 		if (promotedChildren0.size() == 0) {
@@ -653,7 +722,7 @@ public class MTree {
 			}
 		}
 
-		Pair<TreeObject, TreeObject> promoted = this.splitHelper(newEntries);
+		Pair<TreeObject, TreeObject> promoted = this.splitHelperUnbalanced(newEntries);
 		TreeObject promoted0 = promoted.getFirst(); // its container is still n
 		TreeObject promoted1 = promoted.getLast(); // its container is still n
 		
@@ -675,7 +744,7 @@ public class MTree {
 		}
 	}
 	
-	// fine, always returns 2 different indices with furthest possible distance
+	// returns 2 different indices with furthest possible distance
 	public static Pair<TreeObject, TreeObject> optimalSplitPolicy(ArrayList<TreeObject> promote) {
 		double furthestDist = 0;
 		int k1 = promote.size();
@@ -691,6 +760,92 @@ public class MTree {
 			}
 		}
 		return new Pair<TreeObject, TreeObject>(promote.get(k1), promote.get(k2));
+	}
+	
+	// brute force k-medoids
+	public static Pair<TreeObject, TreeObject> directKMedoids(ArrayList<TreeObject> promote) {
+		int arg1 = promote.size();
+		int arg2 = promote.size();
+		double cost = Double.MAX_VALUE;
+		double candidate_cost;
+		for (int i = 0; i < promote.size(); i++) {
+			for (int j = 0; j < i; j++) {
+				candidate_cost = 0.0;
+				// compute cost using i, j as medoids
+				for (int k = 0; k < promote.size(); k++) {
+					if (k != i && k != j) {
+						// cost of k is smaller of d(k, i), d(k, j)
+						candidate_cost += Math.min(KMAC1.editDistance(promote.get(k).getData(), promote.get(i).getData()), KMAC1.editDistance(promote.get(k).getData(),  promote.get(j).getData()));
+					}
+				}
+				if (candidate_cost < cost) {
+					cost = candidate_cost;
+					arg1 = i;
+					arg2 = j;
+				}
+			}				
+		}
+		return new Pair<TreeObject, TreeObject>(promote.get(arg1), promote.get(arg2));
+	}
+	
+	// convergence k-medoids
+	public static Pair<TreeObject, TreeObject> convergeKMedoids(ArrayList<TreeObject> promote) {
+		Random rand = new Random();
+		int arg1 = rand.nextInt(promote.size());
+		int arg2 = rand.nextInt(promote.size() - 1);
+		if (arg2 >= arg1) {
+			arg2 = arg2 + 1;
+		}
+		// arg1, arg2 randomly initialized
+		boolean switched = true;
+		double cost = 0.0;
+		for (int i = 0; i < promote.size(); i++) {
+			if (i != arg1 && i != arg2) {
+				cost += Math.min(KMAC1.editDistance(promote.get(i).getData(), promote.get(arg1).getData()), KMAC1.editDistance(promote.get(i).getData(), promote.get(arg2).getData()));
+			}
+		}
+		// cost initialized to be cost using arg1 and arg2
+		while (switched) {
+			switched = false;
+			// try to switch arg1 or arg2
+			double candidate_cost;
+			for (int i = 0; i < promote.size(); i++) {
+				if (i != arg1 && i != arg2) {
+					// switch i and arg1. medoid guesses are now i, arg2
+					candidate_cost = 0.0;
+					for (int j = 0; j < promote.size(); j++) {
+						if (j != i && j != arg2) {
+							candidate_cost += Math.min(KMAC1.editDistance(promote.get(i).getData(), promote.get(j).getData()), 
+									KMAC1.editDistance(promote.get(j).getData(), promote.get(arg2).getData()));
+						}
+					}
+					if (candidate_cost < cost) {
+						// better medoids found
+						cost = candidate_cost;
+						arg1 = i;
+						switched = true;
+						break;
+					}
+					// switch i and arg2. medoid guesses are now i, arg1
+					candidate_cost = 0.0;
+					for (int j = 0; j < promote.size(); j++) {
+						if (j != i && j != arg1) {
+							candidate_cost += Math.min(KMAC1.editDistance(promote.get(i).getData(), promote.get(j).getData()),
+									KMAC1.editDistance(promote.get(j).getData(), promote.get(arg1).getData()));
+						}
+					}
+					if (candidate_cost < cost) {
+						// better medoids found
+						cost = candidate_cost;
+						arg2 = i;
+						switched = true;
+						break;
+					}
+				}
+			}
+		}
+		// at this point, there are no better switches. arg1 and arg2 are the converged medoids
+		return new Pair<TreeObject, TreeObject>(promote.get(arg1), promote.get(arg2));
 	}
 	
 	public Pair<Integer, ArrayList<Kmer>> rangeSearch(Kmer s, double r) {
@@ -834,9 +989,111 @@ public class MTree {
 		return Math.min(Math.min(MTree.test2(s1, s2), MTree.test2(s1r, s2)), cutoff);
 	}
 	
+	
+	public static double l2dist(int x0, int y0, int x1, int y1) {
+		return Math.sqrt(1.0 * (Math.pow(x0 - x1, 2) + Math.pow(y0 - y1, 2)));
+	}
+	
+	public static double l1dist(int x0, int y0, int x1, int y1) {
+		return Math.abs(x0 - x1) + Math.abs(y0 - y1);
+	}
+	
+	// convergence k-medoids
+	public static Pair<String, String> test(List<String> cluster) {
+		Random rand = new Random();
+		int arg1 = rand.nextInt(cluster.size());
+		int arg2 = rand.nextInt(cluster.size() - 1);
+		if (arg2 >= arg1) {
+			arg2 = arg2 + 1;
+		}
+		// arg1, arg2 randomly initialized
+		boolean switched = true;
+		double cost = 0.0;
+		for (int i = 0; i < cluster.size(); i++) {
+			if (i != arg1 && i != arg2) {
+				cost += Math.min(MTree.l1dist(Integer.parseInt(cluster.get(i).split(" ")[0]), Integer.parseInt(cluster.get(i).split(" ")[1]), Integer.parseInt(cluster.get(arg1).split(" ")[0]), Integer.parseInt(cluster.get(arg1).split(" ")[1])), MTree.l1dist(Integer.parseInt(cluster.get(i).split(" ")[0]), Integer.parseInt(cluster.get(i).split(" ")[1]), Integer.parseInt(cluster.get(arg2).split(" ")[0]), Integer.parseInt(cluster.get(arg2).split(" ")[1])));
+			}
+		}
+		// cost initialized to be cost using arg1 and arg2
+		while (switched) {
+			System.out.println(cost);
+			switched = false;
+			// try to switch arg1 or arg2
+			double candidate_cost;
+			for (int i = 0; i < cluster.size(); i++) {
+				if (i != arg1 && i != arg2) {
+					// switch i and arg1. medoid guesses are now i, arg2
+					candidate_cost = 0.0;
+					for (int j = 0; j < cluster.size(); j++) {
+						if (j != i && j != arg2) {
+							candidate_cost += Math.min(MTree.l1dist(Integer.parseInt(cluster.get(i).split(" ")[0]), Integer.parseInt(cluster.get(i).split(" ")[1]), Integer.parseInt(cluster.get(j).split(" ")[0]), Integer.parseInt(cluster.get(j).split(" ")[1])), 
+									MTree.l1dist(Integer.parseInt(cluster.get(arg2).split(" ")[0]), Integer.parseInt(cluster.get(arg2).split(" ")[1]), Integer.parseInt(cluster.get(j).split(" ")[0]), Integer.parseInt(cluster.get(j).split(" ")[1])));
+						}
+					}
+					if (candidate_cost < cost) {
+						// better medoids found
+						cost = candidate_cost;
+						arg1 = i;
+						switched = true;
+						break;
+					}
+					// switch i and arg2. medoid guesses are now i, arg1
+					candidate_cost = 0.0;
+					for (int j = 0; j < cluster.size(); j++) {
+						if (j != i && j != arg1) {
+							candidate_cost += Math.min(MTree.l1dist(Integer.parseInt(cluster.get(i).split(" ")[0]), Integer.parseInt(cluster.get(i).split(" ")[1]), Integer.parseInt(cluster.get(j).split(" ")[0]), Integer.parseInt(cluster.get(j).split(" ")[1])), 
+									MTree.l1dist(Integer.parseInt(cluster.get(arg1).split(" ")[0]), Integer.parseInt(cluster.get(arg1).split(" ")[1]), Integer.parseInt(cluster.get(j).split(" ")[0]), Integer.parseInt(cluster.get(j).split(" ")[1])));
+						}
+					}
+					if (candidate_cost < cost) {
+						// better medoids found
+						cost = candidate_cost;
+						arg2 = i;
+						switched = true;
+						break;
+					}
+				}
+			}
+		}
+		// at this point, there are no better switches. arg1 and arg2 are the converged medoids
+		return new Pair<String, String>(cluster.get(arg1), cluster.get(arg2));
+	}
+	
+	public static Pair<String, String> test2(List<String> cluster) {
+		int arg1 = cluster.size();
+		int arg2 = cluster.size();
+		double cost = Double.MAX_VALUE;
+		double candidate_cost;
+		for (int i = 0; i < cluster.size(); i++) {
+			for (int j = 0; j < i; j++) {
+				candidate_cost = 0.0;
+				// compute cost using i, j as medoids
+				for (int k = 0; k < cluster.size(); k++) {
+					if (k != i && k != j) {
+						// cost of k is smaller of d(k, i), d(k, j)
+						candidate_cost += Math.min(MTree.l1dist(Integer.parseInt(cluster.get(i).split(" ")[0]), Integer.parseInt(cluster.get(i).split(" ")[1]), Integer.parseInt(cluster.get(k).split(" ")[0]), Integer.parseInt(cluster.get(k).split(" ")[1])), 
+								MTree.l1dist(Integer.parseInt(cluster.get(k).split(" ")[0]), Integer.parseInt(cluster.get(k).split(" ")[1]), Integer.parseInt(cluster.get(j).split(" ")[0]), Integer.parseInt(cluster.get(j).split(" ")[1])));
+					}
+				}
+				if (candidate_cost < cost) {
+					cost = candidate_cost;
+					arg1 = i;
+					arg2 = j;
+				}
+			}				
+		}
+		System.out.println(cost);
+		return new Pair<String, String>(cluster.get(arg1), cluster.get(arg2));
+	}
+	
 	public static void main(String[] args) {
 		double[][] m1 = {{0.5, 0.5, 0, 0}, {0, 0.5, 0.5, 0}};
 		double[][] m2 = {{1, 0, 0, 0}, {0, 1, 0, 0}};
-		System.out.println(KMAC1.editDistanceByMatrix(m1, m2));
+		String test[] = new String[]{"2 6", "3 4", "3 8", "4 7", "6 2", "6 4", "7 3", "7 4", "8 5", "7 6"};
+		System.out.println(test.length);
+		List<String> cluster = Arrays.asList(test);
+		Pair<String, String> medoids = MTree.test2(cluster);
+		System.out.println(medoids.getFirst());
+		System.out.println(medoids.getLast());
 	}
 }

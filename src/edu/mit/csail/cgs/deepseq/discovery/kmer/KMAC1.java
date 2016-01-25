@@ -936,7 +936,7 @@ public class KMAC1 {
 			ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
 			
 			if (config.use_m_tree){
-				MTree dataPoints = MTree.constructTree(kmers, 5);
+				MTree dataPoints = MTree.constructTree(kmers, 4);
 				centerKmers = selectCenterKmersByDensityClustering2(kmers, dataPoints, config.dc==-1?maxGap:config.dc);
 				
 				for (int j=0;j<centerKmers.size();j++){	

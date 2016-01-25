@@ -128,7 +128,7 @@ public class CountKmers {
 
 		// create the kmer objects
 		for (String key:kmerstr2seqs.keySet()){	
-			Kmer kmer = new Kmer(key, kmerstr2seqs.get(key));
+			Kmer kmer = new Kmer(key, kmerstr2seqs.get(key), null);
 			kms.add(kmer);
 		}
 		Collections.sort(kms);
