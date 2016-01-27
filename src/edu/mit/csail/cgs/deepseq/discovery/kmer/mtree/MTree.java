@@ -915,7 +915,6 @@ public class MTree {
 			tree.insertNode(tree.getRoot(), tree.new TreeObject(null, null, data, 0));
 //			System.out.println(tree.root.getNumObjects());
 		}
-		System.out.println(kmers.size());
 		tree.root.setTreeR();
 		tree.root.recursiveSetNumObjects();
 		// tree.root.recursiveRI();

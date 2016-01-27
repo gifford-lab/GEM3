@@ -934,8 +934,21 @@ public class KMAC1 {
 			int cutoff = (int)(config.kmer_deviation_factor*k);	// maximum kmer distance to be considered as neighbors
 			ArrayList<Kmer> centerKmers = new ArrayList<Kmer> ();
 			ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
+			System.out.println("Total number of k-mers: "+kmers.size());
 			
 			if (config.use_m_tree){
+				
+				for (int d=1;d<=4;d++){
+					for (int c=5;c<=55;c+=10){
+						numDistCalcuation = 0;
+						System.out.print("d="+d+"\t c="+c+"\t");
+						MTree dataPoints = MTree.constructTree(kmers, c);
+						System.out.print("n1="+numDistCalcuation+"\t");
+						centerKmers = selectCenterKmersByDensityClustering2(kmers, dataPoints, d);
+						System.out.println("n2="+numDistCalcuation);
+					}
+				}
+				
 				MTree dataPoints = MTree.constructTree(kmers, 4);
 				centerKmers = selectCenterKmersByDensityClustering2(kmers, dataPoints, config.dc==-1?maxGap:config.dc);
 				
@@ -2345,6 +2358,7 @@ public class KMAC1 {
 	 * It is similar to Levenshtein distance, but not considering internal insertion/deletion.<br>
 	 * It takes the min of distances from forward and reverse compliment orientation.
 	 */
+	public static int numDistCalcuation = 0;
 	public static double editDistance(Kmer k1, Kmer k2) {
 		if (k1.getKmerString().length() > k2.getKmerString().length()) {
 			return KMAC1.editDistance(k2, k1);
@@ -2358,6 +2372,8 @@ public class KMAC1 {
 //		double forwardDistance2 = KMAC1.editDistanceByMatrix(m1, m2);
 //		double best2 = Math.min(KMAC1.editDistanceByMatrix(m1, m2RC), forwardDistance2);
 //		assert (best==best2);
+		numDistCalcuation++;
+
 		return best;
 	}
 	
@@ -2415,6 +2431,7 @@ public class KMAC1 {
 			}
 			dist = Math.min(slideDist, dist);
 		}
+		
 		return dist;
 	}
 	/**
@@ -2594,8 +2611,8 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 //		ArrayList<DensityClusteringPoint> centers = StatUtil.weightedDensityClustering(distanceMatrix, weights, config.kd, config.delta);
 		
 //		int dc = (k>=8) ? (config.dc+1) : config.dc;
-		if (config.verbose>1)
-			System.out.println("distance_cutoff="+distance_cutoff);
+//		if (config.verbose>1)
+//			System.out.println("distance_cutoff="+distance_cutoff);
 //		int delta = dc + (k>=11?2:1);
 		ArrayList<DensityClusteringPoint> centers = StatUtil.hitWeightedDensityClustering(distanceMatrix, posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
@@ -2651,8 +2668,8 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			negHitList.add(km.negBits);
         }
 
-		if (config.verbose>1)
-			System.out.println("distance_cutoff="+distance_cutoff);
+//		if (config.verbose>1)
+//			System.out.println("distance_cutoff="+distance_cutoff);
 		ArrayList<DensityClusteringPoint> centers = KMAC1.hitWeightedDensityClustering2(dataPoints, posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
 		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
@@ -2663,15 +2680,15 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		}
 		results.trimToSize();
 		
-		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
-		int displayCount = Math.min(config.k_top, centers.size());
-		for (int i=0;i<displayCount;i++){
-			DensityClusteringPoint p = centers.get(i);
-			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
-					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
-		}
-		if (config.verbose>1)
-			System.out.println(CommonUtils.timeElapsed(tic));
+//		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
+//		int displayCount = Math.min(config.k_top, centers.size());
+//		for (int i=0;i<displayCount;i++){
+//			DensityClusteringPoint p = centers.get(i);
+//			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
+//					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
+//		}
+//		if (config.verbose>1)
+//			System.out.println(CommonUtils.timeElapsed(tic));
 		
 		return results;
 	}	
@@ -2708,7 +2725,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		}
 		// compute local density for each point
 		double averagePruned = ((double) pruned)/((double) dataPoints.getSize());
-		System.out.println(averagePruned + "---------------------- AVERAGE PRUNED ------------------");
+		System.out.print(String.format("PRUNED=%.1f\t", averagePruned));
 		
 		data.trimToSize();	
 		Collections.sort(data);
