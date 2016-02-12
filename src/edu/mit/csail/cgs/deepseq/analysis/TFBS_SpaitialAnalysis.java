@@ -51,7 +51,7 @@ public class TFBS_SpaitialAnalysis {
 	
 	Genome genome=null;
 	ArrayList<String> expts = new ArrayList<String>();
-	ArrayList<String> names = new ArrayList<String>();
+	ArrayList<String> tf_names = new ArrayList<String>();
 	ArrayList<String> motif_names = new ArrayList<String>();
 	ArrayList<String> readdb_names = new ArrayList<String>();
 	ArrayList<String> indirect_tf_expts = new ArrayList<String>();
@@ -212,12 +212,12 @@ public class TFBS_SpaitialAnalysis {
 		print_spacing_profile = flags.contains("spacing");
 		dir = new File(Args.parseString(args, "dir", "."));
 		expts = new ArrayList<String>();
-		names = new ArrayList<String>();
+		tf_names = new ArrayList<String>();
 		motif_names = new ArrayList<String>();
 		String gem_info_file = Args.parseString(args, "gem", null);
 		int type = Args.parseInteger(args, "type", 999);
 		
-		if (type==999){		// default for public version
+		if (type==999){		// default for public version (RPD paper)
 			gem_info_file = Args.parseString(args, "tf_peak_file", null);
 			print_hdp_format = true;
 			print_matrix = true;
@@ -227,17 +227,17 @@ public class TFBS_SpaitialAnalysis {
 			ArrayList<String> info = CommonUtils.readTextFile(gem_info_file);
 			// expt name | short name | factor type | display name | motif | readdb name
 			for (String txt: info){
-				if ( ! (txt.equals("")||txt.startsWith("#")) ){
-					String[] f = txt.split("\t");
+				if ( ! (txt.equals("") || txt.startsWith("#")) ){
+					String[] f = txt.trim().split("\t");
 					if (f.length == 6){
 						expts.add(f[0]);
-						names.add(f[3]);
+						tf_names.add(f[3]);
 						motif_names.add(f[4]);
 						readdb_names.add(f[5]);
 					}
-					else if (f.length == 2){		// 2 columns, expt.name<TAB>GEM.path
+					else if (f.length == 2){		// 2 columns, TF.name<TAB>GEM.path
+						tf_names.add(f[0]);
 						expts.add(f[1]);
-						names.add(f[0]);
 					}
 				}
 			}
@@ -259,18 +259,18 @@ public class TFBS_SpaitialAnalysis {
 			for (int i=0;i<indirect_tf_expts.size();i++){
 				String e = indirect_tf_expts.get(i);
 				if (type==999){	//public version
-					int idx = names.indexOf(e);
+					int idx = tf_names.indexOf(e);
 					if (idx>=0){		// add fake expt and iNames for the indirect TFSS sites
+						tf_names.add("i_"+tf_names.get(idx));
 						expts.add(expts.get(idx));
-						names.add("i_"+names.get(idx));
-						directid2indirectid.put(idx, expts.size()-1);
+						directid2indirectid.put(idx, tf_names.size()-1);
 					}
 				}
 				else{
 					int idx = expts.indexOf(e);
 					if (idx>=0){		// add fake expt and iNames for the indirect TFSS sites
 						expts.add(e);
-						names.add("i_"+names.get(idx));
+						tf_names.add("i_"+tf_names.get(idx));
 						readdb_names.add(readdb_names.get(idx));
 						directid2indirectid.put(idx, expts.size()-1);
 					}
@@ -314,8 +314,8 @@ public class TFBS_SpaitialAnalysis {
 		if(exclude_sites_file!=null){
 			ex_regions = CommonUtils.loadCgsRegionFile(exclude_sites_file, genome);
 		}
-		for (int tf=0;tf<names.size();tf++){
-			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
+		for (int tf=0;tf<tf_names.size();tf++){
+			if (tf_names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
 				continue;
 			boolean tfss = false;		// this is false for non-tfss factors (e.g. Pol2), or when not considering direct/indirect
 			if (directid2indirectid!=null && directid2indirectid.containsKey(tf))
@@ -378,8 +378,8 @@ public class TFBS_SpaitialAnalysis {
 		if(exclude_sites_file!=null){
 			ex_regions = CommonUtils.loadCgsRegionFile(exclude_sites_file, genome);
 		}
-		for (int tf=0;tf<names.size();tf++){
-			if (names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
+		for (int tf=0;tf<tf_names.size();tf++){
+			if (tf_names.get(tf).startsWith("i_"))		// names start with i_ are artificially created id for TFSS indirect binding
 				continue;
 			boolean tfss = false;		// this is false for non-tfss factors (e.g. Pol2), or when not considering direct/indirect
 			if (directid2indirectid!=null && directid2indirectid.containsKey(tf))
@@ -462,7 +462,7 @@ public class TFBS_SpaitialAnalysis {
 			queryRegions = CommonUtils.load_BED_regions(genome, query_region_file).car();
 		}
 
-		for (int tf=0;tf<names.size();tf++){
+		for (int tf=0;tf<tf_names.size();tf++){
 			String expt = expts.get(tf);
 			File dir2= new File(dir, expt);
 			dir2= new File(dir2, expt+"_outputs");
@@ -547,7 +547,7 @@ public class TFBS_SpaitialAnalysis {
 					continue;
 				String[] f = lines.get(l).split("\t");
 				expts.add(f[0]);
-				names.add(f[1]);
+				tf_names.add(f[1]);
 				motif_names.add(f[2]);
 
 				System.err.print(String.format("Peak#%d: loading %s", l, f[0]));
@@ -656,7 +656,7 @@ public class TFBS_SpaitialAnalysis {
 		StringBuilder sb = new StringBuilder();
 		int digits = (int) Math.ceil(Math.log10(expts.size()));
 		for (int i=0;i<expts.size();i++){
-			sb.append(String.format("B%0"+digits+"d\t%s\t%s\t%s\n", i, expts.get(i), names.get(i), motif_names.get(i)));
+			sb.append(String.format("B%0"+digits+"d\t%s\t%s\t%s\n", i, expts.get(i), tf_names.get(i), motif_names.get(i)));
 		}
 		if (!pwms.isEmpty()){
 			digits = (int) Math.ceil(Math.log10(pwms.size()));
@@ -856,7 +856,7 @@ public class TFBS_SpaitialAnalysis {
 		// update clusters to include annotation info as a pseudo site
 		int tf_count = expts.size();
 		for (String s:annoLabels)
-			names.add(s);
+			tf_names.add(s);
 		
 		for (int j=0;j<clusters.size();j++){
 			ArrayList<Site> c = clusters.get(j);
@@ -914,7 +914,7 @@ public class TFBS_SpaitialAnalysis {
 				StringBuilder sb_tf_motifs = new StringBuilder();
 				int totalMotifs = 0;
 				for (Site s:c){
-					sb_tfs.append(names.get(s.tf_id)).append(",");
+					sb_tfs.append(tf_names.get(s.tf_id)).append(",");
 					sb_tfids.append(s.tf_id).append(",");
 					sb_tf_signals.append(String.format("%d", Math.round(s.signal))).append(",");
 					sb_tf_positions.append(s.bs.getLocation()-r.getStart()).append(",");
@@ -951,7 +951,7 @@ public class TFBS_SpaitialAnalysis {
 					r = new Region(genome, c.get(0).bs.getChrom(), c.get(0).bs.getLocation(), c.get(numSite-1).bs.getLocation()).expand(anno_expand_distance, anno_expand_distance);
 				StringBuilder sb_tfs = new StringBuilder().append(r.toString()).append("\t").append(numSite).append("\t");
 				for (Site s:c){
-					sb_tfs.append(names.get(s.tf_id)).append(" ");
+					sb_tfs.append(tf_names.get(s.tf_id)).append(" ");
 				}
 				if (sb_tfs.length()!=0){
 					sb_tfs.deleteCharAt(sb_tfs.length()-1);
@@ -963,7 +963,7 @@ public class TFBS_SpaitialAnalysis {
 		}
 		if (print_uci_matlab_format){	// UCI Matlab Topic Modeling Toolbox 1.4 format
 			StringBuilder sb = new StringBuilder();
-			int[] factorSiteCount = new int[names.size()];
+			int[] factorSiteCount = new int[tf_names.size()];
 
 			int docID = 1;
 			for (ArrayList<Site> c :clusters){
@@ -984,7 +984,7 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (print_hdp_format){	// Blei HDP (lda-c) format, SITE count for each TF
 			StringBuilder sb = new StringBuilder();
-			int[] factorSiteCount = new int[names.size()];
+			int[] factorSiteCount = new int[tf_names.size()];
 
 			for (ArrayList<Site> c :clusters){
 				for (int s=0;s<c.size();s++){
@@ -1010,7 +1010,7 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (print_hdp_rc_format){	// Blei HDP (lda-c) format, read count for each TF
 			StringBuilder sb = new StringBuilder();
-			double[] factorReadCount = new double[names.size()];
+			double[] factorReadCount = new double[tf_names.size()];
 
 			for (ArrayList<Site> c :clusters){
 				for (int s=0;s<c.size();s++){
@@ -1036,17 +1036,17 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (print_hdp_format||print_uci_matlab_format){
 			StringBuilder sb = new StringBuilder();
-			for (int i=0;i<names.size();i++)
-				sb.append(names.get(i)).append("\n");
+			for (int i=0;i<tf_names.size();i++)
+				sb.append(tf_names.get(i)).append("\n");
 			CommonUtils.writeFile("0_BS_clusters."+outPrefix+".Dictioinary.txt", sb.toString());
 		}
 		
 		if (print_matrix){	// Print region-tfSiteCount matrix, can be used for clustering analysis
 			StringBuilder sb = new StringBuilder();
-			int[] factorSiteCount = new int[names.size()];
+			int[] factorSiteCount = new int[tf_names.size()];
 			sb.append("#Region    ").append("\t");
-			for (int i=0;i<names.size();i++)
-				sb.append(names.get(i)).append("\t");
+			for (int i=0;i<tf_names.size();i++)
+				sb.append(tf_names.get(i)).append("\t");
 			CommonUtils.replaceEnd(sb, '\n');
 			
 			for (int j=0;j<clusters.size();j++){
@@ -1074,10 +1074,10 @@ public class TFBS_SpaitialAnalysis {
 		
 		if (print_matrix_rc){	// Print region-tfSiteCount matrix, can be used for clustering analysis
 			StringBuilder sb = new StringBuilder();
-			double[] factorReadCount = new double[names.size()];
+			double[] factorReadCount = new double[tf_names.size()];
 			sb.append("#Region    ").append("\t");
-			for (int i=0;i<names.size();i++)
-				sb.append(names.get(i)).append("\t");
+			for (int i=0;i<tf_names.size();i++)
+				sb.append(tf_names.get(i)).append("\t");
 			CommonUtils.replaceEnd(sb, '\n');
 			
 			for (int j=0;j<clusters.size();j++){
@@ -2171,7 +2171,7 @@ public class TFBS_SpaitialAnalysis {
 			
 			StringBuilder sb1 = new StringBuilder();
 			for (int id : TFIDs)
-				sb1.append(names.get(id)).append("\t");
+				sb1.append(tf_names.get(id)).append("\t");
 			CommonUtils.replaceEnd(sb1, '\t');
 			sb.append("#=================================\n#chr"+c.region.toString()+"\t|\t");
 			sb.append(sb1.toString()+"|\t");
@@ -2260,7 +2260,7 @@ public class TFBS_SpaitialAnalysis {
 			
 			StringBuilder sb1 = new StringBuilder();
 			for (int id : TFIDs)
-				sb1.append(names.get(id)).append("\t");
+				sb1.append(tf_names.get(id)).append("\t");
 			System.out.println("=================================\nchr"+c.region.toString());
 			System.out.println(sb1.toString());
 			

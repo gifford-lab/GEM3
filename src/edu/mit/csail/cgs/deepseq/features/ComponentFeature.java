@@ -426,7 +426,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		StringBuilder header = new StringBuilder();
 		
 		header.append("Position\t")
-			  .append("     IP\t");        
+			  .append("IP\t");        
         
         for(int c=0; c<numConditions; c++){
         	String name = numConditions==1?"":conditionNames.get(c)+"_";
@@ -435,18 +435,18 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
         		header.append(name+"IP\t");
         	}
         	header.append(name+"Control\t")
-  		  		  .append(name+(numConditions==1?"   ":"")+"Fold\t")
+  		  		  .append(name+"Fold\t")
         	      .append(name+"Expectd\t")
         	      .append(name+"Q_-lg10\t")
   	      		  .append(name+"P_-lg10\t")
   	      		  .append(name+"P_poiss\t")
   	      		  .append(name+"IPvsEMP\t")
-  	      		  .append(name+"  Noise\t");
+  	      		  .append(name+"Noise\t");
         	if (c<numConditions-1)
         		header.append("\t");
         }
         if (boundSequence!=null){
-	        header.append("KmerGroup  \tMotifId\tKG_hgp\tStrand"); 
+	        header.append("KmerGroup\tMotifId\tKG_hgp\tStrand"); 
         }
         header.append("\n");
         return header.toString();

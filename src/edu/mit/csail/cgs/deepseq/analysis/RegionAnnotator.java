@@ -425,6 +425,15 @@ public class RegionAnnotator {
 				ps.add(Point.fromString(genome, f[1]));
 			}
 		}
+		if (ps.size()>1){		// more than 1 enhancer
+			ArrayList<Integer> distances = new ArrayList<Integer>();
+			for (int i=0;i<ps.size();i++)
+				for (int j=i+1;j<ps.size();j++){
+					int d = ps.get(i).distance(ps.get(j));
+					distances.add(d);
+					System.out.println(d);
+				}
+		}
 	}
 	
 }

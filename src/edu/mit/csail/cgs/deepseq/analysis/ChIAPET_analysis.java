@@ -1,10 +1,12 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -16,6 +18,8 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.Site;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
+import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
@@ -54,18 +58,17 @@ public class ChIAPET_analysis {
 	public static void main(String args[]){
 		ChIAPET_analysis analysis = new ChIAPET_analysis(args);
 		int type = Args.parseInteger(args, "type", 0);
-		analysis.cleanUpOverlaps();
-		analysis.countGenesPerRegion();
-		analysis.StatsTAD();
-//		switch(type){
-//		case 0:
-//			analysis.loadFile(fileName);
-//			break;
-//		case 1:
-//			analysis.loadFile(fileName);
-//			analysis.stats(fileName);
-//			break;
-//		}
+
+		switch(type){
+		case 0:
+			analysis.cleanUpOverlaps();
+			analysis.countGenesPerRegion();
+			analysis.StatsTAD();
+			break;
+		case 1:		// count distal read pairs per gene
+			analysis.countReadPairs();
+			break;
+		}
 		
 	}
 	/**
@@ -444,5 +447,172 @@ public class ChIAPET_analysis {
 			Region it = new Region(genome, tss.getChrom(), start, end).expand(2000, 2000);
 			return String.format("%s\t%d\t%s\t%s\t%s\t%s\t%.2f", it, distal.getMidpoint().distance(tss), distal.toString(), tssString, geneSymbol, geneID, -Math.log10(pvalue));
 		}
+	}
+	
+	private void countReadPairs(){
+		long tic = System.currentTimeMillis();
+		HashSet<String> geneSet = new HashSet<String>();
+		String gString = Args.parseString(args, "genes", null);
+		if (gString==null){
+			String gFile = Args.parseString(args, "gene_file", null);
+			ArrayList<String> lines = CommonUtils.readTextFile(gFile);
+			for (String g:lines)
+				geneSet.add(g.trim());
+		}
+		else{
+			String genes[] = Args.parseString(args, "genes", null).split(",");
+			for (String g:genes)
+				geneSet.add(g.trim());
+		}
+		
+		// load refSeq gene annotation
+		int tssRadius = Args.parseInteger(args, "tss_range", 10001)/2;
+		int chiapetRadius = Args.parseInteger(args, "chiapet_radius", 2000);
+		ArrayList<String> gene_annots = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
+		TreeMap<String, TreeSet<StrandedPoint>> gene2tss = new TreeMap<String, TreeSet<StrandedPoint>>();
+		for (int i=0;i<gene_annots.size();i++){
+			String t = gene_annots.get(i);
+			if (t.startsWith("#"))
+				continue;
+			String f[] = t.split("\t");
+			String symbol = f[12];
+			if (!geneSet.contains(symbol))
+				continue;
+			String chr = f[2].replace("chr", "");
+			char strand = f[3].charAt(0);
+			StrandedPoint tss = new StrandedPoint(genome, chr, Integer.parseInt(f[strand=='+'?4:5]), strand);
+			if (!gene2tss.containsKey(symbol))
+				gene2tss.put(symbol, new TreeSet<StrandedPoint>());
+			gene2tss.get(symbol).add(tss);
+		}
+		
+		// load read pairs
+		// for now, just loop through every read pair. To run faster, should sort by each end and use binary search to find tss end overlaps
+		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
+		HashMap<String, Pair<ArrayList<Point>, ArrayList<Point>>> chr2reads = new HashMap<String, Pair<ArrayList<Point>, ArrayList<Point>>> ();
+		for (String s: read_pairs){
+			String[] f = s.split("\t");
+			Point r1 = Point.fromString(genome, f[0]);
+			String r1Chrom=r1.getChrom();
+			Point r2 = Point.fromString(genome, f[1]);
+			if (!r1Chrom.equals(r2.getChrom()))		// skip if not from the same chromosome
+				continue;
+			if (!chr2reads.containsKey(r1Chrom)){
+				ArrayList<Point> r1s=new ArrayList<Point>();
+				ArrayList<Point> r2s=new ArrayList<Point>();
+				chr2reads.put(r1Chrom, new Pair<ArrayList<Point>, ArrayList<Point>>(r1s, r2s));
+			}
+			Pair<ArrayList<Point>, ArrayList<Point>> reads = chr2reads.get(r1Chrom);
+			reads.car().add(r1);
+			reads.cdr().add(r2);
+		}
+
+		System.out.println("Loaded ChIA-PET read pairs: "+CommonUtils.timeElapsed(tic));
+		
+		// load TF sites
+		ArrayList<String> tfs = CommonUtils.readTextFile(Args.parseString(args, "tf_sites", null));
+		ArrayList<List<GPSPeak>> allPeaks = new ArrayList<List<GPSPeak>>();
+		for (int i=0;i<tfs.size();i++){
+			try{
+				allPeaks.add(GPSParser.parseGPSOutput(tfs.get(i), genome));
+			}
+			catch (IOException e){
+				System.out.println(tfs.get(i)+" does not have a valid GPS/GEM event call file.");
+				e.printStackTrace(System.err);
+				System.exit(1);
+			}
+			
+		}
+		
+//		TreeMap<String, ArrayList<Integer>> gene2distances = new TreeMap<String, ArrayList<Integer>>();		
+		// compute distance for each gene
+		ArrayList<String> geneList = new ArrayList<String>();
+		geneList.addAll(gene2tss.keySet());
+		StringBuilder sb = new StringBuilder();
+		
+		for (int id=0;id<geneList.size();id++){
+			String g = geneList.get(id);
+			ArrayList<Integer> distances = new ArrayList<Integer> (); 
+			ArrayList<ArrayList<Integer>> isTfBounds = new ArrayList<ArrayList<Integer>>();
+			TreeSet<StrandedPoint> coords = gene2tss.get(g);
+			// if gene has multiple TSSs, use the center position
+			int count = coords.size();
+			StrandedPoint centerPoint = null;
+			for (StrandedPoint p:coords){
+				if (count<coords.size()/2)
+					break;
+				else{
+					centerPoint = p;
+					count--;
+				}
+			}
+			
+			// if one end of the read pair is near TSS, compute the offset of the other end
+			boolean isMinus = centerPoint.getStrand()=='-';
+			Pair<ArrayList<Point>, ArrayList<Point>> reads = chr2reads.get(centerPoint.getChrom());
+			if (reads==null)
+				continue;
+			ArrayList<Point> read1s = reads.car();
+			ArrayList<Point> read2s = reads.cdr();
+			for (int i=0;i<read1s.size();i++){
+				int offset_p1 = read1s.get(i).offset(centerPoint);
+				int offset_p2 = read2s.get(i).offset(centerPoint);
+				int dist_p1 = Math.abs(offset_p1);
+				int dist_p2 = Math.abs(offset_p2);
+				// only add distance to the list if one read is within TSS_Radius, the other read is outside of TSS_Radius
+				if (dist_p1<tssRadius){
+					if (dist_p2>tssRadius){
+						distances.add(isMinus?-offset_p2:offset_p2);
+						ArrayList<Integer> isBound = new ArrayList<Integer>();
+						Point p = read2s.get(i);
+						for (int j=0;j<allPeaks.size();j++){
+							List<GPSPeak> peaks = allPeaks.get(j);
+							int bound = 0;
+							for (GPSPeak gps: peaks){
+								if (gps.getChrom().equals(p.getChrom()) && gps.distance(p)<=tssRadius){
+									bound = 1;
+									break;
+								}
+							}
+							isBound.add(bound);
+						}
+						isTfBounds.add(isBound);
+					}
+				}
+				else{
+					if (dist_p2<tssRadius){
+						distances.add(isMinus?-offset_p1:offset_p1);
+						ArrayList<Integer> isBound = new ArrayList<Integer>();
+						Point p = read1s.get(i);
+						for (int j=0;j<allPeaks.size();j++){
+							List<GPSPeak> peaks = allPeaks.get(j);
+							int bound = 0;
+							for (GPSPeak gps: peaks){
+								if (gps.getChrom().equals(p.getChrom()) && gps.distance(p)<=chiapetRadius){
+									bound = 1;
+									break;
+								}
+							}
+							isBound.add(bound);
+						}
+						isTfBounds.add(isBound);
+					}
+				}
+			}
+			
+			if (!distances.isEmpty()){
+//				gene2distances.put(g, distances);
+				for (int i=0;i<distances.size();i++){
+					sb.append(g).append("\t").append(id);
+					sb.append("\t").append(distances.get(i));
+					for (int b: isTfBounds.get(i))
+						sb.append("\t").append(b);
+					sb.append("\n");
+				}
+			}
+		}  // for each gene
+		CommonUtils.writeFile("all_genes.distal_offsets.txt", sb.toString());
+
+		System.out.println(CommonUtils.timeElapsed(tic));
 	}
 }
