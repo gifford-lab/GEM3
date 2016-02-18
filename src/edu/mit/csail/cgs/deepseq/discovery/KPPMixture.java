@@ -3319,12 +3319,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			FileWriter fw = new FileWriter(fname);
 			boolean first=true;
 			for(ComponentFeature f : fs){
+				if (!config.print_bound_seqs)
+					f.setBoundSequence("");
+
 				if(first){
 					fw.write(f.headString_v1());
 					first=false;
 				}
-				if (!config.print_bound_seqs)
-					f.setBoundSequence("");
 				fw.write(f.toString_v1());
 			}
 			fw.close();

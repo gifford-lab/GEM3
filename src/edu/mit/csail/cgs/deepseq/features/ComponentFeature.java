@@ -442,12 +442,14 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
   	      		  .append(name+"P_poiss\t")
   	      		  .append(name+"IPvsEMP\t")
   	      		  .append(name+"Noise\t");
-        	if (c<numConditions-1)
-        		header.append("\t");
+//        	if (c<numConditions-1)
+//        		header.append("\t");
         }
-        if (boundSequence!=null){
-	        header.append("KmerGroup\tMotifId\tKG_hgp\tStrand"); 
-        }
+
+    	header.append("KmerGroup\tMotifId\tKG_hgp\tStrand");
+    	if (boundSequence!=null && !boundSequence.trim().equals(""))
+    		header.append("\t").append("BoundSequence");
+        
         header.append("\n");
         return header.toString();
 	}
@@ -504,16 +506,16 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
     		result.append(String.format("%7.2f\t", getShapeDeviation(c))); 
     		result.append(String.format("%7.2f\t", getNoiseFraction()));
         }
-        if (boundSequence!=null){
-	        if (kmerGroup!=null)
-	        	result.append(String.format("%s_%d/%d\t%d\t%.2f\t%s\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand, boundSequence));
-	        else
-	        	result.append(CommonUtils.padding(8, '-')).append("\t-1\t0.00\t*\t").append(boundSequence);
-	        result.append("\n");
+        if (kmerGroup!=null){
+        	result.append(String.format("%s_%d/%d\t%d\t%.2f\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand));
+            if (boundSequence!=null && !boundSequence.trim().equals(""))
+            	result.append("\t").append(boundSequence);
         }
-        else
-        	CommonUtils.replaceEnd(result, '\n');
-		return result.toString();
+        else{
+        	result.append(CommonUtils.padding(8, '-')).append("\t-1\t0.00\t*");
+        }
+        result.append("\n");
+ 		return result.toString();
 	}
 	
 	//Print the feature in BED format
