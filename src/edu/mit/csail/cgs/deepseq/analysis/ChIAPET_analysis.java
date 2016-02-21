@@ -508,6 +508,7 @@ public class ChIAPET_analysis {
 		}
 
 		System.out.println("Loaded ChIA-PET read pairs: "+CommonUtils.timeElapsed(tic));
+		System.out.println();
 		
 		// load TF sites
 		ArrayList<String> tfs = CommonUtils.readTextFile(Args.parseString(args, "tf_sites", null));
@@ -515,15 +516,23 @@ public class ChIAPET_analysis {
 		for (int i=0;i<tfs.size();i++){
 			try{
 				allPeaks.add(GPSParser.parseGPSOutput(tfs.get(i), genome));
+				System.out.println("Loaded "+tfs.get(i));
 			}
 			catch (IOException e){
 				System.out.println(tfs.get(i)+" does not have a valid GPS/GEM event call file.");
 				e.printStackTrace(System.err);
 				System.exit(1);
 			}
-			
 		}
-		
+
+		// load histone mark regions
+		ArrayList<String> hms = CommonUtils.readTextFile(Args.parseString(args, "regions", null));
+		ArrayList<List<Region>> allRegions = new ArrayList<List<Region>>();
+		for (int i=0;i<hms.size();i++){
+			allRegions.add(CommonUtils.load_BED_regions(genome, hms.get(i)).car());
+			System.out.println("Loaded "+hms.get(i));
+		}
+		System.out.println();
 //		TreeMap<String, ArrayList<Integer>> gene2distances = new TreeMap<String, ArrayList<Integer>>();		
 		// compute distance for each gene
 		ArrayList<String> geneList = new ArrayList<String>();
@@ -532,6 +541,7 @@ public class ChIAPET_analysis {
 		
 		for (int id=0;id<geneList.size();id++){
 			String g = geneList.get(id);
+			System.out.print(g+" ");
 			ArrayList<Integer> distances = new ArrayList<Integer> (); 
 			ArrayList<ArrayList<Integer>> isTfBounds = new ArrayList<ArrayList<Integer>>();
 			TreeSet<StrandedPoint> coords = gene2tss.get(g);
@@ -569,7 +579,19 @@ public class ChIAPET_analysis {
 							List<GPSPeak> peaks = allPeaks.get(j);
 							int bound = 0;
 							for (GPSPeak gps: peaks){
-								if (gps.getChrom().equals(p.getChrom()) && gps.distance(p)<=tssRadius){
+								if (gps.getChrom().equals(p.getChrom()) && gps.distance(p)<=chiapetRadius){
+									bound = 1;
+									break;
+								}
+							}
+							isBound.add(bound);
+						}
+						for (int j=0;j<allRegions.size();j++){
+							List<Region> rs = allRegions.get(j);
+							int bound = 0;
+							for (Region r: rs){
+								// if the region r contains point p, or the distance between midPoint of r and p is less than ChIAPET_radias
+								if (r.getChrom().equals(p.getChrom()) && (r.contains(p) || r.getMidpoint().distance(p)<=chiapetRadius)){
 									bound = 1;
 									break;
 								}
@@ -595,6 +617,18 @@ public class ChIAPET_analysis {
 							}
 							isBound.add(bound);
 						}
+						for (int j=0;j<allRegions.size();j++){
+							List<Region> rs = allRegions.get(j);
+							int bound = 0;
+							for (Region r: rs){
+								// if the region r contains point p, or the distance between midPoint of r and p is less than ChIAPET_radias
+								if (r.getChrom().equals(p.getChrom()) && (r.contains(p) || r.getMidpoint().distance(p)<=chiapetRadius)){
+									bound = 1;
+									break;
+								}
+							}
+							isBound.add(bound);
+						}
 						isTfBounds.add(isBound);
 					}
 				}
@@ -612,7 +646,7 @@ public class ChIAPET_analysis {
 			}
 		}  // for each gene
 		CommonUtils.writeFile("all_genes.distal_offsets.txt", sb.toString());
-
-		System.out.println(CommonUtils.timeElapsed(tic));
+		
+		System.out.println("\n\n"+CommonUtils.timeElapsed(tic));
 	}
 }
