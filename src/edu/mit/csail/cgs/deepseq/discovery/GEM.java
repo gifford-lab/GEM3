@@ -320,6 +320,8 @@ public class GEM {
     		edu.mit.csail.cgs.deepseq.analysis.MotifScan.main(args);
     	else if (s.equalsIgnoreCase("RPD"))
     		edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.main(args);
+    	else if (s.equalsIgnoreCase("RDIST"))
+    		edu.mit.csail.cgs.deepseq.analysis.GPS_ReadDistribution.main(args);
     	else if (s.equalsIgnoreCase("get_bed"))
     		edu.mit.csail.cgs.deepseq.utilities.BEDFileWriter.main(args);
     	else if (s.equalsIgnoreCase("line_plot"))

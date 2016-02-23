@@ -637,7 +637,7 @@ public class ChIAPET_analysis {
 			if (!distances.isEmpty()){
 //				gene2distances.put(g, distances);
 				for (int i=0;i<distances.size();i++){
-					sb.append(g).append("\t").append(id);
+					sb.append(g).append("\t").append(centerPoint.toString()).append("\t").append(id);
 					sb.append("\t").append(distances.get(i));
 					for (int b: isTfBounds.get(i))
 						sb.append("\t").append(b);
