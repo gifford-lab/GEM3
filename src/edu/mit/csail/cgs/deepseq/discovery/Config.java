@@ -20,7 +20,6 @@ public class Config {
     public boolean write_genetrack_file = false;
     public boolean kmer_print_hits = false;
     public boolean print_motif_hits = false;
-    public boolean testPValues = false;
     public boolean post_artifact_filter=false;
     public boolean kl_count_adjusted = false;
     public boolean sort_by_location=false;
@@ -137,7 +136,8 @@ public class Config {
     public boolean filter_pwm_seq = true;
 //    public boolean k_select_seed = false;
     public boolean pwm_align_new_only = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
-    public boolean strigent_event_pvalue = true;// stringent: binomial and poisson, relax: binomial only
+    public boolean strigent_event_pvalue = true;// stringent: use the larger p-value from binomial and Poisson test, relax: binomial only
+    public boolean pvalue_poisson_using_control_data = false;// Use input read count estimates to compute Poisson p-value
     public boolean use_db_genome = false;// get the sequence from database, not from file
     public boolean k_mask_1base = false;
     public boolean selectK_byTopKmer = false;
@@ -229,9 +229,6 @@ public class Config {
         use_m_tree = flags.contains("mtree");
         write_RSC_file = flags.contains("writeRSC");
         write_genetrack_file = flags.contains("write_genetrack_file");
-        testPValues = flags.contains("testP");
-        if (testPValues)
-        	System.err.println("testP is " + testPValues);
         dump_regression = flags.contains("dump_regression");
         bestIC_PWM_trim = flags.contains("trim_ic");		// Seed centered PWM positions
         k_PWM_trim = !flags.contains("no_k_trim");			// Trim PWM positions to k or k+1, independent of bestIC_PWM_trim setting
@@ -296,6 +293,7 @@ public class Config {
         pwm_align_new_only = !flags.contains("pwm_align_all");
         filter_pwm_seq = !flags.contains("pwm_seq_asIs");
         strigent_event_pvalue = !flags.contains("relax");
+        pvalue_poisson_using_control_data = flags.contains("poisson_control");
 
         mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
         background_proportion = Args.parseDouble(args, "pi_bg", background_proportion);	// proportion of background read signal

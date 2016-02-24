@@ -260,6 +260,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				}
 			}
 		}
+		else{
+			config.pvalue_poisson_using_control_data = false;	// pvalue_poisson_input only make sense when having control data
+		}
 		
 		// exclude some regions
      	String excludedName = Args.parseString(args, "ex", "yes");
@@ -826,6 +829,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
 				cf.setJointEvent(false);		// clean the mark first
 			}
+			// They should be sorted by location
 			for (int i=0;i<signalFeatures.size()-1;i++){
 				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
 				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
@@ -882,7 +886,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	    for (int i = 0; i < caches.size(); i++) {
 	        totalIPCount[i] += caches.get(i).car().getHitCount();
 	    }
-		if(controlDataExist) {
+		if(controlDataExist) {		// Binomial test
 	        for (int i = 0; i < caches.size(); i++) {
 	            totalControlCount[i] += caches.get(i).cdr().getHitCount();
 	        }
@@ -897,44 +901,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	                	cf.setPValue_w_ctrl(1, cond);
 	                	continue;
 	                }
-	                if (config.testPValues){
-		                try{
-		                    assert (totalIPCount[cond] > 0);
-		                    assert (ipCount <= totalIPCount[cond]);
-		                    double p = controlCount / totalControlCount[cond];
-		                    if (p <= 0) {
-		                        p = 1.0/totalControlCount[cond];
-		                    } else if (p >= 1) {
-		                        System.err.println(String.format("p>=1 at evaluateConfidence from %f/%f", controlCount, totalControlCount[cond]));
-		                        p = 1.0 - 1.0/totalControlCount[cond];
-		                    } 
-		                    binomial.setNandP((int)totalIPCount[cond],p);
-		                    pValueControl = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-		
-		                    p = modelWidth / config.mappable_genome_length;
-		                    binomial.setNandP((int)totalIPCount[cond],p);
-		                    pValueUniform = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-		
-		                    binomial.setNandP((int)Math.ceil(ipCount + scaledControlCount), .5);
-		                    pValueBalance = 1 - binomial.cdf(ipCount) + binomial.pdf(ipCount);
-		
-		                    poisson.setMean(config.minFoldChange * Math.max(scaledControlCount, totalIPCount[cond] * modelWidth / config.mappable_genome_length  ));
-		                    pValuePoisson = 1 - poisson.cdf(ipCount) + poisson.pdf(ipCount);
-		                } catch(Exception err){
-		                    err.printStackTrace();
-		                    System.err.println(cf.toString());
-		                    throw new RuntimeException(err.toString(), err);
-		                }
-
-	                	cf.setPValue_w_ctrl(Math.max(Math.max(pValuePoisson,pValueBalance),Math.max(pValueControl,pValueUniform)), cond);
-	                }
-	                else
-	                	cf.setPValue_w_ctrl(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
+                	cf.setPValue_w_ctrl(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), cond);
 				}
 			}
 		} 
-		/** compute Poisson p-value from IP only (similar to MACS) */
-		if( (!controlDataExist) || (controlDataExist && config.strigent_event_pvalue)) {
+		/** compute Poisson p-value (similar to MACS) */
+		if( (!controlDataExist) 
+				|| (controlDataExist && config.strigent_event_pvalue) 
+				|| (controlDataExist && config.pvalue_poisson_using_control_data)) {
 			Collections.sort(compFeatures);				// sort by location
 			
 			createChromStats(compFeatures);
@@ -950,11 +924,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			for(String chrom:chrom_comp_pair.keySet()) {
 				int chromLen = gen.getChromLength(chrom);
 				for(int c = 0; c < numConditions; c++) {
-					double chrom_lambda = ((double)condHitCounts.get(chrom).get(0).get(c))/chromLen*(modelRange*2+1);				
+					double chrom_lambda = ((double)condHitCounts.get(chrom).get(config.pvalue_poisson_using_control_data?1:0).get(c))/chromLen*(modelRange*2+1);				
 					for(int i:chrom_comp_pair.get(chrom)) {
-						double thirdLambda = computeLambda(compFeatures, i, c, config.third_lambda_region_width);
-						double secondLambda = computeLambda(compFeatures, i, c, config.second_lambda_region_width);					
+						double thirdLambda = computeLambda(compFeatures, i, c, config.pvalue_poisson_using_control_data?false:true, config.third_lambda_region_width);
+						double secondLambda = computeLambda(compFeatures, i, c, config.pvalue_poisson_using_control_data?false:true, config.second_lambda_region_width);					
 						double local_lambda = Math.max(secondLambda,  Math.max(thirdLambda, chrom_lambda));
+						if (config.pvalue_poisson_using_control_data)	// very small window only for CTRL data
+							local_lambda = Math.max(local_lambda, computeLambda(compFeatures, i, c, false, modelRange*2+1));
 						if (config.is_branch_point_data)
 							local_lambda = thirdLambda;
 						ComponentFeature cf = compFeatures.get(i); 
@@ -1008,8 +984,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			Map<String, ArrayList<Integer>> chrom_comp_pair = new HashMap<String, ArrayList<Integer>>();
 			for(int i = 0; i < compFeatures.size(); i++) {
 				for(int c = 0; c < numConditions; c++) {	
-					double thirdLambda = computeLambda(compFeatures, i, c, config.third_lambda_region_width);
-					double secondLambda = computeLambda(compFeatures, i, c, config.second_lambda_region_width);					
+					double thirdLambda = computeLambda(compFeatures, i, c, true, config.third_lambda_region_width);
+					double secondLambda = computeLambda(compFeatures, i, c, true, config.second_lambda_region_width);					
 					double local_lambda = Math.max(secondLambda,  thirdLambda);
 					ComponentFeature cf = compFeatures.get(i); 
 					cf.setExpectedCounts(local_lambda, c);                        
@@ -1034,42 +1010,48 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// find q-value cutoff by k-mer occurence
 //		setQValueCutoff(compFeatures);
 	}//end of evaluateConfidence method
-	/** compute local lambda around event i, excluding nearby events */
-	private double computeLambda(List<ComponentFeature> compFeatures, int i, int c, int length){
+	
+	/** compute local lambda around event i, <br>
+	 * if isChIP, excluding nearby events */
+	private double computeLambda(List<ComponentFeature> compFeatures, int i, int c, boolean isChIP, int length){
 		ComponentFeature cf = compFeatures.get(i); 
 		Region expandedRegion = cf.getPosition().expand(length/2);
-		ArrayList<Region> peakRegions = new ArrayList<Region>();		// peaks in third_lambda_region
-		peakRegions.add(cf.getPosition().expand(modelRange));
-		int j=0;
-		while(true){
-			j++;
-			if (i+j==compFeatures.size())
-				break;
-			Region r = compFeatures.get(i+j).getPosition().expand(modelRange);
-			if (expandedRegion.overlaps(r))
-				peakRegions.add(r);
-			else
-				break;
-		}
-		j=0;
-		while(true){
-			j--;
-			if (i+j<0)
-				break;
-			Region r = compFeatures.get(i+j).getPosition().expand(modelRange);
-			if (expandedRegion.overlaps(r))
-				peakRegions.add(r);
-			else
-				break;
-		}
-		peakRegions = mergeRegions(peakRegions, false);
-		expandedRegion = expandedRegion.combine(peakRegions.get(0)).combine(peakRegions.get(peakRegions.size()-1));
-		double expandedCount = countIpReads(expandedRegion, c);
+		double expandedCount = isChIP?countIpReads(expandedRegion, c):countCtrlReads(expandedRegion, c);
 		int expandedLength = expandedRegion.getWidth();
-		for (Region r:peakRegions){
-			expandedLength-=r.getWidth();
-			expandedCount-=countIpReads(r, c);
+
+		if (isChIP){		// if ChIP data, exclude peaks in lambda_region, so that only have background reads
+			ArrayList<Region> peakRegions = new ArrayList<Region>();		
+			peakRegions.add(cf.getPosition().expand(modelRange));
+			int j=0;
+			while(true){
+				j++;
+				if (i+j==compFeatures.size())
+					break;
+				Region r = compFeatures.get(i+j).getPosition().expand(modelRange);
+				if (expandedRegion.overlaps(r))
+					peakRegions.add(r);
+				else
+					break;
+			}
+			j=0;
+			while(true){
+				j--;
+				if (i+j<0)
+					break;
+				Region r = compFeatures.get(i+j).getPosition().expand(modelRange);
+				if (expandedRegion.overlaps(r))
+					peakRegions.add(r);
+				else
+					break;
+			}
+			peakRegions = mergeRegions(peakRegions, false);
+			expandedRegion = expandedRegion.combine(peakRegions.get(0)).combine(peakRegions.get(peakRegions.size()-1));
+			for (Region r:peakRegions){
+				expandedLength-=r.getWidth();
+				expandedCount-= isChIP?countIpReads(r, c):countCtrlReads(r, c);
+			}
 		}
+		
 		if (expandedCount==0||expandedLength==0)		// set to 0, so other local lambda will be picked instead
 			return 0;
 		else
@@ -3136,17 +3118,24 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		for(String chrom:gen.getChromList()){
 
 			Region chromRegion = new Region(gen, chrom, 0, gen.getChromLength(chrom)-1);			
-			List<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP");
 	
 			int counts = 0;
 			// Read counts. List 0 for IP, List 1 for CTRL.
 			// Each List contains the read counts for each condition
 			List<List<Integer>> currChromCondCounts = new ArrayList<List<Integer>>();
 			currChromCondCounts.add(new ArrayList<Integer>()); currChromCondCounts.add(new ArrayList<Integer>());
+			List<List<StrandedBase>> ip_chrom_signals = loadBasesInWindow(chromRegion, "IP");
 			for(List<StrandedBase> ip_chrom_signal_cond:ip_chrom_signals) {
 				int currCondHitCounts = (int)StrandedBase.countBaseHits(ip_chrom_signal_cond);
 				currChromCondCounts.get(0).add(currCondHitCounts);
 				counts += currCondHitCounts;
+			}
+			if (config.pvalue_poisson_using_control_data){
+				List<List<StrandedBase>> ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL");
+				for(List<StrandedBase> ctrl_chrom_signal_cond:ctrl_chrom_signals) {
+					int currCondHitCounts = (int)StrandedBase.countBaseHits(ctrl_chrom_signal_cond);
+					currChromCondCounts.get(1).add(currCondHitCounts);
+				}
 			}
 
 			totalIPCounts.put(chrom, counts);
