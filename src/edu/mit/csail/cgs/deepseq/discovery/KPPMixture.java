@@ -893,9 +893,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			for (ComponentFeature cf: compFeatures){
 				for(int cond=0; cond<caches.size(); cond++){
 					// scale control read count by non-specific read count ratio
-					double controlCount = cf.getUnscaledControlCounts()[cond];
 	                double scaledControlCount = cf.getScaledControlCounts(cond);
-					double pValueControl = 1, pValueUniform = 1, pValueBalance = 1, pValuePoisson = 1;
 	                int ipCount = (int)Math.ceil(cf.getEventReadCounts(cond));
 	                if (ipCount==0){			// if one of the condition does not have reads, set p-value=1
 	                	cf.setPValue_w_ctrl(1, cond);
@@ -934,8 +932,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 						if (config.is_branch_point_data)
 							local_lambda = thirdLambda;
 						ComponentFeature cf = compFeatures.get(i); 
-						cf.setExpectedCounts(local_lambda, c);                        
-						poisson.setMean(local_lambda);
+						if (config.pvalue_poisson_using_control_data)
+							cf.setAndScaleExpectedCounts(local_lambda, c);		// use control data, need to scale to match ChIP
+						else
+							cf.setExpectedCounts(local_lambda, c);
+						poisson.setMean(cf.getExpectedCount(c));
 	                    int count = (int)Math.ceil(cf.getEventReadCounts(c));
 	                    double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
 						cf.setPValue_wo_ctrl(pValue, c);

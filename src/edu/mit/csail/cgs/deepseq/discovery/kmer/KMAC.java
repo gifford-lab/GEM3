@@ -1171,7 +1171,7 @@ public class KMAC {
 			
 			cluster.seedKmer = seed;
 			
-			System.out.println("Building k-mer cluster "+clusterID+" ...");
+			System.out.println("Building KSM "+clusterID+" ...");
 			
 			/** init kmerSet with seed family of seed kmer, by adding mismatch k-mers, order by #mm */
 			ArrayList<Kmer> seedFamily = new ArrayList<Kmer>();

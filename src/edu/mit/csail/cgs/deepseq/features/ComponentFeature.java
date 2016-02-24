@@ -148,12 +148,20 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		unScaledControlCounts[cond] = controlCount;
 	}
 	
-	/** Set the local lambda (expected IP count) for Poisson test */
+	/** Set the local lambda (expected count) for Poisson test */
 	public void setExpectedCounts(double expectedCount, int cond) {
 		if (expectedCounts == null){
 			expectedCounts = new double[numConditions];
 		}
 		expectedCounts[cond] = expectedCount;
+	}
+	
+	/** Set the unscaled local lambda (expected count) for Poisson test */
+	public void setAndScaleExpectedCounts(double unscaledExpectedCount, int cond) {
+		if (expectedCounts == null){
+			expectedCounts = new double[numConditions];
+		}
+		expectedCounts[cond] = unscaledExpectedCount*non_specific_ratio[cond];
 	}
 	
 	public void setCondSignificance(int cond, boolean val) { condSignificance[cond] = val; }
