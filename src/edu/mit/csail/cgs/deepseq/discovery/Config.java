@@ -137,7 +137,7 @@ public class Config {
 //    public boolean k_select_seed = false;
     public boolean pwm_align_new_only = true;		// use PWM to align only un-aligned seqs (vs. all sequences)
     public boolean strigent_event_pvalue = true;// stringent: use the larger p-value from binomial and Poisson test, relax: binomial only
-    public boolean pvalue_poisson_using_control_data = false;// Use input read count estimates to compute Poisson p-value
+    public boolean local_neighborhood_control = false;// Use control read count in local neighborhoods to compute p-values (MACS-like control)
     public boolean use_db_genome = false;// get the sequence from database, not from file
     public boolean k_mask_1base = false;
     public boolean selectK_byTopKmer = false;
@@ -293,7 +293,7 @@ public class Config {
         pwm_align_new_only = !flags.contains("pwm_align_all");
         filter_pwm_seq = !flags.contains("pwm_seq_asIs");
         strigent_event_pvalue = !flags.contains("relax");
-        pvalue_poisson_using_control_data = flags.contains("poisson_control");
+        local_neighborhood_control = flags.contains("local_control");
 
         mappable_genome_length = Args.parseDouble(args, "s", mappable_genome_length);	// size of mappable genome
         background_proportion = Args.parseDouble(args, "pi_bg", background_proportion);	// proportion of background read signal

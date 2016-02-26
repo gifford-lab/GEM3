@@ -310,6 +310,13 @@ public class GEM {
     }
     	
     public static void main(String[] args) throws Exception {
+    	if (args.length==0){
+	        System.out.println("\nWelcome to GEM (version "+GEM_VERSION+")!");
+	        System.out.println("\nPlease cite: \nYuchun Guo, Shaun Mahony, David K. Gifford (2012) PLoS Computational Biology 8(8): e1002638. \nHigh Resolution Genome Wide Binding Event Finding and Motif Discovery Reveals Transcription Factor Spatial Binding Constraints. \ndoi:10.1371/journal.pcbi.1002638\n");
+	        System.out.println("Gifford Laboratory at MIT (http://cgs.csail.mit.edu/gem/).\n");
+    		printHelp();
+    		System.exit(-1);
+    	}
     	// get the first parameter to branch off to other methods
     	String s = args[0];
     	if (s.equalsIgnoreCase("KMAC0"))

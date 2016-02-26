@@ -261,7 +261,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}
 		}
 		else{
-			config.pvalue_poisson_using_control_data = false;	// pvalue_poisson_input only make sense when having control data
+			config.local_neighborhood_control = false;	// pvalue_poisson_input only make sense when having control data
 		}
 		
 		// exclude some regions
@@ -886,7 +886,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	    for (int i = 0; i < caches.size(); i++) {
 	        totalIPCount[i] += caches.get(i).car().getHitCount();
 	    }
-		if(controlDataExist) {		// Binomial test
+		if(controlDataExist && !config.local_neighborhood_control) {		// Binomial test
 	        for (int i = 0; i < caches.size(); i++) {
 	            totalControlCount[i] += caches.get(i).cdr().getHitCount();
 	        }
@@ -906,7 +906,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		/** compute Poisson p-value (similar to MACS) */
 		if( (!controlDataExist) 
 				|| (controlDataExist && config.strigent_event_pvalue) 
-				|| (controlDataExist && config.pvalue_poisson_using_control_data)) {
+				|| (controlDataExist && config.local_neighborhood_control)) {
 			Collections.sort(compFeatures);				// sort by location
 			
 			createChromStats(compFeatures);
@@ -922,20 +922,32 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			for(String chrom:chrom_comp_pair.keySet()) {
 				int chromLen = gen.getChromLength(chrom);
 				for(int c = 0; c < numConditions; c++) {
-					double chrom_lambda = ((double)condHitCounts.get(chrom).get(config.pvalue_poisson_using_control_data?1:0).get(c))/chromLen*(modelRange*2+1);				
+					double chrom_lambda = ((double)condHitCounts.get(chrom).get(config.local_neighborhood_control?1:0).get(c))/chromLen*(modelRange*2+1);				
 					for(int i:chrom_comp_pair.get(chrom)) {
-						double thirdLambda = computeLambda(compFeatures, i, c, config.pvalue_poisson_using_control_data?false:true, config.third_lambda_region_width);
-						double secondLambda = computeLambda(compFeatures, i, c, config.pvalue_poisson_using_control_data?false:true, config.second_lambda_region_width);					
+						double thirdLambda = computeLambda(compFeatures, i, c, config.local_neighborhood_control?false:true, config.third_lambda_region_width);
+						double secondLambda = computeLambda(compFeatures, i, c, config.local_neighborhood_control?false:true, config.second_lambda_region_width);					
 						double local_lambda = Math.max(secondLambda,  Math.max(thirdLambda, chrom_lambda));
-						if (config.pvalue_poisson_using_control_data)	// very small window only for CTRL data
+						if (config.local_neighborhood_control)	// very small window only for CTRL data
 							local_lambda = Math.max(local_lambda, computeLambda(compFeatures, i, c, false, modelRange*2+1));
 						if (config.is_branch_point_data)
 							local_lambda = thirdLambda;
 						ComponentFeature cf = compFeatures.get(i); 
-						if (config.pvalue_poisson_using_control_data)
+						if (config.local_neighborhood_control){
+							// for Poisson test
 							cf.setAndScaleExpectedCounts(local_lambda, c);		// use control data, need to scale to match ChIP
-						else
+							// for Binomial test
+							cf.setUnscaledControlReadCounts(local_lambda, c);
+			                double scaledControlCount = cf.getScaledControlCounts(c);
+			                int ipCount = (int)Math.ceil(cf.getEventReadCounts(c));
+			                if (ipCount==0){			// if one of the condition does not have reads, set p-value=1
+			                	cf.setPValue_w_ctrl(1, c);
+			                	continue;
+			                }
+			                cf.setPValue_w_ctrl(StatUtil.binomialPValue(scaledControlCount, scaledControlCount+ipCount), c);
+						}
+						else{
 							cf.setExpectedCounts(local_lambda, c);
+						}
 						poisson.setMean(cf.getExpectedCount(c));
 	                    int count = (int)Math.ceil(cf.getEventReadCounts(c));
 	                    double pValue = 1 - poisson.cdf(count) + poisson.pdf(count);
@@ -2335,7 +2347,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 							total += assignment[i][j]*base.getCount();
 						}
 					}
-					comp.setControlReadCounts(total, c);
+					comp.setUnscaledControlReadCounts(total, c);
 					BindingComponent bb = null;
 					for (BindingComponent b:comps){
 						if (b.getLocation().getLocation()==pos)
@@ -3131,7 +3143,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				currChromCondCounts.get(0).add(currCondHitCounts);
 				counts += currCondHitCounts;
 			}
-			if (config.pvalue_poisson_using_control_data){
+			if (config.local_neighborhood_control){
 				List<List<StrandedBase>> ctrl_chrom_signals = loadBasesInWindow(chromRegion, "CTRL");
 				for(List<StrandedBase> ctrl_chrom_signal_cond:ctrl_chrom_signals) {
 					int currCondHitCounts = (int)StrandedBase.countBaseHits(ctrl_chrom_signal_cond);

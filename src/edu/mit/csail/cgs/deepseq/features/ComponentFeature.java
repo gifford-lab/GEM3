@@ -141,7 +141,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		ipCtrl_logKL_minus[cond] = logKL_minus;
 	}
 	/** Set control read count for the specified condition */
-	public void setControlReadCounts(double controlCount, int cond) {
+	public void setUnscaledControlReadCounts(double controlCount, int cond) {
 		if (unScaledControlCounts == null){
 			unScaledControlCounts = new double[numConditions];
 		}

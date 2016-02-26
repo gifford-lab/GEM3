@@ -3208,7 +3208,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 							total += assignment[i][j]*base.getCount();
 						}
 					}
-					comp.setControlReadCounts(total, c);
+					comp.setUnscaledControlReadCounts(total, c);
 					BindingComponent bb = null;
 					for (BindingComponent b:comps){
 						if (b.getLocation().getLocation()==pos)
@@ -4019,7 +4019,7 @@ public class BindingMixture extends MultiConditionFeatureFinder{
 						}
 
 						double local_lambda = estimateLocalLambda(cf, c);
-						cf.setControlReadCounts(local_lambda, c);                        
+						cf.setUnscaledControlReadCounts(local_lambda, c);                        
 						if (testPValues)
 							poisson.setMean(Math.max(local_lambda, totalIPCount[c] * modelWidth / mappable_genome_length));
 						else
