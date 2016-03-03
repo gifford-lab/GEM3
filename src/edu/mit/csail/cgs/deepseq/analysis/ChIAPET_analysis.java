@@ -68,6 +68,9 @@ public class ChIAPET_analysis {
 		case 1:		// count distal read pairs per gene
 			analysis.countReadPairs();
 			break;
+		case 2:		// count distal read pairs per gene
+			analysis.clusterDistalReads();
+			break;
 		}
 		
 	}
@@ -648,5 +651,76 @@ public class ChIAPET_analysis {
 		CommonUtils.writeFile("all_genes.distal_offsets.txt", sb.toString());
 		
 		System.out.println("\n\n"+CommonUtils.timeElapsed(tic));
+	}
+	
+	private void clusterDistalReads(){
+		int tss_exclude = Args.parseInteger(args, "tss_exclude", 8000);
+		int step = Args.parseInteger(args, "merge_dist", 1500);
+		int minRead = Args.parseInteger(args, "min_count", 2);
+		
+		// load data
+		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "tss_reads", null));
+		TSS tss = new TSS();
+		tss.symbol = "---";
+		ArrayList<TSS> allTss = new ArrayList<TSS>();
+		for (String l: lines){
+			String f[] = l.split("\t");
+			if (!f[0].equals(tss.symbol)){	// a new gene
+				tss = new TSS();
+				tss.symbol = f[0];
+				tss.coord = StrandedPoint.fromString(genome, f[1]);
+				tss.id = Integer.parseInt(f[2]);
+				tss.reads = new TreeMap<Integer, ArrayList<Boolean>>();
+				allTss.add(tss);				
+			}
+			int offset = Integer.parseInt(f[3]);
+			ArrayList<Boolean> isBound = new ArrayList<Boolean>();
+			for (int i=4;i<f.length;i++){
+				isBound.add(f[i].equals("1"));
+			}
+			tss.reads.put(offset, isBound);
+		}
+		
+		
+		// cluster the reads
+		for (TSS t:allTss){
+			ArrayList<Integer> cluster = new ArrayList<Integer>();
+			for (int offset:t.reads.keySet()){
+				if (cluster.isEmpty() || offset-cluster.get(cluster.size()-1)<step){
+					cluster.add(offset);
+				}
+				else{		// have a large distance, finish old cluster, create new cluster
+					if (cluster.size()>=minRead){	// at least 2 reads
+						int median = cluster.get(cluster.size()/2);
+						// print result if the read cluster is not in the tss exclusion range
+						if (Math.abs(median)>=tss_exclude){								
+							System.out.print(String.format("%s\t%s\t%d\t%d\t%d\t%d\t", 
+									t.symbol, t.coord.getLocationString(), t.id, median, cluster.size(), 
+									cluster.get(cluster.size()-1)-cluster.get(0)));
+							// print binding overlap information
+							int count=t.reads.get(cluster.get(0)).size();
+							for (int c=0;c<count;c++){
+								boolean isBound = false;
+								for (int clusterOffset: cluster){
+									isBound = isBound || t.reads.get(clusterOffset).get(c);
+								}
+								System.out.print(isBound?"1\t":"0\t");
+							}
+							System.out.println();
+						}
+					}
+					cluster.clear();
+					cluster.add(offset);
+					continue;
+				}
+			}
+		}
+	}
+	
+	private class TSS{
+		String symbol;
+		int id;
+		StrandedPoint coord;
+		TreeMap<Integer, ArrayList<Boolean>> reads;		// distal read offset --> binary binding indicator
 	}
 }
