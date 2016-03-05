@@ -2270,6 +2270,11 @@ public class StatUtil {
 				odds_ratio(5000, 5000, pos, neg, 3)));
 	}
 	
+	private static void printHGP(int total, int motif1, int motif2, int overlap){
+		System.out.println(String.format("%d\t%d\t%d\t%d\t%.2f\t%.2f", total, motif1, motif2, overlap,		 
+				KMAC1.computeHGP(motif1, total-motif1, overlap, motif2-overlap),
+				odds_ratio(motif1, total-motif1, overlap, motif2-overlap, 10)));
+	}
 	 public static void main(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));
 //		 System.out.println( Math.log10(binomialPValue(3.3, 24.0+3.3)));
@@ -2278,15 +2283,16 @@ public class StatUtil {
 //		 System.out.println(poisson.pdf(1));
 //		System.out.println(log10_hyperGeometricCDF_cache_appr(4,10000,5000,4+1));
 //		System.out.println(hyperGeometricCDF_cache(2405,41690+40System.out.println(hyperGeometricCDF(3298,10000,5000,3298+2));506,41690,2405+2));
-		 printHGP(1480,465);
-		 printHGP(1325,328);
-		 printHGP(1360,327);
-		 printHGP(1517,467);
-		 for (int i=0;i<=5000;i+=100){
-			 for (int j=0;j<=5000;j+=100){
-				 printHGP(i, j);
-			 }
-		 }
+//		 printHGP(1480,465);
+//		 printHGP(1325,328);
+//		 printHGP(1360,327);
+//		 printHGP(1517,467);
+		 printHGP(3456, 741,919,300);
+//		 for (int i=0;i<=5000;i+=100){
+//			 for (int j=0;j<=5000;j+=100){
+//				 printHGP(i, j);
+//			 }
+//		 }
 
 //		System.out.println(hyperGeometricCDF(2405,41690+40506,41690,2405+2));
 //		System.out.println(hyperGeometricCDF_cache(2,41690+40506,40506,3298+2));
