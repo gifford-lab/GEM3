@@ -663,8 +663,11 @@ public class ChIAPET_analysis {
 		TSS tss = new TSS();
 		tss.symbol = "---";
 		ArrayList<TSS> allTss = new ArrayList<TSS>();
-		for (String l: lines){
+		for (String l: lines){		// each line is a distal read
 			String f[] = l.split("\t");
+			int offset = Integer.parseInt(f[3]);
+			if (Math.abs(offset)<tss_exclude)		// skip the read if it is within TSS exclude region						
+				continue;
 			if (!f[0].equals(tss.symbol)){	// a new gene
 				tss = new TSS();
 				tss.symbol = f[0];
@@ -673,7 +676,6 @@ public class ChIAPET_analysis {
 				tss.reads = new TreeMap<Integer, ArrayList<Boolean>>();
 				allTss.add(tss);				
 			}
-			int offset = Integer.parseInt(f[3]);
 			ArrayList<Boolean> isBound = new ArrayList<Boolean>();
 			for (int i=4;i<f.length;i++){
 				isBound.add(f[i].equals("1"));
@@ -693,21 +695,19 @@ public class ChIAPET_analysis {
 					if (cluster.size()>=minRead){	// at least 2 reads
 						int median = cluster.get(cluster.size()/2);
 						// print result if the read cluster is not in the tss exclusion range
-						if (Math.abs(median)>=tss_exclude){								
-							System.out.print(String.format("%s\t%s\t%d\t%d\t%d\t%d\t", 
-									t.symbol, t.coord.getLocationString(), t.id, median, cluster.size(), 
-									cluster.get(cluster.size()-1)-cluster.get(0)));
-							// print binding overlap information
-							int count=t.reads.get(cluster.get(0)).size();
-							for (int c=0;c<count;c++){
-								boolean isBound = false;
-								for (int clusterOffset: cluster){
-									isBound = isBound || t.reads.get(clusterOffset).get(c);
-								}
-								System.out.print(isBound?"1\t":"0\t");
+						System.out.print(String.format("%s\t%s\t%d\t%d\t%d\t%d\t", 
+								t.symbol, t.coord.getLocationString(), t.id, median, cluster.size(), 
+								cluster.get(cluster.size()-1)-cluster.get(0)));
+						// print binding overlap information
+						int count=t.reads.get(cluster.get(0)).size();
+						for (int c=0;c<count;c++){
+							boolean isBound = false;
+							for (int clusterOffset: cluster){
+								isBound = isBound || t.reads.get(clusterOffset).get(c);
 							}
-							System.out.println();
+							System.out.print(isBound?"1\t":"0\t");
 						}
+						System.out.println();
 					}
 					cluster.clear();
 					cluster.add(offset);
