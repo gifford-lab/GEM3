@@ -1015,7 +1015,7 @@ public class KMAC1 {
 			if (config.verbose>1)
 				System.out.println(sb.toString());
 			
-			if (clusters.size()>1){
+			if (tmp.size()>1){
 				System.out.println("Finding and merging redundant motifs ...");
 				boolean[][] checked = new boolean[tmp.size()][tmp.size()];	// a table indicating whether a pair has been checked
 				
@@ -3142,7 +3142,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		    				+" align additional " + aligned_seqs_count+" sequences.");
 				
 				// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
-				if (aligned_seqs_count<seqs.length*config.motif_hit_factor || aligned_seqs_count<cluster2.pwmThreshold.posHit*config.motif_remove_ratio){
+				if (aligned_seqs_count<seqs.length*config.motif_hit_factor_report || aligned_seqs_count<cluster2.pwmThreshold.posHit*config.motif_remove_ratio){
 					if (config.verbose>1)
 			    		System.out.println(String.format("%s: Motif #%d has too few (%d) non-shared hits, remove it.", 
 			    			CommonUtils.timeElapsed(tic), cluster2.clusterId, aligned_seqs_count));
@@ -3190,7 +3190,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 							}
 						}
 						// check if new PWM has sufficient hit
-						if (alignedSeqCount<seqs.length*config.motif_hit_factor){
+						if (alignedSeqCount<seqs.length*config.motif_hit_factor_report){
 							if (config.verbose>1)
 					    		System.out.println(String.format("%s: Too few new PWM hits (%d) , remove motif #%d.", 
 					    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster2.clusterId));
@@ -3469,7 +3469,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 						if (km.posBits.intersects(unalignedIds))
 							inputKmers.add(km);
 					}
-					if (seqList_j.size()<seqs.length*config.motif_hit_factor || inputKmers.isEmpty()){
+					if (seqList_j.size()<seqs.length*config.motif_hit_factor_report || inputKmers.isEmpty()){
 						if (config.verbose>1)
 				    		System.out.println(String.format("%s: Motif #%d has too few possible hits, remove it.", 
 				    			CommonUtils.timeElapsed(tic), cluster2.clusterId, count_aligned));
@@ -3487,7 +3487,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			    				+" align " + count_aligned+" remaining sequences.");
 
 					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
-					if (count_aligned<seqs.length*config.motif_hit_factor || count_aligned<cluster2.ksmThreshold.posHit/3){
+					if (count_aligned<seqs.length*config.motif_hit_factor_report || count_aligned<cluster2.ksmThreshold.posHit/3){
 						if (config.verbose>1)
 				    		System.out.println(String.format("%s: Motif #%d has too few (%d) non-shared hits, remove it.", 
 				    			CommonUtils.timeElapsed(tic), cluster2.clusterId, count_aligned));
@@ -3525,7 +3525,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 								}
 							}
 							// check if new PWM has sufficient hit
-							if (alignedSeqCount<seqs.length*config.motif_hit_factor){
+							if (alignedSeqCount<seqs.length*config.motif_hit_factor_report){
 								if (config.verbose>1)
 						    		System.out.println(String.format("%s: too few new PWM hits (%d) , remove motif #%d.", 
 						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster2.clusterId));
@@ -4137,7 +4137,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				}
 			}
     	  
-			// if the KSM match is not good, use PWM to scan and align using he PWM if pass threshold    	  
+			// if the KSM match is not good, use PWM to scan and align using the PWM if pass threshold    	  
 			WeightMatrixScoreProfile profiler = scorer.execute(seq);
 			double maxSeqScore = Double.NEGATIVE_INFINITY;
 			int maxScoringShift = 0;
