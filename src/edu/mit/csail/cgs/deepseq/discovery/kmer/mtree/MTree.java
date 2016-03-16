@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -22,7 +23,7 @@ public class MTree {
 	private ArrayList<Kmer> data;
 	private int currentEntry;
 	
-	class MTreeNode {
+	public class MTreeNode {
 		
 		/**
 		 * This is the class which represent Node objects. A MTreeNode contains a variety of TreeObjects
@@ -177,6 +178,26 @@ public class MTree {
 			return leaves;
 		}
 		
+		public void removeTO(int i) { 
+			if (!this.isLeaf) {
+				System.out.println("problem-------------------------");
+			}
+			else {
+				this.nro.remove(i);
+				if (this.nro.size() == 0) { // node is now empty, detach it from its parent
+					this.parent.setChild(null);
+					boolean parentLeaf = true;
+					for (TreeObject o: this.parent.getContainer().getObjects()) {
+						if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
+							parentLeaf = false;
+							break;
+						}
+					}
+					this.parent.getContainer().setLeaf(parentLeaf);
+				}
+			}
+		}
+		
 		public ArrayList<MTreeNode> getLeafNodes() {
 			ArrayList<MTreeNode> leaves = new ArrayList<MTreeNode>();
 			if (this.isLeaf()) {
@@ -206,7 +227,7 @@ public class MTree {
 		}
 	}
 	
-	class TreeObject {
+	public class TreeObject {
 		
 		/**
 		 * This is the class that represents one of the objects contained in the tree. It 
@@ -226,12 +247,14 @@ public class MTree {
 		private double radius; // covering radius
 		private MTreeNode child; // covering tree
 		private Kmer dataPoint;
+		private int index; // index of object in its container
 		
 		public TreeObject(MTreeNode co, MTreeNode c, Kmer d, double r) {
 			container = co;
 			child = c;
 			dataPoint = d;
 			radius = r;
+			index = 0;
 		}
 		
 		public TreeObject(MTreeNode co, Kmer d) {
@@ -239,6 +262,7 @@ public class MTree {
 			child = null;
 			dataPoint = d;
 			radius = 0;
+			index = 0;
 		}
 		
 		public Kmer getData() {
@@ -247,6 +271,14 @@ public class MTree {
 		
 		public void setData(Kmer d) {
 			dataPoint = d;
+		}
+		
+		public int getIndex() {
+			return index;
+		}
+		
+		public void setIndex(int i) {
+			index = i;
 		}
 		
 		public double getR() {
@@ -263,7 +295,9 @@ public class MTree {
 		
 		public void setChild(MTreeNode c) {
 			this.child = c;
-			c.setParent(this);
+			if (c != null) {
+				c.setParent(this);
+			}
 		}
 		
 		public MTreeNode getContainer() {
@@ -848,9 +882,43 @@ public class MTree {
 		return new Pair<TreeObject, TreeObject>(promote.get(arg1), promote.get(arg2));
 	}
 	
+	public ArrayList<Kmer> rangeSearch(Kmer s, double r) {
+		ArrayList<Kmer> result = this.rangeSearch(s, r, root);
+		return result;
+	}
+	
+	public ArrayList<Kmer> rangeSearch(Kmer s, double r, MTreeNode n) {
+		ArrayList<Kmer> inRange = new ArrayList<Kmer>();
+		if (!n.isLeaf()) {
+			for (TreeObject o: n.getObjects()) {
+				double ktd = KMAC1.editDistance(o.getData(), s);
+				if (ktd <= r) {
+					inRange.add(o.getData());
+				}
+				MTreeNode childNode = o.getChild();
+				if ( childNode != null && childNode.getObjects().size() > 0) {
+					if (ktd <= r + o.getR() + 0.00000001)	{
+						ArrayList<Kmer> subRangeSearch = this.rangeSearch(s, r, childNode);
+						inRange.addAll(subRangeSearch);
+					}
+				}
+			}
+		}
+		else {
+			for (TreeObject o: n.getObjects()) {
+				if (KMAC1.editDistance(o.getData(), s) <= r) {
+					inRange.add(o.getData());
+				}
+			}
+			return inRange;
+		}
+		return inRange;
+	}
+	
+	/**
 	public Pair<Integer, ArrayList<Kmer>> rangeSearch(Kmer s, double r) {
 		Pair<Integer, ArrayList<Kmer>> result = this.rangeSearch(s, r, root);
-		/**
+		comment start
 		try {
 			String filename = "rangeSearchPruning.txt";
 			FileWriter fw = new FileWriter(filename, true);
@@ -863,7 +931,7 @@ public class MTree {
 		System.out.println("Range search has been completed at root.");
 		System.out.println("----------------------------------------");
 		System.out.println("Total number of entries pruned: " + result.getFirst());
-		**/
+		comment end
 		return result;
 	}
 	
@@ -899,6 +967,27 @@ public class MTree {
 			return new Pair<Integer, ArrayList<Kmer>>(pruned, inRange);
 		}
 		return new Pair<Integer, ArrayList<Kmer>>(pruned, inRange);
+	}
+	**/
+	
+	public HashMap<Integer, ArrayList<Kmer>> allRangeSearch(MTreeNode root) {
+		HashMap<Integer, ArrayList<Kmer>> allRangeSearch = new HashMap<Integer, ArrayList<Kmer>>();
+		return allRangeSearch;
+	}
+	
+	public static ArrayList<TreeObject> traverse(MTreeNode root) {
+		// Returns indices of nodes in a post-order traversal of the MTree
+		// We want to maintain the invariant that all the children of a node appear before that node
+		ArrayList<TreeObject> traversal = new ArrayList<TreeObject>();
+		for (int i = root.getObjects().size() - 1; i > -1; i--) {
+			TreeObject o = root.getObjects().get(i);
+			o.setIndex(i);
+			if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
+				traversal.addAll(MTree.traverse(o.getChild()));
+			}
+			traversal.add(o);
+		}
+		return traversal;
 	}
 	
 	public ArrayList<Kmer> getData() {

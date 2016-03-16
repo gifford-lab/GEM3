@@ -37,6 +37,8 @@ import edu.mit.csail.cgs.deepseq.analysis.MotifInstance;
 import edu.mit.csail.cgs.deepseq.analysis.MotifScan;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree.MTreeNode;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree.TreeObject;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -2695,6 +2697,158 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 	
 	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering2(MTree dataPoints, 
 			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
+		// keys = indices (0 to dataPoints.getSize() - 1)
+		// values = kmers in range
+		HashMap<Integer, ArrayList<Kmer>> rangeResults = new HashMap<Integer, ArrayList<Kmer>>();
+		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
+		StatUtil util = new StatUtil();
+		ArrayList<TreeObject> traversal = MTree.traverse(dataPoints.getRoot());
+		for (TreeObject o : traversal) {
+			ArrayList<Kmer> rangeResult = dataPoints.rangeSearch(o.getData(), distanceCutoff);
+			for (Kmer k : rangeResult) {
+				if (rangeResults.get(o.getData().getIndex()) != null) {
+					rangeResults.get(o.getData().getIndex()).add(k);
+				}
+				else {
+					rangeResults.put(o.getData().getIndex(), new ArrayList<Kmer>());
+					rangeResults.get(o.getData().getIndex()).add(k);
+				}
+				if (rangeResults.get(k.getIndex()) != null) {
+					rangeResults.get(k.getIndex()).add(o.getData());
+				}
+				else {
+					rangeResults.put(k.getIndex(), new ArrayList<Kmer>());
+					rangeResults.get(k.getIndex()).add(o.getData());
+				}
+			}
+			MTreeNode container = o.getContainer();
+			container.getObjects().remove(o.getIndex());
+			if (container.getObjects().size() == 0) {
+				if (container.getParent() != null) {
+					container.getParent().setChild(null);
+				}
+			}
+		}
+		for (int i = 0; i < dataPoints.getSize(); i++) {
+			DensityClusteringPoint p = util.new DensityClusteringPoint();
+			p.id = i;
+			// self_density: individual k-mer hit count
+			double self_density = CommonUtils.calcWeightedHitCount(posHitList.get(i),seq_weights) - negHitList.get(i).cardinality()*posNegSeqRatio;
+			ArrayList<Kmer> inRange = rangeResults.get(i);
+			// sum up to get total hit count of this point and its neighbors
+			BitSet b_pos = new BitSet();
+			BitSet b_neg = new BitSet();
+			for (Kmer kmer: inRange) {
+				b_pos.or(posHitList.get(kmer.getIndex()));
+				b_neg.or(negHitList.get(kmer.getIndex()));
+			}
+			// group hit count * self_density, to down-weight weak kmers from being selected as center
+			p.densitySxN = Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			if (Double.isNaN(p.densitySxN))
+				continue;
+			p.density = p.densitySxN;
+//				p.density = b_pos.cardinality()-b_neg.cardinality()*posNegSeqRatio;
+			data.add(p);
+//			System.out.println(i);
+		}
+		
+		data.trimToSize();	
+		Collections.sort(data);
+		
+		// compute the shortest distance to the potential centers
+		// for the top point
+		double maxDist = 0;
+		int topID = data.get(0).id;
+		Kmer topPoint = dataPoints.getData().get(topID);
+		for(int i = 0; i < dataPoints.getSize(); i++) {
+			double compare = KMAC1.editDistance(dataPoints.getData().get(i), topPoint);
+			if (compare > maxDist) {
+				maxDist = compare;
+			}
+		}
+		
+		data.get(0).delta = maxDist;
+		data.get(0).gamma = data.get(0).delta * data.get(0).density;
+		data.get(0).delta_id = 0;
+		data.get(0).members.add(data.get(0));
+		data.get(0).memberIds.add(data.get(0).id);
+		
+		// for the rest of points
+		for (int i=1;i<data.size();i++){
+			double min = Double.MAX_VALUE;
+			int id = data.get(i).id;
+			// find the nearest stronger point of i, point i to it
+			for (int j=0;j<i;j++){		// for the points j have higher (or equal) density than point i
+				int jd = data.get(j).id;
+				double ijDistance = KMAC1.editDistance(dataPoints.getData().get(id), dataPoints.getData().get(jd));
+				if (ijDistance < min) {
+					min = ijDistance;
+					data.get(i).delta_id = data.get(j).id;
+				}
+				if (ijDistance <= distanceCutoff) {
+					data.get(j).members.add(data.get(i));
+					data.get(j).memberIds.add(i);
+				}
+			}
+			data.get(i).delta = min;
+			data.get(i).gamma = data.get(i).delta * data.get(i).density;
+		}
+		for (int i=0;i<data.size();i++){
+			if (data.get(i).delta > distanceCutoff)
+				data.get(i).delta_id = data.get(i).id;
+		}
+		
+		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
+            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+                return o1.compareToByGamma(o2);
+            }
+        });
+		
+		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
+		while(!data.isEmpty()){
+			DensityClusteringPoint p = data.get(0);
+//			if (p.delta<distanceCutoff){		// skip those points near other high density points
+//				data.remove(p);
+//				continue;
+//			}
+			// compareToByDensitySxN, to select the high density point with high individual hit count (self density)
+			Collections.sort(p.members, new Comparator<DensityClusteringPoint>(){
+	            public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
+	                return o1.compareToByDensitySxN(o2);
+	            }
+	        });
+			DensityClusteringPoint selected = null;
+			for (DensityClusteringPoint m:p.members){
+				boolean tooSimilar = false;
+				for (DensityClusteringPoint r:results){
+					if (KMAC1.editDistance(dataPoints.getData().get(r.id), dataPoints.getData().get(m.id))<distanceCutoff){
+						tooSimilar = true;
+						break;
+					}
+				}
+				if (!tooSimilar){
+					selected = m;
+					break;
+				}
+				else{
+					data.remove(m);
+				}
+			}
+			if (selected != null){
+				results.add(selected);		// select the best point from the remaining points
+				data.remove(selected);
+			}
+			data.remove(p);
+//			for (DensityClusteringPoint m: selected.members){
+//				data.remove(m);
+//			}
+		}
+		return results;
+	}
+	
+	/**
+	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering2(MTree dataPoints, 
+			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, double posNegSeqRatio, int distanceCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		int pruned = 0;
@@ -2819,7 +2973,8 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 //			}
 		}
 		return results;
-	}	
+	}
+	**/
 /**
  * This is the main method for KMAC2WK (density clustering, with gappedKmer) motif discovery<br>
  * A few important points:<br>
