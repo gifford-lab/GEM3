@@ -933,7 +933,7 @@ public class KMAC1 {
 			}
 			
 			System.out.println("\n------------------------- k = "+ k +" ----------------------------\n");
-			System.out.println("Total number of k-mers: "+kmers.size());
+			System.out.println("Total number of k-mers: n = "+kmers.size());
 
 			int cutoff = (int)(config.kmer_deviation_factor*k);	// maximum kmer distance to be considered as neighbors
 			// centerKmers and neighbourList are matched lists
@@ -942,9 +942,12 @@ public class KMAC1 {
 			
 			if (config.mtree!=0){
 				if (config.verbose>1)
-					System.out.print("Density clustering k-mers with m-tree ... ");
+					System.out.println("Density clustering k-mers with m-tree ... ");
+				int mtree_capacity = config.mtree;
 				if (config.mtree==-1){
+					mtree_capacity = 8;
 					// printout m-tree performance information
+					System.out.println("n^2 / 2 = "+kmers.size()*(kmers.size()-1)/2);
 					for (int d=2;d<=5;d++){
 						for (int c=7;c<12;c++){
 	//					for (int c=5;c<25;c+=2){
@@ -960,7 +963,7 @@ public class KMAC1 {
 				}
 				long tic=System.currentTimeMillis();
 				
-				MTree dataPoints = MTree.constructTree(kmers, config.mtree);
+				MTree dataPoints = MTree.constructTree(kmers, mtree_capacity);
 				centerKmers = densityClusteringWithMTree(kmers, dataPoints, config.dc==-1?maxGap:config.dc);
 				
 				for (int j=0;j<centerKmers.size();j++){	
@@ -973,14 +976,16 @@ public class KMAC1 {
 					neighbourList.add(neighbours);
 				}
 				if (config.verbose>1)
-					System.out.println("densityClusteringWithMTree " + CommonUtils.timeElapsed(tic));
+					System.out.println("M-tree constructure and density clustering: " + CommonUtils.timeElapsed(tic));
 			}
 			else{
 				long tic=System.currentTimeMillis();
+				if (config.verbose>1)
+					System.out.print("Computing k-mer distance matrix ...");
 				double[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix);
 //				double[][] distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff);
 				if (config.verbose>1)
-					System.out.println("computeWeightedDistanceMatrix2 " + CommonUtils.timeElapsed(tic));
+					System.out.println(" Done: "+CommonUtils.timeElapsed(tic));
 				
 				centerKmers = densityClusteringWithDistMatrix(kmers, distanceMatrix, config.dc==-1?maxGap:config.dc);
 
@@ -993,6 +998,8 @@ public class KMAC1 {
 					}
 					neighbourList.add(neighbours);
 				}
+				if (config.verbose>1)
+					System.out.println("Computing k-mer distance matrix and density clustering: " + CommonUtils.timeElapsed(tic));
 			}
 				
 			// clear matrix, it is only used for calculating distance
@@ -2334,8 +2341,6 @@ public class KMAC1 {
 	 * Gapped k-mer distance as Levenshtien distance of matrix form
 	 */
 	public double[][] computeWeightedDistanceMatrix2(ArrayList<Kmer> kmers, boolean print_dist_matrix) {
-		if (config.verbose>1)
-			System.out.print("Computing k-mer distance matrix ... ");
 		int kmerCount = kmers.size();
 		double[][]distanceMatrix = new double[kmerCount][kmerCount];
 		for (int i=0;i<kmerCount;i++){
