@@ -886,7 +886,7 @@ public class KMAC1 {
 		}
 		seqListNeg.trimToSize();
 				
-//		// init list to keep track of kmer matches in a sequence
+//		// init list to keep track of kmer matches in a sequence  // NOT USED NOW, because real time aho-crasic search is fast
 //		// negPositionPadding is used for indexing because seed_seq may be slightly negative in findIndexedKsmGroupHits().
 //		negPositionPadding = k_max*2;
 //		for (int i=0;i<config.k_win+negPositionPadding*2;i++){
@@ -933,12 +933,16 @@ public class KMAC1 {
 			}
 			
 			System.out.println("\n------------------------- k = "+ k +" ----------------------------\n");
+			System.out.println("Total number of k-mers: "+kmers.size());
+
 			int cutoff = (int)(config.kmer_deviation_factor*k);	// maximum kmer distance to be considered as neighbors
+			// centerKmers and neighbourList are matched lists
 			ArrayList<Kmer> centerKmers = new ArrayList<Kmer> ();
 			ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
-			System.out.println("Total number of k-mers: "+kmers.size());
 			
 			if (config.mtree!=0){
+				if (config.verbose>1)
+					System.out.print("Density clustering k-mers with m-tree ... ");
 				if (config.mtree==-1){
 					// printout m-tree performance information
 					for (int d=2;d<=5;d++){
@@ -1012,7 +1016,6 @@ public class KMAC1 {
 	        	if (tmp.size()==config.k_top)
 	        		break;
 	        }
-//			clusters = tmp;
 			sortMotifClusters(tmp, true);
 			
 //			
@@ -1175,7 +1178,7 @@ public class KMAC1 {
 			double hitRatio = (double)c.pwmThreshold.posHit / posSeqCount;
 			if (i>=10&&hitRatio<config.motif_hit_factor_report || hitRatio<config.motif_hit_factor)
 					toRemove.add(c);
-			//TODOTODO: add a new config.motif_significance, or use fold change to remove motif here
+			//TODO: add a new config.motif_significance, or use fold change to remove motif here
 //			if (config.evaluate_by_ksm && c.ksmThreshold.motif_significance>config.hgp)
 //				toRemove.add(c);
 //			if (!config.evaluate_by_ksm && c.pwmThreshold.motif_significance>config.hgp)
@@ -1187,8 +1190,8 @@ public class KMAC1 {
 
 		// print KSM and motif hits
 		for (MotifCluster cluster : clusters){
-			GappedKmer.printKSM(cluster.alignedKmers, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
-			
+			GappedKmer.printKSM(cluster.alignedKmers, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
+					cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);		
 		}
 		if (config.print_motif_hits){
 			ArrayList<WeightMatrix> pwms=new ArrayList<WeightMatrix>();
@@ -3242,7 +3245,8 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 	}
 	**/
 /**
- * This is the main method for KMAC2WK (density clustering, with gappedKmer) motif discovery<br>
+ * This is the main method for KMAC v1 (density clustering, with gappedKmer) motif discovery<br>
+ * It discover one single motif starting from the seed k-mer and return. It is called with different seed k-mers multiple times for multiple motifs.<br>
  * A few important points:<br>
  * 1. Definition of k-mer positions<br>
  * 		The start of the seed k-mer is the global reference point. All the other positions can be represented as relatve to seed position.<br>
@@ -3273,7 +3277,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 
 //		kmers = Kmer.deepCloneKmerList(kmers, seed, seq_weights);
 //		indexKmerSequences(kmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);
-		seed = kmers.get(0);
+//		seed = kmers.get(0);
 
 		cluster.inputKmers = Kmer.copyKmerList(kmers);
 		cluster.seedKmer = seed;
@@ -3332,30 +3336,13 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 	    	if (config.verbose>1)
 	    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster.wm)
 	    				+" align " + hit_count+" sequences.");
-	    	
-//			// extract first KSM
-//	    	if (config.use_ksm){
-//				updateEngine(cluster.inputKmers);		// update kmer Engine with all input k-mers for extracting KSM
-//	    		NewKSM newKSM = extractKSM (seqList, seed_range);
-//				if (newKSM==null){
-//					return null;
-//				}		    	
-//				cluster.alignedKmers = newKSM.kmers;
-//		    	cluster.ksmThreshold = newKSM.threshold;
-//
-//		    	alignByKSM(seqList, cluster.alignedKmers, cluster);
-//	    	}
-    	
+	    	   	
 			/** Iteratively build PWM and KSM */
-	    	iteratePWMKSM (cluster, seqList, seed_range, config.use_ksm);
-//			iteratePWMandKSM (cluster, seqList, seed_range, config.use_ksm);
-			
+	    	iteratePWMKSM (cluster, seqList, seed_range, config.use_ksm);			
 		}
-//		System.err.println();
-//		Kmer.printKmerHashcode(cluster.alignedKmers);	
-
 		return cluster;
 	}
+	
 	/** 
  * Recursively merge overlapped motif clusters using PWMs<br>
  * Assuming the clusters are sorted by cluster id (0-based)<br>
