@@ -21,7 +21,7 @@ import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
  *
  */
 public class MotifFormatter {
-
+	
 	public static void main(String[] args) {
 		Set<String> flags = Args.parseFlags(args);
 		File file = new File(args[0]);

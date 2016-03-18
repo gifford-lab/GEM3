@@ -15,7 +15,6 @@ public class Config {
     public boolean outputHOMER = false;
     public boolean outputJASPAR = false;
     public boolean print_dist_matrix = false;
-    public boolean use_m_tree = false;
     public boolean write_RSC_file = false;
     public boolean write_genetrack_file = false;
     public boolean kmer_print_hits = false;
@@ -53,6 +52,7 @@ public class Config {
     public int k_max= -1;		// the maximum value of k        
     public String seed = null;
     public int seq_weight_type = 3;	// "swt" - 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
+    public int mtree = 0;	// 0 use distance matrix; -1 report m-tree performance; other value: m-tree capacity
     
     /** number of top k-mers (for each k value) selected from density clustering to run KMAC */
     public int k_top = 5;
@@ -227,7 +227,6 @@ public class Config {
         outputMEME = flags.contains("outMEME");
         outputHOMER = flags.contains("outHOMER");
         outputJASPAR = flags.contains("outJASPAR");
-        use_m_tree = flags.contains("mtree");
         write_RSC_file = flags.contains("writeRSC");
         write_genetrack_file = flags.contains("write_genetrack_file");
         dump_regression = flags.contains("dump_regression");
@@ -324,6 +323,7 @@ public class Config {
         	k_max = k;
         	allow_seed_reset = false;
         }
+        mtree = Args.parseInteger(args, "mtree", mtree);
         k_top = Args.parseInteger(args, "k_top", k_top);
         gap = Args.parseInteger(args, "gap", gap);
         dc = Args.parseInteger(args, "dc", dc);
