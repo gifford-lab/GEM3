@@ -947,17 +947,25 @@ public class KMAC1 {
 				if (config.mtree==-1){
 					mtree_capacity = 8;
 					// printout m-tree performance information
-					System.out.println("n^2 / 2 = "+kmers.size()*(kmers.size()-1)/2);
-					for (int d=2;d<=5;d++){
-						for (int c=7;c<12;c++){
+					System.gc();
+					long mem = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576;
+					System.out.println("n^2 / 2 = "+kmers.size()*(kmers.size()-1)/2 + "\tmem="+mem+"M");
+					for (int d=3;d<=5;d++){
+						for (int c=7;c<=12;c++){
 	//					for (int c=5;c<25;c+=2){
 	//						for (int c=5;c<=55;c+=10){
+							System.gc();
+							long tic=System.currentTimeMillis();
 							numDistCalcuation = 0;
 							System.out.print("d="+d+"\t c="+c+"\t");
 							MTree dataPoints = MTree.constructTree(kmers, c);
-							System.out.print("n_construction="+numDistCalcuation+"\t");
+							System.out.print("n_tree="+numDistCalcuation+"\t");
 							centerKmers = densityClusteringWithMTree(kmers, dataPoints, d);
+							System.out.print("\ttime="+CommonUtils.timeElapsed(tic));
+							System.out.println("\tmem="+
+							((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576 - mem) +"M");					
 						}
+						System.out.println();
 					}
 					continue;
 				}
@@ -3070,7 +3078,6 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		if (mtree==-1){
 			System.out.print("n_delta="+(numDistCalcuation-tmp));
 			System.out.print("\tn_total="+numDistCalcuation);
-			System.out.println("\tApproxDeltaCount="+noStrongerCount);
 		}
 		Collections.sort(data, new Comparator<DensityClusteringPoint>(){
             public int compare(DensityClusteringPoint o1, DensityClusteringPoint o2) {
