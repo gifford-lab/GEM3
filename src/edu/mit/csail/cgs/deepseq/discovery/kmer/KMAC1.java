@@ -1517,7 +1517,6 @@ public class KMAC1 {
 		/**
 		 * Construct gapped k-mers from the significant (relaxed fold change and hgp) base k-mers
 		 */
-		
 		for (int numGap=1;numGap<=config.gap;numGap++){
 			HashMap<String, GappedKmer> gkMap = new HashMap<String, GappedKmer>();
 			int kFull = k+numGap;
@@ -1632,11 +1631,34 @@ public class KMAC1 {
 	                return o1.compareByHGP(o2);
 	            }
 	        });			
+
+			// eleminate identical k-mers
 			ArrayList<Kmer> results_final = new ArrayList<Kmer>();
-			int final_count = Math.min(results.size(), config.max_gkmer);
-			for (int i=0;i<final_count;i++){
-				results_final.add(results.get(i));
+			if (results.size()>config.max_gkmer){
+				for (Kmer km:results){
+					km.setMatrix();
+				}
+				MTree dataPoints = MTree.constructTree(results, 10);
+				int[] idx = reduceGappedKmerSet(dataPoints, 1);
+				int count = 0;
+				for (int id: idx)
+					if (id==1)
+						count++;
+				if (config.verbose>1)
+					System.out.println("Reduce gapped-kmer set from " + idx.length + " to " + count);
+				
+				int final_count = Math.min(results.size(), config.max_gkmer);
+				for (int i=0;i<results.size();i++){
+					if (idx[i]==1)
+						results_final.add(results.get(i));
+					if (results_final.size()==final_count)
+						break;
+				}
 			}
+			else{
+				results_final = results;
+			}
+
 			
 //			System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f) from %d+/%d- sequences, %s", 
 //					kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
@@ -1657,509 +1679,53 @@ public class KMAC1 {
 		
 		return kmers;
 	}
-	/** 
-	 * Index k-mers from the positive sequences, select enriched k-mers
-	 **/
-	public ArrayList<Kmer> generateEnrichedKmers(int k){
-		this.k = k;
-		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
-		tic = System.currentTimeMillis();
 
-		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
-		for (int seqId=0;seqId<posSeqCount;seqId++){
-			String seq = seqs[seqId];
-			int numPos = seq.length()-k+1;		// substring() is end exclusive
-			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
-			for (int i=0;i<numPos;i++){
-				String kstring = seq.substring(i, i+k);
-				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
-					continue;
-				uniqueKmers.add(kstring);
-			}
-			for (String s: uniqueKmers){
-				if (!kmerstr2seqs.containsKey(s)){
-					 kmerstr2seqs.put(s, new HashSet<Integer>());
+	public static int[] reduceGappedKmerSet(MTree mtreeDataPoints, double distanceCutoff){
+		// keys = kmer indices (0 to dataPoints.getSize() - 1)
+		// values = kmers in range
+		int[] idx = new int[mtreeDataPoints.getSize()];
+		HashMap<Integer, ArrayList<Kmer>> rangeResults = new HashMap<Integer, ArrayList<Kmer>>();
+		StatUtil util = new StatUtil();
+		ArrayList<TreeObject> traversal = MTree.traverse(mtreeDataPoints.getRoot());
+		int tmp = numDistCalcuation;
+		for (TreeObject o : traversal) {
+			ArrayList<Kmer> rangeResult = mtreeDataPoints.rangeSearch(o.getData(), distanceCutoff);
+			for (Kmer kmer : rangeResult) {
+				if (rangeResults.get(o.getData().getIndex()) != null) {
+					rangeResults.get(o.getData().getIndex()).add(kmer);
 				}
-				kmerstr2seqs.get(s).add(seqId);
+				else {
+					rangeResults.put(o.getData().getIndex(), new ArrayList<Kmer>());
+					rangeResults.get(o.getData().getIndex()).add(kmer);
+				}
+				if (rangeResults.get(kmer.getIndex()) != null) {
+					rangeResults.get(kmer.getIndex()).add(o.getData());
+				}
+				else {
+					rangeResults.put(kmer.getIndex(), new ArrayList<Kmer>());
+					rangeResults.get(kmer.getIndex()).add(o.getData());
+				}
+			}
+			MTreeNode container = o.getContainer();
+			container.getObjects().remove(o.getIndex());
+			if (container.getObjects().size() == 0) {
+				if (container.getParent() != null) {
+					container.getParent().setChild(null);
+				}
 			}
 		}
-		
-		// Merge kmer and its reverse compliment (RC)	
-		ArrayList<Kmer> kms = new ArrayList<Kmer>();
-		ArrayList<String> kmerStrings = new ArrayList<String>();
-		kmerStrings.addAll(kmerstr2seqs.keySet());
-		
-		// create kmers from its and RC's counts
-		for (String key:kmerStrings){
-			if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
+
+		// idx array is indexed by k-mer id (i.e. treeIndex)
+		for (int i = 0; i < idx.length; i++) {
+			if (idx[i] == -1)
 				continue;
-			// consolidate kmer and its reverseComplment kmer
-			String key_rc = SequenceUtils.reverseComplement(key);				
-			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
-				if (kmerstr2seqs.containsKey(key_rc)){
-					int kCount = kmerstr2seqs.get(key).size();
-					int rcCount = kmerstr2seqs.get(key_rc).size();
-					String winner = kCount>=rcCount?key:key_rc;
-					String loser = kCount>=rcCount?key_rc:key;
-					kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner take all
-					kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
-				}
-			}
-		}
-
-		System.out.println(String.format("k=%d, mapped %d k-mers, HGP=%.1f, %s", k, kmerstr2seqs.keySet().size(), config.kmer_hgp, CommonUtils.timeElapsed(tic)));
-		
-		// compute the smallest PosCount needed to be significant, even with negCount=0
-		int minSignificantCount;
-		for (minSignificantCount=3;minSignificantCount<posSeqCount;minSignificantCount++){
-			double hgp = computeHGP(posSeqCount, negSeqCount, minSignificantCount, 0);
-			if (hgp<config.kmer_hgp){
-				break;
-			}
-		}
-		// expectedCount is to limit #kmers to run HGP test, if total kmer number is low, it can be relaxed a little
-		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
-		// num_seq * num_kmer_per_seq / total_num_kmer_for_k, 
-		// sequence: scan for reverse compliment, k-mer: merge reverse compliment, therefore cancel out
-		int expectedCount = (int) Math.max( minSignificantCount, Math.round(seqs.length*(seqs[0].length()-k+1) / Math.pow(4, k) ));
-
-		ArrayList<String> kstrs = new ArrayList<String>();
-		for (String key:kmerstr2seqs.keySet()){	
-			if (kmerstr2seqs.get(key).size()< expectedCount){
-//				System.err.print(String.format("%s %d  ", key, kmerstr2seqs.get(key).size()));
-				continue;	// skip low count kmers 
-			}
-			kstrs.add(key);
-		}
-//		System.err.println();
-		System.out.println("k="+k+", expected kmer hit count="+expectedCount + ", kmer numbers="+kstrs.size());
-
-		// create the kmer object
-		for (String s:kstrs){	
-			Kmer kmer = new Kmer(s, kmerstr2seqs.get(s), seq_weights);
-			kms.add(kmer);
-		}
-		kms.trimToSize();
-		kmerstr2seqs=null;	// clean up
-		System.gc();
-		
-		/**
-		 * Select significantly over-representative kmers 
-		 * Search the kmer counts in the negative sequences, then compare to positive counts
-		 */
-		tic = System.currentTimeMillis();
-		//Aho-Corasick for searching Kmers in negative sequences
-		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
-		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-		AhoCorasick tmp = new AhoCorasick();
-		for (String s: kstrs){
-			tmp.add(s.getBytes(), s);
-	    }
-		tmp.prepare();
-		
-		// count hits in the negative sequences
-		HashMap<String, HashSet<Integer>> kmerstr2negSeqs = new HashMap<String, HashSet<Integer>>();
-		for (int negSeqId=0; negSeqId<negSeqCount;negSeqId++){
-			String seq = seqsNegList.get(negSeqId);
-			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
-			Iterator searcher = tmp.search(seq.getBytes());
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				kmerHits.addAll(result.getOutputs());
-			}
-			String seq_rc = SequenceUtils.reverseComplement(seq);
-			searcher = tmp.search(seq_rc.getBytes());
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				kmerHits.addAll(result.getOutputs());
-			}
-			for (Object o: kmerHits){
-				String kmer = (String) o;
-				if (!kmerstr2negSeqs.containsKey(kmer))					
-					kmerstr2negSeqs.put(kmer, new HashSet<Integer>());
-				kmerstr2negSeqs.get(kmer).add(negSeqId);
-			}
-		}
-
-		
-		// score the kmers, hypergeometric p-value
-		ArrayList<Kmer> insigHgpKmers = new ArrayList<Kmer>();
-		for (Kmer kmer:kms){
-			if (kmerstr2negSeqs.containsKey(kmer.getKmerString())){
-				kmer.setNegHits(kmerstr2negSeqs.get(kmer.getKmerString()));				
-			}
-			if (kmer.getPosHitCount() < kmer.getNegHitCount()/get_NP_ratio() * config.k_fold ){
-				insigHgpKmers.add(kmer);	
-				continue;
-			}
-
-			kmer.setHgp(computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), kmer.getNegHitCount()));
-			if (kmer.getHgp() > config.kmer_hgp){
-				insigHgpKmers.add(kmer);		
-				continue;
-			}
-		}
-
-		Collections.sort(kms);
-		// print high p-value k-mers, or low fold enrichment k-mers, although remove them for further learning
-		if (config.print_all_kmers){
-//			OLD method for KMAC0: Kmer.printKmers(kms, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
-			GappedKmer.printKSM(kms, null, k, 0, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
-
-		}
-		kms.removeAll(insigHgpKmers);
-		kms.trimToSize();
-//		System.out.println(String.format("k=%d, selected %d k-mers from %d+/%d- sequences, %s", k, kms.size(), posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
-		System.out.println(String.format("k=%d, selected %d k-mers, %s", k, kms.size(), CommonUtils.timeElapsed(tic)));
-		
-		return kms;
-	}
-	
-	/** 
-	 * Select gapped k-mers (1 contiguous multi-base gap or multiple independent gaps)<br>
-	 * A gapped k-mer is represented as a list of BASE K-Mers (ungapped) that fit the gapped k-mer pattern. 
-	 * Each base k-mer have a weight (hit count).
-	 * */
-	public ArrayList<Kmer> generateEnrichedGappedKmers(int k, int numGap){
-		int kOrginal = k;
-		k += numGap;
-		tic = System.currentTimeMillis();
-		
-		
-		double relaxFactor = 0.6;
-		double relaxed_fold = Math.max(config.k_fold*relaxFactor, 1);
-		double relaxed_hgp = Math.min(relaxFactor*config.kmer_hgp, -1.3);
-		
-		// compute the smallest PosCount needed to be significant, with negCount=0
-		int minSigBaseKmerCount;
-		for (minSigBaseKmerCount=3;minSigBaseKmerCount<posSeqCount;minSigBaseKmerCount++){
-			double hgp = computeHGP(posSeqCount, negSeqCount, minSigBaseKmerCount, 0);
-			if (hgp<relaxed_hgp){
-				break;
-			}
-		}
-		int minSigGappedKmerCount;
-		for (minSigGappedKmerCount=3;minSigGappedKmerCount<posSeqCount;minSigGappedKmerCount++){
-			double hgp = computeHGP(posSeqCount, negSeqCount, minSigGappedKmerCount, 0);
-			if (hgp<config.kmer_hgp){
-				break;
-			}
+			ArrayList<Kmer> kmers = rangeResults.get(i);
+			for (Kmer km: kmers)
+				idx[km.getIndex()]=-1;
+			idx[i] = 1;
 		}
 		
-		// expected count of kmer = total possible unique occurences of kmer in sequence / total possible kmer sequence permutation
-		// num_seq * num_kmer_per_seq / total_num_kmer_for_k, 
-		// sequence: scan for reverse compliment, k-mer: merge reverse compliment, therefore cancel out
-		double expectedGappedKmerCount = Math.max(minSigGappedKmerCount, Math.round(seqs.length*(seqs[0].length()-kOrginal+1) / Math.pow(4, kOrginal)));
-		int expectedBaseKmerCount = Math.min(minSigBaseKmerCount,(int)(expectedGappedKmerCount*relaxFactor));
-
-		/**
-		 * Scan the sequences to generate base-kmers
-		 */
-		HashMap<String, HashSet<Integer>> kmerstr2seqs = new HashMap<String, HashSet<Integer>>();
-		for (int seqId=0;seqId<posSeqCount;seqId++){
-			String seq = seqs[seqId];
-			int numPos = seq.length()-k+1;		// substring() is end exclusive
-			HashSet<String> uniqueKmers = new HashSet<String>();			// only count repeated kmer once in a sequence
-			for (int i=0;i<numPos;i++){
-				String kstring = seq.substring(i, i+k);
-				if (kstring.contains("N"))									// ignore 'N', converted from repeat when loading the sequences
-					continue;
-				uniqueKmers.add(kstring);
-			}
-			for (String s: uniqueKmers){
-				if (!kmerstr2seqs.containsKey(s)){
-					 kmerstr2seqs.put(s, new HashSet<Integer>());
-				}
-				kmerstr2seqs.get(s).add(seqId);
-			}
-		}
-
-		// Merge kmer and its reverse compliment (RC)
-		// Remove low-count base k-mers
-		ArrayList<String> kmerStrings = new ArrayList<String>();
-		kmerStrings.addAll(kmerstr2seqs.keySet());
-		
-		// create kmers from its and RC's counts
-		for (String key:kmerStrings){
-			if (!kmerstr2seqs.containsKey(key))		// this kmer has been removed, represented by RC
-				continue;
-			// consolidate kmer and its reverseComplment kmer, remove if count is not high enough
-			String key_rc = SequenceUtils.reverseComplement(key);				
-			if (!key_rc.equals(key)){	// if it is not reverse compliment itself
-				if (kmerstr2seqs.containsKey(key_rc)){
-					int kCount = kmerstr2seqs.get(key).size();
-					int rcCount = kmerstr2seqs.get(key_rc).size();
-					// if k-mer hit is less than expected count, remove
-					if (kCount+rcCount < expectedBaseKmerCount){
-						kmerstr2seqs.remove(key);	
-						kmerstr2seqs.remove(key_rc);	
-					}
-					else{
-						String winner = kCount>=rcCount?key:key_rc;
-						String loser = kCount>=rcCount?key_rc:key;
-						kmerstr2seqs.get(winner).addAll(kmerstr2seqs.get(loser));	// winner takes all
-						kmerstr2seqs.remove(loser);					// remove the loser kmer because it is represented by its RC
-					}
-				}
-				else if (kmerstr2seqs.get(key).size()<expectedBaseKmerCount){
-					kmerstr2seqs.remove(key);						
-				}				
-			}
-		}
-		System.out.println(String.format("k=%d+%d, mapped %d base k-mers, min_base_kmer_Hit=%d, %s", kOrginal, numGap, 
-				kmerstr2seqs.keySet().size(), expectedBaseKmerCount, CommonUtils.timeElapsed(tic)));
-
-		/**
-		 * Select significantly over-representative BASE kmers 
-		 * Count kmer hits in the negative sequences, then compute hgp using positive/negative hit counts
-		 */
-		tic = System.currentTimeMillis();
-		//Aho-Corasick for searching Kmers in negative sequences
-		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
-		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
-		AhoCorasick tmp = new AhoCorasick();
-		/** Base K-mer String to k-mer map */
-		HashMap<String, Kmer> bkMap = new HashMap<String, Kmer>();
-		for (String s:kmerstr2seqs.keySet()){	
-			Kmer kmer = new Kmer(s, kmerstr2seqs.get(s), seq_weights);
-			bkMap.put(kmer.getKmerString(),kmer);
-			tmp.add(s.getBytes(), s);
-		}
-		kmerstr2seqs=null;	// clean up
-		System.gc();
-
-		tmp.prepare();
-		
-		// count hits in the negative sequences
-		HashMap<String, HashSet<Integer>> kmerstr2negSeqs = new HashMap<String, HashSet<Integer>>();
-		for (int negSeqId=0; negSeqId<negSeqCount;negSeqId++){
-			String seq = seqsNegList.get(negSeqId);
-			HashSet<Object> kmerHits = new HashSet<Object>();	// to ensure each sequence is only counted once for each kmer
-			Iterator searcher = tmp.search(seq.getBytes());
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				kmerHits.addAll(result.getOutputs());
-			}
-			String seq_rc = SequenceUtils.reverseComplement(seq);
-			searcher = tmp.search(seq_rc.getBytes());
-			while (searcher.hasNext()) {
-				SearchResult result = (SearchResult) searcher.next();
-				kmerHits.addAll(result.getOutputs());
-			}
-			for (Object o: kmerHits){
-				String ks = (String) o;
-				if (!kmerstr2negSeqs.containsKey(ks))					
-					kmerstr2negSeqs.put(ks, new HashSet<Integer>());
-				kmerstr2negSeqs.get(ks).add(negSeqId);
-			}
-		}
-		
-		HashSet<String> toRemove = new HashSet<String>();
-		for (Kmer kmer:bkMap.values()){
-			if (kmerstr2negSeqs.containsKey(kmer.getKmerString())){
-				HashSet<Integer> neghits = kmerstr2negSeqs.get(kmer.getKmerString());
-				if (kmer.getPosHitCount() > neghits.size() / get_NP_ratio() * relaxed_fold){
-					double hgp = computeHGP(posSeqCount, negSeqCount, kmer.getPosHitCount(), neghits.size());
-					if (hgp < relaxed_hgp){		// the hgp and fold change here is slightly relaxed for base-kmers
-						kmer.setNegHits(neghits);	
-						kmer.setHgp(hgp);
-					}
-					else
-						toRemove.add(kmer.getKmerString());	
-				}
-				else
-					toRemove.add(kmer.getKmerString());					
-			}
-		}
-		for (String ks:toRemove)
-			bkMap.remove(ks);
-		System.out.println(String.format("k=%d+%d, relaxed_hgp=%.2f, total base kmer=%d", 
-				kOrginal, numGap, relaxed_hgp, bkMap.size()));
-		
-		
-		/**
-		 * Construct gapped k-mers from the significant (relaxed fold change and hgp) base k-mers
-		 */
-		// prepare the variants
-		HashMap<String, GappedKmer> gkMap = new HashMap<String, GappedKmer>();
-		int numVariants = 1;
-		for (int j=0;j<numGap;j++){
-			numVariants *= LETTERS.length;
-		}
-		char[][] variants = new char[numVariants][numGap];
-		for (int j=0;j<numVariants;j++){
-			char[] v = new char[numGap];
-			int div = j;
-			for (int l=0;l<v.length;l++){
-				v[l] = LETTERS[div % LETTERS.length];
-				div /= LETTERS.length;
-			}
-			variants[j]=v;
-		}
-		
-		// form gapped kmers by mutating each non-edge base of the k-mers
-		for (String s:bkMap.keySet()){
-			char[] cs = s.toCharArray();
-			
-
-				//// for contiguous gap
-			for (int i=numGap; i<k-numGap; i++){	// only mutate the non-edge bases
-				char ci[] = new char[numGap];
-				for (int j=0;j<numGap;j++){
-					ci[j] = s.charAt(i+j);
-					cs[i+j]='N';
-				}
-				// check whether this gapped kmer has been made
-				String gkStr = String.valueOf(cs);
-				if (gkMap.containsKey(gkStr)||gkMap.containsKey(SequenceUtils.reverseComplement(gkStr)))
-					continue;	// this gapped kmer has been made, skip to next position
-				GappedKmer gk = new GappedKmer(gkStr);
-
-				for (int j=0;j<numVariants;j++){
-					char[] v = variants[j];
-					for (int l=0;l<v.length;l++){
-						cs[i+l] = v[l];
-					}
-					String m = String.valueOf(cs);
-					if (bkMap.containsKey(m))
-						gk.addBaseKmer(bkMap.get(m), true);
-					else{
-						String mrc = SequenceUtils.reverseComplement(m);
-						if (bkMap.containsKey(mrc)){
-							gk.addBaseKmer(bkMap.get(mrc), false); 
-						}
-					}
-				}
-				// restore positions mutated	
-				for (int j=0;j<numGap;j++){
-					cs[i+j] = ci[j];
-				}
-				//// For contiguous gap
-
-//				
-//				
-//				//// For multiple independent gaps
-//			// select all possible positions
-//			char ci[] = new char[numGap];		// bases to be mutated
-//			int pi[] = new int[numGap];			// positions of the bases to be mutated
-//			ArrayList<String> bkList = new ArrayList<String>();
-//			bkList.addAll(bkMap.keySet()); bkList.trimToSize();
-//			for (int i=0;i<bkList.size();i++){
-//				for (int j=i+1;j<bkList.size();j++){
-//					
-//				}
-//			}
-//			
-//			
-//			for (int i=numGap; i<k-numGap; i++){	// only mutate the non-edge bases
-//				for (int j=0;j<numGap;j++){
-//					ci[j] = s.charAt(i+j);			// backup
-//					cs[i+j]='N';
-//				}
-//				// check whether this gapped kmer has been made
-//				String gkStr = String.valueOf(cs);
-//				if (gkMap.containsKey(gkStr)||gkMap.containsKey(SequenceUtils.reverseComplement(gkStr)))
-//					continue;	// this gapped kmer has been made, skip to next position
-//				GappedKmer gk = new GappedKmer(gkStr);
-//
-//				for (int j=0;j<numVariants;j++){
-//					char[] v = variants[j];
-//					for (int l=0;l<v.length;l++){
-//						cs[i+l] = v[l];
-//					}
-//					String m = String.valueOf(cs);
-//					if (bkMap.containsKey(m))
-//						gk.addBaseKmer(bkMap.get(m), true);
-//					else{
-//						String mrc = SequenceUtils.reverseComplement(m);
-//						if (bkMap.containsKey(mrc)){
-//							gk.addBaseKmer(bkMap.get(mrc), false); 
-//						}
-//					}
-//				}
-//				// restore positions mutated	
-//				for (int j=0;j<numGap;j++){
-//					cs[i+j] = ci[j];
-//				}
-//				//// For multiple independent gaps
-
-					
-				if (gk.getBaseKmers().size()>1){	//TODO: Re-think!!! ignore if a singleton longer kmer, b/c it will be covered by a basic k-mer
-					gk.mergePosHits(seq_weights);
-					gkMap.put(gk.getKmerString(), gk);
-				}
-//				else
-//					System.out.print("");
-			}
-		}
-		
-		ArrayList<GappedKmer> gks = new ArrayList<GappedKmer>();
-		HashSet<Kmer> baseKmers = new HashSet<Kmer>();
-		for (String key:gkMap.keySet()){	
-			GappedKmer gk = gkMap.get(key);
-			if (gk.getPosHitCount()< expectedGappedKmerCount)
-				continue;	// skip low count kmers 
-			gks.add(gk);
-			baseKmers.addAll(gk.getBaseKmers());
-		}
-		System.out.println(String.format("k=%d+%d, expected gKmer hit=%.0f, gapped kmer=%d, base kmer=%d", 
-				kOrginal, numGap, expectedGappedKmerCount, gks.size(), baseKmers.size()));
-		
-		
-		/** score the gapped kmers, hypergeometric p-value, select significant k-mers
-		 * 
-		 */
-		ArrayList<Kmer> results = new ArrayList<Kmer>();
-		for (GappedKmer gk:gks){
-			gk.mergeNegHits();		// aggregate base-kmer negative hits to the gapped kmer
-			if (gk.getPosHitCount() >= gk.getNegHitCount()/get_NP_ratio() * config.k_fold ){
-				// optimize the base k-mers to get best hgp
-				ArrayList<Kmer> baseKmerList = new ArrayList<Kmer>();
-				baseKmerList.addAll(gk.getBaseKmers());
-				if (config.optimize_kmer_set)
-					optimizeKSM(baseKmerList);
-				HashSet<Kmer> toremove = new HashSet<Kmer>();
-				for (Kmer baseKm:gk.getBaseKmers())
-					if (!baseKmerList.contains(baseKm))
-						toremove.add(baseKm);
-				for (Kmer km: toremove)
-					gk.removeBasekmers(km);
-
-				if (gk.getBaseKmers().size()<=1)		// skip if only has 1 subkmer
-					continue;
-				gk.mergePosHits(seq_weights);
-				gk.mergeNegHits();
-				gk.setHgp(computeHGP(posSeqCount, negSeqCount, gk.getPosHitCount(), gk.getNegHitCount()));
-				if (gk.getHgp() <= config.kmer_hgp){		// Gapped k-mers passing cutoff are significant
-					gk.linkBaseKmers();
-					results.add(gk);
-				}
-			}
-		}
-		results.trimToSize();
-		Collections.sort(results);
-		
-		ArrayList<Kmer> results_final = new ArrayList<Kmer>();
-		int final_count = Math.min(results.size(), config.max_gkmer);
-		for (int i=0;i<final_count;i++){
-			results_final.add(results.get(i));
-		}
-		
-//		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f) from %d+/%d- sequences, %s", 
-//				kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
-		System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f), %s", 
-				kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, CommonUtils.timeElapsed(tic)));
-		
-		
-		ArrayList<Kmer> kms = new ArrayList<Kmer>();
-		for (GappedKmer gk:gks){
-			kms.add(gk);			
-		}
-		if (config.print_all_kmers){
-			Collections.sort(kms);
-			GappedKmer.printKSM(kms, null, kOrginal, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
-		}
-		return results_final;
+		return idx;
 	}
 	
 	private double[][] computeDistanceMatrix2(ArrayList<Kmer> kmers, boolean print_dist_matrix, int cutoff) {
