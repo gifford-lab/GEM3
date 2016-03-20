@@ -59,7 +59,6 @@ public class Config {
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
     public int dc = 2;
     public int max_gkmer = 1500;
-    public double gkmer_reduce_dist = 1;	// the distance cutoff for removing similar gapped k-mers
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
@@ -330,7 +329,6 @@ public class Config {
         dc = Args.parseInteger(args, "dc", dc);
         k_seqs = Args.parseInteger(args, "k_seqs", k_seqs);
         max_gkmer = Args.parseInteger(args, "k_max_gkmer", max_gkmer);
-        gkmer_reduce_dist = Args.parseDouble(args, "reduce_dist", gkmer_reduce_dist);
         kmer_deviation_factor = Args.parseDouble(args, "kmer_deviation_factor", kmer_deviation_factor);
         seq_weight_type = Args.parseInteger(args, "swt", seq_weight_type);
         k_win = Args.parseInteger(args, "k_win", k_win);

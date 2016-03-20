@@ -950,8 +950,8 @@ public class KMAC1 {
 					System.gc();
 					long mem = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576;
 					System.out.println("n^2 / 2 = "+kmers.size()*(kmers.size()-1)/2 + "\tmem="+mem+"M");
-					for (int d=3;d<=5;d++){
-						for (int c=7;c<=12;c++){
+					for (int d=3;d<=4;d++){
+						for (int c=8;c<=20;c+=2){
 	//					for (int c=5;c<25;c+=2){
 	//						for (int c=5;c<=55;c+=10){
 							System.gc();
@@ -1634,31 +1634,36 @@ public class KMAC1 {
 
 			// eleminate identical k-mers
 			ArrayList<Kmer> results_final = new ArrayList<Kmer>();
+			double dist_cutoff_to_reduce = 0;
 			if (results.size()>config.max_gkmer){
-				for (Kmer km:results){
-					km.setMatrix();
-				}
-				MTree dataPoints = MTree.constructTree(results, 10);
-				int[] idx = reduceGappedKmerSet(dataPoints, 1);
-				int count = 0;
-				for (int id: idx)
-					if (id==1)
-						count++;
-				if (config.verbose>1)
-					System.out.println("Reduce gapped-kmer set from " + idx.length + " to " + count);
-				
-				int final_count = Math.min(results.size(), config.max_gkmer);
-				for (int i=0;i<results.size();i++){
-					if (idx[i]==1)
-						results_final.add(results.get(i));
-					if (results_final.size()==final_count)
+				while (results.size()>config.max_gkmer){
+					dist_cutoff_to_reduce += 0.5;
+					for (Kmer km:results){
+						km.setMatrix();
+					}
+					MTree dataPoints = MTree.constructTree(results, 10);
+					int[] idx = reduceGappedKmerSet(dataPoints, dist_cutoff_to_reduce);
+					results_final = new ArrayList<Kmer>();
+					for (int i=0;i<results.size();i++){
+						if (idx[i]==1)
+							results_final.add(results.get(i));
+					}
+					if (config.verbose>1)
+						System.out.println("Reduce gapped-kmer set, dist="+dist_cutoff_to_reduce+", from " + idx.length + " to " + results_final.size());
+					if (results_final.size()<config.max_gkmer/2){		// if reduce too much, not reduce, take the top k-mers
+						results_final.clear();;
+						int final_count = Math.min(results.size(), config.max_gkmer);
+						for (int i=0;i<final_count;i++){
+							results_final.add(results.get(i));
+						}
 						break;
+					}
+					else
+						results = results_final;
 				}
 			}
-			else{
+			else		// no need to reduce
 				results_final = results;
-			}
-
 			
 //			System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f) from %d+/%d- sequences, %s", 
 //					kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
@@ -1685,9 +1690,8 @@ public class KMAC1 {
 		// values = kmers in range
 		int[] idx = new int[mtreeDataPoints.getSize()];
 		HashMap<Integer, ArrayList<Kmer>> rangeResults = new HashMap<Integer, ArrayList<Kmer>>();
-		StatUtil util = new StatUtil();
 		ArrayList<TreeObject> traversal = MTree.traverse(mtreeDataPoints.getRoot());
-		int tmp = numDistCalcuation;
+
 		for (TreeObject o : traversal) {
 			ArrayList<Kmer> rangeResult = mtreeDataPoints.rangeSearch(o.getData(), distanceCutoff);
 			for (Kmer kmer : rangeResult) {
@@ -1721,7 +1725,8 @@ public class KMAC1 {
 				continue;
 			ArrayList<Kmer> kmers = rangeResults.get(i);
 			for (Kmer km: kmers)
-				idx[km.getIndex()]=-1;
+				if (idx[km.getIndex()]!=-1)
+					idx[km.getIndex()]=-1;
 			idx[i] = 1;
 		}
 		
