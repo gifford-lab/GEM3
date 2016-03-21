@@ -1541,16 +1541,16 @@ public class KMAC1 {
 			}
 			
 			for (char[] p : allPatterns){
+				// check whether this gapped kmer has been made
+				String gkStr = String.valueOf(p);
+				if (gkMap.containsKey(gkStr)||gkMap.containsKey(SequenceUtils.reverseComplement(gkStr)))
+					continue;	// this gapped kmer has been made, skip to next pattern
+				
 				ArrayList<Integer> gapPos = new ArrayList<Integer>();
 				for (int i=0;i<p.length;i++)
 					if (p[i]=='N')
 						gapPos.add(i);
-				gapPos.trimToSize();
 				
-				// check whether this gapped kmer has been made
-				String gkStr = String.valueOf(p);
-				if (gkMap.containsKey(gkStr)||gkMap.containsKey(SequenceUtils.reverseComplement(gkStr)))
-					continue;	// this gapped kmer has been made, skip to next position
 				GappedKmer gk = new GappedKmer(gkStr);
 
 				for (int j=0;j<numVariants;j++){
@@ -1632,11 +1632,13 @@ public class KMAC1 {
 	            }
 	        });			
 
-			// eleminate identical k-mers
+			// reduce the k-mer set by removing similar k-mers
 			ArrayList<Kmer> results_final = new ArrayList<Kmer>();
 			double dist_cutoff_to_reduce = 0;
 			if (results.size()>config.max_gkmer){
-				while (results.size()>config.max_gkmer){
+				// limit cutoff to 1.5, otherwise too heavy load for mtree range search
+				while (results.size()>config.max_gkmer && !(dist_cutoff_to_reduce>=1.5)){	
+					long tic=System.currentTimeMillis();
 					dist_cutoff_to_reduce += 0.5;
 					for (Kmer km:results){
 						km.setMatrix();
@@ -1649,7 +1651,8 @@ public class KMAC1 {
 							results_final.add(results.get(i));
 					}
 					if (config.verbose>1)
-						System.out.println("Reduce gapped-kmer set, dist="+dist_cutoff_to_reduce+", from " + idx.length + " to " + results_final.size());
+						System.out.println("Reduce gapped-kmer set, dist="+dist_cutoff_to_reduce+", from " + 
+								idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
 					if (results_final.size()<config.max_gkmer/2){		// if reduce too much, not reduce, take the top k-mers
 						results_final.clear();;
 						int final_count = Math.min(results.size(), config.max_gkmer);
@@ -1660,6 +1663,15 @@ public class KMAC1 {
 					}
 					else
 						results = results_final;
+				}
+				
+				if (results_final.size()>config.max_gkmer){		// if still too many, take top k-mers
+					results = results_final;
+					results_final = new ArrayList<Kmer>();
+					int final_count = Math.min(results.size(), config.max_gkmer);
+					for (int i=0;i<final_count;i++){
+						results_final.add(results.get(i));
+					}
 				}
 			}
 			else		// no need to reduce
