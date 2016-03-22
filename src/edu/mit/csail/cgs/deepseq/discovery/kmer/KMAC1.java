@@ -1631,11 +1631,38 @@ public class KMAC1 {
 	                return o1.compareByHGP(o2);
 	            }
 	        });			
-
+		
 			// reduce the k-mer set by removing similar k-mers
 			ArrayList<Kmer> results_final = new ArrayList<Kmer>();
 			double dist_cutoff_to_reduce = 0;
+			int numTop = config.max_gkmer*5;
+			if (results.size()>numTop){
+				if (config.verbose>1)
+					System.out.println(String.format("Reduce gapped-kmer, n=%d, hgp1x=%.1f, hgp5x=%.1f", 
+							results.size(), results.get(config.max_gkmer).hgp_lg10, results.get(numTop).hgp_lg10));
+
+				for (int i=0;i<numTop;i++)
+					results_final.add(results.get(i));
+				results = results_final;
+			}
 			if (results.size()>config.max_gkmer){
+				
+//				// direct reduce
+//				if (results.size()>1000){
+//					long tic=System.currentTimeMillis();
+//					dist_cutoff_to_reduce = 1.5;
+//					for (Kmer km: results)
+//						km.setMatrix();
+//					int[] idx = reduceGappedKmerSet(results, dist_cutoff_to_reduce);
+//					for (int i=0;i<results.size();i++){
+//						if (idx[i]==1)
+//							results_final.add(results.get(i));
+//					}
+//					if (config.verbose>1)
+//					System.out.println("Reduce gapped-kmer set, dist="+dist_cutoff_to_reduce+", from " + 
+//							idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
+//				}
+				
 				// limit cutoff to 1.5, otherwise too heavy load for mtree range search
 				while (results.size()>config.max_gkmer && !(dist_cutoff_to_reduce>=1.5)){	
 					long tic=System.currentTimeMillis();
@@ -1644,17 +1671,17 @@ public class KMAC1 {
 						km.setMatrix();
 					}
 					MTree dataPoints = MTree.constructTree(results, 10);
-					int[] idx = reduceGappedKmerSet(dataPoints, dist_cutoff_to_reduce);
+					int[] idx = reduceGappedKmerSetMtree(dataPoints, dist_cutoff_to_reduce);
 					results_final = new ArrayList<Kmer>();
 					for (int i=0;i<results.size();i++){
 						if (idx[i]==1)
 							results_final.add(results.get(i));
 					}
 					if (config.verbose>1)
-						System.out.println("Reduce gapped-kmer set, dist="+dist_cutoff_to_reduce+", from " + 
+						System.out.println("Reduce gapped-kmer, dist="+dist_cutoff_to_reduce+", from " + 
 								idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
 					if (results_final.size()<config.max_gkmer/2){		// if reduce too much, not reduce, take the top k-mers
-						results_final.clear();;
+						results_final = new ArrayList<Kmer>();
 						int final_count = Math.min(results.size(), config.max_gkmer);
 						for (int i=0;i<final_count;i++){
 							results_final.add(results.get(i));
@@ -1697,7 +1724,7 @@ public class KMAC1 {
 		return kmers;
 	}
 
-	public static int[] reduceGappedKmerSet(MTree mtreeDataPoints, double distanceCutoff){
+	public static int[] reduceGappedKmerSetMtree(MTree mtreeDataPoints, double distanceCutoff){
 		// keys = kmer indices (0 to dataPoints.getSize() - 1)
 		// values = kmers in range
 		int[] idx = new int[mtreeDataPoints.getSize()];
@@ -1739,6 +1766,24 @@ public class KMAC1 {
 			for (Kmer km: kmers)
 				if (idx[km.getIndex()]!=-1)
 					idx[km.getIndex()]=-1;
+			idx[i] = 1;
+		}
+		
+		return idx;
+	}
+
+	public static int[] reduceGappedKmerSet(ArrayList<Kmer> kmers, double distanceCutoff){
+		// keys = kmer indices (0 to dataPoints.getSize() - 1)
+		// values = kmers in range
+		int[] idx = new int[kmers.size()];
+		// idx array is indexed by k-mer id (i.e. treeIndex)
+		for (int i = 0; i < idx.length-1; i++) {
+			if (idx[i] == -1)
+				continue;
+			Kmer kmi = kmers.get(i);
+			for (int j = i+1; j < idx.length; j++)
+				if (idx[j]!=-1 && KMAC1.editDistance(kmi, kmers.get(j))<=distanceCutoff)
+					idx[j]=-1;
 			idx[i] = 1;
 		}
 		
