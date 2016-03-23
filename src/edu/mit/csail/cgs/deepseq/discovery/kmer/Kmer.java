@@ -273,16 +273,16 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	public String toString(){
 		if (use_weighted_hit_count)
-			return String.format("%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),clusterId, shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+			return String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
+				getKmerStrRC(),isSeedOrientation?'+':'-', clusterId, shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
 				// use posBits.cardinality() instead of getPosHitCount() to get raw pos hit count
 		else
 			return String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),clusterId, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
+				getKmerStrRC(),isSeedOrientation?'+':'-', clusterId, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
 	}
 	/**
 	 * This method is used in the gapped k-mer printing. 
-	 * <br>In KMAC1, a k-mer may be used in multiple KSM, therefore, the k-mer object store isSeedOrientation flag to make it in consistent orientation with the seed k-mer.
+	 * <br>In KMAC1, a k-mer may be used in multiple KSMs, therefore, the k-mer object store isSeedOrientation flag to make it in consistent orientation with the seed k-mer.
 	 * @return
 	 */
 	public String toString2(){

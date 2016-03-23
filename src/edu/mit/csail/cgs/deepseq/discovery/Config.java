@@ -57,7 +57,7 @@ public class Config {
     /** number of top k-mers (for each k value) selected from density clustering to run KMAC */
     public int k_top = 5;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
-    public int dc = 2;
+    public int dc = 3;
     public int max_gkmer = 1500;
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers

@@ -171,7 +171,7 @@ public class GappedKmer extends Kmer{
 					sb.append("\t");
 					for (Kmer bk: ((GappedKmer)kmer).getBaseKmers()){
 						int id = allBaseKmer2ID.get(bk);
-						// label the base kmer orientation w.r.t the seed orientation, be consistent in the output KSM
+						// label the base kmer orientation w.r.t the seed orientation of the gapped k-mer, be consistent in the output KSM
 						sb.append(((GappedKmer)kmer).getBaseKmerOrientation(bk)==kmer.isSeedOrientation ? "" : '-').append(id).append(",");
 					}
 					sb.deleteCharAt(sb.length()-1);
