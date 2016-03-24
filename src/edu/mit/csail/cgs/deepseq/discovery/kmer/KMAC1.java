@@ -2962,6 +2962,19 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		seed.setAlignString(seed.getKmerString());
 		
 		seedFamily.addAll(findSeedFamily(kmers, cluster.seedKmer.getKmerString()));
+		Collections.sort(seedFamily);
+		ArrayList<Kmer> tmp = new ArrayList<Kmer>();
+		seed.setMatrix();
+		for (Kmer km: seedFamily){
+			km.setMatrix();
+			if (editDistance(seed, km) <= 2.5)
+				tmp.add(km);
+//			System.out.println(String.format("%.2f\t%s", editDistance(seed, km), km.toString2()));
+		}
+		for (Kmer km: seedFamily)
+			km.clearMatrix();
+		seedFamily = tmp;
+		
 		updateEngine(seedFamily);
 		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
 		if (config.verbose>1) {
@@ -4156,6 +4169,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			kmerListCopy.removeAll(toRemove);
 			toRemove.clear();
 		}
+
 		return family;
 	}
 	
@@ -6516,7 +6530,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	
 	/** 
 	 * Report all strand-specific KSM group hits in both orientations of the sequence<br>
-	 * Assuming the updateEngine(kmers) method had been called, i.e. "kmer search tree" instance member variable has been constructed.
+	 * Assuming the updateEngine(kmers) method had been called, i.e. "treeAhoCorasick kmer search tree" instance member variable has been constructed.
 	 * @param seq sequence string to search k-mers
 	 * @return an array of KmerGroups:<br>
 	 * Each k-mer group maps to a binding position (using kmer.startOffset, relative to bs ) in the sequence<br>

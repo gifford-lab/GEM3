@@ -123,7 +123,7 @@ public class Config {
 	public boolean refine_pwm = false;
 	public boolean refine_ksm = false;	// refine the KSM at the end of KMAC using un-masked sequences
 	public boolean refine_final_motifs = false;	// refine the final motifs
-	public boolean optimize_KG_kmers = true;	// in KSM motif scanning, do we optimize for best score for the KG (by leaving out some bad k-mers)
+	public boolean optimize_KG_kmers = false;	// in KSM motif scanning, do we optimize for best score for the KG (by leaving out some bad k-mers)
     public boolean print_pwm_fdr = false;
     /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
     public boolean evaluate_by_ksm = false;	
@@ -248,7 +248,7 @@ public class Config {
         refine_pwm = flags.contains("refine_pwm");
         refine_ksm = flags.contains("refine_ksm");
         refine_final_motifs = flags.contains("refine_final_motifs");
-        optimize_KG_kmers = !flags.contains("nokg");	
+        optimize_KG_kmers = flags.contains("optkg");	
         print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_ksm = flags.contains("evaluate_by_ksm");
