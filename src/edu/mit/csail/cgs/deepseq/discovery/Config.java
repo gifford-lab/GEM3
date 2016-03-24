@@ -30,6 +30,7 @@ public class Config {
     public boolean refine_window_boundary = false;
     public boolean is_branch_point_data = false;
     public boolean use_odds_ratio = false;
+    public boolean match_base_kmer = true;				// use base k-mer for KSM matching (more specific than gapped k-mer)
 
     public boolean TF_binding = true;
     public boolean exclude_unenriched = true;
@@ -277,6 +278,7 @@ public class Config {
         ML_speedup = !flags.contains("no_fast_ML");
         use_scanPeak = ! flags.contains("no_scanPeak");
         do_model_selection = !flags.contains("no_model_selection");
+        match_base_kmer = !flags.contains("nobk_match");
         use_kmer_mismatch = !flags.contains("no_kmm");
         use_seed_family = !flags.contains("no_seed_family");
         use_ksm = !flags.contains("no_ksm");
