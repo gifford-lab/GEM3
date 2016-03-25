@@ -943,46 +943,51 @@ public class KMAC1 {
 			ArrayList<Kmer> centerKmers = new ArrayList<Kmer> ();
 			ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
 			
-			if (config.mtree!=0){
-				if (config.verbose>1)
-					System.out.println("Density clustering k-mers with m-tree ... ");
-				if (config.mtree==-1){
-					// printout m-tree performance information
-					System.gc();
-					long mem = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576;
-					System.out.println("n^2 / 2 = "+kmers.size()*(kmers.size()-1)/2 + "\tmem="+mem+"M");
-					for (int d=3;d<=4;d++){
-						for (int c=8;c<=8;c+=2){
-	//					for (int c=8;c<=20;c+=2){
-	//					for (int c=5;c<=55;c+=10){
-							System.gc();
-							long tic=System.currentTimeMillis();
-							numDistCalcuation = 0;
-							System.out.print("d="+d+"\t c="+c+"\t");
-							MTree dataPoints = MTree.constructTree(kmers, c);
-							System.out.print("n_tree="+numDistCalcuation+"\t");
-							centerKmers = densityClusteringWithMTree(kmers, dataPoints, d);
-							System.out.print("\ttime="+CommonUtils.timeElapsed(tic));
-							System.out.println("\tmem="+
-							((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576 - mem) +"M");					
-						}
-						System.out.println();
+			if (config.mtree==-1){
+				// printout m-tree performance information
+				System.gc();
+				long mem = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576;
+				System.out.println("n^2 / 2 = "+kmers.size()*(kmers.size()-1)/2 + "\tmem="+mem+"M");
+				for (int d=3;d<=4;d++){
+					for (int c=8;c<=8;c+=2){
+//					for (int c=8;c<=20;c+=2){
+//					for (int c=5;c<=55;c+=10){
+						System.gc();
+						long tic=System.currentTimeMillis();
+						numDistCalcuation = 0;
+						System.out.print("d="+d+"\t c="+c+"\t");
+						MTree dataPoints = MTree.constructTree(kmers, c);
+						System.out.print("n_tree="+numDistCalcuation+"\t");
+						centerKmers = densityClusteringWithMTree(kmers, dataPoints, d);
+						System.out.print("\ttime="+CommonUtils.timeElapsed(tic));
+						System.out.println("\tmem="+
+						((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576 - mem) +"M");					
 					}
-					
-					// printout distance matrix performance information
-					System.gc();
-					long tic=System.currentTimeMillis();
-					double[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix);
-					centerKmers = densityClusteringWithDistMatrix(kmers, distanceMatrix, config.dc);
-					System.out.print("Distance Matrix: time="+CommonUtils.timeElapsed(tic));
-					System.out.println("\tmem="+
-					((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576 - mem) +"M");					
-
-					continue;
+					System.out.println();
 				}
-				long tic=System.currentTimeMillis();
 				
-				MTree dataPoints = MTree.constructTree(kmers, config.mtree);
+				// printout distance matrix performance information
+				System.gc();
+				long tic=System.currentTimeMillis();
+				double[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix);
+				centerKmers = densityClusteringWithDistMatrix(kmers, distanceMatrix, config.dc);
+				System.out.print("Distance Matrix: time="+CommonUtils.timeElapsed(tic));
+				System.out.println("\tmem="+
+				((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576 - mem) +"M");					
+
+				continue;
+			}
+			else if (config.mtree!=0 || kmers.size()>10000){		// Explicitly setting capacity or better for mtree
+				long tic=System.currentTimeMillis();
+				int capacity = 0;
+				if (config.mtree==0)
+					capacity = kmers.size()/10000 + 8;
+				else
+					capacity = config.mtree;
+				if (config.verbose>1)
+					System.out.println("Density clustering k-mers with m-tree, node capacity = "+capacity);		
+				
+				MTree dataPoints = MTree.constructTree(kmers, capacity);
 				centerKmers = densityClusteringWithMTree(kmers, dataPoints, config.dc);
 				
 				if (config.verbose>1)
@@ -992,22 +997,14 @@ public class KMAC1 {
 				long tic=System.currentTimeMillis();
 				if (config.verbose>1)
 					System.out.print("Computing k-mer distance matrix ...");
+				
 				double[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix);
-//				double[][] distanceMatrix = computeWeightedDistanceMatrix(kmers, config.print_dist_matrix, cutoff);
+				
 				if (config.verbose>1)
 					System.out.println(" Done: "+CommonUtils.timeElapsed(tic));
 				
 				centerKmers = densityClusteringWithDistMatrix(kmers, distanceMatrix, config.dc);
 
-//				for (int j=0;j<centerKmers.size();j++){	
-//					int seedId = kmers.indexOf(centerKmers.get(j));
-//					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
-//					for (int id=0;id<kmers.size();id++){
-//						if (distanceMatrix[seedId][id] <= cutoff+1)
-//							neighbours.add(kmers.get(id));
-//					}
-//					neighbourList.add(neighbours);
-//				}
 				if (config.verbose>1)
 					System.out.println("Computing k-mer distance matrix and density clustering: " + CommonUtils.timeElapsed(tic));
 			}
