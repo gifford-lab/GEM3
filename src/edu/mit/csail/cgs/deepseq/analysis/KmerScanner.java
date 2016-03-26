@@ -38,6 +38,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.ROC;
+import net.sf.samtools.util.SequenceUtil;
 
 public class KmerScanner {
 	public static char[] letters = {'A','C','T','G'};
@@ -60,15 +61,10 @@ public class KmerScanner {
 		kEngine.setUseOddsRatio(use_odds_ratio);
 	}
 	
-	public KmerGroup[] query (String seq){
-//		return kEngine.findUnstrandedKsmGroupHits(seq);
-		return kEngine.findKsmGroupHits(seq);
-	}
-	
-	public KmerGroup getBestKG (String seq){
+	public KmerGroup getBestKG (String seq, String seq_rc){
 		double bestScore = 0;
 		KmerGroup best = null;
-		KmerGroup[] kgs = query(seq);
+		KmerGroup[] kgs = kEngine.findKsmGroupHits(seq, seq_rc);
 		if (kgs==null)
 			return null;
 		for (KmerGroup kg:kgs)
@@ -232,8 +228,8 @@ public class KmerScanner {
 			
 			// KSM
 			long ksm_t = System.currentTimeMillis();
-			KmerGroup kg = scanner.getBestKG(seq);
-			KmerGroup kgN = scanner.getBestKG(seqN);
+			KmerGroup kg = scanner.getBestKG(seq, SequenceUtil.reverseComplement(seq));
+			KmerGroup kgN = scanner.getBestKG(seqN, SequenceUtil.reverseComplement(seqN));
 			String matchKSM = "ZZ";
 			if (kg!=null)
 				matchKSM = kg.getCoveredSequence();

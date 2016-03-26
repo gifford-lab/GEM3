@@ -25,6 +25,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
+import net.sf.samtools.util.SequenceUtil;
 
 public class MotifScan {
 
@@ -211,6 +212,10 @@ public class MotifScan {
 	public static ArrayList<MotifInstance> getKSMInstances(String[] seqs, ArrayList<KMAC1> kmacs, ArrayList<String> knames) {
 		System.out.println("Scanning KSM motifs ...");
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
+	    String[] seqs_rc = new String[seqs.length];
+	    for (int i=0;i<seqs.length;i++)
+	    	seqs_rc[i]=SequenceUtil.reverseComplement(seqs_rc[i]);
+	    
 	    for (int m=0; m<kmacs.size(); m++){
 	    	System.out.println("  ... "+knames.get(m)+" ...");
 	    	KMAC1 kmac = kmacs.get(m);
@@ -220,7 +225,7 @@ public class MotifScan {
 //	    			kmac.setIsDebugging(); // debug
 //	    			System.out.println();
 //	    		}
-	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s]);
+	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
 	    		for (int i=0;i<kgs.length;i++){
 	    			KmerGroup kg = kgs[i];
 		    		MotifInstance mi = new MotifInstance();

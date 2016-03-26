@@ -126,8 +126,8 @@ public class KMAC1 {
 	// Then each individual search can be done in scan()
 	private AhoCorasick treeAhoCorasick;
 	// to map the k-mer string from AhoCorasick tree to Kmer Object
-	private HashMap<String, ArrayList<Kmer>> str2kmers = new HashMap<String, ArrayList<Kmer>>();	
-	private HashMap<String, ArrayList<Integer>> str2kmerOffsets = new HashMap<String, ArrayList<Integer>>();	
+	private HashMap<String, Kmer[]> str2kmers = new HashMap<String, Kmer[]>();	
+	private HashMap<String, int[]> str2kmerOffsets = new HashMap<String, int[]>();	
 	
 	public boolean isInitialized(){ return engineInitialized;}
 	
@@ -2970,10 +2970,10 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		updateEngine(seedFamily);
 		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
 		if (config.verbose>1) {
-			double kAUC = evaluateKsmROC(seqList, seqListNeg, seedFamily).motif_significance;
+			System.out.println(CommonUtils.timeElapsed(tic)+": evaluateKsmROC(seedFamily)");
+			Pair<double[],double[] > pair = scoreKsmSequences (seqList, seqListNeg, seedFamily);
+			double kAUC = evaluateScoreROC(pair.car(), pair.cdr(), config.fpr).motif_significance;
 			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family %d kmers, motif kAUC = %.1f", seedFamily.size(), kAUC));
-//			double familyScore = computeMotifSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount());
-//			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family motif score = %.2f", familyScore));
 		}
 		
 		/** get the first sequence aligment using seedFamily kmer positions */
@@ -3852,24 +3852,30 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			bitSeqWithKmer.or(km.posBits);
 		
 		int ksm_hit_count = 0;
+		double max = 0;
+		KmerGroup bestKG = null;
 		for (Sequence s : seqList){
     		s.resetAlignment();	
 			if (!bitSeqWithKmer.get(s.id))
 				continue;
-//    		KmerGroup[] matches = findIndexedKsmGroupHits(s, kmerSet);
-    		KmerGroup[] matches = findKsmGroupHits(s.getAlignedSeq());
+    		KmerGroup[] matches = findKsmGroupHits(s.getAlignedSeq(), s.getAlignedSeqRC());
     		if (matches==null)
     			continue;
-			Arrays.sort(matches);
-			KmerGroup kg = matches[0];	// take the top kg as match
-			if (kg.kg_score>=cluster.ksmThreshold.motif_cutoff){
+			max = 0;
+			for (KmerGroup kg: matches){
+				if (kg.getScore()>max){
+					max = kg.getScore();
+					bestKG = kg;
+				}
+			}
+			if (bestKG.kg_score>=cluster.ksmThreshold.motif_cutoff){
 				ksm_hit_count++;
-				if (kg.bs>RC/2){		// match on reverse strand
+				if (bestKG.bs>RC/2){		// match on reverse strand
 					s.RC();
-					s.pos = -(kg.bs-RC); // seq_seed = - seed_seq
+					s.pos = -(bestKG.bs-RC); // seq_seed = - seed_seq
 				}
 				else
-					s.pos = -kg.bs;		// seq_seed = - seed_seq
+					s.pos = -bestKG.bs;		// seq_seed = - seed_seq
 			}
 		}
 //		if (config.verbose>1)
@@ -4602,56 +4608,19 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	    			matrix[p-l][base]=(float) pwm[p][base];
 	    		}
 	    	}
-
 	    	WeightMatrix wm = new WeightMatrix(matrix);
    	
-	    	// Check the quality of new PWM: hyper-geometric p-value test using the positive and negative hit counts
-	    	// Compare AUROC
+	    	// Check the AUROC of new PWM
 	    	double motif_significance = evaluatePwmROC(wm, config.fpr).motif_significance;
     		if (config.verbose>1)
     			if (motif_significance==0)			// TODOTODO
     				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
-//        		else
-//        			System.out.println(String.format("%s: PWM %s\tpAUC=%.1f", CommonUtils.timeElapsed(tic), 
-//        					WeightMatrix.getMaxLetters(wm), motif_significance));
     		if (motif_significance > best_significance){
     			bestWM = wm;
     			best_significance = motif_significance;
     			bestLeft=l;
     			bestRight=r;
     		}
-    		
-    		// Display to compare only
-//    		estimate = optimizePwmThreshold(wm, "", wm.getMaxScore()*config.wm_factor);
-//    		double pwmThreshold = estimate.motif_cutoff;
-//	    	motif_significance = estimate.motif_significance;
-//    		if (config.verbose>1)
-//    			if (motif_significance==0)
-//    				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
-//        		else
-//        			System.out.println(String.format("%s: PWM %.2f/%.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), 
-//        					pwmThreshold, wm.getMaxScore(), estimate.posHit, estimate.negHit, motif_significance, WeightMatrix.getMaxLetters(wm)));
-
-//	    	MotifThreshold estimate = null;
-//	    	if (config.optimize_pwm_threshold)
-//	    		estimate = optimizePwmThreshold(wm, "", wm.getMaxScore()*config.wm_factor);
-//	    	else
-//	    		estimate = estimatePwmThreshold(wm, wm.getMaxScore()*config.wm_factor);
-//	    	double pwmThreshold = estimate.kg_score;
-//	    	double pwmThreshold.motif_significance = estimate.motif_hgp;
-//    		if (config.verbose>1)
-//    			if (pwmThreshold.motif_significance==0)
-//    				System.out.println(String.format("%s: PWM %s is not enriched", CommonUtils.timeElapsed(tic), WeightMatrix.getMaxLetters(wm)));
-//        		else
-//        			System.out.println(String.format("%s: PWM %.2f/%.2f\thit %d+/%d- seqs\thgp=1e%.1f\t%s", CommonUtils.timeElapsed(tic), 
-//        					pwmThreshold, wm.getMaxScore(), estimate.posHit, estimate.negHit, pwmThreshold.motif_significance, WeightMatrix.getMaxLetters(wm)));
-//    		if (pwmThreshold.motif_significance<=bestHGP){
-//    			bestWM = wm;
-//    			bestHGP = pwmThreshold.motif_significance;
-//    			bestEstimate = estimate;
-//    			bestLeft=left[i];
-//    			bestRight=right[i];
-//    		}
 		}
 		if (bestWM==null){
 			if (config.verbose>1)
@@ -4755,8 +4724,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		private NewKSM(ArrayList<Kmer> kmers){
 			this.kmers = kmers;
 			updateEngine(kmers);
-			threshold = optimizeKsmThreshold(seqList, seqListNeg, kmers);
-			threshold.motif_significance = evaluateKsmROC(seqList, seqListNeg, kmers).motif_significance;
+			Pair<double[],double[] > pair = scoreKsmSequences (seqList, seqListNeg, kmers);
+			threshold = optimizeThreshold(pair.car(), pair.cdr(), 0, Double.POSITIVE_INFINITY);
+			threshold.motif_significance = evaluateScoreROC(pair.car(), pair.cdr(), config.fpr).motif_significance;
 			if (threshold==null)
 				return;
 			if (config.verbose>1)
@@ -5705,60 +5675,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		}
 		return evaluateScoreROC(posSeqScores, negSeqScores, falsePositiveRate);
 	}
-	/**
-	 * Compute pAUROC score for the given set of k-mers
-	 * @returns the pAUROC score
-	 */
-		private MotifThreshold evaluateKsmROC(ArrayList<Sequence> seqList, ArrayList<Sequence> seqListNeg, ArrayList<Kmer> kmers){
-//			if (config.verbose>1)
-//				System.out.println(CommonUtils.timeElapsed(tic)+ ": evaluateKsmROC, start.");
-	
-			HashSet<Kmer> kmerSet = new HashSet<Kmer>();
-			kmerSet.addAll(kmers);
-			
-			BitSet bitSeqWithKmer = new BitSet();
-			BitSet bitSeqWithKmerNeg = new BitSet();
-			for (Kmer km:kmers){
-				bitSeqWithKmer.or(km.posBits);
-				bitSeqWithKmerNeg.or(km.negBits);
-			}
-			
-			double[] posSeqScores = new double[seqList.size()];
-			double[] negSeqScores = new double[seqListNeg.size()];
-			for (int i=0;i<seqList.size();i++){
-				Sequence s = seqList.get(i);
-				if (!bitSeqWithKmer.get(s.id)){
-					posSeqScores[i]=0.0;
-					continue;
-				}
-//				KmerGroup[] kgs = findIndexedKsmGroupHits(s, kmerSet);
-				KmerGroup[] kgs = findKsmGroupHits(s.seq);		// here only care hit or not, don't care sequence orientation
-				if (kgs==null)
-					posSeqScores[i]=0.0;
-				else{
-					Arrays.sort(kgs);
-					posSeqScores[i]=kgs[0].getScore();	// use first kg, the best match	
-				}
-			}
-			for (int i=0;i<seqListNeg.size();i++){
-				Sequence s = seqListNeg.get(i);
-				if (!bitSeqWithKmerNeg.get(s.id)){
-					negSeqScores[i]=0.0;
-					continue;
-				}
-//				KmerGroup[] kgs = findIndexedKsmGroupHits(s, kmerSet);
-				KmerGroup[] kgs = findKsmGroupHits(s.seq);
-				if (kgs==null)
-					negSeqScores[i]=0.0;
-				else{
-					Arrays.sort(kgs);
-					negSeqScores[i]=kgs[0].getScore();
-				}
-			}
-//			if (config.verbose>1)
-//				System.out.println(CommonUtils.timeElapsed(tic)+ ": evaluateKsmROC, done scan neg sequences.");
-			return evaluateScoreROC(posSeqScores, negSeqScores, config.fpr);
-		}
+
 	/**
 	 * Compute the partial AUROC given the scores for positive and negative data points<br>
 	 * Do not deterimine the optimal cutoff score
@@ -5876,7 +5793,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	}
 	
 	/**
-	 * Find the best score cutoff given the positive scores and negative scores<br>
+	 * Grid search the best score cutoff given the positive scores and negative scores<br>
 	 * This is applicable to both PWM and KSM
 	 * @param posSeqScores	motif scanning score of positive sequences, should be in the same order
 	 * @param negSeqScores motif scanning score of negative sequences
@@ -5979,13 +5896,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * The KSM k-mers are assumed to have been loaded into the Engine
 	 * @returns the KSM score gives the most significant p-value.
 	 */
-	private MotifThreshold optimizeKsmThreshold(ArrayList<Sequence> seqList, ArrayList<Sequence> seqListNeg, ArrayList<Kmer> kmers){
+	private Pair<double[],double[] > scoreKsmSequences (ArrayList<Sequence> seqList, ArrayList<Sequence> seqListNeg, ArrayList<Kmer> kmers){
 //		if (config.verbose>1)
-//			System.out.println(CommonUtils.timeElapsed(tic)+ ": optimizeKsmThreshold, start.");
+//			System.out.println(CommonUtils.timeElapsed(tic)+ ": scoreKsmSequences, start.");
 
-		HashSet<Kmer> kmerSet = new HashSet<Kmer>();
-		kmerSet.addAll(kmers);
-		
 		BitSet bitSeqWithKmer = new BitSet();
 		BitSet bitSeqWithKmerNeg = new BitSet();
 		for (Kmer km:kmers){
@@ -5995,40 +5909,38 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		
 		double[] posSeqScores = new double[seqList.size()];
 		double[] negSeqScores = new double[seqListNeg.size()];
+		double max = 0;
+		KmerGroup[] kgs=null;
 		for (int i=0;i<seqList.size();i++){
 			Sequence s = seqList.get(i);
 			if (!bitSeqWithKmer.get(s.id))
 				continue;
-//			KmerGroup[] kgs = findIndexedKsmGroupHits(s, kmerSet);
-			KmerGroup[] kgs = findKsmGroupHits(s.seq);				// both sequence orientation will be scan
-			if (kgs==null)
-				posSeqScores[i]=0;
-			else{
-				Arrays.sort(kgs);
-				posSeqScores[i]=kgs[0].getScore();	// use first kg, the best match	// score = -log10 hgp, becomes positive value
-			}
+			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
+			max = 0;
+			for (KmerGroup kg: kgs)
+				if (kg.getScore()>max)
+					max = kg.getScore();
+			posSeqScores[i]=max;	// the best match	// score = -log10 hgp, becomes positive value
 		}
 //		if (config.verbose>1)
-//			System.out.println(CommonUtils.timeElapsed(tic)+ ": optimizeKsmThreshold, scanned Pos seqs.");
+//			System.out.println(CommonUtils.timeElapsed(tic)+ ": scoreKsmSequences, scanned Pos seqs.");
 
 		for (int i=0;i<seqListNeg.size();i++){
 			Sequence s = seqListNeg.get(i);
 			if (!bitSeqWithKmerNeg.get(s.id))
 				continue;
-//			KmerGroup[] kgs = findIndexedKsmGroupHits(s, kmerSet);
-			KmerGroup[] kgs = findKsmGroupHits(s.seq);
-			if (kgs==null)
-				negSeqScores[i]=0;
-			else{
-				Arrays.sort(kgs);
-				negSeqScores[i]=kgs[0].getScore();
-			}
+			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
+			max = 0;
+			for (KmerGroup kg: kgs)
+				if (kg.getScore()>max)
+					max = kg.getScore();
+			negSeqScores[i]=max;	// the best match	// score = -log10 hgp, becomes positive value
 		}
 //		if (config.verbose>1)
-//			System.out.println(CommonUtils.timeElapsed(tic)+ ": optimizeKsmThreshold, done scan neg sequences.");
-		MotifThreshold score = optimizeThreshold(posSeqScores, negSeqScores, 0, Double.POSITIVE_INFINITY);
-		return score;
+//			System.out.println(CommonUtils.timeElapsed(tic)+ ": scoreKsmSequences, done scan neg sequences.");
+		return new Pair<double[],double[]>(posSeqScores,negSeqScores);
 	}
+
 
 //	/** load Kmers and prepare the search Engine, print k-mer list<br>
 //	 *  assuming the kmers are unique
@@ -6073,45 +5985,66 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		treeAhoCorasick = new AhoCorasick();
-		str2kmers.clear();
+		HashMap<String, ArrayList<Kmer>> tmpStr2kmers = new HashMap<String, ArrayList<Kmer>>();	
+		HashMap<String, ArrayList<Integer>> tmpStr2kmerOffsets = new HashMap<String, ArrayList<Integer>>();	
+
 		for (Kmer km: kmers){
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer)km;
 				if (use_base_kmers)
 					for (Kmer bk: gk.getBaseKmers()){
 						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
-						if (!str2kmers.containsKey(kmerStr)){
-							str2kmers.put(kmerStr, new ArrayList<Kmer>());	
-							str2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
+						if (!tmpStr2kmers.containsKey(kmerStr)){
+							tmpStr2kmers.put(kmerStr, new ArrayList<Kmer>());	
+							tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
 						}
-						str2kmers.get(kmerStr).add(bk);			// use base-kmers for scoring
-						str2kmerOffsets.get(kmerStr).add(gk.kmerStartOffset);	 // base kmer has same length as gkmer, thus same offset
-						treeAhoCorasick.add(kmerStr.getBytes(), kmerStr);
+						tmpStr2kmers.get(kmerStr).add(bk);			// use base-kmers for scoring
+						// base kmer has same length as gkmer, thus same offset
+						// Convert startOffset to endOffset, b/c AC search returns end+1 position, add the kmer length with kmer offset, minus
+						// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
+						tmpStr2kmerOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k);	 
 					}
 				else{
 					for (Kmer sk: gk.getBaseKmers()){
 						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
-						if (!str2kmers.containsKey(kmerStr)){
-							str2kmers.put(kmerStr, new ArrayList<Kmer>());	
-							str2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
+						if (!tmpStr2kmers.containsKey(kmerStr)){
+							tmpStr2kmers.put(kmerStr, new ArrayList<Kmer>());	
+							tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
 						}
-						str2kmers.get(kmerStr).add(km);			// use gapped kmers for scoring
-						str2kmerOffsets.get(kmerStr).add(gk.kmerStartOffset);	 // base kmer has same length as gkmer, thus same offset
-						treeAhoCorasick.add(kmerStr.getBytes(), kmerStr);
+						tmpStr2kmers.get(kmerStr).add(km);			// use gapped kmers for scoring
+						tmpStr2kmerOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k);	 // base kmer has same length as gkmer, thus same offset
 					}
 				}
 			}
 			else{
 				String kmerStr = km.isSeedOrientation()?km.kmerString:km.kmerRC;
-				if (!str2kmers.containsKey(kmerStr)){
-					str2kmers.put(kmerStr, new ArrayList<Kmer>());	
-					str2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
+				if (!tmpStr2kmers.containsKey(kmerStr)){
+					tmpStr2kmers.put(kmerStr, new ArrayList<Kmer>());	
+					tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
 				}
-				str2kmers.get(kmerStr).add(km);	
-				str2kmerOffsets.get(kmerStr).add(km.kmerStartOffset);
-				treeAhoCorasick.add(kmerStr.getBytes(), kmerStr);
-			}
+				tmpStr2kmers.get(kmerStr).add(km);	
+				// Convert startOffset to endOffset, b/c AC search returns end+1 position, add the kmer length with kmer offset, minus
+				// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
+				tmpStr2kmerOffsets.get(kmerStr).add(-km.kmerStartOffset-km.k);
+			}			
 	    }
+		str2kmers.clear();
+		str2kmerOffsets.clear();
+		// convert ArrayList to array, for more efficient access, b/c these data structure
+		for (String s: tmpStr2kmers.keySet()){
+			ArrayList<Kmer> ks = tmpStr2kmers.get(s);
+			ArrayList<Integer> os = tmpStr2kmerOffsets.get(s);
+			Kmer[] kms = new Kmer[ks.size()];
+			for (int i=0;i<kms.length;i++)
+				kms[i] = ks.get(i);
+			int[] ofs = new int[os.size()];
+			for (int i=0;i<ofs.length;i++)
+				ofs[i] = os.get(i);
+			str2kmers.put(s, kms);
+			str2kmerOffsets.put(s, ofs);
+		}
+		for (String s: str2kmers.keySet())
+			treeAhoCorasick.add(s.getBytes(), s);
 	    treeAhoCorasick.prepare();
 	    engineInitialized = true;
 	}		
@@ -6165,13 +6098,15 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
-				ArrayList<Kmer> kmers = str2kmers.get(s);	
-				ArrayList<Integer> kmerOffsets = str2kmerOffsets.get(s);	
-				for(int i=0;i<kmers.size();i++){	
-					int x = sr.getLastIndex() - kmers.get(i).k - kmerOffsets.get(i);	// minus kmerShift to get the motif position
+				Kmer[] kmers = str2kmers.get(s);	
+				// AC search returns end+1 position, end_seq
+				// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
+				int[] kmerOffsets = str2kmerOffsets.get(s);	
+				for(int i=0;i<kmers.length;i++){	
+					int x = sr.getLastIndex() + kmerOffsets[i];	
 					if (!result.containsKey(x))
 						result.put(x, new ArrayList<Kmer>());
-					result.get(x).add(kmers.get(i));	
+					result.get(x).add(kmers[i]);	
 				}
 			}
 		}
@@ -6181,14 +6116,14 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
-				ArrayList<Kmer> kmers = str2kmers.get(s);	
-				ArrayList<Integer> kmerOffsets = str2kmerOffsets.get(s);	
-				for(int i=0;i<kmers.size();i++){	
-					int x = sr.getLastIndex() - kmers.get(i).k - kmerOffsets.get(i);	// minus kmerShift to get the motif position
+				Kmer[] kmers = str2kmers.get(s);	
+				int[] kmerOffsets = str2kmerOffsets.get(s);	
+				for(int i=0;i<kmers.length;i++){	
+					int x = sr.getLastIndex() + kmerOffsets[i];	
 					x = seq.length()-1-x;		// convert to position in Seq
 					if (!result.containsKey(x))
 						result.put(x, new ArrayList<Kmer>());
-					result.get(x).add(kmers.get(i));	
+					result.get(x).add(kmers[i]);	
 				}
 			}
 		}
@@ -6210,47 +6145,49 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	/** 
 	 * Report all strand-specific KSM group hits in both orientations of the sequence<br>
 	 * Assuming the updateEngine(kmers) method had been called, i.e. "treeAhoCorasick kmer search tree" instance member variable has been constructed.
-	 * @param seq sequence string to search k-mers
+	 * @param seq sequence string and rc to search k-mers
 	 * @return an array of KmerGroups:<br>
 	 * Each k-mer group maps to a binding position (using kmer.startOffset, relative to bs ) in the sequence<br>
 	 * Note: the return value is different from query(), here the match on RC strand is labeled (pos+RC)
 	 */
-	public KmerGroup[] findKsmGroupHits (String seq){
-		seq = seq.toUpperCase();
+	public KmerGroup[] findKsmGroupHits (String seq, String seq_rc){
+//		seq = seq.toUpperCase();
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 
 		// matches on negative strand are combined with matches on positive strand
-		TreeMap<Integer, ArrayList<Kmer>> result = new TreeMap<Integer, ArrayList<Kmer>> ();
+		HashMap<Integer, ArrayList<Kmer>> result = new HashMap<Integer, ArrayList<Kmer>> ();
 		
 		Iterator searcher = treeAhoCorasick.search(seq.getBytes());
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
-				ArrayList<Kmer> kmers = str2kmers.get(s);	
-				ArrayList<Integer> kmerOffsets = str2kmerOffsets.get(s);	
-				for(int i=0;i<kmers.size();i++){	
-					int x = sr.getLastIndex() - kmers.get(i).k - kmerOffsets.get(i);	// minus kmerShift to get the motif position
+				Kmer[] kmers = str2kmers.get(s);	
+				// AC search returns end+1 position, end_seq
+				// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
+				int[] kmerOffsets = str2kmerOffsets.get(s);	
+				for(int i=0;i<kmers.length;i++){	
+					int x = sr.getLastIndex() + kmerOffsets[i];	// minus kmerShift to get the motif position
 					if (!result.containsKey(x))
 						result.put(x, new ArrayList<Kmer>());
-					result.get(x).add(kmers.get(i));	
+					result.get(x).add(kmers[i]);	
 				}
 			}
 		}
 		// the reverse compliment
-		String seq_rc = SequenceUtils.reverseComplement(seq);
+//		String seq_rc = SequenceUtils.reverseComplement(seq);
 		searcher = treeAhoCorasick.search(seq_rc.getBytes());
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
 			for (Object s: sr.getOutputs()){
-				ArrayList<Kmer> kmers = str2kmers.get(s);	
-				ArrayList<Integer> kmerOffsets = str2kmerOffsets.get(s);	
-				for(int i=0;i<kmers.size();i++){	
-					int x = sr.getLastIndex() - kmers.get(i).k - kmerOffsets.get(i) + RC;	// minus kmerShift to get the motif position, +RC: "found on RC"
+				Kmer[] kmers = str2kmers.get(s);	
+				int[] kmerOffsets = str2kmerOffsets.get(s);	
+				for(int i=0;i<kmers.length;i++){	
+					int x = sr.getLastIndex() + kmerOffsets[i] + RC;	// minus kmerShift to get the motif position, +RC: "found on RC"
 					if (!result.containsKey(x))
 						result.put(x, new ArrayList<Kmer>());
-					result.get(x).add(kmers.get(i));	
+					result.get(x).add(kmers[i]);	
 				}
 			}
 		}
