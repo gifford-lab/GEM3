@@ -438,6 +438,8 @@ public class Kmer implements Comparable<Kmer>{
 	 * @return a list of cloned kmers, with the top kmer being the seedKmer
 	 */
 	public static ArrayList<Kmer> deepCloneKmerList(ArrayList<Kmer> kmers_in, Kmer seedKmer, double[] seq_weights){
+		assert (kmers_in.contains(seedKmer));
+			
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		HashMap<Kmer,Kmer> subkmer2subkmer = new HashMap<Kmer,Kmer>(); 
 		Kmer seedKmerClone = null;
