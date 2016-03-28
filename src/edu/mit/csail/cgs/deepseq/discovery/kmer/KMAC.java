@@ -699,7 +699,7 @@ public class KMAC {
 				}
 			}
 			if (bestCluster!=null){
-				sb.append(String.format("k=%d\thgp=1e%.1f\tseed=%s.\n", k, bestCluster.seedKmer.familyScore, bestCluster.seedKmer.getKmerString()));
+				sb.append(String.format("k=%d\thgp=1e%.1f\tseed=%s.\n", k, bestCluster.seedKmer.familyScore, bestCluster.seedKmer.getKmerStr()));
 				kClusters.add(bestCluster);
 				
 				if (bestAllHGP>bestCluster.seedKmer.familyScore)
@@ -775,7 +775,7 @@ public class KMAC {
 			// build the kmer search tree
 			AhoCorasick oks = new AhoCorasick();
 			for (Kmer km: kmers){
-				oks.add(km.getKmerString().getBytes(), km);
+				oks.add(km.getKmerStr().getBytes(), km);
 		    }
 			oks.prepare();
 			
@@ -786,7 +786,7 @@ public class KMAC {
 				HashSet<Kmer> results = queryTree (seq, oks, config.strand_type==1);
 				if (!results.isEmpty()){
 					for (Kmer km: results){		
-						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
+						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerStr());
 						for (int p:pos){
 							for (int j=p;j<p+k;j++)
 								chars[j] = 1;
@@ -806,7 +806,7 @@ public class KMAC {
 				HashSet<Kmer> results = queryTree (seq, oks, config.strand_type==1);
 				if (!results.isEmpty()){
 					for (Kmer km: results){		
-						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
+						ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerStr());
 						for (int p:pos){
 							for (int j=p;j<p+k;j++)
 								chars[j] = 1;
@@ -996,8 +996,8 @@ public class KMAC {
 		// score the kmers, hypergeometric p-value
 		ArrayList<Kmer> highHgpKmers = new ArrayList<Kmer>();
 		for (Kmer kmer:kms){
-			if (kmerstr2negSeqs.containsKey(kmer.getKmerString())){
-				kmer.setNegHits(kmerstr2negSeqs.get(kmer.getKmerString()));				
+			if (kmerstr2negSeqs.containsKey(kmer.getKmerStr())){
+				kmer.setNegHits(kmerstr2negSeqs.get(kmer.getKmerStr()));				
 			}
 			if (kmer.getPosHitCount() < kmer.getNegHitCount()/get_NP_ratio() * config.k_fold ){
 				highHgpKmers.add(kmer);	
@@ -1107,8 +1107,8 @@ public class KMAC {
 				if (config.seed!=null){
 					String rc = SequenceUtils.reverseComplement(config.seed);
 					for (Kmer km:kmers){
-						if (km.getKmerString().equals(config.seed)|| km.getKmerString().equals(rc)){
-							if (km.getKmerString().equals(rc))
+						if (km.getKmerStr().equals(config.seed)|| km.getKmerStr().equals(rc)){
+							if (km.getKmerStr().equals(rc))
 								km.setKmerString(config.seed);
 							seed = km;
 							primarySeed_is_immutable = true;		
@@ -1123,11 +1123,11 @@ public class KMAC {
 				}
 				else{			// no user specified starting k-mer
 					if (config.allow_seed_inheritance && primarySeed!=null){
-						String bestStr = primarySeed.getKmerString();
+						String bestStr = primarySeed.getKmerStr();
 						String bestRc = primarySeed.getKmerRC();
 						for (Kmer km:kmers){
-							if (km.getKmerString().equals(bestStr)||
-									km.getKmerString().equals(bestRc)){
+							if (km.getKmerStr().equals(bestStr)||
+									km.getKmerStr().equals(bestRc)){
 								seed = km;
 								isSeedInherited = true;
 								break;
@@ -1142,7 +1142,7 @@ public class KMAC {
 						else
 							if (verbose>1)
 								System.out.println(CommonUtils.timeElapsed(tic)+
-										": Use seed k-mer from previous round: "+primarySeed.getKmerString()+"/"+primarySeed.getKmerRC());
+										": Use seed k-mer from previous round: "+primarySeed.getKmerStr()+"/"+primarySeed.getKmerRC());
 					}
 					else{	// no previously saved seed k-mer
 						seed = selectBestKmer(kmers);
@@ -1178,9 +1178,9 @@ public class KMAC {
 			seedFamily.add(seed);
 			kmers.remove(seed);
 			seed.setShift(0);
-			seed.setAlignString(seed.getKmerString());
+			seed.setAlignString(seed.getKmerStr());
 			if (config.use_seed_family){
-				seedFamily.addAll(getMMKmers(kmers, cluster.seedKmer.getKmerString(), 0));
+				seedFamily.addAll(getMMKmers(kmers, cluster.seedKmer.getKmerStr(), 0));
 				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(seedFamily, 0, posSeqCount, negSeqCount);
 				cluster.seedKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 				if (verbose>1)
@@ -1265,7 +1265,7 @@ public class KMAC {
 					clusterID = 0;
 					primarySeed = seed;
 					if (verbose>1)
-						System.out.println("**** Secondary motif is more enriched than primary motif, start over with seed="+seed.getKmerString());
+						System.out.println("**** Secondary motif is more enriched than primary motif, start over with seed="+seed.getKmerStr());
 					primarySeed_is_immutable=true;					// marked as "reset", only once, avoid potential infinite loop
 					continue;										// start over with new seed
 				}
@@ -1579,7 +1579,7 @@ public class KMAC {
 		// build the kmer search tree
 		AhoCorasick oks = new AhoCorasick();
 		for (Kmer km: kmers){
-			oks.add(km.getKmerString().getBytes(), km);
+			oks.add(km.getKmerStr().getBytes(), km);
 	    }
 		oks.prepare();
 		
@@ -1598,7 +1598,7 @@ public class KMAC {
 
 					// This is DIFFERENT from alignSequencesByCoOccurence(ArrayList<Kmer>)
 					// farward strand
-					ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerString());
+					ArrayList<Integer> pos = StringUtils.findAllOccurences(seq, km.getKmerStr());
 					for (int p:pos){
 						if (!s.fPos.containsKey(km))
 							s.fPos.put(km, new HashSet<Integer>());
@@ -1614,7 +1614,7 @@ public class KMAC {
 							s.fPos.get(km).add(p+RC);					// match kmer RC
 						}
 						// reverse strand
-						pos = StringUtils.findAllOccurences(s.rc, km.getKmerString());
+						pos = StringUtils.findAllOccurences(s.rc, km.getKmerStr());
 						for (int p:pos){
 							if (!s.rPos.containsKey(km))
 								s.rPos.put(km, new HashSet<Integer>());
@@ -1699,14 +1699,14 @@ public class KMAC {
 	
 		ArrayList<Kmer> family1 = new ArrayList<Kmer>();
 		family1.add(minHgpKmer);
-		family1.addAll(getMMKmers(kmers, minHgpKmer.getKmerString(), 0));
+		family1.addAll(getMMKmers(kmers, minHgpKmer.getKmerStr(), 0));
 		// compute KmerGroup hgp for the km family
 		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(family1, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(family1, 0, posSeqCount, negSeqCount);
 		minHgpKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		ArrayList<Kmer> family2 = new ArrayList<Kmer>();
 		family2.add(maxCountKmer);
-		family2.addAll(getMMKmers(kmers, maxCountKmer.getKmerString(), 0));
+		family2.addAll(getMMKmers(kmers, maxCountKmer.getKmerStr(), 0));
 		// compute KmerGroup hgp for the km family
 		kg = config.use_weighted_kmer ? new KmerGroup(family2, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(family2, 0, posSeqCount, negSeqCount);
 		maxCountKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
@@ -1810,7 +1810,7 @@ public class KMAC {
 			}
 			for (Kmer km: alignedKmers){
 				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')
-						+km.getKmerString()+"\t"+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
+						+km.getKmerStr()+"\t"+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
 			}
 		}
 		CommonUtils.writeFile(outName+"_Alignement_k"+k+".txt", alignedKmer_sb.toString());
@@ -1899,7 +1899,7 @@ public class KMAC {
 			html.append("<tr><td>");
 			html.append("<b><font size='4' face='Courier New'>");
 			Kmer km = outputs.get(i);
-			char[] kmStr = km.getKmerString().toCharArray();
+			char[] kmStr = km.getKmerStr().toCharArray();
 			html.append(CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-'));
 			for (char b:kmStr){
 				switch(b){
@@ -3626,9 +3626,9 @@ public class KMAC {
 		// progressively allow more mismatch
 		for (int i=1;i<=mm;i++){
 			for (Kmer kmer: copy){
-		    	if (CommonUtils.mismatch(kmerStr, kmer.getKmerString())==i)
-		    		kmer.setAlignString(kmer.getKmerString());
-		    	else if (config.strand_type!=1 && CommonUtils.mismatch(kmerRC, kmer.getKmerString())==i)	// if not single strand
+		    	if (CommonUtils.mismatch(kmerStr, kmer.getKmerStr())==i)
+		    		kmer.setAlignString(kmer.getKmerStr());
+		    	else if (config.strand_type!=1 && CommonUtils.mismatch(kmerRC, kmer.getKmerStr())==i)	// if not single strand
 		    		kmer.setAlignString(kmer.getKmerRC());		// do not RC kmer, set the string for alignment
 		    	else 
 		    		continue;
@@ -4141,7 +4141,7 @@ public class KMAC {
 	public void updateKmerCounts(ArrayList<Kmer> kmers, ArrayList<ComponentFeature> events){
 		AhoCorasick tree = new AhoCorasick();
 		for (int i=0;i<kmers.size();i++){
-			String kmStr = kmers.get(i).getKmerString();
+			String kmStr = kmers.get(i).getKmerStr();
 			tree.add(kmStr.getBytes(), i);
 			tree.add(SequenceUtils.reverseComplement(kmStr).getBytes(), i);
 	    }
@@ -4603,8 +4603,8 @@ public class KMAC {
 		tree = new AhoCorasick();
 		str2kmer.clear();
 		for (Kmer km: kmers){
-			str2kmer.put(km.getKmerString(), km);
-			tree.add(km.getKmerString().getBytes(), km.getKmerString());
+			str2kmer.put(km.getKmerStr(), km);
+			tree.add(km.getKmerStr().getBytes(), km.getKmerStr());
 	    }
 	    tree.prepare();
 	    engineInitialized = true;
@@ -4634,7 +4634,7 @@ public class KMAC {
 				km.setKmerStartOffset(offset);
 			}
 			else
-				kmerStr = km.getKmerString();
+				kmerStr = km.getKmerStr();
 			str2kmer.put(kmerStr, km);
 			tree.add(kmerStr.getBytes(), kmerStr);
 	    }
@@ -4817,7 +4817,7 @@ public class KMAC {
 		this.k = kmers.get(0).getK();
 		HashMap<String, Integer> map = new HashMap<String, Integer>();
 		for (Kmer kmer:kmers){
-			map.put(kmer.getKmerString(), 0);
+			map.put(kmer.getKmerStr(), 0);
 		}
 		for (String chr : genome.getChromList()){
 			System.out.println(chr);
@@ -4842,7 +4842,7 @@ public class KMAC {
 		Collections.sort(kmers);
 		StringBuilder sb = new StringBuilder();
 		for (Kmer km:kmers){
-			sb.append(km.getKmerString()).append("\t").append(map.get(km.getKmerString())).append("\n");
+			sb.append(km.getKmerStr()).append("\t").append(map.get(km.getKmerStr())).append("\n");
 		}
 		CommonUtils.writeFile(genome.getVersion()+"_kmers_"+k+".txt", sb.toString());
 		System.out.println(CommonUtils.timeElapsed(tic));
@@ -4852,21 +4852,21 @@ public class KMAC {
 			ArrayList<Kmer> mmaligned = new ArrayList<Kmer>();			// kmers aligned by using mismatch
 			Collections.sort(aligned);
 			for (Kmer km: candidates){
-				String seq = km.getKmerString();
+				String seq = km.getKmerStr();
 				for (Kmer akm: aligned){
 	//				if (Math.abs(akm.getShift())>config.k/2)		// the mismatch must be proximal to seed kmer
 					if (km.getPosHitCount() > akm.getPosHitCount())		// the mismatch kmer should have less count than the reference kmer, avoiding a bad weak kmer misguiding a strong kmer
 						continue;
-					if (CommonUtils.mismatch(akm.getKmerString(), seq)==1){
+					if (CommonUtils.mismatch(akm.getKmerStr(), seq)==1){
 						km.setShift(akm.getShift());
-						km.setAlignString("MM:"+akm.getKmerString());
+						km.setAlignString("MM:"+akm.getKmerStr());
 						mmaligned.add(km);
 						break;
 					}
 					if (CommonUtils.mismatch(akm.getKmerRC(), seq)==1){
 						int shift = akm.getShift();
 						km.setShift(shift>RC/2?shift:shift-RC);
-						km.setAlignString("MM:"+akm.getKmerString());
+						km.setAlignString("MM:"+akm.getKmerStr());
 						mmaligned.add(km);
 						break;
 					}

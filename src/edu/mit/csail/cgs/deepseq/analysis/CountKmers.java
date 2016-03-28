@@ -151,7 +151,7 @@ public class CountKmers {
 			}
 //			System.out.println(km.toShortString());
 			kmerWeights[i] = values;
-			sb.append(km.getKmerString()+"\t"+km.getPosHitCount()+"\t"+CommonUtils.arrayToString(values, 1)).append("\n");
+			sb.append(km.getKmerStr()+"\t"+km.getPosHitCount()+"\t"+CommonUtils.arrayToString(values, 1)).append("\n");
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "out")+"_win"+window+"_kmer.txt", sb.toString());
 	}

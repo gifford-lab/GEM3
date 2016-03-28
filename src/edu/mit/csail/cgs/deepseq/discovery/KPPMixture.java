@@ -4347,7 +4347,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		                			pp[bindingPos] = kmerCountSum==0?0:Math.log10(kmerCountSum);
 		                		pp_kmer[bindingPos] = kg;
 		                		if (config.print_PI)	
-			                		System.out.println(bindingPos+"\t"+kg.getBestKmer().getKmerString());
+			                		System.out.println(bindingPos+"\t"+kg.getBestKmer().getKmerStr());
 		                		hits.put(bindingPos, new KmerPP(new Point(gen, w.getChrom(), w.getStart()+bindingPos), kg, pp[bindingPos]));
 		                	} // add kpp for each motif
 		                }
@@ -5506,7 +5506,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        			}
 	        			
 	        			// validate kmer match and label bound sequence with match k-mers
-	        			String ks = b.getKmerGroup().getBestKmer().getKmerString();
+	        			String ks = b.getKmerGroup().getBestKmer().getKmerStr();
 	        			if (!bs.contains(ks)){
 	        				if (config.strand_type == 1)
 	        					System.err.println(String.format("ERROR: Kmer %s NOT found at %s\tFW %s.", ks, b.getLocation().toString(), bs));

@@ -1040,7 +1040,7 @@ public class KMAC1 {
 				neighbourList.set(j, null);	// clean up
 				System.gc();
 	    		System.out.println("------------------------------------------------\n"+
-	    			"Aligning k-mers with "+seedKmer.getKmerString()+",   \t#"+j);
+	    			"Aligning k-mers with "+seedKmer.getKmerStr()+",   \t#"+j);
 
 	        	MotifCluster c = KmerMotifAlignmentClustering(seqList, neighbours, seedKmer, k);
 	        	if (c!=null){	
@@ -1368,7 +1368,7 @@ public class KMAC1 {
 		HashMap<String, Kmer> bkMap = new HashMap<String, Kmer>();
 		for (String s:kmerstr2seqs.keySet()){	
 			Kmer kmer = new Kmer(s, kmerstr2seqs.get(s), seq_weights);		// create k-mers
-			bkMap.put(kmer.getKmerString(),kmer);
+			bkMap.put(kmer.getKmerStr(),kmer);
 			tmp.add(s.getBytes(), s);
 		}
 		kmerstr2seqs=null;	// clean up
@@ -1403,7 +1403,7 @@ public class KMAC1 {
 		// remove k-mers that do not pass the relaxed hgp cutoff
 		HashSet<String> toRemove = new HashSet<String>();
 		for (Kmer kmer:bkMap.values()){
-			HashSet<Integer> neghits = kmerstr2negSeqs.get(kmer.getKmerString());
+			HashSet<Integer> neghits = kmerstr2negSeqs.get(kmer.getKmerStr());
 			if (neghits==null)
 				neghits = new HashSet<Integer>();
 			if (kmer.getPosHitCount() > neghits.size() / get_NP_ratio() * relaxed_fold){
@@ -1413,10 +1413,10 @@ public class KMAC1 {
 					kmer.setHgp(hgp);
 				}
 				else
-					toRemove.add(kmer.getKmerString());	
+					toRemove.add(kmer.getKmerStr());	
 			}
 			else{
-				toRemove.add(kmer.getKmerString());		
+				toRemove.add(kmer.getKmerStr());		
 			}
 		}
 		for (String ks:toRemove)
@@ -1588,7 +1588,7 @@ public class KMAC1 {
 				//TODO: think!!! ignore if a singleton longer kmer, b/c it will be covered by a basic k-mer
 				if (gk.getBaseKmers().size()>1){	
 					gk.mergePosHits(seq_weights);
-					gkMap.put(gk.getKmerString(), gk);
+					gkMap.put(gk.getKmerStr(), gk);
 				}
 				else{
 					System.err.println(gk.toString());
@@ -1817,7 +1817,7 @@ public class KMAC1 {
 		for (int i = 0; i < kmerCount; i++) {
 			System.out.println(i);
 			for (int j = 0; j <= i; j++) {
-				double d = MTree.testDist(kmers.get(i).getKmerString(), kmers.get(j).getKmerString());
+				double d = MTree.testDist(kmers.get(i).getKmerStr(), kmers.get(j).getKmerStr());
 				distanceMatrix[i][j] = d;
 				distanceMatrix[j][i] = d;
 			}
@@ -1829,10 +1829,10 @@ public class KMAC1 {
 		int kmerCount = kmers.size();
 		double[][]distanceMatrix = new double[kmerCount][kmerCount];
 		for (int i=0;i<kmerCount;i++){
-			String ks_i = kmers.get(i).getKmerString();
+			String ks_i = kmers.get(i).getKmerStr();
 			for (int j=0;j<=i;j++){
 //				String ks_j = kmers.get(j).getKmerString();
-				distanceMatrix[i][j]=CommonUtils.strMinDistanceWithCutoff(ks_i, kmers.get(j).getKmerString(), cutoff);
+				distanceMatrix[i][j]=CommonUtils.strMinDistanceWithCutoff(ks_i, kmers.get(j).getKmerStr(), cutoff);
 //				distanceMatrix[i][j]=Math.min(CommonUtils.strMinDistance(ks_i, ks_j), CommonUtils.strMinDistance(krc_i, ks_j));  // much slower
 			}
 		}
@@ -1846,7 +1846,7 @@ public class KMAC1 {
 		if (print_dist_matrix){
 	        StringBuilder output = new StringBuilder();
 	        for (int j=0;j<kmerCount;j++){
-	        	output.append(String.format("%s\t",kmers.get(j).getKmerString()));
+	        	output.append(String.format("%s\t",kmers.get(j).getKmerStr()));
 	        }
 	        CommonUtils.replaceEnd(output, '\n');
 	        for (int j=0;j<kmerCount;j++){
@@ -1867,12 +1867,12 @@ public class KMAC1 {
 	        // header line
 	        output.append(";");
 	        for (int j=0;j<kmerCount;j++){
-	        	output.append(String.format("%s;",kmers.get(j).getKmerString()));
+	        	output.append(String.format("%s;",kmers.get(j).getKmerStr()));
 	        }
 	        CommonUtils.replaceEnd(output, '\n');
 	        // data lines
 	        for (int j=0;j<kmerCount;j++){
-	        	output.append(kmers.get(j).getKmerString()+";");
+	        	output.append(kmers.get(j).getKmerStr()+";");
 		        for (int i=0;i<distanceMatrix[j].length;i++){
 		        	output.append(String.format("%.1f;",distanceMatrix[j][i]));
 		        }
@@ -1952,7 +1952,7 @@ public class KMAC1 {
 		if (print_dist_matrix){
 	        StringBuilder output = new StringBuilder();
 	        for (int j=0;j<kmerCount;j++){
-	        	output.append(String.format("%s\t",kmers.get(j).getKmerString()));
+	        	output.append(String.format("%s\t",kmers.get(j).getKmerStr()));
 	        }
 	        CommonUtils.replaceEnd(output, '\n');
 	        for (int j=0;j<kmerCount;j++){
@@ -1972,7 +1972,7 @@ public class KMAC1 {
 	        output = new StringBuilder();
 	        output.append("Id,Label,Count\n");
 	        for (int j=0;j<kmerCount;j++){
-	        	output.append(String.format("%d,%s,%d\n",j,kmers.get(j).getKmerString(),kmers.get(j).getNetHitCount(posNegSeqRatio)));
+	        	output.append(String.format("%d,%s,%d\n",j,kmers.get(j).getKmerStr(),kmers.get(j).getNetHitCount(posNegSeqRatio)));
 	        }
 	        CommonUtils.writeFile(String.format("%s.k%d.dist.gephi_nodes.csv", outName, k), output.toString());
 	        
@@ -2013,7 +2013,7 @@ public class KMAC1 {
 		if (print_dist_matrix){
 	        StringBuilder output = new StringBuilder();
 	        for (int j=0;j<kmerCount;j++){
-	        	output.append(String.format("%s\t",kmers.get(j).getKmerString()));
+	        	output.append(String.format("%s\t",kmers.get(j).getKmerStr()));
 	        }
 	        CommonUtils.replaceEnd(output, '\n');
 	        for (int j=0;j<kmerCount;j++){
@@ -2038,7 +2038,7 @@ public class KMAC1 {
 	 */
 	public static int numDistCalcuation = 0;
 	public static double editDistance(Kmer k1, Kmer k2) {
-		if (k1.getKmerString().length() > k2.getKmerString().length()) {
+		if (k1.getKmerStr().length() > k2.getKmerStr().length()) {
 			return KMAC1.editDistance(k2, k1);
 		}
 		// k1 is the shorter kmer (or they are equal length)
@@ -2231,7 +2231,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			for (Kmer s2: sk2) {
 				double w2 = k1.getPosHitCount()*k2.getPosHitCount();
 				weightSum += w2;
-				distSum += w2 * MTree.testDist(s1.getKmerString(), s2.getKmerString());
+				distSum += w2 * MTree.testDist(s1.getKmerStr(), s2.getKmerStr());
 				//distSum += w2 * CommonUtils.strMinDistanceWithCutoff(s1.getKmerString(), s2.getKmerString(), cutoff);
 			}
 		}
@@ -2266,7 +2266,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			for (Kmer s2: sk2) {
 				double w2 = k1.getNetHitCount(posNegRatio)*k2.getNetHitCount(posNegRatio);
 				weightSum += w2;
-				distSum += w2 * MTree.testDist(s1.getKmerString(), s2.getKmerString());
+				distSum += w2 * MTree.testDist(s1.getKmerStr(), s2.getKmerStr());
 				//distSum += w2 * CommonUtils.strMinDistanceWithCutoff(s1.getKmerString(), s2.getKmerString(), cutoff);
 			}
 		}
@@ -2961,17 +2961,16 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		cluster.k = k;
 		kmers = cluster.inputKmers;
 		seed = cluster.seedKmer;
+		for (Kmer km: kmers){
+			km.setShift(0);
+			km.setKmerStartOffset(0);
+			km.setSeedOrientation(true);
+		}
+		if (seed.getKmerStr().equals("CNTTGTNNT"))
+			k=k+0;
 		
 		/** init kmerSet with seed family of seed kmer, by adding mismatch k-mers, order by #mm */
-		ArrayList<Kmer> seedFamily = new ArrayList<Kmer>();
-//		seedFamily.add(seed);
-//		kmers.remove(seed);
-		seed.setShift(0);
-		seed.setKmerStartOffset(0);
-		seed.setSeedOrientation(true);
-		seed.setAlignString(seed.getKmerString());
-		
-		seedFamily.addAll(findSeedFamily(kmers, seed.getKmerString()));
+		ArrayList<Kmer> seedFamily = findSeedFamily(kmers, seed.getKmerStr());
 		Collections.sort(seedFamily);
 		ArrayList<Kmer> tmp = new ArrayList<Kmer>();
 		seed.setMatrix();
@@ -3273,7 +3272,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 							alignedSeqCount = alignByPWM(seqList_j, cluster2, false);
 							if (config.evaluate_by_ksm){
 								// update kmer Engine with the input k-mers for extracting KSM, do not use base kmer for matching
-								updateEngine(inputKmers, false);	
+								updateEngine(inputKmers, false, false);	
 								NewKSM newKSM = extractKSM (seqList_j, cluster2.k);
 								if (newKSM!=null&&newKSM.threshold!=null){
 									cluster2.alignedKmers = newKSM.kmers;
@@ -3378,7 +3377,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			for (Kmer km: alignedKmers){
 				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"
 						+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')
-						+(km.isSeedOrientation?km.getKmerString():km.getKmerRC())+"\t"
+						+(km.isSeedOrientation?km.getKmerStr():km.getKmerRC())+"\t"
 						+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"
 						+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
 			}
@@ -3507,7 +3506,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		for (Kmer km: outputKmers){
 			html.append("<tr><td>");
 			html.append("<b><font size='4' face='Courier New'>");
-			String kmString = km.isSeedOrientation()?km.getKmerString():km.getKmerRC();
+			String kmString = km.isSeedOrientation()?km.getKmerStr():km.getKmerRC();
 			char[] kmStr = kmString.toCharArray();
 			html.append(CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-'));
 			for (char b:kmStr){
@@ -3839,9 +3838,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		// progressively allow more mismatch, this will give the more similar kmer priorty for sequence matching
 		for (int i=1;i<=mm;i++){
 			for (Kmer kmer: kmerListCopy){
-		    	if (CommonUtils.strMinDistance(kmerStr, kmer.getKmerString())==i){
-		    		Pair<Integer,Integer> p = CommonUtils.strMinDistanceAndShift(kmerStr, kmer.getKmerString());
-		    		kmer.setAlignString(kmer.getKmerString());
+		    	if (CommonUtils.strMinDistance(kmerStr, kmer.getKmerStr())==i){
+		    		Pair<Integer,Integer> p = CommonUtils.strMinDistanceAndShift(kmerStr, kmer.getKmerStr());
+		    		kmer.setAlignString(kmer.getKmerStr());
 		    		kmer.setShift(p.cdr());
 		    		kmer.setKmerStartOffset(p.cdr());
 		    		kmer.setSeedOrientation(true);
@@ -4112,7 +4111,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 *  The seqList should have been indexed with kmers. <br>
 	 *  Need to have use_KSM flag here because of PWM only refinement */
 	private void iteratePWMKSM (MotifCluster cluster, ArrayList<Sequence> seqList, int seed_range, boolean use_KSM){	
-    	while(true){
+		ArrayList<Kmer> inputBackup = null;
+		ArrayList<Kmer> ksmBackup = null;
+		Kmer seedBackup = null;
+		while(true){
     		// build PWM
 			NewPWM newPWM = buildPWM(seqList, cluster, 0, tic, true);
 			if (newPWM==null)
@@ -4122,15 +4124,26 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			NewKSM newKSM=null;
 			if (use_KSM){
 				// update kmer Engine with all input k-mers for extracting KSM, do not use base kmer for matching
-				updateEngine(cluster.inputKmers, false);		
+				inputBackup = cluster.inputKmers;
+				ksmBackup = cluster.alignedKmers;
+				seedBackup = cluster.seedKmer;
+				cluster.inputKmers = Kmer.deepCloneKmerList(cluster.inputKmers, cluster.seedKmer, seq_weights);
+				cluster.seedKmer = cluster.inputKmers.get(0);
+				updateEngine(cluster.inputKmers, false, false);		
 				newKSM = extractKSM (seqList, seed_range);
 				if (newKSM==null ||newKSM.threshold==null)
 					return;
 			}
 			
 			// test if we want to accept the new PWM and KSM
-			if  (newPWM.motif_significance+newKSM.threshold.motif_significance <= cluster.pwmThreshold.motif_significance+cluster.ksmThreshold.motif_significance + config.kmac_iteration_delta)
-					return;		// previous pwm+ksm is more enriched, stop here
+			if  (newPWM.motif_significance+newKSM.threshold.motif_significance <= 
+					cluster.pwmThreshold.motif_significance+cluster.ksmThreshold.motif_significance + config.kmac_iteration_delta){
+				// restore k-mers
+				cluster.inputKmers = inputBackup;
+				cluster.alignedKmers = ksmBackup;
+				cluster.seedKmer = seedBackup;
+				return;		// previous pwm+ksm is more enriched, stop here
+			}
 
 			newPWM.updateClusterPwmInfo(cluster);
 			cluster.alignedKmers = newKSM.kmers;
@@ -4783,7 +4796,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		for (Sequence s:seqList){
 			if (s.pos != UNALIGNED){		// aligned seqs
 				// find all the k-mers in the sequence, and all of their positions
-				String seq = s.getAlignedSeq();
+				String seq = s.getAlignedSeq();		// aligned seqs are in seed orientation
 				Iterator searcher = treeAhoCorasick.search(seq.getBytes());
 				while (searcher.hasNext()) {
 					SearchResult sr = (SearchResult) searcher.next();
@@ -4791,9 +4804,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 						for(Kmer km :str2kmers.get(m)){				// these have to be gapped k-mer
 							int km_seq = sr.getLastIndex() - km.k;	// minus k to get the k-mer position (i.e. first base of the k-mer)
 							// km_seed = km_seq + seq_seed
+							int km_seed = km_seq+s.pos;
+							if (km_seed<-seed_range || km_seed>seed_range)
+								continue;
 							if (!kmer2pos_seed.containsKey(km))
 								kmer2pos_seed.put(km, new ArrayList<Integer>());
-							kmer2pos_seed.get(km).add(km_seq+s.pos);	
+							kmer2pos_seed.get(km).add(km_seed);	
 						}
 					}
 				}
@@ -4805,9 +4821,13 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					for (Object m: sr.getOutputs()){
 						for(Kmer km :str2kmers.get(m)){	
 							int km_seq = sr.getLastIndex() - km.k;	// minus k to get the k-mer position (i.e. first base of the k-mer) 
+							// km_seed = km_seq + seq_seed
+							int km_seed = km_seq+s.pos;
+							if (km_seed<-seed_range || km_seed>seed_range)
+								continue;
 							if (!kmer2pos_seed.containsKey(km))
 								kmer2pos_seed.put(km, new ArrayList<Integer>());
-							kmer2pos_seed.get(km).add(km_seq+s.pos + RC);	// +RC: "found on RC strand"
+							kmer2pos_seed.get(km).add(km_seed + RC);	// +RC: "found on RC strand"
 						}
 					}
 				}
@@ -4840,6 +4860,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
     	/** find k-mers that are consistently aligned, set kmer consensus position */
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmer2pos_seed.keySet()){
+			if (km.getKmerStr().equals("ANNCANATG"))
+				seed_range=seed_range+0;
 			ArrayList<Integer> posKmer = kmer2pos_seed.get(km);		// all km_seed positions of this kmer
 			// The kmer hit in the 2*k region should be at least 1/3 of total hit (why??)
 			if (posKmer==null || posKmer.size() < km.getPosHitCount()*config.kmer_inRange_fraction){			
@@ -4899,6 +4921,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			}
 			else
 				km.setSeedOrientation(true);
+			assert (!(shift<-seed_range || shift>seed_range));
 			km.setShift(shift);			
 			km.setAlignString(maxCount+"/"+posKmer.size());
 			km.setKmerStartOffset(km.getShift());
@@ -5451,7 +5474,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //				sb.append(String.format("k=%d\tthresh=%.2f\thit=%d\thgp=1e%.1f\tW=%d\tPWM= %s.\n", c.k, c.pwmThreshold,
 //						c.pwmThreshold.posHit, c.pwmThreshold.motif_significance, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
 //			}
-			sb.append(String.format("#%d\tk=%d\tKSM= %s \t%.2f, %d, kAUC=%.1f", c.clusterId, c.k, c.seedKmer.getKmerString(), 
+			sb.append(String.format("#%d\tk=%d\tKSM= %s \t%.2f, %d, kAUC=%.1f", c.clusterId, c.k, c.seedKmer.getKmerStr(), 
 					c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.motif_significance));
 			if (c.wm!=null)
 				sb.append(String.format("\tPWM= %s\t%.2f, %d, pAUC=%.1f\n", 
@@ -5997,14 +6020,15 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //	}	
 	
 	public void updateEngine(ArrayList<Kmer> kmers){
-		updateEngine(kmers, config.match_base_kmer);
+		updateEngine(kmers, config.match_base_kmer, true);
 	}
 	/** load Kmers and prepare the search Engine, do not print k-mer list<br>
 	 *  assuming the kmers are unique	 * 
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
 	 * @param use_base_kmers true: use base kmers for KG scoring; false: use whole gapped k-mer for scoring
+	 * @param areKmersAligned true: set string orientation as seed, for alignKSM(); false: set String orientation as kmer, for extractKSM()
 	 */
-	public void updateEngine(ArrayList<Kmer> kmers, boolean use_base_kmers){
+	public void updateEngine(ArrayList<Kmer> kmers, boolean use_base_kmers, boolean areKmersAligned){
 		if (kmers.isEmpty()){
 			engineInitialized = false;
 			return;
@@ -6022,7 +6046,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				GappedKmer gk = (GappedKmer)km;
 				if (use_base_kmers)
 					for (Kmer bk: gk.getBaseKmers()){
-						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
+						String kmerStr;
+						if (areKmersAligned)
+							kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;	// for alignKSM, use seed orientation
+						else
+							kmerStr = gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;	// for extractKSM, use gkmer orientation
 						if (!tmpStr2kmers.containsKey(kmerStr)){
 							tmpStr2kmers.put(kmerStr, new ArrayList<Kmer>());	
 							tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
@@ -6035,7 +6063,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					}
 				else{
 					for (Kmer sk: gk.getBaseKmers()){
-						String kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
+						String kmerStr;
+						if (areKmersAligned)
+							kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
+						else
+							kmerStr = gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
 						if (!tmpStr2kmers.containsKey(kmerStr)){
 							tmpStr2kmers.put(kmerStr, new ArrayList<Kmer>());	
 							tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
@@ -6364,7 +6396,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			char[] letters = new char[rightShift-leftShift+longest];
 			int rightIdx = 0;
 			for (Kmer km:kmers){
-				char[] kChars = km.getKmerString().toCharArray();
+				char[] kChars = km.getKmerStr().toCharArray();
 				for (int i=0;i<kChars.length;i++){
 					int idx = i+km.getKmerStartOffset()-leftShift;
 					if (kChars[i]!='N'){

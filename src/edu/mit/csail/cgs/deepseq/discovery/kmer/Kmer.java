@@ -71,7 +71,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	protected String kmerString;
-	public String getKmerString() {	return kmerString;}
+	public String getKmerStr() {	return kmerString;}
 	public String getKmerStrRC() {	return kmerString+"/"+kmerRC;}
 	public String getKmerRCStr() {	return kmerRC+"/"+kmerString;}
 	protected String kmerRC;
@@ -211,7 +211,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	
 	public Kmer clone(){
-		Kmer n = new Kmer(getKmerString(), (BitSet)(posBits.clone()));
+		Kmer n = new Kmer(getKmerStr(), (BitSet)(posBits.clone()));
 		n.setWeightedPosHitCount(null);
 		n.clusterId = clusterId;
 		n.strength = strength;
@@ -272,13 +272,16 @@ public class Kmer implements Comparable<Kmer>{
 		return this.kmerString.equals(kmerString);
 	}
 	public String toString(){
+		String str;
 		if (use_weighted_hit_count)
-			return String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
-				getKmerStrRC(),isSeedOrientation?'+':'-', clusterId, shift, posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
+			str = String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
+				getKmerStrRC(),isSeedOrientation?'+':'-', clusterId, shift, 
+				posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10, alignString);
 				// use posBits.cardinality() instead of getPosHitCount() to get raw pos hit count
 		else
-			return String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
+			str = String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
 				getKmerStrRC(),isSeedOrientation?'+':'-', clusterId, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
+		return str+"\t"+alignString;
 	}
 	/**
 	 * This method is used in the gapped k-mer printing. 

@@ -91,7 +91,7 @@ public class GappedKmer extends Kmer{
 	 * Clone for output only. It does not set up correct GK-SK linkages.
 	 */
 	public GappedKmer clone(double[] seq_weights){
-		GappedKmer n = new GappedKmer(getKmerString());
+		GappedKmer n = new GappedKmer(getKmerStr());
 		n.clusterId = clusterId;
 		n.shift = shift;
 		n.setNegBits((BitSet)negBits.clone());

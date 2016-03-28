@@ -116,6 +116,6 @@ public class KmerGroup implements Comparable<KmerGroup>{
 		else return(0);
 	}
 	public String toString(){
-		return String.format("%s %d: %d+/%d-, hpg=%.2f", getBestKmer().getKmerString(), bs, posHitGroupCount, negHitGroupCount, hgp);
+		return String.format("%s %d: %d+/%d-, hpg=%.2f", getBestKmer().getKmerStr(), bs, posHitGroupCount, negHitGroupCount, hgp);
 	}
 }

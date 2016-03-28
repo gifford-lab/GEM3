@@ -515,7 +515,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
     		result.append(String.format("%7.2f\t", getNoiseFraction()));
         }
         if (kmerGroup!=null){
-        	result.append(String.format("%s_%d/%d\t%d\t%.2f\t%s", kmerGroup.getBestKmer().getKmerString(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand));
+        	result.append(String.format("%s_%d/%d\t%d\t%.2f\t%s", kmerGroup.getBestKmer().getKmerStr(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand));
             if (boundSequence!=null && !boundSequence.trim().equals(""))
             	result.append("\t").append(boundSequence);
         }
