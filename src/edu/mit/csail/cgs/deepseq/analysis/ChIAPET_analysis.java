@@ -682,7 +682,17 @@ public class ChIAPET_analysis {
 			}
 			tss.reads.put(offset, isBound);
 		}
-		
+
+		lines = CommonUtils.readTextFile(Args.parseString(args, "germ", null));
+		HashMap<Region, Region> germTss2Distal = new HashMap<Region, Region>();
+		for (String l: lines){		// each line is a call
+			String f[] = l.split("\t");
+			germTss2Distal.put(new Region(genome, f[0], Integer.parseInt(f[1]), Integer.parseInt(f[2])), 
+					new Region(genome, f[3], Integer.parseInt(f[4]), Integer.parseInt(f[5])));
+		}
+		ArrayList<Region> germTss = new ArrayList<Region>();
+		germTss.addAll(germTss2Distal.keySet());
+		Collections.sort(germTss);
 		
 		// cluster the reads
 		for (TSS t:allTss){
@@ -698,6 +708,7 @@ public class ChIAPET_analysis {
 						System.out.print(String.format("%s\t%s\t%d\t%d\t%d\t%d\t", 
 								t.symbol, t.coord.getLocationString(), t.id, median, cluster.size(), 
 								cluster.get(cluster.size()-1)-cluster.get(0)));
+						
 						// print binding overlap information
 						int count=t.reads.get(cluster.get(0)).size();
 						for (int c=0;c<count;c++){
@@ -707,6 +718,9 @@ public class ChIAPET_analysis {
 							}
 							System.out.print(isBound?"1\t":"0\t");
 						}
+						
+						// print ChIA-PET call overlap info
+						
 						System.out.println();
 					}
 					cluster.clear();
