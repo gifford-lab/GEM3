@@ -123,6 +123,8 @@ public class SnpMotifScorer {
 				continue;
 			}
 			String alt = seq.substring(windowSize)+f[4]+seq.substring(windowSize+1, seq.length());
+			String seqRC = SequenceUtils.reverseComplement(seq);
+			String altRC = SequenceUtils.reverseComplement(alt);
 			String[] info=f[7].split("=");
 			String[] info1=info[1].split(";");
 			int refc = Integer.parseInt(info1[0]);
@@ -130,8 +132,8 @@ public class SnpMotifScorer {
 			
 			for (int i=0;i<kss.size();i++){
 				KmerScanner scanner = kss.get(i);
-				KmerGroup kg = scanner.getBestKG(seq);
-				KmerGroup kgN = scanner.getBestKG(alt);
+				KmerGroup kg = scanner.getBestKG(seq, seqRC);
+				KmerGroup kgN = scanner.getBestKG(alt, altRC);
 
 				double ksm = kg==null?0:kg.getScore();
 				double ksm_alt = kgN==null?0:kgN.getScore();
