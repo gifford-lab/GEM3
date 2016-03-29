@@ -961,7 +961,7 @@ public class KMAC1 {
 				// printout distance matrix performance information
 				System.gc();
 				long tic=System.currentTimeMillis();
-				double[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix);
+				float[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix);
 				centerKmers = densityClusteringWithDistMatrix(kmers, distanceMatrix, config.dc);
 				System.out.print("Distance Matrix: time="+CommonUtils.timeElapsed(tic));
 				System.out.println("\tmem="+
@@ -991,7 +991,7 @@ public class KMAC1 {
 				if (config.verbose>1)
 					System.out.print("Computing k-mer pairwise distance matrix ...");
 				
-				double[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix);
+				float[][] distanceMatrix = computeWeightedDistanceMatrix2(kmers, config.print_dist_matrix);
 				
 				if (config.verbose>1)
 					System.out.println(" OK: "+CommonUtils.timeElapsed(tic));
@@ -1997,15 +1997,15 @@ public class KMAC1 {
 	 * Compute Weighted Distance Matrix<br>
 	 * Gapped k-mer distance as Levenshtien distance of matrix form
 	 */
-	public double[][] computeWeightedDistanceMatrix2(ArrayList<Kmer> kmers, boolean print_dist_matrix) {
+	public float[][] computeWeightedDistanceMatrix2(ArrayList<Kmer> kmers, boolean print_dist_matrix) {
 		int kmerCount = kmers.size();
-		double[][]distanceMatrix = new double[kmerCount][kmerCount];
+		float[][]distanceMatrix = new float[kmerCount][kmerCount];
 		for (int i=0;i<kmerCount;i++){
 			Kmer kmi = kmers.get(i);
 			distanceMatrix[i][i] = 0;
 			for (int j = 0; j < i; j++) {
 				Kmer kmj = kmers.get(j);
-				double dist = KMAC1.editDistance(kmi, kmj);
+				float dist = KMAC1.editDistance(kmi, kmj);
 				distanceMatrix[i][j] = dist;
 				distanceMatrix[j][i] = dist;
 			}
@@ -2037,16 +2037,16 @@ public class KMAC1 {
 	 * It takes the min of distances from forward and reverse compliment orientation.
 	 */
 	public static int numDistCalcuation = 0;
-	public static double editDistance(Kmer k1, Kmer k2) {
+	public static float editDistance(Kmer k1, Kmer k2) {
 		if (k1.getKmerStr().length() > k2.getKmerStr().length()) {
 			return KMAC1.editDistance(k2, k1);
 		}
 		// k1 is the shorter kmer (or they are equal length)
-		double[][] m1 = k1.getMatrix();
-		double[][] m2 = k2.getMatrix();
-		double[][] m2RC = k2.getMatrixRC();
-		double forwardDistance = KMAC1.editDistanceByMatrix(m1, m2, m1.length+m2.length);
-		double best = KMAC1.editDistanceByMatrix(m1, m2RC, forwardDistance);
+		float[][] m1 = k1.getMatrix();
+		float[][] m2 = k2.getMatrix();
+		float[][] m2RC = k2.getMatrixRC();
+		float forwardDistance = KMAC1.editDistanceByMatrix(m1, m2, m1.length+m2.length);
+		float best = KMAC1.editDistanceByMatrix(m1, m2RC, forwardDistance);
 //		double forwardDistance2 = KMAC1.editDistanceByMatrix(m1, m2);
 //		double best2 = Math.min(KMAC1.editDistanceByMatrix(m1, m2RC), forwardDistance2);
 //		assert (best==best2);
@@ -2059,12 +2059,12 @@ public class KMAC1 {
 	 * This method computes the edit distance using matrix representation for gapped k-mers<br>
 	 * It is similar to Levenshtein distance, but not considering internal insertion/deletion.
 	 */
-	public static double editDistanceByMatrix(double[][] m1, double[][] m2) {
-		double dist = m1.length + m2.length; // final distance
+	public static float editDistanceByMatrix(float[][] m1, float[][] m2) {
+		int dist = m1.length + m2.length; // final distance
 		for (int i = 0; i < m1.length + m2.length - 1; i++) {
 			// we slide m1 along m2, where i is the index at m2 that m1's max index is aligned with
 			// for example, for i = 0; position m1.length - 1 in m1 is aligned with position 0 in m2
-			double slideDist = 0; // this is the total distance for this given slide of m1 along m2
+			int slideDist = 0; // this is the total distance for this given slide of m1 along m2
 			
 			// for each case, we first add the hanging ends as part of the edit distance
 			// next, we compare the overlapping indices to find the dist
@@ -2073,7 +2073,7 @@ public class KMAC1 {
 				for (int j = 0; j < i + 1; j++) {
 					int compare1 = m1.length - 1 - i + j;
 					int compare2 = j;
-					double compareDist = 0;
+					float compareDist = 0;
 					for (int k = 0; k < 4; k++) {
 						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
 					}
@@ -2086,7 +2086,7 @@ public class KMAC1 {
 				for (int j = 0; j < m1.length + m2.length - 1 - i; j++) {
 					int compare1 = j;
 					int compare2 = i + 1 - m1.length + j;
-					double compareDist = 0;
+					float compareDist = 0;
 					for (int k = 0; k < 4; k++) {
 						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
 					}
@@ -2099,7 +2099,7 @@ public class KMAC1 {
 				for (int j = 0; j < m1.length; j++) {
 					int compare1 = j;
 					int compare2 = i - m1.length + 1 + j;
-					double compareDist = 0;
+					float compareDist = 0;
 					for (int k = 0; k < 4; k++) {
 						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
 					}
@@ -2117,8 +2117,8 @@ public class KMAC1 {
 	 * It is similar to Levenshtein distance, but not considering internal insertion/deletion.<br>
 	 * It stops if the distance is larger than the cutoff value.
 	 */
-	public static double editDistanceByMatrix(double[][] m1, double[][] m2, double cutoff) {
-		double dist = m1.length + m2.length; // final distance
+	public static float editDistanceByMatrix(float[][] m1, float[][] m2, float cutoff) {
+		float dist = m1.length + m2.length; // final distance
 		
 		// fill the sliding indexs such that the sliding start from maximum overlap of m1 and m2
 		int[] idxs = new int [m1.length + m2.length-2];
@@ -2132,7 +2132,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			int i = idxs[it];
 			// we slide m1 along m2, where i is the index at m2 that m1's max index is aligned with
 			// for example, for i = 0; position m1.length - 1 in m1 is aligned with position 0 in m2
-			double slideDist = 0; // this is the total distance for this given slide of m1 along m2
+			float slideDist = 0; // this is the total distance for this given slide of m1 along m2
 			
 			// for each case, we first add the hanging ends as part of the edit distance
 			// next, we compare the overlapping indices to find the dist
@@ -2145,7 +2145,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				for (int j = 0; j < i + 1; j++) {
 					int compare1 = m1.length - 1 - i + j;
 					int compare2 = j;
-					double compareDist = 0;
+					float compareDist = 0;
 					for (int k = 0; k < 4; k++) {
 						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
 					}
@@ -2166,7 +2166,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				for (int j = 0; j < m1.length + m2.length - 1 - i; j++) {
 					int compare1 = j;
 					int compare2 = i + 1 - m1.length + j;
-					double compareDist = 0;
+					float compareDist = 0;
 					for (int k = 0; k < 4; k++) {
 						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
 					}
@@ -2187,7 +2187,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				for (int j = 0; j < m1.length; j++) {
 					int compare1 = j;
 					int compare2 = i - m1.length + 1 + j;
-					double compareDist = 0;
+					float compareDist = 0;
 					for (int k = 0; k < 4; k++) {
 						compareDist += Math.abs(m1[compare1][k] - m2[compare2][k]);
 					}
@@ -2274,7 +2274,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		return distSum/weightSum;
 	}
 	
-	private ArrayList<Kmer> densityClusteringWithDistMatrix(ArrayList<Kmer> kmers, double[][] distanceMatrix, int distance_cutoff) {
+	private ArrayList<Kmer> densityClusteringWithDistMatrix(ArrayList<Kmer> kmers, float[][] distanceMatrix, int distance_cutoff) {
 		long tic = System.currentTimeMillis();
 		int k = kmers.get(0).getK();
 		
@@ -2383,14 +2383,14 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 	 * @param deltaCutoff delta value cutoff, kmers with equal or higher delta values are used for selecting cluster centers
 	 * @return
 	 */
-	public static ArrayList<DensityClusteringPoint> weightedDensityClustering(double[][] distanceMatrix, double[] weights, int distanceCutoff, int deltaCutoff){
+	public static ArrayList<DensityClusteringPoint> weightedDensityClustering(float[][] distanceMatrix, double[] weights, int distanceCutoff, int deltaCutoff){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
 		for (int i=0;i<distanceMatrix.length;i++){
 			DensityClusteringPoint p = util.new DensityClusteringPoint();
 			p.id = i;
-			double[] distanceVector = distanceMatrix[i];
+			float[] distanceVector = distanceMatrix[i];
 			for (int j=0;j<distanceVector.length;j++){
 				if (distanceVector[j] <= distanceCutoff)
 					p.density+=weights[j];				
@@ -2409,7 +2409,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		
 		// for the rest of points
 		for (int i=1;i<data.size();i++){
-			double min = Double.MAX_VALUE;
+			float min = Float.MAX_VALUE;
 			int id = data.get(i).id;
 //			if (id==284)
 //				id=id;
@@ -2459,7 +2459,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 	 * @param deltaCutoff delta value cutoff, kmers with equal or higher delta values are used for selecting cluster centers
 	 * @return Return points with high delta values, then points that are far from the high delta points
 	 */
-	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(double[][] distanceMatrix, 
+	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(float[][] distanceMatrix, 
 			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, 
 			double posNegSeqRatio, int distanceCutoff, boolean refine_centers){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
@@ -2470,7 +2470,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			p.id = i;
 			// self_density: individual k-mer hit count
 			double self_density = CommonUtils.calcWeightedHitCount(posHitList.get(i),seq_weights) - negHitList.get(i).cardinality()*posNegSeqRatio;
-			double[] distanceVector = distanceMatrix[i];
+			float[] distanceVector = distanceMatrix[i];
 			// sum up to get total hit count of this point and its neighbors
 			BitSet b_pos = new BitSet();
 			BitSet b_neg = new BitSet();
@@ -2481,7 +2481,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				}
 			}
 			// group hit count * self_density, to down-weight weak kmers from being selected as center
-			p.densitySxN = Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			p.densitySxN = (float)Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
 			if (Double.isNaN(p.densitySxN))
 				continue;
 			p.density = p.densitySxN;
@@ -2501,7 +2501,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		
 		// for the rest of points
 		for (int i=1;i<data.size();i++){
-			double min = Double.MAX_VALUE;
+			float min = Float.MAX_VALUE;
 			DensityClusteringPoint point_i = data.get(i);
 			point_i.members.add(point_i);
 			int id = point_i.id;
@@ -2649,7 +2649,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				b_neg.or(negHitList.get(kmer.getIndex()));
 			}
 			// group hit count * self_density, to down-weight weak kmers from being selected as center
-			p.densitySxN = Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			p.densitySxN = (float)Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
 			if (Double.isNaN(p.densitySxN))
 				continue;
 			p.density = p.densitySxN;
@@ -2669,7 +2669,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		/** compute the shortest distance to the potential centers */
 		
 		// for the 2nd to all the rest of points
-		double maxDist = -1;
+		float maxDist = -1;
 		for (int i=1;i<data.size();i++){
 			DensityClusteringPoint point_i = data.get(i);
 			point_i.members.add(point_i);
@@ -2693,10 +2693,10 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			}
 			
 			if (stronger.isEmpty()){	// all the inRange neighbors are not stronger, do the exhaustive search
-				double min = Double.MAX_VALUE;
+				float min = Float.MAX_VALUE;
 				for (int j=0;j<i;j++){		// for the points j have higher (or equal) density than point i
 					int jd = data.get(j).id;
-					double ijDistance = KMAC1.editDistance(kmer, mtreeDataPoints.getData().get(jd));
+					float ijDistance = KMAC1.editDistance(kmer, mtreeDataPoints.getData().get(jd));
 					if (ijDistance < min) {
 						min = ijDistance;
 //						data.get(i).delta_id = data.get(j).id;
@@ -2709,10 +2709,10 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				point_i.delta = min;
 			}
 			else{
-				double min = Double.MAX_VALUE;
+				float min = Float.MAX_VALUE;
 				for (Kmer km:stronger){		// for each stronger point
 					int j = kmerIdx2dataIdx[km.getIndex()];
-					double ijDistance = KMAC1.editDistance(kmer, mtreeDataPoints.getData().get(km.getIndex()));
+					float ijDistance = KMAC1.editDistance(kmer, mtreeDataPoints.getData().get(km.getIndex()));
 					if (ijDistance < min) {
 						min = ijDistance;
 //						data.get(i).delta_id = data.get(j).id;
@@ -3175,6 +3175,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				if (count_pwm_aligned==0){
 					cluster2.wm = null;
 					toRemove.add(cluster2);
+					cluster2.inputKmers=null;cluster2.alignedKmers=null;
 					for (MotifCluster c: clusters){
 						checked[c.clusterId][cluster2.clusterId]=true;
 						checked[cluster2.clusterId][c.clusterId]=true;
@@ -3206,10 +3207,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 						checked[cluster1.clusterId][d]=false;
 					}
 					cluster1 = newCluster;
+					newCluster = null;
 					if (config.verbose>1)
 			    		System.out.println(String.format("\n%s: motif #%d and motif #%d merge to new motif %s, pAUC=%.1f", 
 			    				CommonUtils.timeElapsed(tic), cluster1.clusterId, cluster2.clusterId,
-			    				WeightMatrix.getMaxLetters(newCluster.wm), newCluster.pwmThreshold.motif_significance));	
+			    				WeightMatrix.getMaxLetters(cluster1.wm), cluster1.pwmThreshold.motif_significance));	
 				}
 				else{	
 					checked[cluster1.clusterId][cluster2.clusterId]=true;
@@ -3218,118 +3220,119 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			    		System.out.println(String.format("%s: Merged PWM is not more enriched, do not merge", CommonUtils.timeElapsed(tic)));
 				}
 				
-				// No matter successful merging or not, 
-				if (config.rescue_motif2){
-					// try the other PWM after removing the overlap hits
-					if (config.verbose>1)
-			    		System.out.println(String.format("\n%s: Testing the remaining motif #%d.", 
-			    			CommonUtils.timeElapsed(tic), cluster2.clusterId));						
-					for (Sequence s:seqList)
-						s.resetAlignment();
-					count_pwm_aligned = alignByPWM(seqList, cluster1, false);
-			    	if (config.verbose>1)
-			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster1.wm)
-			    				+" align " + count_pwm_aligned+" sequences.");
-	
-					ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
-					for (Sequence s:seqList)
-						if (s.pos == UNALIGNED)
-							seqList_j.add(s);
-					int aligned_seqs_count = alignByPWM(seqList_j, cluster2, false);
-			    	if (config.verbose>1)
-			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)
-			    				+" align additional " + aligned_seqs_count+" sequences.");
-					
-					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
-					if (aligned_seqs_count<seqs.length*config.motif_hit_factor_report || aligned_seqs_count<cluster2.pwmThreshold.posHit*config.motif_remove_ratio){
-						if (config.verbose>1)
-				    		System.out.println(String.format("%s: Motif #%d has too few (%d) non-shared hits, remove it.", 
-				    			CommonUtils.timeElapsed(tic), cluster2.clusterId, aligned_seqs_count));
-						cluster2.wm = null;
-						toRemove.add(cluster2);
-						for (MotifCluster c: clusters){
-							checked[c.clusterId][cluster2.clusterId]=true;
-							checked[cluster2.clusterId][c.clusterId]=true;
-						}
-					}
-					else{
-						cluster2.wm = null;			// reset here, to get a new PWM
-						int alignedSeqCount = 0;
-						newPWM = buildPWM(seqList_j, cluster2, 0, tic, false);
-						if (newPWM!=null){
-							newPWM.updateClusterPwmInfo(cluster2);
-							BitSet unalignedIds = new BitSet();
-							for (Sequence s:seqList)
-								if (s.pos == UNALIGNED){
-									unalignedIds.set(s.id);
-								}
-	
-							ArrayList<Kmer> inputKmers = new ArrayList<Kmer>();		// use only the k-mers mapped in the un-aligned seqs
-							for (Kmer km: cluster2.inputKmers){
-								if (km.posBits.intersects(unalignedIds))
-									inputKmers.add(km);
-							}
-							alignedSeqCount = alignByPWM(seqList_j, cluster2, false);
-							if (config.evaluate_by_ksm){
-								// update kmer Engine with the input k-mers for extracting KSM, do not use base kmer for matching
-								updateEngine(inputKmers, false, false);	
-								NewKSM newKSM = extractKSM (seqList_j, cluster2.k);
-								if (newKSM!=null&&newKSM.threshold!=null){
-									cluster2.alignedKmers = newKSM.kmers;
-									cluster2.ksmThreshold = newKSM.threshold;
-								}
-								else{	// if no good KSM
-						    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)+" is removed.");
-									cluster2.wm = null;
-									toRemove.add(cluster2);
-									for (MotifCluster c: clusters){
-										checked[c.clusterId][cluster2.clusterId]=true;
-										checked[cluster2.clusterId][c.clusterId]=true;
-									}
-									continue;
-								}
-							}
-							// check if new PWM has sufficient hit
-							if (alignedSeqCount<seqs.length*config.motif_hit_factor_report){
-								if (config.verbose>1)
-						    		System.out.println(String.format("%s: Too few new PWM hits (%d) , remove motif #%d.", 
-						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster2.clusterId));
-								cluster2.wm = null;
-								toRemove.add(cluster2);
-								for (MotifCluster c: clusters){
-									checked[c.clusterId][cluster2.clusterId]=true;
-									checked[cluster2.clusterId][c.clusterId]=true;
-								}
-							}
-							else{
-								if (config.verbose>1)
-						    		System.out.println(String.format("%s: New PWM has sufficient hit %d, keep motif #%d.", 
-						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster2.clusterId));
-								if (!isChanged){		// if motif 1 is not changed, set this pair as checked.
-									checked[cluster1.clusterId][cluster2.clusterId] = true;
-									checked[cluster2.clusterId][cluster1.clusterId] = true;
-								}
-							}
-						}
-						else{	// if no PWM
-							cluster2.wm = null;
-							toRemove.add(cluster2);
-							for (MotifCluster c: clusters){
-								checked[c.clusterId][cluster2.clusterId]=true;
-								checked[cluster2.clusterId][c.clusterId]=true;
-							}
-						}
-					}
-				}
-				else{
+//				// No matter successful merging or not, 
+//				if (config.rescue_motif2){
+//					// try the other PWM after removing the overlap hits
+//					if (config.verbose>1)
+//			    		System.out.println(String.format("\n%s: Testing the remaining motif #%d.", 
+//			    			CommonUtils.timeElapsed(tic), cluster2.clusterId));						
+//					for (Sequence s:seqList)
+//						s.resetAlignment();
+//					count_pwm_aligned = alignByPWM(seqList, cluster1, false);
+//			    	if (config.verbose>1)
+//			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster1.wm)
+//			    				+" align " + count_pwm_aligned+" sequences.");
+//	
+//					ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
+//					for (Sequence s:seqList)
+//						if (s.pos == UNALIGNED)
+//							seqList_j.add(s);
+//					int aligned_seqs_count = alignByPWM(seqList_j, cluster2, false);
+//			    	if (config.verbose>1)
+//			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)
+//			    				+" align additional " + aligned_seqs_count+" sequences.");
+//					
+//					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
+//					if (aligned_seqs_count<seqs.length*config.motif_hit_factor_report || aligned_seqs_count<cluster2.pwmThreshold.posHit*config.motif_remove_ratio){
+//						if (config.verbose>1)
+//				    		System.out.println(String.format("%s: Motif #%d has too few (%d) non-shared hits, remove it.", 
+//				    			CommonUtils.timeElapsed(tic), cluster2.clusterId, aligned_seqs_count));
+//						cluster2.wm = null;
+//						toRemove.add(cluster2);
+//						for (MotifCluster c: clusters){
+//							checked[c.clusterId][cluster2.clusterId]=true;
+//							checked[cluster2.clusterId][c.clusterId]=true;
+//						}
+//					}
+//					else{
+//						cluster2.wm = null;			// reset here, to get a new PWM
+//						int alignedSeqCount = 0;
+//						newPWM = buildPWM(seqList_j, cluster2, 0, tic, false);
+//						if (newPWM!=null){
+//							newPWM.updateClusterPwmInfo(cluster2);
+//							BitSet unalignedIds = new BitSet();
+//							for (Sequence s:seqList)
+//								if (s.pos == UNALIGNED){
+//									unalignedIds.set(s.id);
+//								}
+//	
+//							ArrayList<Kmer> inputKmers = new ArrayList<Kmer>();		// use only the k-mers mapped in the un-aligned seqs
+//							for (Kmer km: cluster2.inputKmers){
+//								if (km.posBits.intersects(unalignedIds))
+//									inputKmers.add(km);
+//							}
+//							alignedSeqCount = alignByPWM(seqList_j, cluster2, false);
+//							if (config.evaluate_by_ksm){
+//								// update kmer Engine with the input k-mers for extracting KSM, do not use base kmer for matching
+//								updateEngine(inputKmers, false, false);	
+//								NewKSM newKSM = extractKSM (seqList_j, cluster2.k);
+//								if (newKSM!=null&&newKSM.threshold!=null){
+//									cluster2.alignedKmers = newKSM.kmers;
+//									cluster2.ksmThreshold = newKSM.threshold;
+//								}
+//								else{	// if no good KSM
+//						    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)+" is removed.");
+//									cluster2.wm = null;
+//									toRemove.add(cluster2);
+//									for (MotifCluster c: clusters){
+//										checked[c.clusterId][cluster2.clusterId]=true;
+//										checked[cluster2.clusterId][c.clusterId]=true;
+//									}
+//									continue;
+//								}
+//							}
+//							// check if new PWM has sufficient hit
+//							if (alignedSeqCount<seqs.length*config.motif_hit_factor_report){
+//								if (config.verbose>1)
+//						    		System.out.println(String.format("%s: Too few new PWM hits (%d) , remove motif #%d.", 
+//						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster2.clusterId));
+//								cluster2.wm = null;
+//								toRemove.add(cluster2);
+//								for (MotifCluster c: clusters){
+//									checked[c.clusterId][cluster2.clusterId]=true;
+//									checked[cluster2.clusterId][c.clusterId]=true;
+//								}
+//							}
+//							else{
+//								if (config.verbose>1)
+//						    		System.out.println(String.format("%s: New PWM has sufficient hit %d, keep motif #%d.", 
+//						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster2.clusterId));
+//								if (!isChanged){		// if motif 1 is not changed, set this pair as checked.
+//									checked[cluster1.clusterId][cluster2.clusterId] = true;
+//									checked[cluster2.clusterId][cluster1.clusterId] = true;
+//								}
+//							}
+//						}
+//						else{	// if no PWM
+//							cluster2.wm = null;
+//							toRemove.add(cluster2);
+//							for (MotifCluster c: clusters){
+//								checked[c.clusterId][cluster2.clusterId]=true;
+//								checked[cluster2.clusterId][c.clusterId]=true;
+//							}
+//						}
+//					}
+//				}
+//				else{
 					toRemove.add(cluster2);
+					cluster2.inputKmers=null;cluster2.alignedKmers=null;
 					System.out.println(String.format("%s: Remove motif #%d.", 
 			    			CommonUtils.timeElapsed(tic), cluster2.clusterId));
 					for (MotifCluster c: clusters){
 						checked[c.clusterId][cluster2.clusterId]=true;
 						checked[cluster2.clusterId][c.clusterId]=true;
 					}
-				}
+//				}
 			}		
 			else{					// if overlap is not big enough
 				checked[cluster1.clusterId][cluster2.clusterId] = true;
@@ -3338,6 +3341,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		}
 	}
 	clusters.removeAll(toRemove);
+	System.gc();
 	
 	// if merged, recursively merge, otherwise return
 	if (isChanged){		
@@ -5338,7 +5342,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		ArrayList<Kmer> alignedKmers;			// The K-mer set motif, a set of aligned k-mers
 		ArrayList<Kmer> inputKmers;				// The whole set of input K-mers
 		int total_aligned_seqs;
-		HashMap<Integer, PWMHit> seq2hits = null;
 		double pi;
 		
 		MotifCluster(){}	// empty constructor;

@@ -426,6 +426,14 @@ public class StatUtil {
 		}
 		return max;
 	}
+	public static float getMax(float[] x){
+		float max = Float.MIN_VALUE;
+		for (int i=0;i<x.length;i++){
+			if (max<x[i])
+				max = x[i];
+		}
+		return max;
+	}	
 	public static int getMax(int[] x){
 		int max = Integer.MIN_VALUE;
 		for (int i=0;i<x.length;i++){
@@ -1802,10 +1810,10 @@ public class StatUtil {
 	 */
 	public class DensityClusteringPoint implements Comparable<DensityClusteringPoint>{
 		public int id;		// the original id of the data point
-		public double density=0;		// density as total count by the neighborhood
-		public double densitySxN=0;		// sqrt (self density * neighborhood density)
-		public double delta=0;
-		public double gamma=0;
+		public float density=0;		// density as total count by the neighborhood
+		public float densitySxN=0;		// sqrt (self density * neighborhood density)
+		public float delta=0;
+		public float gamma=0;
 		public int delta_id;
 		public ArrayList<DensityClusteringPoint> members = new ArrayList<DensityClusteringPoint>();
 		public TreeSet<Integer> memberIds = new TreeSet<Integer>();

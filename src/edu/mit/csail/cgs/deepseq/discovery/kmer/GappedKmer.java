@@ -21,7 +21,8 @@ public class GappedKmer extends Kmer{
 
 	/** 
 	 * Add the base kmer to the base-kmers for the gapped kmer<br>
-	 * SHOULD NOT RC() the base-kmers after adding it because their kmerStrings will be used in KSM output and later KSM scanning<br>
+	 * SHOULD NOT RC() the base-kmers after adding it because base-kmers can map to multiple gapped k-mers, 
+	 * their kmerStrings will be used in KSM output and later KSM scanning<br>
 	 * in KMAC, we only care about the pos/neg hits, and has stored the orientation
 	 * @param kmer
 	 */
@@ -66,7 +67,7 @@ public class GappedKmer extends Kmer{
 	}
 	
 	public void setMatrix(){
-		matrix = new double[kmerString.length()][KMAC1.LETTERS.length];
+		matrix = new float[kmerString.length()][KMAC1.LETTERS.length];
 		for (Kmer bk: getBaseKmers()){
 			String ks = getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
 			for (int ii=0;ii<bk.getK();ii++){
@@ -78,7 +79,7 @@ public class GappedKmer extends Kmer{
 		}
 		// normalize at each position
 		for (int ii=0;ii<matrix.length;ii++){
-			double sum=0;
+			float sum=0;
 			for (int j=0;j<KMAC1.LETTERS.length;j++)
 				sum += matrix[ii][j];
 			for (int j=0;j<KMAC1.LETTERS.length;j++)

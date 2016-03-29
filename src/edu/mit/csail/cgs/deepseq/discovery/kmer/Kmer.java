@@ -38,10 +38,10 @@ public class Kmer implements Comparable<Kmer>{
 		return treeIndex;
 	}
 	
-	protected double[][] matrix =null;
-	protected double[][] matrix_rc =null;		// reverse compliment
+	protected float[][] matrix =null;
+	protected float[][] matrix_rc =null;		// reverse compliment
 	public void setMatrix (){
-		matrix = new double[kmerString.length()][KMAC1.LETTERS.length];
+		matrix = new float[kmerString.length()][KMAC1.LETTERS.length];
 		for (int ii=0;ii<kmerString.length();ii++){
 			for (int j=0;j<KMAC1.LETTERS.length;j++){
 				if (kmerString.charAt(ii) == KMAC1.LETTERS[j])
@@ -51,7 +51,7 @@ public class Kmer implements Comparable<Kmer>{
 		setMatrixRC();
 	}
 	protected void setMatrixRC(){
-		matrix_rc = new double[kmerString.length()][KMAC1.LETTERS.length];
+		matrix_rc = new float[kmerString.length()][KMAC1.LETTERS.length];
 		for (int ii=0;ii<kmerString.length();ii++){
 			for (int j=0;j<KMAC1.LETTERS.length;j++){
 					matrix_rc[ii][j] = matrix[kmerString.length()-1-ii][KMAC1.LETTERS.length-1-j];
@@ -59,10 +59,10 @@ public class Kmer implements Comparable<Kmer>{
 		}
 	}
 	
-	public double[][] getMatrix (){
+	public float[][] getMatrix (){
 		return matrix;
 	}
-	public double[][] getMatrixRC (){
+	public float[][] getMatrixRC (){
 		return matrix_rc;
 	}
 	public void clearMatrix(){
