@@ -898,12 +898,12 @@ public class KMAC1 {
 		/**
 		 * Generate all exact k-mers
 		 */
-		ArrayList<ArrayList<ArrayList<char[]>>> allK_allPatterns = new ArrayList<ArrayList<ArrayList<char[]>>>(k_max+config.gap);
-		for (int i=0;i<=k_max+config.gap;i++)
-			allK_allPatterns.add(new ArrayList<ArrayList<char[]>>());
-		for (int i=k_min; i<=k_max+config.gap; i++){
-			allK_allPatterns.set(i, generateKmers(i));
-		}
+//		ArrayList<ArrayList<ArrayList<char[]>>> allK_allPatterns = new ArrayList<ArrayList<ArrayList<char[]>>>(k_max+config.gap);
+//		for (int i=0;i<=k_max+config.gap;i++)
+//			allK_allPatterns.add(new ArrayList<ArrayList<char[]>>());
+//		for (int i=k_min; i<=k_max+config.gap; i++){
+//			allK_allPatterns.set(i, generateKmers(i));
+//		}
 		
 		/**
 		 * Assemble gapped k-mers and exact k-mers for each k value
@@ -911,7 +911,7 @@ public class KMAC1 {
 		for (int k=k_min;k<=k_max;k++){
 			StringBuilder sb = new StringBuilder();
 			System.out.println("\n----------------------------------------------------------\nTrying k="+k+" ...\n");
-			Pair<ArrayList<Kmer>, ArrayList<Kmer>> pair = selectEnrichedKmers(k, allK_allPatterns);
+			Pair<ArrayList<Kmer>, ArrayList<Kmer>> pair = selectEnrichedKmers(k);
 			ArrayList<Kmer> allSignificantKmers = pair.car();
 			ArrayList<Kmer> kmers = pair.cdr();
 		
@@ -1078,8 +1078,8 @@ public class KMAC1 {
 			allClusters.addAll(tmp);
 		} // for each k
 		
-		allK_allPatterns = null;
-		allKmerMap = null;
+//		allK_allPatterns.clear(); allK_allPatterns = null;
+		allKmerMap.clear();	allKmerMap = null;
 		clusters = allClusters;
 		allClusters = null;
 		
@@ -1272,9 +1272,9 @@ public class KMAC1 {
 	
 	
 	/** 
-	 * Index k-mers from the positive sequences, select enriched k-mers
+	 * Generate ungapped k-mers from the positive sequences, upto a relax enrichment cutoff
 	 * */
-	public ArrayList<ArrayList<char[]>> generateKmers(int k){
+	public HashMap<String, Kmer> generateKmers(int k){
 		tic = System.currentTimeMillis();
 		
 		double relaxFactor = 0.6;
@@ -1426,90 +1426,164 @@ public class KMAC1 {
 		
 		System.out.println(String.format("k=%d, relaxed_hgp=%.2f, total exact kmer=%d, %s", 
 				k, relaxed_hgp, bkMap.size(), CommonUtils.timeElapsed(tic)));
-
+		return bkMap;
 		
+//		/***************************************************************************************
+//		 * Compute pair-wise k-mer mismatch distance, prepare for making gapped k-mers
+//		 ***************************************************************************************/
+//		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+//		kmers.addAll(bkMap.values());
+//		kmers.trimToSize();
+//		Collections.sort(kmers);
+//
+//		ArrayList<ArrayList<char[]>> allPatterns = new ArrayList<ArrayList<char[]>>();	// gap patterns for all #gap
+//		for (int i=0;i<=config.gap;i++)
+//			allPatterns.add(new ArrayList<char[]>());
+//		
+//		for (int i=0;i<kmers.size();i++){
+//			for (int j=i+1;j<kmers.size();j++){
+//				String s1 = kmers.get(i).kmerString;
+//				String s2 = kmers.get(j).kmerString;
+//				ArrayList<Integer> mismatchPos = new ArrayList<Integer>();
+//				int mismatchCount = 0;
+//				for (int id=0;id<s1.length();id++){
+//					if (mismatchCount>config.gap){				// early stop: only care mismatch upto numGap
+//						mismatchCount = Integer.MAX_VALUE;
+//						break;
+//					}
+//					if (s1.charAt(id)!=s2.charAt(id)){
+//						mismatchCount++;
+//						mismatchPos.add(id);
+//					}
+//				}
+//				if (mismatchPos.contains(0) || mismatchPos.contains(s1.length()-1)){	// exclude edge gaps
+//					mismatchCount = Integer.MAX_VALUE;
+//				}
+//				
+//				// RC  (the following code is duplicated, don't want to make a function to avoid overhead, b/c this will loop NxN.)
+//				String s2rc = kmers.get(j).kmerRC;
+//				ArrayList<Integer> mismatchPosRc = new ArrayList<Integer>();
+//				int mismatchCountRc = 0;
+//				for (int id=0;id<s1.length();id++){
+//					if (mismatchCountRc>=mismatchCount){		// early stop if it is not better than forward kmer
+//						mismatchCountRc = Integer.MAX_VALUE;
+//						break;
+//					}
+//					if (s1.charAt(id)!=s2rc.charAt(id)){
+//						mismatchCountRc++;
+//						mismatchPosRc.add(id);
+//					}
+//				}
+//				if (mismatchPosRc.contains(0) || mismatchPosRc.contains(s1.length()-1)){	// exclude edge gaps
+//					mismatchCountRc = Integer.MAX_VALUE;
+//				}
+//				// compare forward and RC, add pattern to the list
+//				// TODO: should a pattern be also added to a higher mismatch list??
+//				char[] pattern = s1.toCharArray();
+//				if (mismatchCount <= mismatchCountRc && mismatchCount<=config.gap){
+//					for (int id:mismatchPos)
+//						pattern[id]='N';
+//					allPatterns.get(mismatchCount).add(pattern);
+//				}
+//				else if (mismatchCountRc<=config.gap){
+//					for (int id:mismatchPosRc)
+//						pattern[id]='N';
+//					allPatterns.get(mismatchCountRc).add(pattern);					
+//				}
+//			}
+//		}
+//		System.out.print(String.format("k=%d, gap patterns: ", k));
+//		for (int i=1;i<=config.gap;i++){
+//			allPatterns.get(i).trimToSize();
+//			System.out.print(String.format("%d+%d(%d) ", k-i, i, allPatterns.get(i).size())); 
+//		}
+//		System.out.println(", "+ CommonUtils.timeElapsed(tic));
+//		
+//		return allPatterns;
+	}
+	
+	private ArrayList<char[]> getPatterns(int k, int gap){
 		/***************************************************************************************
 		 * Compute pair-wise k-mer mismatch distance, prepare for making gapped k-mers
 		 ***************************************************************************************/
+		int kFull = k+gap;
+		
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-		kmers.addAll(bkMap.values());
+		kmers.addAll(allKmerMap.get(kFull).values());
 		kmers.trimToSize();
 		Collections.sort(kmers);
 
-		ArrayList<ArrayList<char[]>> allPatterns = new ArrayList<ArrayList<char[]>>();	// gap patterns for all #gap
-		for (int i=0;i<=config.gap;i++)
-			allPatterns.add(new ArrayList<char[]>());
-		
+		ArrayList<char[]> patterns = new ArrayList<char[]>();	// gap patterns	
+		ArrayList<Integer> mismatchPos = new ArrayList<Integer>();
+		int mismatchCount = 0;
+		String s1=null;
+		String s2=null;
 		for (int i=0;i<kmers.size();i++){
 			for (int j=i+1;j<kmers.size();j++){
-				String s1 = kmers.get(i).kmerString;
-				String s2 = kmers.get(j).kmerString;
-				ArrayList<Integer> mismatchPos = new ArrayList<Integer>();
-				int mismatchCount = 0;
-				for (int id=0;id<s1.length();id++){
-					if (mismatchCount>config.gap){				// early stop: only care mismatch upto numGap
-						mismatchCount = Integer.MAX_VALUE;
-						break;
+				s1 = kmers.get(i).kmerString;
+				s2 = kmers.get(j).kmerString;
+				if (s1.charAt(0)==s2.charAt(0) && s1.charAt(kFull-1)==s2.charAt(kFull-1)){
+					for (int id=1;id<kFull-1;id++){	// exclude edge gaps	// s1 and s2 are of same length
+						if (s1.charAt(id)!=s2.charAt(id)){
+							mismatchCount++;
+							mismatchPos.add(id);
+						}
+						if (mismatchCount>gap)			// early stop: only care mismatch numGap
+							break;
 					}
-					if (s1.charAt(id)!=s2.charAt(id)){
-						mismatchCount++;
-						mismatchPos.add(id);
+					if (mismatchCount==gap){	
+						char[] pattern = s1.toCharArray();
+						for (int id:mismatchPos)
+							pattern[id]='N';
+						patterns.add(pattern);
+//						System.out.println(s1+" "+s2+" "+String.valueOf(pattern));
 					}
+					mismatchPos.clear();
+					mismatchCount=0;
 				}
-				if (mismatchPos.contains(0) || mismatchPos.contains(s1.length()-1)){	// exclude edge gaps
-					mismatchCount = Integer.MAX_VALUE;
-				}
-				
 				// RC  (the following code is duplicated, don't want to make a function to avoid overhead, b/c this will loop NxN.)
-				String s2rc = kmers.get(j).kmerRC;
-				ArrayList<Integer> mismatchPosRc = new ArrayList<Integer>();
-				int mismatchCountRc = 0;
-				for (int id=0;id<s1.length();id++){
-					if (mismatchCountRc>=mismatchCount){		// early stop if it is not better than forward kmer
-						mismatchCountRc = Integer.MAX_VALUE;
-						break;
+				s2 = kmers.get(j).kmerRC;
+				if (s1.charAt(0)==s2.charAt(0) && s1.charAt(kFull-1)==s2.charAt(kFull-1)){	// edge must be the same, otherwise the pattern is the same as ungapped k-mer
+					for (int id=1;id<s1.length()-1;id++){	// exclude edge gaps	// s1 and s2 are of same length
+						if (s1.charAt(id)!=s2.charAt(id)){
+							mismatchCount++;
+							mismatchPos.add(id);
+						}
+						if (mismatchCount>gap)			// early stop: only care mismatch numGap
+							break;
 					}
-					if (s1.charAt(id)!=s2rc.charAt(id)){
-						mismatchCountRc++;
-						mismatchPosRc.add(id);
+					if (mismatchCount==gap){	
+						char[] pattern = s1.toCharArray();
+						for (int id:mismatchPos)
+							pattern[id]='N';
+						patterns.add(pattern);
+//						System.out.println(s1+" "+s2+" "+String.valueOf(pattern));
 					}
-				}
-				if (mismatchPosRc.contains(0) || mismatchPosRc.contains(s1.length()-1)){	// exclude edge gaps
-					mismatchCountRc = Integer.MAX_VALUE;
-				}
-				// compare forward and RC, add pattern to the list
-				// TODO: should a pattern be also added to a higher mismatch list??
-				char[] pattern = s1.toCharArray();
-				if (mismatchCount <= mismatchCountRc && mismatchCount<=config.gap){
-					for (int id:mismatchPos)
-						pattern[id]='N';
-					allPatterns.get(mismatchCount).add(pattern);
-				}
-				else if (mismatchCountRc<=config.gap){
-					for (int id:mismatchPosRc)
-						pattern[id]='N';
-					allPatterns.get(mismatchCountRc).add(pattern);					
+					mismatchPos.clear();
+					mismatchCount=0;
 				}
 			}
 		}
-		System.out.print(String.format("k=%d, gap patterns: ", k));
-		for (int i=1;i<=config.gap;i++){
-			allPatterns.get(i).trimToSize();
-			System.out.print(String.format("%d+%d(%d) ", k-i, i, allPatterns.get(i).size())); 
-		}
-		System.out.println(", "+ CommonUtils.timeElapsed(tic));
+		patterns.trimToSize();
+//		System.out.print(String.format("%d+%d(%d) ", k, gap, patterns.size())); 
 		
-		return allPatterns;
+		return patterns;
 	}
 
 	/**
 	 * Assemble exact and gapped k-mers for k using pre-defined gapped wildcard patterns
 	 */
-	private Pair<ArrayList<Kmer>, ArrayList<Kmer>> selectEnrichedKmers(int k, ArrayList<ArrayList<ArrayList<char[]>>> allK_allPatterns){
+	private Pair<ArrayList<Kmer>, ArrayList<Kmer>> selectEnrichedKmers(int k){ //, ArrayList<ArrayList<ArrayList<char[]>>> allK_allPatterns){
 		ArrayList<Kmer> allSignificantKmers = new ArrayList<Kmer>();	// object to save all the significant k-mers
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		// exact k-mers
-		for (Kmer kmer: allKmerMap.get(k).values()){
+		HashMap<String, Kmer> ungappedKmerMap = null;
+		
+		if (allKmerMap.containsKey(k))
+			ungappedKmerMap = allKmerMap.get(k);
+		else
+			ungappedKmerMap = generateKmers(k);
+		for (Kmer kmer: ungappedKmerMap.values()){
 			if (kmer.getHgp() <= config.kmer_hgp){
 				kmers.add(kmer);	
 			}
@@ -1517,11 +1591,12 @@ public class KMAC1 {
 		allSignificantKmers.addAll(kmers);
 		if (config.print_all_kmers){
 			ArrayList<Kmer> kmersAll = new ArrayList<Kmer>();
-			kmersAll.addAll(allKmerMap.get(k).values());
+			kmersAll.addAll(ungappedKmerMap.values());
 			Collections.sort(kmersAll);
 			GappedKmer.printKSM(kmersAll, null, k, 0, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
-		}			
-		allKmerMap.remove(k);		// remove the k-mer with length k, assuming selectEnrichedKmers() is called with increasing k, they are not used any more
+		}
+		allKmerMap.remove(k);
+		ungappedKmerMap = null;		// remove the k-mer with length k, assuming selectEnrichedKmers() is called with increasing k, they are not used any more
 		Collections.sort(kmers, new Comparator<Kmer>(){
             public int compare(Kmer o1, Kmer o2) {
                 return o1.compareByHGP(o2);
@@ -1536,9 +1611,16 @@ public class KMAC1 {
 		for (int numGap=1;numGap<=config.gap;numGap++){
 			HashMap<String, GappedKmer> gkMap = new HashMap<String, GappedKmer>();
 			int kFull = k+numGap;
-			ArrayList<char[]> allPatterns = allK_allPatterns.get(kFull).get(numGap);
-			allK_allPatterns.get(kFull).set(numGap, null);		// clean up
-			HashMap<String,Kmer> bkMap = allKmerMap.get(kFull);
+			
+			HashMap<String,Kmer> bkMap = null;
+			if (allKmerMap.containsKey(kFull))
+				bkMap =	allKmerMap.get(kFull);
+			else{
+				bkMap = generateKmers(kFull);
+				if (k<config.k_max)
+					allKmerMap.put(kFull, bkMap);
+			}
+			ArrayList<char[]> allPatterns = getPatterns(k, numGap);
 			
 			// prepare the variants
 			int numVariants = 1;
