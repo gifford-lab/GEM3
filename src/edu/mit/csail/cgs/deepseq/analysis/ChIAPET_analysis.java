@@ -688,8 +688,8 @@ public class ChIAPET_analysis {
 		HashMap<Point, Point> germTss2Distal = new HashMap<Point, Point>();
 		for (String l: lines){		// each line is a call
 			String f[] = l.split("\t");
-			germTss2Distal.put(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint(), 
-					new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint());
+			germTss2Distal.put(new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint(),
+					new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint());
 		}
 		ArrayList<Point> germTss = new ArrayList<Point>();
 		germTss.addAll(germTss2Distal.keySet());
@@ -722,9 +722,11 @@ public class ChIAPET_analysis {
 				else{		// have a large distance, finish old cluster, create new cluster
 					if (cluster.size()>=minRead){	// at least 2 reads
 						int median = cluster.get(cluster.size()/2);
+						Point tssPoint = t.coord;
+						Point distalPoint = new Point(genome, t.coord.getChrom(),t.coord.getLocation()+(t.coord.getStrand()=='+'?median:-median));
 						// print result if the read cluster is not in the tss exclusion range
-						System.out.print(String.format("%s\t%s\t%d\t%d\t%d\t%d\t", 
-								t.symbol, t.coord.getLocationString(), t.id, median, cluster.size(), 
+						System.out.print(String.format("%s\t%s\t%d\t%s\t%d\t%d\t%d\t", 
+								t.symbol, t.coord.getLocationString(), t.id, distalPoint.getLocationString(), median, cluster.size(), 
 								cluster.get(cluster.size()-1)-cluster.get(0)));
 						
 						// print binding overlap information
@@ -738,8 +740,6 @@ public class ChIAPET_analysis {
 						}
 						
 						// print ChIA-PET call overlap info
-						Point tssPoint = t.coord;
-						Point distalPoint = new Point(genome, t.coord.getChrom(),t.coord.getLocation()+(t.coord.getStrand()=='+'?median:-median));
 						Point tssLeft = new Point(genome, t.coord.getChrom(),t.coord.getLocation()-2000);
 						Point tssRight = new Point(genome, t.coord.getChrom(),t.coord.getLocation()+2000);
 						
