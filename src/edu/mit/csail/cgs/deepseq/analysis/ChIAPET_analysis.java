@@ -743,7 +743,7 @@ public class ChIAPET_analysis {
 							for (int clusterOffset: cluster){
 								isBound = isBound || t.reads.get(clusterOffset).get(c);
 							}
-//							System.out.print(isBound?"1\t":"0\t");
+							System.out.print(isBound?"1\t":"0\t");
 						}
 						
 						// print ChIA-PET call overlap info
