@@ -24,6 +24,7 @@ import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
+import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class ChIAPET_analysis {
 	Genome genome;
@@ -685,31 +686,37 @@ public class ChIAPET_analysis {
 		}
 
 		lines = CommonUtils.readTextFile(Args.parseString(args, "germ", null));
-		HashMap<Point, Point> germTss2Distal = new HashMap<Point, Point>();
+		HashMap<Point,ArrayList<Point>> germTss2distals = new HashMap<Point,ArrayList<Point>>();
+		ArrayList<Point> germTss = new ArrayList<Point>();
 		for (String l: lines){		// each line is a call
 			String f[] = l.split("\t");
-			germTss2Distal.put(new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint(),
-					new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint());
+			Point t = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint();
+			if (!germTss2distals.containsKey(t))
+				germTss2distals.put(t, new ArrayList<Point>());
+			germTss2distals.get(t).add(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint());
 		}
-		ArrayList<Point> germTss = new ArrayList<Point>();
-		germTss.addAll(germTss2Distal.keySet());
+		germTss.addAll(germTss2distals.keySet());
 		Collections.sort(germTss);
 		
 		lines = CommonUtils.readTextFile(Args.parseString(args, "mango", null));
-		HashMap<Point, Point> a2b = new HashMap<Point, Point>();
-		HashMap<Point, Point> b2a = new HashMap<Point, Point>();
+		HashMap<Point, ArrayList<Point>> a2bs = new HashMap<Point, ArrayList<Point>>();
+		HashMap<Point, ArrayList<Point>> b2as = new HashMap<Point, ArrayList<Point>>();
 		for (String l: lines){		// each line is a call
 			String f[] = l.split("\t");
-			a2b.put(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint(), 
-					new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint());
-			b2a.put(new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint(),
-					new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint());
+			Point a = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint();
+			Point b = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint();
+			if (!a2bs.containsKey(a))
+				a2bs.put(a, new ArrayList<Point>());
+			a2bs.get(a).add(b);
+			if (!b2as.containsKey(b))
+				b2as.put(b, new ArrayList<Point>());
+			b2as.get(b).add(a);
 		}
 		ArrayList<Point> aPoints = new ArrayList<Point>();
-		aPoints.addAll(a2b.keySet());
+		aPoints.addAll(a2bs.keySet());
 		Collections.sort(aPoints);
 		ArrayList<Point> bPoints = new ArrayList<Point>();
-		bPoints.addAll(b2a.keySet());
+		bPoints.addAll(b2as.keySet());
 		Collections.sort(bPoints);
 		
 		// cluster the reads
@@ -736,7 +743,7 @@ public class ChIAPET_analysis {
 							for (int clusterOffset: cluster){
 								isBound = isBound || t.reads.get(clusterOffset).get(c);
 							}
-							System.out.print(isBound?"1\t":"0\t");
+//							System.out.print(isBound?"1\t":"0\t");
 						}
 						
 						// print ChIA-PET call overlap info
@@ -752,13 +759,24 @@ public class ChIAPET_analysis {
 							indexRight = -(indexRight+1); 
 						// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
 						boolean isOverlapped = false;
-						for (int i=index-1;i<=indexRight+2;i++){
+						indexRange: for (int i=index-1;i<=indexRight+2;i++){
 							if (i<0 || i>=germTss.size())
 								continue;
 							try{
-								if (germTss.get(i).distance(tssPoint)<=2000 && germTss2Distal.get(germTss.get(i)).distance(distalPoint)<=2000){
-									isOverlapped = true;
-									break;
+								Point tt = germTss.get(i);
+								if (tt.distance(tssPoint)<=2000){ 
+									if (!germTss2distals.containsKey(tt))
+										continue;
+									for (Point d:germTss2distals.get(tt)){
+//										System.out.print(tt.getLocationString()+"\t"+d.getLocationString());
+										if (d.distance(distalPoint)<=2000){
+											isOverlapped = true;
+//											System.out.println("\tHIT");
+											break indexRange;
+										}
+//										else
+//											System.out.println();
+									}
 								}
 							}
 							catch (IllegalArgumentException e){	// ignore								
@@ -775,13 +793,20 @@ public class ChIAPET_analysis {
 							indexRight = -(indexRight+1); 
 						// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
 						isOverlapped = false;
-						for (int i=index-1;i<=indexRight+2;i++){
+						indexA: for (int i=index-1;i<=indexRight+2;i++){
 							if (i<0 || i>=aPoints.size())
 								continue;
 							try{
-								if (aPoints.get(i).distance(tssPoint)<=2000 && a2b.get(aPoints.get(i)).distance(distalPoint)<=2000){
-									isOverlapped = true;
-									break;
+								Point a = aPoints.get(i);
+								if (a.distance(tssPoint)<=2000){ 
+									if (!a2bs.containsKey(a))
+										continue;
+									for (Point b:a2bs.get(a)){
+										if (b.distance(distalPoint)<=2000){
+											isOverlapped = true;
+											break indexA;
+										}
+									}
 								}
 							}
 							catch (IllegalArgumentException e){	// ignore								
@@ -798,13 +823,20 @@ public class ChIAPET_analysis {
 								indexRight = -(indexRight+1); 
 							// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
 							isOverlapped = false;
-							for (int i=index-1;i<=indexRight+2;i++){
+							indexB: for (int i=index-1;i<=indexRight+2;i++){
 								if (i<0 || i>=bPoints.size())
 									continue;
 								try{
-									if (bPoints.get(i).distance(tssPoint)<=2000 && b2a.get(bPoints.get(i)).distance(distalPoint)<=2000){
-										isOverlapped = true;
-										break;
+									Point b = bPoints.get(i);
+									if (b.distance(tssPoint)<=2000){ 
+										if (!b2as.containsKey(b))
+											continue;
+										for (Point a:b2as.get(b)){
+											if (a.distance(distalPoint)<=2000){
+												isOverlapped = true;
+												break indexB;
+											}
+										}
 									}
 								}
 								catch (IllegalArgumentException e){	// ignore								
