@@ -3,6 +3,7 @@ package edu.mit.csail.cgs.deepseq.analysis;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -684,15 +685,32 @@ public class ChIAPET_analysis {
 		}
 
 		lines = CommonUtils.readTextFile(Args.parseString(args, "germ", null));
-		HashMap<Region, Region> germTss2Distal = new HashMap<Region, Region>();
+		HashMap<Point, Point> germTss2Distal = new HashMap<Point, Point>();
 		for (String l: lines){		// each line is a call
 			String f[] = l.split("\t");
-			germTss2Distal.put(new Region(genome, f[0], Integer.parseInt(f[1]), Integer.parseInt(f[2])), 
-					new Region(genome, f[3], Integer.parseInt(f[4]), Integer.parseInt(f[5])));
+			germTss2Distal.put(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint(), 
+					new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint());
 		}
-		ArrayList<Region> germTss = new ArrayList<Region>();
+		ArrayList<Point> germTss = new ArrayList<Point>();
 		germTss.addAll(germTss2Distal.keySet());
 		Collections.sort(germTss);
+		
+		lines = CommonUtils.readTextFile(Args.parseString(args, "mango", null));
+		HashMap<Point, Point> a2b = new HashMap<Point, Point>();
+		HashMap<Point, Point> b2a = new HashMap<Point, Point>();
+		for (String l: lines){		// each line is a call
+			String f[] = l.split("\t");
+			a2b.put(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint(), 
+					new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint());
+			b2a.put(new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint(),
+					new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint());
+		}
+		ArrayList<Point> aPoints = new ArrayList<Point>();
+		aPoints.addAll(a2b.keySet());
+		Collections.sort(aPoints);
+		ArrayList<Point> bPoints = new ArrayList<Point>();
+		bPoints.addAll(b2a.keySet());
+		Collections.sort(bPoints);
 		
 		// cluster the reads
 		for (TSS t:allTss){
@@ -720,6 +738,80 @@ public class ChIAPET_analysis {
 						}
 						
 						// print ChIA-PET call overlap info
+						Point tssPoint = t.coord;
+						Point distalPoint = new Point(genome, t.coord.getChrom(),t.coord.getLocation()+(t.coord.getStrand()=='+'?median:-median));
+						Point tssLeft = new Point(genome, t.coord.getChrom(),t.coord.getLocation()-2000);
+						Point tssRight = new Point(genome, t.coord.getChrom(),t.coord.getLocation()+2000);
+						
+						// GERM
+						int index = Collections.binarySearch(germTss,  tssLeft);
+						if( index < 0 )  							// if key not found
+							index = -(index+1); 
+						int indexRight = Collections.binarySearch(germTss,  tssRight);
+						if( indexRight < 0 )  							// if key not found
+							indexRight = -(indexRight+1); 
+						// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+						boolean isOverlapped = false;
+						for (int i=index-1;i<=indexRight+2;i++){
+							if (i<0 || i>=germTss.size())
+								continue;
+							try{
+								if (germTss.get(i).distance(tssPoint)<=2000 && germTss2Distal.get(germTss.get(i)).distance(distalPoint)<=2000){
+									isOverlapped = true;
+									break;
+								}
+							}
+							catch (IllegalArgumentException e){	// ignore								
+							}								
+						}
+						System.out.print(isOverlapped?"1\t":"0\t");
+						
+						// Mango
+						index = Collections.binarySearch(aPoints,  tssLeft);
+						if( index < 0 )  							// if key not found
+							index = -(index+1); 
+						indexRight = Collections.binarySearch(aPoints,  tssRight);
+						if( indexRight < 0 )  							// if key not found
+							indexRight = -(indexRight+1); 
+						// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+						isOverlapped = false;
+						for (int i=index-1;i<=indexRight+2;i++){
+							if (i<0 || i>=aPoints.size())
+								continue;
+							try{
+								if (aPoints.get(i).distance(tssPoint)<=2000 && a2b.get(aPoints.get(i)).distance(distalPoint)<=2000){
+									isOverlapped = true;
+									break;
+								}
+							}
+							catch (IllegalArgumentException e){	// ignore								
+							}
+						}
+						if (isOverlapped)
+							System.out.print("1\t");
+						else{
+							index = Collections.binarySearch(bPoints,  tssLeft);
+							if( index < 0 )  							// if key not found
+								index = -(index+1); 
+							indexRight = Collections.binarySearch(bPoints,  tssRight);
+							if( indexRight < 0 )  							// if key not found
+								indexRight = -(indexRight+1); 
+							// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+							isOverlapped = false;
+							for (int i=index-1;i<=indexRight+2;i++){
+								if (i<0 || i>=bPoints.size())
+									continue;
+								try{
+									if (bPoints.get(i).distance(tssPoint)<=2000 && b2a.get(bPoints.get(i)).distance(distalPoint)<=2000){
+										isOverlapped = true;
+										break;
+									}
+								}
+								catch (IllegalArgumentException e){	// ignore								
+								}								
+							}
+							System.out.print(isOverlapped?"1\t":"0\t");
+						}
 						
 						System.out.println();
 					}

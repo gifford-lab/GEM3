@@ -69,7 +69,7 @@ public class StrandedPoint extends Point implements Stranded {
       char strand = ' ';
       if (pieces.length == 3 && pieces[2].length() == 1) {
         strand = pieces[2].charAt(0);
-        if (strand!='+' || strand!='-')
+        if (strand!='+' && strand!='-')
         	strand = ' ';
         input = pieces[0] + ":" + pieces[1];
       }
