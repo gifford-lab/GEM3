@@ -865,7 +865,8 @@ public class KMAC1 {
 	public void discoverMotifs (int k_min, int k_max, int[] eventCounts){
 		
 		ArrayList<MotifCluster> allClusters = new ArrayList<MotifCluster>();		
-
+		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
+		
 		if (seqs.length<500){
 			config.pwm_noise = 0.1;
 			config.kmer_hgp = -1.3;
@@ -885,28 +886,8 @@ public class KMAC1 {
 		}
 		seqListNeg.trimToSize();
 				
-//		// init list to keep track of kmer matches in a sequence  // NOT USED NOW, because real time aho-crasic search is fast
-//		// negPositionPadding is used for indexing because seed_seq may be slightly negative in findIndexedKsmGroupHits().
-//		negPositionPadding = k_max*2;
-//		for (int i=0;i<config.k_win+negPositionPadding*2;i++){
-//			forward.add(new ArrayList<Kmer>());
-//			reverse.add(new ArrayList<Kmer>());
-//		}
-//		forward.trimToSize();
-//		reverse.trimToSize();
-
 		/**
-		 * Generate all exact k-mers
-		 */
-//		ArrayList<ArrayList<ArrayList<char[]>>> allK_allPatterns = new ArrayList<ArrayList<ArrayList<char[]>>>(k_max+config.gap);
-//		for (int i=0;i<=k_max+config.gap;i++)
-//			allK_allPatterns.add(new ArrayList<ArrayList<char[]>>());
-//		for (int i=k_min; i<=k_max+config.gap; i++){
-//			allK_allPatterns.set(i, generateKmers(i));
-//		}
-		
-		/**
-		 * Assemble gapped k-mers and exact k-mers for each k value
+		 * For each k, generate exact k-mers and gapped kmers, density clustering, KMAC
 		 */
 		for (int k=k_min;k<=k_max;k++){
 			StringBuilder sb = new StringBuilder();
@@ -1009,15 +990,40 @@ public class KMAC1 {
 			ArrayList<Kmer> seedKmers = new ArrayList<Kmer> ();
 			ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();
 			
+			int numKmer = 5000;
 	        for (int j=0;j<numKmerToTry;j++){	
 	        	Kmer seedKmer = centerKmers.get(j);
-				ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
-				for (Kmer km: allSignificantKmers){	
-					if (KMAC1.editDistance(seedKmer, km) <= cutoff+1)
-						neighbours.add(km);
-				}
 				seedKmers.add(seedKmer);
-				neighbourList.add(neighbours);
+				
+				ArrayList<Kmer> tmp = new ArrayList<Kmer>();
+				for (Kmer km: allSignificantKmers){		// get all the k-mers
+					if (KMAC1.editDistance(seedKmer, km) <= cutoff+1)
+						tmp.add(km);
+				}
+				if (tmp.size()<numKmer){
+					neighbourList.add(tmp);					
+				}
+				else{
+					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
+					for (Kmer km: kmers){		// get all the selected k-mers first
+						if (KMAC1.editDistance(seedKmer, km) <= cutoff+1)
+							neighbours.add(km);
+					}
+					System.out.print(neighbours.size()+" --> ");
+					
+					// randomly sample some allSignificantKmers, upto total 5000 kmers
+					for (int r=0;r<tmp.size();r++){
+						int idx = (int)(randomEngine.nextDouble()*tmp.size());
+						Kmer km = tmp.get(idx);
+						if (!neighbours.contains(km)){
+							neighbours.add(km);
+							if (neighbours.size()==numKmer)
+								break;
+						}
+					}
+					System.out.println(neighbours.size());
+					neighbourList.add(neighbours);
+				}
 	        }
 	        
 			// clear matrix, it is only used for calculating distance
@@ -1030,7 +1036,8 @@ public class KMAC1 {
 			pair = null;
 			System.gc();
 			System.out.println();
-//			centerKmers.clear(); // skip KMAC step, used only for testing
+			
+//			numKmerToTry=0; // skip KMAC step, used only for testing
 			
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 	        for (int j=0;j<numKmerToTry;j++){	
@@ -1573,7 +1580,7 @@ public class KMAC1 {
 	/**
 	 * Assemble exact and gapped k-mers for k using pre-defined gapped wildcard patterns
 	 */
-	private Pair<ArrayList<Kmer>, ArrayList<Kmer>> selectEnrichedKmers(int k){ //, ArrayList<ArrayList<ArrayList<char[]>>> allK_allPatterns){
+	private Pair<ArrayList<Kmer>, ArrayList<Kmer>> selectEnrichedKmers(int k){ 
 		ArrayList<Kmer> allSignificantKmers = new ArrayList<Kmer>();	// object to save all the significant k-mers
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		// exact k-mers
