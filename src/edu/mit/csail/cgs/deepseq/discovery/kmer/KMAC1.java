@@ -890,6 +890,8 @@ public class KMAC1 {
 		 * For each k, generate exact k-mers and gapped kmers, density clustering, KMAC
 		 */
 		for (int k=k_min;k<=k_max;k++){
+			System.out.println("\nmemory used = "+
+			(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 			StringBuilder sb = new StringBuilder();
 			System.out.println("\n----------------------------------------------------------\nTrying k="+k+" ...\n");
 			Pair<ArrayList<Kmer>, ArrayList<Kmer>> pair = selectEnrichedKmers(k);
@@ -1017,7 +1019,7 @@ public class KMAC1 {
 						Kmer km = tmp.get(idx);
 						if (!neighbours.contains(km)){
 							neighbours.add(km);
-							if (neighbours.size()==numKmer)
+							if (neighbours.size()>=numKmer)
 								break;
 						}
 					}
@@ -1048,6 +1050,8 @@ public class KMAC1 {
 				System.gc();
 	    		System.out.println("------------------------------------------------\n"+
 	    			"Aligning k-mers with "+seedKmer.getKmerStr()+",   \t#"+j);
+				System.out.println("\nmemory used = "+
+						(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 
 	        	MotifCluster c = KmerMotifAlignmentClustering(seqList, neighbours, seedKmer, k);
 	        	if (c!=null){	
@@ -1068,6 +1072,9 @@ public class KMAC1 {
 			if (config.verbose>1)
 				System.out.println(sb.toString());
 			
+			System.out.println("\nmemory used = "+
+					(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
+
 			if (tmp.size()>1){
 				System.out.println("Finding and merging redundant motifs ...");
 				boolean[][] checked = new boolean[tmp.size()][tmp.size()];	// a table indicating whether a pair has been checked
@@ -1101,6 +1108,8 @@ public class KMAC1 {
 			printMotifClusters(clusters, sb_all);
 			System.out.print(sb_all.toString());
 			
+			System.out.println("\nmemory used = "+
+					(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 			tic = System.currentTimeMillis();
 			boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// a table indicating whether a pair has been checked
 			mergeOverlapPwmMotifs (clusters, seqList, checked, config.use_ksm, 0);
@@ -1112,6 +1121,9 @@ public class KMAC1 {
 			System.out.print(sb_all.toString());
 		}
 		
+		System.out.println("\nmemory used = "+
+				(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
+
 		/** Refine final motifs, set binding positions, etc */
     	System.out.println(CommonUtils.timeElapsed(tic)+": Finalizing "+ clusters.size() +" motifs ...\n");
 
@@ -1725,7 +1737,6 @@ public class KMAC1 {
 					gk.mergeNegHits();
 					gk.setHgp(computeHGP(gk.getPosHitCount(), gk.getNegHitCount()));
 					if (gk.getHgp() <= config.kmer_hgp){		// Gapped k-mers passing cutoff are significant
-						gk.linkBaseKmers();
 						results.add(gk);
 					}
 				}
@@ -3076,7 +3087,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		updateEngine(seedFamily);
 		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights) : new KmerGroup(seedFamily, 0);
 		if (config.verbose>1) {
-			System.out.println(CommonUtils.timeElapsed(tic)+": evaluateKsmROC(seedFamily)");
+//			System.out.println(CommonUtils.timeElapsed(tic)+": evaluateKsmROC(seedFamily)");
 			Pair<double[],double[] > pair = scoreKsmSequences (seqList, seqListNeg, seedFamily);
 			double kAUC = evaluateScoreROC(pair.car(), pair.cdr(), config.fpr).motif_significance;
 			System.out.println(CommonUtils.timeElapsed(tic)+String.format(": Seed family %d kmers, motif kAUC = %.1f", seedFamily.size(), kAUC));
@@ -5671,143 +5682,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		}
 		MotifThreshold score = optimizeThreshold(posSeqScores, negSeqScores, startingScore, endingScore);
 		return score;
-//		
-//		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
-//		
-//		int startIdx = Arrays.binarySearch(posSeqScores, startingScore);
-//		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
-//		int endIdx = Arrays.binarySearch(posSeqScores, endingScore);
-//		if( endIdx < 0 ) { endIdx = -endIdx; }
-//		
-//		Arrays.sort(negSeqScores);
-//		
-//		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
-//		for (int i=startIdx;i<posSeqScores.length;i++)
-//			posScoreUnique.add(posSeqScores[i]);
-//		if (posScoreUnique.isEmpty()){						// this could happen if all pwm scores are less than 0
-//			MotifThreshold score = new MotifThreshold();
-//			score.motif_cutoff = 0;
-//			score.motif_significance = 0;
-//			score.posHit = 0;
-//			score.negHit = 0;
-//			return score;
-//		}
-//		
-//		// count hits at each score, compute hgp
-//		Double[] posScores_u = new Double[posScoreUnique.size()];
-//		posScoreUnique.toArray(posScores_u);
-//		double[] poshits = new double[posScoreUnique.size()];
-//		double[] neghits = new double[posScoreUnique.size()];
-//		double[] hgps = new double[posScoreUnique.size()];
-//		for (int i=0;i<posScores_u.length;i++){
-//			double key = posScores_u[i];
-//			int index = CommonUtils.findKey(posSeqScores, key);
-//			if (config.use_weighted_kmer){
-//				double weightedHit = 0;
-//				for (int s=index; s<posSeqScores.length; s++)
-//					weightedHit += seq_weights[ posIdx[s] ];
-//				poshits[i] = weightedHit;
-//			}
-//			else
-//				poshits[i] = posSeqScores.length-index;
-//			index = CommonUtils.findKey(negSeqScores, key);
-//			neghits[i] = negSeqScores.length-index;
-//		}
-//
-//		ArrayList<Integer> idxs = new ArrayList<Integer>();			// the score ids to compute the cutoff significance
-//		for (int i=posScores_u.length-1;i>=0;i--)
-//			if (poshits[i]>neghits[i]*1.5*posSeqCount/negSeqCount)	// posHit should be at least 1.5 fold
-//				idxs.add(i);
-//		
-//		Pair<Double, Integer> best;
-//		
-//		if (idxs.size()>100 && config.use_grid_search){
-//		
-//			// coarse search
-//			int gridStep = (int)Math.ceil(Math.sqrt((double)idxs.size()/2));
-//			ArrayList<Integer> idxCoarse = new ArrayList<Integer>();	
-//			for (int i=0;i<idxs.size();i+=gridStep){
-//				idxCoarse.add(idxs.get(i));
-//			}
-//			if (idxCoarse.get(idxCoarse.size()-1)!=idxs.get(idxs.size()-1))
-//				idxCoarse.add(idxs.get(idxs.size()-1));
-//			
-//			best = findBestScore(idxCoarse, poshits, neghits, hgps);
-//			
-//			// finer resolution search
-//			int bestIdx = idxs.indexOf(best.cdr());
-//			int start = Math.max(bestIdx-gridStep+1, 0);
-//			int end = Math.min(bestIdx+gridStep-1,idxs.size()-1) ;
-//			ArrayList<Integer> idxFine = new ArrayList<Integer>();	
-//			for (int i=start;i<=end;i++){
-//				idxFine.add(idxs.get(i));
-//			}
-//			
-//			best = findBestScore(idxFine, poshits, neghits, hgps);
-//		}
-//		else
-//			best = findBestScore(idxs, poshits, neghits, hgps);
-//		
-//		MotifThreshold score = new MotifThreshold();
-//		score.motif_cutoff = posScores_u[best.cdr()];
-//		score.motif_significance = best.car();
-//		score.posHit = (int) Math.round(poshits[best.cdr()]);
-//		score.negHit = (int) Math.round(neghits[best.cdr()]);
-////		if (printPwmHgp)
-////			CommonUtils.writeFile(outName+"_"+WeightMatrix.getMaxLetters(wm)+"_PwmHgp.txt", sb.toString());
-//		return score;
 	}
-//	/**
-//	 * Estimate threshold of a PWM (larger than and closest to wmScore) using the positive/negative sequences<br>
-//	 * This is different from optimizePwmThreshold in that it only compute 1 HGP
-//	 */
-//	private MotifThreshold estimatePwmThreshold(WeightMatrix wm, double wmScore){
-//		double[] posSeqScores = new double[posSeqCount];
-//		double[] negSeqScores = new double[negSeqCount];
-//		for (int i=0;i<posSeqCount;i++){
-//			posSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqs[i]);
-//		}
-//		Arrays.sort(posSeqScores);
-//		int startIdx = Arrays.binarySearch(posSeqScores, wmScore);
-//		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
-//		
-//		for (int i=0;i<negSeqCount;i++){
-//			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i));
-//		}
-//		Arrays.sort(negSeqScores);
-//		
-//		TreeSet<Double> posScoreUnique = new TreeSet<Double>();
-//		for (int i=startIdx;i<posSeqScores.length;i++)
-//			posScoreUnique.add(posSeqScores[i]);
-//		if (posScoreUnique.isEmpty()){						// this could happen if all pwm scores are less than 0
-//			MotifThreshold score = new MotifThreshold();
-//			score.motif_cutoff = 0;
-//			score.motif_significance = 0;
-//			score.posHit = 0;
-//			score.negHit = 0;
-//			return score;
-//		}
-//		// count hits at each score, compute hgp
-//		Double[] posScores_u = new Double[posScoreUnique.size()];
-//		posScoreUnique.toArray(posScores_u);
-//		
-//		MotifThreshold score = new MotifThreshold();
-//		for (int i=0;i<posScores_u.length;i++){
-//			score.motif_cutoff = posScores_u[i];
-//			int index = CommonUtils.findKey(posSeqScores, score.motif_cutoff);
-//			score.posHit = posSeqScores.length-index;
-//			index = CommonUtils.findKey(negSeqScores, score.motif_cutoff);
-//			score.negHit = negSeqScores.length-index;
-//			if (score.posHit>=score.negHit*2.0*posSeqCount/negSeqCount){	// posHit should be at least 2 fold
-//				score.motif_significance = computeHGP(posSeqCount, negSeqCount, score.posHit, score.negHit);
-//				return score;
-//			}			
-//		}
-//		// if we can not find a threshold that is larger than wmScore and have 2 fold enrichment, return with hgp=0
-//		score.motif_significance = 0;
-//		return score;
-//	}
-	
+
 	private MotifThreshold evaluatePwmROC(WeightMatrix wm, double falsePositiveRate){
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
@@ -5829,9 +5705,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * @return
 	 */
 	private MotifThreshold evaluateScoreROC(double[] posSeqScores, double[] negSeqScores, double falsePositiveRate){
-//		Arrays.sort(posSeqScores, Collections.reverseOrder());
-//		Arrays.sort(negSeqScores, Collections.reverseOrder());
-
 		ROC roc = new ROC(posSeqScores, negSeqScores);
 		MotifThreshold score = new MotifThreshold();
 		score.motif_significance = roc.partialAUC(falsePositiveRate)/falsePositiveRate*100;
@@ -5843,61 +5716,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	}
 	
 	
-//	/**
-//	 * Evaluate ROC performance given sorted scores
-//	 * @param posSeqScores
-//	 * @param negSeqScores
-//	 * @param fdr
-//	 * @return
-//	 */
-//	private static Pair<Double, Double> evaluateROC(double[] posScores, double[] negScores, double fdr, long rand_seed){
-//		int fdrIndex = (int)(negScores.length*(1-fdr));
-//		double fdrScore = negScores[fdrIndex];
-//		for (fdrIndex = negScores.length-1; fdrScore<=negScores[fdrIndex]; fdrIndex--){}
-//		fdrIndex++;
-//		int startIdx=0;
-//		for (startIdx = posScores.length-1; fdrScore<=posScores[startIdx]; startIdx--){}
-//		startIdx++;
-////		fdrIndex = Arrays.binarySearch(negScores, fdrScore);
-////
-////		int startIdx = Arrays.binarySearch(posScores, fdrScore);
-////		if( startIdx < 0 ) { startIdx = -startIdx - 1; }
-//		
-//		int[] rankedLabels = new int[posScores.length-startIdx+negScores.length-fdrIndex];
-//		int pi=posScores.length-1, ni=negScores.length-1;
-//		Random randObj = new Random(rand_seed);
-//		double randThresh = ((double)posScores.length-startIdx)/(posScores.length-startIdx+negScores.length-fdrIndex);
-//		while(pi>=startIdx && ni>=fdrIndex){
-//			int idx = posScores.length+negScores.length-2-(pi+ni);
-//			if(posScores[pi]>negScores[ni]){
-//				rankedLabels[idx]=1;
-//				pi--;
-//			}
-//			else if (posScores[pi]<negScores[ni]){
-//				rankedLabels[idx]=0;
-//				ni--;
-//			}
-//			else{	// if equal, random draw
-//				if (randObj.nextDouble()<=randThresh){
-//					rankedLabels[idx]=1;
-//					pi--;
-//				}
-//				else{
-//					rankedLabels[idx]=0;
-//					ni--;
-//				}
-//			}
-//		}
-//		Curve roc = new Curve(rankedLabels);
-//		double auroc=roc.rocArea();
-//		double threshold=posScores[posScores.length-1 - roc.optimalCutoffIndex()];
-//
-//		return new Pair<Double, Double>(auroc,threshold);
-//	}
-	
 	
 	/**
-	 * Multi-thread implementaton to compute HGP scores in pararell<br>
+	 * compute motif scores<br>
 	 * @param idxs	The indices of elements to compute
 	 * @param poshits
 	 * @param neghits
@@ -5909,8 +5730,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (i==0 && poshits[0]==posSeqCount)	//why?
     			motifScores[0]=0;
 			motifScores[i]= computeMotifSignificanceScore(poshits[i], neghits[i]);
-//			System.err.println(String.format("%d\t%.0f\t%.0f\t%.2f\t%.2f", i, poshits[i], neghits[i], 
-//					motifScores[i], -computeHGP((int)poshits[i], (int)neghits[i])));
 		}
 
 		Pair<Double, TreeSet<Integer>> maxScore = StatUtil.findMax(motifScores);

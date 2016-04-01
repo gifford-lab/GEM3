@@ -29,10 +29,6 @@ public class GappedKmer extends Kmer{
 	public void addBaseKmer (Kmer kmer, boolean isSameOrientation){
 		baseKmers.put(kmer, isSameOrientation);
 	}
-	void linkBaseKmers(){
-		for (Kmer km:baseKmers.keySet())
-			km.addGappedKmer(this);
-	}
 	void clearBaseKmers(){
 		baseKmers.clear();
 	}
@@ -63,7 +59,6 @@ public class GappedKmer extends Kmer{
 	public void update(double[] seq_weights ){
 		mergePosHits(seq_weights);
 		mergeNegHits();
-		linkBaseKmers();
 	}
 	
 	public void setMatrix(){

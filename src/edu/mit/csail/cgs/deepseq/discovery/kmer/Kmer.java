@@ -86,18 +86,7 @@ public class Kmer implements Comparable<Kmer>{
 	}
 	protected int k;
 	public int getK(){return k;}
-	private HashSet<GappedKmer> gappedKmers = null;
-	void addGappedKmer(GappedKmer wk){
-		if (gappedKmers == null)
-			gappedKmers = new HashSet<GappedKmer>();
-		gappedKmers.add(wk);	
-	}
-	void clearGappedKmers(){
-		gappedKmers.clear();	
-	}
-	HashSet<GappedKmer> getGappedKmers(){
-		return gappedKmers;
-	}
+
 //	protected HashSet<Integer> posHits = new HashSet<Integer>();
 	BitSet posBits = new BitSet();
 	/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
@@ -220,10 +209,6 @@ public class Kmer implements Comparable<Kmer>{
 		n.hgp_lg10 = hgp_lg10;
 		n.alignString = alignString;
 		n.kmerStartOffset = kmerStartOffset;
-		if (gappedKmers!=null){
-			n.gappedKmers = new HashSet<GappedKmer>();
-			n.gappedKmers.addAll(gappedKmers);
-		}
 		n.isSeedOrientation = isSeedOrientation;
 		return n;
 	}
@@ -454,7 +439,6 @@ public class Kmer implements Comparable<Kmer>{
 				for (Kmer sk: gk.getBaseKmers()){
 					if (!subkmer2subkmer.containsKey(sk)){
 						Kmer sk2 = sk.clone();
-						sk2.clearGappedKmers();
 						subkmer2subkmer.put(sk, sk2);
 					}
 				}
