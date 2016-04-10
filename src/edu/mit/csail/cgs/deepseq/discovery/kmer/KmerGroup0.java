@@ -8,7 +8,7 @@ import java.util.Collections;
  * This KmerGroup class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
  * @author yuchun
  */
-public class KmerGroup implements Comparable<KmerGroup>{
+public class KmerGroup0 implements Comparable<KmerGroup0>{
 	ArrayList<Kmer> kmers;
 	int clusterId = -1;
 	int bs = 999;
@@ -17,7 +17,7 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	/** hgp (log10) using the positive/negative sequences */
 	double hgp;
 
-	public KmerGroup(ArrayList<Kmer> kmers, int bs, int posSeqCount, int negSeqCount){
+	public KmerGroup0(ArrayList<Kmer> kmers, int bs, int posSeqCount, int negSeqCount){
 		this.bs = bs;
 		this.kmers = kmers;
 		Collections.sort(this.kmers);
@@ -30,7 +30,7 @@ public class KmerGroup implements Comparable<KmerGroup>{
  		posHitGroupCount = b_pos.cardinality();
 		negHitGroupCount = b_neg.cardinality();
 	}		
-	public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights, int posSeqCount, int negSeqCount){
+	public KmerGroup0(ArrayList<Kmer> kmers, int bs, double[]weights, int posSeqCount, int negSeqCount){
 		this.bs = bs;
 		this.kmers = kmers;	
 		Collections.sort(this.kmers);
@@ -105,12 +105,12 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	public int getPosBS(){
 		return bs;
 	}
-	public int compareToByPosHitCount(KmerGroup kg) {		// descending pos hit count
+	public int compareToByPosHitCount(KmerGroup0 kg) {		// descending pos hit count
 		if(posHitGroupCount>kg.getGroupHitCount()){return(-1);}
 		else if(posHitGroupCount<kg.getGroupHitCount()){return(1);}
 		else return(0);
 	}
-	public int compareTo(KmerGroup kg) {					// ascending hgp
+	public int compareTo(KmerGroup0 kg) {					// ascending hgp
 		if(hgp<kg.getHgp()){return(-1);}
 		else if(hgp>kg.getHgp()){return(1);}
 		else return(0);

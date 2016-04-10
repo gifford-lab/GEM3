@@ -177,6 +177,8 @@ public class Kmer implements Comparable<Kmer>{
 	public int getKmerStartOffset(){return kmerStartOffset;}
 	/** Set the offset of kmer start from the binding position of motif(PWM) (Pos_kmer-Pos_wm)*/
 	public void setKmerStartOffset(int s){kmerStartOffset=s;}
+	
+	
 	public Kmer(){}
 	public Kmer(String kmerStr){
 		this.kmerString = kmerStr;

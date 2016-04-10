@@ -46,7 +46,6 @@ public class KmerScanner {
 	// each element in the list is for one ChIP-Seq method
 	
 	public KmerScanner(String[] args, ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double[] seq_weights, boolean use_odds_ratio){
-		kEngine = new KMAC1(kmers);
         Config config = new Config();
         try{
 			config.parseArgs(args);   
@@ -55,7 +54,7 @@ public class KmerScanner {
 			e.printStackTrace();
     		System.exit(-1);
 		}  
-		kEngine.setConfig(config, "", "");
+		kEngine = new KMAC1(kmers, config);
 		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
 		kEngine.setSequenceWeights(seq_weights);
 		kEngine.setUseOddsRatio(use_odds_ratio);
@@ -137,7 +136,8 @@ public class KmerScanner {
 		int top = Args.parseInteger(args, "top", 5000);
 		if (top==-1)
 			top = Integer.MAX_VALUE;
-		Random randObj = new Random(Args.parseInteger(args, "rand_seed", 0));
+		int randSeed = Args.parseInteger(args, "rand_seed", 0);
+		int negPosRatio = Args.parseInteger(args, "neg_ratio", 1);
 
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "expts", null));
 		
@@ -150,17 +150,22 @@ public class KmerScanner {
 			if (line.startsWith("#"))
 				continue;
 			scanSeqs(args, f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
-					flags.contains("or"), !flags.contains("use_seq_weights"), gc, top, randObj, windowSize, fpr);
+					flags.contains("or"), !flags.contains("use_seq_weights"), gc, top, 
+					randSeed, negPosRatio, windowSize, fpr);
 		    
 		} // each expt
 	}
 	
 	private static void scanSeqs(String[] args, String expt, String path, String fasta_path, String fasta_suffix,  
 			String other_pfm_path, String[] pfm_suffixs, boolean use_odds_ratio, boolean ignoreWeights, double gc,
-			int top, Random randObj, int width, double fpr){
+			int top, int randSeed, int negPosRatio, int width, double fpr){
 		
 		System.out.println("Running "+expt);
 		long tic = System.currentTimeMillis();
+		Random[] randObjs = new Random[negPosRatio];
+		for (int i=0;i<negPosRatio;i++)
+			randObjs[i] = new Random(randSeed+i);
+
 		String kmer=null, pfm=null, fasta_file=null;
 		if (expt!=null){
 			kmer = getFileName(path+expt, ".m0.KSM");			// old file name format
@@ -213,56 +218,66 @@ public class KmerScanner {
 			String seq = posSeqs.get(i).toUpperCase();
 			int startSeq = seq.length()/2 - width/2; int endSeq =startSeq+width;
 			seq = seq.substring(startSeq,endSeq);
-			String seqN = SequenceUtils.dinu_shuffle(seq, randObj);
-
-			// PWM
+			//PWM
 			long pwm_t = System.currentTimeMillis();
 			double pwm = WeightMatrixScorer.getMaxSeqScore(motif, seq, false);
 			String match=WeightMatrixScorer.getMaxScoreSequence(motif, seq, -1000, 0);
 			pwm_scores.add(pwm);
-			double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN, false);
-			String matchN=WeightMatrixScorer.getMaxScoreSequence(motif, seqN, -1000, 0);
-			pwmN_scores.add(pwmN);
 			PWM_time += System.currentTimeMillis() - pwm_t;
-			
-			
 			// KSM
 			long ksm_t = System.currentTimeMillis();
 			KmerGroup kg = scanner.getBestKG(seq, SequenceUtil.reverseComplement(seq));
-			KmerGroup kgN = scanner.getBestKG(seqN, SequenceUtil.reverseComplement(seqN));
 			String matchKSM = "ZZ";
 			if (kg!=null)
 				matchKSM = kg.getCoveredSequence();
-			String matchNKSM = "ZZ";
-			if (kgN!=null)
-				matchNKSM = kgN.getCoveredSequence();
-						
 			ksm_scores.add(kg==null?0:kg.getScore());
-			ksmN_scores.add(kgN==null?0:kgN.getScore());
 			KSM_time += System.currentTimeMillis() - ksm_t;
-
-			// other PWMs
-			String[] other_matches = new String[otherPwms.length];
-			String[] otherN_matches = new String[otherPwms.length];
-			StringBuilder sb_other_matchString = new StringBuilder();
-			StringBuilder sb_other_score = new StringBuilder();
-			for (int j=0;j<otherPwms.length;j++){
-				other_matches[j]=WeightMatrixScorer.getMaxScoreSequence(otherPwms[j], seq, -1000, 0);
-				double score = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seq, false);
-				other_scores.get(j).add(score);
-				otherN_matches[j]=WeightMatrixScorer.getMaxScoreSequence(otherPwms[j], seqN, -1000, 0);
-				double scoreN = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seqN, false);
-				otherN_scores.get(j).add(scoreN);
-				sb_other_matchString.append("\t"+other_matches[j]+"\t"+otherN_matches[j]);
-				sb_other_score.append(String.format("\t%.2f\t%.2f", score, scoreN));
+			
+			// scoring negative shuffled sequences
+			for (int j=0;j<negPosRatio;j++){
+				String seqN = SequenceUtils.dinu_shuffle(seq, randObjs[j]);	
+				// PWM
+				double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN, false);
+				String matchN=WeightMatrixScorer.getMaxScoreSequence(motif, seqN, -1000, 0);
+				pwmN_scores.add(pwmN);	
+				// KSM
+				KmerGroup kgN = scanner.getBestKG(seqN, SequenceUtil.reverseComplement(seqN));
+				String matchNKSM = "ZZ";
+				if (kgN!=null)
+					matchNKSM = kgN.getCoveredSequence();
+				ksmN_scores.add(kgN==null?0:kgN.getScore());
+				
+				sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d%s\n",  
+						i, match, matchN, matchKSM, matchNKSM, "\tNA", pwm, pwmN, 
+						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
+						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
+						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount(),
+						"\tNA"));
 			}
+			
+//			TODO: print out all pos scores and then all neg scores
+//			// other PWMs
+//			String[] other_matches = new String[otherPwms.length];
+//			String[] otherN_matches = new String[otherPwms.length];
+//			StringBuilder sb_other_matchString = new StringBuilder();
+//			StringBuilder sb_other_score = new StringBuilder();
+//			for (int j=0;j<otherPwms.length;j++){
+//				other_matches[j]=WeightMatrixScorer.getMaxScoreSequence(otherPwms[j], seq, -1000, 0);
+//				double score = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seq, false);
+//				other_scores.get(j).add(score);
+//				otherN_matches[j]=WeightMatrixScorer.getMaxScoreSequence(otherPwms[j], seqN, -1000, 0);
+//				double scoreN = WeightMatrixScorer.getMaxSeqScore(otherPwms[j], seqN, false);
+//				otherN_scores.get(j).add(scoreN);
+//				sb_other_matchString.append("\t"+other_matches[j]+"\t"+otherN_matches[j]);
+//				sb_other_score.append(String.format("\t%.2f\t%.2f", score, scoreN));
+//			}
 
-			sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d%s\n",  
-					i, match, matchN, matchKSM, matchNKSM, sb_other_matchString.toString(), pwm, pwmN, 
-					kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
-					kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
-					kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount(),
-					sb_other_score.toString()));
+//			sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d%s\n",  
+//					i, match, matchN, matchKSM, matchNKSM, sb_other_matchString.toString(), pwm, pwmN, 
+//					kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
+//					kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
+//					kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount(),
+//					sb_other_score.toString()));
 		}
 		
 		System.out.println("Total PWM scanning time:" + PWM_time);
@@ -292,6 +307,7 @@ public class KmerScanner {
 		}
 		System.out.println();
 	}
+	
 	private static double evaluateScoreROC(ArrayList<Double> posScores, ArrayList<Double> negScores, double falsePositiveRate){
 		double[] p = new double[posScores.size()];
 		for (int i=0;i<p.length;i++)

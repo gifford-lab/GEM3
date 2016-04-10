@@ -1181,7 +1181,7 @@ public class KMAC {
 			seed.setAlignString(seed.getKmerStr());
 			if (config.use_seed_family){
 				seedFamily.addAll(getMMKmers(kmers, cluster.seedKmer.getKmerStr(), 0));
-				KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(seedFamily, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(seedFamily, 0, posSeqCount, negSeqCount);
+				KmerGroup0 kg = config.use_weighted_kmer ? new KmerGroup0(seedFamily, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup0(seedFamily, 0, posSeqCount, negSeqCount);
 				cluster.seedKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 				if (verbose>1)
 					System.out.println(CommonUtils.timeElapsed(tic)+": Seed family hgp = "+cluster.seedKmer.familyScore);
@@ -1701,14 +1701,14 @@ public class KMAC {
 		family1.add(minHgpKmer);
 		family1.addAll(getMMKmers(kmers, minHgpKmer.getKmerStr(), 0));
 		// compute KmerGroup hgp for the km family
-		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(family1, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(family1, 0, posSeqCount, negSeqCount);
+		KmerGroup0 kg = config.use_weighted_kmer ? new KmerGroup0(family1, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup0(family1, 0, posSeqCount, negSeqCount);
 		minHgpKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		ArrayList<Kmer> family2 = new ArrayList<Kmer>();
 		family2.add(maxCountKmer);
 		family2.addAll(getMMKmers(kmers, maxCountKmer.getKmerStr(), 0));
 		// compute KmerGroup hgp for the km family
-		kg = config.use_weighted_kmer ? new KmerGroup(family2, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(family2, 0, posSeqCount, negSeqCount);
+		kg = config.use_weighted_kmer ? new KmerGroup0(family2, 0, seq_weights, posSeqCount, negSeqCount) : new KmerGroup0(family2, 0, posSeqCount, negSeqCount);
 		maxCountKmer.familyScore = computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount());
 		
 		if (minHgpKmer.familyScore<=maxCountKmer.familyScore)
@@ -3535,12 +3535,12 @@ public class KMAC {
 			// scan all sequences, align them using kmer hit results
 			for (Sequence s : seqList){
 				s.reset();			
-				KmerGroup[] kgs = queryS(s.getSeq());
+				KmerGroup0[] kgs = queryS(s.getSeq());
 				//Check if there are matches on the same position from both strand??
 				for (int i=0;i<kgs.length-1;i++){
-					KmerGroup kg=kgs[i];
+					KmerGroup0 kg=kgs[i];
 					for (int j=i;i<kgs.length;i++){
-						KmerGroup other=kgs[j];
+						KmerGroup0 other=kgs[j];
 						if (Math.abs(other.bs-kg.bs)==RC){	// if so, add all kmers to the stronger kmer
 							System.out.println("Kmer match on same position:"+kg.toString()+" "+other.toString()); //TODO: Comment out on release
 							if (kg.hgp<other.hgp){
@@ -3556,7 +3556,7 @@ public class KMAC {
 				}
 				if (kgs.length!=0){
 					Arrays.sort(kgs);
-					KmerGroup kg = kgs[0];
+					KmerGroup0 kg = kgs[0];
 					if (kg.hgp<=-threshold.score){
 						s.score = -kg.hgp;		// score = -log10 hgp, becomes positive value
 						if (kg.bs>RC/2){		// match on reverse strand
@@ -4389,7 +4389,7 @@ public class KMAC {
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			KmerGroup[] kgs = query(seqs[i]);
+			KmerGroup0[] kgs = query(seqs[i]);
 			if (kgs.length==0)
 				posSeqScores[i]=0;
 			else{
@@ -4400,7 +4400,7 @@ public class KMAC {
 //		Arrays.sort(posSeqScores);
 		int[] posIdx = StatUtil.findSort(posSeqScores);		// index of sequence after sorting the scores
 		for (int i=0;i<negSeqCount;i++){
-			KmerGroup[] kgs = query(seqsNegList.get(i));
+			KmerGroup0[] kgs = query(seqsNegList.get(i));
 			if (kgs.length==0)
 				negSeqScores[i]=0;
 			else{
@@ -4490,7 +4490,7 @@ public class KMAC {
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
-			KmerGroup[] kgs = query(seqs[i]);
+			KmerGroup0[] kgs = query(seqs[i]);
 			if (kgs.length==0)
 				posSeqScores[i]=0;
 			else{
@@ -4500,7 +4500,7 @@ public class KMAC {
 		}
 		Arrays.sort(posSeqScores);
 		for (int i=0;i<negSeqCount;i++){
-			KmerGroup[] kgs = query(seqsNegList.get(i));
+			KmerGroup0[] kgs = query(seqsNegList.get(i));
 			if (kgs.length==0)
 				negSeqScores[i]=0;
 			else{
@@ -4649,7 +4649,7 @@ public class KMAC {
 	 * Each k-mer group maps to a binding position in the sequence
 	 * Note: matches on negative strand are combined with matches on positive strand
 	 */
-	public KmerGroup[] query (String seq){
+	public KmerGroup0[] query (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
@@ -4696,10 +4696,10 @@ public class KMAC {
 				}
 			}
 		}
-		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
+		KmerGroup0[] matches = new KmerGroup0[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(result.get(p), p, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(result.get(p), p, posSeqCount, negSeqCount);
+			KmerGroup0 kg = config.use_weighted_kmer ? new KmerGroup0(result.get(p), p, seq_weights, posSeqCount, negSeqCount) : new KmerGroup0(result.get(p), p, posSeqCount, negSeqCount);
 			matches[idx]=kg;
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -4747,7 +4747,7 @@ public class KMAC {
 	 * Each k-mer group maps to a binding position in the sequence<br>
 	 * Note: the return value is different from query() in that match on RC strand is labeled (pos+RC)
 	 */
-	public KmerGroup[] queryS (String seq){
+	public KmerGroup0[] queryS (String seq){
 		seq = seq.toUpperCase();
 		HashSet<Object> kmerFound = new HashSet<Object>();	// each kmer is only used 
 		//Search for all kmers in the sequences using Aho-Corasick algorithms (initialized)
@@ -4793,10 +4793,10 @@ public class KMAC {
 				}
 			}
 		}
-		KmerGroup[] matches = new KmerGroup[result.keySet().size()];
+		KmerGroup0[] matches = new KmerGroup0[result.keySet().size()];
 		int idx = 0;
 		for (int p:result.keySet()){
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(result.get(p), p, seq_weights, posSeqCount, negSeqCount) : new KmerGroup(result.get(p), p, posSeqCount, negSeqCount);
+			KmerGroup0 kg = config.use_weighted_kmer ? new KmerGroup0(result.get(p), p, seq_weights, posSeqCount, negSeqCount) : new KmerGroup0(result.get(p), p, posSeqCount, negSeqCount);
 			matches[idx]=kg;
 			kg.setHgp(computeHGP(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;

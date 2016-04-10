@@ -209,26 +209,27 @@ public class KMAC1 {
 		if (neg_seqs.isEmpty()){
 			if (config.k_neg_dinu_shuffle){
 				System.out.println("Use di-nucleotide shuffled sequences as negative sequences.\n");
-				// append all sequences, then shuffle
-				StringBuilder sb = new StringBuilder();
-				for (int i=0;i<seqNum;i++){
-					sb.append(seqs[i]);
-				}
-				for (int j=0;j<config.neg_pos_ratio;j++){
-					Random randObj = new Random(config.rand_seed+j);
-					String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
-					int start = 0;
-					for (int i=0;i<seqNum;i++){
-						seqsNegList.add(shuffled.substring(start, start+seqs[i].length()));
-						start+=seqs[i].length();
-					}
-				}				
-//				for (int j=0;j<config.neg_pos_ratio;j++){		// shuffle each sequence
+//				// append all sequences, then shuffle
+//				StringBuilder sb = new StringBuilder();
+//				for (int i=0;i<seqNum;i++){
+//					sb.append(seqs[i]);
+//				}
+//				for (int j=0;j<config.neg_pos_ratio;j++){
 //					Random randObj = new Random(config.rand_seed+j);
+//					String shuffled = SequenceUtils.dinu_shuffle(sb.toString(), randObj);
+//					int start = 0;
 //					for (int i=0;i<seqNum;i++){
-//						seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+//						seqsNegList.add(shuffled.substring(start, start+seqs[i].length()));
+//						start+=seqs[i].length();
 //					}
 //				}
+				// shuffle each sequence
+				for (int j=0;j<config.neg_pos_ratio;j++){		
+					Random randObj = new Random(config.rand_seed+j);
+					for (int i=0;i<seqNum;i++){
+						seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
+					}
+				}
 			}
 			else{		// single nucleotide shuffling
 				System.out.println("!!! Need to update !!!\nUse shuffled sequences as negative sequences.\n");
@@ -327,11 +328,12 @@ public class KMAC1 {
 	 * Contruct a Kmer Engine from a list of Kmers.<br>
 	 * This is used for KSM motif scanning outside of KMAC.
 	 */
-	public KMAC1(ArrayList<Kmer> kmers){
+	public KMAC1(ArrayList<Kmer> kmers, Config config){
+		if (config!=null)
+			this.config = config;
 		if (!kmers.isEmpty()){
-				updateEngine(kmers);
+			updateEngine(kmers);
 		}
-//		config.optimize_KG_kmers = false;
 	}
 //	/**
 //	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
@@ -3922,11 +3924,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //	}
 
 	/**
-	 * Get all the kmers that has k/4 (k>=8) or 1 (k<8) mismatch to the kmerStr<br>
+	 * Get all the kmers that has 1 mismatch to the kmerStr<br>
 	 * and set alignString and its shift for the kmers, the shift is wrt the input kmerStr orientation
 	 * @param kmers
 	 * @param kmerStr the length should be the same as kmers
-	 * @param shift
 	 * @return
 	 */
 	private ArrayList<Kmer> findSeedFamily(ArrayList<Kmer> kmers, String kmerStr) {
@@ -6225,7 +6226,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //	}
 
 	/**
-	 * This KmerGroup class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence
+	 * This KmerGroup class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence<br>
+	 * This version is for KMAC1
 	 * @author yuchun
 	 */
 	public class KmerGroup implements Comparable<KmerGroup>{

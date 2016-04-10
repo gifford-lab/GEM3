@@ -26,7 +26,7 @@ import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerSet;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerCluster;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup0;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.features.*;
@@ -4255,7 +4255,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 
             	//construct the positional prior for each position in this region
             	double[] pp = new double[w.getWidth()+1];
-            	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
+            	KmerGroup0[] pp_kmer = new KmerGroup0[pp.length];
             	String seq = null;
             	char seqStrand = readStrand;
             	
@@ -4310,11 +4310,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             				
 	            			double ksm_threshold = c.ksmThreshold==null?0:c.ksmThreshold.score;
 	
-	                		KmerGroup[] matchPositions = kmac_local.query(seq);
+	                		KmerGroup0[] matchPositions = kmac_local.query(seq);
 		                	if (config.print_PI)	
 		                		System.out.println(seq);
 		                	// Effectively, the top kmers will dominate, because we normalize the pp value
-		                	EACH_KG: for (KmerGroup kg: matchPositions){
+		                	EACH_KG: for (KmerGroup0 kg: matchPositions){
 		                		// the posBS() is the expected binding position wrt the sequence
 		                		// but the pp_kmer array are indexed as the forward strand
 		                		int bindingPos = kg.getPosBS();
@@ -4403,7 +4403,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            					if (strand=='-')
 	            						matchSeq = SequenceUtils.reverseComplement(matchSeq);
 	            					kms.add(new Kmer(matchSeq));
-	            					KmerGroup kg = new KmerGroup(kms, pos, kmac.getPosSeqCount(), kmac.getNegSeqCount());
+	            					KmerGroup0 kg = new KmerGroup0(kms, pos, kmac.getPosSeqCount(), kmac.getNegSeqCount());
 	            					kg.setHgp(max);
 	            					kg.setClusterId(j);
 	            					pp_kmer[pos]=kg;
@@ -5467,7 +5467,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 
         // matched EM resulted binding components with the kmer prior
         //TODO: maybe we should search closest (<k/4) pp_kmer because some position may end up out-competed by nearby positions
-        private void setEventKmerGroup(KmerGroup[] pp_kmer, int startPos, String seq, char seqStrand){
+        private void setEventKmerGroup(KmerGroup0[] pp_kmer, int startPos, String seq, char seqStrand){
         	ArrayList<BindingComponent> toRemove = new ArrayList<BindingComponent>();
         	for (int i=0;i<components.size();i++){
         		BindingComponent b = components.get(i);
@@ -5608,9 +5608,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     
     private class KmerPP implements Comparable<KmerPP>{
     	Point coor;
-    	KmerGroup kmerMatches;
+    	KmerGroup0 kmerMatches;
     	double pp;
-    	public KmerPP(Point coor, KmerGroup matches, double pp) {
+    	public KmerPP(Point coor, KmerGroup0 matches, double pp) {
 			this.coor = coor;
 			this.kmerMatches = matches;
 			this.pp = pp;
