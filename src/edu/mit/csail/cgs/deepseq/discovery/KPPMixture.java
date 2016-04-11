@@ -3584,7 +3584,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				String chr = f.getPeak().getChrom();
 				int length = gen.getChromLength(chr)-1;
 				int basis = f.getPeak().getLocation()+config.k_neg_dist;
-				for (int i=0;i<config.k_negSeq_ratio;i++){
+				for (int i=0;i<config.neg_pos_ratio;i++){
 					int start = basis + (winSize+1)*i;
 					if ( start+winSize>=length)
 						continue;

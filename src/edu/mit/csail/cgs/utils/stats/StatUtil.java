@@ -1184,8 +1184,8 @@ public class StatUtil {
 	 * @param n sample size
 	 * @return
 	 */
-	public static double odds_ratio(int P, int N, double p, double n, double pseudocount) {
-		double or = (p+pseudocount)/(P-p+pseudocount) / ((n+pseudocount)/(N-n+pseudocount));
+	public static double odds_ratio(int P, int N, double p, double n, double posPseudocount, double negPseudocount) {
+		double or = (p+posPseudocount)/(P-p+posPseudocount) / ((n+negPseudocount)/(N-n+negPseudocount));
 		return or;	
 	}
 
@@ -1860,13 +1860,13 @@ public class StatUtil {
 	private static void printHGP(int pos, int neg){
 		System.out.println(String.format("%d\t%d\t%.2f\t%.2f", pos, neg, 		 
 				KMAC1.computeHGP(5000, 5000, pos, neg),
-				odds_ratio(5000, 5000, pos, neg, 3)));
+				odds_ratio(5000, 5000, pos, neg, 3, 3)));
 	}
 	
 	private static void printHGP(int total, int motif1, int motif2, int overlap){
 		System.out.println(String.format("%d\t%d\t%d\t%d\t%.2f\t%.2f", total, motif1, motif2, overlap,		 
 				KMAC1.computeHGP(motif1, total-motif1, overlap, motif2-overlap),
-				odds_ratio(motif1, total-motif1, overlap, motif2-overlap, 10)));
+				odds_ratio(motif1, total-motif1, overlap, motif2-overlap, 10, 10)));
 	}
 	 public static void main(String[] args){
 //		 System.out.println( Math.log10(binomialPValue(0.0, 11.0+0.0)));

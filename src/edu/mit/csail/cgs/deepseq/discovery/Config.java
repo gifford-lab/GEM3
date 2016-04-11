@@ -66,7 +66,6 @@ public class Config {
     public int k_win_f = 4;		// k_win = k_win_f * k
    	public int gap = 3;			// max number of gapped bases in the k-mers (i.e. use 1 to gap)
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
-    public int k_negSeq_ratio = 2; 		// The ratio of cache negative sequences to positive sequences
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
     public int max_cluster = 20;
     public double kmer_deviation_factor = 0.5;	// dist / k of a k-mer to the seed, to be considered as neighboring k-mers in KSM in KMAC()
@@ -240,7 +239,7 @@ public class Config {
         kmer_use_insig = flags.contains("kmer_use_insig");
         k_neg_dinu_shuffle = !flags.contains("k_neg_shuffle");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
-        neg_pos_ratio = Args.parseInteger(args, "neg_pos_ratio", neg_pos_ratio);
+        neg_pos_ratio = Args.parseInteger(args, "neg_ratio", neg_pos_ratio);
         re_align_kmer = flags.contains("rak");
         print_aligned_seqs = flags.contains("print_aligned_seqs");
         print_input_seqs = flags.contains("print_input_seqs");
@@ -338,7 +337,6 @@ public class Config {
         k_win = Args.parseInteger(args, "k_win", k_win);
         k_win_f = Args.parseInteger(args, "k_win_f", k_win_f);
         k_neg_dist = Args.parseInteger(args, "k_neg_dist", k_neg_dist);
-        k_negSeq_ratio = Args.parseInteger(args, "k_neg_ratio", k_negSeq_ratio);
         k_shift = Args.parseInteger(args, "k_shift", k_shift);
         max_cluster = Args.parseInteger(args, "max_cluster", max_cluster);
         k_mask_f = Args.parseFloat(args, "k_mask_f", k_mask_f);

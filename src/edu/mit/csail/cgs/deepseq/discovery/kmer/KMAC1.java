@@ -5590,11 +5590,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	}
 	
 	/**
-	 * Compute motif significance score [ OR or -log10(hgp) ]<br>More significant, higher score
+	 * Compute motif significance score [ OR or -log10(hgp) ] from total hits <br>More significant, higher score
 	 */	
 	public double computeMotifSignificanceScore(double posHitCount, double negHitCount){
 		if (config.use_odds_ratio)
-			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, negSeqCount*0.05);
+			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, posSeqCount*0.05, negSeqCount*0.05);
 		else
 			return -computeHGP((int)posHitCount, (int)negHitCount);
 	}
@@ -5604,7 +5604,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 */	
 	public double computeSiteSignificanceScore(double posHitCount, double negHitCount){
 		if (config.use_odds_ratio)
-			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, 10);
+			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, 10, 10*config.neg_pos_ratio);
 		else
 			return -computeHGP((int)posHitCount, (int)negHitCount);
 	}
