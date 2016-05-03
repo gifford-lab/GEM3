@@ -91,11 +91,12 @@ public class Config {
     public double repeat_fraction=1;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
     public int kmer_remove_mode = 0;
     public double kmer_inRange_fraction = 0.3;		// the fraction of kmer in the seed_range out of all k-mer hit count
-    public double kmer_consistent_fraction = 0.5;		// the fraction of consistently aligned kmers in the seed_range
+    public double kmer_consistent_fraction = 0.8;		// the fraction of consistently aligned kmers in the seed_range
     public boolean use_grid_search = true;
     public boolean optimize_pwm_threshold = true;
     public boolean optimize_kmer_set = true;
     public boolean kmer_use_insig = false;
+    public boolean use_self_density = false;
     public boolean kmer_use_filtered = false;
     public boolean use_weighted_kmer = true;		// strength weighted k-mer count
     public boolean use_pos_kmer = true;				// position weighted k-mer count
@@ -238,6 +239,7 @@ public class Config {
         print_motif_hits = flags.contains("print_motif_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
         k_neg_dinu_shuffle = !flags.contains("k_neg_shuffle");
+        use_self_density = flags.contains("self_density");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
         neg_pos_ratio = Args.parseInteger(args, "neg_ratio", neg_pos_ratio);
         re_align_kmer = flags.contains("rak");

@@ -1001,7 +1001,7 @@ public class KMAC1 {
 				
 				ArrayList<Kmer> tmp = new ArrayList<Kmer>();
 				for (Kmer km: allSignificantKmers){		// get all the k-mers
-					if (KMAC1.editDistance(seedKmer, km) <= cutoff+1)
+					if (KMAC1.editDistance(seedKmer, km) <= cutoff)
 						tmp.add(km);
 				}
 				if (tmp.size()<numKmer){
@@ -1010,7 +1010,7 @@ public class KMAC1 {
 				else{
 					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
 					for (Kmer km: kmers){		// get all the selected k-mers first
-						if (KMAC1.editDistance(seedKmer, km) <= cutoff+1)
+						if (KMAC1.editDistance(seedKmer, km) <= cutoff)
 							neighbours.add(km);
 					}
 					System.out.print(neighbours.size()+" --> ");
@@ -1625,7 +1625,7 @@ public class KMAC1 {
         });
 		System.out.println(String.format("k=%d, exact kmers=%d", k, kmers.size()));
 	
-		// gapped k-mers		
+		
 		/**
 		 * Construct gapped k-mers from the significant (relaxed fold change and hgp) base k-mers
 		 */
@@ -1755,93 +1755,95 @@ public class KMAC1 {
 			}
 			allSignificantKmers.addAll(results);
 		
-			/** 
-			 *  reduce the k-mer set by removing similar k-mers
-			 */
-			ArrayList<Kmer> results_final = new ArrayList<Kmer>();
-			double dist_cutoff_to_reduce = 0;
-			int numTop = config.max_gkmer*5;
-			if (results.size()>numTop){
-				if (config.verbose>1)
-					System.out.println(String.format("Reduce gapped-kmer, n=%d, hgp1x=%.1f, hgp5x=%.1f", 
-							results.size(), results.get(config.max_gkmer).hgp_lg10, results.get(numTop).hgp_lg10));
-
-				for (int i=0;i<numTop;i++)
-					results_final.add(results.get(i));
-				results = results_final;
-			}
-			if (results.size()>config.max_gkmer){
-				
-//				// direct reduce
-//				if (results.size()>1000){
+//			/** 
+//			 *  reduce the k-mer set by removing similar k-mers
+//			 */
+//			ArrayList<Kmer> results_final = new ArrayList<Kmer>();
+//			double dist_cutoff_to_reduce = 0;
+//			int numTop = config.max_gkmer*5;
+//			if (results.size()>numTop){
+//				if (config.verbose>1)
+//					System.out.println(String.format("Reduce gapped-kmer, n=%d, hgp1x=%.1f, hgp5x=%.1f", 
+//							results.size(), results.get(config.max_gkmer).hgp_lg10, results.get(numTop).hgp_lg10));
+//
+//				for (int i=0;i<numTop;i++)
+//					results_final.add(results.get(i));
+//				results = results_final;
+//			}
+//			if (results.size()>config.max_gkmer){
+//				
+////				// direct reduce
+////				if (results.size()>1000){
+////					long tic=System.currentTimeMillis();
+////					dist_cutoff_to_reduce = 1.5;
+////					for (Kmer km: results)
+////						km.setMatrix();
+////					int[] idx = reduceGappedKmerSet(results, dist_cutoff_to_reduce);
+////					for (int i=0;i<results.size();i++){
+////						if (idx[i]==1)
+////							results_final.add(results.get(i));
+////					}
+////					if (config.verbose>1)
+////					System.out.println("Reduce gapped-kmer set, dist="+dist_cutoff_to_reduce+", from " + 
+////							idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
+////				}
+//				
+//				// limit cutoff to 1.5, otherwise too heavy load for mtree range search
+//
+//				while (results.size()>config.max_gkmer && !(dist_cutoff_to_reduce>=1.5)){	
 //					long tic=System.currentTimeMillis();
-//					dist_cutoff_to_reduce = 1.5;
-//					for (Kmer km: results)
-//						km.setMatrix();
-//					int[] idx = reduceGappedKmerSet(results, dist_cutoff_to_reduce);
+//					dist_cutoff_to_reduce += 0.5;
+//					MTree dataPoints = MTree.constructTree(results, 10);
+//					int[] idx = reduceGappedKmerSetMtree(dataPoints, dist_cutoff_to_reduce);
+//					results_final = new ArrayList<Kmer>();
 //					for (int i=0;i<results.size();i++){
 //						if (idx[i]==1)
 //							results_final.add(results.get(i));
 //					}
 //					if (config.verbose>1)
-//					System.out.println("Reduce gapped-kmer set, dist="+dist_cutoff_to_reduce+", from " + 
-//							idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
+//						System.out.println("Reduce gapped-kmer, dist="+dist_cutoff_to_reduce+", from " + 
+//								idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
+//					if (results_final.size()<config.max_gkmer/2){		// if reduce too much, not reduce, take the top k-mers
+//						results_final = new ArrayList<Kmer>();
+//						int final_count = Math.min(results.size(), config.max_gkmer);
+//						for (int i=0;i<final_count;i++){
+//							results_final.add(results.get(i));
+//						}
+//						break;
+//					}
+//					else
+//						results = results_final;
 //				}
-				
-				// limit cutoff to 1.5, otherwise too heavy load for mtree range search
+//				
+//				if (results_final.size()>config.max_gkmer){		// if still too many, take top k-mers
+//					results = results_final;
+//					results_final = new ArrayList<Kmer>();
+//					int final_count = Math.min(results.size(), config.max_gkmer);
+//					for (int i=0;i<final_count;i++){
+//						results_final.add(results.get(i));
+//					}
+//				}
+//			}
+//			else		// no need to reduce
+//				results_final = results;
+//			
+////			System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f) from %d+/%d- sequences, %s", 
+////					kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
+//			System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f), %s", 
+//					k, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, CommonUtils.timeElapsed(tic)));
+//			
+//			kmers.addAll(results_final);
 
-				while (results.size()>config.max_gkmer && !(dist_cutoff_to_reduce>=1.5)){	
-					long tic=System.currentTimeMillis();
-					dist_cutoff_to_reduce += 0.5;
-					MTree dataPoints = MTree.constructTree(results, 10);
-					int[] idx = reduceGappedKmerSetMtree(dataPoints, dist_cutoff_to_reduce);
-					results_final = new ArrayList<Kmer>();
-					for (int i=0;i<results.size();i++){
-						if (idx[i]==1)
-							results_final.add(results.get(i));
-					}
-					if (config.verbose>1)
-						System.out.println("Reduce gapped-kmer, dist="+dist_cutoff_to_reduce+", from " + 
-								idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
-					if (results_final.size()<config.max_gkmer/2){		// if reduce too much, not reduce, take the top k-mers
-						results_final = new ArrayList<Kmer>();
-						int final_count = Math.min(results.size(), config.max_gkmer);
-						for (int i=0;i<final_count;i++){
-							results_final.add(results.get(i));
-						}
-						break;
-					}
-					else
-						results = results_final;
-				}
-				
-				if (results_final.size()>config.max_gkmer){		// if still too many, take top k-mers
-					results = results_final;
-					results_final = new ArrayList<Kmer>();
-					int final_count = Math.min(results.size(), config.max_gkmer);
-					for (int i=0;i<final_count;i++){
-						results_final.add(results.get(i));
-					}
-				}
-			}
-			else		// no need to reduce
-				results_final = results;
-			
-//			System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f) from %d+/%d- sequences, %s", 
-//					kOrginal, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, posSeqCount, negSeqCount, CommonUtils.timeElapsed(tic)));
-			System.out.println(String.format("k=%d+%d, selected %d gapped k-mers (hgp=%.1f), %s", 
-					k, numGap, results_final.size(), results_final.size()==0?0:results_final.get(results_final.size()-1).hgp_lg10, CommonUtils.timeElapsed(tic)));
-			
-			
-			ArrayList<Kmer> kms = new ArrayList<Kmer>();
-			for (GappedKmer gk:gks){
-				kms.add(gk);			
-			}
+			// print all gapped k-mers 
 			if (config.print_all_kmers){
+				ArrayList<Kmer> kms = new ArrayList<Kmer>();
+				for (GappedKmer gk:gks){
+					kms.add(gk);			
+				}
 				Collections.sort(kms);
 				GappedKmer.printKSM(kms, null, k, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
 			}
-			kmers.addAll(results_final);
+			
 		}// loop all gap numbers
 		
 		return new Pair<ArrayList<Kmer>, ArrayList<Kmer>>(allSignificantKmers, kmers);
@@ -2395,7 +2397,8 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 //			System.out.println("distance_cutoff="+distance_cutoff);
 //		int delta = dc + (k>=11?2:1);
 		ArrayList<DensityClusteringPoint> centers = hitWeightedDensityClustering(distanceMatrix, 
-				posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff, config.refine_centerKmers);
+				posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff, 
+				config.refine_centerKmers, config.use_self_density);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
 		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
 		for (DensityClusteringPoint p:centers){
@@ -2452,7 +2455,8 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 //		if (config.verbose>1)
 //			System.out.println("distance_cutoff="+distance_cutoff);
 		ArrayList<DensityClusteringPoint> centers = KMAC1.hitWeightedDensityClusteringMTree(dataPoints, config.mtree, 
-				posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff, config.refine_centerKmers);
+				posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff, 
+				config.refine_centerKmers, config.use_self_density);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
 		//TODO: for each cluster, select the strongest kmer that is far away from other stronger cluster center kmers
 		for (DensityClusteringPoint p:centers){
@@ -2563,7 +2567,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 	 */
 	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClustering(float[][] distanceMatrix, 
 			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, 
-			double posNegSeqRatio, int distanceCutoff, boolean refine_centers){
+			double posNegSeqRatio, int distanceCutoff, boolean refine_centers, boolean use_self_density){
 		ArrayList<DensityClusteringPoint> data = new ArrayList<DensityClusteringPoint>();
 		StatUtil util = new StatUtil();
 		// compute local density for each point
@@ -2582,8 +2586,12 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 					b_neg.or(negHitList.get(j));
 				}
 			}
-			// group hit count * self_density, to down-weight weak kmers from being selected as center
-			p.densitySxN = (float)Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			if (use_self_density)
+				// group hit count * self_density, to down-weight weak kmers from being selected as center
+				p.densitySxN = (float)Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			else
+				// group hit count 
+				p.densitySxN = (float)(CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio);
 			if (Double.isNaN(p.densitySxN))
 				continue;
 			p.density = p.densitySxN;
@@ -2695,7 +2703,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 	 */
 	public static ArrayList<DensityClusteringPoint> hitWeightedDensityClusteringMTree(MTree mtreeDataPoints, int mtree,
 			ArrayList<BitSet> posHitList, ArrayList<BitSet> negHitList, double[] seq_weights, 
-			double posNegSeqRatio, int distanceCutoff, boolean refine_centers){
+			double posNegSeqRatio, int distanceCutoff, boolean refine_centers, boolean use_self_density){
 		// keys = kmer indices (0 to dataPoints.getSize() - 1)
 		// values = kmers in range
 		HashMap<Integer, ArrayList<Kmer>> rangeResults = new HashMap<Integer, ArrayList<Kmer>>();
@@ -2750,8 +2758,12 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				b_pos.or(posHitList.get(kmer.getIndex()));
 				b_neg.or(negHitList.get(kmer.getIndex()));
 			}
-			// group hit count * self_density, to down-weight weak kmers from being selected as center
-			p.densitySxN = (float)Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			if (use_self_density)
+				// group hit count * self_density, to down-weight weak kmers from being selected as center
+				p.densitySxN = (float)Math.sqrt((CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio) * self_density);
+			else
+				// group hit count 
+				p.densitySxN = (float)(CommonUtils.calcWeightedHitCount(b_pos,seq_weights) - b_neg.cardinality()*posNegSeqRatio);
 			if (Double.isNaN(p.densitySxN))
 				continue;
 			p.density = p.densitySxN;
@@ -3073,6 +3085,9 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		
 		/** init kmerSet with seed family of seed kmer, by adding mismatch k-mers, order by #mm */
 		ArrayList<Kmer> seedFamily = findSeedFamily(kmers, seed.getKmerStr());
+		seed.setAlignString(seed.getKmerStr());
+		seedFamily.add(seed);
+		
 		Collections.sort(seedFamily);
 		ArrayList<Kmer> tmp = new ArrayList<Kmer>();
 		seed.setMatrix();
@@ -3096,10 +3111,8 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		}
 		
 		/** get the first sequence aligment using seedFamily kmer positions */
-//		Kmer.printKmerHashcode(seedFamily);	
-//		NewKSM newksm = new NewKSM(seedFamily);
+//		System.out.println(getKmerClusterAlignmentString(seedFamily, seedFamily.size()));
     	cluster.alignedKmers = seedFamily;
-//		Kmer.printKmerHashcode(cluster.alignedKmers);	
     	MotifThreshold thresh = new MotifThreshold();
     	if (config.use_odds_ratio)
     		thresh.motif_cutoff = 1;
@@ -3474,19 +3487,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //			    	return o1.compareByHGP(o2);
 //			    }
 //			});	
-			Collections.sort(alignedKmers);		    	// sort by positive hit count
-			int leftmost_km = Integer.MAX_VALUE;
-			for (Kmer km: alignedKmers){
-				if (km.getKmerStartOffset()<leftmost_km)
-					leftmost_km = km.getKmerStartOffset();
-			}
-			for (Kmer km: alignedKmers){
-				alignedKmer_sb.append(km.getKmerStartOffset()+"\t"
-						+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')
-						+(km.isSeedOrientation?km.getKmerStr():km.getKmerRC())+"\t"
-						+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"
-						+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
-			}
+	    	alignedKmer_sb.append(getKmerClusterAlignmentString(alignedKmers, alignedKmers.size()));
 		}
 		CommonUtils.writeFile(outName+".KSM_Alignements.txt", alignedKmer_sb.toString());
 		alignedKmer_sb = null;
@@ -3576,9 +3577,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		html.append("<p>Representative k-mers of the motifs<p>");
 		html.append("<table border=1><th>K-mer</th><th>Motif</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 		
-    	int leftmost_km = Integer.MAX_VALUE;
-    	ArrayList<Kmer> outputKmers = new ArrayList<Kmer>();		
     	for (int j=0;j<clusters.size();j++){
+	    	int leftmost_km = Integer.MAX_VALUE;
+	    	ArrayList<Kmer> outputKmers = new ArrayList<Kmer>();		
     		// clone kmers, needed to set clusterId
     		ArrayList<Kmer> tmp = new ArrayList<Kmer>();
     		ArrayList<Kmer> alignedKmers = clusters.get(j).alignedKmers;		// each kmer in diff cluster has been clone, would not overwrite
@@ -3600,6 +3601,27 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					break;
 			}
 	    	outputKmers.addAll(tmp);
+	    	
+			for (Kmer km: outputKmers){
+				html.append("<tr><td>");
+				html.append("<b><font size='4' face='Courier New'>");
+				String kmString = km.isSeedOrientation()?km.getKmerStr():km.getKmerRC();
+				char[] kmStr = kmString.toCharArray();
+				html.append(CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-'));
+				for (char b:kmStr){
+					switch(b){
+					case 'A': html.append("<font color='green'>A</font>");break;
+					case 'C': html.append("<font color='blue'>C</font>");break;
+					case 'G': html.append("<font color='orange'>G</font>");break;
+					case 'T': html.append("<font color='red'>T</font>");break;
+					case 'N': html.append("<font color='grey'>N</font>");break;
+					}
+				}
+				html.append("</font></b></td>");
+				html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
+						km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
+			}
+			html.append("<tr><td colspan=6 bgcolor='#e0e0eb'></td></tr>");
     	}
     	//TODO: 
 //		Collections.sort(outputKmers, new Comparator<Kmer>(){
@@ -3609,25 +3631,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //		});		
     	
 		
-		for (Kmer km: outputKmers){
-			html.append("<tr><td>");
-			html.append("<b><font size='4' face='Courier New'>");
-			String kmString = km.isSeedOrientation()?km.getKmerStr():km.getKmerRC();
-			char[] kmStr = kmString.toCharArray();
-			html.append(CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '-'));
-			for (char b:kmStr){
-				switch(b){
-				case 'A': html.append("<font color='green'>A</font>");break;
-				case 'C': html.append("<font color='blue'>C</font>");break;
-				case 'G': html.append("<font color='orange'>G</font>");break;
-				case 'T': html.append("<font color='red'>T</font>");break;
-				case 'N': html.append("<font color='grey'>N</font>");break;
-				}
-			}
-			html.append("</font></b></td>");
-			html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
-					km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
-		}
+
 		html.append("</table>");
 		html.append("</td><td valign='top'><br>");
 		html.append("<table border=0 align=center><th>Motif PWM</th><th>Motif spatial distribution (w.r.t. primary PWM)<br>Format: position,motif_occurences</th>");
@@ -3886,6 +3890,27 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //		return kmer2seq;
 //	}
 //	
+	private String getKmerClusterAlignmentString (ArrayList<Kmer> alignedKmers, int topNum){
+		StringBuilder sb = new StringBuilder();
+		Collections.sort(alignedKmers);		    	// sort by positive hit count
+		int leftmost_km = Integer.MAX_VALUE;
+		topNum = Math.min(alignedKmers.size(), topNum);
+		for (int i=0;i<topNum;i++){
+			Kmer km = alignedKmers.get(i);
+			if (km.getKmerStartOffset()<leftmost_km)
+				leftmost_km = km.getKmerStartOffset();
+		}
+		for (int i=0;i<topNum;i++){
+			Kmer km = alignedKmers.get(i);
+			sb.append(km.getKmerStartOffset()+"\t"
+					+CommonUtils.padding(-leftmost_km+km.getKmerStartOffset(), '.')
+					+(km.isSeedOrientation?km.getKmerStr():km.getKmerRC())+"\t"
+					+km.getPosHitCount()+"\t"+km.getNegHitCount()+"\t"
+					+String.format("%.1f", km.getHgp())+"\t"+km.getAlignString()+"\n");
+		}
+		return sb.toString();
+	}
+	
 	private static Pair<int[],int[]> posList2PairArray(ArrayList<Integer> ps){
 		ArrayList<Integer> ps_rc = new ArrayList<Integer>();
 		for (int p:ps)
@@ -4907,7 +4932,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					SearchResult sr = (SearchResult) searcher.next();
 					for (Object m: sr.getOutputs()){
 						for(Kmer km :str2kmers.get(m)){				// these have to be gapped k-mer
-							int km_seq = sr.getLastIndex() - km.k;	// minus k to get the k-mer position (i.e. first base of the k-mer)
+							if (km.getKmerStr().equals("AGCCTNCCTCC"))
+								seed_range=seed_range+0;
+							int km_seq = sr.getLastIndex() - km.k + 1;	// minus k to get the k-mer position (i.e. first base of the k-mer)
 							// km_seed = km_seq + seq_seed
 							int km_seed = km_seq+s.pos;
 							if (km_seed<-seed_range || km_seed>seed_range)
@@ -4925,9 +4952,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					SearchResult sr = (SearchResult) searcher.next();
 					for (Object m: sr.getOutputs()){
 						for(Kmer km :str2kmers.get(m)){	
-							int km_seq = sr.getLastIndex() - km.k;	// minus k to get the k-mer position (i.e. first base of the k-mer) 
-							// km_seed = km_seq + seq_seed
-							int km_seed = km_seq+s.pos;
+							if (km.getKmerStr().equals("AGCCTNCCTCC"))
+								seed_range=seed_range+0;
+							int km_seq = seq_rc.length() - sr.getLastIndex() + 1;	// the start position of kmer_rc in seq
+							int km_seed = km_seq+s.pos;  // km_seed = km_seq + seq_seed
 							if (km_seed<-seed_range || km_seed>seed_range)
 								continue;
 							if (!kmer2pos_seed.containsKey(km))
@@ -4965,7 +4993,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
     	/** find k-mers that are consistently aligned, set kmer consensus position */
 		ArrayList<Kmer> alignedKmers = new ArrayList<Kmer>();
 		for (Kmer km:kmer2pos_seed.keySet()){
-			if (km.getKmerStr().equals("ANNCANATG"))
+			if (km.getKmerStr().equals("AGCCTNCCTCC"))
 				seed_range=seed_range+0;
 			ArrayList<Integer> posKmer = kmer2pos_seed.get(km);		// all km_seed positions of this kmer
 			// The kmer hit in the 2*k region should be at least 1/3 of total hit (why??)
@@ -5050,6 +5078,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				System.out.println(String.format("%s: Extract new KSM, %d k-mers.", CommonUtils.timeElapsed(tic), alignedKmers.size()));
 		}
 		alignedKmers.trimToSize();
+		
+//		System.out.println(getKmerClusterAlignmentString(alignedKmers, 20));
+		
 		return new NewKSM(alignedKmers);
 	}
 
@@ -5934,6 +5965,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	public void updateEngine(ArrayList<Kmer> kmers){
 		updateEngine(kmers, config.match_base_kmer, true);
 	}
+	
 	/** load Kmers and prepare the search Engine, do not print k-mer list<br>
 	 *  assuming the kmers are unique	 * 
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
@@ -5954,6 +5986,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		HashMap<String, ArrayList<Integer>> tmpStr2kmerOffsets = new HashMap<String, ArrayList<Integer>>();	
 
 		for (Kmer km: kmers){
+			if (km.getKmerStr().equals("AGCCTNCCTCC"))
+				use_base_kmers=use_base_kmers;
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer)km;
 				if (use_base_kmers)
@@ -5969,9 +6003,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 						}
 						tmpStr2kmers.get(kmerStr).add(bk);			// use base-kmers for scoring
 						// base kmer has same length as gkmer, thus same offset
-						// Convert startOffset to endOffset, b/c AC search returns end+1 position, add the kmer length with kmer offset, minus
+						// Convert startOffset to endOffset, b/c AC search returns END position, add the kmer length with kmer offset, minus
 						// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
-						tmpStr2kmerOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k);	 
+						tmpStr2kmerOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k+1);	 
 					}
 				else{
 					for (Kmer sk: gk.getBaseKmers()){
@@ -5985,12 +6019,16 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 							tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
 						}
 						tmpStr2kmers.get(kmerStr).add(km);			// use gapped kmers for scoring
-						tmpStr2kmerOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k);	 // base kmer has same length as gkmer, thus same offset
+						tmpStr2kmerOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k+1);	 // base kmer has same length as gkmer, thus same offset
 					}
 				}
 			}
-			else{
-				String kmerStr = km.isSeedOrientation()?km.kmerString:km.kmerRC;
+			else{		// if exact kmer
+				String kmerStr = null;
+				if (areKmersAligned)
+					kmerStr = km.isSeedOrientation()?km.kmerString:km.kmerRC;
+				else
+					kmerStr = km.kmerString;
 				if (!tmpStr2kmers.containsKey(kmerStr)){
 					tmpStr2kmers.put(kmerStr, new ArrayList<Kmer>());	
 					tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
@@ -5998,7 +6036,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				tmpStr2kmers.get(kmerStr).add(km);	
 				// Convert startOffset to endOffset, b/c AC search returns end+1 position, add the kmer length with kmer offset, minus
 				// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
-				tmpStr2kmerOffsets.get(kmerStr).add(-km.kmerStartOffset-km.k);
+				tmpStr2kmerOffsets.get(kmerStr).add(-km.kmerStartOffset-km.k+1);
 			}			
 	    }
 		str2kmers.clear();
