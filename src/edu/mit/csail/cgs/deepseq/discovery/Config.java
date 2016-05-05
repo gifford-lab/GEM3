@@ -121,6 +121,7 @@ public class Config {
     public boolean print_all_kmers = false;
     public boolean print_bound_seqs = false;
     public boolean re_train = false;
+	public boolean cluster_gapped = false;
 	public boolean refine_centerKmers = false;
 	public boolean refine_pwm = false;
 	public boolean refine_ksm = false;	// refine the KSM at the end of KMAC using un-masked sequences
@@ -248,6 +249,7 @@ public class Config {
         print_all_kmers = flags.contains("print_all_kmers");
         print_bound_seqs = flags.contains("print_bound_seqs");
         re_train = flags.contains("re_train");
+        cluster_gapped = flags.contains("cluster_gapped");
         refine_centerKmers = flags.contains("refine_centers");
         refine_pwm = flags.contains("refine_pwm");
         refine_ksm = flags.contains("refine_ksm");
