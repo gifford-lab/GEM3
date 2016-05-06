@@ -103,7 +103,6 @@ public class Config {
     public boolean k_neg_dinu_shuffle = true;		// di-nuleotide shuffle
     public int rand_seed = 0;
     public int neg_pos_ratio = 1;					// number of shuffled negative / positive seqs
-   	public boolean re_align_kmer = false;
    	public boolean use_kmer_mismatch = true;
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
    	/** Align and cluster motif using KSM */
@@ -239,11 +238,10 @@ public class Config {
         kmer_print_hits = flags.contains("kmer_print_hits");
         print_motif_hits = flags.contains("print_motif_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
-        k_neg_dinu_shuffle = !flags.contains("k_neg_shuffle");
+        k_neg_dinu_shuffle = !flags.contains("k_neg_single_shuffle");
         use_self_density = flags.contains("self_density");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
-        neg_pos_ratio = Args.parseInteger(args, "neg_ratio", neg_pos_ratio);
-        re_align_kmer = flags.contains("rak");
+        neg_pos_ratio = Args.parseInteger(args, "npr", neg_pos_ratio);
         print_aligned_seqs = flags.contains("print_aligned_seqs");
         print_input_seqs = flags.contains("print_input_seqs");
         print_all_kmers = flags.contains("print_all_kmers");

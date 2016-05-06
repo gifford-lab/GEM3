@@ -185,6 +185,7 @@ public class KMAC1 {
 			seqs[i] = seq.toUpperCase();
 		}
 		
+		seqNum = seqs.length;
 		seq_weights = new double[seqNum];
 		totalWeight=0;
 		for (int i=0;i<seqNum;i++){
@@ -232,33 +233,33 @@ public class KMAC1 {
 				}
 			}
 			else{		// single nucleotide shuffling
-				System.out.println("!!! Need to update !!!\nUse shuffled sequences as negative sequences.\n");
-				Random randObj = new Random(config.rand_seed);
-				for (int i=0;i<seqNum;i++)
-					seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
+				System.out.println("Use shuffled sequences as negative sequences.\n");
+				for (int j=0;j<config.neg_pos_ratio;j++){		
+					Random randObj = new Random(config.rand_seed+j);
+					for (int i=0;i<seqNum;i++){
+						seqsNegList.add(SequenceUtils.shuffle(seqs[i], randObj));
+					}
+				}
 			}
 		}
 		else{	// use the supplied negative sequences
-			for (int i=0;i<neg_seqs.size();i++){
+			int negSeqNum = seqNum * config.neg_pos_ratio;
+			HashSet<Integer> ids = new HashSet<Integer>();
+			Random randObj = new Random(config.rand_seed);
+			for (int i=0;i<negSeqNum;i++){
+				ids.add(randObj.nextInt(neg_seqs.size()));
+			}
+			int makeup = (negSeqNum-ids.size())*2;
+			for (int i=0;i<makeup;i++){
+				ids.add(randObj.nextInt(neg_seqs.size()));
+				if (ids.size()==negSeqNum)
+					break;
+			}
+			
+			for (int i:ids){
 				String seq = neg_seqs.get(i);
-				if (config.repeat_fraction<1){
-					int count = 0;
-					for (char c:seq.toCharArray())
-						if (Character.isLowerCase(c) || c=='N')				// assuming lower case sequences are repeats
-							count++;
-					if (count>seq.length()*config.repeat_fraction)			// if repeat fraction in sequence is too high, skip
-						continue;
-					if (count>1){									// convert lower case repeat to N
-						char[] chars = seq.toCharArray();
-						for (int j=0;j<chars.length;j++)
-							if (Character.isLowerCase(chars[j]))
-								chars[j] = 'N';
-						seq = new String(chars);
-					}
-				}
 				seqsNegList.add(seq.toUpperCase());
 			}
-
 		}
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
@@ -6315,6 +6316,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		String format = Args.parseString(args, "format", "fasta");
 		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
         String[]f = null;
+        System.out.println("Loading positive sequences ...");
 		for (String line: strs){
 			if (format.equals("fasta")){
 	            if (line.startsWith(">")){
@@ -6349,6 +6351,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	            }
 			}
 		}		
+        System.out.println("Loading negative sequences ...");
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		if (neg_file!=null){
@@ -6377,9 +6380,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		KMAC1 kmac = new KMAC1();
         kmac.setStandalone();
         kmac.setConfig(config, out_prefix, params);
+        System.out.println(String.format("Loaded %d input positive sequences.", pos_seqs.size()));
         kmac.setSequences(pos_seqs, neg_seqs, seq_w);
-        System.out.println(String.format("Loaded %d input positive sequences.\nUse top %d center sequences (%dbp) and %d negative sequences to find motif ...", 
-        		pos_seqs.size(), kmac.seqs.length, config.k_win, kmac.seqsNegList.size()));
+        pos_seqs.clear();
+        neg_seqs.clear();
+        System.out.println(String.format("Use top %d center sequences (%dbp) and %d negative sequences to find motif ...", 
+        		kmac.seqs.length, config.k_win, kmac.seqsNegList.size()));
 //        pos_seqs = null; neg_seqs = null;
         kmac.discoverMotifs(config.k_min, config.k_max, null);
         
