@@ -2616,13 +2616,14 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
             }
         });
 
+		double center_min_distance = distanceCutoff * 1.5;
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
 		if (refine_centers){
 			while(!data.isEmpty()){
 				DensityClusteringPoint p = data.get(0);
 				data.remove(0);
 				for (DensityClusteringPoint r:results){
-					if (distanceMatrix[p.id][r.id]<distanceCutoff){
+					if (distanceMatrix[p.id][r.id]<center_min_distance){
 						p = null;;
 						break;
 					}
@@ -2815,13 +2816,14 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
                 return o1.compareToByGamma(o2);
             }
         });
+		double center_min_distance = distanceCutoff * 1.5;
 		ArrayList<DensityClusteringPoint> results = new ArrayList<DensityClusteringPoint>();
 		if (refine_centers){
 			while(!data.isEmpty()){
 				DensityClusteringPoint p = data.get(0);
 				data.remove(0);
 				for (DensityClusteringPoint r:results){
-					if (KMAC1.editDistance(mtreeDataPoints.getData().get(r.id), mtreeDataPoints.getData().get(p.id))<distanceCutoff){
+					if (KMAC1.editDistance(mtreeDataPoints.getData().get(r.id), mtreeDataPoints.getData().get(p.id))<center_min_distance){
 						p = null;;
 						break;
 					}
@@ -6351,10 +6353,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	            }
 			}
 		}		
-        System.out.println("Loading negative sequences ...");
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		if (neg_file!=null){
+	        System.out.println("Loading negative sequences ...");
 			strs = CommonUtils.readTextFile(neg_file);
 			for (String line: strs){
 				if (format.equals("fasta")){
