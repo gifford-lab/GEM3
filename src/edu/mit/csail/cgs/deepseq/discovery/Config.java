@@ -58,13 +58,13 @@ public class Config {
     /** number of top k-mers (for each k value) selected from density clustering to run KMAC */
     public int k_top = 5;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
-    public int dc = 3;
+    public int dc = -1;		// dc=-1, estimate dc based on k values
     public int max_gkmer = 1500;
     public int k_seqs = 5000;	// the top number of event to get underlying sequences for initial Kmer learning 
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
     public int k_win_f = 4;		// k_win = k_win_f * k
-   	public int gap = 3;			// max number of gapped bases in the k-mers (i.e. use 1 to gap)
+   	public int gap = 3;			// max number of gapped bases in the k-mers (i.e. use 1,2,...,gap.)
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
     public int max_cluster = 20;
@@ -96,13 +96,12 @@ public class Config {
     public boolean optimize_pwm_threshold = true;
     public boolean optimize_kmer_set = true;
     public boolean kmer_use_insig = false;
-    public boolean use_self_density = false;
+    public boolean use_self_density = true;
     public boolean kmer_use_filtered = false;
     public boolean use_weighted_kmer = true;		// strength weighted k-mer count
-    public boolean use_pos_kmer = true;				// position weighted k-mer count
     public boolean k_neg_dinu_shuffle = true;		// di-nuleotide shuffle
     public int rand_seed = 0;
-    public int neg_pos_ratio = 1;					// number of shuffled negative / positive seqs
+    public int neg_pos_ratio = 1;					// number of negative / positive seqs
    	public boolean use_kmer_mismatch = true;
    	public boolean use_seed_family = true;		// start the k-mer alignment with seed family (kmers with 1 or 2 mismatch)
    	/** Align and cluster motif using KSM */
@@ -121,7 +120,7 @@ public class Config {
     public boolean print_bound_seqs = false;
     public boolean re_train = false;
 	public boolean cluster_gapped = false;
-	public boolean refine_centerKmers = false;
+	public boolean refine_centerKmers = true;		// select density clustering centers such that they are not too similar with higher ranked centers
 	public boolean refine_pwm = false;
 	public boolean refine_ksm = false;	// refine the KSM at the end of KMAC using un-masked sequences
 	public boolean refine_final_motifs = false;	// refine the final motifs
@@ -239,7 +238,7 @@ public class Config {
         print_motif_hits = flags.contains("print_motif_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
         k_neg_dinu_shuffle = !flags.contains("k_neg_single_shuffle");
-        use_self_density = flags.contains("self_density");
+        use_self_density = !flags.contains("no_self_density");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
         neg_pos_ratio = Args.parseInteger(args, "npr", neg_pos_ratio);
         print_aligned_seqs = flags.contains("print_aligned_seqs");
@@ -248,7 +247,7 @@ public class Config {
         print_bound_seqs = flags.contains("print_bound_seqs");
         re_train = flags.contains("re_train");
         cluster_gapped = flags.contains("cluster_gapped");
-        refine_centerKmers = flags.contains("refine_centers");
+        refine_centerKmers = !flags.contains("not_refine_centers");
         refine_pwm = flags.contains("refine_pwm");
         refine_ksm = flags.contains("refine_ksm");
         refine_final_motifs = flags.contains("refine_final_motifs");
@@ -287,7 +286,6 @@ public class Config {
         use_ksm = !flags.contains("no_ksm");
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
-        use_pos_kmer = !flags.contains("no_pos_kmer");
         optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
         optimize_kmer_set = !flags.contains("not_optimize_kmer_set");		// optimize the whole k-mer set, not the KG kmers.
         use_grid_search = !flags.contains("no_grid_search");

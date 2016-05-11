@@ -69,7 +69,6 @@ public class KMAC1 {
 	}
 	Config config = new Config();	
 
-	private Genome genome;
 	private boolean engineInitialized =false;
 	private double[] bg= new double[4];	// background frequency based on GC content
 	private double ic_trim = 0.4;
@@ -316,7 +315,6 @@ public class KMAC1 {
 	public KMAC1(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
 //		setUseKmerWeight();
 
-		genome = g;
 		seqgen = new SequenceGenerator<Region>();
     	if (use_db_genome)
     		seqgen.useLocalFiles(false);
