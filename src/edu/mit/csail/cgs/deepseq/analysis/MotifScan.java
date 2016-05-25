@@ -125,7 +125,7 @@ public class MotifScan {
 					continue;
 				String[] f = l.split("\t");
 				knames.add(f[0].trim());
-				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), flags.contains("use_seq_weights"), flags.contains("or")));
+				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), flags.contains("sw"), true));
 			}
 			instances = getKSMInstances(seqs, kmacs, knames);
 		}
@@ -226,6 +226,8 @@ public class MotifScan {
 //	    			System.out.println();
 //	    		}
 	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
+	    		if (kgs==null)
+	    			continue;
 	    		for (int i=0;i<kgs.length;i++){
 	    			KmerGroup kg = kgs[i];
 		    		MotifInstance mi = new MotifInstance();

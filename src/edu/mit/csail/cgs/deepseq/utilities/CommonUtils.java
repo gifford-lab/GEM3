@@ -638,7 +638,8 @@ public class CommonUtils {
 		KMAC1 kEngine;
 		kEngine = new KMAC1(ksm.kmers, null);		//TODO: set configs? match_base_kmer?
 		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
-		kEngine.setSequenceWeights(ksm.seq_weights);
+		if (use_seq_weights)
+			kEngine.setSequenceWeights(ksm.seq_weights);
 		kEngine.setUseOddsRatio(use_odds_ratio);
 		return kEngine;
 	}
