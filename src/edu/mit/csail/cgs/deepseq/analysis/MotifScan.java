@@ -214,7 +214,7 @@ public class MotifScan {
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
 	    String[] seqs_rc = new String[seqs.length];
 	    for (int i=0;i<seqs.length;i++)
-	    	seqs_rc[i]=SequenceUtil.reverseComplement(seqs_rc[i]);
+	    	seqs_rc[i]=SequenceUtil.reverseComplement(seqs[i]);
 	    
 	    for (int m=0; m<kmacs.size(); m++){
 	    	System.out.println("  ... "+knames.get(m)+" ...");
