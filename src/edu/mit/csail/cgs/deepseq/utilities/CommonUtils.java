@@ -721,7 +721,7 @@ public class CommonUtils {
     }
  
     /**
-     * Load multiple PWMs from PFM files
+     * Load multiple PWMs from a file with multiple PFM matrices
      * @param pfmFile	PFM file in STAMP format (simplified TRANSFAC format)
      * @param gc	expected gc fraction
      * @return

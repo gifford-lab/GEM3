@@ -147,7 +147,10 @@ public class MotifScan {
 		}
 		
 	    // output
-		StringBuilder sb = new StringBuilder("#Motif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n");
+	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
+    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
+    			"#Motif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n"); 	// write first, overwrite if the file exists
+		StringBuilder sb = new StringBuilder();
 		Genome g = CommonUtils.parseGenome(args);
 	    for (int i=0;i<instances.size();i++){
 	    	MotifInstance mi = instances.get(i);
@@ -172,9 +175,12 @@ public class MotifScan {
 	    		coor_string = "N.A.";
 	    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
 	    	.append(mi.position).append("\t").append(coor_string).append("\t").append(mi.strand).append("\t").append(String.format("%.2f", mi.score)).append("\n");
+	    	if (sb.length()>1e7){	// write sb in smaller trunks
+		    	CommonUtils.appendFile(out.concat(".motifInstances.txt"), sb.toString());
+		    	sb = new StringBuilder();
+	    	}	    	
 	    }	    
-	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
-    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), sb.toString());
+    	CommonUtils.appendFile(out.concat(".motifInstances.txt"), sb.toString());	// write out the remaining texts
 	    
     	
 	    // skip the matched sequences

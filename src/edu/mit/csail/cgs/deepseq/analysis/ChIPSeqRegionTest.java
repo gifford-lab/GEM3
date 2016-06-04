@@ -94,8 +94,8 @@ public class ChIPSeqRegionTest{
 			System.out.println("\nCounting Experiment "+conditionNames.get(i)+" ...");
 			for (Point p: coords){
 				Region r = p.expand(winSize);
-				int ipCount = ip.countHits(p.expand(winSize));
-				int ctrlCount = ctrl.countHits(p.expand(winSize));
+				int ipCount = ip.countHits(r);
+				int ctrlCount = ctrl.countHits(r);
 //				double negLog = -Math.log10(StatUtil.binomialPValue(ctrlCount, ipCount+ctrlCount, ratio));
 //				System.out.println(String.format("%s\t%d\t%d\t%.2f", p.toString(), ipCount, ctrlCount, negLog));
 				System.out.println(String.format("%s\t%d\t%d", p.toString(), ipCount, ctrlCount));
