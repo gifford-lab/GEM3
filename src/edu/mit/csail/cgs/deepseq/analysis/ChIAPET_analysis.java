@@ -731,10 +731,19 @@ public class ChIAPET_analysis {
 						int median = cluster.get(cluster.size()/2);
 						Point tssPoint = t.coord;
 						Point distalPoint = new Point(genome, t.coord.getChrom(),t.coord.getLocation()+(t.coord.getStrand()=='+'?median:-median));
+						Region distalRegion = null;
+						if (t.coord.getStrand()=='+'){
+							distalRegion = new Region(genome, t.coord.getChrom(),t.coord.getLocation()+cluster.get(0), 
+									t.coord.getLocation()+cluster.get(cluster.size()-1));
+						}
+						else{
+							distalRegion = new Region(genome, t.coord.getChrom(),t.coord.getLocation()-cluster.get(cluster.size()-1), 
+									t.coord.getLocation()-cluster.get(0));
+						}
 						// print result if the read cluster is not in the tss exclusion range
-						System.out.print(String.format("%s\t%s\t%d\t%s\t%d\t%d\t%d\t", 
-								t.symbol, t.coord.getLocationString(), t.id, distalPoint.getLocationString(), median, cluster.size(), 
-								cluster.get(cluster.size()-1)-cluster.get(0)));
+						System.out.print(String.format("%s\t%s\t%s\t%s\t%d\t%d\t%d\t", 
+								t.symbol, t.coord.getLocationString(), distalRegion.getLocationString(), distalPoint.getLocationString(), median, cluster.size(), 
+								distalRegion.getWidth()));
 						
 						// print binding overlap information
 						int count=t.reads.get(cluster.get(0)).size();
