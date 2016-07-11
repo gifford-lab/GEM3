@@ -171,6 +171,10 @@ public class RegionAnnotator {
 		else
 			queryRegions=CommonUtils.loadCgsRegionFile(Args.parseString(args, "region_file", region_file), genome);
 
+		ArrayList<Region> inputRegions = new ArrayList<Region>();
+		for (Region r: queryRegions)
+			inputRegions.add(r);
+		
 		String anchor_GEM_file = Args.parseString(args, "anchor_GEM_file", null); // TF GEM file to anchor the region
 		if (anchor_GEM_file !=null){
 			List<GPSPeak> gpsPeaks = null;
@@ -236,10 +240,11 @@ public class RegionAnnotator {
 		}
 		int[] sortedIdx = StatUtil.findSort(signals);
 		StringBuilder sb = new StringBuilder();
-		for (int i=queryRegions.size()-1;i>=0;i--){			// descending order
-			Region r = queryRegions.get(sortedIdx[i]);
+		sb.append("#Point\tInput_regions\tWidth\tSignal_").append(window).append("\n");
+		for (int i=inputRegions.size()-1;i>=0;i--){			// descending order
+			Region r = inputRegions.get(sortedIdx[i]);
 			sb.append(r.getMidpoint().toString()).append("\t")
-			.append(r.toString()).append("\t").append(r.getWidth()).append("\n");
+			.append(r.toString()).append("\t").append(r.getWidth()).append("\t").append(signals[i]).append("\n");
 		}
 		CommonUtils.writeFile(outPrefix+".coords_regions.txt", sb.toString());
 	}
