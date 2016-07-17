@@ -182,7 +182,7 @@ public class GappedKmer extends Kmer{
 				sb.append("\n");
 			}
 			
-			sb.append("\n");	// an empty line to signal that the following are the sub-kmers
+			sb.append("$$$\n");	// $$$ to signal that the following are the sub-kmers
 			
 			for (Kmer kmer:basekmerList){
 				sb.append(kmer.toString2()).append("\t").append(allBaseKmer2ID.get(kmer));
@@ -192,7 +192,7 @@ public class GappedKmer extends Kmer{
 			}
 			
 			if (seq_weights!=null){
-				sb.append("\n");	// an empty line to signal that the following are the sequence weights
+				sb.append("%%%\n");	// %%% to signal that the following are the sequence weights
 				for (double w: seq_weights)
 					sb.append(String.format("%.4f\n", w));
 			}
@@ -225,7 +225,7 @@ public class GappedKmer extends Kmer{
 	 * @param file
 	 * @return
 	 */
-	public static KsmMotif loadKSM(File file, boolean ignoreWeights){
+	public static KsmMotif loadKSM(File file){
 		KsmMotif ksm = new KsmMotif();
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
 		HashMap<Integer, Kmer> id2baseKmerMap = new HashMap<Integer, Kmer>();
@@ -246,7 +246,7 @@ public class GappedKmer extends Kmer{
 	        while((line = bin.readLine()) != null) { 
 	        	if (line.startsWith("#"))
 	        		continue;
-	            if (line.equals(""))	// break at the empty line before the sub-kmers
+	            if (line.equals("") || line.equals("$$$"))	// break at the empty line before the sub-kmers
 	            	break;
 	            line = line.trim();
 	            Kmer kmer = GappedKmer.fromString(line);
@@ -256,26 +256,24 @@ public class GappedKmer extends Kmer{
 	        //load base k-mers
 	        while((line = bin.readLine()) != null) { 
 	            line = line.trim();
-	            if (line.equals(""))	// break at the empty line between the sub-kmers and sequence weights
+	            if (line.equals("") || line.equals("%%%"))	// break at the empty line between the base-kmers and sequence weights
 	            	break;
 	            Kmer kmer = GappedKmer.fromString(line);
-	            id2baseKmerMap.put(Integer.parseInt(kmer.CIDs), kmer);		// for sub-kmer, CIDs field is only one id
+	            id2baseKmerMap.put(Integer.parseInt(kmer.CIDs), kmer);		// for base-kmer, CIDs field is only one id
 	        }	
 
 	        // load sequence weights
-	        if (!ignoreWeights){
-		        ArrayList<Double> weights = new ArrayList<Double>();
-		        while((line = bin.readLine()) != null) { 
-		            line = line.trim();
-		            if (line.equals(""))	// The end of file
-		            	break;
-		            weights.add(Double.parseDouble(line));
-		        }
-		        if (!weights.isEmpty()){
-			        ksm.seq_weights = new double[weights.size()];
-			        for (int i=0; i<weights.size(); i++){
-			        	ksm.seq_weights[i] = weights.get(i);
-			        }
+	        ArrayList<Double> weights = new ArrayList<Double>();
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            if (line.equals(""))	// The end of file
+	            	break;
+	            weights.add(Double.parseDouble(line));
+	        }
+	        if (!weights.isEmpty()){
+		        ksm.seq_weights = new double[weights.size()];
+		        for (int i=0; i<weights.size(); i++){
+		        	ksm.seq_weights[i] = weights.get(i);
 		        }
 	        }
 	        if (bin != null) {

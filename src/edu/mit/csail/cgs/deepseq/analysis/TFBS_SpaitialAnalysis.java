@@ -47,7 +47,7 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  *
  */
 public class TFBS_SpaitialAnalysis {
-	private final int TARGET_WIDTH = 250;
+	private int signal_radius = 500;
 	
 	Genome genome=null;
 	ArrayList<String> expts = new ArrayList<String>();
@@ -125,7 +125,7 @@ public class TFBS_SpaitialAnalysis {
 		int type = Args.parseInteger(args, "type", 999);
 		ArrayList<ArrayList<Site>> clusters=null;
 		switch(type){
-		case 999:	// default: simple file loading for RPD public code
+		case 999:	// default: simplified file loading for RPD public code
 			analysis.loadBindingEvents();
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputTFBSclusters(clusters);
@@ -279,6 +279,7 @@ public class TFBS_SpaitialAnalysis {
 		}
 		
 		tss_file = Args.parseString(args, "tss", null);
+		signal_radius = Args.parseInteger(args, "signal_radius", signal_radius);
 		tss_signal_file = Args.parseString(args, "tss_signal", null);
 		cluster_file = Args.parseString(args, "cluster", null);
 		cluster_key_file = Args.parseString(args, "key", null);
@@ -1994,8 +1995,8 @@ public class TFBS_SpaitialAnalysis {
 				chroms = new ArrayList<String>();
 				chroms.add("19");
 			}
+			// load  data into cache.
 			for (String chrom: chroms ){
-				// load  data for this chromosome.
 				int length = genome.getChromLength(chrom);
 				Region wholeChrom = new Region(genome, chrom, 0, length-1);
 				int count = ip.countHits(wholeChrom);
@@ -2031,7 +2032,7 @@ public class TFBS_SpaitialAnalysis {
             
 			// now get the data from the cache
             for (int j=0;j<all_TSS.size();j++){
-            	Region region = all_TSS.get(j).expand(TARGET_WIDTH);
+            	Region region = all_TSS.get(j).expand(signal_radius);
             	List<StrandedBase> bases = ipCache.getStrandedBases(region, '+');
             	bases.addAll(ipCache.getStrandedBases(region, '-'));
             	signals[j][i] = (int)StrandedBase.countBaseHits(bases);
@@ -2268,7 +2269,7 @@ public class TFBS_SpaitialAnalysis {
 				// get corresponding signals at the target sites
 				List<Double> target_signals = new ArrayList<Double>();
 				for (int i=0;i<TFIDs.length;i++){
-					target_signals.add(i, (double)chipseqs.get(TFIDs[i]).countHits(p.expand(TARGET_WIDTH)));
+					target_signals.add(i, (double)chipseqs.get(TFIDs[i]).countHits(p.expand(signal_radius)));
 				}
 				
 				// compute correlation

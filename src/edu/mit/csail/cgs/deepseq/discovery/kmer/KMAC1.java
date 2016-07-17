@@ -84,14 +84,8 @@ public class KMAC1 {
 	public double[] getSequenceWeights(){return seq_weights;}
 	public void setSequenceWeights(double[] w){
 		seq_weights=w;
-		if (seq_weights!=null)
-			config.use_weighted_kmer = true;
-		else
-			config.use_weighted_kmer = false;
 	}
-	public void setUseOddsRatio(boolean b){
-		config.use_odds_ratio = b;
-	}
+
 	private double totalWeight;
 	private String[] seqsNeg;		// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
@@ -125,7 +119,8 @@ public class KMAC1 {
 	private AhoCorasick treeAhoCorasick;
 	// to map the k-mer string from AhoCorasick tree to Kmer Object
 	private HashMap<String, Kmer[]> str2kmers = new HashMap<String, Kmer[]>();	
-	private HashMap<String, int[]> str2kmerOffsets = new HashMap<String, int[]>();	
+	private HashMap<String, int[]> str2kmerOffsets = new HashMap<String, int[]>();
+//	private HashMap<String, boolean[]> str2kmerOrientation = new HashMap<String, boolean[]>();	
 	
 	public boolean isInitialized(){ return engineInitialized;}
 	
@@ -4061,7 +4056,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				seedBackup = cluster.seedKmer;
 				cluster.inputKmers = Kmer.deepCloneKmerList(cluster.inputKmers, cluster.seedKmer, seq_weights);
 				cluster.seedKmer = cluster.inputKmers.get(0);
-				updateEngine(cluster.inputKmers, false, false);		
+				updateEngine(cluster.inputKmers, false, false);		// for extractKSM(), set both to false
 				newKSM = extractKSM (seqList, seed_range);
 				if (newKSM==null ||newKSM.threshold==null)
 					return;
@@ -5764,12 +5759,16 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //	    engineInitialized = true;
 //	}	
 	
+	/**
+	 * A wrapper for updateEngine(kmers, boolean, boolean). Used before KSM scanning, or alignByKSM().<br>
+	 * It set areKmersAligned to be true, set use_base_kmers using config setting.
+	 * @param kmers
+	 */
 	public void updateEngine(ArrayList<Kmer> kmers){
 		updateEngine(kmers, config.match_base_kmer, true);
 	}
 	
-	/** load Kmers and prepare the search Engine, do not print k-mer list<br>
-	 *  assuming the kmers are unique	 * 
+	/** load Kmers and prepare the search Engine, assuming the kmers are unique	 * 
 	 * @param kmers List of kmers (with kmerString, sequence hit count)
 	 * @param use_base_kmers true: use base kmers for KG scoring; false: use whole gapped k-mer for scoring
 	 * @param areKmersAligned true: set string orientation as seed, for alignKSM(); false: set String orientation as kmer, for extractKSM()
@@ -5780,42 +5779,57 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			return;
 		}		
 		
-		//Init Aho-Corasick alg. for searching multiple Kmers in sequences
+		//Init Aho-Corasick (AC) algorithm for searching multiple Kmers in sequences
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
 		//from <http://hkn.eecs.berkeley.edu/~dyoo/java/index.html> 
 		treeAhoCorasick = new AhoCorasick();
+		// str2Kmers use a list/array to store kmers because a base k-mer string may represent different gapped k-mers, 
+		// with different offsets
 		HashMap<String, ArrayList<Kmer>> tmpStr2kmers = new HashMap<String, ArrayList<Kmer>>();	
 		HashMap<String, ArrayList<Integer>> tmpStr2kmerOffsets = new HashMap<String, ArrayList<Integer>>();	
 
 		for (Kmer km: kmers){
-			if (km.getKmerStr().equals("AGCCTNCCTCC"))
-				use_base_kmers=use_base_kmers;
+//			if (km.getKmerStr().equals("AGCCTNCCTCC"))	// for debugging
+//				use_base_kmers=use_base_kmers;
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer)km;
-				if (use_base_kmers)
+				if (use_base_kmers){
 					for (Kmer bk: gk.getBaseKmers()){
 						String kmerStr;
-						if (areKmersAligned)
-							kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;	// for alignKSM, use seed orientation
+						Kmer baseKmer = null;
+						if (areKmersAligned){
+							kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;	// for aligned kmers (KSM), use seed orientation
+							if (gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)){
+								baseKmer = bk;
+							}
+							else{
+								baseKmer = bk.clone();		// clone the base k-mer so that it can be modified without affecting other gKmers
+								baseKmer.setKmerString(bk.kmerRC);
+								baseKmer.setKmerStartOffset(gk.kmerStartOffset);
+								baseKmer.setShift(gk.kmerStartOffset);
+							}
+						}
 						else
 							kmerStr = gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;	// for extractKSM, use gkmer orientation
+						
 						if (!tmpStr2kmers.containsKey(kmerStr)){
 							tmpStr2kmers.put(kmerStr, new ArrayList<Kmer>());	
 							tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
 						}
-						tmpStr2kmers.get(kmerStr).add(bk);			// use base-kmers for scoring
+						tmpStr2kmers.get(kmerStr).add(baseKmer);			// use base-kmers for scoring
 						// base kmer has same length as gkmer, thus same offset
 						// Convert startOffset to endOffset, b/c AC search returns END position, add the kmer length with kmer offset, minus
 						// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
-						tmpStr2kmerOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k+1);	 
+						tmpStr2kmerOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k+1);
 					}
-				else{
-					for (Kmer sk: gk.getBaseKmers()){
+				}
+				else{	// use whole gapped kmer for matching KG
+					for (Kmer bk: gk.getBaseKmers()){
 						String kmerStr;
 						if (areKmersAligned)
-							kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
+							kmerStr = gk.isSeedOrientation()&&gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
 						else
-							kmerStr = gk.getBaseKmerOrientation(sk)?sk.kmerString:sk.kmerRC;
+							kmerStr = gk.getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
 						if (!tmpStr2kmers.containsKey(kmerStr)){
 							tmpStr2kmers.put(kmerStr, new ArrayList<Kmer>());	
 							tmpStr2kmerOffsets.put(kmerStr, new ArrayList<Integer>());
@@ -5843,10 +5857,28 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	    }
 		str2kmers.clear();
 		str2kmerOffsets.clear();
-		// convert ArrayList to array, for more efficient access, b/c these data structure
+		// convert ArrayList to array, for more efficient access, b/c these data structure are used for every k-mer match
 		for (String s: tmpStr2kmers.keySet()){
 			ArrayList<Kmer> ks = tmpStr2kmers.get(s);
 			ArrayList<Integer> os = tmpStr2kmerOffsets.get(s);
+			// if use base kmers, the same base k-mer may match multiple gapped k-mer pattern, thus reduce redundancy here
+			if (use_base_kmers && ks.size()>1){
+				HashSet<Integer> uniq_offsets = new HashSet<Integer>();
+				ArrayList<Integer> ids = new ArrayList<Integer>();
+				for (int i=0;i<ks.size();i++){
+					int o = os.get(i);
+					if (uniq_offsets.contains(o))
+						ids.add(i);
+					else
+						uniq_offsets.add(o);
+				}
+				Collections.sort(ids);
+				Collections.reverse(ids);
+				for (int id:ids){
+					ks.remove(id);
+					os.remove(id);
+				}
+			}
 			Kmer[] kms = new Kmer[ks.size()];
 			for (int i=0;i<kms.length;i++)
 				kms[i] = ks.get(i);
@@ -5863,7 +5895,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	}		
 	
 	/** 
-	 * Search all k-mers (loaded in the AhoCorasick tree) in the sequence, both strand<br>
+	 * Search all k-mers (loaded in the AhoCorasick tree) in the sequence, both strands<br>
 	 * Do not return k-mer positions
 	 * @param seq sequence string to search k-mers
 	 * @return a set of kmers found
@@ -5958,7 +5990,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	/** 
 	 * Report all strand-specific KSM group hits in both orientations of the sequence<br>
 	 * Assuming the updateEngine(kmers) method had been called, i.e. "treeAhoCorasick kmer search tree" instance member variable has been constructed.
-	 * @param seq sequence string and rc to search k-mers
+	 * @param seq sequence string to search k-mers
+	 * @param seq_rc sequence rc to search k-mers
 	 * @return an array of KmerGroups:<br>
 	 * Each k-mer group maps to a binding position (using kmer.startOffset, relative to bs ) in the sequence<br>
 	 * Note: the return value is different from query(), here the match on RC strand is labeled (pos+RC)
@@ -5980,6 +6013,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				// AC search returns end+1 position, end_seq
 				// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
 				int[] kmerOffsets = str2kmerOffsets.get(s);	
+//				boolean[] kmerOrientation = str2kmerOrientation.get(s);
 				for(int i=0;i<kmers.length;i++){	
 					int x = sr.getLastIndex() + kmerOffsets[i];	// minus kmerShift to get the motif position
 					if (!result.containsKey(x))
@@ -6183,6 +6217,19 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				isKmersSorted = true;
 			}
 			return kmers.get(0);
+		}
+		public String getAllKmerString(){
+			if (kmers.isEmpty())
+				return null;
+			if (!isKmersSorted){
+				Collections.sort(this.kmers);
+				isKmersSorted = true;
+			}
+			StringBuilder sb = new StringBuilder();
+			for (Kmer km:kmers){
+				sb.append(km.kmerString).append(",");
+			}
+			return sb.toString();
 		}
 //		public int getTotalKmerCount(){
 //    		int kmerCountSum = 0;

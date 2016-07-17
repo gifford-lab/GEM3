@@ -53,7 +53,8 @@ public class PairwiseOverlap{
 	 * <li> The distance between binding calls
 	 * <li> The percentages of intersection relative the whole sets
 	 * </ol>
-	 * example: --species "Mus musculus;mm9" --TF1 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_2_GEM_events.txt" --TF2 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_1_GEM_events.txt" --win 100 --out TF1_vs_TF2.txt
+	 * example: --species "Mus musculus;mm9" --TF1 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_2_GEM_events.txt"
+	 *  --TF2 "C:\Data\workspace\gse\CTCF_outputs\Ctcf_1_GEM_events.txt" --radius 100 --name1 CTCF2 --name2 CTCF1
 	 */
 	public static void diffBinding(String[] args, Genome genome){
 		String name1 = Args.parseString(args, "name1", "TF1");
@@ -84,7 +85,7 @@ public class PairwiseOverlap{
 		}
 		System.out.println(name1+": "+tf1_pts.size());
 			
-		int win = Args.parseInteger(args, "win", 100);
+		int radius = Args.parseInteger(args, "radius", 100);
 		StringBuilder shared = new StringBuilder("# TF1: "+Args.parseString(args, "TF1", null)+"\n");
 		shared.append("# TF2: "+Args.parseString(args, "TF2", null)+"\n");
 		shared.append("#TF1\tTF2\tOffset\n");
@@ -106,7 +107,7 @@ public class PairwiseOverlap{
 			Point tf2 = Point.fromString(genome, f[0]);
 			if (chrom2sites.containsKey(tf2.getChrom())){
 				ArrayList<Point> sites = chrom2sites.get(tf2.getChrom());
-				ArrayList<Point> results = CommonUtils.getPointsWithinWindow(sites, tf2, win);
+				ArrayList<Point> results = CommonUtils.getPointsWithinWindow(sites, tf2, radius);
 
 				if (results.isEmpty())
 					tf2_only_pts.add(tf2);

@@ -34,6 +34,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.analysis.KmerScanner;
+import edu.mit.csail.cgs.deepseq.discovery.Config;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
@@ -631,16 +632,15 @@ public class CommonUtils {
 		return sb.toString();
 	}
 	
-	public static KMAC1 loadKsmFile(String ksmFile, boolean use_seq_weights, boolean use_odds_ratio){
+	public static KMAC1 loadKsmFile(String ksmFile, Config config){
 		File file = new File(ksmFile);
 //    	System.err.println(ksmFile);
-		KsmMotif ksm = GappedKmer.loadKSM(file, !use_seq_weights);
+		KsmMotif ksm = GappedKmer.loadKSM(file);
 		KMAC1 kEngine;
-		kEngine = new KMAC1(ksm.kmers, null);		//TODO: set configs? match_base_kmer?
+		kEngine = new KMAC1(ksm.kmers, config);	
 		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
-		if (use_seq_weights)
+		if (config.use_weighted_kmer)
 			kEngine.setSequenceWeights(ksm.seq_weights);
-		kEngine.setUseOddsRatio(use_odds_ratio);
 		return kEngine;
 	}
 	
@@ -1226,12 +1226,12 @@ public class CommonUtils {
 	 * Assuming the sites list is sorted
 	 * @param sites	a list of sorted points
 	 * @param anchor the anchor point
-	 * @param win the window size
+	 * @param radius the half-window size
 	 * @return
 	 */
-	static public ArrayList<Point> getPointsWithinWindow(ArrayList<Point> sites, Point anchor, int win){
+	static public ArrayList<Point> getPointsWithinWindow(ArrayList<Point> sites, Point anchor, int radius){
 		ArrayList<Point> results = new ArrayList<Point>();
-		Region r = anchor.expand(win);
+		Region r = anchor.expand(radius);
 		Point start = r.startPoint();
 		Point end = r.endPoint();
 		int startIndex = -1;

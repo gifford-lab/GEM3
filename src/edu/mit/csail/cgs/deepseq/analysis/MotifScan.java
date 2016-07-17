@@ -14,6 +14,7 @@ import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.discovery.Config;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.KmerGroup;
@@ -117,6 +118,16 @@ public class MotifScan {
 	    // search for KSM motif matches
 		String ksm_fle = Args.parseString(args, "ksm", null);
 		if (ksm_fle!=null){		// Load multiple KSMs
+			
+	        Config config = new Config();
+	        try{
+				config.parseArgs(args);   
+			}
+			catch (Exception e){
+				e.printStackTrace();
+	    		System.exit(-1);
+			}  
+	        
 			ArrayList<String> lines = CommonUtils.readTextFile(ksm_fle);
 			ArrayList<KMAC1> kmacs = new ArrayList<KMAC1>();
 			ArrayList<String> knames = new ArrayList<String>();
@@ -125,7 +136,7 @@ public class MotifScan {
 					continue;
 				String[] f = l.split("\t");
 				knames.add(f[0].trim());
-				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), flags.contains("sw"), true));
+				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
 			}
 			instances = getKSMInstances(seqs, kmacs, knames);
 		}
@@ -227,10 +238,10 @@ public class MotifScan {
 	    	KMAC1 kmac = kmacs.get(m);
 	    	for (int s=0; s<seqs.length;s++){
 //	    		System.out.print(s+" ");
-//	    		if (s==874) {
-//	    			kmac.setIsDebugging(); // debug
-//	    			System.out.println();
-//	    		}
+	    		if (s==60) {
+	    			kmac.setIsDebugging(); // debug
+	    			System.out.println();
+	    		}
 	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
 	    		if (kgs==null)
 	    			continue;
@@ -251,7 +262,7 @@ public class MotifScan {
 		    		}
 		    		if (kg.getKmers().isEmpty())
 		    			System.err.println("Empty Kmer group match: "+kg.toString());
-		    		mi.matchSeq = kg.getCoveredSequence();
+		    		mi.matchSeq = kg.getCoveredSequence()+":"+kg.getAllKmerString();
 		    		mi.seqID = s;
 		    		instances.add(mi);
 	    		}

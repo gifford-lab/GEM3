@@ -210,7 +210,8 @@ public class StatUtil {
 	/**
 	 * Sorts the array and returns the positions of the original array corresponding
 	 * to the ordered elements <br>
-	 * Accepts only primitive integers
+	 * Accepts only primitive integers<br>
+	 * The array is sorted in ascending order after the method is called
 	 * @param a integer array to be sorted
 	 * @return positions of the original array corresponding to the ordered elements
 	 */

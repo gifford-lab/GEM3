@@ -45,7 +45,7 @@ public class KmerScanner {
 	private KMAC1 kEngine;
 	// each element in the list is for one ChIP-Seq method
 	
-	public KmerScanner(String[] args, ArrayList<Kmer> kmers, int posSeqCount, int negSeqCount, double[] seq_weights, boolean use_odds_ratio){
+	public KmerScanner(String[] args, KsmMotif ksm){
         Config config = new Config();
         try{
 			config.parseArgs(args);   
@@ -54,10 +54,10 @@ public class KmerScanner {
 			e.printStackTrace();
     		System.exit(-1);
 		}  
-		kEngine = new KMAC1(kmers, config);
-		kEngine.setTotalSeqCount(posSeqCount, negSeqCount);
-		kEngine.setSequenceWeights(seq_weights);
-		kEngine.setUseOddsRatio(use_odds_ratio);
+		kEngine = new KMAC1(ksm.kmers, config);
+		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
+		if (config.use_weighted_kmer)
+			kEngine.setSequenceWeights(ksm.seq_weights);
 	}
 	
 	public KmerGroup getBestKG (String seq, String seq_rc){
@@ -125,7 +125,7 @@ public class KmerScanner {
 			seqgen.setGenomePath(Args.parseString(args, "genome", ""));
 		
 		// load experiment list
-		String path = Args.parseString(args, "path", "./");
+		String motif_path = Args.parseString(args, "path", "./");
 		String fasta_path = Args.parseString(args, "fasta_path", "./");
 		String fasta_suffix = Args.parseString(args, "fasta_suffix", ".fasta");
 		String other_pfm_path = Args.parseString(args, "pfm_path", "./");
@@ -149,15 +149,14 @@ public class KmerScanner {
 			String f[] = line.split("\t");	
 			if (line.startsWith("#"))
 				continue;
-			scanSeqs(args, f[0], path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
-					flags.contains("or"), !flags.contains("use_seq_weights"), gc, top, 
-					randSeed, negPosRatio, windowSize, fpr);
+			scanSeqs(args, f[0], motif_path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
+					gc, top, randSeed, negPosRatio, windowSize, fpr);
 		    
 		} // each expt
 	}
 	
-	private static void scanSeqs(String[] args, String expt, String path, String fasta_path, String fasta_suffix,  
-			String other_pfm_path, String[] pfm_suffixs, boolean use_odds_ratio, boolean ignoreWeights, double gc,
+	private static void scanSeqs(String[] args, String expt, String motif_path, String fasta_path, String fasta_suffix,  
+			String other_pfm_path, String[] pfm_suffixs, double gc,
 			int top, int randSeed, int negPosRatio, int width, double fpr){
 		
 		System.out.println("Running "+expt);
@@ -168,18 +167,18 @@ public class KmerScanner {
 
 		String kmer=null, pfm=null, fasta_file=null;
 		if (expt!=null){
-			kmer = getFileName(path+expt, ".m0.KSM");			// old file name format
+			kmer = getFileName(motif_path+expt, ".m0.KSM");			// old file name format
 			if (kmer==null)
-				kmer = getFileName(path+expt, "_KSM");		// new file name format, since May 2012
-			pfm = getFileName(path+expt, ".all.PFM");
+				kmer = getFileName(motif_path+expt, "_KSM");		// new file name format, since May 2012
+			pfm = getFileName(motif_path+expt, ".all.PFM");
 			fasta_file = fasta_path+expt+fasta_suffix;
 		}
 		
 		long t1 = System.currentTimeMillis();
 		File file = new File(kmer);
     	System.err.println(kmer);
-		KsmMotif ksm = GappedKmer.loadKSM(file, ignoreWeights);
-		KmerScanner scanner = new KmerScanner(args, ksm.kmers, ksm.posSeqCount, ksm.negSeqCount, ksm.seq_weights, use_odds_ratio);
+		KsmMotif ksm = GappedKmer.loadKSM(file);
+		KmerScanner scanner = new KmerScanner(args, ksm);
 		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 	        	    
 	    long t = System.currentTimeMillis();
@@ -247,12 +246,17 @@ public class KmerScanner {
 					matchNKSM = kgN.getCoveredSequence();
 				ksmN_scores.add(kgN==null?0:kgN.getScore());
 				
-				sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%d%s\n",  
+//				sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%d\t%d%s\n",  
+//						i, match, matchN, matchKSM, matchNKSM, "\tNA", pwm, pwmN, 
+//						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
+//						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
+//						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount(),
+//						"\tNA"));
+				sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%d\t%d\n",  
 						i, match, matchN, matchKSM, matchNKSM, "\tNA", pwm, pwmN, 
 						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
 						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
-						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount(),
-						"\tNA"));
+						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount()));
 			}
 			
 //			TODO: print out all pos scores and then all neg scores
