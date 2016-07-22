@@ -88,8 +88,8 @@ public class SnpMotifScorer {
 		int count=0;
 		for (String ksmPath : ksms){
 			File file = new File(dir, ksmPath);
-			KsmMotif ksm = GappedKmer.loadKSM(file, !flags.contains("use_seq_weights"));
-			KmerScanner scanner = new KmerScanner(args, ksm.kmers, ksm.posSeqCount, ksm.negSeqCount, ksm.seq_weights, flags.contains("or"));
+			KsmMotif ksm = GappedKmer.loadKSM(file);
+			KmerScanner scanner = new KmerScanner(args, ksm);
 
 			kss.add(scanner);
 			System.out.println(String.format("K%d: %s", count, ksmPath)); 

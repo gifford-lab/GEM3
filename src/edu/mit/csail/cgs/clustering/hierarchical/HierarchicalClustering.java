@@ -39,7 +39,7 @@ public class HierarchicalClustering<X> implements ClusteringMethod<X> {
         for(X ce : elmts) { 
             Cluster c= new SingletonCluster<X>(ce);
             clusters.add(c);
-            reps.add(repr.getRepresentative(c));
+            reps.add((X) repr.getRepresentative(c));
         }
         for (int i = 0; i < elmts.size(); i++) {
             for (int j = 0; j < elmts.size(); j++) {
