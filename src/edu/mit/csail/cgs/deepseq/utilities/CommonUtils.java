@@ -1229,7 +1229,7 @@ public class CommonUtils {
 	 * @param radius the half-window size
 	 * @return
 	 */
-	static public ArrayList<Point> getPointsWithinWindow(ArrayList<Point> sites, Point anchor, int radius){
+	static public ArrayList<Point> getPointsWithinWindow(List<Point> sites, Point anchor, int radius){
 		ArrayList<Point> results = new ArrayList<Point>();
 		Region r = anchor.expand(radius);
 		Point start = r.startPoint();
@@ -1258,11 +1258,10 @@ public class CommonUtils {
 	 * Get a list of points that are within the region<br>
 	 * Assuming the point list is sorted
 	 * @param sites	a list of sorted points
-	 * @param anchor the anchor point
-	 * @param win the window size
+	 * @param region the window
 	 * @return a list of index of the points in the region
 	 */
-	static public ArrayList<Integer> getPointsWithinWindow(ArrayList<Point> sites, Region r){
+	static public ArrayList<Integer> getPointsWithinWindow(List<Point> sites, Region r){
 		ArrayList<Integer> results = new ArrayList<Integer>();
 		Point start = r.startPoint();
 		Point end = r.endPoint();
@@ -1294,7 +1293,7 @@ public class CommonUtils {
 	 * @param win the window size
 	 * @return regions that are within the window of the anchor region
 	 */
-	static public ArrayList<Region> getRegionsOverlapsWindow(ArrayList<Region> regions, Region anchor, int win){
+	static public ArrayList<Region> getRegionsOverlapsWindow(List<Region> regions, Region anchor, int win){
 		ArrayList<Point> starts = new ArrayList<Point> ();
 		int maxLength = 0;
 		for (Region r: regions){

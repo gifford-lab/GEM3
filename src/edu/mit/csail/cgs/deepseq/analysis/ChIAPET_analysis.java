@@ -853,7 +853,7 @@ public class ChIAPET_analysis {
 		int cluster_merge_dist = Args.parseInteger(args, "cluster_merge_dist", 2000);
 		int tss_exclude = Args.parseInteger(args, "tss_exclude", 8000);
 		int tss_radius = Args.parseInteger(args, "tss_radius", 2000);
-		int chiapetRadius = Args.parseInteger(args, "chiapet_radius", 2000);
+		int chiapet_radius = Args.parseInteger(args, "chiapet_radius", 2000);
 
 		// load the genes to find interactions
 		HashSet<String> geneSet = new HashSet<String>();
@@ -943,7 +943,7 @@ public class ChIAPET_analysis {
 		
 		// load TF sites
 		ArrayList<String> tfs = CommonUtils.readTextFile(Args.parseString(args, "tf_sites", null));
-		ArrayList<List<Point>> allPeaks = new ArrayList<List<Point>>();
+		ArrayList<ArrayList<Point>> allPeaks = new ArrayList<ArrayList<Point>>();
 		for (int i=0;i<tfs.size();i++){
 			try{
 				ArrayList<Point> ps = new ArrayList<Point>();
@@ -1027,7 +1027,7 @@ public class ChIAPET_analysis {
 			}
 			
 			// test whether to merge clusters
-			System.out.println("\nDistal region at lower coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
+//			System.out.println("\nDistal region at lower coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
 			ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
 			for (int i=1; i<rpcs.size();i++){
 				ReadPairCluster c1=rpcs.get(i-1);
@@ -1070,7 +1070,7 @@ public class ChIAPET_analysis {
 						double new_density = cNew.getDensity(cluster_merge_dist);
 //						System.out.println("New density "+new_density);
 						if (new_density>best_density){
-							System.out.println("Better density "+best_density+"-->"+new_density);
+//							System.out.println("Better density "+best_density+"-->"+new_density);
 							best_idxMin = ii;
 							best_density = new_density;
 						}
@@ -1088,13 +1088,13 @@ public class ChIAPET_analysis {
 						double new_density = cNew.getDensity(cluster_merge_dist);
 //						System.out.println("New density "+new_density);
 						if (new_density>best_density){
-							System.out.println("Better density "+best_density+"-->"+new_density);
+//							System.out.println("Better density "+best_density+"-->"+new_density);
 							best_idxMax = ii;
 							best_density = new_density;
 						}
 					}
 					if (best_density>d){	// better density, merge the regions
-						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
+//						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
 						// update to the best set of readpairs
 						cNew = new ReadPairCluster();
 						for (int ii=best_idxMin; ii<=best_idxMax;ii++){
@@ -1106,7 +1106,7 @@ public class ChIAPET_analysis {
 				}
 			}	// for each pair of nearby clusters
 			rpcs.removeAll(toRemoveClusters);
-			System.out.println("After merging,  number of clusters = "+rpcs.size());
+//			System.out.println("After merging,  number of clusters = "+rpcs.size());
 
 			// report
 			// TODO
@@ -1118,6 +1118,7 @@ public class ChIAPET_analysis {
 				it.tss = centerPoint;
 				it.tssRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r2min, cc.r2max);
 				it.distalRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r1min, cc.r1max);
+				it.distalPoint = it.distalRegion.getMidpoint();
 				it.count = cc.reads.size();
 				it.density = cc.getDensity(cluster_merge_dist);
 			}
@@ -1157,7 +1158,7 @@ public class ChIAPET_analysis {
 			}
 			
 			// test whether to merge clusters
-			System.out.println("\nDistal region at higher coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
+//			System.out.println("\nDistal region at higher coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
 			toRemoveClusters = new ArrayList<ReadPairCluster>();
 			for (int i=1; i<rpcs.size();i++){
 				ReadPairCluster c1=rpcs.get(i-1);
@@ -1200,7 +1201,7 @@ public class ChIAPET_analysis {
 						double new_density = cNew.getDensity(cluster_merge_dist);
 //						System.out.println("New density "+new_density);
 						if (new_density>best_density){
-							System.out.println("Better density "+best_density+"-->"+new_density);
+//							System.out.println("Better density "+best_density+"-->"+new_density);
 							best_idxMin = ii;
 							best_density = new_density;
 						}
@@ -1218,13 +1219,13 @@ public class ChIAPET_analysis {
 						double new_density = cNew.getDensity(cluster_merge_dist);
 //						System.out.println("New density "+new_density);
 						if (new_density>best_density){
-							System.out.println("Better density "+best_density+"-->"+new_density);
+//							System.out.println("Better density "+best_density+"-->"+new_density);
 							best_idxMax = ii;
 							best_density = new_density;
 						}
 					}
 					if (best_density>d){	// better density, merge the regions
-						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
+//						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
 						// update to the best set of readpairs
 						cNew = new ReadPairCluster();
 						for (int ii=best_idxMin; ii<=best_idxMax;ii++){
@@ -1236,7 +1237,7 @@ public class ChIAPET_analysis {
 				}
 			}	// for each pair of nearby clusters
 			rpcs.removeAll(toRemoveClusters);
-			System.out.println("After merging,  number of clusters = "+rpcs.size());
+//			System.out.println("After merging,  number of clusters = "+rpcs.size());
 
 			for (ReadPairCluster cc: rpcs){
 				Interaction it = new Interaction();
@@ -1244,8 +1245,9 @@ public class ChIAPET_analysis {
 				it.geneSymbol = g;
 				it.geneID = id;
 				it.tss = centerPoint;
-				it.distalRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r2min, cc.r2max);
 				it.tssRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r1min, cc.r1max);
+				it.distalRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r2min, cc.r2max);
+				it.distalPoint = it.distalRegion.getMidpoint();
 				it.count = cc.reads.size();
 				it.density = cc.getDensity(cluster_merge_dist);
 			}
@@ -1259,10 +1261,34 @@ public class ChIAPET_analysis {
 		StringBuilder sb = new StringBuilder();
 		for (Interaction it: interactions){
 			ArrayList<Integer> isOverlapped = new ArrayList<Integer>();
-			for (int j=0;j<allPeaks.size();j++){
-				
+			Point mid = it.distalRegion.getMidpoint();
+			int radius = it.distalRegion.getWidth()/2+chiapet_radius;
+			for (ArrayList<Point> ps : allPeaks){
+				ArrayList<Point> p = CommonUtils.getPointsWithinWindow(ps, mid, radius);
+				isOverlapped.add(p.size());
+				if (!it.isTfAnchord && !p.isEmpty()){	// if the distal point has not been anchored by a TF site
+					it.distalPoint = p.get(p.size()/2);
+					it.isTfAnchord = true;
+				}
 			}
-			sb.append(it.toString());
+			for (List<Region> rs: allRegions){
+				isOverlapped.add(CommonUtils.getRegionsOverlapsWindow(rs, it.distalRegion, chiapet_radius).size());
+			}
+			// proximal
+			for (ArrayList<Point> ps : allPeaks){
+				ArrayList<Point> p = CommonUtils.getPointsWithinWindow(ps, it.tss, chiapet_radius);
+				isOverlapped.add(p.size());
+			}
+			Region tssRegion = it.tss.expand(chiapet_radius);
+			for (List<Region> rs: allRegions){
+				isOverlapped.add(CommonUtils.getRegionsOverlapsWindow(rs, tssRegion, chiapet_radius).size());
+			}
+			
+			sb.append(it.toString()).append("\t");
+			for (int b: isOverlapped)
+				sb.append(b).append("\t");
+			CommonUtils.replaceEnd(sb, '\n');
+			
 		}
 		CommonUtils.writeFile("all_genes.readClusters.txt", sb.toString());
 		
@@ -1276,7 +1302,7 @@ public class ChIAPET_analysis {
 		TreeMap<Integer, ArrayList<Boolean>> reads;		// distal read offset --> binary binding indicator
 	}
 	
-	// r1 should have lower coordinate than r2
+	/** r1 should have lower coordinate than r2 */
 	private class ReadPair implements Comparable<ReadPair>{
 		Point r1;
 		Point r2;
@@ -1358,12 +1384,19 @@ public class ChIAPET_analysis {
 		Region tssRegion;
 		int geneID;
 		Point distalPoint;
+		boolean isTfAnchord;
 		Region distalRegion;
 		int count;
 		double density;
 //		double pvalue;
 		public String toString(){
-			return String.format("%d %.1f\t< %s %s -- %s >", count, density, geneSymbol, tssRegion, distalRegion);
+//			return String.format("%d %.1f\t< %s %s -- %s >", count, density, geneSymbol, tssRegion, distalRegion);
+			int dist = distalPoint.offset(tss);
+			int padding = Math.abs(dist/20);
+			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%.1f", geneSymbol, (StrandedPoint)tss, tssRegion, distalPoint, distalRegion, 
+					tss.getChrom()+":"+(Math.min(Math.min(tssRegion.getStart(), distalRegion.getStart()), tss.getLocation())-padding)+"-"+
+							(Math.max(Math.max(tssRegion.getEnd(), distalRegion.getEnd()), tss.getLocation())+padding), 
+					dist, count, density);
 		}
 	}
 
