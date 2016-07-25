@@ -101,6 +101,8 @@ public class GPSParser {
         if (bin != null) {
             bin.close();
         }
+        results.trimToSize();
+        
 		return results;
 	}
 
