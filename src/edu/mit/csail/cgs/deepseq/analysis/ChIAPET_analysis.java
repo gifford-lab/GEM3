@@ -1056,7 +1056,11 @@ public class ChIAPET_analysis {
 					for (ReadPair rp: rps)
 						coord2.add(rp.r2.getLocation());
 					int idxMin = Collections.binarySearch(coord2, Math.min(c1.r2min, c2.r2min));
+					if (idxMin<0)
+						System.out.println("c1.r2min, c2.r2min: " + c1.r2min + "," + c2.r2min);
 					int idxMax = Collections.binarySearch(coord2, Math.max(c1.r2max, c2.r2max));
+					if (idxMax<0)
+						System.out.println("c1.r2max, c2.r2max: " + c1.r2max + "," + c2.r2max);
 					ReadPairCluster cNew = new ReadPairCluster();
 					for (int ii=idxMin; ii<=idxMax;ii++){
 						cNew.addReadPair(rps.get(ii));
@@ -1187,7 +1191,11 @@ public class ChIAPET_analysis {
 					for (ReadPair rp: rps)
 						coord1.add(rp.r1.getLocation());
 					int idxMin = Collections.binarySearch(coord1, Math.min(c1.r1min, c2.r1min));
+					if (idxMin<0)
+						System.out.println("c1.r1min, c2.r1min: " + c1.r1min + "," + c2.r1min);
 					int idxMax = Collections.binarySearch(coord1, Math.max(c1.r1max, c2.r1max));
+					if (idxMax<0)
+						System.out.println("c1.r1max, c2.r1max: " + c1.r1max + "," + c2.r1max);
 					ReadPairCluster cNew = new ReadPairCluster();
 					for (int ii=idxMin; ii<=idxMax;ii++){
 						cNew.addReadPair(rps.get(ii));
