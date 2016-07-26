@@ -889,8 +889,12 @@ public class ChIAPET_analysis {
 			gene2tss.get(symbol).add(tss);
 		}
 		
+		
 		// load read pairs
-		// sort by each end and use binary search to find tss end overlaps
+		// only use read pairs on the same chromosome
+		// the left read is required to be lower than the right read, if not, flip the two
+		
+		// sort by each end so that we can use binary search to find matches or overlaps
 		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
 		ArrayList<ReadPair> low = new ArrayList<ReadPair> ();	// all read pairs sorted by low the end
 		ArrayList<ReadPair> high = new ArrayList<ReadPair> ();
@@ -941,6 +945,7 @@ public class ChIAPET_analysis {
 		System.out.println("Loaded "+ highEnds.size() +" ChIA-PET read pairs: "+CommonUtils.timeElapsed(tic));
 		System.out.println();
 		
+		
 		// load TF sites
 		ArrayList<String> tfs = CommonUtils.readTextFile(Args.parseString(args, "tf_sites", null));
 		ArrayList<ArrayList<Point>> allPeaks = new ArrayList<ArrayList<Point>>();
@@ -971,7 +976,9 @@ public class ChIAPET_analysis {
 		allRegions.trimToSize();
 		System.out.println();
 	
-		// find dense cluster for each gene
+		
+		// find dense read cluster for each gene
+		// Two big chunks of codes for 1) Distal--TSS or 2) TSS--Distal, according to their coordinates
 		ArrayList<String> geneList = new ArrayList<String>();
 		geneList.addAll(gene2tss.keySet());
 		geneList.trimToSize();
@@ -993,284 +1000,312 @@ public class ChIAPET_analysis {
 				}
 			}
 			
-			// For TSS at higher coordinates, distal anchors are at lower coordinates
-			// get the distal ends, merge nearby readpairs
+		/** 1) For TSS at higher coordinates, distal anchors are at lower coordinates */
+			
+			// get the distal ends, merge nearby read pairs
 			Region tssRegion = centerPoint.expand(tss_radius);
 			Region excludeRegion = centerPoint.expand(tss_exclude);
+			int exStart = excludeRegion.getStart();
+			int exEnd = excludeRegion.getEnd();
 			ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(highEnds, tssRegion);
-			ArrayList<ReadPair> rps = new ArrayList<ReadPair> ();
-			for (int i: idx){
-				ReadPair rp = high.get(i);
-				if (!excludeRegion.contains(rp.r1))
-					rps.add(rp);
-			}
-			Collections.sort(rps, new Comparator<ReadPair>(){
-	            public int compare(ReadPair o1, ReadPair o2) {
-	                return o1.compareRead1(o2);
-	            }
-	        });
-			ArrayList<ReadPairCluster> rpcs = new ArrayList<ReadPairCluster>();
-			int current = -100000;
-			ReadPairCluster c = new ReadPairCluster();
-			for (ReadPair rp: rps){
-				if (rp.r1.getLocation()-current>read_merge_dist){	// a big gap
-					if (c.reads.size()>=2){
-						rpcs.add(c);
-					}
-					c = new ReadPairCluster();
+			if (!idx.isEmpty()){
+				System.out.println("\n"+g+"\tCluster reads, "+CommonUtils.timeElapsed(tic));
+				
+				ArrayList<ReadPair> rps = new ArrayList<ReadPair> ();
+				for (int i: idx){
+					ReadPair rp = high.get(i);
+					int pos = rp.r1.getLocation();
+					if(pos<exStart && pos>exEnd)
+						rps.add(rp);
 				}
-				c.addReadPair(rp);
-				current = rp.r1.getLocation();
-			}
-			if (c.reads.size()>=2){		// finish up the last cluster
-				rpcs.add(c);
-			}
-			
-			// test whether to merge clusters
-//			System.out.println("\nDistal region at lower coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
-			ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
-			for (int i=1; i<rpcs.size();i++){
-				ReadPairCluster c1=rpcs.get(i-1);
-				ReadPairCluster c2=rpcs.get(i);
-				double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
-				if (c2.r1min - c1.r1max < cluster_merge_dist){
-					Region rMerged = new Region(centerPoint.getGenome(), centerPoint.getChrom(), c1.r1min, c2.r1max);
-					idx = CommonUtils.getPointsWithinWindow(lowEnds, rMerged);
-					// TSS can expand at the high end, but the low end is dependent on the distal read positions
-					int tssStart = tssRegion.getMidpoint().getLocation()-tss_exclude - Math.max(c1.r1max, c2.r1max);
-					tssStart = Math.min(Math.max(tssStart,0), cluster_merge_dist);
-					Region tssExpanded = tssRegion.expand(tssStart, cluster_merge_dist);		
-					rps = new ArrayList<ReadPair> ();
-					for (int ii: idx){
-						ReadPair rp2 = low.get(ii);
-						if (tssExpanded.contains(rp2.r2))
-							rps.add(rp2);
-					}
-					Collections.sort(rps, new Comparator<ReadPair>(){
-			            public int compare(ReadPair o1, ReadPair o2) {
-			                return o1.compareRead2(o2);
-			            }
-			        });
-					// coord2 are the read2 positions of those pairs that read1 is in the merged region
-					ArrayList<Integer> coord2 = new ArrayList<Integer>();	
-					for (ReadPair rp: rps)
-						coord2.add(rp.r2.getLocation());
-					int idxMin = Collections.binarySearch(coord2, Math.min(c1.r2min, c2.r2min));
-					if (idxMin<0){
-						System.out.println("c1.r2min, c2.r2min: " + c1.r2min + "," + c2.r2min);
-						idxMin = Math.max(0, -idxMin-1);
-					}
-					int idxMax = Collections.binarySearch(coord2, Math.max(c1.r2max, c2.r2max));
-					if (idxMax<0){
-						System.out.println("c1.r2max, c2.r2max: " + c1.r2max + "," + c2.r2max);
-						idxMax = Math.min(-idxMax-1, rps.size()-1);
-					}
-					ReadPairCluster cNew = new ReadPairCluster();
-					for (int ii=idxMin; ii<=idxMax;ii++){
-						cNew.addReadPair(rps.get(ii));
-					}
-					double best_density = cNew.getDensity(cluster_merge_dist);
-					int best_idxMin = idxMin;
-					int best_idxMax = idxMax;
-					// expand to the lower end first
-					for (int ii=idxMin-1; ii>=0; ii--){
-						cNew.addReadPair(rps.get(ii));
-						double new_density = cNew.getDensity(cluster_merge_dist);
-//						System.out.println("New density "+new_density);
-						if (new_density>best_density){
-//							System.out.println("Better density "+best_density+"-->"+new_density);
-							best_idxMin = ii;
-							best_density = new_density;
+				Collections.sort(rps, new Comparator<ReadPair>(){
+		            public int compare(ReadPair o1, ReadPair o2) {
+		                return o1.compareRead1(o2);
+		            }
+		        });
+				ArrayList<ReadPairCluster> rpcs = new ArrayList<ReadPairCluster>();
+				int current = -100000;
+				ReadPairCluster c = new ReadPairCluster();
+				// merge reads
+				for (ReadPair rp: rps){
+					if (rp.r1.getLocation()-current>read_merge_dist){	// a big gap
+						if (c.reads.size()>=2){
+							rpcs.add(c);
 						}
+						c = new ReadPairCluster();
 					}
-					// update to the best set of readpairs after expanding the lower end
-					cNew = new ReadPairCluster();		
-					for (int ii=best_idxMin; ii<=best_idxMax;ii++){
-						cNew.addReadPair(rps.get(ii));
-					}
-					
-					// expand to the higher end
-//					System.out.println("Best density "+best_density);
-					for (int ii=idxMax+1; ii<rps.size(); ii++){
-						cNew.addReadPair(rps.get(ii));
-						double new_density = cNew.getDensity(cluster_merge_dist);
-//						System.out.println("New density "+new_density);
-						if (new_density>best_density){
-//							System.out.println("Better density "+best_density+"-->"+new_density);
-							best_idxMax = ii;
-							best_density = new_density;
+					c.addReadPair(rp);
+					current = rp.r1.getLocation();
+				}
+				if (c.reads.size()>=2){		// finish up the last cluster
+					rpcs.add(c);
+				}
+				
+				// test whether to merge clusters
+				// if two nearby clusters are within the cluster_merge_dist, make a new cluster that covers both distal regions
+				// also try to expand the TSS regions a little to see if we can merge more nearby reads
+	
+				System.out.println("Merge clusters, "+CommonUtils.timeElapsed(tic));
+				
+	//			System.out.println("\nDistal region at lower coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
+				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
+				for (int i=1; i<rpcs.size();i++){
+					ReadPairCluster c1=rpcs.get(i-1);
+					ReadPairCluster c2=rpcs.get(i);
+					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
+					if (c2.r1min - c1.r1max < cluster_merge_dist){
+						Region distalRegionMerged = new Region(centerPoint.getGenome(), centerPoint.getChrom(), c1.r1min, c2.r1max);
+						idx = CommonUtils.getPointsWithinWindow(lowEnds, distalRegionMerged);
+						// TSS can expand at the high end, but the low end is dependent on the distal read positions
+						int tssStart = tssRegion.getMidpoint().getLocation()-tss_exclude - Math.max(c1.r1max, c2.r1max);
+						tssStart = Math.min(Math.max(tssStart,0), cluster_merge_dist);
+						Region tssExpanded = tssRegion.expand(tssStart, cluster_merge_dist);
+						int start = tssExpanded.getStart();
+						int end = tssExpanded.getEnd();
+						rps = new ArrayList<ReadPair> ();
+						for (int ii: idx){
+							ReadPair rp2 = low.get(ii);
+							int pos = rp2.r2.getLocation();
+							if(pos>=start && pos<=end)
+								rps.add(rp2);
 						}
-					}
-					if (best_density>d){	// better density, merge the regions
-//						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
-						// update to the best set of readpairs
-						cNew = new ReadPairCluster();
+						Collections.sort(rps, new Comparator<ReadPair>(){
+				            public int compare(ReadPair o1, ReadPair o2) {
+				                return o1.compareRead2(o2);
+				            }
+				        });
+						// coord2 are the read2 positions of those pairs that read1 is in the merged region
+						ArrayList<Integer> coord2 = new ArrayList<Integer>();	
+						for (ReadPair rp: rps)
+							coord2.add(rp.r2.getLocation());
+						int idxMin = Collections.binarySearch(coord2, Math.min(c1.r2min, c2.r2min));
+						if (idxMin<0){
+							System.out.println("c1.r2min, c2.r2min: " + c1.r2min + "," + c2.r2min);
+							idxMin = Math.max(0, -idxMin-1);
+						}
+						int idxMax = Collections.binarySearch(coord2, Math.max(c1.r2max, c2.r2max));
+						if (idxMax<0){
+							System.out.println("c1.r2max, c2.r2max: " + c1.r2max + "," + c2.r2max);
+							idxMax = Math.min(-idxMax-1, rps.size()-1);
+						}
+						ReadPairCluster cNew = new ReadPairCluster();
+						for (int ii=idxMin; ii<=idxMax;ii++){
+							cNew.addReadPair(rps.get(ii));
+						}
+						double best_density = cNew.getDensity(cluster_merge_dist);
+						int best_idxMin = idxMin;
+						int best_idxMax = idxMax;
+						// expand to the lower end first
+						for (int ii=idxMin-1; ii>=0; ii--){
+							cNew.addReadPair(rps.get(ii));
+							double new_density = cNew.getDensity(cluster_merge_dist);
+	//						System.out.println("New density "+new_density);
+							if (new_density>best_density){
+	//							System.out.println("Better density "+best_density+"-->"+new_density);
+								best_idxMin = ii;
+								best_density = new_density;
+							}
+						}
+						// update to the best set of readpairs after expanding the lower end
+						cNew = new ReadPairCluster();		
 						for (int ii=best_idxMin; ii<=best_idxMax;ii++){
 							cNew.addReadPair(rps.get(ii));
 						}
-						rpcs.set(i, cNew);
-						toRemoveClusters.add(c1);
+						
+						// expand to the higher end
+	//					System.out.println("Best density "+best_density);
+						for (int ii=idxMax+1; ii<rps.size(); ii++){
+							cNew.addReadPair(rps.get(ii));
+							double new_density = cNew.getDensity(cluster_merge_dist);
+	//						System.out.println("New density "+new_density);
+							if (new_density>best_density){
+	//							System.out.println("Better density "+best_density+"-->"+new_density);
+								best_idxMax = ii;
+								best_density = new_density;
+							}
+						}
+						if (best_density>d){	// better density, merge the regions
+	//						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
+							// update to the best set of readpairs
+							cNew = new ReadPairCluster();
+							for (int ii=best_idxMin; ii<=best_idxMax;ii++){
+								cNew.addReadPair(rps.get(ii));
+							}
+							rpcs.set(i, cNew);
+							toRemoveClusters.add(c1);
+						}
 					}
+				}	// for each pair of nearby clusters
+				rpcs.removeAll(toRemoveClusters);
+	//			System.out.println("After merging,  number of clusters = "+rpcs.size());
+	
+				// report
+				// TODO
+				for (ReadPairCluster cc: rpcs){
+					Interaction it = new Interaction();
+					interactions.add(it);
+					it.geneSymbol = g;
+					it.geneID = id;
+					it.tss = centerPoint;
+					it.tssRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r2min, cc.r2max);
+					it.distalRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r1min, cc.r1max);
+					it.distalPoint = it.distalRegion.getMidpoint();
+					it.count = cc.reads.size();
+					it.density = cc.getDensity(cluster_merge_dist);
 				}
-			}	// for each pair of nearby clusters
-			rpcs.removeAll(toRemoveClusters);
-//			System.out.println("After merging,  number of clusters = "+rpcs.size());
+				interactions.trimToSize();
+				rpcs = null;
+				System.gc();
 
-			// report
-			// TODO
-			for (ReadPairCluster cc: rpcs){
-				Interaction it = new Interaction();
-				interactions.add(it);
-				it.geneSymbol = g;
-				it.geneID = id;
-				it.tss = centerPoint;
-				it.tssRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r2min, cc.r2max);
-				it.distalRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r1min, cc.r1max);
-				it.distalPoint = it.distalRegion.getMidpoint();
-				it.count = cc.reads.size();
-				it.density = cc.getDensity(cluster_merge_dist);
+				System.out.println("Done merging clusters, "+CommonUtils.timeElapsed(tic));
 			}
-			interactions.trimToSize();
-			rpcs = null;
-			System.gc();
 			
-			// For TSS at lower coordinates
-			// get the distal ends, merge nearby readpairs
+		/** 2) For TSS at lower coordinates */
+			
+			// get the distal ends, merge nearby read pairs
 			idx = CommonUtils.getPointsWithinWindow(lowEnds, tssRegion);
-			rps = new ArrayList<ReadPair> ();
-			for (int i: idx){
-				ReadPair rp = low.get(i);
-				if (!excludeRegion.contains(rp.r2))
-					rps.add(rp);
-			}
-			Collections.sort(rps, new Comparator<ReadPair>(){
-	            public int compare(ReadPair o1, ReadPair o2) {
-	                return o1.compareRead2(o2);
-	            }
-	        });
-			rpcs = new ArrayList<ReadPairCluster>();
-			current = -100000;
-			c = new ReadPairCluster();
-			for (ReadPair rp: rps){
-				if (rp.r2.getLocation()-current>read_merge_dist){	// a big gap
-					if (c.reads.size()>=2){
-						rpcs.add(c);
-					}
-					c = new ReadPairCluster();
+			if (!idx.isEmpty()){
+				ArrayList<ReadPair> rps = new ArrayList<ReadPair> ();
+				for (int i: idx){
+					ReadPair rp = low.get(i);
+					int pos = rp.r2.getLocation();
+					if(pos<exStart && pos>exEnd)
+						rps.add(rp);
 				}
-				c.addReadPair(rp);
-				current = rp.r2.getLocation();
-			}
-			if (c.reads.size()>=2){		// finish up the last cluster
-				rpcs.add(c);
-			}
-			
-			// test whether to merge clusters
-//			System.out.println("\nDistal region at higher coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
-			toRemoveClusters = new ArrayList<ReadPairCluster>();
-			for (int i=1; i<rpcs.size();i++){
-				ReadPairCluster c1=rpcs.get(i-1);
-				ReadPairCluster c2=rpcs.get(i);
-				double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
-				if (c2.r2min - c1.r2max < cluster_merge_dist){
-					Region rMerged = new Region(centerPoint.getGenome(), centerPoint.getChrom(), c1.r2min, c2.r2max);
-					idx = CommonUtils.getPointsWithinWindow(highEnds, rMerged);
-					// TSS can expand at the lower end, but the high end is dependent on the distal read positions
-					int tssEnd = Math.min(c1.r2min, c2.r2min) - (tssRegion.getMidpoint().getLocation()+tss_exclude);
-					tssEnd = Math.min(Math.max(tssEnd,0), cluster_merge_dist);
-					Region tssExpanded = tssRegion.expand(cluster_merge_dist, tssEnd);		
-					rps = new ArrayList<ReadPair> ();
-					for (int ii: idx){
-						ReadPair rp2 = high.get(ii);
-						if (tssExpanded.contains(rp2.r1))
-							rps.add(rp2);
-					}
-					Collections.sort(rps, new Comparator<ReadPair>(){
-			            public int compare(ReadPair o1, ReadPair o2) {
-			                return o1.compareRead1(o2);
-			            }
-			        });
-					// coord1 are the read1 positions of those pairs that read2 is in the merged region
-					ArrayList<Integer> coord1 = new ArrayList<Integer>();	
-					for (ReadPair rp: rps)
-						coord1.add(rp.r1.getLocation());
-					int idxMin = Collections.binarySearch(coord1, Math.min(c1.r1min, c2.r1min));
-					if (idxMin<0){
-						System.out.println("c1.r1min, c2.r1min: " + c1.r1min + "," + c2.r1min);
-						idxMin = Math.max(0, -idxMin-1);
-					}
-					int idxMax = Collections.binarySearch(coord1, Math.max(c1.r1max, c2.r1max));
-					if (idxMax<0){
-						System.out.println("c1.r1max, c2.r1max: " + c1.r1max + "," + c2.r1max);
-						idxMax = Math.min(-idxMax-1, rps.size()-1);
-					}
-					ReadPairCluster cNew = new ReadPairCluster();
-					for (int ii=idxMin; ii<=idxMax;ii++){
-						cNew.addReadPair(rps.get(ii));
-					}
-					double best_density = cNew.getDensity(cluster_merge_dist);
-					int best_idxMin = idxMin;
-					int best_idxMax = idxMax;
-					// expand to the lower end first
-					for (int ii=idxMin-1; ii>=0; ii--){
-						cNew.addReadPair(rps.get(ii));
-						double new_density = cNew.getDensity(cluster_merge_dist);
-//						System.out.println("New density "+new_density);
-						if (new_density>best_density){
-//							System.out.println("Better density "+best_density+"-->"+new_density);
-							best_idxMin = ii;
-							best_density = new_density;
+				Collections.sort(rps, new Comparator<ReadPair>(){
+		            public int compare(ReadPair o1, ReadPair o2) {
+		                return o1.compareRead2(o2);
+		            }
+		        });
+				ArrayList<ReadPairCluster> rpcs = new ArrayList<ReadPairCluster>();
+				int current = -100000;
+				ReadPairCluster c = new ReadPairCluster();
+				for (ReadPair rp: rps){
+					if (rp.r2.getLocation()-current>read_merge_dist){	// a big gap
+						if (c.reads.size()>=2){
+							rpcs.add(c);
 						}
+						c = new ReadPairCluster();
 					}
-					// update to the best set of readpairs after expanding the lower end
-					cNew = new ReadPairCluster();		
-					for (int ii=best_idxMin; ii<=best_idxMax;ii++){
-						cNew.addReadPair(rps.get(ii));
-					}
-					
-					// expand to the higher end
-//					System.out.println("Best density "+best_density);
-					for (int ii=idxMax+1; ii<rps.size(); ii++){
-						cNew.addReadPair(rps.get(ii));
-						double new_density = cNew.getDensity(cluster_merge_dist);
-//						System.out.println("New density "+new_density);
-						if (new_density>best_density){
-//							System.out.println("Better density "+best_density+"-->"+new_density);
-							best_idxMax = ii;
-							best_density = new_density;
+					c.addReadPair(rp);
+					current = rp.r2.getLocation();
+				}
+				if (c.reads.size()>=2){		// finish up the last cluster
+					rpcs.add(c);
+				}
+				
+				// test whether to merge clusters
+				System.out.println("Merge clusters, "+CommonUtils.timeElapsed(tic));
+				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
+				for (int i=1; i<rpcs.size();i++){
+					ReadPairCluster c1=rpcs.get(i-1);
+					ReadPairCluster c2=rpcs.get(i);
+					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
+					if (c2.r2min - c1.r2max < cluster_merge_dist){
+						Region rMerged = new Region(centerPoint.getGenome(), centerPoint.getChrom(), c1.r2min, c2.r2max);
+						idx = CommonUtils.getPointsWithinWindow(highEnds, rMerged);
+						// TSS can expand at the lower end, but the high end is dependent on the distal read positions
+						int tssEnd = Math.min(c1.r2min, c2.r2min) - (tssRegion.getMidpoint().getLocation()+tss_exclude);
+						tssEnd = Math.min(Math.max(tssEnd,0), cluster_merge_dist);
+						Region tssExpanded = tssRegion.expand(cluster_merge_dist, tssEnd);	
+						int start = tssExpanded.getStart();
+						int end = tssExpanded.getEnd();
+						rps = new ArrayList<ReadPair> ();
+						for (int ii: idx){
+							ReadPair rp2 = high.get(ii);
+							int pos = rp2.r1.getLocation();
+							if(pos>=start && pos<=end)
+								rps.add(rp2);
 						}
-					}
-					if (best_density>d){	// better density, merge the regions
-//						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
-						// update to the best set of readpairs
-						cNew = new ReadPairCluster();
+						Collections.sort(rps, new Comparator<ReadPair>(){
+				            public int compare(ReadPair o1, ReadPair o2) {
+				                return o1.compareRead1(o2);
+				            }
+				        });
+						// coord1 are the read1 positions of those pairs that read2 is in the merged region
+						ArrayList<Integer> coord1 = new ArrayList<Integer>();	
+						for (ReadPair rp: rps)
+							coord1.add(rp.r1.getLocation());
+						int idxMin = Collections.binarySearch(coord1, Math.min(c1.r1min, c2.r1min));
+						if (idxMin<0){
+							System.out.println("c1.r1min, c2.r1min: " + c1.r1min + "," + c2.r1min);
+							idxMin = Math.max(0, -idxMin-1);
+						}
+						int idxMax = Collections.binarySearch(coord1, Math.max(c1.r1max, c2.r1max));
+						if (idxMax<0){
+							System.out.println("c1.r1max, c2.r1max: " + c1.r1max + "," + c2.r1max);
+							idxMax = Math.min(-idxMax-1, rps.size()-1);
+						}
+						ReadPairCluster cNew = new ReadPairCluster();
+						for (int ii=idxMin; ii<=idxMax;ii++){
+							cNew.addReadPair(rps.get(ii));
+						}
+						double best_density = cNew.getDensity(cluster_merge_dist);
+						int best_idxMin = idxMin;
+						int best_idxMax = idxMax;
+						// expand to the lower end first
+						for (int ii=idxMin-1; ii>=0; ii--){
+							cNew.addReadPair(rps.get(ii));
+							double new_density = cNew.getDensity(cluster_merge_dist);
+	//						System.out.println("New density "+new_density);
+							if (new_density>best_density){
+	//							System.out.println("Better density "+best_density+"-->"+new_density);
+								best_idxMin = ii;
+								best_density = new_density;
+							}
+						}
+						// update to the best set of readpairs after expanding the lower end
+						cNew = new ReadPairCluster();		
 						for (int ii=best_idxMin; ii<=best_idxMax;ii++){
 							cNew.addReadPair(rps.get(ii));
 						}
-						rpcs.set(i, cNew);
-						toRemoveClusters.add(c1);
+						
+						// expand to the higher end
+	//					System.out.println("Best density "+best_density);
+						for (int ii=idxMax+1; ii<rps.size(); ii++){
+							cNew.addReadPair(rps.get(ii));
+							double new_density = cNew.getDensity(cluster_merge_dist);
+	//						System.out.println("New density "+new_density);
+							if (new_density>best_density){
+	//							System.out.println("Better density "+best_density+"-->"+new_density);
+								best_idxMax = ii;
+								best_density = new_density;
+							}
+						}
+						if (best_density>d){	// better density, merge the regions
+	//						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
+							// update to the best set of readpairs
+							cNew = new ReadPairCluster();
+							for (int ii=best_idxMin; ii<=best_idxMax;ii++){
+								cNew.addReadPair(rps.get(ii));
+							}
+							rpcs.set(i, cNew);
+							toRemoveClusters.add(c1);
+						}
 					}
+				}	// for each pair of nearby clusters
+				rpcs.removeAll(toRemoveClusters);
+	//			System.out.println("After merging,  number of clusters = "+rpcs.size());
+	
+				for (ReadPairCluster cc: rpcs){
+					Interaction it = new Interaction();
+					interactions.add(it);
+					it.geneSymbol = g;
+					it.geneID = id;
+					it.tss = centerPoint;
+					it.tssRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r1min, cc.r1max);
+					it.distalRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r2min, cc.r2max);
+					it.distalPoint = it.distalRegion.getMidpoint();
+					it.count = cc.reads.size();
+					it.density = cc.getDensity(cluster_merge_dist);
 				}
-			}	// for each pair of nearby clusters
-			rpcs.removeAll(toRemoveClusters);
-//			System.out.println("After merging,  number of clusters = "+rpcs.size());
-
-			for (ReadPairCluster cc: rpcs){
-				Interaction it = new Interaction();
-				interactions.add(it);
-				it.geneSymbol = g;
-				it.geneID = id;
-				it.tss = centerPoint;
-				it.tssRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r1min, cc.r1max);
-				it.distalRegion = new Region(centerPoint.getGenome(), centerPoint.getChrom(), cc.r2min, cc.r2max);
-				it.distalPoint = it.distalRegion.getMidpoint();
-				it.count = cc.reads.size();
-				it.density = cc.getDensity(cluster_merge_dist);
-			}
-			interactions.trimToSize();
-			rpcs = null;
-			System.gc();
-		}  // for each gene
+				interactions.trimToSize();
+				rpcs = null;
+				System.gc();
+				System.out.println("Done merging clusters, "+CommonUtils.timeElapsed(tic));
+			}  
+		}// for each gene
+		System.out.println("Annotate and report, "+CommonUtils.timeElapsed(tic));
 		
 		// report the interactions and annotations
 		// annotate the proximal and distal anchors with TF and HM and regions

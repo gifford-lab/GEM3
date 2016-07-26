@@ -327,6 +327,9 @@ public class CommonUtils {
 	public static String timeElapsed(long tic){
 		return timeString(System.currentTimeMillis()-tic);
 	}
+	public static void printTimeElapsed(long tic){
+		System.out.println( timeString(System.currentTimeMillis()-tic) );
+	}	
 	private static String timeString(long length){
 		float sec = length/1000F;
 		return sec>3600?
