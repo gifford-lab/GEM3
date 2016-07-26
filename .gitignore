@@ -5,3 +5,4 @@
 .DS_Store
 /bin/
 /warp.log
+/all_genes.readClusters.txt
