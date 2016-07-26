@@ -1038,7 +1038,7 @@ public class ChIAPET_analysis {
 					idx = CommonUtils.getPointsWithinWindow(lowEnds, rMerged);
 					// TSS can expand at the high end, but the low end is dependent on the distal read positions
 					int tssStart = tssRegion.getMidpoint().getLocation()-tss_exclude - Math.min(c1.r1min, c2.r1min);
-					tssStart = Math.min(tssStart, cluster_merge_dist);
+					tssStart = Math.min(Math.max(tssStart,0), cluster_merge_dist);
 					Region tssExpanded = tssRegion.expand(tssStart, cluster_merge_dist);		
 					rps = new ArrayList<ReadPair> ();
 					for (int ii: idx){
@@ -1173,7 +1173,7 @@ public class ChIAPET_analysis {
 					idx = CommonUtils.getPointsWithinWindow(highEnds, rMerged);
 					// TSS can expand at the lower end, but the high end is dependent on the distal read positions
 					int tssEnd = Math.min(c1.r2min, c2.r2min) - (tssRegion.getMidpoint().getLocation()+tss_exclude);
-					tssEnd = Math.min(tssEnd, cluster_merge_dist);
+					tssEnd = Math.min(Math.max(tssEnd,0), cluster_merge_dist);
 					Region tssExpanded = tssRegion.expand(cluster_merge_dist, tssEnd);		
 					rps = new ArrayList<ReadPair> ();
 					for (int ii: idx){
