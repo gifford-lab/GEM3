@@ -848,6 +848,7 @@ public class ChIAPET_analysis {
 		}
 
 	private void findDenseClusters(){
+		long tic0 = System.currentTimeMillis();
 		long tic = System.currentTimeMillis();
 		int read_merge_dist = Args.parseInteger(args, "read_merge_dist", 500);
 		int cluster_merge_dist = Args.parseInteger(args, "cluster_merge_dist", 2000);
@@ -1013,7 +1014,7 @@ public class ChIAPET_analysis {
 		bPoints.addAll(b2as.keySet());
 		bPoints.trimToSize();
 		Collections.sort(bPoints);
-
+		System.out.println("Loaded all the data, "+CommonUtils.timeElapsed(tic0));
 		
 		// find dense read cluster for each gene
 		// Two big chunks of codes for 1) Distal--TSS or 2) TSS--Distal, according to their coordinates
@@ -1021,6 +1022,7 @@ public class ChIAPET_analysis {
 		geneList.addAll(gene2tss.keySet());
 		geneList.trimToSize();
 		ArrayList<Interaction> interactions = new ArrayList<Interaction>();
+		tic = System.currentTimeMillis();
 		
 		for (int id=0;id<geneList.size();id++){
 			String g = geneList.get(id);
@@ -1047,7 +1049,8 @@ public class ChIAPET_analysis {
 			int exEnd = excludeRegion.getEnd();
 			ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(highEnds, tssRegion);
 			if (!idx.isEmpty()){
-				System.out.println("\n"+g+"\tCluster reads, "+CommonUtils.timeElapsed(tic));
+//				System.out.println("\n"+g+"\tCluster reads, "+CommonUtils.timeElapsed(tic));
+//				tic = System.currentTimeMillis();
 				
 				ArrayList<ReadPair> rps = new ArrayList<ReadPair> ();
 				for (int i: idx){
@@ -1083,7 +1086,8 @@ public class ChIAPET_analysis {
 				// if two nearby clusters are within the cluster_merge_dist, make a new cluster that covers both distal regions
 				// also try to expand the TSS regions a little to see if we can merge more nearby reads
 	
-				System.out.println("Merge clusters, "+CommonUtils.timeElapsed(tic));
+//				System.out.println("Merge clusters, "+CommonUtils.timeElapsed(tic));
+//				tic = System.currentTimeMillis();
 				
 	//			System.out.println("\nDistal region at lower coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
 				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
@@ -1192,9 +1196,10 @@ public class ChIAPET_analysis {
 					it.density = cc.getDensity(cluster_merge_dist);
 				}
 				rpcs = null;
-				System.gc();
+//				System.gc();
 
-				System.out.println("Done merging clusters, "+CommonUtils.timeElapsed(tic));
+//				System.out.println("Done merging clusters, "+CommonUtils.timeElapsed(tic));
+//				tic = System.currentTimeMillis();
 			}
 			
 		/** 2) For TSS at lower coordinates */
@@ -1232,15 +1237,21 @@ public class ChIAPET_analysis {
 				}
 				
 				// test whether to merge clusters
-				System.out.println("Merge clusters, "+CommonUtils.timeElapsed(tic));
+//				System.out.println("Start merge clusters, "+CommonUtils.timeElapsed(tic));
+//				tic = System.currentTimeMillis();
+				
 				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
 				for (int i=1; i<rpcs.size();i++){
 					ReadPairCluster c1=rpcs.get(i-1);
 					ReadPairCluster c2=rpcs.get(i);
 					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
 					if (c2.r2min - c1.r2max < cluster_merge_dist){
+//						System.out.println("Close enough, "+CommonUtils.timeElapsed(tic));
+//						tic = System.currentTimeMillis();
 						Region rMerged = new Region(centerPoint.getGenome(), centerPoint.getChrom(), c1.r2min, c2.r2max);
 						idx = CommonUtils.getPointsWithinWindow(highEnds, rMerged);
+//						System.out.println("Got points, "+CommonUtils.timeElapsed(tic));
+//						tic = System.currentTimeMillis();
 						// TSS can expand at the lower end, but the high end is dependent on the distal read positions
 						int tssEnd = Math.min(c1.r2min, c2.r2min) - (tssRegion.getMidpoint().getLocation()+tss_exclude);
 						tssEnd = Math.min(Math.max(tssEnd,0), cluster_merge_dist);
@@ -1259,6 +1270,8 @@ public class ChIAPET_analysis {
 				                return o1.compareRead1(o2);
 				            }
 				        });
+//						System.out.println("Sorted read1, "+CommonUtils.timeElapsed(tic));
+//						tic = System.currentTimeMillis();
 						// coord1 are the read1 positions of those pairs that read2 is in the merged region
 						ArrayList<Integer> coord1 = new ArrayList<Integer>();	
 						for (ReadPair rp: rps)
@@ -1280,6 +1293,10 @@ public class ChIAPET_analysis {
 						double best_density = cNew.getDensity(cluster_merge_dist);
 						int best_idxMin = idxMin;
 						int best_idxMax = idxMax;
+
+//						System.out.println("To expand lower TSS, "+CommonUtils.timeElapsed(tic));
+//						tic = System.currentTimeMillis();
+						
 						// expand to the lower end first
 						for (int ii=idxMin-1; ii>=0; ii--){
 							cNew.addReadPair(rps.get(ii));
@@ -1298,6 +1315,8 @@ public class ChIAPET_analysis {
 						}
 						
 						// expand to the higher end
+//						System.out.println("To expand higher TSS, "+CommonUtils.timeElapsed(tic));
+//						tic = System.currentTimeMillis();
 	//					System.out.println("Best density "+best_density);
 						for (int ii=idxMax+1; ii<rps.size(); ii++){
 							cNew.addReadPair(rps.get(ii));
@@ -1323,7 +1342,9 @@ public class ChIAPET_analysis {
 				}	// for each pair of nearby clusters
 				rpcs.removeAll(toRemoveClusters);
 	//			System.out.println("After merging,  number of clusters = "+rpcs.size());
-	
+
+//				System.out.println("Got clusters, "+CommonUtils.timeElapsed(tic));
+//				tic = System.currentTimeMillis();
 				for (ReadPairCluster cc: rpcs){
 					Interaction it = new Interaction();
 					interactions.add(it);
@@ -1338,11 +1359,13 @@ public class ChIAPET_analysis {
 				}
 				interactions.trimToSize();
 				rpcs = null;
-				System.gc();
-				System.out.println("Done merging clusters, n="+interactions.size()+", "+CommonUtils.timeElapsed(tic));
+//				System.gc();
+//				System.out.println(String.format("Done merging clusters, n=%d, %s, total %s", 
+//						interactions.size(), CommonUtils.timeElapsed(tic), CommonUtils.timeElapsed(tic0)));
+//				tic = System.currentTimeMillis();
 			}  
 		}// for each gene
-		System.out.println("Annotate and report, "+CommonUtils.timeElapsed(tic));
+		System.out.println("Annotate and report, "+CommonUtils.timeElapsed(tic0));
 		
 		// report the interactions and annotations
 		// annotate the proximal and distal anchors with TF and HM and regions
@@ -1482,7 +1505,7 @@ public class ChIAPET_analysis {
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".readClusters.txt", sb.toString());
 		
-		System.out.println("\n\n"+CommonUtils.timeElapsed(tic));
+		System.out.println("\n\nDone: "+CommonUtils.timeElapsed(tic0));
 	}
 	
 	private class TSS{
