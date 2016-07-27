@@ -976,6 +976,44 @@ public class ChIAPET_analysis {
 		allRegions.trimToSize();
 		System.out.println();
 	
+		// load other Interaction calls
+		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "germ", null));
+		HashMap<Point,ArrayList<Point>> germTss2distals = new HashMap<Point,ArrayList<Point>>();
+		ArrayList<Point> germTss = new ArrayList<Point>();
+		for (String l: lines){		// each line is a call
+			String f[] = l.split("\t");
+			Point t = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint();
+			if (!germTss2distals.containsKey(t))
+				germTss2distals.put(t, new ArrayList<Point>());
+			germTss2distals.get(t).add(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint());
+		}
+		germTss.addAll(germTss2distals.keySet());
+		germTss.trimToSize();
+		Collections.sort(germTss);
+		
+		lines = CommonUtils.readTextFile(Args.parseString(args, "mango", null));
+		HashMap<Point, ArrayList<Point>> a2bs = new HashMap<Point, ArrayList<Point>>();
+		HashMap<Point, ArrayList<Point>> b2as = new HashMap<Point, ArrayList<Point>>();
+		for (String l: lines){		// each line is a call
+			String f[] = l.split("\t");
+			Point a = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint();
+			Point b = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint();
+			if (!a2bs.containsKey(a))
+				a2bs.put(a, new ArrayList<Point>());
+			a2bs.get(a).add(b);
+			if (!b2as.containsKey(b))
+				b2as.put(b, new ArrayList<Point>());
+			b2as.get(b).add(a);
+		}
+		ArrayList<Point> aPoints = new ArrayList<Point>();
+		aPoints.addAll(a2bs.keySet());
+		aPoints.trimToSize();
+		Collections.sort(aPoints);
+		ArrayList<Point> bPoints = new ArrayList<Point>();
+		bPoints.addAll(b2as.keySet());
+		bPoints.trimToSize();
+		Collections.sort(bPoints);
+
 		
 		// find dense read cluster for each gene
 		// Two big chunks of codes for 1) Distal--TSS or 2) TSS--Distal, according to their coordinates
@@ -1015,7 +1053,7 @@ public class ChIAPET_analysis {
 				for (int i: idx){
 					ReadPair rp = high.get(i);
 					int pos = rp.r1.getLocation();
-					if(pos<exStart && pos>exEnd)
+					if(pos<exStart || pos>exEnd)
 						rps.add(rp);
 				}
 				Collections.sort(rps, new Comparator<ReadPair>(){
@@ -1153,7 +1191,6 @@ public class ChIAPET_analysis {
 					it.count = cc.reads.size();
 					it.density = cc.getDensity(cluster_merge_dist);
 				}
-				interactions.trimToSize();
 				rpcs = null;
 				System.gc();
 
@@ -1169,7 +1206,7 @@ public class ChIAPET_analysis {
 				for (int i: idx){
 					ReadPair rp = low.get(i);
 					int pos = rp.r2.getLocation();
-					if(pos<exStart && pos>exEnd)
+					if(pos<exStart || pos>exEnd)
 						rps.add(rp);
 				}
 				Collections.sort(rps, new Comparator<ReadPair>(){
@@ -1302,7 +1339,7 @@ public class ChIAPET_analysis {
 				interactions.trimToSize();
 				rpcs = null;
 				System.gc();
-				System.out.println("Done merging clusters, "+CommonUtils.timeElapsed(tic));
+				System.out.println("Done merging clusters, n="+interactions.size()+", "+CommonUtils.timeElapsed(tic));
 			}  
 		}// for each gene
 		System.out.println("Annotate and report, "+CommonUtils.timeElapsed(tic));
@@ -1334,14 +1371,116 @@ public class ChIAPET_analysis {
 			for (List<Region> rs: allRegions){
 				isOverlapped.add(CommonUtils.getRegionsOverlapsWindow(rs, tssRegion, chiapet_radius).size());
 			}
-			
+			// print out TF and region overlaps
 			sb.append(it.toString()).append("\t");
 			for (int b: isOverlapped)
 				sb.append(b).append("\t");
+			
+			// print ChIA-PET call overlap info
+			Point tssPoint = it.tss;
+			Point distalPoint = it.distalPoint;
+			Point tssLeft = new Point(genome, tssPoint.getChrom(), tssPoint.getLocation()-2000);
+			Point tssRight = new Point(genome, tssPoint.getChrom(), tssPoint.getLocation()+2000);
+			
+			// GERM
+			int index = Collections.binarySearch(germTss,  tssLeft);
+			if( index < 0 )  							// if key not found
+				index = -(index+1); 
+			int indexRight = Collections.binarySearch(germTss,  tssRight);
+			if( indexRight < 0 )  							// if key not found
+				indexRight = -(indexRight+1); 
+			// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+			boolean isGermOverlapped = false;
+			indexRange: for (int i=index-1;i<=indexRight+2;i++){
+				if (i<0 || i>=germTss.size())
+					continue;
+				try{
+					Point tt = germTss.get(i);
+					if (tt.distance(tssPoint)<=2000){ 
+						if (!germTss2distals.containsKey(tt))
+							continue;
+						for (Point d:germTss2distals.get(tt)){
+//										System.out.print(tt.getLocationString()+"\t"+d.getLocationString());
+							if (d.distance(distalPoint)<=2000){
+								isGermOverlapped = true;
+//											System.out.println("\tHIT");
+								break indexRange;
+							}
+//										else
+//											System.out.println();
+						}
+					}
+				}
+				catch (IllegalArgumentException e){	// ignore								
+				}								
+			}
+			sb.append(isGermOverlapped?"1\t":"0\t");
+			
+			// Mango
+			index = Collections.binarySearch(aPoints,  tssLeft);
+			if( index < 0 )  							// if key not found
+				index = -(index+1); 
+			indexRight = Collections.binarySearch(aPoints,  tssRight);
+			if( indexRight < 0 )  							// if key not found
+				indexRight = -(indexRight+1); 
+			// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+			boolean isMangoOverlapped = false;
+			indexA: for (int i=index-1;i<=indexRight+2;i++){
+				if (i<0 || i>=aPoints.size())
+					continue;
+				try{
+					Point a = aPoints.get(i);
+					if (a.distance(tssPoint)<=2000){ 
+						if (!a2bs.containsKey(a))
+							continue;
+						for (Point b:a2bs.get(a)){
+							if (b.distance(distalPoint)<=2000){
+								isMangoOverlapped = true;
+								break indexA;
+							}
+						}
+					}
+				}
+				catch (IllegalArgumentException e){	// ignore								
+				}
+			}
+			if (isMangoOverlapped)
+				sb.append("1\t");
+			else{
+				index = Collections.binarySearch(bPoints,  tssLeft);
+				if( index < 0 )  							// if key not found
+					index = -(index+1); 
+				indexRight = Collections.binarySearch(bPoints,  tssRight);
+				if( indexRight < 0 )  							// if key not found
+					indexRight = -(indexRight+1); 
+				// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+				isMangoOverlapped = false;
+				indexB: for (int i=index-1;i<=indexRight+2;i++){
+					if (i<0 || i>=bPoints.size())
+						continue;
+					try{
+						Point b = bPoints.get(i);
+						if (b.distance(tssPoint)<=2000){ 
+							if (!b2as.containsKey(b))
+								continue;
+							for (Point a:b2as.get(b)){
+								if (a.distance(distalPoint)<=2000){
+									isMangoOverlapped = true;
+									break indexB;
+								}
+							}
+						}
+					}
+					catch (IllegalArgumentException e){	// ignore								
+					}								
+				}
+				sb.append(isMangoOverlapped?"1\t":"0\t");
+			}
+			
 			CommonUtils.replaceEnd(sb, '\n');
 			
 		}
-		CommonUtils.writeFile("all_genes.readClusters.txt", sb.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".readClusters.txt", sb.toString());
 		
 		System.out.println("\n\n"+CommonUtils.timeElapsed(tic));
 	}
@@ -1444,10 +1583,10 @@ public class ChIAPET_analysis {
 //			return String.format("%d %.1f\t< %s %s -- %s >", count, density, geneSymbol, tssRegion, distalRegion);
 			int dist = distalPoint.offset(tss);
 			int padding = Math.abs(dist/20);
-			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%.1f", geneSymbol, (StrandedPoint)tss, tssRegion, distalPoint, distalRegion, 
+			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%.1f", geneSymbol, (StrandedPoint)tss, tssRegion, distalPoint, distalRegion, 
 					tss.getChrom()+":"+(Math.min(Math.min(tssRegion.getStart(), distalRegion.getStart()), tss.getLocation())-padding)+"-"+
-							(Math.max(Math.max(tssRegion.getEnd(), distalRegion.getEnd()), tss.getLocation())+padding), 
-					dist, count, density);
+					(Math.max(Math.max(tssRegion.getEnd(), distalRegion.getEnd()), tss.getLocation())+padding), 
+					tssRegion.getWidth(), distalRegion.getWidth(), dist, count, density);
 		}
 	}
 
