@@ -1365,7 +1365,7 @@ public class ChIAPET_analysis {
 //				tic = System.currentTimeMillis();
 			}  
 		}// for each gene
-		System.out.println("Annotate and report, "+CommonUtils.timeElapsed(tic0));
+		System.out.println("\n\nAnnotate and report, "+CommonUtils.timeElapsed(tic0));
 		
 		// report the interactions and annotations
 		// annotate the proximal and distal anchors with TF and HM and regions
@@ -1401,6 +1401,8 @@ public class ChIAPET_analysis {
 			
 			// print ChIA-PET call overlap info
 			Point tssPoint = it.tss;
+			int tssHalfWidth = it.tssRegion.getWidth()/2;
+			int distalHalfWidth = it.distalRegion.getWidth()/2;
 			Point distalPoint = it.distalPoint;
 			Point tssLeft = new Point(genome, tssPoint.getChrom(), tssPoint.getLocation()-2000);
 			Point tssRight = new Point(genome, tssPoint.getChrom(), tssPoint.getLocation()+2000);
@@ -1419,18 +1421,14 @@ public class ChIAPET_analysis {
 					continue;
 				try{
 					Point tt = germTss.get(i);
-					if (tt.distance(tssPoint)<=2000){ 
+					if (tt.distance(tssPoint)<=tssHalfWidth){ 
 						if (!germTss2distals.containsKey(tt))
 							continue;
 						for (Point d:germTss2distals.get(tt)){
-//										System.out.print(tt.getLocationString()+"\t"+d.getLocationString());
-							if (d.distance(distalPoint)<=2000){
+							if (d.distance(distalPoint)<=distalHalfWidth){
 								isGermOverlapped = true;
-//											System.out.println("\tHIT");
 								break indexRange;
 							}
-//										else
-//											System.out.println();
 						}
 					}
 				}
@@ -1440,6 +1438,7 @@ public class ChIAPET_analysis {
 			sb.append(isGermOverlapped?"1\t":"0\t");
 			
 			// Mango
+			// aPoints and bPoints are the midPoint of the two anchorRegions
 			index = Collections.binarySearch(aPoints,  tssLeft);
 			if( index < 0 )  							// if key not found
 				index = -(index+1); 
@@ -1453,11 +1452,11 @@ public class ChIAPET_analysis {
 					continue;
 				try{
 					Point a = aPoints.get(i);
-					if (a.distance(tssPoint)<=2000){ 
+					if (a.distance(tssPoint)<=tssHalfWidth){ 
 						if (!a2bs.containsKey(a))
 							continue;
 						for (Point b:a2bs.get(a)){
-							if (b.distance(distalPoint)<=2000){
+							if (b.distance(distalPoint)<=distalHalfWidth){
 								isMangoOverlapped = true;
 								break indexA;
 							}
@@ -1483,11 +1482,11 @@ public class ChIAPET_analysis {
 						continue;
 					try{
 						Point b = bPoints.get(i);
-						if (b.distance(tssPoint)<=2000){ 
+						if (b.distance(tssPoint)<=tssHalfWidth){ 
 							if (!b2as.containsKey(b))
 								continue;
 							for (Point a:b2as.get(b)){
-								if (a.distance(distalPoint)<=2000){
+								if (a.distance(distalPoint)<=distalHalfWidth){
 									isMangoOverlapped = true;
 									break indexB;
 								}
