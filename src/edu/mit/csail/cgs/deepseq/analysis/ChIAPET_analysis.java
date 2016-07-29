@@ -1365,6 +1365,63 @@ public class ChIAPET_analysis {
 //				tic = System.currentTimeMillis();
 			}  
 		}// for each gene
+		
+		// for each TSS and its distal anchor, count how many read pairs lead to other distal anchors
+		// it is like finding the other two edges of the triangle. The count is the sum (over all distal anchors) 
+		// of min connecting read count (btw tss-distal2 and distal-distal2).
+		System.out.println("\n\nCount indirect / triangle read pairs, "+CommonUtils.timeElapsed(tic0));
+		HashMap<String, ArrayList<Interaction>> gene2it = new HashMap<String, ArrayList<Interaction>>();
+		for (Interaction it: interactions){
+			if (!gene2it.containsKey(it.geneSymbol))
+				gene2it.put(it.geneSymbol, new ArrayList<Interaction>());
+			gene2it.get(it.geneSymbol).add(it);
+		}
+		for (String gene: gene2it.keySet()){
+			ArrayList<Interaction> its = gene2it.get(gene);
+			for (Interaction it: its){
+//				System.out.println(it);
+				ArrayList<Integer> indirectCounts = new ArrayList<Integer>();
+				Region distal = it.distalRegion.expand(chiapet_radius, chiapet_radius);
+				for (Interaction it2: its){
+					if (it==it2)
+						continue;
+					int start = it2.distalRegion.getStart()-chiapet_radius;
+					int end = it2.distalRegion.getEnd()+chiapet_radius;
+					if (distal.getStart() > start){		// if it1 has higher coord, select by high and then low
+						ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(highEnds, distal);
+						ArrayList<ReadPair> rps = new ArrayList<ReadPair> ();
+						for (int ii: idx){
+							ReadPair rp2 = high.get(ii);
+							int pos = rp2.r1.getLocation();
+							if(pos>=start && pos<=end)
+								rps.add(rp2);
+						}
+						indirectCounts.add(Math.min(rps.size(), it2.count));		// distal2--distal , it2_count
+					}
+					else{		// select by low and then high
+						ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, distal);
+						ArrayList<ReadPair> rps = new ArrayList<ReadPair> ();
+						for (int ii: idx){
+							ReadPair rp2 = low.get(ii);
+							int pos = rp2.r2.getLocation();
+							if(pos>=start && pos<=end)
+								rps.add(rp2);
+						}
+						indirectCounts.add(Math.min(rps.size(), it2.count));		// distal--distal2 , it2_count
+					}
+				}
+				int sum = 0;
+				for (int c: indirectCounts)
+					sum += c;
+				it.indirectCount = sum;
+				
+//				System.out.println();
+//				for (int c: indirectCounts)
+//					System.out.print(c);
+//				System.out.println();
+			}
+		}
+		
 		System.out.println("\n\nAnnotate and report, "+CommonUtils.timeElapsed(tic0));
 		
 		// report the interactions and annotations
@@ -1401,8 +1458,8 @@ public class ChIAPET_analysis {
 			
 			// print ChIA-PET call overlap info
 			Point tssPoint = it.tss;
-			int tssHalfWidth = it.tssRegion.getWidth()/2;
-			int distalHalfWidth = it.distalRegion.getWidth()/2;
+			int tssHalfWidth = it.tssRegion.getWidth()/2+chiapet_radius;
+			int distalHalfWidth = it.distalRegion.getWidth()/2+chiapet_radius;
 			Point distalPoint = it.distalPoint;
 			Point tssLeft = new Point(genome, tssPoint.getChrom(), tssPoint.getLocation()-2000);
 			Point tssRight = new Point(genome, tssPoint.getChrom(), tssPoint.getLocation()+2000);
@@ -1599,16 +1656,17 @@ public class ChIAPET_analysis {
 		boolean isTfAnchord;
 		Region distalRegion;
 		int count;
+		int indirectCount;
 		double density;
 //		double pvalue;
 		public String toString(){
 //			return String.format("%d %.1f\t< %s %s -- %s >", count, density, geneSymbol, tssRegion, distalRegion);
 			int dist = distalPoint.offset(tss);
 			int padding = Math.abs(dist/20);
-			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%.1f", geneSymbol, (StrandedPoint)tss, tssRegion, distalPoint, distalRegion, 
+			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%.1f", geneSymbol, (StrandedPoint)tss, tssRegion, distalPoint, distalRegion, 
 					tss.getChrom()+":"+(Math.min(Math.min(tssRegion.getStart(), distalRegion.getStart()), tss.getLocation())-padding)+"-"+
 					(Math.max(Math.max(tssRegion.getEnd(), distalRegion.getEnd()), tss.getLocation())+padding), 
-					tssRegion.getWidth(), distalRegion.getWidth(), dist, count, density);
+					tssRegion.getWidth(), distalRegion.getWidth(), dist, count, indirectCount, density);
 		}
 	}
 
