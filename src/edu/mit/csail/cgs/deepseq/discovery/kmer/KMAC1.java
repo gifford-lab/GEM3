@@ -71,7 +71,6 @@ public class KMAC1 {
 
 	private boolean engineInitialized =false;
 	private double[] bg= new double[4];	// background frequency based on GC content
-	private double ic_trim = 0.4;
 	private String outName, params;
 	private boolean isDebugging = false;
 	public void setIsDebugging(){isDebugging = true;}
@@ -4444,14 +4443,14 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
     	// // trim low ic ends (simple method)
     	int leftIdx=ic.length-1;
     	for (int p=0;p<ic.length;p++){
-    		if (ic[p]>=ic_trim){
+    		if (ic[p]>=config.ic_trim){
     			leftIdx = p;
     			break;
     		}
     	}
     	int rightIdx=0;
     	for (int p=ic.length-1;p>=0;p--){
-    		if (ic[p]>=ic_trim){    			
+    		if (ic[p]>=config.ic_trim){    			
     			rightIdx=p;
     			break;
     		}
@@ -4492,7 +4491,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					double bestSumIC = 0;
 					for(int p=leftIdx;p<=rightIdx-minLength-i;p++){
 						int end = minLength+i+p;
-						if (ic[p]<ic_trim || ic[end]<ic_trim)			// if the ends have low ic, skip
+						if (ic[p]<config.ic_trim || ic[end]<config.ic_trim)			// if the ends have low ic, skip
 							continue;
 						double sumIC=0; 
 						for (int j=p;j<=end;j++)

@@ -80,7 +80,7 @@ public class Config {
     public double wm_factor = 0.6;		// The threshold relative to the maximum PWM score, for including a sequence into the cluster 
     public double fpr = 0.1;		// The false positive rate for partial ROC
     public double motif_relax_factor = 1;		// A factor to multiply the motif PWM threshold, used for GEM motif positional prior
-    public double ic_trim = 0.4;		// The information content threshold to trim the ends of PWM
+    public double ic_trim = 0.2;		// The information content threshold to start to trim the ends of PWM
 //    public double kmer_freq_pos_ratio = 0.8;	// The fraction of most frequent k-mer position in aligned sequences
     public double motif_hit_factor = 0.005;
     public double motif_hit_factor_report = 0.05;
