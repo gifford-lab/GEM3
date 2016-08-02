@@ -857,18 +857,24 @@ public class ChIAPET_analysis {
 		int chiapet_radius = Args.parseInteger(args, "chiapet_radius", 2000);
 
 		// load the genes to find interactions
+		// geneSet can be supplied as a string on command line, or a file.
+		// if neither is supplied, all the genes in the gene_annotation is used.
 		HashSet<String> geneSet = new HashSet<String>();
 		String gString = Args.parseString(args, "genes", null);
 		if (gString==null){
 			String gFile = Args.parseString(args, "gene_file", null);
-			ArrayList<String> lines = CommonUtils.readTextFile(gFile);
-			for (String g:lines)
-				geneSet.add(g.trim());
+			if (gFile!=null){
+				ArrayList<String> lines = CommonUtils.readTextFile(gFile);
+				for (String g:lines)
+					geneSet.add(g.trim());
+			}
 		}
 		else{
-			String genes[] = Args.parseString(args, "genes", null).split(",");
-			for (String g:genes)
-				geneSet.add(g.trim());
+			String genes[] = Args.parseString(args, "genes", "").split(",");
+			if (!genes[0].equals("")){
+				for (String g:genes)
+					geneSet.add(g.trim());
+			}
 		}
 		
 		// load refSeq gene annotation
@@ -880,8 +886,10 @@ public class ChIAPET_analysis {
 				continue;
 			String f[] = t.split("\t");
 			String symbol = f[12];
-			if (!geneSet.contains(symbol))
-				continue;
+			if (!geneSet.isEmpty()){
+				if (!geneSet.contains(symbol))
+					continue;
+			}
 			String chr = f[2].replace("chr", "");
 			char strand = f[3].charAt(0);
 			StrandedPoint tss = new StrandedPoint(genome, chr, Integer.parseInt(f[strand=='+'?4:5]), strand);
