@@ -16,6 +16,8 @@ import edu.mit.csail.cgs.warpdrive.model.InteractionAnalysisModel;
 
 public class InteractionAnalysisPainter extends RegionPaintable {
 
+	static private Color[] arcColors = {new Color(0, 0, 255, 127), new Color(0, 255, 255, 127), 
+			new Color(0, 255, 128, 127), new Color(255, 128, 0, 127), new Color(255, 0, 0, 127)};
 	private InteractionAnalysisModel model;
 	private InteractionAnalysisProperties props;
 	private DynamicAttribute attrib;
@@ -77,17 +79,21 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		for (Pair<Point,Point> pair : interactions.keySet()) {
 			if (!pair.car().equals(pair.cdr())) {
 				float count = interactions.get(pair);
-				float curvewidth = Math.min(30, count);
+				float curvewidth = Math.min(30, (float)Math.sqrt((double) count));
 				g.setStroke(new BasicStroke(curvewidth, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
 				int leftx = getXPos(pair.car().getLocation(), regionStart, regionEnd, x1, x2);
 				int rightx = getXPos(pair.cdr().getLocation(), regionStart, regionEnd, x1, x2);
 				int midx = (leftx+rightx)/2;
 				int midy = y2 - (int)(((double)(rightx-leftx)/(double)width) * 2*height);
-				g.setColor(new Color(0, 0, 255, 127));
+				int colorIdx = Math.round(count/10);
+				if (colorIdx > arcColors.length-1)
+					colorIdx = arcColors.length-1;
+				g.setColor(arcColors[colorIdx]);
 				QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
 				g.draw(loop);
 				g.setColor(Color.black);
-				g.drawString(count+"", midx, y2 - (int)(((double)(rightx-leftx)/(double)width) * height));
+				String countStr = count==Math.round(count) ? Math.round(count)+"" : count+"";
+				g.drawString(countStr, midx, y2 - (int)(((double)(rightx-leftx)/(double)width) * height));
 			}
 		}
 		g.setStroke(oldStroke);
