@@ -126,14 +126,14 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		g.setColor(Color.RED);
 		g.drawString("<", x1, y1 + (int)(fontSize*2.5));
 		for (Point p: leftOutRanges.keySet()){
-			g.drawString(leftOutRanges.get(p)+"", 
-					getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2)-fontSize, 
+			g.drawString(leftOutRanges.get(p)+".", 
+					getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2), 
 					y1 + (int)(fontSize*2.5));
 		}
 		g.setColor(Color.BLACK);
 		g.drawString(">", x1, y1 + fontSize*4);
 		for (Point p: rightOutRanges.keySet()){
-			g.drawString(rightOutRanges.get(p)+"", 
+			g.drawString(rightOutRanges.get(p)+".", 
 					getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2),
 					y1 + fontSize*4);
 		}		
