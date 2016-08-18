@@ -46,7 +46,7 @@ public class InteractionAnalysisModel extends WarpModel implements RegionModel,
 				Point maxPoint = new Point(region.getGenome(), "Z", 0);
 				Point startPoint = new Point(region.getGenome(), region.getChrom(), region.getStart());
 				Point endPoint = new Point(region.getGenome(), region.getChrom(), region.getEnd());
-				interactions = allinteractions.subMap(new Pair<Point,Point>(startPoint,minPoint), new Pair<Point,Point>(endPoint,maxPoint));
+				interactions = allinteractions.subMap(new Pair<Point,Point>(minPoint,startPoint), new Pair<Point,Point>(endPoint,maxPoint));
 			}
 			newinput = false;
 			notifyListeners();
