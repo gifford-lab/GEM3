@@ -83,6 +83,8 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		for (Pair<Point,Point> pair : interactions.keySet()) {
 			if (!pair.car().equals(pair.cdr())) {
 				float count = interactions.get(pair);
+				if (count<getProperties().ReadPairCountCutoff)
+					continue;
 				float curvewidth = Math.min(30, (float)Math.sqrt((double) count));
 				g.setStroke(new BasicStroke(curvewidth, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
 				Point leftPoint = pair.car();
@@ -121,22 +123,24 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 			}
 		}
 		// list out-of-range interactions
-		g.setFont(attrib.getPointLabelFont(width,height));
-		int fontSize = g.getFont().getSize();
-		g.setColor(Color.RED);
-		g.drawString("<", x1, y1 + (int)(fontSize*2.5));
-		for (Point p: leftOutRanges.keySet()){
-			g.drawString(leftOutRanges.get(p)+".", 
-					getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2), 
-					y1 + (int)(fontSize*2.5));
+		if (getProperties().CountOutOfRangeIntereactions) {
+			g.setFont(attrib.getPointLabelFont(width,height));
+			int fontSize = g.getFont().getSize();
+			g.setColor(Color.RED);
+			g.drawString("<", x1, y1 + (int)(fontSize*2.5));
+			for (Point p: leftOutRanges.keySet()){
+				g.drawString(leftOutRanges.get(p)+".", 
+						getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2), 
+						y1 + (int)(fontSize*2.5));
+			}
+			g.setColor(Color.BLACK);
+			g.drawString(">", x2-fontSize, y1 + fontSize*4);
+			for (Point p: rightOutRanges.keySet()){
+				g.drawString(rightOutRanges.get(p)+".", 
+						getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2),
+						y1 + fontSize*4);
+			}		
 		}
-		g.setColor(Color.BLACK);
-		g.drawString(">", x1, y1 + fontSize*4);
-		for (Point p: rightOutRanges.keySet()){
-			g.drawString(rightOutRanges.get(p)+".", 
-					getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2),
-					y1 + fontSize*4);
-		}		
 		g.setStroke(oldStroke);
 	}
     private int getXPosExt(int pos, int start, int end, int leftx, int rightx) {
