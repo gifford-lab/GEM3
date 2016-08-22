@@ -1399,7 +1399,7 @@ public class ChIAPET_analysis {
 		for (int i=1;i<tssList.size();i++){
 			Point p1 = tssList.get(i-1);
 			Point p2 = tssList.get(i);
-			if (p2.offset(p1)<max_cluster_merge_dist){
+			if (p2.getChrom().equals(p1.getChrom()) && p2.offset(p1)<max_cluster_merge_dist){
 				ArrayList<Interaction> its1 = tss2it.get(p1);
 				ArrayList<Interaction> its2 = tss2it.get(p2);
 				for (Interaction it1:its1){
