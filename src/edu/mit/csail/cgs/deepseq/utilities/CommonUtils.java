@@ -1230,7 +1230,7 @@ public class CommonUtils {
 	 * @param sites	a list of sorted points
 	 * @param anchor the anchor point
 	 * @param radius the half-window size
-	 * @return
+	 * @return a list of points in the region
 	 */
 	static public ArrayList<Point> getPointsWithinWindow(List<Point> sites, Point anchor, int radius){
 		ArrayList<Point> results = new ArrayList<Point>();
