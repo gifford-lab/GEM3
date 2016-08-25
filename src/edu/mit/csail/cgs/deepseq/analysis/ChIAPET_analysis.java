@@ -1921,7 +1921,7 @@ public class ChIAPET_analysis {
 //		geneList.addAll(gene2tss.keySet());
 //		geneList.trimToSize();
 		ArrayList<Interaction> interactions = new ArrayList<Interaction>();
-		HashSet<ReadPair> usedReads = new HashSet<ReadPair>();
+		HashSet<ReadPair> usedPETs = new HashSet<ReadPair>();
 		
 		tic = System.currentTimeMillis();
 		
@@ -2091,7 +2091,7 @@ public class ChIAPET_analysis {
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
 							read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 					it.density = cc.getDensity(cluster_merge_dist);
-					usedReads.addAll(cc.reads);
+					usedPETs.addAll(cc.reads);
 				}
 				rpcs = null;
 //				System.gc();
@@ -2259,7 +2259,7 @@ public class ChIAPET_analysis {
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
 							read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 					it.density = cc.getDensity(cluster_merge_dist);
-					usedReads.addAll(cc.reads);
+					usedPETs.addAll(cc.reads);
 				}
 				rpcs = null;
 //				System.gc();
@@ -2516,7 +2516,7 @@ public class ChIAPET_analysis {
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
 							read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 					it.density = cc.getDensity(cluster_merge_dist);
-					usedReads.addAll(cc.reads);
+					usedPETs.addAll(cc.reads);
 				}
 				rpcs = null;
 			}  // nonTSS regions with long PETs
@@ -2584,8 +2584,8 @@ public class ChIAPET_analysis {
 		}
 		
 
-		// mark PET1
-		high.removeAll(usedReads);
+		// mark PET1 (after removing the PET2+)
+		high.removeAll(usedPETs);
 		high.trimToSize();
 		low.clear();
 		low = null;
