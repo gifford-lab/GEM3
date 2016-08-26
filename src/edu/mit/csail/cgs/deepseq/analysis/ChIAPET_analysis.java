@@ -2740,8 +2740,8 @@ public class ChIAPET_analysis {
 //			it.geneID = id;
 			it.tss = rp.r1;
 			it.distalPoint = rp.r2;
-			it.tssRegion = rp.r1.expand(0);
-			it.distalRegion = rp.r2.expand(0);
+			it.tssRegion = new Region(rp.r1.getGenome(), rp.r1.getChrom(), rp.r1.getLocation(), rp.r1.getLocation());
+			it.distalRegion = new Region(rp.r2.getGenome(), rp.r2.getChrom(), rp.r2.getLocation(), rp.r2.getLocation());
 			it.count = 1;
 //			int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
 //					read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
