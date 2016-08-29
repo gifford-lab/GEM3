@@ -33,33 +33,37 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 
 public class ChIAPET_analysis {
 	Genome genome;
-	TreeMap<Region, InteractionCall> r2it = new TreeMap<Region, InteractionCall>();
-	String fileName = null;
 	Set<String> flags;
 	String[] args;
+	int read_merge_dist = 500;
+	int tss_merge_dist = 500;
+	int max_cluster_merge_dist = 3000;
+	int distance_factor = 3;
+	int self_exclude = 8000;
+	int tss_radius = 2000;
+	int chiapet_radius = 2000;
+	double overlap_ratio = 0.8;
+	
+	TreeMap<Region, InteractionCall> r2it = new TreeMap<Region, InteractionCall>();
+	String fileName = null;
 	
 	public ChIAPET_analysis(String[] args){
-		
-	    try {
-	    	Pair<Organism, Genome> pair = Args.parseGenome(args);
-	        if(pair != null) {
-	            genome = pair.cdr();
-	        } else {
-	            String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
-	            if(genomeString != null){
-	                genome = new Genome("Genome", new File(genomeString), true);
-	            } else{
-	                genome=null;
-	            }
-	        }
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }	    
-
+	    genome = CommonUtils.parseGenome(args);
+	    
 		flags = Args.parseFlags(args);
 		this.args = args;
 		
 		fileName = Args.parseString(args, "bedpe", null);	
+		
+		read_merge_dist = Args.parseInteger(args, "read_merge_dist", 500);
+		tss_merge_dist = Args.parseInteger(args, "tss_merge_dist", 500);
+		max_cluster_merge_dist = Args.parseInteger(args, "max_cluster_merge_dist", 3000);
+		distance_factor = Args.parseInteger(args, "distance_factor", 3);
+		self_exclude = Args.parseInteger(args, "self_exclude", 8000);
+		tss_radius = Args.parseInteger(args, "tss_radius", 2000);
+		chiapet_radius = Args.parseInteger(args, "chiapet_radius", 2000);
+		overlap_ratio = Args.parseDouble(args, "overlap_ratio", 0.8);
+		
 	}
 	
 	public static void main(String args[]){
@@ -1657,15 +1661,7 @@ public class ChIAPET_analysis {
 	private void findTssInteractions(){
 		long tic0 = System.currentTimeMillis();
 		long tic = System.currentTimeMillis();
-		int read_merge_dist = Args.parseInteger(args, "read_merge_dist", 500);
-		int tss_merge_dist = Args.parseInteger(args, "tss_merge_dist", 500);
-		int max_cluster_merge_dist = Args.parseInteger(args, "max_cluster_merge_dist", 3000);
-		int distance_factor = Args.parseInteger(args, "distance_factor", 3);
-		int self_exclude = Args.parseInteger(args, "self_exclude", 8000);
-		int tss_radius = Args.parseInteger(args, "tss_radius", 2000);
-		int chiapet_radius = Args.parseInteger(args, "chiapet_radius", 2000);
-		double overlap_ratio = Args.parseDouble(args, "overlap_ratio", 0.8);
-		
+
 		// load gene annotation
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
 		ArrayList<TSS> allTSS = new ArrayList<TSS>();
@@ -1786,6 +1782,7 @@ public class ChIAPET_analysis {
 		System.out.println();
 		
 		// one dimension clustering to define anchors (similar to GEM code)
+		// TODO: use cross correlation to determine the distance to shift
 		ArrayList<Region> rs0 = new ArrayList<Region>();
 		ArrayList<Point> summits = new ArrayList<Point>();
 		// cut the pooled reads into independent regions
@@ -1932,7 +1929,7 @@ public class ChIAPET_analysis {
 				sb.append(t.symbol).append(",");
 			String g = sb.toString();
 //			System.out.print(g+" ");
-			Point centerPoint = cTSS.get(cTSS.size()/2).coord;
+			Point centerPoint = cTSS.get(cTSS.size()/2).coord;	// median position of the TSS cluster
 			
 			/** 1) For TSS at higher coordinates, distal anchors are at lower coordinates */
 			
@@ -1943,9 +1940,6 @@ public class ChIAPET_analysis {
 			int exEnd = excludeRegion.getEnd();
 			ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(highEnds, tssRegion);
 			if (idx.size()>1){
-//				System.out.println("\n"+g+"\tCluster reads, "+CommonUtils.timeElapsed(tic));
-//				tic = System.currentTimeMillis();
-				
 				ArrayList<ReadPair> rps = new ArrayList<ReadPair> ();
 				for (int i: idx){
 					ReadPair rp = high.get(i);
@@ -1953,7 +1947,7 @@ public class ChIAPET_analysis {
 					if(pos<exStart || pos>exEnd)
 						rps.add(rp);
 				}
-				Collections.sort(rps, new Comparator<ReadPair>(){
+				Collections.sort(rps, new Comparator<ReadPair>(){	//sort by read1 (distal end)
 		            public int compare(ReadPair o1, ReadPair o2) {
 		                return o1.compareRead1(o2);
 		            }
@@ -1980,10 +1974,7 @@ public class ChIAPET_analysis {
 				// if two nearby clusters are within the cluster_merge_dist, make a new cluster that covers both distal regions
 				// also try to expand the TSS regions a little to see if we can merge more nearby reads
 	
-//				System.out.println("Merge clusters, "+CommonUtils.timeElapsed(tic));
-//				tic = System.currentTimeMillis();
-				
-	//			System.out.println("\nDistal region at lower coord than TSS\nBefore merging, number of clusters = "+rpcs.size());
+//				System.out.println("\nDistal region at lower coord than TSS "+g+"\nBefore merging, number of clusters = "+rpcs.size());
 				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
 				for (int i=1; i<rpcs.size();i++){
 					ReadPairCluster c1=rpcs.get(i-1);
@@ -2069,14 +2060,26 @@ public class ChIAPET_analysis {
 							for (int ii=best_idxMin; ii<=best_idxMax;ii++){
 								cNew.addReadPair(rps.get(ii));
 							}
-							rpcs.set(i, cNew);
+							rpcs.set(i, cNew);		// replace c2
 							toRemoveClusters.add(c1);
+						}
+						else{
+//							System.out.println("Not merged! "+ best_density +"<"+d);
 						}
 					}
 				}	// for each pair of nearby clusters
 				rpcs.removeAll(toRemoveClusters);
-	//			System.out.println("After merging,  number of clusters = "+rpcs.size());
-	
+				toRemoveClusters = null;
+//				System.out.println("After merging,  number of clusters = "+rpcs.size());
+				
+				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, false);
+				if (rpcs2!=null){
+					rpcs = rpcs2;
+//					System.out.println(g+"\tAfter merging,  number of clusters = "+rpcs.size());
+//					System.out.println("After spliting,  number of clusters = "+rpcs2.size());
+					rpcs2 = null;
+				}
+				
 				// report
 				for (ReadPairCluster cc: rpcs){
 					Interaction it = new Interaction();
@@ -2243,9 +2246,11 @@ public class ChIAPET_analysis {
 				}	// for each pair of nearby clusters
 				rpcs.removeAll(toRemoveClusters);
 	//			System.out.println("After merging,  number of clusters = "+rpcs.size());
-
-//				System.out.println("Got clusters, "+CommonUtils.timeElapsed(tic));
-//				tic = System.currentTimeMillis();
+				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, true);
+				if (rpcs2!=null){
+					rpcs = rpcs2;
+					rpcs2 = null;
+				}
 				for (ReadPairCluster cc: rpcs){
 					Interaction it = new Interaction();
 					interactions.add(it);
@@ -2262,7 +2267,6 @@ public class ChIAPET_analysis {
 					usedPETs.addAll(cc.reads);
 				}
 				rpcs = null;
-//				System.gc();
 //				System.out.println(String.format("Done merging clusters, n=%d, %s, total %s", 
 //						interactions.size(), CommonUtils.timeElapsed(tic), CommonUtils.timeElapsed(tic0)));
 //				tic = System.currentTimeMillis();
@@ -2503,6 +2507,11 @@ public class ChIAPET_analysis {
 				toRemoveClusters.clear();
 				toRemoveClusters=null;
 				
+				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, true);
+				if (rpcs2!=null){
+					rpcs = rpcs2;
+					rpcs2 = null;
+				}				
 				for (ReadPairCluster cc: rpcs){
 					Interaction it = new Interaction();
 					interactions.add(it);
@@ -2771,6 +2780,52 @@ public class ChIAPET_analysis {
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".bedpe", sb.toString());
 		
 		System.out.println("\n\nDone: "+CommonUtils.timeElapsed(tic0));
+	}
+	
+	/** split read pair cluster recursively on both ends alternatively */
+	ArrayList<ReadPairCluster> splitRecursively(ArrayList<ReadPairCluster> rpcs, boolean splitByRead1){
+		if (rpcs.isEmpty())
+			return null;
+		
+		int countSplit=0;
+		ArrayList<ReadPairCluster> rpcs2 = new ArrayList<ReadPairCluster>();
+		for (ReadPairCluster cc: rpcs){
+			HashMap<Point, ArrayList<ReadPair>> map = new HashMap<Point, ArrayList<ReadPair>>();
+			ArrayList<Point> splitPoints = new ArrayList<Point>();
+			HashSet<Point> tmp = new HashSet<Point>();
+			int dist = cc.r2max - cc.r1min;
+			int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
+			for (ReadPair rp: cc.reads){
+				Point t = splitByRead1 ? rp.r1 : rp.r2;
+				tmp.add(t);
+				if (!map.containsKey(t))
+					map.put(t, new ArrayList<ReadPair>());
+				map.get(t).add(rp);
+			}
+			splitPoints.addAll(tmp);
+			Collections.sort(splitPoints);
+			int curr = -100000;
+			ReadPairCluster c = new ReadPairCluster();
+			countSplit--;		// first split is not real, subtract count here
+			for (Point p: splitPoints){
+				if (p.getLocation()-curr>cluster_merge_dist){	// a big gap
+					countSplit++;
+					if (c.reads.size()>=2)
+						rpcs2.add(c);
+					c = new ReadPairCluster();
+				}
+				for (ReadPair rp: map.get(p))
+					c.addReadPair(rp);
+				curr = p.getLocation();
+			}
+			if (c.reads.size()>=2)		// finish up the last cluster
+				rpcs2.add(c);
+		}
+		if (countSplit>0){
+			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !splitByRead1);	// split at the other end
+			return rpcs3==null ? rpcs2 : rpcs3;
+		}else
+			return null;
 	}
 
 	private void clusterPETs(){		// NOT USED FOR NOW
@@ -3639,13 +3694,21 @@ public class ChIAPET_analysis {
 			CommonUtils.replaceEnd(sb, '>');
 			return sb.toString();
 		}
-		public String toString(){
+		public String toString0(){
 			StringBuilder sb = new StringBuilder();
 			sb.append(reads.size()).append("=<");
 			sb.append(reads.get(0).r1.getChrom()).append(":").append(r1min).append("-").append(r1max);
 			sb.append("==").append(r2min).append("-").append(r2max).append(">");
 			return sb.toString();
 		}
+		public String toString(){
+			StringBuilder sb = new StringBuilder();
+			sb.append(reads.size()).append("=<");
+			sb.append(r1max-r1min);
+			sb.append("==").append(r2max-r2min).append(">");
+			return sb.toString();
+		}
+		
 	}
 	
 	class Interaction{
