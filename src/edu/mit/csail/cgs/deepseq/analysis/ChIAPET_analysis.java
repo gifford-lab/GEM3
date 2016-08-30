@@ -1661,6 +1661,8 @@ public class ChIAPET_analysis {
 	private void findTssInteractions(){
 		long tic0 = System.currentTimeMillis();
 		long tic = System.currentTimeMillis();
+		
+		boolean simple_merge = !flags.contains("density_merge");
 
 		// load gene annotation
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
@@ -1983,6 +1985,15 @@ public class ChIAPET_analysis {
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
 					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
 					if (c2.r1min - c1.r1max < cluster_merge_dist){
+						if (simple_merge){
+							// simply merge c1 to c2
+							for (ReadPair rp2: c1.reads)
+								c2.addReadPair(rp2);
+							toRemoveClusters.add(c1);
+							continue;
+						}
+						
+						// more complicated merging based on density
 						Region distalRegionMerged = new Region(centerPoint.getGenome(), centerPoint.getChrom(), c1.r1min, c2.r1max);
 						idx = CommonUtils.getPointsWithinWindow(lowEnds, distalRegionMerged);
 						// TSS can expand at the high end, but the low end is dependent on the distal read positions
@@ -2150,12 +2161,17 @@ public class ChIAPET_analysis {
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
 					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
 					if (c2.r2min - c1.r2max < cluster_merge_dist){
-//						System.out.println("Close enough, "+CommonUtils.timeElapsed(tic));
-//						tic = System.currentTimeMillis();
+						if (simple_merge){
+							// simply merge c1 to c2
+							for (ReadPair rp2: c1.reads)
+								c2.addReadPair(rp2);
+							toRemoveClusters.add(c1);
+							continue;
+						}
+						
+						// complicated merge
 						Region rMerged = new Region(centerPoint.getGenome(), centerPoint.getChrom(), c1.r2min, c2.r2max);
 						idx = CommonUtils.getPointsWithinWindow(highEnds, rMerged);
-//						System.out.println("Got points, "+CommonUtils.timeElapsed(tic));
-//						tic = System.currentTimeMillis();
 						// TSS can expand at the lower end, but the high end is dependent on the distal read positions
 						int tssEnd = Math.min(c1.r2min, c2.r2min) - (tssRegion.getMidpoint().getLocation()+self_exclude);
 						tssEnd = Math.min(Math.max(tssEnd,0), cluster_merge_dist);
@@ -2198,16 +2214,11 @@ public class ChIAPET_analysis {
 						int best_idxMin = idxMin;
 						int best_idxMax = idxMax;
 
-//						System.out.println("To expand lower TSS, "+CommonUtils.timeElapsed(tic));
-//						tic = System.currentTimeMillis();
-						
 						// expand to the lower end first
 						for (int ii=idxMin-1; ii>=0; ii--){
 							cNew.addReadPair(rps.get(ii));
 							double new_density = cNew.getDensity(cluster_merge_dist);
-	//						System.out.println("New density "+new_density);
 							if (new_density>best_density){
-	//							System.out.println("Better density "+best_density+"-->"+new_density);
 								best_idxMin = ii;
 								best_density = new_density;
 							}
@@ -2219,21 +2230,15 @@ public class ChIAPET_analysis {
 						}
 						
 						// expand to the higher end
-//						System.out.println("To expand higher TSS, "+CommonUtils.timeElapsed(tic));
-//						tic = System.currentTimeMillis();
-	//					System.out.println("Best density "+best_density);
 						for (int ii=idxMax+1; ii<rps.size(); ii++){
 							cNew.addReadPair(rps.get(ii));
 							double new_density = cNew.getDensity(cluster_merge_dist);
-	//						System.out.println("New density "+new_density);
 							if (new_density>best_density){
-	//							System.out.println("Better density "+best_density+"-->"+new_density);
 								best_idxMax = ii;
 								best_density = new_density;
 							}
 						}
 						if (best_density>d){	// better density, merge the regions
-	//						System.out.println("Merged "+c1.toString()+" and \n\t"+c2.toString()+" to "+cNew.toString());
 							// update to the best set of readpairs
 							cNew = new ReadPairCluster();
 							for (int ii=best_idxMin; ii<=best_idxMax;ii++){
@@ -2426,6 +2431,13 @@ public class ChIAPET_analysis {
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
 					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
 					if (c2.r2min - c1.r2max < cluster_merge_dist){
+						if (simple_merge){
+							// simply merge c1 to c2
+							for (ReadPair rp2: c1.reads)
+								c2.addReadPair(rp2);
+							toRemoveClusters.add(c1);
+							continue;
+						}
 						Region rMerged = new Region(centerPoint.getGenome(), centerPoint.getChrom(), c1.r2min, c2.r2max);
 						idx = CommonUtils.getPointsWithinWindow(highEnds, rMerged);
 						// TSS can expand at the lower end, but the high end is dependent on the distal read positions
@@ -2782,8 +2794,10 @@ public class ChIAPET_analysis {
 		System.out.println("\n\nDone: "+CommonUtils.timeElapsed(tic0));
 	}
 	
-	/** split read pair cluster recursively on both ends alternatively */
-	ArrayList<ReadPairCluster> splitRecursively(ArrayList<ReadPairCluster> rpcs, boolean splitByRead1){
+	/** split read pair cluster recursively <br>
+	 *  at gaps larger than cluster_merge_dist, on both ends alternatively 
+	 *  because splitting at one end may remove some PETs that introduce gaps at the other end */
+	ArrayList<ReadPairCluster> splitRecursively(ArrayList<ReadPairCluster> rpcs, boolean toSplitLeftAnchor){
 		if (rpcs.isEmpty())
 			return null;
 		
@@ -2796,7 +2810,7 @@ public class ChIAPET_analysis {
 			int dist = cc.r2max - cc.r1min;
 			int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
 			for (ReadPair rp: cc.reads){
-				Point t = splitByRead1 ? rp.r1 : rp.r2;
+				Point t = toSplitLeftAnchor ? rp.r1 : rp.r2;
 				tmp.add(t);
 				if (!map.containsKey(t))
 					map.put(t, new ArrayList<ReadPair>());
@@ -2822,7 +2836,7 @@ public class ChIAPET_analysis {
 				rpcs2.add(c);
 		}
 		if (countSplit>0){
-			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !splitByRead1);	// split at the other end
+			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !toSplitLeftAnchor);	// split at the other end
 			return rpcs3==null ? rpcs2 : rpcs3;
 		}else
 			return null;
