@@ -61,6 +61,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		int halfy = y2 - (height/2);
 		int regionStart = model.getRegion().getStart();
 		int regionEnd = model.getRegion().getEnd();
+		String chrom = model.getRegion().getChrom();
 		int regionWidth = model.getRegion().getWidth();
 		int linewidth = Math.max(getProperties().LineWidth,1);
 		Stroke oldStroke = g.getStroke();
@@ -75,52 +76,53 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 			g.drawString("Analysis " +getLabel(),x1 + g.getFont().getSize()*2,y1 + g.getFont().getSize());
 		}
 
-		int h = height;
-		float maxweight = 0;
 		g.setStroke(new BasicStroke(1.0f));
 		TreeMap<Point, Integer> leftOutRanges = new TreeMap<Point, Integer>();
 		TreeMap<Point, Integer> rightOutRanges = new TreeMap<Point, Integer>();
+		int cutoff = getProperties().ReadPairCountCutoff;
 		for (Pair<Point,Point> pair : interactions.keySet()) {
-			if (!pair.car().equals(pair.cdr())) {
-				float count = interactions.get(pair);
-				if (count<getProperties().ReadPairCountCutoff)
-					continue;
-				float curvewidth = Math.min(30, (float)Math.sqrt((double) count));
-				g.setStroke(new BasicStroke(curvewidth, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
-				Point leftPoint = pair.car();
-				Point rightPoint = pair.cdr();
-				int leftCoord = leftPoint.getLocation();
-				int rightCoord = rightPoint.getLocation();
-				if (leftCoord<regionStart){
-					// if out of range, record the position that is in range
-					if (!leftOutRanges.containsKey(rightPoint))
-						leftOutRanges.put(rightPoint, 1);
-					else
-						leftOutRanges.put(rightPoint, leftOutRanges.get(rightPoint)+1);
-					continue; // skip
-				}
-				if (rightCoord>regionEnd){
-					// if out of range, record the position that is in range
-					if (!rightOutRanges.containsKey(leftPoint))
-						rightOutRanges.put(leftPoint, 1);
-					else
-						rightOutRanges.put(leftPoint, rightOutRanges.get(leftPoint)+1);
-					continue; // skip
-				}
-				int leftx = getXPosExt(leftCoord, regionStart, regionEnd, x1, x2);
-				int rightx = getXPosExt(rightCoord, regionStart, regionEnd, x1, x2);
-				int midx = (leftx+rightx)/2;
-				int midy = y2 - (int)(((double)(rightx-leftx)/(double)width) * 2*height);
-				int colorIdx = Math.round(count/10);
-				if (colorIdx > arcColors.length-1)
-					colorIdx = arcColors.length-1;
-				g.setColor(arcColors[colorIdx]);
-				QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
-				g.draw(loop);
-				g.setColor(textColors[colorIdx]);
-				String countStr = count==Math.round(count) ? Math.round(count)+"" : count+"";
-				g.drawString(countStr, midx, y2 - (int)(((double)(rightx-leftx)/(double)width) * height));
+			Point leftPoint = pair.car();
+			Point rightPoint = pair.cdr();
+			if (leftPoint.equals(rightPoint))
+				continue;
+			if (!leftPoint.getChrom().equals(chrom))
+				continue;
+			float count = interactions.get(pair);
+			if (count<cutoff)
+				continue;
+			float curvewidth = Math.min(30, (float)Math.sqrt((double) count));
+			g.setStroke(new BasicStroke(curvewidth, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
+			int leftCoord = leftPoint.getLocation();
+			int rightCoord = rightPoint.getLocation();
+			if (leftCoord<regionStart){
+				// if out of range, record the position that is in range
+				if (!leftOutRanges.containsKey(rightPoint))
+					leftOutRanges.put(rightPoint, 1);
+				else
+					leftOutRanges.put(rightPoint, leftOutRanges.get(rightPoint)+1);
+				continue; // skip
 			}
+			if (rightCoord>regionEnd){
+				// if out of range, record the position that is in range
+				if (!rightOutRanges.containsKey(leftPoint))
+					rightOutRanges.put(leftPoint, 1);
+				else
+					rightOutRanges.put(leftPoint, rightOutRanges.get(leftPoint)+1);
+				continue; // skip
+			}
+			int leftx = getXPosExt(leftCoord, regionStart, regionEnd, x1, x2);
+			int rightx = getXPosExt(rightCoord, regionStart, regionEnd, x1, x2);
+			int midx = (leftx+rightx)/2;
+			int midy = y2 - (int)(((double)(rightx-leftx)/(double)width) * 2*height);
+			int colorIdx = Math.round(count/10);
+			if (colorIdx > arcColors.length-1)
+				colorIdx = arcColors.length-1;
+			g.setColor(arcColors[colorIdx]);
+			QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
+			g.draw(loop);
+			g.setColor(textColors[colorIdx]);
+			String countStr = count==Math.round(count) ? Math.round(count)+"" : count+"";
+			g.drawString(countStr, midx, y2 - (int)(((double)(rightx-leftx)/(double)width) * height));
 		}
 		// list out-of-range interactions
 		if (getProperties().CountOutOfRangeIntereactions) {
