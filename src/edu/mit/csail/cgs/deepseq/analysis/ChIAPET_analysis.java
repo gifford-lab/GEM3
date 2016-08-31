@@ -1982,7 +1982,7 @@ public class ChIAPET_analysis {
 					ReadPairCluster c1=rpcs.get(i-1);
 					ReadPairCluster c2=rpcs.get(i);
 					int dist = Math.min(c1.r2min+c1.r2max-c1.r1min-c1.r1max, c2.r2min+c2.r2max-c2.r1min-c2.r1max)/2;
-					int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
+					int cluster_merge_dist = Math.min(max_cluster_merge_dist, (int)Math.sqrt(dist) * distance_factor);
 					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
 					if (c2.r1min - c1.r1max < cluster_merge_dist){
 						if (simple_merge){
@@ -2103,7 +2103,7 @@ public class ChIAPET_analysis {
 					it.distalPoint = it.distalRegion.getMidpoint();
 					it.count = cc.reads.size();
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
-							read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
+							(int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 					it.density = cc.getDensity(cluster_merge_dist);
 					usedPETs.addAll(cc.reads);
 				}
@@ -2158,7 +2158,7 @@ public class ChIAPET_analysis {
 					ReadPairCluster c2=rpcs.get(i);
 					// cluster_merge_dist is dependent on the distance between two anchor regions
 					int dist = Math.min(c1.r2min+c1.r2max-c1.r1min-c1.r1max, c2.r2min+c2.r2max-c2.r1min-c2.r1max)/2;
-					int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
+					int cluster_merge_dist = Math.min(max_cluster_merge_dist, (int)Math.sqrt(dist) * distance_factor);
 					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
 					if (c2.r2min - c1.r2max < cluster_merge_dist){
 						if (simple_merge){
@@ -2267,7 +2267,7 @@ public class ChIAPET_analysis {
 					it.distalPoint = it.distalRegion.getMidpoint();
 					it.count = cc.reads.size();
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
-							read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
+							(int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 					it.density = cc.getDensity(cluster_merge_dist);
 					usedPETs.addAll(cc.reads);
 				}
@@ -2428,7 +2428,7 @@ public class ChIAPET_analysis {
 					ReadPairCluster c2=rpcs.get(i);
 					// cluster_merge_dist is dependent on the distance between two anchor regions
 					int dist = Math.min(c1.r2min+c1.r2max-c1.r1min-c1.r1max, c2.r2min+c2.r2max-c2.r1min-c2.r1max)/2;
-					int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
+					int cluster_merge_dist = Math.min(max_cluster_merge_dist, (int)Math.sqrt(dist) * distance_factor);
 					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
 					if (c2.r2min - c1.r2max < cluster_merge_dist){
 						if (simple_merge){
@@ -2535,7 +2535,7 @@ public class ChIAPET_analysis {
 					it.distalPoint = it.distalRegion.getMidpoint();
 					it.count = cc.reads.size();
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
-							read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
+							(int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 					it.density = cc.getDensity(cluster_merge_dist);
 					usedPETs.addAll(cc.reads);
 				}
@@ -2603,17 +2603,17 @@ public class ChIAPET_analysis {
 //				System.out.println();
 			}
 		}
-		
 
 		// mark PET1 (after removing the PET2+)
 		high.removeAll(usedPETs);
 		high.trimToSize();
 		low.clear();
 		low = null;
+		System.out.println("Single PETs n=" + high.size());
 		
 	
 		/** Annotate and report */
-		System.out.println("\n\nAnnotate and report, "+CommonUtils.timeElapsed(tic0));
+		System.out.println("\nAnnotate and report, "+CommonUtils.timeElapsed(tic0));
 		// report the interactions and annotations
 		// annotate the proximal and distal anchors with TF and HM and regions
 		StringBuilder sb = new StringBuilder();
@@ -2753,7 +2753,6 @@ public class ChIAPET_analysis {
 		
 		// output BEDPE format
 		// HERE we need to also include PET1 for MICC and ChiaSig analysis
-		System.out.println("Single PETs n=" + high.size());
 		for (ReadPair rp: high){
 			Interaction it = new Interaction();
 			interactions.add(it);
@@ -2765,7 +2764,7 @@ public class ChIAPET_analysis {
 			it.distalRegion = new Region(rp.r2.getGenome(), rp.r2.getChrom(), rp.r2.getLocation(), rp.r2.getLocation());
 			it.count = 1;
 //			int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
-//					read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
+//					(int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 //			it.density = cc.getDensity(cluster_merge_dist);
 		}
 		high.clear();
@@ -3178,7 +3177,7 @@ public class ChIAPET_analysis {
 					it.distalPoint = it.distalRegion.getMidpoint();
 					it.count = cc.reads.size();
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
-							read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
+							(int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 					it.density = cc.getDensity(cluster_merge_dist);
 				}
 				rpcs = null;
@@ -3232,7 +3231,7 @@ public class ChIAPET_analysis {
 					ReadPairCluster c2=rpcs.get(i);
 					// cluster_merge_dist is dependent on the distance between two anchor regions
 					int dist = Math.min(c1.r2min+c1.r2max-c1.r1min-c1.r1max, c2.r2min+c2.r2max-c2.r1min-c2.r1max)/2;
-					int cluster_merge_dist = Math.min(max_cluster_merge_dist, read_merge_dist + (int)Math.sqrt(dist) * distance_factor);
+					int cluster_merge_dist = Math.min(max_cluster_merge_dist, (int)Math.sqrt(dist) * distance_factor);
 					double d = Math.min(c1.getDensity(cluster_merge_dist), c2.getDensity(cluster_merge_dist));
 					if (c2.r2min - c1.r2max < cluster_merge_dist){
 //						System.out.println("Close enough, "+CommonUtils.timeElapsed(tic));
@@ -3345,7 +3344,7 @@ public class ChIAPET_analysis {
 					it.distalPoint = it.distalRegion.getMidpoint();
 					it.count = cc.reads.size();
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
-							read_merge_dist + (int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
+							(int)Math.sqrt(Math.abs(it.tss.offset(it.distalPoint))) * distance_factor);
 					it.density = cc.getDensity(cluster_merge_dist);
 				}
 				interactions.trimToSize();
