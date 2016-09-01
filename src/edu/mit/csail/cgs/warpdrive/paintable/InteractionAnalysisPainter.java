@@ -80,6 +80,8 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		TreeMap<Point, Integer> leftOutRanges = new TreeMap<Point, Integer>();
 		TreeMap<Point, Integer> rightOutRanges = new TreeMap<Point, Integer>();
 		int cutoff = getProperties().ReadPairCountCutoff;
+		boolean toShowCount = getProperties().DisplayReadPairCount;
+		boolean toShowOutOfRangeIntereactions = getProperties().ShowOutOfRangeIntereactions;
 		for (Pair<Point,Point> pair : interactions.keySet()) {
 			Point leftPoint = pair.car();
 			Point rightPoint = pair.cdr();
@@ -100,7 +102,8 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 					leftOutRanges.put(rightPoint, 1);
 				else
 					leftOutRanges.put(rightPoint, leftOutRanges.get(rightPoint)+1);
-				continue; // skip
+				if (!toShowOutOfRangeIntereactions)
+					continue; // skip
 			}
 			if (rightCoord>regionEnd){
 				// if out of range, record the position that is in range
@@ -108,7 +111,8 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 					rightOutRanges.put(leftPoint, 1);
 				else
 					rightOutRanges.put(leftPoint, rightOutRanges.get(leftPoint)+1);
-				continue; // skip
+				if (!toShowOutOfRangeIntereactions)
+					continue; // skip
 			}
 			int leftx = getXPosExt(leftCoord, regionStart, regionEnd, x1, x2);
 			int rightx = getXPosExt(rightCoord, regionStart, regionEnd, x1, x2);
@@ -120,12 +124,14 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 			g.setColor(arcColors[colorIdx]);
 			QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
 			g.draw(loop);
-			g.setColor(textColors[colorIdx]);
-			String countStr = count==Math.round(count) ? Math.round(count)+"" : count+"";
-			g.drawString(countStr, midx, y2 - (int)(((double)(rightx-leftx)/(double)width) * height));
+			if (toShowCount){
+				g.setColor(textColors[colorIdx]);
+				String countStr = count==Math.round(count) ? Math.round(count)+"" : count+"";
+				g.drawString(countStr, midx, y2 - (int)(((double)(rightx-leftx)/(double)width) * height));
+			}
 		}
 		// list out-of-range interactions
-		if (getProperties().CountOutOfRangeIntereactions) {
+		if (toShowOutOfRangeIntereactions) {
 			g.setFont(attrib.getPointLabelFont(width,height));
 			int fontSize = g.getFont().getSize();
 			g.setColor(Color.RED);
@@ -145,9 +151,8 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		}
 		g.setStroke(oldStroke);
 	}
+	/** override to return real scaled out_of_range positions */
     private int getXPosExt(int pos, int start, int end, int leftx, int rightx) {
-//        if (pos < start) {return leftx;}
-//        if (pos > end) {return rightx;}
         return (int)((((float)(pos - start))/((float)(end - start))) * (rightx - leftx) + leftx);
     }
 

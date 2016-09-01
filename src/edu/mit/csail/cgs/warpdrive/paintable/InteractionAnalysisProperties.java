@@ -4,6 +4,7 @@ public class InteractionAnalysisProperties extends
 		ExperimentPaintableProperties {
 	
 	public Integer LineWidth = 1;
-	public Boolean CountOutOfRangeIntereactions = Boolean.FALSE;
+	public Boolean ShowOutOfRangeIntereactions = Boolean.FALSE;
+	public Boolean DisplayReadPairCount = Boolean.TRUE;
 	public Integer ReadPairCountCutoff = 1;
 }
