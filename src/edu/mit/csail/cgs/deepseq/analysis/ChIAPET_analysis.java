@@ -3096,9 +3096,12 @@ public class ChIAPET_analysis {
 					rpcs2 = null;
 				}				
 				for (ReadPairCluster cc: rpcs){
+					ArrayList<ReadPair> pets = cc.pets;
+					if (pets.size()<2)
+						continue;
+						
 					Interaction it = new Interaction();
 					interactions.add(it);
-					ArrayList<ReadPair> pets = cc.pets;
 					
 					it.leftRegion = new Region(region.getGenome(), region.getChrom(), cc.r1min, cc.r1max);
 					Collections.sort(pets, new Comparator<ReadPair>(){
