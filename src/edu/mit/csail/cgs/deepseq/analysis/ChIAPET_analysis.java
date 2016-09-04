@@ -3074,6 +3074,22 @@ public class ChIAPET_analysis {
 				toRemoveClusters.clear();
 				toRemoveClusters=null;
 				
+				// refresh the PETs again because some PET1 might not be included but are within the cluster_merge distance
+				for (ReadPairCluster cc: rpcs){
+//					int tmp = cc.pets.size();
+					Region leftRegion = new Region(region.getGenome(), region.getChrom(), cc.r1min, cc.r1max);
+					Region rightRegion = new Region(region.getGenome(), region.getChrom(), cc.r2min, cc.r2max);
+					ArrayList<Integer> idx2 = CommonUtils.getPointsWithinWindow(lowEnds, leftRegion);
+					cc.pets.clear();
+					for (int i: idx2){
+						ReadPair rp = low.get(i);
+						if (rightRegion.contains(rp.r2))
+							cc.addReadPair(rp);
+					}
+//					if (tmp<cc.pets.size())
+//						System.out.println("Refresh "+tmp+" PETs to "+cc.pets.size());
+				}
+				
 				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, true);
 				if (rpcs2!=null){
 					rpcs = rpcs2;
@@ -3103,6 +3119,12 @@ public class ChIAPET_analysis {
 						it.leftLabel = "nonTSS";
 					else
 						it.leftLabel = tsb.toString();
+					// STD for the spread of the PETs
+					int[] pos = new int[pets.size()];
+					for (int p=0; p<pos.length; p++){
+						pos[p] = pets.get(p).r1.getLocation() - cc.r1min;
+					}
+					double std = StatUtil.std(pos)/(cc.r1max-cc.r1min);
 						
 					it.rightRegion = new Region(region.getGenome(), region.getChrom(), cc.r2min, cc.r2max);
 					Collections.sort(pets, new Comparator<ReadPair>(){
@@ -3123,6 +3145,12 @@ public class ChIAPET_analysis {
 						it.rightLabel = "nonTSS";
 					else
 						it.rightLabel = tsb.toString();
+					// STD for the spread of the PETs
+					for (int p=0; p<pos.length; p++){
+						pos[p] = pets.get(p).r2.getLocation() - cc.r2min;
+					}
+					it.std = (StatUtil.std(pos)/(cc.r2max-cc.r2min) + std)/2;
+
 					
 					it.count = cc.pets.size();
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
@@ -3474,19 +3502,20 @@ public class ChIAPET_analysis {
 		String rightLabel;
 		int count;
 		int indirectCount;
+		double std;
 		double density;
 //		double pvalue;
 		public String toString(){
 //			return String.format("%d %.1f\t< %s %s -- %s >", count, density, geneSymbol, tssRegion, distalRegion);
 			int dist = rightPoint.offset(leftPoint);
 			int padding = Math.abs(dist/20);
-			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
+			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%.3f\t%.1f", 
 					leftLabel, (leftPoint instanceof StrandedPoint)?(StrandedPoint)leftPoint:leftPoint, leftRegion, 
 					rightLabel,	(rightPoint instanceof StrandedPoint)?(StrandedPoint)rightPoint:rightPoint, rightRegion, 
 					leftPoint.getChrom()+":"+
 					(Math.min(Math.min(leftRegion.getStart(), rightRegion.getStart()),leftPoint.getLocation())-padding)+"-"+
 					(Math.max(Math.max(leftRegion.getEnd(), rightRegion.getEnd()), leftPoint.getLocation())+padding), 		// whole it region
-					leftRegion.getWidth(), rightRegion.getWidth(), dist, count, indirectCount, density);
+					leftRegion.getWidth(), rightRegion.getWidth(), dist, count, std, density);
 		}
 	}
 	
