@@ -107,8 +107,32 @@ public class KsmPwmScanner {
 		case 2:
 			shuffleFasta(args);
 			break;
+		case 3:
+			rocFromScores(args);
+			break;
 		}
 	}
+	
+	private static void rocFromScores (String[] args){
+		double fpr = Args.parseDouble(args, "fpr", 0.1);
+		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "pos", null));
+		ArrayList<Double> posScores = new ArrayList<Double>();
+		for (String s:lines){
+			String f[] = s.split("\t");
+			posScores.add(Double.parseDouble(f[7]));
+		}
+		posScores.trimToSize();
+		lines = CommonUtils.readTextFile(Args.parseString(args, "neg", null));
+		ArrayList<Double> negScores = new ArrayList<Double>();
+		for (String s:lines){
+			String f[] = s.split("\t");
+			negScores.add(Double.parseDouble(f[7]));
+		}
+		negScores.trimToSize();
+		double roc = evaluateScoreROC(posScores, negScores, fpr);
+		System.out.println(String.format("%s\tTFFM\t%.2f", Args.parseString(args, "expt", null), roc));
+	}
+	
 	private static void shuffleFasta(String[] args){
 		Random rand = new Random(Args.parseInteger(args, "seed", 0));
 		String fasta = Args.parseString(args, "fasta", null);
