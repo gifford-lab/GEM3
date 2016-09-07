@@ -40,12 +40,12 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.ROC;
 import net.sf.samtools.util.SequenceUtil;
 
-public class KmerScanner {
+public class KsmPwmScanner {
 	public static char[] letters = {'A','C','T','G'};
 	private KMAC1 kEngine;
 	// each element in the list is for one ChIP-Seq method
 	
-	public KmerScanner(String[] args, KsmMotif ksm){
+	public KsmPwmScanner(String[] args, KsmMotif ksm){
         Config config = new Config();
         try{
 			config.parseArgs(args);   
@@ -99,24 +99,34 @@ public class KmerScanner {
 		}
 	}
 	public static void main(String[] args){
-//		int round = Args.parseInteger(args, "r", 2); 	//GEM output round (1 for GPS, 2 for GEM)
-//		int type = Args.parseInteger(args, "type", 999);
-//		ArrayList<ArrayList<Site>> clusters=null;
-//		switch(type){
-//		case 999:	// default: simple file loading for RPD public code
-//			analysis.loadBindingEvents();
-//			clusters = analysis.mergeTfbsClusters();
-//			analysis.outputTFBSclusters(clusters);
-//			break;
-//		case 0:
-//			analysis.loadBindingEvents_old();
-//			clusters = analysis.mergeTfbsClusters();
-//			analysis.outputTFBSclusters(clusters);
-//			break;
-//		}
-//	}
-//		
-//	private void scan_KSM_PWM(String[] args){
+		int type = Args.parseInteger(args, "type", 1);
+		switch(type){
+		case 1:	// default: simple file loading for RPD public code
+			scan_KSM_PWM(args);
+			break;
+		case 2:
+			shuffleFasta(args);
+			break;
+		}
+	}
+	private static void shuffleFasta(String[] args){
+		Random rand = new Random(Args.parseInteger(args, "seed", 0));
+		String fasta = Args.parseString(args, "fasta", null);
+		if (fasta==null)
+			System.err.println("File not found: "+fasta);
+		ArrayList<String> posSeqs = CommonUtils.loadSeqFromFasta(fasta);
+		StringBuilder sb = new StringBuilder();
+		int count=1;
+		for (String s: posSeqs){
+			String seqN = SequenceUtils.dinu_shuffle(s, rand);
+			sb.append(">Shuffled_").append(count).append("\n");
+			sb.append(seqN).append("\n");
+			count++;
+		}
+		CommonUtils.writeFile(fasta+".shuffled", sb.toString());
+	}
+	
+	private static void scan_KSM_PWM(String[] args){
 		Set<String> flags = Args.parseFlags(args);		
 		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
 		seqgen.useCache(!flags.contains("no_cache"));		
@@ -178,7 +188,7 @@ public class KmerScanner {
 		File file = new File(kmer);
     	System.err.println(kmer);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
-		KmerScanner scanner = new KmerScanner(args, ksm);
+		KsmPwmScanner scanner = new KsmPwmScanner(args, ksm);
 		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 	        	    
 	    long t = System.currentTimeMillis();
