@@ -1115,53 +1115,25 @@ public class KMAC1 {
 
 		/** Refine final motifs, set binding positions, etc */
     	System.out.println(CommonUtils.timeElapsed(tic)+": Finalizing "+ clusters.size() +" motifs ...\n");
+		// remove clusters with low hit count
+		ArrayList<MotifCluster> toRemove = new ArrayList<MotifCluster>();
+		for (int i=0;i<clusters.size();i++){
+			MotifCluster c = clusters.get(i);
+			double hitRatio = (double)c.pwmThreshold.posHit / posSeqCount;
+			if (i>=10 && hitRatio<config.motif_hit_factor_report || hitRatio<config.motif_hit_factor)
+					toRemove.add(c);
+			//TODO: add a new config.motif_significance, or use fold change to remove motif here
+//			if (config.evaluate_by_ksm && c.ksmThreshold.motif_significance>config.hgp)
+//				toRemove.add(c);
+//			if (!config.evaluate_by_ksm && c.pwmThreshold.motif_significance>config.hgp)
+//				toRemove.add(c);
+		}
+		clusters.removeAll(toRemove);
+		
+		sortMotifClusters(clusters, true);
 
 		for (int i=0;i<clusters.size();i++){
 			MotifCluster cluster = clusters.get(i);
-//			indexKmerSequences(cluster.inputKmers, seq_weights, seqList, seqListNeg, config.kmer_hgp);  // need this to get KSM
-			
-//			if (config.refine_final_motifs){
-//				if (config.evaluate_by_ksm || cluster.wm == null){
-//			    	if (config.verbose>1)
-//	        			System.out.println(String.format("%s: #%d KSM %.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
-//	        					cluster.ksmThreshold.motif_cutoff, cluster.ksmThreshold.posHit, cluster.ksmThreshold.negHit, cluster.ksmThreshold.motif_significance, cluster.seedKmer.kmerString));
-//					updateEngine(cluster.alignedKmers);
-//			    	alignByKSM(seqList, cluster.alignedKmers, cluster);
-//					if (cluster.wm != null)
-//						alignByPWM(seqList, cluster, true);
-//				}
-//				else{
-//			    	if (config.verbose>1)
-//	        			System.out.println(String.format("%s: #%d PWM %.2f/%.2f\thit %d+/%d- seqs\tpAUC=%.1f\t%s", CommonUtils.timeElapsed(tic), i,
-//	        					cluster.pwmThreshold.motif_cutoff, cluster.wm.getMaxScore(), cluster.pwmThreshold.posHit, cluster.pwmThreshold.negHit, cluster.pwmThreshold.motif_significance, WeightMatrix.getMaxLetters(cluster.wm)));
-//					alignByPWM(seqList, cluster, false);
-//				}
-//				MotifCluster newCluster = cluster.clone(false);
-//				newCluster.ksmThreshold.motif_significance /=2;
-//				newCluster.pwmThreshold.motif_significance /=2;
-//				iteratePWMKSM (newCluster, seqList, newCluster.k, config.use_ksm);
-//				
-//				boolean toUpdate = false;			
-//				if (config.evaluate_by_ksm){
-//					if (newCluster.ksmThreshold.motif_significance>cluster.ksmThreshold.motif_significance)
-//						toUpdate = true;
-//				}
-//				else{
-//					if  (newCluster.pwmThreshold.motif_significance+newCluster.ksmThreshold.motif_significance 
-//							> cluster.pwmThreshold.motif_significance+cluster.ksmThreshold.motif_significance)
-//						toUpdate = true;
-//				}
-//				if (toUpdate){
-//					clusters.set(i, newCluster);
-//					cluster = newCluster;
-//			    	if (config.verbose>1)
-//			    		System.out.println(CommonUtils.timeElapsed(tic)+": Motif #"+i+" has been refined.\n");
-//				}
-//				else{
-//					if (config.verbose>1)
-//			    		System.out.println(CommonUtils.timeElapsed(tic)+": Motif #"+i+" has not been updated.\n");
-//				}
-//			}
 			
 			/** use all aligned sequences to find expected binding sites, set kmer offset */
 	    	// average all the binding positions to decide the expected binding position
@@ -1292,24 +1264,6 @@ public class KMAC1 {
 				km.setKmerStartOffset(km.shift-cluster.pos_BS_seed);
 			}			
 		}	// for each motif found
-
-		// remove clusters with low hit count
-		// TODO: can be done in refinement step, to skip binding position estimation
-		ArrayList<MotifCluster> toRemove = new ArrayList<MotifCluster>();
-		for (int i=0;i<clusters.size();i++){
-			MotifCluster c = clusters.get(i);
-			double hitRatio = (double)c.pwmThreshold.posHit / posSeqCount;
-			if (i>=10&&hitRatio<config.motif_hit_factor_report || hitRatio<config.motif_hit_factor)
-					toRemove.add(c);
-			//TODO: add a new config.motif_significance, or use fold change to remove motif here
-//			if (config.evaluate_by_ksm && c.ksmThreshold.motif_significance>config.hgp)
-//				toRemove.add(c);
-//			if (!config.evaluate_by_ksm && c.pwmThreshold.motif_significance>config.hgp)
-//				toRemove.add(c);
-		}
-		clusters.removeAll(toRemove);
-		
-		sortMotifClusters(clusters, true);
 
 		// print KSM and motif hits
 		for (MotifCluster cluster : clusters){
@@ -5257,7 +5211,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int kmerSortId=99999;
 		double kgScore;
 		public int compareTo(Seq s){
-			int diff = kmerSortId<s.kmerSortId ? -1 : ((kmerSortId==s.kmerSortId) ? (kgScore>s.kgScore?-1:1) : 1);
+			int diff = kmerSortId<s.kmerSortId ? -1 : ((kmerSortId==s.kmerSortId) ? (kgScore>s.kgScore?-1:(kgScore==s.kgScore?0:1)) : 1);
 			return diff;
 		}
 		public String toString(){
