@@ -7,7 +7,7 @@ import java.awt.font.*;
 
 public class WeightMatrixPainter {
 	public final static int X_MARGIN = 5;
-	public final static int Y_MARGIN = 2;
+	public final static int Y_MARGIN = 3;
 	public final static int YLABEL_SIZE = 12;
     /* paints a representation of a weight matrix wherein the height of the letters roughly indicates
        their relative probability at each base.  The image is painted in g in the
@@ -22,10 +22,9 @@ public class WeightMatrixPainter {
         g.setFont(labelFont);
         FontMetrics fontmetrics = g.getFontMetrics();
         String label = wm.toString();
-        LineMetrics linemetrics = fontmetrics.getLineMetrics(label,g);
         g.setColor(Color.BLACK);
-        g.drawString(label,x1+X_MARGIN + w/2 - fontmetrics.charsWidth(label.toCharArray(),0,label.length()) / 2,y2-Y_MARGIN);
-        int labelHeight = fontmetrics.getHeight() + Y_MARGIN;
+        int labelHeight = fontmetrics.getHeight();
+        g.drawString(label, x2-X_MARGIN-fontmetrics.charsWidth(label.toCharArray(), 0, label.length()), y1+labelHeight);
 
         Font baseFont = new Font("Arial",Font.BOLD, h );
         int pixelsPerLetter = (w-X_MARGIN*2) / wm.length();
@@ -35,12 +34,12 @@ public class WeightMatrixPainter {
         for (int pos = 0; pos < wm.length(); pos++) {
             Character[] letters = WeightMatrix.getLetterOrder(wm,pos);
             double total = 0;
-            int ypos = y2 - labelHeight;
             for (int j = 3; j >= 0; j--) {
                 vals[j] = Math.exp(wm.matrix[pos][letters[j]]);
                 total += vals[j];
             }
-            
+            int ypos = y2-Y_MARGIN;
+
             double bits = 0;
             for (int j = 3; j >= 0; j--) {
                 vals[j] = vals[j] / total;
@@ -68,7 +67,7 @@ public class WeightMatrixPainter {
 	                    offset = -(int)(pixelsPerLetter*0.05);
 	                else if (letters[j] == 'T')
 	                    offset = (int)(pixelsPerLetter*0.05);
-	                g.drawString(letters[j].toString(),x1+X_MARGIN +offset+ pos * pixelsPerLetter,ypos);
+	                g.drawString(letters[j].toString(),x1+X_MARGIN +offset+ pos * pixelsPerLetter, ypos);
                 }
                 else if (letterHeight==1){
                 	g.fillRect(x1+X_MARGIN+ pos*pixelsPerLetter, ypos, (int)(pixelsPerLetter*0.9), letterHeight);

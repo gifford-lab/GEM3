@@ -935,6 +935,34 @@ public class CommonUtils {
         }
 	}
 	
+	public static void printKSMMotifLogo(ArrayList<WeightMatrix> wms, List<Integer> counts, File f, int pictHeight, int letterWidth){
+		if (wms.isEmpty())
+			return;
+		int pictWidth = wms.get(0).length()*letterWidth;
+		System.setProperty("java.awt.headless", "true");
+		BufferedImage im = new BufferedImage(pictWidth, pictHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics g = im.getGraphics();
+        Graphics2D g2 = (Graphics2D)g;
+        g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
+        WeightMatrixPainter wmp = new WeightMatrixPainter();
+        g2.setColor(Color.WHITE);
+        g2.fillRect(0,0,pictWidth, pictHeight);
+        int totalCount = 0;
+        for (int c:counts)
+        	totalCount += c;
+        int topCoord = 0;
+        for (int i=0;i<wms.size();i++){
+        	int h = counts.get(i)*pictHeight/totalCount;
+        	wmp.paint(wms.get(i), g2, 0, topCoord, pictWidth, topCoord+h);
+        	topCoord += h;
+        }
+        try {
+            ImageIO.write(im,"png",f);
+        }  catch (IOException ex) {
+            ex.printStackTrace();
+        }
+	}
+
 	/**
 	 * Visualize sequences as color pixels
 	 * @param seqs, raw sequences or FASTA sequences

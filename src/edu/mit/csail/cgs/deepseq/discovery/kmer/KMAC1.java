@@ -1211,22 +1211,37 @@ public class KMAC1 {
 				}
 				for (Kmer km:km2seqs.keySet())
 					km2seqs.get(km).removeAll(seqs);
-				
 //				System.out.println((bestKm.isSeedOrientation?bestKm.kmerString:bestKm.kmerRC) +"\t"+bestHit+"\t"+sortIdSetCount);
-
 				sortId++;
 			}
 			Collections.sort(seqSortList);
+
+			int pictHeight = 1200;		// KSM logo image height
+			int minCount = seqSortList.size()/pictHeight*15;
+			int lastCountIdx = kmHitCounts.size();
+			int accumCount = 0;
+			for (int ik = 0; ik<kmHitCounts.size(); ik++){
+				accumCount += kmHitCounts.get(ik);
+				if (kmHitCounts.get(ik)<minCount){
+					lastCountIdx = ik;
+					break;
+				}
+			}
 			
 			// print
 			String[] ss = new String[seqSortList.size()];
+			int seqAlignmentLength = cluster.k*3;
 			for (int id=0; id<seqSortList.size(); id++){
+				if (id==accumCount){
+					ss[id]=CommonUtils.padding(seqAlignmentLength, 'N');
+					continue;
+				}
 				Sequence s = seqList.get(seqSortList.get(id).id);
 				String seq = s.getAlignedSeq();
 				if (config.print_aligned_seqs)
 					sb.append(String.format("%d\t%d\t%s\t%s%s\n", s.id, s.pos, s.isOriginalOrientation?"F":"R", CommonUtils.padding(-leftmost+s.pos, '.'), seq));
 				int start = -s.pos - cluster.k;
-				int end = start + cluster.k*3;
+				int end = start + seqAlignmentLength;
 				int padding = 0;
 				int endpadding = 0;
 				if (start<0){
@@ -1242,8 +1257,31 @@ public class KMAC1 {
 					.append(CommonUtils.padding(endpadding, 'N'));
 				ss[id] = sb_logo.toString();
 			}
-			CommonUtils.visualizeSequences(ss, 1, 1, new File(outName+".m"+i+".KSM.png"));
+			CommonUtils.visualizeSequences(ss, 10, 1, new File(outName+".m"+i+".sequenceHits.png"));
 			
+			// KSM logo
+			int currentSeqId = 0;
+			ArrayList<WeightMatrix> wms = new ArrayList<WeightMatrix>();
+			for (int ik = 0; ik<lastCountIdx; ik++){
+				float[][] pfm = new float[seqAlignmentLength][MAXLETTERVAL];  // positions x letters
+				for (int p=0;p<pfm.length;p++){
+					for (char base:LETTERS)			// 0 count can cause log(0), set pseudo-count 0.375 to every pos, every base
+						pfm[p][base] = 0.375f; 		//http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2490743/
+				} 
+		    	for (int is=currentSeqId;is<currentSeqId+kmHitCounts.get(ik);is++){
+					for (int p=0;p<pfm.length;p++){
+		    			char base = ss[is].charAt(p);
+		    			pfm[p][base] += 1;
+		    		}
+		    	}
+				currentSeqId += kmHitCounts.get(ik);
+
+				WeightMatrix wm = new WeightMatrix(pfm);
+				wm.setNameVerType("m"+i, "km"+ik, kmHitCounts.get(ik)+"/"+ss.length);
+				wms.add(wm);
+			}
+			CommonUtils.printKSMMotifLogo(wms, kmHitCounts.subList(0, lastCountIdx), new File(outName+".m"+i+".KSM.png"), pictHeight, 800/seqAlignmentLength);
+
 			// median BS position relative to seed k-mer start 
 			if (bs.length==0){
 		    	if (config.verbose>1){
@@ -5804,8 +5842,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		HashMap<String, ArrayList<Integer>> tmpStr2kmerOffsets = new HashMap<String, ArrayList<Integer>>();	
 		int a=0;
 		for (Kmer km: kmers){
-			if (km.getKmerRC().equals("ATTGTNATG"))	// for debugging
-				a = kmers.size();
+//			if (km.getKmerRC().equals("ATTGTNATG"))	// for debugging
+//				a = kmers.size();
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer)km;
 				if (use_base_kmers){
