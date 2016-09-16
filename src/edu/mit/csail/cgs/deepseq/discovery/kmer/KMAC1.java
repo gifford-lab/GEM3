@@ -1186,11 +1186,14 @@ public class KMAC1 {
 			seqSortList.trimToSize();
 			allSeqList.trimToSize();
 			
-			int sortIdSetCount = 0;
+			if (i==10)
+				System.out.println("m"+i);
+
+			int totalHitCount = 0;
 			int sortId = 0;
 			ArrayList<Kmer> bestKmers = new ArrayList<Kmer>();
 			ArrayList<Integer> kmHitCounts = new ArrayList<Integer>();
-			while(sortIdSetCount<seqSortList.size()){
+			while(totalHitCount<seqSortList.size()){
 				int bestHit=0;
 				Kmer bestKm = null;
 				for (Kmer km:km2seqs.keySet()){
@@ -1201,14 +1204,12 @@ public class KMAC1 {
 				}
 				bestKmers.add(bestKm);
 				kmHitCounts.add(bestHit);
+				totalHitCount += bestHit;
 				ArrayList<Sequence> seqs = km2seqs.get(bestKm);
 				km2seqs.remove(bestKm);
-				for (Sequence s:seqs){
-					if (allSeqList.get(s.id).kmerSortId > sortId){
+				for (Sequence s:seqs)
+					if (allSeqList.get(s.id).kmerSortId > sortId)
 						allSeqList.get(s.id).kmerSortId = sortId;
-						sortIdSetCount++;
-					}
-				}
 				for (Kmer km:km2seqs.keySet())
 					km2seqs.get(km).removeAll(seqs);
 //				System.out.println((bestKm.isSeedOrientation?bestKm.kmerString:bestKm.kmerRC) +"\t"+bestHit+"\t"+sortIdSetCount);
