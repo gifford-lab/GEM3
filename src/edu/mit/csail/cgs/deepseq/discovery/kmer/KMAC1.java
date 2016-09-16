@@ -1202,9 +1202,11 @@ public class KMAC1 {
 						bestKm=km;
 					}
 				}
+				totalHitCount += bestHit;
+				if (totalHitCount>= seqSortList.size())
+					break;
 				bestKmers.add(bestKm);
 				kmHitCounts.add(bestHit);
-				totalHitCount += bestHit;
 				ArrayList<Sequence> seqs = km2seqs.get(bestKm);
 				km2seqs.remove(bestKm);
 				for (Sequence s:seqs)
@@ -1264,6 +1266,8 @@ public class KMAC1 {
 			int currentSeqId = 0;
 			ArrayList<WeightMatrix> wms = new ArrayList<WeightMatrix>();
 			for (int ik = 0; ik<lastCountIdx; ik++){
+//				if (currentSeqId+kmHitCounts.get(ik)>=ss.length)
+//					break;
 				float[][] pfm = new float[seqAlignmentLength][MAXLETTERVAL];  // positions x letters
 				for (int p=0;p<pfm.length;p++){
 					for (char base:LETTERS)			// 0 count can cause log(0), set pseudo-count 0.375 to every pos, every base
