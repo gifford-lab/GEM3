@@ -1186,8 +1186,8 @@ public class KMAC1 {
 			seqSortList.trimToSize();
 			allSeqList.trimToSize();
 			
-			if (i==10)
-				System.out.println("m"+i);
+//			if (i==10)
+//				System.out.println("m"+i);
 
 			int totalHitCount = 0;
 			int sortId = 0;
@@ -2471,7 +2471,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		}
 		if (topKmerIsNotCenter)	{	// add the strongest k-mer if it has not been selected as a cluster center
 			results.add(kmers.get(0));
-			System.err.println("Add top kmer!!");
+//			System.err.println("Add top kmer!!");
 		}
 		results.trimToSize();
 
