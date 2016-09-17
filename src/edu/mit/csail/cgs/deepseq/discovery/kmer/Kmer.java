@@ -87,9 +87,7 @@ public class Kmer implements Comparable<Kmer>{
 	protected int k;
 	public int getK(){return k;}
 
-//	protected HashSet<Integer> posHits = new HashSet<Integer>();
-	BitSet posBits = new BitSet();
-	/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
+/**	get posHitCount; one hit at most for one sequence, to avoid simple repeat<br>
 	 * 	get a weighted version of hit count if use_weighted_hit_count is true
 	 */
 	public int getPosHitCount() {
@@ -120,6 +118,8 @@ public class Kmer implements Comparable<Kmer>{
 	public int getWeightedHitCount(){
 		return weightedPosHitCount;
 	}
+	//	protected HashSet<Integer> posHits = new HashSet<Integer>();
+	BitSet posBits = new BitSet();
 	public double familyScore;
 	
 //	int negHitCount;

@@ -862,7 +862,7 @@ public class KMAC1 {
 		ArrayList<MotifCluster> allClusters = new ArrayList<MotifCluster>();		
 		cern.jet.random.engine.RandomEngine randomEngine = new cern.jet.random.engine.MersenneTwister();
 		
-		if (seqs.length<500){
+		if (seqs.length<500){	// relax cutoff if not many sequences
 			config.pwm_noise = 0.1;
 			config.kmer_hgp = -1.3;
 		}
@@ -899,7 +899,7 @@ public class KMAC1 {
 			}
 		
 //			COMMENT block start, to SKIP kmac, only get k-mers
-//			
+
 			kmers.trimToSize();
 			Collections.sort(kmers);
 			
@@ -2463,8 +2463,15 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 				posHitList, negHitList, seq_weights, posNegSeqRatio, distance_cutoff, config.k_top*3,
 				config.refine_centerKmers, config.use_self_density);
 		ArrayList<Kmer> results = new ArrayList<Kmer>();
+		boolean topKmerIsNotCenter = true;
 		for (DensityClusteringPoint p:centers){
 			results.add(kmers.get(p.id));
+			if (p.id == 0)
+				topKmerIsNotCenter = false;
+		}
+		if (topKmerIsNotCenter)	{	// add the strongest k-mer if it has not been selected as a cluster center
+			results.add(kmers.get(0));
+			System.err.println("Add top kmer!!");
 		}
 		results.trimToSize();
 
@@ -2476,6 +2483,8 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			System.out.println(String.format("%s    \t%d\t%.1f\t%.1f\t%.1f\t%d",
 					results.get(i).toShortString(), p.id, p.density, p.delta, p.gamma, p.members.size()));
 		}
+		if (topKmerIsNotCenter)
+			System.out.println(results.get(results.size()-1).toShortString());
 		if (config.verbose>1)
 			System.out.println(CommonUtils.timeElapsed(tic));
 		
