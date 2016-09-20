@@ -325,6 +325,8 @@ public class GEM {
     		KMAC1.main(args);
     	else if (s.equalsIgnoreCase("KSM"))
     		edu.mit.csail.cgs.deepseq.analysis.MotifScan.main(args);
+    	else if (s.equalsIgnoreCase("CPC"))
+    		edu.mit.csail.cgs.deepseq.analysis.ChIAPET_analysis.main(args);
     	else if (s.equalsIgnoreCase("RPD"))
     		edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.main(args);
     	else if (s.equalsIgnoreCase("RDIST"))

@@ -82,11 +82,11 @@ public class ChIAPET_analysis {
 		case 2:		// count distal read pairs per gene (old: step2)
 			analysis.clusterDistalReads();
 			break;
-		case 3:		// 1D merged-read region based clustering
+		case 3:		// region (1D merged-read) based clustering
 			analysis.findAllInteractions();
 			break;
 		case 4:		// find gene-based dense cluster of read pairs
-			analysis.findDenseClusters();
+			postProcessing(args);
 			break;
 		case 5:		// merged-TSS based clustering
 			analysis.findTssInteractions();
@@ -3074,7 +3074,7 @@ public class ChIAPET_analysis {
 				toRemoveClusters.clear();
 				toRemoveClusters=null;
 				
-				// refresh the PETs again because some PET1 might not be included but are within the cluster_merge distance
+				// refresh the PETs again because some PET1 might not be included but are within the cluster_merge range
 				for (ReadPairCluster cc: rpcs){
 //					int tmp = cc.pets.size();
 					Region leftRegion = new Region(region.getGenome(), region.getChrom(), cc.r1min, cc.r1max);
@@ -3361,18 +3361,25 @@ public class ChIAPET_analysis {
 			return null;
 	}
 
-	private class TSS implements Comparable<TSS>{
-		public TSS(String symbol, StrandedPoint coord, int id){
-			this.symbol = symbol;
-			this.coord = coord;
-			this.id = id;
+	private static void postProcessing(String[] args){
+		String cpcFile = Args.parseString(args, "cpc", null);
+		ArrayList<String> lines = CommonUtils.readTextFile(cpcFile);
+		StringBuilder sb = new StringBuilder();
+		for (int i=0;i<lines.size();i++){
+			String t = lines.get(i);
+			String f[] = t.split("\t");
+			String g1s[] = f[0].trim().split(",");
+			String g2s[] = f[3].trim().split(",");
+			for (String g1: g1s){
+				for (String g2: g2s){
+					sb.append(g1).append("\t").append(f[1]).append("\t").append(f[2]).append("\t").append(g2);
+					for (int j=4; j<f.length; j++)
+						sb.append("\t").append(f[j]);
+					sb.append("\n");
+				}
+			}
 		}
-		String symbol;
-		int id;
-		StrandedPoint coord;
-		public int compareTo(TSS t) {
-			return coord.compareTo(t.coord);
-		}
+		CommonUtils.writeFile(cpcFile.replace("txt", "")+"per_gene.txt", sb.toString());
 	}
 	
 	private class TSSwithReads{
