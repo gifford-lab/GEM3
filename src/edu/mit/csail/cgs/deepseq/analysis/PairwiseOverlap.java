@@ -48,7 +48,7 @@ public class PairwiseOverlap{
 	}
 	
 	/**
-	 * Report the relationship between a pair of binding calls: 
+	 * Report the overlap relationship between a pair of binding calls: 
 	 * <ol>
 	 * <li> The distance between binding calls
 	 * <li> The percentages of intersection relative the whole sets
@@ -124,6 +124,7 @@ public class PairwiseOverlap{
 		}
 		tf1_pts.removeAll(tf1_shared_pts);
 		System.out.println(name2+": "+tf2_total);
+		
 		System.out.println(name1+" only: "+tf1_pts.size());
 		System.out.println(name2+" only: "+tf2_only_pts.size());
 		System.out.println("Shared: "+shared_count);
