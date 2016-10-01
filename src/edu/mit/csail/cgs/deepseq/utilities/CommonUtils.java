@@ -1356,6 +1356,48 @@ public class CommonUtils {
 		}
 		return results;
 	}
+	
+	/**
+	 * Get a list of regions that are within the window of the anchor region<br>
+	 * Assuming the regions list is sorted
+	 * @param regions	a list of sorted regions
+	 * @param anchor the anchor region
+	 * @param win the window size
+	 * @return regions that are within the window of the anchor region
+	 */
+	static public ArrayList<Integer> getRegionIdxOverlapsWindow(List<Region> regions, Region anchor, int win){
+		ArrayList<Point> starts = new ArrayList<Point> ();
+		int maxLength = 0;
+		for (Region r: regions){
+			starts.add(r.startPoint());
+			maxLength = Math.max(maxLength, r.getWidth());
+		}
+		ArrayList<Integer> results = new ArrayList<Integer>();
+		Region r = anchor.expand(win, win);
+		// Search Point is the start position of the first possible overlapping region
+		Point searchPoint = new Point(r.getGenome(), r.getChrom(), r.getStart()-maxLength); 
+		Point end = r.endPoint();
+		int startIndex = -1;
+		int endIndex = -1;
+		int i = Collections.binarySearch(starts, searchPoint);
+		if (i<0)
+			startIndex=-i-1;		// -index-1, the insertion point
+		else
+			startIndex = i;
+		i = Collections.binarySearch(starts, end);
+		if (i<0)
+			endIndex=-i-2;			// -index-1-1, the point before the insertion point
+		else
+			endIndex = i;
+		if (startIndex<=endIndex){
+			for (int j=startIndex;j<=endIndex;j++){
+				if (regions.get(j).overlaps(r))
+					results.add(j);
+			}
+		}
+		return results;
+	}
+
 	/**
 	 * Count the hit count of k-mers in the sequences<br>
 	 * - only count repeated kmers once in one sequence, i.e. hit count<br>

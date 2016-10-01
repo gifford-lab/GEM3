@@ -88,9 +88,12 @@ public class ChIAPET_analysis {
 		case 4:		// find gene-based dense cluster of read pairs
 			postProcessing(args);
 			break;
-		case 5:		// merged-TSS based clustering
-			analysis.findTssInteractions();
+		case 5:
+			annotateInteractions(args);
 			break;
+//		case 6:		// merged-TSS based clustering
+//			analysis.findTssInteractions();
+//			break;
 		}
 	}
 	
@@ -2882,6 +2885,20 @@ public class ChIAPET_analysis {
 		System.out.println("Loaded total="+ (reads.size()/2) +", filtered="+ highEnds.size() +" ChIA-PET read pairs: "+CommonUtils.timeElapsed(tic));
 		System.out.println();
 		
+		String anchorString = Args.parseString(args, "anchors", null);
+		if (anchorString != null){
+			System.out.println(anchorString);
+			String[] f = anchorString.split("\t");
+			Region region1 = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]));
+			Region region2 = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]));
+			ArrayList<Integer>idx = CommonUtils.getPointsWithinWindow(lowEnds, region1);
+			for (int id: idx){
+				ReadPair rp = low.get(id);
+				if (region2.contains(rp.r2))
+					System.out.println(rp);
+			}
+			System.exit(0);
+		}
 		// one dimension clustering to define anchors (similar to GEM code)
 		// TODO: use cross correlation to determine the distance to shift
 		ArrayList<Region> rs0 = new ArrayList<Region>();
@@ -3360,7 +3377,48 @@ public class ChIAPET_analysis {
 		}else
 			return null;
 	}
+	
 
+	private static void annotateInteractions(String[] args){
+	    Genome genome = CommonUtils.parseGenome(args);
+	    String cpcFile = Args.parseString(args, "cpc", null);
+		String bed1File = Args.parseString(args, "bed1", null);
+		String bed2File = Args.parseString(args, "bed2", null);
+		int win = Args.parseInteger(args, "win", 1500);
+		
+		Pair<ArrayList<Region>, ArrayList<String>> tmp = CommonUtils.load_BED_regions(genome, bed1File);
+		ArrayList<Region> r1s = tmp.car();
+		ArrayList<String> s1s = tmp.cdr();
+		
+		tmp = CommonUtils.load_BED_regions(genome, bed2File);
+		ArrayList<Region> r2s = tmp.car();
+		ArrayList<String> s2s = tmp.cdr();
+		
+		ArrayList<String> lines = CommonUtils.readTextFile(cpcFile);
+		StringBuilder sb = new StringBuilder();
+		for (int i=0;i<lines.size();i++){
+			String t = lines.get(i);
+			String f[] = t.split("\t");
+			Region distal = Region.fromString(genome, f[5]);
+			ArrayList<Integer> idx1 = CommonUtils.getRegionIdxOverlapsWindow(r1s, distal, win);
+			ArrayList<Integer> idx2 = CommonUtils.getRegionIdxOverlapsWindow(r2s, distal, win);
+			for (int j=0; j<f.length; j++)
+				sb.append(f[j]).append("\t");
+			for (int id: idx1)
+				sb.append(s1s.get(id)).append(",");
+			if (idx1.isEmpty())
+				sb.append("NULL");
+			sb.append("\t");
+			for (int id: idx2)
+				sb.append(s2s.get(id)).append(",");
+			if (idx2.isEmpty())
+				sb.append("NULL");
+			sb.append("\t").append(idx1.size()).append("\t").append(idx2.size());
+			sb.append("\n");
+		}
+		CommonUtils.writeFile(cpcFile.replace("txt", "")+"annotated.txt", sb.toString());
+	}
+	
 	private static void postProcessing(String[] args){
 		String cpcFile = Args.parseString(args, "cpc", null);
 		ArrayList<String> lines = CommonUtils.readTextFile(cpcFile);

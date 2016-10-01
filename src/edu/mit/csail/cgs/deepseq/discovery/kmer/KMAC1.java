@@ -5217,7 +5217,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	
 	/**
 	 * Optimize the threshold of a PWM (larger than startingScore) using the positive/negative sequences<br>
-	 * Option to use multi-thread to compute HGP<br>
 	 * Approximate grid search to find best HGP, to reduce run time
 	 */
 	private MotifThreshold optimizePwmThreshold(WeightMatrix wm, String outName, double startingScore, double endingScore){
