@@ -1,9 +1,7 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -17,17 +15,10 @@ import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.StrandedBase;
-import edu.mit.csail.cgs.deepseq.analysis.CCC_Analysis.Interaction;
-import edu.mit.csail.cgs.deepseq.analysis.CCC_Analysis.Tss;
-import edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.Site;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
@@ -2798,26 +2789,6 @@ public class ChIAPET_analysis {
 	private void findAllInteractions(){
 		long tic0 = System.currentTimeMillis();
 		long tic = System.currentTimeMillis();
-
-		// load gene annotation
-		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
-		ArrayList<Point> allTSS = new ArrayList<Point>();
-		HashMap<StrandedPoint, ArrayList<String>> tss2geneSymbols = new HashMap<StrandedPoint, ArrayList<String>>();
-		for (int i=0;i<lines.size();i++){
-			String t = lines.get(i);
-			if (t.startsWith("#"))
-				continue;
-			String f[] = t.split("\t");
-			String chr = f[2].replace("chr", "");
-			char strand = f[3].charAt(0);
-			StrandedPoint tss = new StrandedPoint(genome, chr, Integer.parseInt(f[strand=='+'?4:5]), strand);
-			allTSS.add(tss);
-			if (!tss2geneSymbols.containsKey(tss))
-				tss2geneSymbols.put(tss, new ArrayList<String>());
-			tss2geneSymbols.get(tss).add(f[12]);
-		}
-		allTSS.trimToSize();
-		Collections.sort(allTSS);
 		
 		// load read pairs
 		// only use read pairs on the same chromosome, and longer than self_exclude distance
@@ -2885,20 +2856,25 @@ public class ChIAPET_analysis {
 		System.out.println("Loaded total="+ (reads.size()/2) +", filtered="+ highEnds.size() +" ChIA-PET read pairs: "+CommonUtils.timeElapsed(tic));
 		System.out.println();
 		
-		String anchorString = Args.parseString(args, "anchors", null);
-		if (anchorString != null){
-			System.out.println(anchorString);
-			String[] f = anchorString.split("\t");
-			Region region1 = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]));
-			Region region2 = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]));
-			ArrayList<Integer>idx = CommonUtils.getPointsWithinWindow(lowEnds, region1);
-			for (int id: idx){
-				ReadPair rp = low.get(id);
-				if (region2.contains(rp.r2))
-					System.out.println(rp);
+		String bedpe_file = Args.parseString(args, "bedpe", null);
+		if (bedpe_file != null){
+			System.out.println(bedpe_file);
+			ArrayList<String> lines = CommonUtils.readTextFile(bedpe_file);
+			for (String anchorString: lines){
+//				System.out.println(anchorString);
+				String[] f = anchorString.split("\t");
+				Region region1 = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]));
+				Region region2 = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]));
+				ArrayList<Integer>idx = CommonUtils.getPointsWithinWindow(lowEnds, region1);
+				for (int id: idx){
+					ReadPair rp = low.get(id);
+					if (region2.contains(rp.r2))
+						System.out.println(rp+"\t"+(rp.r1.getLocation()-region1.getStart())+"\t"+(rp.r2.getLocation()-region2.getStart()));
+				}
 			}
 			System.exit(0);
 		}
+		
 		// one dimension clustering to define anchors (similar to GEM code)
 		// TODO: use cross correlation to determine the distance to shift
 		ArrayList<Region> rs0 = new ArrayList<Region>();
@@ -2957,6 +2933,26 @@ public class ChIAPET_analysis {
 		reads.clear();
 		reads = null;
 		System.out.println("Merge all PETs into "+rs0.size()+" regions.\n");
+		
+		// load gene annotation
+		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
+		ArrayList<Point> allTSS = new ArrayList<Point>();
+		HashMap<StrandedPoint, ArrayList<String>> tss2geneSymbols = new HashMap<StrandedPoint, ArrayList<String>>();
+		for (int i=0;i<lines.size();i++){
+			String t = lines.get(i);
+			if (t.startsWith("#"))
+				continue;
+			String f[] = t.split("\t");
+			String chr = f[2].replace("chr", "");
+			char strand = f[3].charAt(0);
+			StrandedPoint tss = new StrandedPoint(genome, chr, Integer.parseInt(f[strand=='+'?4:5]), strand);
+			allTSS.add(tss);
+			if (!tss2geneSymbols.containsKey(tss))
+				tss2geneSymbols.put(tss, new ArrayList<String>());
+			tss2geneSymbols.get(tss).add(f[12]);
+		}
+		allTSS.trimToSize();
+		Collections.sort(allTSS);
 		
 		// load TF sites
 		ArrayList<String> tfs = CommonUtils.readTextFile(Args.parseString(args, "tf_sites", null));
@@ -3413,7 +3409,8 @@ public class ChIAPET_analysis {
 				sb.append(s2s.get(id)).append(",");
 			if (idx2.isEmpty())
 				sb.append("NULL");
-			sb.append("\t").append(idx1.size()).append("\t").append(idx2.size());
+			sb.append("\t").append(idx1.size()).append("\t").append(idx2.size()).append("\t");
+			sb.append(f[10]).append("\t").append(f[f.length-1]);
 			sb.append("\n");
 		}
 		CommonUtils.writeFile(cpcFile.replace("txt", "")+"annotated.txt", sb.toString());
