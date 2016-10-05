@@ -82,9 +82,9 @@ public class ChIAPET_analysis {
 		case 5:
 			annotateInteractions(args);
 			break;
-//		case 6:		// merged-TSS based clustering
-//			analysis.findTssInteractions();
-//			break;
+		case 6:		// merged-TSS based clustering
+			analysis.getFragmentLength(args);
+			break;
 		}
 	}
 	
@@ -2801,11 +2801,12 @@ public class ChIAPET_analysis {
 		ArrayList<Point> reads = new ArrayList<Point>();	// store PET as single ends
 		ArrayList<ReadPair> low = new ArrayList<ReadPair> ();	// all PET sorted by the low end
 		ArrayList<ReadPair> high = new ArrayList<ReadPair> ();	// sorted by high end
+		
 		for (String s: read_pairs){
 			String[] f = s.split("\t");
-			Point r1 = Point.fromString(genome, f[0]);
+			StrandedPoint r1 = StrandedPoint.fromString(genome, f[0]);
+			StrandedPoint r2 = StrandedPoint.fromString(genome, f[1]);
 			String r1Chrom=r1.getChrom();
-			Point r2 = Point.fromString(genome, f[1]);
 			reads.add(r1);
 			reads.add(r2);
 			// TODO: change next line if prediction cross-chrom interactions
@@ -3435,6 +3436,27 @@ public class ChIAPET_analysis {
 			}
 		}
 		CommonUtils.writeFile(cpcFile.replace("txt", "")+"per_gene.txt", sb.toString());
+	}
+	
+	private static void getFragmentLength(String[] args){
+		Genome genome = CommonUtils.parseGenome(args);
+		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
+		StringBuilder sb_same = new StringBuilder();
+		StringBuilder sb_diff = new StringBuilder();
+		for (String s: read_pairs){
+			String[] f = s.split("\t");
+			StrandedPoint r1 = StrandedPoint.fromString(genome, f[0]);
+			StrandedPoint r2 = StrandedPoint.fromString(genome, f[1]);
+			if (!r1.getChrom().equals(r2.getChrom()))		// r1 and r2 should be on the same chromosome
+				continue;
+			if (r1.getStrand()==r2.getStrand())
+				sb_same.append(r1.distance(r2)).append("\n");
+			else
+				sb_diff.append(r1.distance(r2)).append("\n");
+		}
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".sameStrand.length.txt", sb_same.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".diffStrand.length.txt", sb_diff.toString());
+		System.exit(0);
 	}
 	
 	private class TSSwithReads{
