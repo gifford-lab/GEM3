@@ -3442,20 +3442,35 @@ public class ChIAPET_analysis {
 		Genome genome = CommonUtils.parseGenome(args);
 		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
 		StringBuilder sb_minus_plus = new StringBuilder();
-		StringBuilder sb_else = new StringBuilder();
+		StringBuilder sb_plus_minus = new StringBuilder();
+		StringBuilder sb_minus_minus = new StringBuilder();
+		StringBuilder sb_plus_plus = new StringBuilder();
 		for (String s: read_pairs){
 			String[] f = s.split("\t");
 			StrandedPoint r1 = StrandedPoint.fromString(genome, f[0]);
 			StrandedPoint r2 = StrandedPoint.fromString(genome, f[1]);
 			if (!r1.getChrom().equals(r2.getChrom()))		// r1 and r2 should be on the same chromosome
 				continue;
-			if (r1.getStrand()=='-' && r2.getStrand()=='+')
-				sb_minus_plus.append(r1.distance(r2)).append("\n");
-			else
-				sb_else.append(r1.distance(r2)).append("\n");
+			if (r1.getLocation()>r2.getLocation())
+				System.err.print("Not sorted ");
+			int dist = r1.distance(r2);
+			if (r1.getStrand()=='-'){
+				if (r2.getStrand()=='+')
+					sb_minus_plus.append(dist).append("\n");
+				else if (r2.getStrand()=='-')
+					sb_minus_minus.append(dist).append("\n");
+			}
+			else if (r1.getStrand()=='+'){
+				if (r2.getStrand()=='+')
+					sb_plus_plus.append(dist).append("\n");
+				else if (r2.getStrand()=='-')
+					sb_plus_minus.append(dist).append("\n");
+			}
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".minusPlus.length.txt", sb_minus_plus.toString());
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".otherOrientations.length.txt", sb_else.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".plusMinus.length.txt", sb_plus_minus.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".minusMinus.length.txt", sb_minus_minus.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".plusPlus.length.txt", sb_plus_plus.toString());
 		System.exit(0);
 	}
 	
