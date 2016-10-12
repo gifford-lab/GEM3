@@ -83,7 +83,10 @@ public class ChIAPET_analysis {
 			annotateInteractions(args);
 			break;
 		case 6:		// merged-TSS based clustering
-			analysis.getPetLength(args);
+			getPetLength(args);
+			break;
+		case 7:		// region (1D merged-read) based clustering
+			analysis.findAllInteractions_MinusPlus();
 			break;
 		}
 	}
@@ -2956,76 +2959,88 @@ public class ChIAPET_analysis {
 		Collections.sort(allTSS);
 		
 		// load TF sites
-		ArrayList<String> tfs = CommonUtils.readTextFile(Args.parseString(args, "tf_sites", null));
+		String tfs_file = Args.parseString(args, "tf_sites", null);
 		ArrayList<ArrayList<Point>> allPeaks = new ArrayList<ArrayList<Point>>();
-		for (int i=0;i<tfs.size();i++){
-			try{
-				ArrayList<Point> ps = new ArrayList<Point>();
-				ps.addAll(GPSParser.parseGPSOutput(tfs.get(i), genome));
-				ps.trimToSize();
-				Collections.sort(ps);
-				allPeaks.add(ps);
-				System.out.println("Loaded "+tfs.get(i));
+		if (tfs_file != null){
+			ArrayList<String> tfs = CommonUtils.readTextFile(tfs_file);
+			for (int i=0;i<tfs.size();i++){
+				try{
+					ArrayList<Point> ps = new ArrayList<Point>();
+					ps.addAll(GPSParser.parseGPSOutput(tfs.get(i), genome));
+					ps.trimToSize();
+					Collections.sort(ps);
+					allPeaks.add(ps);
+					System.out.println("Loaded "+tfs.get(i));
+				}
+				catch (IOException e){
+					System.out.println(tfs.get(i)+" does not have a valid GPS/GEM event call file.");
+					e.printStackTrace(System.err);
+					System.exit(1);
+				}
 			}
-			catch (IOException e){
-				System.out.println(tfs.get(i)+" does not have a valid GPS/GEM event call file.");
-				e.printStackTrace(System.err);
-				System.exit(1);
-			}
+			allPeaks.trimToSize();
 		}
-		allPeaks.trimToSize();
 
 		// load histone mark or DHS, SE regions
-		ArrayList<String> hms = CommonUtils.readTextFile(Args.parseString(args, "regions", null));
+		String hms_file = Args.parseString(args, "regions", null);
 		ArrayList<List<Region>> allRegions = new ArrayList<List<Region>>();
-		for (int i=0;i<hms.size();i++){
-			allRegions.add(CommonUtils.load_BED_regions(genome, hms.get(i)).car());
-			System.out.println("Loaded "+hms.get(i));
+		if (hms_file != null){
+			ArrayList<String> hms = CommonUtils.readTextFile(hms_file);
+			for (int i=0;i<hms.size();i++){
+				allRegions.add(CommonUtils.load_BED_regions(genome, hms.get(i)).car());
+				System.out.println("Loaded "+hms.get(i));
+			}
+			allRegions.trimToSize();
+			System.out.println();
 		}
-		allRegions.trimToSize();
-		System.out.println();
 	
 		// load other Interaction calls
-		lines = CommonUtils.readTextFile(Args.parseString(args, "germ", null));
-		HashMap<Point,ArrayList<Point>> t2ds = new HashMap<Point,ArrayList<Point>>();
-		for (String l: lines){		// each line is a call
-			String f[] = l.split("\t");
-			Point t = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint();
-			Point d = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint();
-			if (t.getLocation()>d.getLocation()){		// make sure t < d
-				Point tmp = t;
-				t = d;
-				d = tmp;
-			}
-			if (!t2ds.containsKey(t))
-				t2ds.put(t, new ArrayList<Point>());
-			t2ds.get(t).add(d);
-		}
+		String germ_file = Args.parseString(args, "germ", null);
 		ArrayList<Point> tPoints = new ArrayList<Point>();
-		tPoints.addAll(t2ds.keySet());
-		tPoints.trimToSize();
-		Collections.sort(tPoints);
-		
-		lines = CommonUtils.readTextFile(Args.parseString(args, "mango", null));
-		HashMap<Point, ArrayList<Point>> a2bs = new HashMap<Point, ArrayList<Point>>();
-		for (String l: lines){		// each line is a call
-			String f[] = l.split("\t");
-			Point a = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint();
-			Point b = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint();
-			if (a.getLocation()>b.getLocation()){		// make sure a < b
-				Point tmp = a;
-				a = b;
-				b = tmp;
+		HashMap<Point,ArrayList<Point>> t2ds = new HashMap<Point,ArrayList<Point>>();
+		if (germ_file != null){
+			lines = CommonUtils.readTextFile(germ_file);
+			for (String l: lines){		// each line is a call
+				String f[] = l.split("\t");
+				Point t = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint();
+				Point d = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint();
+				if (t.getLocation()>d.getLocation()){		// make sure t < d
+					Point tmp = t;
+					t = d;
+					d = tmp;
+				}
+				if (!t2ds.containsKey(t))
+					t2ds.put(t, new ArrayList<Point>());
+				t2ds.get(t).add(d);
 			}
-				
-			if (!a2bs.containsKey(a))
-				a2bs.put(a, new ArrayList<Point>());
-			a2bs.get(a).add(b);
+			tPoints.addAll(t2ds.keySet());
+			tPoints.trimToSize();
+			Collections.sort(tPoints);
 		}
+		
+		String mango_file = Args.parseString(args, "mango", null);
+		HashMap<Point, ArrayList<Point>> a2bs = new HashMap<Point, ArrayList<Point>>();
 		ArrayList<Point> aPoints = new ArrayList<Point>();
-		aPoints.addAll(a2bs.keySet());
-		aPoints.trimToSize();
-		Collections.sort(aPoints);
+		if (mango_file != null){
+			lines = CommonUtils.readTextFile(mango_file);
+			for (String l: lines){		// each line is a call
+				String f[] = l.split("\t");
+				Point a = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])).getMidpoint();
+				Point b = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5])).getMidpoint();
+				if (a.getLocation()>b.getLocation()){		// make sure a < b
+					Point tmp = a;
+					a = b;
+					b = tmp;
+				}
+					
+				if (!a2bs.containsKey(a))
+					a2bs.put(a, new ArrayList<Point>());
+				a2bs.get(a).add(b);
+			}
+			aPoints.addAll(a2bs.keySet());
+			aPoints.trimToSize();
+			Collections.sort(aPoints);
+		}
 		
 		System.out.println("Loaded all the data, "+CommonUtils.timeElapsed(tic0));
 		
@@ -3100,8 +3115,6 @@ public class ChIAPET_analysis {
 						if (rightRegion.contains(rp.r2))
 							cc.addReadPair(rp);
 					}
-//					if (tmp<cc.pets.size())
-//						System.out.println("Refresh "+tmp+" PETs to "+cc.pets.size());
 				}
 				
 				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, true);
@@ -3136,12 +3149,6 @@ public class ChIAPET_analysis {
 						it.leftLabel = "nonTSS";
 					else
 						it.leftLabel = tsb.toString();
-					// STD for the spread of the PETs
-					int[] pos = new int[pets.size()];
-					for (int p=0; p<pos.length; p++){
-						pos[p] = pets.get(p).r1.getLocation() - cc.r1min;
-					}
-					double std = StatUtil.std(pos)/(cc.r1max-cc.r1min);
 						
 					it.rightRegion = new Region(region.getGenome(), region.getChrom(), cc.r2min, cc.r2max);
 					Collections.sort(pets, new Comparator<ReadPair>(){
@@ -3162,14 +3169,15 @@ public class ChIAPET_analysis {
 						it.rightLabel = "nonTSS";
 					else
 						it.rightLabel = tsb.toString();
-					// STD for the spread of the PETs
-					for (int p=0; p<pos.length; p++){
-						pos[p] = pets.get(p).r2.getLocation() - cc.r2min;
-					}
-					it.std = (StatUtil.std(pos)/(cc.r2max-cc.r2min) + std)/2;
-
 					
+					// count all PETs and non-minus-plus PETs
+					ArrayList<ReadPair> toRemove = new ArrayList<ReadPair>();
+					for (ReadPair rp: pets)
+						if (rp.r1.getStrand()=='-' && rp.r2.getStrand()=='+')
+							toRemove.add(rp);					
 					it.count = cc.pets.size();
+					it.count2 = it.count-toRemove.size();
+					
 					int cluster_merge_dist = Math.min(max_cluster_merge_dist, 
 							Math.max(read_merge_dist, 
 							(int)Math.sqrt(Math.abs(it.leftPoint.offset(it.rightPoint))) * distance_factor));
@@ -3191,12 +3199,16 @@ public class ChIAPET_analysis {
 		System.out.println("\nClustered PETs n=" + usedPETs.size()+"\nSingle PETs n=" + low.size());
 		
 	
-		/** Annotate and report */
+		/******************************
+		 * Annotate and report 
+		 *******************************/
 		System.out.println("\nAnnotate and report, "+CommonUtils.timeElapsed(tic0));
 		// report the interactions and annotations
-		// annotate the proximal and distal anchors with TF and HM and regions
 		StringBuilder sb = new StringBuilder();
 		for (Interaction it: interactions){
+			sb.append(it.toString()).append("\t");
+
+			// annotate the proximal and distal anchors with TF and HM and regions
 			ArrayList<Integer> isOverlapped = new ArrayList<Integer>();
 			// left ancor
 			int radius = it.leftRegion.getWidth()/2+chiapet_radius;
@@ -3217,83 +3229,84 @@ public class ChIAPET_analysis {
 				isOverlapped.add(CommonUtils.getRegionsOverlapsWindow(rs, it.rightRegion, chiapet_radius).size());
 			}
 			// print out TF and region overlaps
-			sb.append(it.toString()).append("\t");
-			for (int b: isOverlapped)
-				sb.append(b).append("\t");
-			
+			if (hms_file!=null || tfs_file!=null){
+				for (int b: isOverlapped)
+					sb.append(b).append("\t");
+			}
 			// print ChIA-PET call overlap info
-			int leftHalfWidth = it.leftRegion.getWidth()/2+chiapet_radius;
-			int rightHalfWidth = it.rightRegion.getWidth()/2+chiapet_radius;
-			Point leftAnchorLeft = new Point(genome, it.leftPoint.getChrom(), it.leftPoint.getLocation()-chiapet_radius);
-			Point leftAnchorRight = new Point(genome, it.leftPoint.getChrom(), it.leftPoint.getLocation()+chiapet_radius);
-			
-			// GERM
-			int index = Collections.binarySearch(tPoints,  leftAnchorLeft);
-			if( index < 0 )  							// if key not found
-				index = -(index+1); 
-			int indexRight = Collections.binarySearch(tPoints,  leftAnchorRight);
-			if( indexRight < 0 )  							// if key not found
-				indexRight = -(indexRight+1); 
-			// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
-			boolean isGermOverlapped = false;
-			indexRange: for (int i=index-1;i<=indexRight+2;i++){
-				if (i<0 || i>=tPoints.size())
-					continue;
-				try{
-					Point tt = tPoints.get(i);
-					if (tt.distance(it.leftPoint)<=leftHalfWidth){ 
-						if (!t2ds.containsKey(tt))
-							continue;
-						for (Point d:t2ds.get(tt)){
-							if (d.distance(it.rightPoint)<=rightHalfWidth){
-								isGermOverlapped = true;
-								break indexRange;
+			if (germ_file!=null || mango_file!=null){
+				int leftHalfWidth = it.leftRegion.getWidth()/2+chiapet_radius;
+				int rightHalfWidth = it.rightRegion.getWidth()/2+chiapet_radius;
+				Point leftAnchorLeft = new Point(genome, it.leftPoint.getChrom(), it.leftPoint.getLocation()-chiapet_radius);
+				Point leftAnchorRight = new Point(genome, it.leftPoint.getChrom(), it.leftPoint.getLocation()+chiapet_radius);
+				
+				// GERM
+				int index = Collections.binarySearch(tPoints,  leftAnchorLeft);
+				if( index < 0 )  							// if key not found
+					index = -(index+1); 
+				int indexRight = Collections.binarySearch(tPoints,  leftAnchorRight);
+				if( indexRight < 0 )  							// if key not found
+					indexRight = -(indexRight+1); 
+				// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+				boolean isGermOverlapped = false;
+				indexRange: for (int i=index-1;i<=indexRight+2;i++){
+					if (i<0 || i>=tPoints.size())
+						continue;
+					try{
+						Point tt = tPoints.get(i);
+						if (tt.distance(it.leftPoint)<=leftHalfWidth){ 
+							if (!t2ds.containsKey(tt))
+								continue;
+							for (Point d:t2ds.get(tt)){
+								if (d.distance(it.rightPoint)<=rightHalfWidth){
+									isGermOverlapped = true;
+									break indexRange;
+								}
 							}
 						}
 					}
+					catch (IllegalArgumentException e){	// ignore								
+					}								
 				}
-				catch (IllegalArgumentException e){	// ignore								
-				}								
-			}
-			if (isGermOverlapped)
-				sb.append("1\t");
-			else
-				sb.append("0\t");
-			
-			// Mango
-			// aPoints and bPoints are the midPoint of the two anchorRegions
-			index = Collections.binarySearch(aPoints,  leftAnchorLeft);
-			if( index < 0 )  							// if key not found
-				index = -(index+1); 
-			indexRight = Collections.binarySearch(aPoints,  leftAnchorRight);
-			if( indexRight < 0 )  							// if key not found
-				indexRight = -(indexRight+1); 
-			// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
-			boolean isMangoOverlapped = false;
-			indexA: for (int i=index-1;i<=indexRight+2;i++){
-				if (i<0 || i>=aPoints.size())
-					continue;
-				try{
-					Point a = aPoints.get(i);
-					if (a.distance(it.leftPoint)<=leftHalfWidth){ 
-						if (!a2bs.containsKey(a))
-							continue;
-						for (Point b:a2bs.get(a)){
-							if (b.distance(it.rightPoint)<=rightHalfWidth){
-								isMangoOverlapped = true;
-								break indexA;
+				if (isGermOverlapped)
+					sb.append("1\t");
+				else
+					sb.append("0\t");
+				
+				// Mango
+				// aPoints and bPoints are the midPoint of the two anchorRegions
+				index = Collections.binarySearch(aPoints,  leftAnchorLeft);
+				if( index < 0 )  							// if key not found
+					index = -(index+1); 
+				indexRight = Collections.binarySearch(aPoints,  leftAnchorRight);
+				if( indexRight < 0 )  							// if key not found
+					indexRight = -(indexRight+1); 
+				// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+				boolean isMangoOverlapped = false;
+				indexA: for (int i=index-1;i<=indexRight+2;i++){
+					if (i<0 || i>=aPoints.size())
+						continue;
+					try{
+						Point a = aPoints.get(i);
+						if (a.distance(it.leftPoint)<=leftHalfWidth){ 
+							if (!a2bs.containsKey(a))
+								continue;
+							for (Point b:a2bs.get(a)){
+								if (b.distance(it.rightPoint)<=rightHalfWidth){
+									isMangoOverlapped = true;
+									break indexA;
+								}
 							}
 						}
 					}
+					catch (IllegalArgumentException e){	// ignore								
+					}
 				}
-				catch (IllegalArgumentException e){	// ignore								
-				}
+				if (isMangoOverlapped)
+					sb.append("1\t");
+				else
+					sb.append("0\t");
 			}
-			if (isMangoOverlapped)
-				sb.append("1\t");
-			else
-				sb.append("0\t");
-			
 			CommonUtils.replaceEnd(sb, '\n');
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result")+".readClusters.txt", sb.toString());
@@ -3326,6 +3339,10 @@ public class ChIAPET_analysis {
 		
 		System.out.println("\n\nDone: "+CommonUtils.timeElapsed(tic0));
 	}	
+
+	private void findAllInteractions_MinusPlus(){
+		System.out.println("To be implemented");
+	}
 	
 	/** split read pair cluster recursively <br>
 	 *  at gaps larger than cluster_merge_dist, on both ends alternatively 
@@ -3483,8 +3500,8 @@ public class ChIAPET_analysis {
 	
 	/** r1 should have lower coordinate than r2 */
 	private class ReadPair implements Comparable<ReadPair>{
-		Point r1;
-		Point r2;
+		StrandedPoint r1;
+		StrandedPoint r2;
 		
 		public int compareRead1(ReadPair i) {
 			return r1.compareTo(i.r1);
@@ -3604,20 +3621,20 @@ public class ChIAPET_analysis {
 		String rightLabel;
 		int count;
 		int indirectCount;
-		double std;
+		int count2;
 		double density;
 //		double pvalue;
 		public String toString(){
 //			return String.format("%d %.1f\t< %s %s -- %s >", count, density, geneSymbol, tssRegion, distalRegion);
 			int dist = rightPoint.offset(leftPoint);
 			int padding = Math.abs(dist/20);
-			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%.3f\t%.1f", 
+			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
 					leftLabel, (leftPoint instanceof StrandedPoint)?(StrandedPoint)leftPoint:leftPoint, leftRegion, 
 					rightLabel,	(rightPoint instanceof StrandedPoint)?(StrandedPoint)rightPoint:rightPoint, rightRegion, 
 					leftPoint.getChrom()+":"+
 					(Math.min(Math.min(leftRegion.getStart(), rightRegion.getStart()),leftPoint.getLocation())-padding)+"-"+
 					(Math.max(Math.max(leftRegion.getEnd(), rightRegion.getEnd()), leftPoint.getLocation())+padding), 		// whole it region
-					leftRegion.getWidth(), rightRegion.getWidth(), dist, count, std, density);
+					leftRegion.getWidth(), rightRegion.getWidth(), dist, count, count2, density);
 		}
 	}
 	
