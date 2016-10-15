@@ -486,6 +486,26 @@ public class CommonUtils {
 		}
 		return index;
 	}
+	/** 
+	 * Find the first index that gives value larger than or equal to the key
+	 * @param values
+	 * @param key
+	 * @return
+	 */
+	public static int findKey(List<Integer> values, int key){
+		int index = Collections.binarySearch(values, key);
+		if( index < 0 )  							// if key not found
+			index = -(index+1); 
+		else{		// if key match found, continue to search ( binarySearch() give undefined index with multiple matches)
+			for (int k=index; k>=0;k--){
+				if (values.get(k)==key)
+					index = k;
+				else
+					break;
+			}
+		}
+		return index;
+	}
 	
 	public static String padding(int repeatNum, char padChar) throws IndexOutOfBoundsException {
 	      if (repeatNum < 0) {
