@@ -902,8 +902,7 @@ public class ChIAPET_analysis {
 		// right read; if not,
 		// flip the two
 
-		// sort by each end so that we can use binary search to find matches or
-		// overlaps
+		// sort by each end so that we can search to find matches or overlaps
 		System.out.println("Loading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
 		int min = 2; // minimum number of PET count to be called an interaction
 		int numQuantile = Args.parseInteger(args, "num_quantile", 200);
@@ -967,6 +966,7 @@ public class ChIAPET_analysis {
 			rp2.r2 = rp.r2;
 			high.add(rp2);
 		}
+
 		low.trimToSize();
 		high.trimToSize();
 		Collections.sort(low, new Comparator<ReadPair>() {
@@ -991,6 +991,10 @@ public class ChIAPET_analysis {
 
 		reads.trimToSize();
 		Collections.sort(reads);
+
+		System.out.println("\nLoaded total=" + (reads.size() / 2) + ", filtered=" + highEnds.size()
+		+ " ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
+
 
 		ArrayList<Integer> dist_other = new ArrayList<Integer>();
 		dist_other.addAll(dist_plus_plus);
@@ -1038,9 +1042,7 @@ public class ChIAPET_analysis {
 			dfsb.append(edges.get(i)).append("\t").append(mpNonSelfFraction.get(i)).append("\n");
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".minusPlusFraction.txt", dfsb.toString());
 
-		System.out.println("Loaded total=" + (reads.size() / 2) + ", filtered=" + highEnds.size()
-				+ " ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
-		System.out.println();
+		System.out.println("\nAnalyzed strand-orientation of PETs: " + CommonUtils.timeElapsed(tic0));
 
 		String bedpe_file = Args.parseString(args, "bedpe", null);
 		if (bedpe_file != null) {
@@ -1123,7 +1125,8 @@ public class ChIAPET_analysis {
 		}
 		reads.clear();
 		reads = null;
-		System.out.println("Merge all PETs into " + rs0.size() + " regions.\n");
+		
+		System.out.println("\nMerged all PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
 		// load gene annotation
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
@@ -1232,7 +1235,7 @@ public class ChIAPET_analysis {
 			Collections.sort(aPoints);
 		}
 
-		System.out.println("Loaded all the data, " + CommonUtils.timeElapsed(tic0));
+		System.out.println("\nLoaded all the annotations, " + CommonUtils.timeElapsed(tic0));
 
 		/**********************************************
 		 * find dense PET cluster for each 1D cluster
@@ -1324,6 +1327,9 @@ public class ChIAPET_analysis {
 					if (pets.size() < min)
 						continue;
 
+					ArrayList<ReadPair> backup = new ArrayList<ReadPair>();
+					backup.addAll(pets);
+					
 					// count minus-plus PETs to adjust the PET counts
 					ArrayList<ReadPair> mpRPs = new ArrayList<ReadPair>();
 					for (ReadPair rp : pets)
@@ -1431,15 +1437,16 @@ public class ChIAPET_analysis {
 						it.rightLabel = "nonTSS";
 					else
 						it.rightLabel = tsb.toString();
-
-					usedPETs.addAll(rpc.pets);	// mark these PET as used (PET2+)
+					// mark all PETs in the cluster as used (PET2+)
+					usedPETs.addAll(backup);	
 				}
 				rpcs = null;
 			} // all regions with long PETs
 		} // loop over all regions
 
 		interactions.trimToSize();
-		System.out.println("\nTotal interactions = " + interactions.size() + ", " + CommonUtils.timeElapsed(tic0));
+		
+		System.out.println("\nCalled " + interactions.size() + " PET clusters, " + CommonUtils.timeElapsed(tic0));
 
 		// mark PET1 (after removing the used PET2+)
 		low.removeAll(usedPETs);
@@ -1591,7 +1598,7 @@ public class ChIAPET_analysis {
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
 
-		System.out.println("\n\nDone: " + CommonUtils.timeElapsed(tic0));
+		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
 
 	/**
