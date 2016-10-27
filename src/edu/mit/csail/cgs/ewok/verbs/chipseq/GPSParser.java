@@ -117,7 +117,15 @@ public class GPSParser {
 	public static GPSPeak parseLine(Genome g, String gpsLine, int lineNumber) {
 		GPSPeak peak;
 		String[] t = gpsLine.split("\t");
-		if (t.length == 14 || t.length == 15 ) {		// with kmer info
+		if (t.length == 14 ) {		// with kmer info, and motifId
+	    	// GEM output format 2016-10-27	
+	    	// Position        IP      Control Fold    Expectd Q_-lg10 P_-lg10 P_poiss IPvsEMP Noise   KmerGroup       MotifId KG_hgp  Strand
+			StrandedPoint r = StrandedPoint.fromString(g, t[0]);
+            peak = new GPSPeak(g, r.getChrom(), r.getLocation(), r.getStrand(), 
+                    Double.parseDouble(t[1]), Double.parseDouble(t[2]), Double.parseDouble(t[4]), Double.parseDouble(t[5]), 
+                    Math.pow(10,-1*Double.parseDouble(t[6])), Double.parseDouble(t[6]), Double.parseDouble(t[7]), Double.parseDouble(t[8]), Double.parseDouble(t[9]),
+                    t[10], (int)Double.parseDouble(t[12]), t[13].charAt(0), "");
+	    } else if (t.length == 15 ) {		// with kmer info
 	    	// GEM output format 2011-07-25	
 	    	// Position	     IP	Control	   Fold	Expectd	Q_-lg10	P_-lg10	P_poiss	IPvsEMP	IPvsCTR	Kmer	Count	Strength	BoundSequence	EnrichedHGP
 			StrandedPoint r = StrandedPoint.fromString(g, t[0]);
