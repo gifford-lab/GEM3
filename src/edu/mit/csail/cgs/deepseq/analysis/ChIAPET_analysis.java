@@ -912,7 +912,7 @@ public class ChIAPET_analysis {
 		ArrayList<Integer> dist_plus_plus = new ArrayList<Integer>();
 
 		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
-		boolean isBEDPE = Args.parseString(args, "format", null).equalsIgnoreCase("bedpe");
+		boolean isBEDPE = Args.parseString(args, "format", "rp").equalsIgnoreCase("bedpe");
 		// store PET as single ends
 		ArrayList<Point> reads = new ArrayList<Point>(); 
 		// all PET sorted by the low end
@@ -1736,7 +1736,7 @@ public class ChIAPET_analysis {
 	private static void getPetLength(String[] args) {
 		Genome genome = CommonUtils.parseGenome(args);
 		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
-		boolean isBEDPE = Args.parseString(args, "format", null).equalsIgnoreCase("bedpe");
+		boolean isBEDPE = Args.parseString(args, "format", "rp").equalsIgnoreCase("bedpe");
 		StringBuilder sb_minus_plus = new StringBuilder();
 		StringBuilder sb_plus_minus = new StringBuilder();
 		StringBuilder sb_minus_minus = new StringBuilder();
