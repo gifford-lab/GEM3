@@ -1340,8 +1340,9 @@ public class ChIAPET_analysis {
 					if (pets.size() < min)
 						continue;
 
-					ArrayList<ReadPair> backup = new ArrayList<ReadPair>();
-					backup.addAll(pets);
+					// mark all PETs in the cluster as used (PET2+)
+					// to get real PET1 (no PET1 from the m-p adjustment)
+					usedPETs.addAll(pets);	
 					
 					// count minus-plus PETs to adjust the PET counts
 					ArrayList<ReadPair> mpRPs = new ArrayList<ReadPair>();
@@ -1450,8 +1451,6 @@ public class ChIAPET_analysis {
 						it.rightLabel = "nonTSS";
 					else
 						it.rightLabel = tsb.toString();
-					// mark all PETs in the cluster as used (PET2+)
-					usedPETs.addAll(backup);	
 				}
 				rpcs = null;
 			} // all regions with long PETs
