@@ -50,7 +50,6 @@ public class ChIAPET_analysis {
 		tss_merge_dist = Args.parseInteger(args, "tss_merge_dist", tss_merge_dist);
 		max_cluster_merge_dist = Args.parseInteger(args, "max_cluster_merge_dist", max_cluster_merge_dist);
 		distance_factor = Args.parseInteger(args, "distance_factor", distance_factor);
-		self_exclude = Args.parseInteger(args, "self_exclude", self_exclude);
 		tss_radius = Args.parseInteger(args, "tss_radius", tss_radius);
 		chiapet_radius = Args.parseInteger(args, "chiapet_radius", chiapet_radius);
 		overlap_ratio = Args.parseDouble(args, "overlap_ratio", overlap_ratio);
@@ -83,7 +82,7 @@ public class ChIAPET_analysis {
 			annotateInteractions(args);
 			break;
 		case 6: // merged-TSS based clustering
-			getNonSelfMinusPlusFraction(args);
+			getPetLength(args);
 			break;
 		}
 	}
@@ -913,18 +912,29 @@ public class ChIAPET_analysis {
 		ArrayList<Integer> dist_plus_plus = new ArrayList<Integer>();
 
 		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
-		ArrayList<Point> reads = new ArrayList<Point>(); // store PET as single
-															// ends
-		ArrayList<ReadPair> low = new ArrayList<ReadPair>(); // all PET sorted
-																// by the low
-																// end
-		ArrayList<ReadPair> high = new ArrayList<ReadPair>(); // sorted by high
-																// end
-
+		boolean isBEDPE = Args.parseString(args, "format", null).equalsIgnoreCase("bedpe");
+		// store PET as single ends
+		ArrayList<Point> reads = new ArrayList<Point>(); 
+		// all PET sorted by the low end
+		ArrayList<ReadPair> low = new ArrayList<ReadPair>(); 
+		ArrayList<ReadPair> high = new ArrayList<ReadPair>(); // sort high end
+		StrandedPoint tmp1 = null;
 		for (String s : read_pairs) {
 			String[] f = s.split("\t");
-			StrandedPoint r1 = StrandedPoint.fromString(genome, f[0]);
-			StrandedPoint r2 = StrandedPoint.fromString(genome, f[1]);
+			StrandedPoint r1;
+			StrandedPoint r2;
+			if (!isBEDPE){
+				r1 = StrandedPoint.fromString(genome, f[0]);
+				r2 = StrandedPoint.fromString(genome, f[1]);
+			}
+			else{
+				char strand1 = f[8].charAt(0);
+				int posIdx = strand1=='+'?1:2;
+				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), Integer.parseInt(f[posIdx]), strand1);
+				char strand2 = f[9].charAt(0);
+				posIdx = strand2=='+'?4:5;
+				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), Integer.parseInt(f[posIdx]), strand2);
+			}
 			String r1Chrom = r1.getChrom();
 			reads.add(r1);
 			reads.add(r2);
@@ -932,7 +942,11 @@ public class ChIAPET_analysis {
 			if (!r1Chrom.equals(r2.getChrom())) // r1 and r2 should be on the
 												// same chromosome
 				continue;
-
+			if (r1.getLocation() > r2.getLocation()){
+				tmp1 = r1;
+				r2 = r1;
+				r1 = tmp1;
+			}
 			// count PETs by strand-orientation
 			if (r1.getLocation() > r2.getLocation())
 				System.err.print("Not sorted ");
@@ -994,7 +1008,6 @@ public class ChIAPET_analysis {
 
 		System.out.println("\nLoaded total=" + (reads.size() / 2) + ", filtered=" + highEnds.size()
 		+ " ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
-
 
 		ArrayList<Integer> dist_other = new ArrayList<Integer>();
 		dist_other.addAll(dist_plus_plus);
@@ -1720,119 +1733,39 @@ public class ChIAPET_analysis {
 		CommonUtils.writeFile(cpcFile.replace("txt", "") + "per_gene.txt", sb.toString());
 	}
 
-	private static void getNonSelfMinusPlusFraction(String[] args) {
-		Genome genome = CommonUtils.parseGenome(args);
-		int numQuantile = Args.parseInteger(args, "num_quantile", 200);
-		int minDistance = Args.parseInteger(args, "min_distance", 1000);
-		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
-		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
-		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
-		ArrayList<Integer> dist_minus_minus = new ArrayList<Integer>();
-		ArrayList<Integer> dist_plus_plus = new ArrayList<Integer>();
-		for (String s : read_pairs) {
-			String[] f = s.split("\t");
-			StrandedPoint r1 = StrandedPoint.fromString(genome, f[0]);
-			StrandedPoint r2 = StrandedPoint.fromString(genome, f[1]);
-			if (!r1.getChrom().equals(r2.getChrom())) // r1 and r2 should be on
-														// the same chromosome
-				continue;
-			if (r1.getLocation() > r2.getLocation())
-				System.err.print("Not sorted ");
-			int dist = r1.distance(r2);
-			if (dist >= minDistance) {
-				if (r1.getStrand() == '-') {
-					if (r2.getStrand() == '+')
-						dist_minus_plus.add(dist);
-					else if (r2.getStrand() == '-')
-						dist_minus_minus.add(dist);
-				} else if (r1.getStrand() == '+') {
-					if (r2.getStrand() == '+')
-						dist_plus_plus.add(dist);
-					else if (r2.getStrand() == '-')
-						dist_plus_minus.add(dist);
-				}
-			}
-		}
-		ArrayList<Integer> dist_other = new ArrayList<Integer>();
-		dist_other.addAll(dist_plus_plus);
-		dist_plus_plus = null;
-		dist_other.addAll(dist_plus_minus);
-		dist_plus_minus = null;
-		dist_other.addAll(dist_minus_minus);
-		dist_minus_minus = null;
-		dist_other.trimToSize();
-		Collections.sort(dist_other);
-		dist_minus_plus.trimToSize();
-		Collections.sort(dist_minus_plus);
-
-		int step = dist_other.size() / numQuantile;
-		ArrayList<Integer> edges = new ArrayList<Integer>(); // [e0 e1), end
-																// exclusive
-		ArrayList<Integer> indexes_other = new ArrayList<Integer>(); // first
-																		// idx
-																		// for
-																		// the
-																		// number
-																		// that
-																		// is
-																		// equal
-																		// or
-																		// larger
-																		// than
-																		// edge
-		ArrayList<Integer> indexes_minus_plus = new ArrayList<Integer>(); // first
-																			// idx
-																			// for
-																			// the
-																			// number
-																			// that
-																			// is
-																			// equal
-																			// or
-																			// larger
-																			// than
-																			// edge
-		for (int i = 0; i <= numQuantile; i++) {
-			int edge = dist_other.get(i * step);
-			edges.add(edge);
-			indexes_other.add(CommonUtils.findKey(dist_other, edge));
-			indexes_minus_plus.add(CommonUtils.findKey(dist_minus_plus, edge));
-		}
-		ArrayList<Double> mpNonSelfFraction = new ArrayList<Double>();
-		for (int i = 0; i < edges.size() - 1; i++) {
-			double mpNonSelfCount = (indexes_other.get(i + 1) - indexes_other.get(i)) / 3.0;
-			int mpCount = indexes_minus_plus.get(i + 1) - indexes_minus_plus.get(i);
-			double frac = mpNonSelfCount / mpCount;
-			System.out.println(edges.get(i) + "\t" + frac);
-			if (frac > 1) {
-				mpNonSelfFraction.add(1.0);
-				break;
-			} else
-				mpNonSelfFraction.add(frac);
-		}
-		indexes_other = null;
-		indexes_minus_plus = null;
-		for (int i = edges.size() - 1; i >= mpNonSelfFraction.size(); i--)
-			edges.remove(i);
-		System.exit(0);
-	}
-
 	private static void getPetLength(String[] args) {
 		Genome genome = CommonUtils.parseGenome(args);
 		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
+		boolean isBEDPE = Args.parseString(args, "format", null).equalsIgnoreCase("bedpe");
 		StringBuilder sb_minus_plus = new StringBuilder();
 		StringBuilder sb_plus_minus = new StringBuilder();
 		StringBuilder sb_minus_minus = new StringBuilder();
 		StringBuilder sb_plus_plus = new StringBuilder();
+		StrandedPoint tmp = null;
 		for (String s : read_pairs) {
 			String[] f = s.split("\t");
-			StrandedPoint r1 = StrandedPoint.fromString(genome, f[0]);
-			StrandedPoint r2 = StrandedPoint.fromString(genome, f[1]);
-			if (!r1.getChrom().equals(r2.getChrom())) // r1 and r2 should be on
-														// the same chromosome
+			StrandedPoint r1;
+			StrandedPoint r2;
+			if (!isBEDPE){
+				r1 = StrandedPoint.fromString(genome, f[0]);
+				r2 = StrandedPoint.fromString(genome, f[1]);
+			}
+			else{
+				char strand1 = f[8].charAt(0);
+				int posIdx = strand1=='+'?1:2;
+				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), Integer.parseInt(f[posIdx]), strand1);
+				char strand2 = f[9].charAt(0);
+				posIdx = strand2=='+'?4:5;
+				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), Integer.parseInt(f[posIdx]), strand2);
+			}
+			// r1 and r2 should be on the same chromosome
+			if (!r1.getChrom().equals(r2.getChrom())) 
 				continue;
-			if (r1.getLocation() > r2.getLocation())
-				System.err.print("Not sorted ");
+			if (r1.getLocation() > r2.getLocation()){
+				tmp = r1;
+				r2 = r1;
+				r1 = tmp;
+			}
 			int dist = r1.distance(r2);
 			if (r1.getStrand() == '-') {
 				if (r2.getStrand() == '+')
