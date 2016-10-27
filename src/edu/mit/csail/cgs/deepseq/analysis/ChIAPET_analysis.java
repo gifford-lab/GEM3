@@ -934,13 +934,16 @@ public class ChIAPET_analysis {
 				char strand2 = f[9].charAt(0);
 				posIdx = strand2=='+'?4:5;
 				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), Integer.parseInt(f[posIdx]), strand2);
+				// if not both ends are aligned properly, skip
+				if (r1.getChrom().equals("*") || r2.getChrom().equals("*"))	
+					continue;
 			}
 			String r1Chrom = r1.getChrom();
 			reads.add(r1);
 			reads.add(r2);
 			// TODO: change next line if prediction cross-chrom interactions
-			if (!r1Chrom.equals(r2.getChrom())) // r1 and r2 should be on the
-												// same chromosome
+			// r1 and r2 should be on the same chromosome
+			if (!r1Chrom.equals(r2.getChrom())) 
 				continue;
 			if (r1.getLocation() > r2.getLocation()){
 				tmp1 = r1;
