@@ -1759,6 +1759,9 @@ public class ChIAPET_analysis {
 				char strand2 = f[9].charAt(0);
 				posIdx = strand2=='+'?4:5;
 				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), Integer.parseInt(f[posIdx]), strand2);
+				// if not both ends are aligned properly, skip
+				if (r1.getChrom().equals("*") || r2.getChrom().equals("*"))	
+					continue;
 			}
 			// r1 and r2 should be on the same chromosome
 			if (!r1.getChrom().equals(r2.getChrom())) 
