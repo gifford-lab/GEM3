@@ -93,7 +93,7 @@ public class GPSPeak extends StrandedPoint{
 	public Point getEM_position() {
 		return EM_position;
 	}
-	public double getQvalue() {
+	public double getQV_lg10() {
 		return qv_lg10;
 	}
 	public double getPvalue() {

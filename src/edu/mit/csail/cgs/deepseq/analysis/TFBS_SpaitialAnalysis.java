@@ -73,6 +73,7 @@ public class TFBS_SpaitialAnalysis {
 	int profile_range = 100;		// the range (-x, +x) around 0 spacing position, the cluster distance parameter must be >= this range to have correct result
 	int distance = 50;		// distance between TFBS within a cluster
 	int top = -1;			// use only number of top ranking events for analysis ( default -1, use all events), this applies to all factors
+	double q = 2;			// the q-value (-log10) cutoff for top ranking events for analysis ( default 2, use all events), this applies to all factors
 	int anno_expand_distance = 500;		// the distance to expand a peak cluster when overlapping with annotations
 	int range = 1000;		// the range around anchor site to search for targets
 	int cluster_motif_padding = 100;  // the padding distance added to the cluster range for motif searching
@@ -244,6 +245,7 @@ public class TFBS_SpaitialAnalysis {
 		}
 		System.out.println("Loading datasets ...");
 		top = Args.parseInteger(args, "top", top);
+		q = Args.parseDouble(args, "q", q);
 		anchor_string = Args.parseString(args, "anchor", anchor_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
 		target_string = Args.parseString(args, "target", target_string);	// the id of TF/PWM/Kmer to anchor the sites/regions/sequences
 		sort_string = Args.parseString(args, "sort", sort_string);			// the id of TF/PWM/Kmer to sort the sites/regions/sequences
@@ -480,6 +482,9 @@ public class TFBS_SpaitialAnalysis {
 						break eachpeak;
 					}
 					GPSPeak p = gpsPeaks.get(i);
+					if (q!=2 && p.getQV_lg10()<q){		// only use events with high q value
+						continue;
+					}					
 					
 					// skip site in the ex_regions and those not in queryRegion
 					// TODO: this loop can be more efficient

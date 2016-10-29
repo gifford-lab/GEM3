@@ -55,13 +55,13 @@ public class GPSParser {
 	    	for (int i=0;i<peaks.size();i++){
 	    		GPSPeak p = peaks.get(i);
 	    		count++;
-	    		if (p.getQvalue()<999)
+	    		if (p.getQV_lg10()<999)
 	    			break;
 	    	}
 //	    	for (int i=0;i<100;i++){
 	    	for (int i=0;i<peaks.size();i++){
 	    		GPSPeak p = peaks.get(i);
-	    		double score = p.getQvalue()<999?p.getQvalue():(1000+count-i);
+	    		double score = p.getQV_lg10()<999?p.getQV_lg10():(1000+count-i);
 	    		System.out.println(p.toNarrowPeak(score));
 	    	}
 	    }
