@@ -929,14 +929,22 @@ public class ChIAPET_analysis {
 			}
 			else{
 				char strand1 = f[8].charAt(0);
-				int posIdx = strand1=='+'?1:2;
-				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), Integer.parseInt(f[posIdx]), strand1);
+				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
 				char strand2 = f[9].charAt(0);
-				posIdx = strand2=='+'?4:5;
-				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), Integer.parseInt(f[posIdx]), strand2);
+				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
 				// if not both ends are aligned properly, skip
-				if (r1.getChrom().equals("*") || r2.getChrom().equals("*"))	
+				if (r1.getChrom().equals("*")){
+					// add as single end if mapped
+					if (!r2.getChrom().equals("*"))	
+						reads.add(r1);
 					continue;
+				}
+				if (r2.getChrom().equals("*")){
+					// add as single end if mapped
+					if (!r1.getChrom().equals("*")) 
+						reads.add(r1);
+					continue;
+				}
 			}
 			String r1Chrom = r1.getChrom();
 			reads.add(r1);
@@ -1009,8 +1017,8 @@ public class ChIAPET_analysis {
 		reads.trimToSize();
 		Collections.sort(reads);
 
-		System.out.println("\nLoaded total=" + (reads.size() / 2) + ", filtered=" + highEnds.size()
-		+ " ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
+		System.out.println("\nLoaded total single reads = " + (reads.size() / 2) + ", filtered PETs =" + highEnds.size()
+		+ " : " + CommonUtils.timeElapsed(tic));
 
 		ArrayList<Integer> dist_other = new ArrayList<Integer>();
 		dist_other.addAll(dist_plus_plus);
@@ -1754,11 +1762,9 @@ public class ChIAPET_analysis {
 			}
 			else{
 				char strand1 = f[8].charAt(0);
-				int posIdx = strand1=='+'?1:2;
-				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), Integer.parseInt(f[posIdx]), strand1);
+				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
 				char strand2 = f[9].charAt(0);
-				posIdx = strand2=='+'?4:5;
-				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), Integer.parseInt(f[posIdx]), strand2);
+				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
 				// if not both ends are aligned properly, skip
 				if (r1.getChrom().equals("*") || r2.getChrom().equals("*"))	
 					continue;
