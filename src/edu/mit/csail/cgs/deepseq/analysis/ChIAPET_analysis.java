@@ -1752,9 +1752,9 @@ public class ChIAPET_analysis {
 		StringBuilder sb_minus_minus = new StringBuilder();
 		StringBuilder sb_plus_plus = new StringBuilder();
 		StrandedPoint tmp = null;
-		int count=0;
+//		int count=0;
 		for (String s : read_pairs) {
-			System.out.print((count++)+" ");
+//			System.out.print((count++)+" ");
 			String[] f = s.split("\t");
 			StrandedPoint r1;
 			StrandedPoint r2;
