@@ -7,7 +7,7 @@
   <property name="build.classes.dir" location="${build.dir}/classes" />
   <property name="build.dist.dir" location="${build.dir}/dist" />
   <property name="build.unjar.dir" location="${build.dir}/unjar" />
-  <property name="build.compiler" value="javac1.6"/>
+  <property name="build.compiler" value="javac1.7"/>
   <property name="pwfiles.basepath"  value="/afs/csail.mit.edu/group/psrg/Private/pwfiles"/>
   <path id="compile.classpath">
     <pathelement location="${build.classes.dir}"/>
