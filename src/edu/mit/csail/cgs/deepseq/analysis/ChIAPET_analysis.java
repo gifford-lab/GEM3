@@ -898,13 +898,12 @@ public class ChIAPET_analysis {
 		// load read pairs
 		// only use read pairs on the same chromosome, and longer than
 		// self_exclude distance; the left read is required to be lower than the
-		// right read; if not,
-		// flip the two
+		// right read; if not, flip the two
 
 		// sort by each end so that we can search to find matches or overlaps
 		System.out.println("Loading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
 		int min = 2; // minimum number of PET count to be called an interaction
-		int numQuantile = Args.parseInteger(args, "num_quantile", 200);
+		int numQuantile = Args.parseInteger(args, "num_quantile", 100);
 		int minDistance = Args.parseInteger(args, "min_distance", 2000);
 		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
 		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
@@ -1020,54 +1019,7 @@ public class ChIAPET_analysis {
 		System.out.println("\nLoaded total single reads = " + (reads.size() / 2) + ", filtered PETs =" + highEnds.size()
 		+ " : " + CommonUtils.timeElapsed(tic));
 
-		ArrayList<Integer> dist_other = new ArrayList<Integer>();
-		dist_other.addAll(dist_plus_plus);
-		dist_plus_plus = null;
-		dist_other.addAll(dist_plus_minus);
-		dist_plus_minus = null;
-		dist_other.addAll(dist_minus_minus);
-		dist_minus_minus = null;
-		dist_other.trimToSize();
-		Collections.sort(dist_other);
-		dist_minus_plus.trimToSize();
-		Collections.sort(dist_minus_plus);
-
-		int step = dist_other.size() / numQuantile;
-		// [e0 e1), end exclusive
-		ArrayList<Integer> edges = new ArrayList<Integer>(); 
-		// first idx for the number that is equal or larger than edge
-		ArrayList<Integer> indexes_other = new ArrayList<Integer>();
-		ArrayList<Integer> indexes_minus_plus = new ArrayList<Integer>(); 
-		for (int i = 0; i <= numQuantile; i++) {
-			int edge = dist_other.get(i * step);
-			edges.add(edge);
-			indexes_other.add(CommonUtils.findKey(dist_other, edge));
-			indexes_minus_plus.add(CommonUtils.findKey(dist_minus_plus, edge));
-		}
-		ArrayList<Double> mpNonSelfFraction = new ArrayList<Double>();
-		for (int i = 0; i < edges.size() - 1; i++) {
-			double mpNonSelfCount = (indexes_other.get(i + 1) - indexes_other.get(i)) / 3.0;
-			int mpCount = indexes_minus_plus.get(i + 1) - indexes_minus_plus.get(i);
-			double frac = mpNonSelfCount / mpCount;
-			if (frac > 1) {
-				mpNonSelfFraction.add(1.0);
-				break;
-			} else
-				mpNonSelfFraction.add(frac);
-		}
-		indexes_other = null;
-		indexes_minus_plus = null;
-		for (int i = edges.size() - 1; i >= mpNonSelfFraction.size(); i--)
-			edges.remove(i);
-
-		// output the distance-fraction table
-		StringBuilder dfsb = new StringBuilder();
-		for (int i = 0; i < edges.size(); i++)
-			dfsb.append(edges.get(i)).append("\t").append(mpNonSelfFraction.get(i)).append("\n");
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".minusPlusFraction.txt", dfsb.toString());
-
-		System.out.println("\nAnalyzed strand-orientation of PETs: " + CommonUtils.timeElapsed(tic0));
-
+		// quick way to get PETs that supports a list of BEDPE anchors
 		String bedpe_file = Args.parseString(args, "bedpe", null);
 		if (bedpe_file != null) {
 			System.out.println(bedpe_file);
@@ -1090,7 +1042,61 @@ public class ChIAPET_analysis {
 			System.exit(0);
 		}
 
-		// one dimension clustering to define anchors (similar to GEM code)
+		/** 
+		 * compute self-ligation fraction for minus-plus PETs
+		 */
+		ArrayList<Integer> dist_other = new ArrayList<Integer>();
+		dist_other.addAll(dist_plus_plus);
+		dist_plus_plus = null;
+		dist_other.addAll(dist_plus_minus);
+		dist_plus_minus = null;
+		dist_other.addAll(dist_minus_minus);
+		dist_minus_minus = null;
+		dist_other.trimToSize();
+		Collections.sort(dist_other);
+		dist_minus_plus.trimToSize();
+		Collections.sort(dist_minus_plus);
+
+		int step = dist_other.size() / numQuantile;
+		// [e0 e1), end exclusive
+		ArrayList<Integer> binEdges = new ArrayList<Integer>(); 
+		// first idx for the number that is equal or larger than edge
+		ArrayList<Integer> indexes_other = new ArrayList<Integer>();
+		ArrayList<Integer> indexes_minus_plus = new ArrayList<Integer>(); 
+		for (int i = 0; i <= numQuantile; i++) {
+			int edge = dist_other.get(i * step);
+			binEdges.add(edge);
+			indexes_other.add(CommonUtils.findKey(dist_other, edge));
+			indexes_minus_plus.add(CommonUtils.findKey(dist_minus_plus, edge));
+		}
+		ArrayList<Double> mpNonSelfFraction = new ArrayList<Double>();
+		for (int i = 0; i < binEdges.size() - 1; i++) {
+			double mpNonSelfCount = (indexes_other.get(i + 1) - indexes_other.get(i)) / 3.0;
+			int mpCount = indexes_minus_plus.get(i + 1) - indexes_minus_plus.get(i);
+			double frac = mpNonSelfCount / mpCount;
+			if (frac > 1) {
+				mpNonSelfFraction.add(1.0);
+				break;
+			} else
+				mpNonSelfFraction.add(frac);
+		}
+		indexes_other = null;
+		indexes_minus_plus = null;
+		for (int i = binEdges.size() - 1; i >= mpNonSelfFraction.size(); i--)
+			binEdges.remove(i);
+		int maxEdge = binEdges.get(binEdges.size() - 1);
+
+		// output the distance-fraction table
+		StringBuilder dfsb = new StringBuilder();
+		for (int i = 0; i < binEdges.size(); i++)
+			dfsb.append(binEdges.get(i)).append("\t").append(mpNonSelfFraction.get(i)).append("\n");
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".minusPlusFraction.txt", dfsb.toString());
+
+		System.out.println("\nAnalyzed strand-orientation of PETs: " + CommonUtils.timeElapsed(tic0));
+
+		/**
+		 * One dimension clustering to define anchors (similar to GEM code)
+		 */
 		// TODO: use cross correlation to determine the distance to shift
 		ArrayList<Region> rs0 = new ArrayList<Region>();
 		ArrayList<Point> summits = new ArrayList<Point>();
@@ -1152,6 +1158,74 @@ public class ChIAPET_analysis {
 		
 		System.out.println("\nMerged all PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
+		/**
+		 * Estimate the merging distance
+		 */
+		tic = System.currentTimeMillis();
+		int max_record_dist = 4000;
+		double gapQuantile = 0.05;
+		ArrayList<ArrayList<Integer>> gapsByBin = new ArrayList<ArrayList<Integer>>();
+		for (int i=0;i<binEdges.size();i++)
+			gapsByBin.add(new ArrayList<Integer>());
+		gapsByBin.trimToSize();
+		
+		for (int j = 0; j < rs0.size(); j++) { // for all regions
+			Region region = rs0.get(j);
+			// get the distal ends that connects to this region
+			ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, region);
+			if (idx.size() > 1) {
+				ArrayList<ReadPair> rps = new ArrayList<ReadPair>();
+				for (int i : idx) {
+					ReadPair rp = low.get(i);
+					if (rp.r1.getStrand()=='-' && rp.r2.getStrand()=='+')
+						continue;	// skip minus-plus PETs
+					rps.add(rp);
+				}
+				if (rps.size()<2)
+					continue;
+				Collections.sort(rps, new Comparator<ReadPair>() {
+					public int compare(ReadPair o1, ReadPair o2) {
+						return o1.compareRead2(o2);
+					}
+				});
+				ReadPair rp1 = rps.get(0);
+				for (int i=1;i<rps.size();i++){
+					ReadPair rp2 = rps.get(i);
+					int gap = Math.max(rp1.r2.distance(rp2.r2), rp1.r1.distance(rp2.r1));
+					rp1 = rp2;
+					if (gap>max_record_dist)
+						continue;
+					int dist = rp1.r1.distance(rp1.r2);
+					int idxBin = -1;
+					if (dist >= maxEdge)
+						idxBin = binEdges.size()-1;
+					else {
+						idxBin = Collections.binarySearch(binEdges, dist);
+						if (idxBin < 0) // if key not found
+							idxBin = -(idxBin + 1);
+					}
+					gapsByBin.get(idxBin).add(gap);
+				}
+			}
+		}
+		StringBuilder sb1 = new StringBuilder();
+		for (int i=0;i<gapsByBin.size();i++){
+			ArrayList<Integer> gaps = gapsByBin.get(i);
+			Collections.sort(gaps);
+			int step2 = Math.max(10,(int)(gaps.size()*gapQuantile));
+			sb1.append(binEdges.get(i)+"\t");
+			sb1.append(gaps.size()+"\t");
+			for (int j=0; j<gaps.size(); j+=step2)
+				sb1.append(gaps.get(j)+"\t");
+			sb1.append("\n");
+		}
+		System.out.print(sb1.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".PET.gap.txt", sb1.toString());
+		System.exit(0);
+		
+		/**
+		 * Load other data
+		 */
 		// load gene annotation
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
 		ArrayList<Point> allTSS = new ArrayList<Point>();
@@ -1345,7 +1419,6 @@ public class ChIAPET_analysis {
 					rpcs2 = null;
 				}
 
-				int maxEdge = edges.get(edges.size() - 1);
 				for (ReadPairCluster cc : rpcs) {
 					ArrayList<ReadPair> pets = cc.pets;
 					if (pets.size() < min)
@@ -1376,7 +1449,7 @@ public class ChIAPET_analysis {
 						if (dist >= maxEdge)
 							adjustedCount = minusPlusCount;
 						else {
-							int index = Collections.binarySearch(edges, dist);
+							int index = Collections.binarySearch(binEdges, dist);
 							if (index < 0) // if key not found
 								index = -(index + 1);
 							adjustedCount = (int) (minusPlusCount * mpNonSelfFraction.get(index));
@@ -1393,7 +1466,7 @@ public class ChIAPET_analysis {
 						if (dist >= maxEdge)
 							adjustedCount = totalCount;
 						else {
-							int index = Collections.binarySearch(edges, dist);
+							int index = Collections.binarySearch(binEdges, dist);
 							if (index < 0) // if key not found
 								index = -(index + 1);
 							adjustedCount = totalCount - minusPlusCount
@@ -1671,11 +1744,8 @@ public class ChIAPET_analysis {
 				rpcs2.add(c);
 		}
 		if (countSplit > 0) {
-			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !toSplitLeftAnchor); // split
-																							// at
-																							// the
-																							// other
-																							// end
+			// split at the other end
+			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !toSplitLeftAnchor); 
 			return rpcs3 == null ? rpcs2 : rpcs3;
 		} else
 			return null;
@@ -1969,8 +2039,8 @@ public class ChIAPET_analysis {
 			return String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d", 
 					leftLabel, new Point(leftPoint).toString(), leftRegion, rightLabel, new Point(rightPoint).toString(), rightRegion,
 					leftPoint.getChrom() + ":"
-							+ (Math.min(Math.min(leftRegion.getStart(), rightRegion.getStart()),
-									leftPoint.getLocation()) - padding)
+							+ Math.max(1, (Math.min(Math.min(leftRegion.getStart(), rightRegion.getStart()),
+									leftPoint.getLocation()) - padding))
 							+ "-"
 							+ (Math.max(Math.max(leftRegion.getEnd(), rightRegion.getEnd()), leftPoint.getLocation())
 									+ padding), // whole it region
