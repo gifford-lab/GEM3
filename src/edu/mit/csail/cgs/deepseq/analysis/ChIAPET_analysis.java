@@ -903,8 +903,9 @@ public class ChIAPET_analysis {
 		// sort by each end so that we can search to find matches or overlaps
 		System.out.println("Loading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
 		int min = 2; // minimum number of PET count to be called an interaction
-		int numQuantile = Args.parseInteger(args, "num_quantile", 100);
+		int numQuantile = Args.parseInteger(args, "num_span_quantile", 100);
 		int minDistance = Args.parseInteger(args, "min_distance", 2000);
+		int max_merging_dist = Args.parseInteger(args, "max_merging_dist", 2000);
 		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
 		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
 		ArrayList<Integer> dist_minus_minus = new ArrayList<Integer>();
@@ -1107,7 +1108,7 @@ public class ChIAPET_analysis {
 			Point p0 = reads.get(i - 1);
 			Point p1 = reads.get(i);
 			// not same chorm, or a large enough gap to cut
-			if ((!p0.getChrom().equals(p1.getChrom())) || p1.getLocation() - p0.getLocation() > read_merge_dist) { 
+			if ((!p0.getChrom().equals(p1.getChrom())) || p1.getLocation() - p0.getLocation() > max_merging_dist) { 
 				// only select region with read count larger than minimum count
 				int count = i - start0;
 				if (count >= minCount) {
@@ -1121,7 +1122,7 @@ public class ChIAPET_analysis {
 					int maxIdx = -1;
 					for (int j = 0; j < ps.size(); j++) {
 						Point mid = ps.get(j);
-						int c = CommonUtils.getPointsWithinWindow(ps, mid, read_merge_dist).size();
+						int c = CommonUtils.getPointsWithinWindow(ps, mid, max_merging_dist).size();
 						if (c > maxCount) {
 							maxCount = c;
 							maxIdx = start0 + j;
@@ -1145,7 +1146,7 @@ public class ChIAPET_analysis {
 			int maxIdx = -1;
 			for (int j = 0; j < ps.size(); j++) {
 				Point mid = ps.get(j);
-				int c = CommonUtils.getPointsWithinWindow(ps, mid, read_merge_dist).size();
+				int c = CommonUtils.getPointsWithinWindow(ps, mid, max_merging_dist).size();
 				if (c > maxCount) {
 					maxCount = c;
 					maxIdx = start0 + j;
@@ -1161,67 +1162,69 @@ public class ChIAPET_analysis {
 		/**
 		 * Estimate the merging distance
 		 */
-		tic = System.currentTimeMillis();
-		int max_record_dist = 4000;
-		double gapQuantile = 0.05;
-		ArrayList<ArrayList<Integer>> gapsByBin = new ArrayList<ArrayList<Integer>>();
-		for (int i=0;i<binEdges.size();i++)
-			gapsByBin.add(new ArrayList<Integer>());
-		gapsByBin.trimToSize();
-		
-		for (int j = 0; j < rs0.size(); j++) { // for all regions
-			Region region = rs0.get(j);
-			// get the distal ends that connects to this region
-			ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, region);
-			if (idx.size() > 1) {
-				ArrayList<ReadPair> rps = new ArrayList<ReadPair>();
-				for (int i : idx) {
-					ReadPair rp = low.get(i);
-					if (rp.r1.getStrand()=='-' && rp.r2.getStrand()=='+')
-						continue;	// skip minus-plus PETs
-					rps.add(rp);
-				}
-				if (rps.size()<2)
-					continue;
-				Collections.sort(rps, new Comparator<ReadPair>() {
-					public int compare(ReadPair o1, ReadPair o2) {
-						return o1.compareRead2(o2);
+		if (flags.contains("estimate_merging_distance")){
+			tic = System.currentTimeMillis();
+			double gapQuantile = 0.05;
+			ArrayList<ArrayList<Integer>> gapsByBin = new ArrayList<ArrayList<Integer>>();
+			for (int i=0;i<binEdges.size();i++)
+				gapsByBin.add(new ArrayList<Integer>());
+			gapsByBin.trimToSize();
+			
+			for (int j = 0; j < rs0.size(); j++) { // for all regions
+				Region region = rs0.get(j);
+				// get the distal ends that connects to this region
+				ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, region);
+				if (idx.size() > 1) {
+					ArrayList<ReadPair> rps = new ArrayList<ReadPair>();
+					for (int i : idx) {
+						ReadPair rp = low.get(i);
+						if (rp.r1.getStrand()=='-' && rp.r2.getStrand()=='+')
+							continue;	// skip minus-plus PETs
+						rps.add(rp);
 					}
-				});
-				ReadPair rp1 = rps.get(0);
-				for (int i=1;i<rps.size();i++){
-					ReadPair rp2 = rps.get(i);
-					int gap = Math.max(rp1.r2.distance(rp2.r2), rp1.r1.distance(rp2.r1));
-					rp1 = rp2;
-					if (gap>max_record_dist)
+					if (rps.size()<2)
 						continue;
-					int dist = rp1.r1.distance(rp1.r2);
-					int idxBin = -1;
-					if (dist >= maxEdge)
-						idxBin = binEdges.size()-1;
-					else {
-						idxBin = Collections.binarySearch(binEdges, dist);
-						if (idxBin < 0) // if key not found
-							idxBin = -(idxBin + 1);
+					Collections.sort(rps, new Comparator<ReadPair>() {
+						public int compare(ReadPair o1, ReadPair o2) {
+							return o1.compareRead2(o2);
+						}
+					});
+					ReadPair rp1 = rps.get(0);
+					for (int i=1;i<rps.size();i++){
+						ReadPair rp2 = rps.get(i);
+						int gap = rp1.r2.distance(rp2.r2);
+						rp1 = rp2;
+						if (gap>max_merging_dist || rp1.r1.distance(rp2.r1)>max_merging_dist)
+							continue;
+						int span = rp1.r1.distance(rp1.r2);
+						int idxBin = -1;
+						if (span >= maxEdge)
+							idxBin = binEdges.size()-1;
+						else {
+							idxBin = Collections.binarySearch(binEdges, span);
+							if (idxBin < 0) // if key not found
+								idxBin = -(idxBin + 1);
+						}
+						gapsByBin.get(idxBin).add(gap);
 					}
-					gapsByBin.get(idxBin).add(gap);
 				}
 			}
+			StringBuilder sb1 = new StringBuilder();
+			for (int i=0;i<gapsByBin.size();i++){
+				ArrayList<Integer> gaps = gapsByBin.get(i);
+				Collections.sort(gaps);
+				int step2 = Math.max(10,(int)(gaps.size()*gapQuantile));
+				sb1.append(binEdges.get(i)+"\t");
+				sb1.append(gaps.size()+"\t");
+				for (int j=0; j<gaps.size(); j+=step2)
+					sb1.append(gaps.get(j)+"\t");
+				sb1.append("\n");
+			}
+			System.out.print(sb1.toString());
+			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".PET.gap.txt", sb1.toString());
+			gapsByBin = null;
+			System.exit(0);
 		}
-		StringBuilder sb1 = new StringBuilder();
-		for (int i=0;i<gapsByBin.size();i++){
-			ArrayList<Integer> gaps = gapsByBin.get(i);
-			Collections.sort(gaps);
-			int step2 = Math.max(10,(int)(gaps.size()*gapQuantile));
-			sb1.append(binEdges.get(i)+"\t");
-			sb1.append(gaps.size()+"\t");
-			for (int j=0; j<gaps.size(); j+=step2)
-				sb1.append(gaps.get(j)+"\t");
-			sb1.append("\n");
-		}
-		System.out.print(sb1.toString());
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".PET.gap.txt", sb1.toString());
-		System.exit(0);
 		
 		/**
 		 * Load other data
