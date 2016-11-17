@@ -1108,7 +1108,7 @@ public class ChIAPET_analysis {
 			Point p0 = reads.get(i - 1);
 			Point p1 = reads.get(i);
 			// not same chorm, or a large enough gap to cut
-			if ((!p0.getChrom().equals(p1.getChrom())) || p1.getLocation() - p0.getLocation() > max_merging_dist) { 
+			if ((!p0.getChrom().equals(p1.getChrom())) || p1.getLocation() - p0.getLocation() > read_merge_dist) { 
 				// only select region with read count larger than minimum count
 				int count = i - start0;
 				if (count >= minCount) {
@@ -1122,7 +1122,7 @@ public class ChIAPET_analysis {
 					int maxIdx = -1;
 					for (int j = 0; j < ps.size(); j++) {
 						Point mid = ps.get(j);
-						int c = CommonUtils.getPointsWithinWindow(ps, mid, max_merging_dist).size();
+						int c = CommonUtils.getPointsWithinWindow(ps, mid, read_merge_dist).size();
 						if (c > maxCount) {
 							maxCount = c;
 							maxIdx = start0 + j;
@@ -1146,7 +1146,7 @@ public class ChIAPET_analysis {
 			int maxIdx = -1;
 			for (int j = 0; j < ps.size(); j++) {
 				Point mid = ps.get(j);
-				int c = CommonUtils.getPointsWithinWindow(ps, mid, max_merging_dist).size();
+				int c = CommonUtils.getPointsWithinWindow(ps, mid, read_merge_dist).size();
 				if (c > maxCount) {
 					maxCount = c;
 					maxIdx = start0 + j;
