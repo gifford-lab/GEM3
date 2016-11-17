@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -174,8 +175,8 @@ public class StatUtil {
 	/** 
 	 * Count occurrences of the elements
 	 */
-	public static HashMap<Integer, Integer> countOccurences (ArrayList<Integer> nums){
-		HashMap<Integer, Integer> map = new HashMap<Integer, Integer>();
+	public static TreeMap<Integer, Integer> countOccurences (ArrayList<Integer> nums){
+		TreeMap<Integer, Integer> map = new TreeMap<Integer, Integer>();
 		for (int i:nums){
 			if (!map.containsKey(i)){
 				map.put(i, 1);
@@ -191,7 +192,7 @@ public class StatUtil {
 	 * @return Pair of [elements, counts]
 	 */
 	public static Pair<int[], int[]> sortByOccurences (ArrayList<Integer> integerList){
-		HashMap<Integer, Integer> map = countOccurences(integerList);
+		TreeMap<Integer, Integer> map = countOccurences(integerList);
 		int[] elements = new int[map.keySet().size()];
 		int[] counts = new int[elements.length];
 		int i=0;
