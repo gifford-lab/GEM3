@@ -1210,6 +1210,11 @@ public class ChIAPET_analysis {
 				}
 			}
 			StringBuilder sb1 = new StringBuilder();
+			StringBuilder sb2 = new StringBuilder();
+			sb2.append("Bin\t");
+			for (int j=0; j<max_merging_dist; j++)
+				sb2.append(j+"\t");
+			CommonUtils.replaceEnd(sb2, '\n');
 			for (int i=0;i<gapsByBin.size();i++){
 				ArrayList<Integer> gaps = gapsByBin.get(i);
 				Collections.sort(gaps);
@@ -1219,9 +1224,19 @@ public class ChIAPET_analysis {
 				for (int j=0; j<gaps.size(); j+=step2)
 					sb1.append(gaps.get(j)+"\t");
 				sb1.append("\n");
+				TreeMap<Integer, Integer> map = StatUtil.countOccurences(gaps);
+				sb2.append(binEdges.get(i)+"\t");
+				for (int j=0; j<max_merging_dist; j++){
+					int c = 0;
+					if (map.containsKey(j))
+						c = map.get(j);
+					sb2.append(c+"\t");
+				}
+				CommonUtils.replaceEnd(sb2, '\n');
 			}
 			System.out.print(sb1.toString());
 			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".PET.gap.txt", sb1.toString());
+			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".PET.gapCount.txt", sb2.toString());
 			gapsByBin = null;
 			System.exit(0);
 		}
