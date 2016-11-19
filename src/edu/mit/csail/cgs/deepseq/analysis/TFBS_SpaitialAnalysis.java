@@ -30,6 +30,7 @@ import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils.NarrowPeak;
 import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
@@ -48,7 +49,8 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
  */
 public class TFBS_SpaitialAnalysis {
 	private int signal_radius = 500;
-	
+	String[] args = null;
+	Set<String> flags =null;
 	Genome genome=null;
 	ArrayList<String> expts = new ArrayList<String>();
 	ArrayList<String> tf_names = new ArrayList<String>();
@@ -127,7 +129,7 @@ public class TFBS_SpaitialAnalysis {
 		ArrayList<ArrayList<Site>> clusters=null;
 		switch(type){
 		case 999:	// default: simplified file loading for RPD public code
-			analysis.loadBindingEvents();
+			analysis.loadBindingEventsSimple();
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputTFBSclusters(clusters);
 			break;
@@ -194,7 +196,8 @@ public class TFBS_SpaitialAnalysis {
 	public TFBS_SpaitialAnalysis(String[] args){
 		genome = CommonUtils.parseGenome(args);
 
-		Set<String> flags = Args.parseFlags(args);
+		this.args = args;
+		this.flags = Args.parseFlags(args);
 		outPrefix = Args.parseString(args, "out", outPrefix);
 		zero_or_one = flags.contains("zoo");
 		dev = flags.contains("dev");
@@ -312,7 +315,8 @@ public class TFBS_SpaitialAnalysis {
 	/**
 	 * This method loads events/region for topic model analysis.<br>
 	 */
-	private void loadBindingEvents(){
+	private void loadBindingEventsSimple(){
+		boolean isBED = Args.parseString(args, "format", "GEM").equalsIgnoreCase("BED");
 		ArrayList<Region> ex_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
 			ex_regions = CommonUtils.loadCgsRegionFile(exclude_sites_file, genome);
@@ -325,8 +329,34 @@ public class TFBS_SpaitialAnalysis {
 				tfss = true;
 			String expt = expts.get(tf);
 
-			System.err.print(String.format("TF#%d: loading %s", tf, expt));
+			System.out.print(String.format("TF#%d: loading %s", tf, expt));
 			
+			if (isBED){
+				ArrayList<NarrowPeak> ps = CommonUtils.load_narrowPeak(genome, expt, true);
+				ArrayList<Site> sites = new ArrayList<Site>();
+			eachpeak:	for (int i=0;i<ps.size();i++){
+					NarrowPeak p = ps.get(i);
+					Site site = new Site();
+					site.tf_id = tf;
+					site.event_id = i;
+					site.signal = p.signal;
+					site.motifStrand = '*';
+					site.bs = p.summit;
+					
+					// skip site in the ex_regions
+					for (Region rr: ex_regions){
+						if (rr.contains(site.bs))
+							continue eachpeak;
+					}
+					sites.add(site);
+				}
+				System.out.println(",\t n="+sites.size());
+				Collections.sort(sites);
+				all_sites.add(sites);
+				continue;
+			}
+			
+			// GEM format
 			try{
 				List<GPSPeak> gpsPeaks = GPSParser.parseGPSOutput(expt, genome);
 				ArrayList<Site> sites = new ArrayList<Site>();

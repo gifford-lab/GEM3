@@ -203,10 +203,11 @@ public class CommonUtils {
 	/**
 	 * Load BED regions<br>
 	 * 
-	 *  Col1: chromosome name 
-		Col2: start position of the region (0-based)
-		Col3: stop position of the region (end exclusive)
-		Col4: annotation of the region (any string)
+	 * Input format:<br>
+	 *  Col1: chromosome name <br>
+		Col2: start position of the region (0-based)<br>
+		Col3: stop position of the region (end exclusive)<br>
+		Col4: annotation of the region (any string)<br>
 	 * @param genome
 	 * @param filename
 	 * @return
