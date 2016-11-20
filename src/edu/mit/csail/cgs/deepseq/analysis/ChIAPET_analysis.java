@@ -901,7 +901,8 @@ public class ChIAPET_analysis {
 		// right read; if not, flip the two
 
 		// sort by each end so that we can search to find matches or overlaps
-		System.out.println("Loading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
+		System.out.println("Running CPC on "+Args.parseString(args, "out", "Result"));
+		System.out.println("\nLoading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
 		int min = 2; // minimum number of PET count to be called an interaction
 		int numQuantile = Args.parseInteger(args, "num_span_quantile", 100);
 		int minDistance = Args.parseInteger(args, "min_distance", 2000);
@@ -1189,24 +1190,48 @@ public class ChIAPET_analysis {
 							return o1.compareRead2(o2);
 						}
 					});
-					ReadPair rp1 = rps.get(0);
-					for (int i=1;i<rps.size();i++){
-						ReadPair rp2 = rps.get(i);
-						int gap = rp1.r2.distance(rp2.r2);
-						rp1 = rp2;
-						if (gap>max_merging_dist || rp1.r1.distance(rp2.r1)>max_merging_dist)
-							continue;
-						int span = rp1.r1.distance(rp1.r2);
-						int idxBin = -1;
-						if (span >= maxEdge)
-							idxBin = binEdges.size()-1;
-						else {
-							idxBin = Collections.binarySearch(binEdges, span);
-							if (idxBin < 0) // if key not found
-								idxBin = -(idxBin + 1);
+					// Consider all proximal PETs within max_distance, e.g. 2kb
+					for (int i=0;i<rps.size();i++){
+						ReadPair rp1 = rps.get(i);
+						for (int k=i+1;k<rps.size();k++){
+							ReadPair rp2 = rps.get(k);
+							int gap = rp1.r2.distance(rp2.r2);
+							if (gap>max_merging_dist)
+								break;
+							if (rp1.r1.distance(rp2.r1)<=max_merging_dist){
+								int span = rp1.r1.distance(rp1.r2);
+								int idxBin = -1;
+								if (span >= maxEdge)
+									idxBin = binEdges.size()-1;
+								else {
+									idxBin = Collections.binarySearch(binEdges, span);
+									if (idxBin < 0) // if key not found
+										idxBin = -(idxBin + 1);
+								}
+								gapsByBin.get(idxBin).add(gap);
+							 }
 						}
-						gapsByBin.get(idxBin).add(gap);
 					}
+
+//					// consider only direct proximal PETs
+//					ReadPair rp1 = rps.get(0);
+//					for (int i=1;i<rps.size();i++){
+//						ReadPair rp2 = rps.get(i);
+//						int gap = rp1.r2.distance(rp2.r2);
+//						rp1 = rp2;
+//						if (gap>max_merging_dist || rp1.r1.distance(rp2.r1)>max_merging_dist)
+//							continue;
+//						int span = rp1.r1.distance(rp1.r2);
+//						int idxBin = -1;
+//						if (span >= maxEdge)
+//							idxBin = binEdges.size()-1;
+//						else {
+//							idxBin = Collections.binarySearch(binEdges, span);
+//							if (idxBin < 0) // if key not found
+//								idxBin = -(idxBin + 1);
+//						}
+//						gapsByBin.get(idxBin).add(gap);
+//					}
 				}
 			}
 			StringBuilder sb1 = new StringBuilder();
