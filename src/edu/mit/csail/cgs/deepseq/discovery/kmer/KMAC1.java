@@ -16,16 +16,12 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Random;
-import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 import javax.imageio.ImageIO;
@@ -50,7 +46,6 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.ROC;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.stats.StatUtil.DensityClusteringPoint;
-import edu.mit.csail.cgs.utils.strings.StringUtils;
 import edu.mit.csail.cgs.utils.strings.multipattern.AhoCorasick;
 import edu.mit.csail.cgs.utils.strings.multipattern.SearchResult;
 
@@ -536,7 +531,7 @@ public class KMAC1 {
 			System.out.println("\nmemory used = "+
 			(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 			StringBuilder sb = new StringBuilder();
-			System.out.println("\n----------------------------------------------------------\nTrying k="+k+" ...\n");
+			System.out.println("\n----------------------------------------------------------\nRunning k="+k+" ...\n");
 			Pair<ArrayList<Kmer>, ArrayList<Kmer>> pair = selectEnrichedKmers(k);
 			ArrayList<Kmer> allSignificantKmers = pair.car();
 			ArrayList<Kmer> kmers = pair.cdr();
@@ -3546,7 +3541,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		for (Kmer km:kmers)
 			bitSeqWithKmer.or(km.posBits);
 		
-		double max = 0;
 		HashMap<Integer, KmerGroup> kgs = new HashMap<Integer, KmerGroup>();
 		KmerGroup bestKG = null;
 		for (Sequence s : seqList){
@@ -3556,15 +3550,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (!bitSeqWithKmer.get(s.id))
 				continue;
     		KmerGroup[] matches = findKsmGroupHits(s.seq, s.rc);
-    		if (matches==null)
+    		if (matches.length==0)
     			continue;
-			max = 0;
-			for (KmerGroup kg: matches){
-				if (kg.getScore()>max){
-					max = kg.getScore();
-					bestKG = kg;
-				}
-			}
+    		else
+    			bestKG = matches[0];
 			if (bestKG.kg_score>=cluster.ksmThreshold.motif_cutoff){
 				if (bestKG.bs>RC/2){		// match on reverse strand
 					s.RC();
@@ -5402,10 +5391,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		return score;		
 	}
 	/**
-	 * Grid search threshold of a Kmer Group Score using the positive/negative sequences<br>
-	 * Compute the hyper-geometric p-value from number of pos/neg sequences that have the scores higher than the considered score.<br>
+	 * Compute the KSM scores for pos/neg sequences<br>
 	 * The KSM k-mers are assumed to have been loaded into the Engine
-	 * @returns the KSM score gives the most significant p-value.
+	 * @returns the KSM scores for pos/neg sequences.
 	 */
 	private Pair<double[],double[] > scoreKsmSequences (ArrayList<Sequence> seqList, ArrayList<Sequence> seqListNeg, ArrayList<Kmer> kmers){
 //		if (config.verbose>1)
@@ -5420,35 +5408,28 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		
 		double[] posSeqScores = new double[seqList.size()];
 		double[] negSeqScores = new double[seqListNeg.size()];
-		double max = 0;
 		KmerGroup[] kgs=null;
 		for (int i=0;i<seqList.size();i++){
 			Sequence s = seqList.get(i);
 			if (!bitSeqWithKmer.get(s.id))
 				continue;
 			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
-			max = 0;
-			for (KmerGroup kg: kgs)
-				if (kg.getScore()>max)
-					max = kg.getScore();
-			posSeqScores[i]=max;	// the best match	// score = -log10 hgp, becomes positive value
+			if (kgs.length==0)
+				posSeqScores[i]=0;
+			else
+				posSeqScores[i]=kgs[0].getScore();
 		}
-//		if (config.verbose>1)
-//			System.out.println(CommonUtils.timeElapsed(tic)+ ": scoreKsmSequences, scanned Pos seqs.");
 
 		for (int i=0;i<seqListNeg.size();i++){
 			Sequence s = seqListNeg.get(i);
 			if (!bitSeqWithKmerNeg.get(s.id))
 				continue;
 			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
-			max = 0;
-			for (KmerGroup kg: kgs)
-				if (kg.getScore()>max)
-					max = kg.getScore();
-			negSeqScores[i]=max;	// the best match	// score = -log10 hgp, becomes positive value
+			if (kgs.length==0)
+				negSeqScores[i]=0;
+			else
+				negSeqScores[i]=kgs[0].getScore();
 		}
-//		if (config.verbose>1)
-//			System.out.println(CommonUtils.timeElapsed(tic)+ ": scoreKsmSequences, done scan neg sequences.");
 		return new Pair<double[],double[]>(posSeqScores,negSeqScores);
 	}
 
@@ -5709,10 +5690,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	
 	/** 
 	 * Report all strand-specific KSM group hits in both orientations of the sequence<br>
-	 * Assuming the updateEngine(kmers) method had been called, i.e. "treeAhoCorasick kmer search tree" instance member variable has been constructed.
+	 * Assuming the updateEngine(kmers) method had been called, i.e. "treeAhoCorasick kmer search tree" instance variable has been constructed.
 	 * @param seq sequence string to search k-mers
 	 * @param seq_rc sequence rc to search k-mers
-	 * @return an array of KmerGroups:<br>
+	 * @return an array of KmerGroups, sorted by KG scores:<br>
 	 * Each k-mer group maps to a binding position (using kmer.startOffset, relative to bs ) in the sequence<br>
 	 * Note: the return value is different from query(), here the match on RC strand is labeled (pos+RC)
 	 */
@@ -5772,6 +5753,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
 		}
+		
+		Arrays.sort(matches);		// sort by descending kgScore
+		
 		return matches;
 	}
 	

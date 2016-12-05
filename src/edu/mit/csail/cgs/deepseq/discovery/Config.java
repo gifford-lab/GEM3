@@ -95,6 +95,7 @@ public class Config {
     public boolean use_grid_search = true;
     public boolean optimize_pwm_threshold = true;
     public boolean optimize_kmer_set = true;
+    public boolean kg_score_hit_length = false;		// score k-mer group by considering the width of the hit, to better distinguish pos vs neg hits.
     public boolean kmer_use_insig = false;
     public boolean use_self_density = true;
     public boolean kmer_use_filtered = false;
@@ -288,6 +289,7 @@ public class Config {
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
         optimize_kmer_set = !flags.contains("not_optimize_kmer_set");		// optimize the whole k-mer set, not the KG kmers.
+        kg_score_hit_length = flags.contains("kg_score_hit_length");
         use_grid_search = !flags.contains("no_grid_search");
         allow_seed_reset = !flags.contains("no_seed_reset");
         selectK_byTopKmer = flags.contains("selectK_byTopKmer");	

@@ -28,6 +28,7 @@ import javax.imageio.ImageIO;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
@@ -285,6 +286,7 @@ public class CommonUtils {
 		return events;
 	}
 	
+
 	public class SISSRS_Event implements Comparable<SISSRS_Event>{
 		public Region region;
 		public double tags;
@@ -303,6 +305,81 @@ public class CommonUtils {
 		public int compareTo(SISSRS_Event p) {
 			double diff = pvalue-p.pvalue;
 			return diff==0?0:(diff<0)?-1:1;
+		}
+	}
+	
+	static public ArrayList<Gene> loadGeneAnnotations(String gene_anno_file) {
+		ArrayList<String> texts = CommonUtils.readTextFile(gene_anno_file);
+		ArrayList<Gene> genes = new ArrayList<Gene>();
+		CommonUtils util = new CommonUtils();
+		// UCSC Table format : 
+		// #bin	name	chrom	strand	txStart	txEnd	cdsStart	cdsEnd	exonCount	exonStarts	exonEnds	name2
+		// #bin	name	chrom	strand	txStart	txEnd	cdsStart	cdsEnd	exonCount	exonStarts	exonEnds	geneSymbol	refseq	description
+		for (int i=0;i<texts.size();i++){
+			String t = texts.get(i);
+			if (t.startsWith("#"))
+				continue;
+			Gene g = util.new Gene();
+			String f[] = t.split("\t");
+			g.id = f[1].trim();
+			g.chr = f[2].replace("chr", "");
+			g.strand = f[3].charAt(0);
+			g.start = Integer.parseInt(f[4]);
+			g.end = Integer.parseInt(f[5]);
+			g.name = f[12].trim();
+			genes.add(g);
+		}
+		return genes;
+	}
+	
+	
+	public class Gene implements Comparable<Gene> {
+		public String id;
+		public String name;
+		public String chr;
+		public int start;
+		public int end;
+		public char strand;
+		public HashSet<Integer> mergedEnds = new HashSet<Integer>();
+		public StrandedPoint getTSS(Genome genome){
+			return new StrandedPoint(genome, chr, start, strand);
+		}
+		public StrandedPoint getTES(Genome genome){
+			return new StrandedPoint(genome, chr, end, strand);
+		}
+		public int compareToByStart(Gene p) {
+		    if (!chr.equals(p.chr)) {
+		      return chr.compareTo(p.chr);
+		    }
+		    if (start < p.start) {
+		      return -1;
+		    }
+		    if (start > p.start) {
+		      return 1;
+		    }
+		    return 0;
+		}
+		
+		public int compareToByEnd(Gene p) {
+		    if (!chr.equals(p.chr)) {
+		      return chr.compareTo(p.chr);
+		    }
+		    if (end < p.end) {
+		      return -1;
+		    }
+		    if (end > p.end) {
+		      return 1;
+		    }
+		    return 0;
+		}
+
+		@Override
+		public int compareTo(Gene gene) {
+			return compareToByStart(gene);
+		}
+		
+		public String toString(){
+			return name+"-->"+chr+":"+start+"-"+end;
 		}
 	}
 	public static Genome parseGenome(String[] args){

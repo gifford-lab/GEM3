@@ -79,7 +79,10 @@ public class ChIAPET_analysis {
 			postProcessing(args);
 			break;
 		case 5:
-			annotateInteractions(args);
+			annotateRegions(args);
+			break;
+		case 7:
+			annotateTADs(args);
 			break;
 		case 6: // merged-TSS based clustering
 			getPetLength(args);
@@ -458,7 +461,6 @@ public class ChIAPET_analysis {
 		CommonUtils.writeFile(
 				fileName.replace(".bedpe", (flags.contains("rm_self") ? ".rmSelf" : "") + ".StatsTAD.txt"),
 				sb.toString());
-
 	}
 
 	private void countReadPairs() {
@@ -1793,8 +1795,11 @@ public class ChIAPET_analysis {
 		} else
 			return null;
 	}
-
-	private static void annotateInteractions(String[] args) {
+	/**
+	 * Overlap CPC interaction calls with some annotation as regions.
+	 * @param args
+	 */
+	private static void annotateRegions(String[] args) {
 		Genome genome = CommonUtils.parseGenome(args);
 		String cpcFile = Args.parseString(args, "cpc", null);
 		String bed1File = Args.parseString(args, "bed1", null);
@@ -1814,7 +1819,8 @@ public class ChIAPET_analysis {
 		for (int i = 0; i < lines.size(); i++) {
 			String t = lines.get(i);
 			String f[] = t.split("\t");
-			Region distal = Region.fromString(genome, f[5]);
+			// distal anchor region, the input cpc file has swapped anchors if 6th column is the TSS
+			Region distal = Region.fromString(genome, f[5]);	
 			ArrayList<Integer> idx1 = CommonUtils.getRegionIdxOverlapsWindow(r1s, distal, win);
 			ArrayList<Integer> idx2 = CommonUtils.getRegionIdxOverlapsWindow(r2s, distal, win);
 			for (int j = 0; j < f.length; j++)
@@ -1835,6 +1841,41 @@ public class ChIAPET_analysis {
 		CommonUtils.writeFile(cpcFile.replace("txt", "") + "annotated.txt", sb.toString());
 	}
 
+	/**
+	 * Overlap CPC interaction calls with some annotation as regions.
+	 * @param args
+	 */
+	private static void annotateTADs(String[] args) {
+		Genome genome = CommonUtils.parseGenome(args);
+		String cpcFile = Args.parseString(args, "cpc", null);
+		String tadFile = Args.parseString(args, "tad", null);
+		int win = Args.parseInteger(args, "win", 1500);
+
+		Pair<ArrayList<Region>, ArrayList<String>> tmp = CommonUtils.load_BED_regions(genome, tadFile);
+		ArrayList<Region> r1s = tmp.car();
+		ArrayList<String> s1s = tmp.cdr();
+
+		ArrayList<String> lines = CommonUtils.readTextFile(cpcFile);
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < lines.size(); i++) {
+			String t = lines.get(i);
+			String f[] = t.split("\t");
+			// distal anchor region, the input cpc file has swapped anchors if 6th column is the TSS
+			Region distal = Region.fromString(genome, f[5]);	
+			ArrayList<Integer> idx1 = CommonUtils.getRegionIdxOverlapsWindow(r1s, distal, win);
+			for (int j = 0; j < f.length; j++)
+				sb.append(f[j]).append("\t");
+			for (int id : idx1)
+				sb.append(s1s.get(id)).append(",");
+			if (idx1.isEmpty())
+				sb.append("NULL");
+			sb.append("\t").append(idx1.size()).append("\t");
+			sb.append(f[10]).append("\t").append(f[f.length - 1]);
+			sb.append("\n");
+		}
+		CommonUtils.writeFile(cpcFile.replace("txt", "") + "annotated.txt", sb.toString());
+	}
+	
 	private static void postProcessing(String[] args) {
 		String cpcFile = Args.parseString(args, "cpc", null);
 		ArrayList<String> lines = CommonUtils.readTextFile(cpcFile);

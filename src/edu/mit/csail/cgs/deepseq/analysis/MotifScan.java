@@ -243,7 +243,7 @@ public class MotifScan {
 	    			System.out.println();
 	    		}
 	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
-	    		if (kgs==null)
+	    		if (kgs.length==0)
 	    			continue;
 	    		for (int i=0;i<kgs.length;i++){
 	    			KmerGroup kg = kgs[i];

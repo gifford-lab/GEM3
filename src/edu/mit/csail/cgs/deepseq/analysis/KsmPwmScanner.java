@@ -61,17 +61,11 @@ public class KsmPwmScanner {
 	}
 	
 	public KmerGroup getBestKG (String seq, String seq_rc){
-		double bestScore = 0;
-		KmerGroup best = null;
 		KmerGroup[] kgs = kEngine.findKsmGroupHits(seq, seq_rc);
-		if (kgs==null)
+		if (kgs.length==0)
 			return null;
-		for (KmerGroup kg:kgs)
-			if (bestScore < kg.getScore()){
-				bestScore = kg.getScore();
-				best = kg;
-			}
-		return best;
+		else
+			return kgs[0];
 	}
 	/**
 	 * Find the file in path that match the type string
