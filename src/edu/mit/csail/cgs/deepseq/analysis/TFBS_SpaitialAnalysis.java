@@ -147,7 +147,9 @@ public class TFBS_SpaitialAnalysis {
 			analysis.computeTfbsSpacingDistribution();
 			break;
 		case 3:		// to print all the binding sites and motif positions in the clusters for downstream spacing/grammar analysis
-			// java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 3 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
+			// 1. GEM: java edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis --species "Mus musculus;mm10"  --type 3 --dir /cluster/yuchun/www/guo/mES  --info mES.info.txt  --r $round --pwm_factor 0.6 --distance ${distance} --min_site ${min} --out $analysis
+			// 2. NarrowPeak: --g /Users/yguo/data/projects/shared_data/GEM_support/hg19.info --type 3 --tf_peak_file /Users/yguo/proj/rpd/161118_HDP_ENCODE_TF_K562/k562.peak.test.txt --format bed --out k562.test
+			System.out.println("Type 3: output binding and/or motif sites ...");
 			analysis.loadEventsAndMotifs(round);
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputBindingAndMotifSites(clusters);
@@ -218,17 +220,20 @@ public class TFBS_SpaitialAnalysis {
 		expts = new ArrayList<String>();
 		tf_names = new ArrayList<String>();
 		motif_names = new ArrayList<String>();
-		String gem_info_file = Args.parseString(args, "gem", null);
+		String tf_info_file = Args.parseString(args, "gem", null);
 		int type = Args.parseInteger(args, "type", 999);
 		
-		if (type==999){		// default for public version (RPD paper)
-			gem_info_file = Args.parseString(args, "tf_peak_file", null);
+		if (type==999){		// default for public version (RMD paper)
+			tf_info_file = Args.parseString(args, "tf_peak_file", null);
 			print_hdp_format = true;
 			print_matrix = true;
 			print_full_format = true;
 		}
-		if (gem_info_file!=null){
-			ArrayList<String> info = CommonUtils.readTextFile(gem_info_file);
+		if (type==3){		// default for public version 
+			tf_info_file = Args.parseString(args, "tf_peak_file", null);
+		}
+		if (tf_info_file!=null){
+			ArrayList<String> info = CommonUtils.readTextFile(tf_info_file);
 			// expt name | short name | factor type | display name | motif | readdb name
 			for (String txt: info){
 				if ( ! (txt.equals("") || txt.startsWith("#")) ){
@@ -242,6 +247,7 @@ public class TFBS_SpaitialAnalysis {
 					else if (f.length == 2){		// 2 columns, TF.name<TAB>GEM.path
 						tf_names.add(f[0]);
 						expts.add(f[1]);
+						motif_names.add("N.A.");
 					}
 				}
 			}
@@ -486,6 +492,7 @@ public class TFBS_SpaitialAnalysis {
 	 * @param round GEM output round (1 for GPS, 2 for GEM)
 	 */
 	private void loadEventsAndMotifs(int round){
+		boolean isBED = Args.parseString(args, "format", "GEM").equalsIgnoreCase("BED");
 		ArrayList<Region> exclude_regions = new ArrayList<Region>();
 		if(exclude_sites_file!=null){
 			exclude_regions = CommonUtils.loadCgsRegionFile(exclude_sites_file, genome);
@@ -501,6 +508,31 @@ public class TFBS_SpaitialAnalysis {
 			dir2= new File(dir2, expt+"_outputs");
 			System.err.print(String.format("GEM #%d: loading %s", tf, expt));
 			
+			if (isBED){
+				ArrayList<NarrowPeak> ps = CommonUtils.load_narrowPeak(genome, expt, true);
+				ArrayList<Site> sites = new ArrayList<Site>();
+			eachpeak:	for (int i=0;i<ps.size();i++){
+					NarrowPeak p = ps.get(i);
+					// skip site in the ex_regions
+					for (Region rr: exclude_regions){
+						if (rr.contains(p.summit))
+							continue eachpeak;
+					}
+					Site site = new Site();
+					site.tf_id = tf;
+					site.event_id = i;
+					site.signal = p.signal;
+					site.motifStrand = '*';
+					site.bs = p.summit;
+					sites.add(site);
+				}
+				System.out.println(",\t n="+sites.size());
+				Collections.sort(sites);
+				all_sites.add(sites);
+				continue;
+			}
+			
+			// GEM format
 			// load binding event files 
 			File gpsFile = new File(dir2, expt+"_"+ (round>=2?round:1) + "_GEM_events.txt");
 			String filePath = gpsFile.getAbsolutePath();
@@ -1159,7 +1191,7 @@ public class TFBS_SpaitialAnalysis {
 		int digits_pwm = (int) Math.ceil(Math.log10(pwms.size()));
 		int digits_kmer = (int) Math.ceil(Math.log10(kmers.size()));
 		
-		boolean motif_kmer_scan = pwms.size()+kmers.size()>0;
+		boolean motif_kmer_scan = pwms.size()+kmers.size() > 0;
 		for (int id=0;id<clusters.size();id++){
 			ArrayList<Site> bindingSites = clusters.get(id);
 			int numSite = bindingSites.size();
@@ -1192,7 +1224,7 @@ public class TFBS_SpaitialAnalysis {
 			ArrayList<Integer> kmerMatchIds = new ArrayList<Integer>();
 			ArrayList<Integer> kmerMatchPos = new ArrayList<Integer>();
 			String seq = null;
-			if (motif_kmer_scan || numSite>0){
+			if (motif_kmer_scan && numSite>0){
 				seq = seqgen.execute(region).toUpperCase();
 			
 				// scan motif matches in the cluster region sequence
