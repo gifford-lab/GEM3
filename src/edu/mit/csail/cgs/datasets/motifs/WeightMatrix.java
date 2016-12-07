@@ -363,6 +363,8 @@ public class WeightMatrix {
     }
     public int getDBID() {return dbid;}
     public String toString() {
+    	if (name==null)
+    		return "";
     	if (type==null)
     		return name + ", " + version;
         return name + ", " + version + ", " + type;

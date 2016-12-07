@@ -37,7 +37,7 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.analysis.KsmPwmScanner;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KsmMotif;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
@@ -733,12 +733,12 @@ public class CommonUtils {
 		return sb.toString();
 	}
 	
-	public static KMAC1 loadKsmFile(String ksmFile, Config config){
+	public static KMAC loadKsmFile(String ksmFile, Config config){
 		File file = new File(ksmFile);
 //    	System.err.println(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
-		KMAC1 kEngine;
-		kEngine = new KMAC1(ksm.kmers, config);	
+		KMAC kEngine;
+		kEngine = new KMAC(ksm.kmers, config);	
 		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
 		if (config.use_weighted_kmer)
 			kEngine.setSequenceWeights(ksm.seq_weights);

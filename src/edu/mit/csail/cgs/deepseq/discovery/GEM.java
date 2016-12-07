@@ -9,8 +9,8 @@ import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.*;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -320,9 +320,9 @@ public class GEM {
     	// get the first parameter to branch off to other methods
     	String s = args[0];
     	if (s.equalsIgnoreCase("KMAC0"))
-    		KMAC.main(args);
+    		KMAC0.main(args);
     	else if (s.equalsIgnoreCase("KMAC"))
-    		KMAC1.main(args);
+    		KMAC.main(args);
     	else if (s.equalsIgnoreCase("KSM"))
     		edu.mit.csail.cgs.deepseq.analysis.MotifScan.main(args);
     	else if (s.equalsIgnoreCase("CPC"))

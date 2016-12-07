@@ -41,20 +41,20 @@ public class Kmer implements Comparable<Kmer>{
 	protected float[][] matrix =null;
 	protected float[][] matrix_rc =null;		// reverse compliment
 	public void setMatrix (){
-		matrix = new float[kmerString.length()][KMAC1.LETTERS.length];
+		matrix = new float[kmerString.length()][KMAC.LETTERS.length];
 		for (int ii=0;ii<kmerString.length();ii++){
-			for (int j=0;j<KMAC1.LETTERS.length;j++){
-				if (kmerString.charAt(ii) == KMAC1.LETTERS[j])
+			for (int j=0;j<KMAC.LETTERS.length;j++){
+				if (kmerString.charAt(ii) == KMAC.LETTERS[j])
 					matrix[ii][j] += 1;
 			}
 		}
 		setMatrixRC();
 	}
 	protected void setMatrixRC(){
-		matrix_rc = new float[kmerString.length()][KMAC1.LETTERS.length];
+		matrix_rc = new float[kmerString.length()][KMAC.LETTERS.length];
 		for (int ii=0;ii<kmerString.length();ii++){
-			for (int j=0;j<KMAC1.LETTERS.length;j++){
-					matrix_rc[ii][j] = matrix[kmerString.length()-1-ii][KMAC1.LETTERS.length-1-j];
+			for (int j=0;j<KMAC.LETTERS.length;j++){
+					matrix_rc[ii][j] = matrix[kmerString.length()-1-ii][KMAC.LETTERS.length-1-j];
 			}
 		}
 	}

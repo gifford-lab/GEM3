@@ -15,9 +15,9 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
@@ -129,7 +129,7 @@ public class MotifScan {
 			}  
 	        
 			ArrayList<String> lines = CommonUtils.readTextFile(ksm_fle);
-			ArrayList<KMAC1> kmacs = new ArrayList<KMAC1>();
+			ArrayList<KMAC> kmacs = new ArrayList<KMAC>();
 			ArrayList<String> knames = new ArrayList<String>();
 			for (String l:lines){
 				if (l.startsWith("#"))
@@ -226,7 +226,7 @@ public class MotifScan {
 	    }
 	}
 	
-	public static ArrayList<MotifInstance> getKSMInstances(String[] seqs, ArrayList<KMAC1> kmacs, ArrayList<String> knames) {
+	public static ArrayList<MotifInstance> getKSMInstances(String[] seqs, ArrayList<KMAC> kmacs, ArrayList<String> knames) {
 		System.out.println("Scanning KSM motifs ...");
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
 	    String[] seqs_rc = new String[seqs.length];
@@ -235,7 +235,7 @@ public class MotifScan {
 	    
 	    for (int m=0; m<kmacs.size(); m++){
 	    	System.out.println("  ... "+knames.get(m)+" ...");
-	    	KMAC1 kmac = kmacs.get(m);
+	    	KMAC kmac = kmacs.get(m);
 	    	for (int s=0; s<seqs.length;s++){
 //	    		System.out.print(s+" ");
 	    		if (s==60) {
@@ -252,8 +252,8 @@ public class MotifScan {
 		    		mi.motifName = knames.get(m);
 		    		mi.score = kg.getScore();
 		    		int pos = kg.getPosBS();
-		    		if (pos > KMAC1.RC-seqs[s].length()*2){	// RC strand match
-		    			mi.position = pos-KMAC1.RC;	
+		    		if (pos > KMAC.RC-seqs[s].length()*2){	// RC strand match
+		    			mi.position = pos-KMAC.RC;	
 		    			mi.strand = '-';
 		    		}
 		    		else{

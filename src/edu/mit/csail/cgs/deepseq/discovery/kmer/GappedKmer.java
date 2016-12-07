@@ -62,12 +62,12 @@ public class GappedKmer extends Kmer{
 	}
 	
 	public void setMatrix(){
-		matrix = new float[kmerString.length()][KMAC1.LETTERS.length];
+		matrix = new float[kmerString.length()][KMAC.LETTERS.length];
 		for (Kmer bk: getBaseKmers()){
 			String ks = getBaseKmerOrientation(bk)?bk.kmerString:bk.kmerRC;
 			for (int ii=0;ii<bk.getK();ii++){
-				for (int j=0;j<KMAC1.LETTERS.length;j++){
-					if (ks.charAt(ii) == KMAC1.LETTERS[j])
+				for (int j=0;j<KMAC.LETTERS.length;j++){
+					if (ks.charAt(ii) == KMAC.LETTERS[j])
 						matrix[ii][j] += bk.getPosHitCount();
 				}
 			}
@@ -75,9 +75,9 @@ public class GappedKmer extends Kmer{
 		// normalize at each position
 		for (int ii=0;ii<matrix.length;ii++){
 			float sum=0;
-			for (int j=0;j<KMAC1.LETTERS.length;j++)
+			for (int j=0;j<KMAC.LETTERS.length;j++)
 				sum += matrix[ii][j];
-			for (int j=0;j<KMAC1.LETTERS.length;j++)
+			for (int j=0;j<KMAC.LETTERS.length;j++)
 				matrix[ii][j] /= sum;
 		}
 		

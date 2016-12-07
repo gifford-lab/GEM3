@@ -22,9 +22,9 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.Site;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.KmerGroup;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1.MotifThreshold;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KsmMotif;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
@@ -42,7 +42,7 @@ import net.sf.samtools.util.SequenceUtil;
 
 public class KsmPwmScanner {
 	public static char[] letters = {'A','C','T','G'};
-	private KMAC1 kEngine;
+	private KMAC kEngine;
 	// each element in the list is for one ChIP-Seq method
 	
 	public KsmPwmScanner(String[] args, KsmMotif ksm){
@@ -54,7 +54,7 @@ public class KsmPwmScanner {
 			e.printStackTrace();
     		System.exit(-1);
 		}  
-		kEngine = new KMAC1(ksm.kmers, config);
+		kEngine = new KMAC(ksm.kmers, config);
 		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
 		if (config.use_weighted_kmer)
 			kEngine.setSequenceWeights(ksm.seq_weights);

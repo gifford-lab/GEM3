@@ -21,7 +21,7 @@ import cern.jet.random.Binomial;
 import cern.jet.random.Gamma;
 import cern.jet.random.Uniform;
 import cern.jet.random.engine.DRand;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
@@ -1861,13 +1861,13 @@ public class StatUtil {
 
 	private static void printHGP(int pos, int neg){
 		System.out.println(String.format("%d\t%d\t%.2f\t%.2f", pos, neg, 		 
-				KMAC1.computeHGP(5000, 5000, pos, neg),
+				KMAC.computeHGP(5000, 5000, pos, neg),
 				odds_ratio(5000, 5000, pos, neg, 3, 3)));
 	}
 	
 	private static void printHGP(int total, int motif1, int motif2, int overlap){
 		System.out.println(String.format("%d\t%d\t%d\t%d\t%.2f\t%.2f", total, motif1, motif2, overlap,		 
-				KMAC1.computeHGP(motif1, total-motif1, overlap, motif2-overlap),
+				KMAC.computeHGP(motif1, total-motif1, overlap, motif2-overlap),
 				odds_ratio(motif1, total-motif1, overlap, motif2-overlap, 10, 10)));
 	}
 	 public static void main(String[] args){

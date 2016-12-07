@@ -132,6 +132,7 @@ public class Config {
     public boolean evaluate_by_both = false;	
     public boolean rescue_motif2 = false;	
     
+    public boolean ksm_logo_text = true;
     public boolean use_strength_weight = true;	// use binding event strength to weight 
     public boolean use_pos_weight = false;		// use binding position profile to weight motif site
     public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
@@ -267,7 +268,7 @@ public class Config {
         refine_window_boundary = flags.contains("refine_window_boundary");
         use_pos_weight = flags.contains("use_pos_weight");
         use_odds_ratio = !flags.contains("no_or");
-        
+        ksm_logo_text = !flags.contains("ksm_logo_no_text");
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter

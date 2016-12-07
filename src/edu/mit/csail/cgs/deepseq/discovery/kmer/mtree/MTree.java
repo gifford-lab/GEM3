@@ -9,7 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC1;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
@@ -326,7 +326,7 @@ public class MTree {
 		public double maxR(MTreeNode n) {
 			double maxR = 0;
 			for (TreeObject o: n.getObjects()) {
-				maxR = Math.max(maxR, KMAC1.editDistance(this.getData(), o.getData()));
+				maxR = Math.max(maxR, KMAC.editDistance(this.getData(), o.getData()));
 				if (o.getChild() != null && o.getChild().getObjects().size() > 0) {
 					maxR = Math.max(maxR, this.maxR(o.getChild()));
 				}
@@ -338,7 +338,7 @@ public class MTree {
 			MTreeNode currentContainer = this.getContainer();
 			TreeObject currentAncestor = currentContainer.getParent();
 			while (currentAncestor != null) {
-				currentAncestor.setR(Math.max(currentAncestor.getR(), KMAC1.editDistance(this.getData(), currentAncestor.getData())));
+				currentAncestor.setR(Math.max(currentAncestor.getR(), KMAC.editDistance(this.getData(), currentAncestor.getData())));
 				currentContainer = currentAncestor.getContainer();
 				currentAncestor = currentContainer.getParent();
 			}
@@ -382,7 +382,7 @@ public class MTree {
 			System.out.println("running through all possiblities");
 			for (TreeObject object: objects) {
 				if (object.getChild() != null && object.getChild().getObjects().size() > 0) { // potential choice for mo
-					double objDist = KMAC1.editDistance(object.getData(), entry.getData());
+					double objDist = KMAC.editDistance(object.getData(), entry.getData());
 					System.out.println(objDist);
 					if (objDist < min) {
 						min = objDist;
@@ -425,7 +425,7 @@ public class MTree {
 		double min = Double.MAX_VALUE;
 		MTreeNode mo = null;
 		for (MTreeNode leaf: n.getLeafNodes()) {
-			double objDist = KMAC1.editDistance(leaf.getParent().getData(), entry.getData());
+			double objDist = KMAC.editDistance(leaf.getParent().getData(), entry.getData());
 			if (objDist < min) {
 				min = objDist;
 				mo = leaf;
@@ -463,7 +463,7 @@ public class MTree {
 		}
 		for (int i = 0; i < objects.size(); i++) {
 			for (int j = 0; j < i; j++) {
-				double d = KMAC1.editDistance(objects.get(i).getData(), objects.get(j).getData());
+				double d = KMAC.editDistance(objects.get(i).getData(), objects.get(j).getData());
 				distances.set(i, distances.get(i) + d);
 				distances.set(j, distances.get(j) + d);
 			}
@@ -554,7 +554,7 @@ public class MTree {
 			TreeObject o = newEntries.get(i);
 			if (o.getData().getIndex() != promoted0.getData().getIndex() && o.getData().getIndex() != promoted1.getData().getIndex()) {
 				// see which set o belongs in
-				if (KMAC1.editDistance(o.getData(), promoted0.getData()) < KMAC1.editDistance(o.getData(), promoted1.getData())) {
+				if (KMAC.editDistance(o.getData(), promoted0.getData()) < KMAC.editDistance(o.getData(), promoted1.getData())) {
 					partition0.add(o);
 				}
 				else {
@@ -646,9 +646,9 @@ public class MTree {
 			TreeObject o = newEntries.get(i);
 			double r = o.getR();
 			if (o.getData().getIndex() != promoted0.getData().getIndex() && o.getData().getIndex() != promoted1.getData().getIndex()) {
-				double d0 = KMAC1.editDistance(promoted0.getData(), o.getData());
+				double d0 = KMAC.editDistance(promoted0.getData(), o.getData());
 				distances0.add(new Pair<Integer, Double>(i, d0 + r));
-				double d1 = KMAC1.editDistance(promoted1.getData(), o.getData());
+				double d1 = KMAC.editDistance(promoted1.getData(), o.getData());
 				distances1.add(new Pair<Integer, Double>(i, d1 + r));
 			}
 		}	
@@ -785,7 +785,7 @@ public class MTree {
 		int k2 = promote.size();
 		for (int i = 0; i < promote.size(); i++) {
 			for (int j = 0; j < i; j++) {
-				double ijDistance = KMAC1.editDistance(promote.get(i).getData(), promote.get(j).getData());
+				double ijDistance = KMAC.editDistance(promote.get(i).getData(), promote.get(j).getData());
 				if (ijDistance > furthestDist) {
 					k1 = i;
 					k2 = j;
@@ -809,7 +809,7 @@ public class MTree {
 				for (int k = 0; k < promote.size(); k++) {
 					if (k != i && k != j) {
 						// cost of k is smaller of d(k, i), d(k, j)
-						candidate_cost += Math.min(KMAC1.editDistance(promote.get(k).getData(), promote.get(i).getData()), KMAC1.editDistance(promote.get(k).getData(),  promote.get(j).getData()));
+						candidate_cost += Math.min(KMAC.editDistance(promote.get(k).getData(), promote.get(i).getData()), KMAC.editDistance(promote.get(k).getData(),  promote.get(j).getData()));
 					}
 				}
 				if (candidate_cost < cost) {
@@ -835,7 +835,7 @@ public class MTree {
 		double cost = 0.0;
 		for (int i = 0; i < promote.size(); i++) {
 			if (i != arg1 && i != arg2) {
-				cost += Math.min(KMAC1.editDistance(promote.get(i).getData(), promote.get(arg1).getData()), KMAC1.editDistance(promote.get(i).getData(), promote.get(arg2).getData()));
+				cost += Math.min(KMAC.editDistance(promote.get(i).getData(), promote.get(arg1).getData()), KMAC.editDistance(promote.get(i).getData(), promote.get(arg2).getData()));
 			}
 		}
 		// cost initialized to be cost using arg1 and arg2
@@ -849,8 +849,8 @@ public class MTree {
 					candidate_cost = 0.0;
 					for (int j = 0; j < promote.size(); j++) {
 						if (j != i && j != arg2) {
-							candidate_cost += Math.min(KMAC1.editDistance(promote.get(i).getData(), promote.get(j).getData()), 
-									KMAC1.editDistance(promote.get(j).getData(), promote.get(arg2).getData()));
+							candidate_cost += Math.min(KMAC.editDistance(promote.get(i).getData(), promote.get(j).getData()), 
+									KMAC.editDistance(promote.get(j).getData(), promote.get(arg2).getData()));
 						}
 					}
 					if (candidate_cost < cost) {
@@ -864,8 +864,8 @@ public class MTree {
 					candidate_cost = 0.0;
 					for (int j = 0; j < promote.size(); j++) {
 						if (j != i && j != arg1) {
-							candidate_cost += Math.min(KMAC1.editDistance(promote.get(i).getData(), promote.get(j).getData()),
-									KMAC1.editDistance(promote.get(j).getData(), promote.get(arg1).getData()));
+							candidate_cost += Math.min(KMAC.editDistance(promote.get(i).getData(), promote.get(j).getData()),
+									KMAC.editDistance(promote.get(j).getData(), promote.get(arg1).getData()));
 						}
 					}
 					if (candidate_cost < cost) {
@@ -891,7 +891,7 @@ public class MTree {
 		ArrayList<Kmer> inRange = new ArrayList<Kmer>();
 		if (!n.isLeaf()) {
 			for (TreeObject o: n.getObjects()) {
-				double ktd = KMAC1.editDistance(o.getData(), s);
+				double ktd = KMAC.editDistance(o.getData(), s);
 				if (ktd <= r) {
 					inRange.add(o.getData());
 				}
@@ -906,7 +906,7 @@ public class MTree {
 		}
 		else {
 			for (TreeObject o: n.getObjects()) {
-				if (KMAC1.editDistance(o.getData(), s) <= r) {
+				if (KMAC.editDistance(o.getData(), s) <= r) {
 					inRange.add(o.getData());
 				}
 			}

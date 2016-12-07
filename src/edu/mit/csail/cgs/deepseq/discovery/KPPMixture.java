@@ -25,10 +25,10 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.*;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerSet;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerCluster;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0.KmerCluster;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup0;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0.MotifThreshold;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0;
 import edu.mit.csail.cgs.deepseq.features.*;
 import edu.mit.csail.cgs.deepseq.multicond.MultiIndependentMixtureCounts;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
@@ -126,7 +126,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private FileWriter logFileWriter;
 
 	/** Kmer motif engine */
-	private KMAC kmac = null;
+	private KMAC0 kmac = null;
 	private boolean kmerPreDefined = false;
 	
 	public KPPMixture(Genome g, 
@@ -234,7 +234,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			File kFile = new File(kmerFile);
 			if(kFile.isFile()){
 				KmerSet kmerset = new KmerSet(kFile);
-	        	kmac = new KMAC(kmerset, config, outName);
+	        	kmac = new KMAC0(kmerset, config, outName);
 			}
     	}
     	
@@ -3561,7 +3561,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		if (signalFeatures.isEmpty())
     		return -2;
     	System.out.println("Loading genome sequences ...");
-		kmac = new KMAC(gen, config.cache_genome, config.use_db_genome, config.genome_path, config, outName);
+		kmac = new KMAC0(gen, config.cache_genome, config.use_db_genome, config.genome_path, config, outName);
 		long tic = System.currentTimeMillis();
 
 		// setup lightweight genome cache
@@ -4303,7 +4303,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             				KmerCluster c = clusters.get(j);
             				if (c.alignedKmers.isEmpty())
             					continue;
-            				KMAC kmac_local = new KMAC(config, outName);
+            				KMAC0 kmac_local = new KMAC0(config, outName);
             				kmac_local.setTotalSeqCount(kmac.getPosSeqCount(), kmac.getNegSeqCount());
             				kmac_local.setSequenceWeights(kmac.getSequenceWeights());
             				kmac_local.updateEngine(c.alignedKmers);

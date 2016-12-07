@@ -13,7 +13,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0;
 
 /**
  * This motif formatter is to re-format HMS output motif to STAMP format
@@ -68,14 +68,14 @@ public class MotifFormatter {
 			sb.append(p).append(" ");
 			int maxBase = 0;
 			float maxCount=0;
-			for (int b=0;b<KMAC.LETTERS.length;b++){
+			for (int b=0;b<KMAC0.LETTERS.length;b++){
 				sb.append(String.format("%.5f ", pfm[p][b]));
 				if (maxCount<pfm[p][b]){
 					maxCount=pfm[p][b];
 					maxBase = b;
 				}
 			}
-			sb.append(KMAC.LETTERS[maxBase]).append("\n");
+			sb.append(KMAC0.LETTERS[maxBase]).append("\n");
 		}
 		sb.append("XX\n\n");
 		return sb.toString();

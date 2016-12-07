@@ -10,7 +10,7 @@ import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
@@ -263,11 +263,11 @@ public class PairwiseOverlap{
 			    		m2.remove(key);
 			    	}
 		    	}
-		    	double hgp = KMAC.computeHGP(t1, t2, c1, c2);
+		    	double hgp = KMAC0.computeHGP(t1, t2, c1, c2);
 		    	if (hgp<p)
 		    		sb.append(String.format("%s\t%d\t%d\t%.1f\t1\n", key, c1, c2, hgp));	  
 		    	else{
-		    		hgp = KMAC.computeHGP(t2, t1, c2, c1);
+		    		hgp = KMAC0.computeHGP(t2, t1, c2, c1);
 			    	if (hgp<p)
 			    		sb.append(String.format("%s\t%d\t%d\t%.1f\t2\n", key, c1, c2, hgp));	 
 		    	}
@@ -275,7 +275,7 @@ public class PairwiseOverlap{
 		    }
 		    for (String key:m2.keySet()){
 		    	int c2 = m2.get(key);
-		    	double hgp = KMAC.computeHGP(t2, t1, c2, 0);
+		    	double hgp = KMAC0.computeHGP(t2, t1, c2, 0);
 		    	if (hgp<p)
 		    		sb.append(String.format("%s\t%d\t%d\t%.1f\t2\n", key, 0, c2, hgp));	
 		    }
