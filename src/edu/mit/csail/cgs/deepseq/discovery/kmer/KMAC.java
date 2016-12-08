@@ -3091,41 +3091,43 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			CommonUtils.writeFile(outName+".all.PFM_HOMER.txt", pfm_homer_sb.toString());
 
 		// output HTML report
-		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table, td{border-color: #600;border-style: solid;} table{border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} td{margin: 0;padding: 4px;border-width: 1px 1px 0 0;} /* ]]> */</style>");
+		boolean isGEM = !this.standalone && eventCounts!=null;
+		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table.table {border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} th,td{border-color: #600;border-style: solid; margin: 0;padding: 4px;border-width: 1px 1px 1px 1px;} table.noborder, th.noborder, td.noborder{border: 0px solid black;}/* ]]> */</style>");
 		html.append("<script language='javascript' type='text/javascript'><!--\nfunction popitup(url) {	newwindow=window.open(url,'name','height=75,width=400');	if (window.focus) {newwindow.focus()}	return false;}// --></script>");
 		// Name of the analysis
-		html.append("<table><th bgcolor='#A8CFFF' colspan=2><font size='5'>");
+		html.append("\n<center><table class=\"noborder\"><th bgcolor='#A8CFFF' colspan=2 class=\"noborder\"><font size='5'>");
+		html.append(isGEM?"GEM/":"").append("KMAC results: ");
 		html.append(name).append("</font></th>");
 		// Links to result files
-		html.append("<tr>");
-		if (!this.standalone && eventCounts!=null){
-			html.append("<td valign='top'>");
-			html.append("<br><b>Binding Event Predictions</b>:<p>");
+		html.append("\n<tr>");
+		if (isGEM){
+			html.append("<td valign='top' class=\"noborder\">");
+			html.append("<br><b>Binding Event calling</b>:<p>");
 			html.append("<a href='"+name+"_GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
 			html.append("<br><a href='"+name+"_GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
 			html.append("<br><a href='"+name+"_GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
 			html.append("<p>Read distribution<br><img src='"+name.substring(0,name.length()-2)+"_All_Read_Distributions.png' width='350'><hr>");
-			html.append("</td><td>");
+			html.append("</td>\n<td class=\"noborder\">");
 		}
 		else{
-			html.append("<td valign='top' colspan=2>");
+			html.append("\n<td valign='top' colspan=2 class=\"noborder\">");
 		}
-		html.append("<p><b>Motif Discovery Results</b>:<p>");
+		html.append("<p><b>Motif Discovery</b>:<p>");
 		html.append(String.format("<p>Total number of sequences: %d+/%d-", posSeqCount, negSeqCount));
-		html.append("<p><ul><li>KSM files:");
+		html.append("<br><ul><li>KSM files:");
 		for (MotifCluster c:clusters)
 			html.append(" <a href='"+name+".m"+c.clusterId+".KSM.txt'>m"+c.clusterId+"</a>");
 		html.append("<li><a href='"+name+".KSM_Alignements.txt'>KSM alignment file</a>");
 		html.append("<li><a href='"+name+".all.PFM.txt'>All motif PFMs</a></ul></td></tr>");
-		html.append("<table>\n");
+		html.append("<table></center>\n");
 		
-		html.append("<table border=1>");
-		html.append("<th>High scoring k-mers of the KSM motif</th><th>KSM motif logo</th><th>Aligned bound sequences</th>");
-		html.append("<th>PWM and spatial distribution<br>(format: position,motif_occurences)</th>");
+		html.append("<table border=1 class=\"table\">");
+		html.append("<th>High scoring k-mers of the KSM motif</th><th>KSM motif</th><th>Aligned bound sequences</th>");
+		html.append("<th>PWM and spatial distribution</th>");
 		
     	for (int j=0;j<clusters.size();j++){
-    		html.append("<tr><td>");
-    		html.append("<table border=1><th>K-mer</th><th>Motif</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
+    		html.append("\n<tr><td>");
+    		html.append("<table border=1 class=\"table\"><th>K-mer</th><th>Motif</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 	    	int leftmost_km = Integer.MAX_VALUE;
 	    	ArrayList<Kmer> outputKmers = new ArrayList<Kmer>();		
     		// clone kmers, needed to set clusterId
@@ -3559,7 +3561,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (!bitSeqWithKmer.get(s.id))
 				continue;
     		KmerGroup[] matches = findKsmGroupHits(s.seq, s.rc);
-    		if (matches.length==0)
+    		if (matches==null)
     			continue;
     		else
     			bestKG = matches[0];
@@ -5423,7 +5425,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (!bitSeqWithKmer.get(s.id))
 				continue;
 			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
-			if (kgs.length==0)
+			if (kgs==null)
 				posSeqScores[i]=0;
 			else
 				posSeqScores[i]=kgs[0].getScore();

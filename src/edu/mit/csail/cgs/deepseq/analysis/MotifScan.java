@@ -83,7 +83,7 @@ public class MotifScan {
 		ArrayList<MotifInstance> instances = null;
 		ArrayList<Integer> motifLengths = new ArrayList<Integer>();
 		ArrayList<Double> motifThresholds = new ArrayList<Double>();
-		
+		String header = null;
 		String pfm_fle = Args.parseString(args, "pfm", null);
 		if (pfm_fle!=null){		// Load multiple PWMs
 			StringBuilder sb_header = new StringBuilder();
@@ -113,6 +113,7 @@ public class MotifScan {
 		    System.out.println(sb_header.toString());
 
 			instances = getPWMInstances(seqs, pwms, motifThresholds);
+			header = "#sequence:"+seqs.length+"; motif:"+pwms.size();
 		}
 		
 	    // search for KSM motif matches
@@ -139,6 +140,7 @@ public class MotifScan {
 				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
 			}
 			instances = getKSMInstances(seqs, kmacs, knames);
+			header = "#sequence:"+seqs.length+"; motif:"+kmacs.size();
 		}
 		
 		// search for exact k-mer match
@@ -148,19 +150,20 @@ public class MotifScan {
 		    
 		    motifLengths.add(kmer.length());
 		    
-		    sb_header.append("# Motif Information\n");
+		    sb_header.append("# K-mer Information\n");
 		    sb_header.append("#ID\tLetters\tWidth\n");
 		    sb_header.append("#").append(0).append("\t").append(kmer).append("\t").append(kmer.length()).append("\n");
 		    sb_header.append("#");
 		    System.out.println(sb_header.toString());
 		    
 			instances = getKmerInstances(seqs, kmer);
+			header = "#sequence:"+seqs.length+"; motif:1";
 		}
 		
 	    // output
 	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
     	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
-    			"#Motif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n"); 	// write first, overwrite if the file exists
+    			header+"\n#Motif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n"); 	// write first, overwrite if the file exists
 		StringBuilder sb = new StringBuilder();
 		Genome g = CommonUtils.parseGenome(args);
 	    for (int i=0;i<instances.size();i++){
@@ -243,7 +246,7 @@ public class MotifScan {
 	    			System.out.println();
 	    		}
 	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
-	    		if (kgs.length==0)
+	    		if (kgs==null)
 	    			continue;
 	    		for (int i=0;i<kgs.length;i++){
 	    			KmerGroup kg = kgs[i];

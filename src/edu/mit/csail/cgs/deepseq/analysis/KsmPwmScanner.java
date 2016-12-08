@@ -62,7 +62,7 @@ public class KsmPwmScanner {
 	
 	public KmerGroup getBestKG (String seq, String seq_rc){
 		KmerGroup[] kgs = kEngine.findKsmGroupHits(seq, seq_rc);
-		if (kgs.length==0)
+		if (kgs==null)
 			return null;
 		else
 			return kgs[0];
