@@ -3122,17 +3122,17 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		html.append("<table></center>\n");
 		
 		html.append("<table border=1 class=\"table\">");
-		html.append("<th>High scoring k-mers of the KSM motif</th><th>KSM motif</th><th>Aligned bound sequences</th>");
+		html.append("<th>Motif ID</th><th>High scoring k-mers of the KSM motif</th><th>KSM motif</th><th>Aligned bound sequences</th>");
 		html.append("<th>PWM and spatial distribution</th>");
 		
     	for (int j=0;j<clusters.size();j++){
-    		html.append("\n<tr><td>");
+    		MotifCluster c = clusters.get(j);
+    		html.append("\n<tr><td align='center'>m"+c.clusterId+"</td><td>");
     		html.append("<table border=1 class=\"table\"><th>K-mer</th><th>Motif</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 	    	int leftmost_km = Integer.MAX_VALUE;
 	    	ArrayList<Kmer> outputKmers = new ArrayList<Kmer>();		
     		// clone kmers, needed to set clusterId
     		ArrayList<Kmer> tmp = new ArrayList<Kmer>();
-    		MotifCluster c = clusters.get(j);
     		ArrayList<Kmer> alignedKmers = c.alignedKmers;		// each kmer in diff cluster has been clone, would not overwrite
     		skipKmer: for (int i=0;i<alignedKmers.size();i++){
 	    		Kmer km = alignedKmers.get(i);
@@ -3177,12 +3177,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			html.append("</td><td valign='top'><a href='"+prefix+".KSM.txt'>"+"<img src='"+prefix+".KSM.png"+"' height='300' width='200'></a>");
     		html.append(String.format("<br>%.2f, hit=%d+/%d-, auc=%.1f</td>", 
     				c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.motif_significance));
-			html.append("<td valign='top'><img src='"+prefix+".sequenceHits.png"+"' height='300' width='200'></td>");
+			html.append("<td valign='top' align='center'><img src='"+prefix+".sequenceHits.png"+"' height='300' width='"+c.k*30+"'></td>");
 			if (c.wm==null){
 				html.append("<td</td></tr>");
 				continue;
 			}
-    		html.append("<td align='centered' valign='bottom'><img src='"+prefix+".PWM.png"+"'>");
+    		html.append("<td align='center' valign='bottom'><img src='"+prefix+".PWM.png"+"'>");
     		html.append("<br><img src='"+prefix+".PWM_rc.png"+"'><br>");
     		prefix = name+".Spatial_dist.m0_m"+c.clusterId;
     		html.append("<br><a href='"+prefix+".txt'>"+"<img src='"+prefix+".png"+"' width='220'></a>");
