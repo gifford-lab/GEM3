@@ -86,8 +86,7 @@ public class GeneAnnotationAnalysis {
 				.append(tad.getWidth()).append("\t")
 				.append(tad2genes.get(tad).size()).append("\t")
 				.append(tad.getWidth()/tad2genes.get(tad).size()).append("\t")
-				.append(tad2peaks.get(tad).size())
-				.append("\n");
+				.append(tad2peaks.containsKey(tad)?tad2peaks.get(tad).size():0).append("\n");
 			else
 				sb.append(g.name).append("\t").append(0).append("\t")
 				.append(0).append("\t").append(0).append(0).append("\n");
