@@ -59,6 +59,23 @@ public class GeneAnnotationAnalysis {
 				}
 			}
 		}
+		
+		String peak_file = Args.parseString(args, "peak", null);
+		ArrayList<Region> peaks = CommonUtils.load_BED_regions(genome, peak_file).car();
+		HashMap<Region, ArrayList<Region>> tad2peaks = new HashMap<Region, ArrayList<Region>> ();
+		for (int i=0;i<peaks.size();i++){
+			Region p = peaks.get(i);
+			for (int j=0;j<tads.size();j++){
+				Region tad = tads.get(j);
+				if (tad.contains(p)){
+					if(!tad2peaks.containsKey(tad))
+						tad2peaks.put(tad, new ArrayList<Region>());
+					tad2peaks.get(tad).add(p);
+					break;
+				}
+			}
+		}
+		
 		// output
 		StringBuilder sb = new StringBuilder();
 		for (int i=0;i<genes.size();i++){
@@ -68,10 +85,12 @@ public class GeneAnnotationAnalysis {
 				sb.append(g.name).append("\t").append(tad.toString()).append("\t")
 				.append(tad.getWidth()).append("\t")
 				.append(tad2genes.get(tad).size()).append("\t")
-				.append(tad.getWidth()/tad2genes.get(tad).size()).append("\n");
+				.append(tad.getWidth()/tad2genes.get(tad).size()).append("\t")
+				.append(tad2peaks.get(tad).size())
+				.append("\n");
 			else
 				sb.append(g.name).append("\t").append(0).append("\t")
-				.append(0).append("\t").append(0).append("\n");
+				.append(0).append("\t").append(0).append(0).append("\n");
 		}
 		CommonUtils.writeFile(new File(gene_anno).getName().replace(".txt", ".TAD_anno.txt"), sb.toString());
 		System.out.println("Done!");

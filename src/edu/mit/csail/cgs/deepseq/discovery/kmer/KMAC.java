@@ -3128,7 +3128,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
     	for (int j=0;j<clusters.size();j++){
     		MotifCluster c = clusters.get(j);
     		html.append("\n<tr><td align='center'>m"+c.clusterId+"</td><td>");
-    		html.append("<table border=1 class=\"table\"><th>K-mer</th><th>Motif</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
+    		html.append("<table border=1 class=\"table\"><th>K-mer</th><th>Offset</th><th>Pos Hit</th><th>Neg Hit</th><th>HGP</th>");
 	    	int leftmost_km = Integer.MAX_VALUE;
 	    	ArrayList<Kmer> outputKmers = new ArrayList<Kmer>();		
     		// clone kmers, needed to set clusterId
@@ -3169,8 +3169,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					}
 				}
 				html.append("</font></b></td>");
-				html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
-						km.getClusterId(), km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
+				html.append(String.format("<td>%d</td><td>%d</td><td>%d</td><td>%.1f</td></tr>", 
+						km.getKmerStartOffset(), km.getPosHitCount(), km.getNegHitCount(), km.getHgp()));
 			}
 			html.append("</table>");
 			String prefix = name+".m"+c.clusterId;
