@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup0;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
@@ -51,8 +52,8 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 		this.noiseFraction = noiseFraction;
 	}
 	
-	protected KmerGroup0 kmerGroup;
-	public KmerGroup0 getKmerGroup() { return kmerGroup; }
+	protected KmerGroup kmerGroup;
+	public KmerGroup getKmerGroup() { return kmerGroup; }
 	protected char kmerStrand;
 	public char getKmerStrand(){return kmerStrand;}
 	protected double enrichedKmerHGPLog10=99;
@@ -454,7 +455,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
 //        		header.append("\t");
         }
 
-    	header.append("KmerGroup\tMotifId\tKG_hgp\tStrand");
+    	header.append("KmerGroup\tMotifId\tKG_score\tStrand");
     	if (boundSequence!=null && !boundSequence.trim().equals(""))
     		header.append("\t").append("BoundSequence");
         
@@ -515,7 +516,7 @@ public class ComponentFeature extends Feature  implements Comparable<ComponentFe
     		result.append(String.format("%7.2f\t", getNoiseFraction()));
         }
         if (kmerGroup!=null){
-        	result.append(String.format("%s_%d/%d\t%d\t%.2f\t%s", kmerGroup.getBestKmer().getKmerStr(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getHgp(), kmerStrand));
+        	result.append(String.format("%s_%d/%d\t%d\t%.2f\t%s", kmerGroup.getCoveredSequence(),kmerGroup.getGroupHitCount(), kmerGroup.getGroupNegHitCount(), kmerGroup.getClusterId(), kmerGroup.getScore(), kmerStrand));
             if (boundSequence!=null && !boundSequence.trim().equals(""))
             	result.append("\t").append(boundSequence);
         }

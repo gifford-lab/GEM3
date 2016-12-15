@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class GEM {
-	public final static String GEM_VERSION = "2.7";
+	public final static String GEM_VERSION = "3.0";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -225,9 +225,9 @@ public class GEM {
 
     	currentFolder = new File(filePrefix).getParentFile().getParentFile();
     	path = new File(currentFolder, prefix).getAbsolutePath();
-        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
+        CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.txt", path+".GPS_events.txt");
         if (Args.parseFlags(args).contains("outNP"))
-        	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GPS_events.narrowPeak");
+        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.narrowPeak", path+".GPS_events.narrowPeak");
 
     
         /**
@@ -245,15 +245,15 @@ public class GEM {
 	            else if (returnValue == -2)
 	            	System.out.println("\nBinding event can not be found!\n\nGPS analysis results are printed to:");
 	            
-	            System.out.println(path+"_GPS_events.txt\n"+
+	            System.out.println(path+".GPS_events.txt\n"+
 		        		path+"_result.htm\n" +
 		        		path+"_outputs (folder with all other files)\n");
 		        
-		        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
+		        String htmName = prefix+"_outputs/"+prefix+"_"+round+".results.htm";
 		        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 		        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
 		        	htmName+"'>click here for GPS Result</a>.</BODY></HTML>";
-		        CommonUtils.writeFile(path+"_result.htm", html);
+		        CommonUtils.writeFile(path+".results.htm", html);
 	            return;
 	        }
 	        	
@@ -283,29 +283,25 @@ public class GEM {
 
         if (run_gem){
 	        System.out.println("\nFinished! GEM analysis results are printed to:\n"+
-	        		path+"_GEM_events.txt\n"+
-	        		path+"_KSM.txt\n"+
-	        		path+"_PFM.txt\n"+
-	        		path+"_result.htm\n" +
+	        		path+".GEM_events.txt\n"+
+	        		path+".results.htm\n" +
 	        		path+"_outputs (folder with all other files)\n");
-	        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GEM_events.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.txt", path+".GEM_events.txt");
 	        if (Args.parseFlags(args).contains("outNP"))
-	        	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GEM_events.narrowPeak");
-	        CommonUtils.copyFile(filePrefix+"_"+round+"_PFM.txt", path+"_PFM.txt");
-	        CommonUtils.copyFile(filePrefix+"_"+round+"_KSM.txt", path+"_KSM.txt");
-	        String htmName = prefix+"_outputs/"+prefix+"_"+round+"_result.htm";
+	        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.narrowPeak", path+".GEM_events.narrowPeak");
+	        String htmName = prefix+"_outputs/"+prefix+"_"+round+".results.htm";
 	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 	        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
 	        	htmName+"'>click here for GEM Result</a>.</BODY></HTML>";
-	        CommonUtils.writeFile(path+"_result.htm", html);
+	        CommonUtils.writeFile(path+".results.htm", html);
         }
         else{
             System.out.println("\nFinished! GPS analysis results are printed to:\n"+
-            		path+"_GPS_events.txt\n"+
+            		path+".GPS_events.txt\n"+
 	        		path+"_outputs (folder with all other files)\n");
-	        CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.txt", path+"_GPS_events.txt");
+	        CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.txt", path+".GPS_events.txt");
 	        if (Args.parseFlags(args).contains("outNP"))
-	        	CommonUtils.copyFile(filePrefix+"_"+round+"_GEM_events.narrowPeak", path+"_GPS_events.narrowPeak");
+	        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.narrowPeak", path+".GPS_events.narrowPeak");
         }
     }
     	

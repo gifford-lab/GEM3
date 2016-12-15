@@ -4,6 +4,7 @@ import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.deepseq.BindingModel;
 import edu.mit.csail.cgs.deepseq.ReadHit;
 import edu.mit.csail.cgs.deepseq.StrandedBase;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup0;
 
 /**
@@ -24,9 +25,9 @@ public class BindingComponent implements Comparable<BindingComponent>{
 	private int old_index;
 	private double alpha;
 	private double noiseFraction;
-	private KmerGroup0 kmerGroup;
-	public KmerGroup0 getKmerGroup() { return kmerGroup; }
-	public void setKmerGroup(KmerGroup0 kmer) { this.kmerGroup = kmer;}
+	private KmerGroup kmerGroup;
+	public KmerGroup getKmerGroup() { return kmerGroup; }
+	public void setKmerGroup(KmerGroup kmer) { this.kmerGroup = kmer;}
 	private String boundSequence;						// the aligned sequence string flanking kmer underlying this event position
 	public String getBoundSequence(){return boundSequence;}
 	public void setBoundSequence(String boundSequence){this.boundSequence = boundSequence;}

@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import javax.imageio.ImageIO;
@@ -32,6 +33,7 @@ import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.analysis.MotifInstance;
 import edu.mit.csail.cgs.deepseq.analysis.MotifScan;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0.KmerCluster;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree.MTreeNode;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree.TreeObject;
@@ -69,7 +71,9 @@ public class KMAC {
 	private String outName, params;
 	private boolean isDebugging = false;
 	public void setIsDebugging(){isDebugging = true;}
-	
+	/** region-->index_seqsNeg for negative sequences */
+	private TreeMap<Region, Integer> neg_region_map;
+
 	private double[] profile;
 	private ArrayList<Sequence> seqList;
 	private ArrayList<Sequence> seqListNeg;
@@ -84,6 +88,7 @@ public class KMAC {
 	private String[] seqsNeg;		// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
 	public int getNegSeqCount(){return negSeqCount;}
+	public int getPosSeqCount(){return posSeqCount;}
     private int posSeqCount;
     private int negSeqCount;
     private double posNegSeqRatio;
@@ -102,7 +107,7 @@ public class KMAC {
 //	private ArrayList<ArrayList<Kmer>> reverse = new ArrayList<ArrayList<Kmer>>();
 //	private int negPositionPadding = 0;  		// negPositionPadding is used for indexing because seed_seq may be slightly negative in findIndexedKsmGroupHits().
 
-	private HashMap<Integer, HashMap<String, Kmer>> allKmerMap = new HashMap<Integer, HashMap<String, Kmer>>();
+	private HashMap<Integer, HashMap<String, Kmer>> allKmerMap = null;
 //	private TreeMap<Integer, ArrayList<Kmer>> k2kmers = new TreeMap<Integer, ArrayList<Kmer>>();
 
 	
@@ -131,9 +136,6 @@ public class KMAC {
 	public ArrayList<MotifCluster> getMotifClusters(){
 		return clusters;
 	}	
-	public KMAC(){
-	}
-
 	public void setTotalSeqCounts(int posSeqCount, int negSeqCount){
 		this.posSeqCount = posSeqCount;
 		this.negSeqCount = negSeqCount;
@@ -300,7 +302,12 @@ public class KMAC {
 		}
 		System.out.println();
 	}
-	
+	/**
+	 * Stand-alone KMAC constructor
+	 */
+	public KMAC(){
+	}
+
 	public KMAC(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
 //		setUseKmerWeight();
 
@@ -323,35 +330,40 @@ public class KMAC {
 			updateEngine(kmers);
 		}
 	}
-//	/**
-//	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
-//	 * At the same time, retrieve negative sequences (for only once, no caching)
-//	 * @param regions
-//	 */
-//	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions, int negRegionDistance){
-//		this.negRegionDistance = negRegionDistance;
-//		double gcRatio=0;
-//		if (!seqgen.isRegionCached()){
-//			seqsNeg = seqgen.setupRegionCache_new(cacheRegions, negativeRegions);
-//			neg_region_map = new TreeMap<Region, Integer>();
-//			for (int i=0;i<negativeRegions.size();i++){
-//				neg_region_map.put(negativeRegions.get(i), i);
-//			}
-//			// count cg-content
-//			int gcCount = 0;
-//			for (String s:seqsNeg){
-//				for (char c:s.toCharArray())
-//					if (c=='C'||c=='G')
-//						gcCount ++;
-//			}
-//			gcRatio = (double)gcCount/seqsNeg.length/seqsNeg[0].length();
-//			bg[0]=0.5-gcRatio/2; 
-//        	bg[1]=gcRatio/2; 
-//        	bg[2]=bg[1]; 
-//        	bg[3]=bg[0];
-//		}
-//		return gcRatio;
-//	}
+	/**
+	 * Set up the light weight genome cache. Only load the sequences for the specified regions.<br>
+	 * At the same time, retrieve negative sequences (for only once, no caching)
+	 * @param regions
+	 */
+	public double setupRegionCache(ArrayList<Region> cacheRegions, ArrayList<Region> negativeRegions, int negRegionDistance){
+		this.negRegionDistance = negRegionDistance;
+		double gcRatio=0;
+		if (!seqgen.isRegionCached()){
+			seqsNeg = seqgen.setupRegionCache_new(cacheRegions, negativeRegions);
+			neg_region_map = new TreeMap<Region, Integer>();
+			for (int i=0;i<negativeRegions.size();i++){
+				neg_region_map.put(negativeRegions.get(i), i);
+			}
+			// count cg-content
+			int gcCount = 0;
+			for (String s:seqsNeg){
+				for (char c:s.toCharArray())
+					if (c=='C'||c=='G')
+						gcCount ++;
+			}
+			gcRatio = (double)gcCount/seqsNeg.length/seqsNeg[0].length();
+			bg[0]=0.5-gcRatio/2; 
+        	bg[1]=gcRatio/2; 
+        	bg[2]=bg[1]; 
+        	bg[3]=bg[0];
+		}
+		return gcRatio;
+	}
+
+	public void updateOutPrefix(String outPrefix){
+	    this.outName = outPrefix;
+	}
+
 	/**
 	 * Load pos/neg test sequences based on event positions, run from GEM<br>
 	 * Skip repeat masked sequences according to config.repeat_fraction, otherwise convert repeat characters into 'N'
@@ -527,6 +539,7 @@ public class KMAC {
 		/**
 		 * For each k, generate exact k-mers and gapped kmers, density clustering, KMAC
 		 */
+		allKmerMap = new HashMap<Integer, HashMap<String, Kmer>>();
 		for (int k=k_min;k<=k_max;k++){
 			System.out.println("\nmemory used = "+
 			(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
@@ -989,13 +1002,13 @@ public class KMAC {
 			html.append(name).append("</font></th>");
 			html.append("<tr><td valign='top' width='500'><br>");
 			if (!this.standalone && eventCounts!=null){
-				html.append("<a href='"+name+"_GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
-				html.append("<br><a href='"+name+"_GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
-				html.append("<br><a href='"+name+"_GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
+				html.append("<a href='"+name+".GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
+				html.append("<br><a href='"+name+".GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
+				html.append("<br><a href='"+name+".GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
 			}
 			html.append("<p><p>Motif can not be found!<p>");
 			html.append("</td></tr></table>");
-			CommonUtils.writeFile(outName+"_result.htm", html.toString());
+			CommonUtils.writeFile(outName+".results.htm", html.toString());
 			return;
 		}
 		
@@ -3095,24 +3108,30 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		StringBuffer html = new StringBuffer("<style type='text/css'>/* <![CDATA[ */ table.table {border-width: 0 0 1px 1px; border-spacing: 0;border-collapse: collapse;} th,td{border-color: #600;border-style: solid; margin: 0;padding: 4px;border-width: 1px 1px 1px 1px;} table.noborder, th.noborder, td.noborder{border: 0px solid black;}/* ]]> */</style>");
 		html.append("<script language='javascript' type='text/javascript'><!--\nfunction popitup(url) {	newwindow=window.open(url,'name','height=75,width=400');	if (window.focus) {newwindow.focus()}	return false;}// --></script>");
 		// Name of the analysis
-		html.append("\n<center><table class=\"noborder\"><th bgcolor='#A8CFFF' colspan=2 class=\"noborder\"><font size='5'>");
+		html.append("\n<center><table class=\"noborder\"><th bgcolor='#A8CFFF' colspan=3 class=\"noborder\"><font size='5'>");
 		html.append(isGEM?"GEM/":"").append("KMAC results: ");
 		html.append(name).append("</font></th>");
 		// Links to result files
 		html.append("\n<tr>");
 		if (isGEM){
 			html.append("<td valign='top' class=\"noborder\">");
-			html.append("<br><b>Binding Event calling</b>:<p>");
-			html.append("<a href='"+name+"_GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
-			html.append("<br><a href='"+name+"_GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
-			html.append("<br><a href='"+name+"_GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
-			html.append("<p>Read distribution<br><img src='"+name.substring(0,name.length()-2)+"_All_Read_Distributions.png' width='350'><hr>");
-			html.append("</td>\n<td class=\"noborder\">");
+			html.append("<b>Binding Event calling</b>:<p>");
+			html.append("<a href='"+name+".GEM_events.txt'>Significant Events</a>&nbsp;&nbsp;: "+eventCounts[0]);
+			if (eventCounts[1]!=0)
+				html.append("<br><a href='"+name+".GEM_insignificant.txt'>Insignificant Events</a>: "+eventCounts[1]);
+			else
+				html.append("<br>Insignificant Events: 0");
+			if (eventCounts[2]!=0)
+				html.append("<br><a href='"+name+".GEM_filtered.txt'>Filtered Events</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: "+eventCounts[2]);
+			else
+				html.append("<br>Filtered Events: 0");
+			html.append("</td>\n<td valign='top' class=\"noborder\">Read distribution<br><img src='"+name.substring(0,name.length()-2)+".all.Read_Distributions.png' width='350'><hr>");
+			html.append("</td>\n<td valign='top' class=\"noborder\">");
 		}
 		else{
-			html.append("\n<td valign='top' colspan=2 class=\"noborder\">");
+			html.append("\n<td colspan=3 class=\"noborder\">");
 		}
-		html.append("<p><b>Motif Discovery</b>:<p>");
+		html.append("<b>Motif Discovery</b>:<p>");
 		html.append(String.format("<p>Total number of sequences: %d+/%d-", posSeqCount, negSeqCount));
 		html.append("<br><ul><li>KSM files:");
 		for (MotifCluster c:clusters)
@@ -3193,7 +3212,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		html.append("</table>");
 		html.append("</td></tr></table>");
 		html.append("<p>"+params+"<p>");
-		CommonUtils.writeFile(outName+"_result.htm", html.toString());
+		CommonUtils.writeFile(outName+".results.htm", html.toString());
 		
 //		for (int i=0;i<Math.min(clusters.size(), 20);i++){
 //			ArrayList<Kmer> clusterKmers = clusters.get(i).alignedKmers;
@@ -5022,7 +5041,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			cluster.k = k;
 			return cluster;
 		}
-		
+		public ArrayList<Kmer> getAlignedKmers(){
+			return alignedKmers;
+		}
 		/**
 		 * Sort by PWM HGP, then by KSM HGP
 		 */
@@ -5148,7 +5169,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	}
 	
 	/**
-	 * Compute matched site (KmerGroup) significance score [ OR or -log10(hgp) ]<br>More significant, higher score
+	 * Compute matched site (KmerGroup) significance score [ OR or -log10(hgp) ] based on config.use_odds_ratio <br>More significant, higher score
 	 */	
 	public double computeSiteSignificanceScore(double posHitCount, double negHitCount){
 		if (config.use_odds_ratio)
@@ -5826,9 +5847,25 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int posHitGroupCount;
 		int negHitGroupCount;
 		boolean isKmersSorted=false;
-		/** kmerGroup score: -log10(hgp) using the positive/negative sequences */
+		
+		/** KmerGroup significance score [ OR or -log10(hgp) ] based on config.use_odds_ratio  */
 		double kg_score;
-
+		public double getScore() {return kg_score;	}
+		public void setScore(double score) {this.kg_score = score;	}
+		
+		public KmerGroup(ArrayList<Kmer> kmers, int bs, int posSeqCount, int negSeqCount){
+			this.bs = bs;
+			this.kmers = kmers;
+			Collections.sort(this.kmers);
+			BitSet b_pos = new BitSet(posSeqCount);
+			BitSet b_neg = new BitSet(negSeqCount);
+	 		for (Kmer km:kmers){
+	 			b_pos.or(km.posBits);
+	 			b_neg.or(km.negBits);
+			}
+	 		posHitGroupCount = b_pos.cardinality();
+			negHitGroupCount = b_neg.cardinality();
+		}	
 		public KmerGroup(ArrayList<Kmer> kmers, int bs){
 			this.bs = bs;
 			this.kmers = kmers;
@@ -5862,11 +5899,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
     		}
     		negHitGroupCount = b_neg.cardinality();
 		}
-		
-		/** hgp (log10) using the positive/negative sequences */
-		public double getScore() {return kg_score;	}
-		/** setScore, log10(hgp) using the positive/negative sequences */
-		public void setScore(double score) {this.kg_score = score;	}
 		
 		/** get the KG match end indices, relative to the sequence<br>
 		 * 	return the start of the leftmost k-mer, and the end of the rightmost k-mer
@@ -5998,43 +6030,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		}
 	}
 	
-	public static void main1(String[] args){
-		ArrayList<Integer> x_list = new ArrayList<Integer>();
-		ArrayList<Integer> same_list = new ArrayList<Integer>();
-		ArrayList<Integer> diff_list = new ArrayList<Integer>();
-		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(args[0]))));
-	        String line;
-	        String[]f = null;
-	        while((line = bin.readLine()) != null) { 
-	            f = line.trim().split("\t");
-	            if (f.length==3){
-	            	x_list.add(Integer.parseInt(f[0]));
-	            	same_list.add(Integer.parseInt(f[1]));
-	            	diff_list.add(Integer.parseInt(f[2]));
-	            }
-	        }			
-	        if (bin != null) {
-	            bin.close();
-	        }
-	    } catch (IOException e) {
-	    	System.err.println("Error when processing "+args[0]);
-	        e.printStackTrace(System.err);
-	    }
-	    int[] x = new int[x_list.size()];
-	    int[] same = new int[x_list.size()];
-	    int[] diff = new int[x_list.size()];
-	    for (int i=0;i<x.length;i++)
-	    	x[i] = x_list.get(i);
-	    for (int i=0;i<x.length;i++)
-	    	same[i] = same_list.get(i);
-	    for (int i=0;i<x.length;i++)
-	    	diff[i] = diff_list.get(i);
-	    KMAC kmf = new KMAC();
-	    kmf.plotMotifDistanceDistribution(x, same, diff, args[0]+".png");
-	}
-	
-	// options cMyc_cMyc cMyc_HeLa_61bp_GEM.fasta cMyc_HeLa_61bp_GEM_neg.fasta 5 8 CCACGTG
 	public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException{
 		long tic = System.currentTimeMillis();
 		ArrayList<String> pos_seqs = new ArrayList<String>();
