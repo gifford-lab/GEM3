@@ -14,8 +14,7 @@ import javax.security.auth.callback.*;
  *  <p>Calls throw IOException on network errors.
  *  Calls throw ClientException on other errors (authentication, authorization, invalid request ,etc.
  *
- *  <p>Client generally assumes that the hit positions are the 5' end of the
- *  hit. 
+ *  <p>Client generally assumes that the hit positions are the 5' end of the hit. 
  *
  * <p>Client IS NOT REENTRANT.  Do not overlap calls to a single Client object.
  *
