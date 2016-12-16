@@ -29,7 +29,7 @@ import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0.KmerCluster;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup0;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0.MotifThreshold;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifCluster;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0;
 import edu.mit.csail.cgs.deepseq.features.*;
@@ -4375,7 +4375,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            					if (strand=='-')
 	            						matchSeq = SequenceUtils.reverseComplement(matchSeq);
 	            					kms.add(new Kmer(matchSeq));
-	            					KmerGroup kg = kmac.new KmerGroup(kms, pos, kmac.getPosSeqCount(), kmac.getNegSeqCount());
+	            					KmerGroup kg = new KmerGroup(kms, pos, kmac.getPosSeqCount(), kmac.getNegSeqCount());
 	            					kg.setScore(max);
 	            					kg.setClusterId(j);
 	            					pp_kmer[pos]=kg;

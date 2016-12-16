@@ -99,17 +99,10 @@ public class KMAC {
     }
 	private int negRegionDistance;
 	/** region-->index for negative sequences */
-//	private TreeMap<Region, Integer> neg_region_map;
 	public String[] getPositiveSeqs(){return seqs;};
 	public double get_NP_ratio(){return (double)negSeqCount/posSeqCount;}
-	
-//	private ArrayList<ArrayList<Kmer>> forward = new ArrayList<ArrayList<Kmer>>();
-//	private ArrayList<ArrayList<Kmer>> reverse = new ArrayList<ArrayList<Kmer>>();
-//	private int negPositionPadding = 0;  		// negPositionPadding is used for indexing because seed_seq may be slightly negative in findIndexedKsmGroupHits().
 
 	private HashMap<Integer, HashMap<String, Kmer>> allKmerMap = null;
-//	private TreeMap<Integer, ArrayList<Kmer>> k2kmers = new TreeMap<Integer, ArrayList<Kmer>>();
-
 	
 	// AhoCorasick algorithm tree object for multi-pattern search
 	// if run in parallel, this instance variable should be move to the thread local environment
@@ -119,7 +112,6 @@ public class KMAC {
 	// to map the k-mer string from AhoCorasick tree to Kmer Object
 	private HashMap<String, Kmer[]> str2kmers = new HashMap<String, Kmer[]>();	
 	private HashMap<String, int[]> str2kmerOffsets = new HashMap<String, int[]>();
-//	private HashMap<String, boolean[]> str2kmerOrientation = new HashMap<String, boolean[]>();	
 	
 	public boolean isInitialized(){ return engineInitialized;}
 	
@@ -5835,200 +5827,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //		System.out.println(CommonUtils.timeElapsed(tic));
 //	}
 
-	/**
-	 * This KmerGroup class is used for recording the overlapping kmer instances mapped to the same binding position in a sequence<br>
-	 * This version is for KMAC1
-	 * @author yuchun
-	 */
-	public class KmerGroup implements Comparable<KmerGroup>{
-		ArrayList<Kmer> kmers;
-		int bs = 999;
-		int clusterId = -1;
-		int posHitGroupCount;
-		int negHitGroupCount;
-		boolean isKmersSorted=false;
-		
-		/** KmerGroup significance score [ OR or -log10(hgp) ] based on config.use_odds_ratio  */
-		double kg_score;
-		public double getScore() {return kg_score;	}
-		public void setScore(double score) {this.kg_score = score;	}
-		
-		public KmerGroup(ArrayList<Kmer> kmers, int bs, int posSeqCount, int negSeqCount){
-			this.bs = bs;
-			this.kmers = kmers;
-			Collections.sort(this.kmers);
-			BitSet b_pos = new BitSet(posSeqCount);
-			BitSet b_neg = new BitSet(negSeqCount);
-	 		for (Kmer km:kmers){
-	 			b_pos.or(km.posBits);
-	 			b_neg.or(km.negBits);
-			}
-	 		posHitGroupCount = b_pos.cardinality();
-			negHitGroupCount = b_neg.cardinality();
-		}	
-		public KmerGroup(ArrayList<Kmer> kmers, int bs){
-			this.bs = bs;
-			this.kmers = kmers;
-			BitSet b_pos = new BitSet(posSeqCount);
-			BitSet b_neg = new BitSet(negSeqCount);
-     		for (Kmer km:kmers){
-     			b_pos.or(km.posBits);
-     			b_neg.or(km.negBits);
-    		}
-     		posHitGroupCount = b_pos.cardinality();
-    		negHitGroupCount = b_neg.cardinality();
-		}		
-		public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights){
-			this.bs = bs;
-			this.kmers = kmers;			
-			BitSet b_pos = new BitSet(posSeqCount);
-			BitSet b_neg = new BitSet(negSeqCount);
-     		for (Kmer km:kmers){
-     			b_pos.or(km.posBits);
-     			b_neg.or(km.negBits);
-    		}
 
-    		if (weights==null){
-        		posHitGroupCount = b_pos.cardinality();
-    		}
-    		else{
-	    		double weight=0;
-	    		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
-	    			weight+=weights[i];
-	    		posHitGroupCount = (int)(weight);
-    		}
-    		negHitGroupCount = b_neg.cardinality();
-		}
-		
-		/** get the KG match end indices, relative to the sequence<br>
-		 * 	return the start of the leftmost k-mer, and the end of the rightmost k-mer
-		 * */
-		public Pair<Integer,Integer> getMatchEndIndices(){
-			int leftIdx = 999;
-			int rightIdx = -999;
-			for (Kmer km:kmers){
-				if (km.getKmerStartOffset()<leftIdx)
-					leftIdx = km.getKmerStartOffset();
-				if (km.getKmerStartOffset()+km.kmerString.length()>rightIdx)
-					rightIdx = km.getKmerStartOffset()+km.kmerString.length();
-			}
-			return new Pair<Integer,Integer>(leftIdx+bs, rightIdx+bs);
-		}
-		
-		public String getCoveredSequence(){
-			int leftShift = 999;			// left most shift position
-			int rightShift = -999;			// right most shift position
-			int longest = 0;
-			for (Kmer km:kmers){
-				if (km.getKmerStartOffset() < leftShift)
-					leftShift = km.getKmerStartOffset();
-				if (km.getKmerStartOffset() > rightShift)
-					rightShift = km.getKmerStartOffset();
-				if (km.k > longest)
-					longest = km.k;
-			}
-			char[] letters = new char[rightShift-leftShift+longest];
-			int rightIdx = 0;
-			for (Kmer km:kmers){
-				char[] kChars = km.kmerString.toCharArray();
-				for (int i=0;i<kChars.length;i++){
-					int idx = i+km.getKmerStartOffset()-leftShift;
-					if (kChars[i]!='N'){
-						letters[idx] = kChars[i];
-						if (rightIdx<idx)
-							rightIdx = idx;							
-					}
-				}
-			}
-			StringBuilder sb = new StringBuilder();
-			for (int i=0;i<=rightIdx;i++){
-				if (letters[i]!=0)
-					sb.append(letters[i]);
-				else
-					sb.append('N');
-			}
-			return sb.toString();
-		}
-		
-		public int getClusterId(){return clusterId;}
-		public void setClusterId(int id){clusterId = id;}
-		
-		public ArrayList<Kmer> getKmers(){
-			return kmers;
-		}
-		public Kmer getBestKmer(){
-			if (kmers.isEmpty())
-				return null;
-			if (!isKmersSorted){
-				Collections.sort(this.kmers);
-				isKmersSorted = true;
-			}
-			return kmers.get(0);
-		}
-		public String getAllKmerString(){
-			if (kmers.isEmpty())
-				return null;
-			if (!isKmersSorted){
-				Collections.sort(this.kmers);
-				isKmersSorted = true;
-			}
-			StringBuilder sb = new StringBuilder();
-			for (Kmer km:kmers){
-				sb.append(km.kmerString).append(",");
-			}
-			return sb.toString();
-		}
-//		public int getTotalKmerCount(){
-//    		int kmerCountSum = 0;
-//    		for (Kmer kmer:kmers){
-//        		kmerCountSum+=kmer.getPosHitCount();	
-//    		}
-//    		return kmerCountSum;
-//		}
-		/** Get the number of sequences hit by any kmer in the group */
-		public int getGroupHitCount(){
-			return posHitGroupCount;
-		}
-		public int getGroupNegHitCount(){
-			return negHitGroupCount;
-		}
-		public double getTotalKmerStrength(){
-    		double total = 0;
-    		for (Kmer kmer:kmers){
-    			// on first kpp round, kmers do not have strength value, use count here
-    			total+=kmer.getStrength()>1?kmer.getStrength():kmer.getPosHitCount();	
-    		}
-    		return total;
-		}	
-		/** Get the weighted kmer strength<cr>
-		 *  The weight is 1 for top kmer, 1/k for other kmer 
-		 *  Note: this is only approximate */
-		public double getWeightedKmerStrength(){
-    		double total = kmers.get(0).getWeightedHitCount();
-    		double k = kmers.get(0).getK();
-    		for (int i=1;i<kmers.size();i++){
-    			total+=kmers.get(i).getWeightedHitCount()/k;	
-    		}
-    		return total;
-		}			
-		public int getPosBS(){
-			return bs;
-		}
-		public int compareToByPosHitCount(KmerGroup kg) {		// descending pos hit count
-			if(posHitGroupCount>kg.getGroupHitCount()){return(-1);}
-			else if(posHitGroupCount<kg.getGroupHitCount()){return(1);}
-			else return(0);
-		}
-		public int compareTo(KmerGroup kg) {					// descending score, ascending hgp
-			if(kg_score>kg.getScore()){return(-1);}
-			else if(kg_score<kg.getScore()){return(1);}
-			else return(0);
-		}
-		public String toString(){
-			Kmer best = getBestKmer();
-			return String.format("%s|%b %d: %d+/%d-, kg_score=%.2f", best!=null?best.getKmerStrRC():"NULL", best!=null?getBestKmer().isSeedOrientation():false, bs, posHitGroupCount, negHitGroupCount, kg_score);
-		}
-	}
 	
 	public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException{
 		long tic = System.currentTimeMillis();
