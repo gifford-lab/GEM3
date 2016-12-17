@@ -3051,7 +3051,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				if (c.pwmThreshold.posHit>c.total_aligned_seqs)
 	    			c.total_aligned_seqs = c.pwmThreshold.posHit;
 			}
-    		System.out.println(String.format("%s motif #%d, aligned %d k-mers, %d sequences.", name, c.clusterId, c.alignedKmers.size(), c.total_aligned_seqs));
+    		System.out.println(String.format("%s motif #%d", name, c.clusterId));
+    		if (config.use_ksm && c.ksmThreshold!=null){
+    			System.out.println(String.format("\nKSM top k-mer: %s, total %d k-mers", c.seedKmer.getKmerStrRC(), c.alignedKmers.size()));    			
+    			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, kAUC=%.1f\n", c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.motif_significance));
+    		}
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
     		if (pos>=0)
     			System.out.println(CommonUtils.padding(pos, ' ')+"|\n"+ WeightMatrix.printMatrixLetters(wm));
@@ -3069,11 +3073,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (config.outputHOMER)				
 				pfm_homer_sb.append(CommonUtils.makeHOMER (c.pfm, c.pwmThreshold.posHit, 
 						String.format("%s_m%d_p%d_k%d_c%d", name, c.clusterId, pos, c.k, c.pwmThreshold.posHit)));
-    		if (config.use_ksm && c.ksmThreshold!=null){
-    			System.out.println(String.format("\nKSM top k-mer: %s, total %d k-mers", c.seedKmer.getKmerStrRC(), c.alignedKmers.size()));    			
-    			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, kAUC=%.1f", c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.motif_significance));
-    		}
-			System.out.println("--------------------------------------------------------------");
+			System.out.println("--------------------------------------------------------------\n");
 
 			
 			// paint motif logo
