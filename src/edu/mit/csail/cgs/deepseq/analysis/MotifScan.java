@@ -1,12 +1,9 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeMap;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -15,9 +12,8 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC0;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
@@ -25,7 +21,6 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
-import edu.mit.csail.cgs.utils.stats.StatUtil;
 import net.sf.samtools.util.SequenceUtil;
 
 public class MotifScan {

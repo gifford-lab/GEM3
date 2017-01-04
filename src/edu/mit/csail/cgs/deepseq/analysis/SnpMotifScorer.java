@@ -1,41 +1,25 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KsmMotif;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.ArgParser;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
-import edu.mit.csail.cgs.utils.stats.ROC;
 
 public class SnpMotifScorer {
 

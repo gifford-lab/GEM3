@@ -148,6 +148,8 @@ public class GappedKmer extends Kmer{
 			basekmerList[allBaseKmer2ID.get(km)] = km;
 		
 		StringBuilder sb = new StringBuilder();
+		sb.append("#").append(new File(filePrefix).getName()).append("\n");
+		sb.append("#KSM version: 1\n");									// version 1
 		sb.append(String.format("#%d/%d\n", posSeqCount, negSeqCount));
 		sb.append(String.format("#%.2f\n", score));
 		if (printShortFormat){
@@ -207,7 +209,7 @@ public class GappedKmer extends Kmer{
 
 	public static String toHeader(int k){
 		int length=2*k+1;
-		String firstField = "# k-mer/r.c.";
+		String firstField = "#k-mer/r.c.";
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
 		return firstField+"\tOffset\tPosCt\twPosCt\tNegCt\tHgpLg10\tCIDs\tPosHits (base85 encoding)\tNegHits (base85 encoding)";
@@ -215,7 +217,7 @@ public class GappedKmer extends Kmer{
 
 	public static String toShortHeader(int k){
 		int length=2*k+1;
-		String firstField = "# k-mer/r.c.";
+		String firstField = "#k-mer/r.c.";
 		if (firstField.length()<length)
 			firstField += CommonUtils.padding(length-firstField.length(), ' ');
 		return firstField+"\tPosCt\twPosCt\tNegCt\tHgpLg10\tNumChildren";
@@ -226,11 +228,35 @@ public class GappedKmer extends Kmer{
 	 * @return
 	 */
 	public static KsmMotif loadKSM(File file){
-		KsmMotif ksm = new KsmMotif();
-		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-		HashMap<Integer, Kmer> id2baseKmerMap = new HashMap<Integer, Kmer>();
+		BufferedReader bin = null;
 		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+			bin = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+			bin.readLine();									// skip first line ( out_prefix )
+			String line = bin.readLine();					// KSM version
+	        String[] f = line.split(":");
+	        int version = f.length>1 ? Integer.parseInt(f[1].trim()) : -1;
+	        switch(version){
+	        	case 1: return loadKSM_v1(bin); 
+	        	default: System.err.println("KSM version "+ version+" unknown: "+file.getName()); bin.close(); return null;
+	        }
+		} catch (IOException e) {
+        	System.err.println("I/O Error when processing "+file.getName());
+            e.printStackTrace(System.err);
+            return null;
+		} finally {
+			try{
+		        if (bin != null) {
+		            bin.close();
+		        }						// clean up
+			} 
+			catch (IOException ee) {}	// ignore if failed			
+		}
+	}
+	        
+	public static KsmMotif loadKSM_v1(BufferedReader bin) throws IOException{
+	    		KsmMotif ksm = new KsmMotif();
+	    		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+	    		HashMap<Integer, Kmer> id2baseKmerMap = new HashMap<Integer, Kmer>();
 			String line = bin.readLine();
 	        line = line.substring(1,line.length());			//remove # sign
 	        String[] f = line.split("/");
@@ -276,38 +302,32 @@ public class GappedKmer extends Kmer{
 		        	ksm.seq_weights[i] = weights.get(i);
 		        }
 	        }
-	        if (bin != null) {
-	            bin.close();
-	        }
-        } catch (IOException e) {
-        	System.err.println("I/O Error when processing "+file.getName());
-            e.printStackTrace(System.err);
-        }
-		for (Kmer km:kmers){
-			if (km instanceof GappedKmer){
-				GappedKmer gk = (GappedKmer) km;
-				String[] f = gk.CIDs.split(",");
-				for (String id: f){
-					int idx = Integer.parseInt(id);
-					boolean isSameStrand = true;
-					if (idx<0){
-						idx = -idx;
-						isSameStrand = false;
+	        
+			for (Kmer km:kmers){
+				if (km instanceof GappedKmer){
+					GappedKmer gk = (GappedKmer) km;
+					f = gk.CIDs.split(",");
+					for (String id: f){
+						int idx = Integer.parseInt(id);
+						boolean isSameStrand = true;
+						if (idx<0){
+							idx = -idx;
+							isSameStrand = false;
+						}
+						else if (idx==0){
+							isSameStrand = id.startsWith("0");		// if "-0", not same strand 
+						}
+						Kmer bk = id2baseKmerMap.get(idx);
+						gk.addBaseKmer(bk, isSameStrand);
 					}
-					else if (idx==0){
-						isSameStrand = id.startsWith("0");		// if "-0", not same strand 
-					}
-					Kmer bk = id2baseKmerMap.get(idx);
-					gk.addBaseKmer(bk, isSameStrand);
+					gk.update(ksm.seq_weights);
 				}
-				gk.update(ksm.seq_weights);
+				
 			}
-			
-		}
-        kmers.trimToSize();
-        ksm.kmers = kmers;
-        
-		return ksm;
+	        kmers.trimToSize();
+	        ksm.kmers = kmers;
+	        
+			return ksm;
 	}
 	
 

@@ -268,7 +268,7 @@ public class Config {
         refine_window_boundary = flags.contains("refine_window_boundary");
         use_pos_weight = flags.contains("use_pos_weight");
         use_odds_ratio = !flags.contains("no_or");
-        ksm_logo_text = !flags.contains("ksm_logo_no_text");
+        ksm_logo_text = flags.contains("ksm_logo_text");
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
         use_dynamic_sparseness = ! flags.contains("fa"); // fix alpha parameter

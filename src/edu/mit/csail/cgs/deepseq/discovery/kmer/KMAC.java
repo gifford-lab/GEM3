@@ -533,8 +533,9 @@ public class KMAC {
 		 */
 		allKmerMap = new HashMap<Integer, HashMap<String, Kmer>>();
 		for (int k=k_min;k<=k_max;k++){
-			System.out.println("\nmemory used = "+
-			(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
+			if (config.verbose>1)
+				System.out.println("\nmemory used = "+
+					(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 			StringBuilder sb = new StringBuilder();
 			System.out.println("\n----------------------------------------------------------\nRunning k="+k+" ...\n");
 			Pair<ArrayList<Kmer>, ArrayList<Kmer>> pair = selectEnrichedKmers(k);
@@ -686,9 +687,11 @@ public class KMAC {
 				ArrayList<Kmer> neighbours = neighbourList.get(j);
 				neighbourList.set(j, null);	// clean up
 				System.gc();
-	    		System.out.println("------------------------------------------------\n"+
-	    			"Aligning k-mers with "+seedKmer.kmerString+",   \t#"+j);
-				System.out.println("\nmemory used = "+
+				if (config.verbose>1)
+	    			System.out.println("------------------------------------------------");
+				System.out.println("Aligning and clustering k-mers with seed "+seedKmer.kmerString+",   \t#"+j);
+	    		if (config.verbose>1)
+	    			System.out.println("\nmemory used = "+
 						(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 
 	        	MotifCluster c = KmerMotifAlignmentClustering(seqList, neighbours, seedKmer, k);
@@ -709,11 +712,12 @@ public class KMAC {
 			if (config.verbose>1)
 				System.out.println(sb.toString());
 			
-			System.out.println("\nmemory used = "+
+			if (config.verbose>1)
+				System.out.println("\nmemory used = "+
 					(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 
 			if (tmp.size()>1){
-				System.out.println("Finding and merging redundant motifs ...");
+				System.out.println("\nMerging redundant motifs ...");
 				boolean[][] checked = new boolean[tmp.size()][tmp.size()];	// a table indicating whether a pair has been checked
 				
 				tic = System.currentTimeMillis();
@@ -745,7 +749,8 @@ public class KMAC {
 			printMotifClusters(clusters, sb_all);
 			System.out.print(sb_all.toString());
 			
-			System.out.println("\nmemory used = "+
+			if (config.verbose>1)
+				System.out.println("\nmemory used = "+
 					(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 			tic = System.currentTimeMillis();
 			boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// a table indicating whether a pair has been checked
@@ -758,7 +763,8 @@ public class KMAC {
 			System.out.print(sb_all.toString());
 		}
 		
-		System.out.println("\nmemory used = "+
+		if (config.verbose>1)
+			System.out.println("\nmemory used = "+
 				(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 
 		/** Refine final motifs, set binding positions, etc */
@@ -1089,7 +1095,8 @@ public class KMAC {
 				}				
 			}
 		}
-		System.out.println(String.format("k=%d, mapped %d base k-mers, min_base_kmer_Hit=%d, %s", k,
+		if (config.verbose > 1)
+			System.out.println(String.format("k=%d, mapped %d base k-mers, min_base_kmer_Hit=%d, %s", k,
 				kmerstr2seqs.keySet().size(), expectedBaseKmerCount, CommonUtils.timeElapsed(tic)));
 
 		
@@ -1162,8 +1169,8 @@ public class KMAC {
 			bkMap.remove(ks);
 		
 		allKmerMap.put(k, bkMap);
-		
-		System.out.println(String.format("k=%d, relaxed_hgp=%.2f, total exact kmer=%d, %s", 
+		if (config.verbose > 1)
+			System.out.println(String.format("k=%d, relaxed_hgp=%.2f, total exact kmer=%d, %s", 
 				k, relaxed_hgp, bkMap.size(), CommonUtils.timeElapsed(tic)));
 		return bkMap;
 		
@@ -2127,6 +2134,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		results.trimToSize();
 
 //		System.out.println(String.format("cluster_num=%d, kmer_distance<=%d, delta>=%d", centers.size(), dc, delta));
+		System.out.println("\nTop "+config.k_top+" cluster center k-mers:");
 		System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
 		int displayCount = Math.min(config.k_top, centers.size());
 		for (int i=0;i<displayCount;i++){
@@ -2171,6 +2179,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		results.trimToSize();
 
 		if (config.mtree!=-1){
+			System.out.println("\nTop "+config.k_top+" cluster center k-mers:");
 			System.out.println(Kmer.toShortHeader(k)+"\tId\tDensity\tDelta\tGamma\tCluster_size");
 			int displayCount = Math.min(config.k_top, centers.size());
 			for (int i=0;i<displayCount;i++){
@@ -3054,7 +3063,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
     		System.out.println(String.format("%s motif #%d", name, c.clusterId));
     		if (config.use_ksm && c.ksmThreshold!=null){
     			System.out.println(String.format("\nKSM top k-mer: %s, total %d k-mers", c.seedKmer.getKmerStrRC(), c.alignedKmers.size()));    			
-    			System.out.println(String.format("KSM threshold: %.2f, \thit=%d+/%d-, kAUC=%.1f\n", c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.motif_significance));
+    			System.out.println(String.format("KSM threshold: %.2f, \t\thit=%d+/%d-, kAUC=%.1f\n", c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.negHit, c.ksmThreshold.motif_significance));
     		}
 			int pos = c.pos_BS_seed-c.pos_pwm_seed;
     		if (pos>=0)
@@ -4357,7 +4366,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			return null;
 		}
 		else{
-			System.out.println(String.format("%s: PWM %s\thit %d+/%d- seqs\tpAUC=%.1f\t%.2f/%.2f", CommonUtils.timeElapsed(tic), 
+			if (config.verbose>1)
+				System.out.println(String.format("%s: PWM %s\thit %d+/%d- seqs\tpAUC=%.1f\t%.2f/%.2f", CommonUtils.timeElapsed(tic), 
 					WeightMatrix.getMaxLetters(bestWM), estimate.posHit, estimate.negHit, best_significance, estimate.motif_cutoff, bestWM.getMaxScore()));
 		}
 
@@ -5872,7 +5882,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		String format = Args.parseString(args, "format", "fasta");
 		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
         String[]f = null;
-        System.out.println("Loading positive sequences ...");
+//        System.out.println("Loading positive sequences ...");
 		for (String line: strs){
 			if (format.equals("fasta")){
 	            if (line.startsWith(">")){
@@ -5910,7 +5920,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		if (neg_file!=null){
-	        System.out.println("Loading negative sequences ...");
+//	        System.out.println("Loading negative sequences ...");
 			strs = CommonUtils.readTextFile(neg_file);
 			for (String line: strs){
 				if (format.equals("fasta")){
@@ -5944,10 +5954,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
         		kmac.seqs.length, config.k_win, kmac.seqsNegList.size()));
 //        pos_seqs = null; neg_seqs = null;
         kmac.discoverMotifs(config.k_min, config.k_max, null);
-        
-		System.out.println(StatUtil.cacheAccessCount);
-		System.out.println(StatUtil.getCacheSize());
-
+        if (config.verbose>1){
+			System.out.println(StatUtil.cacheAccessCount);
+			System.out.println(StatUtil.getCacheSize());
+        }
         System.out.println("Done: "+CommonUtils.timeElapsed(tic));
 	}
 		
