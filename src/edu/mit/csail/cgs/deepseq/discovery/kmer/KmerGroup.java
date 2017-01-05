@@ -17,6 +17,7 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	int clusterId = -1;
 	int posHitGroupCount;
 	int negHitGroupCount;
+	String coveredSequence=null;
 	boolean isKmersSorted=false;
 	
 	/** KmerGroup significance score [ OR or -log10(hgp) ] based on config.use_odds_ratio  */
@@ -92,6 +93,20 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	}
 	
 	public String getCoveredSequence(){
+		if (coveredSequence==null)
+			coveredSequence = makeCoveredSequence();
+		return coveredSequence;
+	}
+	
+	public int getCoveredLength(){
+		int i=0;
+		for (char c : getCoveredSequence().toCharArray())
+			if (c!='N')
+				i++;
+		return i;
+	}
+
+	private String makeCoveredSequence(){
 		int leftShift = 999;			// left most shift position
 		int rightShift = -999;			// right most shift position
 		int longest = 0;

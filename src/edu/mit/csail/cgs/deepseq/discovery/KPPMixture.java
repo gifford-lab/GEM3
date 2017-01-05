@@ -4278,7 +4278,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             				kmac_local.setConfig(config, outName, paramString);
             				kmac_local.setTotalSeqCount(kmac.getPosSeqCount(), kmac.getNegSeqCount());
             				kmac_local.setSequenceWeights(kmac.getSequenceWeights());
-            				kmac_local.updateEngine(c.getAlignedKmers());
+            				kmac_local.initAhoCorasick(c.getAlignedKmers());
             				
 	            			double ksm_threshold = c.ksmThreshold==null?0:c.ksmThreshold.motif_cutoff;
 	
