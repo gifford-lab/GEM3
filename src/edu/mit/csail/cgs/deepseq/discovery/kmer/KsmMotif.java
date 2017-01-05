@@ -8,4 +8,6 @@ public class KsmMotif {
 	public int negSeqCount;
 	public double cutoff;
 	public double[] seq_weights;
+	public int[] posCoveredWidth;
+	public int[] negCoveredWidth;
 }

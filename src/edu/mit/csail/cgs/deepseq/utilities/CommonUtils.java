@@ -735,11 +735,11 @@ public class CommonUtils {
 	
 	public static KMAC loadKsmFile(String ksmFile, Config config){
 		File file = new File(ksmFile);
-//    	System.err.println(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
 		KMAC kEngine;
 		kEngine = new KMAC(ksm.kmers, config);	
 		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
+		kEngine.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
 		if (config.use_weighted_kmer)
 			kEngine.setSequenceWeights(ksm.seq_weights);
 		return kEngine;

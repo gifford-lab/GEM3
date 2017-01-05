@@ -123,7 +123,7 @@ public class GappedKmer extends Kmer{
 	 * @param print_kmer_hits
 	 * @param printKmersAtK
 	 */
-	public static void printKSM(ArrayList<Kmer> kmers, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
+	public static void printKSM(ArrayList<Kmer> kmers, int[] posCoveredWidth, int[] negCoveredWidth, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
 			return;
@@ -193,10 +193,18 @@ public class GappedKmer extends Kmer{
 				sb.append("\n");
 			}
 			
+			sb.append("%%%\n");	// %%% to signal that the following are the coveredWidths and sequence weights
+			
+			for (int w : posCoveredWidth)
+				sb.append(w).append(" ");
+			sb.append("\n");
+			for (int w : negCoveredWidth)
+				sb.append(w).append(" ");
+			sb.append("\n");
 			if (seq_weights!=null){
-				sb.append("%%%\n");	// %%% to signal that the following are the sequence weights
 				for (double w: seq_weights)
-					sb.append(String.format("%.4f\n", w));
+					sb.append(String.format("%.4f ", w));
+				sb.append("\n");
 			}
 		}
 		
@@ -288,13 +296,25 @@ public class GappedKmer extends Kmer{
 	            id2baseKmerMap.put(Integer.parseInt(kmer.CIDs), kmer);		// for base-kmer, CIDs field is only one id
 	        }	
 
+	        // load covered widths
+	        line = bin.readLine().trim();
+	        ksm.posCoveredWidth = new int[ksm.posSeqCount];
+	        f = line.split(" ");
+	        for (int i=0;i<ksm.posSeqCount;i++)
+	        	ksm.posCoveredWidth [i] = Integer.parseInt(f[0].trim());
+	        line = bin.readLine().trim();
+	        ksm.negCoveredWidth = new int[ksm.posSeqCount];
+	        f = line.split(" ");
+	        for (int i=0;i<ksm.posSeqCount;i++)
+	        	ksm.negCoveredWidth [i] = Integer.parseInt(f[0].trim());
+	        
 	        // load sequence weights
 	        ArrayList<Double> weights = new ArrayList<Double>();
-	        while((line = bin.readLine()) != null) { 
+	        if ((line = bin.readLine()) != null) { 
 	            line = line.trim();
-	            if (line.equals(""))	// The end of file
-	            	break;
-	            weights.add(Double.parseDouble(line));
+	            f = line.split(" ");
+	            for (String w:f)
+	            	weights.add(Double.parseDouble(w));
 	        }
 	        if (!weights.isEmpty()){
 		        ksm.seq_weights = new double[weights.size()];

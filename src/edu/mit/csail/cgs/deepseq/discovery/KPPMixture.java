@@ -4375,7 +4375,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            					if (strand=='-')
 	            						matchSeq = SequenceUtils.reverseComplement(matchSeq);
 	            					kms.add(new Kmer(matchSeq));
-	            					KmerGroup kg = new KmerGroup(kms, pos, kmac.getPosSeqCount(), kmac.getNegSeqCount());
+	            					KmerGroup kg = new KmerGroup(null, kms, pos);
 	            					kg.setScore(max);
 	            					kg.setClusterId(j);
 	            					pp_kmer[pos]=kg;

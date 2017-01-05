@@ -37,6 +37,7 @@ public class KsmPwmScanner {
 		}  
 		kEngine = new KMAC(ksm.kmers, config);
 		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
+		kEngine.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
 		if (config.use_weighted_kmer)
 			kEngine.setSequenceWeights(ksm.seq_weights);
 	}

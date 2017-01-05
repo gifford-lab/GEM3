@@ -12,6 +12,7 @@ import edu.mit.csail.cgs.utils.Pair;
  * @author yuchun
  */
 public class KmerGroup implements Comparable<KmerGroup>{
+	KMAC kmac;
 	ArrayList<Kmer> kmers;
 	int bs = 999;
 	int clusterId = -1;
@@ -25,22 +26,23 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	public double getScore() {return kg_score;	}
 	public void setScore(double score) {this.kg_score = score;	}
 	
-	public KmerGroup(ArrayList<Kmer> kmers, int bs, int posSeqCount, int negSeqCount){
-		this.bs = bs;
-		this.kmers = kmers;
-		Collections.sort(this.kmers);
-		BitSet b_pos = new BitSet(posSeqCount);
-		BitSet b_neg = new BitSet(negSeqCount);
- 		for (Kmer km:kmers){
- 			b_pos.or(km.posBits);
- 			b_neg.or(km.negBits);
-		}
- 		posHitGroupCount = b_pos.cardinality();
-		negHitGroupCount = b_neg.cardinality();
-	}	
-	public KmerGroup(ArrayList<Kmer> kmers, int bs){
+//	public KmerGroup(ArrayList<Kmer> kmers, int bs, int posSeqCount, int negSeqCount){
+//		this.bs = bs;
+//		this.kmers = kmers;
+//		Collections.sort(this.kmers);
+//		BitSet b_pos = new BitSet(posSeqCount);
+//		BitSet b_neg = new BitSet(negSeqCount);
+// 		for (Kmer km:kmers){
+// 			b_pos.or(km.posBits);
+// 			b_neg.or(km.negBits);
+//		}
+// 		posHitGroupCount = b_pos.cardinality();
+//		negHitGroupCount = b_neg.cardinality();
+//	}	
+	public KmerGroup(KMAC kmac, ArrayList<Kmer> kmers, int bs){
 		if (kmers.isEmpty())
 			return;
+		this.kmac = kmac;
 		this.bs = bs;
 		this.kmers = kmers;
 		
@@ -50,12 +52,25 @@ public class KmerGroup implements Comparable<KmerGroup>{
  			b_pos.or(km.posBits);
  			b_neg.or(km.negBits);
 		}
+ 		
+ 		// adjust hit count by requiring the KG hit should be equal or better than the training sequence to count it
+ 		if (kmac!=null){
+	 		int width = getCoveredWidth();
+	 		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
+	 			if(kmac.posCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 				b_pos.clear(i);
+	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1))
+	 			if(kmac.negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 				b_neg.clear(i);
+ 		}
+ 		
  		posHitGroupCount = b_pos.cardinality();
 		negHitGroupCount = b_neg.cardinality();
 	}		
-	public KmerGroup(ArrayList<Kmer> kmers, int bs, double[]weights){
+	public KmerGroup(KMAC kmac, ArrayList<Kmer> kmers, int bs, double[]weights){
 		if (kmers.isEmpty())
 			return;
+		this.kmac = kmac;
 		this.bs = bs;
 		this.kmers = kmers;			
 		BitSet b_pos = new BitSet(kmers.get(0).posBits.length());
@@ -64,6 +79,17 @@ public class KmerGroup implements Comparable<KmerGroup>{
  			b_pos.or(km.posBits);
  			b_neg.or(km.negBits);
 		}
+ 		
+ 		// adjust hit count by requiring the KG hit should be equal or better than the training sequence to count it
+ 		if (kmac!=null){
+	 		int width = getCoveredWidth();
+	 		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
+	 			if(kmac.posCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 				b_pos.clear(i);
+	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1))
+	 			if(kmac.negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 				b_neg.clear(i);
+ 		}
 
 		if (weights==null){
     		posHitGroupCount = b_pos.cardinality();
@@ -98,7 +124,7 @@ public class KmerGroup implements Comparable<KmerGroup>{
 		return coveredSequence;
 	}
 	
-	public int getCoveredLength(){
+	public int getCoveredWidth(){
 		int i=0;
 		for (char c : getCoveredSequence().toCharArray())
 			if (c!='N')
