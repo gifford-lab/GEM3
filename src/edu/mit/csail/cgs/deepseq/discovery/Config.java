@@ -87,7 +87,7 @@ public class Config {
     public double motif_remove_ratio = 0.33;	// The ratio of exclusive match for 2nd motif, lower --> remove during merging
     
 //    public double kmer_set_overlap_ratio = 0.5;
-    public double motif_hit_overlap_ratio = 0.5;
+    public double pwm_hit_overlap_ratio = 0.5;
     public double repeat_fraction=1;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
     public int kmer_remove_mode = 0;
     public double kmer_inRange_fraction = 0.3;		// the fraction of kmer in the seed_range out of all k-mer hit count
@@ -365,7 +365,7 @@ public class Config {
         motif_remove_ratio = Args.parseDouble(args, "motif_remove_ratio", motif_remove_ratio);
         kmer_inRange_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_inRange_fraction);
         kmer_consistent_fraction = Args.parseDouble(args, "kmer_consistent_fraction", kmer_consistent_fraction);
-//        kmer_set_overlap_ratio = Args.parseDouble(args, "kmer_set_overlap_ratio", kmer_set_overlap_ratio);
+        pwm_hit_overlap_ratio = Args.parseDouble(args, "pwm_hit_overlap_ratio", pwm_hit_overlap_ratio);
         repeat_fraction = Args.parseDouble(args, "repeat_fraction", repeat_fraction);
         kmer_remove_mode = Args.parseInteger(args, "kmer_shift_remove", kmer_remove_mode);
                

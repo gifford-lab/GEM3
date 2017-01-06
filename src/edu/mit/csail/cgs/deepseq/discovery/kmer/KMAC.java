@@ -2805,7 +2805,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				}
 			}
 			
-			if (maxCount>=minHitCount*config.motif_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
+			if (maxCount > minHitCount*config.pwm_hit_overlap_ratio){				// if there is large enough overlap, try to merge 2 clusters
 				if (config.verbose>1) {
 					System.out.println("\n-------------------------------------------------------------");
 		    		System.out.println(String.format("%s: Motif pair have %d overlap hits, motif hit distance = %d%s:\n#%d PWM %s\t(hit=%d, pAUC=%.1f, kAUC=%.1f)\n#%d PWM %s\t(hit=%d, pAUC=%.1f, kAUC=%.1f)\n", 
