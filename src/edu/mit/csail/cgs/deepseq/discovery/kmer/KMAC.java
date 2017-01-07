@@ -5997,7 +5997,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
         neg_seqs.clear();
         System.out.println(String.format("Use top %d center sequences (%dbp) and %d negative sequences to find motif ...", 
         		kmac.seqs.length, config.k_win, kmac.seqsNegList.size()));
-//        pos_seqs = null; neg_seqs = null;
         kmac.discoverMotifs(config.k_min, config.k_max, null);
         if (config.verbose>1){
 			System.out.println(StatUtil.cacheAccessCount);

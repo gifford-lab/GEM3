@@ -301,12 +301,12 @@ public class GappedKmer extends Kmer{
 	        ksm.posCoveredWidth = new int[ksm.posSeqCount];
 	        f = line.split(" ");
 	        for (int i=0;i<ksm.posSeqCount;i++)
-	        	ksm.posCoveredWidth [i] = Integer.parseInt(f[0].trim());
+	        	ksm.posCoveredWidth [i] = Integer.parseInt(f[i].trim());
 	        line = bin.readLine().trim();
 	        ksm.negCoveredWidth = new int[ksm.posSeqCount];
 	        f = line.split(" ");
 	        for (int i=0;i<ksm.posSeqCount;i++)
-	        	ksm.negCoveredWidth [i] = Integer.parseInt(f[0].trim());
+	        	ksm.negCoveredWidth [i] = Integer.parseInt(f[i].trim());
 	        
 	        // load sequence weights
 	        ArrayList<Double> weights = new ArrayList<Double>();
