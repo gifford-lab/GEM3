@@ -85,6 +85,7 @@ public class Config {
     public double motif_hit_factor = 0.005;
     public double motif_hit_factor_report = 0.05;
     public double motif_remove_ratio = 0.33;	// The ratio of exclusive match for 2nd motif, lower --> remove during merging
+    public double k_ratio = 1.05;	// this ratio give slight advantage for motif with large k when merging motifs
     
 //    public double kmer_set_overlap_ratio = 0.5;
     public double pwm_hit_overlap_ratio = 0.5;
@@ -363,6 +364,7 @@ public class Config {
         pwm_noise = Args.parseDouble(args, "pwm_noise", pwm_noise);
         motif_hit_factor = Args.parseDouble(args, "pwm_hit_factor", motif_hit_factor);
         motif_remove_ratio = Args.parseDouble(args, "motif_remove_ratio", motif_remove_ratio);
+        k_ratio = Args.parseDouble(args, "k_ratio", k_ratio);
         kmer_inRange_fraction = Args.parseDouble(args, "kmer_aligned_fraction", kmer_inRange_fraction);
         kmer_consistent_fraction = Args.parseDouble(args, "kmer_consistent_fraction", kmer_consistent_fraction);
         pwm_hit_overlap_ratio = Args.parseDouble(args, "pwm_hit_overlap_ratio", pwm_hit_overlap_ratio);

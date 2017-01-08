@@ -2758,12 +2758,21 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		for (int j=m+1;j<clusters.size();j++){
 			MotifCluster cluster1 = clusters.get(m);
 			MotifCluster cluster2 = clusters.get(j);
-			if (cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance 
+			// one of the cluster may be marked as toRemoved, but if the other cluster has just merged, 
+			// then all its checked[][] entries will be set as false, including the remove-marked cluster
+			// thus need to also check the alignedKmers object reference
+			if(checked[cluster1.clusterId][cluster2.clusterId] || cluster1.alignedKmers==null || cluster2.alignedKmers==null)
+				continue;
+			// multiply k_ratio ( >1 for larger k value) to prefer longer k-mer
+			double k_ratio = cluster1.k>cluster2.k ? config.k_ratio : cluster1.k<cluster2.k? 1/config.k_ratio : 1;
+			if ((cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance)*k_ratio
 					< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
+//				if (cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance 
+//						< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
 				cluster1 = clusters.get(j);
 				cluster2 = clusters.get(m);
 			}
-			if (cluster1.wm==null||cluster2.wm==null||checked[cluster1.clusterId][cluster2.clusterId])
+			if (cluster1.wm==null||cluster2.wm==null)
 				continue;
 			
 			int range = seqLen - cluster1.wm.length()/2 - cluster2.wm.length()/2 + 10;  // add 10 for preventing arrayOutofBound
@@ -2867,7 +2876,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 						checked[c.clusterId][cluster2.clusterId]=true;
 						checked[cluster2.clusterId][c.clusterId]=true;
 					}
-		    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" is removed.");
+		    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(wm)+" has been removed.");
 					continue;
 				}
 					
@@ -2911,120 +2920,15 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					if (config.verbose>1)
 			    		System.out.println(String.format("%s: Merged PWM is not more enriched, do not merge", CommonUtils.timeElapsed(tic)));
 				}
-				
-//				// No matter successful merging or not, 
-//				if (config.rescue_motif2){
-//					// try the other PWM after removing the overlap hits
-//					if (config.verbose>1)
-//			    		System.out.println(String.format("\n%s: Testing the remaining motif #%d.", 
-//			    			CommonUtils.timeElapsed(tic), cluster2.clusterId));						
-//					for (Sequence s:seqList)
-//						s.resetAlignment();
-//					count_pwm_aligned = alignByPWM(seqList, cluster1, false);
-//			    	if (config.verbose>1)
-//			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster1.wm)
-//			    				+" align " + count_pwm_aligned+" sequences.");
-//	
-//					ArrayList<Sequence> seqList_j = new ArrayList<Sequence>();
-//					for (Sequence s:seqList)
-//						if (s.pos == UNALIGNED)
-//							seqList_j.add(s);
-//					int aligned_seqs_count = alignByPWM(seqList_j, cluster2, false);
-//			    	if (config.verbose>1)
-//			    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)
-//			    				+" align additional " + aligned_seqs_count+" sequences.");
-//					
-//					// if aligned seq count is less than threshold, or if it contains less than half of total hit of the motif (i.e. majority of hits are still overlapped), remove it
-//					if (aligned_seqs_count<seqs.length*config.motif_hit_factor_report || aligned_seqs_count<cluster2.pwmThreshold.posHit*config.motif_remove_ratio){
-//						if (config.verbose>1)
-//				    		System.out.println(String.format("%s: Motif #%d has too few (%d) non-shared hits, remove it.", 
-//				    			CommonUtils.timeElapsed(tic), cluster2.clusterId, aligned_seqs_count));
-//						cluster2.wm = null;
-//						toRemove.add(cluster2);
-//						for (MotifCluster c: clusters){
-//							checked[c.clusterId][cluster2.clusterId]=true;
-//							checked[cluster2.clusterId][c.clusterId]=true;
-//						}
-//					}
-//					else{
-//						cluster2.wm = null;			// reset here, to get a new PWM
-//						int alignedSeqCount = 0;
-//						newPWM = buildPWM(seqList_j, cluster2, 0, tic, false);
-//						if (newPWM!=null){
-//							newPWM.updateClusterPwmInfo(cluster2);
-//							BitSet unalignedIds = new BitSet();
-//							for (Sequence s:seqList)
-//								if (s.pos == UNALIGNED){
-//									unalignedIds.set(s.id);
-//								}
-//	
-//							ArrayList<Kmer> inputKmers = new ArrayList<Kmer>();		// use only the k-mers mapped in the un-aligned seqs
-//							for (Kmer km: cluster2.inputKmers){
-//								if (km.posBits.intersects(unalignedIds))
-//									inputKmers.add(km);
-//							}
-//							alignedSeqCount = alignByPWM(seqList_j, cluster2, false);
-//							if (config.evaluate_by_ksm){
-//								// update kmer Engine with the input k-mers for extracting KSM, do not use base kmer for matching
-//								updateEngine(inputKmers, false, false);	
-//								NewKSM newKSM = extractKSM (seqList_j, cluster2.k);
-//								if (newKSM!=null&&newKSM.threshold!=null){
-//									cluster2.alignedKmers = newKSM.kmers;
-//									cluster2.ksmThreshold = newKSM.threshold;
-//								}
-//								else{	// if no good KSM
-//						    		System.out.println(CommonUtils.timeElapsed(tic)+": PWM "+WeightMatrix.getMaxLetters(cluster2.wm)+" is removed.");
-//									cluster2.wm = null;
-//									toRemove.add(cluster2);
-//									for (MotifCluster c: clusters){
-//										checked[c.clusterId][cluster2.clusterId]=true;
-//										checked[cluster2.clusterId][c.clusterId]=true;
-//									}
-//									continue;
-//								}
-//							}
-//							// check if new PWM has sufficient hit
-//							if (alignedSeqCount<seqs.length*config.motif_hit_factor_report){
-//								if (config.verbose>1)
-//						    		System.out.println(String.format("%s: Too few new PWM hits (%d) , remove motif #%d.", 
-//						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster2.clusterId));
-//								cluster2.wm = null;
-//								toRemove.add(cluster2);
-//								for (MotifCluster c: clusters){
-//									checked[c.clusterId][cluster2.clusterId]=true;
-//									checked[cluster2.clusterId][c.clusterId]=true;
-//								}
-//							}
-//							else{
-//								if (config.verbose>1)
-//						    		System.out.println(String.format("%s: New PWM has sufficient hit %d, keep motif #%d.", 
-//						    			CommonUtils.timeElapsed(tic), alignedSeqCount, cluster2.clusterId));
-//								if (!isChanged){		// if motif 1 is not changed, set this pair as checked.
-//									checked[cluster1.clusterId][cluster2.clusterId] = true;
-//									checked[cluster2.clusterId][cluster1.clusterId] = true;
-//								}
-//							}
-//						}
-//						else{	// if no PWM
-//							cluster2.wm = null;
-//							toRemove.add(cluster2);
-//							for (MotifCluster c: clusters){
-//								checked[c.clusterId][cluster2.clusterId]=true;
-//								checked[cluster2.clusterId][c.clusterId]=true;
-//							}
-//						}
-//					}
-//				}
-//				else{
-					toRemove.add(cluster2);
-					cluster2.inputKmers=null;cluster2.alignedKmers=null;
-					System.out.println(String.format("%s: Remove motif #%d.", 
-			    			CommonUtils.timeElapsed(tic), cluster2.clusterId));
-					for (MotifCluster c: clusters){
-						checked[c.clusterId][cluster2.clusterId]=true;
-						checked[cluster2.clusterId][c.clusterId]=true;
-					}
-//				}
+				// no matter merge or not, remove cluster 2
+				toRemove.add(cluster2);
+				cluster2.inputKmers=null;cluster2.alignedKmers=null;
+				System.out.println(String.format("%s: Remove motif #%d.", 
+		    			CommonUtils.timeElapsed(tic), cluster2.clusterId));
+				for (MotifCluster c: clusters){
+					checked[c.clusterId][cluster2.clusterId]=true;
+					checked[cluster2.clusterId][c.clusterId]=true;
+				}
 			}		
 			else{					// if overlap is not big enough
 				checked[cluster1.clusterId][cluster2.clusterId] = true;
