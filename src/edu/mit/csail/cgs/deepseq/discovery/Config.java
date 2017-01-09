@@ -96,6 +96,7 @@ public class Config {
     public boolean use_grid_search = true;
     public boolean optimize_pwm_threshold = true;
     public boolean optimize_kmer_set = true;
+    public boolean optimize_base_kmers = true;
     public boolean kg_score_hit_length = false;		// score k-mer group by considering the width of the hit, to better distinguish pos vs neg hits.
     public boolean kmer_use_insig = false;
     public boolean use_self_density = true;

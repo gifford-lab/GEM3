@@ -1459,7 +1459,7 @@ public class KMAC {
 					// optimize the base k-mers to get best hgp
 					ArrayList<Kmer> baseKmerList = new ArrayList<Kmer>();
 					baseKmerList.addAll(gk.getBaseKmers());
-					if (config.optimize_kmer_set)
+					if (config.optimize_base_kmers)
 						optimizeKSM(baseKmerList);
 					HashSet<Kmer> toremove = new HashSet<Kmer>();
 					for (Kmer baseKm:gk.getBaseKmers())
