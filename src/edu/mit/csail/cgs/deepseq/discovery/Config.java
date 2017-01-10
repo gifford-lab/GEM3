@@ -85,7 +85,7 @@ public class Config {
     public double motif_hit_factor = 0.005;
     public double motif_hit_factor_report = 0.05;
     public double motif_remove_ratio = 0.33;	// The ratio of exclusive match for 2nd motif, lower --> remove during merging
-    public double k_ratio = 1.05;	// this ratio give slight advantage for motif with large k when merging motifs
+    public double k_ratio = 1.0;	// this ratio give slight advantage for motif with large k when merging motifs
     
 //    public double kmer_set_overlap_ratio = 0.5;
     public double pwm_hit_overlap_ratio = 0.5;

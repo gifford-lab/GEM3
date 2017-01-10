@@ -108,6 +108,7 @@ public class KMAC {
 		this.posCoveredWidth = posCoveredWidth;
 		this.negCoveredWidth = negCoveredWidth;
 	}
+	private double[] pseudoCountRatios;
 	
 	private HashMap<Integer, HashMap<String, Kmer>> allKmerMap = null;
 	
@@ -542,10 +543,12 @@ public class KMAC {
 		 * For each k, generate exact k-mers and gapped kmers, density clustering, KMAC
 		 */
 		allKmerMap = new HashMap<Integer, HashMap<String, Kmer>>();
+		this.pseudoCountRatios = new double[k_max+1];
 		for (int k=k_min;k<=k_max;k++){
 			if (config.verbose>1)
 				System.out.println("\nmemory used = "+
-					(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
+					(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");
+			pseudoCountRatios[k] = Math.max((seqs[0].length()-k+1)*2 / Math.pow(4, k), 0.005);
 			StringBuilder sb = new StringBuilder();
 			System.out.println("\n----------------------------------------------------------\nRunning k="+k+" ...\n");
 			Pair<ArrayList<Kmer>, ArrayList<Kmer>> pair = selectEnrichedKmers(k);
@@ -1460,7 +1463,7 @@ public class KMAC {
 					ArrayList<Kmer> baseKmerList = new ArrayList<Kmer>();
 					baseKmerList.addAll(gk.getBaseKmers());
 					if (config.optimize_base_kmers)
-						optimizeKSM(baseKmerList);
+						optimizeKSM(baseKmerList, pseudoCountRatios[k]);
 					HashSet<Kmer> toremove = new HashSet<Kmer>();
 					for (Kmer baseKm:gk.getBaseKmers())
 						if (!baseKmerList.contains(baseKm))
@@ -3749,7 +3752,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				cluster.inputKmers = Kmer.deepCloneKmerList(cluster.inputKmers, cluster.seedKmer, seq_weights);
 				cluster.seedKmer = cluster.inputKmers.get(0);
 				initAhoCorasick(cluster.inputKmers, false, false);		// for extractKSM(), set both to false
-				newKSM = extractKSM (seqList, seed_range);
+				newKSM = extractKSM (seqList, seed_range, cluster.k);
 				if (newKSM==null ||newKSM.threshold==null)
 					return -1;
 			}
@@ -4290,7 +4293,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			return null;
 		}
 		
-    	MotifThreshold estimate = optimizePwmThreshold(bestWM, "", bestWM.getMaxScore()*0.5, bestWM.getMaxScore()*0.7);
+    	MotifThreshold estimate = optimizePwmThreshold(bestWM, "", bestWM.getMaxScore()*0.5, bestWM.getMaxScore()*0.7, bestWM.length());
 		if (estimate==null) {
 			if (config.verbose>1)
 				System.out.println(CommonUtils.timeElapsed(tic)+": None of PWM is enriched.");
@@ -4384,12 +4387,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	private class NewKSM{
 		private ArrayList<Kmer> kmers=null;
 		private MotifThreshold threshold = null;
-		private NewKSM(KMAC kmac, ArrayList<Kmer> kmers){
+		private NewKSM(KMAC kmac, ArrayList<Kmer> kmers, double pseudoCountRatio){
 			this.kmers = kmers;
 			initAhoCorasick(kmers);
 			kmac.initKgCoveredWidth(seqList, seqListNeg, kmers);
 			Pair<double[],double[] > pair = scoreKsmSequences (seqList, seqListNeg, kmers);
-			threshold = optimizeThreshold(pair.car(), pair.cdr(), 0, Double.POSITIVE_INFINITY);
+			threshold = optimizeThreshold(pair.car(), pair.cdr(), 0, Double.POSITIVE_INFINITY, pseudoCountRatio);
 			threshold.motif_significance = evaluateScoreROC(pair.car(), pair.cdr(), config.fpr).motif_significance;
 			if (threshold==null)
 				return;
@@ -4406,7 +4409,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * @param excludes
 	 * @return
 	 */
-	private NewKSM extractKSM (ArrayList<Sequence> seqList, int seed_range){
+	private NewKSM extractKSM (ArrayList<Sequence> seqList, int seed_range, double pseudoCountRatio){
 
 		/** kmer2pos: record all the hit positions (in reference to the seed position) of all k-mers in the alignment */
 		HashMap<Kmer, ArrayList<Integer>> kmer2pos_seed = new HashMap<Kmer, ArrayList<Integer>>();
@@ -4556,7 +4559,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		Collections.sort(alignedKmers);
 		if (config.optimize_kmer_set){
 			int tmp = alignedKmers.size();
-			optimizeKSM(alignedKmers);
+			optimizeKSM(alignedKmers, pseudoCountRatio);
 			if (config.verbose>1)
 				System.out.println(String.format("%s: Extract new KSM, optimize %d to %d k-mers.", CommonUtils.timeElapsed(tic), tmp, alignedKmers.size()));
 		}
@@ -4568,7 +4571,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		
 //		System.out.println(getKmerClusterAlignmentString(alignedKmers, 20));
 		
-		return new NewKSM(this, alignedKmers);
+		return new NewKSM(this, alignedKmers, pseudoCountRatio);
 	}
 
 	/**
@@ -4576,7 +4579,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * optimizeKSM() should not change the state of the individual k-mers, it will only remove k-mers from the kmers list.
 	 * @param alignedKmers
 	 */
-	private void optimizeKSM(ArrayList<Kmer> kmers){
+	private void optimizeKSM(ArrayList<Kmer> kmers, double pseudoCountRatio){
 		ArrayList<Kmer> kmerCopy = Kmer.copyKmerList(kmers);
 		if (kmers.size()<=1)
 			return;
@@ -4645,7 +4648,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				else
 					posHitCount ++;
 			int negHitCount = seq2kmers_neg.size();
-			double score_all = computeMotifSignificanceScore(Math.round(posHitCount), negHitCount);
+			double score_all = computeMotifSignificanceScore(Math.round(posHitCount), negHitCount, pseudoCountRatio);
 
 			for (int i=0;i<kmers.size();i++){
 				
@@ -4676,7 +4679,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				if (count_with_single_kmer_neg>0){
 					int pos_new = Math.round(posHitCount - count_with_single_kmer);
 					int neg_new = negHitCount - count_with_single_kmer_neg;
-					double score_remove_this_km = computeMotifSignificanceScore( pos_new<=0?0:pos_new, neg_new<=0?0:neg_new);
+					double score_remove_this_km = computeMotifSignificanceScore( pos_new<=0?0:pos_new, neg_new<=0?0:neg_new, pseudoCountRatio);
 					// test whether removing this k-mer will improve enrichment significance hgp
 					if (score_remove_this_km>score_all){
 						// remove this k-mer 
@@ -5089,9 +5092,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	/**
 	 * Compute motif significance score [ OR or -log10(hgp) ] from total hits <br>More significant, higher score
 	 */	
-	public double computeMotifSignificanceScore(double posHitCount, double negHitCount){
+	public double computeMotifSignificanceScore(double posHitCount, double negHitCount, double pseudoCountRatio){
 		if (config.use_odds_ratio)
-			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, posSeqCount*0.05, negSeqCount*0.05);
+			return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, posSeqCount*pseudoCountRatio, negSeqCount*pseudoCountRatio);
 		else
 			return -computeHGP((int)posHitCount, (int)negHitCount);
 	}
@@ -5168,7 +5171,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * Optimize the threshold of a PWM (larger than startingScore) using the positive/negative sequences<br>
 	 * Approximate grid search to find best HGP, to reduce run time
 	 */
-	private MotifThreshold optimizePwmThreshold(WeightMatrix wm, String outName, double startingScore, double endingScore){
+	private MotifThreshold optimizePwmThreshold(WeightMatrix wm, String outName, double startingScore, double endingScore, double pseudoCountRatio){
 		double[] posSeqScores = new double[posSeqCount];
 		double[] negSeqScores = new double[negSeqCount];
 		for (int i=0;i<posSeqCount;i++){
@@ -5177,7 +5180,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		for (int i=0;i<negSeqCount;i++){
 			negSeqScores[i]=WeightMatrixScorer.getMaxSeqScore(wm, seqsNegList.get(i), config.strand_type==1);
 		}
-		MotifThreshold score = optimizeThreshold(posSeqScores, negSeqScores, startingScore, endingScore);
+		MotifThreshold score = optimizeThreshold(posSeqScores, negSeqScores, startingScore, endingScore, pseudoCountRatio);
 		return score;
 	}
 
@@ -5205,15 +5208,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		ROC roc = new ROC(posSeqScores, negSeqScores);
 		MotifThreshold score = new MotifThreshold();
 		score.motif_significance = roc.partialAUC(falsePositiveRate)/falsePositiveRate*100;
-//		score.motif_cutoff = roc.partialOptimalPoint(falsePositiveRate).car();
-//		Pair<Integer,Integer> hitCounts = roc.getHitCounts(score.motif_cutoff);
-//		score.posHit = hitCounts.car();
-//		score.negHit = hitCounts.cdr();
 		return score;
 	}
-	
-	
-	
+		
 	/**
 	 * compute motif scores<br>
 	 * @param idxs	The indices of elements to compute
@@ -5222,11 +5219,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * @param motifScores
 	 * @return
 	 */
-	private Pair<Double, Integer> findBestScore(ArrayList<Integer> idxs, double[] poshits, double[] neghits, double[] motifScores){
+	private Pair<Double, Integer> findBestScore(ArrayList<Integer> idxs, double[] poshits, double[] neghits, double[] motifScores, double pseudoCountRatio){
 		for (int i:idxs){
 			if (i==0 && poshits[0]==posSeqCount)	//why?
     			motifScores[0]=0;
-			motifScores[i]= computeMotifSignificanceScore(poshits[i], neghits[i]);
+			motifScores[i]= computeMotifSignificanceScore(poshits[i], neghits[i], pseudoCountRatio);
 		}
 
 		Pair<Double, TreeSet<Integer>> maxScore = StatUtil.findMax(motifScores);
@@ -5259,7 +5256,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * @param negSeqScores motif scanning score of negative sequences
 	 * @return
 	 */
-	private MotifThreshold optimizeThreshold(double[] posSeqScores, double[] negSeqScores, double startingScore, double endingScore){
+	private MotifThreshold optimizeThreshold(double[] posSeqScores, double[] negSeqScores, double startingScore, double endingScore, double pseudoCountRatio){
 		int[] posIdx = StatUtil.findSort(posSeqScores);		
 		Arrays.sort(negSeqScores);
 		
@@ -5281,7 +5278,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		if( endIdx < 0 ) { 
 			endIdx = -endIdx-1; 		//insert point
 		}
-		if (endIdx-1<startIdx)		// if all scores are not in the staring-ending range, just take the nearst of starting score
+		if (endIdx-1<startIdx)		// if all scores are not in the staring-ending range, just take the nearest of starting score
 			endIdx = startIdx+1;
 		for (int i=endIdx-1;i>=startIdx;i--){
 			double key = posScores_u[i];
@@ -5326,7 +5323,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (idxCoarse.get(idxCoarse.size()-1)!=idxs.get(idxs.size()-1))
 				idxCoarse.add(idxs.get(idxs.size()-1));
 			
-			best = findBestScore(idxCoarse, poshits, neghits, motifScores);
+			best = findBestScore(idxCoarse, poshits, neghits, motifScores, pseudoCountRatio);
 			
 			// finer resolution search
 			int bestIdx = idxs.indexOf(best.cdr());
@@ -5337,10 +5334,10 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				idxFine.add(idxs.get(i));
 			}
 			
-			best = findBestScore(idxFine, poshits, neghits, motifScores);
+			best = findBestScore(idxFine, poshits, neghits, motifScores, pseudoCountRatio);
 		}
 		else
-			best = findBestScore(idxs, poshits, neghits, motifScores);
+			best = findBestScore(idxs, poshits, neghits, motifScores, pseudoCountRatio);
 		
 		MotifThreshold score = new MotifThreshold();
 		score.motif_cutoff = posScores_u[best.cdr()];
@@ -5661,8 +5658,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
-			if (config.optimize_KG_kmers && kmers.size()>1)
-				optimizeKSM(kmers);
+//			if (config.optimize_KG_kmers && kmers.size()>1)
+//				optimizeKSM(kmers, pseudoCountRatios[kmers.get(0).k]);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(this, kmers, p, seq_weights) : new KmerGroup(this, kmers, p);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
@@ -5729,8 +5726,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
-			if (config.optimize_KG_kmers && kmers.size()>1)
-				optimizeKSM(kmers);
+//			if (config.optimize_KG_kmers && kmers.size()>1)
+//				optimizeKSM(kmers, pseudoCountRatios[kmers.get(0).k]);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(this, kmers, p, seq_weights) : new KmerGroup(this, kmers, p);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
