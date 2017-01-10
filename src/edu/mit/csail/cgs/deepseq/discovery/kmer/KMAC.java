@@ -3752,7 +3752,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				cluster.inputKmers = Kmer.deepCloneKmerList(cluster.inputKmers, cluster.seedKmer, seq_weights);
 				cluster.seedKmer = cluster.inputKmers.get(0);
 				initAhoCorasick(cluster.inputKmers, false, false);		// for extractKSM(), set both to false
-				newKSM = extractKSM (seqList, seed_range, cluster.k);
+				newKSM = extractKSM (seqList, seed_range, pseudoCountRatios[cluster.k]);
 				if (newKSM==null ||newKSM.threshold==null)
 					return -1;
 			}
@@ -5658,8 +5658,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
-//			if (config.optimize_KG_kmers && kmers.size()>1)
-//				optimizeKSM(kmers, pseudoCountRatios[kmers.get(0).k]);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(this, kmers, p, seq_weights) : new KmerGroup(this, kmers, p);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
@@ -5694,7 +5692,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				// AC search returns end+1 position, end_seq; endOffset is seed_end;
 				// thus   seed_end + end_seq --> seed_seq
 				int[] kmerOffsets = str2kmerEndOffsets.get(s);	
-//				boolean[] kmerOrientation = str2kmerOrientation.get(s);
 				for(int i=0;i<kmers.length;i++){	
 					int x = sr.getLastIndex() + kmerOffsets[i];	// get the motif position
 					if (!result.containsKey(x))
@@ -5704,7 +5701,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			}
 		}
 		// the reverse compliment
-//		String seq_rc = SequenceUtils.reverseComplement(seq);
 		searcher = treeAhoCorasick.search(seq_rc.getBytes());
 		while (searcher.hasNext()) {
 			SearchResult sr = (SearchResult) searcher.next();
@@ -5726,63 +5722,19 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
-//			if (config.optimize_KG_kmers && kmers.size()>1)
-//				optimizeKSM(kmers, pseudoCountRatios[kmers.get(0).k]);
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(this, kmers, p, seq_weights) : new KmerGroup(this, kmers, p);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
 		}
 		
-		Arrays.sort(matches);		// sort by descending kgScore
-		
+		Arrays.sort(matches);		// sort by descending kgScore		
 		return matches;
 	}
 	
 	public String getSequenceUppercase(Region r){
 		return seqgen.execute(r).toUpperCase();
 	}
-	
-//	public void indexKmers(List<File> files){
-//		long tic = System.currentTimeMillis();
-//		ArrayList<Kmer> kmers = Kmer.loadKmers(files);
-//		if (kmers.isEmpty())
-//			return;
-//		int step = 100000000;
-//		this.k = kmers.get(0).getK();
-//		HashMap<String, Integer> map = new HashMap<String, Integer>();
-//		for (Kmer kmer:kmers){
-//			map.put(kmer.getKmerString(), 0);
-//		}
-//		for (String chr : genome.getChromList()){
-//			System.out.println(chr);
-//			int chrLen = genome.getChromLengthMap().get(chr);
-//			for (int l=0;l<chrLen;l+=step-k+2){		// the step size is set so that the overlap is k-1
-//				int end = Math.min(l+step-1, chrLen-1);
-//				String seq = seqgen.execute(new Region(genome, chr, l, end)).toUpperCase();
-//				for (int i=0;i<seq.length()-k;i++){
-//					String s = seq.substring(i, i+k);
-//					if (map.containsKey(s)){			// only count known kmers, save memory space
-//						 map.put(s, (map.get(s)+1));
-//					}
-//					else {		// try the other strand
-//						String rc = SequenceUtils.reverseComplement(s);
-//						if (map.containsKey(rc)){			
-//							 map.put(rc, (map.get(rc)+1));
-//						}
-//					}						
-//				}
-//			}
-//		}
-//		Collections.sort(kmers);
-//		StringBuilder sb = new StringBuilder();
-//		for (Kmer km:kmers){
-//			sb.append(km.getKmerString()).append("\t").append(map.get(km.getKmerString())).append("\n");
-//		}
-//		CommonUtils.writeFile(genome.getVersion()+"_kmers_"+k+".txt", sb.toString());
-//		System.out.println(CommonUtils.timeElapsed(tic));
-//	}
-
 
 	
 	public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException{
