@@ -2671,7 +2671,9 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		
 		initAhoCorasick(seedFamily);
 		
-		KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(this, seedFamily, 0, seq_weights) : new KmerGroup(this, seedFamily, 0);
+		KmerGroup kg = config.use_weighted_kmer ? 
+				new KmerGroup(posCoveredWidth, negCoveredWidth, seedFamily, 0, seq_weights) : 
+				new KmerGroup(posCoveredWidth, negCoveredWidth, seedFamily, 0);
 		if (config.verbose>1) {
 //			System.out.println(CommonUtils.timeElapsed(tic)+": evaluateKsmROC(seedFamily)");
 			Pair<double[],double[] > pair = scoreKsmSequences (seqList, seqListNeg, seedFamily);
@@ -5658,7 +5660,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(this, kmers, p, seq_weights) : new KmerGroup(this, kmers, p);
+			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth,  kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -5722,7 +5724,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(this, kmers, p, seq_weights) : new KmerGroup(this, kmers, p);
+			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;

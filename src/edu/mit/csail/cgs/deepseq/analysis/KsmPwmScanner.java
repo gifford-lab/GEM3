@@ -23,7 +23,7 @@ import net.sf.samtools.util.SequenceUtil;
 
 public class KsmPwmScanner {
 	public static char[] letters = {'A','C','T','G'};
-	private KMAC kEngine;
+	private KMAC kmac;
 	// each element in the list is for one ChIP-Seq method
 	
 	public KsmPwmScanner(String[] args, KsmMotif ksm){
@@ -35,15 +35,19 @@ public class KsmPwmScanner {
 			e.printStackTrace();
     		System.exit(-1);
 		}  
-		kEngine = new KMAC(ksm.kmers, config);
-		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
-		kEngine.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
+        Set<String> flags = Args.parseFlags(args);
+		kmac = new KMAC(ksm.kmers, config);
+		kmac.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
+		if (flags.contains("noCW"))
+			kmac.setCoveredWidth(null, null);
+		else
+			kmac.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
 		if (config.use_weighted_kmer)
-			kEngine.setSequenceWeights(ksm.seq_weights);
+			kmac.setSequenceWeights(ksm.seq_weights);
 	}
 	
 	public KmerGroup getBestKG (String seq, String seq_rc){
-		KmerGroup[] kgs = kEngine.findKsmGroupHits(seq, seq_rc);
+		KmerGroup[] kgs = kmac.findKsmGroupHits(seq, seq_rc);
 		if (kgs==null)
 			return null;
 		else

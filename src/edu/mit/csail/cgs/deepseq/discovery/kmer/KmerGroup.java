@@ -12,7 +12,6 @@ import edu.mit.csail.cgs.utils.Pair;
  * @author yuchun
  */
 public class KmerGroup implements Comparable<KmerGroup>{
-	KMAC kmac;
 	ArrayList<Kmer> kmers;
 	int bs = 999;
 	int clusterId = -1;
@@ -39,10 +38,9 @@ public class KmerGroup implements Comparable<KmerGroup>{
 // 		posHitGroupCount = b_pos.cardinality();
 //		negHitGroupCount = b_neg.cardinality();
 //	}	
-	public KmerGroup(KMAC kmac, ArrayList<Kmer> kmers, int bs){
+	public KmerGroup(int[] posCoveredWidth, int[] negCoveredWidth, ArrayList<Kmer> kmers, int bs){
 		if (kmers.isEmpty())
 			return;
-		this.kmac = kmac;
 		this.bs = bs;
 		this.kmers = kmers;
 		
@@ -54,23 +52,22 @@ public class KmerGroup implements Comparable<KmerGroup>{
 		}
  		
  		// adjust hit count by requiring the KG hit should be equal or better than the training sequence to count it
- 		if (kmac!=null){
+ 		if (posCoveredWidth!=null){
 	 		int width = getCoveredWidth();
 	 		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
-	 			if(kmac.posCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 			if(posCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
 	 				b_pos.clear(i);
 	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1))
-	 			if(kmac.negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 			if(negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
 	 				b_neg.clear(i);
  		}
  		
  		posHitGroupCount = b_pos.cardinality();
 		negHitGroupCount = b_neg.cardinality();
 	}		
-	public KmerGroup(KMAC kmac, ArrayList<Kmer> kmers, int bs, double[]weights){
+	public KmerGroup(int[] posCoveredWidth, int[] negCoveredWidth, ArrayList<Kmer> kmers, int bs, double[]weights){
 		if (kmers.isEmpty())
 			return;
-		this.kmac = kmac;
 		this.bs = bs;
 		this.kmers = kmers;			
 		BitSet b_pos = new BitSet(kmers.get(0).posBits.length());
@@ -80,14 +77,14 @@ public class KmerGroup implements Comparable<KmerGroup>{
  			b_neg.or(km.negBits);
 		}
  		
- 		// adjust hit count by requiring the KG hit should be equal or better than the training sequence to count it
- 		if (kmac!=null){
+ 		// adjust hit count by requiring that the KG hit should be equal or better than the training sequence to count it
+ 		if (posCoveredWidth!=null){
 	 		int width = getCoveredWidth();
 	 		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
-	 			if(kmac.posCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 			if(posCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
 	 				b_pos.clear(i);
 	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1))
-	 			if(kmac.negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 			if(negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
 	 				b_neg.clear(i);
  		}
 
