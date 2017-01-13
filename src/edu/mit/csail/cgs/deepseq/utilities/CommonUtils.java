@@ -34,7 +34,7 @@ import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrixPainter;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.analysis.KsmPwmScanner;
+import edu.mit.csail.cgs.deepseq.analysis.KsmPwmRocAnalysis;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
@@ -736,13 +736,16 @@ public class CommonUtils {
 	public static KMAC loadKsmFile(String ksmFile, Config config){
 		File file = new File(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
-		KMAC kEngine;
-		kEngine = new KMAC(ksm.kmers, config);	
-		kEngine.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
-		kEngine.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
+		KMAC kmac;
+		kmac = new KMAC(ksm.kmers, config);	
+		kmac.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
+		if (config.use_coveredWidth)
+			kmac.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
+		else
+			kmac.setCoveredWidth(null, null);
 		if (config.use_weighted_kmer)
-			kEngine.setSequenceWeights(ksm.seq_weights);
-		return kEngine;
+			kmac.setSequenceWeights(ksm.seq_weights);
+		return kmac;
 	}
 	
     /*

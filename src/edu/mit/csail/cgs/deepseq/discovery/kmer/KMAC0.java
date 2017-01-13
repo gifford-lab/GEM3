@@ -1393,54 +1393,6 @@ public class KMAC0 {
 		
 		indexKmerSequences(kmers, seqList);
 		
-		// refine PWMs using un-masked sequences, and merge similar PWMs
-		if (config.refine_pwm){
-	    	// re-build PWM with un-masked sequences
-			if (!standalone){
-				if (verbose>1)
-					System.out.println("\nRefining motifs with un-masked sequences ...");
-				for (int i=0;i<clusters.size();i++){		// do not need this for primary cluster
-					KmerCluster cluster = clusters.get(i);
-					if (cluster.wm==null)
-						continue;
-					if (verbose>1)
-						System.out.println(String.format("\n%s: Refining %s hgp=1e-%.1f", CommonUtils.timeElapsed(tic), 
-								WeightMatrix.getMaxLetters(cluster.wm), cluster.pwmThresholdHGP));
-					for (double dec=0;dec<0.3;dec+=0.1){		// refine using more relax threshold to try more sequences
-						while(true){
-							HashMap<Integer, PWMHit> hits = findAllPWMHits (seqList, cluster, config.wm_factor-dec); 
-							if (buildPWMfromHits(seqList, cluster, hits.values().iterator())<=-1)	// But the selection wm_factor IS NOT CHANGED
-								break;
-						}
-					}
-				}
-			}
-
-			ArrayList<KmerCluster> badClusters = new ArrayList<KmerCluster>();
-			for (KmerCluster c:clusters){
-	    		if (c.wm==null || (!c.pwmGoodQuality))
-	    			badClusters.add(c);
-			}
-			clusters.removeAll(badClusters);
-			
-			// sort secondary clusters
-			ArrayList<KmerCluster> secondaryClusters = new ArrayList<KmerCluster>();
-			for (int i=1;i<clusters.size();i++){
-				secondaryClusters.add(clusters.get(i));
-			}
-			clusters.removeAll(secondaryClusters);
-			Collections.sort(secondaryClusters);
-			clusters.addAll(secondaryClusters);
-			for (int i=0;i<clusters.size();i++){
-				clusters.get(i).clusterId = i;
-			}	
-			
-			if (verbose>1)
-				System.out.println("\nMerge overlapping motif clusters ...\n");
-			boolean[][] checked = new boolean[clusters.size()][clusters.size()];	// whether a pair has been checked
-			mergeOverlapClusters (outName, seqList, seed_range, config.use_ksm, use_PWM_MM, checked, 0);
-		}	// refine PWMs
-		
 		/** post processing */
 		// remove clusters if it did not form PWM, or PWM hit is too few
 		ArrayList<KmerCluster> badClusters = new ArrayList<KmerCluster>();
@@ -1471,8 +1423,6 @@ public class KMAC0 {
 			StringBuilder sb = new StringBuilder();
 			if (cluster.wm!=null){
 				alignSequencesUsingPWM(seqList, cluster);
-				if (config.refine_ksm)
-					cluster.alignedKmers = getAlignedKmers (seqList, seed_range, new ArrayList<Kmer>());
 				updateEngine(cluster.alignedKmers);
 				cluster.ksmThreshold = optimizeKsmThreshold("", false);
 			}

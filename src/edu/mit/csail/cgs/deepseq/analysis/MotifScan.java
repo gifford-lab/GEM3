@@ -95,7 +95,7 @@ public class MotifScan {
 		    for (int m=0; m<pwms.size(); m++){
 		    	WeightMatrix pwm = pwms.get(m);
 		    	motifLengths.add(pwm.length());
-		    	double threshold = pwm.getMaxScore()*scoreRatio;
+		    	double threshold = pwm.getMaxScore() * scoreRatio;
 		    	motifThresholds.add(threshold);
 		    	sb_header.append("#").append(m).append("\t")
 		    	.append(pwm.getName()).append("\t")

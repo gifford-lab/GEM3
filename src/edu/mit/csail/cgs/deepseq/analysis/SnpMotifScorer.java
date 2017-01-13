@@ -68,12 +68,12 @@ public class SnpMotifScorer {
 		ArrayList<String> ksms = new ArrayList<String>();
 		if (ksm_file!=null)
 			ksms = CommonUtils.readTextFile(new File(dir, ksm_file).getAbsolutePath());
-		ArrayList<KsmPwmScanner> kss = new ArrayList<KsmPwmScanner>();
+		ArrayList<KsmPwmRocAnalysis> kss = new ArrayList<KsmPwmRocAnalysis>();
 		int count=0;
 		for (String ksmPath : ksms){
 			File file = new File(dir, ksmPath);
 			KsmMotif ksm = GappedKmer.loadKSM(file);
-			KsmPwmScanner scanner = new KsmPwmScanner(args, ksm);
+			KsmPwmRocAnalysis scanner = new KsmPwmRocAnalysis(args, ksm);
 
 			kss.add(scanner);
 			System.out.println(String.format("K%d: %s", count, ksmPath)); 
@@ -115,7 +115,7 @@ public class SnpMotifScorer {
 			int altc = Integer.parseInt(info[2]);
 			
 			for (int i=0;i<kss.size();i++){
-				KsmPwmScanner scanner = kss.get(i);
+				KsmPwmRocAnalysis scanner = kss.get(i);
 				KmerGroup kg = scanner.getBestKG(seq, seqRC);
 				KmerGroup kgN = scanner.getBestKG(alt, altRC);
 

@@ -194,12 +194,15 @@ public class GappedKmer extends Kmer{
 			}
 			
 			sb.append("%%%\n");	// %%% to signal that the following are the coveredWidths and sequence weights
-			
-			for (int w : posCoveredWidth)
-				sb.append(w).append(" ");
+			if (posCoveredWidth!=null){
+				for (int w : posCoveredWidth)
+					sb.append(w).append(" ");
+			}
 			sb.append("\n");
-			for (int w : negCoveredWidth)
-				sb.append(w).append(" ");
+			if (negCoveredWidth!=null){
+				for (int w : negCoveredWidth)
+					sb.append(w).append(" ");
+			}
 			sb.append("\n");
 			if (seq_weights!=null){
 				for (double w: seq_weights)
@@ -294,20 +297,24 @@ public class GappedKmer extends Kmer{
 	            	break;
 	            Kmer kmer = GappedKmer.fromString(line);
 	            id2baseKmerMap.put(Integer.parseInt(kmer.CIDs), kmer);		// for base-kmer, CIDs field is only one id
-	        }	
+	        }
 
 	        // load covered widths
 	        line = bin.readLine().trim();
-	        ksm.posCoveredWidth = new int[ksm.posSeqCount];
-	        f = line.split(" ");
-	        for (int i=0;i<ksm.posSeqCount;i++)
-	        	ksm.posCoveredWidth [i] = Integer.parseInt(f[i].trim());
-	        line = bin.readLine().trim();
-	        ksm.negCoveredWidth = new int[ksm.negSeqCount];
-	        f = line.split(" ");
-	        for (int i=0;i<ksm.negSeqCount;i++)
-	        	ksm.negCoveredWidth [i] = Integer.parseInt(f[i].trim());
-	        
+	        if (!line.isEmpty()){
+		        ksm.posCoveredWidth = new int[ksm.posSeqCount];
+		        f = line.split(" ");
+		        for (int i=0;i<ksm.posSeqCount;i++)
+		        	ksm.posCoveredWidth [i] = Integer.parseInt(f[i].trim());
+		        line = bin.readLine().trim();
+		        ksm.negCoveredWidth = new int[ksm.negSeqCount];
+		        f = line.split(" ");
+		        for (int i=0;i<ksm.negSeqCount;i++)
+		        	ksm.negCoveredWidth [i] = Integer.parseInt(f[i].trim());
+	        }
+	        else{
+	        	bin.readLine();		// skip the line for negative covered width
+	        }
 	        // load sequence weights
 	        ArrayList<Double> weights = new ArrayList<Double>();
 	        if ((line = bin.readLine()) != null) { 

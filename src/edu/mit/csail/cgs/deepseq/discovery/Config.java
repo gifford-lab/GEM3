@@ -7,7 +7,6 @@ import edu.mit.csail.cgs.tools.utils.Args;
 public class Config {
 	public boolean trim_simple=false;
 	public boolean print_PI = false;
-	public boolean classify_events = false;
     public boolean use_joint_event = false;
     public boolean outputBED = false;
     public boolean outputNarrowPeak = false;
@@ -30,6 +29,7 @@ public class Config {
     public boolean refine_window_boundary = false;
     public boolean is_branch_point_data = false;
     public boolean use_odds_ratio = true;
+    public boolean use_coveredWidth = true;
     public boolean match_base_kmer = false;				// use base k-mer for KSM matching (more specific than gapped k-mer)
 
     public boolean TF_binding = true;
@@ -124,14 +124,10 @@ public class Config {
     public boolean re_train = false;
 	public boolean cluster_gapped = false;
 	public boolean refine_centerKmers = true;		// select density clustering centers such that they are not too similar with higher ranked centers
-	public boolean refine_pwm = false;
-	public boolean refine_ksm = false;	// refine the KSM at the end of KMAC using un-masked sequences
 	public boolean refine_final_motifs = false;	// refine the final motifs
-    public boolean print_pwm_fdr = false;
     /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
     public boolean evaluate_by_ksm = false;	
     public boolean evaluate_by_both = false;	
-    public boolean rescue_motif2 = false;	
     
     public boolean ksm_logo_text = true;
     public boolean use_strength_weight = true;	// use binding event strength to weight 
@@ -217,10 +213,8 @@ public class Config {
         	// match the boolean parameters above
             use_weighted_kmer = !flags.contains("no_weighted_kmer");
         }
-        	
 
         // default as false, need the flag to turn it on
-        classify_events = flags.contains("classify");
         print_PI = flags.contains("print_PI");
         sort_by_location = flags.contains("sl");
         use_joint_event = flags.contains("use_joint_event");
@@ -251,14 +245,10 @@ public class Config {
         re_train = flags.contains("re_train");
         cluster_gapped = flags.contains("cluster_gapped");
         refine_centerKmers = !flags.contains("not_refine_centers");
-        refine_pwm = flags.contains("refine_pwm");
-        refine_ksm = flags.contains("refine_ksm");
         refine_final_motifs = flags.contains("refine_final_motifs");
-        print_pwm_fdr = flags.contains("print_pwm_fdr");      
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_ksm = flags.contains("evaluate_by_ksm");
         evaluate_by_both = flags.contains("evaluate_by_both");
-        rescue_motif2 = flags.contains("rescue_motif2");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         discard_subAlpha_components = flags.contains("no_sub_alpha");
@@ -268,6 +258,7 @@ public class Config {
         refine_window_boundary = flags.contains("refine_window_boundary");
         use_pos_weight = flags.contains("use_pos_weight");
         use_odds_ratio = !flags.contains("no_or");
+        use_coveredWidth = !flags.contains("no_cw");
         ksm_logo_text = flags.contains("ksm_logo_text");
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");

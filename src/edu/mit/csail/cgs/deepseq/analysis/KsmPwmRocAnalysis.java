@@ -21,12 +21,11 @@ import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.ROC;
 import net.sf.samtools.util.SequenceUtil;
 
-public class KsmPwmScanner {
+public class KsmPwmRocAnalysis {
 	public static char[] letters = {'A','C','T','G'};
 	private KMAC kmac;
-	// each element in the list is for one ChIP-Seq method
 	
-	public KsmPwmScanner(String[] args, KsmMotif ksm){
+	public KsmPwmRocAnalysis(String[] args, KsmMotif ksm){
         Config config = new Config();
         try{
 			config.parseArgs(args);   
@@ -35,13 +34,12 @@ public class KsmPwmScanner {
 			e.printStackTrace();
     		System.exit(-1);
 		}  
-        Set<String> flags = Args.parseFlags(args);
 		kmac = new KMAC(ksm.kmers, config);
 		kmac.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
-		if (flags.contains("noCW"))
-			kmac.setCoveredWidth(null, null);
-		else
+		if (config.use_coveredWidth)
 			kmac.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
+		else
+			kmac.setCoveredWidth(null, null);
 		if (config.use_weighted_kmer)
 			kmac.setSequenceWeights(ksm.seq_weights);
 	}
@@ -194,7 +192,7 @@ public class KsmPwmScanner {
 		File file = new File(kmer);
     	System.err.println(kmer);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
-		KsmPwmScanner scanner = new KsmPwmScanner(args, ksm);
+		KsmPwmRocAnalysis scanner = new KsmPwmRocAnalysis(args, ksm);
 		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 	        	    
 	    long t = System.currentTimeMillis();

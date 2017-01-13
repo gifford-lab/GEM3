@@ -2660,14 +2660,16 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		seedFamily = tmp;
 		
 		// init AC search engine and init coveredWidth = k
-		if (posCoveredWidth==null || posCoveredWidth.length!=seqList.size())
-			posCoveredWidth = new int[seqList.size()];
-		for (int i=0;i<posCoveredWidth.length;i++)
-			posCoveredWidth[i] = k;
-		if (negCoveredWidth==null || negCoveredWidth.length!=seqListNeg.size())
-			negCoveredWidth = new int[seqListNeg.size()];
-		for (int i=0;i<negCoveredWidth.length;i++)
-			negCoveredWidth[i] = k;
+		if (config.use_coveredWidth){
+			if (posCoveredWidth==null || posCoveredWidth.length!=seqList.size())
+				posCoveredWidth = new int[seqList.size()];
+			for (int i=0;i<posCoveredWidth.length;i++)
+				posCoveredWidth[i] = k;
+			if (negCoveredWidth==null || negCoveredWidth.length!=seqListNeg.size())
+				negCoveredWidth = new int[seqListNeg.size()];
+			for (int i=0;i<negCoveredWidth.length;i++)
+				negCoveredWidth[i] = k;
+		}
 		
 		initAhoCorasick(seedFamily);
 		
