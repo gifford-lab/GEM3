@@ -2,40 +2,21 @@ package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
-import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.motifs.WeightMatrix;
-import edu.mit.csail.cgs.datasets.motifs.WeightMatrixImport;
-import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.analysis.TFBS_SpaitialAnalysis.Site;
 import edu.mit.csail.cgs.deepseq.discovery.Config;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.GappedKmer;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.KmerGroup;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.KMAC.MotifThreshold;
-import edu.mit.csail.cgs.deepseq.discovery.kmer.Kmer;
+import edu.mit.csail.cgs.deepseq.discovery.kmer.KmerGroup;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.KsmMotif;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
-import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.ArgParser;
-import edu.mit.csail.cgs.utils.NotFoundException;
-import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.sequence.SequenceUtils;
 import edu.mit.csail.cgs.utils.stats.ROC;
 import net.sf.samtools.util.SequenceUtil;
@@ -156,6 +137,7 @@ public class KsmPwmScanner {
 		String motif_path = Args.parseString(args, "path", "./");
 		String fasta_path = Args.parseString(args, "fasta_path", "./");
 		String fasta_suffix = Args.parseString(args, "fasta_suffix", ".fasta");
+		String neg_fasta_suffix = Args.parseString(args, "neg_fasta_suffix", ".fasta.flanking");
 		String other_pfm_path = Args.parseString(args, "pfm_path", "./");
 		String other_pfm_suffix = Args.parseString(args, "pfm_suffix", "");
 		double fpr = Args.parseDouble(args, "fpr", 0.1);
@@ -177,14 +159,14 @@ public class KsmPwmScanner {
 			String f[] = line.split("\t");	
 			if (line.startsWith("#"))
 				continue;
-			scanSeqs(args, f[0], motif_path, fasta_path, fasta_suffix, other_pfm_path, pfm_suffixs,
+			scanSeqs(args, f[0], motif_path, fasta_path, fasta_suffix, neg_fasta_suffix, other_pfm_path, pfm_suffixs,
 					gc, top, randSeed, negPosRatio, windowSize, fpr);
 		    
 		} // each expt
 	}
 	
 	private static void scanSeqs(String[] args, String expt, String motif_path, String fasta_path, String fasta_suffix,  
-			String other_pfm_path, String[] pfm_suffixs, double gc,
+			String neg_fasta_suffix, String other_pfm_path, String[] pfm_suffixs, double gc,
 			int top, int randSeed, int negPosRatio, int width, double fpr){
 		
 		System.out.println("Running "+expt);
@@ -193,13 +175,14 @@ public class KsmPwmScanner {
 		for (int i=0;i<negPosRatio;i++)
 			randObjs[i] = new Random(randSeed+i);
 
-		String kmer=null, pfm=null, fasta_file=null;
+		String kmer=null, pfm=null, fasta_file=null, fasta_neg_file=null;
 		if (expt!=null){
 			kmer = getFileName(motif_path+expt, ".m0.KSM");			// old file name format
 			if (kmer==null)
 				kmer = getFileName(motif_path+expt, "_KSM");		// new file name format, since May 2012
 			pfm = getFileName(motif_path+expt, ".all.PFM");
 			fasta_file = fasta_path+expt+fasta_suffix;
+			fasta_neg_file = fasta_path+expt+neg_fasta_suffix;
 		}
 		
 		long t1 = System.currentTimeMillis();
@@ -243,6 +226,7 @@ public class KsmPwmScanner {
 		int KSM_time = 0;
 		for (int i=0;i<numSeqToRun;i++){
 			String seq = posSeqs.get(i).toUpperCase();
+			ArrayList<String> negSeqs = CommonUtils.loadSeqFromFasta(fasta_neg_file);
 			int startSeq = seq.length()/2 - width/2; int endSeq =startSeq+width;
 			seq = seq.substring(startSeq,endSeq);
 			//PWM
@@ -262,7 +246,9 @@ public class KsmPwmScanner {
 			
 			// scoring negative shuffled sequences
 			for (int j=0;j<negPosRatio;j++){
-				String seqN = SequenceUtils.dinu_shuffle(seq, randObjs[j]);	
+				String seqN = fasta_neg_file!=null?
+						negSeqs.get(i).toUpperCase().substring(startSeq,endSeq) :
+						SequenceUtils.dinu_shuffle(seq, randObjs[j]);
 				// PWM
 				double pwmN = WeightMatrixScorer.getMaxSeqScore(motif, seqN, false);
 				String matchN=WeightMatrixScorer.getMaxScoreSequence(motif, seqN, -1000, 0);
@@ -274,12 +260,6 @@ public class KsmPwmScanner {
 					matchNKSM = kgN.getCoveredSequence();
 				ksmN_scores.add(kgN==null?0:kgN.getScore());
 				
-//				sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%d\t%d%s\n",  
-//						i, match, matchN, matchKSM, matchNKSM, "\tNA", pwm, pwmN, 
-//						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
-//						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
-//						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount(),
-//						"\tNA"));
 				sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%d\t%d\n",  
 						i, match, matchN, matchKSM, matchNKSM, "\tNA", pwm, pwmN, 
 						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
