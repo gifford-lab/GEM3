@@ -214,6 +214,7 @@ public class KsmPwmScanner {
 
     	System.err.println(fasta_file);
 		ArrayList<String> posSeqs = CommonUtils.loadSeqFromFasta(fasta_file);
+		ArrayList<String> negSeqs = CommonUtils.loadSeqFromFasta(fasta_neg_file);
 		int numSeqToRun = Math.min(top, posSeqs.size());
 		System.out.println("Scanning "+numSeqToRun+" regions ...");
 				
@@ -226,7 +227,6 @@ public class KsmPwmScanner {
 		int KSM_time = 0;
 		for (int i=0;i<numSeqToRun;i++){
 			String seq = posSeqs.get(i).toUpperCase();
-			ArrayList<String> negSeqs = CommonUtils.loadSeqFromFasta(fasta_neg_file);
 			int startSeq = seq.length()/2 - width/2; int endSeq =startSeq+width;
 			seq = seq.substring(startSeq,endSeq);
 			//PWM
