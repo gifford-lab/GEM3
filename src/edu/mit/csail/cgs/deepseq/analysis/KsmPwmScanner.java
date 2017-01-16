@@ -126,18 +126,11 @@ public class KsmPwmScanner {
 	}
 	
 	private static void scan_KSM_PWM(String[] args){
-		Set<String> flags = Args.parseFlags(args);		
-		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
-		seqgen.useCache(!flags.contains("no_cache"));		
-		seqgen.useLocalFiles(!flags.contains("use_db_genome"));
-		if (!flags.contains("use_db_genome"))
-			seqgen.setGenomePath(Args.parseString(args, "genome", ""));
-		
 		// load experiment list
 		String motif_path = Args.parseString(args, "path", "./");
 		String fasta_path = Args.parseString(args, "fasta_path", "./");
 		String fasta_suffix = Args.parseString(args, "fasta_suffix", ".fasta");
-		String neg_fasta_suffix = Args.parseString(args, "neg_fasta_suffix", ".fasta.flanking");
+		String neg_fasta_suffix = Args.parseString(args, "neg_fasta_suffix", null);
 		String other_pfm_path = Args.parseString(args, "pfm_path", "./");
 		String other_pfm_suffix = Args.parseString(args, "pfm_suffix", "");
 		double fpr = Args.parseDouble(args, "fpr", 0.1);
@@ -159,18 +152,23 @@ public class KsmPwmScanner {
 			String f[] = line.split("\t");	
 			if (line.startsWith("#"))
 				continue;
-			scanSeqs(args, f[0], motif_path, fasta_path, fasta_suffix, neg_fasta_suffix, other_pfm_path, pfm_suffixs,
+			if (f.length==1){
+				scanSeqs(args, f[0], motif_path, f[0], fasta_path, fasta_suffix, neg_fasta_suffix, other_pfm_path, pfm_suffixs,
 					gc, top, randSeed, negPosRatio, windowSize, fpr);
+			}
+			else{
+				scanSeqs(args, f[0], motif_path, f[1], fasta_path, fasta_suffix, neg_fasta_suffix, other_pfm_path, pfm_suffixs,
+					gc, top, randSeed, negPosRatio, windowSize, fpr);
+			}
 		    
 		} // each expt
 	}
 	
-	private static void scanSeqs(String[] args, String expt, String motif_path, String fasta_path, String fasta_suffix,  
+	private static void scanSeqs(String[] args, String expt, String motif_path, String expt2, String fasta_path, String fasta_suffix,  
 			String neg_fasta_suffix, String other_pfm_path, String[] pfm_suffixs, double gc,
 			int top, int randSeed, int negPosRatio, int width, double fpr){
 		
 		System.out.println("Running "+expt);
-		long tic = System.currentTimeMillis();
 		Random[] randObjs = new Random[negPosRatio];
 		for (int i=0;i<negPosRatio;i++)
 			randObjs[i] = new Random(randSeed+i);
@@ -181,8 +179,10 @@ public class KsmPwmScanner {
 			if (kmer==null)
 				kmer = getFileName(motif_path+expt, "_KSM");		// new file name format, since May 2012
 			pfm = getFileName(motif_path+expt, ".all.PFM");
-			fasta_file = fasta_path+expt+fasta_suffix;
-			fasta_neg_file = fasta_path+expt+neg_fasta_suffix;
+			
+			fasta_file = fasta_path+expt2+fasta_suffix;
+			if (neg_fasta_suffix!=null)
+				fasta_neg_file = fasta_path+expt2+neg_fasta_suffix;
 		}
 		
 		long t1 = System.currentTimeMillis();
@@ -214,7 +214,10 @@ public class KsmPwmScanner {
 
     	System.err.println(fasta_file);
 		ArrayList<String> posSeqs = CommonUtils.loadSeqFromFasta(fasta_file);
-		ArrayList<String> negSeqs = CommonUtils.loadSeqFromFasta(fasta_neg_file);
+		
+		ArrayList<String> negSeqs = null;
+		if (fasta_neg_file != null )
+			negSeqs = CommonUtils.loadSeqFromFasta(fasta_neg_file);
 		int numSeqToRun = Math.min(top, posSeqs.size());
 		System.out.println("Scanning "+numSeqToRun+" regions ...");
 				
