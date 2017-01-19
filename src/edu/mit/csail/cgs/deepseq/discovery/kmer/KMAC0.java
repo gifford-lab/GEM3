@@ -2408,7 +2408,7 @@ public class KMAC0 {
 			  hit.str = ss;
 			  
 			  hit.weight = 1.0;
-			  if (config.use_strength_weight)
+			  if (config.use_pwm_binding_strength_weight)
 				  hit.weight *= seq_weights[hit.seqId];
 			  if (hit.clusterId==0 && config.use_pos_weight)
 				  hit.weight *= profile[(hit.end+hit.start)/2];
@@ -3227,7 +3227,7 @@ public class KMAC0 {
  			
  			// determine the weight for the sequence
  			double weight = 1.0;
-			if (config.use_strength_weight)
+			if (config.use_pwm_binding_strength_weight)
 				weight *= seq_weights[seq.id];
 			if (cluster.clusterId==0 && config.use_pos_weight){
 				int prof_pos = k/2-seq.pos;
