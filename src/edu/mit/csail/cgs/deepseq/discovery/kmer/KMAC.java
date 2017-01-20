@@ -2772,12 +2772,21 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				continue;
 			// multiply k_ratio ( >1 for larger k value) to prefer longer k-mer
 			double k_ratio = cluster1.k>cluster2.k ? config.k_ratio : cluster1.k<cluster2.k? 1/config.k_ratio : 1;
-			if ((cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance)*k_ratio
-					< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
-//				if (cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance 
-//						< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
-				cluster1 = clusters.get(j);
-				cluster2 = clusters.get(m);
+			if (config.evaluate_by_ksm){
+				if ((cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance)*k_ratio
+						< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
+	//				if (cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance 
+	//						< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
+					cluster1 = clusters.get(j);
+					cluster2 = clusters.get(m);
+				}
+			}
+			else{
+				if ((cluster1.ksmThreshold.motif_significance)*k_ratio
+						< cluster2.ksmThreshold.motif_significance){
+					cluster1 = clusters.get(j);
+					cluster2 = clusters.get(m);
+				}
 			}
 			if (cluster1.wm==null||cluster2.wm==null)
 				continue;
@@ -2906,7 +2915,14 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				// merge if the new PWM is more enriched TODO
 //				System.out.println(String.format("merPWM=%.1f, merKSM=%.1f -- c1_PWM=%.1f, c1_KSM=%.1f", newCluster.pwmThreshold.motif_significance, newCluster.ksmThreshold.motif_significance,
 //						cluster1.pwmThreshold.motif_significance, cluster1.ksmThreshold.motif_significance));
-				if (flag==0 && (newCluster.pwmThreshold.motif_significance+newCluster.ksmThreshold.motif_significance > cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance)){		
+				boolean isNewClusterBetter = false;
+				if (config.evaluate_by_ksm){
+					isNewClusterBetter = newCluster.ksmThreshold.motif_significance > cluster1.ksmThreshold.motif_significance;
+				}
+				else{
+					isNewClusterBetter = newCluster.pwmThreshold.motif_significance+newCluster.ksmThreshold.motif_significance > cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance;					
+				}
+				if (flag==0 && isNewClusterBetter){		
 					clusters.set(m, newCluster);
 					isChanged = true;
 					for (int d=0;d<checked.length;d++){
@@ -4992,12 +5008,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		}
 		
 		/**
-		 * Sort by KSM HGP, then by PWM HGP
+		 * Sort by KSM Significance, then by PWM Significance
 		 */
 		public int compareToByKsmSignificance(MotifCluster c) {					// descending ksmThresholdHGP
 			if(ksmThreshold.motif_significance > c.ksmThreshold.motif_significance){return(-1);}
 			else if(ksmThreshold.motif_significance < c.ksmThreshold.motif_significance){return(+1);}
-			else 	// if same ksmHGP
+			else 	// if same ksm Significance
 				if(pwmThreshold.motif_significance > c.pwmThreshold.motif_significance){return(-1);}
 				else if(pwmThreshold.motif_significance < c.pwmThreshold.motif_significance){return(+1);}
 				else return(0);

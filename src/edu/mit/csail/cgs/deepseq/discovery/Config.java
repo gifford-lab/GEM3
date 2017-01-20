@@ -127,7 +127,6 @@ public class Config {
 	public boolean refine_final_motifs = false;	// refine the final motifs
     /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
     public boolean evaluate_by_ksm = false;	
-    public boolean evaluate_by_both = false;	
     
     public boolean ksm_logo_text = true;
     public boolean use_strength_weight = true;	// use binding event strength to weight 
@@ -248,7 +247,6 @@ public class Config {
         refine_final_motifs = flags.contains("refine_final_motifs");
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_ksm = flags.contains("evaluate_by_ksm");
-        evaluate_by_both = flags.contains("evaluate_by_both");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         discard_subAlpha_components = flags.contains("no_sub_alpha");
