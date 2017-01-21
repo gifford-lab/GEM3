@@ -173,7 +173,6 @@ public class KsmPwmRocAnalysis {
 			int top, int randSeed, int negPosRatio, int width, double fpr){
 		
 		System.out.println("Running "+expt);
-		long tic = System.currentTimeMillis();
 		Random[] randObjs = new Random[negPosRatio];
 		for (int i=0;i<negPosRatio;i++)
 			randObjs[i] = new Random(randSeed+i);
