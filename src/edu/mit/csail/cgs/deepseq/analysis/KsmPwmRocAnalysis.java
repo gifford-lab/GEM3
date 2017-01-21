@@ -162,30 +162,35 @@ public class KsmPwmRocAnalysis {
 			String f[] = line.split("\t");	
 			if (line.startsWith("#"))
 				continue;
-			scanSeqs(args, f[0], motif_path, fasta_path, fasta_suffix, neg_fasta_suffix, other_pfm_path, pfm_suffixs,
+			if (f.length==1)
+				scanSeqs(args, f[0], f[0], motif_path, fasta_path, fasta_suffix, neg_fasta_suffix, other_pfm_path, pfm_suffixs,
 					gc, top, randSeed, negPosRatio, windowSize, fpr);
+			else
+				scanSeqs(args, f[0], f[1], motif_path, fasta_path, fasta_suffix, neg_fasta_suffix, other_pfm_path, pfm_suffixs,
+						gc, top, randSeed, negPosRatio, windowSize, fpr);
 		    
 		} // each expt
 	}
 	
-	private static void scanSeqs(String[] args, String expt, String motif_path, String fasta_path, String fasta_suffix,  
-			String neg_fasta_suffix, String other_pfm_path, String[] pfm_suffixs, double gc,
+	private static void scanSeqs(String[] args, String expt_motif, String expt_fasta, String motif_path, String fasta_path,  
+			String fasta_suffix, String neg_fasta_suffix, String other_pfm_path, String[] pfm_suffixs, double gc,
 			int top, int randSeed, int negPosRatio, int width, double fpr){
 		
-		System.out.println("Running "+expt);
+		System.out.println("Scanning "+expt_motif+" motif on "+expt_fasta+" sequences ...");
 		Random[] randObjs = new Random[negPosRatio];
 		for (int i=0;i<negPosRatio;i++)
 			randObjs[i] = new Random(randSeed+i);
 
 		String kmer=null, pfm=null, fasta_file=null, fasta_neg_file=null;
-		if (expt!=null){
-			kmer = getFileName(motif_path+expt, ".m0.KSM");			// old file name format
+		if (expt_motif!=null){
+			kmer = getFileName(motif_path+expt_motif, ".m0.KSM");			// old file name format
 			if (kmer==null)
-				kmer = getFileName(motif_path+expt, "_KSM");		// new file name format, since May 2012
-			pfm = getFileName(motif_path+expt, ".all.PFM");
-			fasta_file = fasta_path+expt+fasta_suffix;
+				kmer = getFileName(motif_path+expt_motif, "_KSM");		// new file name format, since May 2012
+			pfm = getFileName(motif_path+expt_motif, ".all.PFM");
+			
+			fasta_file = fasta_path+expt_fasta+fasta_suffix;
 			if (neg_fasta_suffix!=null)
-				fasta_neg_file = fasta_path+expt+neg_fasta_suffix;
+				fasta_neg_file = fasta_path+expt_fasta+neg_fasta_suffix;
 		}
 		
 		long t1 = System.currentTimeMillis();
@@ -206,7 +211,7 @@ public class KsmPwmRocAnalysis {
 		ArrayList<ArrayList<Double>> other_scores = new ArrayList<ArrayList<Double>>();
 		ArrayList<ArrayList<Double>> otherN_scores = new ArrayList<ArrayList<Double>>();
 	    for (int i=0;i<pfm_suffixs.length;i++){
-	    	pfm = other_pfm_path+expt+pfm_suffixs[i];
+	    	pfm = other_pfm_path+expt_motif+pfm_suffixs[i];
 	    	System.err.println(pfm);
 	    	otherPwms[i] = CommonUtils.loadPWM_PFM_file(pfm, gc); 
 	    	other_scores.add(new ArrayList<Double>());
@@ -276,8 +281,8 @@ public class KsmPwmRocAnalysis {
 		System.out.println("Total PWM scanning time:" + PWM_time);
 		System.out.println("Total KSM scanning time:" + KSM_time);
 		
-		CommonUtils.writeFile(expt+"_w"+width+"_scores.txt", sb.toString());
-		System.out.println(expt+"_w"+width+"_scores.txt");
+		CommonUtils.writeFile(expt_motif+"_w"+width+"_scores.txt", sb.toString());
+		System.out.println(expt_motif+"_w"+width+"_scores.txt");
 		
 		double pwm05 = maxPwmScore * 0.5; double count05=0;	// count of neg scores that pass 0.5*maxScore
 		double pwm06 = maxPwmScore * 0.6; double count06=0;
@@ -291,7 +296,7 @@ public class KsmPwmRocAnalysis {
 				count07++;
 		}
 		System.out.print(String.format("%s\tPWM_KSM_FPR_PWM05_PWM06_PWM07\t%.2f\t%.2f\t%.3f\t%.3f\t%.3f\t%.3f", 
-				expt,evaluateScoreROC(pwm_scores, pwmN_scores, fpr),
+				expt_motif,evaluateScoreROC(pwm_scores, pwmN_scores, fpr),
 				evaluateScoreROC(ksm_scores, ksmN_scores, fpr), fpr,
 				count05/pwmN_scores.size(), count06/pwmN_scores.size(), count07/pwmN_scores.size()));
 		for (int j=0;j<otherPwms.length;j++){
