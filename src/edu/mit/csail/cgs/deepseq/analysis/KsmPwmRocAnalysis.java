@@ -83,7 +83,7 @@ public class KsmPwmRocAnalysis {
 			scan_KSM_PWM(args);
 			break;
 		case 2:
-			shuffleFasta(args);
+			dinuShuffleFasta(args);
 			break;
 		case 3:
 			rocFromScores(args);
@@ -97,21 +97,21 @@ public class KsmPwmRocAnalysis {
 		ArrayList<Double> posScores = new ArrayList<Double>();
 		for (String s:lines){
 			String f[] = s.split("\t");
-			posScores.add(Double.parseDouble(f[7]));
+			posScores.add(Double.parseDouble(f[0]));
 		}
 		posScores.trimToSize();
 		lines = CommonUtils.readTextFile(Args.parseString(args, "neg", null));
 		ArrayList<Double> negScores = new ArrayList<Double>();
 		for (String s:lines){
 			String f[] = s.split("\t");
-			negScores.add(Double.parseDouble(f[7]));
+			negScores.add(Double.parseDouble(f[0]));
 		}
 		negScores.trimToSize();
 		double roc = evaluateScoreROC(posScores, negScores, fpr);
-		System.out.println(String.format("%s\tTFFM\t%.2f", Args.parseString(args, "expt", null), roc));
+		System.out.println(String.format("%s\t%.2f", Args.parseString(args, "expt", null), roc));
 	}
 	
-	private static void shuffleFasta(String[] args){
+	private static void dinuShuffleFasta(String[] args){
 		Random rand = new Random(Args.parseInteger(args, "seed", 0));
 		String fasta = Args.parseString(args, "fasta", null);
 		if (fasta==null)
