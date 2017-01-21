@@ -129,7 +129,7 @@ public class Config {
     public boolean evaluate_by_ksm = false;	
     
     public boolean ksm_logo_text = true;
-    public boolean use_strength_weight = true;	// use binding event strength to weight 
+    public boolean use_pwm_binding_strength_weight = true;	// use binding event strength to weight 
     public boolean use_pos_weight = false;		// use binding position profile to weight motif site
     public boolean allow_seed_reset=true;		// reset primary motif if secondary motif is more enriched
     public boolean allow_seed_inheritance=true;	// allow primary seed k-mer to pass on to the next round of GEM

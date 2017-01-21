@@ -3980,7 +3980,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
  			
  			// determine the weight for the sequence
  			double weight = 1.0;
-			if (config.use_strength_weight)
+			if (config.use_pwm_binding_strength_weight)
 				weight *= seq_weights[seq.id];
 			//TODO: now we apply this to all possible motifs (b.c. don't know which is the primary with KMAC2Gap, is it OK?
 			if (config.use_pos_weight){			

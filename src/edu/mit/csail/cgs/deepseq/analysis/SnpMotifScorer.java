@@ -63,7 +63,6 @@ public class SnpMotifScorer {
 		File dir = new File(motif_path);
 		String pfm_file = Args.parseString(args, "pfms", null);
 		String ksm_file = Args.parseString(args, "ksms", null);
-		boolean use_base_kmer = flags.contains("use_base_kmer");
 		
 		ArrayList<String> ksms = new ArrayList<String>();
 		if (ksm_file!=null)
