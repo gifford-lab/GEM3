@@ -152,13 +152,13 @@ public class MotifScan {
 		    System.out.println(sb_header.toString());
 		    
 			instances = getKmerInstances(seqs, kmer);
-			header = "#sequence:"+seqs.length+"; motif:1";
+			header = "# numSequence:"+seqs.length+"\n# numMotif:1";
 		}
 		
 	    // output
 	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
     	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
-    			header+"\n#Motif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n"); 	// write first, overwrite if the file exists
+    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n"); 	// write first, overwrite if the file exists
 		StringBuilder sb = new StringBuilder();
 		Genome g = CommonUtils.parseGenome(args);
 	    for (int i=0;i<instances.size();i++){
