@@ -108,7 +108,7 @@ public class MotifScan {
 		    System.out.println(sb_header.toString());
 
 			instances = getPWMInstances(seqs, pwms, motifThresholds);
-			header = "#sequence:"+seqs.length+"; motif:"+pwms.size();
+			header = "# numSequence:"+seqs.length+"\n# numMotif:"+pwms.size();
 		}
 		
 	    // search for KSM motif matches
@@ -135,7 +135,7 @@ public class MotifScan {
 				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
 			}
 			instances = getKSMInstances(seqs, kmacs, knames);
-			header = "#sequence:"+seqs.length+"; motif:"+kmacs.size();
+			header = "# numSequence:"+seqs.length+"\n# numMotif:"+kmacs.size();
 		}
 		
 		// search for exact k-mer match
