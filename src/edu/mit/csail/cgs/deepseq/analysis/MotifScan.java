@@ -59,7 +59,7 @@ public class MotifScan {
 
 	public static void findMotifInstances(String[] args){
 		Set<String> flags = Args.parseFlags(args);
-	    
+	    boolean toAddFasta = flags.contains("add_fasta");
 		String fasta = Args.parseString(args, "fasta", null);
 		if (fasta==null)
 			return;
@@ -147,7 +147,8 @@ public class MotifScan {
 		    
 		    sb_header.append("# K-mer Information\n");
 		    sb_header.append("#ID\tLetters\tWidth\n");
-		    sb_header.append("#").append(0).append("\t").append(kmer).append("\t").append(kmer.length()).append("\n");
+		    sb_header.append("#").append(0).append("\t").append(kmer).append("\t").append(kmer.length());
+		    sb_header.append("\n");
 		    sb_header.append("#");
 		    System.out.println(sb_header.toString());
 		    
@@ -157,8 +158,14 @@ public class MotifScan {
 		
 	    // output
 	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
-    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
-    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n"); 	// write first, overwrite if the file exists
+	    if (toAddFasta){
+	    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
+    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\tFasta\n"); 	// write first, overwrite if the file exists
+	    }
+	    else{
+	    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
+	    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\tFasta\n"); 	// write first, overwrite if the file exists	    	
+	    }
 		StringBuilder sb = new StringBuilder();
 		Genome g = CommonUtils.parseGenome(args);
 	    for (int i=0;i<instances.size();i++){
@@ -182,8 +189,14 @@ public class MotifScan {
 	    	}
 	    	else
 	    		coor_string = "N.A.";
-	    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
-	    	.append(mi.position).append("\t").append(coor_string).append("\t").append(mi.strand).append("\t").append(String.format("%.2f", mi.score)).append("\n");
+	    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t")
+	    	.append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
+	    	.append(mi.position).append("\t").append(coor_string).append("\t")
+	    	.append(mi.strand).append("\t").append(String.format("%.2f", mi.score));
+	    	if (toAddFasta){
+	    		sb.append("\t").append(seqs[mi.seqID]);
+	    	}
+	    	sb.append("\n");
 	    	if (sb.length()>1e7){	// write sb in smaller trunks
 		    	CommonUtils.appendFile(out.concat(".motifInstances.txt"), sb.toString());
 		    	sb = new StringBuilder();

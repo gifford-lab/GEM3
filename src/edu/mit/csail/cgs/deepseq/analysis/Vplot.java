@@ -112,8 +112,6 @@ public class Vplot {
 				if (length>=maxReadLength)
 					length = maxReadLength-1;
 				matrix[(offset+radius)/binW][length/binL]++;
-//				if (maxWidth<ri.getWidth())
-//					maxWidth = ri.getWidth();
 			}
 			
 			//output
