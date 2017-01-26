@@ -30,25 +30,9 @@ public class MotifScan {
 		int type = Args.parseInteger(args, "type", 1);
 		switch(type){
 			case 1: findMotifInstances(args); break;
-			case 9: scanWholeGenome(args, parseGenome(args)); break;
+			case 9: scanWholeGenome(args, CommonUtils.parseGenome(args)); break;
 		}
 		
-	}
-	
-	public static Genome parseGenome(String[] args) {
-		Genome genome = null;
-		try {
-	    	Pair<Organism, Genome> pair = Args.parseGenome(args);
-	    	if(pair==null){
-	    	  System.err.println("No genome provided; provide a Gifford lab DB genome name");
-	    	  System.exit(1);
-	    	}else{
-	    		genome = pair.cdr();
-	    	}
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }
-		return genome;
 	}
 	
 	/** TODO
@@ -60,7 +44,10 @@ public class MotifScan {
 	public static void findMotifInstances(String[] args){
 		Set<String> flags = Args.parseFlags(args);
 	    boolean toAddFasta = flags.contains("add_fasta");
+	    boolean toMakeMatrix = flags.contains("matrix");		// make seq-motif feature matrix
+
 		String fasta = Args.parseString(args, "fasta", null);
+	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
 		if (fasta==null)
 			return;
 	    ArrayList<String> texts = CommonUtils.readTextFile(fasta.trim());
@@ -87,11 +74,11 @@ public class MotifScan {
 		    	System.out.println("No motif is loaded from \n"+pfm_fle);
 		    	System.exit(-1);
 		    }
-		    double scoreRatio = Args.parseDouble(args, "pwm_cutoff", 0.6);
 		    
+		    // display motif information
+		    double scoreRatio = Args.parseDouble(args, "pwm_cutoff", 0.6);
 		    sb_header.append("# Motif Information\n");
 		    sb_header.append("#ID\tName\tLetters\tWidth\tMax\tThresh\n");
-		    
 		    for (int m=0; m<pwms.size(); m++){
 		    	WeightMatrix pwm = pwms.get(m);
 		    	motifLengths.add(pwm.length());
@@ -106,9 +93,27 @@ public class MotifScan {
 		    }
 		    sb_header.append("#");
 		    System.out.println(sb_header.toString());
-
-			instances = getPWMInstances(seqs, pwms, motifThresholds);
-			header = "# numSequence:"+seqs.length+"\n# numMotif:"+pwms.size();
+   
+		    if (toMakeMatrix){
+		    	double[][] matrix = getPwmScoreMatrix(seqs, pwms);
+		    	StringBuilder msb = new StringBuilder();
+		    	msb.append("Seq").append("\t");
+		    	for (int i=0; i<pwms.size(); i++)
+		    		msb.append(pwms.get(i).name).append("\t");
+		    	CommonUtils.replaceEnd(msb, '\n');
+		    	for (int j=0; j<seqs.length; j++){
+		    		msb.append(names[j]).append("\t");
+			    	for (int i=0; i<pwms.size(); i++)
+			    		msb.append(String.format("%.4f\t", matrix[j][i]));
+			    	CommonUtils.replaceEnd(msb, '\n');
+		    	}
+		    	CommonUtils.writeFile(out.concat(".scoreMatrix.txt"), msb.toString());
+		    	System.exit(0);
+		    }
+		    else{	// only report strong hits
+				instances = getPWMInstances(seqs, pwms, motifThresholds);
+				header = "# numSequence:"+seqs.length+"\n# numMotif:"+pwms.size();
+		    }
 		}
 		
 	    // search for KSM motif matches
@@ -157,14 +162,13 @@ public class MotifScan {
 		}
 		
 	    // output
-	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
 	    if (toAddFasta){
 	    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
     			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\tFasta\n"); 	// write first, overwrite if the file exists
 	    }
 	    else{
 	    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
-	    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\tFasta\n"); 	// write first, overwrite if the file exists	    	
+	    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n"); 	// write first, overwrite if the file exists	    	
 	    }
 		StringBuilder sb = new StringBuilder();
 		Genome g = CommonUtils.parseGenome(args);
@@ -281,6 +285,14 @@ public class MotifScan {
 	    }
 		return instances;
 	}
+	public static double[][] getPwmScoreMatrix(String[] seqs, List<WeightMatrix> pwms){
+		double[][] matrix = new double[seqs.length][pwms.size()];
+		for (int i=0;i<seqs.length;i++){
+			for (int j=0; j<pwms.size();j++)
+				matrix[i][j] = WeightMatrixScorer.getMaxSeqScore(pwms.get(j), seqs[i], false);
+		}
+		return matrix;
+	}
 
 	/**
 	 * Return a list of motif PWM matches from a list of sequences<br>
@@ -338,6 +350,7 @@ public class MotifScan {
 	    }
 		return instances;
 	}
+	
 	/**
 	 * Scan the sequences (forward and RC) for EXACT matches of one single k-mer 
 	 * @param seqs

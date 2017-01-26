@@ -129,12 +129,6 @@ public class KsmPwmRocAnalysis {
 	}
 	
 	private static void scan_KSM_PWM(String[] args){
-		Set<String> flags = Args.parseFlags(args);		
-		SequenceGenerator<Region> seqgen = new SequenceGenerator<Region>();
-		seqgen.useCache(!flags.contains("no_cache"));		
-		seqgen.useLocalFiles(!flags.contains("use_db_genome"));
-		if (!flags.contains("use_db_genome"))
-			seqgen.setGenomePath(Args.parseString(args, "genome", ""));
 		
 		// load experiment list
 		String motif_path = Args.parseString(args, "path", "./");

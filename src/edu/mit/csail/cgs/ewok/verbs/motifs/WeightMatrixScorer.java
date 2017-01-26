@@ -60,7 +60,11 @@ public class WeightMatrixScorer implements Mapper<Region,WeightMatrixScoreProfil
        	
         return new WeightMatrixScoreProfile(matrix, fscores, rscores);
     }
-    
+    /**
+     * Get the score profile for both strands
+     * @param seq
+     * @return
+     */
     public WeightMatrixScoreProfile execute(String seq) { 
     	seq = seq.toUpperCase();
         double[] fscores = null, rscores = null;
