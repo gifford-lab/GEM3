@@ -47,7 +47,7 @@ public class MotifScan {
 	    boolean toMakeMatrix = flags.contains("matrix");		// make seq-motif feature matrix
 
 		String fasta = Args.parseString(args, "fasta", null);
-	    String out = Args.parseString(args, "out", fasta.substring(0, fasta.length()-6));
+	    String out = Args.parseString(args, "out", fasta.replace(".fasta", "").replace(".fa", ""));
 		if (fasta==null)
 			return;
 	    ArrayList<String> texts = CommonUtils.readTextFile(fasta.trim());
