@@ -112,18 +112,22 @@ public class KsmPwmRocAnalysis {
 	}
 	
 	private static void dinuShuffleFasta(String[] args){
-		Random rand = new Random(Args.parseInteger(args, "seed", 0));
+		int fold = Args.parseInteger(args, "fold", 1);
+		int seed = Args.parseInteger(args, "seed", 0);
 		String fasta = Args.parseString(args, "fasta", null);
 		if (fasta==null)
 			System.err.println("File not found: "+fasta);
 		ArrayList<String> posSeqs = CommonUtils.loadSeqFromFasta(fasta);
 		StringBuilder sb = new StringBuilder();
-		int count=1;
-		for (String s: posSeqs){
-			String seqN = SequenceUtils.dinu_shuffle(s, rand);
-			sb.append(">Shuffled_").append(count).append("\n");
-			sb.append(seqN).append("\n");
-			count++;
+		for (int i=0;i<fold;i++){
+			int count=0;
+			Random rand = new Random(seed+i);
+			for (String s: posSeqs){
+				String seqN = SequenceUtils.dinu_shuffle(s, rand);
+				sb.append(">Shuffled_fold").append(fold).append(".").append(count).append("\n");
+				sb.append(seqN).append("\n");
+				count++;
+			}
 		}
 		CommonUtils.writeFile(fasta+".shuffled", sb.toString());
 	}
