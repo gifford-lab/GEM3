@@ -144,7 +144,7 @@ public class KmerGroup implements Comparable<KmerGroup>{
 		char[] letters = new char[rightShift-leftShift+longest];
 		int rightIdx = 0;
 		for (Kmer km:kmers){
-			char[] kChars = km.kmerString.toCharArray();
+			char[] kChars = km.isSeedOrientation?km.kmerString.toCharArray():km.kmerRC.toCharArray();
 			for (int i=0;i<kChars.length;i++){
 				int idx = i+km.getKmerStartOffset()-leftShift;
 				if (kChars[i]!='N'){

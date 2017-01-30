@@ -5508,7 +5508,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 						// b/c AC search returns KmEnd_seq position, add the kmer length to get seed_kmEnd
 						// - kmStart_seed - kmEnd_kmStart (k) --> seed_kmEnd; 
 						// When scanning KSM, compute match position seed_seq: seed_kmEnd + kmEnd_seq --> seed_seq
-						tmpStr2kmerEndOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k+1);
+						tmpStr2kmerEndOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k);
 					}
 				}
 				else{	// use whole gapped kmer for matching KG
@@ -5524,7 +5524,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 							tmpStr2kmerEndOffsets.put(kmerStr, new ArrayList<Integer>());
 						}
 						tmpStr2kmers.get(kmerStr).add(km);			// use gapped kmers for scoring
-						tmpStr2kmerEndOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k+1);	 // base kmer has same length as gkmer, thus same offset
+						tmpStr2kmerEndOffsets.get(kmerStr).add(-gk.kmerStartOffset-gk.k);	 // base kmer has same length as gkmer, thus same offset
 					}
 				}
 			}
@@ -5541,7 +5541,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				tmpStr2kmers.get(kmerStr).add(km);	
 				// Convert startOffset to endOffset, b/c AC search returns end+1 position, add the kmer length with kmer offset, minus
 				// - start_seed - end_start (k) --> seed_end; seed_end + end_seq --> seed_seq
-				tmpStr2kmerEndOffsets.get(kmerStr).add(-km.kmerStartOffset-km.k+1);
+				tmpStr2kmerEndOffsets.get(kmerStr).add(-km.kmerStartOffset-km.k);
 			}			
 	    }
 		str2kmers.clear();
@@ -5730,6 +5730,25 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
+			int leftShift = 999;			// left most shift position
+			int longest = 0;				// length from the seed position
+			for (Kmer km:kmers){
+				if (km.getKmerStartOffset() < leftShift)
+					leftShift = km.getKmerStartOffset();
+				if (km.k+km.getKmerStartOffset() > longest)
+					longest = km.k+km.getKmerStartOffset();
+			}
+			// get the matched sequence
+			String s = null;
+			int pSeq = 0;
+			if (p<RC/2){
+				pSeq = p;
+				s = (String) seq.subSequence(pSeq+leftShift, pSeq+longest);
+			}
+			else{
+				pSeq = p-RC;
+				s = (String) seq_rc.subSequence(pSeq+leftShift, pSeq+longest);
+			}
 			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
