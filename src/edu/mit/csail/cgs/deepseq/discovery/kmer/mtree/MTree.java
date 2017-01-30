@@ -975,9 +975,10 @@ public class MTree {
 		return allRangeSearch;
 	}
 	
+	/** Returns indices of nodes in a post-order traversal of the MTree<br>
+	 * We want to maintain the invariant that all the children of a node appear before that node
+	 */
 	public static ArrayList<TreeObject> traverse(MTreeNode root) {
-		// Returns indices of nodes in a post-order traversal of the MTree
-		// We want to maintain the invariant that all the children of a node appear before that node
 		ArrayList<TreeObject> traversal = new ArrayList<TreeObject>();
 		for (int i = root.getObjects().size() - 1; i > -1; i--) {
 			TreeObject o = root.getObjects().get(i);

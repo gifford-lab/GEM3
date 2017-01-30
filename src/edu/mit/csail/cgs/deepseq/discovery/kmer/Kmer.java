@@ -72,7 +72,9 @@ public class Kmer implements Comparable<Kmer>{
 	
 	protected String kmerString;
 	public String getKmerStr() {	return kmerString;}
+	/** kmer/kmerRC */
 	public String getKmerStrRC() {	return kmerString+"/"+kmerRC;}
+	/** kmerRC/kmer */
 	public String getKmerRCStr() {	return kmerRC+"/"+kmerString;}
 	protected String kmerRC;
 	public String getKmerRC(){

@@ -416,7 +416,7 @@ public class CommonUtils {
 					String.format("%.1fm",sec/60):
 					sec>1?
 						String.format("%.1fs",sec):
-						String.format("%dms",length)	;
+						String.format("%dms",length);
 	}
 	public static String getDateTimeString() {
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

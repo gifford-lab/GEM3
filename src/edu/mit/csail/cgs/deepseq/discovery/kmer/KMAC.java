@@ -1449,21 +1449,50 @@ public class KMAC {
 	//							idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
 	//				}
 					
-					// limit cutoff to 1.5, otherwise too heavy load for mtree range search
+					//  otherwise too heavy load for mtree range search
 	
-					while (results.size()>config.max_gkmer && !(dist_cutoff_to_reduce>=1.5)){	
+					// reduce by distance, limit cutoff to 1.5
+//					while (results.size()>config.max_gkmer && !(dist_cutoff_to_reduce>=1.5)){	
+//						long tic=System.currentTimeMillis();
+//						dist_cutoff_to_reduce += 0.5;
+//						// the results list has been sorted by hgp
+//						MTree dataPoints = MTree.constructTree(results, 10);
+//						int[] idx = reduceGappedKmerSetMtree(dataPoints, dist_cutoff_to_reduce);
+//						results_final = new ArrayList<Kmer>();
+//						for (int i=0;i<results.size();i++){
+//							if (idx[i]==1)
+//								results_final.add(results.get(i));
+//						}
+//						if (config.verbose>1)
+//							System.out.println("Reduce gapped-kmer, dist="+dist_cutoff_to_reduce+", from " + 
+//									idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
+//						if (results_final.size()<config.max_gkmer/2){		// if reduce too much, not reduce, take the top k-mers
+//							results_final = new ArrayList<Kmer>();
+//							int final_count = Math.min(results.size(), config.max_gkmer);
+//							for (int i=0;i<final_count;i++){
+//								results_final.add(results.get(i));
+//							}
+//							break;
+//						}
+//						else	// prepare for next round of reduction
+//							results = results_final;
+//					}
+					
+					// reduce by similar hit counts
+					double sharedHitsRatio = 0.9;
+					while (results.size()>config.max_gkmer && !(sharedHitsRatio<=0.5)){	
 						long tic=System.currentTimeMillis();
-						dist_cutoff_to_reduce += 0.5;
-						MTree dataPoints = MTree.constructTree(results, 10);
-						int[] idx = reduceGappedKmerSetMtree(dataPoints, dist_cutoff_to_reduce);
+						sharedHitsRatio -= 0.1;
+						// the results list has been sorted by hgp
+						int[] idx = reduceGappedKmerSetByHits(results, sharedHitsRatio);  // cutoff = shared / min(iHits, jHits)
 						results_final = new ArrayList<Kmer>();
 						for (int i=0;i<results.size();i++){
 							if (idx[i]==1)
 								results_final.add(results.get(i));
 						}
 						if (config.verbose>1)
-							System.out.println("Reduce gapped-kmer, dist="+dist_cutoff_to_reduce+", from " + 
-									idx.length + " to " + results_final.size() + ", " + CommonUtils.timeElapsed(tic));
+							System.out.println(String.format("Reduce gapped-kmers with shared ratio >= %.1f, from %d to %d, %s", 
+									sharedHitsRatio, idx.length, results_final.size(), CommonUtils.timeElapsed(tic)));
 						if (results_final.size()<config.max_gkmer/2){		// if reduce too much, not reduce, take the top k-mers
 							results_final = new ArrayList<Kmer>();
 							int final_count = Math.min(results.size(), config.max_gkmer);
@@ -1472,10 +1501,9 @@ public class KMAC {
 							}
 							break;
 						}
-						else
+						else	// prepare for next round of reduction
 							results = results_final;
-					}
-					
+					}					
 					if (results_final.size()>config.max_gkmer){		// if still too many, take top k-mers
 						results = results_final;
 						results_final = new ArrayList<Kmer>();
@@ -1510,31 +1538,27 @@ public class KMAC {
 		return new Pair<ArrayList<Kmer>, ArrayList<Kmer>>(allSignificantKmers, kmers);
 	}
 
-	public static int[] reduceGappedKmerSetMtree(MTree mtreeDataPoints, double distanceCutoff){
+	// assuming the 
+	private static int[] reduceGappedKmerSetMtree(MTree mtreeDataPoints, double distanceCutoff){
 		// keys = kmer indices (0 to dataPoints.getSize() - 1)
 		// values = kmers in range
 		int[] idx = new int[mtreeDataPoints.getSize()];
 		HashMap<Integer, ArrayList<Kmer>> rangeResults = new HashMap<Integer, ArrayList<Kmer>>();
 		ArrayList<TreeObject> traversal = MTree.traverse(mtreeDataPoints.getRoot());
 
+		// for every k-mer, find k-mers within distance, register the pair bi-directionally
 		for (TreeObject o : traversal) {
 			ArrayList<Kmer> rangeResult = mtreeDataPoints.rangeSearch(o.getData(), distanceCutoff);
 			for (Kmer kmer : rangeResult) {
-				if (rangeResults.get(o.getData().getIndex()) != null) {
-					rangeResults.get(o.getData().getIndex()).add(kmer);
-				}
-				else {
+				if (rangeResults.get(o.getData().getIndex()) == null) 
 					rangeResults.put(o.getData().getIndex(), new ArrayList<Kmer>());
-					rangeResults.get(o.getData().getIndex()).add(kmer);
-				}
-				if (rangeResults.get(kmer.getIndex()) != null) {
-					rangeResults.get(kmer.getIndex()).add(o.getData());
-				}
-				else {
+				rangeResults.get(o.getData().getIndex()).add(kmer);
+
+				if (rangeResults.get(kmer.getIndex()) == null) 
 					rangeResults.put(kmer.getIndex(), new ArrayList<Kmer>());
-					rangeResults.get(kmer.getIndex()).add(o.getData());
-				}
+				rangeResults.get(kmer.getIndex()).add(o.getData());
 			}
+			// remove o object from the tree
 			MTreeNode container = o.getContainer();
 			container.getObjects().remove(o.getIndex());
 			if (container.getObjects().size() == 0) {
@@ -1544,7 +1568,10 @@ public class KMAC {
 			}
 		}
 
+		// remove all the k-mers that were marked as in-range with other k-mers
 		// idx array is indexed by k-mer id (i.e. treeIndex)
+		// the m-tree objects and index array has been sorted before this method being called
+		// so the following will keep the high ranking k-mers and remove the weaker k-mers
 		for (int i = 0; i < idx.length; i++) {
 			if (idx[i] == -1)
 				continue;
@@ -1558,16 +1585,55 @@ public class KMAC {
 		return idx;
 	}
 
-	public static int[] reduceGappedKmerSet(ArrayList<Kmer> kmers, double distanceCutoff){
+	private static int[] reduceGappedKmerSetByHits(ArrayList<Kmer> kmers, double orCutoff){
+		// keys = kmer indices (0 to dataPoints.getSize() - 1)
+		// values = kmers in range
+		int[] idx = new int[kmers.size()];		// 1: selected;  -1: to be removed
+		// idx array is indexed by k-mer id (i.e. treeIndex)
+		// the kmers list has been sorted before this method being called
+		// so the following will keep the high ranking k-mers and remove the weaker k-mers
+		for (int i = 0; i < idx.length-1; i++) {
+			if (idx[i] == -1)
+				continue;
+			Kmer ki = kmers.get(i);
+			int iHits = ki.getPosBits().cardinality();
+			idx[i] = 1;
+			int count=0;
+//			System.out.println(ki.toShortString());
+			for (int j = i+1; j < idx.length; j++){	// this is O( n^2 ) looping, but we have removed some indexes
+				if (idx[j] == -1)
+					continue;
+				Kmer kj = kmers.get(j);
+				BitSet cp = (BitSet) ki.getPosBits().clone();	// clone, b/c BitSet.add() will modify BitSet obj
+				int jHits = kj.getPosBits().cardinality();
+				cp.and(kj.getPosBits());		
+				int sharedHits = cp.cardinality();
+				// kmer i hits as positive
+//				double or = StatUtil.odds_ratio(iHits, posSeqCount-iHits, sharedHits, jHits-sharedHits, 10, 10);
+				double or  =  ((double)sharedHits )/ Math.min(iHits, jHits);
+//				System.out.print(String.format("%s\t%d\t%d\t%.2f\t%s\t", ki.getKmerStrRC(), jHits, sharedHits, or, kj.getKmerStrRC()));
+				if (or>orCutoff){
+					idx[j]=-1;
+					count++;
+				}
+			} // j
+//			System.out.print(" "+count);
+		} // i
+		return idx;
+	}
+	
+	private static int[] reduceGappedKmerSet(ArrayList<Kmer> kmers, double distanceCutoff){
 		// keys = kmer indices (0 to dataPoints.getSize() - 1)
 		// values = kmers in range
 		int[] idx = new int[kmers.size()];
 		// idx array is indexed by k-mer id (i.e. treeIndex)
+		// the kmers list has been sorted before this method being called
+		// so the following will keep the high ranking k-mers and remove the weaker k-mers
 		for (int i = 0; i < idx.length-1; i++) {
 			if (idx[i] == -1)
 				continue;
 			Kmer kmi = kmers.get(i);
-			for (int j = i+1; j < idx.length; j++)
+			for (int j = i+1; j < idx.length; j++)		// this is O( n^2 ) looping, but we have removed some indexes
 				if (idx[j]!=-1 && KMAC.editDistance(kmi, kmers.get(j))<=distanceCutoff)
 					idx[j]=-1;
 			idx[i] = 1;

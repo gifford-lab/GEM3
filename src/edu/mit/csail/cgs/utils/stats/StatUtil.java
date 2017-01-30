@@ -1176,14 +1176,15 @@ public class StatUtil {
 	}
 	
 	/**
-	 * Returns the odds ratio (effect size) of number <tt>x</tt> 
-	 * when the sample size is <tt>n</tt>, the size of the positive set <tt>s</tt>
-	 * and the population size <tt>N</tt>.<br>
+	 * Returns the odds ratio (effect size) of a group of samples with <tt>p</tt> positives
+	 * and <tt>n</tt> negatives, the size of the total positive set <tt>P</tt>
+	 * and the total negative size <tt>N</tt>.<br>
 	 * https://en.wikipedia.org/wiki/Effect_size#Odds_ratio
-	 * @param x # observed successes in the sample
-	 * @param N population size
-	 * @param s # of successes in population (e.g., size of positive set in the population)
-	 * @param n sample size
+	 * https://en.wikipedia.org/wiki/Odds_ratio
+	 * @param P total positive set size
+	 * @param N total negative set size
+	 * @param p # of samples in positive
+	 * @param n # of samples in negative
 	 * @return
 	 */
 	public static double odds_ratio(int P, int N, double p, double n, double posPseudocount, double negPseudocount) {
