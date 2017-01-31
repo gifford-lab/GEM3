@@ -104,9 +104,15 @@ public class KMAC {
 	/** the width of sequence hit, total k-mer coverage */
 	int[] posCoveredWidth;
 	int[] negCoveredWidth;
+	String[] posHitStrings;		// the covered sequence of the best hit of current motif
+	String[] negHitStrings;
 	public void setCoveredWidth(int[] posCoveredWidth, int[] negCoveredWidth){
 		this.posCoveredWidth = posCoveredWidth;
 		this.negCoveredWidth = negCoveredWidth;
+	}
+	public void setHitStrings(String[] posHitStrings, String[] negHitStrings){
+		this.posHitStrings = posHitStrings;
+		this.negHitStrings = negHitStrings;
 	}
 	private double[] pseudoCountRatios;
 	
@@ -980,8 +986,19 @@ public class KMAC {
 
 		// print KSM and motif hits
 		for (MotifCluster cluster : clusters){
-			GappedKmer.printKSM(cluster.alignedKmers, posCoveredWidth, negCoveredWidth, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
+			if (config.kg_hit_adjust_type==2){
+				String[] pos = new String[posCoveredWidth.length];
+				for (int i=0;i<pos.length;i++)
+					pos[i] = String.valueOf(posCoveredWidth[i]);
+				String[] neg = new String[negCoveredWidth.length];
+				for (int i=0;i<neg.length;i++)
+					neg[i] = String.valueOf(negCoveredWidth[i]);
+				GappedKmer.printKSM(cluster.alignedKmers, pos, neg, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
 					cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
+			}
+			else if (config.kg_hit_adjust_type==1)
+				GappedKmer.printKSM(cluster.alignedKmers, posHitStrings, negHitStrings, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
+						cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
 		}
 		if (config.print_motif_hits){		// PWM motif hits
 			ArrayList<WeightMatrix> pwms=new ArrayList<WeightMatrix>();
@@ -2648,7 +2665,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 		seedFamily = tmp;
 		
 		// init AC search engine and init coveredWidth = k
-		if (config.use_coveredWidth){
+		if (config.kg_hit_adjust_type==2){
 			if (posCoveredWidth==null || posCoveredWidth.length!=seqList.size())
 				posCoveredWidth = new int[seqList.size()];
 			for (int i=0;i<posCoveredWidth.length;i++)
@@ -2658,12 +2675,22 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			for (int i=0;i<negCoveredWidth.length;i++)
 				negCoveredWidth[i] = k;
 		}
+		else if (config.kg_hit_adjust_type==1){
+			if (posHitStrings==null || posHitStrings.length!=seqList.size())
+				posHitStrings = new String[seqList.size()];
+			for (int i=0;i<posHitStrings.length;i++)
+				posHitStrings[i] = "";
+			if (negHitStrings==null || negHitStrings.length!=seqListNeg.size())
+				negHitStrings = new String[seqListNeg.size()];
+			for (int i=0;i<negHitStrings.length;i++)
+				negHitStrings[i] = "";
+		}
 		
 		initAhoCorasick(seedFamily);
 		
 		KmerGroup kg = config.use_weighted_kmer ? 
 				new KmerGroup(posCoveredWidth, negCoveredWidth, seedFamily, 0, seq_weights) : 
-				new KmerGroup(posCoveredWidth, negCoveredWidth, seedFamily, 0);
+				new KmerGroup(posCoveredWidth, negCoveredWidth, seedFamily, 0, null);
 		if (config.verbose>1) {
 //			System.out.println(CommonUtils.timeElapsed(tic)+": evaluateKsmROC(seedFamily)");
 			Pair<double[],double[] > pair = scoreKsmSequences (seqList, seqListNeg, seedFamily);
@@ -4398,7 +4425,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		private NewKSM(KMAC kmac, ArrayList<Kmer> kmers, double pseudoCountRatio){
 			this.kmers = kmers;
 			initAhoCorasick(kmers);
-			kmac.initKgCoveredWidth(seqList, seqListNeg, kmers);
+			kmac.initKgHitSequences(seqList, seqListNeg, kmers);
 			Pair<double[],double[] > pair = scoreKsmSequences (seqList, seqListNeg, kmers);
 			threshold = optimizeThreshold(pair.car(), pair.cdr(), 0, Double.POSITIVE_INFINITY, pseudoCountRatio);
 			threshold.motif_significance = evaluateScoreROC(pair.car(), pair.cdr(), config.fpr).motif_significance;
@@ -5399,11 +5426,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	}
 
 	/**
-	 * Init the KmerGroup hit covered width for pos/neg sequences<br>
+	 * Init the KmerGroup hit covered sequence and width for pos/neg sequences<br>
 	 * The KSM k-mers are assumed to have been loaded into the Engine
 	 * @returns the KSM scores for pos/neg sequences.
 	 */
-	private void initKgCoveredWidth (ArrayList<Sequence> seqList, ArrayList<Sequence> seqListNeg, ArrayList<Kmer> kmers){
+	private void initKgHitSequences (ArrayList<Sequence> seqList, ArrayList<Sequence> seqListNeg, ArrayList<Kmer> kmers){
 		BitSet bitSeqWithKmer = new BitSet();
 		BitSet bitSeqWithKmerNeg = new BitSet();
 		for (Kmer km:kmers){
@@ -5411,36 +5438,70 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			bitSeqWithKmerNeg.or(km.negBits);
 		}
 		
-		int[] posCoveredWidth = new int[this.posCoveredWidth.length];
-		KmerGroup[] kgs=null;
-		for (int i=0;i<seqList.size();i++){
-			Sequence s = seqList.get(i);
-			if (!bitSeqWithKmer.get(s.id)){
-				posCoveredWidth[i]=0;
-				continue;
+		if (config.kg_hit_adjust_type==2){
+			int[] posCoveredWidth = new int[this.posCoveredWidth.length];
+			KmerGroup[] kgs=null;
+			for (int i=0;i<seqList.size();i++){
+				Sequence s = seqList.get(i);
+				if (!bitSeqWithKmer.get(s.id)){
+					posCoveredWidth[i]=0;
+					continue;
+				}
+				kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
+				if (kgs==null)
+					posCoveredWidth[i]=0;
+				else
+					posCoveredWidth[i]=kgs[0].getCoveredWidth();
 			}
-			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
-			if (kgs==null)
-				posCoveredWidth[i]=0;
-			else
-				posCoveredWidth[i]=kgs[0].getCoveredWidth();
-		}
-		this.posCoveredWidth = posCoveredWidth;
+			this.posCoveredWidth = posCoveredWidth;
 
-		int[] negCoveredWidth = new int[this.negCoveredWidth.length];
-		for (int i=0;i<seqListNeg.size();i++){
-			Sequence s = seqListNeg.get(i);
-			if (!bitSeqWithKmerNeg.get(s.id)){
-				negCoveredWidth[i]=0;
-				continue;
+			int[] negCoveredWidth = new int[this.negCoveredWidth.length];
+			for (int i=0;i<seqListNeg.size();i++){
+				Sequence s = seqListNeg.get(i);
+				if (!bitSeqWithKmerNeg.get(s.id)){
+					negCoveredWidth[i]=0;
+					continue;
+				}
+				kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
+				if (kgs.length==0)
+					negCoveredWidth[i]=0;
+				else
+					negCoveredWidth[i]=kgs[0].getCoveredWidth();
 			}
-			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
-			if (kgs.length==0)
-				negCoveredWidth[i]=0;
-			else
-				negCoveredWidth[i]=kgs[0].getCoveredWidth();
+			this.negCoveredWidth = negCoveredWidth;
 		}
-		this.negCoveredWidth = negCoveredWidth;
+		else if (config.kg_hit_adjust_type==1){
+			String[] posHitStrings = new String[this.posHitStrings.length];
+			KmerGroup[] kgs=null;
+			for (int i=0;i<seqList.size();i++){
+				Sequence s = seqList.get(i);
+				if (!bitSeqWithKmer.get(s.id)){
+					posHitStrings[i]="";
+					continue;
+				}
+				kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
+				if (kgs==null)
+					posHitStrings[i]="";
+				else
+					posHitStrings[i]=kgs[0].getCoveredSequence();
+			}
+			this.posHitStrings = posHitStrings;
+
+			String[] negHitStrings = new String[this.negHitStrings.length];
+			for (int i=0;i<seqListNeg.size();i++){
+				Sequence s = seqListNeg.get(i);
+				if (!bitSeqWithKmerNeg.get(s.id)){
+					negHitStrings[i]="";
+					continue;
+				}
+				kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
+				if (kgs.length==0)
+					negHitStrings[i]="";
+				else
+					negHitStrings[i]=kgs[0].getCoveredSequence();
+			}
+			this.negHitStrings = negHitStrings;
+		}
 	}
 
 	
@@ -5666,7 +5727,28 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		int idx = 0;
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth,  kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p);
+			int leftShift = 999;			// left most shift position
+			int longest = 0;				// length from the seed position
+			for (Kmer km:kmers){
+				if (km.getKmerStartOffset() < leftShift)
+					leftShift = km.getKmerStartOffset();
+				if (km.k+km.getKmerStartOffset() > longest)
+					longest = km.k+km.getKmerStartOffset();
+			}
+			// get the matched sequence
+			String s = null;
+			int pSeq = 0;
+			if (p<RC/2){
+				pSeq = p;
+				s = (String) seq.subSequence(pSeq+leftShift, pSeq+longest);
+			}
+			else{
+				pSeq = p-RC;
+				s = (String) seq_rc.subSequence(pSeq+leftShift, pSeq+longest);
+			}
+			KmerGroup kg = config.kg_hit_adjust_type==2?
+					config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, null) :
+					config.use_weighted_kmer ? new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, seq_weights) : new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, null);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;
@@ -5676,7 +5758,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	
 	/** 
 	 * Report all strand-specific KSM group hits in both orientations of the sequence<br>
-	 * Assuming the updateEngine(kmers) method had been called, i.e. "treeAhoCorasick kmer search tree" instance variable has been constructed.
+	 * Assuming the initAhoCorasick(kmers) method had been called, i.e. "treeAhoCorasick kmer search tree" instance variable has been constructed.
 	 * @param seq sequence string to search k-mers
 	 * @param seq_rc sequence rc to search k-mers
 	 * @return an array of KmerGroups, sorted by KG scores:<br>
@@ -5749,7 +5831,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				pSeq = p-RC;
 				s = (String) seq_rc.subSequence(pSeq+leftShift, pSeq+longest);
 			}
-			KmerGroup kg = config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p);
+			KmerGroup kg = config.kg_hit_adjust_type==2?
+					config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, null) :
+					config.use_weighted_kmer ? new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, seq_weights) : new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, null);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;

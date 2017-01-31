@@ -123,7 +123,7 @@ public class GappedKmer extends Kmer{
 	 * @param print_kmer_hits
 	 * @param printKmersAtK
 	 */
-	public static void printKSM(ArrayList<Kmer> kmers, int[] posCoveredWidth, int[] negCoveredWidth, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
+	public static void printKSM(ArrayList<Kmer> kmers, String[] posCoveredWidth, String[] negCoveredWidth, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
 			return;
@@ -195,13 +195,13 @@ public class GappedKmer extends Kmer{
 			
 			sb.append("%%%\n");	// %%% to signal that the following are the coveredWidths and sequence weights
 			if (posCoveredWidth!=null){
-				for (int w : posCoveredWidth)
-					sb.append(w).append(" ");
+				for (String w : posCoveredWidth)
+					sb.append(w.equals("")?"Z":w).append(" ");
 			}
 			sb.append("\n");
 			if (negCoveredWidth!=null){
-				for (int w : negCoveredWidth)
-					sb.append(w).append(" ");
+				for (String w : negCoveredWidth)
+					sb.append(w.equals("")?"Z":w).append(" ");
 			}
 			sb.append("\n");
 			if (seq_weights!=null){
@@ -302,15 +302,27 @@ public class GappedKmer extends Kmer{
 	        // load covered widths
 	        line = bin.readLine().trim();
 	        if (!line.isEmpty()){
-		        ksm.posCoveredWidth = new int[ksm.posSeqCount];
 		        f = line.split(" ");
-		        for (int i=0;i<ksm.posSeqCount;i++)
-		        	ksm.posCoveredWidth [i] = Integer.parseInt(f[i].trim());
-		        line = bin.readLine().trim();
-		        ksm.negCoveredWidth = new int[ksm.negSeqCount];
-		        f = line.split(" ");
-		        for (int i=0;i<ksm.negSeqCount;i++)
-		        	ksm.negCoveredWidth [i] = Integer.parseInt(f[i].trim());
+		        if (CommonUtils.isNumeric(f[0])){
+			        ksm.posCoveredWidth = new int[ksm.posSeqCount];
+			        for (int i=0;i<ksm.posSeqCount;i++)
+			        	ksm.posCoveredWidth [i] = Integer.parseInt(f[i].trim());
+			        line = bin.readLine().trim();
+			        ksm.negCoveredWidth = new int[ksm.negSeqCount];
+			        f = line.split(" ");
+			        for (int i=0;i<ksm.negSeqCount;i++)
+			        	ksm.negCoveredWidth [i] = Integer.parseInt(f[i].trim());
+		        }
+		        else{
+		        	ksm.posHitStrings = new String[ksm.posSeqCount];
+			        for (int i=0;i<ksm.posSeqCount;i++)
+			        	ksm.posHitStrings [i] = f[i];
+			        line = bin.readLine().trim();
+			        ksm.negHitStrings = new String[ksm.negSeqCount];
+			        f = line.split(" ");
+			        for (int i=0;i<ksm.negSeqCount;i++)
+			        	ksm.negHitStrings [i] = f[i];
+		        }
 	        }
 	        else{
 	        	bin.readLine();		// skip the line for negative covered width

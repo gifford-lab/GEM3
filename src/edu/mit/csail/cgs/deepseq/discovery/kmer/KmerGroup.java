@@ -25,46 +25,34 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	public double getScore() {return kg_score;	}
 	public void setScore(double score) {this.kg_score = score;	}
 	
-//	public KmerGroup(ArrayList<Kmer> kmers, int bs, int posSeqCount, int negSeqCount){
+//	public KmerGroup(int[] posCoveredWidth, int[] negCoveredWidth, ArrayList<Kmer> kmers, int bs){
+//		if (kmers.isEmpty())
+//			return;
 //		this.bs = bs;
 //		this.kmers = kmers;
-//		Collections.sort(this.kmers);
-//		BitSet b_pos = new BitSet(posSeqCount);
-//		BitSet b_neg = new BitSet(negSeqCount);
+//		
+//		BitSet b_pos = new BitSet(kmers.get(0).posBits.length());
+//		BitSet b_neg = new BitSet(kmers.get(0).negBits.length());
 // 		for (Kmer km:kmers){
 // 			b_pos.or(km.posBits);
 // 			b_neg.or(km.negBits);
 //		}
+// 		
+// 		// adjust hit count by requiring the KG hit should be equal or better than the training sequence to count it
+// 		if (posCoveredWidth!=null){
+//	 		int width = getCoveredWidth();
+//	 		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
+//	 			if(posCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+//	 				b_pos.clear(i);
+//	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1))
+//	 			if(negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+//	 				b_neg.clear(i);
+// 		}
+// 		
 // 		posHitGroupCount = b_pos.cardinality();
 //		negHitGroupCount = b_neg.cardinality();
 //	}	
-	public KmerGroup(int[] posCoveredWidth, int[] negCoveredWidth, ArrayList<Kmer> kmers, int bs){
-		if (kmers.isEmpty())
-			return;
-		this.bs = bs;
-		this.kmers = kmers;
-		
-		BitSet b_pos = new BitSet(kmers.get(0).posBits.length());
-		BitSet b_neg = new BitSet(kmers.get(0).negBits.length());
- 		for (Kmer km:kmers){
- 			b_pos.or(km.posBits);
- 			b_neg.or(km.negBits);
-		}
- 		
- 		// adjust hit count by requiring the KG hit should be equal or better than the training sequence to count it
- 		if (posCoveredWidth!=null){
-	 		int width = getCoveredWidth();
-	 		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
-	 			if(posCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
-	 				b_pos.clear(i);
-	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1))
-	 			if(negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
-	 				b_neg.clear(i);
- 		}
- 		
- 		posHitGroupCount = b_pos.cardinality();
-		negHitGroupCount = b_neg.cardinality();
-	}		
+	
 	public KmerGroup(int[] posCoveredWidth, int[] negCoveredWidth, ArrayList<Kmer> kmers, int bs, double[]weights){
 		if (kmers.isEmpty())
 			return;
@@ -85,6 +73,43 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	 				b_pos.clear(i);
 	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1))
 	 			if(negCoveredWidth[i]>width)	// don't count those seqs that expect a better (wider k-mer coverage) hit
+	 				b_neg.clear(i);
+ 		}
+
+		if (weights==null){
+    		posHitGroupCount = b_pos.cardinality();
+		}
+		else{
+    		double weight=0;
+    		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
+    			weight+=weights[i];
+    		posHitGroupCount = (int)(weight);
+		}
+		negHitGroupCount = b_neg.cardinality();
+	}
+
+
+	public KmerGroup(String[] posMatchStr, String[] negMatchStr, ArrayList<Kmer> kmers, int bs, String matchedSequence, double[]weights){
+		if (kmers.isEmpty())
+			return;
+		this.bs = bs;
+		this.kmers = kmers;	
+		this.coveredSequence = matchedSequence;
+		BitSet b_pos = new BitSet(kmers.get(0).posBits.length());
+		BitSet b_neg = new BitSet(kmers.get(0).negBits.length());
+ 		for (Kmer km:kmers){
+ 			b_pos.or(km.posBits);
+ 			b_neg.or(km.negBits);
+		}
+ 		
+ 		// adjust hit count by requiring that the KG matched string should contains the training hit sequence
+ 		if (posMatchStr!=null){
+	 		int width = getCoveredWidth();
+	 		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
+	 			if(!matchedSequence.contains(posMatchStr[i]))	// don't count those seqs that are not sub-string of match
+	 				b_pos.clear(i);
+	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1))
+	 			if(!matchedSequence.contains(negMatchStr[i]))	// don't count those seqs that are not sub-string of match
 	 				b_neg.clear(i);
  		}
 

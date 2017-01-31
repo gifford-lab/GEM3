@@ -10,4 +10,6 @@ public class KsmMotif {
 	public double[] seq_weights;
 	public int[] posCoveredWidth;
 	public int[] negCoveredWidth;
+	public String[] posHitStrings;
+	public String[] negHitStrings;
 }

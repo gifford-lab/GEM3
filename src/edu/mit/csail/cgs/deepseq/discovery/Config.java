@@ -29,7 +29,7 @@ public class Config {
     public boolean refine_window_boundary = false;
     public boolean is_branch_point_data = false;
     public boolean use_odds_ratio = true;
-    public boolean use_coveredWidth = true;
+//    public boolean use_coveredWidth = true;
     public boolean match_base_kmer = false;				// use base k-mer for KSM matching (more specific than gapped k-mer)
 
     public boolean TF_binding = true;
@@ -43,8 +43,17 @@ public class Config {
 	 * 1) only single strand, for Branch-seq, CLIP-seq, RNA-based data, call event only on the same strand as the reads, run motif discovery only on event strand,<br> 
 	 * 2) ChIP-exo (if wanting to find peak boundary), run motif discovery on both strands 
 	 */
-    public int strand_type = 0;		
-  	public int KL_smooth_width = 0;
+    public int strand_type = 0;	
+    
+    /** kg_hit_adjust_type<br>
+     * when counting KmerGroup hit, adjust the hit count by <br>
+     * 	0) no adjustment<br>
+     * 	1) adjust by hit strings<br>
+     * 	2) adjust by coveredWidth
+     */
+    public int kg_hit_adjust_type = 1;	
+
+    public int KL_smooth_width = 0;
     public int max_hit_per_bp = -1;
     public int maxThreads;		// default to #CPU
     // k-mer related
@@ -256,7 +265,6 @@ public class Config {
         refine_window_boundary = flags.contains("refine_window_boundary");
         use_pos_weight = flags.contains("use_pos_weight");
         use_odds_ratio = !flags.contains("no_or");
-        use_coveredWidth = !flags.contains("no_cw");
         ksm_logo_text = flags.contains("ksm_logo_text");
         // default as true, need the opposite flag to turn it off
         exclude_unenriched = !flags.contains("not_ex_unenriched");
