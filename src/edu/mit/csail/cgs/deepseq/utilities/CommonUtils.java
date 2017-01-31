@@ -739,10 +739,10 @@ public class CommonUtils {
 		KMAC kmac;
 		kmac = new KMAC(ksm.kmers, config);	
 		kmac.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
-		if (config.use_coveredWidth)
+		if (config.kg_hit_adjust_type==2)
 			kmac.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
-		else
-			kmac.setCoveredWidth(null, null);
+		else if (config.kg_hit_adjust_type==1)
+			kmac.setHitStrings(ksm.posHitStrings, ksm.negHitStrings);
 		if (config.use_weighted_kmer)
 			kmac.setSequenceWeights(ksm.seq_weights);
 		return kmac;

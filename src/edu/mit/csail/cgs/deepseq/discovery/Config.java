@@ -47,9 +47,9 @@ public class Config {
     
     /** kg_hit_adjust_type<br>
      * when counting KmerGroup hit, adjust the hit count by <br>
-     * 	0) no adjustment<br>
-     * 	1) adjust by hit strings<br>
-     * 	2) adjust by coveredWidth
+     * 0) no adjustment<br>
+     * 1) adjust by hit strings<br>
+     * 2) adjust by coveredWidth
      */
     public int kg_hit_adjust_type = 1;	
 
@@ -402,6 +402,7 @@ public class Config {
         verbose = Args.parseInteger(args, "v", verbose);
         smooth_step = Args.parseInteger(args, "smooth", smooth_step);
         strand_type = Args.parseInteger(args, "strand_type", strand_type);
+        kg_hit_adjust_type = Args.parseInteger(args, "kg_hit_adjust_type", kg_hit_adjust_type);
         KL_smooth_width = Args.parseInteger(args, "kl_s_w", KL_smooth_width);
         excluded_fraction = Args.parseDouble(args, "excluded_fraction", excluded_fraction);
         kl_ic = Args.parseDouble(args, "kl_ic", kl_ic);
