@@ -123,7 +123,7 @@ public class GappedKmer extends Kmer{
 	 * @param print_kmer_hits
 	 * @param printKmersAtK
 	 */
-	public static void printKSM(ArrayList<Kmer> kmers, String[] posCoveredWidth, String[] negCoveredWidth, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
+	public static void printKSM(ArrayList<Kmer> kmers, String[][] posHitSeqs, String[][] negHitSeqs, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
 			return;
@@ -194,14 +194,28 @@ public class GappedKmer extends Kmer{
 			}
 			
 			sb.append("%%%\n");	// %%% to signal that the following are the coveredWidths and sequence weights
-			if (posCoveredWidth!=null){
-				for (String w : posCoveredWidth)
-					sb.append(w.equals("")?"Z":w).append(" ");
+			if (posHitSeqs!=null){
+				for (String[] ws: posHitSeqs){
+					if (ws==null)
+						sb.append("Z ");
+					else{
+						for (String w : ws)
+							sb.append(w).append(",");
+						CommonUtils.replaceEnd(sb, ' ');
+					}
+				}
 			}
 			sb.append("\n");
-			if (negCoveredWidth!=null){
-				for (String w : negCoveredWidth)
-					sb.append(w.equals("")?"Z":w).append(" ");
+			if (negHitSeqs!=null){
+				for (String[] ws: negHitSeqs){
+					if (ws==null)
+						sb.append("Z ");
+					else{
+						for (String w : ws)
+							sb.append(w).append(",");
+						CommonUtils.replaceEnd(sb, ' ');
+					}
+				}
 			}
 			sb.append("\n");
 			if (seq_weights!=null){
@@ -314,14 +328,22 @@ public class GappedKmer extends Kmer{
 			        	ksm.negCoveredWidth [i] = Integer.parseInt(f[i].trim());
 		        }
 		        else{
-		        	ksm.posHitStrings = new String[ksm.posSeqCount];
-			        for (int i=0;i<ksm.posSeqCount;i++)
-			        	ksm.posHitStrings [i] = f[i];
+		        	ksm.posHitStrings = new String[ksm.posSeqCount][];
+			        for (int i=0;i<ksm.posSeqCount;i++){
+			        	String ff[] = f[i].split(",");
+			        	ksm.posHitStrings [i] = new String[ff.length];
+			        	for (int j=0;j<ff.length;j++)
+			        		ksm.posHitStrings [i][j] = ff[j];
+			        }
 			        line = bin.readLine().trim();
-			        ksm.negHitStrings = new String[ksm.negSeqCount];
+			        ksm.negHitStrings = new String[ksm.negSeqCount][];
 			        f = line.split(" ");
-			        for (int i=0;i<ksm.negSeqCount;i++)
-			        	ksm.negHitStrings [i] = f[i];
+			        for (int i=0;i<ksm.negSeqCount;i++){
+			        	String ff[] = f[i].split(",");
+			        	ksm.negHitStrings [i] = new String[ff.length];
+			        	for (int j=0;j<ff.length;j++)
+			        		ksm.negHitStrings [i][j] = ff[j];
+			        }
 		        }
 	        }
 	        else{

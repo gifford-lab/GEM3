@@ -51,7 +51,7 @@ public class Config {
      * 1) adjust by hit strings<br>
      * 2) adjust by coveredWidth
      */
-    public int kg_hit_adjust_type = 1;	
+    public int kg_hit_adjust_type = 2;	
 
     public int KL_smooth_width = 0;
     public int max_hit_per_bp = -1;
