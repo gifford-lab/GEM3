@@ -36,9 +36,9 @@ public class KsmPwmRocAnalysis {
 		}  
 		kmac = new KMAC(ksm.kmers, config);
 		kmac.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
-		if (config.kg_hit_adjust_type==2)
+		if (ksm.posCoveredWidth!=null)
 			kmac.setCoveredWidth(ksm.posCoveredWidth, ksm.negCoveredWidth);
-		else if (config.kg_hit_adjust_type==1)
+		if (ksm.posHitStrings!=null)
 			kmac.setHitStrings(ksm.posHitStrings, ksm.negHitStrings);
 		if (config.use_weighted_kmer)
 			kmac.setSequenceWeights(ksm.seq_weights);

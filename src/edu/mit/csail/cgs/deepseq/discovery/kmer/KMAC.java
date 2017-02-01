@@ -104,7 +104,7 @@ public class KMAC {
 	/** the info about sequence hit, total k-mer coverage */
 	int[] posCoveredWidth;
 	int[] negCoveredWidth;
-	String[][] posHitStrings;		// the covered sequence of the best hit of current motif
+	String[][] posHitStrings;		// the matched sequences of the best hit of current motif in each training sequence
 	String[][] negHitStrings;
 	public void setCoveredWidth(int[] posCoveredWidth, int[] negCoveredWidth){
 		this.posCoveredWidth = posCoveredWidth;
