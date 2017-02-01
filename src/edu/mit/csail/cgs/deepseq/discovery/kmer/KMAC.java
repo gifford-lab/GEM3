@@ -714,13 +714,13 @@ public class KMAC {
 						(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
 
 	        	MotifCluster c = KmerMotifAlignmentClustering(seqList, neighbours, seedKmer, k);
-	        	if (config.kg_hit_adjust_type==2)
-	        		c.setCoveredWidth(posCoveredWidth, negCoveredWidth);	// save a copy in the cluster
-	        	if (config.kg_hit_adjust_type==1)
-	        		c.setHitStrings(posHitStrings, negHitStrings);
-	        	
+
 	        	if (c!=null && c.wm!=null){
 	        		tmp.add(c);
+		        	if (config.kg_hit_adjust_type==2)
+		        		c.setCoveredWidth(posCoveredWidth, negCoveredWidth);	// save a copy in the cluster
+		        	if (config.kg_hit_adjust_type==1)
+		        		c.setHitStrings(posHitStrings, negHitStrings);
 	        	}
 	        	if (tmp.size()==config.k_top)
 	        		break;
