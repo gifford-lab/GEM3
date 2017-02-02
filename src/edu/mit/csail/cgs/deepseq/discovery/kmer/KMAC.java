@@ -1011,7 +1011,7 @@ public class KMAC {
 				GappedKmer.printKSM(cluster.alignedKmers, pos, neg, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
 					cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
 			}
-			else if (config.kg_hit_adjust_type==1)
+			else // config.kg_hit_adjust_type ==1 or ==0 (null)
 				GappedKmer.printKSM(cluster.alignedKmers, cluster.posHitStrings, cluster.negHitStrings, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
 						cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
 		}
@@ -5895,7 +5895,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				pSeq = p-RC;
 				s = (String) seq_rc.subSequence(pSeq+leftShift, pSeq+longest);
 			}
-			KmerGroup kg = config.kg_hit_adjust_type==2?
+			KmerGroup kg = posCoveredWidth!=null?
 					config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, null) :
 					config.use_weighted_kmer ? new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, seq_weights) : new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, null);
 			matches[idx]=kg;
