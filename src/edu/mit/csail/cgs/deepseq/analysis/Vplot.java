@@ -1,6 +1,10 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,19 +31,36 @@ public class Vplot {
 		int binW = radius*2/xPixel;
 		int min = Args.parseInteger(args, "min", 30);
 		String outName = Args.parseString(args, "out", "out");
-		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "atac", null));
+		String bedpe = Args.parseString(args, "bedpe", null);
+		
 		ArrayList<Region> reads = new ArrayList<Region>();
-		for (String l: lines){
-			String f[] = l.split("\t");
-			reads.add(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[5])));
-		}
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(bedpe))));
+	        String l;
+	        while((l = bin.readLine()) != null) { 
+	            l = l.trim();
+	            if (l.length()!=0){
+	            	String f[] = l.split("\t");
+					reads.add(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[5])));
+				}		
+	        }
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("\nError when processing "+bedpe);
+            e.printStackTrace(System.err);
+        }   
+
 		reads.trimToSize();
+		System.out.println("Loaded BEDPE file.");
 		Collections.sort(reads);
 		ArrayList<Point> starts = new ArrayList<Point>();
 		for (Region r: reads)
 			starts.add(r.startPoint());
 		starts.trimToSize();
-		
+
+		System.out.println("Sorting done.");
 //		String gemFileName = Args.parseString(args, "gem", null);
 //		List<GPSPeak> gpsPeaks =null;
 //	    try{
@@ -50,7 +71,7 @@ public class Vplot {
 //	    }
 	    
 		ArrayList<StrandedPoint> sps = new ArrayList<StrandedPoint>();
-		lines = CommonUtils.readTextFile(Args.parseString(args, "piq", null));
+		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "piq", null));
 		for (String l: lines){
 			if (l.contains("score"))
 				continue;
@@ -71,6 +92,8 @@ public class Vplot {
 	    StringBuilder iSB = new StringBuilder();	// info
 	    mSB.append("#").append(yPixel).append("\t").append(xPixel).append("\n");
 	    iSB.append("#y_pixel:").append(yPixel).append("\tx_pixel:").append(xPixel).append("\n");
+		CommonUtils.writeFile(outName+".data.txt", mSB.toString());
+		CommonUtils.writeFile(outName+".info.txt", iSB.toString());
 		for (StrandedPoint p: sps){
 			Region r = p.expand(radius);
 			ArrayList<Region> inRange = new ArrayList<Region>();
@@ -98,7 +121,7 @@ public class Vplot {
 			numSites++;
 			int[][] matrix = new int[xPixel][yPixel];
 //			System.out.println("\n============");
-			System.out.println(p);
+//			System.out.println(p);
 			int numPoint = inRange.size();
 			for (Region ri: inRange){
 				int offset = (p.getStrand()=='-'?-1:1) * (ri.startPoint().offset(p));
@@ -124,9 +147,13 @@ public class Vplot {
 				}
 			}
 			CommonUtils.replaceEnd(mSB, '\n');
+			if (mSB.length()>1e7){	// write sb in smaller trunks
+				CommonUtils.appendFile(outName+".data.txt", mSB.toString());
+				CommonUtils.appendFile(outName+".info.txt", iSB.toString());
+				mSB = new StringBuilder();
+				iSB = new StringBuilder();
+	    	}
 		}
-		CommonUtils.writeFile(outName+".data.txt", mSB.toString());
-		CommonUtils.writeFile(outName+".info.txt", iSB.toString());
 		
 		System.out.println("\nTotal number of sites: "+numSites);
 		System.out.println("Longest read length: "+maxWidth);
