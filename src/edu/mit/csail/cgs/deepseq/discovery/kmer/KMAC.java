@@ -186,7 +186,7 @@ public class KMAC {
 		
 		seqNum = seqs.length;
 		seq_weights = new double[seqNum];
-		int totalWeight=0;
+//		int totalWeight=0;
 		for (int i=0;i<seqNum;i++){
 			switch (config.seq_weight_type){
 				case -1:	seq_weights[i]=1/pos_w.get(i);break;
@@ -195,14 +195,17 @@ public class KMAC {
 				case 2: seq_weights[i]=Math.sqrt(pos_w.get(i));break;
 				case 3: seq_weights[i]=Math.log(pos_w.get(i));
 					if(seq_weights[i]<=0) 
-						System.err.println("Non-positive sequence weight:"+seq_weights[i]);
+						System.err.println("Non-positive sequence weight after log():"+seq_weights[i]);
 					break;
 				default: System.err.println("Sequence weighting type is not defined!");System.exit(-1);
 			}
-			totalWeight += seq_weights[i];
+//			totalWeight += seq_weights[i]*seqNum;
 		}
-		for (int i=0;i<seq_weights.length;i++){
-			seq_weights[i] = seq_weights[i]*seqs.length/totalWeight;	// scale weights with total sequence count, and total weight
+//		double sum= 0;
+		StatUtil.mutate_normalize(seq_weights);
+		for (int i=0;i<seqNum;i++){
+			seq_weights[i] = seq_weights[i]*seqNum;	// scale weights with total sequence count, and total weight
+//			sum += seq_weights[i];
 		}
 		
 		// If neg seqs are not provided, use shuffled sequences as negative sequences
@@ -5598,9 +5601,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		// with different offsets
 		HashMap<String, ArrayList<Kmer>> tmpStr2kmers = new HashMap<String, ArrayList<Kmer>>();	
 		HashMap<String, ArrayList<Integer>> tmpStr2kmerEndOffsets = new HashMap<String, ArrayList<Integer>>();	
-		int a=0;
+//		int a=0;
 		for (Kmer km: kmers){
-//			if (km.getKmerRC().equals("ATTGTNATG"))	// for debugging
+//			if (km.getKmerStr().equals("ATGGT"))	// for debugging
 //				a = kmers.size();
 			if (km instanceof GappedKmer){
 				GappedKmer gk = (GappedKmer)km;

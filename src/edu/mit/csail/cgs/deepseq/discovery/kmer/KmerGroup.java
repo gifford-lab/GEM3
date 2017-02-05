@@ -29,9 +29,10 @@ public class KmerGroup implements Comparable<KmerGroup>{
 		if (kmers.isEmpty())
 			return;
 		this.bs = bs;
-		this.kmers = kmers;			
-		BitSet b_pos = new BitSet(kmers.get(0).posBits.length());
-		BitSet b_neg = new BitSet(kmers.get(0).negBits.length());
+		this.kmers = kmers;
+		int len = kmers.get(0).posBits.length();
+		BitSet b_pos = new BitSet(len);
+		BitSet b_neg = new BitSet(len);
  		for (Kmer km:kmers){
  			b_pos.or(km.posBits);
  			b_neg.or(km.negBits);
@@ -57,6 +58,8 @@ public class KmerGroup implements Comparable<KmerGroup>{
     			weight+=weights[i];
     		posHitGroupCount = (int)(weight);
 		}
+		if (posHitGroupCount>len)
+			posHitGroupCount = len;
 		negHitGroupCount = b_neg.cardinality();
 	}
 

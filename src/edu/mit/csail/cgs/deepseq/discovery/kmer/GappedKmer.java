@@ -294,6 +294,7 @@ public class GappedKmer extends Kmer{
 	        ksm.cutoff = Double.parseDouble(line);
 	        
 	        //load gapped k-mers
+//	        int a=0;
 	        while((line = bin.readLine()) != null) { 
 	        	if (line.startsWith("#"))
 	        		continue;
@@ -301,6 +302,7 @@ public class GappedKmer extends Kmer{
 	            	break;
 	            line = line.trim();
 	            Kmer kmer = GappedKmer.fromString(line);
+
 	            kmers.add(kmer);
 	        }	
 	        
@@ -396,6 +398,9 @@ public class GappedKmer extends Kmer{
 		String[] f = str.trim().split("\t");
 		String[] f0f = f[0].split("/");
 		String kmerStr = f0f[0];
+//		int a=0;
+//		if (kmerStr.equals("ATGGT"))	// for debugging
+//			a = kmerStr.length();
 		Kmer kmer = null;
 		if (kmerStr.contains("N")){// Gapped kmer
 			kmer = new GappedKmer(kmerStr);
@@ -406,6 +411,7 @@ public class GappedKmer extends Kmer{
 			if (f.length>8)
 				kmer.negBits = BitSet.valueOf(CommonUtils.decodeAscii85StringToBytes(f[8]));
 		}
+//		System.out.println(kmer.toString());
 		kmer.isSeedOrientation = true;
 		kmer.CIDs = f[6];
 		kmer.kmerStartOffset = Integer.parseInt(f[1]);

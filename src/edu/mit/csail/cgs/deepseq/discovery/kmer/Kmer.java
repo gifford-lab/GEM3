@@ -24,6 +24,7 @@ public class Kmer implements Comparable<Kmer>{
 		use_weighted_hit_count = weighted;
 	}
 
+	/** for gapped k-mers, CIDs stores the ids of the base k-mers, it is * for exact k-mers */
 	String CIDs = null;
 	
 	// for use in indexing in MTree
@@ -265,10 +266,10 @@ public class Kmer implements Comparable<Kmer>{
 		if (use_weighted_hit_count)
 			str = String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t%.1f", 
 				getKmerStrRC(),isSeedOrientation?'+':'-', clusterId, shift, 
-				posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10, alignString);
+				posBits.cardinality(), weightedPosHitCount, getNegHitCount(), hgp_lg10);
 				// use posBits.cardinality() instead of getPosHitCount() to get raw pos hit count
 		else
-			str = String.format("%s\t%d\t%d\t%d\t%d\t%.1f", 
+			str = String.format("%s\t%s\t%d\t%d\t%d\t%d\t%.1f", 
 				getKmerStrRC(),isSeedOrientation?'+':'-', clusterId, shift, posBits.cardinality(), getNegHitCount(), hgp_lg10);
 		return str+"\t"+alignString;
 	}
@@ -584,16 +585,15 @@ public class Kmer implements Comparable<Kmer>{
 		return new Pair<Integer, Integer>(posSeqCount,negSeqCount);
 	}
 	
-	public static void main(String[] args){
-//		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
-	     BitSet bits1 = new BitSet(16);
-	     BitSet bits2 = new BitSet(16);
-	      
-	     // set some bits
-	     for(int i=0; i<16; i++) {
-	        if((i%2) == 0) bits1.set(i);
-	        if((i%5) != 0) bits2.set(i);
-	     }
-	     
-	}
+//	public static void main(String[] args){
+////		ArrayList<Kmer> kmers = Kmer.loadKmers(new File(args[0]));
+//	     BitSet bits1 = new BitSet(16);
+//	     BitSet bits2 = new BitSet(16);
+//	      
+//	     // set some bits
+//	     for(int i=0; i<16; i++) {
+//	        if((i%2) == 0) bits1.set(i);
+//	        if((i%5) != 0) bits2.set(i);
+//	     }
+//	}
 }

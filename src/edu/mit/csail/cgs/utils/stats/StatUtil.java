@@ -1633,7 +1633,7 @@ public class StatUtil {
 		return(pval);		
 	}
 	
-	// this method will mutate the input array
+	/** this method will mutate the input array */
 	public static void mutate_normalize(double[] dist){
 		double total=0;
 		for (int i=0;i<dist.length;i++){
