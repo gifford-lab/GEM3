@@ -186,7 +186,6 @@ public class KMAC {
 		
 		seqNum = seqs.length;
 		seq_weights = new double[seqNum];
-//		int totalWeight=0;
 		for (int i=0;i<seqNum;i++){
 			switch (config.seq_weight_type){
 				case -1:	seq_weights[i]=1/pos_w.get(i);break;
@@ -199,13 +198,10 @@ public class KMAC {
 					break;
 				default: System.err.println("Sequence weighting type is not defined!");System.exit(-1);
 			}
-//			totalWeight += seq_weights[i]*seqNum;
 		}
-//		double sum= 0;
 		StatUtil.mutate_normalize(seq_weights);
 		for (int i=0;i<seqNum;i++){
-			seq_weights[i] = seq_weights[i]*seqNum;	// scale weights with total sequence count, and total weight
-//			sum += seq_weights[i];
+			seq_weights[i] = seq_weights[i]*seqNum;	// scale weights such that average weight = 1
 		}
 		
 		// If neg seqs are not provided, use shuffled sequences as negative sequences
@@ -420,16 +416,14 @@ public class KMAC {
 		}
 		seqs = new String[posSeqs.size()];	// DNA sequences around binding sites
 		posSeqs.toArray(seqs);
-	    seq_weights = new double[posSeqs.size()];
-
-		int totalWeight=0;
-		for (int i=0;i<seq_weights.length;i++){
+		
+		int seqNum = seqs.length;
+	    seq_weights = new double[seqNum];
+		for (int i=0;i<seqNum;i++)
 			seq_weights[i]=posSeqWeights.get(i);
-			totalWeight += seq_weights[i];
-		}
-		for (int i=0;i<seq_weights.length;i++){
-			seq_weights[i] = seq_weights[i]*seqs.length/totalWeight;	// scale weights with total sequence count, and total weight
-		}
+		StatUtil.mutate_normalize(seq_weights);
+		for (int i=0;i<seqNum;i++)
+			seq_weights[i] = seq_weights[i]*seqNum;	// scale weights with total sequence count, and total weight
 		
 		seqsNegList.clear();
 		if (config.k_neg_dinu_shuffle){

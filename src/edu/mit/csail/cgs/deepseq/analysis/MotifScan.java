@@ -117,8 +117,8 @@ public class MotifScan {
 		}
 		
 	    // search for KSM motif matches
-		String ksm_fle = Args.parseString(args, "ksm", null);
-		if (ksm_fle!=null){		// Load multiple KSMs
+		String ksm_string = Args.parseString(args, "ksm", null);
+		if (ksm_string!=null){		// Load multiple KSMs
 			
 	        Config config = new Config();
 	        try{
@@ -129,15 +129,22 @@ public class MotifScan {
 	    		System.exit(-1);
 			}  
 	        
-			ArrayList<String> lines = CommonUtils.readTextFile(ksm_fle);
 			ArrayList<KMAC> kmacs = new ArrayList<KMAC>();
 			ArrayList<String> knames = new ArrayList<String>();
-			for (String l:lines){
-				if (l.startsWith("#"))
-					continue;
-				String[] f = l.split("\t");
+			if (ksm_string.contains(",")){	// it is a comma-separated string with name,path format
+				String f[]=ksm_string.split(",");
 				knames.add(f[0].trim());
 				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
+			}
+			else{		// it is a file path
+				ArrayList<String> lines = CommonUtils.readTextFile(ksm_string);
+				for (String l:lines){
+					if (l.startsWith("#"))
+						continue;
+					String[] f = l.split("\t");
+					knames.add(f[0].trim());
+					kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
+				}
 			}
 			instances = getKSMInstances(seqs, kmacs, knames);
 			header = "# numSequence:"+seqs.length+"\n# numMotif:"+kmacs.size();
