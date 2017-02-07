@@ -705,7 +705,7 @@ public class KMAC {
 				System.gc();
 				if (config.verbose>1)
 	    			System.out.println("\n------------------------------------------------------------");
-				System.out.println("Aligning and clustering k-mers with seed "+seedKmer.kmerString+",   \t#"+j);
+				System.out.println("Align and cluster k-mers with seed "+seedKmer.kmerString+",   \t#"+j);
 	    		if (config.verbose>1)
 	    			System.out.println("\nmemory used = "+
 						(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
@@ -5798,14 +5798,16 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			}
 			// get the matched sequence
 			String s = null;
-			int pSeq = 0;
-			if (p<RC/2){
-				pSeq = p;
-				s = (String) seq.subSequence(pSeq+leftShift, pSeq+longest);
-			}
-			else{
-				pSeq = p-RC;
-				s = (String) seq_rc.subSequence(pSeq+leftShift, pSeq+longest);
+				if (posHitStrings!=null){
+				int pSeq = 0;
+				if (p<RC/2){
+					pSeq = p;
+					s = (String) seq.subSequence(pSeq+leftShift, pSeq+longest);
+				}
+				else{
+					pSeq = p-RC;
+					s = (String) seq_rc.subSequence(pSeq+leftShift, pSeq+longest);
+				}
 			}
 			KmerGroup kg = config.kg_hit_adjust_type==2?
 					config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, null) :
