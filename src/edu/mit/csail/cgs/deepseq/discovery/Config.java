@@ -5,9 +5,7 @@ import java.util.Set;
 import edu.mit.csail.cgs.tools.utils.Args;
 
 public class Config {
-	public boolean trim_simple=false;
-	public boolean print_PI = false;
-    public boolean use_joint_event = false;
+	public boolean print_PI = false;			// for GEM debugging
     public boolean outputBED = false;
     public boolean outputNarrowPeak = false;
     public boolean outputMEME = false;
@@ -101,12 +99,10 @@ public class Config {
     public double repeat_fraction=1;		// ignore lower case letter and N in motif discovery if less than _fraction_ of sequence
     public int kmer_remove_mode = 0;
     public double kmer_inRange_fraction = 0.3;		// the fraction of kmer in the seed_range out of all k-mer hit count
-    public double kmer_consistent_fraction = 0.8;		// the fraction of consistently aligned kmers in the seed_range
-    public boolean use_grid_search = true;
+    public double kmer_consistent_fraction = 0.5;		// the fraction of consistently aligned kmers in the seed_range
     public boolean optimize_pwm_threshold = true;
-    public boolean optimize_kmer_set = true;
+    public boolean optimize_kmer_set = false;
     public boolean optimize_base_kmers = true;
-    public boolean kg_score_hit_length = false;		// score k-mer group by considering the width of the hit, to better distinguish pos vs neg hits.
     public boolean kmer_use_insig = false;
     public boolean use_self_density = true;
     public boolean kmer_use_filtered = false;
@@ -225,7 +221,6 @@ public class Config {
         // default as false, need the flag to turn it on
         print_PI = flags.contains("print_PI");
         sort_by_location = flags.contains("sl");
-        use_joint_event = flags.contains("use_joint_event");
         post_artifact_filter = flags.contains("post_artifact_filter");
         kl_count_adjusted = flags.contains("adjust_kl");
         outputBED = flags.contains("outBED");
@@ -273,7 +268,7 @@ public class Config {
         filterDupReads = !flags.contains("nrf");	// no read filtering of duplicate reads
         TF_binding = ! flags.contains("br");	// broad region, not TF data, is histone or pol II
         if (!TF_binding){
-            use_joint_event = true;
+//            use_joint_event = true;
             sort_by_location = true;
         }
         ML_speedup = !flags.contains("no_fast_ML");
@@ -286,9 +281,7 @@ public class Config {
         pp_use_kmer = !flags.contains("pp_pwm");
         estimate_ksm_threshold = !flags.contains("no_ksm_threshold");
         optimize_pwm_threshold = !flags.contains("not_optimize_pwm_threshold");
-        optimize_kmer_set = !flags.contains("not_optimize_kmer_set");		// optimize the whole k-mer set, not the KG kmers.
-        kg_score_hit_length = flags.contains("kg_score_hit_length");
-        use_grid_search = !flags.contains("no_grid_search");
+        optimize_kmer_set = flags.contains("optimize_kmer_set");		// optimize the whole k-mer set, not the KG kmers.
         allow_seed_reset = !flags.contains("no_seed_reset");
         selectK_byTopKmer = flags.contains("selectK_byTopKmer");	
         if (selectK_byTopKmer)														// overwrite allow_seed_reset

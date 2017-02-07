@@ -5401,7 +5401,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		
 		Pair<Double, Integer> best;
 		
-		if (idxs.size()>100 && config.use_grid_search){
+		if (idxs.size()>100){
 		
 			// coarse search
 			int gridStep = (int)Math.ceil(Math.sqrt((double)idxs.size()/2));

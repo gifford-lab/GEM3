@@ -2404,17 +2404,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 				else
 					shapeDeviation[c]  = calc2StrandNzKL(profile_plus,profile_minus);
 			}
-
-			// sum the read profiles (optional)
-			// at this point, we do not have p-value, etc, this is our best guess of what are real events
-			if (config.use_joint_event && shapeDeviation[c]<=config.shapeDeviation ){
-				for (int i=0;i<profile_plus.length;i++){
-					profile_plus_sum[i] += profile_plus[i];
-					profile_minus_sum[i] += profile_minus[i];
-				}
-			}
 		}
-//		cf.setProfileLogKL(logKL_plus, logKL_minus);
 		cf.setShapeDeviation(shapeDeviation);
 		return cf;
 	}
@@ -2919,7 +2909,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			ComponentFeature cf = (ComponentFeature)f;
 			// the events that are used to refine read distribution should be
 			// having strength and shape at the upper half ranking
-			if (config.use_joint_event || !cf.isJointEvent() )
+			if (!cf.isJointEvent())
 				cfs.add(cf);
 		}
 		Collections.sort(cfs, new Comparator<ComponentFeature>(){
@@ -2964,16 +2954,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		// but here we only use single model for all conditions
 		double[] model_plus = new double[width];
 		double[] model_minus = new double[width];
-		if (config.use_joint_event){
-			model_plus = profile_plus_sum;
-			model_minus = profile_minus_sum;
-		}
-		else{
-			for (int i=0;i<width;i++){
-				for (int c=0; c<numConditions; c++){
-					model_plus[i]+= newModel_plus[c][i];
-					model_minus[i]+= newModel_minus[c][i];
-				}
+
+		for (int i=0;i<width;i++){
+			for (int c=0; c<numConditions; c++){
+				model_plus[i]+= newModel_plus[c][i];
+				model_minus[i]+= newModel_minus[c][i];
 			}
 		}
 		// smooth the model profile
