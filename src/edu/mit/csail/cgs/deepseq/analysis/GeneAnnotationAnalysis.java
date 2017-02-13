@@ -77,7 +77,9 @@ public class GeneAnnotationAnalysis {
 		}
 		
 		// output
+		// gene	TAD	TAD_width	num_gene_in_TAD	TAD_width/num_gene_in_TAD	num_peak_in_TAD
 		StringBuilder sb = new StringBuilder();
+		sb.append("Gene\tTAD\tTAD_width\tnum_gene_in_TAD\tTAD_width_per_gene\tnum_peak_in_TAD\n");
 		for (int i=0;i<genes.size();i++){
 			Gene g = genes.get(i);
 			Region tad = gene2tad.get(i);
@@ -106,7 +108,10 @@ public class GeneAnnotationAnalysis {
 	 * The strand information can then be used to convert lower/higher to up/downstream TSS/TES using the awk tool.
 	 */
 	private static void calcInterGenicDistance(String args[]){
-		System.out.println("Loading gene annotations ... ");
+		System.out.println("This code compute the intergenic distance summary from a given gene annotation file. ");
+		System.out.println("For each gene TSS, compute the distance to the nearest TSS/TES. ");
+		System.out.println("It reports distance to the lower or higher coordinates, with strand info can be converted to up/downstream.");
+		System.out.println("\nLoading gene annotations ... ");
 		String gene_anno = Args.parseString(args, "gene_anno", "");
 		ArrayList<Gene> genes = CommonUtils.loadGeneAnnotations(gene_anno);
 		int dist = Args.parseInteger(args, "merge_dist", 1000);

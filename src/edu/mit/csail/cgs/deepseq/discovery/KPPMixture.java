@@ -649,7 +649,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	        	StringBuilder sb0 = new StringBuilder();
 	        	for (Region r:rs)	
 		        	sb0.append(r.toString()).append("\n");
-		        CommonUtils.writeFile(outName+"_zzzzz_heavyRegions.txt", sb0.toString());
+		        CommonUtils.writeFile(outName+".zzzzz_heavyRegions.txt", sb0.toString());
 	        }
 	        
 	        // print out kmer hit list

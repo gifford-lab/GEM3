@@ -5585,7 +5585,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		if (kmers.isEmpty()){
 			engineInitialized = false;
 			return;
-		}		
+		}
 		
 		//Init Aho-Corasick (AC) algorithm for searching multiple Kmers in sequences
 		//ahocorasick_java-1.1.tar.gz is an implementation of Aho-Corasick automata for Java. BSD license.
@@ -5970,13 +5970,15 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		            	seq_w.add(10.0);
 	        	}
 	        	else{
-	        		if (config.k_win==-1 || line.length()<=config.k_win){
+	        		if (config.k_win==-1){
 	        			pos_seqs.add(line);
 	        		}
-	        		else{
+	        		else{// get the center substring of length k_win
 		        		int left = line.length()/2-config.k_win/2;
-		        		if (left<0)
+		        		if (left<0){ // skip if too short
+		        			System.err.println("Fasta sequence length "+line.length()+" is shorter than k_win=" + config.k_win);
 		        			continue;
+		        		}
 		        		pos_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
 	        		}
 	        	}
@@ -5988,7 +5990,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	            	pos_seqs.add(f[0].toUpperCase());
 	            }
 			}
-		}		
+		}
+		if (pos_seqs.isEmpty()){
+			System.err.println("\nNo fasta sequences has been loaded.\nAbort!!!");
+			System.exit(-1);
+		}
 		
 		ArrayList<String> neg_seqs = new ArrayList<String>();
 		if (neg_file!=null){
@@ -5997,12 +6003,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			for (String line: strs){
 				if (format.equals("fasta")){
 					if (!line.startsWith(">")){
-						if (config.k_win==-1 || line.length()<=config.k_win){
+						if (config.k_win==-1){
 							neg_seqs.add(line);
 		        		}
-		        		else{
+		        		else{	// get the center substring of length k_win
 			        		int left = line.length()/2-config.k_win/2;
-			        		if (left<0)
+			        		if (left<0)		// skip if too short
 			        			continue;
 			        		neg_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
 		        		}
