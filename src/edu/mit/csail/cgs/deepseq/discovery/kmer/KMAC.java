@@ -5876,27 +5876,31 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		for (int p:result.keySet()){
 			ArrayList<Kmer> kmers = result.get(p);
 			int leftShift = 999;			// left most shift position
-			int longest = 0;				// length from the seed position
-			for (Kmer km:kmers){
-				if (km.getKmerStartOffset() < leftShift)
-					leftShift = km.getKmerStartOffset();
-				if (km.k+km.getKmerStartOffset() > longest)
-					longest = km.k+km.getKmerStartOffset();
-			}
 			// get the matched sequence
 			String s = null;
-			int pSeq = 0;
-			if (p<RC/2){
-				pSeq = p;
-				s = (String) seq.subSequence(pSeq+leftShift, pSeq+longest);
+			if (posHitStrings!=null){
+				int longest = 0;				// length from the seed position
+				for (Kmer km:kmers){
+					if (km.getKmerStartOffset() < leftShift)
+						leftShift = km.getKmerStartOffset();
+					if (km.k+km.getKmerStartOffset() > longest)
+						longest = km.k+km.getKmerStartOffset();
+				}
+				int pSeq = 0;
+				if (p<RC/2){
+					pSeq = p;
+					s = (String) seq.subSequence(pSeq+leftShift, pSeq+longest);
+				}
+				else{
+					pSeq = p-RC;
+					s = (String) seq_rc.subSequence(pSeq+leftShift, pSeq+longest);
+				}
 			}
-			else{
-				pSeq = p-RC;
-				s = (String) seq_rc.subSequence(pSeq+leftShift, pSeq+longest);
-			}
-			KmerGroup kg = posCoveredWidth!=null?
-					config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, null) :
-					config.use_weighted_kmer ? new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, seq_weights) : new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, null);
+			KmerGroup kg = null;
+			if (posCoveredWidth!=null)
+				kg = config.use_weighted_kmer ? new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, seq_weights) : new KmerGroup(posCoveredWidth, negCoveredWidth, kmers, p, null);
+			else 	// posCoveredWidth==null, if posHitStrings==null, skip the matchedSeq criteria
+				kg = config.use_weighted_kmer ? new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, seq_weights) : new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, null);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			idx++;

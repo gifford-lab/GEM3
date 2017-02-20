@@ -95,10 +95,7 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	 			}
 	 			if (matched==null)
 	 				b_pos.clear(i);
-//	 			else
-//	 				System.out.print(matched+" ");
 	 		}
-//	 		System.out.println();
 
 //	 		System.out.println(b_pos.cardinality()+" <-- ");
 	 		for (int i = b_neg.nextSetBit(0); i >= 0; i = b_neg.nextSetBit(i+1)){
@@ -115,11 +112,8 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	 			}
 	 			if (matched==null)
 	 				b_neg.clear(i);
-//	 			else
-//	 				System.out.print(matched+" ");
 	 		}
-//	 		System.out.println();
- 		}
+ 		} //if (posMatchStr!=null){
 
 		if (weights==null){
     		posHitGroupCount = b_pos.cardinality();
