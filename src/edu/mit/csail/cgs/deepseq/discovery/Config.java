@@ -146,6 +146,7 @@ public class Config {
     public boolean use_db_genome = false;// get the sequence from database, not from file
     public boolean k_mask_1base = false;
     public boolean selectK_byTopKmer = false;
+    public boolean use_middle_offset = true;	// when KSM scanning, use middle of KSM as binding pos, not using the expected position
     
     public double ip_ctrl_ratio = -1;	// -1: using non-specific region for scaling, -2: total read count for scaling, positive: user provided ratio
     public double q_value_threshold = 2.0;	// -log10 value of q-value
@@ -288,6 +289,7 @@ public class Config {
         	allow_seed_reset = false;
         allow_seed_inheritance = !flags.contains("no_seed_inheritance");
         pwm_align_new_only = !flags.contains("pwm_align_all");
+        use_middle_offset = !flags.contains("use_expected_offset");
         filter_pwm_seq = !flags.contains("pwm_seq_asIs");
         strigent_event_pvalue = !flags.contains("relax");
         local_neighborhood_control = flags.contains("local_control");

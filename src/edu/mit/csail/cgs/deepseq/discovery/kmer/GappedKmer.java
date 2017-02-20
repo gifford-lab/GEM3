@@ -293,7 +293,7 @@ public class GappedKmer extends Kmer{
 	        line = line.substring(1,line.length());			//remove # sign
 	        ksm.cutoff = Double.parseDouble(line);
 	        
-	        //load gapped k-mers
+	        //load exact and gapped k-mers
 //	        int a=0;
 	        while((line = bin.readLine()) != null) { 
 	        	if (line.startsWith("#"))

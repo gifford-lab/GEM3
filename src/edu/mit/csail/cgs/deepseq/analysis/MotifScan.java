@@ -67,11 +67,11 @@ public class MotifScan {
 		ArrayList<Double> motifThresholds = new ArrayList<Double>();
 		String header = null;
 		String pfm_fle = Args.parseString(args, "pfm", null);
-		if (pfm_fle!=null){		// Load multiple PWMs
+		if (pfm_fle!=null){		// Load multiple PWMs in a single file
 			StringBuilder sb_header = new StringBuilder();
 		    List<WeightMatrix> pwms = CommonUtils.loadPWMs_PFM_file(pfm_fle, Args.parseDouble(args, "gc", 0.41));
 		    if (pwms.isEmpty()){
-		    	System.out.println("No motif is loaded from \n"+pfm_fle);
+		    	System.out.println("No motif PFM is loaded from \n"+pfm_fle);
 		    	System.exit(-1);
 		    }
 		    
@@ -330,9 +330,12 @@ public class MotifScan {
 							mi.motifName = pwm.getName();
 							mi.seqID = s;
 							mi.matchSeq = instance;
-							mi.position = i;
 							mi.strand = strand;
 							mi.score = score;
+							if (strand=='+')
+								mi.position = i+pwm.length()/2;
+							else
+								mi.position = i+(pwm.length()-pwm.length()/2-1);
 							instances.add(mi);
 						}
 					}

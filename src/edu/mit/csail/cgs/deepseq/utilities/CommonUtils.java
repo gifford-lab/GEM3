@@ -736,6 +736,14 @@ public class CommonUtils {
 	public static KMAC loadKsmFile(String ksmFile, Config config){
 		File file = new File(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
+		if (config.use_middle_offset){
+			Kmer topKmer = ksm.kmers.get(0);
+			int shift = topKmer.getKmerStartOffset()+topKmer.getK()/2;
+			for (Kmer km: ksm.kmers){
+				km.setKmerStartOffset(km.getKmerStartOffset()-shift);
+				km.setShift(km.getKmerStartOffset());
+			}
+		}
 		KMAC kmac;
 		kmac = new KMAC(ksm.kmers, config);	
 		kmac.setTotalSeqCount(ksm.posSeqCount, ksm.negSeqCount);
