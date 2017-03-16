@@ -30,7 +30,6 @@ public class ChIAPET_analysis {
 	int tss_merge_dist = 500;
 	int max_cluster_merge_dist = 2000;
 	int distance_factor = 3;
-	int self_exclude = 8000;
 	int tss_radius = 2000;
 	int chiapet_radius = 2000;
 	double overlap_ratio = 0.8;
@@ -898,16 +897,16 @@ public class ChIAPET_analysis {
 		long tic = System.currentTimeMillis();
 
 		// load read pairs
-		// only use read pairs on the same chromosome, and longer than
-		// self_exclude distance; the left read is required to be lower than the
-		// right read; if not, flip the two
+		// same chromosome, and longer than min_distance distance; 
+		// the left read is required to be lower than the right read; if not, flip 
 
 		// sort by each end so that we can search to find matches or overlaps
 		System.out.println("Running CPC on "+Args.parseString(args, "out", "Result"));
 		System.out.println("\nLoading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
 		int min = 2; // minimum number of PET count to be called an interaction
 		int numQuantile = Args.parseInteger(args, "num_span_quantile", 100);
-		int minDistance = Args.parseInteger(args, "min_distance", 2000);
+		/** min PET span to exclude self-ligation reads */
+		int minDistance = Args.parseInteger(args, "min_span", 2000);
 		int max_merging_dist = Args.parseInteger(args, "max_merging_dist", 2000);
 		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
 		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
@@ -926,11 +925,11 @@ public class ChIAPET_analysis {
 			String[] f = s.split("\t");
 			StrandedPoint r1;
 			StrandedPoint r2;
-			if (!isBEDPE){
+			if (!isBEDPE){		// cgsPoints of the 5 prime end
 				r1 = StrandedPoint.fromString(genome, f[0]);
 				r2 = StrandedPoint.fromString(genome, f[1]);
 			}
-			else{
+			else{	// BEDPE format
 				char strand1 = f[8].charAt(0);
 				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
 				char strand2 = f[9].charAt(0);
@@ -956,18 +955,15 @@ public class ChIAPET_analysis {
 			// r1 and r2 should be on the same chromosome
 			if (!r1Chrom.equals(r2.getChrom())) 
 				continue;
-			if (r1.getLocation() > r2.getLocation()){
+			int dist = r1.distance(r2);
+			if (dist < minDistance)
+				continue;
+			if (r1.getLocation() > r2.getLocation()){	// r1 should be lower than r2
 				tmp1 = r1;
 				r2 = r1;
 				r1 = tmp1;
 			}
 			// count PETs by strand-orientation
-			if (r1.getLocation() > r2.getLocation())
-				System.err.print("Not sorted ");
-			int dist = r1.distance(r2);
-			if (dist < minDistance)
-				continue;
-
 			if (r1.getStrand() == '-') {
 				if (r2.getStrand() == '+')
 					dist_minus_plus.add(dist);
@@ -981,28 +977,23 @@ public class ChIAPET_analysis {
 			}
 
 			ReadPair rp = new ReadPair();
-			if (r1.compareTo(r2) < 0) { // r1 should be lower than r2
-				rp.r1 = r1;
-				rp.r2 = r2;
-			} else {
-				rp.r1 = r2;
-				rp.r2 = r1;
-			}
+			rp.r1 = r1;
+			rp.r2 = r2;
 			low.add(rp);
 			ReadPair rp2 = new ReadPair();
-			rp2.r1 = rp.r1;
-			rp2.r2 = rp.r2;
+			rp2.r1 = r1;
+			rp2.r2 = r2;
 			high.add(rp2);
 		}
 
 		low.trimToSize();
 		high.trimToSize();
-		Collections.sort(low, new Comparator<ReadPair>() {
+		Collections.sort(low, new Comparator<ReadPair>() {		// sort by low end read1
 			public int compare(ReadPair o1, ReadPair o2) {
 				return o1.compareRead1(o2);
 			}
 		});
-		Collections.sort(high, new Comparator<ReadPair>() {
+		Collections.sort(high, new Comparator<ReadPair>() {		// sort by high end read2
 			public int compare(ReadPair o1, ReadPair o2) {
 				return o1.compareRead2(o2);
 			}
@@ -1023,11 +1014,14 @@ public class ChIAPET_analysis {
 		System.out.println("\nLoaded total single reads = " + (reads.size() / 2) + ", filtered PETs =" + highEnds.size()
 		+ " : " + CommonUtils.timeElapsed(tic));
 
-		// quick way to get PETs that supports a list of BEDPE anchors
-		String bedpe_file = Args.parseString(args, "bedpe", null);
-		if (bedpe_file != null) {
-			System.out.println(bedpe_file);
-			ArrayList<String> lines = CommonUtils.readTextFile(bedpe_file);
+		// a hack to print out PETs that support a list of BEDPE-format loops
+		String loop_file = Args.parseString(args, "loops", null);
+		if (loop_file != null) {
+			String outprefix = loop_file.replace(".bedpe", "");
+			int binSize = Args.parseInteger(args, "bin", 100);
+//			System.out.println(loop_file);
+			ArrayList<String> lines = CommonUtils.readTextFile(loop_file);
+			int count = 0;
 			for (String anchorString : lines) {
 				// System.out.println(anchorString);
 				String[] f = anchorString.split("\t");
@@ -1035,13 +1029,44 @@ public class ChIAPET_analysis {
 						Integer.parseInt(f[2]));
 				Region region2 = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]),
 						Integer.parseInt(f[5]));
+//				if (region1.overlaps(region2)){		// if overlap, merge
+					region1 = new Region(genome, region1.getChrom(), region1.getStart(), region2.getEnd());
+					region2 = region1;
+//				}
+				int r1start = region1.getStart();
+				int r2start = region2.getStart();
+				int bin1 = region1.getWidth()/binSize;		// j:read1:x
+				int bin2 = region2.getWidth()/binSize;		// i:read2:y
+				int[][] map = new int[bin2][bin1];
+				for (int i=0;i<bin2;i++)			// init to 0
+					for (int j=0;j<bin1;j++)	
+						map[i][j] = 0;
 				ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, region1);
 				for (int id : idx) {
 					ReadPair rp = low.get(id);
-					if (region2.contains(rp.r2))
-						System.out.println(rp + "\t" + (rp.r1.getLocation() - region1.getStart()) + "\t"
-								+ (rp.r2.getLocation() - region2.getStart()));
+					if (region2.contains(rp.r2)){
+//						System.out.println(rp + "\t" + (rp.r1.getLocation() - r1start) + "\t"
+//								+ (rp.r2.getLocation() - r2start));
+						int j = (rp.r1.getLocation() - r1start) / binSize;	// j:read1:x
+						if (j>=bin1)
+							j=bin1-1;
+						int i = (rp.r2.getLocation() - r2start) / binSize;	// i:read2:y
+						if (i>=bin2)
+							i=bin2-1;
+						map[i][j] = map[i][j] +1;
+					}
 				}
+				StringBuilder sb = new StringBuilder();
+				sb.append("> ").append(region1.toString()).append(" ").append(region2.toString())
+				.append(" ").append(f[6]).append(" ").append(region2.getEnd()-r1start).append("\n");
+				sb.append(r2start-r1start).append("\t");
+				for (int j=0;j<bin1;j++)
+					sb.append((j+1)*binSize).append("\t");
+				CommonUtils.replaceEnd(sb, '\n');
+				for (int i=0;i<bin2;i++)	
+					sb.append((i+1)*binSize).append("\t").append(CommonUtils.arrayToString(map[i])).append("\n");
+				CommonUtils.writeFile(outprefix+"."+count+".map.txt", sb.toString());
+				count++;
 			}
 			System.exit(0);
 		}
@@ -1098,8 +1123,9 @@ public class ChIAPET_analysis {
 
 		System.out.println("\nAnalyzed strand-orientation of PETs: " + CommonUtils.timeElapsed(tic0));
 
+		
 		/**
-		 * One dimension clustering to define anchors (similar to GEM code)
+		 * One dimension read clustering to define anchors (similar to GEM code)
 		 */
 		// TODO: use cross correlation to determine the distance to shift
 		ArrayList<Region> rs0 = new ArrayList<Region>();
@@ -1162,8 +1188,9 @@ public class ChIAPET_analysis {
 		
 		System.out.println("\nMerged all PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
+		
 		/**
-		 * Estimate the merging distance
+		 * Estimate the merging distance: another hack to do quick analysis
 		 */
 		if (flags.contains("estimate_merging_distance")){
 			tic = System.currentTimeMillis();
@@ -1268,9 +1295,10 @@ public class ChIAPET_analysis {
 			System.exit(0);
 		}
 		
-		/**
-		 * Load other data
-		 */
+		
+		/**************************
+		 * Load other data for annotations
+		 **************************/
 		// load gene annotation
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
 		ArrayList<Point> allTSS = new ArrayList<Point>();
@@ -1291,98 +1319,10 @@ public class ChIAPET_analysis {
 		allTSS.trimToSize();
 		Collections.sort(allTSS);
 
-		// load TF sites
-		String tfs_file = Args.parseString(args, "tf_sites", null);
-		ArrayList<ArrayList<Point>> allPeaks = new ArrayList<ArrayList<Point>>();
-		if (tfs_file != null) {
-			ArrayList<String> tfs = CommonUtils.readTextFile(tfs_file);
-			for (int i = 0; i < tfs.size(); i++) {
-				try {
-					ArrayList<Point> ps = new ArrayList<Point>();
-					ps.addAll(GPSParser.parseGPSOutput(tfs.get(i), genome));
-					ps.trimToSize();
-					Collections.sort(ps);
-					allPeaks.add(ps);
-					System.out.println("Loaded " + tfs.get(i));
-				} catch (IOException e) {
-					System.out.println(tfs.get(i) + " does not have a valid GPS/GEM event call file.");
-					e.printStackTrace(System.err);
-					System.exit(1);
-				}
-			}
-			allPeaks.trimToSize();
-		}
-
-		// load histone mark or DHS, SE regions
-		String hms_file = Args.parseString(args, "regions", null);
-		ArrayList<List<Region>> allRegions = new ArrayList<List<Region>>();
-		if (hms_file != null) {
-			ArrayList<String> hms = CommonUtils.readTextFile(hms_file);
-			for (int i = 0; i < hms.size(); i++) {
-				allRegions.add(CommonUtils.load_BED_regions(genome, hms.get(i)).car());
-				System.out.println("Loaded " + hms.get(i));
-			}
-			allRegions.trimToSize();
-			System.out.println();
-		}
-
-		// load other Interaction calls
-		String germ_file = Args.parseString(args, "germ", null);
-		ArrayList<Point> tPoints = new ArrayList<Point>();
-		HashMap<Point, ArrayList<Point>> t2ds = new HashMap<Point, ArrayList<Point>>();
-		if (germ_file != null) {
-			lines = CommonUtils.readTextFile(germ_file);
-			for (String l : lines) { // each line is a call
-				String f[] = l.split("\t");
-				Point t = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]))
-						.getMidpoint();
-				Point d = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]))
-						.getMidpoint();
-				if (t.getLocation() > d.getLocation()) { // make sure t < d
-					Point tmp = t;
-					t = d;
-					d = tmp;
-				}
-				if (!t2ds.containsKey(t))
-					t2ds.put(t, new ArrayList<Point>());
-				t2ds.get(t).add(d);
-			}
-			tPoints.addAll(t2ds.keySet());
-			tPoints.trimToSize();
-			Collections.sort(tPoints);
-		}
-
-		String mango_file = Args.parseString(args, "mango", null);
-		HashMap<Point, ArrayList<Point>> a2bs = new HashMap<Point, ArrayList<Point>>();
-		ArrayList<Point> aPoints = new ArrayList<Point>();
-		if (mango_file != null) {
-			lines = CommonUtils.readTextFile(mango_file);
-			for (String l : lines) { // each line is a call
-				String f[] = l.split("\t");
-				Point a = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]))
-						.getMidpoint();
-				Point b = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]))
-						.getMidpoint();
-				if (a.getLocation() > b.getLocation()) { // make sure a < b
-					Point tmp = a;
-					a = b;
-					b = tmp;
-				}
-
-				if (!a2bs.containsKey(a))
-					a2bs.put(a, new ArrayList<Point>());
-				a2bs.get(a).add(b);
-			}
-			aPoints.addAll(a2bs.keySet());
-			aPoints.trimToSize();
-			Collections.sort(aPoints);
-		}
-
-		System.out.println("\nLoaded all the annotations, " + CommonUtils.timeElapsed(tic0));
-
-		/**********************************************
-		 * find dense PET cluster for each 1D cluster
-		 **********************************************/
+		
+		/***********************************************************
+		 * find dense PET cluster for each 1D clustered region
+		 ***********************************************************/
 		ArrayList<Interaction> interactions = new ArrayList<Interaction>();
 		HashSet<ReadPair> usedPETs = new HashSet<ReadPair>();
 
@@ -1391,7 +1331,7 @@ public class ChIAPET_analysis {
 		for (int j = 0; j < rs0.size(); j++) { // for all regions
 			Region region = rs0.get(j);
 
-			// get the distal ends, merge nearby read pairs
+			// get the PETs with read1 in the region, sort and merge by read2
 			ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, region);
 			if (idx.size() > 1) {
 				ArrayList<ReadPair> rps = new ArrayList<ReadPair>();
@@ -1473,66 +1413,74 @@ public class ChIAPET_analysis {
 					// to get real PET1 (no PET1 from the m-p adjustment)
 					usedPETs.addAll(pets);	
 					
-					// count minus-plus PETs to adjust the PET counts
-					ArrayList<ReadPair> mpRPs = new ArrayList<ReadPair>();
-					for (ReadPair rp : pets)
-						if (rp.r1.getStrand() == '-' && rp.r2.getStrand() == '+')
-							mpRPs.add(rp);
 					int totalCount = pets.size();
-					int minusPlusCount = mpRPs.size();
-					pets.removeAll(mpRPs);
-					int adjustedCount = -1;
-					Collections.sort(mpRPs, new Comparator<ReadPair>() {
-						public int compare(ReadPair o1, ReadPair o2) {
-							return o1.compareRead1(o2);
-						}
-					});
+					int minusPlusCount = 0;
+					int adjustedCount = totalCount;
 					// new PET cluster with adjustment
 					ReadPairCluster rpc = new ReadPairCluster(); 
-					if (pets.isEmpty()) { //  with only minus-plus PETs
-						int dist = (cc.r2max + cc.r2min - cc.r1max - cc.r1min) / 2;
-						if (dist >= maxEdge)
-							adjustedCount = minusPlusCount;
-						else {
-							int index = Collections.binarySearch(binEdges, dist);
-							if (index < 0) // if key not found
-								index = -(index + 1);
-							adjustedCount = (int) (minusPlusCount * mpNonSelfFraction.get(index));
-						}
-						// add the adjusted m-p PETs in the middle
-						int midIndexMP = mpRPs.size() / 2 - adjustedCount /2;
-						int endIndex = midIndexMP + adjustedCount;
-						for (int k = midIndexMP; k < endIndex; k++)
-							rpc.addReadPair(mpRPs.get(k));
-					} else {
+					if (flags.contains("mp_adjust")){
+						// count minus-plus PETs to adjust the PET counts
+						ArrayList<ReadPair> mpRPs = new ArrayList<ReadPair>();
 						for (ReadPair rp : pets)
-							rpc.addReadPair(rp);
-						int dist = (rpc.r2max + rpc.r2min - rpc.r1max - rpc.r1min) / 2;
-						if (dist >= maxEdge)
-							adjustedCount = totalCount;
-						else {
-							int index = Collections.binarySearch(binEdges, dist);
-							if (index < 0) // if key not found
-								index = -(index + 1);
-							adjustedCount = totalCount - minusPlusCount
-									+ (int) (minusPlusCount * mpNonSelfFraction.get(index));
+							if (rp.r1.getStrand() == '-' && rp.r2.getStrand() == '+')
+								mpRPs.add(rp);
+						minusPlusCount = mpRPs.size();
+						pets.removeAll(mpRPs);
+						adjustedCount = -1;
+						Collections.sort(mpRPs, new Comparator<ReadPair>() {
+							public int compare(ReadPair o1, ReadPair o2) {
+								return o1.compareRead1(o2);
+							}
+						});
+						if (pets.isEmpty()) { //  with only minus-plus PETs
+							int dist = (cc.r2max + cc.r2min - cc.r1max - cc.r1min) / 2;
+							if (dist >= maxEdge)
+								adjustedCount = minusPlusCount;
+							else {
+								int index = Collections.binarySearch(binEdges, dist);
+								if (index < 0) // if key not found
+									index = -(index + 1);
+								adjustedCount = (int) (minusPlusCount * mpNonSelfFraction.get(index));
+							}
+							// add the adjusted m-p PETs in the middle
+							int midIndexMP = mpRPs.size() / 2 - adjustedCount /2;
+							int endIndex = midIndexMP + adjustedCount;
+							for (int k = midIndexMP; k < endIndex; k++)
+								rpc.addReadPair(mpRPs.get(k));
+						} else {
+							for (ReadPair rp : pets)
+								rpc.addReadPair(rp);
+							int dist = (rpc.r2max + rpc.r2min - rpc.r1max - rpc.r1min) / 2;
+							if (dist >= maxEdge)
+								adjustedCount = totalCount;
+							else {
+								int index = Collections.binarySearch(binEdges, dist);
+								if (index < 0) // if key not found
+									index = -(index + 1);
+								adjustedCount = totalCount - minusPlusCount
+										+ (int) (minusPlusCount * mpNonSelfFraction.get(index));
+							}
+							// add the adjusted m-p PETs in the middle
+							int extra = adjustedCount - (totalCount - minusPlusCount);
+							int midIndexMP = mpRPs.size() / 2 - extra /2;
+							int endIndex = midIndexMP + extra;
+							for (int k = midIndexMP; k < endIndex; k++)
+								rpc.addReadPair(mpRPs.get(k));
 						}
-						// add the adjusted m-p PETs in the middle
-						int extra = adjustedCount - (totalCount - minusPlusCount);
-						int midIndexMP = mpRPs.size() / 2 - extra /2;
-						int endIndex = midIndexMP + extra;
-						for (int k = midIndexMP; k < endIndex; k++)
-							rpc.addReadPair(mpRPs.get(k));
+						if (adjustedCount < min)
+							continue;
 					}
-					if (adjustedCount < min)
-						continue;
-
+					else	// not adjustment, rpc is the cluster cc
+						rpc = cc;
+					
+					
 					Interaction it = new Interaction();
 					interactions.add(it);
 					it.count = totalCount;
 					it.count2 = totalCount - minusPlusCount;
 					it.adjustedCount = adjustedCount;
 
+					// add gene annotations
 					pets = rpc.pets;
 					it.leftRegion = new Region(region.getGenome(), region.getChrom(), rpc.r1min, rpc.r1max);
 					Collections.sort(pets, new Comparator<ReadPair>() {
@@ -1599,6 +1547,106 @@ public class ChIAPET_analysis {
 		/******************************
 		 * Annotate and report
 		 *******************************/
+		annotateCPC(interactions, lowEnds, highEnds, low, tic0);
+		
+		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
+	}
+
+	
+	/**
+	 * Annotate after CPC interaction calling
+	 */
+	private void annotateCPC(ArrayList<Interaction> interactions, ArrayList<Point> lowEnds, ArrayList<Point> highEnds, ArrayList<ReadPair> pet1s, long tic0){
+
+		// load TF sites
+		String tfs_file = Args.parseString(args, "tf_sites", null);
+		ArrayList<ArrayList<Point>> allPeaks = new ArrayList<ArrayList<Point>>();
+		if (tfs_file != null) {
+			ArrayList<String> tfs = CommonUtils.readTextFile(tfs_file);
+			for (int i = 0; i < tfs.size(); i++) {
+				try {
+					ArrayList<Point> ps = new ArrayList<Point>();
+					ps.addAll(GPSParser.parseGPSOutput(tfs.get(i), genome));
+					ps.trimToSize();
+					Collections.sort(ps);
+					allPeaks.add(ps);
+					System.out.println("Loaded " + tfs.get(i));
+				} catch (IOException e) {
+					System.out.println(tfs.get(i) + " does not have a valid GPS/GEM event call file.");
+					e.printStackTrace(System.err);
+					System.exit(1);
+				}
+			}
+			allPeaks.trimToSize();
+		}
+
+		// load histone mark or DHS, SE regions
+		String hms_file = Args.parseString(args, "regions", null);
+		ArrayList<List<Region>> allRegions = new ArrayList<List<Region>>();
+		if (hms_file != null) {
+			ArrayList<String> hms = CommonUtils.readTextFile(hms_file);
+			for (int i = 0; i < hms.size(); i++) {
+				allRegions.add(CommonUtils.load_BED_regions(genome, hms.get(i)).car());
+				System.out.println("Loaded " + hms.get(i));
+			}
+			allRegions.trimToSize();
+			System.out.println();
+		}
+
+		// load other Interaction calls
+		String germ_file = Args.parseString(args, "germ", null);
+		ArrayList<Point> tPoints = new ArrayList<Point>();
+		HashMap<Point, ArrayList<Point>> t2ds = new HashMap<Point, ArrayList<Point>>();
+		if (germ_file != null) {
+			ArrayList<String> lines = CommonUtils.readTextFile(germ_file);
+			for (String l : lines) { // each line is a call
+				String f[] = l.split("\t");
+				Point t = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]))
+						.getMidpoint();
+				Point d = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]))
+						.getMidpoint();
+				if (t.getLocation() > d.getLocation()) { // make sure t < d
+					Point tmp = t;
+					t = d;
+					d = tmp;
+				}
+				if (!t2ds.containsKey(t))
+					t2ds.put(t, new ArrayList<Point>());
+				t2ds.get(t).add(d);
+			}
+			tPoints.addAll(t2ds.keySet());
+			tPoints.trimToSize();
+			Collections.sort(tPoints);
+		}
+
+		String mango_file = Args.parseString(args, "mango", null);
+		HashMap<Point, ArrayList<Point>> a2bs = new HashMap<Point, ArrayList<Point>>();
+		ArrayList<Point> aPoints = new ArrayList<Point>();
+		if (mango_file != null) {
+			ArrayList<String> lines = CommonUtils.readTextFile(mango_file);
+			for (String l : lines) { // each line is a call
+				String f[] = l.split("\t");
+				Point a = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]))
+						.getMidpoint();
+				Point b = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]))
+						.getMidpoint();
+				if (a.getLocation() > b.getLocation()) { // make sure a < b
+					Point tmp = a;
+					a = b;
+					b = tmp;
+				}
+
+				if (!a2bs.containsKey(a))
+					a2bs.put(a, new ArrayList<Point>());
+				a2bs.get(a).add(b);
+			}
+			aPoints.addAll(a2bs.keySet());
+			aPoints.trimToSize();
+			Collections.sort(aPoints);
+		}
+
+		System.out.println("\nLoaded all the annotations, " + CommonUtils.timeElapsed(tic0));
+
 		System.out.println("\nAnnotate and report, " + CommonUtils.timeElapsed(tic0));
 		// report the interactions and annotations
 		StringBuilder sb = new StringBuilder();
@@ -1711,9 +1759,11 @@ public class ChIAPET_analysis {
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".readClusters.txt", sb.toString());
 
-		// output BEDPE format
+		/** 
+		 * output BEDPE format
+		 */
 		// HERE we need to also include PET1 for MICC and ChiaSig analysis
-		for (ReadPair rp : low) {
+		for (ReadPair rp : pet1s) {
 			Interaction it = new Interaction();
 			interactions.add(it);
 			it.leftPoint = rp.r1;
@@ -1724,24 +1774,20 @@ public class ChIAPET_analysis {
 			it.count2 = 1;
 			it.adjustedCount = 1;
 		}
-		low.clear();
-		low = null;
+		pet1s.clear();
+		pet1s = null;
 
 		sb = new StringBuilder();
 		for (Interaction it : interactions) {
-			Region distalLocal = it.rightRegion.expand(read_merge_dist, read_merge_dist);
-			Region tssLocal = it.leftRegion.expand(read_merge_dist, read_merge_dist);
-			int distalLocalCount, tssLocalCount;
-			distalLocalCount = CommonUtils.getPointsWithinWindow(highEnds, distalLocal).size();
-			tssLocalCount = CommonUtils.getPointsWithinWindow(lowEnds, tssLocal).size();
-			sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", tssLocal.toBED(), distalLocal.toBED(), it.adjustedCount,
-					tssLocalCount, distalLocalCount));
+			Region leftLocal = it.leftRegion.expand(read_merge_dist, read_merge_dist);
+			Region rightLocal = it.rightRegion.expand(read_merge_dist, read_merge_dist);
+			sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", leftLocal.toBED(), rightLocal.toBED(), it.adjustedCount,
+					CommonUtils.getPointsWithinWindow(lowEnds, leftLocal).size(), 
+					CommonUtils.getPointsWithinWindow(highEnds, rightLocal).size()));
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
 
-		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
-
 	/**
 	 * split read pair cluster recursively <br>
 	 * at gaps larger than cluster_merge_dist, on both ends alternatively
@@ -1751,7 +1797,7 @@ public class ChIAPET_analysis {
 	ArrayList<ReadPairCluster> splitRecursively(ArrayList<ReadPairCluster> rpcs, boolean toSplitLeftAnchor) {
 		if (rpcs.isEmpty())
 			return null;
-
+	
 		int min = 2;
 		int countSplit = 0;
 		ArrayList<ReadPairCluster> rpcs2 = new ArrayList<ReadPairCluster>();
@@ -1795,6 +1841,7 @@ public class ChIAPET_analysis {
 		} else
 			return null;
 	}
+
 	/**
 	 * Overlap CPC interaction calls with some annotation as regions.
 	 * @param args
@@ -2108,13 +2155,14 @@ public class ChIAPET_analysis {
 		Point rightPoint;
 		Region rightRegion;
 		String rightLabel;
+		/** All read counts regardless PET orientation */
 		int count;
-		int indirectCount;
+		/** NON-minus-plus PET counts */
 		int count2;
+		/** PET counts after adjusting for the minus-plus fraction */
 		int adjustedCount;
 		double density;
 
-		// double pvalue;
 		public String toString() {
 			// return String.format("%d %.1f\t< %s %s -- %s >", count, density,
 			// geneSymbol, tssRegion, distalRegion);

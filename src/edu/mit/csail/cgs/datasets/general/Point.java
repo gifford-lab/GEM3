@@ -135,7 +135,7 @@ public class Point implements Comparable<Point> {
   }
 
 
-  /*
+  /**
    * Absolute distance to another point
    */
   public int distance(Point p) {

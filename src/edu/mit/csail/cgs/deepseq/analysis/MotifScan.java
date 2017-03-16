@@ -249,6 +249,13 @@ public class MotifScan {
 	    }
 	}
 	
+	/**
+	 * Return all KSM motif matches (with 1+ component k-mer match) from all sequences for all KSMs
+	 * @param seqs
+	 * @param kmacs
+	 * @param knames
+	 * @return
+	 */
 	public static ArrayList<MotifInstance> getKSMInstances(String[] seqs, ArrayList<KMAC> kmacs, ArrayList<String> knames) {
 		System.out.println("Scanning KSM motifs ...");
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
@@ -293,6 +300,7 @@ public class MotifScan {
 	    }
 		return instances;
 	}
+	
 	public static double[][] getPwmScoreMatrix(String[] seqs, List<WeightMatrix> pwms){
 		double[][] matrix = new double[seqs.length][pwms.size()];
 		for (int i=0;i<seqs.length;i++){
@@ -303,7 +311,7 @@ public class MotifScan {
 	}
 
 	/**
-	 * Return a list of motif PWM matches from a list of sequences<br>
+	 * Return a list of motif PWM matches (above threshold) from a list of sequences<br>
 	 * If the sequence is shorter than the PWM, report a partial score
 	 */
 	public static ArrayList<MotifInstance> getPWMInstances(String[] seqs, List<WeightMatrix> pwms, List<Double> motifThresholds){
