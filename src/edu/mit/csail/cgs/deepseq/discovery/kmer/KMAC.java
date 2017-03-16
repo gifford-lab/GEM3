@@ -5938,11 +5938,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		String pos_file = Args.parseString(args, "pos_seq", null);
 		String neg_file = Args.parseString(args, "neg_seq", null);
 		if (pos_file==null || (config.k==-1&&config.k_min==-1)){
-			System.err.println("Example: KMAC --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta [--neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta] --k_min 5 --k_max 8 --out_name cMyc_cMyc --seed CACGTG");
+			System.err.println("Example: KMAC --pos_seq c-Myc_Crawford_HeLa-S3_61bp_GEM.fasta [--neg_seq c-Myc_Crawford_HeLa-S3_61bp_GEM_neg.fasta] --k_min 5 --k_max 8 --out_name c-Myc");
 			System.exit(-1);
 		}
 		
-        System.out.println("\nKMAC (version "+KMAC_VERSION+")");
+        System.out.println("\nKMAC motif discovery (version "+KMAC_VERSION+")");
 
         StringBuilder sb = new StringBuilder();
 		sb.append("\nOptions:\n");
