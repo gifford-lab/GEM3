@@ -71,7 +71,7 @@ public class Config {
     public int k_win = 61;		// the window around binding event to search for kmers
     public int k_win2 = 101;	// the window around binding event to search for maybe secondary motifs (in later rounds)
     public int k_win_f = 4;		// k_win = k_win_f * k
-   	public int gap = 3;			// max number of gapped bases in the k-mers (i.e. use 1,2,...,gap.)
+   	public int gap = 4;			// max number of gapped bases in the k-mers (i.e. use 1,2,...,gap.)
     public int k_neg_dist = 300;// the distance of the nearest edge of negative region from binding sites 
     public int k_shift = 99;	// the max shift from seed kmer when aligning the kmers     
     public int max_cluster = 20;
