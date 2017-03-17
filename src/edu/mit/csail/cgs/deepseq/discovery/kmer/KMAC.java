@@ -764,7 +764,7 @@ public class KMAC {
 			
 			sortMotifClusters(clusters, true);
 			
-			StringBuilder sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +", k = ALL -------------------------\n");
+			StringBuilder sb_all = new StringBuilder("\n------------------------- "+ new File(outName).getName() +", k = ALL (before merging) -------------------------\n");
 			if (config.verbose>1)
 				System.out.println("\n---------------------------------------------\nMotifs from all k values:\n");
 			printMotifClusters(clusters, sb_all);
@@ -779,7 +779,7 @@ public class KMAC {
 			
 			if (config.verbose>1)
 				System.out.println("\nFinished merging motifs.\n");
-			sb_all.append("After merging:\n");
+			sb_all.append("------------------------- "+ new File(outName).getName() +", k = ALL (after merging) -------------------------\n");
 			printMotifClusters(clusters, sb_all);
 			System.out.print(sb_all.toString());
 		}
