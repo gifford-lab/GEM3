@@ -368,10 +368,6 @@ public class KMAC {
 		return gcRatio;
 	}
 
-	public void updateOutPrefix(String outPrefix){
-	    this.outName = outPrefix;
-	}
-
 	/**
 	 * Load pos/neg sequences around binding event positions, run from GEM<br>
 	 * Skip repeat masked sequences according to config.repeat_fraction, otherwise convert repeat characters into 'N'
@@ -1012,6 +1008,7 @@ public class KMAC {
 				GappedKmer.printKSM(cluster.alignedKmers, cluster.posHitStrings, cluster.negHitStrings, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
 						cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
 		}
+		
 		if (config.print_motif_hits){		// PWM motif hits
 			ArrayList<WeightMatrix> pwms=new ArrayList<WeightMatrix>();
 			ArrayList<Double> thresholds=new ArrayList<Double>();

@@ -3650,7 +3650,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     public int runKMAC( int winSize){
     	// set the parameters
 		int[] eventCounts = new int[]{signalFeatures.size(), insignificantFeatures.size(), filteredFeatures.size()};
-		kmac.updateOutPrefix(outName);
+		kmac.setConfig(config, outName, paramString);
 		
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();    	
@@ -3666,7 +3666,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         kmac.discoverMotifs(config.k_min, config.k_max, eventCounts);
 
 		if (kmac.getMotifClusters().isEmpty()){		// No motif found, exit here!
-			System.err.print("Not able to find KSM motif");
+			System.err.print("No KSM motif is found!");
 			return -1;
 		}
 		return 0;
