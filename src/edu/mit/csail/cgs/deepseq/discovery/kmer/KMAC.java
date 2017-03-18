@@ -158,7 +158,7 @@ public class KMAC {
 	}
 	
 	// called by standalone main() method
-	public void setSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
+	public void loadFileSequences(ArrayList<String> pos_seqs, ArrayList<String> neg_seqs, ArrayList<Double> pos_w){
 		if (config.k_seqs==-1)
 			config.k_seqs = pos_seqs.size();
 		int seqNum = Math.min(pos_seqs.size(), config.k_seqs);
@@ -316,15 +316,15 @@ public class KMAC {
 	public KMAC(){
 	}
 
-	public KMAC(Genome g, boolean useCache, boolean use_db_genome, String genomePath){
+	public KMAC(Genome g, Config config){
 //		setUseKmerWeight();
-
 		seqgen = new SequenceGenerator<Region>();
-    	if (use_db_genome)
+		this.config = config;
+    	if (config.use_db_genome)
     		seqgen.useLocalFiles(false);
-		if (useCache)
+		if (config.cache_genome)
 			seqgen.useCache(true);	
-		seqgen.setGenomePath(genomePath);
+		seqgen.setGenomePath(config.genome_path);
 	}
 	
 	/** 
@@ -373,14 +373,14 @@ public class KMAC {
 	}
 
 	/**
-	 * Load pos/neg test sequences based on event positions, run from GEM<br>
+	 * Load pos/neg sequences around binding event positions, run from GEM<br>
 	 * Skip repeat masked sequences according to config.repeat_fraction, otherwise convert repeat characters into 'N'
 	 * 
 	 * @param events
 	 * @param winSize
 	 * @param winShift
 	 */
-	public void loadTestSequences(ArrayList<ComponentFeature> events, int winSize){
+	public void loadBindingEventSequences(ArrayList<ComponentFeature> events, int winSize){
 	
 		int eventCount = events.size();
 		ArrayList<Region> posImpactRegion = new ArrayList<Region>();			// to make sure negative region is not within negRegionDistance of positive regions.
@@ -432,40 +432,40 @@ public class KMAC {
 			for (int i=0;i<seqs.length;i++)
 				seqsNegList.add(SequenceUtils.dinu_shuffle(seqs[i], randObj));
 		}
-
-		//		else{
-//			/** Negative sequences has been retrieved when setting up region caches */
-//			ArrayList<Region> negRegions = new ArrayList<Region>();
-//			negRegions.addAll(neg_region_map.keySet());
-//			Region.filterOverlapRegions(negRegions, posImpactRegion);	// make sure negative region is not within negRegionDistance of positive regions.
-//			int negCount = 0;
-//			int len = winSize/2*2+1;
-//			for (Region r:negRegions){
-//				String seq_retrieved = seqsNeg[neg_region_map.get(r)];
-//				if (seq_retrieved.length()<len)
-//					continue;
-//				String seq = seq_retrieved.substring(0, len);
-//				if (config.repeat_fraction<1){
-//					int count = 0;
-//					for (char c:seq.toCharArray())
-//						if (Character.isLowerCase(c) || c=='N')
-//							count++;
-//					if (count>seq.length()*config.repeat_fraction)			// if repeat fraction in sequence is too high, skip
-//						continue;
-//					if (count>1){									// convert lower case repeat to N
-//						char[] chars = seq.toCharArray();
-//						for (int j=0;j<chars.length;j++)
-//							if (Character.isLowerCase(chars[j]))
-//								chars[j] = 'N';
-//						seq = new String(chars);
-//					}
-//				}
-//				seqsNegList.add(seq.toUpperCase());		// if repeat_fraction>=1, allow repeats, convert to upper case
-//				negCount++;
-//				if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
-//					break;
-//			}
-//		}
+		else{		// flanking sequence
+			/** Negative sequences has been retrieved when setting up region caches */
+			System.out.println("Use event-flanking sequences as negative sequences.\n");
+			ArrayList<Region> negRegions = new ArrayList<Region>();
+			negRegions.addAll(neg_region_map.keySet());
+			Region.filterOverlapRegions(negRegions, posImpactRegion);	// make sure negative region is not within negRegionDistance of positive regions.
+			int negCount = 0;
+			int len = winSize/2*2+1;
+			for (Region r:negRegions){
+				String seq_retrieved = seqsNeg[neg_region_map.get(r)];
+				if (seq_retrieved.length()<len)
+					continue;
+				String seq = seq_retrieved.substring(0, len);
+				if (config.repeat_fraction<1){
+					int count = 0;
+					for (char c:seq.toCharArray())
+						if (Character.isLowerCase(c) || c=='N')
+							count++;
+					if (count>seq.length()*config.repeat_fraction)			// if repeat fraction in sequence is too high, skip
+						continue;
+					if (count>1){									// convert lower case repeat to N
+						char[] chars = seq.toCharArray();
+						for (int j=0;j<chars.length;j++)
+							if (Character.isLowerCase(chars[j]))
+								chars[j] = 'N';
+						seq = new String(chars);
+					}
+				}
+				seqsNegList.add(seq.toUpperCase());		// if repeat_fraction>=1, allow repeats, convert to upper case
+				negCount++;
+				if (negCount==seqs.length)				// limit the neg region count to be same or less than positive region count
+					break;
+			}
+		}
 		posSeqCount = seqs.length;
 		seqsNegList.trimToSize();
 	    negSeqCount = seqsNegList.size();
@@ -6029,7 +6029,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
         kmac.setStandalone();
         kmac.setConfig(config, out_prefix, params);
         System.out.println(String.format("Loaded %d input positive sequences.", pos_seqs.size()));
-        kmac.setSequences(pos_seqs, neg_seqs, seq_w);
+        kmac.loadFileSequences(pos_seqs, neg_seqs, seq_w);
         pos_seqs.clear();
         neg_seqs.clear();
         System.out.println(String.format("Use top %d center sequences (%dbp) and %d negative sequences to find motif ...", 

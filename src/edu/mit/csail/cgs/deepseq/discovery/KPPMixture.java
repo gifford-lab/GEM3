@@ -3553,7 +3553,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 //    		// use old KMAC0 for single strand discovery
 //    		kmac = new KMAC0(gen, config.cache_genome, config.use_db_genome, config.genome_path, config, outName);
 //    	else
-    		kmac = new KMAC(gen, config.cache_genome, config.use_db_genome, config.genome_path);
+    		kmac = new KMAC(gen, config);
 		long tic = System.currentTimeMillis();
 
 		// setup lightweight genome cache
@@ -3654,7 +3654,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		
     	// load sequence from binding event positions
     	ArrayList<ComponentFeature> events = getEvents();    	
-    	kmac.loadTestSequences(events, winSize);
+    	kmac.loadBindingEventSequences(events, winSize);
 		
 		if (config.strand_type==1)
 			System.out.println("\nRunning single-strand KMAC motif discovery ...");

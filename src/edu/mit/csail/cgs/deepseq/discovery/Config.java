@@ -238,7 +238,7 @@ public class Config {
         kmer_print_hits = flags.contains("kmer_print_hits");
         print_motif_hits = flags.contains("print_motif_hits");
         kmer_use_insig = flags.contains("kmer_use_insig");
-        k_neg_dinu_shuffle = !flags.contains("k_neg_single_shuffle");
+        k_neg_dinu_shuffle = !flags.contains("neg_seq_flanking");
         use_self_density = !flags.contains("no_self_density");
         rand_seed = Args.parseInteger(args, "rand_seed", rand_seed);
         neg_pos_ratio = Args.parseInteger(args, "npr", neg_pos_ratio);
