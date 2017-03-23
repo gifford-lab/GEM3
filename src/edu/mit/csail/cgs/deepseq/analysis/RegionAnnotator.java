@@ -162,14 +162,21 @@ public class RegionAnnotator {
 	 * 
 	 */
 	private void sort_and_anchor_regions(){
-		String regionFileFormat = Args.parseString(args, "rf", "CGS");  
+		String regionFileFormat = Args.parseString(args, "format", "cgsRegion");  
 		ArrayList<Region> queryRegions = null;
 		if (regionFileFormat.equalsIgnoreCase("BED")){
 			Pair<ArrayList<Region>, ArrayList<String>> pair = CommonUtils.load_BED_regions(genome, Args.parseString(args, "region_file", region_file));
 			queryRegions=pair.car();
 		}
-		else
+		else if (regionFileFormat.equalsIgnoreCase("cgsRegion"))
 			queryRegions=CommonUtils.loadCgsRegionFile(Args.parseString(args, "region_file", region_file), genome);
+		else{
+			ArrayList<Point> ps = CommonUtils.loadCgsPointFile(Args.parseString(args, "region_file", region_file), genome);
+			queryRegions = new ArrayList<Region>();
+			for (Point p: ps)
+				queryRegions.add(p.expand(0));
+		}
+			
 
 		ArrayList<Region> inputRegions = new ArrayList<Region>();
 		for (Region r: queryRegions)
