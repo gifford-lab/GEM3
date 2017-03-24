@@ -1324,7 +1324,7 @@ public class ChIAPET_analysis {
 				if (rpcs.isEmpty())
 					continue;
 				
-				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, true, true);
+				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, true, true, true);
 				if (rpcs2 != null) {
 					rpcs = rpcs2;
 					rpcs2 = null;
@@ -1348,7 +1348,7 @@ public class ChIAPET_analysis {
 					CommonUtils.writeFile(String.format("%s.cluster.%d.txt", outName, j), sb.toString());
 				
 				// split once again to remove PETs that were clustered due to the dc=1000 setting
-				rpcs2 = splitRecursively(rpcs, true, false);
+				rpcs2 = splitRecursively(rpcs, true, false, true);
 				if (rpcs2 != null) {
 					rpcs = rpcs2;
 					rpcs2 = null;
@@ -2520,7 +2520,8 @@ public class ChIAPET_analysis {
 	 * because splitting at one end may remove some PETs that introduce gaps at
 	 * the other end
 	 */
-	ArrayList<ReadPairCluster> splitRecursively(ArrayList<ReadPairCluster> rpcs, boolean toSplitLeftAnchor, boolean toUseMaxDistance) {
+	ArrayList<ReadPairCluster> splitRecursively(ArrayList<ReadPairCluster> rpcs, boolean toSplitLeftAnchor, 
+			boolean toUseMaxDistance, boolean isFirstSplit) {
 		if (rpcs.isEmpty())
 			return null;
 	
@@ -2565,9 +2566,9 @@ public class ChIAPET_analysis {
 			if (c.pets.size() >= min) // finish up the last cluster
 				rpcs2.add(c);
 		}
-		if (countSplit > 0) {
+		if (countSplit > 0 || isFirstSplit) {
 			// split at the other end
-			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !toSplitLeftAnchor, toUseMaxDistance); 
+			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !toSplitLeftAnchor, toUseMaxDistance, false); 
 			return rpcs3 == null ? rpcs2 : rpcs3;
 		} else
 			return null;
