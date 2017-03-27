@@ -1428,11 +1428,15 @@ public class ChIAPET_analysis {
 					// add gene annotations
 					pets = rpc.pets;
 					it.leftRegion = new Region(region.getGenome(), region.getChrom(), rpc.r1min, rpc.r1max);
-					Collections.sort(pets); // sort by low end read1: default
-					if (pets.size() != 2)
-						it.leftPoint = (Point) pets.get(pets.size()/2).r1;
-					else
-						it.leftPoint = it.leftRegion.getMidpoint();
+					if (rpc.centerPET!=null)	// centerPET could be null because of the 2nd splitting
+						it.leftPoint = rpc.centerPET.r1;
+					else{
+						Collections.sort(pets); // sort by low end read1: default
+						if (pets.size() != 2)
+							it.leftPoint = (Point) pets.get(pets.size()/2).r1;
+						else
+							it.leftPoint = it.leftRegion.getMidpoint();
+					}
 					ArrayList<Integer> ts = CommonUtils.getPointsWithinWindow(allTSS,
 							it.leftRegion.expand(tss_radius, tss_radius));
 					StringBuilder tsb = new StringBuilder();
@@ -1448,15 +1452,19 @@ public class ChIAPET_analysis {
 						it.leftLabel = tsb.toString();
 
 					it.rightRegion = new Region(region.getGenome(), region.getChrom(), rpc.r2min, rpc.r2max);
-					Collections.sort(pets, new Comparator<ReadPair>() {
-						public int compare(ReadPair o1, ReadPair o2) {
-							return o1.compareRead2(o2);
-						}
-					});
-					if (pets.size() != 2)
-						it.rightPoint = (Point) pets.get(pets.size()/2).r2;
-					else
-						it.rightPoint = it.rightRegion.getMidpoint();
+					if (rpc.centerPET!=null)
+						it.rightPoint = rpc.centerPET.r2;
+					else{
+						Collections.sort(pets, new Comparator<ReadPair>() {
+							public int compare(ReadPair o1, ReadPair o2) {
+								return o1.compareRead2(o2);
+							}
+						});
+						if (pets.size() != 2)
+							it.rightPoint = (Point) pets.get(pets.size()/2).r2;
+						else
+							it.rightPoint = it.rightRegion.getMidpoint();
+					}
 					ts = CommonUtils.getPointsWithinWindow(allTSS, it.rightRegion.expand(tss_radius, tss_radius));
 					tsb = new StringBuilder();
 					gSymbols.clear();
@@ -1499,8 +1507,10 @@ public class ChIAPET_analysis {
 			ArrayList<ReadPair> pets = cc.pets;
 //			Collections.sort(pets);
 			int count = pets.size();
-			if (count>1000){
-				System.err.println("Warning: high number of PETs "+count);
+			long tic=-1;
+			if (count>3000){
+				System.err.print(String.format("Warning: #PETs=%s, used ", cc.toString()));
+				tic = System.currentTimeMillis();
 			}
 			int s = cc.r1min;
 			PetBin bins[] = new PetBin[count];
@@ -1602,6 +1612,8 @@ public class ChIAPET_analysis {
 					if (m.clusterBinId == bid){		// cluster member
 						ReadPair rp = pets.get(m.binId);
 						rpc.addReadPair(rp);
+						if (bid==m.binId)		// cluster center
+							rpc.centerPET = rp;
 						sb1.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), j+1,
 								m.density,m.delta, m.gamma, m.binId,m.clusterBinId));
 					}
@@ -1611,6 +1623,8 @@ public class ChIAPET_analysis {
 					sb.append(sb1.toString());
 				}
 			}
+			if (tic!=-1)
+				System.err.println(CommonUtils.timeElapsed(tic));
 		}
 		return results;
 	}
@@ -2557,14 +2571,28 @@ public class ChIAPET_analysis {
 					countSplit++;
 					if (c.pets.size() >= min)
 						rpcs2.add(c);
+					// remember the cluster center
+					if (cc.centerPET!=null){
+						int r1=cc.centerPET.r1.getLocation();
+						int r2=cc.centerPET.r2.getLocation();
+						if (c.r1max>=r1&&c.r1min<=r1&&c.r2max>=r2&&c.r2min<=r2)
+							c.centerPET = cc.centerPET;
+					}
 					c = new ReadPairCluster();
 				}
 				for (ReadPair rp : map.get(p))
 					c.addReadPair(rp);
 				curr = p.getLocation();
 			}
-			if (c.pets.size() >= min) // finish up the last cluster
+			if (c.pets.size() >= min){ // finish up the last cluster
 				rpcs2.add(c);
+				if (cc.centerPET!=null){
+					int r1=cc.centerPET.r1.getLocation();
+					int r2=cc.centerPET.r2.getLocation();
+					if (c.r1max>=r1&&c.r1min<=r1&&c.r2max>=r2&&c.r2min<=r2)
+						c.centerPET = cc.centerPET;
+				}
+			}
 		}
 		if (countSplit > 0 || isFirstSplit) {
 			// split at the other end
@@ -2807,6 +2835,7 @@ public class ChIAPET_analysis {
 		int r1max = -1;
 		int r2min = Integer.MAX_VALUE;
 		int r2max = -1;
+		ReadPair centerPET;
 		private ArrayList<ReadPair> pets = new ArrayList<ReadPair>();
 
 		void addReadPair(ReadPair rp) {
@@ -2870,7 +2899,7 @@ public class ChIAPET_analysis {
 
 		public String toString() {
 			StringBuilder sb = new StringBuilder();
-			sb.append(pets.size()).append("=<");
+			sb.append(pets.size()).append(": <");
 			sb.append(r1max - r1min).append("--").append((r2max+r2min-r1max-r1min)/2);
 			sb.append("--").append(r2max - r2min).append(">");
 			return sb.toString();
