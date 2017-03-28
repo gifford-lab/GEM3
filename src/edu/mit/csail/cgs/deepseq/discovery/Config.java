@@ -315,12 +315,7 @@ public class Config {
         	k_max = k;	
         }
         seed = Args.parseString(args, "seed", null);
-        if (seed!=null){
-        	k = seed.length();
-        	k_min = k;
-        	k_max = k;
-        	allow_seed_reset = false;
-        }
+
         mtree = Args.parseInteger(args, "mtree", mtree);
         k_top = Args.parseInteger(args, "k_top", k_top);
         gap = Args.parseInteger(args, "gap", gap);

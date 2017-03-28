@@ -131,6 +131,12 @@ public class KMAC0 {
 	}
 	private void setConfig(Config config, String outPrefix){
 		this.config = config;
+        if (config.seed!=null){
+        	config.k = config.seed.length();
+        	config.k_min = config.k;
+        	config.k_max = config.k;
+        	config.allow_seed_reset = false;
+        }
 	    this.outName = outPrefix;
 	    this.verbose = config.verbose;
 	    Kmer.set_use_weighted_hit_count(config.use_weighted_kmer);

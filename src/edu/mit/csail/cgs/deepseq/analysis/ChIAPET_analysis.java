@@ -912,8 +912,7 @@ public class ChIAPET_analysis {
 		int numQuantile = Args.parseInteger(args, "num_span_quantile", 100);
 		/** min PET span to exclude self-ligation reads */
 		int minDistance = Args.parseInteger(args, "min_span", 2000);
-		int max_merging_dist = Args.parseInteger(args, "max_merging_dist", 2000);
-		int dc = Args.parseInteger(args, "dc", 500);		// distance_cutoff for density clustering
+		int dc = Args.parseInteger(args, "dc", 1000);		// distance_cutoff for density clustering
 		
 		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
 		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
@@ -1309,7 +1308,7 @@ public class ChIAPET_analysis {
 				ReadPairCluster c = new ReadPairCluster();
 				for (ReadPair rp : rps) {
 					// a big gap
-					if (rp.r2.getLocation() - current > max_merging_dist) {  // merge all possible PETs
+					if (rp.r2.getLocation() - current > max_cluster_merge_dist) {  // merge all possible PETs
 						if (c.pets.size() >= min) {
 							rpcs.add(c);
 						}
@@ -2296,7 +2295,8 @@ public class ChIAPET_analysis {
 	/**
 	 * Annotate after CPC interaction calling
 	 */
-	private void annotateCPC(ArrayList<Interaction> interactions, ArrayList<Point> lowEnds, ArrayList<Point> highEnds, ArrayList<ReadPair> pet1s, long tic0){
+	private void annotateCPC(ArrayList<Interaction> interactions, ArrayList<Point> lowEnds, ArrayList<Point> highEnds, 
+			ArrayList<ReadPair> pet1s, long tic0){
 
 		// load TF sites
 		String tfs_file = Args.parseString(args, "tf_sites", null);
@@ -2518,8 +2518,9 @@ public class ChIAPET_analysis {
 		pet1s = null;
 
 		sb = new StringBuilder();
+//		int expand_distance = max_cluster_merge_dist;	
 		for (Interaction it : interactions) {
-			Region leftLocal = it.leftRegion.expand(read_1d_merge_dist, read_1d_merge_dist);
+			Region leftLocal = it.leftRegion.expand(read_1d_merge_dist, read_1d_merge_dist);	//TODO: what is the best bp to expand
 			Region rightLocal = it.rightRegion.expand(read_1d_merge_dist, read_1d_merge_dist);
 			sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", leftLocal.toBED(), rightLocal.toBED(), it.adjustedCount,
 					CommonUtils.getPointsWithinWindow(lowEnds, leftLocal).size(), 

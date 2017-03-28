@@ -116,6 +116,8 @@ public class KMAC {
 	}
 	private double[] pseudoCountRatios;
 	
+	private Kmer designatedSeedKmer = null;
+	
 	private HashMap<Integer, HashMap<String, Kmer>> allKmerMap = null;
 	
 	/** AhoCorasick algorithm tree object for multi-pattern search<br>
@@ -543,6 +545,8 @@ public class KMAC {
 		 */
 		allKmerMap = new HashMap<Integer, HashMap<String, Kmer>>();
 		this.pseudoCountRatios = new double[k_max+1];
+		
+		System.out.println(String.format("\nMotif discovery from k_min=%d to k_max=%d ...", k_min, k_max));
 		for (int k=k_min;k<=k_max;k++){
 			if (config.verbose>1)
 				System.out.println("\nmemory used = "+
@@ -641,11 +645,22 @@ public class KMAC {
 					System.out.println("Density clustering: " + CommonUtils.timeElapsed(tic));
 			}
 			
+			// add in the designated seed k-mer
+			if (config.seed.length()==k && designatedSeedKmer!=null){
+				if (!centerKmers.contains(designatedSeedKmer)){
+					ArrayList<Kmer> tmp = new ArrayList<Kmer>();
+					tmp.add(designatedSeedKmer);
+					tmp.addAll(centerKmers);
+					centerKmers = tmp;
+					centerKmers.trimToSize();
+				}
+			}
+			
 			// use all the significant k-mers to get center-kmer neighbors
 			ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();  // centerKmers and neighbourList are matched lists
 			double cutoff = config.kmer_deviation_factor*k;	// maximum kmer distance to be considered as neighbors
 			
-			int numKmer = 5000;
+			int numKmer = 5000;								//TODO: hard code 5000? can it be removed?
 	        for (int j=0;j<centerKmers.size();j++){	
 	        	Kmer seedKmer = centerKmers.get(j);
 				
@@ -690,8 +705,6 @@ public class KMAC {
 			System.gc();
 			System.out.println();
 			
-//			numKmerToTry=0; // skip KMAC step, used only for testing
-			
 	        ArrayList<MotifCluster> tmp = new ArrayList<MotifCluster>();
 	        for (int j=0;j<centerKmers.size();j++){	
 
@@ -709,6 +722,8 @@ public class KMAC {
 	        	MotifCluster c = KmerMotifAlignmentClustering(seqList, neighbours, seedKmer, k);
 
 	        	if (c!=null && c.wm!=null){
+	        		if (seedKmer == designatedSeedKmer)
+	        			c.isDesignated = true;
 	        		tmp.add(c);
 		        	if (config.kg_hit_adjust_type==2)
 		        		c.setCoveredWidth(posCoveredWidth, negCoveredWidth);	// save a copy in the cluster
@@ -1300,6 +1315,28 @@ public class KMAC {
 				kmers.add(kmer);	
 			}
 		}
+		if (config.seed.length()==k){
+			boolean found = false;
+			for (Kmer km: kmers){
+				if (km.getKmerStrRC().contains(config.seed)){
+					found = true;
+					System.out.println("Designated seed k-mer: "+km.toShortString());
+					designatedSeedKmer = km;
+					break;
+				}
+			}
+			if (!found){
+				Kmer seed = ungappedKmerMap.get(config.seed);
+				if (seed==null)
+					ungappedKmerMap.get(SequenceUtils.reverseComplement(config.seed));
+				if (seed==null)
+					System.out.println(config.seed+" has lower count than expected!");
+				else
+					System.out.println(config.seed+" is not enriched: " + seed.toShortString());
+			}
+			System.out.println();
+		}
+		
 		allSignificantKmers.addAll(kmers);
 		if (config.print_all_kmers){
 			ArrayList<Kmer> kmersAll = new ArrayList<Kmer>();
@@ -2815,7 +2852,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			}
 			if (cluster1.wm==null||cluster2.wm==null)
 				continue;
-			
+			if (cluster2.isDesignated){		// skip so that the designated k-mer will not be merged
+				checked[cluster1.clusterId][cluster2.clusterId] = true;
+				checked[cluster2.clusterId][cluster1.clusterId] = true;
+				continue;
+			}
 			int range = seqLen - cluster1.wm.length()/2 - cluster2.wm.length()/2 + 10;  // add 10 for preventing arrayOutofBound
 			int[] same = new int[range*2+1];
 			int[] diff = new int[range*2+1];
@@ -4988,7 +5029,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		public MotifThreshold ksmThreshold = new MotifThreshold();
 		public MotifThreshold pwmThreshold = new MotifThreshold();
 		public WeightMatrix wm;
-		
+		boolean isDesignated = false;
 		int clusterId;
 		int k;
 		Kmer seedKmer;
@@ -5018,6 +5059,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		protected MotifCluster clone(boolean cloneKmers){
 			MotifCluster cluster = new MotifCluster();
 			cluster.clusterId = clusterId;
+			cluster.isDesignated = isDesignated;
 			if (pfm!=null){
 				cluster.pfm = pfm.clone();
 				cluster.wm = wm;
@@ -5136,6 +5178,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		if (config.evaluate_by_ksm){
 			Collections.sort(motifs, new Comparator<MotifCluster>() {
 	            public int compare(MotifCluster o1, MotifCluster o2) {
+	            	// put the designated motif to be the first
+	            	if (o1.isDesignated)
+	            		return -1;
+	            	if (o2.isDesignated)
+	            		return 1;
 	                return o1.compareToByKsmSignificance(o2);
 	            }
 	        });
@@ -5143,7 +5190,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		else{
 			Collections.sort(motifs, new Comparator<MotifCluster>() {
 	            public int compare(MotifCluster o1, MotifCluster o2) {
-	                return o1.compareToByKsmPwmSignificance(o2);
+	            	// put the designated motif to be the first
+	            	if (o1.isDesignated)
+	            		return -1;
+	            	if (o2.isDesignated)
+	            		return 1;
+	            	return o1.compareToByKsmPwmSignificance(o2);
 	            }
 	        });
 		}
