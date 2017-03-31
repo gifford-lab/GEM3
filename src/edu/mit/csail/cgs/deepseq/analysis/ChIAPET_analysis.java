@@ -1285,7 +1285,7 @@ public class ChIAPET_analysis {
 		 ***********************************************************/
 		ArrayList<Interaction> interactions = new ArrayList<Interaction>();
 		HashSet<ReadPair> usedPETs = new HashSet<ReadPair>();
-
+		Boolean split_after_dc = !flags.contains("no_split");
 		tic = System.currentTimeMillis();
 
 		for (int j = 0; j < rs0.size(); j++) { // for all regions
@@ -1347,10 +1347,12 @@ public class ChIAPET_analysis {
 					CommonUtils.writeFile(String.format("%s.cluster.%d.txt", outName, j), sb.toString());
 				
 				// split once again to remove PETs that were clustered due to the dc=1000 setting
-				rpcs2 = splitRecursively(rpcs, true, false, true);
-				if (rpcs2 != null) {
-					rpcs = rpcs2;
-					rpcs2 = null;
+				if (split_after_dc){
+					rpcs2 = splitRecursively(rpcs, true, false, true);
+					if (rpcs2 != null) {
+						rpcs = rpcs2;
+						rpcs2 = null;
+					}
 				}
 				
 				for (ReadPairCluster cc : rpcs) {
