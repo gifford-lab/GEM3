@@ -910,16 +910,17 @@ public class CommonUtils {
 	 *  @return  List of positions (middle of motif match) that pass the threshold. <br>
 	 *  The position will be negative if the match is on the reverseComplement strand     
 	 */
-	public static ArrayList<Integer> getAllPWMHit(String sequence, int wmLen, WeightMatrixScorer scorer, double threshold){
+	public static ArrayList<Integer> getAllPWMHit(String sequence, int wmLen, 
+			WeightMatrixScorer scorer, double threshold, boolean isForwardOnly){
 		ArrayList<Integer> pos = new ArrayList<Integer>();
 		if (sequence==null||sequence.length()<wmLen-1){
 			return pos;
 		}
 		WeightMatrixScoreProfile profiler = scorer.execute(sequence);
 		for (int i=0;i<profiler.length();i++){
-			double score = profiler.getHigherScore(i);
+			double score = isForwardOnly?profiler.getForwardScore(i):profiler.getHigherScore(i);
 			if (score >= threshold){
-				char maxScoreStrand = profiler.getMaxStrand_both(i);
+				char maxScoreStrand = isForwardOnly?'+':profiler.getMaxStrand_both(i);
 				// after adjust to the middle of the motif, the match position will not be 0, thus '-pos' will not cause problem.
 				switch(maxScoreStrand){
 				case '+':
@@ -1712,7 +1713,7 @@ public class CommonUtils {
     	List<WeightMatrix> wms = CommonUtils.loadPWMs_PFM_file("test_pwms.txt", 0.41);
     	WeightMatrix wm = wms.get(2);
     	WeightMatrixScorer scorer = new WeightMatrixScorer(wm);
-    	ArrayList<Integer> pos = getAllPWMHit(s, wm.length(), scorer, wm.getMaxScore()*0.6);
+    	ArrayList<Integer> pos = getAllPWMHit(s, wm.length(), scorer, wm.getMaxScore()*0.6, false);
     	System.out.println(s);
     	System.out.println(WeightMatrix.printMatrixLetters(wm));
     	for (int p:pos){

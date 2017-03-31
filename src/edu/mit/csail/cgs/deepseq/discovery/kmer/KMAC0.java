@@ -1917,7 +1917,7 @@ public class KMAC0 {
 			KmerCluster c = clusters.get(j);
 			WeightMatrixScorer scorer = new WeightMatrixScorer(c.wm);
 			for (int i=0;i<seqs.length;i++){
-				hits[i][c.clusterId]=CommonUtils.getAllPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold);
+				hits[i][c.clusterId]=CommonUtils.getAllPWMHit(seqs[i], c.wm.length(), scorer, c.pwmThreshold, config.strand_type==1);
 			}
 		}
 				
@@ -4763,111 +4763,6 @@ public class KMAC0 {
 	public String getSequenceUppercase(Region r){
 		return seqgen.execute(r).toUpperCase();
 	}
-	
-	public void indexKmers(List<File> files){
-		long tic = System.currentTimeMillis();
-		ArrayList<Kmer> kmers = Kmer.loadKmers(files);
-		if (kmers.isEmpty())
-			return;
-		int step = 100000000;
-		this.k = kmers.get(0).getK();
-		HashMap<String, Integer> map = new HashMap<String, Integer>();
-		for (Kmer kmer:kmers){
-			map.put(kmer.getKmerStr(), 0);
-		}
-		for (String chr : genome.getChromList()){
-			System.out.println(chr);
-			int chrLen = genome.getChromLengthMap().get(chr);
-			for (int l=0;l<chrLen;l+=step-k+2){		// the step size is set so that the overlap is k-1
-				int end = Math.min(l+step-1, chrLen-1);
-				String seq = seqgen.execute(new Region(genome, chr, l, end)).toUpperCase();
-				for (int i=0;i<seq.length()-k;i++){
-					String s = seq.substring(i, i+k);
-					if (map.containsKey(s)){			// only count known kmers, save memory space
-						 map.put(s, (map.get(s)+1));
-					}
-					else {		// try the other strand
-						String rc = SequenceUtils.reverseComplement(s);
-						if (map.containsKey(rc)){			
-							 map.put(rc, (map.get(rc)+1));
-						}
-					}						
-				}
-			}
-		}
-		Collections.sort(kmers);
-		StringBuilder sb = new StringBuilder();
-		for (Kmer km:kmers){
-			sb.append(km.getKmerStr()).append("\t").append(map.get(km.getKmerStr())).append("\n");
-		}
-		CommonUtils.writeFile(genome.getVersion()+"_kmers_"+k+".txt", sb.toString());
-		System.out.println(CommonUtils.timeElapsed(tic));
-	}
-
-	private ArrayList<Kmer> getMismatchKmers(ArrayList<Kmer> aligned, ArrayList<Kmer> candidates){
-			ArrayList<Kmer> mmaligned = new ArrayList<Kmer>();			// kmers aligned by using mismatch
-			Collections.sort(aligned);
-			for (Kmer km: candidates){
-				String seq = km.getKmerStr();
-				for (Kmer akm: aligned){
-	//				if (Math.abs(akm.getShift())>config.k/2)		// the mismatch must be proximal to seed kmer
-					if (km.getPosHitCount() > akm.getPosHitCount())		// the mismatch kmer should have less count than the reference kmer, avoiding a bad weak kmer misguiding a strong kmer
-						continue;
-					if (CommonUtils.mismatch(akm.getKmerStr(), seq)==1){
-						km.setShift(akm.getShift());
-						km.setAlignString("MM:"+akm.getKmerStr());
-						mmaligned.add(km);
-						break;
-					}
-					if (CommonUtils.mismatch(akm.getKmerRC(), seq)==1){
-						int shift = akm.getShift();
-						km.setShift(shift>RC/2?shift:shift-RC);
-						km.setAlignString("MM:"+akm.getKmerStr());
-						mmaligned.add(km);
-						break;
-					}
-				}
-			}
-			return mmaligned;
-		}
-	private boolean mergeClusters(double setOverlapRatio){
-		int originalCount = clusters.size();
-		HashSet<Integer> merged = new HashSet<Integer>();
-		for (int i=0; i<originalCount-1; i++){
-			for (int j=i+1; j<originalCount; j++){
-				if (clusters.get(j).alignedKmers.size()<2){		// if a cluster contains less than 2 kmers, it is removed
-					merged.add(j);	
-					continue;
-				}
-				if (merged.contains(j))
-					continue;
-				SetTools<Kmer> setTools = new SetTools<Kmer>();
-				Set<Kmer> first = new HashSet<Kmer>();
-				first.addAll(clusters.get(i).alignedKmers);
-				Set<Kmer> second = new HashSet<Kmer>();
-				second.addAll(clusters.get(j).alignedKmers);
-				Set<Kmer> common = setTools.intersection(first, second);
-				if (common.size()>Math.min(first.size(), second.size())*setOverlapRatio){
-					Set<Kmer>extra = setTools.subtract(second, common);
-					clusters.get(i).alignedKmers.addAll(extra);
-					merged.add(j);
-				}
-			}
-		}
-		Integer[] ids = new Integer[merged.size()];
-		merged.toArray(ids);
-		Arrays.sort(ids);
-		for (int i=ids.length-1;i>=0;i--){
-			clusters.remove(ids[i].intValue());
-		}
-		clusters.trimToSize();
-		
-		if (verbose>1)
-			System.out.println(CommonUtils.timeElapsed(tic)+": Merge "+originalCount+" clusters to "+clusters.size()+" clusters.");
-	
-		return !merged.isEmpty();
-	}
-
 
 	class HGPThread implements Runnable {
 		ArrayList<Integer> idxs;
