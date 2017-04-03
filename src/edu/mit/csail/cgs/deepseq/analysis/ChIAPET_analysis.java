@@ -911,7 +911,7 @@ public class ChIAPET_analysis {
 		int min = 2; // minimum number of PET count to be called an interaction
 		int numQuantile = Args.parseInteger(args, "num_span_quantile", 100);
 		/** min PET span to exclude self-ligation reads */
-		int minDistance = Args.parseInteger(args, "min_span", 2000);
+		int minDistance = Args.parseInteger(args, "min_span", 4000);
 		int dc = Args.parseInteger(args, "dc", 1000);		// distance_cutoff for density clustering
 		
 		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
@@ -919,8 +919,16 @@ public class ChIAPET_analysis {
 		ArrayList<Integer> dist_minus_minus = new ArrayList<Integer>();
 		ArrayList<Integer> dist_plus_plus = new ArrayList<Integer>();
 
-		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
-		boolean isBEDPE = Args.parseString(args, "format", "rp").equalsIgnoreCase("bedpe");
+		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "data", null));
+		String[] f1 = read_pairs.get(0).split("\t");
+		boolean isBEDPE = f1.length >= 6;
+		if (isBEDPE){
+			System.out.println("\nDetected input data to be BEDPE format!");
+			if (f1.length<10){
+				System.err.println("The columns 9 and 10 should be the strand information of the two read ends.");
+				System.exit(-1);
+			}
+		}
 		// store PET as single ends
 		ArrayList<Point> reads = new ArrayList<Point>(); 
 		// all PET sorted by the low end
@@ -940,15 +948,16 @@ public class ChIAPET_analysis {
 				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
 				char strand2 = f[9].charAt(0);
 				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
-				// if not both ends are aligned properly, skip
+				// if not both ends are aligned properly, skip, 
+				// but if one of the read is mapped, add the read to the single-end reads object 
 				if (r1.getChrom().equals("*")){
-					// add as single end if mapped
+					// add read2 as single end if mapped
 					if (!r2.getChrom().equals("*"))	
 						reads.add(r1);
 					continue;
 				}
 				if (r2.getChrom().equals("*")){
-					// add as single end if mapped
+					// add read1 as single end if mapped
 					if (!r1.getChrom().equals("*")) 
 						reads.add(r1);
 					continue;
@@ -1075,7 +1084,7 @@ public class ChIAPET_analysis {
 		}
 
 		// 	to get only a subset of data for testing
-		String test_loops = Args.parseString(args, "test_loops", null);
+		String test_loops = Args.parseString(args, "subset_loops", null);
 		if (test_loops != null) {
 			TreeSet<Point> reads2 = new TreeSet<Point>(); 
 			// all PET sorted by the low end
