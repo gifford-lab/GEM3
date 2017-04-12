@@ -85,7 +85,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                 }
             }
             else{
-            	System.err.println("\nchr"+chr+".fa file is not found at "+genomePath+".\n");
+            	System.err.println("\nchr"+chr+".fa genome sequence file is not found at directory "+genomePath+".\n");
             	System.exit(-1);
             }
         }
