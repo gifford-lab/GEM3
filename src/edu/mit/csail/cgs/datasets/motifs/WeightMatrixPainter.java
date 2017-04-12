@@ -2,7 +2,6 @@ package edu.mit.csail.cgs.datasets.motifs;
 
 import java.awt.*;
 import java.awt.geom.AffineTransform;
-import java.awt.font.*;
 
 
 public class WeightMatrixPainter {
