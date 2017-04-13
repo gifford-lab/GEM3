@@ -706,8 +706,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	}// end of execute method
 
 	/**
-	 * It performs statistical tests for determining significant peaks         <br>
-	 * If a control is used, the current method is used. Otherwise, MACS proposed method is used.
+	 * Perform statistical tests for determining significant peaks         <br>
 	 * @param compFeatures
 	 */
 	private void postEMProcessing(List<ComponentFeature> compFeatures) {
@@ -737,16 +736,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 					System.out.println(String.format("\nScaling condition %s, IP/Control = %.2f", conditionNames.get(c), ratio_non_specific_total[c]));
 				System.out.println();
 			}
-			hasIpCtrlRatio = true;
-			
-			// delete read data in un-enriched region, we don't need them for binomial test
-			// but if no control data, we need whole genome data to estimate lambda for Poisson test
-//			if(controlDataExist) {
-//				for(int c = 0; c < numConditions; c++) {
-//					caches.get(c).car().deleteUnenrichedReadData(restrictRegions);				
-//					caches.get(c).cdr().deleteUnenrichedReadData(restrictRegions);
-//				}
-//			}
+			hasIpCtrlRatio = true;			
 		}
 		
 		/**
@@ -1742,7 +1732,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	}
 
 	/*
-	 * TODO: purpose of this method is to set significance for each condition
+	 * To set significance for each condition
 	 */
 	private List<Feature> condPostFiltering(List<Feature> signifFeats, int cond){
 		if (numConditions==1)
@@ -1753,8 +1743,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			boolean significant = false;
 			// If TF binding keep the condition-wise component that exceeds the threshold
 			if (config.TF_binding) {
-				if(((ComponentFeature)sf).getQValueLog10(cond)>config.q_value_threshold &&
-                   ((ComponentFeature)sf).getEventReadCounts(cond)>config.sparseness)
+				if(((ComponentFeature)sf).getQValueLog10(cond)>config.q_value_threshold)
 					significant = true;
 			}
 			// if not TF binding, it is Chromatin data, keep all components
@@ -3819,10 +3808,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	            	if (iterator.hasNext()){
 	            		rr = iterator.next();
 	                	// for testing
-	                	Region r_test = new Region(rr.getGenome(), "V", 239652, 239682 );
-	                	if (r_test.overlaps(rr)){
-	                		config.sparseness += 0;
-	                	}
+//	                	Region r_test = new Region(rr.getGenome(), "V", 239652, 239682 );
+//	                	if (r_test.overlaps(rr)){
+//	                		config.sparseness += 0;
+//	                	}
             		}
 	            	else
 	            		break;
@@ -4187,10 +4176,10 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             // After first round, if we are sure the region contains unary event, we will just scan for peak
         	
         	// for testing chrIV   217955  217985
-        	Region r_test = new Region(w.getGenome(), "II", 407043, 407049 );
-        	if (r_test.overlaps(w)){
-        		config.sparseness += 0;
-        	}
+//        	Region r_test = new Region(w.getGenome(), "II", 407043, 407049 );
+//        	if (r_test.overlaps(w)){
+//        		config.sparseness += 0;
+//        	}
     		int sum = 0;
     		for (List<StrandedBase> bases: signals)
     			sum += StrandedBase.countBaseHits(bases);

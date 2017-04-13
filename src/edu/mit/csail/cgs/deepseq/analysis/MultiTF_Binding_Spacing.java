@@ -466,7 +466,7 @@ public class MultiTF_Binding_Spacing {
 					continue;
 				WeightMatrixScorer scorer = new WeightMatrixScorer(pwm);
 				for (int s=0;s<seqs.length;s++){
-					hits[s][j]=CommonUtils.getAllPWMHit(seqs[s], pwm.length(), scorer, pwm.getMaxScore()*0.6);
+					hits[s][j]=CommonUtils.getAllPWMHit(seqs[s], pwm.length(), scorer, pwm.getMaxScore()*0.6, false);
 				}
 			}
 			

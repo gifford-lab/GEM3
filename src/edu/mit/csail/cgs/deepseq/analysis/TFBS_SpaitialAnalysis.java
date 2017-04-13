@@ -1229,7 +1229,7 @@ public class TFBS_SpaitialAnalysis {
 			
 				// scan motif matches in the cluster region sequence
 				for (int i=0;i<pwms.size();i++){
-					ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i));
+					ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i), false);
 					for (int p:matchPos){
 						pwmMatchIds.add(i);
 						pwmMatchPos.add(p);
