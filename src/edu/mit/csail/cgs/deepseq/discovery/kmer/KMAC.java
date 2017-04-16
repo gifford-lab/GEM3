@@ -661,7 +661,7 @@ public class KMAC {
 			ArrayList<ArrayList<Kmer>> neighbourList = new ArrayList<ArrayList<Kmer>>();  // centerKmers and neighbourList are matched lists
 			double cutoff = config.kmer_deviation_factor*k;	// maximum kmer distance to be considered as neighbors
 			
-			int numKmer = 5000;								//TODO: hard code 5000? can it be removed?
+//			int numKmer = 5000;								//TODO: hard code 5000? can it be removed?
 	        for (int j=0;j<centerKmers.size();j++){	
 	        	Kmer seedKmer = centerKmers.get(j);
 				
@@ -670,30 +670,30 @@ public class KMAC {
 					if (KMAC.editDistance(seedKmer, km, config.strand_type==1) <= cutoff)
 						tmp.add(km);
 				}
-				if (tmp.size()<numKmer){
+//				if (tmp.size()<numKmer){
 					neighbourList.add(tmp);					
-				}
-				else{
-					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
-					for (Kmer km: kmers){		// get all the selected k-mers first
-						if (KMAC.editDistance(seedKmer, km, config.strand_type==1) <= cutoff)
-							neighbours.add(km);
-					}
-					System.out.print(neighbours.size()+" --> ");
-					
-					// randomly sample some allSignificantKmers, upto total 5000 kmers
-					for (int r=0;r<tmp.size();r++){
-						int idx = (int)(randomEngine.nextDouble()*tmp.size());
-						Kmer km = tmp.get(idx);
-						if (!neighbours.contains(km)){
-							neighbours.add(km);
-							if (neighbours.size()>=numKmer)
-								break;
-						}
-					}
-					System.out.println(neighbours.size());
-					neighbourList.add(neighbours);
-				}
+//				}
+//				else{
+//					ArrayList<Kmer> neighbours = new ArrayList<Kmer>();
+//					for (Kmer km: kmers){		// get all the selected k-mers first
+//						if (KMAC.editDistance(seedKmer, km, config.strand_type==1) <= cutoff)
+//							neighbours.add(km);
+//					}
+//					System.out.print(neighbours.size()+" --> ");
+//					
+//					// randomly sample some allSignificantKmers, upto total 5000 kmers
+//					for (int r=0;r<tmp.size();r++){
+//						int idx = (int)(randomEngine.nextDouble()*tmp.size());
+//						Kmer km = tmp.get(idx);
+//						if (!neighbours.contains(km)){
+//							neighbours.add(km);
+//							if (neighbours.size()>=numKmer)
+//								break;
+//						}
+//					}
+//					System.out.println(neighbours.size());
+//					neighbourList.add(neighbours);
+//				}
 	        }
 	        
 			// clear matrix, it is only used for calculating distance
@@ -715,7 +715,7 @@ public class KMAC {
 				System.gc();
 				if (config.verbose>1)
 	    			System.out.println("\n------------------------------------------------------------");
-				System.out.println("Align and cluster k-mers with seed "+seedKmer.kmerString+",   \t#"+j);
+				System.out.println("Align and cluster "+ neighbours.size() +" k-mers with seed "+ seedKmer.kmerString +",   \t#"+j);
 	    		if (config.verbose>1)
 	    			System.out.println("\nmemory used = "+
 						(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1048576  +"M");		
