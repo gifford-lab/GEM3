@@ -2838,11 +2838,9 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				continue;
 			// multiply k_ratio ( >1 for larger k value) to prefer longer k-mer
 			double k_ratio = cluster1.k>cluster2.k ? config.k_ratio : cluster1.k<cluster2.k? 1/config.k_ratio : 1;
-			if (config.evaluate_by_ksm){
+			if (! config.evaluate_by_ksm){
 				if ((cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance)*k_ratio
 						< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
-	//				if (cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance 
-	//						< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
 					cluster1 = clusters.get(j);
 					cluster2 = clusters.get(m);
 				}

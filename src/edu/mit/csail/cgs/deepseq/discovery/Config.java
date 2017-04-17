@@ -130,7 +130,7 @@ public class Config {
 	public boolean cluster_gapped = false;
 	public boolean refine_centerKmers = true;		// select density clustering centers such that they are not too similar with higher ranked centers
 	public boolean refine_final_motifs = false;	// refine the final motifs
-    /** whether to use K-mer Set Model to evaluate improvement of new cluster, default to use PWM */
+    /** whether to use KSM only to evaluate improvement of new cluster, default to use PWM+KSM */
     public boolean evaluate_by_ksm = false;	
     
     public boolean ksm_logo_text = true;
