@@ -2838,20 +2838,13 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				continue;
 			// multiply k_ratio ( >1 for larger k value) to prefer longer k-mer
 			double k_ratio = cluster1.k>cluster2.k ? config.k_ratio : cluster1.k<cluster2.k? 1/config.k_ratio : 1;
-			if (! config.evaluate_by_ksm){
-				if ((cluster1.pwmThreshold.motif_significance+cluster1.ksmThreshold.motif_significance)*k_ratio
-						< cluster2.pwmThreshold.motif_significance+cluster2.ksmThreshold.motif_significance){
-					cluster1 = clusters.get(j);
-					cluster2 = clusters.get(m);
-				}
+			// evaluate_by_ksm
+			if ((cluster1.ksmThreshold.motif_significance)*k_ratio
+					< cluster2.ksmThreshold.motif_significance){
+				cluster1 = clusters.get(j);
+				cluster2 = clusters.get(m);
 			}
-			else{
-				if ((cluster1.ksmThreshold.motif_significance)*k_ratio
-						< cluster2.ksmThreshold.motif_significance){
-					cluster1 = clusters.get(j);
-					cluster2 = clusters.get(m);
-				}
-			}
+
 			if (cluster1.wm==null||cluster2.wm==null)
 				continue;
 			if (cluster2.isDesignated){		// skip so that the designated k-mer will not be merged
@@ -5106,7 +5099,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 */
 	private void sortMotifClusters(ArrayList<MotifCluster> motifs, boolean resetClusterId){
 		// sort clusters, set clusterid
-		if (config.evaluate_by_ksm){
+//		if (config.evaluate_by_ksm){
 			Collections.sort(motifs, new Comparator<MotifCluster>() {
 	            public int compare(MotifCluster o1, MotifCluster o2) {
 	            	// put the designated motif to be the first
@@ -5117,19 +5110,19 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	                return o1.compareToByKsmSignificance(o2);
 	            }
 	        });
-		}
-		else{
-			Collections.sort(motifs, new Comparator<MotifCluster>() {
-	            public int compare(MotifCluster o1, MotifCluster o2) {
-	            	// put the designated motif to be the first
-	            	if (o1.isDesignated)
-	            		return -1;
-	            	if (o2.isDesignated)
-	            		return 1;
-	            	return o1.compareToByKsmPwmSignificance(o2);
-	            }
-	        });
-		}
+//		}
+//		else{
+//			Collections.sort(motifs, new Comparator<MotifCluster>() {
+//	            public int compare(MotifCluster o1, MotifCluster o2) {
+//	            	// put the designated motif to be the first
+//	            	if (o1.isDesignated)
+//	            		return -1;
+//	            	if (o2.isDesignated)
+//	            		return 1;
+//	            	return o1.compareToByKsmPwmSignificance(o2);
+//	            }
+//	        });
+//		}
 		if (resetClusterId){
 			for (int j=0;j<motifs.size();j++){
 				motifs.get(j).clusterId = j;
