@@ -5098,31 +5098,16 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * @param motifs
 	 */
 	private void sortMotifClusters(ArrayList<MotifCluster> motifs, boolean resetClusterId){
-		// sort clusters, set clusterid
-//		if (config.evaluate_by_ksm){
-			Collections.sort(motifs, new Comparator<MotifCluster>() {
-	            public int compare(MotifCluster o1, MotifCluster o2) {
-	            	// put the designated motif to be the first
-	            	if (o1.isDesignated)
-	            		return -1;
-	            	if (o2.isDesignated)
-	            		return 1;
-	                return o1.compareToByKsmSignificance(o2);
-	            }
-	        });
-//		}
-//		else{
-//			Collections.sort(motifs, new Comparator<MotifCluster>() {
-//	            public int compare(MotifCluster o1, MotifCluster o2) {
-//	            	// put the designated motif to be the first
-//	            	if (o1.isDesignated)
-//	            		return -1;
-//	            	if (o2.isDesignated)
-//	            		return 1;
-//	            	return o1.compareToByKsmPwmSignificance(o2);
-//	            }
-//	        });
-//		}
+		Collections.sort(motifs, new Comparator<MotifCluster>() {
+            public int compare(MotifCluster o1, MotifCluster o2) {
+            	// put the designated motif to be the first
+            	if (o1.isDesignated)
+            		return -1;
+            	if (o2.isDesignated)
+            		return 1;
+                return o1.compareToByKsmSignificance(o2);
+            }
+        });
 		if (resetClusterId){
 			for (int j=0;j<motifs.size();j++){
 				motifs.get(j).clusterId = j;
@@ -5132,14 +5117,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	
 	private void printMotifClusters(ArrayList<MotifCluster> motifs, StringBuilder sb){
 		for (MotifCluster c:motifs){
-//			if (config.evaluate_by_ksm){
-//				sb.append(String.format("k=%d\tthresh=%.2f\thit=%d\thgp=1e%.1f\tTopKmer= %s\n", c.k, c.ksmThreshold.kg_score, 
-//						c.ksmThreshold.posHit, c.ksmThreshold.motif_hgp, c.seedKmer.getKmerString()));
-//			}
-//			else if (c.wm!=null){
-//				sb.append(String.format("k=%d\tthresh=%.2f\thit=%d\thgp=1e%.1f\tW=%d\tPWM= %s.\n", c.k, c.pwmThreshold,
-//						c.pwmThreshold.posHit, c.pwmThreshold.motif_significance, c.wm.length(), WeightMatrix.getMaxLetters(c.wm)));
-//			}
 			sb.append(String.format("#%d\tk=%d\tKSM= %s \t%.2f, %d, kAUC=%.1f", c.clusterId, c.k, c.seedKmer.kmerString, 
 					c.ksmThreshold.motif_cutoff, c.ksmThreshold.posHit, c.ksmThreshold.motif_significance));
 			if (c.wm!=null)
@@ -5171,13 +5148,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			return -computeHGP((int)posHitCount, (int)negHitCount);
 	}
 
-//	/**
-//	 * Compute motif significance score [ odds ratio ]<br>More significant ratio, higher score
-//	 */	
-//	public double computeMotifSignificanceScore(int posHitCount, int negHitCount){
-//		return StatUtil.odds_ratio(posSeqCount, negSeqCount, posHitCount, negHitCount, 3);
-//	}
-//	
 	/**
 	 * Compute hgp (log10) using the positive/negative sequences<br>
 	 * More negative hgp, more significant p-value
@@ -5187,6 +5157,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			return 0;
 		return computeHGP(posSeqCount, negSeqCount, posHitCount, negHitCount);
 	}
+	
 	/**
 	 * Compute hgp (log10) using the positive/negative sequences<br>
 	 * More negative hgp, more significant p-value
@@ -5213,6 +5184,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				return Math.log10(hgcdf);
 		}
 	}
+	
 	/**
 	 * Compute hgp using the positive/negative sequences, high precision approximation
 	 * Only use for very small p-value (<MIN_VALUE, 2^-1074)
