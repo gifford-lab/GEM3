@@ -710,6 +710,30 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	 * @param compFeatures
 	 */
 	private void postEMProcessing(List<ComponentFeature> compFeatures) {
+		// compareByLocation, remove events on the same coordinate (this is likely due to the fragmentation process).
+		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
+            public int compare(ComponentFeature o1, ComponentFeature o2) {
+                return o1.compareByLocation(o2);
+            }
+        });
+		ArrayList<ComponentFeature> toRemove = new ArrayList<ComponentFeature>();
+		ComponentFeature current = null;
+		for (ComponentFeature cf: compFeatures){
+			if (current!=null && current.getPeak().equals(cf.getPeak())){	// if same location
+				if (config.verbose>1)
+					System.err.println("Dup events at "+cf.getPeak().toString());
+				if (cf.getTotalEventStrength()>current.getTotalEventStrength()){
+					toRemove.add(current);
+					current = cf;	// point to the new cf
+				}
+				else
+					toRemove.add(cf);
+			}
+			else
+				current = cf;	// point to the new cf
+		}
+		compFeatures.removeAll(toRemove);
+		
 		// collect enriched regions to exclude to define non-specific region
 		Collections.sort(compFeatures, new Comparator<ComponentFeature>() {
                 public int compare(ComponentFeature o1, ComponentFeature o2) {

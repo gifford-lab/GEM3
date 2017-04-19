@@ -228,6 +228,8 @@ public class GEM {
         CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.txt", path+".GPS_events.txt");
         if (Args.parseFlags(args).contains("outNP"))
         	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.narrowPeak", path+".GPS_events.narrowPeak");
+        if (Args.parseFlags(args).contains("outBED"))
+        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.bed", path+".GPS_events.bed");
 
     
         /**
@@ -289,6 +291,8 @@ public class GEM {
 	        CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.txt", path+".GEM_events.txt");
 	        if (Args.parseFlags(args).contains("outNP"))
 	        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.narrowPeak", path+".GEM_events.narrowPeak");
+	        if (Args.parseFlags(args).contains("outBED"))
+	        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.bed", path+".GEM_events.bed");
 	        String htmName = prefix+"_outputs/"+prefix+"_"+round+".results.htm";
 	        String html = "<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.0 Transitional//EN'><html><head><title>Redirect</title><meta http-equiv='REFRESH' content='0;url="+
 	        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
@@ -302,6 +306,8 @@ public class GEM {
 	        CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.txt", path+".GPS_events.txt");
 	        if (Args.parseFlags(args).contains("outNP"))
 	        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.narrowPeak", path+".GPS_events.narrowPeak");
+	        if (Args.parseFlags(args).contains("outBED"))
+	        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.bed", path+".GPS_events.bed");
         }
     }
     	
