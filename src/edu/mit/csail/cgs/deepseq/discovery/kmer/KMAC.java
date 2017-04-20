@@ -5936,11 +5936,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	        			pos_seqs.add(line);
 	        		}
 	        		else{// get the center substring of length k_win
-		        		int left = line.length()/2-config.k_win/2;
-		        		if (left<0){ // skip if too short
+		        		if (line.length()<config.k_win){ // skip if too short
 		        			System.err.println("Fasta sequence length "+line.length()+" is shorter than k_win=" + config.k_win);
 		        			continue;
 		        		}
+		        		int left = line.length()/2-config.k_win/2;
 		        		pos_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
 	        		}
 	        	}
