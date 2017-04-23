@@ -23,7 +23,7 @@ import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.utils.stats.StatUtil;
 
-public class ChIAPET_analysis {
+public class CID {
 	Genome genome;
 	Set<String> flags;
 	String[] args;
@@ -38,7 +38,7 @@ public class ChIAPET_analysis {
 	TreeMap<Region, InteractionCall> r2it = new TreeMap<Region, InteractionCall>();
 	String fileName = null;
 
-	public ChIAPET_analysis(String[] args) {
+	public CID(String[] args) {
 		genome = CommonUtils.parseGenome(args);
 
 		flags = Args.parseFlags(args);
@@ -57,7 +57,7 @@ public class ChIAPET_analysis {
 	}
 
 	public static void main(String args[]) {
-		ChIAPET_analysis analysis = new ChIAPET_analysis(args);
+		CID analysis = new CID(args);
 		int type = Args.parseInteger(args, "type", 0);
 
 		switch (type) {
@@ -1630,8 +1630,8 @@ public class ChIAPET_analysis {
 				}
 				if (rpc.pets.size()>=2){
 					results.add(rpc);
-					sb.append(sb1.toString());
 				}
+				sb.append(sb1.toString());		// add to sb, even for PET1
 			}
 			if (tic!=-1)
 				System.err.println(CommonUtils.timeElapsed(tic));
