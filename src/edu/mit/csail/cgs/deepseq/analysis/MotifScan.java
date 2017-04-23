@@ -135,18 +135,34 @@ public class MotifScan {
 				String f[]=ksm_string.split(",");
 				knames.add(f[0].trim());
 				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
+				instances = scanKSM_multi(seqs, kmacs, knames);
 			}
-			else{		// it is a file path
+			else{		// it is KSM list file path
 				ArrayList<String> lines = CommonUtils.readTextFile(ksm_string);
-				for (String l:lines){
-					if (l.startsWith("#"))
-						continue;
-					String[] f = l.split("\t");
-					knames.add(f[0].trim());
-					kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
+				if (lines.size()>500){
+					instances = new ArrayList<MotifInstance>();
+					int n = 0;
+					for (String l:lines){
+						if (l.startsWith("#"))
+							continue;
+						String[] f = l.split("\t");
+						String kname = f[0].trim();
+						KMAC kmac = CommonUtils.loadKsmFile(f[1].trim(), config);
+						instances.addAll(scanKSM(seqs, kmac, kname, n));
+					}
+				}
+				else{ 
+					for (String l:lines){
+						if (l.startsWith("#"))
+							continue;
+						String[] f = l.split("\t");
+						knames.add(f[0].trim());
+						kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
+					}
+					instances = scanKSM_multi(seqs, kmacs, knames);
 				}
 			}
-			instances = getKSMInstances(seqs, kmacs, knames);
+			
 			header = "# numSequence:"+seqs.length+"\n# numMotif:"+kmacs.size();
 		}
 		
@@ -216,7 +232,6 @@ public class MotifScan {
 	    }	    
     	CommonUtils.appendFile(out.concat(".motifInstances.txt"), sb.toString());	// write out the remaining texts
 	    
-    	
 	    // skip the matched sequences
 	    if (flags.contains("skip")){
 	    	HashSet<Integer> seqID_matched = new HashSet<Integer>();
@@ -256,7 +271,7 @@ public class MotifScan {
 	 * @param knames
 	 * @return
 	 */
-	public static ArrayList<MotifInstance> getKSMInstances(String[] seqs, ArrayList<KMAC> kmacs, ArrayList<String> knames) {
+	public static ArrayList<MotifInstance> scanKSM_multi(String[] seqs, ArrayList<KMAC> kmacs, ArrayList<String> knames) {
 		System.out.println("Scanning KSM motifs ...");
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
 	    String[] seqs_rc = new String[seqs.length];
@@ -298,6 +313,47 @@ public class MotifScan {
 	    		}
 	    	}
 	    }
+		return instances;
+	}
+	// scan single KSM
+	public static ArrayList<MotifInstance> scanKSM(String[] seqs, KMAC kmac, String kname, int motifId) {
+		System.out.println("Scanning KSM motifs ...");
+	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
+	    String[] seqs_rc = new String[seqs.length];
+	    for (int i=0;i<seqs.length;i++)
+	    	seqs_rc[i]=SequenceUtil.reverseComplement(seqs[i]);
+	    
+    	System.out.println("  ... "+kname+" ...");
+    	for (int s=0; s<seqs.length;s++){
+    		if (s==60) {
+    			kmac.setIsDebugging(); // debug
+    			System.out.println();
+    		}
+    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
+    		if (kgs==null)
+    			continue;
+    		for (int i=0;i<kgs.length;i++){
+    			KmerGroup kg = kgs[i];
+	    		MotifInstance mi = new MotifInstance();
+	    		mi.motifID = motifId;
+	    		mi.motifName = kname;
+	    		mi.score = kg.getScore();
+	    		int pos = kg.getPosBS();
+	    		if (pos > KMAC.RC-seqs[s].length()*2){	// RC strand match
+	    			mi.position = pos-KMAC.RC;	
+	    			mi.strand = '-';
+	    		}
+	    		else{
+	    			mi.position = pos;	
+	    			mi.strand = '+';
+	    		}
+	    		if (kg.getKmers().isEmpty())
+	    			System.err.println("Empty Kmer group match: "+kg.toString());
+	    		mi.matchSeq = kg.getCoveredSequence()+":"+kg.getAllKmerString();
+	    		mi.seqID = s;
+	    		instances.add(mi);
+    		}
+    	}
 		return instances;
 	}
 	
