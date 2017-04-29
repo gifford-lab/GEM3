@@ -10,21 +10,17 @@ public class ChIAPET_processing {
 	// --fq1 /Users/yguo/Desktop/PPG_Data/ChIA-PET/top100_1.fq --fq2 /Users/yguo/Desktop/PPG_Data/ChIA-PET/top100_2.fq --match ATCTTATCTGAC --full ACGCGATATCTTATCTGACT --len 42
 	public static void main(String[] args) {
 		String fq1 = Args.parseString(args, "fq", null);
-//		String fq2 = Args.parseString(args, "fq2", null);
 		String match = Args.parseString(args, "match", null);	// partial fwd linker for matching
-		String full = Args.parseString(args, "full", null);		// full fwd linker
 		int len = Args.parseInteger(args, "len", 0);	
+		ArrayList<String> l1 = CommonUtils.readTextFile(fq1);
+		int[] labels = new int[l1.size()/4];
+
+		String full = Args.parseString(args, "full", null);		// full fwd linker
+		int fl = full.length();
+		
 		int mLen = match.length();
 		int idx = full.indexOf(match);		// the position of match linker inside the full linker
-
-		ArrayList<String> l1 = CommonUtils.readTextFile(fq1);
-//		ArrayList<String> l2 = CommonUtils.readTextFile(fq2);
-		ArrayList<String> l1n = new ArrayList<String>();
-//		ArrayList<String> l2n = new ArrayList<String>();
-		
-		StringBuilder sb = new StringBuilder();
-		StringBuilder sb2 = new StringBuilder();
-		int[] labels = new int[l1.size()/4];
+	
 		for (int i=0;i<l1.size();i+=4){
 			String s1 = l1.get(i+1);
 			int id1 = s1.indexOf(match);
@@ -87,7 +83,45 @@ public class ChIAPET_processing {
 			}
 			// else: 0 for linker not found
 		}
-				
+		
+		// progressively trim to match partial linker at the edges
+		int hl = fl/2;
+		for (int j=1;j<=hl;j++){
+			String m = full.substring(j, fl);					// right part, match to the left start
+			String m_rc = SequenceUtils.reverseComplement(m);
+			String m2 = full.substring(0, fl-j);				// left part, match to the right end
+			String m2_rc = SequenceUtils.reverseComplement(m2);
+			int ml = m.length();
+			for (int n=0;n<labels.length;n++){
+				if (labels[n]!=0)		// skip if fwd linker has been found
+					continue;
+				int i = n*4;
+				String s1 = l1.get(i+1);
+				if (s1.startsWith(m)){		// match
+					l1.set(i+1, s1.substring(ml, len));
+					l1.set(i+3, l1.get(i+3).substring(ml, len));
+					labels[i/4] = 3;		// 3 revcomp linker found, seq on right
+				}
+				else if (s1.endsWith(m_rc)){		// match
+					l1.set(i+1, s1.substring(0, len-ml));
+					l1.set(i+3, l1.get(i+3).substring(0, len-ml));
+					labels[i/4] = 4;		// 4 revcomp linker found, seq on left
+				}
+				else if (s1.startsWith(m2_rc)){		// match
+					l1.set(i+1, s1.substring(ml, len));
+					l1.set(i+3, l1.get(i+3).substring(ml, len));
+					labels[i/4] = 3;		// 3 : seq on right
+				}
+				else if (s1.endsWith(m2)){		// match
+					l1.set(i+1, s1.substring(0, len-ml));
+					l1.set(i+3, l1.get(i+3).substring(0, len-ml));
+					labels[i/4] = 4;		// 4 : seq on left
+				}
+			}
+		}
+		
+		StringBuilder sb = new StringBuilder();
+		StringBuilder sb2 = new StringBuilder();
 		for (int n=0;n<labels.length;n++)
 			sb.append(n).append("\t").append(labels[n]).append("\n");
 		for (int n=0;n<l1.size();n++)
