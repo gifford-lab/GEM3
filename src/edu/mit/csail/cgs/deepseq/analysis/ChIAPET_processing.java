@@ -118,21 +118,25 @@ public class ChIAPET_processing {
 							l1.set(1, s1.substring(ml, len));
 							l1.set(3, l1.get(3).substring(ml, len));
 							label = 1;		// 1 forward linker found, seq on right
+							break;
 						}
 						else if (s1.endsWith(m_rc[j])){		// match
 							l1.set(1, s1.substring(0, len-ml));
 							l1.set(3, l1.get(3).substring(0, len-ml));
 							label = 4;		// 4 revcomp linker found, seq on left
+							break;
 						}
 						else if (s1.startsWith(m2_rc[j])){		// match
 							l1.set(1, s1.substring(ml, len));
 							l1.set(3, l1.get(3).substring(ml, len));
 							label = 3;		// 3 : revcomp linker found, seq on right
+							break;
 						}
 						else if (s1.endsWith(m2[j])){		// match
 							l1.set(1, s1.substring(0, len-ml));
 							l1.set(3, l1.get(3).substring(0, len-ml));
 							label = 2;		// 2 : forward linker found, seq on left
+							break;
 						}
 					}	// progressive trimming
 				}	// search for partial match
