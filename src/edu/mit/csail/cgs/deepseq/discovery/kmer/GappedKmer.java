@@ -123,7 +123,8 @@ public class GappedKmer extends Kmer{
 	 * @param print_kmer_hits
 	 * @param printKmersAtK
 	 */
-	public static void printKSM(ArrayList<Kmer> kmers, String[][] posHitSeqs, String[][] negHitSeqs, double[] seq_weights, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
+	public static void printKSM(ArrayList<Kmer> kmers, String[][] posHitSeqs, String[][] negHitSeqs, double[] seq_weights, 
+			double[] coeffficients, int kOriginal, int gap, int posSeqCount, int negSeqCount, double score, 
 			String filePrefix, boolean printShortFormat, boolean print_kmer_hits, boolean printKmersAtK){
 		if (kmers==null || kmers.isEmpty())
 			return;
@@ -149,8 +150,13 @@ public class GappedKmer extends Kmer{
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append("#").append(new File(filePrefix).getName()).append("\n");
-		sb.append("#KSM version: 1\n");									// version 1
+		if (coeffficients==null)
+			sb.append("#KSM version: 1\n");									// version 1
+		else
+			sb.append("#KSM version: 2\n");									// version 2
 		sb.append(String.format("#%d/%d\n", posSeqCount, negSeqCount));
+		if (coeffficients!=null)
+			sb.append("#").append(CommonUtils.arrayToString(coeffficients, 4)).append("\n");
 		sb.append(String.format("#%.2f\n", score));
 		if (printShortFormat){
 			sb.append(GappedKmer.toShortHeader(k)).append("\n");
@@ -261,7 +267,8 @@ public class GappedKmer extends Kmer{
 	        String[] f = line.split(":");
 	        int version = f.length>1 ? Integer.parseInt(f[1].trim()) : -1;
 	        switch(version){
-	        	case 1: return loadKSM_v1(bin); 
+	        	case 1: return loadKSM(bin, 1); 
+	        	case 2: return loadKSM(bin, 2); 
 	        	default: System.err.println("KSM version "+ version+" unknown: "+file.getName()); bin.close(); return null;
 	        }
 		} catch (IOException e) {
@@ -278,16 +285,28 @@ public class GappedKmer extends Kmer{
 		}
 	}
 	        
-	public static KsmMotif loadKSM_v1(BufferedReader bin) throws IOException{
-	    		KsmMotif ksm = new KsmMotif();
-	    		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
-	    		HashMap<Integer, Kmer> id2baseKmerMap = new HashMap<Integer, Kmer>();
+	private static KsmMotif loadKSM(BufferedReader bin, int version) throws IOException{
+    		KsmMotif ksm = new KsmMotif();
+    		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
+    		HashMap<Integer, Kmer> id2baseKmerMap = new HashMap<Integer, Kmer>();
 			String line = bin.readLine();
 	        line = line.substring(1,line.length());			//remove # sign
 	        String[] f = line.split("/");
 	        ksm.posSeqCount = Integer.parseInt(f[0]);
 	        ksm.negSeqCount = Integer.parseInt(f[1]);
-		       
+		    
+	        // v2: logistic regression coefficient
+	        double[] coefficients = null;
+	        if (version==2){
+	        	line = bin.readLine();
+		        line = line.substring(1,line.length());			//remove # sign
+		        String fc[] =  line.split("\t");
+		        coefficients = new double[fc.length];
+		        for (int i=0;i<fc.length;i++)
+		        	coefficients[i] = Double.parseDouble(fc[i]);
+		        ksm.coefficients = coefficients;
+	        }
+	        
 	        // threshold
 	        line = bin.readLine();
 	        line = line.substring(1,line.length());			//remove # sign

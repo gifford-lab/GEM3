@@ -8,6 +8,7 @@ public class KsmMotif {
 	public int negSeqCount;
 	public double cutoff;
 	public double[] seq_weights;
+	public double[] coefficients;
 	public int[] posCoveredWidth;
 	public int[] negCoveredWidth;
 	public String[][] posHitStrings;		// KSM matched seq

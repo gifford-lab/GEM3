@@ -753,6 +753,7 @@ public class CommonUtils {
 			kmac.setHitStrings(ksm.posHitStrings, ksm.negHitStrings);
 		if (config.use_weighted_kmer)
 			kmac.setSequenceWeights(ksm.seq_weights);
+		kmac.setLogisticCoefficients(ksm.coefficients);
 		return kmac;
 	}
 	

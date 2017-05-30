@@ -42,6 +42,7 @@ public class KsmPwmRocAnalysis {
 			kmac.setHitStrings(ksm.posHitStrings, ksm.negHitStrings);
 		if (config.use_weighted_kmer)
 			kmac.setSequenceWeights(ksm.seq_weights);
+		kmac.setLogisticCoefficients(ksm.coefficients);
 	}
 	
 	public KmerGroup getBestKG (String seq, String seq_rc){
@@ -249,7 +250,8 @@ public class KsmPwmRocAnalysis {
 			String matchKSM = "ZZ";
 			if (kg!=null)
 				matchKSM = kg.getCoveredSequence();
-			ksm_scores.add(kg==null?0:kg.getScore());
+			double score = kg==null? 0 : scanner.kmac.getLogisticCoefficients()==null?kg.getScore():kg.getProbability();
+			ksm_scores.add(score);
 			KSM_time += System.currentTimeMillis() - ksm_t;
 			
 			// scoring negative shuffled sequences
@@ -266,11 +268,12 @@ public class KsmPwmRocAnalysis {
 				String matchNKSM = "ZZ";
 				if (kgN!=null)
 					matchNKSM = kgN.getCoveredSequence();
-				ksmN_scores.add(kgN==null?0:kgN.getScore());
+				double scoreN = kgN==null? 0 : scanner.kmac.getLogisticCoefficients()==null?kgN.getScore():kgN.getProbability();
+				
+				ksmN_scores.add(scoreN);
 				
 				sb.append(String.format("%d\t%s\t%s\t%s\t%s%s\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%d\t%d\n",  
-						i, match, matchN, matchKSM, matchNKSM, "\tNA", pwm, pwmN, 
-						kg==null?0:kg.getScore(), kgN==null?0:kgN.getScore(), 
+						i, match, matchN, matchKSM, matchNKSM, "\tNA", pwm, pwmN, score, scoreN, 
 						kg==null?0:-kg.getBestKmer().getHgp(), kgN==null?0:-kgN.getBestKmer().getHgp(), 
 						kg==null?0:kg.getBestKmer().getPosHitCount(), kgN==null?0:kgN.getBestKmer().getPosHitCount()));
 			}

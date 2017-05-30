@@ -49,9 +49,28 @@ import edu.mit.csail.cgs.utils.stats.StatUtil;
 import edu.mit.csail.cgs.utils.stats.StatUtil.DensityClusteringPoint;
 import edu.mit.csail.cgs.utils.strings.multipattern.AhoCorasick;
 import edu.mit.csail.cgs.utils.strings.multipattern.SearchResult;
+import weka.classifiers.Classifier;
+import weka.classifiers.Evaluation;
+import weka.classifiers.evaluation.Prediction;
+import weka.classifiers.functions.Logistic;
+import weka.classifiers.meta.AdaBoostM1;
+import weka.classifiers.rules.DecisionTable;
+import weka.classifiers.rules.OneR;
+import weka.classifiers.rules.PART;
+import weka.classifiers.trees.DecisionStump;
+import weka.classifiers.trees.J48;
+import weka.classifiers.trees.RandomForest;
+import weka.core.Attribute;
+import weka.core.DenseInstance;
+import weka.core.FastVector;
+import weka.core.Instance;
+import weka.core.Instances;
+import weka.filters.Filter;
+import weka.filters.unsupervised.attribute.Normalize;
+import weka.filters.unsupervised.attribute.Standardize;
 
 public class KMAC {
-	public final static String KMAC_VERSION = "1.0";
+	public final static String KMAC_VERSION = "1.2";
 
 	public static final int RC=100000;		// extra bp add to indicate negative strand match of kmer
 	private static final int UNALIGNED=9999;	// the special shift for unaligned kmer
@@ -83,7 +102,15 @@ public class KMAC {
 	public void setSequenceWeights(double[] w){
 		seq_weights=w;
 	}
-
+	
+	private double[] coefficients;	// Logistic regression model coefficients
+	public double[] getLogisticCoefficients() {
+		return coefficients;
+	}
+	public void setLogisticCoefficients(double[] coefficients) {
+		this.coefficients = coefficients;
+	}
+	
 	private String[] seqsNeg;		// DNA sequences in negative sets
 	private ArrayList<String> seqsNegList=new ArrayList<String>(); // Effective negative sets, excluding overlaps in positive sets
 	public int getNegSeqCount(){return negSeqCount;}
@@ -517,6 +544,11 @@ public class KMAC {
 	/** 
 	 * Run through a range of k values to discovery motifs
 	 */
+	/**
+	 * @param k_min
+	 * @param k_max
+	 * @param eventCounts
+	 */
 	public void discoverMotifs (int k_min, int k_max, int[] eventCounts){
 		
 		ArrayList<MotifCluster> allClusters = new ArrayList<MotifCluster>();		
@@ -819,7 +851,7 @@ public class KMAC {
 		
 		sortMotifClusters(clusters, true);
 
-		for (int i=0;i<clusters.size();i++){
+		for (int i=0;i<clusters.size();i++){	// for each motif
 			MotifCluster cluster = clusters.get(i);
 			
 			/** use all aligned sequences to find expected binding sites, set kmer offset */
@@ -834,6 +866,7 @@ public class KMAC {
 				this.negCoveredWidth = cluster.negCoveredWidth.clone();
 			}
 
+			// align sequences by KSM
 			HashMap<Integer, KmerGroup> seq2kg = alignByKSM(seqList, cluster.alignedKmers, cluster);	// get seq2kg map for building KSM logo
 	    	int leftmost = Integer.MAX_VALUE;
 	    	int total_aligned_seqs = 0;
@@ -927,7 +960,7 @@ public class KMAC {
 				}
 			}
 			
-			// print
+			// plot sequenceHit color chart
 			String[] ss = new String[seqSortList.size()];
 			int seqAlignmentLength = cluster.k*3;
 			for (int id=0; id<seqSortList.size(); id++){
@@ -1005,24 +1038,35 @@ public class KMAC {
 			for (Kmer km: cluster.alignedKmers){			// set k-mer offset
 				km.setKmerStartOffset(km.shift-cluster.pos_BS_seed);
 			}			
+			
+			double[] coefficients = null;
+			// train classification model using Weka
+			try{
+				coefficients = trainClassifier(cluster.alignedKmers);
+			}
+			catch (Exception e){
+        		e.printStackTrace();
+        	}
+			
+			if (config.kg_hit_adjust_type==2){
+				// wrap int into string[], a hack
+				String[][] pos = new String[cluster.posCoveredWidth.length][];
+				for (int j=0;j<pos.length;j++)
+					pos[j] = new String[] {String.valueOf(cluster.posCoveredWidth[j])};
+				String[][] neg = new String[cluster.negCoveredWidth.length][];
+				for (int j=0;j<neg.length;j++)
+					neg[j] = new String[] {String.valueOf(cluster.negCoveredWidth[j])};
+				GappedKmer.printKSM(cluster.alignedKmers, pos, neg, seq_weights, coefficients, cluster.k, 0, posSeqCount, negSeqCount, 
+					cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
+			}
+			else // config.kg_hit_adjust_type ==1 or ==0 (null)
+				GappedKmer.printKSM(cluster.alignedKmers, cluster.posHitStrings, cluster.negHitStrings, seq_weights, coefficients, cluster.k, 0, posSeqCount, negSeqCount, 
+						cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
+
 		}	// for each motif found
 
 		// print KSM and motif hits
 		for (MotifCluster cluster : clusters){
-			if (config.kg_hit_adjust_type==2){
-				// wrap int into string[], a hack
-				String[][] pos = new String[cluster.posCoveredWidth.length][];
-				for (int i=0;i<pos.length;i++)
-					pos[i] = new String[] {String.valueOf(cluster.posCoveredWidth[i])};
-				String[][] neg = new String[cluster.negCoveredWidth.length][];
-				for (int i=0;i<neg.length;i++)
-					neg[i] = new String[] {String.valueOf(cluster.negCoveredWidth[i])};
-				GappedKmer.printKSM(cluster.alignedKmers, pos, neg, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
-					cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
-			}
-			else // config.kg_hit_adjust_type ==1 or ==0 (null)
-				GappedKmer.printKSM(cluster.alignedKmers, cluster.posHitStrings, cluster.negHitStrings, seq_weights, cluster.k, 0, posSeqCount, negSeqCount, 
-						cluster.ksmThreshold.motif_cutoff, outName+".m"+cluster.clusterId, false, true, false);
 		}
 		
 		if (config.print_motif_hits){		// PWM motif hits
@@ -1349,7 +1393,7 @@ public class KMAC {
 			ArrayList<Kmer> kmersAll = new ArrayList<Kmer>();
 			kmersAll.addAll(ungappedKmerMap.values());
 			Collections.sort(kmersAll);
-			GappedKmer.printKSM(kmersAll, null, null, null, k, 0, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+			GappedKmer.printKSM(kmersAll, null, null, null, null, k, 0, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
 		}
 		allKmerMap.remove(k);
 		ungappedKmerMap = null;		// remove the k-mers with length k, assuming selectEnrichedKmers() is called with increasing k, they will not be used any more
@@ -1600,7 +1644,7 @@ public class KMAC {
 					kms.add(gk);			
 				}
 				Collections.sort(kms);
-				GappedKmer.printKSM(kms, null, null, null, k, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
+				GappedKmer.printKSM(kms, null, null, null, null, k, numGap, posSeqCount, negSeqCount, 0, outName+"_all_w"+seqs[0].length(), true, false, true);
 			}
 			
 		}// loop all gap numbers
@@ -3481,6 +3525,181 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //		return kmer2seq;
 //	}
 //	
+	
+	private double[] trainClassifier(ArrayList<Kmer> kmers) throws Exception{
+		ArrayList<Attribute> atts = new ArrayList<Attribute>();
+		atts.add(new Attribute("PosHitCount"));
+		atts.add(new Attribute("NegHitCount"));
+		atts.add(new Attribute("HitWidth"));
+		atts.add(new Attribute("HitScore"));
+		ArrayList<String> labels = new ArrayList<String>();
+		labels.add("label_pos");
+		labels.add("label_neg");
+		atts.add(new Attribute("label", labels));
+		Instances data = new Instances("ksm", atts, seqList.size()*2);
+		int idxPosLabel = data.attribute("label").indexOfValue("label_pos");
+		int idxNegLabel = data.attribute("label").indexOfValue("label_neg");
+		// positive sequences
+		BitSet bitSeqWithKmer = new BitSet();
+		for (Kmer km:kmers)
+			bitSeqWithKmer.or(km.posBits);			
+		for (int j=0;j<seqList.size();j++){
+			double[] values = new double[data.numAttributes()];
+			values[4] = idxPosLabel;
+			Sequence s = seqList.get(j);
+			if (bitSeqWithKmer.get(s.id)){
+				KmerGroup[] kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
+				if (kgs==null){
+					values[0] = 0;
+					values[1] = 0;
+					values[2] = 0;
+					values[3] = 0;
+				}
+				else{
+					KmerGroup kg = kgs[0];
+					values[0] = kg.getGroupHitCount();
+					values[1] = kg.getGroupNegHitCount();
+					values[2] = kg.getCoveredWidth();
+					values[3] = kg.getScore();
+				}
+			}
+			else{
+				values[0] = 0;
+				values[1] = 0;
+				values[2] = 0;
+				values[3] = 0;
+			}
+			Instance inst = new DenseInstance(1.0, values);
+			data.add(inst);	
+		}
+
+		// negative sequences
+		BitSet bitSeqWithKmerNeg = new BitSet();
+		for (Kmer km:kmers)
+			bitSeqWithKmerNeg.or(km.negBits);			
+		for (int j=0;j<seqListNeg.size();j++){
+			double[] values = new double[data.numAttributes()];
+			values[4] = idxNegLabel;
+			Sequence s = seqListNeg.get(j);
+			if (bitSeqWithKmerNeg.get(s.id)){
+				KmerGroup[] kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
+				if (kgs==null){
+					values[0] = 0;
+					values[1] = 0;
+					values[2] = 0;
+					values[3] = 0;
+				}
+				else{
+					KmerGroup kg = kgs[0];
+					values[0] = kg.getGroupHitCount();
+					values[1] = kg.getGroupNegHitCount();
+					values[2] = kg.getCoveredWidth();
+					values[3] = kg.getScore();
+				}
+			}
+			else{
+				values[0] = 0;
+				values[1] = 0;
+				values[2] = 0;
+				values[3] = 0;
+			}
+			Instance inst = new DenseInstance(1.0, values);
+			data.add(inst);	
+		}
+		data.setClassIndex(data.numAttributes() - 1);
+		
+		//	NOTE: Do not pre-process data (normailze or standardize), b/c the probabilities don't change with the pre-processing
+//		Filter m_Filter = new Normalize(); //new Standardize(); // 
+//        m_Filter.setInputFormat(data);
+//        data = Filter.useFilter(data, m_Filter);
+		
+		Logistic logi = new Logistic();
+		logi.buildClassifier(data);
+		double[][] coefficients = logi.coefficients();
+//		System.out.println(CommonUtils.matrixToString(coefficients, 4, null));
+		
+//		for (Instance inst : data){
+//			int numAttr = inst.numAttributes();
+//			double sum = coefficients[0][0];
+//			for (int i=0;i<numAttr-1; i++){
+//				sum += inst.value(i) * coefficients[i+1][0];
+//			}
+//			System.out.print(String.format("%.4f ", 1/(1+Math.exp(-sum))));
+//		}
+		
+		double[] results = new double[data.numAttributes()];
+		for (int j=0;j<results.length;j++)
+			results[j] = coefficients[j][0];	// binary classification, only 1 dim of coeffs
+        return results;
+
+        //		 // validation split
+//        Instances[][] split = WekaTest.crossValidationSplit(data, 10);
+//        
+//        // Separate split into training and testing arrays
+//        Instances[] trainingSplits = split[0];
+//        Instances[] testingSplits  = split[1];
+//        
+//        double[] ridges = new double[]{100, 10, 1, 1e-1, 1e-2, 1e-4, 1e-8};
+//        // Run for each classifier model
+//        for(int j = 0; j < ridges.length; j++) {
+//
+//        	Logistic logi = new Logistic();
+//        	logi.setRidge(ridges[j]);
+//        	ArrayList<Prediction> predictions = new ArrayList<Prediction>();
+//            // For each training-testing split pair, train and test the classifier
+//            for(int i = 0; i < trainingSplits.length; i++) {
+//            	Evaluation validation = WekaTest.simpleClassify(logi, trainingSplits[i], testingSplits[i]);
+//                predictions.addAll(validation.predictions());
+//                // Uncomment to see the summary for each training-testing pair.
+//                // System.out.println(models[j].toString());
+//            }
+//            
+//            // Calculate overall accuracy of current classifier on all splits
+//            double accuracy = WekaTest.calculateAccuracy(predictions);
+//            
+//            // Print current classifier's name and accuracy in a complicated, but nice-looking way.
+//            System.out.println(String.format("%s(%.2g): %.2f%%\n=====================", 
+//            		logi.getClass().getSimpleName(), ridges[j], accuracy));
+//        }
+        
+//        // Choose a set of classifiers
+//        Classifier[] models = {     new Logistic(),
+//        							new J48(),
+//                                    new PART(),
+//                                    new DecisionTable(),
+//                                    new OneR(),
+//                                    new DecisionStump(),
+//                                    new RandomForest(), 
+//                                    new AdaBoostM1() };
+//        
+//        // Run for each classifier model
+//        for(int j = 0; j < models.length; j++) {
+//
+//            // Collect every group of predictions for current model in a FastVector
+//            ArrayList<Prediction> predictions = new ArrayList<Prediction>();
+//            
+//            // For each training-testing split pair, train and test the classifier
+//            for(int i = 0; i < trainingSplits.length; i++) {
+//            	try{
+//                Evaluation validation = WekaTest.simpleClassify(models[j], trainingSplits[i], testingSplits[i]);
+//                predictions.addAll(validation.predictions());
+//                
+//                // Uncomment to see the summary for each training-testing pair.
+//                // System.out.println(models[j].toString());
+//            	}
+//            	catch (Exception e){
+//            		e.printStackTrace();
+//            	}
+//            }
+//            
+//            // Calculate overall accuracy of current classifier on all splits
+//            double accuracy = WekaTest.calculateAccuracy(predictions);
+//            
+//            // Print current classifier's name and accuracy in a complicated, but nice-looking way.
+//            System.out.println(models[j].getClass().getSimpleName() + ": " + String.format("%.2f%%", accuracy) + "\n=====================");
+//        }
+		
+	}
 	private String getKmerClusterAlignmentString (ArrayList<Kmer> alignedKmers, int topNum){
 		StringBuilder sb = new StringBuilder();
 		Collections.sort(alignedKmers);		    	// sort by positive hit count
@@ -5149,6 +5368,14 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	}
 
 	/**
+	 * Compute matched site (KmerGroup) significance score [ OR or -log10(hgp) ] based on config.use_odds_ratio <br>More significant, higher score
+	 */	
+	public double computeLogisticProbability(double posHitCount, double negHitCount, int siteWidth, double score){
+		return 1/(1+Math.exp(-(coefficients[0]+coefficients[1]*posHitCount+coefficients[2]*negHitCount
+				+coefficients[3]*siteWidth+coefficients[4]*score)));
+	}
+
+	/**
 	 * Compute hgp (log10) using the positive/negative sequences<br>
 	 * More negative hgp, more significant p-value
 	 */	
@@ -5404,7 +5631,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			Sequence s = seqList.get(i);
 			if (!bitSeqWithKmer.get(s.id))
 				continue;
-			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
+			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
 			if (kgs==null)
 				posSeqScores[i]=0;
 			else
@@ -5415,7 +5642,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			Sequence s = seqListNeg.get(i);
 			if (!bitSeqWithKmerNeg.get(s.id))
 				continue;
-			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scan
+			kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
 			if (kgs==null)
 				negSeqScores[i]=0;
 			else
@@ -5769,6 +5996,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 					config.use_weighted_kmer ? new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, seq_weights) : new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, null);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+			if (coefficients!=null)
+				kg.setProbability(computeLogisticProbability(kg.getGroupHitCount(), kg.getGroupNegHitCount(), kg.getCoveredWidth(), kg.getScore()));
 			idx++;
 		}
 		return matches;
@@ -5861,6 +6090,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				kg = config.use_weighted_kmer ? new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, seq_weights) : new KmerGroup(posHitStrings, negHitStrings, kmers, p, s, null);
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
+			if (coefficients!=null)
+				kg.setProbability(computeLogisticProbability(kg.getGroupHitCount(), kg.getGroupNegHitCount(), kg.getCoveredWidth(), kg.getScore()));
 			idx++;
 		}
 		
@@ -6003,6 +6234,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
         }
         System.out.println("Done: "+CommonUtils.timeElapsed(tic));
 	}
+
 		
 } 
 

@@ -24,7 +24,12 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	double kg_score;
 	public double getScore() {return kg_score;	}
 	public void setScore(double score) {this.kg_score = score;	}
-	
+
+	/** KmerGroup probability based on logistic regression model  */
+	double probability;
+	public double getProbability() {return probability;	}
+	public void setProbability(double probability) {this.probability = probability;	}
+
 	public KmerGroup(int[] posCoveredWidth, int[] negCoveredWidth, ArrayList<Kmer> kmers, int bs, double[]weights){
 		if (kmers.isEmpty())
 			return;
