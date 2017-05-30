@@ -156,7 +156,7 @@ public class GappedKmer extends Kmer{
 			sb.append("#KSM version: 2\n");									// version 2
 		sb.append(String.format("#%d/%d\n", posSeqCount, negSeqCount));
 		if (coeffficients!=null)
-			sb.append("#").append(CommonUtils.arrayToString(coeffficients, 4)).append("\n");
+			sb.append("#").append(CommonUtils.arrayToString(coeffficients, 8)).append("\n");
 		sb.append(String.format("#%.2f\n", score));
 		if (printShortFormat){
 			sb.append(GappedKmer.toShortHeader(k)).append("\n");
