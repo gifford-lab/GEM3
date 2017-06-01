@@ -1048,6 +1048,7 @@ public class KMAC {
         		e.printStackTrace();
         	}
 			
+			// print KSM 
 			if (config.kg_hit_adjust_type==2){
 				// wrap int into string[], a hack
 				String[][] pos = new String[cluster.posCoveredWidth.length][];
@@ -1065,10 +1066,7 @@ public class KMAC {
 
 		}	// for each motif found
 
-		// print KSM and motif hits
-		for (MotifCluster cluster : clusters){
-		}
-		
+		// print motif hits
 		if (config.print_motif_hits){		// PWM motif hits
 			ArrayList<WeightMatrix> pwms=new ArrayList<WeightMatrix>();
 			ArrayList<Double> thresholds=new ArrayList<Double>();
@@ -3613,9 +3611,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //        m_Filter.setInputFormat(data);
 //        data = Filter.useFilter(data, m_Filter);
 		
-		Logistic logi = new Logistic();
-		logi.buildClassifier(data);
-		double[][] coefficients = logi.coefficients();
+        
 //		System.out.println(CommonUtils.matrixToString(coefficients, 4, null));
 		
 //		for (Instance inst : data){
@@ -3627,41 +3623,49 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //			System.out.print(String.format("%.4f ", 1/(1+Math.exp(-sum))));
 //		}
 		
+
+        		 // validation split
+        Instances[][] split = WekaTest.crossValidationSplit(data, 10);
+        
+        // Separate split into training and testing arrays
+        Instances[] trainingSplits = split[0];
+        Instances[] testingSplits  = split[1];
+        
+        double[] ridges = new double[]{1000, 100, 10, 1, 1e-1, 1e-2, 1e-4};
+        // Run for each classifier model
+        double best=0;
+        double bestRidge = 0;
+        for(int j = 0; j < ridges.length; j++) {
+        	Logistic logi = new Logistic();
+        	logi.setRidge(ridges[j]);
+        	ArrayList<Prediction> predictions = new ArrayList<Prediction>();
+            // For each training-testing split pair, train and test the classifier
+            for(int i = 0; i < trainingSplits.length; i++) {
+            	Evaluation validation = WekaTest.simpleClassify(logi, trainingSplits[i], testingSplits[i]);
+                predictions.addAll(validation.predictions());
+            }
+            
+            // Calculate overall accuracy of current classifier on all splits
+            double accuracy = WekaTest.calculateAccuracy(predictions);
+            if (accuracy>best){
+            	best = accuracy;
+            	bestRidge = ridges[j];
+            }
+//            if (config.verbose>1)
+            	System.out.println(String.format("Logistic ridge=%.2g:\t%.2f%%", ridges[j], accuracy));
+        }
+//        if (config.verbose>1)
+        	System.out.println(String.format("\nBest ridge=%.2g: %.2f%%\n=====================\n", bestRidge, best));
+
+		Logistic logi = new Logistic();
+		logi.setRidge(bestRidge);
+		logi.buildClassifier(data);
+		double[][] coefficients = logi.coefficients();
 		double[] results = new double[data.numAttributes()];
 		for (int j=0;j<results.length;j++)
 			results[j] = coefficients[j][0];	// binary classification, only 1 dim of coeffs
         return results;
 
-        //		 // validation split
-//        Instances[][] split = WekaTest.crossValidationSplit(data, 10);
-//        
-//        // Separate split into training and testing arrays
-//        Instances[] trainingSplits = split[0];
-//        Instances[] testingSplits  = split[1];
-//        
-//        double[] ridges = new double[]{100, 10, 1, 1e-1, 1e-2, 1e-4, 1e-8};
-//        // Run for each classifier model
-//        for(int j = 0; j < ridges.length; j++) {
-//
-//        	Logistic logi = new Logistic();
-//        	logi.setRidge(ridges[j]);
-//        	ArrayList<Prediction> predictions = new ArrayList<Prediction>();
-//            // For each training-testing split pair, train and test the classifier
-//            for(int i = 0; i < trainingSplits.length; i++) {
-//            	Evaluation validation = WekaTest.simpleClassify(logi, trainingSplits[i], testingSplits[i]);
-//                predictions.addAll(validation.predictions());
-//                // Uncomment to see the summary for each training-testing pair.
-//                // System.out.println(models[j].toString());
-//            }
-//            
-//            // Calculate overall accuracy of current classifier on all splits
-//            double accuracy = WekaTest.calculateAccuracy(predictions);
-//            
-//            // Print current classifier's name and accuracy in a complicated, but nice-looking way.
-//            System.out.println(String.format("%s(%.2g): %.2f%%\n=====================", 
-//            		logi.getClass().getSimpleName(), ridges[j], accuracy));
-//        }
-        
 //        // Choose a set of classifiers
 //        Classifier[] models = {     new Logistic(),
 //        							new J48(),
