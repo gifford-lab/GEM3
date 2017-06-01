@@ -38,6 +38,7 @@ import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree.MTreeNode;
 import edu.mit.csail.cgs.deepseq.discovery.kmer.mtree.MTree.TreeObject;
 import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.deepseq.utilities.WekaUtil;
 import edu.mit.csail.cgs.ewok.verbs.SequenceGenerator;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScoreProfile;
 import edu.mit.csail.cgs.ewok.verbs.motifs.WeightMatrixScorer;
@@ -3625,7 +3626,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		
 
         		 // validation split
-        Instances[][] split = WekaTest.crossValidationSplit(data, 10);
+        Instances[][] split = WekaUtil.crossValidationSplit(data, 10);
         
         // Separate split into training and testing arrays
         Instances[] trainingSplits = split[0];
@@ -3641,12 +3642,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
         	ArrayList<Prediction> predictions = new ArrayList<Prediction>();
             // For each training-testing split pair, train and test the classifier
             for(int i = 0; i < trainingSplits.length; i++) {
-            	Evaluation validation = WekaTest.simpleClassify(logi, trainingSplits[i], testingSplits[i]);
+            	Evaluation validation = WekaUtil.simpleClassify(logi, trainingSplits[i], testingSplits[i]);
                 predictions.addAll(validation.predictions());
             }
             
             // Calculate overall accuracy of current classifier on all splits
-            double accuracy = WekaTest.calculateAccuracy(predictions);
+            double accuracy = WekaUtil.calculateAccuracy(predictions);
             if (accuracy>best){
             	best = accuracy;
             	bestRidge = ridges[j];
