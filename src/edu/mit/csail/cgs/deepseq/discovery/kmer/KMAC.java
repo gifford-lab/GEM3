@@ -53,17 +53,10 @@ import edu.mit.csail.cgs.utils.strings.multipattern.SearchResult;
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.evaluation.Prediction;
+import weka.classifiers.evaluation.ThresholdCurve;
 import weka.classifiers.functions.Logistic;
-import weka.classifiers.meta.AdaBoostM1;
-import weka.classifiers.rules.DecisionTable;
-import weka.classifiers.rules.OneR;
-import weka.classifiers.rules.PART;
-import weka.classifiers.trees.DecisionStump;
-import weka.classifiers.trees.J48;
-import weka.classifiers.trees.RandomForest;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
-import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.filters.Filter;
@@ -1042,12 +1035,14 @@ public class KMAC {
 			
 			double[] coefficients = null;
 			// train classification model using Weka
-			try{
-				coefficients = trainClassifier(cluster.alignedKmers);
+			if (config.classify){
+				try{
+					coefficients = trainClassifier(cluster.alignedKmers);
+				}
+				catch (Exception e){
+	        		e.printStackTrace();
+	        	}
 			}
-			catch (Exception e){
-        		e.printStackTrace();
-        	}
 			
 			// print KSM 
 			if (config.kg_hit_adjust_type==2){
@@ -3549,10 +3544,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (bitSeqWithKmer.get(s.id)){
 				KmerGroup[] kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
 				if (kgs==null){
-					values[0] = 0;
-					values[1] = 0;
-					values[2] = 0;
-					values[3] = 0;
+					continue;
+//					values[0] = 0;
+//					values[1] = 0;
+//					values[2] = 0;
+//					values[3] = 0;
 				}
 				else{
 					KmerGroup kg = kgs[0];
@@ -3563,10 +3559,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				}
 			}
 			else{
-				values[0] = 0;
-				values[1] = 0;
-				values[2] = 0;
-				values[3] = 0;
+				continue;
+//				values[0] = 0;
+//				values[1] = 0;
+//				values[2] = 0;
+//				values[3] = 0;
 			}
 			Instance inst = new DenseInstance(1.0, values);
 			data.add(inst);	
@@ -3583,10 +3580,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (bitSeqWithKmerNeg.get(s.id)){
 				KmerGroup[] kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
 				if (kgs==null){
-					values[0] = 0;
-					values[1] = 0;
-					values[2] = 0;
-					values[3] = 0;
+					continue;
+//					values[0] = 0;
+//					values[1] = 0;
+//					values[2] = 0;
+//					values[3] = 0;
 				}
 				else{
 					KmerGroup kg = kgs[0];
@@ -3597,10 +3595,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				}
 			}
 			else{
-				values[0] = 0;
-				values[1] = 0;
-				values[2] = 0;
-				values[3] = 0;
+				continue;
+//				values[0] = 0;
+//				values[1] = 0;
+//				values[2] = 0;
+//				values[3] = 0;
 			}
 			Instance inst = new DenseInstance(1.0, values);
 			data.add(inst);	
@@ -3624,7 +3623,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //			System.out.print(String.format("%.4f ", 1/(1+Math.exp(-sum))));
 //		}
 		
-
+		data.randomize(new Random(config.rand_seed));
+		
         		 // validation split
         Instances[][] split = WekaUtil.crossValidationSplit(data, 10);
         
@@ -3632,31 +3632,40 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
         Instances[] trainingSplits = split[0];
         Instances[] testingSplits  = split[1];
         
-        double[] ridges = new double[]{1000, 100, 10, 1, 1e-1, 1e-2, 1e-4};
+        double[] ridges = new double[]{100, 1, 1e-1, 1e-2, 1e-4, 1e-8};
         // Run for each classifier model
         double best=0;
         double bestRidge = 0;
+        
         for(int j = 0; j < ridges.length; j++) {
         	Logistic logi = new Logistic();
         	logi.setRidge(ridges[j]);
         	ArrayList<Prediction> predictions = new ArrayList<Prediction>();
             // For each training-testing split pair, train and test the classifier
+        	double accuracy = 0;
             for(int i = 0; i < trainingSplits.length; i++) {
-            	Evaluation validation = WekaUtil.simpleClassify(logi, trainingSplits[i], testingSplits[i]);
-                predictions.addAll(validation.predictions());
+            	Evaluation eval = WekaUtil.simpleClassify(logi, trainingSplits[i], testingSplits[i]);
+                ThresholdCurve tc = new ThresholdCurve();
+                Instances curve = tc.getCurve(eval.predictions(), idxPosLabel);
+                double auc = ThresholdCurve.getPRCArea(curve);
+//                System.out.print(String.format("%.4f ", auc));
+                accuracy += auc;
+                predictions.addAll(eval.predictions());
             }
+//            System.out.println();
             
             // Calculate overall accuracy of current classifier on all splits
-            double accuracy = WekaUtil.calculateAccuracy(predictions);
-            if (accuracy>best){
-            	best = accuracy;
+//            double accuracy = WekaUtil.calculateAccuracy(predictions);
+            double auc = accuracy/trainingSplits.length;
+            if (auc>best){
+            	best = auc;
             	bestRidge = ridges[j];
             }
 //            if (config.verbose>1)
-            	System.out.println(String.format("Logistic ridge=%.2g:\t%.2f%%", ridges[j], accuracy));
+            	System.out.println(String.format("Logistic ridge=%.2g:\t%.4f", ridges[j], auc));
         }
 //        if (config.verbose>1)
-        	System.out.println(String.format("\nBest ridge=%.2g: %.2f%%\n=====================\n", bestRidge, best));
+        	System.out.println(String.format("\nBest ridge=%.2g: %.4f\n=====================\n", bestRidge, best));
 
 		Logistic logi = new Logistic();
 		logi.setRidge(bestRidge);
@@ -3680,7 +3689,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //        // Run for each classifier model
 //        for(int j = 0; j < models.length; j++) {
 //
-//            // Collect every group of predictions for current model in a FastVector
+//            // Collect every group of predictions for current model 
 //            ArrayList<Prediction> predictions = new ArrayList<Prediction>();
 //            
 //            // For each training-testing split pair, train and test the classifier
@@ -5376,8 +5385,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	 * Compute matched site (KmerGroup) significance score [ OR or -log10(hgp) ] based on config.use_odds_ratio <br>More significant, higher score
 	 */	
 	public double computeLogisticProbability(double posHitCount, double negHitCount, int siteWidth, double score){
-		return 1/(1+Math.exp(-(coefficients[0]+coefficients[1]*posHitCount+coefficients[2]*negHitCount
-				+coefficients[3]*siteWidth+coefficients[4]*score)));
+		return 1/(1 + Math.exp( - (coefficients[0] +
+				coefficients[1]*posHitCount +
+				coefficients[2]*negHitCount +
+				coefficients[3]*siteWidth +
+				coefficients[4]*score)));
 	}
 
 	/**
