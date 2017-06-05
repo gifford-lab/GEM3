@@ -3544,11 +3544,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (bitSeqWithKmer.get(s.id)){
 				KmerGroup[] kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
 				if (kgs==null){
-					continue;
-//					values[0] = 0;
-//					values[1] = 0;
-//					values[2] = 0;
-//					values[3] = 0;
+//					continue;
+					values[0] = 0;
+					values[1] = 0;
+					values[2] = 0;
+					values[3] = 0;
 				}
 				else{
 					KmerGroup kg = kgs[0];
@@ -3559,11 +3559,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				}
 			}
 			else{
-				continue;
-//				values[0] = 0;
-//				values[1] = 0;
-//				values[2] = 0;
-//				values[3] = 0;
+//				continue;
+				values[0] = 0;
+				values[1] = 0;
+				values[2] = 0;
+				values[3] = 0;
 			}
 			Instance inst = new DenseInstance(1.0, values);
 			data.add(inst);	
@@ -3580,11 +3580,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			if (bitSeqWithKmerNeg.get(s.id)){
 				KmerGroup[] kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
 				if (kgs==null){
-					continue;
-//					values[0] = 0;
-//					values[1] = 0;
-//					values[2] = 0;
-//					values[3] = 0;
+//					continue;
+					values[0] = 0;
+					values[1] = 0;
+					values[2] = 0;
+					values[3] = 0;
 				}
 				else{
 					KmerGroup kg = kgs[0];
@@ -3595,11 +3595,11 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				}
 			}
 			else{
-				continue;
-//				values[0] = 0;
-//				values[1] = 0;
-//				values[2] = 0;
-//				values[3] = 0;
+//				continue;
+				values[0] = 0;
+				values[1] = 0;
+				values[2] = 0;
+				values[3] = 0;
 			}
 			Instance inst = new DenseInstance(1.0, values);
 			data.add(inst);	
