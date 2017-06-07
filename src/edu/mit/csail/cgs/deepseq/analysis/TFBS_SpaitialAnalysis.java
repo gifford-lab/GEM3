@@ -133,6 +133,9 @@ public class TFBS_SpaitialAnalysis {
 			clusters = analysis.mergeTfbsClusters();
 			analysis.outputTFBSclusters(clusters);
 			break;
+		case 1000:	// default: simplified file loading for RPD public code
+			analysis.outputMotifSites();
+			break;
 		case 0:
 			analysis.loadBindingEvents_old();
 			clusters = analysis.mergeTfbsClusters();
@@ -891,7 +894,139 @@ public class TFBS_SpaitialAnalysis {
 		}
 		return clusters;
 	}
+	
+	private void outputMotifSites(){
+//		ArrayList<Region> queryRegions = new ArrayList<Region>();
+//		if(query_region_file!=null){
+//			queryRegions = CommonUtils.load_BED_regions(genome, query_region_file).car();
+//		}
 		
+		// load additional pwms
+		if (pwm_file!=null){
+			pwms.addAll( CommonUtils.loadPWMs_PFM_file(pwm_file, gc) );
+		}
+		
+		// load kmers
+		if (kmer_file!=null){
+			kmers.addAll( CommonUtils.readTextFile(kmer_file));
+		}
+		
+		System.out.println(String.format("In total, loaded %d GEM/other peak files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
+		
+		StringBuilder sb = new StringBuilder();
+		int digits = (int) Math.ceil(Math.log10(expts.size()));
+		for (int i=0;i<expts.size();i++){
+			sb.append(String.format("B%0"+digits+"d\t%s\t%s\t%s\n", i, expts.get(i), tf_names.get(i), motif_names.get(i)));
+		}
+		if (!pwms.isEmpty()){
+			digits = (int) Math.ceil(Math.log10(pwms.size()));
+			for (int i=0;i<pwms.size();i++){
+				sb.append(String.format("M%0"+digits+"d\t%s\t%s\t%s\n", i, pwms.get(i).getName(),pwms.get(i).getName(),pwms.get(i).getName()));
+			}
+		}
+		if (!kmers.isEmpty()){
+			digits = (int) Math.ceil(Math.log10(kmers.size()));
+			for (int i=0;i<kmers.size();i++){
+				sb.append(String.format("K%0"+digits+"d\t%s\t%s\t%s\n", i, kmers.get(i),kmers.get(i),kmers.get(i)));
+			}
+		}
+		CommonUtils.writeFile("0_Site_clusters."+outPrefix+".keys.txt", sb.toString());
+		
+		String fasta = Args.parseString(args, "fasta", null);
+		ArrayList<String> seqs = CommonUtils.loadSeqFromFasta(fasta);
+		outputMotifSites(seqs);
+	}
+	
+	private void outputMotifSites(ArrayList<String> seqs){
+		StringBuilder sb = new StringBuilder();
+		sb.append("#Region+Padding\tRegion\tClusterId\tLength\t#Binding\t#PWMs\t#Kmers\tSite:Positions\tPadded_Sequence\n");
+		ArrayList<WeightMatrixScorer> scorers = new ArrayList<WeightMatrixScorer>();
+		ArrayList<Integer> wmLens = new ArrayList<Integer>();
+		ArrayList<Double> wmThresholds = new ArrayList<Double>();
+		for (WeightMatrix wm: pwms){
+			scorers.add(new WeightMatrixScorer(wm));
+			wmLens.add(wm.length());
+			wmThresholds.add(wm.getMaxScore()*wm_factor);
+		}
+
+		int digits_binding = (int) Math.ceil(Math.log10(expts.size()));
+		int digits_pwm = (int) Math.ceil(Math.log10(pwms.size()));
+		int digits_kmer = (int) Math.ceil(Math.log10(kmers.size()));
+		
+		boolean motif_kmer_scan = pwms.size()+kmers.size() > 0;
+		for (int id=0;id<seqs.size();id++){
+			String seq = seqs.get(id);
+			
+			ArrayList<Site> bindingSites = new ArrayList<Site>();		// empty for now
+			int numSite = bindingSites.size();
+			Region r = null;
+			if (rs!=null)
+				r = rs.get(id);
+			else
+//				r = new Region(genome, bindingSites.get(0).bs.getChrom(), bindingSites.get(0).bs.getLocation(), bindingSites.get(numSite-1).bs.getLocation());	
+				r = new Region(genome, "1", 10000, 10000);	
+			// Position 0: the start position of the padded cluster region
+//			Region region = r.expand(cluster_motif_padding,cluster_motif_padding);
+//			int start = region.getStart();
+			
+			// Binding list
+			ArrayList<Integer> bindingIds = new ArrayList<Integer>(); 	// binding factor id
+			ArrayList<Integer> bindingPos = new ArrayList<Integer>();	// position in the padded region
+			ArrayList<Integer> eventIds = new ArrayList<Integer>();		// event id in the original site list
+			ArrayList<Character> strands = new ArrayList<Character>();	// strand of site match
+			ArrayList<Double> bindingStrength = new ArrayList<Double>();// binding strength, read count of the event
+			for (Site s:bindingSites){
+				bindingIds.add(s.tf_id);
+//				bindingPos.add(s.bs.getLocation()-start);
+				eventIds.add(s.event_id);
+				bindingStrength.add(s.signal);
+				strands.add(s.motifStrand);
+			}
+			
+			// PWM motif matches
+			ArrayList<Integer> pwmMatchIds = new ArrayList<Integer>();
+			ArrayList<Integer> pwmMatchPos = new ArrayList<Integer>();
+			ArrayList<Integer> kmerMatchIds = new ArrayList<Integer>();
+			ArrayList<Integer> kmerMatchPos = new ArrayList<Integer>();
+			
+			// scan motif matches in the cluster region sequence
+			for (int i=0;i<pwms.size();i++){
+				ArrayList<Integer> matchPos = CommonUtils.getAllPWMHit(seq, wmLens.get(i), scorers.get(i), wmThresholds.get(i), false);
+				for (int p:matchPos){
+					pwmMatchIds.add(i);
+					pwmMatchPos.add(p);
+				}
+			}
+			
+			// K-mer matches
+			for (int i=0;i<kmers.size();i++){
+				String kmer = kmers.get(i);
+				ArrayList<Integer> matchPos = CommonUtils.getAllKmerHit(seq, kmer);
+				for (int p:matchPos){
+					kmerMatchIds.add(i);
+					kmerMatchPos.add(p);
+				}
+			}
+			sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\t%d\t", r.toString(), r.toString(),
+					id, r.getWidth(), numSite, pwmMatchIds.size(), kmerMatchIds.size()));
+			if (bindingIds.size()+pwmMatchIds.size()+kmerMatchIds.size()==0){
+				sb.append("\tNA");
+			}
+			else{
+				for (int i=0;i<bindingIds.size();i++)
+					sb.append(String.format("B%0"+digits_binding+"d:%d:%d:%s:%.1f ", bindingIds.get(i), bindingPos.get(i), eventIds.get(i), strands.get(i), bindingStrength.get(i)));
+				for (int i=0;i<pwmMatchIds.size();i++)
+					sb.append(String.format("M%0"+digits_pwm+"d:%d ", pwmMatchIds.get(i), pwmMatchPos.get(i)));
+				for (int i=0;i<kmerMatchIds.size();i++)
+					sb.append(String.format("K%0"+digits_kmer+"d:%d ", kmerMatchIds.get(i), kmerMatchPos.get(i)));
+				sb.append("\t").append(seq);
+			}
+			sb.append("\n");
+		}
+
+		CommonUtils.writeFile("0_Site_clusters."+outPrefix+".txt", sb.toString());
+	}
+
 	/** 
 	 * Output all the binding sites in the clusters, for topic modeling analysis or clustering analysis<br>
 	 * This method also include pseudo sites from overlapping annotation regions (such as histone mark broad peaks, TSSs, DHS, etc.)<br>

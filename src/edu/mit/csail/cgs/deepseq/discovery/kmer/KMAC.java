@@ -263,24 +263,12 @@ public class KMAC {
 			}
 		}
 		else{	// use the supplied negative sequences
-			int negSeqNum = seqNum * config.neg_pos_ratio;
-			HashSet<Integer> ids = new HashSet<Integer>();
-			Random randObj = new Random(config.rand_seed);
-			for (int i=0;i<negSeqNum;i++){
-				ids.add(randObj.nextInt(neg_seqs.size()));
-			}
-			int makeup = (negSeqNum-ids.size())*2;
-			for (int i=0;i<makeup;i++){
-				ids.add(randObj.nextInt(neg_seqs.size()));
-				if (ids.size()==negSeqNum)
-					break;
-			}
-			
-			for (int i:ids){
-				String seq = neg_seqs.get(i);
+			// ignore config.neg_pos_ratio setting
+			for (String seq: neg_seqs){
 				seqsNegList.add(seq.toUpperCase());
 			}
 		}
+		seqsNegList.trimToSize();
 		posSeqCount = seqs.length;
 	    negSeqCount = seqsNegList.size();
 	    posNegSeqRatio = posSeqCount/(double)negSeqCount;

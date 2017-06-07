@@ -513,8 +513,14 @@ public class CommonUtils {
 	            bin.close();
 	        }
         } catch (IOException e) {
-        	System.err.println("\nError when processing "+fileName);
-            e.printStackTrace(System.err);
+        	if (e instanceof java.io.FileNotFoundException){
+        		System.err.println("\nFile not found: "+fileName);
+        		System.exit(-1);
+        	}
+        	else{
+	        	System.err.println("\nError when processing "+fileName);
+	            e.printStackTrace(System.err);
+        	}
         }   
         return strs;
 	}
