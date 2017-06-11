@@ -11,6 +11,7 @@ import weka.classifiers.evaluation.NominalPrediction;
 import weka.classifiers.evaluation.Prediction;
 import weka.classifiers.meta.AdaBoostM1;
 import weka.classifiers.trees.RandomForest;
+import weka.core.FastVector;
 import weka.core.Instances;
 
 public class WekaUtil {
@@ -45,12 +46,46 @@ public class WekaUtil {
         
         return validation;
     }
+    /**
+     * Calculates the area under the precision-recall curve (AUPRC).
+     * Copied from Weka 3.8: weka.classifiers.evaluation.ThresholdCurve
+     * @param tcurve a previously extracted threshold curve Instances.
+     * @return the PRC area, or Double.NaN if you don't pass in a ThresholdCurve
+     *         generated Instances.
+     */
+    public static double getPRCArea(Instances tcurve) {
+      final int n = tcurve.numInstances();
+      if (!weka.classifiers.evaluation.ThresholdCurve.RELATION_NAME.equals(tcurve.relationName()) || (n == 0)) {
+        return Double.NaN;
+      }
+
+      final int pInd = tcurve.attribute(weka.classifiers.evaluation.ThresholdCurve.PRECISION_NAME).index();
+      final int rInd = tcurve.attribute(weka.classifiers.evaluation.ThresholdCurve.RECALL_NAME).index();
+      final double[] pVals = tcurve.attributeToDoubleArray(pInd);
+      final double[] rVals = tcurve.attributeToDoubleArray(rInd);
+
+      double area = 0;
+      double xlast = rVals[n - 1];
+
+      // start from the first real p/r pair (not the artificial zero point)
+      for (int i = n - 2; i >= 0; i--) {
+        double recallDelta = rVals[i] - xlast;
+        area += (pVals[i] * recallDelta);
+
+        xlast = rVals[i];
+      }
+
+      if (area == 0) {
+        return Double.NaN;
+      }
+      return area;
+    }
     
-    public static double calculateAccuracy(ArrayList<Prediction> predictions) {
+    public static double calculateAccuracy(FastVector predictions) {
         double correct = 0;
         
         for (int i = 0; i < predictions.size(); i++) {
-            NominalPrediction np = (NominalPrediction) predictions.get(i);
+            NominalPrediction np = (NominalPrediction) predictions.elementAt(i);
             if (np.predicted() == np.actual()) {
                 correct++;
             }
@@ -99,12 +134,12 @@ public class WekaUtil {
         for(int j = 0; j < models.length; j++) {
 
             // Collect every group of predictions for current model in a FastVector
-            ArrayList<Prediction> predictions = new ArrayList<Prediction>();
+        	FastVector predictions = new FastVector();
             
             // For each training-testing split pair, train and test the classifier
             for(int i = 0; i < trainingSplits.length; i++) {
                 Evaluation validation = simpleClassify(models[j], trainingSplits[i], testingSplits[i]);
-                predictions.addAll(validation.predictions());
+                predictions.appendElements(validation.predictions());
                 
                 // Uncomment to see the summary for each training-testing pair.
                 // System.out.println(models[j].toString());

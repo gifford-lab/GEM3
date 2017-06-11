@@ -247,7 +247,7 @@ public class KsmPwmRocAnalysis {
 			String matchKSM = "ZZ";
 			if (kg!=null)
 				matchKSM = kg.getCoveredSequence();
-			double score = kg==null? 0 : scanner.kmac.getLogisticCoefficients()==null?kg.getScore():kg.getProbability();
+			double score = kg==null? 0 : scanner.kmac.getLogisticCoefficients()==null?kg.getScore():kg.getPredictedValue();
 			ksm_scores.add(score);
 			KSM_time += System.currentTimeMillis() - ksm_t;
 			
@@ -265,7 +265,7 @@ public class KsmPwmRocAnalysis {
 				String matchNKSM = "ZZ";
 				if (kgN!=null)
 					matchNKSM = kgN.getCoveredSequence();
-				double scoreN = kgN==null? 0 : scanner.kmac.getLogisticCoefficients()==null?kgN.getScore():kgN.getProbability();
+				double scoreN = kgN==null? 0 : scanner.kmac.getLogisticCoefficients()==null?kgN.getScore():kgN.getPredictedValue();
 				
 				ksmN_scores.add(scoreN);
 				

@@ -17,6 +17,8 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	int clusterId = -1;
 	int posHitGroupCount;
 	int negHitGroupCount;
+	int posHitGroupCountUnadjusted;
+	int negHitGroupCountUnadjusted;
 	String coveredSequence=null;
 	boolean isKmersSorted=false;
 	
@@ -25,10 +27,10 @@ public class KmerGroup implements Comparable<KmerGroup>{
 	public double getScore() {return kg_score;	}
 	public void setScore(double score) {this.kg_score = score;	}
 
-	/** KmerGroup probability based on logistic regression model  */
-	double probability;
-	public double getProbability() {return probability;	}
-	public void setProbability(double probability) {this.probability = probability;	}
+	/** KmerGroup PredictedValue based on logistic/linear regression model  */
+	double predictedValue;
+	public double getPredictedValue() {return predictedValue;	}
+	public void setPredictedValue(double predictedValue) {this.predictedValue = predictedValue;	}
 
 	public KmerGroup(int[] posCoveredWidth, int[] negCoveredWidth, ArrayList<Kmer> kmers, int bs, double[]weights){
 		if (kmers.isEmpty())
@@ -42,6 +44,19 @@ public class KmerGroup implements Comparable<KmerGroup>{
  			b_pos.or(km.posBits);
  			b_neg.or(km.negBits);
 		}
+		if (weights==null){
+    		posHitGroupCountUnadjusted = b_pos.cardinality();
+		}
+		else{
+    		double weight=0;
+    		for (int i = b_pos.nextSetBit(0); i >= 0; i = b_pos.nextSetBit(i+1))
+    			weight+=weights[i];
+    		posHitGroupCountUnadjusted = (int)(weight);
+		}
+		if (posHitGroupCountUnadjusted>len)
+			posHitGroupCountUnadjusted = len;
+		negHitGroupCountUnadjusted = b_neg.cardinality();
+
  		
  		// adjust hit count by requiring that the KG hit should be equal or better than the training sequence to count it
  		if (posCoveredWidth!=null){

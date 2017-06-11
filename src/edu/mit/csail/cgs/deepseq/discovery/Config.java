@@ -61,7 +61,7 @@ public class Config {
     public String seed = null;
     public int seq_weight_type = 3;	// "swt" - 0: no weighting, 1: strength weighting, 2: sqrt(strength) weighting 3: ln(strength) weighting
     public int mtree = 0;	// 0 use distance matrix; -1 report m-tree performance; other value: m-tree capacity
-    
+    public int ml = 0; // Machine learning type for KSM scoring - 0: no ML, 1: logistic classification, 2: linear regression
     /** number of top k-mers (for each k value) selected from density clustering to run KMAC */
     public int k_top = 5;
     /** kmer distance cutoff, kmers with smaller or equal distance are consider neighbors when computing local density, in density clustering */
@@ -132,7 +132,6 @@ public class Config {
 	public boolean refine_final_motifs = false;	// refine the final motifs
     /** whether to use KSM only to evaluate improvement of new cluster, default to use PWM+KSM */
     public boolean evaluate_by_ksm = false;	
-    public boolean classify = false;
     public boolean ksm_logo_text = true;
     public boolean use_pwm_binding_strength_weight = true;	// use binding event strength to weight 
     public boolean use_pos_weight = false;		// use binding position profile to weight motif site
@@ -252,7 +251,6 @@ public class Config {
         refine_final_motifs = flags.contains("refine_final_motifs");
         use_db_genome = flags.contains("use_db_genome");
         evaluate_by_ksm = flags.contains("evaluate_by_ksm");
-        classify = flags.contains("classify");
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         discard_subAlpha_components = flags.contains("no_sub_alpha");
@@ -316,7 +314,7 @@ public class Config {
         	k_max = k;	
         }
         seed = Args.parseString(args, "seed", null);
-
+        ml = Args.parseInteger(args, "ml", ml);
         mtree = Args.parseInteger(args, "mtree", mtree);
         k_top = Args.parseInteger(args, "k_top", k_top);
         gap = Args.parseInteger(args, "gap", gap);

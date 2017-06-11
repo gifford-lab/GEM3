@@ -54,11 +54,13 @@ import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.evaluation.Prediction;
 import weka.classifiers.evaluation.ThresholdCurve;
+import weka.classifiers.functions.LinearRegression;
 import weka.classifiers.functions.Logistic;
 import weka.core.Attribute;
-import weka.core.DenseInstance;
+import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.SelectedTag;
 import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.Normalize;
 import weka.filters.unsupervised.attribute.Standardize;
@@ -1023,9 +1025,9 @@ public class KMAC {
 			
 			double[] coefficients = null;
 			// train classification model using Weka
-			if (config.classify){
+			if (config.ml!=0){
 				try{
-					coefficients = trainClassifier(cluster.alignedKmers);
+					coefficients = trainML(cluster.alignedKmers, cluster.k);
 				}
 				catch (Exception e){
 	        		e.printStackTrace();
@@ -3508,52 +3510,77 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //	}
 //	
 	
-	private double[] trainClassifier(ArrayList<Kmer> kmers) throws Exception{
-		ArrayList<Attribute> atts = new ArrayList<Attribute>();
-		atts.add(new Attribute("PosHitCount"));
-		atts.add(new Attribute("NegHitCount"));
-		atts.add(new Attribute("HitWidth"));
-		atts.add(new Attribute("HitScore"));
-		ArrayList<String> labels = new ArrayList<String>();
-		labels.add("label_pos");
-		labels.add("label_neg");
-		atts.add(new Attribute("label", labels));
+	private double[] trainML(ArrayList<Kmer> kmers, int k) throws Exception{
+		int expectedCount = (int) Math.round(seqs.length*(seqs[0].length()-k+1) / Math.pow(4, k));
+		int expectedCountNeg = (int) Math.round(seqListNeg.size()*(seqs[0].length()-k+1) / Math.pow(4, k));
+		FastVector atts = new FastVector();
 		Instances data = new Instances("ksm", atts, seqList.size()*2);
-		int idxPosLabel = data.attribute("label").indexOfValue("label_pos");
-		int idxNegLabel = data.attribute("label").indexOfValue("label_neg");
+		atts.addElement(new Attribute("PosHitCount"));
+		atts.addElement(new Attribute("NegHitCount"));
+		atts.addElement(new Attribute("HitWidth"));
+		atts.addElement(new Attribute("HitScore"));
+		atts.addElement(new Attribute("PosHitCountUnadjusted"));
+		atts.addElement(new Attribute("NegHitCountUnadjusted"));
+		int idxPosLabel = 0;
+		int idxNegLabel = 0;
+		if (config.ml==1) {
+			FastVector labels = new FastVector();
+			labels.addElement("label_pos");
+			labels.addElement("label_neg");
+			atts.addElement(new Attribute("label", labels));
+			idxPosLabel = data.attribute("label").indexOfValue("label_pos");
+			idxNegLabel = data.attribute("label").indexOfValue("label_neg");
+		}
+		else if (config.ml==2) {
+			atts.addElement(new Attribute("weight"));
+		}
+		int labelIdx = atts.size()-1;
 		// positive sequences
 		BitSet bitSeqWithKmer = new BitSet();
 		for (Kmer km:kmers)
 			bitSeqWithKmer.or(km.posBits);			
 		for (int j=0;j<seqList.size();j++){
 			double[] values = new double[data.numAttributes()];
-			values[4] = idxPosLabel;
+			if (config.ml==1) {
+				values[labelIdx] = idxPosLabel;
+			}
+			else if (config.ml==2) {
+				values[labelIdx] = this.seq_weights[j];
+			}
 			Sequence s = seqList.get(j);
 			if (bitSeqWithKmer.get(s.id)){
 				KmerGroup[] kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
 				if (kgs==null){
 //					continue;
-					values[0] = 0;
-					values[1] = 0;
-					values[2] = 0;
-					values[3] = 0;
+					values[0] = expectedCount;
+					values[1] = expectedCountNeg;
+					values[2] = k/2;
+					values[3] = 1;
+					values[4] = expectedCount;
+					values[5] = expectedCountNeg;
 				}
 				else{
 					KmerGroup kg = kgs[0];
 					values[0] = kg.getGroupHitCount();
 					values[1] = kg.getGroupNegHitCount();
+//					values[0] = kg.posHitGroupCountUnadjusted;
+//					values[1] = kg.negHitGroupCountUnadjusted;
 					values[2] = kg.getCoveredWidth();
 					values[3] = kg.getScore();
+					values[4] = kg.posHitGroupCountUnadjusted;
+					values[5] = kg.negHitGroupCountUnadjusted;
 				}
 			}
 			else{
 //				continue;
-				values[0] = 0;
-				values[1] = 0;
-				values[2] = 0;
-				values[3] = 0;
+				values[0] = expectedCount;
+				values[1] = expectedCountNeg;
+				values[2] = k/2;
+				values[3] = 1;
+				values[4] = expectedCount;
+				values[5] = expectedCountNeg;
 			}
-			Instance inst = new DenseInstance(1.0, values);
+			Instance inst = new Instance(1.0, values);
 			data.add(inst);	
 		}
 
@@ -3563,45 +3590,56 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			bitSeqWithKmerNeg.or(km.negBits);			
 		for (int j=0;j<seqListNeg.size();j++){
 			double[] values = new double[data.numAttributes()];
-			values[4] = idxNegLabel;
+			if (config.ml==1) {
+				values[labelIdx] = idxNegLabel;
+			}
+			else if (config.ml==2) {
+				values[labelIdx] = 0;		// neg seq has 0 weight
+			}
 			Sequence s = seqListNeg.get(j);
 			if (bitSeqWithKmerNeg.get(s.id)){
 				KmerGroup[] kgs = findKsmGroupHits(s.seq, s.rc);				// both sequence orientation will be scanned
 				if (kgs==null){
 //					continue;
-					values[0] = 0;
-					values[1] = 0;
-					values[2] = 0;
-					values[3] = 0;
+					values[0] = expectedCount;
+					values[1] = expectedCountNeg;
+					values[2] = k/2;
+					values[3] = 1;
+					values[4] = expectedCount;
+					values[5] = expectedCountNeg;
 				}
 				else{
 					KmerGroup kg = kgs[0];
 					values[0] = kg.getGroupHitCount();
 					values[1] = kg.getGroupNegHitCount();
+//					values[0] = kg.posHitGroupCountUnadjusted;
+//					values[1] = kg.negHitGroupCountUnadjusted;
 					values[2] = kg.getCoveredWidth();
 					values[3] = kg.getScore();
+					values[4] = kg.posHitGroupCountUnadjusted;
+					values[5] = kg.negHitGroupCountUnadjusted;
 				}
 			}
 			else{
 //				continue;
-				values[0] = 0;
-				values[1] = 0;
-				values[2] = 0;
-				values[3] = 0;
+				values[0] = expectedCount;
+				values[1] = expectedCountNeg;
+				values[2] = k/2;
+				values[3] = 1;
+				values[4] = expectedCount;
+				values[5] = expectedCountNeg;
 			}
-			Instance inst = new DenseInstance(1.0, values);
+			Instance inst = new Instance(1.0, values);
 			data.add(inst);	
 		}
 		data.setClassIndex(data.numAttributes() - 1);
 		
 		//	NOTE: Do not pre-process data (normailze or standardize), b/c the probabilities don't change with the pre-processing
-//		Filter m_Filter = new Normalize(); //new Standardize(); // 
+//		Filter m_Filter = new Standardize(); // new Normalize(); //
 //        m_Filter.setInputFormat(data);
-//        data = Filter.useFilter(data, m_Filter);
-		
+//        data = Filter.useFilter(data, m_Filter);		
         
 //		System.out.println(CommonUtils.matrixToString(coefficients, 4, null));
-		
 //		for (Instance inst : data){
 //			int numAttr = inst.numAttributes();
 //			double sum = coefficients[0][0];
@@ -3611,38 +3649,49 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 //			System.out.print(String.format("%.4f ", 1/(1+Math.exp(-sum))));
 //		}
 		
+		// validation split
+		int numFolds = 10;
 		data.randomize(new Random(config.rand_seed));
-		
-        		 // validation split
-        Instances[][] split = WekaUtil.crossValidationSplit(data, 10);
-        
+		if (config.ml==1)	// stratify for classification
+			data.stratify(numFolds);
+        Instances[][] split = WekaUtil.crossValidationSplit(data, numFolds);
         // Separate split into training and testing arrays
         Instances[] trainingSplits = split[0];
         Instances[] testingSplits  = split[1];
         
         double[] ridges = new double[]{100, 1, 1e-1, 1e-2, 1e-4, 1e-8};
-        // Run for each classifier model
         double best=0;
         double bestRidge = 0;
-        
+
+        // linear regression
         for(int j = 0; j < ridges.length; j++) {
-        	Logistic logi = new Logistic();
-        	logi.setRidge(ridges[j]);
-        	ArrayList<Prediction> predictions = new ArrayList<Prediction>();
+        	Classifier model = null;
+        	if (config.ml==1){
+        		model = new Logistic();
+        		((Logistic) model).setRidge(ridges[j]);
+        	}
+        	else if (config.ml==2){
+        		model = new LinearRegression();
+//        		((LinearRegression) model).setEliminateColinearAttributes(false);
+//        		((LinearRegression) model).setAttributeSelectionMethod(new SelectedTag(LinearRegression.SELECTION_NONE, LinearRegression.TAGS_SELECTION));
+        		((LinearRegression) model).setRidge(ridges[j]);
+        	}
             // For each training-testing split pair, train and test the classifier
         	double accuracy = 0;
             for(int i = 0; i < trainingSplits.length; i++) {
-            	Evaluation eval = WekaUtil.simpleClassify(logi, trainingSplits[i], testingSplits[i]);
-                ThresholdCurve tc = new ThresholdCurve();
-                Instances curve = tc.getCurve(eval.predictions(), idxPosLabel);
-                double auc = ThresholdCurve.getPRCArea(curve);
-//                System.out.print(String.format("%.4f ", auc));
-                accuracy += auc;
-                predictions.addAll(eval.predictions());
+            	Evaluation eval = WekaUtil.simpleClassify(model, trainingSplits[i], testingSplits[i]);
+            	if (config.ml==1){
+            		ThresholdCurve tc = new ThresholdCurve();
+            		Instances curve = tc.getCurve(eval.predictions(), idxPosLabel);
+//            		double auc = ThresholdCurve.getROCArea(curve);
+            		double auc = WekaUtil.getPRCArea(curve);
+            		accuracy += auc;
+            	}
+            	else if (config.ml==2){
+                    accuracy += eval.correlationCoefficient();
+            	}
+
             }
-//            System.out.println();
-            
-            // Calculate overall accuracy of current classifier on all splits
 //            double accuracy = WekaUtil.calculateAccuracy(predictions);
             double auc = accuracy/trainingSplits.length;
             if (auc>best){
@@ -3650,20 +3699,36 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
             	bestRidge = ridges[j];
             }
 //            if (config.verbose>1)
-            	System.out.println(String.format("Logistic ridge=%.2g:\t%.4f", ridges[j], auc));
+            	System.out.println(String.format("ridge=%.2g:\t%.8f", ridges[j], auc));
         }
 //        if (config.verbose>1)
-        	System.out.println(String.format("\nBest ridge=%.2g: %.4f\n=====================\n", bestRidge, best));
+        	System.out.println(String.format("\nBest ridge=%.2g: %.8f\n=====================\n", bestRidge, best));
 
-		Logistic logi = new Logistic();
-		logi.setRidge(bestRidge);
-		logi.buildClassifier(data);
-		double[][] coefficients = logi.coefficients();
-		double[] results = new double[data.numAttributes()];
-		for (int j=0;j<results.length;j++)
-			results[j] = coefficients[j][0];	// binary classification, only 1 dim of coeffs
-        return results;
-
+        if (config.ml==1){
+    		Logistic logi = new Logistic();
+    		logi.setRidge(bestRidge);
+    		logi.buildClassifier(data);
+    		System.out.println(logi.toString());
+    		double[][] coefficients = logi.coefficients();
+    		double[] results = new double[data.numAttributes()+1];
+    		results[results.length-1] = config.ml;
+    		for (int j=0;j<results.length-1;j++)
+    			results[j] = coefficients[j][0];	// binary classification, only 1 dim of coeffs
+            return results;
+        }
+        else if (config.ml==2){
+	        LinearRegression lr = new LinearRegression();
+			lr.setRidge(bestRidge);
+			lr.buildClassifier(data);
+			System.out.println(lr.toString());
+			double[] results = new double[lr.coefficients().length+1];
+    		results[results.length-1] = config.ml;
+			for (int j=0;j<results.length-1;j++)
+    			results[j] = lr.coefficients()[j];
+	        return results;
+        }
+        return new double[1];
+        
 //        // Choose a set of classifiers
 //        Classifier[] models = {     new Logistic(),
 //        							new J48(),
@@ -5370,14 +5435,29 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 	}
 
 	/**
-	 * Compute matched site (KmerGroup) significance score [ OR or -log10(hgp) ] based on config.use_odds_ratio <br>More significant, higher score
+	 * Compute ML model predicted value for given KG <br>More significant, higher score
 	 */	
-	public double computeLogisticProbability(double posHitCount, double negHitCount, int siteWidth, double score){
-		return 1/(1 + Math.exp( - (coefficients[0] +
-				coefficients[1]*posHitCount +
-				coefficients[2]*negHitCount +
-				coefficients[3]*siteWidth +
-				coefficients[4]*score)));
+	public double mlPredict(double posHitCount, double negHitCount, int siteWidth, double score, double posHitCountUnadjusted, double negHitCountUnadjusted){
+		// Note: different order of coefficients for Linear vs Logistic
+		if (coefficients[coefficients.length-1]==1){
+			double sum = coefficients[0] +
+					coefficients[1]*posHitCount +
+					coefficients[2]*negHitCount +
+					coefficients[3]*siteWidth +
+					coefficients[4]*score +
+					coefficients[5]*posHitCount +
+					coefficients[6]*negHitCount;
+			return 1/(1 + Math.exp( - sum));
+		}
+		else{	
+			return coefficients[7] +
+					coefficients[0]*posHitCount +
+					coefficients[1]*negHitCount +
+					coefficients[2]*siteWidth +
+					coefficients[3]*score +
+					coefficients[4]*posHitCount +
+					coefficients[5]*negHitCount;
+		}
 	}
 
 	/**
@@ -6002,7 +6082,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			if (coefficients!=null)
-				kg.setProbability(computeLogisticProbability(kg.getGroupHitCount(), kg.getGroupNegHitCount(), kg.getCoveredWidth(), kg.getScore()));
+				kg.setPredictedValue(mlPredict(kg.getGroupHitCount(), kg.getGroupNegHitCount(), kg.getCoveredWidth(), kg.getScore(), kg.posHitGroupCountUnadjusted, kg.negHitGroupCountUnadjusted));
 			idx++;
 		}
 		return matches;
@@ -6096,7 +6176,7 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			matches[idx]=kg;
 			kg.setScore(computeSiteSignificanceScore(kg.getGroupHitCount(), kg.getGroupNegHitCount()));
 			if (coefficients!=null)
-				kg.setProbability(computeLogisticProbability(kg.getGroupHitCount(), kg.getGroupNegHitCount(), kg.getCoveredWidth(), kg.getScore()));
+				kg.setPredictedValue(mlPredict(kg.getGroupHitCount(), kg.getGroupNegHitCount(), kg.getCoveredWidth(), kg.getScore(), kg.posHitGroupCountUnadjusted, kg.negHitGroupCountUnadjusted));
 			idx++;
 		}
 		
