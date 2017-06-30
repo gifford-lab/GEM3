@@ -135,6 +135,7 @@ public class TFBS_SpaitialAnalysis {
 			break;
 		case 1000:	// default: simplified file loading for RPD public code
 			analysis.outputMotifSites();
+			analysis.printSpacingHistrograms();
 			break;
 		case 0:
 			analysis.loadBindingEvents_old();
@@ -722,7 +723,7 @@ public class TFBS_SpaitialAnalysis {
 			kmers.addAll( CommonUtils.readTextFile(kmer_file));
 		}
 		
-		System.out.println(String.format("In total, loaded %d GEM/other peak files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
+		System.out.println(String.format("In total, loaded %d GEM/other peak files, %d kmers and %d PWMs.\n", all_sites.size(), kmers.size(), pwms.size()));
 		
 		StringBuilder sb = new StringBuilder();
 		int digits = (int) Math.ceil(Math.log10(expts.size()));
@@ -741,7 +742,8 @@ public class TFBS_SpaitialAnalysis {
 				sb.append(String.format("K%0"+digits+"d\t%s\t%s\t%s\n", i, kmers.get(i),kmers.get(i),kmers.get(i)));
 			}
 		}
-		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+"_keys.txt", sb.toString());
+		cluster_key_file = "0_BS_Motif_clusters."+outPrefix+"_keys.txt";
+		CommonUtils.writeFile(cluster_key_file, sb.toString());
 	}
 	/**
 	 * Data structure for a binding site (with absolute genome coordinate and strand)
@@ -911,7 +913,7 @@ public class TFBS_SpaitialAnalysis {
 			kmers.addAll( CommonUtils.readTextFile(kmer_file));
 		}
 		
-		System.out.println(String.format("In total, loaded %d GEM/other peak files, %d kmers and %d PWMs.", all_sites.size(), kmers.size(), pwms.size()));
+		System.out.println(String.format("In total, loaded %d GEM/other peak files, %d kmers and %d PWMs.\n", all_sites.size(), kmers.size(), pwms.size()));
 		
 		StringBuilder sb = new StringBuilder();
 		int digits = (int) Math.ceil(Math.log10(expts.size()));
@@ -930,8 +932,9 @@ public class TFBS_SpaitialAnalysis {
 				sb.append(String.format("K%0"+digits+"d\t%s\t%s\t%s\n", i, kmers.get(i),kmers.get(i),kmers.get(i)));
 			}
 		}
-		CommonUtils.writeFile("0_Site_clusters."+outPrefix+".keys.txt", sb.toString());
-		
+		cluster_key_file = outPrefix+".site_clusters_keys.txt";
+		CommonUtils.writeFile(cluster_key_file, sb.toString());
+
 		String fasta = Args.parseString(args, "fasta", null);
 		ArrayList<String> seqs = CommonUtils.loadSeqFromFasta(fasta);
 		outputMotifSites(seqs);
@@ -1023,8 +1026,9 @@ public class TFBS_SpaitialAnalysis {
 			}
 			sb.append("\n");
 		}
+		cluster_file = outPrefix+".site_clusters.txt";
 
-		CommonUtils.writeFile("0_Site_clusters."+outPrefix+".txt", sb.toString());
+		CommonUtils.writeFile(cluster_file, sb.toString());
 	}
 
 	/** 
@@ -1397,8 +1401,8 @@ public class TFBS_SpaitialAnalysis {
 			}
 			sb.append("\n");
 		}
-
-		CommonUtils.writeFile("0_BS_Motif_clusters."+outPrefix+".d"+distance+".min"+min_site+".txt", sb.toString());
+		cluster_file = "0_BS_Motif_clusters."+outPrefix+".d"+distance+".min"+min_site+".txt";
+		CommonUtils.writeFile(cluster_file, sb.toString());
 	}
 	
 	/**
@@ -1631,13 +1635,13 @@ public class TFBS_SpaitialAnalysis {
 			CommonUtils.replaceEnd(sb_overlap, '\n');	
 			CommonUtils.replaceEnd(sb_overlap_fraction, '\n');
 			
-			CommonUtils.writeFile(outPrefix+"_"+ancStr+"_profiles.txt", sb_profiles.toString());
+			CommonUtils.writeFile(outPrefix+"."+ancStr+"_profiles.txt", sb_profiles.toString());
 		}
 		sb_overlap.append("\n").append(sb_overlap_fraction.toString());
 		sb_overlap.append(sb_count.toString()).append("\n").append(sb_offset.toString());
 		System.out.println(sb_overlap.toString());
-		CommonUtils.writeFile(outPrefix+"_spacing_tables.txt", sb_overlap.toString());
-		CommonUtils.writeFile(outPrefix+"_spacing_lists.txt", sb_strong_spacings.toString());
+		CommonUtils.writeFile(outPrefix+".spacing_tables.txt", sb_overlap.toString());
+		CommonUtils.writeFile(outPrefix+".spacing_lists.txt", sb_strong_spacings.toString());
 	}
 	
 	private ProfileStats getProfileStats(int[] profile, boolean self){
@@ -1698,6 +1702,8 @@ public class TFBS_SpaitialAnalysis {
 			String[] f = l.split("\t");
 			Region r = Region.fromString(genome, f[0]);
 			bmc.cluster_id = Integer.parseInt(f[2]);
+			if (f[7].isEmpty())
+				continue;
 			String[] positions = f[7].split(" ");
 			bmc.anchoredSequence = f[8];
 			bmc.anchor = new Point(r.getGenome(), r.getChrom(), r.getStart());
@@ -1796,18 +1802,17 @@ public class TFBS_SpaitialAnalysis {
 					case 'u':
 						count = pf.profile_unknown[p.cdr()];
 					}
-					if (count>bestCount){
+					int offset = getProfileIndex(as, ts).cdr()-profile_range;
+					if (count>bestCount && offset>=minOffset && offset<=maxOffset){
 						bestCount = count;
 						bestAnchor = as;
-						bestOffset = getProfileIndex(as, ts).cdr()-profile_range;
-						if (bestOffset>=minOffset && bestOffset<=maxOffset){
-							if (sortbySites.isEmpty())
-								bestSort = 999;			// if the sorting TF is not found in this region, move the region to the end
-							else{
-								Pair<Character, Integer> sort_idx = getProfileIndex(as, sortbySites.get(0)); // just pick one if having 1+ sorting site
-								if (sort_idx!=null)
-									bestSort = sort_idx.cdr()-profile_range;
-							}
+						bestOffset = offset;
+						if (sortbySites.isEmpty())
+							bestSort = 999;			// if the sorting TF is not found in this region, move the region to the end
+						else{
+							Pair<Character, Integer> sort_idx = getProfileIndex(as, sortbySites.get(0)); // just pick one if having 1+ sorting site
+							if (sort_idx!=null)
+								bestSort = sort_idx.cdr()-profile_range;
 						}
 					}					
 				}
