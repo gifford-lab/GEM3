@@ -95,16 +95,20 @@ public class MotifScan {
 		    System.out.println(sb_header.toString());
    
 		    if (toMakeMatrix){	// make a score matrix (seqs x motifs)
-		    	double[][] matrix = getPwmScoreMatrix(seqs, pwms);
+		    	double[][] matrix = makePwmScoreMatrix(seqs, pwms);
 		    	StringBuilder msb = new StringBuilder();
 		    	msb.append("Seq").append("\t");
 		    	for (int i=0; i<pwms.size(); i++)
 		    		msb.append(pwms.get(i).name).append("\t");
 		    	CommonUtils.replaceEnd(msb, '\n');
 		    	for (int j=0; j<seqs.length; j++){
-		    		msb.append(names[j]).append("\t");
-			    	for (int i=0; i<pwms.size(); i++)
-			    		msb.append(String.format("%.4f\t", matrix[j][i]));
+//		    		msb.append(names[j]).append("\t");
+			    	for (int i=0; i<pwms.size(); i++){
+			    		if (matrix[j][i]<motifThresholds.get(i) && scoreRatio>=0)		// cutoff
+			    			msb.append(0).append("\t");
+			    		else
+			    			msb.append(String.format("%.4f\t", matrix[j][i]));
+			    	}
 			    	CommonUtils.replaceEnd(msb, '\n');
 		    	}
 		    	CommonUtils.writeFile(out.concat(".scoreMatrix.txt"), msb.toString());
@@ -393,7 +397,8 @@ public class MotifScan {
 		return instances;
 	}
 	
-	public static double[][] getPwmScoreMatrix(String[] seqs, List<WeightMatrix> pwms){
+	public static double[][] makePwmScoreMatrix(String[] seqs, List<WeightMatrix> pwms){
+		System.out.println("Making PWM motif score matrix ...");
 		double[][] matrix = new double[seqs.length][pwms.size()];
 		for (int i=0;i<seqs.length;i++){
 			for (int j=0; j<pwms.size();j++)
