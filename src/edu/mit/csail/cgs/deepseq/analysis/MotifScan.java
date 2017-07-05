@@ -94,7 +94,7 @@ public class MotifScan {
 		    sb_header.append("#");
 		    System.out.println(sb_header.toString());
    
-		    if (toMakeMatrix){
+		    if (toMakeMatrix){	// make a score matrix (seqs x motifs)
 		    	double[][] matrix = getPwmScoreMatrix(seqs, pwms);
 		    	StringBuilder msb = new StringBuilder();
 		    	msb.append("Seq").append("\t");
@@ -135,11 +135,12 @@ public class MotifScan {
 				String f[]=ksm_string.split(",");
 				knames.add(f[0].trim());
 				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
-				instances = scanKSM_multi(seqs, kmacs, knames);
+				instances = scan_multiKSMs(seqs, kmacs, knames);
 			}
 			else{		// it is KSM list file path
 				ArrayList<String> lines = CommonUtils.readTextFile(ksm_string);
-				if (lines.size()>500){
+				if (lines.size()>500 && !toMakeMatrix){
+					// scan each KSM one by one, avoid loading all KSMs (using too much memory)
 					instances = new ArrayList<MotifInstance>();
 					int n = 0;
 					for (String l:lines){
@@ -148,7 +149,7 @@ public class MotifScan {
 						String[] f = l.split("\t");
 						String kname = f[0].trim();
 						KMAC kmac = CommonUtils.loadKsmFile(f[1].trim(), config);
-						instances.addAll(scanKSM(seqs, kmac, kname, n));
+						instances.addAll(scan_singleKSM(seqs, kmac, kname, n));
 					}
 				}
 				else{ 
@@ -159,7 +160,11 @@ public class MotifScan {
 						knames.add(f[0].trim());
 						kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
 					}
-					instances = scanKSM_multi(seqs, kmacs, knames);
+				    if (toMakeMatrix){
+				    	CommonUtils.writeFile(out.concat(".scoreMatrix.txt"), makeScoreMatrix_multiKSMs(seqs, kmacs, knames));
+				    	System.exit(0);
+				    }
+					instances = scan_multiKSMs(seqs, kmacs, knames);
 				}
 			}
 			
@@ -271,7 +276,7 @@ public class MotifScan {
 	 * @param knames
 	 * @return
 	 */
-	public static ArrayList<MotifInstance> scanKSM_multi(String[] seqs, ArrayList<KMAC> kmacs, ArrayList<String> knames) {
+	public static ArrayList<MotifInstance> scan_multiKSMs(String[] seqs, ArrayList<KMAC> kmacs, ArrayList<String> knames) {
 		System.out.println("Scanning KSM motifs ...");
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
 	    String[] seqs_rc = new String[seqs.length];
@@ -315,8 +320,39 @@ public class MotifScan {
 	    }
 		return instances;
 	}
+
+	/**
+	 * Return a matrix of all KSM motif scores from all sequences for all KSMs <br>
+	 * Max score is used if a KSM has multiple matches 
+	 * @param seqs
+	 * @param kmacs
+	 * @param knames
+	 * @return
+	 */
+	public static String makeScoreMatrix_multiKSMs(String[] seqs, ArrayList<KMAC> kmacs, ArrayList<String> knames) {
+		System.out.println("Making KSM motif score matrix ...");
+	    StringBuilder sb = new StringBuilder();
+	    for (int m=0; m<kmacs.size(); m++){
+	    	sb.append(knames.get(m)).append("\t");
+	    }
+	    CommonUtils.replaceEnd(sb, '\n');
+	    
+	    for (int s=0; s<seqs.length;s++){
+	    	String seqs_rc = SequenceUtil.reverseComplement(seqs[s]);
+		    for (int m=0; m<kmacs.size(); m++){
+	    		KmerGroup[] kgs = kmacs.get(m).findKsmGroupHits(seqs[s], seqs_rc);
+	    		if (kgs==null)
+	    			sb.append(0).append("\t");
+	    		else
+	    			sb.append(String.format("%.4f\t", kgs[0].getScore()));
+	    	}
+		    CommonUtils.replaceEnd(sb, '\n');
+	    }
+		return sb.toString();
+	}
+	
 	// scan single KSM
-	public static ArrayList<MotifInstance> scanKSM(String[] seqs, KMAC kmac, String kname, int motifId) {
+	public static ArrayList<MotifInstance> scan_singleKSM(String[] seqs, KMAC kmac, String kname, int motifId) {
 		System.out.println("Scanning KSM motifs ...");
 	    ArrayList<MotifInstance> instances = new ArrayList<MotifInstance>();
 	    String[] seqs_rc = new String[seqs.length];

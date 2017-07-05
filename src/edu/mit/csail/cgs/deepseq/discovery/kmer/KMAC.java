@@ -3190,8 +3190,15 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		html.append("<b>Motif Discovery</b>:<p>");
 		html.append(String.format("<p>Total number of sequences: %d+/%d-", posSeqCount, negSeqCount));
 		html.append("<br><ul><li>KSM files:");
-		for (MotifCluster c:clusters)
-			html.append(" <a href='"+name+".m"+c.clusterId+".KSM.txt'>m"+c.clusterId+"</a>");
+		StringBuilder sbList = new StringBuilder();
+		for (MotifCluster c:clusters){
+			String ksmName = name+".m"+c.clusterId;
+			String ksmFileName = ksmName+".KSM.txt";
+			html.append(" <a href='"+ksmFileName+"'>m"+c.clusterId+"</a>");
+			sbList.append(ksmName).append("\t").append(new File(ksmFileName.replace(name, outName)).getAbsolutePath()).append("\n");
+		}
+		CommonUtils.writeFile(outName+".ksm_list.txt", sbList.toString());
+		
 		html.append("<li><a href='"+name+".KSM_Alignements.txt'>KSM alignment file</a>");
 		html.append("<li><a href='"+name+".all.PFM.txt'>All motif PFMs</a></ul></td></tr>");
 		html.append("<table></center>\n");
