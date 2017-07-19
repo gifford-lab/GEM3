@@ -330,6 +330,8 @@ public class RegionAnnotator {
 		for (Point p:coords){			
 			String chr = p.getChrom();
 			ArrayList<StrandedPoint> tsss_in_chr = chr2tsss.get(chr);
+			if (tsss_in_chr==null)
+				continue;
 			int idx_tss = Collections.binarySearch(tsss_in_chr, p);
 			Point nearestTSS = null;
 			if (idx_tss<0){
@@ -363,6 +365,11 @@ public class RegionAnnotator {
 				Region tad = null;
 				if (idx<0){
 					idx = -(idx+1) -1;  // insert point - 1 ==> Previous object
+					if (idx==-1){	// point p coordinate is less than first region in the tadsChr list
+						for (String g:tss2genes.get(nearestTSS))
+							sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+-9+"\n");
+						continue;
+					}
 					tad = tadsChr.get(idx);
 					if (!tad.contains(p)){
 //						System.err.println(String.format("Point %s is not within any TAD!", p.toString()));
