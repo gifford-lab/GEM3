@@ -351,11 +351,16 @@ public class RegionAnnotator {
 			
 			// if with TAD constraint
 			if (tad_file!=null){
-				int idx = Collections.binarySearch(chr2tads.get(chr), p.expand(0));
+				ArrayList<Region> tadsChr = null;
+				if (chr2tads.containsKey(chr))
+					tadsChr = chr2tads.get(chr);
+				else
+					tadsChr = chr2tads.get(chr2tads.keySet().iterator().next());	// just get any one chrom, not found anyway
+				int idx = Collections.binarySearch(tadsChr, p.expand(0));
 				Region tad = null;
 				if (idx<0){
 					idx = -(idx+1) -1;  // insert point - 1 ==> Previous object
-					tad = chr2tads.get(chr).get(idx);
+					tad = tadsChr.get(idx);
 					if (!tad.contains(p)){
 //						System.err.println(String.format("Point %s is not within any TAD!", p.toString()));
 						for (String g:tss2genes.get(nearestTSS))
