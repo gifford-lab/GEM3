@@ -354,8 +354,11 @@ public class RegionAnnotator {
 				ArrayList<Region> tadsChr = null;
 				if (chr2tads.containsKey(chr))
 					tadsChr = chr2tads.get(chr);
-				else
-					tadsChr = chr2tads.get(chr2tads.keySet().iterator().next());	// just get any one chrom, not found anyway
+				else{
+					for (String g:tss2genes.get(nearestTSS))
+						sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+-9+"\n");
+					continue;
+				}
 				int idx = Collections.binarySearch(tadsChr, p.expand(0));
 				Region tad = null;
 				if (idx<0){
