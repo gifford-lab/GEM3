@@ -48,8 +48,7 @@ public class MotifScan {
 
 		String fasta = Args.parseString(args, "fasta", null);
 	    String out = Args.parseString(args, "out", fasta.replace(".fasta", "").replace(".fa", ""));
-		if (fasta==null)
-			return;
+
 	    ArrayList<String> texts = CommonUtils.readTextFile(fasta.trim());
 	    int lineNum = texts.size();
 	    String[] seqs = new String[lineNum/2];

@@ -181,10 +181,10 @@ public class GEM {
         String prefix = new File(filePrefix).getName();
         File currentFolder = null;
         String path = null;
+        
         /**
          ** Simple GPS event finding without sequence information
          **/
-        
  	    int round = 0;
  	    if (kf==null && !not_update_model){
 	 	    mixture.setOutName(filePrefix+"_"+round);
