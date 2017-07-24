@@ -1418,13 +1418,29 @@ public class CommonUtils {
 		int i = Collections.binarySearch(sites, start);
 		if (i<0)
 			startIndex=-i-1;		// -index-1, the insertion point
-		else
-			startIndex = i;
+		else{	// if matched, there could be multiple matches, search upstream to include all
+			for (int j=i; j>=0; j--){
+				if (sites.get(j).distance(start)==0){
+					startIndex = j;
+					continue;
+				}
+				else
+					break;
+			}
+		}
 		i = Collections.binarySearch(sites, end);
 		if (i<0)
 			endIndex=-i-2;			// -index-1-1, the point before the insertion point
-		else
-			endIndex = i;
+		else{
+			for (int j=i; j<sites.size();j++){
+				if (sites.get(j).distance(end)==0){
+					endIndex = j;
+					continue;
+				}
+				else
+					break;
+			}
+		}
 		if (startIndex<=endIndex){
 			for (int j=startIndex;j<=endIndex;j++){
 				results.add(j);
