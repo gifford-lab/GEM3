@@ -1420,7 +1420,7 @@ public class CommonUtils {
 			startIndex=-i-1;		// -index-1, the insertion point
 		else{	// if matched, there could be multiple matches, search upstream to include all
 			for (int j=i; j>=0; j--){
-				if (sites.get(j).distance(start)==0){
+				if (sites.get(j).compareTo(start)==0){
 					startIndex = j;
 					continue;
 				}
@@ -1433,7 +1433,7 @@ public class CommonUtils {
 			endIndex=-i-2;			// -index-1-1, the point before the insertion point
 		else{
 			for (int j=i; j<sites.size();j++){
-				if (sites.get(j).distance(end)==0){
+				if (sites.get(j).compareTo(end)==0){
 					endIndex = j;
 					continue;
 				}

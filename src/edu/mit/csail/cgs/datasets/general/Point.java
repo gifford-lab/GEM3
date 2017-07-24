@@ -140,7 +140,7 @@ public class Point implements Comparable<Point> {
    */
   public int distance(Point p) {
     if (!chrom.equals(p.getChrom())) {
-      throw new IllegalArgumentException(p.getChrom());
+      throw new IllegalArgumentException("chr "+ p.getChrom() +" != " + chrom);
     }
     return Math.abs(location - p.getLocation());
   }
@@ -151,7 +151,7 @@ public class Point implements Comparable<Point> {
    */
   public int offset(Point p) {
     if (!chrom.equals(p.getChrom())) {
-      throw new IllegalArgumentException(p.getChrom());
+      throw new IllegalArgumentException("chr "+ p.getChrom() +" != " + chrom);
     }
 
     return location - p.getLocation();
