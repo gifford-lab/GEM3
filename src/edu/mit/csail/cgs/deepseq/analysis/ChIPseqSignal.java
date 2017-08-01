@@ -57,17 +57,17 @@ public class ChIPseqSignal {
 			System.out.println("Need --coords: the coordinates for getting ChIP-seq occupancy signals.");
 			System.exit(-1);
 		}
-		ArrayList<Point> all_regions = new ArrayList<Point>();
+		ArrayList<Point> all_coords = new ArrayList<Point>();
 		text = CommonUtils.readTextFile(regionFile);
 		for (String t: text){
 			String[] f = t.split("\t");
 			if (f[0].contains("#") || f[0].contains("Position"))
 				continue;
-			all_regions.add(Point.fromString(genome, f[0]));
+			all_coords.add(Point.fromString(genome, f[0]));
 		}
-		all_regions.trimToSize();
+		all_coords.trimToSize();
 
-		int[][]signals = new int[all_regions.size()][expts.size()];
+		int[][]signals = new int[all_coords.size()][expts.size()];
 		for (int i=0;i<expts.size();i++){
 			if (isReadDB.get(i)){		// readdb
 				String readdb_name = data_locations.get(i);
@@ -129,8 +129,8 @@ public class ChIPseqSignal {
 				System.out.println(CommonUtils.timeElapsed(tic));
 	            
 				// now get the data from the cache
-	            for (int j=0;j<all_regions.size();j++){
-	            	Region region = all_regions.get(j).expand(rr);
+	            for (int j=0;j<all_coords.size();j++){
+	            	Region region = all_coords.get(j).expand(rr);
 	            	List<StrandedBase> bases = ipCache.getStrandedBases(region, '+');
 	            	bases.addAll(ipCache.getStrandedBases(region, '-'));
 	            	signals[j][i] = (int)StrandedBase.countBaseHits(bases);
@@ -142,8 +142,8 @@ public class ChIPseqSignal {
 				DeepSeqExpt ip = new DeepSeqExpt(genome, files, true, "SAM", -1);
 				int rr = radius.get(i);
 				// now get the data from the BAM file
-	            for (int j=0;j<all_regions.size();j++){
-	            	Region region = all_regions.get(j).expand(rr);
+	            for (int j=0;j<all_coords.size();j++){
+	            	Region region = all_coords.get(j).expand(rr);
 	            	signals[j][i] = ip.countHits(region);
 	            }
 	            ip.closeLoaders();
@@ -154,8 +154,8 @@ public class ChIPseqSignal {
 			sb.append(expts.get(i)).append("\t");
 		}
 		CommonUtils.replaceEnd(sb, '\n');
-		for (int j=0;j<all_regions.size();j++){
-			sb.append(all_regions.get(j).toString()).append("\t");
+		for (int j=0;j<all_coords.size();j++){
+			sb.append(all_coords.get(j).toString()).append("\t");
 			for (int i=0;i<expts.size();i++){
 				sb.append(signals[j][i]).append("\t");
 			}

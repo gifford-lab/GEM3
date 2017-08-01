@@ -654,7 +654,7 @@ public class CCC_Analysis {
 		for (Cluster c: all_clusters){
 			
 			Point anchor = c.region.getMidpoint();
-			ArrayList<Point> targets = CommonUtils.getPointsWithinWindow(all_TSS, anchor, tss_radias);
+			ArrayList<Integer> targets = CommonUtils.getPointsIdxWithinWindow(all_TSS, anchor.expand(tss_radias));
 			ArrayList<Site_target_corr> list = new ArrayList<Site_target_corr>();
 			
 			// get unique TF IDs for consideration
@@ -685,8 +685,9 @@ public class CCC_Analysis {
 			System.out.println("=================================\nchr"+c.region.toString());
 			System.out.println(sb1.toString());
 			
-			for (Point p:targets){				
+			for (int idx:targets){				
 				// get corresponding signals at the target sites
+				Point p = all_TSS.get(idx);
 				List<Double> target_signals = new ArrayList<Double>();
 				for (int i=0;i<TFIDs.length;i++){
 					target_signals.add(i, (double)chipseqs.get(TFIDs[i]).countHits(p.expand(TARGET_WIDTH)));

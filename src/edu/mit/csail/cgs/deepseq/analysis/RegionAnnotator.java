@@ -202,7 +202,7 @@ public class RegionAnnotator {
 			ArrayList<Region> toRemove = new ArrayList<Region>();
 			for (int i=0;i<queryRegions.size();i++){
 				Region r = queryRegions.get(i);
-				ArrayList<Integer> ids = CommonUtils.getPointsWithinWindow(sites,r);
+				ArrayList<Integer> ids = CommonUtils.getPointsIdxWithinWindow(sites,r);
 				if (ids.isEmpty()){
 					if(discardRegion){
 						toRemove.add(r);

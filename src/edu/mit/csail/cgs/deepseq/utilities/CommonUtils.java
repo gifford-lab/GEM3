@@ -1379,37 +1379,21 @@ public class CommonUtils {
 	 */
 	static public ArrayList<Point> getPointsWithinWindow(List<Point> sites, Point anchor, int radius){
 		ArrayList<Point> results = new ArrayList<Point>();
-		Region r = anchor.expand(radius);
-		Point start = r.startPoint();
-		Point end = r.endPoint();
-		int startIndex = -1;
-		int endIndex = -1;
-		int i = Collections.binarySearch(sites, start);
-		if (i<0)
-			startIndex=-i-1;		// -index-1, the insertion point
-		else
-			startIndex = i;
-		i = Collections.binarySearch(sites, end);
-		if (i<0)
-			endIndex=-i-2;			// -index-1-1, the point before the insertion point
-		else
-			endIndex = i;
-		if (startIndex<=endIndex){
-			for (int j=startIndex;j<=endIndex;j++){
-				results.add(sites.get(j));
-			}
+		ArrayList<Integer> idxs = getPointsIdxWithinWindow(sites, anchor.expand(radius));
+		for (int j:idxs){
+			results.add(sites.get(j));
 		}
 		return results;
 	}
 	
 	/**
 	 * Get a list of points that are within the region<br>
-	 * Assuming the point list is sorted
+	 * Assuming the point list is sorted, the points may have duplicates
 	 * @param sites	a list of sorted points
 	 * @param region the window
 	 * @return a list of index of the points in the region
 	 */
-	static public ArrayList<Integer> getPointsWithinWindow(List<Point> sites, Region r){
+	static public ArrayList<Integer> getPointsIdxWithinWindow(List<Point> sites, Region r){
 		ArrayList<Integer> results = new ArrayList<Integer>();
 		Point start = r.startPoint();
 		Point end = r.endPoint();
