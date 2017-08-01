@@ -27,6 +27,8 @@ public class CID {
 	Genome genome;
 	Set<String> flags;
 	String[] args;
+	boolean isDev;
+	
 	int min_span = 4000;		// min PET span to exclude self-ligation reads
 	int dc = 500;				// distance_cutoff for density clustering
 	int read_1d_merge_dist = 2000;
@@ -38,6 +40,7 @@ public class CID {
 	double overlap_ratio = 0.8;
 	int min = 2; // minimum number of PET count to be called an interaction
 	int numQuantile = 100;
+	int micc_min_pet = 2;
 
 	TreeMap<Region, InteractionCall> r2it = new TreeMap<Region, InteractionCall>();
 	String fileName = null;
@@ -46,7 +49,8 @@ public class CID {
 		genome = CommonUtils.parseGenome(args);
 		flags = Args.parseFlags(args);
 		this.args = args;
-
+		isDev = flags.contains("dev");
+		
 		dc = Args.parseInteger(args, "dc", dc);
 		read_1d_merge_dist = Args.parseInteger(args, "read_merge_dist", read_1d_merge_dist);
 		tss_merge_dist = Args.parseInteger(args, "tss_merge_dist", tss_merge_dist);
@@ -57,7 +61,7 @@ public class CID {
 		overlap_ratio = Args.parseDouble(args, "overlap_ratio", overlap_ratio);
 		numQuantile = Args.parseInteger(args, "num_span_quantile", 100);
 		min_span = Args.parseInteger(args, "min_span", 4000);
-		
+		micc_min_pet = Args.parseInteger(args, "micc", micc_min_pet);
 	}
 
 	public static void main(String args[]) {
@@ -1056,7 +1060,7 @@ public class CID {
 				for (int i=0;i<bin2;i++)			// init to 0
 					for (int j=0;j<bin1;j++)	
 						map[i][j] = 0;
-				ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, region1);
+				ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region1);
 				for (int id : idx) {
 					ReadPair rp = low.get(id);
 					if (region2.contains(rp.r2)){
@@ -1105,17 +1109,17 @@ public class CID {
 					region1 = new Region(genome, region1.getChrom(), region1.getStart(), region2.getEnd());
 					region2 = region1;
 				}
-				ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, region1);
+				ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region1);
 				for (int id : idx) {
 					ReadPair rp = low.get(id);
 					if (region2.contains(rp.r2)){
 						low2.add(rp);
 					}
 				}
-				ArrayList<Integer> idx2 = CommonUtils.getPointsWithinWindow(reads, region1);
+				ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(reads, region1);
 				for (int id : idx2) 
 					reads2.add(reads.get(id));
-				idx2 = CommonUtils.getPointsWithinWindow(reads, region2);
+				idx2 = CommonUtils.getPointsIdxWithinWindow(reads, region2);
 				for (int id : idx2) 
 					reads2.add(reads.get(id));
 			}
@@ -1303,7 +1307,7 @@ public class CID {
 			Region region = rs0.get(j);
 
 			// get the PETs with read1 in the region, sort and merge by read2
-			ArrayList<Integer> idx = CommonUtils.getPointsWithinWindow(lowEnds, region);
+			ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region);
 			if (idx.size() > 1) {
 				ArrayList<ReadPair> rps = new ArrayList<ReadPair>();
 				for (int i : idx) {
@@ -1412,7 +1416,7 @@ public class CID {
 					Region rightRegion = new Region(region.getGenome(), region.getChrom(), cc.r2min, cc.r2max);
 //					System.out.print(String.format("\t%s - %d - %s :%d\n", leftRegion, 
 //							(cc.r2min + cc.r2max - cc.r1min - cc.r1max)/2, rightRegion, cc.pets.size()));
-					ArrayList<Integer> idx2 = CommonUtils.getPointsWithinWindow(lowEnds, leftRegion);
+					ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(lowEnds, leftRegion);
 					cc.pets.clear();
 					for (int i : idx2) {
 						ReadPair rp = low.get(i);
@@ -1501,7 +1505,7 @@ public class CID {
 					pets = rpc.pets;
 					it.leftRegion = new Region(region.getGenome(), region.getChrom(), rpc.r1min, rpc.r1max);
 					it.leftPoint = rpc.leftPoint;
-					ArrayList<Integer> ts = CommonUtils.getPointsWithinWindow(allTSS,
+					ArrayList<Integer> ts = CommonUtils.getPointsIdxWithinWindow(allTSS,
 							it.leftRegion.expand(tss_radius, tss_radius));
 					StringBuilder tsb = new StringBuilder();
 					TreeSet<String> gSymbols = new TreeSet<String>();
@@ -1517,7 +1521,7 @@ public class CID {
 
 					it.rightRegion = new Region(region.getGenome(), region.getChrom(), rpc.r2min, rpc.r2max);
 					it.rightPoint = rpc.rightPoint;
-					ts = CommonUtils.getPointsWithinWindow(allTSS, it.rightRegion.expand(tss_radius, tss_radius));
+					ts = CommonUtils.getPointsIdxWithinWindow(allTSS, it.rightRegion.expand(tss_radius, tss_radius));
 					tsb = new StringBuilder();
 					gSymbols.clear();
 					for (int i : ts) {
@@ -1548,7 +1552,7 @@ public class CID {
 		/******************************
 		 * Annotate and report
 		 *******************************/
-		annotateInteractionCalls(interactions, lowEnds, highEnds, low, tic0);
+		annotateInteractionCallsAndOutput(interactions, lowEnds, highEnds, low, tic0);
 		
 		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
@@ -2391,9 +2395,9 @@ public class CID {
 
 
 	/**
-	 * Annotate after CPC interaction calling
+	 * Annotate after CID interaction calling and then print output files
 	 */
-	private void annotateInteractionCalls(ArrayList<Interaction> interactions, ArrayList<Point> lowEnds, ArrayList<Point> highEnds, 
+	private void annotateInteractionCallsAndOutput(ArrayList<Interaction> interactions, ArrayList<Point> lowEnds, ArrayList<Point> highEnds, 
 			ArrayList<ReadPair> pet1s, long tic0){
 
 		// load TF sites
@@ -2497,7 +2501,7 @@ public class CID {
 			// left ancor
 			int radius = it.leftRegion.getWidth() / 2 + chiapet_radius;
 			for (ArrayList<Point> ps : allPeaks) {
-				ArrayList<Point> p = CommonUtils.getPointsWithinWindow(ps, it.leftPoint, radius);
+				ArrayList<Integer> p = CommonUtils.getPointsIdxWithinWindow(ps, it.leftPoint.expand(radius));
 				isOverlapped.add(p.size());
 			}
 			for (List<Region> rs : allRegions) {
@@ -2506,7 +2510,7 @@ public class CID {
 			// right anchor
 			radius = it.rightRegion.getWidth() / 2 + chiapet_radius;
 			for (ArrayList<Point> ps : allPeaks) {
-				ArrayList<Point> p = CommonUtils.getPointsWithinWindow(ps, it.rightPoint, radius);
+				ArrayList<Integer> p = CommonUtils.getPointsIdxWithinWindow(ps, it.rightPoint.expand(radius));
 				isOverlapped.add(p.size());
 			}
 			for (List<Region> rs : allRegions) {
@@ -2597,40 +2601,43 @@ public class CID {
 		} // each interaction
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".readClusters.txt", sb.toString());
 
-		StringBuilder sbSprout = new StringBuilder();
-		StringBuilder sbLoop = new StringBuilder();
-		StringBuilder sbLeftAnchors = new StringBuilder();
-		StringBuilder sbRightAnchors = new StringBuilder();
-		int id=0;
-		for (Interaction it: interactions){
-			sbSprout.append(it.toSproutString()).append("\t").append(id).append("\t").append(it.adjustedCount).append("\n");
-			sbLoop.append(it.toLoopString()).append("\t").append(id).append("\t").append(it.adjustedCount).append("\n");
-			sbLeftAnchors.append(it.leftRegion.toString()).append("\t").append(id).append("\n");
-			sbRightAnchors.append(it.rightRegion.toString()).append("\t").append(id).append("\n");
-			id++;
+		if (isDev){
+			StringBuilder sbSprout = new StringBuilder();
+			StringBuilder sbLoop = new StringBuilder();
+			StringBuilder sbLeftAnchors = new StringBuilder();
+			StringBuilder sbRightAnchors = new StringBuilder();
+			int id=0;
+			for (Interaction it: interactions){
+				sbSprout.append(it.toSproutString()).append("\t").append(id).append("\t").append(it.adjustedCount).append("\n");
+				sbLoop.append(it.toLoopString()).append("\t").append(id).append("\t").append(it.adjustedCount).append("\n");
+				sbLeftAnchors.append(it.leftRegion.toString()).append("\t").append(id).append("\n");
+				sbRightAnchors.append(it.rightRegion.toString()).append("\t").append(id).append("\n");
+				id++;
+			}
+			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.sprout.txt", sbSprout.toString());
+			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.loopRegions.txt", sbLoop.toString());
+			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.leftAnchorRegions.txt", sbLeftAnchors.toString());
+			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.rightAnchorRegions.txt", sbRightAnchors.toString());
 		}
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.sprout.txt", sbSprout.toString());
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.loopRegions.txt", sbLoop.toString());
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.leftAnchorRegions.txt", sbLeftAnchors.toString());
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.rightAnchorRegions.txt", sbRightAnchors.toString());
-		
 		/** 
 		 * output BEDPE format
 		 */
 		// HERE we need to also include PET1 for MICC and ChiaSig analysis
-		for (ReadPair rp : pet1s) {
-			Interaction it = new Interaction();
-			interactions.add(it);
-			it.leftPoint = rp.r1;
-			it.rightPoint = rp.r2;
-			it.leftRegion = new Region(rp.r1.getGenome(), rp.r1.getChrom(), rp.r1.getLocation(), rp.r1.getLocation());
-			it.rightRegion = new Region(rp.r2.getGenome(), rp.r2.getChrom(), rp.r2.getLocation(), rp.r2.getLocation());
-			it.count = 1;
-			it.count2 = 1;
-			it.adjustedCount = 1;
+		if (micc_min_pet==1){
+			for (ReadPair rp : pet1s) {
+				Interaction it = new Interaction();
+				interactions.add(it);
+				it.leftPoint = rp.r1;
+				it.rightPoint = rp.r2;
+				it.leftRegion = new Region(rp.r1.getGenome(), rp.r1.getChrom(), rp.r1.getLocation(), rp.r1.getLocation());
+				it.rightRegion = new Region(rp.r2.getGenome(), rp.r2.getChrom(), rp.r2.getLocation(), rp.r2.getLocation());
+				it.count = 1;
+				it.count2 = 1;
+				it.adjustedCount = 1;
+			}
+			pet1s.clear();
+			pet1s = null;
 		}
-		pet1s.clear();
-		pet1s = null;
 
 		sb = new StringBuilder();
 //		int expand_distance = max_cluster_merge_dist;	
@@ -2638,8 +2645,8 @@ public class CID {
 			Region leftLocal = it.leftRegion.expand(dc, dc);	//TODO: what is the best bp to expand
 			Region rightLocal = it.rightRegion.expand(dc, dc);
 			sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", leftLocal.toBED(), rightLocal.toBED(), it.adjustedCount,
-					CommonUtils.getPointsWithinWindow(lowEnds, leftLocal).size(), 
-					CommonUtils.getPointsWithinWindow(highEnds, rightLocal).size()));
+					CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
+					CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size()));
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
 
@@ -2720,7 +2727,7 @@ public class CID {
 	}
 
 	/**
-	 * Overlap CPC interaction calls with some annotation as regions.
+	 * Overlap distal anchors of CID interaction calls with some annotation as regions.
 	 * @param args
 	 */
 	private static void annotateRegions(String[] args) {
@@ -2760,7 +2767,7 @@ public class CID {
 			if (idx2.isEmpty())
 				sb.append("NULL");
 			sb.append("\t").append(idx1.size()).append("\t").append(idx2.size()).append("\t");
-			// field 10 (i.e. 11th): ChIA-PET PET count
+			// field 10 (i.e. 11th): ChIA-PET PET count; the last field: ChIA-PET q value
 			sb.append(f[10]).append("\t").append(f[f.length - 1]);
 			sb.append("\n");
 		}
