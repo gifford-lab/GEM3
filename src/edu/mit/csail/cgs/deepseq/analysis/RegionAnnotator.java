@@ -326,7 +326,7 @@ public class RegionAnnotator {
 		}
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("#Region\tGene\tMidReg\tTSS\tdistance\tisInTAD\n");
+		sb.append("#Region\tGene\tMidReg\tTSS\tOffset\tisInTAD\n");
 		for (Point p:coords){			
 			String chr = p.getChrom();
 			ArrayList<StrandedPoint> tsss_in_chr = chr2tsss.get(chr);
@@ -351,6 +351,10 @@ public class RegionAnnotator {
 			else // exactly on TSS
 				nearestTSS = tsss_in_chr.get(idx_tss);
 			
+			int offset = p.offset(nearestTSS);
+			if (((StrandedPoint) nearestTSS).getStrand()=='-')
+				offset = -offset;
+			
 			// if with TAD constraint
 			if (tad_file!=null){
 				ArrayList<Region> tadsChr = null;
@@ -358,7 +362,7 @@ public class RegionAnnotator {
 					tadsChr = chr2tads.get(chr);
 				else{
 					for (String g:tss2genes.get(nearestTSS))
-						sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+-9+"\n");
+						sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+offset+"\t"+-9+"\n");
 					continue;
 				}
 				int idx = Collections.binarySearch(tadsChr, p.expand(0));
@@ -367,21 +371,21 @@ public class RegionAnnotator {
 					idx = -(idx+1) -1;  // insert point - 1 ==> Previous object
 					if (idx==-1){	// point p coordinate is less than first region in the tadsChr list
 						for (String g:tss2genes.get(nearestTSS))
-							sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+-9+"\n");
+							sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+offset+"\t"+-9+"\n");
 						continue;
 					}
 					tad = tadsChr.get(idx);
 					if (!tad.contains(p)){
 //						System.err.println(String.format("Point %s is not within any TAD!", p.toString()));
 						for (String g:tss2genes.get(nearestTSS))
-							sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+-9+"\n");
+							sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+offset+"\t"+-9+"\n");
 					}
 					else{
 						// now tad contains the enhancer coord
 						if (tad.contains(nearestTSS)){
 							// the nearest TSS is within the TAD
 							for (String g:tss2genes.get(nearestTSS))
-								sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+1+"\n");
+								sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+offset+"\t"+1+"\n");
 						}
 						else{ // the nearest TSS is not within the TAD
 							// do we have other TSS in TAD?
@@ -399,15 +403,17 @@ public class RegionAnnotator {
 								else
 									nearestTSS = tsss_in_chr.get(idx_tad_start);
 							}
+							offset = p.offset(nearestTSS);
+							if (((StrandedPoint) nearestTSS).getStrand()=='-')
+								offset = -offset;
 							if (tad.contains(nearestTSS)){
 								// the new nearest TSS is within the TAD
 								for (String g:tss2genes.get(nearestTSS))
-									sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+2+"\n");
+									sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+offset+"\t"+2+"\n");
 							}
 							else{ 							
 								for (String g:tss2genes.get(nearestTSS))
-	//								sb.append(String.format("%s\t%s\t%s\t%s\t%d\t%d\n", p.expand(500).toString(), g, p.toString(), nearestTSS.toString(), p.distance(nearestTSS), 0));
-									sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+p.distance(nearestTSS)+"\t"+0+"\n");
+									sb.append(p.expand(500).toString()+"\t"+g+"\t"+p.toString()+"\t"+nearestTSS.toString()+"\t"+offset+"\t"+0+"\n");
 							}
 						}
 					}
