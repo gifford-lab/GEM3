@@ -33,8 +33,9 @@ public class CID {
 	int dc = 500;				// distance_cutoff for density clustering
 	int read_1d_merge_dist = 2000;
 	int tss_merge_dist = 500;
-	int max_cluster_merge_dist = 4000;
-	int distance_factor = 4;
+	int max_cluster_merge_dist = 5000;
+	int distance_factor = 40;
+	int distance_base = 200;
 	int tss_radius = 2000;
 	int chiapet_radius = 2000;
 	double overlap_ratio = 0.8;
@@ -904,6 +905,11 @@ public class CID {
 		}
 	}
 
+	private int span2mergingDist(int span){
+		return Math.min(max_cluster_merge_dist,
+				Math.max(dc, distance_base+span/distance_factor));
+	}
+	
 	// find interactions by 2D density clustering
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
@@ -1370,15 +1376,6 @@ public class CID {
 				if (flags.contains("print_cluster")) 
 					CommonUtils.writeFile(String.format("%s.cluster.%d.txt", outName, j), sb.toString());
 				
-//				// split once again to remove PETs that were clustered due to the dc=1000 setting
-//				if (split_after_dc){
-//					rpcs2 = splitRecursively(rpcs, true, false, true);
-//					if (rpcs2 != null) {
-//						rpcs = rpcs2;
-//						rpcs2 = null;
-//					}
-//				}
-				
 				// merge nearby clusters
 				Collections.sort(rpcs);
 				for (int i = 0; i < rpcs.size(); i++) {
@@ -1394,8 +1391,7 @@ public class CID {
 							continue;	// if c2 anchors are too wide, skip merging c2
 						// cluster_merge_dist is dependent on the PET span distance
 						int dist = Math.min(c1Span, c2Span);
-						int cluster_merge_dist = Math.min(max_cluster_merge_dist,
-								Math.max(dc, (int) Math.sqrt(dist) * distance_factor));
+						int cluster_merge_dist = span2mergingDist(dist);
 						if (c1.leftPoint.distance(c2.leftPoint) > cluster_merge_dist*2 || 
 								c1.rightPoint.distance(c2.rightPoint) > cluster_merge_dist*2 ||
 								c1.leftRegion.distance(c2.leftRegion) > cluster_merge_dist ||
@@ -1421,17 +1417,11 @@ public class CID {
 				// included but are within the cluster_merge_dist range
 				// also expand the anchor for half of the cluster_merge_dist
 				for (ReadPairCluster cc : rpcs) {
-					int cluster_merge_dist = Math.min(max_cluster_merge_dist,
-							Math.max(dc, (int) Math.sqrt(cc.span) * distance_factor));
-					Region leftRegion = cc.leftRegion.expand(cluster_merge_dist/2, cluster_merge_dist/2);
-					Region rightRegion = cc.rightRegion.expand(cluster_merge_dist/2, cluster_merge_dist/2);
-//					System.out.print(String.format("\t%s - %d - %s :%d\n", leftRegion, 
-//							(cc.r2min + cc.r2max - cc.r1min - cc.r1max)/2, rightRegion, cc.pets.size()));
-					ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(lowEnds, leftRegion);
+					ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion);
 					cc.pets.clear();
 					for (int i : idx2) {
 						ReadPair rp = low.get(i);
-						if (rightRegion.contains(rp.r2))
+						if (cc.rightRegion.contains(rp.r2))
 							cc.addReadPair(rp);
 					}
 					cc.update();
@@ -1575,8 +1565,7 @@ public class CID {
 		ArrayList<ReadPairCluster> results = new ArrayList<ReadPairCluster>();
 		for (ReadPairCluster cc : rpcs) {
 			ArrayList<ReadPair> pets = cc.pets;
-			int d_c = Math.min(max_cluster_merge_dist,
-					Math.max(distance_cutoff, (int) Math.sqrt(cc.span) * distance_factor));
+			int d_c = span2mergingDist(cc.span);
 			if (cc.r1width<d_c && cc.r2width<d_c){
 				results.add(cc);
 				continue;
@@ -2697,8 +2686,7 @@ public class CID {
 			if (toUseMaxDistance)
 				cluster_merge_dist = max_cluster_merge_dist;
 			else
-				cluster_merge_dist = Math.min(max_cluster_merge_dist,
-					Math.max(dc, (int) Math.sqrt(dist) * distance_factor));
+				cluster_merge_dist = span2mergingDist(dist);
 			
 			for (ReadPair rp : cc.pets) {
 				Point t = toSplitLeftAnchor ? rp.r1 : rp.r2;
