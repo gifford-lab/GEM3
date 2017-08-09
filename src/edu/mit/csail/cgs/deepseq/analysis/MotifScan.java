@@ -49,7 +49,7 @@ public class MotifScan {
 		String fasta = Args.parseString(args, "fasta", null);
 	    String out = Args.parseString(args, "out", fasta.replace(".fasta", "").replace(".fa", ""));
 
-	    ArrayList<String> texts = CommonUtils.readTextFile(fasta.trim());
+	    ArrayList<String> texts = CommonUtils.loadFasta(fasta.trim());
 	    int lineNum = texts.size();
 	    String[] seqs = new String[lineNum/2];
 	    String[] names = new String[lineNum/2];		// name is the first field of fasta header

@@ -549,6 +549,45 @@ public class CommonUtils {
         }   
         return strs;
 	}
+
+	/**
+	 * Load fasta file<br>
+	 * Merge multi-line fasta record into single line, then return single-line fasta strings
+	 * @param fileName
+	 * @return
+	 */
+	public static ArrayList<String> loadFasta(String fileName){
+		ArrayList<String> strs = new ArrayList<String>();
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileName))));
+	        String line;
+	        StringBuilder sbSeq = new StringBuilder();
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	            if (line.startsWith(">")){	// header
+	            	// process the full sequence of last item
+	            	if (sbSeq.length()!=0){
+						strs.add(sbSeq.toString());
+						sbSeq = new StringBuilder();
+					}
+	            	strs.add(line);
+	        	}
+	        	else{	// sequence
+	        		sbSeq.append(line);
+	        	}
+	        }
+	        if (sbSeq.length()!=0){
+				strs.add(sbSeq.toString());
+			}
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+        	System.err.println("Error when processing "+fileName);
+            e.printStackTrace(System.err);
+        } 
+        return strs;
+	}
 	
 	/** 
 	 * Find the index that gives value larger than or equal to the key

@@ -6237,30 +6237,12 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		System.out.println(params+"\n");
 		
 		String format = Args.parseString(args, "format", "fasta");
-		ArrayList<String> strs = CommonUtils.readTextFile(pos_file);
-        String[]f = null;
-//        System.out.println("Loading positive sequences ...");
-        StringBuilder sbSeq = new StringBuilder();
-		for (String line: strs){
-			if (format.equals("fasta")){
-	            if (line.startsWith(">")){	// header
-	            	// process the full sequence of last item
-	            	if (sbSeq.length()!=0){
-						String seq = sbSeq.toString();
-						if (config.k_win==-1){
-		        			pos_seqs.add(seq);
-		        		}
-		        		else{// get the center substring of length k_win
-			        		if (seq.length()<config.k_win){ // skip if too short
-			        			System.err.println("Fasta sequence length "+seq.length()+" is shorter than k_win=" + config.k_win);
-			        			continue;
-			        		}
-			        		int left = seq.length()/2-config.k_win/2;
-			        		pos_seqs.add(seq.toUpperCase().substring(left, left+config.k_win));
-		        		}
-						sbSeq = new StringBuilder();
-					}
-	            	// process header
+		ArrayList<String> strs;
+		if (format.equals("fasta")){
+			strs = CommonUtils.loadFasta (pos_file);
+	        String[]f = null;
+			for (String line: strs){
+	            if (line.startsWith(">")){
 	        		f = line.split("\\s+");
 	        		if (f.length>1){
 	        			try{
@@ -6272,18 +6254,32 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		            else
 		            	seq_w.add(10.0);
 	        	}
-	        	else{	// sequence
-	        		sbSeq.append(line);
+	        	else{
+	        		if (config.k_win==-1){
+	        			pos_seqs.add(line);
+	        		}
+	        		else{// get the center substring of length k_win
+		        		if (line.length()<config.k_win){ // skip if too short
+		        			System.err.println("Fasta sequence length "+line.length()+" is shorter than k_win=" + config.k_win);
+		        			continue;
+		        		}
+		        		int left = line.length()/2-config.k_win/2;
+		        		pos_seqs.add(line.toUpperCase().substring(left, left+config.k_win));
+	        		}
 	        	}
 			}
-			else{		// simple format: seq<TAB or SPACE>weight
-				f = line.split("\\s+");
+		}
+		else{		// simple format: seq<TAB or SPACE>weight
+			strs = CommonUtils.readTextFile (pos_file);
+			for (String line: strs){
+				String[] f = line.split("\\s+");
         		if (f.length>1){
 	            	seq_w.add(Double.parseDouble(f[1]));
 	            	pos_seqs.add(f[0].toUpperCase());
 	            }
 			}
 		}
+		
 		if (pos_seqs.isEmpty()){
 			System.err.println("\nNo fasta sequences has been loaded.\nAbort!!!");
 			System.exit(-1);
