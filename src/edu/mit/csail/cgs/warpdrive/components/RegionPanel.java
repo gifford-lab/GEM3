@@ -493,266 +493,266 @@ Listener<EventObject>, PainterContainer, MouseListener {
 			}
 		}
 
-
-		// agilentdata, msp, and bayes are all nearly identical.
-		for (int i = 0; i < opts.agilentdata.size(); i++) {     
-
-			if(opts.agilentdata.get(i) instanceof ChipChipDifferenceLocator) {
-
-				//                 ChipChipDifferenceLocator denv = (ChipChipDifferenceLocator)opts.agilentdata.get(i);
-				//                 System.out.println("**** Loading ChipChipDifferenceLocator: " + denv.getName());
-				//                 String envstr = denv.toString();
-
-				//                 // Look for a scale model feor this set of experiments (a set of experiments
-				//                 // is defined by the name, which means that an agilentdata and a agilentbayes with
-				//                 // the same name will share a ScaleModel.
-				//                 if (scalemodels.get(envstr) == null) {
-				//                     scalemodels.put(envstr,new ChipChipScaleModel());
-				//                 }                
-
-				//                 ChipChipScaleModel scale = scalemodels.get(envstr);
-				//                 addModel(scale);  // we use a Collection, so models won't be included twice
-				//                 // now look for the ScalePainter.  It'll be the first painter added for this
-				//                 // track.  If it doesn't exist, create a new one and hook it up to the ScaleModel
-				//                 /*
-				//                 if (painters.get(envstr) == null) {
-				//                     ChipChipScalePainter s = new ChipChipScalePainter(scale,this);
-				//                     //SimplifiedChipChipScalePainter s = new SimplifiedChipChipScalePainter(scale, this);
-
-				//                     s.setLabel("Scale for " + envstr);
-				//                     addPainter(s);                    
-				//                 }
-				//                 */
-
-				//                 // create the ChipChipData and the DataModel that will contain it.
-				//                 // Then spin off a new thread for the DataModel.
-				//                 ChipChipData data = denv.createObject();
-				//                 ChipChipDataModel m = new ChipChipDataModel(data);
-				//                 addModel(m);
-				//                 Thread t = new Thread(m);
-				//                 t.start();
-
-				//                 // Finally, create the DataPainter and hook it up to
-				//                 // the ScaleModel
-				//                 //TimChipChipPainter p = new TimChipChipPainter(data, m);
-				//                 ChipChipDifferencePainter p = 
-				//                 	new ChipChipDifferencePainter((ChipChipDifferenceData)data, m);
-
-				//                 scale.addModel(m);
-				//                 p.setScaleModel(scale);
-				//                 p.setLabel(envstr);
-				//                 p.addEventListener(this);
-				//                 p.setOption(WarpOptions.AGILENTDATA,opts.agilentdata.get(i));
-
-				//                 addPainter(p);
-
-				System.err.println("NO DIFFERENCE PAINTING RIGHT NOW.  BUG ALEX TO FIX IT");
-
-			} else {
-
-				ExptNameVersion env = opts.agilentdata.get(i);
-				String envstr = env.toString();
-
-				try {
-					// Look for a scale model feor this set of experiments (a set of experiments
-					// is defined by the name, which means that an agilentdata and a agilentbayes with
-					// the same name will share a ScaleModel.
-					if (scalemodels.get(envstr) == null) {
-						scalemodels.put(envstr, new ChipChipScaleModel());
-					}                
-					ChipChipScaleModel scale = scalemodels.get(envstr);
-					addModel(scale);  // we use a Collection, so models won't be included twice
-
-					// create the ChipChipData and the DataModel that will contain it.
-					// Then spin off a new thread for the DataModel.
-					ChipChipData data = dataset.getData(env);
-					ChipChipDataModel m = new ChipChipDataModel(data);
-					addModel(m);
-					Thread t = new Thread(m);
-					t.start();
-					// Finally, create the DataPainter and hook it up to
-					// the ScaleModel
-					//ChipChipDataPainter p = new ChipChipDataPainter(data,m);
-					TimChipChipPainter p = new TimChipChipPainter(data, m);
-
-					scale.addModel(m);
-					p.setScaleModel(scale);
-					p.setLabel(envstr);
-					p.addEventListener(this);
-					p.setOption(WarpOptions.AGILENTDATA,opts.agilentdata.get(i));
-
-					try {
-						int expttype = dataset.getExptType(env);
-						if (expttype == ChipChipDataset.RULER) {
-							p.setChannelStyle(TimChipChipPainter.RULER);
-						}
-						if (expttype == ChipChipDataset.EXPRESSION) {
-							p.setChannelStyle(TimChipChipPainter.EXPRESSION);
-						}
-						if (expttype == ChipChipDataset.CGH) {
-							p.setChannelStyle(TimChipChipPainter.CGH);
-						}
-
-					} catch (SQLException e) {
-						e.printStackTrace();
-					}
-
-					addPainter(p);
-					addModelToPaintable(p, m);
-					/* now add a scale if one doesn't already exist in this track */
-					boolean foundany = false;
-					for (RegionPaintable rp : painters.get(envstr)) {
-						if (rp instanceof ChipChipScalePainter) {
-							foundany = true;
-							break;
-						}
-					}                    
-					if (!foundany) {
-						ChipChipScalePainter s = new ChipChipScalePainter(scale,this,(ChipChipProperties)p.getProperties());
-						s.setLabel(envstr);
-						addPainter(s);        
-						addModelToPaintable(s, m);                
-					}                    
-				} catch (NotFoundException ex) {
-					ex.printStackTrace();
-					System.err.println("Couldn't find any dataset in " + genome + 
-							" for " + opts.agilentdata.get(i));
-				}
-			}
-		}
-		for (int i = 0; i < opts.msp.size(); i++) {            
-			try {
-				String label = opts.msp.get(i).toString();
-				if (scalemodels.get(label) == null) {
-					scalemodels.put(label,new ChipChipScaleModel());
-				}                
-
-				ChipChipScaleModel scale = scalemodels.get(label);
-				addModel(scale);
-
-				ChipChipMSP data = dataset.getMSP(opts.msp.get(i));
-				ChipChipDataModel m = new ChipChipDataModel(data);
-				addModel(m);
-				Thread t = new Thread(m);
-				t.start();
-				ChipChipMSPPainter p = new ChipChipMSPPainter(data,m);
-				scale.addModel(m);
-				p.setScaleModel(scale);
-				p.setLabel(label);
-				p.addEventListener(this);
-				p.setOption(WarpOptions.MSP,opts.msp.get(i));
-				addPainter(p);
-				addModelToPaintable(p, m);                
-				/* now add a scale if one doesn't already exist in this track */
-				boolean foundany = false;
-				for (RegionPaintable rp : painters.get(label)) {
-					if (rp instanceof ChipChipScalePainter) {
-						foundany = true;
-						break;
-					}
-				}                    
-				if (!foundany) {
-					ChipChipScalePainter s = new ChipChipScalePainter(scale,this,(ChipChipProperties)p.getProperties());
-					s.setLabel(label);
-					addPainter(s);        
-					addModelToPaintable(s, m);                
-				}                    
-			} catch (NotFoundException ex) {
-				System.err.println("Couldn't find any dataset in " + genome + " for " + opts.msp.get(i));
-			}
-		}
-		for (int i = 0; i < opts.bayesresults.size(); i++) {            
-			try {
-				String label = opts.bayesresults.get(i).toString();
-				if (scalemodels.get(label) == null) {
-					scalemodels.put(label,new ChipChipScaleModel());
-				}                
-				ChipChipScaleModel scale = scalemodels.get(label);
-				addModel(scale);
-
-				ChipChipBayes data = dataset.getBayes(opts.bayesresults.get(i));
-				ChipChipDataModel m = new ChipChipDataModel(data);
-				addModel(m);
-				Thread t = new Thread(m);
-				t.start();
-				ChipChipBayesPainter p = new ChipChipBayesPainter(data,m);
-				scale.addModel(m);
-				p.setScaleModel(scale);
-				p.setLabel(label);
-				p.addEventListener(this);
-				p.setOption(WarpOptions.BAYESRESULTS,opts.bayesresults.get(i));
-				addPainter(p);           
-				addModelToPaintable(p, m);     
-				/* now add a scale if one doesn't already exist in this track */
-				boolean foundany = false;
-				for (RegionPaintable rp : painters.get(label)) {
-					if (rp instanceof ChipChipBayesScalePainter) {
-						foundany = true;
-						break;
-					}
-				}                    
-				if (!foundany) {
-					ChipChipScalePainter s = new ChipChipBayesScalePainter(scale,this,(ChipChipBayesProperties)p.getProperties());
-					s.setLabel(label);
-					addPainter(s);        
-					addModelToPaintable(s, m);            
-				}                    
-			} catch (NotFoundException ex) {
-				System.err.println("Couldn't find any dataset in " + genome + " for " + opts.bayesresults.get(i));
-			}
-		}
-
-		if (opts.bindingScans.size() > 0) {
-			try {            
-
-				/*
-                BindingScanLoader loader = new BindingScanLoader();
-                BindingExpander expander = new BindingExpander(loader, opts.bindingScans);
-                BindingEventModel model = new BindingEventModel(expander);
-
-                addModel(model);
-
-                Thread t = new Thread(model);
-                t.start();
-
-                BindingEventPaintable p = new BindingEventPaintable(model);
-                p.setLibrary(library);
-                p.setLabel("Binding Events");
-                p.setPropertyKey("BindingEvents");
-                p.addEventListener(this);
-                p.setOption(WarpOptions.BINDINGSCAN,null);
-                addPainter(p);
-				 */
-
-				for(int i = 0; i < opts.bindingScans.size(); i++) { 
-					BindingScan scan = opts.bindingScans.get(i);
-					BindingScanLoader loader = new BindingScanLoader();
-					BindingExpander expander = new BindingExpander(loader, scan);
-					BindingEventModel model = new BindingEventModel(expander);
-
-					addModel(model);
-
-					Thread t = new Thread(model);
-					t.start();
-
-					SingleBindingEventPaintable p = 
-							new SingleBindingEventPaintable(model);
-					String lbl = scan.getVersion() + "," + scan.getType();
-					p.setLabel(lbl);
-
-					p.addEventListener(this);
-					p.setOption(WarpOptions.BINDINGSCAN,null);
-					addPainter(p);
-					addModelToPaintable(p, model);
-
-				}
-
-			} catch (SQLException e) {
-				e.printStackTrace();
-			} catch (UnknownRoleException e) {
-				e.printStackTrace();
-			}
-		}
+//
+//		// agilentdata, msp, and bayes are all nearly identical.
+//		for (int i = 0; i < opts.agilentdata.size(); i++) {     
+//
+//			if(opts.agilentdata.get(i) instanceof ChipChipDifferenceLocator) {
+//
+//				//                 ChipChipDifferenceLocator denv = (ChipChipDifferenceLocator)opts.agilentdata.get(i);
+//				//                 System.out.println("**** Loading ChipChipDifferenceLocator: " + denv.getName());
+//				//                 String envstr = denv.toString();
+//
+//				//                 // Look for a scale model feor this set of experiments (a set of experiments
+//				//                 // is defined by the name, which means that an agilentdata and a agilentbayes with
+//				//                 // the same name will share a ScaleModel.
+//				//                 if (scalemodels.get(envstr) == null) {
+//				//                     scalemodels.put(envstr,new ChipChipScaleModel());
+//				//                 }                
+//
+//				//                 ChipChipScaleModel scale = scalemodels.get(envstr);
+//				//                 addModel(scale);  // we use a Collection, so models won't be included twice
+//				//                 // now look for the ScalePainter.  It'll be the first painter added for this
+//				//                 // track.  If it doesn't exist, create a new one and hook it up to the ScaleModel
+//				//                 /*
+//				//                 if (painters.get(envstr) == null) {
+//				//                     ChipChipScalePainter s = new ChipChipScalePainter(scale,this);
+//				//                     //SimplifiedChipChipScalePainter s = new SimplifiedChipChipScalePainter(scale, this);
+//
+//				//                     s.setLabel("Scale for " + envstr);
+//				//                     addPainter(s);                    
+//				//                 }
+//				//                 */
+//
+//				//                 // create the ChipChipData and the DataModel that will contain it.
+//				//                 // Then spin off a new thread for the DataModel.
+//				//                 ChipChipData data = denv.createObject();
+//				//                 ChipChipDataModel m = new ChipChipDataModel(data);
+//				//                 addModel(m);
+//				//                 Thread t = new Thread(m);
+//				//                 t.start();
+//
+//				//                 // Finally, create the DataPainter and hook it up to
+//				//                 // the ScaleModel
+//				//                 //TimChipChipPainter p = new TimChipChipPainter(data, m);
+//				//                 ChipChipDifferencePainter p = 
+//				//                 	new ChipChipDifferencePainter((ChipChipDifferenceData)data, m);
+//
+//				//                 scale.addModel(m);
+//				//                 p.setScaleModel(scale);
+//				//                 p.setLabel(envstr);
+//				//                 p.addEventListener(this);
+//				//                 p.setOption(WarpOptions.AGILENTDATA,opts.agilentdata.get(i));
+//
+//				//                 addPainter(p);
+//
+//				System.err.println("NO DIFFERENCE PAINTING RIGHT NOW.  BUG ALEX TO FIX IT");
+//
+//			} else {
+//
+//				ExptNameVersion env = opts.agilentdata.get(i);
+//				String envstr = env.toString();
+//
+//				try {
+//					// Look for a scale model feor this set of experiments (a set of experiments
+//					// is defined by the name, which means that an agilentdata and a agilentbayes with
+//					// the same name will share a ScaleModel.
+//					if (scalemodels.get(envstr) == null) {
+//						scalemodels.put(envstr, new ChipChipScaleModel());
+//					}                
+//					ChipChipScaleModel scale = scalemodels.get(envstr);
+//					addModel(scale);  // we use a Collection, so models won't be included twice
+//
+//					// create the ChipChipData and the DataModel that will contain it.
+//					// Then spin off a new thread for the DataModel.
+//					ChipChipData data = dataset.getData(env);
+//					ChipChipDataModel m = new ChipChipDataModel(data);
+//					addModel(m);
+//					Thread t = new Thread(m);
+//					t.start();
+//					// Finally, create the DataPainter and hook it up to
+//					// the ScaleModel
+//					//ChipChipDataPainter p = new ChipChipDataPainter(data,m);
+//					TimChipChipPainter p = new TimChipChipPainter(data, m);
+//
+//					scale.addModel(m);
+//					p.setScaleModel(scale);
+//					p.setLabel(envstr);
+//					p.addEventListener(this);
+//					p.setOption(WarpOptions.AGILENTDATA,opts.agilentdata.get(i));
+//
+//					try {
+//						int expttype = dataset.getExptType(env);
+//						if (expttype == ChipChipDataset.RULER) {
+//							p.setChannelStyle(TimChipChipPainter.RULER);
+//						}
+//						if (expttype == ChipChipDataset.EXPRESSION) {
+//							p.setChannelStyle(TimChipChipPainter.EXPRESSION);
+//						}
+//						if (expttype == ChipChipDataset.CGH) {
+//							p.setChannelStyle(TimChipChipPainter.CGH);
+//						}
+//
+//					} catch (SQLException e) {
+//						e.printStackTrace();
+//					}
+//
+//					addPainter(p);
+//					addModelToPaintable(p, m);
+//					/* now add a scale if one doesn't already exist in this track */
+//					boolean foundany = false;
+//					for (RegionPaintable rp : painters.get(envstr)) {
+//						if (rp instanceof ChipChipScalePainter) {
+//							foundany = true;
+//							break;
+//						}
+//					}                    
+//					if (!foundany) {
+//						ChipChipScalePainter s = new ChipChipScalePainter(scale,this,(ChipChipProperties)p.getProperties());
+//						s.setLabel(envstr);
+//						addPainter(s);        
+//						addModelToPaintable(s, m);                
+//					}                    
+//				} catch (NotFoundException ex) {
+//					ex.printStackTrace();
+//					System.err.println("Couldn't find any dataset in " + genome + 
+//							" for " + opts.agilentdata.get(i));
+//				}
+//			}
+//		}
+//		for (int i = 0; i < opts.msp.size(); i++) {            
+//			try {
+//				String label = opts.msp.get(i).toString();
+//				if (scalemodels.get(label) == null) {
+//					scalemodels.put(label,new ChipChipScaleModel());
+//				}                
+//
+//				ChipChipScaleModel scale = scalemodels.get(label);
+//				addModel(scale);
+//
+//				ChipChipMSP data = dataset.getMSP(opts.msp.get(i));
+//				ChipChipDataModel m = new ChipChipDataModel(data);
+//				addModel(m);
+//				Thread t = new Thread(m);
+//				t.start();
+//				ChipChipMSPPainter p = new ChipChipMSPPainter(data,m);
+//				scale.addModel(m);
+//				p.setScaleModel(scale);
+//				p.setLabel(label);
+//				p.addEventListener(this);
+//				p.setOption(WarpOptions.MSP,opts.msp.get(i));
+//				addPainter(p);
+//				addModelToPaintable(p, m);                
+//				/* now add a scale if one doesn't already exist in this track */
+//				boolean foundany = false;
+//				for (RegionPaintable rp : painters.get(label)) {
+//					if (rp instanceof ChipChipScalePainter) {
+//						foundany = true;
+//						break;
+//					}
+//				}                    
+//				if (!foundany) {
+//					ChipChipScalePainter s = new ChipChipScalePainter(scale,this,(ChipChipProperties)p.getProperties());
+//					s.setLabel(label);
+//					addPainter(s);        
+//					addModelToPaintable(s, m);                
+//				}                    
+//			} catch (NotFoundException ex) {
+//				System.err.println("Couldn't find any dataset in " + genome + " for " + opts.msp.get(i));
+//			}
+//		}
+//		for (int i = 0; i < opts.bayesresults.size(); i++) {            
+//			try {
+//				String label = opts.bayesresults.get(i).toString();
+//				if (scalemodels.get(label) == null) {
+//					scalemodels.put(label,new ChipChipScaleModel());
+//				}                
+//				ChipChipScaleModel scale = scalemodels.get(label);
+//				addModel(scale);
+//
+//				ChipChipBayes data = dataset.getBayes(opts.bayesresults.get(i));
+//				ChipChipDataModel m = new ChipChipDataModel(data);
+//				addModel(m);
+//				Thread t = new Thread(m);
+//				t.start();
+//				ChipChipBayesPainter p = new ChipChipBayesPainter(data,m);
+//				scale.addModel(m);
+//				p.setScaleModel(scale);
+//				p.setLabel(label);
+//				p.addEventListener(this);
+//				p.setOption(WarpOptions.BAYESRESULTS,opts.bayesresults.get(i));
+//				addPainter(p);           
+//				addModelToPaintable(p, m);     
+//				/* now add a scale if one doesn't already exist in this track */
+//				boolean foundany = false;
+//				for (RegionPaintable rp : painters.get(label)) {
+//					if (rp instanceof ChipChipBayesScalePainter) {
+//						foundany = true;
+//						break;
+//					}
+//				}                    
+//				if (!foundany) {
+//					ChipChipScalePainter s = new ChipChipBayesScalePainter(scale,this,(ChipChipBayesProperties)p.getProperties());
+//					s.setLabel(label);
+//					addPainter(s);        
+//					addModelToPaintable(s, m);            
+//				}                    
+//			} catch (NotFoundException ex) {
+//				System.err.println("Couldn't find any dataset in " + genome + " for " + opts.bayesresults.get(i));
+//			}
+//		}
+//
+//		if (opts.bindingScans.size() > 0) {
+//			try {            
+//
+//				/*
+//                BindingScanLoader loader = new BindingScanLoader();
+//                BindingExpander expander = new BindingExpander(loader, opts.bindingScans);
+//                BindingEventModel model = new BindingEventModel(expander);
+//
+//                addModel(model);
+//
+//                Thread t = new Thread(model);
+//                t.start();
+//
+//                BindingEventPaintable p = new BindingEventPaintable(model);
+//                p.setLibrary(library);
+//                p.setLabel("Binding Events");
+//                p.setPropertyKey("BindingEvents");
+//                p.addEventListener(this);
+//                p.setOption(WarpOptions.BINDINGSCAN,null);
+//                addPainter(p);
+//				 */
+//
+//				for(int i = 0; i < opts.bindingScans.size(); i++) { 
+//					BindingScan scan = opts.bindingScans.get(i);
+//					BindingScanLoader loader = new BindingScanLoader();
+//					BindingExpander expander = new BindingExpander(loader, scan);
+//					BindingEventModel model = new BindingEventModel(expander);
+//
+//					addModel(model);
+//
+//					Thread t = new Thread(model);
+//					t.start();
+//
+//					SingleBindingEventPaintable p = 
+//							new SingleBindingEventPaintable(model);
+//					String lbl = scan.getVersion() + "," + scan.getType();
+//					p.setLabel(lbl);
+//
+//					p.addEventListener(this);
+//					p.setOption(WarpOptions.BINDINGSCAN,null);
+//					addPainter(p);
+//					addModelToPaintable(p, model);
+//
+//				}
+//
+//			} catch (SQLException e) {
+//				e.printStackTrace();
+//			} catch (UnknownRoleException e) {
+//				e.printStackTrace();
+//			}
+//		}
 
 		if (opts.exprExperiments.size() > 0) {
 			try {
