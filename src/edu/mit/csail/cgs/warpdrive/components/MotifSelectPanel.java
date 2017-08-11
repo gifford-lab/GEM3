@@ -97,7 +97,8 @@ public class MotifSelectPanel extends GenericSelectPanel<WeightMatrix> {
         }
     }
     public void retrieveData() { 
-        allMatrices.addAll(WeightMatrix.getAllWeightMatrices());
+//        allMatrices.addAll(WeightMatrix.getAllWeightMatrices());
+    	// Comment out by Yuchun, 8/10/2017, java.lang.OutOfMemoryError: Java heap space
         names.clear();
         versions.clear();
         types.clear();

@@ -16,10 +16,11 @@ import edu.mit.csail.cgs.warpdrive.model.InteractionAnalysisModel;
 
 public class InteractionAnalysisPainter extends RegionPaintable {
 
-	static private Color[] arcColors = {new Color(0, 0, 255, 127), new Color(0, 255, 255, 127), 
+	static final private Color[] arcColors = {new Color(0, 0, 255, 127), new Color(0, 255, 255, 127), 
 			new Color(0, 255, 128, 127), new Color(255, 128, 0, 127), new Color(255, 0, 0, 127)};
-	static private Color[] textColors = {new Color(0, 0, 255, 255), new Color(0, 255, 255, 255), 
+	static final private Color[] textColors = {new Color(0, 0, 255, 255), new Color(0, 255, 255, 255), 
 			new Color(0, 255, 128, 255), new Color(255, 128, 0, 255), new Color(255, 0, 0, 255)};
+	static final private Color lightGrey = new Color(0.4f, 0.4f, 0.4f, 0.2f);
 	private InteractionAnalysisModel model;
 	private InteractionAnalysisProperties props;
 	private DynamicAttribute attrib;
@@ -90,7 +91,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 			if (!leftPoint.getChrom().equals(chrom))
 				continue;
 			float count = interactions.get(pair);
-			if (count<cutoff)
+			if (count<cutoff && count!=1)
 				continue;
 			float curvewidth = Math.min(30, (float)Math.sqrt((double) count));
 			g.setStroke(new BasicStroke(curvewidth, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
@@ -118,13 +119,20 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 			int rightx = getXPosExt(rightCoord, regionStart, regionEnd, x1, x2);
 			int midx = (leftx+rightx)/2;
 			int midy = y2 - (int)(((double)(rightx-leftx)/(double)width) * 2*height);
-			int colorIdx = Math.round(count/10);
-			if (colorIdx > arcColors.length-1)
-				colorIdx = arcColors.length-1;
-			g.setColor(arcColors[colorIdx]);
+			int colorIdx = 0;
+			if (count==1){
+				g.setColor(lightGrey);
+				g.setStroke(new BasicStroke(1/15f));
+			}
+			else{
+				colorIdx = Math.round(count/10);
+				if (colorIdx > arcColors.length-1)
+					colorIdx = arcColors.length-1;
+				g.setColor(arcColors[colorIdx]);
+			}
 			QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
 			g.draw(loop);
-			if (toShowCount){
+			if (toShowCount && count!=1){
 				g.setColor(textColors[colorIdx]);
 				String countStr = count==Math.round(count) ? Math.round(count)+"" : count+"";
 				g.drawString(countStr, midx, y2 - (int)(((double)(rightx-leftx)/(double)width) * height));

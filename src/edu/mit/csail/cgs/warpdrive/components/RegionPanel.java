@@ -362,15 +362,27 @@ Listener<EventObject>, PainterContainer, MouseListener {
 					r.readLine();
 					while ((s = r.readLine()) != null) {
 						split = s.split("\t");
+						if (split.length == 2){		// if only 2 columns, read-pair data format, set count=1
+							try {
+								interactions.put(new Pair<Point,Point>(Point.fromString(genome, split[0]), Point.fromString(genome, split[1])), 1f);
+							} catch (Exception e) {
+								System.err.println(s);
+								r.close();
+								throw e;
+							}
+							continue;
+						}
 						if (!(split[0].equals("noise") || split[1].equals("noise"))) {
 							try {
 								interactions.put(new Pair<Point,Point>(Point.fromString(genome, split[0]), Point.fromString(genome, split[1])),Float.valueOf(split[2]));
 							} catch (Exception e) {
 								System.err.println(s);
+								r.close();
 								throw e;
 							}
 						}
 					}
+					r.close();
 					RegionModel m = new InteractionAnalysisModel(new TreeMap<Point,Float>(), interactions);
 					RegionPaintable p = new InteractionAnalysisPainter((InteractionAnalysisModel)m);
 					addModel(m);
