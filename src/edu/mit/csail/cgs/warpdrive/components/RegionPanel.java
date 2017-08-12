@@ -359,7 +359,7 @@ Listener<EventObject>, PainterContainer, MouseListener {
 					BufferedReader r = new BufferedReader(new FileReader(k));
 					String s;
 					String[] split;
-					r.readLine();
+//					r.readLine();
 					while ((s = r.readLine()) != null) {
 						split = s.split("\t");
 						if (split.length == 2){		// if only 2 columns, read-pair data format, set count=1
