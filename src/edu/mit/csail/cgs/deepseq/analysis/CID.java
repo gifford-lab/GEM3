@@ -32,10 +32,10 @@ public class CID {
 	int min_span = 4000;		// min PET span to exclude self-ligation reads
 	int dc = 500;				// distance_cutoff for density clustering
 	int read_1d_merge_dist = 2000;
-	int tss_merge_dist = 500;
 	int max_cluster_merge_dist = 5000;
 	int distance_factor = 40;
-	int distance_base = 200;
+	int distance_base = 400;
+	int tss_merge_dist = 500;
 	int tss_radius = 2000;
 	int chiapet_radius = 2000;
 	double overlap_ratio = 0.8;
@@ -45,7 +45,7 @@ public class CID {
 
 	TreeMap<Region, InteractionCall> r2it = new TreeMap<Region, InteractionCall>();
 	String fileName = null;
-
+	
 	public CID(String[] args) {
 		genome = CommonUtils.parseGenome(args);
 		flags = Args.parseFlags(args);
@@ -914,6 +914,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		long tic = System.currentTimeMillis();
+		String outName = Args.parseString(args, "out", "Result");
 
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
@@ -1159,55 +1160,54 @@ public class CID {
 			Collections.sort(reads);	
 		}
 		
-		/** 
-		 * compute self-ligation fraction for minus-plus PETs
-		 */
-		ArrayList<Integer> dist_other = new ArrayList<Integer>();
-		dist_other.addAll(dist_plus_plus);
-		dist_plus_plus = null;
-		dist_other.addAll(dist_plus_minus);
-		dist_plus_minus = null;
-		dist_other.addAll(dist_minus_minus);
-		dist_minus_minus = null;
-		dist_other.trimToSize();
-		Collections.sort(dist_other);
-		dist_minus_plus.trimToSize();
-		Collections.sort(dist_minus_plus);
-
-		int step = dist_other.size() / numQuantile;
-		// [e0 e1), end exclusive
-		ArrayList<Integer> binEdges = new ArrayList<Integer>(); 
-		// first idx for the number that is equal or larger than edge
-		ArrayList<Integer> indexes_other = new ArrayList<Integer>();
-		ArrayList<Integer> indexes_minus_plus = new ArrayList<Integer>(); 
-		for (int i = 0; i <= numQuantile; i++) {
-			int edge = dist_other.get(i * step);
-			binEdges.add(edge);
-			indexes_other.add(CommonUtils.findKey(dist_other, edge));
-			indexes_minus_plus.add(CommonUtils.findKey(dist_minus_plus, edge));
-		}
-		ArrayList<Double> mpNonSelfFraction = new ArrayList<Double>();
-		for (int i = 0; i < binEdges.size() - 1; i++) {
-			double mpNonSelfCount = (indexes_other.get(i + 1) - indexes_other.get(i)) / 3.0;
-			int mpCount = indexes_minus_plus.get(i + 1) - indexes_minus_plus.get(i);
-			double frac = mpNonSelfCount / mpCount;
-			if (frac > 1) {
-				mpNonSelfFraction.add(1.0);
-				break;
-			} else
-				mpNonSelfFraction.add(frac);
-		}
-		indexes_other = null;
-		indexes_minus_plus = null;
-		for (int i = binEdges.size() - 1; i >= mpNonSelfFraction.size(); i--)
-			binEdges.remove(i);
-		int maxEdge = binEdges.get(binEdges.size() - 1);
-
-		// output the distance-fraction table
-		StringBuilder dfsb = new StringBuilder();
-		for (int i = 0; i < binEdges.size(); i++)
-			dfsb.append(binEdges.get(i)).append("\t").append(mpNonSelfFraction.get(i)).append("\n");
-		String outName = Args.parseString(args, "out", "Result");
+//		/** 
+//		 * compute self-ligation fraction for minus-plus PETs
+//		 */
+//		ArrayList<Integer> dist_other = new ArrayList<Integer>();
+//		dist_other.addAll(dist_plus_plus);
+//		dist_plus_plus = null;
+//		dist_other.addAll(dist_plus_minus);
+//		dist_plus_minus = null;
+//		dist_other.addAll(dist_minus_minus);
+//		dist_minus_minus = null;
+//		dist_other.trimToSize();
+//		Collections.sort(dist_other);
+//		dist_minus_plus.trimToSize();
+//		Collections.sort(dist_minus_plus);
+//
+//		int step = dist_other.size() / numQuantile;
+//		// [e0 e1), end exclusive
+//		ArrayList<Integer> binEdges = new ArrayList<Integer>(); 
+//		// first idx for the number that is equal or larger than edge
+//		ArrayList<Integer> indexes_other = new ArrayList<Integer>();
+//		ArrayList<Integer> indexes_minus_plus = new ArrayList<Integer>(); 
+//		for (int i = 0; i <= numQuantile; i++) {
+//			int edge = dist_other.get(i * step);
+//			binEdges.add(edge);
+//			indexes_other.add(CommonUtils.findKey(dist_other, edge));
+//			indexes_minus_plus.add(CommonUtils.findKey(dist_minus_plus, edge));
+//		}
+//		ArrayList<Double> mpNonSelfFraction = new ArrayList<Double>();
+//		for (int i = 0; i < binEdges.size() - 1; i++) {
+//			double mpNonSelfCount = (indexes_other.get(i + 1) - indexes_other.get(i)) / 3.0;
+//			int mpCount = indexes_minus_plus.get(i + 1) - indexes_minus_plus.get(i);
+//			double frac = mpNonSelfCount / mpCount;
+//			if (frac > 1) {
+//				mpNonSelfFraction.add(1.0);
+//				break;
+//			} else
+//				mpNonSelfFraction.add(frac);
+//		}
+//		indexes_other = null;
+//		indexes_minus_plus = null;
+//		for (int i = binEdges.size() - 1; i >= mpNonSelfFraction.size(); i--)
+//			binEdges.remove(i);
+//		int maxEdge = binEdges.get(binEdges.size() - 1);
+//
+//		// output the distance-fraction table
+//		StringBuilder dfsb = new StringBuilder();
+//		for (int i = 0; i < binEdges.size(); i++)
+//			dfsb.append(binEdges.get(i)).append("\t").append(mpNonSelfFraction.get(i)).append("\n");
 //		CommonUtils.writeFile(outName + ".minusPlusFraction.txt", dfsb.toString());
 
 //		System.out.println("\nAnalyzed strand-orientation of PETs: " + CommonUtils.timeElapsed(tic0));
@@ -1311,7 +1311,9 @@ public class CID {
 
 		for (int j = 0; j < rs0.size(); j++) { // for all regions
 			Region region = rs0.get(j);
-
+			if (region.contains(new Point(region.getGenome(), "19", 47612497)))
+				j +=0;
+				
 			// get the PETs with read1 in the region, sort and merge by read2
 			ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region);
 			if (idx.size() > 1) {
@@ -1369,7 +1371,16 @@ public class CID {
 				}
 				sb.append(String.format("# %s:%d-%d\n", region.getChrom(), r1min, r2max));
 				
-				rpcs = densityClustering(rpcs, dc, sb);
+				// first make a rough clustering to reduce to smaller clusters, with more accurate span distances
+				ArrayList<ReadPairCluster> tmp = new ArrayList<ReadPairCluster>();
+				StringBuilder sbTmp = new StringBuilder();
+				for (ReadPairCluster rpc: rpcs){		
+					tmp.addAll(densityClustering(rpc, max_cluster_merge_dist, sbTmp));
+				}
+				rpcs.clear(); sbTmp=null;
+				for (ReadPairCluster rpc: tmp){
+					rpcs.addAll(densityClustering(rpc, -1, sb));
+				}
 				
 				if (rpcs.isEmpty())
 					continue;
@@ -1443,61 +1454,62 @@ public class CID {
 					int totalCount = pets.size();
 					int minusPlusCount = 0;
 					int adjustedCount = totalCount;
-					// new PET cluster with adjustment
-					ReadPairCluster rpc = new ReadPairCluster(); 
-					if (flags.contains("mp_adjust")){
-						// count minus-plus PETs to adjust the PET counts
-						ArrayList<ReadPair> mpRPs = new ArrayList<ReadPair>();
-						for (ReadPair rp : pets)
-							if (rp.r1.getStrand() == '-' && rp.r2.getStrand() == '+')
-								mpRPs.add(rp);
-						minusPlusCount = mpRPs.size();
-						pets.removeAll(mpRPs);
-						adjustedCount = -1;
-						Collections.sort(mpRPs);		// sort by low end read1: default
-						if (pets.isEmpty()) { //  with only minus-plus PETs
-							int dist = cc.span;
-							if (dist >= maxEdge)
-								adjustedCount = minusPlusCount;
-							else {
-								int index = Collections.binarySearch(binEdges, dist);
-								if (index < 0) // if key not found
-									index = -(index + 1);
-								adjustedCount = (int) (minusPlusCount * mpNonSelfFraction.get(index));
-							}
-							// add the adjusted m-p PETs in the middle
-							int midIndexMP = mpRPs.size() / 2 - adjustedCount /2;
-							int endIndex = midIndexMP + adjustedCount;
-							for (int k = midIndexMP; k < endIndex; k++)
-								rpc.addReadPair(mpRPs.get(k));
-							rpc.update();
-						} else {
-							for (ReadPair rp : pets)
-								rpc.addReadPair(rp);
-							rpc.update();
-							int dist = rpc.span;
-							if (dist >= maxEdge)
-								adjustedCount = totalCount;
-							else {
-								int index = Collections.binarySearch(binEdges, dist);
-								if (index < 0) // if key not found
-									index = -(index + 1);
-								adjustedCount = totalCount - minusPlusCount
-										+ (int) (minusPlusCount * mpNonSelfFraction.get(index));
-							}
-							// add the adjusted m-p PETs in the middle
-							int extra = adjustedCount - (totalCount - minusPlusCount);
-							int midIndexMP = mpRPs.size() / 2 - extra /2;
-							int endIndex = midIndexMP + extra;
-							for (int k = midIndexMP; k < endIndex; k++)
-								rpc.addReadPair(mpRPs.get(k));
-							rpc.update();
-						}
-						if (adjustedCount < min)
-							continue;
-					}
-					else	// not adjustment, rpc is the cluster cc
-						rpc = cc;
+					ReadPairCluster rpc = cc;
+//					// new PET cluster with adjustment
+//					ReadPairCluster rpc = new ReadPairCluster(); 
+//					if (flags.contains("mp_adjust")){
+//						// count minus-plus PETs to adjust the PET counts
+//						ArrayList<ReadPair> mpRPs = new ArrayList<ReadPair>();
+//						for (ReadPair rp : pets)
+//							if (rp.r1.getStrand() == '-' && rp.r2.getStrand() == '+')
+//								mpRPs.add(rp);
+//						minusPlusCount = mpRPs.size();
+//						pets.removeAll(mpRPs);
+//						adjustedCount = -1;
+//						Collections.sort(mpRPs);		// sort by low end read1: default
+//						if (pets.isEmpty()) { //  with only minus-plus PETs
+//							int dist = cc.span;
+//							if (dist >= maxEdge)
+//								adjustedCount = minusPlusCount;
+//							else {
+//								int index = Collections.binarySearch(binEdges, dist);
+//								if (index < 0) // if key not found
+//									index = -(index + 1);
+//								adjustedCount = (int) (minusPlusCount * mpNonSelfFraction.get(index));
+//							}
+//							// add the adjusted m-p PETs in the middle
+//							int midIndexMP = mpRPs.size() / 2 - adjustedCount /2;
+//							int endIndex = midIndexMP + adjustedCount;
+//							for (int k = midIndexMP; k < endIndex; k++)
+//								rpc.addReadPair(mpRPs.get(k));
+//							rpc.update();
+//						} else {
+//							for (ReadPair rp : pets)
+//								rpc.addReadPair(rp);
+//							rpc.update();
+//							int dist = rpc.span;
+//							if (dist >= maxEdge)
+//								adjustedCount = totalCount;
+//							else {
+//								int index = Collections.binarySearch(binEdges, dist);
+//								if (index < 0) // if key not found
+//									index = -(index + 1);
+//								adjustedCount = totalCount - minusPlusCount
+//										+ (int) (minusPlusCount * mpNonSelfFraction.get(index));
+//							}
+//							// add the adjusted m-p PETs in the middle
+//							int extra = adjustedCount - (totalCount - minusPlusCount);
+//							int midIndexMP = mpRPs.size() / 2 - extra /2;
+//							int endIndex = midIndexMP + extra;
+//							for (int k = midIndexMP; k < endIndex; k++)
+//								rpc.addReadPair(mpRPs.get(k));
+//							rpc.update();
+//						}
+//						if (adjustedCount < min)
+//							continue;
+//					}
+//					else	// not adjustment, rpc is the cluster cc
+//						rpc = cc;
 										
 					Interaction it = new Interaction();
 					interactions.add(it);
@@ -1561,182 +1573,178 @@ public class CID {
 		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
 
-	private ArrayList<ReadPairCluster> densityClustering(ArrayList<ReadPairCluster> rpcs, int distance_cutoff, StringBuilder sb){
+	private ArrayList<ReadPairCluster> densityClustering(ReadPairCluster cc, int d_c, StringBuilder sb){
 		ArrayList<ReadPairCluster> results = new ArrayList<ReadPairCluster>();
-		for (ReadPairCluster cc : rpcs) {
-			ArrayList<ReadPair> pets = cc.pets;
-			int d_c = span2mergingDist(cc.span);
-			if (cc.r1width<d_c && cc.r2width<d_c){
-				results.add(cc);
-				continue;
-			}
-			
-//			Collections.sort(pets);
-			int count = pets.size();
-			long tic=-1;
-			if (count>3000){
-				System.err.print(String.format("Warning: #PETs=%s, used ", cc.toString()));
-				tic = System.currentTimeMillis();
-			}
-			int s = cc.r1min;
-			// Binning the data if there are too many data points. Now it works fine for each point in its own bin.
-			PetBin bins[] = new PetBin[count];
-			for (int i=0;i<count;i++){
-				PetBin bin = new PetBin(pets.get(i).r1.getLocation()-s, pets.get(i).r2.getLocation()-s, i);
-				bin.addId(i);
-				bins[i] = bin;
-			}
-			
-//			int cluster_merge_dist = Math.min(max_cluster_merge_dist,
-//					Math.max(dc_min, (int) Math.sqrt(span) * distance_factor));
+		ArrayList<ReadPair> pets = cc.pets;
+		if (d_c==-1)
+			d_c = span2mergingDist(cc.span);
+		if (cc.r1width<d_c && cc.r2width<d_c){
+			results.add(cc);
+			return results;
+		}
+		
+		int count = pets.size();
+		long tic=-1;
+		if (count>3000){
+			System.err.print(String.format("Warning: #PETs=%s, used ", cc.toString()));
+			tic = System.currentTimeMillis();
+		}
+		int s = cc.r1min;
+		// Binning the data if there are too many data points. Now it works fine for each point in its own bin.
+		PetBin bins[] = new PetBin[count];
+		for (int i=0;i<count;i++){
+			PetBin bin = new PetBin(pets.get(i).r1.getLocation()-s, pets.get(i).r2.getLocation()-s, i);
+			bin.addId(i);
+			bins[i] = bin;
+		}
+		
 //			System.out.println(String.format("Region pair %d-%d and %d-%d, span=%d, dc=%d", cc.r1min, cc.r1max, cc.r2min, cc.r2max, span, distance_cutoff));
-			// distance matrix
-			int[][] dist = new int[count][count];
-			int maxDist = 0;
-			for (int i=0;i<count;i++){
-				dist[i][i] = 0;
-				for (int j=i+1;j<count;j++){
-					dist[i][j] = Math.max(Math.abs(bins[i].r1-bins[j].r1), Math.abs(bins[i].r2-bins[j].r2)); // Chebyshev distance
-					dist[j][i] = dist[i][j];
-					if (maxDist<dist[i][j])
-						maxDist = dist[i][j];
-				}
+		// distance matrix
+		int[][] dist = new int[count][count];
+		int maxDist = 0;
+		for (int i=0;i<count;i++){
+			dist[i][i] = 0;
+			for (int j=i+1;j<count;j++){
+				dist[i][j] = Math.max(Math.abs(bins[i].r1-bins[j].r1), Math.abs(bins[i].r2-bins[j].r2)); // Chebyshev distance
+				dist[j][i] = dist[i][j];
+				if (maxDist<dist[i][j])
+					maxDist = dist[i][j];
 			}
-			// density
-			for (int i=0;i<count;i++){
-				PetBin b = bins[i];
-				for (int j=0;j<count;j++)
-					if (dist[i][j] <= d_c)
-						b.addNbBin(bins[j]);
-				b.density = b.nbBins.size();
+		}
+		// density
+		for (int i=0;i<count;i++){
+			PetBin b = bins[i];
+			for (int j=0;j<count;j++)
+				if (dist[i][j] <= d_c)
+					b.addNbBin(bins[j]);
+			b.density = b.nbBins.size();
+		}
+		Arrays.sort(bins);
+		
+		// delta and gamma
+		bins[0].delta = maxDist;
+		bins[0].gamma = bins[0].delta * bins[0].density;
+		for (int i=1;i<count;i++){		// idx of sorted bin
+			int minDist = maxDist;
+			int ii = bins[i].binId;		// original idx of this bin
+			for (int j=0;j<i;j++){		// for points with higher density
+				int jj = bins[j].binId;
+				if (minDist>dist[ii][jj])
+					minDist = dist[ii][jj];
 			}
-			Arrays.sort(bins);
-			
-			// delta and gamma
-			bins[0].delta = maxDist;
-			bins[0].gamma = bins[0].delta * bins[0].density;
-			for (int i=1;i<count;i++){		// idx of sorted bin
-				int minDist = maxDist;
-				int ii = bins[i].binId;		// original idx of this bin
-				for (int j=0;j<i;j++){		// for points with higher density
-					int jj = bins[j].binId;
-					if (minDist>dist[ii][jj])
-						minDist = dist[ii][jj];
-				}
-				bins[i].delta = minDist;
-				bins[i].gamma = bins[i].delta * bins[i].density;
+			bins[i].delta = minDist;
+			bins[i].gamma = bins[i].delta * bins[i].density;
+		}
+		
+		// sort by gamma
+		Arrays.sort(bins, new Comparator<PetBin>() {		// sort by descending gamma
+			public int compare(PetBin o1, PetBin o2) {
+				return o1.compareByGamma(o2);
 			}
-			
-			// sort by gamma
-			Arrays.sort(bins, new Comparator<PetBin>() {		// sort by descending gamma
-				public int compare(PetBin o1, PetBin o2) {
-					return o1.compareByGamma(o2);
+		});
+		
+		// assign clusters
+		ArrayList<PetBin> centers = new ArrayList<PetBin>();
+		for (int i=0;i<count;i++){
+			PetBin b = bins[i];
+			if (b.clusterBinId == -1) {		// unassigned
+				if (b.density<=1)
+					continue;
+				// find all higher-density neighbor points (within d_c or other distance)
+				ArrayList<PetBin> higherDensityNeighbors = new ArrayList<PetBin>();
+				for (int j=0; j<count;j++){		
+					PetBin hb = bins[j];
+					// the neighbor test below can be replaced with other distance criteria
+					// it is a neighbor, higher density, and assigned
+					if (b.nbBins.contains(hb) && hb.clusterBinId!=-1 && 
+							(hb.density>b.density || (hb.density==b.density && hb.delta>=b.delta)) )	
+						higherDensityNeighbors.add(hb);
 				}
-			});
-			
-			// assign clusters
-			ArrayList<PetBin> centers = new ArrayList<PetBin>();
-			for (int i=0;i<count;i++){
-				PetBin b = bins[i];
-				if (b.clusterBinId == -1) {		// unassigned
-					if (b.density<=1)
-						continue;
-					// find all higher-density neighbor points (within d_c or other distance)
-					ArrayList<PetBin> higherDensityNeighbors = new ArrayList<PetBin>();
-					for (int j=0; j<count;j++){		
-						PetBin hb = bins[j];
-						// the neighbor test below can be replaced with other distance criteria
-						// it is a neighbor, higher density, and assigned
-						if (b.nbBins.contains(hb) && hb.clusterBinId!=-1 && 
-								(hb.density>b.density || (hb.density==b.density && hb.delta>=b.delta)) )	
-							higherDensityNeighbors.add(hb);
+				// find the nearest higher-density point
+				int clusterId = -1;
+				int minDist = Integer.MAX_VALUE;
+				int bid = b.binId;
+				for (PetBin hnb:higherDensityNeighbors){
+					if (dist[bid][hnb.binId] < minDist){
+						minDist = dist[bid][hnb.binId];
+						clusterId = hnb.clusterBinId;
 					}
-					// find the nearest higher-density point
-					int clusterId = -1;
-					int minDist = Integer.MAX_VALUE;
-					int bid = b.binId;
-					for (PetBin hnb:higherDensityNeighbors){
-						if (dist[bid][hnb.binId] < minDist){
-							minDist = dist[bid][hnb.binId];
-							clusterId = hnb.clusterBinId;
-						}
-					}
-					// if the nearest higher-density point (within d_c or other distance) has been assigned,
-			        // follow the same assignment, otherwise, start a new cluster
-					if (clusterId != -1)	// nearest higher point has been assigned
-						b.clusterBinId = clusterId;
-					else{
-						// this is a new cluster center
-						b.clusterBinId = b.binId;
-						centers.add(b);
+				}
+				// if the nearest higher-density point (within d_c or other distance) has been assigned,
+		        // follow the same assignment, otherwise, start a new cluster
+				if (clusterId != -1)	// nearest higher point has been assigned
+					b.clusterBinId = clusterId;
+				else{
+					// this is a new cluster center
+					b.clusterBinId = b.binId;
+					centers.add(b);
 //						for (PetBin nb:b.nbBins)
 //							if (nb.clusterBinId == -1)		// if the cluster neighbors has not been assigned
 //								nb.clusterBinId = b.binId;
-					}
 				}
-			} // assign clusters
-
-			// re-assign singletons (cluster with only 1 point)
-			ArrayList<PetBin> singletons = new ArrayList<PetBin>();
-			eachCenter: for (int j=0;j<centers.size();j++){
-				PetBin b = centers.get(j);
-				int bid = b.binId;
-				if (bid != b.clusterBinId)
-					continue;
-				int clusterSize = 0;
-				for (int i=0;i<count;i++){
-					if (bid == bins[i].clusterBinId){
-						clusterSize++;
-						if (clusterSize>=2)
-							continue eachCenter;	// skip if more than 2 PETs
-					}
-				}
-				
-				// b is a singleton
-				// assign it to the nearest higher-density point within dc
-				int clusterId = -1;
-				int minDist = d_c;
-				for (int i=0;i<count;i++){
-					if (bid!=bins[i].binId){
-						int dist_ji = dist[bid][bins[i].binId];
-						if ( dist_ji < minDist){
-							minDist = dist_ji;
-							clusterId = bins[i].clusterBinId;
-						}
-					}
-				}
-				if (clusterId != -1)
-					b.clusterBinId = clusterId;
-				singletons.add(b);
 			}
-			centers.removeAll(singletons);
+		} // assign clusters
+
+		// re-assign singletons (cluster with only 1 point)
+		ArrayList<PetBin> singletons = new ArrayList<PetBin>();
+		eachCenter: for (int j=0;j<centers.size();j++){
+			PetBin b = centers.get(j);
+			int bid = b.binId;
+			if (bid != b.clusterBinId)
+				continue;
+			int clusterSize = 0;
+			for (int i=0;i<count;i++){
+				if (bid == bins[i].clusterBinId){
+					clusterSize++;
+					if (clusterSize>=2)
+						continue eachCenter;	// skip if more than 2 PETs
+				}
+			}
 			
-			sb.append("Read1\tRead2\tClusterId\tDensity\tDelta\tGamma\tPetId\tClusterCenterId\n");
-			for (int j=0;j<centers.size();j++){
-				PetBin b = centers.get(j);
-				int bid = b.binId;
-				ReadPairCluster rpc = new ReadPairCluster();
-				StringBuilder sb1 = new StringBuilder();
-				for (int i=0;i<count;i++){
-					PetBin m = bins[i];
-					if (m.clusterBinId == bid){		// cluster member
-						ReadPair rp = pets.get(m.binId);
-						rpc.addReadPair(rp);
+			// b is a singleton
+			// assign it to the nearest higher-density point within dc
+			int clusterId = -1;
+			int minDist = d_c;
+			for (int i=0;i<count;i++){
+				if (bid!=bins[i].binId){
+					int dist_ji = dist[bid][bins[i].binId];
+					if ( dist_ji < minDist){
+						minDist = dist_ji;
+						clusterId = bins[i].clusterBinId;
+					}
+				}
+			}
+			if (clusterId != -1)
+				b.clusterBinId = clusterId;
+			singletons.add(b);
+		}
+		centers.removeAll(singletons);
+		
+		sb.append("Read1\tRead2\tClusterId\tDensity\tDelta\tGamma\tPetId\tClusterCenterId\n");
+		for (int j=0;j<centers.size();j++){
+			PetBin b = centers.get(j);
+			int bid = b.binId;
+			ReadPairCluster rpc = new ReadPairCluster();
+			StringBuilder sb1 = new StringBuilder();
+			for (int i=0;i<count;i++){
+				PetBin m = bins[i];
+				if (m.clusterBinId == bid){		// cluster member
+					ReadPair rp = pets.get(m.binId);
+					rpc.addReadPair(rp);
 //						if (bid==m.binId)		// cluster center
 //							rpc.centerPET = rp;
-						sb1.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), j+1,
-								m.density,m.delta, m.gamma, m.binId,m.clusterBinId));
-					}
+					sb1.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), j+1,
+							m.density,m.delta, m.gamma, m.binId,m.clusterBinId));
 				}
-				if (rpc.pets.size()>=2){
-					rpc.update();
-					results.add(rpc);
-				}
-				sb.append(sb1.toString());		// add to sb, even for PET1
 			}
-			if (tic!=-1)
-				System.err.println(CommonUtils.timeElapsed(tic));
+			if (rpc.pets.size()>=2){
+				rpc.update();
+				results.add(rpc);
+			}
+			sb.append(sb1.toString());		// add to sb, even for PET1
 		}
+		if (tic!=-1)
+			System.err.println(CommonUtils.timeElapsed(tic));
 		return results;
 	}
 	
@@ -2613,7 +2621,7 @@ public class CID {
 
 		
 		if (isDev){
-			StringBuilder sbSprout = new StringBuilder().append("coordA\tcoordB\tcount\tid\n");
+			StringBuilder sbSprout = new StringBuilder(); //.append("coordA\tcoordB\tcount\tid\n");
 			StringBuilder sbLoop = new StringBuilder();
 			StringBuilder sbLeftAnchors = new StringBuilder();
 			StringBuilder sbRightAnchors = new StringBuilder();
