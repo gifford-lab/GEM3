@@ -73,21 +73,21 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
     }
 
     public void retrieveData() {
-//        try {
-//            synchronized(locators) {
-//                locators.clear();
-//                System.err.println("Getting all alignments from retrieveData");
-//                alignments.clear();
-//                alignments.addAll(chipSeqLoader.loadAlignments(getGenome()));
-//                for(ChipSeqAlignment align : alignments) { 
-//                    locators.add(new ChipSeqLocator(align.getExpt().getName(),
-//                                                       align.getExpt().getReplicate(),
-//                                                       align.getName()));
-//                }
-//            }
-//        } catch (SQLException e) {
-//            throw new RuntimeException(e.toString(), e);
-//        }
+        try {
+            synchronized(locators) {
+                locators.clear();
+                System.err.println("Getting all alignments from retrieveData");
+                alignments.clear();
+                alignments.addAll(chipSeqLoader.loadAlignments(getGenome()));
+                for(ChipSeqAlignment align : alignments) { 
+                    locators.add(new ChipSeqLocator(align.getExpt().getName(),
+                                                       align.getExpt().getReplicate(),
+                                                       align.getName()));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e.toString(), e);
+        }
     }
     public void updateComponents() {
         selectedModel.clear();
