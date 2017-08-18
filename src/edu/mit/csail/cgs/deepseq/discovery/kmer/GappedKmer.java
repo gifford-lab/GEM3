@@ -273,7 +273,7 @@ public class GappedKmer extends Kmer{
 	        }
 		} catch (IOException e) {
         	System.err.println("I/O Error when processing "+file.getName());
-            e.printStackTrace(System.err);
+//            e.printStackTrace(System.err);
             return null;
 		} finally {
 			try{

@@ -781,6 +781,8 @@ public class CommonUtils {
 	public static KMAC loadKsmFile(String ksmFile, Config config){
 		File file = new File(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
+		if (ksm==null)
+			return null;
 		if (config.use_middle_offset){
 			Kmer topKmer = ksm.kmers.get(0);
 			int shift = topKmer.getKmerStartOffset()+topKmer.getK()/2;

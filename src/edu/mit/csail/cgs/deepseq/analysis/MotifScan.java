@@ -136,8 +136,13 @@ public class MotifScan {
 			ArrayList<String> knames = new ArrayList<String>();
 			if (ksm_string.contains(",")){	// it is a comma-separated string with name,path format
 				String f[]=ksm_string.split(",");
+				KMAC kmac = CommonUtils.loadKsmFile(f[1].trim(), config);
+				if (kmac==null){
+					System.err.println("Error in loading "+f[1]+", exit here!");
+					System.exit(-1);
+				}
 				knames.add(f[0].trim());
-				kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
+				kmacs.add(kmac);
 				instances = scan_multiKSMs(seqs, kmacs, knames);
 			}
 			else{		// it is KSM list file path
@@ -152,6 +157,10 @@ public class MotifScan {
 						String[] f = l.split("\t");
 						String kname = f[0].trim();
 						KMAC kmac = CommonUtils.loadKsmFile(f[1].trim(), config);
+						if (kmac==null){
+							System.err.println("Error in loading "+f[1]+", skipping it ...");
+							continue;
+						}
 						instances.addAll(scan_singleKSM(seqs, kmac, kname, n));
 					}
 				}
@@ -160,8 +169,13 @@ public class MotifScan {
 						if (l.startsWith("#"))
 							continue;
 						String[] f = l.split("\t");
+						KMAC kmac = CommonUtils.loadKsmFile(f[1].trim(), config);
+						if (kmac==null){
+							System.err.println("Error in loading "+f[1]+", skipping it ...\n");
+							continue;
+						}
 						knames.add(f[0].trim());
-						kmacs.add(CommonUtils.loadKsmFile(f[1].trim(), config));
+						kmacs.add(kmac);
 					}
 				    if (toMakeMatrix){
 				    	CommonUtils.writeFile(out.concat(".scoreMatrix.txt"), makeScoreMatrix_multiKSMs(seqs, kmacs, knames));
@@ -339,6 +353,7 @@ public class MotifScan {
 	    	sb.append(knames.get(m)).append("\t");
 	    }
 	    CommonUtils.replaceEnd(sb, '\n');
+	    System.out.println(sb.toString());
 	    
 	    for (int s=0; s<seqs.length;s++){
 	    	String seqs_rc = SequenceUtil.reverseComplement(seqs[s]);

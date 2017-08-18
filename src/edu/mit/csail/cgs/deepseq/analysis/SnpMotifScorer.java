@@ -72,6 +72,10 @@ public class SnpMotifScorer {
 		for (String ksmPath : ksms){
 			File file = new File(dir, ksmPath);
 			KsmMotif ksm = GappedKmer.loadKSM(file);
+			if (ksm==null){
+				System.err.println("Error in loading "+file.getAbsolutePath()+", skipping it ...");
+				continue;
+			}
 			KsmPwmRocAnalysis scanner = new KsmPwmRocAnalysis(args, ksm);
 
 			kss.add(scanner);

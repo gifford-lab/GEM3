@@ -177,11 +177,11 @@ public class KsmPwmRocAnalysis {
 		for (int i=0;i<negPosRatio;i++)
 			randObjs[i] = new Random(randSeed+i);
 
-		String kmer=null, pfm=null, fasta_file=null, fasta_neg_file=null;
+		String ksmFile=null, pfm=null, fasta_file=null, fasta_neg_file=null;
 		if (expt_motif!=null){
-			kmer = getFileName(motif_path+expt_motif, ".m0.KSM");			// old file name format
-			if (kmer==null)
-				kmer = getFileName(motif_path+expt_motif, "_KSM");		// new file name format, since May 2012
+			ksmFile = getFileName(motif_path+expt_motif, ".m0.KSM");			// old file name format
+			if (ksmFile==null)
+				ksmFile = getFileName(motif_path+expt_motif, "_KSM");		// new file name format, since May 2012
 			pfm = getFileName(motif_path+expt_motif, ".all.PFM");
 			
 			fasta_file = fasta_path+expt_fasta+fasta_suffix;
@@ -190,9 +190,13 @@ public class KsmPwmRocAnalysis {
 		}
 		
 		long t1 = System.currentTimeMillis();
-		File file = new File(kmer);
-    	System.err.println(kmer);
+		File file = new File(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);
+		if (ksm==null){
+			System.err.println("Error in loading "+file.getAbsolutePath()+", exit here!");
+			System.exit(-1);
+		}
+			
 		KsmPwmRocAnalysis scanner = new KsmPwmRocAnalysis(args, ksm);
 		System.out.println("KSM loading:\t"+CommonUtils.timeElapsed(t1));
 	        	    
