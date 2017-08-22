@@ -232,6 +232,23 @@ public class CommonUtils {
 		return new Pair<ArrayList<Region>, ArrayList<String>>(regions, annos);
 	}
 	
+	public static Pair<ArrayList<Point>, ArrayList<Double>> load_MACS_summits(String MACS_summits_file, Genome genome){
+		ArrayList<Point> sites = new ArrayList<Point>();
+		ArrayList<Double> scores = new ArrayList<Double>();
+		ArrayList<String> txt = readTextFile(MACS_summits_file);
+		for (String s:txt){
+			if (s.startsWith("#"))
+				continue;
+			String[] f = s.split("\t");
+			Point p = new Point(genome, f[0].replace("chr", "").replace("Chr", ""), Integer.parseInt(f[1]));
+			sites.add(p);
+			scores.add(Double.parseDouble(f[4]));
+		}
+		sites.trimToSize();
+		scores.trimToSize();
+		return new Pair<ArrayList<Point>, ArrayList<Double>>(sites, scores);
+	}
+
 	/** load text file in SISSRS output BED format, then sort by p-value
 	 * 	Chr		cStart	cEnd	NumTags	Fold	p-value
 		---		------	----	-------	----	-------
@@ -777,7 +794,7 @@ public class CommonUtils {
 		sb.append("\n");
 		return sb.toString();
 	}
-	
+		
 	public static KMAC loadKsmFile(String ksmFile, Config config){
 		File file = new File(ksmFile);
 		KsmMotif ksm = GappedKmer.loadKSM(file);

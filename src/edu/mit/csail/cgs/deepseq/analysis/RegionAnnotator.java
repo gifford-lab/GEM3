@@ -176,16 +176,18 @@ public class RegionAnnotator {
 			for (Point p: ps)
 				queryRegions.add(p.expand(0));
 		}
-			
 
 		ArrayList<Region> inputRegions = new ArrayList<Region>();
 		for (Region r: queryRegions)
 			inputRegions.add(r);
 		
 		String anchor_GEM_file = Args.parseString(args, "anchor_GEM_file", null); // TF GEM file to anchor the region
+		String anchor_MACS_summits = Args.parseString(args, "anchor_MACS_summits", null); // ATAC MACS summit file to anchor the region
+
+		ArrayList<Point> sites = new ArrayList<Point>();
+		ArrayList<Double> scores = new ArrayList<Double>();
 		if (anchor_GEM_file !=null){
 			List<GPSPeak> gpsPeaks = null;
-			ArrayList<Point> sites = new ArrayList<Point>();
 			try{
 				gpsPeaks = GPSParser.parseGPSOutput(anchor_GEM_file, genome);
 			}
@@ -196,14 +198,25 @@ public class RegionAnnotator {
 			Collections.sort(gpsPeaks);
 			for (GPSPeak p: gpsPeaks){
 				sites.add((Point)p);
+				scores.add(p.getStrength());
 			}
+			sites.trimToSize();
+			scores.trimToSize();
+		}
+		if (anchor_MACS_summits!=null){
+			Pair<ArrayList<Point>, ArrayList<Double>> pair = CommonUtils.load_MACS_summits(anchor_MACS_summits, genome);
+			sites = pair.car();
+			scores = pair.cdr();
+		}
+		
+		if (!sites.isEmpty()){
 			Set<String> flags = Args.parseFlags(args);
 			boolean discardRegion = flags.contains("discardRegion");
 			ArrayList<Region> toRemove = new ArrayList<Region>();
 			for (int i=0;i<queryRegions.size();i++){
 				Region r = queryRegions.get(i);
 				ArrayList<Integer> ids = CommonUtils.getPointsIdxWithinWindow(sites,r);
-				if (ids.isEmpty()){
+				if (ids.isEmpty()){		// if no anchor points in this region, skip (--discardRegion) or just use the midPoint
 					if(discardRegion){
 						toRemove.add(r);
 						continue;
@@ -215,12 +228,12 @@ public class RegionAnnotator {
 						double[] signals = new double[ids.size()];
 						for (int j=0;j<ids.size();j++){
 							int id =ids.get(j);
-							signals[j]=gpsPeaks.get(id).getStrength();
+							signals[j]=scores.get(id);
 						}
 						Pair<Double, TreeSet<Integer>> max = StatUtil.findMax(signals);
 						selected_id = ids.get(max.cdr().first());		// if tie, just use first site
 					}
-					queryRegions.set(i, gpsPeaks.get(selected_id).expand(r.getWidth()/2));  // set the midPoint to the TF location
+					queryRegions.set(i, sites.get(selected_id).expand(r.getWidth()/2));  // set the midPoint to the TF location
 				}
 				
 			}
@@ -245,6 +258,7 @@ public class RegionAnnotator {
 		for (int i=0;i<queryRegions.size();i++){
 			signals[i] = chipSeqExpt.countHits(queryRegions.get(i).getMidpoint().expand(window/2));
 		}
+		chipSeqExpt.closeLoaders();
 		int[] sortedIdx = StatUtil.findSort(signals);
 		StringBuilder sb = new StringBuilder();
 		sb.append("#Point\tInput_regions\tWidth\tSignal_").append(window).append("\n");
