@@ -12,15 +12,15 @@ public class InteractionAnalysisModel extends WarpModel implements RegionModel,
 	
 	private Region region;
 	private boolean newinput;
-	private Map<Point,Float> events;
-	private Map<Pair<Point,Point>,Float> interactions;
-	private SortedMap<Point,Float> allevents;
+	private Map<Pair<Point,Point>,Float> interactions;	// those in current window
+	private SortedMap<Pair<Point,Point>,Pair<Region,Region>> interactionAnchors;	// those in current window
+	private SortedMap<Pair<Point,Point>,Pair<Region,Region>> allInteractionAnchors;
 	private SortedMap<Pair<Point,Point>,Float> allinteractions;
 	private InteractionAnalysisProperties props;
 	
-	public InteractionAnalysisModel(SortedMap<Point,Float> allevents, SortedMap<Pair<Point,Point>,Float> allinteractions) {
+	public InteractionAnalysisModel(SortedMap<Pair<Point,Point>,Float> allinteractions, SortedMap<Pair<Point,Point>,Pair<Region,Region>> allInteractionAnchors) {
 		this.allinteractions = allinteractions;
-		this.allevents = allevents;
+		this.allInteractionAnchors = allInteractionAnchors;
 		props = new InteractionAnalysisProperties();
 		region = null;
 		newinput = false;
@@ -41,12 +41,12 @@ public class InteractionAnalysisModel extends WarpModel implements RegionModel,
 
 			}
 			if (newinput) {
-				events = allevents.subMap(region.startPoint(), region.endPoint());
 				Point minPoint = new Point(region.getGenome(), "", 0);
 				Point maxPoint = new Point(region.getGenome(), "Z", 0);
 				Point startPoint = new Point(region.getGenome(), region.getChrom(), region.getStart());
 				Point endPoint = new Point(region.getGenome(), region.getChrom(), region.getEnd());
 				interactions = allinteractions.subMap(new Pair<Point,Point>(minPoint,startPoint), new Pair<Point,Point>(endPoint,maxPoint));
+				interactionAnchors = allInteractionAnchors.subMap(new Pair<Point,Point>(minPoint,startPoint), new Pair<Point,Point>(endPoint,maxPoint));
 			}
 			newinput = false;
 			notifyListeners();
@@ -66,13 +66,12 @@ public class InteractionAnalysisModel extends WarpModel implements RegionModel,
 
 	public Region getRegion() {return region;}
 
-
 	public Map<Pair<Point, Point>, Float> getInteractions() {
 		return interactions;
 	}
 
-	public Map<Point, Float> getEvents() {
-		return events;
+	public Map<Pair<Point, Point>, Pair<Region,Region>> getInteractionAnchors() {
+		return interactionAnchors;
 	}
 	
 	public InteractionAnalysisProperties getProperties() {

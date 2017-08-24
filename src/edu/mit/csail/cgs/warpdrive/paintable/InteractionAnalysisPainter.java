@@ -68,9 +68,9 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		Stroke oldStroke = g.getStroke();
 		g.setStroke(new BasicStroke((float)linewidth));
 
-		Map<Point,Float> events = model.getEvents();
 		Map<Pair<Point,Point>,Float> interactions = model.getInteractions();
-
+		Map<Pair<Point,Point>, Pair<Region,Region>> interactionAnchors = model.getInteractionAnchors();
+		
 		if (getProperties().DrawTrackLabel) {
 			g.setFont(attrib.getLargeLabelFont(width,height));
 			g.setColor(Color.BLACK);
@@ -83,6 +83,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		int cutoff = getProperties().ReadPairCountCutoff;
 		boolean toShowCount = getProperties().DisplayReadPairCount;
 		boolean toShowOutOfRangeIntereactions = getProperties().ShowOutOfRangeIntereactions;
+		boolean toShowAnchors = getProperties().ShowAnchors;
 		for (Pair<Point,Point> pair : interactions.keySet()) {
 			Point leftPoint = pair.car();
 			Point rightPoint = pair.cdr();
@@ -129,6 +130,18 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 				if (colorIdx > arcColors.length-1)
 					colorIdx = arcColors.length-1;
 				g.setColor(arcColors[colorIdx]);
+				// draw anchors
+				if (toShowAnchors){
+					Pair<Region, Region> anchors = interactionAnchors.get(pair);
+					Region leftAnchor = anchors.car();
+					Region rightAnchor = anchors.cdr();
+					int leftS = getXPosExt(leftAnchor.getStart(), regionStart, regionEnd, x1, x2);
+					int leftE = getXPosExt(leftAnchor.getEnd(), regionStart, regionEnd, x1, x2);
+					int rightS = getXPosExt(rightAnchor.getStart(), regionStart, regionEnd, x1, x2);
+					int rightE = getXPosExt(rightAnchor.getEnd(), regionStart, regionEnd, x1, x2);
+					g.fillRect(leftS, y2, leftE-leftS, 3);
+					g.fillRect(rightS, y2, rightE-rightS, 3);
+				}
 			}
 			QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
 			g.draw(loop);
