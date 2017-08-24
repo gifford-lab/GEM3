@@ -133,7 +133,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 				// draw anchors
 				if (toShowAnchors){
 					Pair<Region, Region> anchors = interactionAnchors.get(pair);
-					if (anchors!=null){
+					if (anchors!=null){ // skip if now anchor field, for old files
 						Region leftAnchor = anchors.car();
 						Region rightAnchor = anchors.cdr();
 						int leftS = getXPosExt(leftAnchor.getStart(), regionStart, regionEnd, x1, x2);
