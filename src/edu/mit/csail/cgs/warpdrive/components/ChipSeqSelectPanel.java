@@ -87,7 +87,7 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
 //            }
 //        } catch (SQLException e) {
 //            throw new RuntimeException(e.toString(), e);
-//        }
+//        }//
     }
     public void updateComponents() {
         selectedModel.clear();

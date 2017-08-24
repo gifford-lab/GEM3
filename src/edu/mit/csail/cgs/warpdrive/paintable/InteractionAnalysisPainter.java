@@ -133,14 +133,16 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 				// draw anchors
 				if (toShowAnchors){
 					Pair<Region, Region> anchors = interactionAnchors.get(pair);
-					Region leftAnchor = anchors.car();
-					Region rightAnchor = anchors.cdr();
-					int leftS = getXPosExt(leftAnchor.getStart(), regionStart, regionEnd, x1, x2);
-					int leftE = getXPosExt(leftAnchor.getEnd(), regionStart, regionEnd, x1, x2);
-					int rightS = getXPosExt(rightAnchor.getStart(), regionStart, regionEnd, x1, x2);
-					int rightE = getXPosExt(rightAnchor.getEnd(), regionStart, regionEnd, x1, x2);
-					g.fillRect(leftS, y2, leftE-leftS, 3);
-					g.fillRect(rightS, y2, rightE-rightS, 3);
+					if (anchors!=null){
+						Region leftAnchor = anchors.car();
+						Region rightAnchor = anchors.cdr();
+						int leftS = getXPosExt(leftAnchor.getStart(), regionStart, regionEnd, x1, x2);
+						int leftE = getXPosExt(leftAnchor.getEnd(), regionStart, regionEnd, x1, x2);
+						int rightS = getXPosExt(rightAnchor.getStart(), regionStart, regionEnd, x1, x2);
+						int rightE = getXPosExt(rightAnchor.getEnd(), regionStart, regionEnd, x1, x2);
+						g.fillRect(leftS, y2, leftE-leftS, 3);
+						g.fillRect(rightS, y2, rightE-rightS, 3);
+					}
 				}
 			}
 			QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
