@@ -5,6 +5,7 @@ public class InteractionAnalysisProperties extends
 	
 	public Integer LineWidth = 1;
 	public Boolean ShowOutOfRangeIntereactions = Boolean.FALSE;
+	public Boolean ShowAnchors = Boolean.TRUE;
 	public Boolean DisplayReadPairCount = Boolean.TRUE;
 	public Integer ReadPairCountCutoff = 1;
 }

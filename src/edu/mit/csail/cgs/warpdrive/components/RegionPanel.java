@@ -355,6 +355,19 @@ Listener<EventObject>, PainterContainer, MouseListener {
 						}
 
 					});
+					SortedMap<Pair<Point,Point>,Pair<Region,Region>> interactionAnchors = new TreeMap<Pair<Point,Point>,Pair<Region,Region>>(new Comparator<Pair<Point,Point>>() {
+
+						public int compare(Pair<Point,Point> arg0,
+								Pair<Point, Point> arg1) {
+							int tor = arg0.car().compareTo(arg1.car());
+							if (tor==0) {
+								return arg0.cdr().compareTo(arg1.cdr());
+							} else {
+								return tor;
+							}
+						}
+
+					});
 					System.err.println("parsing "+k);
 					BufferedReader r = new BufferedReader(new FileReader(k));
 					String s;
@@ -374,7 +387,12 @@ Listener<EventObject>, PainterContainer, MouseListener {
 						}
 						if (!(split[0].equals("noise") || split[1].equals("noise"))) {
 							try {
-								interactions.put(new Pair<Point,Point>(Point.fromString(genome, split[0]), Point.fromString(genome, split[1])),Float.valueOf(split[2]));
+								Point left = Point.fromString(genome, split[0]);
+								Point right = Point.fromString(genome, split[1]);
+								interactions.put(new Pair<Point,Point>(left, right),Float.valueOf(split[2]));
+								if (split.length>=5)
+									interactionAnchors.put(new Pair<Point,Point>(left, right),
+											new Pair<Region,Region>(Region.fromString(genome, split[3]), Region.fromString(genome, split[4])));
 							} catch (Exception e) {
 								System.err.println(s);
 								r.close();
@@ -383,7 +401,7 @@ Listener<EventObject>, PainterContainer, MouseListener {
 						}
 					}
 					r.close();
-					RegionModel m = new InteractionAnalysisModel(new TreeMap<Point,Float>(), interactions);
+					RegionModel m = new InteractionAnalysisModel(interactions, interactionAnchors);
 					RegionPaintable p = new InteractionAnalysisPainter((InteractionAnalysisModel)m);
 					addModel(m);
 					Thread t = new Thread((Runnable)m); t.start();
