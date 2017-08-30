@@ -1745,14 +1745,13 @@ public class CID {
 		if (tic!=-1)
 			System.err.println(CommonUtils.timeElapsed(tic));
 		
-		
 		ArrayList<ReadPairCluster> newResults = new ArrayList<ReadPairCluster>();
 		for (ReadPairCluster rpc: results){
 			int dcNew = span2mergingDist(rpc.span);
 			if (d_c > dcNew)		// fine tune RPCs with their own d_c
 				newResults.addAll(densityClustering(rpc, dcNew, sb));
 			// if anchor width is too large, reduce d_c
-			else if (rpc.span<20000 && rpc.span < 15 * Math.max(rpc.r1width, rpc.r2width))
+			else if (rpc.span < 15 * Math.max(rpc.r1width, rpc.r2width))
 				newResults.addAll(densityClustering(rpc, (int)(d_c*0.75), sb));
 			else
 				newResults.add(rpc);
@@ -1976,7 +1975,8 @@ public class CID {
 			StringBuilder sbRightAnchors = new StringBuilder();
 			int id=0;
 			for (Interaction it: interactions){
-				sbSprout.append(it.toSproutString()).append("\t").append(id).append("\n");
+				sbSprout.append(it.toSproutString()).append("\t").append(it.leftRegion.toString()).append("\t")
+				.append(it.rightRegion.toString()).append("\t").append(id).append("\n");
 				sbLoop.append(it.toLoopString()).append("\t").append(id).append("\t").append(it.adjustedCount).append("\n");
 				sbLeftAnchors.append(it.leftRegion.toString()).append("\t").append(id).append("\n");
 				sbRightAnchors.append(it.rightRegion.toString()).append("\t").append(id).append("\n");
