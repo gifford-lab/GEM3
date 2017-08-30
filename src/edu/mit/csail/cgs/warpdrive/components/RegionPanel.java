@@ -63,13 +63,6 @@ import org.w3c.dom.DOMImplementation;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Writer;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-
 
 /* RegionFrame encapsulates a set of painters that display a particular genomic region
  */
@@ -127,20 +120,24 @@ Listener<EventObject>, PainterContainer, MouseListener {
 
 	public RegionPanel(WarpOptions opts) {
 		super();
-		Organism organism = null;
-		Genome g = null;
-		try {
-			organism = Organism.getOrganism(opts.species);
-			g = organism.getGenome(opts.genome);
-			//            System.err.println("Creating a new RP for " + g);
-					//            System.err.println("opts.genome was " + opts.genome);
-		} catch (NotFoundException ex) {
-			System.err.println("Fatal Error in RegionPanel(WarpOptions)");
-			ex.printStackTrace();
-			// a little weird, but it'd happen anyway in init();
-			throw new NullPointerException("Fatal Error in RegionPanel(WarpOptions)");
+		if (opts.genomeString!=null){
+			genome = new Genome("Genome", new File(opts.genomeString), true);
 		}
-		init(g);
+		else{
+			Organism organism = null;
+			try {
+				organism = Organism.getOrganism(opts.species);
+				genome = organism.getGenome(opts.genome);
+				//            System.err.println("Creating a new RP for " + g);
+						//            System.err.println("opts.genome was " + opts.genome);
+			} catch (NotFoundException ex) {
+				System.err.println("Fatal Error in RegionPanel(WarpOptions)");
+				ex.printStackTrace();
+				// a little weird, but it'd happen anyway in init();
+				throw new NullPointerException("Fatal Error in RegionPanel(WarpOptions)");
+			}
+		}
+		init(genome);
 		currentOptions = opts;
 		addPaintersFromOpts(opts);
 		//Find our initial region.
@@ -151,7 +148,7 @@ Listener<EventObject>, PainterContainer, MouseListener {
 		if (startingRegion != null) {
 			setRegion(startingRegion);
 		} else if (opts.start >= 0 && opts.chrom != null) {
-			setRegion(new Region(g,opts.chrom,opts.start,opts.stop));
+			setRegion(new Region(genome,opts.chrom,opts.start,opts.stop));
 		} else if (opts.position != null && opts.position.length() > 0) {
 			Region r = regionFromString(genome,opts.position);
 			if (r != null) {
@@ -165,10 +162,13 @@ Listener<EventObject>, PainterContainer, MouseListener {
 				}
 			}
 		} else {
-			throw new NullPointerException("Need a starting position in either chrom or gene");
+			if (opts.genomeString!=null)
+				setRegion(new Region(genome, "19", 200000, 420000));
+			else
+				throw new NullPointerException("Need a starting position in either chrom or gene");
 		}
 		if (opts.regionListFile != null) {
-			java.util.List<Region> regions = readRegionsFromFile(g,opts.regionListFile);
+			java.util.List<Region> regions = readRegionsFromFile(genome,opts.regionListFile);
 			RegionListPanel p = new RegionListPanel(this,
 					regions);
 			RegionListPanel.makeFrame(p);
@@ -258,7 +258,7 @@ Listener<EventObject>, PainterContainer, MouseListener {
 
 		System.out.println("***** addPaintersFromOpts()");
 
-		if (!(opts.species.equals(genome.getSpecies()) &&
+		if (opts.genomeString==null && !(opts.species.equals(genome.getSpecies()) &&
 				opts.genome.equals(genome.getVersion()))) {
 			// if someone tries to add painters from a different species,
 			// create a new frame for them instead.
@@ -270,75 +270,75 @@ Listener<EventObject>, PainterContainer, MouseListener {
 		}
 
 		//System.out.println("***** addPaintersFromOpts() ---> Line 2");
-
-		opts.mergeInto(currentOptions);
-		ChipChipDataset dataset = new ChipChipDataset(genome);
-		// there should be one scale model for each chip-chip track.  We need to keep them
-		// here because multiple chipchip datasets (ie painters) may be on the same track (ie piece
-		// of screen real-estate)
-		Hashtable<String,ChipChipScaleModel> scalemodels = new Hashtable<String,ChipChipScaleModel>();
-		if (opts.hash) {
-			HashMarkPaintable p = new HashMarkPaintable();
-			//SimpleHashMarkPaintable p = new SimpleHashMarkPaintable();
-			p.setLabel("Chromosomal position");
-			p.addEventListener(this);
-			addPainter(p);
-		}
-		RegionMapperModel seqmodel = null;
-		if (opts.gccontent || opts.cpg || opts.seqletters || opts.regexmatcher || opts.pyrpurcontent) {
-			seqmodel = new RegionMapperModel(new SequenceGenerator(genome));
-			addModel(seqmodel);
-			Thread t = new Thread(seqmodel);
-			t.start();
-		}
-
-		if (opts.gccontent) {
-			GCContentPainter p = new GCContentPainter(seqmodel);
-			p.addEventListener(this);
-			p.setOption(WarpOptions.GCCONTENT,null);
-			addPainter(p);
-			addModelToPaintable(p,seqmodel);
-		}
-		if (opts.pyrpurcontent) {
-			GCContentPainter p = new GCContentPainter(seqmodel);
-			p.setLabel("Pyr (red) Pur (blue)");
-			p.addEventListener(this);
-			p.setOption(WarpOptions.GCCONTENT,null);
-			GCContentProperties props = p.getProperties();
-			props.BlueBases = "AG";
-			props.RedBases = "CT";
-			addPainter(p);
-			addModelToPaintable(p,seqmodel);
-		}        
-		if (opts.cpg) {
-			CpGPainter p = new CpGPainter(seqmodel);
-			p.setLabel("CpG");
-			p.addEventListener(this);
-			p.setOption(WarpOptions.CPG,null);
-			addPainter(p);
-			addModelToPaintable(p,seqmodel);
-		}
-		if (opts.regexmatcher) {
-			RegexMatchPainter p = new RegexMatchPainter(seqmodel);
-			p.setLabel("regexes");
-			p.addEventListener(this);
-			p.setOption(WarpOptions.REGEXMATCHER,null);
-			addPainter(p);
-			addModelToPaintable(p,seqmodel);
-			for (String r : opts.regexes.keySet()) {
-				p.addRegex(r,opts.regexes.get(r));
+		if (opts.genomeString==null){
+			opts.mergeInto(currentOptions);
+			ChipChipDataset dataset = new ChipChipDataset(genome);
+			// there should be one scale model for each chip-chip track.  We need to keep them
+			// here because multiple chipchip datasets (ie painters) may be on the same track (ie piece
+			// of screen real-estate)
+			Hashtable<String,ChipChipScaleModel> scalemodels = new Hashtable<String,ChipChipScaleModel>();
+			if (opts.hash) {
+				HashMarkPaintable p = new HashMarkPaintable();
+				//SimpleHashMarkPaintable p = new SimpleHashMarkPaintable();
+				p.setLabel("Chromosomal position");
+				p.addEventListener(this);
+				addPainter(p);
+			}
+			RegionMapperModel seqmodel = null;
+			if (opts.gccontent || opts.cpg || opts.seqletters || opts.regexmatcher || opts.pyrpurcontent) {
+				seqmodel = new RegionMapperModel(new SequenceGenerator(genome));
+				addModel(seqmodel);
+				Thread t = new Thread(seqmodel);
+				t.start();
+			}
+	
+			if (opts.gccontent) {
+				GCContentPainter p = new GCContentPainter(seqmodel);
+				p.addEventListener(this);
+				p.setOption(WarpOptions.GCCONTENT,null);
+				addPainter(p);
+				addModelToPaintable(p,seqmodel);
+			}
+			if (opts.pyrpurcontent) {
+				GCContentPainter p = new GCContentPainter(seqmodel);
+				p.setLabel("Pyr (red) Pur (blue)");
+				p.addEventListener(this);
+				p.setOption(WarpOptions.GCCONTENT,null);
+				GCContentProperties props = p.getProperties();
+				props.BlueBases = "AG";
+				props.RedBases = "CT";
+				addPainter(p);
+				addModelToPaintable(p,seqmodel);
+			}        
+			if (opts.cpg) {
+				CpGPainter p = new CpGPainter(seqmodel);
+				p.setLabel("CpG");
+				p.addEventListener(this);
+				p.setOption(WarpOptions.CPG,null);
+				addPainter(p);
+				addModelToPaintable(p,seqmodel);
+			}
+			if (opts.regexmatcher) {
+				RegexMatchPainter p = new RegexMatchPainter(seqmodel);
+				p.setLabel("regexes");
+				p.addEventListener(this);
+				p.setOption(WarpOptions.REGEXMATCHER,null);
+				addPainter(p);
+				addModelToPaintable(p,seqmodel);
+				for (String r : opts.regexes.keySet()) {
+					p.addRegex(r,opts.regexes.get(r));
+				}
+			}
+	
+			if (opts.seqletters) {
+				BasePairPainter p = new BasePairPainter(seqmodel);
+				p.setLabel("Sequence");
+				p.addEventListener(this);
+				p.setOption(WarpOptions.SEQLETTERS,null);
+				addPainter(p);
+				addModelToPaintable(p,seqmodel);
 			}
 		}
-
-		if (opts.seqletters) {
-			BasePairPainter p = new BasePairPainter(seqmodel);
-			p.setLabel("Sequence");
-			p.addEventListener(this);
-			p.setOption(WarpOptions.SEQLETTERS,null);
-			addPainter(p);
-			addModelToPaintable(p,seqmodel);
-		}
-
 		if (opts.chiapetExpts.size() > 0) {
 			try {
 				for (String k : opts.chiapetExpts.keySet()) {

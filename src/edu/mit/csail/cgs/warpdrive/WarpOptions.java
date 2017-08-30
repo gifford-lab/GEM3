@@ -59,6 +59,7 @@ public class WarpOptions {
 	
     // General connection info
     public String species, genome;
+    public String genomeString;			// not DB, genome file with chrom info
 
     // where to start the display.
     // Either use (chrom,start,stop), gene, position (which will be parsed
@@ -364,9 +365,6 @@ public class WarpOptions {
     	 * java.util.prefs.Preferences reasonable values can be restored  
     	 */
         WarpOptions opts = new WarpOptions();
-        WeightMatrixLoader wmloader = new WeightMatrixLoader();
-        ChipSeqLoader chipseqloader = new ChipSeqLoader();
-
 
         try {        
             ResourceBundle res = ResourceBundle.getBundle("defaultgenome");
@@ -377,8 +375,7 @@ public class WarpOptions {
         } catch (Exception e) {
             // ditto
         }
-
-
+        
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--species")) {
                 opts.species = args[++i];
@@ -387,7 +384,10 @@ public class WarpOptions {
                     opts.species = pieces[0];
                     opts.genome = pieces[1];
                 }
-            }        
+            }  
+            if (args[i].equals("--g")) {
+                opts.genomeString = args[++i];
+            }
             if (args[i].equals("--genome") || args[i].equals("--genomeversion")) {
                 opts.genome = args[++i];
             }
@@ -396,7 +396,13 @@ public class WarpOptions {
                 System.err.println("Will use old ChipSeq painters");
             }
 
-        }            
+        }
+        ChipSeqLoader chipseqloader = null;
+        WeightMatrixLoader wmloader = null;
+        if (opts.genomeString==null){
+            wmloader = new WeightMatrixLoader();
+            chipseqloader = new ChipSeqLoader();
+        }
         try {
             Genome genome = null; Organism organism = null;
             if (opts.species != null && opts.genome != null) {
@@ -601,11 +607,12 @@ public class WarpOptions {
 
             }
         } finally {
-            wmloader.close();
-            chipseqloader.close();
+        	if (wmloader!=null)
+        		wmloader.close();
+        	if (chipseqloader!=null)
+        		chipseqloader.close();
         }
-
-
+        
         return opts;
     }
 

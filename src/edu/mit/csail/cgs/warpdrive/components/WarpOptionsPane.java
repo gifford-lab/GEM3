@@ -36,6 +36,7 @@ public class WarpOptionsPane
 	implements ItemListener, ActionListener, Closeable {
     // regexes get special handling at the moment because there's no gui component for them,
     // so cache them if neccessary
+	private boolean isLocal;
     private HashMap<String,String> regexes;
     private boolean handlingChange, closed;
     private RegionExpanderFactoryLoader<Gene> gfLoader;
@@ -132,18 +133,23 @@ public class WarpOptionsPane
 
     public WarpOptionsPane(WarpOptions opts) throws NotFoundException {
         super();
-        gfLoader = new RegionExpanderFactoryLoader<Gene>("gene");
-        pcLoader = new PeakCallerFactoryLoader();
-        annotLoader = new RegionExpanderFactoryLoader<NamedTypedRegion>("annots");
+        if (opts.genomeString == null) {
+	        gfLoader = new RegionExpanderFactoryLoader<Gene>("gene");
+	        pcLoader = new PeakCallerFactoryLoader();
+	        annotLoader = new RegionExpanderFactoryLoader<NamedTypedRegion>("annots");
+        }
+        else
+        	isLocal = true;
         closed = false;
         init(opts);
-        if (opts.genome == null) {
+        if (opts.genome == null && !isLocal) {
             setSpeciesGenomeDefaults();
         }        
         regexes = opts.regexes;
     }
     
     public boolean isClosed() { return closed; }
+    public void setClosed() { closed = true; }
     
     public void close() { 
         exptSelect.close();
@@ -199,29 +205,31 @@ public class WarpOptionsPane
         position.setText("1:10000-20000");
         gene = new JTextField();
 
-        /* need to fill the species and genome boxes here */
-        Collection<String> organisms = Organism.getOrganismNames();
-        for (String o : organisms) {
-            species.addItem(o);
-        }
-
-        species.setSelectedIndex(0);
-        updateGenomeSelection();
-        Organism org = new Organism(species.getSelectedItem().toString());
-        Collection<String> genomes = org.getGenomeNames();
-        genome.removeAllItems();
-        for (String o : genomes) {
-            genome.addItem(o);
-        }
-        Genome g = null;
-        if(genome.getModel().getSize() > 0) { 
-            genome.setSelectedIndex(0);
-            String gname = (String)genome.getSelectedItem();
-            g = Organism.findGenome(gname);
-        } else {
-            // umm, no genomes is bad and will break other stuff
-        }        
-
+        JPanel dummy;
+        if (!isLocal){
+	        /* need to fill the species and genome boxes here */
+	        Collection<String> organisms = Organism.getOrganismNames();
+	        for (String o : organisms) {
+	            species.addItem(o);
+	        }
+	        species.setSelectedIndex(0);
+	        updateGenomeSelection();
+	        Organism org = new Organism(species.getSelectedItem().toString());
+	        
+	        Collection<String> genomes = org.getGenomeNames();
+	        genome.removeAllItems();
+	        for (String o : genomes) {
+	            genome.addItem(o);
+	        }
+	        
+	        Genome g = null;
+	        if(genome.getModel().getSize() > 0) { 
+	            genome.setSelectedIndex(0);
+	            String gname = (String)genome.getSelectedItem();
+	            g = Organism.findGenome(gname);
+	        } else {
+	            // umm, no genomes is bad and will break other stuff
+	        }        
         speciesLocationPanel.setLayout(new GridLayout(4,2));
         speciesLocationPanel.add(specieslabel);
         speciesLocationPanel.add(species);
@@ -244,10 +252,7 @@ public class WarpOptionsPane
         exprSelect = new ExprExperimentSelectPanel();
         exprPanel.setLayout(new BorderLayout());
         exprPanel.add(exprSelect, BorderLayout.CENTER);
-        
-        //chiapet tab
-        chiapettracks = new FileBasedTracksPanel();
-        
+                
         // chipseq tab
         chipSeqSelect = new ChipSeqSelectPanel();        
         chipSeqPanel.setLayout(new BorderLayout());
@@ -332,11 +337,8 @@ public class WarpOptionsPane
         annotationsPanel.add(lists,BorderLayout.CENTER);
         annotationsPanel.add(boxes,BorderLayout.SOUTH);
 
-        // file tracks tab
-        filetracks = new FileBasedTracksPanel();        
-
         // use this to make the spacing be not-stupid
-        JPanel dummy = new JPanel();        
+        dummy = new JPanel();        
         dummy.add(speciesLocationPanel);
         dummy.add(new JPanel());
         addTab("Species & Location",new JScrollPane(dummy));
@@ -347,10 +349,13 @@ public class WarpOptionsPane
         addTab("Seq Data", chipSeqPanel);
         addTab("Paired Seq", pairedChipSeqPanel);
         addTab("ChIA-PET Arcs", chiaPetArcPanel);
+        }
         
-        
+        //chiapet tab
+        chiapettracks = new FileBasedTracksPanel();
         dummy = new JPanel(); dummy.add(chiapettracks); dummy.add(new JPanel());
         addTab("Sprout",new JScrollPane(dummy));
+        
         addTab("ChipSeq Analysis", chipSeqAnalysisPanel);
         
         //addTab("Expression", exprPanel);
@@ -358,6 +363,8 @@ public class WarpOptionsPane
         //dummy = new JPanel();  dummy.add(chipChipPanel); dummy.add(new JPanel());
         addTab("ChIP-Chip Data",chipChipPanel);
 
+        // file tracks tab
+        filetracks = new FileBasedTracksPanel();        
         dummy = new JPanel();  dummy.add(filetracks); dummy.add(new JPanel());
         addTab("File Tracks",new JScrollPane(dummy));
                 
@@ -383,97 +390,100 @@ public class WarpOptionsPane
         init();
         createdFrom = opts;      
         
-        if (opts.genome != null) {
-            this.species.removeItemListener(this);
-            this.genome.removeItemListener(this);
-            this.species.setSelectedItem(opts.species);
-            updateGenomeSelection();
-            this.genome.setSelectedItem(opts.genome);            
-            updateExptSelection();
-            this.genome.addItemListener(this);
-            this.species.addItemListener(this);
-        } else if (opts.species != null) {
-            this.species.setSelectedItem(opts.species);
-            updateGenomeSelection();
-        } else {
-            this.species.setSelectedIndex(0);
-            updateGenomeSelection();
+        if (opts.genomeString==null){		// skip all the database related stuff
+	        if (opts.genome != null) {
+	            this.species.removeItemListener(this);
+	            this.genome.removeItemListener(this);
+	            this.species.setSelectedItem(opts.species);
+	            updateGenomeSelection();
+	            this.genome.setSelectedItem(opts.genome);            
+	            updateExptSelection();
+	            this.genome.addItemListener(this);
+	            this.species.addItemListener(this);
+	        } else if (opts.species != null) {
+	            this.species.setSelectedItem(opts.species);
+	            updateGenomeSelection();
+	        } else {
+	            this.species.setSelectedIndex(0);
+	            updateGenomeSelection();
+	        }
+	        handlingChange = false;        
+	        if (opts.gene != null &&
+	            !opts.gene.equals("")) {
+	            gene.setText(opts.gene);
+	        }
+	        
+	        relative.setSelected(opts.relative);
+	        hash.setSelected(opts.hash);
+	        gccontent.setSelected(opts.gccontent);        
+	        pyrpurcontent.setSelected(opts.pyrpurcontent);
+	        cpg.setSelected(opts.cpg);
+	        regexmatcher.setSelected(opts.regexmatcher);
+	        seqletters.setSelected(opts.seqletters);
+	        oldchipseq.setSelected(!opts.chipseqHistogramPainter);
+	
+	        int[] selected = new int[opts.genes.size()];
+	        for (int i = 0; i < opts.genes.size(); i++) {
+	            selected[i] = genesmodel.indexOf(opts.genes.get(i));            
+	        }
+	        genes.setSelectedIndices(selected);
+	        selected = new int[opts.ncrnas.size()];
+	        for (int i = 0; i < opts.ncrnas.size(); i++) {
+	            selected[i] = ncrnasmodel.indexOf(opts.ncrnas.get(i));            
+	        }
+	        ncrnas.setSelectedIndices(selected);
+	        selected = new int[opts.otherannots.size()];
+	        for (int i = 0; i < opts.otherannots.size(); i++) {
+	            selected[i] = otherfeatsmodel.indexOf(opts.otherannots.get(i));
+	        }
+	        otherfeats.setSelectedIndices(selected);
+	        motifScanPanel.addToSelected(opts.motifscans);
+	        motifPanel.addToSelected(opts.motifs);
+	        
+	        try {
+	            Genome g = loadGenome();
+	            if (g != null) {
+	                ChipChipDataset ds = loadGenome().getChipChipDataset();
+	                for (int i = 0; i < opts.agilentdata.size(); i++) {
+	                    exptSelect.addToSelected(new ChipChipLocator(ds,
+	                                                                 opts.agilentdata.get(i).name,
+	                                                                 opts.agilentdata.get(i).version,
+	                                                                 opts.agilentdata.get(i).replicate));
+	                }
+	                for (int i = 0; i < opts.bayesresults.size(); i++) {
+	                    exptSelect.addToSelected(new BayesLocator(ds,
+	                                                              opts.bayesresults.get(i).name,
+	                                                              opts.bayesresults.get(i).version));
+	                }
+	                for (int i = 0; i < opts.msp.size(); i++) {
+	                    exptSelect.addToSelected(new MSPLocator(ds,
+	                                                            opts.msp.get(i).name,
+	                                                            opts.msp.get(i).version));
+	                }
+	            }
+	        } catch (NullPointerException ex) {
+	            /* this doesn't work if we can't get a genome object.  Just ignore
+	               the exception.  It only means that we can't fill in the
+	               selected experiments and teh user will have to do it again */
+	            ex.printStackTrace();
+	        }
+	        if (opts.position != null &&
+	            !opts.position.equals("")) {
+	            position.setText(opts.position);
+	        } else {
+	            if (opts.chrom != null &&
+	                !opts.chrom.equals("")) {
+	                position.setText(opts.chrom + ":" + opts.start + "-" + opts.stop);
+	            }
+	        }       
+	        chipSeqSelect.addToSelected(opts.chipseqExpts);
+	        pairedChipSeqSelect.addToSelected(opts.pairedChipseqExpts);
+	        chiaPetArcSelect.addToSelected(opts.chiapetArcs);
+	        chipSeqAnalysisSelect.addToSelected(opts.chipseqAnalyses);
+	        bindingSelect.addToSelected(opts.bindingScans);
+	        exprSelect.addToSelected(opts.exprExperiments);
         }
-        handlingChange = false;        
-        if (opts.gene != null &&
-            !opts.gene.equals("")) {
-            gene.setText(opts.gene);
-        }
-        relative.setSelected(opts.relative);
-        hash.setSelected(opts.hash);
-        gccontent.setSelected(opts.gccontent);        
-        pyrpurcontent.setSelected(opts.pyrpurcontent);
-        cpg.setSelected(opts.cpg);
-        regexmatcher.setSelected(opts.regexmatcher);
-        seqletters.setSelected(opts.seqletters);
-        oldchipseq.setSelected(!opts.chipseqHistogramPainter);
-
-        int[] selected = new int[opts.genes.size()];
-        for (int i = 0; i < opts.genes.size(); i++) {
-            selected[i] = genesmodel.indexOf(opts.genes.get(i));            
-        }
-        genes.setSelectedIndices(selected);
-        selected = new int[opts.ncrnas.size()];
-        for (int i = 0; i < opts.ncrnas.size(); i++) {
-            selected[i] = ncrnasmodel.indexOf(opts.ncrnas.get(i));            
-        }
-        ncrnas.setSelectedIndices(selected);
-        selected = new int[opts.otherannots.size()];
-        for (int i = 0; i < opts.otherannots.size(); i++) {
-            selected[i] = otherfeatsmodel.indexOf(opts.otherannots.get(i));
-        }
-        otherfeats.setSelectedIndices(selected);
-        motifScanPanel.addToSelected(opts.motifscans);
-        motifPanel.addToSelected(opts.motifs);
-        
-        try {
-            Genome g = loadGenome();
-            if (g != null) {
-                ChipChipDataset ds = loadGenome().getChipChipDataset();
-                for (int i = 0; i < opts.agilentdata.size(); i++) {
-                    exptSelect.addToSelected(new ChipChipLocator(ds,
-                                                                 opts.agilentdata.get(i).name,
-                                                                 opts.agilentdata.get(i).version,
-                                                                 opts.agilentdata.get(i).replicate));
-                }
-                for (int i = 0; i < opts.bayesresults.size(); i++) {
-                    exptSelect.addToSelected(new BayesLocator(ds,
-                                                              opts.bayesresults.get(i).name,
-                                                              opts.bayesresults.get(i).version));
-                }
-                for (int i = 0; i < opts.msp.size(); i++) {
-                    exptSelect.addToSelected(new MSPLocator(ds,
-                                                            opts.msp.get(i).name,
-                                                            opts.msp.get(i).version));
-                }
-            }
-        } catch (NullPointerException ex) {
-            /* this doesn't work if we can't get a genome object.  Just ignore
-               the exception.  It only means that we can't fill in the
-               selected experiments and teh user will have to do it again */
-            ex.printStackTrace();
-        }
-        if (opts.position != null &&
-            !opts.position.equals("")) {
-            position.setText(opts.position);
-        } else {
-            if (opts.chrom != null &&
-                !opts.chrom.equals("")) {
-                position.setText(opts.chrom + ":" + opts.start + "-" + opts.stop);
-            }
-        }       
         chiapettracks.fill(opts.chiapetExpts);
-        chipSeqSelect.addToSelected(opts.chipseqExpts);
-        pairedChipSeqSelect.addToSelected(opts.pairedChipseqExpts);
-        chiaPetArcSelect.addToSelected(opts.chiapetArcs);
-        chipSeqAnalysisSelect.addToSelected(opts.chipseqAnalyses);
-        bindingSelect.addToSelected(opts.bindingScans);
-        exprSelect.addToSelected(opts.exprExperiments);
         filetracks.fill(opts.regionTracks);
     }
 
@@ -530,81 +540,82 @@ public class WarpOptionsPane
      */
     public WarpOptions parseOptions() {
         WarpOptions these = new WarpOptions();
-        // parse the species and location tab
-        these.species = species.getSelectedItem().toString();
-        these.genome = genome.getSelectedItem().toString();
-        these.position = position.getText();
-        these.gene = gene.getText();
-
-        // parse the options tab
-        these.hash = hash.isSelected();
-        these.relative = relative.isSelected();
-        these.seqletters = seqletters.isSelected();
-        these.chipseqHistogramPainter = !oldchipseq.isSelected();
-
-        // parse the annotations tab
-        Object[] selected = genes.getSelectedValues();
-        for (int i = 0; i < selected.length; i++) {
-            these.genes.add(selected[i].toString());
+        if (!isLocal){
+	        // parse the species and location tab
+	        these.species = species.getSelectedItem().toString();
+	        these.genome = genome.getSelectedItem().toString();
+	        these.position = position.getText();
+	        these.gene = gene.getText();
+	
+	        // parse the options tab
+	        these.hash = hash.isSelected();
+	        these.relative = relative.isSelected();
+	        these.seqletters = seqletters.isSelected();
+	        these.chipseqHistogramPainter = !oldchipseq.isSelected();
+	
+	        // parse the annotations tab
+	        Object[] selected = genes.getSelectedValues();
+	        for (int i = 0; i < selected.length; i++) {
+	            these.genes.add(selected[i].toString());
+	        }
+	        selected = ncrnas.getSelectedValues();
+	        for (int i = 0; i < selected.length; i++) {
+	            these.ncrnas.add(selected[i].toString());
+	        }
+	        selected = otherfeats.getSelectedValues();
+	        for (int i = 0; i < selected.length; i++) {
+	            these.otherannots.add(selected[i].toString());
+	        }
+	        these.motifscans.addAll(motifScanPanel.getSelected());
+	        these.motifs.addAll(motifPanel.getSelected());
+	        these.gccontent = gccontent.isSelected();
+	        these.pyrpurcontent = pyrpurcontent.isSelected();
+	        these.cpg = cpg.isSelected();
+	        these.regexmatcher = regexmatcher.isSelected();
+	        
+	        // parse the peaks tab
+	        Collection<BindingScan> scans = bindingSelect.getSelected();
+	        these.bindingScans.addAll(scans);
+	        
+	        // parse the expression tab
+	        Collection<Experiment> expts = exprSelect.getSelected();
+	        these.exprExperiments.addAll(expts);
+	        
+	        for(ChipSeqLocator loc : chipSeqSelect.getSelected()) { 
+	            these.chipseqExpts.add(loc);
+	        }
+	        for(ChipSeqLocator loc : pairedChipSeqSelect.getSelected()) { 
+	            these.pairedChipseqExpts.add(loc);
+	        }
+	        for (ChipSeqLocator loc : chiaPetArcSelect.getSelected()) {
+	        	these.chiapetArcs.add(loc);
+	        }
+	        for (ChipSeqAnalysis a : chipSeqAnalysisSelect.getSelected()) {
+	            these.chipseqAnalyses.add(a);
+	        }
+	        
+	        // parse the exptSelect panel selections.
+	        for(ExptLocator loc : exptSelect.getSelected()) { 
+	            
+	            if(loc instanceof ChipChipLocator) { 
+	                ChipChipLocator aloc = (ChipChipLocator)loc;
+	                these.agilentdata.add(aloc);
+	            }
+	            
+	            if(loc instanceof BayesLocator) { 
+	                BayesLocator bloc = (BayesLocator)loc;
+	                these.bayesresults.add(bloc);
+	            }
+	            
+	            if(loc instanceof MSPLocator) {
+	                MSPLocator mloc = (MSPLocator)loc;
+	                these.msp.add(mloc);
+	            }
+	        }
+	        these.regexes = regexes;
         }
-        selected = ncrnas.getSelectedValues();
-        for (int i = 0; i < selected.length; i++) {
-            these.ncrnas.add(selected[i].toString());
-        }
-        selected = otherfeats.getSelectedValues();
-        for (int i = 0; i < selected.length; i++) {
-            these.otherannots.add(selected[i].toString());
-        }
-        these.motifscans.addAll(motifScanPanel.getSelected());
-        these.motifs.addAll(motifPanel.getSelected());
-        these.gccontent = gccontent.isSelected();
-        these.pyrpurcontent = pyrpurcontent.isSelected();
-        these.cpg = cpg.isSelected();
-        these.regexmatcher = regexmatcher.isSelected();
-        
-        // parse the peaks tab
-        Collection<BindingScan> scans = bindingSelect.getSelected();
-        these.bindingScans.addAll(scans);
-        
-        // parse the expression tab
-        Collection<Experiment> expts = exprSelect.getSelected();
-        these.exprExperiments.addAll(expts);
-        
         chiapettracks.parse(these.chiapetExpts);
-        for(ChipSeqLocator loc : chipSeqSelect.getSelected()) { 
-            these.chipseqExpts.add(loc);
-        }
-        for(ChipSeqLocator loc : pairedChipSeqSelect.getSelected()) { 
-            these.pairedChipseqExpts.add(loc);
-        }
-        for (ChipSeqLocator loc : chiaPetArcSelect.getSelected()) {
-        	these.chiapetArcs.add(loc);
-        }
-        for (ChipSeqAnalysis a : chipSeqAnalysisSelect.getSelected()) {
-            these.chipseqAnalyses.add(a);
-        }
-
-        
-        // parse the exptSelect panel selections.
-        for(ExptLocator loc : exptSelect.getSelected()) { 
-            
-            if(loc instanceof ChipChipLocator) { 
-                ChipChipLocator aloc = (ChipChipLocator)loc;
-                these.agilentdata.add(aloc);
-            }
-            
-            if(loc instanceof BayesLocator) { 
-                BayesLocator bloc = (BayesLocator)loc;
-                these.bayesresults.add(bloc);
-            }
-            
-            if(loc instanceof MSPLocator) {
-                MSPLocator mloc = (MSPLocator)loc;
-                these.msp.add(mloc);
-            }
-        }
         filetracks.parse(these.regionTracks);
-        these.regexes = regexes;
         return these;
     }
     
