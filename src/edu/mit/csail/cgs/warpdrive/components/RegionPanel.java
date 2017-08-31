@@ -53,6 +53,7 @@ import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.datasets.species.Gene;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.datasets.general.Point;
 
 /* this is all for saveImage() */
@@ -270,6 +271,13 @@ Listener<EventObject>, PainterContainer, MouseListener {
 		}
 
 		//System.out.println("***** addPaintersFromOpts() ---> Line 2");
+		if (opts.hash) {
+			HashMarkPaintable p = new HashMarkPaintable();
+			//SimpleHashMarkPaintable p = new SimpleHashMarkPaintable();
+			p.setLabel("Chromosomal position");
+			p.addEventListener(this);
+			addPainter(p);
+		}
 		if (opts.genomeString==null){
 			opts.mergeInto(currentOptions);
 			ChipChipDataset dataset = new ChipChipDataset(genome);
@@ -277,13 +285,6 @@ Listener<EventObject>, PainterContainer, MouseListener {
 			// here because multiple chipchip datasets (ie painters) may be on the same track (ie piece
 			// of screen real-estate)
 			Hashtable<String,ChipChipScaleModel> scalemodels = new Hashtable<String,ChipChipScaleModel>();
-			if (opts.hash) {
-				HashMarkPaintable p = new HashMarkPaintable();
-				//SimpleHashMarkPaintable p = new SimpleHashMarkPaintable();
-				p.setLabel("Chromosomal position");
-				p.addEventListener(this);
-				addPainter(p);
-			}
 			RegionMapperModel seqmodel = null;
 			if (opts.gccontent || opts.cpg || opts.seqletters || opts.regexmatcher || opts.pyrpurcontent) {
 				seqmodel = new RegionMapperModel(new SequenceGenerator(genome));
@@ -369,6 +370,7 @@ Listener<EventObject>, PainterContainer, MouseListener {
 
 					});
 					System.err.println("parsing "+k);
+					long tic = System.currentTimeMillis();
 					BufferedReader r = new BufferedReader(new FileReader(k));
 					String s;
 					String[] split;
@@ -401,6 +403,7 @@ Listener<EventObject>, PainterContainer, MouseListener {
 						}
 					}
 					r.close();
+					System.err.println(CommonUtils.timeElapsed(tic));
 					RegionModel m = new InteractionAnalysisModel(interactions, interactionAnchors);
 					RegionPaintable p = new InteractionAnalysisPainter((InteractionAnalysisModel)m);
 					addModel(m);
