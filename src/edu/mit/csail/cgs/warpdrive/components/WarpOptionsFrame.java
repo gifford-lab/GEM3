@@ -157,7 +157,8 @@ public class WarpOptionsFrame extends JFrame implements ActionListener {
 	public void actionPerformed(ActionEvent e) {
 		if (e.getSource() == ok) {
 			WarpOptions opts = pane.parseOptions();
-			opts.genomeString = genomeString;
+			if (genomeString!=null)
+				opts.genomeString = genomeString;
 			PainterContainer pc = null;
 			for (int i = 0; i < pcs.size(); i++) {
 				if (pcs.get(i).getGenome().getVersion().equals(opts.genome)) {
@@ -165,6 +166,8 @@ public class WarpOptionsFrame extends JFrame implements ActionListener {
 					break;
 				}
 			}
+			if (genomeString!=null && !pcs.isEmpty())
+				pc = pcs.get(0);
 			if (pc == null) {
 				/*
 				 * this is a bit of a hack to let us create an initial
@@ -175,6 +178,8 @@ public class WarpOptionsFrame extends JFrame implements ActionListener {
 				new RegionFrame(opts);
 			} else {
 				opts = pane.parseAndDiff();
+				if (genomeString!=null)
+					opts.genomeString = genomeString;
 				pc.addPaintersFromOpts(opts);
 				// if (pc instanceof RegionPanel) {
 				// RegionPanel rp = (RegionPanel)pc;

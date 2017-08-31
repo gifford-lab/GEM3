@@ -624,9 +624,9 @@ public class WarpOptionsPane
         // need to see if we have existing options and if they're compatible.
         // if they are, return the difference.  Otherwise, return the complete
         // options.
-        if (createdFrom != null &&
+        if (isLocal || (createdFrom != null &&
             these.species.equals(createdFrom.species) &&
-            these.genome.equals(createdFrom.genome)) {
+            these.genome.equals(createdFrom.genome))) {
             these.differenceOf(createdFrom);
         }
         return these;

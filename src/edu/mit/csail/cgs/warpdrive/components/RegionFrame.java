@@ -63,7 +63,11 @@ public class RegionFrame extends JFrame {
     private int imageheight = 1200, imagewidth = 1600;
 
     public RegionFrame(WarpOptions opts) {
-        setTitle(opts.species + " " + opts.genome);
+    	if (opts.genomeString!=null){
+    		setTitle(opts.genomeString.substring(opts.genomeString.lastIndexOf("/")+1));
+    	}
+    	else
+    		setTitle(opts.species + " " + opts.genome);
         panel = new RegionPanel(opts);
         //getContentPane().add(new ImageCachingPanel(panel));
         getContentPane().add(panel);
