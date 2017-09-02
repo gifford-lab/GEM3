@@ -38,7 +38,7 @@ public class CID {
 	int tss_merge_dist = 500;
 	int tss_radius = 2000;
 	int chiapet_radius = 2000;
-	double overlap_ratio = 0.8;
+	int span_anchor_ratio = 15;		// span / anchor_width 
 	int min = 2; // minimum number of PET count to be called an interaction
 	int numQuantile = 100;
 	int micc_min_pet = 2;
@@ -59,7 +59,6 @@ public class CID {
 		distance_factor = Args.parseInteger(args, "distance_factor", distance_factor);
 		tss_radius = Args.parseInteger(args, "tss_radius", tss_radius);
 		chiapet_radius = Args.parseInteger(args, "chiapet_radius", chiapet_radius);
-		overlap_ratio = Args.parseDouble(args, "overlap_ratio", overlap_ratio);
 		numQuantile = Args.parseInteger(args, "num_span_quantile", 100);
 		min_span = Args.parseInteger(args, "min_span", 4000);
 		micc_min_pet = Args.parseInteger(args, "micc", micc_min_pet);
@@ -1388,12 +1387,12 @@ public class CID {
 					ReadPairCluster c1 = rpcs.get(i);
 					ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
 					int c1Span = c1.span;
-					if (c1.r1width*10>c1Span || c1.r2width*10>c1Span)
+					if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
 						continue;	// if c1 anchors are too wide, skip merging c1
 					for (int jj = i+1; jj < rpcs.size(); jj++) {
 						ReadPairCluster c2 = rpcs.get(jj);
 						int c2Span = c2.span;
-						if (c2.r1width*10>c2Span || c2.r2width*10>c2Span)
+						if (c2.r1width*span_anchor_ratio>c2Span || c2.r2width*span_anchor_ratio>c2Span)
 							continue;	// if c2 anchors are too wide, skip merging c2
 						// cluster_merge_dist is dependent on the PET span distance
 						int dist = Math.min(c1Span, c2Span);
@@ -1405,11 +1404,15 @@ public class CID {
 							continue;
 						// if close enough, simply merge c2 to c1
 						toRemoveClusters.add(c2);
+						String c1_old = c1.toString();
 						for (ReadPair rp2 : c2.pets)
 							c1.addReadPair(rp2);
 						c1.update();
 						c1Span = c1.span;
-						if (c1.r1width*10>c1Span || c1.r2width*10>c1Span)
+						if (isDev)
+							System.err.println(String.format("Merged %s with %s to %s - %s.", c1_old, c2.toString(), c1.toString(), 
+									c1.getSpanRegion(2000)));
+						if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
 							break;		// if c1 anchors are too wide, stop merging c1
 					} // for each pair of nearby clusters
 					if (!toRemoveClusters.isEmpty()){
@@ -1751,7 +1754,7 @@ public class CID {
 			if (d_c > dcNew)		// fine tune RPCs with their own d_c
 				newResults.addAll(densityClustering(rpc, dcNew, sb));
 			// if anchor width is too large, reduce d_c
-			else if (rpc.span < 15 * Math.max(rpc.r1width, rpc.r2width))
+			else if (rpc.span < span_anchor_ratio * Math.max(rpc.r1width, rpc.r2width) && rpc.span>50000)
 				newResults.addAll(densityClustering(rpc, (int)(d_c*0.75), sb));
 			else
 				newResults.add(rpc);
