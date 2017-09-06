@@ -405,7 +405,7 @@ public class WarpOptions {
         }
         try {
             Genome genome = null; Organism organism = null;
-            if (opts.species != null && opts.genome != null) {
+            if (opts.species != null && opts.genome != null && opts.genomeString==null) {
                 organism = new Organism(opts.species);
                 genome = organism.getGenome(opts.genome);
             }
