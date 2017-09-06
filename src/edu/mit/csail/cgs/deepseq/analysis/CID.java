@@ -1332,7 +1332,7 @@ public class CID {
 					// a big gap
 					if (rp.r2.getLocation() - current > max_cluster_merge_dist) {  // merge all possible PETs
 						if (c.pets.size() >= min) {
-							c.update();
+							c.update(false);
 							rpcs.add(c);
 						}
 						c = new ReadPairCluster();
@@ -1341,7 +1341,7 @@ public class CID {
 					current = rp.r2.getLocation();
 				}
 				if (c.pets.size() >= min) { // finish up the last cluster
-					c.update();
+					c.update(false);
 					rpcs.add(c);
 				}
 				if (rpcs.isEmpty())
@@ -1370,7 +1370,7 @@ public class CID {
 				}
 				sb.append(String.format("# %s:%d-%d\n", region.getChrom(), r1min, r2max));
 				
-				// start with a rough clustering to reduce to smaller clusters, then refine with more accurate span distances
+				// Density clustering
 				ArrayList<ReadPairCluster> tmp = new ArrayList<ReadPairCluster>();
 				for (ReadPairCluster rpc: rpcs){		
 					tmp.addAll(densityClustering(rpc, max_cluster_merge_dist, sb));
@@ -1396,6 +1396,9 @@ public class CID {
 							continue;	// if c2 anchors are too wide, skip merging c2
 						// cluster_merge_dist is dependent on the PET span distance
 						int dist = Math.min(c1Span, c2Span);
+						if ((Math.max(c1.r1max, c2.r1max)-Math.min(c1.r1min, c2.r1min))*span_anchor_ratio>dist || 
+								(Math.max(c1.r2max, c2.r2max)-Math.min(c1.r2min, c2.r2min))*span_anchor_ratio>dist )
+							continue;	// if merged anchors are too wide, skip merging
 						int cluster_merge_dist = span2mergingDist(dist);
 						if (c1.leftPoint.distance(c2.leftPoint) > cluster_merge_dist*2 || 
 								c1.rightPoint.distance(c2.rightPoint) > cluster_merge_dist*2 ||
@@ -1404,10 +1407,29 @@ public class CID {
 							continue;
 						// if close enough, simply merge c2 to c1
 						toRemoveClusters.add(c2);
+						boolean toSetAnchorPoints = false;
+						Point left = null; 
+						Point right  = null;
+						if (c1.pets.size()==c2.pets.size()){		// case 1
+							toSetAnchorPoints = true;
+						}
+						else if (c1.pets.size()<c2.pets.size()){	// case 2
+							left = c2.leftPoint;
+							right = c2.rightPoint;
+						} 
+//						else if (c1.pets.size()>c2.pets.size()) : 	// case 3: Do nothing
+							
 						String c1_old = c1.toString();
 						for (ReadPair rp2 : c2.pets)
 							c1.addReadPair(rp2);
-						c1.update();
+						c1.update(toSetAnchorPoints);
+						
+						if (!toSetAnchorPoints && left!=null){		// only with case 2, set anchors to c2
+							c1.leftPoint = left;
+							c1.rightPoint = right;
+							c1.span = left.distance(right);
+						}
+							
 						c1Span = c1.span;
 						if (isDev)
 							System.err.println(String.format("Merged %s with %s to %s - %s.", c1_old, c2.toString(), c1.toString(), 
@@ -1433,7 +1455,7 @@ public class CID {
 						if (cc.rightRegion.contains(rp.r2))
 							cc.addReadPair(rp);
 					}
-					cc.update();
+					cc.update(false);
 				}
 				
 				// finalize PET clusters
@@ -1571,7 +1593,8 @@ public class CID {
 		
 		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
-
+	
+	/** Density Clustering, start with a rough clustering to reduce to smaller clusters, then refine with more accurate span distances */	
 	private ArrayList<ReadPairCluster> densityClustering(ReadPairCluster cc, int d_c, StringBuilder sb){
 		ArrayList<ReadPairCluster> results = new ArrayList<ReadPairCluster>();
 		ArrayList<ReadPair> pets = cc.pets;
@@ -1721,7 +1744,7 @@ public class CID {
 		}
 		centers.removeAll(singletons);
 		
-		sb.append("Read1\tRead2\tClusterId\tDensity\tDelta\tGamma\tPetId\tClusterCenterId\n");
+		sb.append("Read1\tRead2\tClusterId\tDensity\tDelta\tGamma\tPetId\tClusterCenterId\tDist\n");
 		for (int j=0;j<centers.size();j++){
 			PetBin b = centers.get(j);
 			int bid = b.binId;
@@ -1732,14 +1755,16 @@ public class CID {
 				if (m.clusterBinId == bid){		// cluster member
 					ReadPair rp = pets.get(m.binId);
 					rpc.addReadPair(rp);
-//						if (bid==m.binId)		// cluster center
-//							rpc.centerPET = rp;
-					sb1.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), j+1,
-							m.density,m.delta, m.gamma, m.binId,m.clusterBinId));
+					if (bid==m.binId){		// cluster center
+						rpc.leftPoint = rp.r1;
+						rpc.rightPoint = rp.r2;
+					}
+					sb1.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), j+1,
+							m.density,m.delta, m.gamma, m.binId,m.clusterBinId, d_c));
 				}
 			}
 			if (rpc.pets.size()>=2){
-				rpc.update();
+				rpc.update(true);
 				rpc.d_c = d_c;
 				results.add(rpc);
 			}
@@ -2080,7 +2105,7 @@ public class CID {
 				}
 				for (ReadPair rp : map.get(p))
 					c.addReadPair(rp);
-				c.update();
+				c.update(false);
 				curr = p.getLocation();
 			}
 			if (c.pets.size() >= min){ // finish up the last cluster
@@ -2353,25 +2378,27 @@ public class CID {
 		 * Update the stats of the RPC. <br>
 		 * This method is usually called after a set of RPs are added.
 		 */
-		void update(){
+		void update(boolean toSetAnchorPoints){
 			r1width = r1max - r1min;
 			r2width = r2max - r2min;
 			Point r1 = pets.get(0).r1;
-			sortByRead1();
-			int size = pets.size();
-			if (size % 2 == 1)
-				leftPoint = (Point) pets.get(size/2).r1;
-			else
-				leftPoint = new Point(r1.getGenome(), r1.getChrom(), 
-						(pets.get(size/2).r1.getLocation()+pets.get(size/2-1).r1.getLocation())/2);
-			sortByRead2();
 			Point r2 = pets.get(0).r2;
-			if (size % 2 == 1)
-				rightPoint = (Point) pets.get(size/2).r2;
-			else
-				rightPoint = new Point(r2.getGenome(), r2.getChrom(), 
-						(pets.get(size/2).r2.getLocation()+pets.get(size/2-1).r2.getLocation())/2);
-			span = leftPoint.distance(rightPoint);
+			if (toSetAnchorPoints){
+				sortByRead1();
+				int size = pets.size();
+				if (size % 2 == 1)
+					leftPoint = (Point) pets.get(size/2).r1;
+				else
+					leftPoint = new Point(r1.getGenome(), r1.getChrom(), 
+							(pets.get(size/2).r1.getLocation()+pets.get(size/2-1).r1.getLocation())/2);
+				sortByRead2();
+				if (size % 2 == 1)
+					rightPoint = (Point) pets.get(size/2).r2;
+				else
+					rightPoint = new Point(r2.getGenome(), r2.getChrom(), 
+							(pets.get(size/2).r2.getLocation()+pets.get(size/2-1).r2.getLocation())/2);
+				span = leftPoint.distance(rightPoint);
+			}
 			leftRegion = new Region(r1.getGenome(), r1.getChrom(), r1min, r1max);
 			rightRegion = new Region(r2.getGenome(), r2.getChrom(), r2min, r2max);
 		}
