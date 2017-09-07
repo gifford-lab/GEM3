@@ -1463,9 +1463,14 @@ public class CID {
 					ArrayList<ReadPair> pets = cc.pets;
 					if (pets.size() < min)
 						continue;
-					// skip PET2 that are further than dc
-					if (pets.size()==2 && (cc.r1width>dc && cc.r2width>dc) )
-						continue;
+					// skip PET2 that are further than dc, or 1D read count is also 2 (not significant by MICC)
+					if (pets.size()==2){
+						if (cc.r1width>dc && cc.r2width>dc)	
+							continue;
+						if (CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(this.dc, this.dc)).size()==2 ||
+								CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(this.dc, this.dc)).size()==2)
+							continue;
+					}
 
 					// mark all PETs in the cluster as used (PET2+)
 					// to get real PET1 (no PET1 from the m-p adjustment)
@@ -1475,6 +1480,7 @@ public class CID {
 					int minusPlusCount = 0;
 					int adjustedCount = totalCount;
 					ReadPairCluster rpc = cc;
+					
 //					// new PET cluster with adjustment
 //					ReadPairCluster rpc = new ReadPairCluster(); 
 //					if (flags.contains("mp_adjust")){
