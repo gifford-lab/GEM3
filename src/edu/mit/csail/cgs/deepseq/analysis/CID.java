@@ -1099,9 +1099,9 @@ public class CID {
 		// 	to get only a subset of data for testing
 		String test_loops = Args.parseString(args, "subset_loops", null);
 		if (test_loops != null) {
-			TreeSet<Point> reads2 = new TreeSet<Point>(); 
+			ArrayList<Point> reads2 = new ArrayList<Point>(); 
 			// all PET sorted by the low end
-			TreeSet<ReadPair> low2 = new TreeSet<ReadPair>(); 
+			ArrayList<ReadPair> low2 = new ArrayList<ReadPair>(); 
 
 			ArrayList<String> lines = CommonUtils.readTextFile(test_loops);
 			for (String anchorString : lines) {
@@ -1370,10 +1370,10 @@ public class CID {
 				}
 				sb.append(String.format("# %s:%d-%d\n", region.getChrom(), r1min, r2max));
 				
-				// Density clustering
+				// Density clustering, start with largest possible span, i.e. the whole width
 				ArrayList<ReadPairCluster> tmp = new ArrayList<ReadPairCluster>();
-				for (ReadPairCluster rpc: rpcs){		
-					tmp.addAll(densityClustering(rpc, max_cluster_merge_dist, sb));
+				for (ReadPairCluster rpc: rpcs){
+					tmp.addAll(densityClustering(rpc, span2mergingDist(rpc.getLoopRegionWidth()), sb));
 				}
 				rpcs = tmp;
 				if (rpcs.isEmpty())
@@ -1433,7 +1433,7 @@ public class CID {
 						c1Span = c1.span;
 						if (isDev)
 							System.err.println(String.format("Merged %s with %s to %s - %s.", c1_old, c2.toString(), c1.toString(), 
-									c1.getSpanRegion(2000)));
+									c1.getLoopRegionString(2000)));
 						if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
 							break;		// if c1 anchors are too wide, stop merging c1
 					} // for each pair of nearby clusters
@@ -1607,6 +1607,10 @@ public class CID {
 			}
 		}
 		
+//		Region left = Region.fromString(genome, "17:41380000-41385000");
+//		Region right = Region.fromString(genome, "17:41443000-41447000");
+////		if (cc.leftRegion.overlaps(left) && cc.rightRegion.overlaps(right))
+////			dc += 0;
 		int count = pets.size();
 		long tic=-1;
 		if (count>5000 && isDev){
@@ -1618,6 +1622,8 @@ public class CID {
 		PetBin bins[] = new PetBin[count];
 		for (int i=0;i<count;i++){
 			PetBin bin = new PetBin(pets.get(i).r1.getLocation()-s, pets.get(i).r2.getLocation()-s, i);
+//			if (bin.r2==41444438-s)
+//				dc += 0;
 			bin.addId(i);
 			bins[i] = bin;
 		}
@@ -1778,8 +1784,8 @@ public class CID {
 			int dcNew = span2mergingDist(rpc.span);
 			if (d_c > dcNew)		// fine tune RPCs with their own d_c
 				newResults.addAll(densityClustering(rpc, dcNew, sb));
-			// if anchor width is too large, reduce d_c
-			else if (rpc.span < span_anchor_ratio * Math.max(rpc.r1width, rpc.r2width) && rpc.span>50000)
+			// if anchor width is too large and span is short, reduce d_c
+			else if (rpc.span < span_anchor_ratio * Math.max(rpc.r1width, rpc.r2width) && rpc.span<100000)
 				newResults.addAll(densityClustering(rpc, (int)(d_c*0.75), sb));
 			else
 				newResults.add(rpc);
@@ -1999,21 +2005,15 @@ public class CID {
 		if (isDev){
 			StringBuilder sbSprout = new StringBuilder(); //.append("coordA\tcoordB\tcount\tid\n");
 			StringBuilder sbLoop = new StringBuilder();
-			StringBuilder sbLeftAnchors = new StringBuilder();
-			StringBuilder sbRightAnchors = new StringBuilder();
 			int id=0;
 			for (Interaction it: interactions){
 				sbSprout.append(it.toSproutString()).append("\t").append(it.leftRegion.toString()).append("\t")
-				.append(it.rightRegion.toString()).append("\t").append(id).append("\n");
+				.append(it.rightRegion.toString()).append("\t").append(it.toLoopString()).append("\t").append(it.getSpan()).append("\t").append(id).append("\n");
 				sbLoop.append(it.toLoopString()).append("\t").append(id).append("\t").append(it.adjustedCount).append("\n");
-				sbLeftAnchors.append(it.leftRegion.toString()).append("\t").append(id).append("\n");
-				sbRightAnchors.append(it.rightRegion.toString()).append("\t").append(id).append("\n");
 				id++;
 			}
-			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.sprout.txt", sbSprout.toString());
+			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.sprout_anchors.txt", sbSprout.toString());
 			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.loopRegions.txt", sbLoop.toString());
-			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.leftAnchorRegions.txt", sbLeftAnchors.toString());
-			CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".unfiltered.rightAnchorRegions.txt", sbRightAnchors.toString());
 		}
 		
 		/** 
@@ -2038,14 +2038,20 @@ public class CID {
 
 		sb = new StringBuilder();
 		for (Interaction it : interactions) {
+			// Note: the BED coordinate is centered on the anchor Point, 
+			// but the read counts are from the anchor region + padding
 			Region leftLocal = it.leftRegion.expand(dc, dc);	//TODO: what is the best bp to expand
 			Region rightLocal = it.rightRegion.expand(dc, dc);
 			if (isDev)
-				sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\n", leftLocal.toBED(), rightLocal.toBED(), it.adjustedCount,
+				sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\n", 
+						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
+						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
 					CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
 					CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size(), it.d_c));
 			else
-				sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", leftLocal.toBED(), rightLocal.toBED(), it.adjustedCount,
+				sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", 
+						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
+						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
 						CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
 						CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size()));
 		}
@@ -2454,10 +2460,14 @@ public class CID {
 			});
 		}
 		
-		String getSpanRegion (int padding) {
+		String getLoopRegionString (int padding) {
 			return String.format("%s:%d-%d", pets.get(0).r1.getChrom(), r1min-padding, r2max+padding);
 		}
-
+		
+		int getLoopRegionWidth() {
+			return r2max - r1min;
+		}
+		
 		public String toString2() {
 			StringBuilder sb = new StringBuilder();
 			sb.append(pets.size()).append("=<");
@@ -2540,6 +2550,9 @@ public class CID {
 		int d_c = -1;
 		double density;
 
+		public int getSpan(){
+			return leftPoint.distance(rightPoint);
+		}
 		public String toString() {
 			// return String.format("%d %.1f\t< %s %s -- %s >", count, density,
 			// geneSymbol, tssRegion, distalRegion);
