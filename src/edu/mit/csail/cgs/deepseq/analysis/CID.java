@@ -41,7 +41,7 @@ public class CID {
 	int span_anchor_ratio = 15;		// span / anchor_width 
 	int min = 2; // minimum number of PET count to be called an interaction
 	int numQuantile = 100;
-	int micc_min_pet = 2;
+	int micc_min_pet = 1;
 
 	TreeMap<Region, InteractionCall> r2it = new TreeMap<Region, InteractionCall>();
 	String fileName = null;
@@ -1359,7 +1359,6 @@ public class CID {
 				// therefore, the density clustering and merging operate on independent rpcs
 				
 				// density clustering of PETs 
-				StringBuilder sb = new StringBuilder();
 				int r1min=Integer.MAX_VALUE;
 				int r2max=0;
 				for (ReadPairCluster rpc: rpcs){
@@ -1368,18 +1367,21 @@ public class CID {
 					if (r2max<rpc.r2max)
 						r2max = rpc.r2max;
 				}
-				sb.append(String.format("# %s:%d-%d\n", region.getChrom(), r1min, r2max));
-				
+				StringBuilder sbDensityDetails = null;
+				if (flags.contains("print_cluster")) {
+					sbDensityDetails = new StringBuilder();
+					sbDensityDetails.append(String.format("# %s:%d-%d\n", region.getChrom(), r1min, r2max));
+				}
 				// Density clustering, start with largest possible span, i.e. the whole width
 				ArrayList<ReadPairCluster> tmp = new ArrayList<ReadPairCluster>();
 				for (ReadPairCluster rpc: rpcs){
-					tmp.addAll(densityClustering(rpc, span2mergingDist(rpc.getLoopRegionWidth()), sb));
+					tmp.addAll(densityClustering(rpc, span2mergingDist(rpc.getLoopRegionWidth()), sbDensityDetails));
 				}
 				rpcs = tmp;
 				if (rpcs.isEmpty())
 					continue;
 				if (flags.contains("print_cluster")) 
-					CommonUtils.writeFile(String.format("%s.cluster.%d.txt", outName, j), sb.toString());
+					CommonUtils.writeFile(String.format("%s.cluster.%d.txt", outName, j), sbDensityDetails.toString());
 				
 				// merge nearby clusters
 				Collections.sort(rpcs);
@@ -1463,14 +1465,16 @@ public class CID {
 					ArrayList<ReadPair> pets = cc.pets;
 					if (pets.size() < min)
 						continue;
-					// skip PET2 that are further than dc, or 1D read count is also 2 (not significant by MICC)
+					// skip PET2 that have anchor wider than dc, or 1D read count is also 2 (not significant by MICC)
 					if (pets.size()==2){
 						if (cc.r1width>dc && cc.r2width>dc)	
 							continue;
-						int l = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(this.dc, this.dc)).size();
-						int r = CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(this.dc, this.dc)).size();
-						if (l==2 || r==2 || (l<=4 && r<=4))
-							continue;
+						if (!flags.contains("relax")){		// more stringent calls
+							int l = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(this.dc, this.dc)).size();
+							int r = CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(this.dc, this.dc)).size();
+							if (l==2 || r==2 || (l<=4 && r<=4))
+								continue;
+						}
 					}
 
 					// mark all PETs in the cluster as used (PET2+)
@@ -1682,11 +1686,15 @@ public class CID {
 		
 		// assign clusters
 		ArrayList<PetBin> centers = new ArrayList<PetBin>();
+		ArrayList<PetBin> singletons = new ArrayList<PetBin>();
 		for (int i=0;i<count;i++){
 			PetBin b = bins[i];
 			if (b.clusterBinId == -1) {		// unassigned
-				if (b.density<=1)
+				if (b.density<=1){
+					singletons.add(b);
+//					System.err.println("Density<=1");
 					continue;
+				}
 				// find all higher-density neighbor points (within d_c or other distance)
 				ArrayList<PetBin> higherDensityNeighbors = new ArrayList<PetBin>();
 				for (int j=0; j<count;j++){		
@@ -1723,7 +1731,6 @@ public class CID {
 		} // assign clusters
 
 		// re-assign singletons (cluster with only 1 point)
-		ArrayList<PetBin> singletons = new ArrayList<PetBin>();
 		eachCenter: for (int j=0;j<centers.size();j++){
 			PetBin b = centers.get(j);
 			int bid = b.binId;
@@ -1742,27 +1749,37 @@ public class CID {
 			// assign it to the nearest higher-density point within dc
 			int clusterId = -1;
 			int minDist = d_c;
-			for (int i=0;i<count;i++){
-				if (bid!=bins[i].binId){
-					int dist_ji = dist[bid][bins[i].binId];
+//			for (int i=0;i<count;i++){
+//				if (bid!=bins[i].binId){
+//					int dist_ji = dist[bid][bins[i].binId];
+//					if ( dist_ji < minDist){
+//						minDist = dist_ji;
+//						clusterId = bins[i].clusterBinId;
+//					}
+//				}
+//			}
+			for (PetBin nb: b.nbBins){	// check neighbors of b, assign b to same cluster as its NN
+				if (bid!=nb.binId){
+					int dist_ji = dist[bid][nb.binId];
 					if ( dist_ji < minDist){
 						minDist = dist_ji;
-						clusterId = bins[i].clusterBinId;
+						clusterId = nb.clusterBinId;
 					}
 				}
 			}
 			if (clusterId != -1)
 				b.clusterBinId = clusterId;
-			singletons.add(b);
+			else
+				singletons.add(b);
 		}
 		centers.removeAll(singletons);
 		
-		sb.append("Read1\tRead2\tClusterId\tDensity\tDelta\tGamma\tPetId\tClusterCenterId\tDist\n");
+		if (sb!=null)
+			sb.append("Read1\tRead2\tClusterId\tDensity\tDelta\tGamma\tPetId\tClusterCenterId\tDist\n");
 		for (int j=0;j<centers.size();j++){
 			PetBin b = centers.get(j);
 			int bid = b.binId;
 			ReadPairCluster rpc = new ReadPairCluster();
-			StringBuilder sb1 = new StringBuilder();
 			for (int i=0;i<count;i++){
 				PetBin m = bins[i];
 				if (m.clusterBinId == bid){		// cluster member
@@ -1772,7 +1789,8 @@ public class CID {
 						rpc.leftPoint = rp.r1;
 						rpc.rightPoint = rp.r2;
 					}
-					sb1.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), j+1,
+					if (sb!=null)
+						sb.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), j+1,
 							m.density,m.delta, m.gamma, m.binId,m.clusterBinId, d_c));
 				}
 			}
@@ -1781,16 +1799,18 @@ public class CID {
 				rpc.d_c = d_c;
 				results.add(rpc);
 			}
-			sb.append(sb1.toString());		// add to sb, even for PET1
 		}
-		for (PetBin m : singletons){		// print out singletons
-			ReadPair rp = pets.get(m.binId);
-			sb.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), -1,
-					m.density,m.delta, m.gamma, m.binId,-1, d_c));
+		if (sb!=null){		// print out singletons
+			for (PetBin m : singletons){
+				ReadPair rp = pets.get(m.binId);
+				sb.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), -1,
+						m.density,m.delta, m.gamma, m.binId,-1, d_c));
+			}
 		}
 		if (tic!=-1)
 			System.err.println(CommonUtils.timeElapsed(tic));
 		
+		// fine-tune clusters based on the updated span and anchor width
 		ArrayList<ReadPairCluster> newResults = new ArrayList<ReadPairCluster>();
 		for (ReadPairCluster rpc: results){
 			int dcNew = span2mergingDist(rpc.span);
