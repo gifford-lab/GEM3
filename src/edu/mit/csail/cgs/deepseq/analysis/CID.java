@@ -1467,8 +1467,9 @@ public class CID {
 					if (pets.size()==2){
 						if (cc.r1width>dc && cc.r2width>dc)	
 							continue;
-						if (CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(this.dc, this.dc)).size()==2 ||
-								CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(this.dc, this.dc)).size()==2)
+						int l = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(this.dc, this.dc)).size();
+						int r = CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(this.dc, this.dc)).size();
+						if (l==2 || r==2 || (l<=4 && r<=4))
 							continue;
 					}
 
@@ -1781,6 +1782,11 @@ public class CID {
 				results.add(rpc);
 			}
 			sb.append(sb1.toString());		// add to sb, even for PET1
+		}
+		for (PetBin m : singletons){		// print out singletons
+			ReadPair rp = pets.get(m.binId);
+			sb.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", rp.r1.getLocation(), rp.r2.getLocation(), -1,
+					m.density,m.delta, m.gamma, m.binId,-1, d_c));
 		}
 		if (tic!=-1)
 			System.err.println(CommonUtils.timeElapsed(tic));
