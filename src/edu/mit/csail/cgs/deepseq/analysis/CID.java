@@ -1662,6 +1662,41 @@ public class CID {
 		}
 		Arrays.sort(bins);
 		
+		//if tie for highest density, find the median position as center
+		if (bins[0].density==bins[1].density){
+			ArrayList<PetBin> topBins = new ArrayList<PetBin>();
+			ArrayList<Integer> r1s = new ArrayList<Integer>();
+			ArrayList<Integer> r2s = new ArrayList<Integer>();
+			int densityTop = bins[0].density;
+			for (int i=0;i<bins.length;i++){
+				PetBin pb = bins[i];
+				if (pb.density == densityTop){
+					topBins.add(pb);
+					r1s.add(pb.r1);
+					r2s.add(pb.r2);
+				}
+				else
+					break;
+			}
+			Collections.sort(r1s);
+			Collections.sort(r2s);
+			int median1 = r1s.get(r1s.size()/2);
+			int median2 = r2s.get(r2s.size()/2);
+			int minDist = Integer.MAX_VALUE;
+			int minIdx = -1;
+			for (int i=0;i<topBins.size();i++){
+				PetBin pb = topBins.get(i);
+				int distance = Math.abs(pb.r1-median1)+Math.abs(pb.r2-median2);
+				if (distance<minDist){
+					minDist = distance;
+					minIdx = i;
+				}
+			}
+			PetBin tmp = topBins.get(0);
+			bins[0] = bins[minIdx];		// move the most median point to the top as cluster center
+			bins[minIdx] = tmp;
+		}
+		
 		// delta and gamma
 		bins[0].delta = maxDist;
 		bins[0].gamma = bins[0].delta * bins[0].density;
