@@ -952,7 +952,7 @@ public class CID {
 			String[] f = s.split("\t");
 			StrandedPoint r1;
 			StrandedPoint r2;
-			if (!isBEDPE){		// cgsPoints of the 5 prime end
+			if (!isBEDPE){		// cgsPoints 
 				r1 = StrandedPoint.fromString(genome, f[0]);
 				r2 = StrandedPoint.fromString(genome, f[1]);
 			}
@@ -964,7 +964,7 @@ public class CID {
 				// if not both ends are aligned properly, skip, 
 				// but if one of the read is mapped, add the read to the single-end reads object 
 				if (r1.getChrom().equals("*")){
-					// add read2 as single end if mapped
+					// add read2 as single-end if mapped
 					if (!r2.getChrom().equals("*"))	
 						reads.add(r1);
 					continue;
@@ -976,11 +976,12 @@ public class CID {
 					continue;
 				}
 			}
+			// if both ends are mapped, add them as single-end reads even if they are on different chromosomes
 			String r1Chrom = r1.getChrom();
 			reads.add(r1);
 			reads.add(r2);
 			// TODO: change next line if prediction cross-chrom interactions
-			// r1 and r2 should be on the same chromosome
+			// r1 and r2 should be on the same chromosome for PETs
 			if (!r1Chrom.equals(r2.getChrom())) 
 				continue;
 			int dist = r1.distance(r2);
@@ -1433,9 +1434,9 @@ public class CID {
 						}
 							
 						c1Span = c1.span;
-						if (isDev)
-							System.err.println(String.format("Merged %s with %s to %s - %s.", c1_old, c2.toString(), c1.toString(), 
-									c1.getLoopRegionString(2000)));
+//						if (isDev)
+//							System.err.println(String.format("Merged %s with %s to %s - %s.", c1_old, c2.toString(), c1.toString(), 
+//									c1.getLoopRegionString(2000)));
 						if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
 							break;		// if c1 anchors are too wide, stop merging c1
 					} // for each pair of nearby clusters
@@ -1625,7 +1626,8 @@ public class CID {
 		int count = pets.size();
 		long tic=-1;
 		if (count>5000 && isDev){
-			System.err.print(String.format("Warning: #PETs=%s, used ", cc.toString()));
+			System.err.print(String.format("Warning: #PETs=%s; %s; used ", cc.toString(), 
+					cc.getLoopRegionString(cc.getLoopRegionWidth()/20)));
 			tic = System.currentTimeMillis();
 		}
 		int s = cc.r1min;
