@@ -39,7 +39,8 @@ public class CID {
 	int tss_radius = 2000;
 	int chiapet_radius = 2000;
 	int span_anchor_ratio = 15;		// span / anchor_width 
-	int min = 2; // minimum number of PET count to be called an interaction
+	int min_pet_count = 2; 		// minimum number of PET count to be called as an interaction
+	int max_pet_count = 10000;	// max number of PET count for a region pair to run density clustering, split if larger
 	int numQuantile = 100;
 	int micc_min_pet = 1;
 
@@ -1158,7 +1159,7 @@ public class CID {
 			reads.addAll(reads2);
 			reads.trimToSize();
 			Collections.sort(reads);	
-		}
+		}	// get subset of data
 		
 //		/** 
 //		 * compute self-ligation fraction for minus-plus PETs
@@ -1212,30 +1213,39 @@ public class CID {
 
 //		System.out.println("\nAnalyzed strand-orientation of PETs: " + CommonUtils.timeElapsed(tic0));
 
-		
 		/**
 		 * One dimension read clustering to define anchors (similar to GEM code)
 		 */
+		
+		// only need to consider pets here, but not single-end-mapped reads
+		ArrayList<Point> pets1d = new ArrayList<Point>();
+		for (ReadPair r : low){			// low and high holds the same data, just sorted differently
+			pets1d.add(r.r1);
+			pets1d.add(r.r2);
+		}
+		pets1d.trimToSize();
+		Collections.sort(pets1d);
+
 		// TODO: use cross correlation to determine the distance to shift
 		ArrayList<Region> rs0 = new ArrayList<Region>();
 //		ArrayList<Point> summits = new ArrayList<Point>();
 		// cut the pooled reads into independent regions
 		int start0 = 0;
 		int minCount = 3;
-		for (int i = 1; i < reads.size(); i++) {
-			Point p0 = reads.get(i - 1);
-			Point p1 = reads.get(i);
+		for (int i = 1; i < pets1d.size(); i++) {
+			Point p0 = pets1d.get(i-1);
+			Point p1 = pets1d.get(i);
 			// not same chorm, or a large enough gap to cut
 			if ((!p0.getChrom().equals(p1.getChrom())) || p1.getLocation() - p0.getLocation() > read_1d_merge_dist) { 
 				// only select region with read count larger than minimum count
 				int count = i - start0;
 				if (count >= minCount) {
-					Region r = new Region(genome, p0.getChrom(), reads.get(start0).getLocation(),
-							reads.get(i - 1).getLocation());
+					Region r = new Region(genome, p0.getChrom(), pets1d.get(start0).getLocation(),
+							pets1d.get(i - 1).getLocation());
 					rs0.add(r);
 					ArrayList<Point> ps = new ArrayList<Point>();
 					for (int j = start0; j < i; j++)
-						ps.add(reads.get(j));
+						ps.add(pets1d.get(j));
 //					int maxCount = 0;
 //					int maxIdx = -1;
 //					for (int j = 0; j < ps.size(); j++) {
@@ -1252,14 +1262,14 @@ public class CID {
 			}
 		}
 		// the last region
-		int count = reads.size() - start0;
+		int count = pets1d.size() - start0;
 		if (count >= minCount) {
-			Region r = new Region(genome, reads.get(start0).getChrom(), reads.get(start0).getLocation(),
-					reads.get(reads.size() - 1).getLocation());
+			Region r = new Region(genome, pets1d.get(start0).getChrom(), pets1d.get(start0).getLocation(),
+					pets1d.get(pets1d.size() - 1).getLocation());
 			rs0.add(r);
 			ArrayList<Point> ps = new ArrayList<Point>();
-			for (int j = start0; j < reads.size(); j++)
-				ps.add(reads.get(j));
+			for (int j = start0; j < pets1d.size(); j++)
+				ps.add(pets1d.get(j));
 //			int maxCount = 0;
 //			int maxIdx = -1;
 //			for (int j = 0; j < ps.size(); j++) {
@@ -1272,8 +1282,8 @@ public class CID {
 //			}
 //			summits.add(reads.get(maxIdx));
 		}
-		reads.clear();
-		reads = null;
+		pets1d.clear();
+		pets1d = null;
 		
 		System.out.println("\nMerged all PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
@@ -1313,7 +1323,8 @@ public class CID {
 			Region region = rs0.get(j);
 //			if (region.contains(new Point(region.getGenome(), "19", 1082441)))
 //				j +=0;
-				
+			if (region.overlaps(new Region(region.getGenome(), "17", 56077941, 56167191)))
+				j +=0;
 			// get the PETs with read1 in the region, sort and merge by read2
 			ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region);
 			if (idx.size() > 1) {
@@ -1332,7 +1343,7 @@ public class CID {
 				for (ReadPair rp : rps) {
 					// a big gap
 					if (rp.r2.getLocation() - current > max_cluster_merge_dist) {  // merge all possible PETs
-						if (c.pets.size() >= min) {
+						if (c.pets.size() >= min_pet_count) {
 							c.update(false);
 							rpcs.add(c);
 						}
@@ -1341,14 +1352,24 @@ public class CID {
 					c.addReadPair(rp);
 					current = rp.r2.getLocation();
 				}
-				if (c.pets.size() >= min) { // finish up the last cluster
+				if (c.pets.size() >= min_pet_count) { // finish up the last cluster
 					c.update(false);
 					rpcs.add(c);
 				}
 				if (rpcs.isEmpty())
 					continue;
 				
-				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, true, true, true);
+//				ArrayList<ReadPairCluster> rpcs2 = splitRecursively(rpcs, true, true, true);
+//				if (rpcs2 != null && !rpcs2.isEmpty()) {
+//					rpcs = rpcs2;
+//					rpcs2 = null;
+//				}
+				ArrayList<ReadPairCluster> rpcs2 = new ArrayList<ReadPairCluster>();
+				for (ReadPairCluster rpc: rpcs){
+					ArrayList<ReadPairCluster> splited = splitRecursively(rpc, true, true);
+					if (!splited.isEmpty())
+						rpcs2.addAll(splited);
+				}
 				if (rpcs2 != null && !rpcs2.isEmpty()) {
 					rpcs = rpcs2;
 					rpcs2 = null;
@@ -1464,7 +1485,7 @@ public class CID {
 				// finalize PET clusters
 				for (ReadPairCluster cc : rpcs) {
 					ArrayList<ReadPair> pets = cc.pets;
-					if (pets.size() < min)
+					if (pets.size() < min_pet_count)
 						continue;
 					// skip PET2 that have anchor wider than dc, or 1D read count is also 2 (not significant by MICC)
 					if (pets.size()==2){
@@ -1601,7 +1622,7 @@ public class CID {
 		/******************************
 		 * Annotate and report
 		 *******************************/
-		annotateInteractionCallsAndOutput(interactions, lowEnds, highEnds, low, tic0);
+		annotateInteractionCallsAndOutput(interactions, reads, low, tic0);
 		
 		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
@@ -1866,7 +1887,7 @@ public class CID {
 	/**
 	 * Annotate after CID interaction calling and then print output files
 	 */
-	private void annotateInteractionCallsAndOutput(ArrayList<Interaction> interactions, ArrayList<Point> lowEnds, ArrayList<Point> highEnds, 
+	private void annotateInteractionCallsAndOutput(ArrayList<Interaction> interactions, ArrayList<Point> reads, 
 			ArrayList<ReadPair> pet1s, long tic0){
 
 		// load TF sites
@@ -2115,93 +2136,169 @@ public class CID {
 				sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\n", 
 						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
 						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
-					CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
-					CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size(), it.d_c));
+					CommonUtils.getPointsIdxWithinWindow(reads, leftLocal).size(), 
+					CommonUtils.getPointsIdxWithinWindow(reads, rightLocal).size(), it.d_c));
 			else
 				sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", 
 						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
 						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
-						CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
-						CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size()));
+						CommonUtils.getPointsIdxWithinWindow(reads, leftLocal).size(), 
+						CommonUtils.getPointsIdxWithinWindow(reads, rightLocal).size()));
 		}
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
 	}
-	
 	/**
 	 * split read pair cluster recursively <br>
 	 * at gaps larger than cluster_merge_dist, on both ends alternately
 	 * because splitting at one end may remove some PETs and introduce gaps at
 	 * the other end
 	 */
-	ArrayList<ReadPairCluster> splitRecursively(ArrayList<ReadPairCluster> rpcs, boolean toSplitLeftAnchor, 
-			boolean toUseMaxDistance, boolean isFirstSplit) {
-		if (rpcs.isEmpty())
-			return null;
-	
-		int min = 2;
-		int countSplit = 0;
-		ArrayList<ReadPairCluster> rpcs2 = new ArrayList<ReadPairCluster>();
-		for (ReadPairCluster cc : rpcs) {
-			HashMap<Point, ArrayList<ReadPair>> map = new HashMap<Point, ArrayList<ReadPair>>();
-			ArrayList<Point> splitPoints = new ArrayList<Point>();
-			HashSet<Point> tmp = new HashSet<Point>();
-			int dist = (cc.r2max+cc.r2min-cc.r1max-cc.r1min)/2;
-			int cluster_merge_dist = 0;
-			if (toUseMaxDistance)
-				cluster_merge_dist = max_cluster_merge_dist;
-			else
-				cluster_merge_dist = span2mergingDist(dist);
-			
-			for (ReadPair rp : cc.pets) {
-				Point t = toSplitLeftAnchor ? rp.r1 : rp.r2;
-				tmp.add(t);
-				if (!map.containsKey(t))
-					map.put(t, new ArrayList<ReadPair>());
-				map.get(t).add(rp);
-			}
-			splitPoints.addAll(tmp);
-			Collections.sort(splitPoints);
-			int curr = -100000;
-			ReadPairCluster c = new ReadPairCluster();
-			countSplit--; // first split is not real, subtract count here
-			for (Point p : splitPoints) {
-				if (p.getLocation() - curr > cluster_merge_dist) { // a big gap
-					countSplit++;
-					if (c.pets.size() >= min)
-						rpcs2.add(c);
-//					// remember the cluster center
-//					if (cc.centerPET!=null){
-//						int r1=cc.centerPET.r1.getLocation();
-//						int r2=cc.centerPET.r2.getLocation();
-//						if (c.r1max>=r1&&c.r1min<=r1&&c.r2max>=r2&&c.r2min<=r2)
-//							c.centerPET = cc.centerPET;
-//					}
-					c = new ReadPairCluster();
+	ArrayList<ReadPairCluster> splitRecursively(ReadPairCluster cc, boolean toSplitLeftAnchor, boolean isFirstSplit) {
+		ArrayList<ReadPairCluster> rpcs = new ArrayList<ReadPairCluster>();
+		
+		// a point may be used by multiple PETs
+		HashMap<Point, ArrayList<ReadPair>> map = new HashMap<Point, ArrayList<ReadPair>>();
+		ArrayList<Point> points = new ArrayList<Point>();
+		for (ReadPair rp : cc.pets) {
+			Point t = toSplitLeftAnchor ? rp.r1 : rp.r2;
+			if (!map.containsKey(t))
+				map.put(t, new ArrayList<ReadPair>());
+			map.get(t).add(rp);
+		}
+		points.addAll(map.keySet());
+		points.trimToSize();
+		Collections.sort(points);
+		
+		ArrayList<Integer> splitIndices = new ArrayList<Integer>();
+		int skip=1;		// how many points to skip
+		while(true){
+			for (int i=skip;i<points.size();i++){
+				if (points.get(i).distance(points.get(i-skip)) > max_cluster_merge_dist){		//TODO: change if inter-chrom
+					splitIndices.add(i);
 				}
-				for (ReadPair rp : map.get(p))
-					c.addReadPair(rp);
-				c.update(false);
-				curr = p.getLocation();
 			}
-			if (c.pets.size() >= min){ // finish up the last cluster
-				rpcs2.add(c);
-//				if (cc.centerPET!=null){
-//					int r1=cc.centerPET.r1.getLocation();
-//					int r2=cc.centerPET.r2.getLocation();
-//					if (c.r1max>=r1&&c.r1min<=r1&&c.r2max>=r2&&c.r2min<=r2)
-//						c.centerPET = cc.centerPET;
-//				}
+			if (!splitIndices.isEmpty() || cc.pets.size() < max_pet_count)
+				break;
+			else
+				skip++;
+		}
+		if(splitIndices.isEmpty()){
+			if (isFirstSplit)
+				return splitRecursively(cc, !toSplitLeftAnchor, false);
+			else{	// return the original rpc
+				rpcs.add(cc);
+				return rpcs;
 			}
 		}
-		if (countSplit > 0 || isFirstSplit) {
-			// split at the other end
-			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !toSplitLeftAnchor, toUseMaxDistance, false); 
-			return (rpcs3==null || rpcs3.isEmpty()) ? null : rpcs3;
-		} else if (rpcs2.isEmpty())
-			return null;
-		else 
+		else{	// splited, split at the other end
+			ArrayList<ReadPairCluster> rpcs2 = new ArrayList<ReadPairCluster>();
+			int start = 0;
+			splitIndices.add(points.size());
+			for (int idx: splitIndices){
+				ReadPairCluster c = new ReadPairCluster();
+				for (int i=start; i<idx; i++){
+					for (ReadPair rp : map.get(points.get(i)))
+						c.addReadPair(rp);
+				}
+				start = idx;
+				if (c.pets.size() < min_pet_count)
+					continue;
+				c.update(false);
+				ArrayList<ReadPairCluster> splited = splitRecursively(c, !toSplitLeftAnchor, false);
+				if (!splited.isEmpty())
+					rpcs2.addAll(splited);
+			}
 			return rpcs2;
+		}
+		
+//		int countSplit = 0;
+//		int curr = -100000;
+//		ReadPairCluster c = new ReadPairCluster();
+//		countSplit--; // first split is not real, subtract count here
+//		for (Point p : points) {
+//			if (p.getLocation() - curr > max_cluster_merge_dist) { // a big gap
+//				countSplit++;
+//				if (c.pets.size() >= min)
+//					rpcs.add(c);
+//				c = new ReadPairCluster();
+//			}
+//			for (ReadPair rp : map.get(p))
+//				c.addReadPair(rp);
+//			c.update(false);
+//			curr = p.getLocation();
+//		}
+//		if (c.pets.size() >= min){ // finish up the last cluster
+//			rpcs.add(c);
+//		}
+//
+//		// decide to split at the other end, or return
+//		if (countSplit > 0 || isFirstSplit) {
+//			ArrayList<ReadPairCluster> rpcs2 = new ArrayList<ReadPairCluster>();
+//			for (ReadPairCluster rpc: rpcs){
+//				ArrayList<ReadPairCluster> splited = splitRecursively(rpc, !toSplitLeftAnchor, false);
+//				if (!splited.isEmpty())
+//					rpcs2.addAll(splited);
+//			}
+//			return rpcs2;
+//		}
+//		else 
+//			return rpcs;
 	}
+	
+//	/**
+//	 * split read pair cluster recursively <br>
+//	 * at gaps larger than cluster_merge_dist, on both ends alternately
+//	 * because splitting at one end may remove some PETs and introduce gaps at
+//	 * the other end
+//	 */
+//	ArrayList<ReadPairCluster> splitRecursively(ArrayList<ReadPairCluster> rpcs, boolean toSplitLeftAnchor, 
+//			boolean toUseMaxDistance, boolean isFirstSplit) {
+//		if (rpcs.isEmpty())
+//			return null;
+//	
+//		int countSplit = 0;
+//		ArrayList<ReadPairCluster> rpcs2 = new ArrayList<ReadPairCluster>();
+//		for (ReadPairCluster cc : rpcs) {
+//			HashMap<Point, ArrayList<ReadPair>> map = new HashMap<Point, ArrayList<ReadPair>>();
+//			ArrayList<Point> splitPoints = new ArrayList<Point>();
+//			HashSet<Point> tmp = new HashSet<Point>();
+//			for (ReadPair rp : cc.pets) {
+//				Point t = toSplitLeftAnchor ? rp.r1 : rp.r2;
+//				tmp.add(t);
+//				if (!map.containsKey(t))
+//					map.put(t, new ArrayList<ReadPair>());
+//				map.get(t).add(rp);
+//			}
+//			splitPoints.addAll(tmp);
+//			Collections.sort(splitPoints);
+//			int curr = -100000;
+//			ReadPairCluster c = new ReadPairCluster();
+//			countSplit--; // first split is not real, subtract count here
+//			for (Point p : splitPoints) {
+//				if (p.getLocation() - curr > max_cluster_merge_dist) { // a big gap
+//					countSplit++;
+//					if (c.pets.size() >= min)
+//						rpcs2.add(c);
+//					c = new ReadPairCluster();
+//				}
+//				for (ReadPair rp : map.get(p))
+//					c.addReadPair(rp);
+//				c.update(false);
+//				curr = p.getLocation();
+//			}
+//			if (c.pets.size() >= min){ // finish up the last cluster
+//				rpcs2.add(c);
+//			}
+//		}
+//		if (countSplit > 0 || isFirstSplit) {
+//			// split at the other end
+//			ArrayList<ReadPairCluster> rpcs3 = splitRecursively(rpcs2, !toSplitLeftAnchor, toUseMaxDistance, false); 
+//			return (rpcs3==null || rpcs3.isEmpty()) ? null : rpcs3;
+//		} else if (rpcs2.isEmpty())
+//			return null;
+//		else 
+//			return rpcs2;
+//	}
 
 	/**
 	 * Overlap distal anchors of CID interaction calls with some annotation as regions.
