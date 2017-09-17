@@ -54,13 +54,13 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 	}
 	public void setUseFivePrime(boolean ufp){useFivePrime = ufp;}
 
-	public PointProfile execute(Point a) {
+	public PointProfile execute(Point a) {		// a: anchor point, if stranded, results of the minus strand point will be flipped
 		int window = params.getWindowSize();
 		int left = window/2;
 		int right = window-left;
 		
-//		boolean isPlusStrand = (a instanceof StrandedPoint) ? 
-//				((StrandedPoint)a).getStrand() == '+' : true;		// set to true if non-stranded
+		boolean isAnchorPlusStrand = (a instanceof StrandedPoint) ? 
+				((StrandedPoint)a).getStrand() == '+' : true;		// set to true if non-stranded
 		
 		int start = Math.max(0, a.getLocation()-left);
 		int end = Math.min(a.getLocation()+right, a.getGenome().getChromLength(a.getChrom())-1);
@@ -90,7 +90,8 @@ public class SimpleChipSeqProfiler implements PointProfiler<Point,PointProfile> 
 					if(readFilter.get(hit)<=perBaseMax){			// skip higher count positions, not just truncate read count
 						int startOffset = hit.getStart()-start;
 						int endOffset = hit.getEnd()-start; 					
-						if(hit.getStrand()=='-' && readStrand=='/') { 	// flip the minus read, assuming the reads are symmetric on the anchoring point
+//						if(hit.getStrand()=='-' && readStrand=='/') { 	// flip the minus read, assuming the reads are symmetric on the anchoring point
+						if (!isAnchorPlusStrand){						// flip if the anchor point is on minus strand
 							int tmpEnd = window-startOffset;
 							int tmpStart = window-endOffset;
 							startOffset = tmpStart;

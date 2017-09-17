@@ -1,15 +1,10 @@
 package edu.mit.csail.cgs.metagenes;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Container;
-import java.awt.FlowLayout;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
@@ -29,16 +24,9 @@ import edu.mit.csail.cgs.utils.Pair;
 public class MetaMaker {
 	private static boolean batchRun = false;
 	private static boolean cluster = false;
-	
-	public static void main(String[] args) {
-		try {
-			if(args.length < 2){ printError();}
-			
-			Pair<Organism, Genome> pair = Args.parseGenome(args);
-			Genome gen = pair.cdr();
-			
-			// color of the plots
-			TreeMap<String, Color> map = new TreeMap<String, Color>();
+	public static TreeMap<String, Color> map = new TreeMap<String, Color>();
+	public static TreeMap<String, Color> getColorMap(){
+		if (map.isEmpty()){
 			map.put("red",Color.red);
 			map.put("darkred",Color.red.darker());
 			map.put("green",Color.green);
@@ -56,6 +44,20 @@ public class MetaMaker {
 			map.put("pink",Color.pink);
 			map.put("darkpink",Color.pink.darker());
 			map.put("darkgray",Color.darkGray);
+		}
+		return map;
+	}
+	
+	public static void main(String[] args) {
+		try {
+			if(args.length < 2){ printError();}
+			
+			Pair<Organism, Genome> pair = Args.parseGenome(args);
+			Genome gen = pair.cdr();
+			
+			// color of the plots
+			getColorMap();
+			
 			if(Args.parseFlags(args).contains("showcolor")){
 				System.out.println("Available colors:");
 				for (String s:map.keySet())
@@ -98,7 +100,6 @@ public class MetaMaker {
 			String outName = Args.parseString(args, "out", "meta");
 			if(Args.parseFlags(args).contains("batch")){batchRun=true;}
 			if(Args.parseFlags(args).contains("cluster")){cluster=true;}
-
 			
 			if(gen==null || (expts.size()==0 && files.size()==0)){printError();}
 	
@@ -241,18 +242,22 @@ public class MetaMaker {
 	
 	private static void printError(){
 		System.err.println("Usage: MetaMaker --species <organism;genome> \n" +
+				"--peaks <peaks file name> anchor point coordinates, can be stranded\n" +
+				"--out <output root name> \n" +
+				"--expt <experiment names> : can be BAM file or readdb names, add more --expt for replicates \n" +
 				"--win <profile width> --bins <num bins> \n" +
+				"--profiler <simplechipseq/fiveprime/chipseq/chipseqz/chipchip> \n" +
+				"--back <control experiment names (only applies to chipseq)> \n" +
 				"--readext <read extension> \n" +
 				"--linemin <min>  --linemax <max> \n" +
 				"--pbmax <per base max>\n" +
-				"--profiler <simplechipseq/fiveprime/chipseq/chipseqz/chipchip> \n" +
-				"--expt <experiment names> --back <control experiment names (only applies to chipseq)> \n" +
-				"--peaks <peaks file name> --out <output root name> \n" +
-				"--color <red/green/blue> \n" +
-				"--strand <+-/>\n" +
+				"--color <red/green/blue/...> \n" +
+				"--showcolor [flag to display all the color codes] \n" +
+				"--strand <+-/> to plot only reads from one strand\n" +
 				"--cluster [flag to cluster in batch mode] \n" +
 				"--batch [a flag to run without displaying the window]\n" +
 				"--nocolorbar [flag to turn off colorbar in batch mode]\n");
+		System.err.println("\nNote: if the peaks coordinates are stranded, the line for a minus-strand anchor point will be flipped \n");
 		System.exit(1);
 	}
 }
