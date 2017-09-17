@@ -2088,8 +2088,13 @@ public class CID {
 					sb.append("0\t");
 			}
 			CommonUtils.replaceEnd(sb, '\n');
+			
+			if (sb.length()>10000000){
+				CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".readClusters.txt", sb.toString());
+				sb=new StringBuilder();
+			}
 		} // each interaction
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".readClusters.txt", sb.toString());
+		CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".readClusters.txt", sb.toString());
 
 		
 		if (isDev){
@@ -2144,9 +2149,15 @@ public class CID {
 						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
 						CommonUtils.getPointsIdxWithinWindow(reads, leftLocal).size(), 
 						CommonUtils.getPointsIdxWithinWindow(reads, rightLocal).size()));
+			
+			if (sb.length()>10000000){
+				CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
+				sb=new StringBuilder();
+			}
 		}
-		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
+		CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
 	}
+
 	/**
 	 * split read pair cluster recursively <br>
 	 * at gaps larger than cluster_merge_dist, on both ends alternately
