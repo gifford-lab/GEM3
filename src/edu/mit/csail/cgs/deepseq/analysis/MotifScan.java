@@ -317,7 +317,7 @@ public class MotifScan {
 		    		MotifInstance mi = new MotifInstance();
 		    		mi.motifID = m;
 		    		mi.motifName = knames.get(m);
-		    		mi.score = kg.getPredictedValue();
+		    		mi.score = kg.getScore();
 		    		int pos = kg.getPosBS();
 		    		if (pos > KMAC.RC-seqs[s].length()*2){	// RC strand match
 		    			mi.position = pos-KMAC.RC;	
@@ -391,7 +391,7 @@ public class MotifScan {
 	    		MotifInstance mi = new MotifInstance();
 	    		mi.motifID = motifId;
 	    		mi.motifName = kname;
-	    		mi.score = kg.getPredictedValue();
+	    		mi.score = kg.getScore();
 	    		int pos = kg.getPosBS();
 	    		if (pos > KMAC.RC-seqs[s].length()*2){	// RC strand match
 	    			mi.position = pos-KMAC.RC;	
