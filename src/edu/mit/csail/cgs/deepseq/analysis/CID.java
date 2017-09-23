@@ -27,7 +27,9 @@ public class CID {
 	Genome genome;
 	Set<String> flags;
 	String[] args;
-	boolean isDev;
+	
+	boolean isDev=false;
+	boolean use_1_end_reads=false;	// for estimating anchor point position, not for MICC quantification
 	
 	int min_span = 4000;		// min PET span to exclude self-ligation reads
 	int dc = 300;				// distance_cutoff for density clustering
@@ -52,6 +54,7 @@ public class CID {
 		flags = Args.parseFlags(args);
 		this.args = args;
 		isDev = flags.contains("dev");
+		use_1_end_reads = flags.contains("1end");
 		
 		dc = Args.parseInteger(args, "dc", dc);
 		read_1d_merge_dist = Args.parseInteger(args, "read_merge_dist", read_1d_merge_dist);
@@ -921,7 +924,7 @@ public class CID {
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
 
 		// load read pairs
-		// same chromosome, and longer than min_distance distance; 
+		// PETS: same chromosome, and longer than min_distance distance; 
 		// the left read is required to be lower than the right read; if not, flip 
 
 		// sort by each end so that we can search to find matches or overlaps
@@ -933,8 +936,8 @@ public class CID {
 		ArrayList<Integer> dist_minus_minus = new ArrayList<Integer>();
 		ArrayList<Integer> dist_plus_plus = new ArrayList<Integer>();
 
-		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "data", null));
-		String[] f1 = read_pairs.get(0).split("\t");
+		ArrayList<String> read_pair_lines = CommonUtils.readTextFile(Args.parseString(args, "data", null));
+		String[] f1 = read_pair_lines.get(0).split("\t");
 		boolean isBEDPE = f1.length >= 6;
 		if (isBEDPE){
 			System.out.println("\nDetected input data to be BEDPE format!");
@@ -943,13 +946,17 @@ public class CID {
 				System.exit(-1);
 			}
 		}
-		// store PET as single ends
+		// store single ends
+		// intra-chrom long PETs: always keep
+		// inter-chrom PETs: keep if considering inter-chrom interactions
+		// intra-chrom short PETs: i.e. self-ligation, keep when using 1d reads to estimate anchor points
+		// single-end-reads: i.e. unpaired, keep only if use_1_end_reads flag is true, but may be useful when using 1d reads to estimate anchor points
 		ArrayList<Point> reads = new ArrayList<Point>(); 
-		// all PET sorted by the low end
+		// all PETs sorted by the low end
 		ArrayList<ReadPair> low = new ArrayList<ReadPair>(); 
 		ArrayList<ReadPair> high = new ArrayList<ReadPair>(); // sort high end
 		StrandedPoint tmp1 = null;
-		for (String s : read_pairs) {
+		for (String s : read_pair_lines) {
 			String[] f = s.split("\t");
 			StrandedPoint r1;
 			StrandedPoint r2;
@@ -958,6 +965,9 @@ public class CID {
 				r2 = StrandedPoint.fromString(genome, f[1]);
 			}
 			else{	// BEDPE format
+				if (!use_1_end_reads && (f[0].charAt(0)=='*' || f[3].charAt(0)=='*'))
+					continue;
+				
 				char strand1 = f[8].charAt(0);
 				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
 				char strand2 = f[9].charAt(0);
@@ -977,14 +987,14 @@ public class CID {
 					continue;
 				}
 			}
-			// if both ends are mapped, add them as single-end reads even if they are on different chromosomes
-			String r1Chrom = r1.getChrom();
+			// TODO: change next line if predicting cross-chrom interactions
+			// r1 and r2 should be on the same chromosome for PETs
+			if (!r1.getChrom().equals(r2.getChrom())) 
+				continue;
+			// TODO: should we them as single-end reads even if they are on different chromosomes???
 			reads.add(r1);
 			reads.add(r2);
-			// TODO: change next line if prediction cross-chrom interactions
-			// r1 and r2 should be on the same chromosome for PETs
-			if (!r1Chrom.equals(r2.getChrom())) 
-				continue;
+			
 			int dist = r1.distance(r2);
 			if (dist < min_span)
 				continue;
@@ -993,18 +1003,18 @@ public class CID {
 				r2 = r1;
 				r1 = tmp1;
 			}
-			// count PETs by strand-orientation
-			if (r1.getStrand() == '-') {
-				if (r2.getStrand() == '+')
-					dist_minus_plus.add(dist);
-				else if (r2.getStrand() == '-')
-					dist_minus_minus.add(dist);
-			} else if (r1.getStrand() == '+') {
-				if (r2.getStrand() == '+')
-					dist_plus_plus.add(dist);
-				else if (r2.getStrand() == '-')
-					dist_plus_minus.add(dist);
-			}
+//			// count PETs by strand-orientation
+//			if (r1.getStrand() == '-') {
+//				if (r2.getStrand() == '+')
+//					dist_minus_plus.add(dist);
+//				else if (r2.getStrand() == '-')
+//					dist_minus_minus.add(dist);
+//			} else if (r1.getStrand() == '+') {
+//				if (r2.getStrand() == '+')
+//					dist_plus_plus.add(dist);
+//				else if (r2.getStrand() == '-')
+//					dist_plus_minus.add(dist);
+//			}
 
 			ReadPair rp = new ReadPair();
 			rp.r1 = r1;
@@ -1213,11 +1223,13 @@ public class CID {
 
 //		System.out.println("\nAnalyzed strand-orientation of PETs: " + CommonUtils.timeElapsed(tic0));
 
-		/**
-		 * One dimension read clustering to define anchors (similar to GEM code)
-		 */
 		
-		// only need to consider pets here, but not single-end-mapped reads
+		/***********************************************************************
+		 * One dimension read segmentation (similar to GEM code)
+		 ***********************************************************************/
+		// only consider PETs here, but not single-end-mapped reads, because the goal is to partition PETs
+		// compared with reads, pets1d do NOT include cross-chrom reads, single-ended reads, and self-ligation reads.
+		// it is used for 1d segmentation and MICC anchor region quantification.
 		ArrayList<Point> pets1d = new ArrayList<Point>();
 		for (ReadPair r : low){			// low and high holds the same data, just sorted differently
 			pets1d.add(r.r1);
@@ -1226,7 +1238,7 @@ public class CID {
 		pets1d.trimToSize();
 		Collections.sort(pets1d);
 
-		// TODO: use cross correlation to determine the distance to shift
+		// TODO: use 1D cross correlation to determine the distance to shift
 		ArrayList<Region> rs0 = new ArrayList<Region>();
 //		ArrayList<Point> summits = new ArrayList<Point>();
 		// cut the pooled reads into independent regions
@@ -1282,8 +1294,6 @@ public class CID {
 //			}
 //			summits.add(reads.get(maxIdx));
 		}
-		pets1d.clear();
-		pets1d = null;
 		
 		System.out.println("\nMerged all PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
@@ -1323,8 +1333,7 @@ public class CID {
 			Region region = rs0.get(j);
 //			if (region.contains(new Point(region.getGenome(), "19", 1082441)))
 //				j +=0;
-			if (region.overlaps(new Region(region.getGenome(), "17", 56077941, 56167191)))
-				j +=0;
+			
 			// get the PETs with read1 in the region, sort and merge by read2
 			ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region);
 			if (idx.size() > 1) {
@@ -1443,7 +1452,6 @@ public class CID {
 						} 
 //						else if (c1.pets.size()>c2.pets.size()) : 	// case 3: Do nothing
 							
-						String c1_old = c1.toString();
 						for (ReadPair rp2 : c2.pets)
 							c1.addReadPair(rp2);
 						c1.update(toSetAnchorPoints);
@@ -1491,7 +1499,7 @@ public class CID {
 					if (pets.size()==2){
 						if (cc.r1width>dc && cc.r2width>dc)	
 							continue;
-						if (!flags.contains("relax")){		// more stringent calls
+						if (flags.contains("strict")){		// more stringent calls
 							int l = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(this.dc, this.dc)).size();
 							int r = CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(this.dc, this.dc)).size();
 							if (l==2 || r==2 || (l<=4 && r<=4))
@@ -1622,7 +1630,7 @@ public class CID {
 		/******************************
 		 * Annotate and report
 		 *******************************/
-		annotateInteractionCallsAndOutput(interactions, reads, low, tic0);
+		annotateInteractionCallsAndOutput(interactions, pets1d, low, tic0);
 		
 		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
