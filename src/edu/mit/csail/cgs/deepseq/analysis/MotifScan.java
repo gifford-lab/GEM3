@@ -207,7 +207,9 @@ public class MotifScan {
 		}
 		
 	    // output
-		System.out.println("Note: for motif instances on the minus strand, the SeqPos is the position on the reverse compliment of the input sequence.");
+		if (!toMakeMatrix){
+			System.out.println("Note: for motif instances on the minus strand, the SeqPos is the position on the reverse compliment of the input sequence.");
+		}
 	    if (toAddFasta){
 	    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
     			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\tFasta\n"); 	// write first, overwrite if the file exists

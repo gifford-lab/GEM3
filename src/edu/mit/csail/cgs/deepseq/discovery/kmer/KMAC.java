@@ -1264,10 +1264,10 @@ public class KMAC {
 		return bkMap;
 	}
 	
+	/***************************************************************************************
+	 * Compute pair-wise k-mer gap pattern, prepare for making gapped k-mers
+	 ***************************************************************************************/
 	private ArrayList<char[]> getPatterns(int k, int gap){
-		/***************************************************************************************
-		 * Compute pair-wise k-mer mismatch distance, prepare for making gapped k-mers
-		 ***************************************************************************************/
 		int kFull = k+gap;
 		
 		ArrayList<Kmer> kmers = new ArrayList<Kmer>();
@@ -1405,7 +1405,7 @@ public class KMAC {
 			}
 			ArrayList<char[]> allPatterns = getPatterns(k, numGap);
 			
-			// prepare the variants
+			// prepare the variants ( the variants will be distributed to the gaps )
 			int numVariants = 1;
 			for (int j=0;j<numGap;j++){
 				numVariants *= LETTERS.length;
@@ -1601,7 +1601,7 @@ public class KMAC {
 						}
 						else	// prepare for next round of reduction
 							results = results_final;
-					}					
+					}
 					if (results_final.size()>config.max_gkmer){		// if still too many, take top k-mers
 						results = results_final;
 						results_final = new ArrayList<Kmer>();
@@ -2736,7 +2736,7 @@ eachSliding:for (int it = 0; it < idxs.length; it++) {
 			km.setMatrix();
 			if (editDistance(seed, km, config.strand_type==1) <= 2.5)
 				tmp.add(km);
-//			System.out.println(String.format("%.2f\t%s", editDistance(seed, km), km.toString2()));
+//			System.out.println(String.format("%.2f\t%s", editDistance(seed, km, config.strand_type==1), km.toString2()));
 		}
 		for (Kmer km: seedFamily)
 			km.clearMatrix();
@@ -2866,9 +2866,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 				continue;
 			// multiply k_ratio ( >1 for larger k value) to prefer longer k-mer
 			double k_ratio = cluster1.k>cluster2.k ? config.k_ratio : cluster1.k<cluster2.k? 1/config.k_ratio : 1;
-			// evaluate_by_ksm
-			if ((cluster1.ksmThreshold.motif_significance)*k_ratio
-					< cluster2.ksmThreshold.motif_significance){
+			// evaluate_by_ksm+pwm
+			if ((cluster1.getWeightedKsmPwmSignificance())*k_ratio < cluster2.getWeightedKsmPwmSignificance()){
 				cluster1 = clusters.get(j);
 				cluster2 = clusters.get(m);
 			}
@@ -5348,15 +5347,18 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 		 * Sort by PWM+KSM significance, then by KSM significance
 		 */
 		public int compareToByKsmPwmSignificance(MotifCluster c) {					// descending pwmThreshold.motif_significance
-			if(pwmThreshold.motif_significance+ksmThreshold.motif_significance > c.pwmThreshold.motif_significance+c.ksmThreshold.motif_significance)
+			if(getWeightedKsmPwmSignificance() > c.getWeightedKsmPwmSignificance())
 				return(-1);
 			else
-				if(pwmThreshold.motif_significance+ksmThreshold.motif_significance < c.pwmThreshold.motif_significance+c.ksmThreshold.motif_significance)
+				if(getWeightedKsmPwmSignificance() < c.getWeightedKsmPwmSignificance())
 					return(+1);
 				else // if same 
 				if(ksmThreshold.motif_significance > c.ksmThreshold.motif_significance){return(-1);}
 				else if(ksmThreshold.motif_significance < c.ksmThreshold.motif_significance){return(+1);}
 				else return(0);
+		}
+		public double getWeightedKsmPwmSignificance(){
+			return pwmThreshold.motif_significance/3+ksmThreshold.motif_significance;
 		}
 
 		/**
@@ -5398,7 +5400,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
             		return -1;
             	if (o2.isDesignated)
             		return 1;
-                return o1.compareToByKsmSignificance(o2);
+//                return o1.compareToByKsmSignificance(o2);
+                return o1.compareToByKsmPwmSignificance(o2);
             }
         });
 		if (resetClusterId){

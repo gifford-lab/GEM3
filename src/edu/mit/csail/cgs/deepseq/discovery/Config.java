@@ -79,7 +79,7 @@ public class Config {
     public float k_mask_f = 1;	// the fraction of PWM to mask
     public int kpp_mode = 0;	// different mode to convert kmer count to positional prior alpha value
     public double hgp = -3; 	// p-value threshold of hyper-geometric test for enriched motif 
-    public double kmer_hgp = -3; 	// p-value threshold (log10) of hyper-geometric test for enriched kmer 
+    public double kmer_hgp = -5; 	// p-value threshold (log10) of hyper-geometric test for enriched kmer 
     public double kmac_iteration_delta = 0.1; 	// the motif_significance score improvement to continue KSM-PWM iteration 
     public double k_fold = 2;	// the minimum fold of kmer count in positive seqs vs negative seqs
     public double gc = 0.41;	// GC content in the genome			//0.41 for human, 0.42 for mouse
@@ -127,7 +127,7 @@ public class Config {
     public boolean print_all_kmers = false;
     public boolean print_bound_seqs = false;
     public boolean re_train = false;
-	public boolean cluster_gapped = false;
+	public boolean cluster_gapped = true;
 	public boolean refine_centerKmers = true;		// select density clustering centers such that they are not too similar with higher ranked centers
 	public boolean refine_final_motifs = false;	// refine the final motifs
     /** whether to use KSM only to evaluate improvement of new cluster, default to use PWM+KSM */
@@ -246,7 +246,7 @@ public class Config {
         print_all_kmers = flags.contains("print_all_kmers");
         print_bound_seqs = flags.contains("print_bound_seqs");
         re_train = flags.contains("re_train");
-        cluster_gapped = flags.contains("cluster_gapped");
+        cluster_gapped = !flags.contains("not_cluster_gapped");
         refine_centerKmers = !flags.contains("not_refine_centers");
         refine_final_motifs = flags.contains("refine_final_motifs");
         use_db_genome = flags.contains("use_db_genome");
