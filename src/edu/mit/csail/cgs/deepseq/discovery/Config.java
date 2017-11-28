@@ -127,11 +127,11 @@ public class Config {
     public boolean print_all_kmers = false;
     public boolean print_bound_seqs = false;
     public boolean re_train = false;
-	public boolean cluster_gapped = true;
+	public boolean cluster_gapped = false;
 	public boolean refine_centerKmers = true;		// select density clustering centers such that they are not too similar with higher ranked centers
 	public boolean refine_final_motifs = false;	// refine the final motifs
     /** whether to use KSM only to evaluate improvement of new cluster, default to use PWM+KSM */
-    public boolean evaluate_by_ksm = false;	
+    public boolean evaluate_by_ksm = true;	
     public boolean ksm_logo_text = true;
     public boolean use_pwm_binding_strength_weight = true;	// use binding event strength to weight 
     public boolean use_pos_weight = false;		// use binding position profile to weight motif site
@@ -246,11 +246,11 @@ public class Config {
         print_all_kmers = flags.contains("print_all_kmers");
         print_bound_seqs = flags.contains("print_bound_seqs");
         re_train = flags.contains("re_train");
-        cluster_gapped = !flags.contains("not_cluster_gapped");
+        cluster_gapped = flags.contains("cluster_gapped");
         refine_centerKmers = !flags.contains("not_refine_centers");
         refine_final_motifs = flags.contains("refine_final_motifs");
         use_db_genome = flags.contains("use_db_genome");
-        evaluate_by_ksm = flags.contains("evaluate_by_ksm");
+        evaluate_by_ksm = !flags.contains("not_evaluate_by_ksm");	// if not, then use ksm+weighted_pwm
         k_mask_1base = flags.contains("k_mask_1base");
         bic = flags.contains("bic"); 					// BIC or AIC
         discard_subAlpha_components = flags.contains("no_sub_alpha");
