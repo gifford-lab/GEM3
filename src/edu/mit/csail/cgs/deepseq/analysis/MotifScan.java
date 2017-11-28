@@ -143,6 +143,10 @@ public class MotifScan {
 				}
 				knames.add(f[0].trim());
 				kmacs.add(kmac);
+				if (toMakeMatrix){
+			    	CommonUtils.writeFile(out.concat(".scoreMatrix.txt"), makeScoreMatrix_multiKSMs(seqs, kmacs, knames));
+			    	System.exit(0);
+			    }
 				instances = scan_multiKSMs(seqs, kmacs, knames);
 			}
 			else{		// it is KSM list file path
